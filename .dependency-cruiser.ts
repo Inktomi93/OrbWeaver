@@ -76,6 +76,8 @@ const DB = "^packages/db/src/";
 const CLIENT = "^packages/client/src/";
 const UI = "^packages/ui/src/";
 const SRV = "^packages/server/src/";
+// D117: the one cross-domain import, the workloads door every contributing domain types its WorkloadContribution from.
+const D117_WORKLOADS_DOOR = `${SRV}domain/workloads/index\\.ts$`;
 const CLIENT_TRPC = `${CLIENT}data/trpc\\.ts$`;
 const SERVER_ROOT = "^packages/server/dist/router-types/packages/server/src/index\\.d\\.ts$";
 const INFERENCE = "^packages/inference/src/";
@@ -119,6 +121,7 @@ const MOUNT_SUPPORT_FILES = {
 const MOUNT_HELPER_FILES = {
   "^tests/client/features/app-shell/surfaces/trail-projection\\.ts$": "values the trail projection story and its spec share",
   "^tests/client/features/auth/components/pending-join-fixtures\\.ts$": "the pending-join story's parsed fixtures",
+  "^tests/ui/primitives/_seed-scope\\.tsx$": "the seed palette and nested custom scope every ui primitive story mounts its cases in",
 } as const satisfies Readonly<Record<string, string>>;
 // The only files of a browser package outside `src/` that its `src/` imports; each is judged by a reachable rule.
 const BROWSER_PACKAGE_ROOT_FILES = {
@@ -307,8 +310,7 @@ const ROWS_IMPORTERS = [
 
 // A server suite's directory names its subject: tests/server/<tier>/<name>/ tests that module, and a file directly
 // under tests/server/<tier>/ (every entry suite included) tests that tier. Its runtime reach to any other module goes
-// through the composed root; a type-only import of another door stays legal, as domain-no-cross-feature allows in
-// production. Primitives are the server's pure floor, the Node twin of @orb/kit, so every suite may call them.
+// through the composed root; a type-only import of another door stays legal for a suite. Primitives are the server's pure floor, the Node twin of @orb/kit, so every suite may call them.
 const SERVER_TEST_TIERS = "(?:entry|transport|domain|infra|foundation|primitives)";
 const SERVER_TEST_OWN_MODULE = `^tests/server/((?!entry/)${SERVER_TEST_TIERS})/([^/]+)/`;
 const SERVER_TEST_OWN_TIER = `^tests/server/(entry(?=/)|${SERVER_TEST_TIERS}(?=/[^/]+$))/`;
@@ -333,8 +335,12 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/chat/persistence/participants-read.ts": "loadPresentRole: the production role read the authority suite compares against",
   "packages/server/src/domain/import/substrate/appearance.ts":
     "stAppearancePatch and ST_POWER_USER_KEY: the pure ST power_user mapping and the settings.json key it reads",
+  "packages/server/src/entry/boot/migrate-data-layout.ts": "DataLayoutRefusal: the refusal class and reason the layout migration suite asserts",
   "packages/server/src/domain/plugin/contract/errors.ts": "PluginNotFoundError: the refusal class plugin seed cases assert",
   "packages/server/src/domain/plugin/substrate/plugin-macros.ts": "pluginMacroName: the token rule for a plugin's registered macro",
+  "packages/server/src/domain/chat/reaction-note.ts": "reactionNote: the attribution note a reaction writes, which a frame override must collide with",
+  "packages/server/src/domain/discovery/themes/name-prompt.ts": "THEME_NAME_KEYWORDS_LEAD: the lead the scripted provider recognises a naming request by",
+  "packages/server/src/domain/rpg/contract/op-codes.ts": "RPG_OP_CODES: the refusal codes rpg suites assert",
   "packages/server/src/domain/preset/constants.ts":
     "SYSTEM_DEFAULT_PRESET_ID, SYSTEM_DEFAULT_PRESET_KIND and SYSTEM_DEFAULT_PRESET_NAME: the system preset's identity",
   "packages/server/src/domain/settings/constants.ts": "RETIRED_SEED_THEME_IDS, THEME_HEARTH_ID and THEME_MOCHA_ID: the seeded theme ids",
@@ -376,6 +382,11 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/data/import-tree-served.ts": "planServedTreeImport: the served-tree import planner",
   "packages/client/src/features/chat/lib/chat-context-tab-labels.ts":
     "CHAT_CONTEXT_TAB_LABELS and CHAT_CONTEXT_TABLIST_NAME: production context tab names used by navigation assertions",
+  "packages/client/src/features/chat/lib/composer-menu-names.ts": "COMPOSER_CLEAR_INPUT_NAME and its siblings: the composer menu item names",
+  "packages/client/src/features/chat/lib/chat-options-names.ts": "CHAT_DELETE_NAME and its siblings: the room options menu item names",
+  "packages/client/src/lib/context-toggle-label.ts": "contextToggleLabel: the detail toggle's name in both states",
+  "packages/client/src/lib/view-transition-names.ts": "SHELL_SWAP_DEADLINE_PROPERTY: the grid property a swap spec stretches to hold the old frame",
+  "packages/client/src/forms/editor/autosave-status-names.ts": "AUTOSAVE_SAVED_TEXT and its siblings: the words the shared autosave readout prints",
   "packages/client/src/features/config/lib/config-copy.ts": "CONFIG_SECTION_LABEL: the settings section labels",
   "packages/client/src/features/rpg/lib/unset-datum.ts": "UNSET_DATUM: the unset reading's text",
   "packages/client/src/features/plugin/lib/extensions-copy.ts": "EXTENSIONS_GONE_TITLE: the vanished page's title",
@@ -421,7 +432,8 @@ const SERVER_TEST_REACHES = {
       "resolveBindPosture, resolveOwnerFallbackPeers and the posture inputs: no testkit door resolves a bind or owner-peer posture, and the block takes those resolved values",
   },
   "tests/server/entry/boot/persistence/migrate-data-layout.int.test.ts": {
-    "foundation/data-layout": "LEGACY_ENTRIES and DB_FILE_NAME: the legacy names and their targets exist only in this table, and no testkit door supplies them",
+    "foundation/data-layout":
+      "DATA_LAYOUT_DIRS, LEGACY_ENTRIES and DB_FILE_NAME: the legacy names, their targets and the layout directories exist only in this module, and no testkit door supplies them",
   },
   "tests/server/foundation/env/record/floor-defaults.test.ts": {
     "foundation/data-layout":
@@ -599,6 +611,12 @@ const PACKAGE_TEST_REACHES = {
   },
   "tests/client/features/chat/components/platform-appearance-chat-style-picker.suite.ct.tsx": {
     "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the production identity policy the picker diagram must represent",
+  },
+  "tests/client/features/chat/components/appearance-message-style-section.ct.tsx": {
+    "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the skin rows each chat style's diagram anatomy must represent",
+    "packages/client/src/features/chat/lib/appearance-select-items.ts": "CHAT_STYLE_ITEMS: the label and gloss each picker cell prints",
+    "packages/client/src/features/chat/lib/appearance-message-style-model.ts":
+      "APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: the section heading and the labels of its two switches",
   },
   "tests/client/features/workloads/components/platform-schedule-dialog-dismissal.suite.ct.tsx": {
     "packages/client/src/features/workloads/lib/workloads-schedule-model.ts":
@@ -1255,13 +1273,20 @@ const SERVER_AUTHORITY = [
 const DOMAIN_AUTHORITY = [
   {
     name: "domain-no-cross-feature",
+    comment: "No domain imports another (Core-0 §4); a cross-domain shape lives in packages/contracts or the consumer's contract/.",
     severity: "error",
     from: { path: `${SRV}domain/([^/]+)/` },
     to: {
       path: `${SRV}domain/([^/]+)/`,
-      pathNot: `${SRV}domain/$1/`,
-      dependencyTypesNot: ["type-only"],
+      pathNot: [`${SRV}domain/$1/`, D117_WORKLOADS_DOOR],
     },
+  },
+  {
+    name: "domain-workloads-door-types-only",
+    comment: "D117: a domain imports the workloads door only for the WorkloadContribution type it registers through.",
+    severity: "error",
+    from: { path: `${SRV}domain/([^/]+)/`, pathNot: `${SRV}domain/workloads/` },
+    to: { path: D117_WORKLOADS_DOOR, dependencyTypesNot: ["type-only"] },
   },
   {
     name: "domain-feature-front-door",

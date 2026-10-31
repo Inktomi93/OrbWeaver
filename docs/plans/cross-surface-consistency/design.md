@@ -16,11 +16,11 @@ Compare related production surfaces at matching appearance settings and effectiv
 
 ### Order
 
-Judge a surface only after every planned change to it has landed. Each step lands before the next starts, except the walkthrough, which runs beside steps 2 to 6.
+Judge a surface only after every planned change to it has landed. Steps 2 to 6 run beside each other where their files do not overlap; a step that changes a surface another step is still building waits for it. Acceptance starts only when steps 1 to 6 have landed.
 
 | Step | Work | Items |
 | - | - | - |
-| 1 | Use-specific extraction and the tone-ink floors | [1421](../../work/1421-build-the-tone-role-tier-and-one-variant.md) step 4, [1470](../../work/1470-floor-the-remaining-page-family-inks-on-tone.md), [1472](../../work/1472-hold-an-accent-only-scope-s-focus-ring.md), then a rendered review of step 4 on the owner-data clone |
+| 1 | Use-specific extraction and the tone-ink floors | [1421](../../work/1421-build-the-tone-role-tier-and-one-variant.md) step 4, [1470](../../work/1470-floor-the-remaining-page-family-inks-on-tone.md), then a rendered review of step 4 on the owner-data clone |
 | 2 | Held tone polish | [1449](../../work/1449-mix-tone-tints-over-their-host-surface-not.md), [1465](../../work/1465-retire-the-intent-stamp-axis-and-stamp-square.md), [1469](../../work/1469-step-3-and-1448-rendered-polish-bundle.md) |
 | 3 | Enlarged text | [1438](../../work/1438-repair-the-shell-composer-and-dialog-layouts-at.md), [1452](../../work/1452-presets-welcome-spills-over-the-topbar-at-300.md), [1453](../../work/1453-phone-tab-bar-labels-overprint-at-200-and.md), [1411](../../work/1411-define-text-scaling-for-isolated-card-and-plugin.md); with the push barrier they close [1299](../../work/1299-build-the-css-system-ramps-conditions-locked-tsx.md) |
 | 4 | Chat styles match the Moonlit reference | [0877](../../work/0877-the-phone-composer-and-flat-style-match-the.md), [0880](../../work/0880-immersive-chat-styles-use-full-width-cards-with.md), [0882](../../work/0882-moonlit-parity-p3-bundle.md), [1444](../../work/1444-moonlit-immersive-card-primitives-feather-direction-echo-minimum.md), [0913](../../work/0913-chat-art-polish-broken-image-chip-flash-initial.md) |

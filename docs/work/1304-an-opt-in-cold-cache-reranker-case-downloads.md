@@ -23,4 +23,9 @@ A case tagged local-model-cache runs only with ORB_LOCAL_LIGHT_E2E=1, passes whe
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+[Cold cache case](../../tests/server/domain/connection/local-light-cold-cache.suite.int.test.ts) is tagged `local-model-cache`. `vitest.config.ts` `testTagFilters` removes the default `!local-model-cache` exclusion only when `ORB_LOCAL_LIGHT_E2E=1`.
+
+- Default run: the file reports one skipped test.
+- Opted-in run: not run in this lane. The box load was above the 12 gate the brief set for a download. Run `ORB_LOCAL_LIGHT_E2E=1 pnpm test tests/server/domain/connection/local-light-cold-cache.suite.int.test.ts` on a quiet box with network.
+
+The case runs the production entries `seedUserConnections` and `roleClientsFor(...).rerank` on a root whose native kernel module delegates to the library and the network.

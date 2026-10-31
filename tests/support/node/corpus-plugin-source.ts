@@ -1,5 +1,7 @@
 // Finite physical download responses retain production URL admission, bundle parsing and consent binding.
+
 import { pluginManifestSchema } from "@orb/contracts/plugin";
+import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import { CORPUS_PLUGIN_MANIFEST } from "./corpus-plugin.ts";
 import { makePluginBundle } from "./factories/plugin.ts";
 import type { ServerHarnessOptions, ServerTestHarness } from "./server.ts";
@@ -42,7 +44,7 @@ export function createCorpusPluginDownloads(): CorpusPluginDownloads {
     return Promise.resolve(new Response(Uint8Array.from(next.bytes), { status: next.status, headers: { "content-type": "application/zip" } }));
   };
   return {
-    networkExecution: { fetch: execute, resolver: (): Promise<readonly string[]> => Promise.resolve(["93.184.215.14"]) },
+    networkExecution: { fetch: execute, resolver: (): Promise<readonly string[]> => Promise.resolve([PUBLIC_PEER_ADDRESS]) },
     enqueue: (bytes: Uint8Array, status = 200): void => {
       pending.push({ bytes, status });
     },

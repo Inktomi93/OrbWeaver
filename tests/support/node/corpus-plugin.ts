@@ -1,5 +1,5 @@
 // Synthetic bundle bytes enter the real consent and sandbox lifecycle; private captures never become ISO data.
-import { providerDefSchema } from "@orb/contracts/inference";
+import { PLUGIN_PROVIDER_ID_PREFIX, providerDefSchema } from "@orb/contracts/inference";
 import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_UI_ASSETS_DIR, pluginManifestSchema } from "@orb/contracts/plugin";
 import { pluginProviderClaims } from "@orb/db";
@@ -40,7 +40,7 @@ export const CORPUS_PLUGIN_PROVIDER_MANIFEST = pluginManifestSchema.parse({
   capabilities: CORPUS_PLUGIN_OUTPUT_MANIFEST.capabilities,
   providers: [
     {
-      id: "plugin:corpus-ledger/text",
+      id: `${PLUGIN_PROVIDER_ID_PREFIX}${CORPUS_PLUGIN_MANIFEST.id}/text`,
       label: "Corpus text",
       wire: "openai-compat",
       dialect: "openai-compatible",

@@ -5,6 +5,7 @@
 import { rpgAttributeModifier } from "@orb/contracts/rpg";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, seedCorpusActors, seedRecallRoom, seedRpgGame } from "@orb/testkit/node/composed";
+import { RPG_OP_CODES } from "#server/domain/rpg/contract/op-codes.ts";
 
 /** The key the client mints from the host label "Constructor": an inherited member of every plain object. */
 const INHERITED_KEY = "constructor";
@@ -26,7 +27,7 @@ test("an ability keyed by an inherited member name refuses while unset and rolls
   // A stored sheet that sets a different attribute: the inherited name is still unset on it.
   await root.services.rpg.patchSheet({ ...sheet, patch: { attributes: { [other.key]: born.range.max } } });
 
-  await expect(root.services.rpg.rollDice(params)).rejects.toMatchObject({ code: "rpg_unset_ability" });
+  await expect(root.services.rpg.rollDice(params)).rejects.toMatchObject({ code: RPG_OP_CODES.unsetAbility });
 
   const score = 17;
   await root.services.rpg.patchSheet({ ...sheet, patch: { attributes: { [INHERITED_KEY]: score } } });

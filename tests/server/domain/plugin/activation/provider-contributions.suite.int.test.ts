@@ -7,7 +7,7 @@
 import { spawn } from "node:child_process";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
-import { CONNECTION_OP_CODES, pluginNameOfProviderId, providerDefSchema } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, PLUGIN_PROVIDER_ID_PREFIX, pluginNameOfProviderId, providerDefSchema } from "@orb/contracts/inference";
 import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { NoConnectionError, ProviderError } from "@orb/inference";
@@ -15,16 +15,19 @@ import type { PluginId } from "@orb/kit/ids";
 import { ManifestInvalidError, PluginCrashedError } from "@orb/server/domain/plugin";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { CORPUS_EMBEDDING_VECTOR, createCorpusProviderExecution, createServerHarness, makePluginBundle } from "@orb/testkit/node/composed";
+import { CORPUS_EMBEDDING_VECTOR, createCorpusProviderExecution, createServerHarness, makePluginBundle, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
 
 const GUEST = "// provider-only guest";
-const PROVIDER_ID = "plugin:provider-plugin/acme";
+const PROVIDER_PLUGIN = "provider-plugin";
+const VENDOR_PLUGIN = "vendor";
+const RELAY_PLUGIN = "relay";
+const PROVIDER_ID = `${PLUGIN_PROVIDER_ID_PREFIX}${PROVIDER_PLUGIN}/acme`;
 const GENUINE_HOST = "api.genuine-vendor.example";
 const SQUAT_HOST = "collector.squatter.example";
 
 function manifestOf(over: Record<string, unknown>): PluginManifest {
   return pluginManifestSchema.parse({
-    id: "provider-plugin",
+    id: PROVIDER_PLUGIN,
     name: "Provider plugin",
     version: "1.0.0",
     hostVersion: PLUGIN_HOST_VERSIONS[0],
@@ -51,7 +54,7 @@ function endpointBundle(root: ServerTestHarness, label = "Acme", version = "1.0.
 }
 
 const hostedProvider = (host: string): Record<string, unknown> => ({
-  id: "plugin:vendor/hosted",
+  id: `${PLUGIN_PROVIDER_ID_PREFIX}${VENDOR_PLUGIN}/hosted`,
   label: "Vendor",
   wire: "openai-compat",
   dialect: "openai-compatible",
@@ -65,7 +68,7 @@ const hostedProvider = (host: string): Record<string, unknown> => ({
 
 function hostedBundle(root: ServerTestHarness, host: string): Uint8Array {
   return makePluginBundle(
-    manifestOf({ id: "vendor", name: "Vendor", capabilities: ["net.fetch"], netHosts: [host], providers: [hostedProvider(host)] }),
+    manifestOf({ id: VENDOR_PLUGIN, name: "Vendor", capabilities: ["net.fetch"], netHosts: [host], providers: [hostedProvider(host)] }),
     GUEST,
     root.clock.now(),
   );
@@ -248,7 +251,7 @@ test("an admin-distributed provider plugin serves each recipient only once they 
 });
 
 test("an owner's retained connection never follows its provider id to another definition", { tags: ["slow"] }, async () => {
-  await using root = await createServerHarness({ pluginSpawn: spawn, secretBoxKey: Buffer.alloc(32, 1) });
+  await using root = await createServerHarness({ pluginSpawn: spawn, secretBoxKey: SECRET_BOX_TEST_KEY });
   const victim = await owner(root);
   const other = await owner(root);
   const id = providerDefSchema.parse(hostedProvider(GENUINE_HOST)).id;
@@ -296,7 +299,7 @@ const RELAY_MODEL = "relay-model";
 const RELAY_REPLY = "relayed reply";
 const RELAY_ADDRESS = "93.184.216.34";
 const RELAY_PROVIDER = {
-  id: "plugin:relay/anthropic",
+  id: `${PLUGIN_PROVIDER_ID_PREFIX}${RELAY_PLUGIN}/anthropic`,
   label: "Anthropic",
   wire: "openai-compat",
   dialect: "openai-compatible",
@@ -343,7 +346,7 @@ async function relayWorld(lifetime: AsyncDisposableStack): Promise<RelayWorld> {
   const installer = await owner(root);
   const stranger = await owner(root);
   const bundle = makePluginBundle(
-    manifestOf({ id: "relay", name: "Relay", capabilities: ["net.fetch"], netHosts: [RELAY_HOST], providers: [RELAY_PROVIDER] }),
+    manifestOf({ id: RELAY_PLUGIN, name: "Relay", capabilities: ["net.fetch"], netHosts: [RELAY_HOST], providers: [RELAY_PROVIDER] }),
     GUEST,
     root.clock.now(),
   );

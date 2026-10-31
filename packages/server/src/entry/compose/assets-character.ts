@@ -152,7 +152,6 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     variants,
     imageTransform: imageAdapter.transform,
     imageVariantQuality: deps.imageVariantQuality,
-    imageProbe: imageAdapter.probe,
     emit: deps.emit,
     now,
     newAssetId: minter(ID_PREFIX.asset, deps.idSource),

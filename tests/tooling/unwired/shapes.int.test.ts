@@ -1,11 +1,11 @@
 // `pnpm unwired shapes` reports a shape restated in a second file, a synonym alias, a re-export of a re-export and a
 // renamed re-export. Different members, a derived Pick and same names with different types are controls.
-import { expect, test } from "@orb/testkit/tooling";
+import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { scanShapes } from "../../../tooling/src/unwired/index.ts";
-import { config, WORLD } from "./_planted.ts";
+import { LIB, WORLD } from "./_planted.ts";
 
 const TREE = {
-  [WORLD]: config(["src"]),
+  [WORLD]: plantedTsconfig({ lib: LIB }),
   "packages/a/src/user.ts": ["export interface User {", "  id: string;", "  name: string;", "}", "export type Alias = User;"].join("\n"),
   "packages/a/src/person.ts": [
     "export interface Person {",

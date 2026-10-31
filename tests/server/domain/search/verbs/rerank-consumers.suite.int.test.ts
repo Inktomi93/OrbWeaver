@@ -1,6 +1,6 @@
 // Every consumer that reranks follows the bound cross-encoder over production-built rows. Scripted vectors put the
 // wanted item last in vector order, so a first place is the reranker's work; the rerank wire is answered physically.
-// @subject packages/server/src/domain/search/substrate/rerank.ts
+// @subject packages/kit/src/rerank/index.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { RERANK_MIN_WINDOW_TOKENS } from "@orb/contracts/inference";
@@ -17,6 +17,7 @@ import {
   createCorpusProviderExecution,
   SUMMARIZE_TRANSCRIPT_MARKER,
   seedCorpusConnections,
+  summaryReply,
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
 
@@ -114,7 +115,9 @@ function generatedText(shape: Shape, body: string): string {
     return "The keeper answers.";
   }
   const arc = ARCS.find((candidate) => body.includes(tagOf("line", candidate)));
-  return arc === undefined ? "Filler\nThe caravan rested.\nKeywords: rest" : `Arc ${arc}\n${itemText(shape, "arc", arc)}\nKeywords: ${arc}`;
+  return arc === undefined
+    ? summaryReply({ anchor: "Filler", facts: "The caravan rested.", keywords: ["rest"] })
+    : summaryReply({ anchor: `Arc ${arc}`, facts: itemText(shape, "arc", arc), keywords: [arc] });
 }
 
 type WorkloadInput = Parameters<ChatRoot["caller"]["workloads"]["start"]>[0]["input"];

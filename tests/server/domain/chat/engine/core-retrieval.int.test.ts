@@ -13,6 +13,7 @@ import {
   createCorpusProviderExecution,
   freshHeldDb,
   SUMMARIZE_TRANSCRIPT_MARKER,
+  summaryReply,
 } from "@orb/testkit/node/composed";
 
 const RECALL_INTENT = { maxContextTokens: 4096, maxOutputTokens: 64 } as const;
@@ -30,7 +31,7 @@ async function recallRoom(group: NonNullable<ChatRootOptions["group"]>, options:
     images: [],
     chatText: (body): string =>
       body.includes(SUMMARIZE_TRANSCRIPT_MARKER)
-        ? "An earlier ledger scene\nThe keeper remembers the earlier orbital ledger scene.\nKeywords: ledger"
+        ? summaryReply({ anchor: "An earlier ledger scene", facts: "The keeper remembers the earlier orbital ledger scene.", keywords: ["ledger"] })
         : "The keeper recalls the earlier ledger scene.",
   });
   await using construction = new AsyncDisposableStack();

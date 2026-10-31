@@ -1,11 +1,11 @@
 // `pnpm unwired params` reports optional parameters and props no production call supplies, and parameters every call
 // passes the same literal. A callable whose value escapes, a single caller and a spread argument are controls.
-import { expect, test } from "@orb/testkit/tooling";
+import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { scanParams } from "../../../tooling/src/unwired/index.ts";
-import { config, JSX_NAMESPACE, WORLD } from "./_planted.ts";
+import { JSX_NAMESPACE, LIB, WORLD } from "./_planted.ts";
 
 const TREE = {
-  [WORLD]: config(["src"]),
+  [WORLD]: plantedTsconfig({ lib: LIB, jsx: "preserve" }),
   "packages/a/src/jsx.d.ts": JSX_NAMESPACE,
   "packages/a/src/calls.ts": [
     'export function greet(name: string, loud?: boolean, prefix = "hi"): string {',

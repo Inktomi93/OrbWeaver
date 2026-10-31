@@ -31,6 +31,8 @@ export interface UnwiredReport {
   readonly scanned: number;
   readonly unwired: readonly UnwiredMember[];
   readonly deliberate: readonly (UnwiredMember & { readonly reason: string })[];
+  /** Members no reference reaches that production code hands into a reached member's slot, with that slot. */
+  readonly reachedByFlow: readonly { readonly key: string; readonly via: string }[];
   /** Members engine one found unused and engine two found used: reported so a resolution gap stays visible. */
   readonly disagreements: readonly { readonly key: string; readonly uses: readonly string[] }[];
 }
@@ -153,20 +155,35 @@ export function scanUnwired(options: ScanOptions): UnwiredReport {
     options.log(`${config}: ${members.length} members`);
   }
   const candidates = [...tally.values()].filter((entry) => entry.use === 0);
+  const packages = new Set(worlds);
+  const flows = new Map<string, Set<string>>();
   const second = serviceReferences(
     options.root,
     [...worlds, ...testWorlds],
     candidates.map((entry) => entry.first.member.site),
-    options.log,
+    {
+      log: options.log,
+      visit: (world) => {
+        // A test world's production files repeat the package worlds' flows; only those count.
+        for (const [value, slots] of packages.has(world.config) ? world.flows() : []) {
+          flows.set(value, new Set([...(flows.get(value) ?? []), ...slots]));
+        }
+      },
+    },
   );
+  const judged = candidates.map((entry) => ({ entry, references: classifySites(sources, second.get(siteKey(entry.first.member.site)) ?? []) }));
+  const usedByTwo = new Set(judged.filter(({ references }) => references.some((reference) => reference.kind === "use")).map(({ entry }) => entry.first.key));
+  const reached = reachedByFlow(flows, (key) => (tally.get(key)?.use ?? 0) > 0 || usedByTwo.has(key));
   const findings: UnwiredMember[] = [];
   const disagreements: UnwiredReport["disagreements"][number][] = [];
-  for (const entry of candidates) {
+  for (const { entry, references } of judged) {
     const { site, line, home, member } = entry.first.member;
-    const references = classifySites(sources, second.get(siteKey(site)) ?? []);
     const uses = references.filter((reference) => reference.kind === "use");
     if (uses.length > 0) {
       disagreements.push({ key: entry.first.key, uses: uses.map((reference) => `${reference.file}:${sources.line(reference)}`) });
+      continue;
+    }
+    if (reached.has(entry.first.key)) {
       continue;
     }
     for (const reference of references.filter((candidate) => candidate.kind === "test")) {
@@ -175,5 +192,27 @@ export function scanUnwired(options: ScanOptions): UnwiredReport {
     const tests = entry.tests.size;
     findings.push({ key: entry.first.key, file: site.file, line, home, member, kind: kindOf(tests, entry.builder), tests });
   }
-  return { worlds: counted, scanned: tally.size, ...sortDeliberate(findings, options.deliberate), disagreements };
+  const viaFlow = candidates.flatMap(({ first: { key } }) => {
+    const via = reached.get(key);
+    return via === undefined ? [] : [{ key, via }];
+  });
+  return { worlds: counted, scanned: tally.size, ...sortDeliberate(findings, options.deliberate), reachedByFlow: viaFlow, disagreements };
+}
+
+// The members production reaches through a chain of flows that ends in a referenced member, each with the slot it
+// flows into. The slot is the consumer's port; the composition root that wires the two is the production use.
+function reachedByFlow(flows: ReadonlyMap<string, ReadonlySet<string>>, used: (key: string) => boolean): ReadonlyMap<string, string> {
+  const reached = new Map<string, string>();
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const [value, slots] of flows) {
+      const via = reached.has(value) ? undefined : [...slots].find((slot) => used(slot) || reached.has(slot));
+      if (via !== undefined) {
+        reached.set(value, via);
+        grew = true;
+      }
+    }
+  }
+  return reached;
 }

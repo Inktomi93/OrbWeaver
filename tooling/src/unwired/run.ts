@@ -10,7 +10,7 @@ import { scanFields } from "./fields.ts";
 import { scanParams } from "./params.ts";
 import { portCensus } from "./port-census.ts";
 import type { ClusterGroup, Leg, PortTarget, TargetKind } from "./port-targets.ts";
-import { CLUSTER_GROUPS, LEGS } from "./port-targets.ts";
+import { CLUSTER_GROUPS, INFORMATIONAL_KINDS, LEGS } from "./port-targets.ts";
 import type { ScanOptions } from "./scan.ts";
 import { scanUnwired } from "./scan.ts";
 import { scanShapes } from "./shapes.ts";
@@ -41,13 +41,29 @@ interface Report {
   readonly disagreements: readonly (string | object)[];
 }
 
-const SCANS = {
-  scan: { out: "reports/unwired/unwired.json", run: scanUnwired },
-  fields: { out: "reports/unwired/fields.json", run: scanFields },
-  params: { out: "reports/unwired/params.json", run: scanParams },
-  unions: { out: "reports/unwired/unions.json", run: scanUnions },
-  shapes: { out: "reports/unwired/shapes.json", run: scanShapes },
-} as const satisfies Record<ScanVerb, { readonly out: string; readonly run: (options: ScanOptions) => Report }>;
+/** A scan verb's report path, and its run with the counts its summary line adds to the shared ones. */
+interface Scan {
+  readonly out: string;
+  readonly execute: (options: ScanOptions) => { readonly report: Report; readonly counts: string };
+}
+
+function scan<Found extends Report>(out: string, run: (options: ScanOptions) => Found, counts: (report: Found) => string = () => ""): Scan {
+  return {
+    out,
+    execute: (options): { readonly report: Report; readonly counts: string } => {
+      const report = run(options);
+      return { report, counts: counts(report) };
+    },
+  };
+}
+
+const SCANS: Readonly<Record<ScanVerb, Scan>> = {
+  scan: scan("reports/unwired/unwired.json", scanUnwired, (report) => ` reachedByFlow=${report.reachedByFlow.length}`),
+  fields: scan("reports/unwired/fields.json", scanFields),
+  params: scan("reports/unwired/params.json", scanParams),
+  unions: scan("reports/unwired/unions.json", scanUnions, (report) => ` enumerated=${report.enumerated.length}`),
+  shapes: scan("reports/unwired/shapes.json", scanShapes),
+};
 
 interface Args {
   readonly verb: Verb;
@@ -171,22 +187,23 @@ export function runUnwired(argv: readonly string[]): number {
     for (const [key, count] of [...counts].sort(([a], [b]) => a.localeCompare(b))) {
       log(`${key}: ${count}`);
     }
-    log(`targets=${targets.length} written to ${path}`);
+    const open = targets.filter((target) => !INFORMATIONAL_KINDS.has(target.kind)).length;
+    log(`targets=${open} informational=${targets.length - open} written to ${path}`);
     return EXIT.clean;
   }
-  const scan = SCANS[args.verb];
-  const report: Report = scan.run({
+  const chosen = SCANS[args.verb];
+  const { report, counts } = chosen.execute({
     root: args.root,
     testWorlds: TEST_WORLDS.filter((config) => existsSync(join(args.root, config))),
     deliberate: DELIBERATE,
     log,
   });
-  const path = write(args.root, args.out ?? scan.out, report);
+  const path = write(args.root, args.out ?? chosen.out, report);
   for (const finding of report.unwired) {
     process.stdout.write(`${finding.kind}\t${finding.file}:${finding.line}\t${finding.home}.${finding.member}\n`);
   }
   log(
-    `scanned=${report.scanned} unwired=${report.unwired.length} deliberate=${report.deliberate.length} disagreements=${report.disagreements.length} written to ${path}`,
+    `scanned=${report.scanned} unwired=${report.unwired.length} deliberate=${report.deliberate.length} disagreements=${report.disagreements.length}${counts} written to ${path}`,
   );
   return EXIT.clean;
 }

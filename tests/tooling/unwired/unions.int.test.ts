@@ -1,11 +1,11 @@
 // `pnpm unwired unions` reports a tuple member no production literal builds into its union, with the branches, checks
 // and Record keys that name it. A same-text literal in a plain string slot and an enumerated tuple are controls.
-import { expect, test } from "@orb/testkit/tooling";
+import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { scanUnions } from "../../../tooling/src/unwired/index.ts";
-import { config, WORLD } from "./_planted.ts";
+import { LIB, WORLD } from "./_planted.ts";
 
 const TREE = {
-  [WORLD]: config(["src"]),
+  [WORLD]: plantedTsconfig({ lib: LIB }),
   "packages/a/src/mode.ts": [
     'export const MODES = ["on", "off", "auto"] as const;',
     "export type Mode = (typeof MODES)[number];",

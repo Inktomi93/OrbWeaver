@@ -5,10 +5,10 @@ import type { GreetingTransformAxis, GreetingTransformId } from "@orb/contracts/
 import { GREETING_TRANSFORM_AXES, GREETING_TRANSFORMS } from "@orb/contracts/preset";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Card } from "@orb/ui/card";
 import { Check, Icon, Sparkles, WandSparkles, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
+import { MessageBubble } from "@orb/ui/message-bubble";
 import { WebSpinner } from "@orb/ui/spinner";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
@@ -117,13 +117,13 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
         <Text ink="muted" voice="label">
           Preview
         </Text>
-        <Card tone="bubble">
+        <MessageBubble messageRole="assistant">
           <Stack gap="row">
             <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>
               {preview}
             </Markdown>
           </Stack>
-        </Card>
+        </MessageBubble>
         <Row gap="field" align="center" justify="end">
           <Button
             variant="ghost"

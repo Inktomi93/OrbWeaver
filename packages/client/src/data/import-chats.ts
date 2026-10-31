@@ -7,9 +7,9 @@
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { ChatImportResult } from "@orb/contracts/import";
 import { chatImportResultSchema } from "@orb/contracts/import";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { throwHttpError } from "./http-error.ts";
 
-const IMPORT_URL = "/api/import/chat";
 const IMPORT_FIELD = "file";
 
 /** One imported (or deduped) transcript — `created:false` marks a re-import of a chat already present. */
@@ -22,7 +22,7 @@ export async function importChats(files: readonly File[]): Promise<ChatImportRes
   for (const file of files) {
     form.append(IMPORT_FIELD, file);
   }
-  const response = await fetch(IMPORT_URL, {
+  const response = await fetch(PORTABILITY_ROUTES.importChat, {
     method: "POST",
     body: form,
     headers: { [CSRF_HEADER]: "1" },

@@ -74,7 +74,7 @@ Versions live in the pnpm catalog (`packages/server/package.json`). Two dependen
 
 ## The injection model (how the cake stays clean without sideways imports)
 
-Every cross-feature dependency is a **typed op declared in the consumer domain's `contract/` + wired here**. `packages/server/src/entry/compose/services.ts` is the graph. The rule: if two domains must interact, the consumer declares the op TYPE in its `contract/`; `entry` supplies the runtime fn. A domain importing another domain's `index.ts` for a runtime value (outside the sanctioned `@orb/db` bulk-read pattern) is a `domain-no-cross-feature` violation.
+Every cross-feature dependency is a **typed op declared in the consumer domain's `contract/` + wired here**. `packages/server/src/entry/compose/services.ts` is the graph. The rule: if two domains must interact, the consumer declares the op TYPE in its `contract/`; `entry` supplies the runtime fn. A domain importing another domain, type-only included, is a `domain-no-cross-feature` violation. The one exception is a type-only import of the workloads door for `WorkloadContribution` (D117).
 
 ## Boot order
 

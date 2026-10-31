@@ -188,14 +188,14 @@ Inks on tints. D336 paints text on a tint with the tone's `text-on-tint` role; f
 
 Each family map holds `defaults` and a list of `{ element, door, match, to, toDoor, attributes }` rows. The first row whose `match` attributes all match wins, so list a more specific match first. A `match` value of `true` matches a bare or `{true}` attribute.
 
-`defaults` names, for every source and target component, the value each style or colour axis resolves when the call site names none; `""` means the axis draws nothing. The codemod refuses and reports a site that leaves such an axis unnamed when the two defaults differ, because the move would change its emphasis silently. A map without a component's defaults fails to load.
+`defaults` names, for every source and target component, the value each style or colour axis resolves when the call site names none; `""` means the axis draws nothing. The codemod refuses and reports a site that leaves such an axis unnamed when the two defaults differ, because the move would change its emphasis silently. A map without a component's defaults fails to load. A row may list `overrides`, the axes its target paints over entirely, which the guard then skips.
 
 | Map | Rows |
 | - | - |
 | `button-family.json` (4a) | Button `size` `glyph-xs`..`glyph-lg` → `GlyphButton glyph`; `size="inline"` → `InlineAction step="label"`; `size="inline-body"` → `InlineAction step="body"`; `size="media"` and `variant="bare"` → `PictureButton` |
 | `badge-family.json` (4b) | Badge `size="inline"` → `InlineToken`; Badge `size="dot"` → `IndicatorDot` |
-| `card-family.json` (4c) | Card `tone` and `shape` per the Card table → `MessageBubble role`, the preview parts, `FloatingChip`, `RoomIsland`; Card and Stack `spoiler={true}` → `Spoiler` |
-| `layout-family.json` (4d) | Section `focal={true}` → `FocalSection` |
+| `card-family.json` (4c) | Card `tone` and `shape` per the Card table → `MessageBubble messageRole`, the preview parts, `FloatingChip`, `RoomIsland`; Card and Stack `spoiler={true}` → `Spoiler` |
+| `layout-family.json` (4d) | Section `focal={true}` → `FocalSection`; both production sites are computed |
 
 ##### Step 4a record
 
@@ -232,7 +232,39 @@ Step 4c lands as three commits in order: `Spoiler` with the ink fixes, `MessageB
 | `packages/client/src/features/character/components/character-facet-editor.tsx` | Both computed sites became `Spoiler gap="field"` with `concealed` from the eye toggle. |
 | `packages/client/src/features/character/components/character-greeting-preview.tsx` | The Card keeps its bubble tone; its inner Stack became `Spoiler gap="row"`. |
 
+`MessageBubble` lives in `packages/ui/src/primitives/message-bubble/` behind its own door. It takes `messageRole`, not `role`: a JSX `role` attribute is an ARIA role to Biome's `useValidAriaRole`, and `role="user"` fails it. Its `shape` is `bubble`, the transcript's box, or `island`, the default, which is the grouped-content box `tiers.css` resolves from the surface's tier. Four of the seven bubble sites filled an island with a bubble tone and no bubble shape, so the island shape keeps them as drawn. The default slot is `card-root`, so `tiers.css` still resolves those islands and the bubble shape; the transcript row names `message-bubble`, which keeps its box out of the tier map. `packages/client/src/features/chat/components/message-box.tsx` computes `messageRole` from the row's role by hand. `ROLE_FILL` stays for the band `ground` inside a bubble.
+
+| Site | Choice |
+| - | - |
+| `packages/client/src/features/chat/components/message-row-divider.tsx` | The label's `shape="plate" tone="backdrop"` was a translucent page ground with no D144(b) plate under it, so the label's ink was floored against nothing. D144(b) makes the over-art plate a layout concern: `WALLPAPER_PLATE` in `packages/ui/src/lib/ground.ts` is the plate. The label is a `Row plate="island"`, which paints the derived reading plate over art only and nothing on a plain room. No transcript component and no primitive for one site. |
+
+The map `card-family.json` carries `overrides` on each bubble row: an axis the target paints over entirely, here Card's unnamed `variant`, whose fill the bubble tone replaces. Without it the guard refuses every site.
+
+`ThemePreviewPane` lives in `packages/ui/src/content/theme-swatch/` behind the `@orb/ui/theme-swatch` door. Its `fill` is `background`, `accent`, `sidebar`, `sidebarEdge` or `translucent`, its `shape` is `island`, `row` or `inset`, and `lifted` takes the overlay shadow. It keeps the card's edge and fill under its own fill, so a fill that names no edge still draws the card's, and the map needs no default guard. An island pane takes the `card-root` slot, so `tiers.css` resolves its inset and radius from the tier; a row or inset pane takes `theme-preview-pane` and is its own box at every tier. `RoomIsland` and `FloatingChip` live in `packages/ui/src/primitives/room-island/` and `packages/ui/src/primitives/floating-chip/` behind their own doors. `RoomIsland` requires the owner-CSS slot it is and keeps `layout`, `holdsField` and `dropTarget`; `FloatingChip` requires `presence` and paints its own fill over Card's unnamed `variant`. Each stamps the neutral D336 scope. Card loses the step-four tones, the `inset`, `pill` and `float` shapes, `shadow`, `presence`, `holdsField` and `dropTarget`, and its stamp is `tone ?? "neutral"`.
+
+| Site | Choice |
+| - | - |
+| `packages/client/src/features/chat/components/composer-drop-target.tsx` | The composer island reaches Card through `Track of={Card}`, so it is a hand edit: `Track of={RoomIsland}`. |
+| `packages/client/src/features/config/components/theme-editor.tsx`, `packages/client/src/features/character/components/character-appearance-tab.tsx` | The island preview frame keeps its tier through the `card-root` slot of an island pane. |
+| `tests/support/browser/surface-design-fixtures.tsx` | The pill island has no Card form left and leaves the fixture; the inset island is a pane. |
+
 Ink fixes: Card `interactive` hover and press paint `text-tone-text-on-tint`; the compare-blocks side panels paint `text-tone-text-on-tint`; the tool-call-block `pre` and the immersive-card body paint `text-accent-foreground` on the neutral tint.
+
+##### Step 4d record
+
+`FocalSection` lives in `packages/ui/src/layout/focal-section/` behind `@orb/ui/focal-section`. It renders `Section` and takes `focal`, on by default, so a lane that hands the focal over keeps its element; a pair of components would remount the lane. `CurrentStack` and `CurrentGrid` live in `packages/ui/src/layout/current/` behind `@orb/ui/current`. They render Stack and Grid, stamp the neutral tone and paint the neutral `tint-active` fill, the `text-on-tint` ink and the `tone-edge` ring while the call site sets `aria-current`. No layout box takes `focal`, `highlight`, `slide`, `lifted`, `opacityMotion` or `stateFill`. `dividerTone` keeps `border` and `sidebar`: the sidebar seam belongs to the preview parts in step 4c. Row and Stack take `tone`, which stamps `data-tone` only when a tone is named and paints the divider edge in the tone's `solid` role.
+
+| Site | Choice |
+| - | - |
+| `packages/client/src/features/refinery/components/payload-lane.tsx`, `rewrite-lane.tsx` | Both computed sites became `FocalSection focal={focal}`. |
+| `packages/client/src/features/chat/surfaces/message-list-surface.tsx` | The default, a `Card variant="soft"`, was refused: it adds a border and padding, and a conditional Card swaps the element and remounts a live row. The row wrapper became `CurrentStack` with `aria-current` and keeps `data-corpus-anchor`. The mark is the neutral soft paint, so the old `bg-muted` and focus-ring ring became `tint-active` and the quiet edge. |
+| `packages/client/src/components/setting-teach-row.tsx` | The same refusal, and a Card border would shift the subgrid row, which the zero-shift bar forbids. The row is `CurrentGrid` with `aria-current` on a search match. The mark gains the quiet ring and keeps the accent fill. The modified rail takes `tone="primary"`. |
+| `packages/client/src/features/chat/components/room-flank.tsx` | The column stamps `data-flank-sheet` (`shown`, `parked`) and `data-flank-lifted`. `panels.css` keys the slide, the parked visibility and the overlay shadow on `data-slot="chat-thread-flank"`, on the same motion tokens, so the slide is unchanged. |
+| `packages/client/src/features/refinery/components/payload-view.tsx` | `opacityMotion` is gone. Stack `receded` carries the opacity transition in both arms, because a transition that leaves with the `true` arm would not ease the recovery. |
+| `packages/client/src/features/persona/components/persona-panel-row.tsx` | The row became `ListRow` with `"aria-expanded"`. ListRow now holds the neutral `tint-active` fill and the `text-on-tint` ink while `aria-expanded` is set, on the body or, for a row-tinted row, on the root; that is the fill the row held as `stateFill`, mapped onto the tone roles. The `persona-row-expand` and `persona-row-name` slots leave, with `renames.ts` rows pointing at `list-row-body` and `list-row-title`. |
+| `packages/client/src/features/persona/components/persona-panel-row.tsx` (marker) | The row wrapper stamps `data-persona-row`, which the e2e disclosure walker keys on, so only persona rows leave its census. |
+| `packages/client/src/features/persona/components/persona-switch-list.tsx` | `ListRow` was refused: even with the step 4e attribute props it has no `tabIndex` or row focus seam, and the room list is one roving tab stop. The stretched switch button already is the row body, so it takes `selection="rail"` and `data-selected`, the selection rail `ListRow` wears. |
+| `packages/client/src/components/setting-teach-row.tsx`, `packages/client/src/features/plugin/components/plugin-row-leaves.tsx` | `dividerTone` `primary` and `warning` became `tone="primary"` and `tone="warning"`. |
 
 ##### Step 4e record
 
@@ -254,14 +286,14 @@ The gradient ring paints its border only. Its gradient covered the padding box, 
 | `tone="successTint"`, `"warningTint"`, `"destructiveTint"`, `"infoTint"` | that tone, `variant="soft"` |
 | `tone="primaryEdge"` | `tone="primary"`, `variant="surface"` |
 | `tone="primaryOutline"`, `tone="input"`, `tone="highlight"` | flagged |
-| `tone="bubble"`, `"userBubble"`, `"systemBubble"`, `shape="bubble"` | `MessageBubble` with a role prop |
+| `tone="bubble"`, `"userBubble"`, `"systemBubble"`, `shape="bubble"` | `MessageBubble` with a `messageRole` prop |
 | `tone="background"`, `"accent"`, `"sidebar"`, `"sidebarEdge"`, `"translucent"`, `shape="inset"` | theme preview parts in `packages/ui/src/content/theme-swatch/` |
 | `shape="pill"`, `tone="popover"`, `presence` | `FloatingChip` |
 | `shape="float"` | `RoomIsland`: the card radius and field inset in a room's column |
-| `shape="plate"`, `tone="backdrop"` | flagged |
+| `shape="plate"`, `tone="backdrop"` | the layout `plate` on a Row: D144(b) owns the over-art plate |
 | `spoiler` | `Spoiler`, shared with Stack |
 | `outline="dashed"` | `dashed`, because `outline` is now a variant |
-| `shadow` | removed: `elevated` takes the overlay shadow, `interactive` follows the user's elevation, a static card takes none; `shadow="overlay"` stays for `FloatingChip` and the preview parts until they land |
+| `shadow` | removed: `elevated` takes the overlay shadow, `interactive` follows the user's elevation, a static card takes none; `FloatingChip` and `ThemePreviewPane` `lifted` own the overlay shadow |
 | `holdsField`, `dropTarget` | kept for `RoomIsland`: the composer island is a caller |
 | `tone="warning"` and the other colour tones on `soft` and `outline` | the border paints `solid`, because a status box's border carries meaning (D336 contrast); a neutral box keeps the edge |
 | `shape` `island` and `row`, `rail`, `glow`, `elevated`, `nested`, `padding`, `interactive`, `focusable`, `receded`, `artDecoration`, `ownSlot` | kept |
@@ -434,7 +466,7 @@ Dynamic Type remains deferred. Adopting `-apple-system-body` changes the approve
 - Keep item 1299 open until its explicit current-tree native lint and dependency requirements are satisfied.
 - The enlarged-text repairs run before comparative acceptance, in the [cross-surface order](../cross-surface-consistency/design.md#order).
 - Preserve the distinction between source delivery, selected rendered acceptance and full application CI.
-- The Import FormDialog is qualified on Chromium and WebKit at 200% text on the phone and desktop and at 300% layout on desktop. At 300% on a 390px phone the dialog gutter leaves a sliver; item 1299 holds it.
+- The Import FormDialog is qualified on Chromium and WebKit at 200% text and 300% layout on the phone and desktop.
 - Keep fine-pointer finder reveal-transition imagery unqualified. A recent-shelf focus image does not establish that behavior.
 - The desktop topbar and the desktop room at 200% text are qualified on Chromium and WebKit. The phone topbar, the panels, the phone room and every 300% case other than the Import dialog on desktop are open defects on item 1299.
 - Qualify 300% layout separately. Room measurements at the base scale do not cover enlarged text.

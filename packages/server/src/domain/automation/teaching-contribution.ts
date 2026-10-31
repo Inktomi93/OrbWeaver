@@ -26,11 +26,10 @@
 // deep-equal to a registry without this contribution — pinned through the REAL `collectTeaching` (the
 // B1 lesson: a fixture shaped unlike the real producer ratifies nothing).
 
-import type { TeachingCollection, TeachingContext } from "@orb/contracts/chat";
+import type { TeachingCollection, TeachingContext, TeachingContribution } from "@orb/contracts/chat";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { TeachingContribution } from "#domain/chat";
 import { selectChatGuidance } from "./persistence/rule-state.ts";
 
 /** Fold position among contributions (chat's rpg projection = 0, tool-use's attach = 100). Order only

@@ -14,14 +14,14 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 export const WALKER_TARGET_IDENTITY = `  // ── authored target identity (#983) ───────────────────────────────────────
   var targetIdentityEls = [];
   var TARGET_HOME_MAX = 24;
-  // The four AUTHORED axes are @orb/ui's stamped vocabulary (#1080 — STAMPED_VARIANT_AXES in
+  // The AUTHORED axes are @orb/ui's stamped vocabulary (#1080 — STAMPED_VARIANT_AXES in
   // packages/ui/src/lib/variant-attrs.ts, emitted by the primitives themselves since 2026-09-02);
   // data-orientation is Base UI's RUNTIME state attribute, kept because an authored decision
   // routinely differs by it. This
   // list must stay a SUPERSET of the stamped vocabulary — pinned BOTH ways, with a planted control, by
   // tests/tooling/ui-audit/ops/walker/target-identity.test.ts (it cannot be interpolated: this is raw
   // browser JS in a template literal).
-  var TARGET_VARIANT_ATTRS = ["data-variant", "data-size", "data-intent", "data-tone", "data-glyph", "data-step", "data-orientation"];
+  var TARGET_VARIANT_ATTRS = ["data-variant", "data-size", "data-square", "data-tone", "data-glyph", "data-step", "data-orientation"];
 
   function targetIdentity(el) {
     var at = targetIdentityEls.indexOf(el);

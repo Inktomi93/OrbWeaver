@@ -1,14 +1,17 @@
 import type { FilterOwnedAssetIdsOp, ResolveAssetHashOp } from "@orb/contracts/assets";
 import type { CharacterCard, FindSyntheticGroupCharacterOp, MintSyntheticGroupCharacterOp } from "@orb/contracts/character";
 import type {
-  ChatRpgGatherData,
   ClaimChatOp,
   DurableChatBusEvent,
   ForkGameOp,
+  GameBirthCommittedOp,
   GatherTurnContextArgs,
+  GatherTurnContextOp,
   GroupConfig,
   HandoffCardPair,
-  HandoffHealArgs,
+  HandoffHealStatementsOp,
+  HandoffRekeyActorsOp,
+  HandoffWouldCopyGmPresetOp,
   HistoryFloorSeq,
   InvitePreview,
   LiveOnlyChatBusEvent,
@@ -22,13 +25,16 @@ import type {
   ResolveCharacterTagsOp,
   ResolveChatProseOp,
   ResolveGmSeatHolderKindOp,
+  ResolvePresetOverrideOp,
+  ResolveReasoningHostOnlyOp,
   ResolveRegexSources,
   ResolveSeatDecoOp,
   ResolveSeatDecosOp,
   RoomOverrides,
+  RpgGatherWithTools,
+  RpgUserCommitOp,
   StoreSegmentParams,
-  TeachingCollection,
-  TeachingContext,
+  TeachingContribution,
   TurnInitiator,
   TurnRetrievalEvents,
   UnregisterPromptTransformOp,
@@ -65,7 +71,6 @@ import type {
   MessageVariantId,
   PendingTurnId,
   PersonaId,
-  PresetId,
   UserId,
 } from "@orb/kit/ids";
 import type { RandomSource, UserMacroDef } from "@orb/kit/macro";
@@ -330,17 +335,7 @@ export interface PromptTransformRegistry {
  *  (D58). STRUCTURAL — chat names NO rpg type: it merges `macros` generically into the turn's
  *  macro values (never learning a specific rpg macro name), `injections` into its single Injection[] list, and
  *  `tools` into `attachedToolNames`. The preset override rides a SEPARATE early hop (see {@link ChatRpgOps}). */
-export interface ChatRpgGatherResult extends ChatRpgGatherData {
-  /** TERMINAL tools the contributor mounts on THIS turn (the R1 folded-extraction seam). STRUCTURAL — these
-   *  are plain {@link WireTool}s; chat never learns what they mean. They differ from `tools` (registry names)
-   *  in exactly one way, and it is the whole point: chat attaches them with `tool_choice:"auto"`, NEVER
-   *  RESOLVES, EXECUTES, OR RECURSES on them, and never persists their calls as `ToolCallRecord`s — the
-   *  co-emitted `tool_calls` are handed straight back to the contributor on
-   *  {@link RpgTurnContext.terminalToolCalls}. So the model answers in prose AND emits structured state in ONE
-   *  completion, and the tool traffic stays server-internal exactly as the separate round's did.
-   *  Absent/empty ⇒ byte-identical to a tool-less turn (every non-folded turn). */
-  readonly terminalTools?: readonly WireTool[] | undefined;
-}
+export type ChatRpgGatherResult = RpgGatherWithTools<WireTool>;
 
 export interface ChatRpgOps extends RpgTurnOps {
   /** The #40 DRAFT-TIME game birth plan. RPG constructs its own table statements and minted id; chat folds
@@ -348,10 +343,10 @@ export interface ChatRpgOps extends RpgTurnOps {
    *  other's rows, while room/game/pointer are one durable commit. */
   readonly planGameBirth: PlanGameBirthOp<StatementToken>;
   /** Post-commit in-process notification for a successfully committed birth plan. */
-  readonly gameBirthCommitted: (chatId: ChatId) => void;
+  readonly gameBirthCommitted: GameBirthCommittedOp;
   /** The GM-voice preset redirect: the game's `gmPresetId` (or `null` = not a game / no override), resolved
    *  before preset resolution so the turn assembles THAT preset instead of the host default. */
-  readonly resolvePresetOverride: (chatId: ChatId) => Promise<PresetId | null>;
+  readonly resolvePresetOverride: ResolvePresetOverrideOp;
   /** The GAME's authored user macros (`rpg_games.config.userMacros`) — the game half of the two-home
    *  definition rule (owner ruling #20; the preset half is {@link ChatContext.resolvePromptUserMacros}). Empty for a
    *  non-game / DISENGAGED chat (#40 ⇒ byte-identical to a non-game turn). Chat learns no rpg type: the
@@ -381,9 +376,9 @@ export interface ChatRpgOps extends RpgTurnOps {
    *  as of before that slot, so a reroll is never told the abandoned variant's beats (VER-1b; without it the
    *  reminder describes the very prose the model is being asked to rewrite). Absent for a fresh turn AND for
    *  `continue` — a continuation's context INCLUDES the slot, so its state genuinely is the head. */
-  readonly gatherTurnContext: (args: GatherTurnContextArgs) => Promise<ChatRpgGatherResult | null>;
+  readonly gatherTurnContext: GatherTurnContextOp<ChatRpgGatherResult>;
   /** SEND path, after the user row commits — fires the snapshot COMMIT (+ consumes queued dice rolls). */
-  readonly onUserCommit: (chatId: ChatId, messageId: MessageId) => Promise<void>;
+  readonly onUserCommit: RpgUserCommitOp;
   /** CANCEL `principalUserId`'s in-flight rpg STATE ROUNDS on this chat; returns how many were signalled. Called by
    *  the `abort` verb beside `activeTurns.abort` — and it has to be a SEPARATE reach, because the turn's own
    *  AbortSignal cannot cover the round. The timeline, which is the whole reason this op exists:
@@ -419,7 +414,7 @@ export interface ChatRpgOps extends RpgTurnOps {
    *  injected read mirrors `resolveGmSeatHolderKind`'s FK-derived shape; chat branches only on the boolean. The
    *  BODY hidden-span strip is unconditional (a lie is always stripped for members); THIS gate is the ADDITIONAL,
    *  game-conditional reasoning cut P3 adds beside it. */
-  readonly resolveReasoningHostOnly: (chatId: ChatId) => Promise<boolean>;
+  readonly resolveReasoningHostOnly: ResolveReasoningHostOnlyOp;
   /** FORK CLONES THE GAME (fork-clones-the-game §3.2). Called by `forkChat` AFTER its atomic fork batch commits:
    *  rpg re-keys its whole 6-table vertical from the source game onto the fork through the fork's id maps and
    *  writes the fork's `metadata.rpg` pointer LAST (crash safety — a mid-clone failure leaves the fork a valid
@@ -448,13 +443,13 @@ export interface ChatRpgOps extends RpgTurnOps {
    *  nominee's copies, so the transferred seated characters' durable identity data stops depending on a library the old
    *  host can empty. An offer-less accept passes `false` + `[]` and produces the IDENTICAL statement list the
    *  pre-offer heal produced. */
-  readonly handoffHealStatements: (args: HandoffHealArgs) => Promise<readonly StatementToken[]>;
+  readonly handoffHealStatements: HandoffHealStatementsOp<StatementToken>;
   /** HOST HANDOFF, the NOMINATE-side disclosure (#1762): WOULD an accepted `copyGmPreset` offer copy this
    *  room's GM voice into `nomineeUserId`'s library? `true` only when the room is a game, its `gmPresetId` is
    *  set, and the nominee cannot already read it — i.e. exactly the gate `handoffHealStatements` applies at
    *  accept, asked without writing. A preset the nominee already owns answers FALSE and that is not a
    *  degrade: the knob is left alone, so nothing lands in their library and nothing should be promised. */
-  readonly handoffWouldCopyGmPreset: (chatId: ChatId, nomineeUserId: UserId) => Promise<boolean>;
+  readonly handoffWouldCopyGmPreset: HandoffWouldCopyGmPresetOp;
   /** HOST HANDOFF, POST-SWAP: move each copied character's tracker row, scene presence and hand PINS from the
    *  source card's key onto the copy's (`rekeyActor` — the `promoteActor` mechanism). NOT statement-shaped and
    *  therefore NOT in the swap batch: it is a read-modify-write through rpg's hand door, which resolves the
@@ -462,7 +457,7 @@ export interface ChatRpgOps extends RpgTurnOps {
    *  `forkGame` post-batch posture, degraded-not-broken: a crash between them leaves the room correctly
    *  transferred with its tracker rows still on the old keys, and a re-run converges (an already-moved actor
    *  refuses per-actor and changes nothing). Never throws into the accept. `[]`/a non-game chat writes nothing. */
-  readonly handoffRekeyActors: (chatId: ChatId, cardCopies: readonly HandoffCardPair[]) => Promise<void>;
+  readonly handoffRekeyActors: HandoffRekeyActorsOp;
 }
 
 /** Durable post-swap work owned by the accepted host. The persistence seam parses this exact shape before
@@ -584,19 +579,10 @@ type GetGroupConfigOp = (rawMetadata: unknown) => GroupConfig;
 /** Parses a chat's raw metadata blob → its effective {@link RoomOverrides} (default-applied). */
 type GetRoomOverridesOp = (rawMetadata: unknown) => RoomOverrides;
 
-/** The S2 MODEL-TEACHING seam: ONE per-chat assembly of "what this chat's model is told it can do".
- *  A contribution is registered at `entry/compose` (never imported by a verb — the injected-op law) and
- *  collected in `order` (ascending, ties by registration). Chat's OWN contribution is the rpg-gather
- *  projection at order 0 (`domain/chat/teaching-contribution.ts`), which is why a game turn's reminder is
- *  byte-unchanged by this seam. `id` is a stable diagnostic name, unique within a registry. */
-export interface TeachingContribution {
-  readonly id: string;
-  readonly order: number;
-  readonly collect: (tctx: TeachingContext) => Promise<TeachingCollection>;
-}
-
-/** The composed teaching registry (`ChatContext.teaching`) — every domain's contributions in ONE array,
- *  assembled at `entry/compose`. Empty is legal and means "nothing teaches this turn" (byte-identical). */
+/** The S2 MODEL-TEACHING seam (`ChatContext.teaching`): every domain's contributions in ONE array, assembled at
+ *  `entry/compose`. Chat's OWN contribution is the rpg-gather projection at order 0
+ *  (`domain/chat/teaching-contribution.ts`), which is why a game turn's reminder is byte-unchanged by this seam.
+ *  Empty is legal and means "nothing teaches this turn" (byte-identical). */
 export type ChatTeachingRegistry = readonly TeachingContribution[];
 
 /** The DI bundle every chat verb/subsystem closes over. `db` routes queries through `persistence/`; `now` +

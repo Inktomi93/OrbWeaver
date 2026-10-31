@@ -32,6 +32,7 @@ import { useEffect, useState } from "react";
 import type { Trpc, TrpcClient } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC, useTRPCClient } from "#data";
 import { GENERATION_FAILED_DETAIL, isSilencedTurnAbort, turnMutationToast, viewerTimeZone } from "#lib";
+import type { ComposerDraftWrite } from "#state";
 import { pushFiredSteer } from "#state";
 import { notifyImpersonateFailure } from "../lib/guided-failure-notices.ts";
 
@@ -99,7 +100,7 @@ export interface UseGuidedActionsOptions {
   /** F3 — restore the just-fired steer text into the composer when a guided mutation FAILS (the source's
    *  sacred input-restore, client-only per D57). The wand's `onChange` clears the draft at fire time; on
    *  error the ephemeral steer would otherwise be lost. Called with the fired text on any non-abort error. */
-  readonly onFireError?: ((firedText: string) => void) | undefined;
+  readonly onFireError?: ComposerDraftWrite | undefined;
 }
 
 export interface UseGuidedActionsResult {

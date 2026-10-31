@@ -4,6 +4,7 @@ import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
 import type { SurfaceDataMode, SurfaceProviderEvidence } from "../iso/surface-data.ts";
+import { SURFACE_PROVIDER_REQUESTS } from "../iso/surface-data.ts";
 import { CORPUS_CHAT_ABORT_CUE, CORPUS_CHAT_REPLY } from "./corpus-chat-wire.ts";
 import {
   CORPUS_EMBED_MODEL,
@@ -17,6 +18,8 @@ import {
   createCorpusProviderServer,
 } from "./corpus-provider.ts";
 import { createCorpusProviderTransport } from "./corpus-recipe.ts";
+
+const [MODELS_ROUTE, CHAT_ROUTE, EMBEDDINGS_ROUTE] = SURFACE_PROVIDER_REQUESTS;
 
 interface HeldBody {
   readonly stop: () => void;
@@ -34,10 +37,11 @@ const canonicalEmbeddingRequest = z.object({ model: z.literal(CORPUS_EMBED_MODEL
 
 async function admitScriptedRequest(request: Request): Promise<SurfaceProviderEvidence["structuredSchema"]> {
   const url = new URL(request.url);
-  if (url.search === "" && request.method === "GET" && url.pathname === "/v1/models") {
+  const route = `${request.method} ${url.pathname}`;
+  if (url.search === "" && route === MODELS_ROUTE) {
     return;
   }
-  if (url.search === "" && request.method === "POST" && url.pathname === "/v1/chat/completions") {
+  if (url.search === "" && route === CHAT_ROUTE) {
     try {
       const parsed = scriptedCompletionRequest.safeParse(JSON.parse(await request.clone().text()));
       if (parsed.success) {
@@ -142,7 +146,7 @@ export async function createSurfaceProvider(
           const request = new Request(input, init);
           const structuredSchema = await admitScriptedRequest(request);
           const id = ++requestId;
-          const route = request.method === "GET" ? "GET /v1/models" : "POST /v1/chat/completions";
+          const route = request.method === "GET" ? MODELS_ROUTE : CHAT_ROUTE;
           const recordRequest = (event: SurfaceProviderEvidence["event"]): void =>
             record({ requestId: id, event, request: route, ...(structuredSchema === undefined ? {} : { structuredSchema }) });
           const held = structuredSchema === undefined && request.method === "POST" && (await request.clone().text()).includes(CORPUS_CHAT_ABORT_CUE);
@@ -172,11 +176,11 @@ export async function createSurfaceProvider(
         const request = new Request(input, init);
         const url = new URL(request.url);
         if (dataMode === "synthetic" && url.origin === embeddingEndpoint.origin) {
-          const valid = request.method === "POST" && url.pathname === "/v1/embeddings" && url.search === "";
+          const valid = `${request.method} ${url.pathname}` === EMBEDDINGS_ROUTE && url.search === "";
           if (!(valid && canonicalEmbeddingRequest.safeParse(JSON.parse(await request.clone().text())).success)) {
             throw new Error("The surface provider refuses an unscripted canonical embedding request");
           }
-          record({ requestId: ++requestId, event: "scripted-embedding", request: "POST /v1/embeddings" });
+          record({ requestId: ++requestId, event: "scripted-embedding", request: EMBEDDINGS_ROUTE });
           return await embedding.execute(request);
         }
         return await transport.fetch(request);

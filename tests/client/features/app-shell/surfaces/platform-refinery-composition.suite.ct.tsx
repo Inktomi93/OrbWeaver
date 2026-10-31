@@ -1,4 +1,4 @@
-import { testId } from "@orb/client/lib";
+import { contextToggleLabel, testId } from "@orb/client/lib";
 import type { CreateCharacterInput } from "@orb/contracts/character";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { RefinableField } from "@orb/contracts/refinery";
@@ -170,7 +170,7 @@ for (const regime of REGIMES) {
       expect(scrolled.top).toBeGreaterThan(0);
       expect(scrolled.top).toBe(scrolled.maximum);
       await expect(owner).not.toBeInViewport();
-      await page.getByRole("button", { name: "Show details", exact: true }).click();
+      await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
       const context = page.locator(CONTEXT);
       await expect(context.getByRole("tab", { name: "Runs", exact: true })).toHaveAttribute("aria-selected", "true");
       await expect(context.getByText("No runs yet", { exact: true })).toBeVisible();
@@ -201,7 +201,7 @@ for (const regime of REGIMES) {
       await seedShellState(page, { activeSection: "refinery", panelOverrides: { refinery: { list: "collapsed", context: "collapsed" } } });
       await mount<typeof RefineryCompositionShellStory>(STORY, { sessionId: session.id });
       await expect(page.getByTestId(testId("refineryMasthead"))).toBeVisible();
-      await page.getByRole("button", { name: "Show details", exact: true }).click();
+      await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
       const context = page.locator(CONTEXT);
       await context.getByRole("tab", { name: "Setup", exact: true }).click();
       const view = context.getByRole("button", { name: "View Original card", exact: true });

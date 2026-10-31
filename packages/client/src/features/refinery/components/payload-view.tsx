@@ -126,9 +126,8 @@ export function PayloadView({ plan, payload, pending = false, arrived = false }:
   return (
     <Stack
       aria-busy={pending}
-      // The re-run arm: the settled payload recedes rather than vanishing. Compositor-only (`opacity`) and
-      // reduced-motion-safe: a static dim is a legitimate resting state, not a frozen animation frame.
-      opacityMotion={true}
+      // The re-run arm: the settled payload recedes rather than vanishing. `receded` eases its own opacity, a
+      // compositor property, and the reduced-motion floor stills it: a static dim is a resting state, not a frozen frame.
       data-pending={pending}
       data-testid={testId("refineryPayloadView")}
       gap="block"

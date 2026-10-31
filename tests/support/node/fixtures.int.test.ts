@@ -11,6 +11,7 @@
 // REAL tRPC error mapping — the matchers see genuine ladder-thrown TRPCErrors, not ducks.
 
 import { describe } from "vitest";
+import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import type { Fixtures } from "./fixtures.ts";
 import { expect, test } from "./fixtures.ts";
 
@@ -83,7 +84,7 @@ const addressed = test.extend<Pick<Fixtures, "networkExecution">>({
         if (hostname !== new URL(DRAFT_ENDPOINT).hostname) {
           return Promise.reject(new Error("unscripted draft-catalog address resolution"));
         }
-        return Promise.resolve(["93.184.215.14"]);
+        return Promise.resolve([PUBLIC_PEER_ADDRESS]);
       },
     });
   },

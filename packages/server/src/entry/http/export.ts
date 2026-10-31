@@ -20,7 +20,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry, PortableKind } from "@orb/contracts/portability";
-import { PORTABLE_KINDS } from "@orb/contracts/portability";
+import { PORTABILITY_ROUTES, PORTABLE_KINDS } from "@orb/contracts/portability";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Hono } from "hono";
@@ -39,9 +39,6 @@ const JSONL_MIME = "application/x-ndjson";
 const TXT_MIME = "text/plain; charset=utf-8";
 const JSON_MIME = "application/json; charset=utf-8";
 const ZIP_MIME = "application/zip";
-const CHARACTER_ROUTE = "/api/export/character/:characterId";
-const CHAT_ROUTE = "/api/export/chat/:chatId";
-const LIBRARY_ROUTE = "/api/export/library";
 const FORMAT_QUERY = "format";
 const KINDS_QUERY = "kinds";
 const LIBRARY_FILENAME = "orbweaver-library.zip";
@@ -112,7 +109,7 @@ function serveDownload(body: Uint8Array | string, mime: string, filename: string
 
 /** Register the download routes on `app`. A downstream verb `null` (not-owned/not-host, or missing) → 404. */
 export function registerExport(app: Hono<PrincipalEnv>, deps: ExportDeps): void {
-  app.get(CHARACTER_ROUTE, async (c) => {
+  app.get(PORTABILITY_ROUTES.exportCharacter, async (c) => {
     const principal = c.get("principal");
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);
@@ -131,7 +128,7 @@ export function registerExport(app: Hono<PrincipalEnv>, deps: ExportDeps): void 
     return serveDownload(card.bytes, format === "json" ? JSON_MIME : PNG_MIME, card.filename);
   });
 
-  app.get(CHAT_ROUTE, async (c) => {
+  app.get(PORTABILITY_ROUTES.exportChat, async (c) => {
     const principal = c.get("principal");
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);
@@ -156,7 +153,7 @@ export function registerExport(app: Hono<PrincipalEnv>, deps: ExportDeps): void 
     return serveDownload(transcript.text, mime, transcript.filename);
   });
 
-  app.get(LIBRARY_ROUTE, (c) => {
+  app.get(PORTABILITY_ROUTES.exportLibrary, (c) => {
     const principal = c.get("principal");
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);

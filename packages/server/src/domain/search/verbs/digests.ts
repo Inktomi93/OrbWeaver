@@ -18,6 +18,8 @@ import type { Task } from "@orb/contracts/inference";
 import type { EmbedResult } from "@orb/contracts/providers";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import { ProviderError } from "@orb/inference";
+import { blockKeyStr } from "@orb/kit/recall";
+import { applyRerank } from "@orb/kit/rerank";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
@@ -27,9 +29,7 @@ import type { DigestSearchEvents, SearchContext, SearchService } from "../contra
 import { nearestDigests } from "../persistence/digest-rows.ts";
 import { SCOPED_POOL_K } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
-import { blockKeyStr } from "../substrate/dedupe.ts";
 import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
-import { applyRerank } from "../substrate/rerank.ts";
 import { withActiveQuerySpace } from "../substrate/space.ts";
 
 const MIN_TERM_LEN = 3;

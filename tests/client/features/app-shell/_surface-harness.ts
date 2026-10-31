@@ -67,7 +67,7 @@ const SERVED = [
 interface SurfaceReadScenario {
   readonly hold?: { readonly path: (typeof SERVED)[number]; readonly gate: ServedHold };
   readonly pluginDialog?: NonNullable<CorpusPlayback["pluginLibrary"]>["ownerActive"];
-  /** Appearance the viewer's settings read answers with, over the captured settings, so the shell writes it to the root. */
+  /** Appearance written to the viewer through the root's own settings verb, so the shell reads it back from production and writes it to the root. */
   readonly appearance?: Partial<AppearanceSettings>;
 }
 
@@ -78,31 +78,23 @@ export async function routeSurfaceReads(
   root: Awaited<ReturnType<typeof createCorpusHarness>>,
   scenario: SurfaceReadScenario = {},
 ): Promise<TrpcRecorder> {
+  const { appearance, pluginDialog } = scenario;
   const caller = await root.internalCallerFor(root.ownerId);
+  if (appearance !== undefined) {
+    await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });
+  }
   await page.route("**/api/auth/config", async (route) => {
     const response = await root.http.request("/api/auth/config");
     await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: await response.text() });
   });
   const { reads } = corpus;
   const spaceHold = trpcHold<"search.spaceStatus">();
-  const { pluginDialog, appearance } = scenario;
   const routes = defineTrpcRoutes({
     ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, SERVED),
     "sessions.me": createCorpusReadResponder("sessions.me", root.ownerId, reads["sessions.me"]),
     "settings.listThemes": createCorpusReadResponder("settings.listThemes", root.ownerId, reads["settings.listThemes"]),
-    ...(appearance === undefined
-      ? {}
-      : {
-          "settings.getUserSettings": () => {
-            const [captured] = reads["settings.getUserSettings"];
-            if (captured === undefined) {
-              throw new Error("The corpus has no settings capture");
-            }
-            const settings = captured.output;
-            return { ...settings, config: { ...settings.config, appearance: { ...settings.config.appearance, ...appearance } } };
-          },
-        }),
+    ...(appearance === undefined ? {} : serveCorpusProcedures(caller, ["settings.getUserSettings"])),
     "search.spaceStatus": () => spaceHold,
     ...(pluginDialog === undefined
       ? {}

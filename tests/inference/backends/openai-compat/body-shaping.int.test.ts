@@ -159,11 +159,14 @@ test("a reasoning-off turn tells the template not to think and zeroes the budget
   expect(theirBudget.body["thinking_token_budget"]).toBe(256);
 });
 
-test("a delivered prefill sends the continue pair and turns thinking off for the server, unless the user's body decides the prefill", async () => {
-  const prefill = generationCapability({
+const prefillCapability = (): ReturnType<typeof generationCapability> =>
+  generationCapability({
     reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"] },
     turns: { assistantPrefill: true, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "strict", explicitPromptCache: false },
   });
+
+test("a delivered prefill sends the continue pair and turns thinking off for the server, unless the user's body decides the prefill", async () => {
+  const prefill = prefillCapability();
   const history = [USER_LINE, ASSISTANT_OPENING];
   const params = { effort: "high" } satisfies UserIntent;
 
@@ -185,10 +188,7 @@ test("a delivered prefill sends the continue pair and turns thinking off for the
 });
 
 test("a messages array the user's body sets is theirs whole: the plan's prefill pair and interlock never touch it", async () => {
-  const prefill = generationCapability({
-    reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"] },
-    turns: { assistantPrefill: true, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "strict", explicitPromptCache: false },
-  });
+  const prefill = prefillCapability();
   const theirs = [{ role: "user", content: "Their own row." }];
   const params = { effort: "high" } satisfies UserIntent;
   const history = [USER_LINE, ASSISTANT_OPENING];

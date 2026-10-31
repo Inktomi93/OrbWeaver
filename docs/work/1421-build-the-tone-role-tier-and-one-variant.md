@@ -28,11 +28,11 @@ Current defects:
 - [ ] Step 4: use-specific extraction. The plan's "Step 4 sub-steps" table orders it.
   - [x] 4a: the extraction codemod and the button family.
   - [x] 4b: the Badge family.
-  - [ ] 4c: the Card family.
+  - [x] 4c: the Card family.
     - [x] 4c-1: `Spoiler` and the ink fixes.
-    - [ ] 4c-2: `MessageBubble` and the plate.
-    - [ ] 4c-3: the preview parts, `FloatingChip`, `RoomIsland` and the map.
-  - [ ] 4d: the layout boxes.
+    - [x] 4c-2: `MessageBubble` and the plate.
+    - [x] 4c-3: the preview parts, `FloatingChip`, `RoomIsland` and the map.
+  - [x] 4d: the layout boxes.
   - [x] 4e: ListRow state.
 
 Each step lands alone and leaves the app working.
@@ -84,6 +84,22 @@ Step 4c-1:
 
 - `Spoiler` renders Stack behind its own door, `@orb/ui/spoiler`, and Card and Stack refuse `spoiler`; `tests/ui/primitives/spoiler/extracted-spoiler.dom.test-d.ts` pins both. `tests/ui/primitives/spoiler/spoiler.ct.tsx` reads the blur, the selection and the forwarded layout under each seed and a nested custom scope, and inside a Card of every tone, in the Chromium and WebKit CT projects. A planted skin without the selection rule fails it.
 - `tests/ui/primitives/card/card-interactive.ct.tsx` reads the hovered and pressed Card ink against the tone roles and the hover pixels against AA, over a nested mid-grey scope and each seed. The hover test skips on a device that does not hover, so WebKit checks the pressed paint. Removing the new ink classes fails it.
+
+Step 4c-2:
+
+- `MessageBubble` takes `messageRole` and `shape` behind `@orb/ui/message-bubble`; Card refuses the bubble tones, the bubble and plate shapes and the backdrop tone, and `tests/ui/primitives/message-bubble/extracted-bubble.dom.test-d.ts` pins both. `tests/ui/primitives/message-bubble/message-bubble.ct.tsx` reads each role's fill and ink, the bubble box, and the island inset and radius in and out of an instrument tier, under each seed and a nested custom scope, in the Chromium and WebKit CT projects.
+- `tooling/src/codemods/use-specific-extraction/maps/card-family.json` moved the literal bubble sites; its `overrides` fixture holds the shape and the default guard it adds. The computed site in `message-box.tsx` is a hand edit. The transcript divider label sits on the layout reading plate under D144(b).
+
+Step 4c-3:
+
+- `ThemePreviewPane`, `FloatingChip` and `RoomIsland` each own their skin behind their own door, and Card refuses the step-four tones, the `inset`, `pill` and `float` shapes, `shadow`, `presence`, `holdsField` and `dropTarget`; `tests/ui/primitives/room-island/extracted-card-family.dom.test-d.ts` pins each. `tests/ui/content/theme-swatch/preview-pane.ct.tsx`, `tests/ui/primitives/floating-chip/floating-chip.ct.tsx` and `tests/ui/primitives/room-island/room-island.ct.tsx` read each paint, box, tier slot and state under each seed and a nested custom scope in the Chromium and WebKit CT projects. A planted wrong fill, edge radius or missing focus lift fails them.
+- `tooling/src/codemods/use-specific-extraction/maps/card-family.json` moved the literal Card sites; its `previews` fixture holds the pane, chip and island rows. The composer island, which reaches Card through `Track`, is a hand edit.
+
+Step 4d:
+
+- `FocalSection` leaves `Section` behind `@orb/ui/focal-section` and keeps one element whether `focal` is on or off. `CurrentStack` and `CurrentGrid` behind `@orb/ui/current` take `aria-current` for the anchor and search marks. The flank's slide and lift live in the shell panel sheet, `packages/client/src/features/app-shell/surfaces/shell/panels.css`, keyed on the flank's `data-slot`. Stack `receded` carries the opacity transition. A tone-stamped divider paints `border-tone-solid`. `tests/ui/layout/layout-visual-state-axes.dom.test-d.ts` refuses every removed axis.
+- `tests/ui/layout/visual-state-boxes.ct.tsx` mounts each door under each seed and a nested custom scope in the Chromium and WebKit CT projects. A planted wrong skin fails it.
+- `tooling/src/codemods/use-specific-extraction/maps/layout-family.json` holds the `Section` row and the `defaults` table; its `focal-section` fixture holds the shape. Both `focal` sites are computed, so they are hand edits.
 
 Step 4e:
 

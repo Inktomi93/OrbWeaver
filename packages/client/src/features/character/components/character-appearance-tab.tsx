@@ -24,15 +24,15 @@ import type { Theme, ThemeBackground, ThemeOverride, ThemeRadius } from "@orb/co
 import { cardEmbeddableSubset, THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/contracts/theme";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Card } from "@orb/ui/card";
 import { FieldLayout } from "@orb/ui/field";
 import { ChevronDown, Icon } from "@orb/ui/icons";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
+import { MessageBubble } from "@orb/ui/message-bubble";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
-import { ThemeSwatchStrip } from "@orb/ui/theme-swatch";
+import { ThemePreviewPane, ThemeSwatchStrip } from "@orb/ui/theme-swatch";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { BackgroundSourceField, QueryBoundary } from "#components";
@@ -355,12 +355,12 @@ function StartFromThemeField({ onPick }: { readonly onPick: (theme: Theme) => vo
 function ThemePreview({ override }: { readonly override: ReturnType<typeof overrideFromCharacterThemeForm> }): ReactElement {
   return (
     <ThemeScope tokens={override ?? {}}>
-      <Card tone="background">
+      <ThemePreviewPane fill="background">
         <Stack gap="row">
           <Text voice="label" ink="speaker">
             Aria
           </Text>
-          <Card tone="bubble">
+          <MessageBubble messageRole="assistant">
             <Stack gap="field">
               <Text as="span" ink="dialogue">
                 “Welcome to the archive,” she said.
@@ -369,9 +369,9 @@ function ThemePreview({ override }: { readonly override: ReturnType<typeof overr
                 The lamplight flickered against the shelves.
               </Text>
             </Stack>
-          </Card>
+          </MessageBubble>
         </Stack>
-      </Card>
+      </ThemePreviewPane>
     </ThemeScope>
   );
 }

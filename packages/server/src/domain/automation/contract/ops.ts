@@ -682,8 +682,6 @@ export interface SuggestionStore {
    *  liveness re-check is what makes a stale plugin card SAFE; this is what makes it disappear, so a host is
    *  not offered an answer that would refuse. */
   readonly voidPlugin: (pluginId: PluginId) => number;
-  /** VOID every ask in one chat (the RULED host-handoff sweep: authority died, its pending asks die). */
-  readonly voidChat: (chatId: ChatId) => number;
   /** A chat's live asks, oldest first (the handoff sweep's input). */
   readonly listForChat: (chatId: ChatId, nowMs: number) => readonly PendingSuggestion[];
   /** How many asks the store holds for a chat, WITHOUT sweeping — the zero-cost pre-check on the hot bus

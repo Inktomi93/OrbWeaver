@@ -5,7 +5,7 @@
 import type { ImportWindow } from "@orb/contracts/chat";
 import { importWindowSchema, mergeImportWindows } from "@orb/contracts/chat";
 import type { PortableKind } from "@orb/contracts/portability";
-import { PORTABLE_KINDS } from "@orb/contracts/portability";
+import { PORTABILITY_ROUTES, PORTABLE_KINDS } from "@orb/contracts/portability";
 import type { CardImportResult, TreeImportPlan } from "#data";
 import { skippedByReason } from "#data";
 
@@ -33,7 +33,6 @@ export interface ImportSummary {
   readonly memoryScope: ImportWindow | null;
 }
 
-const LIBRARY_EXPORT_PATH = "/api/export/library";
 // Blobs always travel so exported entities keep their media; never a user-facing checkbox.
 const ASSETS_KIND = "assets";
 
@@ -60,10 +59,10 @@ export const PORTABLE_KIND_LABELS: Record<PortableKind, string> = {
 /** Build the `/api/export/library` download href for the picked kinds. All selected ⇒ no `kinds` param; a partial pick appends `assets` so blobs always travel. */
 export function buildLibraryExportHref(selected: ReadonlySet<PortableKind>): string {
   if (selected.size >= EXPORTABLE_KINDS.length) {
-    return LIBRARY_EXPORT_PATH;
+    return PORTABILITY_ROUTES.exportLibrary;
   }
   const picked = [...EXPORTABLE_KINDS.filter((kind) => selected.has(kind)), ASSETS_KIND];
-  return `${LIBRARY_EXPORT_PATH}?kinds=${picked.join(",")}`;
+  return `${PORTABILITY_ROUTES.exportLibrary}?kinds=${picked.join(",")}`;
 }
 
 /** The counts + flattened notes a finished `import-bundle` workload reports (no per-file list — #1710's

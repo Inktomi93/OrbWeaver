@@ -18,17 +18,18 @@
 // (never an undo-toast). Rename is a single controlled `Input` in a `Dialog` (the §13.4 "single rename
 // stays controlled + Zod" carve-out — NOT a form factory).
 
+import { exportChatPath } from "@orb/contracts/portability";
 import type { ChatId } from "@orb/kit/ids";
 import { Archive, Download, Icon, Pencil, Star } from "@orb/ui/icons";
 import { MenuItem, MenuLinkItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { RowActionsMenu } from "#components";
+import { ROW_RENAME_NAME } from "#lib";
 import type { ChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
 import { RenameChatDialog } from "./rename-chat-dialog.tsx";
 
 /** The host-gated transcript download route (`GET /api/export/chat/:chatId`), one home for both formats. */
-const EXPORT_CHAT_PATH = "/api/export/chat/";
 
 export interface ChatListRowMenuProps {
   readonly actions: ChatListRowActions;
@@ -82,7 +83,7 @@ export function ChatListRowMenu({ actions, chatId, title, displayTitle, rowName,
       >
         <MenuItem onClick={openRename}>
           <Icon icon={Pencil} size="sm" />
-          Rename
+          {ROW_RENAME_NAME}
         </MenuItem>
         <MenuItem onClick={(): void => actions.star({ chatId, starred: !starred })}>
           <Icon icon={Star} size="sm" />
@@ -98,13 +99,13 @@ export function ChatListRowMenu({ actions, chatId, title, displayTitle, rowName,
             Export transcript
           </MenuSubmenuTrigger>
           <MenuPopup>
-            <MenuLinkItem download={true} href={`${EXPORT_CHAT_PATH}${chatId}?format=orb`}>
+            <MenuLinkItem download={true} href={`${exportChatPath(chatId)}?format=orb`}>
               Whole room (.orb.json)
             </MenuLinkItem>
-            <MenuLinkItem download={true} href={`${EXPORT_CHAT_PATH}${chatId}`}>
+            <MenuLinkItem download={true} href={exportChatPath(chatId)}>
               Transcript (.jsonl)
             </MenuLinkItem>
-            <MenuLinkItem download={true} href={`${EXPORT_CHAT_PATH}${chatId}?format=txt`}>
+            <MenuLinkItem download={true} href={`${exportChatPath(chatId)}?format=txt`}>
               Plain text (.txt)
             </MenuLinkItem>
           </MenuPopup>

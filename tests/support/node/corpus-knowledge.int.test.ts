@@ -1,6 +1,7 @@
 // @subject tests/support/node/corpus-knowledge.ts
 // @subject tests/support/node/factories/discovery.ts
 import { assertReferentialIntegrity } from "@orb/db";
+import { THEME_NAME_KEYWORDS_LEAD } from "../../../packages/server/src/domain/discovery/themes/name-prompt.ts";
 import { seedCorpusConnections } from "./corpus-actors.ts";
 import { corpusKnowledgeText, seedCorpusKnowledge } from "./corpus-knowledge.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
@@ -183,7 +184,7 @@ test("structured narrative degradation and a genuine failed naming job preserve 
       refuseNames &&
       request.method === "POST" &&
       new URL(request.url).pathname === "/v1/chat/completions" &&
-      (await request.clone().text()).includes("Shared keywords:")
+      (await request.clone().text()).includes(THEME_NAME_KEYWORDS_LEAD)
     ) {
       return new Response('{"error":{"message":"corpus naming request refused","type":"invalid_request_error","code":"invalid_request"}}', {
         status: 400,

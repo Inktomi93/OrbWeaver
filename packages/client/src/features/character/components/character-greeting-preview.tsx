@@ -8,11 +8,11 @@ import type { ThemeOverride } from "@orb/contracts/theme";
 import { cardEmbeddableSubset } from "@orb/contracts/theme";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Card } from "@orb/ui/card";
 import { Icon, Pencil, Plus, Trash2, WandSparkles } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { MacroTextarea } from "@orb/ui/macro-textarea";
 import { Markdown } from "@orb/ui/markdown";
+import { MessageBubble } from "@orb/ui/message-bubble";
 import { Spoiler } from "@orb/ui/spoiler";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
@@ -200,7 +200,7 @@ function GreetingBody({
     <form.Subscribe selector={(s): string => s.values.greetings[index]?.text ?? ""}>
       {(active): ReactElement => (
         <ThemeScope tokens={cardTheme}>
-          <Card ownSlot="character-greeting-bubble" tone="bubble">
+          <MessageBubble ownSlot="character-greeting-bubble" messageRole="assistant">
             <Spoiler gap="row" concealed={spoilerBlur}>
               {active.trim() === "" ? (
                 <Text voice="quiet">No first message yet.</Text>
@@ -210,7 +210,7 @@ function GreetingBody({
                 </Markdown>
               )}
             </Spoiler>
-          </Card>
+          </MessageBubble>
         </ThemeScope>
       )}
     </form.Subscribe>

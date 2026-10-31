@@ -5,8 +5,8 @@
 
 import { PanelRightClose, PanelRightOpen } from "@orb/ui/icons";
 import type { ReactElement } from "react";
+import { contextToggleLabel } from "#lib";
 import { useShellLayout } from "../hooks/use-shell-layout.ts";
-import { contextToggleLabel } from "../lib/context-toggle-label.ts";
 import { TopbarIconButton } from "./shell-topbar.tsx";
 
 /** ONE CONTROL, ONE NAME, AT EVERY WIDTH (#875 F19, side-eye 2026-08-30 — measured `Show detail panel` at

@@ -22,6 +22,16 @@ test("selected, expanded and disabled rows read their state from the attributes"
 
   await expect(row("Expanded")).toHaveAttribute("aria-expanded", "true");
   await expect(row("Plain")).not.toHaveAttribute("aria-expanded");
+  // An open disclosure header holds the tint-active fill, on the body or, for a row-tinted row, on the root.
+  const tint = await component.locator('[data-probe="tint"]').evaluate((element) => getComputedStyle(element).backgroundColor);
+  expect((await paint("Expanded")).fill).toBe(tint);
+  const rootFill = (name: string): Promise<string> =>
+    row(name)
+      .locator("xpath=..")
+      .evaluate((element) => getComputedStyle(element).backgroundColor);
+  expect(await rootFill("Expanded row tint")).toBe(tint);
+  expect(await rootFill("Plain row tint")).not.toBe(tint);
+  expect((await paint("Expanded row tint")).fill).not.toBe(tint);
 
   const disabled = await paint("Disabled");
   expect(disabled.opacity).not.toBe(plain.opacity);

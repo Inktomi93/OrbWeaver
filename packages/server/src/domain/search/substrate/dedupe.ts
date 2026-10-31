@@ -1,11 +1,6 @@
 // Post-rank collapse retains the best representative; block keys distinguish egocentric perspectives.
 
-import type { BlockKey } from "@orb/contracts/search";
 import type { ChatId } from "@orb/kit/ids";
-
-export function blockKeyStr(k: BlockKey): string {
-  return `${k.chatId}|${k.tier}|${k.blockIdx}|${k.scopedCharacterId}`;
-}
 
 /** Collapse a chat BLOCK's chunk rows to its best-scoring one. Input MUST be best-first.
  *

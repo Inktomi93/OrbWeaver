@@ -294,7 +294,7 @@ export function scanUnions(options: ScanOptions): UnionsReport {
   const texts = new Set(candidates.map(({ member }) => member.text));
   const builtTwo = new Set(worlds.flatMap((config) => [...builtByService(ServiceWorld.open(options.root, config), sources, texts, own)]));
   const tupleSites = [...new Set(candidates.map(({ tuple }) => tuple))].map((tuple) => tuple.site);
-  const referencesTwo = serviceReferences(options.root, worlds, tupleSites, options.log);
+  const referencesTwo = serviceReferences(options.root, worlds, tupleSites, { log: options.log });
   const located = (site: Site): string => `${site.file}:${sources.line(site)}`;
   const findings: UnwiredUnionMember[] = [];
   const disagreements: string[] = [];

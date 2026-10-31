@@ -1,6 +1,8 @@
 // Joint host-scoped digest and transcript retrieval preserves genuine source identity (D16/D20).
 import { NO_HISTORY_FLOOR } from "@orb/contracts/chat";
 import type { BlockKey, CorpusSource } from "@orb/contracts/search";
+import { blockKeyStr } from "@orb/kit/recall";
+import { applyRerank } from "@orb/kit/rerank";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
 import type { CorpusParams } from "../contract/params.ts";
 import type { CorpusHit } from "../contract/results.ts";
@@ -10,8 +12,7 @@ import { resolveChatDisplay } from "../persistence/display.ts";
 import { readSourceAnchors } from "../persistence/source.ts";
 import { SCOPED_POOL_K } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
-import { blockKeyStr, collapseByContentHash } from "../substrate/dedupe.ts";
-import { applyRerank } from "../substrate/rerank.ts";
+import { collapseByContentHash } from "../substrate/dedupe.ts";
 import { withActiveQuerySpace } from "../substrate/space.ts";
 
 interface CorpusCandidate {

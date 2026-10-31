@@ -1,15 +1,17 @@
 // The topbar, the room and the character Import dialog on the production shell at enlarged text: 200% (WCAG 1.4.4 text
 // resize) and 300% layout, at the phone and desktop viewports, on Chromium and the opt-in WebKit project. The appearance
-// setting stops at 1.5, so these scales are the root multiplier the writer carries; `:root { font-size }` multiplies it the
+// setting is bounded by `FONT_SCALE`, so these scales are the root multiplier the writer carries; `:root { font-size }` multiplies it the
 // same way, but a `rem` inside a media query stays at the platform default, so a browser whose own default is 200% would
 // also flip the shell regime. Only the combinations that hold are listed in QUALIFIED; the rest are open defects on the board.
-import { APPEARANCE_CHANNEL_ROWS } from "@orb/client/lib";
+
+import { contextToggleLabel } from "@orb/client/lib";
 import type { CharacterId } from "@orb/kit/ids";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { AppShellCharacterStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { PlantedControlsStory } from "./_text-scale-probe-stories.tsx";
 import { routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -20,7 +22,7 @@ const PHONE = { name: "phone", touch: true, size: { width: 390, height: 844 } } 
 const DESKTOP = { name: "desktop", touch: false, size: { width: 1440, height: 900 } } as const;
 const TEXT_200 = { name: "200% text", factor: 2 } as const;
 const LAYOUT_300 = { name: "300% layout", factor: 3 } as const;
-const FONT_SCALE_PROPERTY = APPEARANCE_CHANNEL_ROWS.find((row) => row.key === "fontScale")?.name ?? "";
+const FONT_SCALE_PROPERTY = channelName("fontScale");
 // Layout rounding can read a box a fraction past its container with nothing clipped; a one-pixel box is a screen-reader span.
 const SUBPIXEL = 1;
 const REACHABLE =
@@ -39,9 +41,18 @@ const QUALIFIED = {
   contextHeader: [[DESKTOP, TEXT_200]],
   charactersBand: [[PHONE, TEXT_200]],
   room: [[DESKTOP, TEXT_200]],
+  jumpToLatest: [
+    [PHONE, LAYOUT_300],
+    [DESKTOP, LAYOUT_300],
+  ],
+  presetsWelcome: [
+    [PHONE, LAYOUT_300],
+    [DESKTOP, LAYOUT_300],
+  ],
   importDialog: [
     [PHONE, TEXT_200],
     [DESKTOP, TEXT_200],
+    [PHONE, LAYOUT_300],
     [DESKTOP, LAYOUT_300],
   ],
 } as const satisfies Record<string, readonly (readonly [Viewport, Scale])[]>;
@@ -175,6 +186,19 @@ async function firstCharacterId(): Promise<CharacterId> {
   return character.id;
 }
 
+type Mount = (story: string, props: Record<string, never>) => Promise<unknown>;
+
+/** Opens the corpus' first chat room on the production shell and returns its message field. */
+async function openFirstRoom(mount: Mount, page: Page): Promise<Locator> {
+  await seedShellState(page, { activeSection: "chats" });
+  await mount(STORY, {});
+  await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS["chats"], exact: true }).click();
+  await page.getByRole("list", { name: "Chats list", exact: true }).getByRole("button").first().click();
+  const input = page.getByRole("textbox", { name: "Message", exact: true });
+  await expect(input).toBeVisible();
+  return input;
+}
+
 const documentOverflow = (page: Page): Promise<number> => page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
 
 for (const [viewport, scale] of QUALIFIED.topbar) {
@@ -201,7 +225,7 @@ for (const [viewport, scale] of QUALIFIED.contextHeader) {
       await mount<typeof AppShellCharacterStory>(`${SHELL_STORIES}/AppShellCharacterStory`, { characterId: await firstCharacterId() });
       await scaleRoot(page, scale.factor);
       const toggle = page.getByRole("button", { name: /^(?:Show|Hide) details$/u });
-      if ((await toggle.getAttribute("aria-label")) === "Show details") {
+      if ((await toggle.getAttribute("aria-label")) === contextToggleLabel(true)) {
         await toggle.click();
       }
       await expect(page.locator(".shell-panel[data-panel-side='context'] [data-slot='context-bracket-header']")).toBeVisible();
@@ -231,18 +255,63 @@ for (const [viewport, scale] of QUALIFIED.room) {
     test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
 
     test("keeps the transcript, the message field and Send reachable", async ({ mount, page }) => {
-      await seedShellState(page, { activeSection: "chats" });
-      await mount<typeof AppShellStory>(STORY, {});
-      await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS["chats"], exact: true }).click();
-      await page.getByRole("list", { name: "Chats list", exact: true }).getByRole("button").first().click();
-      const input = page.getByRole("textbox", { name: "Message", exact: true });
-      await expect(input).toBeVisible();
+      const input = await openFirstRoom(mount, page);
       await scaleRoot(page, scale.factor);
       await expect(page.getByRole("button", { name: "Send message", exact: true })).toBeVisible();
       for (const control of [input, page.getByRole("button", { name: "Send message", exact: true })]) {
         await expect(control).toBeInViewport({ ratio: 1 });
       }
       await expect.poll(() => findings(page.locator(".shell-content"))).toEqual([]);
+      expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
+    });
+  });
+}
+
+for (const [viewport, scale] of QUALIFIED.jumpToLatest) {
+  test.describe(`Jump to latest at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    // The pill is mounted while hidden and takes its width from the same label it shows, so its box is the one a
+    // pending arrival would paint; the flank row clips on x, so a pill wider than the row loses its ends.
+    test("stays inside the flank row it overlays", async ({ mount, page }) => {
+      await openFirstRoom(mount, page);
+      await scaleRoot(page, scale.factor);
+      const row = page.locator('[data-slot="chat-room-flank-row"]');
+      const pill = page.locator('[data-slot="jump-to-latest"] button');
+      await expect
+        .poll(async () => {
+          const [within, button] = await Promise.all([row.boundingBox(), pill.boundingBox()]);
+          return within !== null && button !== null && button.x >= within.x - SUBPIXEL && button.x + button.width <= within.x + within.width + SUBPIXEL;
+        })
+        .toBe(true);
+    });
+  });
+}
+
+for (const [viewport, scale] of QUALIFIED.presetsWelcome) {
+  test.describe(`Presets welcome at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    test("stays inside the content pane and leaves the topbar reachable", async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: "presets" });
+      await mount<typeof AppShellStory>(STORY, {});
+      if (viewport.touch) {
+        // A phone lands on the roster; the topbar door swaps it for the section's no-selection content.
+        await page.getByRole("button", { name: /^Show .+ overview$/u }).click();
+      }
+      const pane = page.locator(".shell-content");
+      const welcome = pane.locator('[data-slot="empty-state-root"]');
+      await expect(welcome).toBeVisible();
+      await scaleRoot(page, scale.factor);
+      await expect
+        .poll(async () => {
+          const [within, box] = await Promise.all([pane.boundingBox(), welcome.boundingBox()]);
+          return within !== null && box !== null && box.y >= within.y - SUBPIXEL;
+        })
+        .toBe(true);
+      // A topbar control holds focus here, and its open tooltip is a transient popup, not part of the layout under test.
+      await page.keyboard.press("Escape");
+      await expect.poll(() => findings(page.locator(".shell-grid"))).toEqual([]);
       expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
     });
   });

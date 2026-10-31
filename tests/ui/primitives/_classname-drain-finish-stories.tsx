@@ -10,6 +10,7 @@ import { InlineAction } from "@orb/ui/inline-action";
 import { Input } from "@orb/ui/input";
 import { Container, Row, Stack, Surface } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
+import { MessageBubble } from "@orb/ui/message-bubble";
 import { PictureButton } from "@orb/ui/picture-button";
 import { Select } from "@orb/ui/select";
 import { Separator } from "@orb/ui/separator";
@@ -146,59 +147,23 @@ export function ButtonFinishStory(): ReactElement {
 /** The Card shapes, tones and state axes the drain added, tier-less, inside a tier and under the glow elevation. */
 export function CardFinishStory(): ReactElement {
   return (
-    <CtIsolation subject="Card shapes, tones and axes" isolates="Each new arm against its token, tier-less and inside an instrument Surface">
-      <Card data-case="float" shape="float">
-        float
-      </Card>
-      <Card data-case="inset" shape="inset">
-        inset
-      </Card>
-      <Card data-case="plate" shape="plate">
-        plate
-      </Card>
-      <Card data-case="pill" shape="pill">
-        pill
-      </Card>
-      <Card data-case="bubble" tone="userBubble" shape="bubble">
+    <CtIsolation subject="Card shapes, tones and axes" isolates="Each remaining arm against its token, tier-less and inside an instrument Surface">
+      <MessageBubble data-case="bubble" messageRole="user" shape="bubble">
         bubble
-      </Card>
+      </MessageBubble>
       <Surface tier="instrument">
-        <Card data-case="tier-float" shape="float">
-          float in a tier
-        </Card>
-        <Card data-case="tier-bubble" tone="bubble" shape="bubble">
+        <MessageBubble data-case="tier-bubble" messageRole="assistant" shape="bubble">
           bubble in a tier
-        </Card>
+        </MessageBubble>
       </Surface>
-      <Card data-case="sidebarEdge" tone="sidebarEdge">
-        sidebar edge
-      </Card>
-      <Card data-case="popover" tone="popover">
-        popover
-      </Card>
       <Card data-case="rail" rail="primary">
         set
-      </Card>
-      <Card data-case="presence-hidden" presence="hidden">
-        gone
-      </Card>
-      <Card data-case="presence-shown" presence="shown">
-        here
-      </Card>
-      <Card data-case="holds-field" holdsField={true}>
-        field host
-      </Card>
-      <Card data-case="drop-armed" data-drag-over="" dropTarget={true}>
-        armed
       </Card>
       <Card data-case="focusable" focusable={true} tabIndex={-1}>
         region
       </Card>
       <Card data-case="own-slot" ownSlot="named-hook">
         named
-      </Card>
-      <Card data-case="overlay" shadow="overlay">
-        lifted
       </Card>
       <div data-elevation="glow">
         <Card data-case="glow-follow" interactive={true}>
@@ -208,13 +173,8 @@ export function CardFinishStory(): ReactElement {
       </div>
       <span data-case="away">elsewhere</span>
       <Probe name="radius-card" style={{ borderRadius: "var(--radius-card)", padding: "var(--spacing-field)" }} />
-      <Probe name="radius-inset" style={{ borderRadius: "var(--radius-inset)" }} />
-      <Probe name="radius-full" style={{ borderRadius: "var(--radius-full)" }} />
       <Probe name="bubble" style={{ backgroundColor: "var(--color-user-bubble)", paddingBlock: "var(--spacing-row)", paddingInline: "var(--spacing-block)" }} />
       <Probe name="primary" tone="primary" style={{ borderColor: role("solid"), backgroundColor: "transparent" }} />
-      <Probe name="sidebarEdge" style={{ borderColor: "var(--color-sidebar-border)" }} />
-      <Probe name="popover" style={{ backgroundColor: "var(--color-popover)", color: "var(--color-popover-foreground)" }} />
-      <Probe name="muted" style={{ backgroundColor: "var(--color-muted)" }} />
     </CtIsolation>
   );
 }
@@ -240,7 +200,7 @@ export function LayoutFinishStory(): ReactElement {
           two
         </Stack>
       </Stack>
-      <Row data-case="rule" divider="start" dividerTone="primary" dividerWeight="rule">
+      <Row data-case="rule" divider="start" tone="primary" dividerWeight="rule">
         rule
       </Row>
       <Stack data-case="dashed" divider="start" dividerStyle="dashed">
@@ -274,25 +234,13 @@ export function LayoutFinishStory(): ReactElement {
       <Row data-case="plate-plain" plate="band">
         band without art
       </Row>
-      <Stack data-case="highlight" highlight={true}>
-        anchor
-      </Stack>
-      <Stack data-case="slide-parked" slide="parked">
-        parked
-      </Stack>
-      <Stack data-case="slide-shown" slide="shown">
-        shown
-      </Stack>
-      <Stack data-case="lifted" lifted={true}>
-        lifted
-      </Stack>
       <Stack data-case="fade" fade="start" fadeFrom="sidebar">
         fade
       </Stack>
       <Stack data-case="ink" ink="foreground">
         ink
       </Stack>
-      <Stack data-case="opacity-motion" opacityMotion={true}>
+      <Stack data-case="receded-motion" receded={true}>
         eases
       </Stack>
       <Stack data-case="focus-target" focusTarget={true} tabIndex={-1}>
@@ -306,12 +254,6 @@ export function LayoutFinishStory(): ReactElement {
           act
         </Row>
       </div>
-      <Row data-case="state-expanded" data-expanded="" stateFill="expanded">
-        expanded
-      </Row>
-      <Row data-case="state-selected" data-selected="" stateFill="selected">
-        selected
-      </Row>
       <span data-case="away">elsewhere</span>
       <Probe name="primary" style={{ borderColor: "var(--color-primary)" }} />
       {GROUNDS.map((ground) => (
@@ -320,8 +262,6 @@ export function LayoutFinishStory(): ReactElement {
       <Probe name="ground-faint" style={{ backgroundColor: mix("--color-card", 40) }} />
       <Probe name="reading-plate" style={{ backgroundColor: "var(--color-reading-plate)" }} />
       <Probe name="card" style={{ backgroundColor: "var(--color-card)" }} />
-      <Probe name="muted" style={{ backgroundColor: "var(--color-muted)" }} />
-      <Probe name="accent" style={{ backgroundColor: "var(--color-accent)" }} />
       <Probe name="foreground" style={{ color: "var(--color-foreground)" }} />
       <Probe name="transparent" style={{ backgroundColor: "transparent" }} />
     </CtIsolation>

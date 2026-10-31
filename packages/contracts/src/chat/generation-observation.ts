@@ -9,3 +9,7 @@ export interface GenerationObservationParent {
   readonly sourceMessageId: MessageId | null;
   readonly sourceVariantId: MessageVariantId | null;
 }
+
+/** Opens a retained observation sink for an admitted host-door call. `Callback` is the provider's report callback,
+ *  a runtime type contracts cannot name. */
+export type BeginGenerationObservationOp<Callback> = (parent: GenerationObservationParent) => Callback;

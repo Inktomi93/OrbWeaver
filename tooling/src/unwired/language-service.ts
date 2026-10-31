@@ -4,7 +4,39 @@ import { join, relative } from "node:path";
 import ts from "typescript";
 import type { Site } from "./classify.ts";
 import { siteKey } from "./classify.ts";
-import { loadScanWorld, realpath } from "./worlds.ts";
+import type { PortMember } from "./restated-port.ts";
+import { effectiveMember, flowMembers, flowsAt, spreadFlowsAt } from "./restated-port.ts";
+import { isProduction, loadScanWorld, realpath } from "./worlds.ts";
+
+/** A member's scan key to the keys of the slots production code hands its value into, such as a composition root
+ *  wiring an owner's verb into a consumer's port across domains, where no reference links the two declarations. */
+export type MemberFlows = ReadonlyMap<string, ReadonlySet<string>>;
+
+// The scan key of a member declared directly in an interface or an object type alias; null for any other member.
+function memberKey(root: string, member: PortMember): string | null {
+  const holder = member.parent;
+  const alias = ts.isTypeLiteralNode(holder) && ts.isTypeAliasDeclaration(holder.parent) ? holder.parent : null;
+  const home = ts.isInterfaceDeclaration(holder) ? holder : alias;
+  return home === null ? null : `${relative(root, member.getSourceFile().fileName)}:${home.name.text}.${member.name.getText()}`;
+}
+
+function addFlow(flows: Map<string, Set<string>>, value: string | null, slot: string | null): void {
+  if (value !== null && slot !== null && value !== slot) {
+    flows.set(value, (flows.get(value) ?? new Set()).add(slot));
+  }
+}
+
+// A value handed into a slot, and a member derived from another (`readonly m: Owner["m"]`): a use of the slot or of
+// the derived member is a use of the member it comes from.
+function recordFlows(root: string, checker: ts.TypeChecker, node: ts.Node, flows: Map<string, Set<string>>): void {
+  for (const flow of [...flowsAt(checker, node).members, ...spreadFlowsAt(checker, node)]) {
+    const joined = flowMembers(checker, flow);
+    addFlow(flows, joined === null ? null : memberKey(root, joined.owner), joined === null ? null : memberKey(root, joined.port));
+  }
+  if (ts.isPropertySignature(node)) {
+    addFlow(flows, memberKey(root, effectiveMember(checker, node)), memberKey(root, node));
+  }
+}
 
 /** One world's program behind a TypeScript 6 language service. */
 export class ServiceWorld {
@@ -69,6 +101,21 @@ export class ServiceWorld {
     return found;
   }
 
+  /** The member flows of the world's production files. */
+  flows(): Map<string, Set<string>> {
+    const flows = new Map<string, Set<string>>();
+    const visit = (node: ts.Node): void => {
+      recordFlows(this.#root, this.checker, node, flows);
+      ts.forEachChild(node, visit);
+    };
+    for (const source of this.program.getSourceFiles()) {
+      if (!source.isDeclarationFile && isProduction(this.siteOf(source).file)) {
+        visit(source);
+      }
+    }
+    return flows;
+  }
+
   /** The repository-relative site of a node in this program. */
   siteOf(node: ts.Node): Site {
     const source = node.getSourceFile();
@@ -77,12 +124,13 @@ export class ServiceWorld {
 }
 
 /** Ask every world for the references of each site and merge them, so a site counts once however many worlds hold
- *  it. Worlds load one at a time; a site whose file a world lacks is not asked there. */
+ *  it. Worlds load one at a time; a site whose file a world lacks is not asked there. `visit` reads each loaded
+ *  world before the next replaces it. */
 export function serviceReferences(
   root: string,
   worlds: readonly string[],
   sites: readonly Site[],
-  log: (line: string) => void,
+  hooks: { readonly log: (line: string) => void; readonly visit?: (world: ServiceWorld) => void },
 ): ReadonlyMap<string, readonly Site[]> {
   const merged = new Map<string, Map<string, Site>>(sites.map((site) => [siteKey(site), new Map()]));
   for (const config of worlds) {
@@ -98,7 +146,8 @@ export function serviceReferences(
         into?.set(siteKey(reference), reference);
       }
     }
-    log(`${config}: engine two asked about ${asked} sites`);
+    hooks.visit?.(world);
+    hooks.log(`${config}: engine two asked about ${asked} sites`);
   }
   return new Map([...merged].map(([key, found]) => [key, [...found.values()]]));
 }

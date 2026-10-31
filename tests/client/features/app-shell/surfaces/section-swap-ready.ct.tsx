@@ -1,10 +1,12 @@
 // A section swap into a surface with no skeleton waits for that surface's `data-ready`: the outgoing view holds while the first
 // read is in flight, so the crossfade lands on a settled pane and never on a blank one. Reduced motion raises no transition.
+
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, holdCorpusProcedure, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { SHELL_SWAP_DEADLINE_PROPERTY } from "#client/lib/view-transition-names.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -15,7 +17,7 @@ const STARTED_KEY = "__swapsStarted";
 // stretches with the machine's load. It is far past the few polls a swap that ignores `data-ready` needs to settle.
 const FRAMES_PAST_QUIET = 60;
 // Longer than any test runs, so only the pane's own readiness can end the swap's wait.
-const DEADLINE_STYLE = ".shell-grid { --shell-swap-deadline: 600000ms; }";
+const DEADLINE_STYLE = `.shell-grid { ${SHELL_SWAP_DEADLINE_PROPERTY}: 600000ms; }`;
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 

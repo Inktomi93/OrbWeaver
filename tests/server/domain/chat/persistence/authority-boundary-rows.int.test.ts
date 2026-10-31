@@ -19,6 +19,7 @@ import {
   createServerHarness,
   SUMMARIZE_TRANSCRIPT_MARKER,
   seedCorpusActors,
+  summaryReply,
 } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
@@ -102,7 +103,7 @@ function memoryReply(body: string): string {
   }
   // Summary-only sentinels distinguish recalled memory from the same scene still present in raw canon.
   const facts = MEMORY_PHASES.filter((phase) => body.includes(phase.input)).map((phase) => phase.memory);
-  return `Orbital ledger memory\n${facts.length === 0 ? "A keeper answered." : `${facts.join(". ")}.`}\nKeywords: ledger`;
+  return summaryReply({ anchor: "Orbital ledger memory", facts: facts.length === 0 ? "A keeper answered." : `${facts.join(". ")}.`, keywords: ["ledger"] });
 }
 
 test("a member's actual turn uses the frozen host connection while keeping the member's message attribution", async () => {
@@ -138,13 +139,13 @@ test("a member's actual turn uses the frozen host connection while keeping the m
     const variants = await root.db.select().from(messageVariants).where(eq(messageVariants.id, assistant.selectedVariantId));
     expect(variants.map((variant) => variant.connectionId)).toEqual([connections.text.id]);
     expect(completed).toHaveBeenCalledOnce();
-    const terminal = completed.mock.calls[0];
+    const terminal = completed.mock.calls[0]?.[0];
     if (terminal === undefined) {
       throw new Error("the committed turn did not reach the actual root's RPG terminal hook");
     }
-    expect(terminal.slice(0, 3)).toEqual([room.chat.id, assistant.id, assistant.selectedVariantId]);
-    expect(terminal[4]).toMatchObject({ kind: "send", triggeredBy: member.userId, connection: { ownerId: owner.userId } });
-    expect(terminal[4].transcript.map((message) => message.content)).toContain(TURN_REPLY);
+    expect(terminal).toMatchObject({ chatId: room.chat.id, messageId: assistant.id, variantId: assistant.selectedVariantId });
+    expect(terminal.turn).toMatchObject({ kind: "send", triggeredBy: member.userId, connection: { ownerId: owner.userId } });
+    expect(terminal.turn.transcript.map((message) => message.content)).toContain(TURN_REPLY);
     const canon = await root.db.select().from(messages).where(eq(messages.chatId, room.chat.id));
     expect(canon.filter((message) => message.role === "user")).toMatchObject([{ authorUserId: member.userId }]);
     expect(canon.map((message) => message.createdAt)).toEqual(canon.map(() => root.clock.now()));

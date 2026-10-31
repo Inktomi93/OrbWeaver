@@ -4,17 +4,18 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, statSync, symlinkSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join, relative } from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createDb, listBackupFiles, preCloseHousekeeping } from "@orb/db";
 import { migrateDataLayout } from "@orb/server/entry/boot";
-import { DB_FILE_NAME, LEGACY_ENTRIES } from "@orb/server/foundation/data-layout";
+import { DATA_LAYOUT_DIRS, DB_FILE_NAME, LEGACY_ENTRIES } from "@orb/server/foundation/data-layout";
 import { expect, test } from "@orb/testkit/node";
 import { createTestEnv, createTestLogger } from "@orb/testkit/node/composed";
 import { sql } from "drizzle-orm";
 import { onTestFinished } from "vitest";
 import { z } from "zod";
+import { DataLayoutRefusal } from "#server/entry/boot/migrate-data-layout.ts";
 
 type DataLayoutMigrationReport = Awaited<ReturnType<typeof migrateDataLayout>>;
 type DataLayout = Parameters<typeof migrateDataLayout>[0]["layout"];
@@ -41,6 +42,9 @@ const HOLDER_TEST_TIMEOUT_MS = 60_000;
 // Each child boot is its own node process; a case that runs several of them is billed for each start.
 const CHILD_BOOTS_TEST_TIMEOUT_MS = 60_000;
 const OPERATOR_FILE = "notes.txt";
+const CACHE_DIR = DATA_LAYOUT_DIRS.cache;
+// The leaf the models keeper names inside the legacy `models` directory.
+const MODELS_LEAF = basename(DATA_LAYOUT_DIRS.models);
 const MARKER = "marker.txt";
 const KEY_BYTES = `${"ab".repeat(32)}\n`;
 const OWNER_ONLY = 0o600;
@@ -58,6 +62,11 @@ const KEYED = ENTRY_NAMES.flatMap((name) => {
 });
 
 const targetOf = (name: string): string => LEGACY_ENTRIES[name]?.to ?? "missing-entry";
+
+async function expectRefusal(attempt: Promise<unknown>, reason: DataLayoutRefusal["reason"]): Promise<void> {
+  await expect(attempt).rejects.toBeInstanceOf(DataLayoutRefusal);
+  await expect(attempt).rejects.toMatchObject({ reason });
+}
 
 function freshRoot(parent: string): string {
   return join(mkdtempSync(join(parent, "layout-")), "data");
@@ -218,7 +227,7 @@ test.for(KEYED)(
       ["CREDENTIALS_KEY"]: "cd".repeat(32),
       ["SESSION_SECRET"]: "ef".repeat(32),
       ["DATABASE_URL"]: pathToFileURL(join(root, DB_FILE_NAME)).href,
-      ["LOCAL_LIGHT_CACHE_DIR"]: join(root, name, "transformers"),
+      ["LOCAL_LIGHT_CACHE_DIR"]: join(root, name, MODELS_LEAF),
       ["IMPORT_STAGING_DIR"]: join(root, name),
     };
     const value = kept[keptBy];
@@ -236,7 +245,7 @@ test.for(KEYED)(
     expect(existsSync(join(root, name))).toBe(true);
     expect(existsSync(join(root, targetOf(name)))).toBe(false);
     // The db is snapshotted only when it moves, since the snapshot protects the move.
-    expect(snapshotsIn(layout)).toHaveLength(keptBy === "DATABASE_URL" ? 0 : 1);
+    expect(snapshotsIn(layout)).toHaveLength(name === DB_FILE_NAME ? 0 : 1);
   },
 );
 
@@ -248,7 +257,7 @@ test("a legacy path whose target holds data refuses before any move, and moves o
   writeFileSync(join(layout.dbDir, DB_FILE_NAME), "a newer db");
   const before = rootListing(root);
 
-  await expect(migrate(layout)).rejects.toThrow();
+  await expectRefusal(migrate(layout), "target-holds-data");
 
   expect(rootListing(root)).toEqual(before);
   expect(readFileSync(join(layout.dbDir, DB_FILE_NAME), "utf8")).toBe("a newer db");
@@ -271,21 +280,25 @@ test("a zero-byte legacy db at the root is not data: it is ignored, never delete
   expect(statSync(join(root, DB_FILE_NAME)).size).toBe(0);
 });
 
-test.for(["models", "variants"].filter((name) => name in LEGACY_ENTRIES))(
-  "a source on another filesystem ($0) refuses before any write; with the root's device it moves",
-  async (name, { importStagingDir }) => {
-    const root = freshRoot(importStagingDir);
-    await plantLegacyTree(root, importStagingDir);
-    const layout = layoutFor(root);
-    const before = rootListing(root);
+// The subjects are every directory entry the table holds, so a renamed entry is still refused; an empty table would
+// register no case at all, which the guard below turns into a failure.
+test("the cross-filesystem cases have directory entries to run over", () => {
+  expect(DIR_ENTRIES.length).toBeGreaterThan(0);
+  expect(DIR_ENTRIES.some((name) => targetOf(name).startsWith(`${CACHE_DIR}/`))).toBe(true);
+});
 
-    await expect(migrate(layout, { deviceOf: (path) => (path === join(root, name) ? 2 : 1) })).rejects.toThrow();
+test.for(DIR_ENTRIES)("a source on another filesystem ($0) refuses before any write; with the root's device it moves", async (name, { importStagingDir }) => {
+  const root = freshRoot(importStagingDir);
+  await plantLegacyTree(root, importStagingDir);
+  const layout = layoutFor(root);
+  const before = rootListing(root);
 
-    expect(rootListing(root)).toEqual(before);
-    expect(existsSync(layout.backups)).toBe(false);
-    expect(movedFrom(await migrate(layout, { deviceOf: SAME_DEVICE }))).toContain(name);
-  },
-);
+  await expectRefusal(migrate(layout, { deviceOf: (path) => (path === join(root, name) ? 2 : 1) }), "cross-filesystem");
+
+  expect(rootListing(root)).toEqual(before);
+  expect(existsSync(layout.backups)).toBe(false);
+  expect(movedFrom(await migrate(layout, { deviceOf: SAME_DEVICE }))).toContain(name);
+});
 
 test("a target container linked onto another filesystem refuses before any write, and takes the moves through the link on the root's device", async ({
   importStagingDir,
@@ -297,14 +310,15 @@ test("a target container linked onto another filesystem refuses before any write
   const elsewhereReal = realpathSync(elsewhere);
   symlinkSync(elsewhere, layout.cache);
 
-  await expect(migrate(layout, { deviceOf: (path) => (path.startsWith(elsewhereReal) ? 2 : 1) })).rejects.toThrow();
+  await expectRefusal(migrate(layout, { deviceOf: (path) => (path.startsWith(elsewhereReal) ? 2 : 1) }), "cross-filesystem");
 
   expect(readdirSync(elsewhere)).toEqual([]);
   expect(existsSync(layout.backups)).toBe(false);
   expect(existsSync(join(root, DB_FILE_NAME))).toBe(true);
 
   await migrate(layout, { deviceOf: SAME_DEVICE });
-  expect(readFileSync(join(elsewhere, targetOf("variants").split("/").slice(1).join("/"), MARKER), "utf8")).toBe("legacy variants");
+  const linked = DIR_ENTRIES.find((name) => targetOf(name).startsWith(`${CACHE_DIR}/`)) ?? "missing-entry";
+  expect(readFileSync(join(elsewhere, relative(CACHE_DIR, targetOf(linked)), MARKER), "utf8")).toBe(`legacy ${linked}`);
 });
 
 test("a data root that is itself a symlink is compared through the link, not beside it", async ({ importStagingDir }) => {
@@ -337,12 +351,12 @@ test("an empty mount point at a target refuses before any write; the keyed entry
   const deviceOf = (path: string): number => (real.has(path) ? 2 : 1);
   const before = rootListing(root);
 
-  await expect(migrate(layoutFor(root), { deviceOf })).rejects.toThrow();
+  await expectRefusal(migrate(layoutFor(root), { deviceOf }), "cross-filesystem");
   expect(existsSync(layoutFor(root).backups)).toBe(false);
   expect(existsSync(join(root, DB_FILE_NAME))).toBe(true);
   expect(rootListing(root)).toEqual(before);
 
-  const remedied = layoutFor(root, { [keyedName.keptBy]: join(root, keyedName.name, "transformers"), ["DATA_LAYOUT_SKIP"]: keylessName });
+  const remedied = layoutFor(root, { [keyedName.keptBy]: join(root, keyedName.name, MODELS_LEAF), ["DATA_LAYOUT_SKIP"]: keylessName });
   const report = await migrate(remedied, { deviceOf });
   expect(report.leftInPlace).toEqual([keyedName.name, keylessName, OPERATOR_FILE].sort());
   expect(movedFrom(report)).toContain(DB_FILE_NAME);
@@ -351,12 +365,12 @@ test("an empty mount point at a target refuses before any write; the keyed entry
 
 // Entries move in the layout's own order with the db last, so a failure on the second to last entry leaves a real
 // journal with applied entries behind it and the db still pending.
-const FAILING = DIR_ENTRIES.filter((name) => name !== "variants").at(-1) ?? "missing-entry";
+const FAILING = DIR_ENTRIES.at(-1) ?? "missing-entry";
 
 async function crashedBoot(root: string, scratchParent: string, over: Parameters<typeof migrate>[1] = {}): Promise<DataLayout> {
   await plantLegacyTree(root, scratchParent);
   const layout = layoutFor(root);
-  await expect(migrate(layout, { rename: busyOn(root, FAILING), ...over })).rejects.toThrow();
+  await expectRefusal(migrate(layout, { rename: busyOn(root, FAILING), ...over }), "move-failed");
   expect(existsSync(join(root, DB_FILE_NAME))).toBe(true);
   expect(existsSync(join(root, targetOf(FAILING)))).toBe(false);
   return layout;
@@ -380,7 +394,7 @@ test("a journal held by another live process refuses and touches nothing, until 
   const layout = await crashedBoot(root, importStagingDir, { pid: CRASHED_PID });
   const before = rootListing(root);
 
-  await expect(migrate(layout, { isPidAlive: () => true })).rejects.toThrow();
+  await expectRefusal(migrate(layout, { isPidAlive: () => true }), "journal-held");
 
   expect(rootListing(root)).toEqual(before);
   expect(existsSync(join(root, DB_FILE_NAME))).toBe(true);
@@ -405,7 +419,7 @@ test("a resume refuses when a pending entry's source and target both hold data, 
   mkdirSync(layout.dbDir, { recursive: true });
   writeFileSync(join(layout.dbDir, DB_FILE_NAME), "a different db");
 
-  await expect(migrate(layout, { isPidAlive: () => false })).rejects.toThrow();
+  await expectRefusal(migrate(layout, { isPidAlive: () => false }), "journal-state");
   expect(existsSync(join(root, DB_FILE_NAME))).toBe(true);
   expect(readFileSync(join(layout.dbDir, DB_FILE_NAME), "utf8")).toBe("a different db");
 
@@ -421,7 +435,7 @@ test("a resume refuses when a pending entry has neither side, a state a rename c
   const gone = join(importStagingDir, "removed-by-the-operator");
   renameSync(moved, gone);
 
-  await expect(migrate(layout, { isPidAlive: () => false })).rejects.toThrow();
+  await expectRefusal(migrate(layout, { isPidAlive: () => false }), "journal-state");
   expect(existsSync(join(root, DB_FILE_NAME))).toBe(true);
 
   // The journal survived the refusal: putting the entry back lets the same boot resume.
@@ -438,13 +452,13 @@ test.for(KEYED.filter(({ name }) => DIR_ENTRIES.includes(name)).map(({ name, kep
     const rename = busyOn(root, name);
 
     for (let boot = 0; boot < 3; boot += 1) {
-      await expect(migrate(layout, { rename }), `boot ${boot}`).rejects.toThrow();
+      await expectRefusal(migrate(layout, { rename }), "move-failed");
       expect(existsSync(join(root, DB_FILE_NAME))).toBe(true);
       // A resume never snapshots again: the first boot's copy still covers the db.
       expect(snapshotsIn(layout)).toHaveLength(1);
     }
 
-    const remedied = layoutFor(root, { [keptBy]: keptBy === "LOCAL_LIGHT_CACHE_DIR" ? join(root, name, "transformers") : join(root, name) });
+    const remedied = layoutFor(root, { [keptBy]: keptBy === "LOCAL_LIGHT_CACHE_DIR" ? join(root, name, MODELS_LEAF) : join(root, name) });
     const report = await migrate(remedied, { rename });
     expect(report.resumed).toBe(true);
     expect(movedFrom(report)).toContain(DB_FILE_NAME);

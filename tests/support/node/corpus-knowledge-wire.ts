@@ -4,6 +4,7 @@ import { resolveProseText } from "@orb/contracts/prose";
 import { SUMMARIZE_TRANSCRIPT_MARKER } from "@orb/server/domain/chat";
 import { corpusKnowledgeText } from "./corpus-knowledge.ts";
 import type { CorpusProviderCompletion } from "./corpus-provider.ts";
+import { summaryReply } from "./factories/summary-reply.ts";
 
 export const CORPUS_KNOWLEDGE_SWIPE_CUE = "Show the knowledge corpus signal.";
 export const CORPUS_KNOWLEDGE_SWIPE_TAKES = [
@@ -17,7 +18,11 @@ const CONSOLIDATION_LEAD = resolveProseText("chat.memory.consolidationLead", {})
 /** Supply a body-bearing arc to the real consolidator without encoding any grouping or tier rule. */
 export function corpusKnowledgeVariantsText(body: string): string {
   if (body.includes(CONSOLIDATION_LEAD)) {
-    return "The orbital ledger arc\nThe keeper repaired the loom and preserved the harbor witnesses across their journey.\nKeywords: loom, harbor, witnesses";
+    return summaryReply({
+      anchor: "The orbital ledger arc",
+      facts: "The keeper repaired the loom and preserved the harbor witnesses across their journey.",
+      keywords: ["loom", "harbor", "witnesses"],
+    });
   }
   return corpusKnowledgeText(body);
 }

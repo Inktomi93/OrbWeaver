@@ -4,6 +4,8 @@
 
 import type { MemoryRetrievalMode, SearchScope } from "@orb/contracts/search";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import { blockKeyStr } from "@orb/kit/recall";
+import { applyRerank } from "@orb/kit/rerank";
 import { SEARCH_EMPTY_QUERY, SEARCH_LENS_REQUIRED, SEARCH_SCOPE_REQUIRED, SEARCH_SCOPE_UNSUPPORTED, SearchError } from "../contract/errors.ts";
 import type { UnifiedSearchParams } from "../contract/params.ts";
 import type { DigestSourceHit, SegmentSearchHit, UnifiedSearchResult, UnifiedSearchRows } from "../contract/results.ts";
@@ -12,9 +14,7 @@ import { hostedChatIds, nearestDigests } from "../persistence/digest-rows.ts";
 import { resolveCharacterDisplay, resolveChatDisplay } from "../persistence/display.ts";
 import { DISCOVER_SEGMENT_POOL_CAP, DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGMENTS_PER_CHAR, OWNER_OVERFETCH, SCOPED_POOL_K } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
-import { blockKeyStr } from "../substrate/dedupe.ts";
 import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
-import { applyRerank } from "../substrate/rerank.ts";
 import { withActiveQuerySpace } from "../substrate/space.ts";
 
 /** Delegated retrieval retains producer scope; digest scopes share the current-host scan below. */

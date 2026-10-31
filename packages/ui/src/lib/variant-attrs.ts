@@ -3,7 +3,7 @@
 //
 // WHY IT EXISTS. `@orb/ui` expresses its variant axes as CLASS STRINGS only, so nothing in the rendered
 // DOM says which ARM an element is. The ui-audit walker's authored-target identity
-// (`tooling/src/ui-audit/ops/walker/target-identity.ts`, `TARGET_VARIANT_ATTRS`) reads exactly these four
+// (`tooling/src/ui-audit/ops/walker/target-identity.ts`, `TARGET_VARIANT_ATTRS`) reads exactly these
 // attributes to tell two authored decisions apart — with zero emitters, a `glyph="xs"` glyph button beside a
 // `size="lg"` button in one toolbar folded into ONE "authored target-size decision" (one repair row where
 // two decisions exist, with a muddled min–max range) — audit finding F8, 2026-09-02.
@@ -39,8 +39,9 @@
 import type { Tone } from "#tokens";
 import { cn } from "./class-merge.ts";
 
-/** The axis names the ui primitives stamp. Closed on purpose — see the header's Base UI collision note. */
-export const STAMPED_VARIANT_AXES = ["variant", "size", "intent", "tone", "glyph", "step"] as const;
+/** The axis names the ui primitives stamp. Closed on purpose — see the header's Base UI collision note. `square` is
+ *  stamped beside `size` because an icon-only box is its own width decision at the step's height. */
+export const STAMPED_VARIANT_AXES = ["variant", "size", "square", "tone", "glyph", "step"] as const;
 
 export type StampedVariantAxis = (typeof STAMPED_VARIANT_AXES)[number];
 

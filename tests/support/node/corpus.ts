@@ -1,5 +1,6 @@
 // Capsules own disposable persisted graphs. Private intake preserves the source and remains Node-local;
 // only fresh synthetic captures may enter portable publication.
+
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import type { FileHandle } from "node:fs/promises";
 import { mkdir, mkdtemp, open, rm, writeFile } from "node:fs/promises";
@@ -23,6 +24,7 @@ import type { CorpusPlayback } from "../iso/corpus.ts";
 import { encodeCorpusWire, hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
 import { admitCorpusPlayback } from "../iso/corpus-admission.ts";
 import { createSeededIds, SEEDED_ID_MAX_CURSOR } from "../iso/ids.ts";
+import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import { bootGrantFor } from "./boot-grant.ts";
 import type { seedCorpusChatLifecycle as produceCorpusChatLifecycle } from "./corpus-chat-lifecycle.ts";
 import type { seedCorpusConnection as produceCorpusConnection } from "./corpus-connection.ts";
@@ -600,7 +602,9 @@ async function initializeCorpusOwner(
     networkExecution: {
       fetch: issuer.fetch,
       resolver: (hostname) =>
-        hostname === new URL(ISSUER).hostname ? Promise.resolve(["93.184.215.14"]) : Promise.reject(new Error("unscripted corpus issuer address resolution")),
+        hostname === new URL(ISSUER).hostname
+          ? Promise.resolve([PUBLIC_PEER_ADDRESS])
+          : Promise.reject(new Error("unscripted corpus issuer address resolution")),
     },
     casDir: layout.assets,
     variantDir: layout.variants,

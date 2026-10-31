@@ -42,6 +42,7 @@ import { copyWithNotice, NEEDS_CONTINUATION, notify, testId } from "#lib";
 import { selectChat, startEditingMessage } from "#state";
 import { useReactionsEnabled, useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
 import { useReattributeTarget } from "../hooks/use-reattribute-target.ts";
+import { MESSAGE_VIEW_WIRE_TRACE_NAME } from "../lib/message-action-names.ts";
 import type { ActionsReveal } from "../lib/message-actions-reveal.ts";
 import { ACTIONS_REVEAL_POSTURE } from "../lib/message-actions-reveal.ts";
 import { GenerationCredit } from "./generation-credit.tsx";
@@ -332,7 +333,7 @@ export function MessageActionsRow({
             {showWireTrace ? (
               <MenuItem data-testid={testId("variantWireTrigger")} onClick={(): void => setWireOpen(true)}>
                 <Icon icon={Code} size="sm" />
-                View wire trace…
+                {MESSAGE_VIEW_WIRE_TRACE_NAME}
               </MenuItem>
             ) : null}
           </>

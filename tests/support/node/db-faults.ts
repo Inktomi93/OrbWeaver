@@ -19,6 +19,19 @@ interface WriteRefusalSpec {
   readonly when?: string;
 }
 
+interface TriggerSpec {
+  readonly table: SQLiteTable;
+  readonly event: (typeof REFUSED_WRITES)[number];
+  readonly timing: "BEFORE" | "AFTER";
+  /** The trigger's name; unique per planted fault. */
+  readonly name: string;
+  /** The trigger's statements, each ending in `;`. DDL cannot bind parameters, so they are literal SQL. */
+  readonly body: string;
+  readonly columns?: readonly SQLiteColumn[];
+  /** A literal trigger `WHEN` condition over `NEW`/`OLD`. */
+  readonly when?: string;
+}
+
 /** An armed fault. `lift` restores the database mid-test; disposal lifts it if the test did not. */
 export interface DbFault extends AsyncDisposable {
   readonly lift: () => Promise<void>;
@@ -40,10 +53,11 @@ function liftOnce(lift: () => Promise<unknown>): DbFault {
   return { lift: once, [Symbol.asyncDispose]: once };
 }
 
-/** Arm a `BEFORE <event>` trigger that aborts every matching statement with `message`. */
-export async function refuseWrites(db: Db, spec: WriteRefusalSpec): Promise<DbFault> {
+/** Plant a trigger that runs `body` around every matching write, until lifted. It injects a fault, never seeded state:
+ *  a write refusal is `refuseWrites`; a trigger that corrupts a neighbouring table after a write is planted here. */
+export async function plantTrigger(db: Db, spec: TriggerSpec): Promise<DbFault> {
   const table = getTableName(spec.table);
-  const trigger = sql.identifier(`refuse_${table}_${spec.event.toLowerCase()}_${messageKey(spec.message)}`);
+  const trigger = sql.identifier(spec.name);
   const of =
     spec.columns === undefined || spec.columns.length === 0
       ? sql``
@@ -53,9 +67,22 @@ export async function refuseWrites(db: Db, spec: WriteRefusalSpec): Promise<DbFa
         )}`;
   const when = spec.when === undefined ? sql`` : sql` WHEN ${sql.raw(spec.when)}`;
   await db.run(
-    sql`CREATE TRIGGER ${trigger} BEFORE ${sql.raw(spec.event)}${of} ON ${sql.identifier(table)}${when} BEGIN SELECT RAISE(ABORT, ${sql.raw(`'${spec.message.replaceAll("'", "''")}'`)}); END`,
+    sql`CREATE TRIGGER ${trigger} ${sql.raw(spec.timing)} ${sql.raw(spec.event)}${of} ON ${sql.identifier(table)}${when} BEGIN ${sql.raw(spec.body)} END`,
   );
   return liftOnce(() => db.run(sql`DROP TRIGGER IF EXISTS ${trigger}`));
+}
+
+/** Arm a `BEFORE <event>` trigger that aborts every matching statement with `message`. */
+export function refuseWrites(db: Db, spec: WriteRefusalSpec): Promise<DbFault> {
+  return plantTrigger(db, {
+    table: spec.table,
+    event: spec.event,
+    timing: "BEFORE",
+    name: `refuse_${getTableName(spec.table)}_${spec.event.toLowerCase()}_${messageKey(spec.message)}`,
+    body: `SELECT RAISE(ABORT, '${spec.message.replaceAll("'", "''")}');`,
+    ...(spec.columns === undefined ? {} : { columns: spec.columns }),
+    ...(spec.when === undefined ? {} : { when: spec.when }),
+  });
 }
 
 /** Rename `table` away so every statement on it fails with `no such table`, until lifted. */

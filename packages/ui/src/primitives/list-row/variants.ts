@@ -48,6 +48,8 @@ export const listRowVariants = tv({
     body: [
       "group group/body flex flex-1 items-center gap-row rounded-control px-row py-field outline-none min-block-(--size-control-md) min-inline-0",
       `${SELECTION_RAIL} ${DISABLED_STATE}`,
+      // A disclosure header that is open holds the tint-active fill under its on-tint ink (`aria-expanded`, D336).
+      "aria-expanded:bg-tone-tint-active aria-expanded:text-tone-text-on-tint",
     ],
     leading: "flex shrink-0 items-center justify-center text-muted-foreground",
     // `min-w-(--width-title-floor)` is the title-column floor: name/subtitle never collapse below a readable width, so
@@ -62,7 +64,11 @@ export const listRowVariants = tv({
     // `flex-1` is the BLOCK-subtitle arm's growth (the title owns the whole line); the INLINE arm below
     // replaces it with a min-width floor, because a `flex-1 min-w-0` title beside a `shrink-0` sibling
     // collapses to ZERO width — the P0 that hid three Actions row names outright (side-eye F-01).
-    title: "block flex-1 truncate text-start text-body leading-body font-medium text-foreground min-inline-0 group-data-selected:text-tone-text-on-tint",
+    title: `
+      block flex-1 truncate text-start text-body leading-body font-medium text-foreground min-inline-0
+      group-aria-expanded/body:text-tone-text-on-tint
+      group-data-selected:text-tone-text-on-tint
+    `,
     // THE TITLE'S DISAMBIGUATOR (`titleQualifier`) — rendered right after the name, in the quiet mono datum
     // treatment the same handle already wears in the row's hover reveal. `shrink-0`: the qualifier is the
     // half that TELLS TWO ROWS APART, so a squeeze must eat the name (which is identical across them
@@ -262,8 +268,14 @@ export const listRowVariants = tv({
     rowTint: {
       body: {},
       row: {
-        root: ["rounded-control pe-row", SELECTION_RAIL],
-        body: "rounded-none border-s-0 hover:bg-transparent active:bg-transparent data-selected:border-s-transparent data-selected:bg-transparent",
+        root: ["rounded-control pe-row has-[>[aria-expanded=true]]:bg-tone-tint-active", SELECTION_RAIL],
+        body: `
+          rounded-none border-s-0
+          hover:bg-transparent
+          active:bg-transparent
+          aria-expanded:bg-transparent
+          data-selected:border-s-transparent data-selected:bg-transparent
+        `,
       },
     },
   },

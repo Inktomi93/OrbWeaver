@@ -1,8 +1,9 @@
 // The two-human fixture, pure: the env recipe that runs the dev stack as a real multi-human deployment
 // beside the operator's own (its own port pair, data root and run dir), and the credentials it seeds.
 import { join } from "node:path";
+import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { FIXTURE_PORTS } from "../../floor/host/ports.ts";
-import { ENV_NO_FILE, PORT_ENV, RUN_DIR_ENV, VITE_API_TARGET_ENV, VITE_PORT_ENV } from "./stack-plan.ts";
+import { PORT_ENV, RUN_DIR_ENV, VITE_API_TARGET_ENV, VITE_PORT_ENV } from "./stack-plan.ts";
 
 /** Where the fixture keeps its DB, assets, secrets and run dir, under the repo root. */
 export const FIXTURE_DIR_REL = join(".cache", "multi-user-fixture");
@@ -59,7 +60,7 @@ export function fixtureIdentityEnv(serverPort: number): Readonly<Record<string, 
     ["SESSION_SECRET", "orbweaver-multi-user-fixture-session-secret-insecure"],
     ["CREDENTIALS_KEY", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"],
     ["LOCAL_INITIAL_PASSWORD", OWNER.password],
-    [ENV_NO_FILE, "1"],
+    [ENV_NO_FILE_KEY, "1"],
     ["OWNER_HANDLES", OWNER.handle],
     ["SEED_BASE_URL", `http://127.0.0.1:${String(serverPort)}`],
     ["FIXTURE_OWNER_HANDLE", OWNER.handle],

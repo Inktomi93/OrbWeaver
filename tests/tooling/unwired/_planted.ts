@@ -1,21 +1,8 @@
-// The compiler options a planted unwired tree builds with, and the one-world tree shape the scan suites share.
-// Planted trees carry no node_modules, so `types` stays empty and JSX runs on a declared namespace.
+// What the unwired scan suites plant beside the testkit's `plantedTsconfig`: the libs a node-only tree builds with,
+// the one package world a single-world tree holds, and a JSX namespace, since a planted tree has no node_modules.
 
-export const COMPILER = {
-  strict: true,
-  target: "ESNext",
-  lib: ["ESNext"],
-  module: "ESNext",
-  moduleResolution: "bundler",
-  allowImportingTsExtensions: true,
-  noEmit: true,
-  jsx: "preserve",
-  types: [],
-} as const;
-
-/** A tsconfig that includes `include` with {@link COMPILER} and any extra options. */
-export const config = (include: readonly string[], extra: Readonly<Record<string, unknown>> = {}): string =>
-  JSON.stringify({ compilerOptions: { ...COMPILER, ...extra }, include });
+/** The libs of a planted tree with no DOM. */
+export const LIB = ["ESNext"];
 
 /** The one package world every single-world tree plants. */
 export const WORLD = "packages/a/tsconfig.json";

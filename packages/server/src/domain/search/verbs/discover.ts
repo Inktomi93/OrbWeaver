@@ -2,6 +2,7 @@
 import { NO_HISTORY_FLOOR } from "@orb/contracts/chat";
 import type { CorpusSource } from "@orb/contracts/search";
 import type { CharacterId } from "@orb/kit/ids";
+import { applyRerank } from "@orb/kit/rerank";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
 import type { DiscoverParams } from "../contract/params.ts";
 import type { DiscoverResult, DiscoverSegment } from "../contract/results.ts";
@@ -12,7 +13,6 @@ import { readSourceAnchors } from "../persistence/source.ts";
 import { DISCOVER_SEGMENT_POOL_CAP, DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGMENTS_PER_CHAR, SNIPPET_CHARS } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 import { collapseSegmentChunks } from "../substrate/dedupe.ts";
-import { applyRerank } from "../substrate/rerank.ts";
 import { withActiveQuerySpace } from "../substrate/space.ts";
 import { requirePositiveTopN } from "../substrate/top-n.ts";
 

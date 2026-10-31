@@ -18,8 +18,8 @@ Ports derive from their owners so references follow the composition root. The un
 
 | Step | Work | Items |
 | - | - | - |
-| 1 | Derive every port from its owner; rule cross-domain handle passing | [1439](../../work/1439-derive-every-injected-port-from-its-owning-contract.md), [1446](../../work/1446-rule-or-remove-the-cross-domain-database-handle.md) |
-| 2 | Judge every member the member scan reports | the unwired-member items the 1439 report boards, [0501](../../work/0501-wire-or-delete-the-unused-prompt-preview-verbs.md), [1458](../../work/1458-adjudicate-two-possibly-dead-guards-in-the-plugin.md) |
+| 1 | Derive every port from its owner; rule cross-domain handle passing | the spread-flow ports, [1503](../../work/1503-teach-the-port-census-and-the-derived-port.md) |
+| 2 | Judge every member the member scan reports | the unwired-member items the 1439 report boards, [0501](../../work/0501-wire-or-delete-the-unused-prompt-preview-verbs.md), and the possibly dead guards the restoration lanes found |
 | 3 | Build the TS 7.1 engine and the dead-inside-live scans | [1447](../../work/1447-extend-pnpm-unwired-ts-7-1-engine-and.md) |
 | 4 | Judge the first full run of each new scan; delete synonym aliases from the shapes scan | the items 1447 boards, [1445](../../work/1445-delete-synonym-type-aliases-keep-per-verb-params.md) |
 | 5 | Adjudicate unused exports through the package doors | [0989](../../work/0989-adjudicate-unused-production-exports-behind-explicit-package-doors.md) |
@@ -45,7 +45,7 @@ The first run of each `pnpm unwired` scan over the whole tree, on the TypeScript
 
 | Scan | Command | Report | Scanned | Findings | Deliberate | Disagreements | Wall time | Peak RSS |
 | - | - | - | - | - | - | - | - | - |
-| members | `pnpm unwired` | `reports/unwired/unwired.json` | 4189 members | 164 | 32 | 0 | 4:41 | 10.3 GB |
+| members | `pnpm unwired` | `reports/unwired/unwired.json` | 4200 members | 111 | 33 | 0 | 5:41 | 8.4 GB |
 | fields | `pnpm unwired fields` | `reports/unwired/fields.json` | 19446 fields | 3384 | 4 | 14 | 19:51 | 9.3 GB |
 | params | `pnpm unwired params` | `reports/unwired/params.json` | 16823 callables | 315 | 0 | 4 | 7:54 | 10.3 GB |
 | unions | `pnpm unwired unions` | `reports/unwired/unions.json` | 671 tuples | 205 | 0 | 0 | 2:07 | 7.9 GB |
@@ -55,52 +55,50 @@ Each run started with a 1-minute load under 24 on a 24-core box. A disagreement 
 
 ### Members
 
-`pnpm unwired` reports callable members of named types that production code never calls. `builder-only` members have an implementation and no caller, `test-only` members are called only from tests, and `unreferenced` members are never named.
+`pnpm unwired` reports callable members of named types that production code never calls. `builder-only` members have an implementation and no caller, `test-only` members are called only from tests, and `unreferenced` members are never named. A member that a composition root hands into a used port slot counts as reached; the report lists those 64 under `reachedByFlow`.
 
 | Domain | `builder-only` | `test-only` | `unreferenced` | Total |
 | - | - | - | - | - |
-| `contracts` | 16 | 4 | 6 | 26 |
-| `server/domain/chat` | 9 | 12 | 0 | 21 |
-| `server/domain/character` | 12 | 1 | 0 | 13 |
-| `server/entry` | 5 | 5 | 0 | 10 |
-| `server/infra` | 6 | 2 | 1 | 9 |
-| `inference` | 7 | 1 | 0 | 8 |
-| `server/domain/embeddings` | 7 | 1 | 0 | 8 |
+| `contracts` | 11 | 3 | 3 | 17 |
+| `server/domain/chat` | 6 | 10 | 0 | 16 |
+| `server/entry` | 4 | 4 | 0 | 8 |
+| `inference` | 5 | 2 | 0 | 7 |
 | `kit` | 4 | 3 | 0 | 7 |
-| `server/domain/sessions` | 3 | 2 | 0 | 5 |
+| `server/infra` | 4 | 2 | 1 | 7 |
 | `client/forms` | 3 | 0 | 1 | 4 |
-| `server/domain/automation` | 4 | 0 | 0 | 4 |
 | `server/domain/connection` | 3 | 1 | 0 | 4 |
 | `server/domain/discovery` | 4 | 0 | 0 | 4 |
-| `server/domain/tool-use` | 2 | 2 | 0 | 4 |
 | `client/features/plugin` | 3 | 0 | 0 | 3 |
+| `server/domain/sessions` | 2 | 1 | 0 | 3 |
 | `server/transport` | 3 | 0 | 0 | 3 |
 | `client/data` | 2 | 0 | 0 | 2 |
 | `client/features/chat` | 2 | 0 | 0 | 2 |
-| `client/state` | 2 | 0 | 0 | 2 |
-| `server/domain/assets` | 2 | 0 | 0 | 2 |
 | `server/domain/import` | 2 | 0 | 0 | 2 |
-| `server/domain/persona` | 2 | 0 | 0 | 2 |
 | `server/domain/plugin` | 2 | 0 | 0 | 2 |
 | `server/domain/rpg` | 1 | 0 | 1 | 2 |
-| `server/domain/settings` | 2 | 0 | 0 | 2 |
 | `server/domain/share` | 1 | 1 | 0 | 2 |
 | `ui` | 2 | 0 | 0 | 2 |
 | `client/features/credentials` | 1 | 0 | 0 | 1 |
 | `client/features/discovery` | 1 | 0 | 0 | 1 |
 | `client/lib` | 1 | 0 | 0 | 1 |
+| `client/state` | 1 | 0 | 0 | 1 |
+| `server/domain/assets` | 1 | 0 | 0 | 1 |
+| `server/domain/automation` | 1 | 0 | 0 | 1 |
+| `server/domain/character` | 1 | 0 | 0 | 1 |
 | `server/domain/credentials` | 1 | 0 | 0 | 1 |
 | `server/domain/databank` | 0 | 0 | 1 | 1 |
+| `server/domain/embeddings` | 1 | 0 | 0 | 1 |
 | `server/domain/regex` | 0 | 1 | 0 | 1 |
-| `server/domain/stats` | 1 | 0 | 0 | 1 |
+| `server/domain/tool-use` | 1 | 0 | 0 | 1 |
 | `server/domain/workloads` | 1 | 0 | 0 | 1 |
 | `server/domain/world-info` | 1 | 0 | 0 | 1 |
-| Total | 118 | 36 | 10 | 164 |
+| Total | 76 | 28 | 7 | 111 |
 
 Examples:
 
 - `packages/kit/src/content/index.ts:1116` `HiddenSpanStreamScrubber.flush` is `builder-only`. Only a `{@link}` in a doc comment names it.
 - `packages/server/src/domain/import/contract/service.ts:192` `ImportService.importChatBundle` is `builder-only`. A doc comment links it, and no code calls it.
+- `packages/server/src/infra/image/contract.ts:50` `ImageAdapter.probe` is `builder-only`. Only the `{@link}` at line 31 names it.
 - `packages/kit/src/macro/types.ts:496` `MacroRegistry.requirementsOf` is `builder-only`. `SimpleMacroRegistry` implements it, and no code calls it.
 
 ### Fields

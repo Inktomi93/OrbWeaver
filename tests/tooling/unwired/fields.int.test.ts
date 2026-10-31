@@ -1,11 +1,11 @@
 // `pnpm unwired fields` reports dead data: a field production writes and never reads, an optional field it reads and
 // never writes, and one it never names. Each read and write form the scan must see has a wired control beside it.
-import { expect, test } from "@orb/testkit/tooling";
+import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { scanFields } from "../../../tooling/src/unwired/index.ts";
-import { config, WORLD } from "./_planted.ts";
+import { LIB, WORLD } from "./_planted.ts";
 
 const TREE = {
-  [WORLD]: config(["src"]),
+  [WORLD]: plantedTsconfig({ lib: LIB }),
   "packages/a/src/z.ts": [
     "export interface Schema<V> { readonly value?: V; optional(): Schema<V | undefined> }",
     "const schema = <V>(): Schema<V> => ({ optional: () => schema<V | undefined>() });",
@@ -45,7 +45,7 @@ const TREE = {
     'export const made: Shown = { title: "t", note: "n" };',
     "export const titled = (shown: Infer<typeof ShownSchema>): string => shown.title;",
   ].join("\n"),
-  "tsconfig.json": config(["packages/*/src", "tests"]),
+  "tsconfig.json": plantedTsconfig({ lib: LIB, include: ["packages/*/src", "tests"] }),
   "tests/row.test.ts": 'import { makeRow } from "../packages/a/src/row.ts";\nexport const probed = makeRow().dead;',
 };
 
@@ -81,7 +81,7 @@ test("a field the deliberate list names leaves the unwired list with its reason"
 // The client imports the router through `@orb/server`; with no declaration surface planted, only the scans' source
 // bridge resolves it, so the client's read is the field's only read.
 const BRIDGED = {
-  "packages/server/tsconfig.json": config(["src"]),
+  "packages/server/tsconfig.json": plantedTsconfig({ lib: LIB }),
   "packages/server/src/index.ts": [
     "export interface View {",
     "  title: string;",
@@ -89,7 +89,7 @@ const BRIDGED = {
     "}",
     'export const view = (): View => ({ title: "t", shownNowhere: "s" });',
   ].join("\n"),
-  "packages/client/tsconfig.json": config(["src"]),
+  "packages/client/tsconfig.json": plantedTsconfig({ lib: LIB }),
   "packages/client/src/page.ts": 'import type { View } from "@orb/server";\nexport const heading = (shown: View): string => shown.title;',
 };
 

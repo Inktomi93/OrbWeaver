@@ -3,31 +3,28 @@
 
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
-import type { ChatId } from "@orb/kit/ids";
 import { resolvedLength, scrollIntoReadingMessage as scrollIntoMessage, seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import type { CorpusPlayback } from "@orb/testkit/iso";
+import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 import type { ReadingRoom } from "./chat-style-reading.fixtures.ts";
-import { createReadingRoom, openReadingRoom } from "./chat-style-reading.fixtures.ts";
+import { createReadingRoom, openReadingStyle, roomStoryProps } from "./chat-style-reading.fixtures.ts";
 
 const ROOM_STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const PHONE = { width: 390, height: 844 } as const;
-const COARSE = "(pointer: coarse)";
 
 // Styles whose bar names the speaker: the actions-only bar of the document style has no identity to measure under.
 const NAMED_STYLES = THEME_CHAT_STYLES.filter((style) => MESSAGE_ROW_SKINS[style].actionsRow.identity);
 
 let root: ReadingRoom["root"];
-let roomId: ChatId;
 let longReplyId: string;
 
 test.use({ viewport: PHONE, hasTouch: true });
 
 test.beforeAll(async () => {
-  ({ root, roomId, longReplyId } = await createReadingRoom());
+  ({ root, longReplyId } = await createReadingRoom());
 });
 
 test.afterAll(async () => {
@@ -49,22 +46,14 @@ async function fillBelowRail(page: Page, chatStyle: ThemeChatStyle): Promise<num
   return (await bottom(header)) - (await bottom(header.locator('[data-slot="message-actions-slot"]')));
 }
 
-async function openStyle(page: Page, corpus: CorpusPlayback, chatStyle: ThemeChatStyle): Promise<void> {
-  await openReadingRoom(page, corpus, root, { chatStyle, art: false });
-  await seedShellState(page, { activeSection: "chats" });
-}
-
-function roomStoryProps(): { readonly chatId: ChatId } {
-  return { chatId: roomId };
-}
-
 for (const chatStyle of NAMED_STYLES) {
   test(`${chatStyle} keeps one row step of fill under its action rail while pinned on a coarse pointer`, async ({ corpus, mount, page }) => {
-    await openStyle(page, corpus, chatStyle);
+    await openReadingStyle(page, corpus, chatStyle);
+    await seedShellState(page, { activeSection: "chats" });
     await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
-    expect(await page.evaluate((query) => matchMedia(query).matches, COARSE)).toBe(true);
+    expect(await page.evaluate((query) => matchMedia(query).matches, MEDIA_QUERIES["pointer-coarse"])).toBe(true);
     const fill = await fillBelowRail(page, chatStyle);
-    const step = await resolvedLength(page, "var(--spacing-row)");
+    const step = await resolvedLength(page, `var(${TOKENS["spacing.row"].cssVar})`);
     expect(fill).toBe(step);
   });
 }

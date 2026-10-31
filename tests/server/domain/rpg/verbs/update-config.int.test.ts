@@ -10,6 +10,7 @@ import { chats } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { refuseWrites, seedRecallRoom, seedRpgGame } from "@orb/testkit/node/composed";
+import { RPG_OP_CODES } from "#server/domain/rpg/contract/op-codes.ts";
 
 type Patch = NonNullable<Parameters<ServerTestHarness["services"]["rpg"]["updateConfig"]>[0]["patch"]>;
 
@@ -32,50 +33,60 @@ async function liteGame(root: ServerTestHarness): Promise<{
   };
 }
 
+// Every config view field is either tuned here or named in UNTUNED as owned by another case below, so a field the
+// view gains fails `tsc` until it has a write.
+const UNTUNED = ["statProfile", "ruleset", "steeringNote", "gmPresetId", "extractionMode", "presetMacroNames"] as const;
+type TunedKnob = Exclude<keyof RpgConfigView, (typeof UNTUNED)[number]>;
+interface Knob {
+  readonly patch: Patch;
+  readonly read: (view: RpgConfigView) => unknown;
+}
+// A knob's patch carries exactly that one field, so its written value is the patch's only value.
+const written = (knob: Knob): unknown => Object.values(knob.patch)[0];
+
 // Each row writes a value the born config does not hold, so the first read proves the write landed before the
 // unrelated write proves it was kept. `reconcileEveryBeats: 0` is the falsy value a `||` merge would restore.
-const KNOBS: readonly { readonly name: string; readonly patch: Patch; readonly read: (view: RpgConfigView) => unknown }[] = [
-  { name: "deception", patch: { deception: true }, read: (view) => view.deception },
-  { name: "omniscience", patch: { omniscience: true }, read: (view) => view.omniscience },
-  { name: "hiddenContentReveal", patch: { hiddenContentReveal: false }, read: (view) => view.hiddenContentReveal },
-  { name: "recentBeatsKeepLast", patch: { recentBeatsKeepLast: 3 }, read: (view) => view.recentBeatsKeepLast },
-  { name: "immersiveHtml", patch: { immersiveHtml: false }, read: (view) => view.immersiveHtml },
-  { name: "immersiveHtmlInteractive", patch: { immersiveHtmlInteractive: false }, read: (view) => view.immersiveHtmlInteractive },
-  { name: "cardKeepLastX", patch: { cardKeepLastX: 2 }, read: (view) => view.cardKeepLastX },
-  { name: "cyoa", patch: { cyoa: true }, read: (view) => view.cyoa },
-  { name: "cyoaChoiceBehavior", patch: { cyoaChoiceBehavior: "send" }, read: (view) => view.cyoaChoiceBehavior },
-  { name: "plotProgression", patch: { plotProgression: false }, read: (view) => view.plotProgression },
-  { name: "relationshipHints", patch: { relationshipHints: { vassal: "sworn but resentful" } }, read: (view) => view.relationshipHints },
-  { name: "journalTypeHints", patch: { journalTypeHints: { ritual: "a binding performed aloud" } }, read: (view) => view.journalTypeHints },
-  { name: "extractionContext", patch: { extractionContext: "full" }, read: (view) => view.extractionContext },
-  { name: "extractionWindowTokens", patch: { extractionWindowTokens: 8192 }, read: (view) => view.extractionWindowTokens },
-  { name: "reconcileEveryBeats", patch: { reconcileEveryBeats: 0 }, read: (view) => view.reconcileEveryBeats },
-  { name: "stateCaptureVehicle", patch: { stateCaptureVehicle: "structured" }, read: (view) => view.stateCaptureVehicle },
-  { name: "dateMode", patch: { dateMode: "structured" }, read: (view) => view.dateMode },
-  { name: "trackers", patch: { trackers: [grit] }, read: (view) => view.trackers },
-  {
-    name: "userMacros",
+const KNOBS: Readonly<Record<TunedKnob, Knob>> = {
+  deception: { patch: { deception: true }, read: (view) => view.deception },
+  omniscience: { patch: { omniscience: true }, read: (view) => view.omniscience },
+  hiddenContentReveal: { patch: { hiddenContentReveal: false }, read: (view) => view.hiddenContentReveal },
+  recentBeatsKeepLast: { patch: { recentBeatsKeepLast: 3 }, read: (view) => view.recentBeatsKeepLast },
+  immersiveHtml: { patch: { immersiveHtml: false }, read: (view) => view.immersiveHtml },
+  immersiveHtmlInteractive: { patch: { immersiveHtmlInteractive: false }, read: (view) => view.immersiveHtmlInteractive },
+  cardKeepLastX: { patch: { cardKeepLastX: 2 }, read: (view) => view.cardKeepLastX },
+  cyoa: { patch: { cyoa: true }, read: (view) => view.cyoa },
+  cyoaChoiceBehavior: { patch: { cyoaChoiceBehavior: "send" }, read: (view) => view.cyoaChoiceBehavior },
+  plotProgression: { patch: { plotProgression: false }, read: (view) => view.plotProgression },
+  relationshipHints: { patch: { relationshipHints: { vassal: "sworn but resentful" } }, read: (view) => view.relationshipHints },
+  journalTypeHints: { patch: { journalTypeHints: { ritual: "a binding performed aloud" } }, read: (view) => view.journalTypeHints },
+  extractionContext: { patch: { extractionContext: "full" }, read: (view) => view.extractionContext },
+  extractionWindowTokens: { patch: { extractionWindowTokens: 8192 }, read: (view) => view.extractionWindowTokens },
+  reconcileEveryBeats: { patch: { reconcileEveryBeats: 0 }, read: (view) => view.reconcileEveryBeats },
+  stateCaptureVehicle: { patch: { stateCaptureVehicle: "structured" }, read: (view) => view.stateCaptureVehicle },
+  dateMode: { patch: { dateMode: "structured" }, read: (view) => view.dateMode },
+  trackers: { patch: { trackers: [grit] }, read: (view) => view.trackers },
+  userMacros: {
     patch: { userMacros: [userMacroSchema.parse({ name: "mood", description: "the scene tone", body: "The tone is {{tone}}." })] },
     read: (view) => view.userMacros,
   },
-];
+};
 
 test("an unrelated config write keeps every knob the host tuned", async ({ harness }) => {
   const game = await liteGame(harness);
   const born = await game.config();
-  for (const knob of KNOBS) {
-    expect(knob.read(born), `${knob.name} must differ from its born value for the write to be observable`).not.toEqual(knob.patch[knob.name as keyof Patch]);
+  for (const [name, knob] of Object.entries(KNOBS)) {
+    expect(knob.read(born), `${name} must differ from its born value for the write to be observable`).not.toEqual(written(knob));
     await game.update(knob.patch);
   }
   const tuned = await game.config();
-  for (const knob of KNOBS) {
-    expect(knob.read(tuned), `${knob.name} after its own write`).toEqual(knob.patch[knob.name as keyof Patch]);
+  for (const [name, knob] of Object.entries(KNOBS)) {
+    expect(knob.read(tuned), `${name} after its own write`).toEqual(written(knob));
   }
   await game.update({ steeringNote: "unrelated" });
   const after = await game.config();
   expect(after.steeringNote).toBe("unrelated");
-  for (const knob of KNOBS) {
-    expect(knob.read(after), `${knob.name} after an unrelated write`).toEqual(knob.patch[knob.name as keyof Patch]);
+  for (const [name, knob] of Object.entries(KNOBS)) {
+    expect(knob.read(after), `${name} after an unrelated write`).toEqual(written(knob));
   }
 });
 
@@ -130,11 +141,11 @@ test("an incoherent vocabulary is refused and leaves the stored config unchanged
   }
   const many = (count: number): ReturnType<typeof rpgTrackerDefSchema.parse>[] => Array.from({ length: count }, (_, index) => tracker(`t${String(index)}`));
   const refusals: readonly { readonly code: string; readonly patch: Patch }[] = [
-    { code: "rpg_profile_duplicate_attribute", patch: { statProfile: { ...RPG_PROFILE_D20, attributes: [...RPG_PROFILE_D20.attributes, first] } } },
-    { code: "rpg_profile_inverted_range", patch: { statProfile: { ...RPG_PROFILE_D20, range: { min: 20, max: 1 } } } },
-    { code: "rpg_profile_dangling_attribute", patch: { statProfile: { ...RPG_PROFILE_D20, defaultAttribute: "undeclared" } } },
-    { code: "rpg_duplicate_tracker_key", patch: { trackers: [tracker("grit"), tracker("grit")] } },
-    { code: "rpg_too_many_trackers", patch: { trackers: many(RPG_CONFIG_MAX_TRACKERS + 1) } },
+    { code: RPG_OP_CODES.profileDuplicateAttribute, patch: { statProfile: { ...RPG_PROFILE_D20, attributes: [...RPG_PROFILE_D20.attributes, first] } } },
+    { code: RPG_OP_CODES.profileInvertedRange, patch: { statProfile: { ...RPG_PROFILE_D20, range: { min: 20, max: 1 } } } },
+    { code: RPG_OP_CODES.profileDanglingAttribute, patch: { statProfile: { ...RPG_PROFILE_D20, defaultAttribute: "undeclared" } } },
+    { code: RPG_OP_CODES.duplicateTrackerKey, patch: { trackers: [tracker("grit"), tracker("grit")] } },
+    { code: RPG_OP_CODES.tooManyTrackers, patch: { trackers: many(RPG_CONFIG_MAX_TRACKERS + 1) } },
   ];
   for (const refusal of refusals) {
     await expect(game.update(refusal.patch)).rejects.toMatchObject({ code: refusal.code });
@@ -156,7 +167,7 @@ test("removing an attribute a sheet still carries is refused, adding one is not"
     actorRef: { kind: "user", userId: game.host.userId },
     patch: { attributes: { [RPG_PROFILE_D20.attributes[0]?.key ?? ""]: 12 } },
   });
-  await expect(game.update({ statProfile: RPG_RULESET_PROFILE.freeform })).rejects.toMatchObject({ code: "rpg_profile_referenced_remove" });
+  await expect(game.update({ statProfile: RPG_RULESET_PROFILE.freeform })).rejects.toMatchObject({ code: RPG_OP_CODES.profileReferencedRemove });
   expect((await game.config()).statProfile.attributes).toHaveLength(RPG_PROFILE_D20.attributes.length);
   await game.update({ statProfile: { ...RPG_PROFILE_D20, attributes: [...RPG_PROFILE_D20.attributes, { key: "luck", label: "Luck", hint: "" }] } });
   expect((await game.config()).statProfile.attributes).toHaveLength(RPG_PROFILE_D20.attributes.length + 1);
@@ -166,7 +177,7 @@ test("an unknown extraction mode is refused", async ({ harness }) => {
   const game = await liteGame(harness);
   const before = await game.config();
   await expect(harness.services.rpg.updateConfig({ principal: game.host, chatId: game.chatId, extractionMode: "sloppy" })).rejects.toMatchObject({
-    code: "rpg_invalid_extraction_mode",
+    code: RPG_OP_CODES.invalidExtractionMode,
   });
   expect(await game.config()).toEqual(before);
   await harness.services.rpg.updateConfig({ principal: game.host, chatId: game.chatId, extractionMode: before.extractionMode });

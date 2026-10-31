@@ -4,6 +4,7 @@
 // @subject packages/server/src/domain/connection/persistence/provider-rows.ts
 
 import { spawn } from "node:child_process";
+import { PLUGIN_PROVIDER_ID_PREFIX } from "@orb/contracts/inference";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { pluginProviderClaims, providerRows } from "@orb/db";
 import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "@orb/server/domain/plugin";
@@ -11,12 +12,13 @@ import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, makePluginBundle, refuseWrites } from "@orb/testkit/node/composed";
 import { count, isNotNull } from "drizzle-orm";
 
-const PROVIDER_ID = "plugin:provider-plugin/acme";
+const PLUGIN = "provider-plugin";
+const PROVIDER_ID = `${PLUGIN_PROVIDER_ID_PREFIX}${PLUGIN}/acme`;
 const TEARDOWN_REFUSAL = "the process died before the provider claim was unlinked";
 
 function bundle(clock: number): Uint8Array {
   const manifest = pluginManifestSchema.parse({
-    id: "provider-plugin",
+    id: PLUGIN,
     name: "Provider plugin",
     version: "1.0.0",
     hostVersion: PLUGIN_HOST_VERSIONS[0],

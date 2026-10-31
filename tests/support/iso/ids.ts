@@ -6,6 +6,8 @@
 // no error, not a thrown mismatch. The counter goes into the low 4 bytes of an otherwise-zero 16-byte
 // "uuid" (big-endian), so ordering across `next()` calls stays identical to the old zero-padded scheme.
 
+import type { TypeIdOf, TypeIdPrefix } from "@orb/kit/ids";
+import { mintTypeId } from "@orb/kit/ids";
 import { fromUUIDBytes, toUUID } from "typeid-js";
 
 const UUID_BYTE_LENGTH = 16;
@@ -21,6 +23,8 @@ export const FIXTURE_ID_CURSOR = 2 ** 31;
 
 export interface SeededIds {
   readonly next: (prefix?: string) => string;
+  /** The next seeded id as the canonical entity brand for `prefix`, so a contract or kit test seeds a typed id. */
+  readonly typeId: <P extends TypeIdPrefix>(prefix: P) => TypeIdOf<P>;
   /** Deterministic opaque business UUIDs, never security tokens or cryptographic nonces. */
   readonly uuid: () => string;
   /** A `RawIdGenerator` whose bytes are a valid v4 UUID, so `IdSource.uuid()` can decode what it mints. */
@@ -44,8 +48,10 @@ export function createSeededIds(cursor = 0): SeededIds {
     }
     return bytes;
   };
+  const next = (prefix = "id"): string => fromUUIDBytes(prefix, nextBytes());
   return {
-    next: (prefix = "id"): string => fromUUIDBytes(prefix, nextBytes()),
+    next,
+    typeId: (prefix) => mintTypeId(prefix, next),
     uuid: (): string => toUUID(fromUUIDBytes("", nextBytes(true))),
     nextUuidBacked: (prefix = "id"): string => fromUUIDBytes(prefix, nextBytes(true)),
     snapshot: (): number => n,

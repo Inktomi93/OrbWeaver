@@ -315,7 +315,7 @@ export function scanFields(options: ScanOptions): FieldsReport {
     options.root,
     [...worlds, ...testWorlds],
     judged.flatMap(({ field }) => [field.site, ...field.mirrorSites]),
-    options.log,
+    { log: options.log },
   );
   const findings: UnwiredField[] = [];
   const disagreements: FieldsReport["disagreements"][number][] = [];

@@ -19,16 +19,14 @@ import type { MemoryRecallCandidate, MemoryRecallSlice, MemoryRecallVerdict } fr
 import { MEMORY_RECALL_REJECTS_SHOWN } from "@orb/contracts/chat";
 import type { BlockKey, ScoredBlock } from "@orb/contracts/search";
 import type { CharacterId } from "@orb/kit/ids";
+import { blockKeyStr, computeBridge, formatMemory, inLiveWindow } from "@orb/kit/recall";
 import type { ChatContext } from "#src/domain/chat/contract/context.ts";
 import type { RecallMemoryArgs } from "../../contract/memory.ts";
 import { resolveCfg } from "../constants.ts";
 import { spanWitnessed } from "../generate/substrate/witnessing.ts";
 import { loadDigestsForScope, loadSegmentSpans } from "../persistence/queries.ts";
 import type { DigestRow, MemoryRecallResult, MemoryScope, TurnRetrievalWarningEpisode, WitnessInterval } from "../types.ts";
-import { computeBridge } from "./bridge.ts";
-import { blockKeyStr, formatMemory } from "./format.ts";
 import { buildRecallQuery } from "./query.ts";
-import { inLiveWindow } from "./window.ts";
 
 /** The per-block verdict ledger: every RAW pool member starts here and its entry is overwritten by whichever
  *  stage eliminates it (witnessing → live window → mode/bridge → retrieval cut). Whatever a block's entry says
