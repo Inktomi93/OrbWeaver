@@ -210,6 +210,19 @@ The button family keeps one render in `packages/ui/src/primitives/button/core.ts
 | `packages/client/src/components/row-actions-menu.tsx`, `packages/ui/src/primitives/hint-trigger/hint-trigger.tsx` | The trigger box is a prop value, so each value renders its own component. |
 | `PictureButton` style | No style draws nothing, which replaces `bare`; `variant="ghost"` keeps the ghost tint for a captioned picture tile. |
 
+##### Step 4c record
+
+Step 4c lands as three commits in order: `Spoiler` with the ink fixes, `MessageBubble` with the plate, then the preview parts, `FloatingChip`, `RoomIsland` and the map. Most preview tones sit on `shape="row"`, which stays; only the elevation preview panes use `shape="inset"`. Seven bubble sites in six files move.
+
+`Spoiler` lives in `packages/ui/src/layout/spoiler/` behind its own door, because a primitive sits below the layout group and a group imports no other group. It renders `Stack` and forwards the Stack's layout props, so layout keeps one home and a spoiler site changes no DOM depth. It owns the spoiler skin and `data-concealed`, the attribute the skin keys on, and it stamps `data-slot="spoiler"`. Card and Stack no longer take `spoiler`. The greeting preview places a `Spoiler` inside its Card, so the blur reaches the content and not the card's own fill. The owner-CSS slot `character-spoiler-field` is gone; its `renames.ts` row points at `spoiler`.
+
+| Site | Choice |
+| - | - |
+| `packages/client/src/features/character/components/character-facet-editor.tsx` | Both computed sites became `Spoiler gap="field"` with `concealed` from the eye toggle. |
+| `packages/client/src/features/character/components/character-greeting-preview.tsx` | The Card keeps its bubble tone; its inner Stack became `Spoiler gap="row"`. |
+
+Ink fixes: Card `interactive` hover and press paint `text-tone-text-on-tint`; the compare-blocks side panels paint `text-tone-text-on-tint`; the tool-call-block `pre` and the immersive-card body paint `text-accent-foreground` on the neutral tint.
+
 #### Mapping: Card
 
 | Old value | New |

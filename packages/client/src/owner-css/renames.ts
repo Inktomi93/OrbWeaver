@@ -42,6 +42,7 @@ function propertyRename([name, key]: readonly [string, AppearanceKey]): OwnerCss
 export const OWNER_CSS_RENAMES: readonly OwnerCssRename[] = [
   { kind: "slot", name: "message-metadata-edited", to: null, see: "message-metadata-timestamp" },
   { kind: "slot", name: "drawer-tap-guard", to: null },
+  { kind: "slot", name: "character-spoiler-field", to: null, see: "spoiler" },
   ...RETIRED_PROPERTIES.map(propertyRename),
   ...RETIRED_ATTRIBUTES.map(([name, key]): OwnerCssRename => ({ kind: "appearance-attribute", name, to: null, see: appearanceChannelName(key) })),
 ];
