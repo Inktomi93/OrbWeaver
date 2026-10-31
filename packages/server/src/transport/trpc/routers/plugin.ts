@@ -136,7 +136,7 @@ export const pluginRouter = t.router({
   previewFromUrl: authedProcedure
     .input(z.object({ url: bundleUrlSchema }))
     .output(pluginUrlPreviewSchema)
-    .mutation(({ ctx, input }) => ctx.services.plugin.previewFromUrl({ caller: ctx.auth, url: input.url })),
+    .mutation(({ ctx, input }) => ctx.services.plugin.previewFromUrl({ url: input.url })),
 
   installFromUrl: authedProcedure
     .input(z.object({ url: bundleUrlSchema, expectedBundleHash: pluginBundleHashSchema, grant: grantSchema }))
@@ -149,7 +149,7 @@ export const pluginRouter = t.router({
   previewFromGit: authedProcedure
     .input(z.object({ url: bundleUrlSchema }))
     .output(pluginGitPreviewSchema)
-    .mutation(({ ctx, input }) => ctx.services.plugin.previewFromGit({ caller: ctx.auth, url: input.url })),
+    .mutation(({ ctx, input }) => ctx.services.plugin.previewFromGit({ url: input.url })),
 
   installFromGit: authedProcedure
     .input(z.object({ url: bundleUrlSchema, expectedCommit: gitCommitSchema, grant: grantSchema }))

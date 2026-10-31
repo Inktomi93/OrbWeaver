@@ -60,8 +60,6 @@ export interface GroupChatInputDeps {
    *  `character_name` is one member, so it cannot name the room. */
   readonly roomName: string;
   readonly personaByUserName: Map<string, PersonaId>;
-  /** The room's PRIMARY seat — the voice every assistant slot that names no resolvable speaker falls back to. */
-  readonly primaryCharacterId: CharacterId;
   /** The ADDITIONAL seats (the cast minus the primary), in ST's own member order. */
   readonly characterIds: readonly CharacterId[];
   /** The seats ST had DISABLED, which the room seats MUTED (#1687) — a subset of the primary + `characterIds`, so

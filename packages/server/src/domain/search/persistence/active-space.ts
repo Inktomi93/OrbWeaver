@@ -9,7 +9,6 @@ import { and, eq } from "drizzle-orm";
 
 interface ActiveGenerationRow {
   readonly id: EmbedGenerationId;
-  readonly task: EmbeddingTask;
   readonly via: EmbeddingTask;
   readonly connectionId: string | null;
   readonly fingerprint: string;
@@ -51,7 +50,6 @@ export async function readGeneration(db: ReadOnlyDb, ownerId: UserId, task: Embe
   const rows = await db
     .select({
       id: embedGenerations.id,
-      task: embedGenerations.task,
       via: embedGenerations.via,
       connectionId: embedGenerations.connectionId,
       fingerprint: embedGenerations.fingerprint,

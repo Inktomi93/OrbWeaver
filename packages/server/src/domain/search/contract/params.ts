@@ -15,12 +15,8 @@ export interface KnnParams {
   readonly rerank?: boolean | undefined;
 }
 
-export interface FindCharactersParams {
-  readonly ownerId: UserId;
-  readonly query: string;
-  readonly topN: number;
-  readonly rerank?: boolean | undefined;
-}
+// `findCharacters` hands its whole params to `knn`, so it takes exactly the `knn` shape.
+export type FindCharactersParams = KnnParams;
 
 // DigestsParams/SegmentsParams are ALIASES of the contracts shape — the derive, not a re-spell. Both verbs take
 // exactly the memory-recall query wire `@orb/contracts/search` owns; the named aliases exist only so a

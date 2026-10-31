@@ -49,7 +49,6 @@ export function createMemoryEmbeddingOps(deps: MemoryEmbeddingDeps): MemoryEmbed
         throw new Error(`memory digest owner changed during sweep for chat ${params.key.chatId}`);
       }
       const result = await embeddings.store({
-        kind: "chat-block",
         lens: "digest",
         ownerId: params.ownerId,
         chatId: params.key.chatId,
@@ -80,7 +79,6 @@ export function createMemoryEmbeddingOps(deps: MemoryEmbeddingDeps): MemoryEmbed
           throw new Error(`memory segment owner changed during sweep for chat ${p.chatId}`);
         }
         rows.push({
-          kind: "chat-block" as const,
           lens: "segment" as const,
           ownerId: p.ownerId,
           chatId: p.chatId,

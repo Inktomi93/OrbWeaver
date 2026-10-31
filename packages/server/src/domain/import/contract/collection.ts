@@ -24,7 +24,6 @@ export interface UploadedFile {
 
 export interface ParsedPersonas {
   readonly personas: ParsedPersona[];
-  readonly defaultAvatarFile: string | null;
 }
 
 /** ST library-tag assignments resolved to per-entity tag NAMES. The key is the entity's card/avatar filename
@@ -135,10 +134,9 @@ export interface CollectedBackground {
 
 /** One ST group definition + the transcripts its own `chats[]` list claimed, already parsed. Members are
  *  UNRESOLVED here (card filenames) — the driver resolves them to characterIds after the character wave, which
- *  is the only point at which the mapping exists. `sourceFile` is the `groups/<id>.json` name for the report. */
+ *  is the only point at which the mapping exists. */
 export interface CollectedGroup {
   readonly parsed: ParsedStGroup;
-  readonly sourceFile: string;
   readonly chats: CollectedChat[];
   /** Leaves the group claimed that had no readable file under `group chats/` (recorded, never silent). */
   readonly missingChatLeaves: string[];
@@ -207,10 +205,6 @@ export interface CollectResult {
   readonly unhandledSettings: string[];
   readonly skippedChats: string[];
   readonly skippedCharacters: string[];
-  /** Their chats attach to the first card holding the base handle. */
-  readonly collidedCards: { readonly file: string; readonly handle: CharacterHandle }[];
-  /** Matched by the second-chance fuzzy pairing (trailing-digit / main_<Name>_spec_vN). */
-  readonly fuzzyPairedDirs: { readonly chatDir: string; readonly handle: CharacterHandle }[];
   /** Directories whose listing breached the collector's entry CEILING: everything past `kept` was never
    *  examined, so cards/chats/worlds/groups/themes/backgrounds in the tail did not import. The cap protects
    *  the loop from a hostile staging dir; this list is what keeps the truncation from being silent. */

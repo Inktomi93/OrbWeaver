@@ -1023,7 +1023,7 @@ export function registerAuthRoutes(app: Hono, deps: AuthRoutesDeps): void {
  *  clock): the request transport's cookie plus a clear of the other name. A mint over plain http for a public
  *  client sent a password or an IdP code and now a session cookie in clear, so it logs a security line (the
  *  owner ruled warn, not refuse). */
-function writeMintedSession(c: Context, deps: AuthRoutesDeps, session: { readonly token: SessionToken; readonly expiresAt: number }): void {
+function writeMintedSession(c: Context, deps: AuthRoutesDeps, session: Pick<Awaited<ReturnType<SessionsService["create"]>>, "token" | "expiresAt">): void {
   const { trustedProxies } = deps;
   const transport = requestTransport(c, trustedProxies);
   writeSetCookies(c, serializeMintedSessionCookies(session.token, transport, (session.expiresAt - deps.now()) / MS_PER_SECOND));
