@@ -109,7 +109,7 @@ import {
 import { buildSideGenParams, createCopyPresetToUser, createLoadOptionalPreset, createPresetReadable } from "#domain/preset";
 import { createResolveStructuredBinding } from "#domain/refinery";
 import { createSeedRosterPreset } from "#domain/roster-preset";
-import type { RpgContext, RpgTraceRecorder } from "#domain/rpg";
+import type { RpgAssemblyContext, RpgTraceRecorder } from "#domain/rpg";
 import { createExportRpgGame, createRpgEventBus, createRpgTraceRecorder } from "#domain/rpg";
 import { createFieldIndexCache, withRetrievalDegrade } from "#domain/search";
 import type { SessionsContext, SessionsRolePolicy, SessionsService } from "#domain/sessions";
@@ -253,7 +253,7 @@ export interface ServicesDeps {
   readonly authConfig?: Pick<AuthConfig, "mode">;
   readonly rolePolicy?: SessionsRolePolicy;
   readonly random: RandomSource;
-  readonly randomInt: RpgContext["randomInt"];
+  readonly randomInt: RpgAssemblyContext["randomInt"];
   readonly idSource: IdSource;
   readonly newOpaqueId: IdSource["uuid"];
   /** This root's identity, minted once from its id source; the live transport publishes it so a client sees a restart. */

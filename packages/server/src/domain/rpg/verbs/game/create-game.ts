@@ -3,12 +3,12 @@
 // ruling; the read layer synthesizes the default state), and writes the opaque `chats.metadata.rpg` pointer
 // through the injected chat op.
 
+import type { CreateGameResult } from "@orb/contracts/rpg";
 import { RPG_GAME_MODES } from "@orb/contracts/rpg";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import { RpgModeUnbuiltError } from "#src/domain/rpg/contract/errors.ts";
 import { RPG_OP_CODES } from "#src/domain/rpg/contract/op-codes.ts";
 import type { CreateGameParams } from "#src/domain/rpg/contract/params.ts";
-import type { CreateGameResult } from "#src/domain/rpg/contract/results.ts";
 import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
 import { mintLiteGame } from "#src/domain/rpg/game-mint.ts";
 import { assertHostRole } from "#src/domain/rpg/guard.ts";

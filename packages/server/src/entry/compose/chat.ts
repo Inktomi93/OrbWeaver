@@ -93,7 +93,7 @@ import type { PluginMacroRegistry } from "#domain/plugin";
 import type { PresetService } from "#domain/preset";
 import { createLoadOptionalPreset } from "#domain/preset";
 import { createCopyHandoffRegexScripts, createCountHandoffRegexScripts } from "#domain/regex";
-import type { RpgContext } from "#domain/rpg";
+import type { RpgAssemblyContext } from "#domain/rpg";
 import type { SearchService } from "#domain/search";
 import { withRetrievalDegrade } from "#domain/search";
 import type { SessionsService } from "#domain/sessions";
@@ -247,7 +247,7 @@ export interface ChatComposeResult extends AsyncDisposable {
     /** The chat's PRESENT host userId (role='host', D19) — the human the rpg resync resolves its
      *  connection/creds under + the capability verdict keys on. Resolved by ROLE, never join order (a handoff
      *  swaps roles in place — the first-joined human is NOT the host). `null` = a hostless/stale room. */
-    readonly resolveHostUserId: RpgContext["resolveRoomFunder"];
+    readonly resolveHostUserId: RpgAssemblyContext["resolveRoomFunder"];
     /** The DEEP canon-window read (crunchy-cluster §1.3) — the `resyncFromStory` host verb's story feed, sharing
      *  the engine's transcript projection (chat owns canon reads; rpg reads no chat table). */
     readonly resolveCanonWindow: ResolveCanonWindow;
@@ -257,7 +257,7 @@ export interface ChatComposeResult extends AsyncDisposable {
     /** The chat's ACTIVE-preset user macros (WAVE MU) — the same resolution the picks pane reads, so the GM
      *  console's shadow gloss names the exact defs a game macro would shadow (chat owns preset resolution for
      *  a chat; rpg re-deriving it would be a second home for the rule). */
-    readonly resolvePromptUserMacros: RpgContext["resolvePresetUserMacros"];
+    readonly resolvePromptUserMacros: RpgAssemblyContext["resolvePresetUserMacros"];
     /** The chat's GM-PRESET prose overrides (PROSE-1 S4) — what the two rpg HOST DOORS (`resyncFromStory`,
      *  `populateFromCharacter`) resolve their extraction prose through. Chat owns preset resolution AND the
      *  GM-voice redirect; rpg reads no preset table, and re-deriving either here would be a second home for
