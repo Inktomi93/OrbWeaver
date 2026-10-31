@@ -13,10 +13,10 @@ import { expect, test } from "@orb/testkit/node";
 const LIMIT = 3;
 const COOLDOWN_MS = AUTOMATION_NOTICE_COOLDOWN_SECONDS * MS_PER_SECOND;
 
-test("the hourly floor refuses the call past its limit and releases when the hour rolls over", () => {
+test("the hourly floor refuses the call past its limit and releases when the hour rolls over", ({ ids }) => {
   const clock = createFrozenClock();
   const floor = createPluginRateFloor(() => clock.now(), { capability: "llm.quiet", limit: LIMIT });
-  const plugin = mintTypeId("plugin");
+  const plugin = mintTypeId("plugin", ids.next);
 
   for (let call = 0; call < LIMIT; call += 1) {
     expect(() => floor.admit(plugin)).not.toThrow();
@@ -29,21 +29,21 @@ test("the hourly floor refuses the call past its limit and releases when the hou
   expect(() => floor.admit(plugin)).not.toThrow();
 });
 
-test("each plugin has its own hourly budget", () => {
+test("each plugin has its own hourly budget", ({ ids }) => {
   const floor = createPluginRateFloor(() => 0, { capability: "net.fetch", limit: 1 });
-  const first = mintTypeId("plugin");
-  const second = mintTypeId("plugin");
+  const first = mintTypeId("plugin", ids.next);
+  const second = mintTypeId("plugin", ids.next);
 
   floor.admit(first);
   expect(() => floor.admit(first)).toThrow();
   expect(() => floor.admit(second)).not.toThrow();
 });
 
-test("the notice floor spaces one plugin's notices per chat and releases at the cooldown", () => {
+test("the notice floor spaces one plugin's notices per chat and releases at the cooldown", ({ ids }) => {
   const clock = createFrozenClock();
   const floor = createNotifyFloor(() => clock.now());
-  const plugin = mintTypeId("plugin");
-  const chat = mintTypeId("chat");
+  const plugin = mintTypeId("plugin", ids.next);
+  const chat = mintTypeId("chat", ids.next);
 
   floor.admit(plugin, chat);
   expect(() => floor.admit(plugin, chat)).toThrow();
@@ -53,12 +53,12 @@ test("the notice floor spaces one plugin's notices per chat and releases at the 
   expect(() => floor.admit(plugin, chat)).not.toThrow();
 });
 
-test("a notice in one room or from one plugin never mutes another pair", () => {
+test("a notice in one room or from one plugin never mutes another pair", ({ ids }) => {
   const floor = createNotifyFloor(() => 0);
-  const plugin = mintTypeId("plugin");
-  const otherPlugin = mintTypeId("plugin");
-  const chat = mintTypeId("chat");
-  const otherChat = mintTypeId("chat");
+  const plugin = mintTypeId("plugin", ids.next);
+  const otherPlugin = mintTypeId("plugin", ids.next);
+  const chat = mintTypeId("chat", ids.next);
+  const otherChat = mintTypeId("chat", ids.next);
 
   floor.admit(plugin, chat);
   expect(() => floor.admit(plugin, otherChat)).not.toThrow();

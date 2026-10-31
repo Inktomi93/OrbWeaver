@@ -4,13 +4,13 @@
 import { characterSummaries, closeDb, users } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness, freshHeldDb } from "@orb/testkit/node/composed";
+import { createServerHarness, freshHeldDb, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { card, DISTILL, executeRow, fundedOwner, observeQueued, physicalWire, QUEUE_OBSERVATION_DELAY_MS } from "../funding.fixtures.ts";
 
 test("atomic claim reads cleared funding instead of the captured queue observation", async () => {
   const wire = physicalWire();
-  await using root = await createServerHarness({ providerFetch: wire.execute, secretBoxKey: Buffer.alloc(32, 1) });
+  await using root = await createServerHarness({ providerFetch: wire.execute, secretBoxKey: SECRET_BOX_TEST_KEY });
   const owner = await root.principalFor(root.ownerId);
   const funder = await root.principalFor((await root.actor()).id);
   await fundedOwner(root, owner);

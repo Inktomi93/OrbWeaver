@@ -19,6 +19,7 @@ import {
   createServerHarness,
   SUMMARIZE_TRANSCRIPT_MARKER,
   seedCorpusActors,
+  summaryReply,
 } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
@@ -102,7 +103,7 @@ function memoryReply(body: string): string {
   }
   // Summary-only sentinels distinguish recalled memory from the same scene still present in raw canon.
   const facts = MEMORY_PHASES.filter((phase) => body.includes(phase.input)).map((phase) => phase.memory);
-  return `Orbital ledger memory\n${facts.length === 0 ? "A keeper answered." : `${facts.join(". ")}.`}\nKeywords: ledger`;
+  return summaryReply({ anchor: "Orbital ledger memory", facts: facts.length === 0 ? "A keeper answered." : `${facts.join(". ")}.`, keywords: ["ledger"] });
 }
 
 test("a member's actual turn uses the frozen host connection while keeping the member's message attribution", async () => {

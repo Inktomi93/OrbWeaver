@@ -8,7 +8,7 @@ import { spawn } from "node:child_process";
 import type { Principal } from "@orb/contracts/identity";
 import { AUTOMATION_NOTICE_COOLDOWN_SECONDS } from "@orb/contracts/notifications";
 import type { PluginCapability } from "@orb/contracts/plugin";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, RawIdGenerator } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { MS_PER_HOUR, MS_PER_SECOND } from "@orb/kit/time";
@@ -79,9 +79,9 @@ interface FloorRoot extends AsyncDisposable {
   readonly guest: (slug: string) => Promise<GuestRun>;
 }
 
-async function floorRoot(): Promise<FloorRoot> {
+async function floorRoot(newId: RawIdGenerator): Promise<FloorRoot> {
   const reached: string[] = [];
-  const image = makeAssetBytes(mintTypeId(ID_PREFIX.asset));
+  const image = makeAssetBytes(mintTypeId(ID_PREFIX.asset, newId));
   const provider = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -139,8 +139,8 @@ for (const { kind, limit, boundary } of PAIRINGS) {
   test(`${kind} admits its production hourly ceiling per plugin and refuses the next call before it leaves the box`, {
     tags: ["slow"],
     timeout: 180_000,
-  }, async () => {
-    await using floors = await floorRoot();
+  }, async ({ ids }) => {
+    await using floors = await floorRoot(ids.next);
     const run = await floors.guest("floor-runner");
     const other = await floors.guest("other-floor-runner");
     const args = { url: kind === "fetchAsset" ? IMAGE_URL : PAGE_URL, structured: STRUCTURED };
@@ -159,8 +159,8 @@ for (const { kind, limit, boundary } of PAIRINGS) {
   });
 }
 
-test("a notice claims the per-room cooldown, and the room reopens when it passes", { tags: ["slow"] }, async () => {
-  await using floors = await floorRoot();
+test("a notice claims the per-room cooldown, and the room reopens when it passes", { tags: ["slow"] }, async ({ ids }) => {
+  await using floors = await floorRoot(ids.next);
   const run = await floors.guest("floor-runner");
   const other = await floors.guest("other-floor-runner");
 

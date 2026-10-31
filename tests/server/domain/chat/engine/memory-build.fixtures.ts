@@ -13,6 +13,7 @@ import {
   createCorpusProviderExecution,
   readRoomCanon,
   SUMMARIZE_TRANSCRIPT_MARKER,
+  summaryReply,
 } from "@orb/testkit/node/composed";
 
 const ids = createSeededIds();
@@ -35,7 +36,7 @@ export async function room(): Promise<
     embedding: CORPUS_EMBEDDING_VECTOR,
     chatText: (body) =>
       body.includes(SUMMARIZE_TRANSCRIPT_MARKER)
-        ? "The remembered turn\nThe keeper remembers this conversation.\nKeywords: keeper"
+        ? summaryReply({ anchor: "The remembered turn", facts: "The keeper remembers this conversation.", keywords: ["keeper"] })
         : "The real memory turn commits.",
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],

@@ -16,7 +16,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { characterSummaries, characters, chatDigests, chatSegments, closeDb, embeddingCalls, embedGenerations } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
-import { CORPUS_EMBEDDING_VECTOR, createServerHarness, freshDb, seedRecallRoom } from "@orb/testkit/node/composed";
+import { CORPUS_EMBEDDING_VECTOR, createServerHarness, freshDb, SECRET_BOX_TEST_KEY, seedRecallRoom } from "@orb/testkit/node/composed";
 import { and, eq, inArray } from "drizzle-orm";
 import { WORKLOAD_UNFUNDED } from "#contracts/workloads/admission.ts";
 import type { HostedFundingRoom } from "../funding.fixtures.ts";
@@ -78,7 +78,7 @@ test("owned distill delivers only admitted tenant bytes to the real provider bou
 
 test("unfunded system paid jobs and their retries never borrow the saved owner binding", async () => {
   const wire = physicalWire();
-  await using root = await createServerHarness({ providerFetch: wire.execute, secretBoxKey: Buffer.alloc(32, 1) });
+  await using root = await createServerHarness({ providerFetch: wire.execute, secretBoxKey: SECRET_BOX_TEST_KEY });
   const owner = await root.principalFor(root.ownerId);
   await fundedOwner(root, owner);
   const subject = await card(root, owner);

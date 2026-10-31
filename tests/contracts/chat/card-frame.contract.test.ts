@@ -5,9 +5,10 @@ import { cardFrameMintRequestSchema } from "@orb/contracts/chat";
 import { CARD_FRAME_STYLE_TOKEN, clampCardFrameStyleTokens } from "@orb/kit/card-frame";
 import { FONT_SCALE_PERCENT } from "@orb/kit/font-scale";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 
-const BASE = { chatId: mintTypeId(ID_PREFIX.chat), characterId: null, html: "<p>card</p>" } as const;
+const BASE = { chatId: mintTypeId(ID_PREFIX.chat, createSeededIds().next), characterId: null, html: "<p>card</p>" } as const;
 const SLICE = {
   [CARD_FRAME_STYLE_TOKEN.radius]: "0.5rem",
   [CARD_FRAME_STYLE_TOKEN.monoFamily]: "'Geist Mono', ui-monospace, monospace",

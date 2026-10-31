@@ -14,12 +14,12 @@ import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { tickWorkloadSchedules } from "@orb/server/domain/workloads";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
 import { card, DISTILL, executeAdmitted, fundedOwner, physicalWire } from "./funding.fixtures.ts";
 
 test("a bulk schedule persists its owner's funding through the trusted tick and disable stops new admission", async () => {
   const wire = physicalWire();
-  await using root = await createServerHarness({ providerFetch: wire.execute, secretBoxKey: Buffer.alloc(32, 1) });
+  await using root = await createServerHarness({ providerFetch: wire.execute, secretBoxKey: SECRET_BOX_TEST_KEY });
   const owner = await root.principalFor(root.ownerId);
   await fundedOwner(root, owner);
   await card(root, owner);
@@ -46,7 +46,7 @@ test("a bulk schedule persists its owner's funding through the trusted tick and 
 for (const withdrawal of ["consent", "credential"] as const) {
   test(`queued paid work honors current ${withdrawal} withdrawal without foreign fallback`, async () => {
     const wire = physicalWire();
-    await using root = await createServerHarness({ providerFetch: wire.execute, secretBoxKey: Buffer.alloc(32, 1) });
+    await using root = await createServerHarness({ providerFetch: wire.execute, secretBoxKey: SECRET_BOX_TEST_KEY });
     const owner = await root.principalFor(root.ownerId);
     const member = await root.principalFor((await root.actor()).id);
     const connections = await fundedOwner(root, owner);

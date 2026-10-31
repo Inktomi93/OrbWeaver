@@ -4,9 +4,9 @@ import { rpgUpdateConfigInputSchema } from "@orb/contracts/rpg";
 import { mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 
-test("a wire-level prose patch is dropped at parse and the real arms beside it are kept", () => {
+test("a wire-level prose patch is dropped at parse and the real arms beside it are kept", ({ ids }) => {
   const parsed = rpgUpdateConfigInputSchema.parse({
-    chatId: mintTypeId("chat"),
+    chatId: mintTypeId("chat", ids.next),
     patch: { steeringNote: "z", prose: { "rpg.reminder.steeringLicense": { text: "our table's own license", baseVersion: 1 } } },
   });
   expect(Object.hasOwn(parsed.patch ?? {}, "prose")).toBe(false);

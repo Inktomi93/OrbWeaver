@@ -37,6 +37,7 @@ import type { ParsedOklch } from "./color-parse.ts";
 import { compositedBase, serializeOpaqueOklch, toOklch } from "./color-parse.ts";
 import type { CarriedPalette, InputBorderFallback } from "./derive-vars.ts";
 import { carriedPaletteOf, foregroundOn, inputBorderOn, nestedRingOn, surfaceVarsOn } from "./derive-vars.ts";
+import { THEME_OVERRIDE_COLOR_VARS } from "./emit-vars.ts";
 import type { CarriedToneScheme } from "./tone-knobs.ts";
 import {
   accentInk,
@@ -428,7 +429,7 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
   // carried background, or when the accent already clears, this is the pre-#692 pass-through: the picked
   // value byte-identical, or nothing at all.
   const { accent, toneVars, fallback, inputBorderFallback: nestedEdgeFallback } = accentAndTonesOn(t.accent, ambientAccent, carried, carriedAmbient);
-  put("--color-primary", accent?.fill);
+  put(THEME_OVERRIDE_COLOR_VARS.accent, accent?.fill);
   put("--color-ring", accent?.fill);
   // The accent's readable foreground derives off the accent this scope actually PAINTS with, so a dark
   // accent + static light text can never go invisible.
@@ -452,32 +453,32 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
   // fallback from the resolved carried pixel; with no carried background there is deliberately no
   // fallback and the cascade remains intact. Explicit picks still take the pass-through/correction arms
   // above byte-for-byte.
-  put("--color-speaker", proseInkOn(t.speaker, inkBase, absentProseInkOn(raw, "speaker", t.background, carriedBase)));
-  put("--color-dialogue", proseInkOn(t.dialogueColor, inkBase, absentProseInkOn(raw, "dialogueColor", t.background, carriedBase)));
-  put("--color-narration", proseInkOn(t.narrationColor, inkBase, absentProseInkOn(raw, "narrationColor", t.background, carriedBase)));
-  put("--color-prose-body", proseInkOn(t.bodyColor, inkBase, absentProseInkOn(raw, "bodyColor", t.background, carriedBase)));
+  put(THEME_OVERRIDE_COLOR_VARS.speaker, proseInkOn(t.speaker, inkBase, absentProseInkOn(raw, "speaker", t.background, carriedBase)));
+  put(THEME_OVERRIDE_COLOR_VARS.dialogueColor, proseInkOn(t.dialogueColor, inkBase, absentProseInkOn(raw, "dialogueColor", t.background, carriedBase)));
+  put(THEME_OVERRIDE_COLOR_VARS.narrationColor, proseInkOn(t.narrationColor, inkBase, absentProseInkOn(raw, "narrationColor", t.background, carriedBase)));
+  put(THEME_OVERRIDE_COLOR_VARS.bodyColor, proseInkOn(t.bodyColor, inkBase, absentProseInkOn(raw, "bodyColor", t.background, carriedBase)));
   // Bubbles: the picker sets each bubble's bg; the fg is always derived for contrast, never picked.
-  const putBubble = (bg: string, bgVar: string, fgVar: string): void => {
+  const putBubble = (bg: string, bubbleVars: { readonly bg: string; readonly fg: string }): void => {
     const parsedBubble = toOklch(bg);
-    vars[bgVar] = bg;
+    vars[bubbleVars.bg] = bg;
     if (parsedBubble !== null) {
-      vars[fgVar] = foregroundOn(bg, parsedBubble);
+      vars[bubbleVars.fg] = foregroundOn(bg, parsedBubble);
     }
   };
   if (t.userBubble?.bg !== undefined) {
-    putBubble(t.userBubble.bg, "--color-user-bubble", "--color-user-bubble-foreground");
+    putBubble(t.userBubble.bg, THEME_OVERRIDE_COLOR_VARS.userBubble);
   }
   if (t.aiBubble?.bg !== undefined) {
-    putBubble(t.aiBubble.bg, "--color-ai-bubble", "--color-ai-bubble-foreground");
+    putBubble(t.aiBubble.bg, THEME_OVERRIDE_COLOR_VARS.aiBubble);
   }
   if (t.systemBubble?.bg !== undefined) {
-    putBubble(t.systemBubble.bg, "--color-system-bubble", "--color-system-bubble-foreground");
+    putBubble(t.systemBubble.bg, THEME_OVERRIDE_COLOR_VARS.systemBubble);
   }
   const surface = t.background === undefined ? undefined : carriedSurfaceOn(t.background, carried, accent?.painted ?? null);
   Object.assign(vars, surface?.vars);
   Object.assign(vars, toneVars);
   // An explicit border color wins over the derived hairline, for both border scopes.
-  put("--color-border", t.borderColor);
+  put(THEME_OVERRIDE_COLOR_VARS.borderColor, t.borderColor);
   put("--color-sidebar-border", t.borderColor);
   if (t.font !== undefined) {
     vars["--font-sans"] = fontStackFor(t.font);

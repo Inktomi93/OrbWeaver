@@ -23,6 +23,7 @@ import {
 } from "@orb/kit/theme-derivation";
 import type { ParsedOklch } from "./color-parse.ts";
 import { serializeOpaqueOklch } from "./color-parse.ts";
+import { THEME_OVERRIDE_COLOR_VARS } from "./emit-vars.ts";
 
 /** A carried background's resolved pixel and its neutral inks, solved once and read by every derivation over it. */
 export interface CarriedPalette {
@@ -259,7 +260,7 @@ export function surfaceVarsOn(background: string, carried: CarriedPalette | null
   // family uses this normalized origin, so transparent custom themes inherit coherent Hearth/seed chrome.
   const origin = derivedOrigin;
   const opaqueSuffix = origin === background ? "" : " / 1";
-  const vars: Record<string, string> = { "--color-background": background };
+  const vars: Record<string, string> = { [THEME_OVERRIDE_COLOR_VARS.background]: background };
   for (const [name, role] of SURFACE_RAMP_VARS) {
     vars[name] = `oklch(from ${origin} calc(l + ${deltas[role]}) c h${opaqueSuffix})`;
   }

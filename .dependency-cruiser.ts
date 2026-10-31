@@ -333,6 +333,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/chat/persistence/participants-read.ts": "loadPresentRole: the production role read the authority suite compares against",
   "packages/server/src/domain/import/substrate/appearance.ts":
     "stAppearancePatch and ST_POWER_USER_KEY: the pure ST power_user mapping and the settings.json key it reads",
+  "packages/server/src/entry/boot/migrate-data-layout.ts": "DataLayoutRefusal: the refusal class and reason the layout migration suite asserts",
   "packages/server/src/domain/plugin/contract/errors.ts": "PluginNotFoundError: the refusal class plugin seed cases assert",
   "packages/server/src/domain/plugin/substrate/plugin-macros.ts": "pluginMacroName: the token rule for a plugin's registered macro",
   "packages/server/src/domain/preset/constants.ts":
@@ -421,7 +422,8 @@ const SERVER_TEST_REACHES = {
       "resolveBindPosture, resolveOwnerFallbackPeers and the posture inputs: no testkit door resolves a bind or owner-peer posture, and the block takes those resolved values",
   },
   "tests/server/entry/boot/persistence/migrate-data-layout.int.test.ts": {
-    "foundation/data-layout": "LEGACY_ENTRIES and DB_FILE_NAME: the legacy names and their targets exist only in this table, and no testkit door supplies them",
+    "foundation/data-layout":
+      "DATA_LAYOUT_DIRS, LEGACY_ENTRIES and DB_FILE_NAME: the legacy names, their targets and the layout directories exist only in this module, and no testkit door supplies them",
   },
   "tests/server/foundation/env/record/floor-defaults.test.ts": {
     "foundation/data-layout":

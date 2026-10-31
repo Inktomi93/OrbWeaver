@@ -13,6 +13,7 @@ import {
   createChatRoot,
   createCorpusProviderExecution,
   SUMMARIZE_TRANSCRIPT_MARKER,
+  summaryReply,
 } from "@orb/testkit/node/composed";
 import { and, eq, max } from "drizzle-orm";
 
@@ -29,8 +30,8 @@ test("the actual scoped digest build excludes complete blocks from before a char
       }
       summaries.push(body);
       return body.includes("Unwitnessed opening")
-        ? "Earlier span\nUnwitnessed opening facts remain with their witness.\nKeywords: earlier"
-        : "Joined span\nJoined bridge facts remain with their witness.\nKeywords: joined";
+        ? summaryReply({ anchor: "Earlier span", facts: "Unwitnessed opening facts remain with their witness.", keywords: ["earlier"] })
+        : summaryReply({ anchor: "Joined span", facts: "Joined bridge facts remain with their witness.", keywords: ["joined"] });
     },
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
