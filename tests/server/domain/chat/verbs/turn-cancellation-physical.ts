@@ -135,7 +135,7 @@ export interface CancellationRoom extends AsyncDisposable {
 
 /** Boot the root, the hosted connection and the enabled guest once, so a case pays only for its own peer and chat.
  *  @remarks The guest host is a spawned process whose boot dominates a case's wall time under load. */
-export async function cancellationRoom(): Promise<CancellationRoom> {
+async function cancellationRoom(): Promise<CancellationRoom> {
   await using construction = new AsyncDisposableStack();
   const official = builtinProvider("openrouter")?.baseUrl;
   if (official === undefined) {
@@ -338,12 +338,6 @@ export async function cancellationRoom(): Promise<CancellationRoom> {
   };
   const lifetime = construction.move();
   return { run, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
-}
-
-/** Hold only physical provider work in a room of its own: the one-case form of {@link cancellationRoom}. */
-export async function withCancellationPeer(mode: (typeof MODES)[number], prove: (fixture: CancellationRun) => Promise<void>, tokenize = false): Promise<void> {
-  await using room = await cancellationRoom();
-  await room.run(mode, prove, tokenize);
 }
 
 /** Register one room for the calling file: booted in a hook, disposed from the hook's teardown, and shared by every case in the file. */
