@@ -55,7 +55,7 @@ export async function exportLibrary(root: ServerTestHarness, kinds?: readonly Po
 
 /** Upload the bundle and run its import workload to the end; the workload's own status and failure tally. */
 export async function restoreBundle(root: ServerTestHarness, bundle: Uint8Array): Promise<{ readonly status: string; readonly failed: number | undefined }> {
-  const response = await root.http.request(PORTABILITY_ROUTES.importBundle, { method: "POST", headers: { [CSRF_HEADER]: "1" }, body: bundle });
+  const response = await root.http.request(PORTABILITY_ROUTES.importBundle, { method: "POST", headers: { [CSRF_HEADER]: "1" }, body: Uint8Array.from(bundle) });
   if (response.status !== HTTP_ACCEPTED) {
     throw new Error(`the bundle upload answered ${response.status}`);
   }
