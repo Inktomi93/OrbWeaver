@@ -3,11 +3,13 @@
 // user's plugin can never fix, shadow or block a provider id for another. Claim owners come from `plugins`.
 
 import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
-import { providerDefSchema } from "@orb/contracts/inference";
+import { storedProviderDefSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { pluginProviderClaims, plugins, providerRows } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
+import type { BootDatabaseHandle } from "@orb/db/wiring";
+import { bootDatabaseForOwner } from "@orb/db/wiring-owner";
 import type { ProviderSnapshot } from "@orb/inference";
 import type { PluginId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray, isNotNull, notExists, notInArray, sql } from "drizzle-orm";
@@ -17,7 +19,7 @@ type ProviderRow = typeof providerRows.$inferSelect;
 type ProviderRowInsert = typeof providerRows.$inferInsert;
 
 function toProviderDef(row: ProviderRow): ProviderDef {
-  return providerDefSchema.parse({
+  return storedProviderDefSchema.parse({
     id: row.id,
     label: row.label,
     wire: row.wire,
@@ -184,6 +186,41 @@ export async function replacePluginProviderRows(
   writes.push(db.update(pluginProviderClaims).set({ pluginId: null }).where(staleClaim));
   await db.batch(batchMany(writes));
   return { ok: true };
+}
+
+/** Move every plugin definition whose stored hash no longer matches its read-back parse (a definition stored
+ *  before one of its tasks was retired) to the canonical hash, with every claim on it, tombstones included.
+ *  The owner keeps the claim on its id, so the same stripped definition re-links and a changed one is still
+ *  refused (D265). Idempotent: a matching hash moves nothing. Returns the number of definitions moved. */
+// the boot grant reads every owner's plugin definitions because a definition row has no owner; each claim moves only to the canonical hash of the definition it already names. Ends if a request path calls this.
+export async function rehashPluginProviderDefinitions(handle: BootDatabaseHandle): Promise<number> {
+  const db = bootDatabaseForOwner(handle);
+  const stored = await db.select().from(providerRows).where(eq(providerRows.originKind, "plugin"));
+  let moved = 0;
+  for (const row of stored) {
+    const def = toProviderDef(row);
+    const hash = providerDefinitionHash(def);
+    if (hash === row.definitionHash) {
+      continue;
+    }
+    // Another owner may already hold the canonical definition, so the insert yields to it; the claims then
+    // repoint before the stale row goes, which keeps every claim's foreign key satisfied at each statement.
+    await db.batch(
+      batchMany([
+        db
+          .insert(providerRows)
+          .values(valuesOf({ row: def, hash, origin: "plugin", admin: null, now: row.createdAt }))
+          .onConflictDoNothing(),
+        db
+          .update(pluginProviderClaims)
+          .set({ definitionHash: hash })
+          .where(and(eq(pluginProviderClaims.providerId, row.id), eq(pluginProviderClaims.definitionHash, row.definitionHash))),
+        db.delete(providerRows).where(and(eq(providerRows.id, row.id), eq(providerRows.definitionHash, row.definitionHash))),
+      ]),
+    );
+    moved += 1;
+  }
+  return moved;
 }
 
 /** Unlink every claim this install serves. The claims stay as their owner's tombstones. */

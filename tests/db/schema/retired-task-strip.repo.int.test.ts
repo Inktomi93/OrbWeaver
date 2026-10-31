@@ -1,5 +1,6 @@
-// The forward migration strips retired tasks from stored provider rows and plugin manifests. A plugin definition that
-// named one goes with its claims: its stored hash covers the retired task, so the stripped manifest re-claims it fresh.
+// The forward migration strips retired tasks from stored provider rows and plugin manifests and moves nothing else: every
+// definition row and every claim, tombstones included, stays, so D265's per-owner claim survives. The boot rehash step
+// owns the hash; tests/server/entry/boot/persistence/rehash-plugin-provider-definitions.int.test.ts proves it.
 // @subject packages/db/src/schema/connection-bindings.ts
 import { PLUGIN_PROVIDER_ID_PREFIX, RETIRED_TASKS } from "@orb/contracts/inference";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY } from "@orb/contracts/plugin";
@@ -50,10 +51,11 @@ const manifest = (slug: string, providers?: readonly Record<string, unknown>[]):
 
 interface StoredRow {
   readonly id: string;
+  readonly hash: string;
   readonly serves: string | null;
 }
 
-test("the forward migration strips retired tasks at rest and drops the plugin definitions whose hash named one", async () => {
+test("the forward migration strips retired tasks at rest and keeps every definition row and claim", async () => {
   await using previous = await migrationsBefore(MIGRATION);
   await using lifetime = new AsyncDisposableStack();
   const db = await createDb(":memory:");
@@ -61,6 +63,8 @@ test("the forward migration strips retired tasks at rest and drops the plugin de
   await runMigrations(db, previous.path);
   const ids = createIdSource(createSeededIds().next);
   const owner = await seedUser(db, {}, ids);
+  // A second owner's own definition of the same id names no retired task; its claim is not the migration's to touch.
+  const other = await seedUser(db, {}, ids);
   const bundle = ids.typeId(ID_PREFIX.asset);
   const [acme, beta] = [ids.typeId(ID_PREFIX.plugin), ids.typeId(ID_PREFIX.plugin)];
   const acmeManifest = manifest("acme", [sdkProvider(STORED_SERVES), TEXT_DEF]);
@@ -73,21 +77,33 @@ test("the forward migration strips retired tasks at rest and drops the plugin de
     ('legacy-sdk', 'Legacy SDK', 'agent-sdk', 'oauthToken', '["agent-sdk"]', ${JSON.stringify(STORED_SERVES)}, 'url', 0, 'admin-hash', 'admin'),
     ('plain-endpoint', 'Plain', 'openai-compat', 'endpoint', '["chat-completions"]', null, 'url', 0, 'plain-hash', 'admin'),
     (${SDK_PROVIDER}, 'Acme SDK', 'agent-sdk', 'oauthToken', '["agent-sdk"]', ${JSON.stringify(STORED_SERVES)}, 'url', 0, 'sdk-hash', 'plugin'),
+    (${SDK_PROVIDER}, 'Acme SDK', 'agent-sdk', 'oauthToken', '["agent-sdk"]', '["chat"]', 'url', 0, 'other-sdk-hash', 'plugin'),
     (${TEXT_PROVIDER}, 'Acme text', 'openai-compat', 'endpoint', '["chat-completions"]', null, 'url', 0, 'text-hash', 'plugin')`);
   await db.run(sql`insert into plugin_provider_claims (owner_id, provider_id, definition_hash, plugin_id) values
-    (${owner.id}, ${SDK_PROVIDER}, 'sdk-hash', ${acme}), (${owner.id}, ${TEXT_PROVIDER}, 'text-hash', ${acme})`);
+    (${owner.id}, ${SDK_PROVIDER}, 'sdk-hash', ${acme}), (${owner.id}, ${TEXT_PROVIDER}, 'text-hash', ${acme}),
+    (${other.id}, ${SDK_PROVIDER}, 'other-sdk-hash', null)`);
 
   await runMigrations(db, SHIPPED_MIGRATIONS);
 
   await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
-  expect(await db.all<StoredRow>(sql`select id, serves from provider_rows order by id`)).toEqual([
-    { id: "legacy-sdk", serves: JSON.stringify(STRIPPED_SERVES) },
-    { id: "plain-endpoint", serves: null },
-    { id: TEXT_PROVIDER, serves: null },
+  expect(await db.all<StoredRow>(sql`select id, definition_hash as hash, serves from provider_rows order by id, definition_hash`)).toEqual([
+    { id: "legacy-sdk", hash: "admin-hash", serves: JSON.stringify(STRIPPED_SERVES) },
+    { id: "plain-endpoint", hash: "plain-hash", serves: null },
+    { id: SDK_PROVIDER, hash: "other-sdk-hash", serves: '["chat"]' },
+    { id: SDK_PROVIDER, hash: "sdk-hash", serves: JSON.stringify(STRIPPED_SERVES) },
+    { id: TEXT_PROVIDER, hash: "text-hash", serves: null },
   ]);
-  expect(await db.all(sql`select provider_id as providerId, plugin_id as pluginId from plugin_provider_claims`)).toEqual([
-    { providerId: TEXT_PROVIDER, pluginId: acme },
-  ]);
+  const claims = await db.all(
+    sql`select owner_id as ownerId, provider_id as providerId, definition_hash as hash, plugin_id as pluginId from plugin_provider_claims`,
+  );
+  expect(claims).toHaveLength(3);
+  expect(claims).toEqual(
+    expect.arrayContaining([
+      { ownerId: owner.id, providerId: SDK_PROVIDER, hash: "sdk-hash", pluginId: acme },
+      { ownerId: owner.id, providerId: TEXT_PROVIDER, hash: "text-hash", pluginId: acme },
+      { ownerId: other.id, providerId: SDK_PROVIDER, hash: "other-sdk-hash", pluginId: null },
+    ]),
+  );
   const stored = await db.all<{ readonly id: string; readonly manifest: string }>(sql`select id, manifest from plugins order by slug`);
   expect(stored.map((row) => ({ id: row.id, manifest: JSON.parse(row.manifest) as unknown }))).toEqual([
     { id: acme, manifest: manifest("acme", [sdkProvider(STRIPPED_SERVES), TEXT_DEF]) },
