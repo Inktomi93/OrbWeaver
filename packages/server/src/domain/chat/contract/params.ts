@@ -207,7 +207,6 @@ export interface SendParams extends ChatScopedParams, ViewerClockParams {
 export interface CommitMessageParams extends ChatScopedParams, ViewerClockParams {
   readonly content: string;
   readonly personaId?: PersonaId | null | undefined;
-  readonly blocks?: readonly MessageContentBlock[] | undefined;
   /** The inline images the user attached; each must be owned by the actor (the send trust boundary). */
   readonly attachmentAssetIds?: readonly AssetId[] | undefined;
 }
