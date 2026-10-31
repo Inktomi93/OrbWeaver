@@ -79,8 +79,8 @@ const MOONLIT_PORTRAIT: Record<ThemeChatStyle, Reference> = {
   tide: {
     moonlit: 336.6,
     measure: "column",
-    difference: 7.4,
-    parts: [{ px: 7.4, why: "the train fills the 344px column beside the chip, where Moonlit's pill column is 90% of the 374px row" }],
+    difference: 0,
+    parts: [],
   },
 };
 

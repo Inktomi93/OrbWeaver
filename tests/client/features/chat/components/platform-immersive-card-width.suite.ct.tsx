@@ -184,7 +184,8 @@ for (const viewport of [WIDTHS[0], WIDTHS[1]]) {
         nodes.flatMap((row) => {
           const card = row.querySelector('[data-slot="message-bubble"]')?.getBoundingClientRect();
           const chip = row.querySelector('[data-slot="avatar-root"]')?.getBoundingClientRect();
-          const name = row.querySelector('[data-slot="message-attribution"]')?.getBoundingClientRect();
+          // The chip leads the header's identity: it centres on the name and timestamp beside it, which a phone stacks.
+          const name = row.querySelector('[data-slot="avatar-root"]')?.nextElementSibling?.getBoundingClientRect();
           if (card === undefined || chip === undefined || name === undefined) {
             return [];
           }

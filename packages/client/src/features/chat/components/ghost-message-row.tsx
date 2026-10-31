@@ -328,6 +328,7 @@ export function GhostMessageRow({
       named: skin.actionsRow.identity,
       actionsFootprint: <GhostActionsFootprint chatId={chatId} generationCredit={generationCredit} />,
       chip: headerChip,
+      rule: skin.headerRule,
     }),
     skin.headerPlacement,
   );
@@ -351,7 +352,7 @@ export function GhostMessageRow({
       />
     ),
     footer: null,
-    facts: { box: skin.box, role: "assistant", phoneCap: skin.phoneCap, lastRowFloor: false, editing: false, receded: false },
+    facts: { box: skin.box, role: "assistant", phoneCap: skin.phoneCap, corners: skin.corners, lastRowFloor: false, editing: false, receded: false },
     decoration,
     weldedAvatar,
     mirrored: false,

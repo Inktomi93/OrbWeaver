@@ -50,6 +50,14 @@
   mask-composite: intersect;
 }
 
+/* A portrait dissolves into its card at the edge that meets the text. */
+@utility orb-portrait-fade-end {
+  mask-image: linear-gradient(to right, black calc(100% - var(--immersive-ripple-portrait-fade)), transparent);
+}
+@utility orb-portrait-fade-start {
+  mask-image: linear-gradient(to left, black calc(100% - var(--immersive-ripple-portrait-fade)), transparent);
+}
+
 /* Without an image the feather preserves a solid upper band for the fallback initial. `--art-feather-toward` names the
  * side the art dissolves toward; the default is the foot. */
 @utility orb-art-band {

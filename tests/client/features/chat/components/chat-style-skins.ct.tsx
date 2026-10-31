@@ -96,6 +96,15 @@ function decorationFor(skin: RowSkin, kind: string | null, role: Role): ReturnTy
 async function expectedBubble(page: Page, box: Locator, skin: RowSkin, row: { readonly role: Role; readonly kind: string | null }): Promise<Box> {
   const { role, kind } = row;
   const card = await resolvedLength(page, "var(--radius-card)");
+  const sharp = await resolvedLength(page, "var(--radius-bubble-sharp)");
+  const round = await resolvedLength(page, "var(--radius-bubble-round)");
+  const tail = await resolvedLength(page, "var(--radius-bubble-tail)");
+  const pill = await resolvedLength(page, "var(--radius-pill)");
+  const cornerSet = {
+    card: [card, card, card, card],
+    speech: role === "user" ? [round, sharp, tail, round] : [sharp, round, round, tail],
+    pill: [pill, pill, pill, pill],
+  }[skin.corners];
   // Whisper's band and ripple's welded portrait hand the inset to the stack beside them.
   const decoration = decorationFor(skin, kind, role);
   const handed = decoration?.headerBand !== undefined || skin.avatarTreatment(kind === null ? null : "character") === "sticky-portrait";
@@ -107,7 +116,7 @@ async function expectedBubble(page: Page, box: Locator, skin: RowSkin, row: { re
   const end = pane !== null && decoration?.art?.side === "right" ? pane : block;
   return {
     fill: await tokenColor(box, role === "user" ? "--color-user-bubble" : "--color-ai-bubble", "background-color"),
-    corners: [card, card, card, card],
+    corners: cornerSet,
     shadow: "none",
     blurred: false,
     inset: handed ? [0, 0, 0, 0] : [start, end, rowStep, rowStep],
@@ -211,7 +220,8 @@ async function revealFacts(page: Page, skin: RowSkin): Promise<{ readonly measur
   await row
     .locator(BUBBLE)
     .first()
-    .hover({ position: { x: 4, y: 4 } });
+    // Inside every skin's corner radius, the pill's and a speech card's long corner included.
+    .hover({ position: { x: 44, y: 4 } });
   await expect.poll(() => computed(actions, "opacity")).toBe("1");
   const card = await resolvedLength(page, "var(--radius-card)");
   return {

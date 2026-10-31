@@ -11,7 +11,7 @@ import type { MessageBoxProps } from "./message-box.tsx";
 import { MessageBox } from "./message-box.tsx";
 
 /** The skin and row facts every message box of one row shares. */
-export type MessageBoxFacts = Pick<MessageBoxProps, "box" | "role" | "phoneCap" | "lastRowFloor" | "editing" | "receded">;
+export type MessageBoxFacts = Pick<MessageBoxProps, "box" | "role" | "phoneCap" | "corners" | "lastRowFloor" | "editing" | "receded">;
 
 export function renderSingleBubble(args: {
   /** #288 — the speaker/timestamp/actions header, when this skin renders it INSIDE its container. It

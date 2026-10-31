@@ -14,6 +14,16 @@ export const messageBubbleVariants = tv({
     // The whole box at the receded step, fill and ink together.
     receded: { true: RECEDED, false: "" },
     artDecoration: ART_DECORATION,
+    // A Bubble card takes its share of the column, never past the reading measure.
+    share: { true: "max-inline-(--reading-bubble-share-cap)", false: "" },
+    // The skin's corner set. `speech` is a Bubble card: a small corner and a long one on the side of the speaker's chip,
+    // mirrored for the user. `pill` is a Tide paragraph.
+    corners: {
+      card: "",
+      speechAssistant: "rounded-ss-bubble-sharp rounded-se-bubble-round rounded-ee-bubble-round rounded-es-bubble-tail",
+      speechUser: "rounded-ss-bubble-round rounded-se-bubble-sharp rounded-ee-bubble-tail rounded-es-bubble-round",
+      pill: "rounded-pill",
+    },
   },
-  defaultVariants: { shape: "island", padding: "tier", receded: false },
+  defaultVariants: { shape: "island", padding: "tier", receded: false, share: false, corners: "card" },
 });

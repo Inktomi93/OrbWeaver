@@ -37,7 +37,7 @@ Differences kept, each as parts that add up (Orbweaver minus Moonlit, px):
 - Whisper +8: 12px card padding against 16px on each side.
 - Hush +8: +14.4 for 12px padding against 19.2px and -6.4 because the transcript column is 368px where Moonlit's card is 374.4px. The chip now sits in the card's header (item 0880) and the speaker stripe is a tick that takes no room, so neither reduces the column.
 - Ripple +5.5: 24px of stack padding against Moonlit's 29.5px of measured insets beside the 100px portrait.
-- Tide +7.4: the train fills the 344px column beside the chip, where Moonlit's pill column is 90% of the 374px row.
+- Tide 0: the column takes `reading.tide-share-phone` (90%) of the row, as Moonlit's does (item 0882).
 
 Echo, whisper and ripple stay at their padding difference because the spacing scale has 12px and 24px steps and no 16px or 20px step.
 

@@ -12,8 +12,14 @@ import type { RowSkin } from "../lib/message-row-variants.ts";
 
 const MESSAGE_BUBBLE_SLOT = "message-bubble";
 
-// A bubble at a phone width takes at most four fifths of its column (owner ruling, after Moonlit Echoes' phone layout).
-const BUBBLE_PHONE_CAP = "@max-cq-28:max-inline-4/5";
+// The corner variant for a skin's corner set; a speech card's long corner follows the speaker's side.
+function cornersFor(set: RowSkin["corners"], role: MessageRole): "card" | "speechAssistant" | "speechUser" | "pill" {
+  if (set === "speech") {
+    return role === "user" ? "speechUser" : "speechAssistant";
+  }
+  return set;
+}
+
 // The plate column is inset a section from its gutter; on a phone its trailing edge takes a block, which leaves flat the
 // 32px more reading width than Moonlit that the small avatar chip buys.
 const PLATE_INSET = "px-section py-row @max-cq-28:pe-block";
@@ -33,6 +39,8 @@ export interface MessageBoxProps {
   readonly role: MessageRole;
   readonly shape: BoxShape;
   readonly phoneCap: boolean;
+  /** `RowSkin.corners`. */
+  readonly corners: RowSkin["corners"];
   /** The transcript's last row of a skin with a floor (`RowSkin.lastRowFloor`). */
   readonly lastRowFloor: boolean;
   /** EDIT mode: the box stops hugging and fills the column the row holds open (`MessageRow`'s reservation). */
@@ -50,7 +58,7 @@ export function MessageBox(props: MessageBoxProps): ReactElement {
 }
 
 // The filled skins: the role's bubble card, which floats without a shadow at every elevation.
-function BubbleCard({ role, shape, phoneCap, editing, receded, positioned, artDecoration, children }: MessageBoxProps): ReactElement {
+function BubbleCard({ role, shape, phoneCap, corners, editing, receded, positioned, artDecoration, children }: MessageBoxProps): ReactElement {
   const weld = shape === "weld";
   const inset = shape === "stack";
   // An illustrated or striped card spans its column up to the bubble cap, so card widths do not jump between a short
@@ -64,11 +72,12 @@ function BubbleCard({ role, shape, phoneCap, editing, receded, positioned, artDe
       padding={inset ? undefined : "none"}
       receded={receded}
       artDecoration={artDecoration}
+      share={phoneCap}
+      corners={cornersFor(corners, role)}
       className={cn(
         "flex",
         weld ? "flex-row items-start" : "flex-col",
         inset ? "gap-row" : undefined,
-        phoneCap && BUBBLE_PHONE_CAP,
         spansColumn ? "inline-full" : undefined,
         positioned && "relative",
         positioned && ECHO_CARD_FLOOR,

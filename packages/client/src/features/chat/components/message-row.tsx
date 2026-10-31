@@ -341,6 +341,8 @@ export function MessageRow({
       pinnedHeader: skin.pinnedHeader,
       mirrored,
       chip: slots.header,
+      stackStamp: skin.phoneStamp === "stacked",
+      rule: skin.headerRule,
       shape: headerShape(skin, lastRow),
       // B7 — the picker's segment-target parse keys the SAME character-name set the span renderer uses
       // (`speakerThemesByName`'s keys); the actions row narrator-gates it against `message.kind` itself.
