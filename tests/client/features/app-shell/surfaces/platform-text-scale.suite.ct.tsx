@@ -39,9 +39,14 @@ const QUALIFIED = {
   contextHeader: [[DESKTOP, TEXT_200]],
   charactersBand: [[PHONE, TEXT_200]],
   room: [[DESKTOP, TEXT_200]],
+  jumpToLatest: [
+    [PHONE, LAYOUT_300],
+    [DESKTOP, LAYOUT_300],
+  ],
   importDialog: [
     [PHONE, TEXT_200],
     [DESKTOP, TEXT_200],
+    [PHONE, LAYOUT_300],
     [DESKTOP, LAYOUT_300],
   ],
 } as const satisfies Record<string, readonly (readonly [Viewport, Scale])[]>;
@@ -175,6 +180,19 @@ async function firstCharacterId(): Promise<CharacterId> {
   return character.id;
 }
 
+type Mount = (story: string, props: Record<string, never>) => Promise<unknown>;
+
+/** Opens the corpus' first chat room on the production shell and returns its message field. */
+async function openFirstRoom(mount: Mount, page: Page): Promise<Locator> {
+  await seedShellState(page, { activeSection: "chats" });
+  await mount(STORY, {});
+  await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS["chats"], exact: true }).click();
+  await page.getByRole("list", { name: "Chats list", exact: true }).getByRole("button").first().click();
+  const input = page.getByRole("textbox", { name: "Message", exact: true });
+  await expect(input).toBeVisible();
+  return input;
+}
+
 const documentOverflow = (page: Page): Promise<number> => page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
 
 for (const [viewport, scale] of QUALIFIED.topbar) {
@@ -231,12 +249,7 @@ for (const [viewport, scale] of QUALIFIED.room) {
     test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
 
     test("keeps the transcript, the message field and Send reachable", async ({ mount, page }) => {
-      await seedShellState(page, { activeSection: "chats" });
-      await mount<typeof AppShellStory>(STORY, {});
-      await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS["chats"], exact: true }).click();
-      await page.getByRole("list", { name: "Chats list", exact: true }).getByRole("button").first().click();
-      const input = page.getByRole("textbox", { name: "Message", exact: true });
-      await expect(input).toBeVisible();
+      const input = await openFirstRoom(mount, page);
       await scaleRoot(page, scale.factor);
       await expect(page.getByRole("button", { name: "Send message", exact: true })).toBeVisible();
       for (const control of [input, page.getByRole("button", { name: "Send message", exact: true })]) {
@@ -244,6 +257,27 @@ for (const [viewport, scale] of QUALIFIED.room) {
       }
       await expect.poll(() => findings(page.locator(".shell-content"))).toEqual([]);
       expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
+    });
+  });
+}
+
+for (const [viewport, scale] of QUALIFIED.jumpToLatest) {
+  test.describe(`Jump to latest at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    // The pill is mounted while hidden and takes its width from the same label it shows, so its box is the one a
+    // pending arrival would paint; the flank row clips on x, so a pill wider than the row loses its ends.
+    test("stays inside the flank row it overlays", async ({ mount, page }) => {
+      await openFirstRoom(mount, page);
+      await scaleRoot(page, scale.factor);
+      const row = page.locator('[data-slot="chat-room-flank-row"]');
+      const pill = page.locator('[data-slot="jump-to-latest"] button');
+      await expect
+        .poll(async () => {
+          const [within, button] = await Promise.all([row.boundingBox(), pill.boundingBox()]);
+          return within !== null && button !== null && button.x >= within.x - SUBPIXEL && button.x + button.width <= within.x + within.width + SUBPIXEL;
+        })
+        .toBe(true);
     });
   });
 }
