@@ -4,7 +4,15 @@
       "tone": "neutral",
       "variant": "surface"
     },
-    "MessageBubble": {}
+    "MessageBubble": {},
+    "ThemePreviewPane": {
+      "variant": "surface"
+    },
+    "FloatingChip": {},
+    "RoomIsland": {
+      "tone": "neutral",
+      "variant": "surface"
+    }
   },
   "extractions": [
     {
@@ -75,6 +83,135 @@
       "toDoor": "message-bubble",
       "attributes": [["messageRole", "system"]],
       "overrides": ["variant"]
+    },
+    {
+      "element": "Card",
+      "door": "card",
+      "match": {
+        "tone": "background",
+        "shadow": "overlay"
+      },
+      "to": "ThemePreviewPane",
+      "toDoor": "theme-swatch",
+      "attributes": [["fill", "background"], ["lifted", "{true}"]]
+    },
+    {
+      "element": "Card",
+      "door": "card",
+      "match": {
+        "tone": "background"
+      },
+      "to": "ThemePreviewPane",
+      "toDoor": "theme-swatch",
+      "attributes": [["fill", "background"]]
+    },
+    {
+      "element": "Card",
+      "door": "card",
+      "match": {
+        "tone": "accent",
+        "shadow": "overlay"
+      },
+      "to": "ThemePreviewPane",
+      "toDoor": "theme-swatch",
+      "attributes": [["fill", "accent"], ["lifted", "{true}"]]
+    },
+    {
+      "element": "Card",
+      "door": "card",
+      "match": {
+        "tone": "accent"
+      },
+      "to": "ThemePreviewPane",
+      "toDoor": "theme-swatch",
+      "attributes": [["fill", "accent"]]
+    },
+    {
+      "element": "Card",
+      "door": "card",
+      "match": {
+        "tone": "sidebar",
+        "shadow": "overlay"
+      },
+      "to": "ThemePreviewPane",
+      "toDoor": "theme-swatch",
+      "attributes": [["fill", "sidebar"], ["lifted", "{true}"]]
+    },
+    {
+      "element": "Card",
+      "door": "card",
+      "match": {
+        "tone": "sidebar"
+      },
+      "to": "ThemePreviewPane",
+      "toDoor": "theme-swatch",
+      "attributes": [["fill", "sidebar"]]
+    },
+    {
+      "element": "Card",
+      "door": "card",
+      "match": {
+        "tone": "sidebarEdge",
+        "shadow": "overlay"
+      },
+      "to": "ThemePreviewPane",
+      "toDoor": "theme-swatch",
+      "attributes": [["fill", "sidebarEdge"], ["lifted", "{true}"]]
+    },
+    {
+      "element": "Card",
+      "door": "card",
+      "match": {
+        "tone": "sidebarEdge"
+      },
+      "to": "ThemePreviewPane",
+      "toDoor": "theme-swatch",
+      "attributes": [["fill", "sidebarEdge"]]
+    },
+    {
+      "element": "Card",
+      "door": "card",
+      "match": {
+        "tone": "translucent",
+        "shadow": "overlay"
+      },
+      "to": "ThemePreviewPane",
+      "toDoor": "theme-swatch",
+      "attributes": [["fill", "translucent"], ["lifted", "{true}"]]
+    },
+    {
+      "element": "Card",
+      "door": "card",
+      "match": {
+        "tone": "translucent"
+      },
+      "to": "ThemePreviewPane",
+      "toDoor": "theme-swatch",
+      "attributes": [["fill", "translucent"]]
+    },
+    {
+      "element": "Card",
+      "door": "card",
+      "match": {
+        "tone": "popover",
+        "shape": "pill",
+        "shadow": "overlay",
+        "padding": "none"
+      },
+      "to": "FloatingChip",
+      "toDoor": "floating-chip",
+      "attributes": [],
+      "overrides": ["variant"]
+    },
+    {
+      "element": "Card",
+      "door": "card",
+      "match": {
+        "shape": "float"
+      },
+      "to": "RoomIsland",
+      "toDoor": "room-island",
+      "attributes": []
     }
   ]
 }

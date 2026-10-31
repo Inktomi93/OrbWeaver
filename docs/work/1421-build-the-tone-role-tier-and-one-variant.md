@@ -28,10 +28,10 @@ Current defects:
 - [ ] Step 4: use-specific extraction. The plan's "Step 4 sub-steps" table orders it.
   - [x] 4a: the extraction codemod and the button family.
   - [x] 4b: the Badge family.
-  - [ ] 4c: the Card family.
+  - [x] 4c: the Card family.
     - [x] 4c-1: `Spoiler` and the ink fixes.
-    - [ ] 4c-2: `MessageBubble` and the plate.
-    - [ ] 4c-3: the preview parts, `FloatingChip`, `RoomIsland` and the map.
+    - [x] 4c-2: `MessageBubble` and the plate.
+    - [x] 4c-3: the preview parts, `FloatingChip`, `RoomIsland` and the map.
   - [x] 4d: the layout boxes.
   - [x] 4e: ListRow state.
 
@@ -89,6 +89,11 @@ Step 4c-2:
 
 - `MessageBubble` takes `messageRole` and `shape` behind `@orb/ui/message-bubble`; Card refuses the bubble tones, the bubble and plate shapes and the backdrop tone, and `tests/ui/primitives/message-bubble/extracted-bubble.dom.test-d.ts` pins both. `tests/ui/primitives/message-bubble/message-bubble.ct.tsx` reads each role's fill and ink, the bubble box, and the island inset and radius in and out of an instrument tier, under each seed and a nested custom scope, in the Chromium and WebKit CT projects.
 - `tooling/src/codemods/use-specific-extraction/maps/card-family.json` moved the literal bubble sites; its `overrides` fixture holds the shape and the default guard it adds. The computed site in `message-box.tsx` is a hand edit. The transcript divider label sits on the layout reading plate under D144(b).
+
+Step 4c-3:
+
+- `ThemePreviewPane`, `FloatingChip` and `RoomIsland` each own their skin behind their own door, and Card refuses the step-four tones, the `inset`, `pill` and `float` shapes, `shadow`, `presence`, `holdsField` and `dropTarget`; `tests/ui/primitives/room-island/extracted-card-family.dom.test-d.ts` pins each. `tests/ui/content/theme-swatch/preview-pane.ct.tsx`, `tests/ui/primitives/floating-chip/floating-chip.ct.tsx` and `tests/ui/primitives/room-island/room-island.ct.tsx` read each paint, box, tier slot and state under each seed and a nested custom scope in the Chromium and WebKit CT projects. A planted wrong fill, edge radius or missing focus lift fails them.
+- `tooling/src/codemods/use-specific-extraction/maps/card-family.json` moved the literal Card sites; its `previews` fixture holds the pane, chip and island rows. The composer island, which reaches Card through `Track`, is a hand edit.
 
 Step 4d:
 

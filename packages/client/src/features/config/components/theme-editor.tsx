@@ -25,6 +25,7 @@ import { MessageBubble } from "@orb/ui/message-bubble";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { THEME_SCOPE_EMIT_VARS, ThemeScope } from "@orb/ui/theme-scope";
+import { ThemePreviewPane } from "@orb/ui/theme-swatch";
 import type { ReactElement } from "react";
 // biome's resolver mis-enumerates react's conditional-CJS export map and misses lazy/Suspense
 // specifically (main.tsx precedent); tsc resolves them and the client typechecks clean.
@@ -204,14 +205,14 @@ function ThemeableVarsReference(): ReactElement {
 }
 
 /** A scoped live preview — a sample exchange under the in-progress theme, contained to this box only. The
- *  two bubbles are `Card shape="bubble"`, the SAME recipe the transcript's bubble skins use, so what
+ *  two bubbles are `MessageBubble shape="bubble"`, the SAME recipe the transcript's bubble skins use, so what
  *  an author judges here is the box the app actually paints (side-eye P2: the preview had drifted to
  *  `rounded-base p-block` against the real `rounded-card px-block py-row`). */
 function ThemePreview({ values }: { readonly values: ThemeFormValues }): ReactElement {
   return (
     <Stack gap="block">
       <ThemeScope tokens={themeOverrideFromForm(values)}>
-        <Card tone="background">
+        <ThemePreviewPane fill="background">
           <Stack gap="row">
             <Text voice="label" ink="speaker">
               Aria
@@ -235,7 +236,7 @@ function ThemePreview({ values }: { readonly values: ThemeFormValues }): ReactEl
               </Stack>
             </MessageBubble>
           </Stack>
-        </Card>
+        </ThemePreviewPane>
       </ThemeScope>
       <ContrastReport values={values} />
     </Stack>

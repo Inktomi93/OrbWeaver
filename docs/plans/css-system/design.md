@@ -188,7 +188,7 @@ Inks on tints. D336 paints text on a tint with the tone's `text-on-tint` role; f
 
 Each family map holds `defaults` and a list of `{ element, door, match, to, toDoor, attributes }` rows. The first row whose `match` attributes all match wins, so list a more specific match first. A `match` value of `true` matches a bare or `{true}` attribute.
 
-`defaults` names, for every source and target component, the value each style or colour axis resolves when the call site names none; `""` means the axis draws nothing. The codemod refuses and reports a site that leaves such an axis unnamed when the two defaults differ, because the move would change its emphasis silently. A map without a component's defaults fails to load.
+`defaults` names, for every source and target component, the value each style or colour axis resolves when the call site names none; `""` means the axis draws nothing. The codemod refuses and reports a site that leaves such an axis unnamed when the two defaults differ, because the move would change its emphasis silently. A map without a component's defaults fails to load. A row may list `overrides`, the axes its target paints over entirely, which the guard then skips.
 
 | Map | Rows |
 | - | - |
@@ -240,6 +240,14 @@ Step 4c lands as three commits in order: `Spoiler` with the ink fixes, `MessageB
 
 The map `card-family.json` carries `overrides` on each bubble row: an axis the target paints over entirely, here Card's unnamed `variant`, whose fill the bubble tone replaces. Without it the guard refuses every site.
 
+`ThemePreviewPane` lives in `packages/ui/src/content/theme-swatch/` behind the `@orb/ui/theme-swatch` door. Its `fill` is `background`, `accent`, `sidebar`, `sidebarEdge` or `translucent`, its `shape` is `island`, `row` or `inset`, and `lifted` takes the overlay shadow. It keeps the card's edge and fill under its own fill, so a fill that names no edge still draws the card's, and the map needs no default guard. An island pane takes the `card-root` slot, so `tiers.css` resolves its inset and radius from the tier; a row or inset pane takes `theme-preview-pane` and is its own box at every tier. `RoomIsland` and `FloatingChip` live in `packages/ui/src/primitives/room-island/` and `packages/ui/src/primitives/floating-chip/` behind their own doors. `RoomIsland` requires the owner-CSS slot it is and keeps `layout`, `holdsField` and `dropTarget`; `FloatingChip` requires `presence` and paints its own fill over Card's unnamed `variant`. Each stamps the neutral D336 scope. Card loses the step-four tones, the `inset`, `pill` and `float` shapes, `shadow`, `presence`, `holdsField` and `dropTarget`, and its stamp is `tone ?? "neutral"`.
+
+| Site | Choice |
+| - | - |
+| `packages/client/src/features/chat/components/composer-drop-target.tsx` | The composer island reaches Card through `Track of={Card}`, so it is a hand edit: `Track of={RoomIsland}`. |
+| `packages/client/src/features/config/components/theme-editor.tsx`, `packages/client/src/features/character/components/character-appearance-tab.tsx` | The island preview frame keeps its tier through the `card-root` slot of an island pane. |
+| `tests/support/browser/surface-design-fixtures.tsx` | The pill island has no Card form left and leaves the fixture; the inset island is a pane. |
+
 Ink fixes: Card `interactive` hover and press paint `text-tone-text-on-tint`; the compare-blocks side panels paint `text-tone-text-on-tint`; the tool-call-block `pre` and the immersive-card body paint `text-accent-foreground` on the neutral tint.
 
 ##### Step 4d record
@@ -284,7 +292,7 @@ The gradient ring paints its border only. Its gradient covered the padding box, 
 | `shape="plate"`, `tone="backdrop"` | the layout `plate` on a Row: D144(b) owns the over-art plate |
 | `spoiler` | `Spoiler`, shared with Stack |
 | `outline="dashed"` | `dashed`, because `outline` is now a variant |
-| `shadow` | removed: `elevated` takes the overlay shadow, `interactive` follows the user's elevation, a static card takes none; `shadow="overlay"` stays for `FloatingChip` and the preview parts until they land |
+| `shadow` | removed: `elevated` takes the overlay shadow, `interactive` follows the user's elevation, a static card takes none; `FloatingChip` and `ThemePreviewPane` `lifted` own the overlay shadow |
 | `holdsField`, `dropTarget` | kept for `RoomIsland`: the composer island is a caller |
 | `tone="warning"` and the other colour tones on `soft` and `outline` | the border paints `solid`, because a status box's border carries meaning (D336 contrast); a neutral box keeps the edge |
 | `shape` `island` and `row`, `rail`, `glow`, `elevated`, `nested`, `padding`, `interactive`, `focusable`, `receded`, `artDecoration`, `ownSlot` | kept |

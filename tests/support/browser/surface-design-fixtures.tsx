@@ -5,7 +5,9 @@ import { Icon, Plus } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Container, Row, Stack, Surface } from "@orb/ui/layout";
 import { MessageBubble } from "@orb/ui/message-bubble";
+import { RoomIsland } from "@orb/ui/room-island";
 import { ScrollArea } from "@orb/ui/scroll-area";
+import { ThemePreviewPane } from "@orb/ui/theme-swatch";
 import type { ReactElement } from "react";
 import { CtIsolation } from "./ct-isolated-subject.tsx";
 
@@ -20,18 +22,15 @@ export function SurfaceDesignStory({ width }: { readonly width: number }): React
             <Surface tier="instrument">
               <Stack gap="row">
                 <Card aria-label="Instrument island">Instrument island</Card>
-                <Card shape="float" aria-label="Floating island">
+                <RoomIsland ownSlot="surface-design-island" aria-label="Floating island">
                   Floating island
-                </Card>
+                </RoomIsland>
                 <MessageBubble messageRole="assistant" shape="bubble" aria-label="Message bubble">
                   Message bubble
                 </MessageBubble>
-                <Card shape="pill" aria-label="Pill island">
-                  Pill island
-                </Card>
-                <Card shape="inset" aria-label="Inset island">
+                <ThemePreviewPane fill="background" shape="inset" aria-label="Inset island">
                   Inset island
-                </Card>
+                </ThemePreviewPane>
                 <Card padding="none" aria-label="Delegated inset">
                   Delegated inset
                 </Card>

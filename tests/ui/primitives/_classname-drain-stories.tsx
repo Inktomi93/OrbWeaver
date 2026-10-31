@@ -7,7 +7,6 @@ import { Circle, Icon } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
 import { Input } from "@orb/ui/input";
 import { Row, Stack, Surface } from "@orb/ui/layout";
-
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { TOKENS } from "@orb/ui/tokens";
@@ -171,9 +170,6 @@ export function CardShapeStory(): ReactElement {
       <Card variant="outline" data-case="clear">
         clear
       </Card>
-      <Card tone="accent" variant="soft" data-case="accent-well">
-        accent
-      </Card>
       <Card data-case="island">island</Card>
       <Surface tier="instrument">
         <Card shape="row" data-case="tier-row">
@@ -266,24 +262,6 @@ export function RecededStory(): ReactElement {
       <span data-probe="receded" style={{ opacity: "var(--opacity-receded)" }}>
         probe
       </span>
-    </CtIsolation>
-  );
-}
-
-const CARD_FILL_TONES = ["sidebar", "translucent"] as const;
-
-/** The fill tones and the input-edge tone, beside probes. */
-export function CardToneStory(): ReactElement {
-  return (
-    <CtIsolation subject="Card step-four surfaces" isolates="The sidebar and translucent fills">
-      {CARD_FILL_TONES.map((tone) => (
-        <Card key={tone} tone={tone} data-case={tone}>
-          {tone}
-        </Card>
-      ))}
-
-      <span data-probe="sidebar" style={{ backgroundColor: "var(--color-sidebar)", borderColor: "var(--color-sidebar-border)", display: "block" }} />
-      <span data-probe="translucent" style={{ backgroundColor: "color-mix(in oklab, var(--color-card) 80%, transparent)", display: "block" }} />
     </CtIsolation>
   );
 }

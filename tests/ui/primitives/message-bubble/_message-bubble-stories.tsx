@@ -2,9 +2,10 @@ import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { CtIsolation } from "@orb/testkit/browser";
 import { Surface } from "@orb/ui/layout";
 import { MessageBubble } from "@orb/ui/message-bubble";
-import { ThemeScope } from "@orb/ui/theme-scope";
-import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
+import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
+import type { SeedScopeProps } from "../_seed-scope.tsx";
+import { SeedScope } from "../_seed-scope.tsx";
 
 const GROUNDS = {
   user: { fill: "color.user-bubble", ink: "color.user-bubble-foreground" },
@@ -45,23 +46,12 @@ function Bubbles(): ReactElement {
   );
 }
 
-/** Every role's bubble and island box, tier-less and inside an instrument Surface, under a seed palette and an optional custom scope. */
-export function MessageBubbleStory({ theme, background }: { readonly theme?: keyof typeof SEED_THEME_VALUE_SETS; readonly background?: string }): ReactElement {
-  const ambient = theme === undefined ? undefined : SEED_THEME_VALUE_SETS[theme].vars;
+export function MessageBubbleStory(props: SeedScopeProps): ReactElement {
   return (
     <CtIsolation subject="MessageBubble" isolates="Each role's bubble and island box, tier-less and inside an instrument Surface, beside token probes">
-      <div data-theme={theme} style={{ backgroundColor: "var(--color-background)", padding: "1rem" }}>
-        {background === undefined ? (
-          <Bubbles />
-        ) : (
-          <ThemeScope
-            tokens={{ background }}
-            {...(ambient === undefined ? {} : { ambientBackground: ambient["--color-background"], ambientAccent: ambient["--color-primary"] })}
-          >
-            <Bubbles />
-          </ThemeScope>
-        )}
-      </div>
+      <SeedScope {...props}>
+        <Bubbles />
+      </SeedScope>
     </CtIsolation>
   );
 }

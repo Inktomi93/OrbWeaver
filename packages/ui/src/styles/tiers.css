@@ -124,23 +124,9 @@
     border-radius: var(--radius-inset);
   }
 
-  /* The `row` and `well` shapes take the control radius in every tier: you operate a row, and a well belongs to its host. */
+  /* The `row` shape takes the control radius in every tier: you operate a row. */
   [data-surface-tier] [data-slot="card-root"][data-shape] {
     border-radius: var(--radius-control);
-  }
-
-  /* A floating island keeps its own radius and inset at every tier: it is composer-class, not grouped content. */
-  [data-surface-tier] [data-slot="card-root"][data-shape="float"] {
-    padding: var(--spacing-field);
-    border-radius: var(--radius-card);
-  }
-
-  [data-surface-tier] [data-slot="card-root"][data-shape="inset"] {
-    border-radius: var(--radius-inset);
-  }
-
-  [data-surface-tier] [data-slot="card-root"][data-shape="pill"] {
-    border-radius: var(--radius-full);
   }
 
   [data-surface-tier] [data-slot="card-root"][data-shape="bubble"] {

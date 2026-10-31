@@ -1,23 +1,17 @@
 // A MessageBubble paints its role's fill and ink, and takes its box and inset from the shape and the surface's tier.
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
-import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { MID_GREY } from "../../content/theme-scope/contrast-cases.ts";
+import { SEED_CASES } from "../seed-scope-cases.ts";
 import type { MessageBubbleStory } from "./_message-bubble-stories.tsx";
 
 const STORY = "tests/ui/primitives/message-bubble/_message-bubble-stories/MessageBubbleStory";
-const CASES = [
-  { name: "hearth seed" },
-  ...(Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[]).map((theme) => ({ name: `${theme} seed`, theme })),
-  { name: "custom mid-grey scope nested in the light seed", theme: "light" as const, background: MID_GREY },
-] as const;
 
 function style(locator: Locator, property: string): Promise<string> {
   return locator.evaluate((element, name) => getComputedStyle(element).getPropertyValue(name), property);
 }
 
-for (const { name, ...props } of CASES) {
+for (const { name, ...props } of SEED_CASES) {
   test(`${name}: every role paints its fill and ink, with no edge, in each box`, async ({ mount }) => {
     const component = await mount<typeof MessageBubbleStory>(STORY, props);
     for (const role of MESSAGE_ROLES) {

@@ -147,56 +147,23 @@ export function ButtonFinishStory(): ReactElement {
 /** The Card shapes, tones and state axes the drain added, tier-less, inside a tier and under the glow elevation. */
 export function CardFinishStory(): ReactElement {
   return (
-    <CtIsolation subject="Card shapes, tones and axes" isolates="Each new arm against its token, tier-less and inside an instrument Surface">
-      <Card data-case="float" shape="float">
-        float
-      </Card>
-      <Card data-case="inset" shape="inset">
-        inset
-      </Card>
-      <Card data-case="pill" shape="pill">
-        pill
-      </Card>
+    <CtIsolation subject="Card shapes, tones and axes" isolates="Each remaining arm against its token, tier-less and inside an instrument Surface">
       <MessageBubble data-case="bubble" messageRole="user" shape="bubble">
         bubble
       </MessageBubble>
       <Surface tier="instrument">
-        <Card data-case="tier-float" shape="float">
-          float in a tier
-        </Card>
         <MessageBubble data-case="tier-bubble" messageRole="assistant" shape="bubble">
           bubble in a tier
         </MessageBubble>
       </Surface>
-      <Card data-case="sidebarEdge" tone="sidebarEdge">
-        sidebar edge
-      </Card>
-      <Card data-case="popover" tone="popover">
-        popover
-      </Card>
       <Card data-case="rail" rail="primary">
         set
-      </Card>
-      <Card data-case="presence-hidden" presence="hidden">
-        gone
-      </Card>
-      <Card data-case="presence-shown" presence="shown">
-        here
-      </Card>
-      <Card data-case="holds-field" holdsField={true}>
-        field host
-      </Card>
-      <Card data-case="drop-armed" data-drag-over="" dropTarget={true}>
-        armed
       </Card>
       <Card data-case="focusable" focusable={true} tabIndex={-1}>
         region
       </Card>
       <Card data-case="own-slot" ownSlot="named-hook">
         named
-      </Card>
-      <Card data-case="overlay" shadow="overlay">
-        lifted
       </Card>
       <div data-elevation="glow">
         <Card data-case="glow-follow" interactive={true}>
@@ -206,13 +173,8 @@ export function CardFinishStory(): ReactElement {
       </div>
       <span data-case="away">elsewhere</span>
       <Probe name="radius-card" style={{ borderRadius: "var(--radius-card)", padding: "var(--spacing-field)" }} />
-      <Probe name="radius-inset" style={{ borderRadius: "var(--radius-inset)" }} />
-      <Probe name="radius-full" style={{ borderRadius: "var(--radius-full)" }} />
       <Probe name="bubble" style={{ backgroundColor: "var(--color-user-bubble)", paddingBlock: "var(--spacing-row)", paddingInline: "var(--spacing-block)" }} />
       <Probe name="primary" tone="primary" style={{ borderColor: role("solid"), backgroundColor: "transparent" }} />
-      <Probe name="sidebarEdge" style={{ borderColor: "var(--color-sidebar-border)" }} />
-      <Probe name="popover" style={{ backgroundColor: "var(--color-popover)", color: "var(--color-popover-foreground)" }} />
-      <Probe name="muted" style={{ backgroundColor: "var(--color-muted)" }} />
     </CtIsolation>
   );
 }
