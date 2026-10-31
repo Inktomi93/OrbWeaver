@@ -6,6 +6,7 @@
 
 export { createCas } from "./cas.ts";
 export type { Cas, ExtractOptions, StagedArchive, StagedEntry, VariantCache, ZipEntry, ZipSource } from "./contract.ts";
+export { RUNTIME_TOOL_OF_WIRE } from "./contract.ts";
 export { createNodeFsImportPort } from "./profile-fs.ts";
 export { writeImportReportFile } from "./report.ts";
 export { stageDirectory } from "./stage-dir.ts";

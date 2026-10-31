@@ -159,7 +159,7 @@ import { createVideoPreparer } from "#infra/media";
 import type { ScopedEgress, ScopedEgressOptions } from "#infra/network";
 import { createScopedEgress } from "#infra/network";
 import type { Cas } from "#infra/storage";
-import { createCas, createUserRuntimeDirs, createVariantCache } from "#infra/storage";
+import { createCas, createUserRuntimeDirs, createVariantCache, RUNTIME_TOOL_OF_WIRE } from "#infra/storage";
 import type { BackgroundWork } from "#infra/tasks";
 import { createBackgroundWork } from "#infra/tasks";
 import { createScopedTimers } from "#infra/timers";
@@ -685,6 +685,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     findProvider: (providerId, viewer) => runtimeRef().providers.registry.get(providerId, viewer),
     audit,
     emitUserEvent: publishUserEvent,
+    releaseRuntimeState: (ownerId, wire) => {
+      const tool = RUNTIME_TOOL_OF_WIRE[wire];
+      if (tool !== undefined) {
+        userRuntimeDirs.remove(ownerId, tool);
+      }
+    },
   });
 
   const runtime = await createInferenceRuntime({
