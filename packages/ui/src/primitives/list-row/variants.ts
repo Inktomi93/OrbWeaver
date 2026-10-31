@@ -45,7 +45,10 @@ export const listRowVariants = tv({
     // The two declarations now come from `SELECTION_RAIL` (lib/selection-rail.ts) because the idiom gained a
     // carrier that is NOT a ListRow — the config band, a `Button`, which cannot inherit it by composition
     // (#1823). Three hand-copies of a ratified pair is how a ratified pair drifts.
-    body: ["group flex flex-1 items-center gap-row rounded-control outline-none min-inline-0", `${SELECTION_RAIL} ${DISABLED_STATE}`],
+    body: [
+      "group group/body flex flex-1 items-center gap-row rounded-control px-row py-field outline-none min-block-(--size-control-md) min-inline-0",
+      `${SELECTION_RAIL} ${DISABLED_STATE}`,
+    ],
     leading: "flex shrink-0 items-center justify-center text-muted-foreground",
     // `min-w-(--width-title-floor)` is the title-column floor: name/subtitle never collapse below a readable width, so
     // `actions` yields (shrinks + clips) instead.
@@ -59,7 +62,7 @@ export const listRowVariants = tv({
     // `flex-1` is the BLOCK-subtitle arm's growth (the title owns the whole line); the INLINE arm below
     // replaces it with a min-width floor, because a `flex-1 min-w-0` title beside a `shrink-0` sibling
     // collapses to ZERO width — the P0 that hid three Actions row names outright (side-eye F-01).
-    title: "block flex-1 truncate text-start text-body leading-body font-medium text-foreground min-inline-0",
+    title: "block flex-1 truncate text-start text-body leading-body font-medium text-foreground min-inline-0 group-data-selected:text-tone-text-on-tint",
     // THE TITLE'S DISAMBIGUATOR (`titleQualifier`) — rendered right after the name, in the quiet mono datum
     // treatment the same handle already wears in the row's hover reveal. `shrink-0`: the qualifier is the
     // half that TELLS TWO ROWS APART, so a squeeze must eat the name (which is identical across them
@@ -236,17 +239,15 @@ export const listRowVariants = tv({
       default: {},
       promoted: { title: "text-title leading-title font-semibold" },
     },
-    density: {
-      default: { body: "px-row py-field min-block-(--size-control-md)" },
-      compact: { body: "p-field min-block-(--size-control-sm)" },
-    },
     clickable: {
       true: {
         // FOCUS_RING_INSET, not FOCUS_RING: the offset form paints 4px OUTSIDE the row box (2px moat + 2px
         // ring), and a dense list stacks rows 4px apart (`gap-tight`) — the focused row's ring landed on
         // its neighbours (side-eye P3-9). The inset ring hugs the row's own edge, so the clearance is
         // structural instead of depending on the pane's row gap.
-        body: `cursor-pointer hover:bg-accent active:bg-accent/80 ${FOCUS_RING_INSET}`,
+        body: `cursor-pointer hover:bg-tone-tint-active active:bg-tone-tint-active ${FOCUS_RING_INSET}`,
+        // The tint-active fill takes the tone's text-on-tint ink: the title's own page ink has no floor on it.
+        title: "group-hover/body:text-tone-text-on-tint",
       },
       false: {},
     },
@@ -280,11 +281,10 @@ export const listRowVariants = tv({
     {
       clickable: true,
       rowTint: "row",
-      class: { root: "cursor-pointer hover:bg-accent active:bg-accent/80" },
+      class: { root: "cursor-pointer hover:bg-tone-tint-active active:bg-tone-tint-active", title: "group-hover/row:text-tone-text-on-tint" },
     },
   ],
   defaultVariants: {
-    density: "default",
     clickable: false,
     float: false,
     stackActions: false,

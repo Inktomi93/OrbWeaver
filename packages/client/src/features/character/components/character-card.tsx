@@ -151,7 +151,7 @@ export function CharacterCardTile({
         </Avatar>
       }
       onClick={(): void => (bulkMode ? onToggleBulk(character.id) : onSelect(character.id))}
-      selected={bulkMode ? bulkSelected : selected}
+      data-selected={(bulkMode ? bulkSelected : selected) ? "" : undefined}
       subtitle={subtitle}
       // THE PITCH/TAG/HANDLE LINE IS FUNCTIONAL PROSE INSIDE A CLICKABLE ROW, SO IT TAKES THE LABEL STEP
       // (#892, the readable-floor debt cb-bracket-fix surfaced closing #875 F6). Unset, `subtitle` rides

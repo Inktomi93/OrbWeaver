@@ -234,6 +234,14 @@ Step 4c lands as three commits in order: `Spoiler` with the ink fixes, `MessageB
 
 Ink fixes: Card `interactive` hover and press paint `text-tone-text-on-tint`; the compare-blocks side panels paint `text-tone-text-on-tint`; the tool-call-block `pre` and the immersive-card body paint `text-accent-foreground` on the neutral tint.
 
+##### Step 4e record
+
+ListRow takes its state as typed attribute props: `"data-selected"` and `"data-disabled"` carry `""` or nothing, `"aria-expanded"` carries a boolean. The row derives `aria-current` from `data-selected`, so a caller states one fact once. Disabled behavior stays in the primitive: `aria-disabled`, tab order and the dropped click key off `data-disabled`. `density` left with its last caller and `revealActions` stays with its story. `tests/ui/primitives/list-row/list-row-state.dom.test-d.ts` refuses the removed booleans, and `tests/ui/primitives/list-row/state-attributes.ct.tsx` reads the three states from the attributes in the Chromium and WebKit CT projects.
+
+Inks on tints land with it. `SELECTION_RAIL`, the ListRow title, the Tabs rail cell and table cells under a selected row paint the tone's `text-on-tint`. ListRow's clickable hover and press fill is the neutral `tint-active` under a `neutral` stamp, and the stamp is `primary` only while the row is selected. `tests/ui/primitives/list-row/selected-ink.ct.tsx` holds the carried mid-grey pair and three seed palettes where `text-on-tint` and the page ink differ.
+
+The gradient ring paints its border only. Its gradient covered the padding box, which lightened the active tab and washed the CTA ink, so no ink could clear its floor on the painted fill. `orb-gradient-ring` in `packages/ui/src/styles/primitives.css` masks to the border and falls back to a plain border in the ring colour where the padding-box mask clip is unsupported.
+
 #### Mapping: Card
 
 | Old value | New |

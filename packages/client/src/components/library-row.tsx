@@ -210,7 +210,7 @@ export function LibraryRow(props: LibraryRowProps): ReactElement {
       rowTint={reserved ? "row" : "body"}
       clickable={true}
       onClick={onSelect}
-      selected={selected}
+      data-selected={selected ? "" : undefined}
       title={title}
       {...optionalSlots(props)}
       {...(hasCluster
