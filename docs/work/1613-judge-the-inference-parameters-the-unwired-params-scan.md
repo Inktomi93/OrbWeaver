@@ -52,3 +52,5 @@ Owner questions (shape a provider request, so not a delete under the lane rule):
 
 Survey: codegraph_explore on the item symbols; literal `rg` for debug, ttlMs, expectedDimensions, onObservedResult, modelKind, cachedKind, coldAs across packages, tests, tooling (ts and tsx): no writer through a spread or `as const`; `tests/server/domain/connection/verbs/sdk-wire.int.test.ts` onObservedResult hits belong to `toChatRequest`, not `runStructuredChat`.
 Ran: `pnpm typecheck packages/inference/tsconfig.json packages/server/tsconfig.json tsconfig.tests-iso.json tsconfig.node.json` exit 0 (router config included); `pnpm test` detect, agent-sdk catalog, private-diagnostics, sdk-wire, runtime-ownership: 5 files, 29 tests passed.
+
+Ast-grep scan added after review (packages, tests, tooling, scripts; 5929 .ts and 1524 .tsx files each): createAgentSdkBackend 1 call, decodeEmbeddingVector 1, detectServer 1, runStructuredChat 2, createMirror 4 (ts); tsx 0 for each. Literal rg earlier found no other writer of debug, ttlMs, expectedDimensions, onObservedResult for these.
