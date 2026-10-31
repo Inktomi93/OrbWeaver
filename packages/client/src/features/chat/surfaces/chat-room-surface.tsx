@@ -108,7 +108,10 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   // With the plugin column out of the row, its edge control sits over the transcript's top corner: the thread keeps
   // that corner clear (`pe-(--size-control-lg)` is the control plus a gap; shell.css's flank distance reads the same token).
   const thread = (
-    <Stack className={cn("flex-1 min-block-0 min-inline-0", !flank.occupiesRow && "pe-(--size-control-lg)")} data-slot="chat-room-thread">
+    <Stack
+      className={cn("flex-1 min-block-(--height-room-thread-min) min-inline-0", !flank.occupiesRow && "pe-(--size-control-lg)")}
+      data-slot="chat-room-thread"
+    >
       <MessageThreadAnchor>
         {/* P5 CYOA (§5.3): the thread's choice buttons send through the room's own send capability —
             a separate useSendMessage instance from the composer's, so a pick never clears the draft. */}
@@ -136,7 +139,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           // the wallpaper IS the page and the reading plates carry the text).
           // A phone keeps the transcript and composer near the screen edge (owner ruling, as Moonlit Echoes pads its
           // chat 8px): the room steps its side inset down to `tight`, the transcript adds the ring clearance.
-          className="px-block pbe-block block-full @max-cq-28:px-tight"
+          className="overflow-y-auto px-block pbe-block block-full @max-cq-28:px-tight"
           focusTarget={true}
           ground={roomTheme?.background === undefined ? undefined : "backgroundUnlessArt"}
           gap="field"
@@ -187,7 +190,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                 <Row
                   gap="block"
                   align="stretch"
-                  className="relative overflow-x-clip block-full min-block-0 @max-cq-32:flex-col"
+                  className="relative overflow-x-clip block-full min-block-(--height-room-thread-min) @max-cq-32:flex-col"
                   data-slot="chat-room-flank-row"
                   ref={flankRowRef}
                 >

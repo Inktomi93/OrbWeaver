@@ -45,6 +45,7 @@ const QUALIFIED = {
   room: [
     [DESKTOP, TEXT_200],
     [PHONE, TEXT_200],
+    [PHONE, LAYOUT_300],
     [DESKTOP, LAYOUT_300],
   ],
   jumpToLatest: [
@@ -73,6 +74,7 @@ const QUALIFIED = {
 const COMPOSER_MOVED_COUNT: Record<string, number> = {
   [`${DESKTOP.name} ${TEXT_200.name}`]: 0,
   [`${PHONE.name} ${TEXT_200.name}`]: 2,
+  [`${PHONE.name} ${LAYOUT_300.name}`]: 3,
   [`${DESKTOP.name} ${LAYOUT_300.name}`]: 3,
 };
 
@@ -296,6 +298,8 @@ for (const [viewport, scale] of QUALIFIED.room) {
       }
       await expect.poll(() => findings(page.locator(".shell-content"))).toEqual([]);
       expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
+      // The composer never collapses the room: the transcript keeps a height to read in.
+      await expect.poll(() => page.locator('[data-slot="message-list-scroll"]').evaluate((node) => node.clientHeight)).toBeGreaterThan(0);
     });
 
     // Each action the row may hand over is in exactly one place: its row button, or the Reply group of the menu.

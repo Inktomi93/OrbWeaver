@@ -316,6 +316,7 @@ export const TOKENS = {
   "height.scroll-sm": { cssVar: "--height-scroll-sm", value: "10rem" },
   "height.scroll-md": { cssVar: "--height-scroll-md", value: "16rem" },
   "height.scroll-lg": { cssVar: "--height-scroll-lg", value: "24rem" },
+  "height.room-thread-min": { cssVar: "--height-room-thread-min", value: "1.4375rem" },
   "height.row-placeholder": { cssVar: "--height-row-placeholder", value: "4rem" },
   "height.home-recents-empty": { cssVar: "--height-home-recents-empty", value: "12.0625rem" },
   "font-weight.normal": { cssVar: "--font-weight-normal", value: "400" },
@@ -350,6 +351,7 @@ export const TOKENS = {
   "reading.measure-prose": { cssVar: "--reading-measure-prose", value: "47ch" },
   "reading.measure-min": { cssVar: "--reading-measure-min", value: "65ch" },
   "tracking.micro": { cssVar: "--tracking-micro", value: "0.08em" },
+  "dimension.composer-field-min": { cssVar: "--dimension-composer-field-min", value: "12ch" },
   "dimension.shell-title-floor": { cssVar: "--dimension-shell-title-floor", value: "6ch" },
   "immersive.whisper-banner-inline-cap": { cssVar: "--immersive-whisper-banner-inline-cap", value: "calc(var(--immersive-whisper-banner-cap) * var(--aspect-banner))" },
   "immersive.whisper-banner-cap": { cssVar: "--immersive-whisper-banner-cap", value: "calc(var(--immersive-whisper-banner-viewport-cap) * 1svh)" },
@@ -554,6 +556,7 @@ export const LENGTH_BASE_PX = {
   "height.scroll-sm": 160,
   "height.scroll-md": 256,
   "height.scroll-lg": 384,
+  "height.room-thread-min": 23,
   "height.row-placeholder": 64,
   "height.home-recents-empty": 193,
 } as const;

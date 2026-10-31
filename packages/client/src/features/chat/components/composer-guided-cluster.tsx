@@ -50,6 +50,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useGatedQuery, useTRPC } from "#data";
 import { IMPERSONATE_IN_FLIGHT, IMPERSONATE_WAIT_FOR_TURN, STEER_CUE_CONTINUE, STEER_CUE_SWIPE, SWIPE_NEEDS_REPLY } from "#lib";
 import type { ComposerDraftWrite } from "#state";
+import { useComposerFieldWrap } from "../hooks/use-composer-field-wrap.ts";
 import { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import { useGuidedActions } from "../hooks/use-guided-actions.ts";
 import type { ReplyRowOverflowLevel } from "../hooks/use-reply-row-overflow.ts";
@@ -155,6 +156,10 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
     level,
     seats: [seatRow, seatTools, seatReplies, seatYou, seatSwipe, seatGenerate, seatContinuation],
   } = useReplyRowOverflow(guided.stopImpersonation !== null);
+  const {
+    wrapped: fieldWrapped,
+    seats: [seatInput, seatDoor, seatField, seatSend],
+  } = useComposerFieldWrap();
 
   // CONSUME actions clear the composer on fire; onFireError restores it on failure (D57).
   const fireAndClear = (run: (input: string) => void): void => {
@@ -266,10 +271,25 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
           </Row>
         </Row>
       </Row>
-      <Row align="center" gap="glyph" className="flex-auto min-block-(--size-control-md) min-inline-0" data-slot="composer-input">
-        {chatControl}
-        <Stack className="flex-1 self-stretch min-block-0 min-inline-0">{messageInput}</Stack>
-        <Row aria-label="Send controls" className="shrink-0" gap="field" role="group">
+      <Row
+        align="center"
+        gap="glyph"
+        className="flex-auto min-block-(--size-control-md) min-inline-0"
+        data-field-wrapped={fieldWrapped ? "" : undefined}
+        data-slot="composer-input"
+        ref={seatInput}
+      >
+        <Row className="shrink-0 empty:hidden" data-slot="composer-door" ref={seatDoor}>
+          {chatControl}
+        </Row>
+        <Stack
+          className="flex-1 self-stretch max-inline-full min-block-0 min-inline-(--dimension-composer-field-min)"
+          data-slot="composer-field"
+          ref={seatField}
+        >
+          {messageInput}
+        </Stack>
+        <Row aria-label="Send controls" className="shrink-0" data-slot="composer-send" gap="field" ref={seatSend} role="group">
           {sendControl}
         </Row>
       </Row>

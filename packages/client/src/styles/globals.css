@@ -164,6 +164,30 @@
   :root[data-keyboard-up] [data-slot="plugin-flank"]:not(:focus-within) {
     display: none;
   }
+  /* The composer's input row switches to two rows when the message field cannot keep its minimum inline size beside the
+   * options door and Send (`use-composer-field-wrap.ts` sets the attribute from a measurement): the field takes the first
+   * row, the door and Send share the second. The DOM order does not change. */
+  [data-slot="composer-input"][data-field-wrapped] {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "field field"
+      "door send";
+    row-gap: var(--spacing-glyph-gap);
+  }
+  [data-slot="composer-input"][data-field-wrapped] > [data-slot="composer-field"] {
+    grid-area: field;
+    /* On its own row the field fills the row; a minimum wider than the row (the ch token at an enlarged root) would push it past the edge. */
+    min-inline-size: 0;
+  }
+  [data-slot="composer-input"][data-field-wrapped] > [data-slot="composer-door"] {
+    grid-area: door;
+  }
+  [data-slot="composer-input"][data-field-wrapped] > [data-slot="composer-send"] {
+    grid-area: send;
+    justify-self: end;
+  }
+
   :root[data-keyboard-up] [data-slot="composer-guided-refusal"] {
     display: block;
     overflow: hidden;
