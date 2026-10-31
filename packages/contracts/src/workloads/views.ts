@@ -283,11 +283,11 @@ export const workloadScheduleViewSchema = z.strictObject({
 
 /** `workloads.list`: the caller's run history. The limit is the ceiling at the trust boundary, never an unbounded fetch. */
 export const workloadListInputSchema = z
-  .object({
+  .strictObject({
     kind: workloadKindSchema.optional(),
     status: workloadStatusSchema.optional(),
     since: z.number().optional(),
     limit: z.int().min(1).max(WORKLOAD_LIST_MAX_LIMIT).optional(),
   })
   .optional();
-export const workloadScheduleListInputSchema = z.object({ kind: workloadKindSchema.optional() }).optional();
+export const workloadScheduleListInputSchema = z.strictObject({ kind: workloadKindSchema.optional() }).optional();

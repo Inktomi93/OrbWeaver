@@ -59,6 +59,7 @@ import {
   rpgUpsertQuestInputSchema,
 } from "@orb/contracts/rpg";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { strictInput } from "@orb/kit/zod-schema";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
@@ -69,9 +70,11 @@ export const rpgRouter = t.router({
     .input(rpgCreateGameInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.createGame({ principal: ctx.auth, ...input })),
   updateConfig: authedProcedure
-    .input(rpgUpdateConfigInputSchema)
+    .input(strictInput(rpgUpdateConfigInputSchema))
     .mutation(({ ctx, input }) => ctx.services.rpg.updateConfig({ principal: ctx.auth, ...input })),
-  patchSheet: authedProcedure.input(rpgPatchSheetInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.patchSheet({ principal: ctx.auth, ...input })),
+  patchSheet: authedProcedure
+    .input(strictInput(rpgPatchSheetInputSchema))
+    .mutation(({ ctx, input }) => ctx.services.rpg.patchSheet({ principal: ctx.auth, ...input })),
   editSnapshot: authedProcedure
     .output(handDoorResultSchema)
     .input(rpgEditSnapshotInputSchema)
@@ -81,11 +84,11 @@ export const rpgRouter = t.router({
   // chatId-scoped, so the cross-tenant sweep classifies them PROBED.
   patchActor: authedProcedure
     .output(handDoorResultSchema)
-    .input(rpgPatchActorInputSchema)
+    .input(strictInput(rpgPatchActorInputSchema))
     .mutation(({ ctx, input }) => ctx.services.rpg.patchActor({ principal: ctx.auth, ...input })),
   dismissActor: authedProcedure
     .output(handDoorResultSchema)
-    .input(rpgDismissActorInputSchema)
+    .input(strictInput(rpgDismissActorInputSchema))
     .mutation(({ ctx, input }) => ctx.services.rpg.dismissActor({ principal: ctx.auth, ...input })),
   // R4 — the PROMOTION doorway (`dismissActor`'s opposite). Also chatId-scoped and host-gated inside the verb,
   // so the cross-tenant sweep classifies it PROBED like every sibling; note that it is the ONE rpg proc whose
@@ -93,7 +96,7 @@ export const rpgRouter = t.router({
   // the host FIRST and threads that userId into the injected mint.
   promoteActor: authedProcedure
     .output(promoteActorResultSchema)
-    .input(rpgPromoteActorInputSchema)
+    .input(strictInput(rpgPromoteActorInputSchema))
     .mutation(({ ctx, input }) => ctx.services.rpg.promoteActor({ principal: ctx.auth, ...input })),
   upsertQuest: authedProcedure
     .output(rpgQuestSchema.shape.id)
@@ -145,7 +148,7 @@ export const rpgRouter = t.router({
   // any model call. Actor-scoped; an actor with no card is refused there too.
   populateFromCharacter: authedProcedure
     .output(populateResultSchema)
-    .input(rpgPopulateFromCharacterInputSchema)
+    .input(strictInput(rpgPopulateFromCharacterInputSchema))
     .mutation(({ ctx, input }) => ctx.services.rpg.populateFromCharacter({ principal: ctx.auth, ...input })),
 
   // ── reads (member-gated; getConfigView host-gated — the leak-free NOT_FOUND collapse INSIDE the verb) ──

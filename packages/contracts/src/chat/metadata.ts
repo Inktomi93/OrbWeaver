@@ -276,7 +276,7 @@ export const guidedSteerSchema = z.strictObject({
   action: guidedActionKindSchema,
   input: z.string().max(GUIDED_STEER_INPUT_MAX).optional(),
   placement: z
-    .discriminatedUnion("kind", [z.object({ kind: z.literal("system") }), z.object({ kind: z.literal("inject"), role: messageRoleSchema })])
+    .discriminatedUnion("kind", [z.strictObject({ kind: z.literal("system") }), z.strictObject({ kind: z.literal("inject"), role: messageRoleSchema })])
     .optional(),
   /** The `{{person}}` word for impersonate's 1st/2nd/3rd-person templates; ignored by other actions. */
   person: z.enum(GUIDED_IMPERSONATE_PERSONS).optional(),
