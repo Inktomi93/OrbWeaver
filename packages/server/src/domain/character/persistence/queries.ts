@@ -764,8 +764,8 @@ export async function stampImportHashIfUnset(
   return rows.length > 0;
 }
 
-/** Batched provenance oracle: the owner's characters whose `importedFrom` is any of `values` (one indexed
- *  `IN` read). Empty `values` short-circuits to no rows (never a bare `IN ()`). Owner-scoped in the WHERE, so
+/** Batched provenance oracle: the owner's characters whose `importedFrom` is any of `values` (an `IN` read
+ *  over the owner's rows; `imported_from` carries no index). Empty `values` short-circuits to no rows (never a bare `IN ()`). Owner-scoped in the WHERE, so
  *  a different owner's same-provenance card is never returned. */
 export async function findByOwnerImportedFrom(
   db: Db,
