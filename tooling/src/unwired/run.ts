@@ -1,25 +1,29 @@
-// The `pnpm unwired` verbs. `ports` writes the restated-port targets the derive codemod reads; the bare verb runs
-// both engines over every world and writes the unwired members.
+// The `pnpm unwired` verbs. `ports` writes the restated-port targets the derive codemod reads; the bare verb and the
+// dead-inside-live verbs run both engines over every world and each write one report under reports/unwired/.
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
 import { DELIBERATE } from "./deliberate.ts";
+import { scanFields } from "./fields.ts";
+import { scanParams } from "./params.ts";
 import { portCensus } from "./port-census.ts";
 import type { ClusterGroup, Leg, PortTarget, TargetKind } from "./port-targets.ts";
 import { CLUSTER_GROUPS, LEGS } from "./port-targets.ts";
 import type { ScanOptions } from "./scan.ts";
 import { scanUnwired } from "./scan.ts";
+import { scanShapes } from "./shapes.ts";
+import { scanUnions } from "./unions.ts";
 import { TEST_WORLDS } from "./worlds.ts";
 
-export const SCAN_VERBS = ["scan"] as const;
+export const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes"] as const;
 /** `scan`, the bare verb, is the member scan. */
 export type ScanVerb = (typeof SCAN_VERBS)[number];
 const VERBS = [...SCAN_VERBS, "ports"] as const;
 type Verb = (typeof VERBS)[number];
 
-const USAGE = "usage: pnpm unwired [--root=<dir>] [--out=<file>] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>]";
+const USAGE = `usage: pnpm unwired [${SCAN_VERBS.slice(1).join("|")}] [--root=<dir>] [--out=<file>] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>]`;
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
 
 interface Finding {
@@ -39,6 +43,10 @@ interface Report {
 
 const SCANS = {
   scan: { out: "reports/unwired/unwired.json", run: scanUnwired },
+  fields: { out: "reports/unwired/fields.json", run: scanFields },
+  params: { out: "reports/unwired/params.json", run: scanParams },
+  unions: { out: "reports/unwired/unions.json", run: scanUnions },
+  shapes: { out: "reports/unwired/shapes.json", run: scanShapes },
 } as const satisfies Record<ScanVerb, { readonly out: string; readonly run: (options: ScanOptions) => Report }>;
 
 interface Args {
