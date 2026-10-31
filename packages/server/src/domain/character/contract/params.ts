@@ -3,7 +3,7 @@ import type { GreetingTransformId } from "@orb/contracts/preset";
 import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 
-export type { PluginCardDataTarget } from "@orb/contracts/character";
+export type { PluginCardDataLookup, PluginCardDataTarget } from "@orb/contracts/character";
 
 // domain/character/contract/params — every verb's *Params, declared ONCE. Every USER-facing verb carries
 // the resolved principal; ownership scopes off principal.userId, never a users read. The synthetic-identity
@@ -127,13 +127,6 @@ export interface FindByNameParams {
   readonly ownerId: UserId;
   readonly name: string;
   readonly caseInsensitive?: boolean;
-}
-
-/** Batched provenance lookup (hub-injected, internal): the owner's characters carrying any of `values` in
- *  `importedFrom` (an indexed `IN` read). Backs the hub search page's already-imported markers (doc 03 §2.1). */
-export interface FindByImportedFromParams {
-  readonly ownerId: UserId;
-  readonly values: readonly string[];
 }
 
 /** The library list's LENS axes — every narrowing the toolbar offers, as SQL predicates over the same scope

@@ -25,13 +25,13 @@
 //      the stored value (a nested `depth_prompt` staying inert data, never a promoted column) is the serde tier's
 //      wall (`primitives/serde/card`), unchanged by this write — the value lands in the residual bag verbatim.
 
-import { pluginCardStateKey } from "@orb/contracts/plugin";
+import { PLUGIN_CARD_DATA_FIND_MAX, pluginCardStateKey } from "@orb/contracts/plugin";
 import { characters } from "@orb/db";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import { and, eq, sql } from "drizzle-orm";
-import type { PluginCardDataTarget } from "../contract/params.ts";
-import type { PluginCardDataRead } from "../contract/results.ts";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import type { PluginCardDataLookup, PluginCardDataTarget } from "../contract/params.ts";
+import type { PluginCardDataHit, PluginCardDataRead } from "../contract/results.ts";
 
 /** The SQLite JSON path for a plugin's reserved card-state key. Quoted (`$."…"`) because a slug may contain `-`,
  *  which a bare path label would terminate on — the quoted form is exact for the full `plugin_<slug>` key. */
@@ -70,6 +70,31 @@ export async function readPluginCardData(handle: DatabaseHandle, target: PluginC
     return { found: true, data: null };
   }
   return { found: true, data: JSON.parse(row.value) as Record<string, unknown> };
+}
+
+/** The owner's characters whose object stamp for this plugin holds any of `values` as a string, at any depth.
+ *  Owner and slug scope match {@link readPluginCardData}. `json_tree` keeps the match blind to the stamp's shape,
+ *  and the `json_type` gate gives a hostile imported scalar or array the same answer as no stamp. */
+export async function findPluginCardData(handle: DatabaseHandle, { ownerId, slug, values }: PluginCardDataLookup): Promise<PluginCardDataHit[]> {
+  if (values.length === 0) {
+    return [];
+  }
+  const db = databaseForOwner(handle);
+  const path = cardStatePath(slug);
+  const stored = inArray(sql`atom`, [...values]);
+  const rows = await db
+    .select({ id: characters.id, value: sql<string>`json_extract(${characters.extensions}, ${path})` })
+    .from(characters)
+    .where(
+      and(
+        eq(characters.ownerId, ownerId),
+        sql`json_type(${characters.extensions}, ${path}) = 'object'`,
+        sql`exists (select 1 from json_tree(${characters.extensions}, ${path}) where type = 'text' and ${stored})`,
+      ),
+    )
+    .orderBy(asc(characters.id))
+    .limit(PLUGIN_CARD_DATA_FIND_MAX);
+  return rows.map((row) => ({ characterId: row.id, data: JSON.parse(row.value) as Record<string, unknown> }));
 }
 
 /** Merge one plugin's per-card state under its reserved `plugin_<slug>` key on an INSTALLER-OWNED character's

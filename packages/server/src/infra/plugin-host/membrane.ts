@@ -45,6 +45,7 @@ import type {
 } from "@orb/contracts/plugin";
 import {
   HOST_FUNCTION_CAPABILITY,
+  PLUGIN_CARD_DATA_FIND_MAX,
   PLUGIN_FRAME_SURFACES_MAX,
   PLUGIN_PUBSUB_NAME_RE,
   PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX,
@@ -1342,6 +1343,26 @@ function setCharacter(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
         throw new Error("plugin host: character.getCardData requires a characterId string");
       }
       return await runtime.bridge.character.getCardData(characterId, invocationLiveness(signal));
+    },
+  });
+
+  // findCardData(values) — the D148 lookup across the installer's own characters. Infra checks only the shape and
+  // the cap; the slug and owner scope are the domain's.
+  attachAsync(ctx, character, {
+    name: "findCardData",
+    inFlight: runtime.inFlight,
+    pending: runtime.pending,
+    log: runtime.log,
+    impl: async (args, signal) => {
+      requireCapability(runtime, "character.findCardData");
+      const values: unknown = args[0];
+      if (!(Array.isArray(values) && values.every((value): value is string => typeof value === "string"))) {
+        throw new Error("plugin host: character.findCardData requires an array of strings");
+      }
+      if (values.length > PLUGIN_CARD_DATA_FIND_MAX) {
+        throw new Error(`plugin host: character.findCardData accepts at most ${PLUGIN_CARD_DATA_FIND_MAX} values`);
+      }
+      return await runtime.bridge.character.findCardData(values, invocationLiveness(signal));
     },
   });
   ctx.setProp(surface, "character", character);

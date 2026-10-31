@@ -11,9 +11,11 @@ plan: unwired-code
 
 ## What
 
-CharacterService.findByImportedFrom has no caller. Wire it so hub search results mark characters the user has already imported.
+Mark hub search results the user has already imported.
 
 Ruling: no host hub search exists; the Card Atlas guest is the hub search, and its own kv index drifts when a character is deleted in the app. Add a read-only host op under the existing character.card_state grant (no new consent line) that answers which cards are already imported, and make the atlas badge from it instead of its index.
+
+The op is `character.findCardData`. It answers from the calling plugin's own card state, not from `importedFrom`.
 
 ## Why
 
@@ -21,8 +23,10 @@ Owner ruling: wanted feature, built server-side and never surfaced.
 
 ## Done when
 
-Hub search shows the marker for an imported card through the production verb; a CT and an integration test cover it.
+Hub search shows the marker for an imported card through `character.findCardData`, deleting the character clears it, and a card added from two hubs shows it on both; a CT and an integration test cover it.
 
 ## Evidence
 
-Not landed; the premise is refuted. No server or client hub search surface exists. The hub search is the Card Atlas showcase plugin (`packages/showcase-plugins/bundles/card-atlas/main.ts`), a sandboxed guest that marks owned cards from its own `storage.kv` index (`publishBrowse`, badge `in your library`). `findByImportedFrom` is host-internal, so a marker driven by it needs a new host op in `packages/contracts/src/plugin/host-v1.ts`, probably a new capability (a consent line), and a card-atlas change. That is a plugin ABI and consent design decision. Owner call: add a host op and capability, or keep the guest index.
+`findByImportedFrom` could not back the marker. A plugin import stores `plugin:<pluginId>:<importHash>`, the hash needs the parsed card and art, and a hub row carries neither. `pluginImportedFrom` in `packages/contracts/src/character/index.ts` keeps hub ids out of that value on purpose. The uncalled service verb is deleted; `findByOwnerImportedFrom` stays for handoff.
+
+`character.findCardData` (`packages/contracts/src/plugin/host-v1.ts`) matches strings in the caller's own `plugin_<slug>` stamp through `findPluginCardData` (`packages/server/src/domain/character/persistence/plugin-card-data.ts`). The host reads no field names, so no Atlas shape enters it. Card Atlas stamps a `keys` list and still reads older single-ref stamps, with no migration. Its `owned:` kv index is gone and one activation sweep removes the keys. `tests/server/domain/plugin/substrate/atlas-library-marker.suite.int.test.ts` and `tests/client/features/plugin/components/platform-atlas-browse-state.suite.ct.tsx` cover it.

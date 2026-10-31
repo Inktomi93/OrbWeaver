@@ -366,6 +366,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
       // grant, so the capability gate refuses first.
       setCardData: (characterId, data) => ops.character.setCardData({ installerUserId, slug: requirePlugin("character.setCardData").slug, characterId, data }),
       getCardData: (characterId) => ops.character.getCardData({ installerUserId, slug: requirePlugin("character.getCardData").slug, characterId }),
+      findCardData: (values) => ops.character.findCardData({ installerUserId, slug: requirePlugin("character.findCardData").slug, values }),
     },
     // The PRIVATE plugin-event EMIT (§5a). BOTH un-forgeable coordinates are closed over here: `installerUserId`
     // (the plane is installer-scoped — an emit can never reach another user's plugins) and the emitter's own

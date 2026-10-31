@@ -147,6 +147,16 @@ export interface PluginSearchHit {
   readonly score: number;
 }
 
+/** The most strings one `character.findCardData` call may name, and the most characters it answers with. An
+ *  over-long list is refused rather than clipped: a clipped lookup would read as "not in the library". */
+export const PLUGIN_CARD_DATA_FIND_MAX = 64;
+
+/** One `character.findCardData` hit: an installer-owned character and this plugin's whole stamp on it. */
+export interface PluginCardDataMatch {
+  readonly characterId: SandboxWireId<CharacterId>;
+  readonly data: Record<string, unknown>;
+}
+
 /** The most images one `llm.quiet` call may attach. Four is the
  *  `generateImageActionArgsSchema` fan-out clamp read from the other direction — a caption pass looks at a
  *  handful of pictures, and an unbounded list is an unbounded read of the installer's CAS per call. */
@@ -444,6 +454,16 @@ export interface PluginHostV1 {
      *  never another plugin's `plugin_<otherslug>` field. Returns the stored blob, or `null` when this plugin has
      *  written none on that (owned) character. */
     getCardData: (characterId: SandboxWireId<CharacterId>) => Promise<Record<string, unknown> | null>;
+    /** Find the INSTALLER's OWN characters whose per-card state for THIS plugin holds any of `values` as a string,
+     *  at any depth of the stamp. capability: `character.card_state`, the same reach as {@link getCardData} without
+     *  naming a character first.
+     *
+     *  The host matches stored strings and reads no field name, so the stamp's shape stays the plugin's own. The
+     *  slug and owner scope are closed over host-side. A stamp arrives with imported cards too, so a match is
+     *  plugin data, not proof of origin: a forged stamp can only mislead this plugin about the installer's own
+     *  library. A non-object value under the key never matches. More than {@link PLUGIN_CARD_DATA_FIND_MAX}
+     *  values is a refusal of the call; matches stop at the same count. */
+    findCardData: (values: readonly string[]) => Promise<readonly PluginCardDataMatch[]>;
   };
 
   readonly events: {
@@ -774,6 +794,8 @@ export const HOST_FUNCTION_CAPABILITY = {
   // the whole membrane-tier wall (the `storage.kv` posture, one plane over onto the card's residual extensions).
   "character.setCardData": "character.card_state",
   "character.getCardData": "character.card_state",
+  // The same consent line: it reads back only what `getCardData` can read, across the installer's own characters.
+  "character.findCardData": "character.card_state",
   "events.on": "events.subscribe",
   // U8 §5a — both the private-event emit and subscribe ride the ONE `plugin_events` grant (a single consent line
   // covers "send and receive private events among your own plugins"). A plugin that may emit may subscribe and

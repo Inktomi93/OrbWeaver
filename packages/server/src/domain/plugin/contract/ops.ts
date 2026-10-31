@@ -9,6 +9,7 @@ import type {
   InvocationChat,
   PluginAssetReadOps,
   PluginBridge,
+  PluginCardDataMatch,
   PluginChatReads,
   PluginDocumentReads,
   PluginEventSubscription,
@@ -362,6 +363,13 @@ export interface PluginHostOps {
       readonly slug: string;
       readonly characterId: SandboxWireId<CharacterId>;
     }) => Promise<Record<string, unknown> | null>;
+    /** The `character.card_state` capability's lookup op, wired at compose to character's `findPluginCardData`
+     *  under the same owner and host-stamped-slug scope. */
+    readonly findCardData: (req: {
+      readonly installerUserId: UserId;
+      readonly slug: string;
+      readonly values: readonly string[];
+    }) => Promise<readonly PluginCardDataMatch[]>;
   };
   /** The `plugin_events` capability's EMIT op. Publish a private event on the
    *  INSTALLER-scoped resident plugin-event bus, on the channel `plugin:<emitterSlug>:<name>`. The `installerUserId`
