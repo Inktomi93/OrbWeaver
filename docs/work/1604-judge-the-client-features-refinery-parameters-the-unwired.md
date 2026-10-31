@@ -27,4 +27,6 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+One row: one applied, none kept, none handed off, no owner questions.
+
+`patch` in `packages/client/src/features/refinery/components/manual-rewrite-dialog.tsx` now takes `Partial<Omit<DraftState, "touched">>`; it always writes `touched: true` itself, so no caller can or does supply it. Literal `rg` for `touched` across `features/refinery` read: the other hits are prose. Proof: client typecheck clean; no CT mounts `ManualRewriteDialog`.
