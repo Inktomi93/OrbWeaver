@@ -31,8 +31,6 @@
 // `titleUpdated`/`starred`/`injectionChanged` member, so a client refetches the chat detail.
 // `reapTemporaryChats` sweeps the caller's expired temporary chats AND expired husks, scoped to chats the
 // caller hosts. Bulk delete rides the same FK cascade as `delete`.
-// `getVariables` returns the effective config-plane view: stored ChoiceBlock picks merged over the active
-// preset's declared defaults, resolved with the `stable` pick mode so the read is stable.
 
 import type { ChatInjectionView, ClaimChatOp, LiveOnlyChatBusEvent, UserMacroPicksView, VariablePicksView } from "@orb/contracts/chat";
 import type { UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
@@ -59,7 +57,6 @@ import type {
   GetRuntimeVariablesParams,
   GetUserMacroPicksParams,
   GetVariablePicksParams,
-  GetVariablesParams,
   ListChatInjectionsParams,
   ReapHuskParams,
   ReapTemporaryChatsParams,
@@ -70,7 +67,7 @@ import type {
   StarChatParams,
   UpdateTitleParams,
 } from "../contract/params.ts";
-import type { ReapResult, VariablesResult } from "../contract/results.ts";
+import type { ReapResult } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHost, requireParticipant } from "../guard.ts";
 import {
@@ -86,7 +83,6 @@ import { prepareRetainedCanonStats } from "../persistence/retained-canon.ts";
 import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
 import { ownedByConsentingHuman } from "../substrate/participants-humans.ts";
 import { shadowPresetUserMacros } from "../substrate/user-macros.ts";
-import { resolveChoiceVariables } from "../substrate/variables.ts";
 
 /** The LIVE-ONLY fan (`entry/compose/services::emitChatEventLive`) — the door `chatDeleted` takes. Not
  *  async and never rejecting: a no-listener publish is a free in-process `EventEmitter.emit`, which is what
@@ -115,7 +111,6 @@ type ChatLifecycleVerbs = Pick<
   | "delete"
   | "reapHusk"
   | "reapTemporaryChats"
-  | "getVariables"
   | "getUserMacroPicks"
   | "getVariablePicks"
   | "getRuntimeVariables"
@@ -426,17 +421,6 @@ function createReapTemporaryChats(ctx: ChatContext, emitLive: EmitChatEventLive)
   };
 }
 
-/** `getVariables` — member. The effective config-plane view: the stored ChoiceBlock picks merged over the
- *  active preset's declared defaults, `stable` pick mode for a stable read. */
-function createGetVariables(ctx: ChatContext): ChatService["getVariables"] {
-  return async ({ principal, chatId }: GetVariablesParams): Promise<VariablesResult> => {
-    await requireParticipant(ctx, principal, chatId);
-    const [stored, specs] = await Promise.all([loadStoredVariables(ctx.db, chatId), ctx.resolvePromptVariables(chatId)]);
-    // `stable` ⇒ prng is never invoked; a no-op stub keeps the eval path off ambient entropy.
-    return resolveChoiceVariables(specs, stored ?? {}, () => 0, "stable");
-  };
-}
-
 /** `setVariables` — member. Flush the `{{var}}`→value map to `chats.variableValues`. Emits `chatUpdated`. */
 function createSetVariables(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["setVariables"] {
   return async ({ principal, chatId, values }: SetVariablesParams): Promise<void> => {
@@ -674,7 +658,6 @@ export function createChatLifecycle(ctx: ChatContext, deps: ChatLifecycleDeps): 
     delete: createDelete(ctx, emitLive, (chatId) => deps.activeTurns.abortAll(chatId)),
     reapHusk: createReapHusk(ctx, emitLive),
     reapTemporaryChats: createReapTemporaryChats(ctx, emitLive),
-    getVariables: createGetVariables(ctx),
     setVariables: createSetVariables(ctx, emit, claimChat),
     setUserMacroValues: createSetUserMacroValues(ctx, emit, claimChat),
     getUserMacroPicks: createGetUserMacroPicks(ctx),

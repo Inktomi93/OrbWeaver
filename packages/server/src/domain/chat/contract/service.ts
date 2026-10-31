@@ -78,7 +78,6 @@ import type {
   GetShapeTraceParams,
   GetUserMacroPicksParams,
   GetVariablePicksParams,
-  GetVariablesParams,
   GetVariantWireParams,
   ImpersonateStreamParams,
   KickParticipantParams,
@@ -149,7 +148,6 @@ import type {
   RedeemInviteData,
   StartChatData,
   TurnOutcome,
-  VariablesResult,
 } from "./results.ts";
 import type {
   ChatBusReplayEvent,
@@ -308,8 +306,6 @@ export interface ChatService {
   readonly deleteChatInjection: (params: DeleteChatInjectionParams) => Promise<void>;
 
   // ── variables ─────────────────────────────────────────────────────────────────
-  /** The EFFECTIVE ChoiceBlock variables computed for the next turn. */
-  readonly getVariables: (params: GetVariablesParams) => Promise<VariablesResult>;
   readonly setVariables: (params: SetVariablesParams) => Promise<void>;
   readonly clearVariables: (params: ClearVariablesParams) => Promise<void>;
   /** The per-chat user-macro INPUT picks flush (WAVE MU) — `chats.user_macro_values`. Member-gated. */

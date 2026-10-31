@@ -94,7 +94,6 @@ const READ_GATES = {
   setChatInjection: "elsewhere",
   listChatInjections: "elsewhere",
   deleteChatInjection: "elsewhere",
-  getVariables: "elsewhere",
   setVariables: "elsewhere",
   clearVariables: "elsewhere",
   setUserMacroValues: "elsewhere",
