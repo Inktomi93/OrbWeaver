@@ -85,7 +85,6 @@ interface OwnedDigestVector {
   readonly embedding: Float32Array;
   readonly contentHash: string;
   readonly keywords: string[];
-  readonly topicAnchor: string | null;
 }
 
 /** One owner's card content HASHES — the duplicate pass's input minus the vectors. */
@@ -324,7 +323,6 @@ const digestVectorFields = {
   embedding: chatDigests.embedding,
   contentHash: chatDigests.contentHash,
   keywords: chatDigests.keywords,
-  topicAnchor: chatDigests.topicAnchor,
 };
 
 export async function readOwnedDigestVectors(db: Db, ownerId: UserId): Promise<OwnedDigestVector[]> {

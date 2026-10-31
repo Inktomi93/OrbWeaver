@@ -455,22 +455,15 @@ export interface TurnPrep {
  * the return value.
  *
  * `generateText` is the NON-PERSISTING sibling: it runs the same assemble→shape→generate half (with the same
- * consent + budget belts a real turn pays) and RETURNS the generated text — acquiring NO lock, writing NO
+ * consent + budget belts a real turn pays) and STREAMS the generated text — acquiring NO lock, writing NO
  * canon slot, emitting NO bus event. It backs the composer-fill flows (guided impersonate drafts the user's
  * next line INTO the composer for review; nothing is committed until the user sends). `onText`, when supplied,
  * receives each TEXT delta AS IT ARRIVES off the generation stream (reasoning deltas excluded) so a caller can
- * stream the generation progressively into the composer; absent ⇒ deltas dropped, only the final text returns.
+ * stream the generation progressively into the composer; absent ⇒ deltas dropped, only the pipeline runs.
  */
 export interface TurnEngine {
   readonly runTurn: (prep: TurnPrep) => Promise<TurnOutcome>;
-  readonly generateText: (prep: TurnPrep, onText?: (text: string) => void) => Promise<GeneratedText>;
-}
-
-/** The {@link TurnEngine.generateText} product — the reduced generation, unpersisted. `aborted` is true when
- *  the turn's signal fired mid-generation (the caller cancelled); `text` is then whatever streamed before. */
-export interface GeneratedText {
-  readonly text: string;
-  readonly aborted: boolean;
+  readonly generateText: (prep: TurnPrep, onText?: (text: string) => void) => Promise<void>;
 }
 
 /** The scope of a deferred-turn drain (Part III §5). `all` = the boot reclaim (every chat's queued turns);

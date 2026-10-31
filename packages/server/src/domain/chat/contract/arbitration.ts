@@ -90,10 +90,7 @@ const AUTO_MODE_STOP_REASONS = [
 ] as const;
 export type AutoModeStopReason = (typeof AUTO_MODE_STOP_REASONS)[number];
 
-/** The result of an auto-mode chain: how many turns ran, why it stopped, and the committed messages
- *  (across all chained turns, in commit order). */
+/** The result of an auto-mode chain: the committed messages (across all chained turns, in commit order). */
 export interface AutoModeResult {
-  readonly turns: number;
-  readonly stopReason: AutoModeStopReason;
   readonly messages: readonly MessageView[];
 }

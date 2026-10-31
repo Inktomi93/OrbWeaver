@@ -126,7 +126,6 @@ export interface DraftCatalogModelsParams extends ActorParams {
 
 export interface RefreshCatalogParams {
   readonly providerId: string;
-  readonly signal?: AbortSignal | undefined;
 }
 
 export interface ConnectionDiagnosticParams extends ActorParams {

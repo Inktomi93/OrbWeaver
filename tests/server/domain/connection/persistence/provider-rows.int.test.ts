@@ -72,11 +72,11 @@ async function installAcme(root: ServerTestHarness, owner: UserId, label: string
 }
 
 const ACME_PLUGIN_ID = provider(PLUGIN_PROVIDER, "Acme").id;
-const servedLabel = (root: ServerTestHarness, viewer: UserId): string | undefined => root.services.connection.registry.get(ACME_PLUGIN_ID, viewer)?.label;
+const servedLabel = (root: ServerTestHarness, viewer: UserId): string | undefined => root.app.runtime.providers.registry.get(ACME_PLUGIN_ID, viewer)?.label;
 
 test("an admin row is replaced in place, dropped once, and never takes a plugin id", async () => {
   await using root = await newRoot();
-  const registry = root.services.connection.registry;
+  const registry = root.app.runtime.providers.registry;
   const admin = { admin: root.ownerId };
   const acme = provider("acme-endpoint", "Acme");
 
@@ -173,11 +173,11 @@ test("a definition row outlives a deleted owner only while another owner's claim
 
   // A user's claims die with the user (D265), which leaves the claim table as the only reference to a definition.
   await root.db.delete(users).where(eq(users.id, first));
-  await root.services.connection.registry.dropPlugin(firstPlugin);
+  await root.app.runtime.providers.registry.dropPlugin(firstPlugin);
   expect(await definitionRows()).toBe(1);
 
   await root.db.delete(users).where(eq(users.id, second));
-  await root.services.connection.registry.dropPlugin(secondPlugin);
+  await root.app.runtime.providers.registry.dropPlugin(secondPlugin);
   expect(await definitionRows()).toBe(0);
 });
 

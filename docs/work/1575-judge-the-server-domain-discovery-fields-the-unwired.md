@@ -45,4 +45,15 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Applied (10 of 19): the four `ownersProcessed` fields, `CooccurrenceStats.hubTokensDropped` (and its tally), `StoryTimeBackfillStats.stamped` (the type is gone; `backfillMsgMidAt` and `backfillDigestStoryTime` resolve void), `OwnedDigestVector.topicAnchor` (and its select column), `CharacterMessageSample.createdAt` (and its select column), `CardFacetRow.avatarHash` (and the avatar left join in both facet reads; the display read keeps the avatar hash).
+
+Reclassed to keep, each proved by deleting the field and reading the typecheck:
+- `CardDistillTarget.characterId`, `.ownerId`: `DistillTarget` in `verbs/distill.ts:188` requires both.
+- `HubVector.id`, `.embedding`, `.contentHash`: `HubRow` in `verbs/compute-hub-scores.ts:107` requires them; the hub maths reads the embedding.
+- `TierKDigestRow.tier`, `.blockIdx`: `themes/backfill.ts:115` (`tierKSeqSpan`) requires both.
+- `CharacterMessageSample.content`: `verbs/analyze.ts:109` hands the samples to a parameter typed `readonly { content: string }[]`.
+- `DistillateRow.elevatorPitch`, `.tags`: `CharacterDistillate` in `verbs/resolve-owned-distillates.ts:8` requires both.
+
+These are restated-shape reads: the consumer declares its own type, so the scan sees no read of the persistence field. A scanner fix should follow assignability from the persistence row to the consumer type; none is made here.
+
+Ran `pnpm typecheck packages/server/tsconfig.json tsconfig.node.json` (exit 0), `pnpm test tests/server/domain/discovery` (exit 0, 3 tests), `pnpm test tests/support/node/corpus-knowledge.int.test.ts tests/server/domain/workloads/persistence/every-owner-authority.int.test.ts` (exit 0, 8 tests).

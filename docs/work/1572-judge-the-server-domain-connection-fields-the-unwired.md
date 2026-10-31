@@ -31,4 +31,8 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Applied: `RefreshCatalogParams.signal` (the router and the workload stop passing it; the runtime refresh never took one), `EmbedSpace.model`, `ConnectionService.registry`. The six test files that reached the registry through the service now read `root.app.runtime.providers.registry`, and the two provider seed helpers type the origin from `ProviderRegistry` in `@orb/inference`.
+
+Reclassed to wire, not deleted: `ConnectionCapabilityView.cacheContext` and `.warnings`. They are keys of the `connection.capabilities` tRPC output (`packages/server/src/transport/trpc/routers/connection.ts:105`) and sit in the checked-in capture `tests/support/node/corpus-data/corpus.json`, so removing them is a wire change and a corpus regeneration. Needs an owner call. `cacheContext` is also read inside the verb (`verbs/resolve.ts:73`) to resolve the cache plan, so only the returned key would go.
+
+Ran `pnpm typecheck packages/server/tsconfig.json` and `pnpm typecheck tsconfig.node.json` (both exit 0). Tests: `tests/server/domain/connection/persistence/provider-rows.int.test.ts`, `tests/support/node/factories/plugin.int.test.ts`, `tests/support/node/corpus-plugin.int.test.ts`, `tests/server/domain/plugin/activation/provider-contributions.suite.int.test.ts`; result in the commit report.

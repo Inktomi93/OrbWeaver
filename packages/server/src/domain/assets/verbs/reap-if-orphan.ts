@@ -12,7 +12,6 @@ import { purgeAsset } from "../substrate/purge-asset.ts";
 export function createReapIfOrphan(ctx: AssetsContext): AssetsService["reapIfOrphan"] {
   return async (assetIds) => {
     const referenced = await selectReferencedAmong(ctx.db, assetIds);
-    let reaped = 0;
     for (const assetId of assetIds) {
       if (referenced.has(assetId)) {
         continue;
@@ -21,7 +20,7 @@ export function createReapIfOrphan(ctx: AssetsContext): AssetsService["reapIfOrp
       if (ref === undefined) {
         continue; // already gone (a concurrent reap / the cascade beat us) — nothing to do.
       }
-      const purged = await purgeAsset({
+      await purgeAsset({
         db: ctx.db,
         cas: ctx.cas,
         variants: ctx.variants,
@@ -29,10 +28,6 @@ export function createReapIfOrphan(ctx: AssetsContext): AssetsService["reapIfOrp
         ownerId: ref.ownerId,
         hash: ref.hash,
       });
-      if (purged) {
-        reaped++;
-      }
     }
-    return { checked: assetIds.length, reaped };
   };
 }

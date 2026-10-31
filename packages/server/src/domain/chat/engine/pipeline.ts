@@ -230,7 +230,6 @@ interface TurnPipelineResult {
   readonly economics: TurnEconomics | null;
   /** The cue SHAPE delivered ahead of this reply and its role, or null — stamped on the variant at commit. */
   readonly cue: DeliveredCue | null;
-  readonly cacheBreakpointFromEnd: number | null;
   readonly droppedCount: number;
   /** True when ≥1 USER-ATTACHED image part was dropped because the model lacks vision (or its asset no longer
    *  resolves). A display-only image (a card's greeting picture, narrator media) is NOT a drop — it was never
@@ -860,7 +859,6 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
     reasoningMs: loop.reasoningMs,
     economics: loop.economics,
     cue: shaped.cue,
-    cacheBreakpointFromEnd: structured.request.cacheBreakpointFromEnd,
     droppedCount: fitted.droppedCount,
     contextBoundaryMessageId: fitted.earliestKeptMessageId,
     fitUsedTokens,
