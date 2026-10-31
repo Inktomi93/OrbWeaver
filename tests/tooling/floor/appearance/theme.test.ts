@@ -22,7 +22,7 @@ import {
 } from "@orb/tooling/floor/appearance/theme";
 import { parseSnapArgs } from "../../../../tooling/src/snap/index.ts";
 
-/** The live shape of `settings.listThemes` (ThemeView rows, seeds + the caller's own), batched. */
+/** The live shape of `settings.listThemes` (Theme rows, seeds + the caller's own), batched. */
 const LIBRARY = [
   { id: "theme_00000000000000000000000001", name: "Hearth", isSeed: true, override: { background: "oklch(0.158 0.02 255)" }, css: null },
   { id: "theme_00000000000000000000000003", name: "Light", isSeed: true, override: { background: "oklch(0.97 0.01 255)" }, css: null },

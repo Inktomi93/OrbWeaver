@@ -1,8 +1,8 @@
-import type { CharacterId, PersonaId, ThemeId, UserId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
-import type { ThemeBackground, ThemeOverride } from "#theme";
+import type { Theme, ThemeBackground } from "#theme";
 import { themeOverrideSchema } from "#theme";
 import type { VersionedParseFailure } from "#versioned-config";
 import { VERSIONED_PARSE_FAILURES } from "#versioned-config";
@@ -941,21 +941,6 @@ export interface GlobalSettingView {
   updatedAt: number;
 }
 
-export interface ThemeView {
-  readonly id: ThemeId;
-  readonly name: string;
-  /** Lenient-parsed at the read seam — a corrupt stored blob degrades to defaults, never throws. */
-  readonly override: ThemeOverride;
-  readonly css: string | null;
-  /** Derived (ownerId IS NULL) — a seed palette is un-editable/un-deletable by construction. */
-  readonly isSeed: boolean;
-  /** Derived (the row IS the default palette's sentinel row) — what `theme.selectedThemeId: null` resolves
-   *  to. The sentinel id stays domain-internal (`packages/server/src/domain/settings/constants.ts`); this flag is what crosses (#1671). */
-  readonly isDefault: boolean;
-  readonly createdAt: number;
-  readonly updatedAt: number;
-}
-
 const resolvedRateLimitsSchema = z.strictObject({
   aiTurn: z.number(),
   publicIp: z.number(),
@@ -1042,7 +1027,7 @@ export const themeViewSchema = z.strictObject({
   isDefault: z.boolean(),
   createdAt: z.number(),
   updatedAt: z.number(),
-}) satisfies z.ZodType<ThemeView>;
+}) satisfies z.ZodType<Theme>;
 
 export type { ImportedAppearance, ImportedAppearanceOutcome, ImportedThemeLanding, SettingsImportOutcome } from "./import-results.ts";
 

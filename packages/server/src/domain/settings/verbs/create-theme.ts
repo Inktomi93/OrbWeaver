@@ -3,7 +3,7 @@
 // boundary; a taken `(ownerId, name)` is TOCTOU-safe (insert optimistically, classify
 // the constraint violation — the `tag.create` precedent), never a phantom pre-SELECT.
 
-import type { ThemeView } from "@orb/contracts/settings";
+import type { Theme } from "@orb/contracts/theme";
 import { themeOverrideSchema } from "@orb/contracts/theme";
 import { validateThemeCss } from "@orb/kit/css-validate";
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
@@ -17,7 +17,7 @@ const THEME_CREATE = "theme.create";
 const THEME_ENTITY = "theme";
 
 export function createCreateTheme(ctx: SettingsContext): Pick<SettingsService, "createTheme"> {
-  async function createTheme(params: CreateThemeParams): Promise<ThemeView> {
+  async function createTheme(params: CreateThemeParams): Promise<Theme> {
     const ownerId = params.principal.userId;
     const { input } = params;
     const override = themeOverrideSchema.parse(input.override);

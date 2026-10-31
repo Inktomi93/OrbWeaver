@@ -1,5 +1,5 @@
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { RecallBlockKey } from "@orb/kit/recall";
+import type { BlockKey } from "@orb/kit/recall";
 import { blockKeyStr, formatMemory, inLiveWindow, LIVE_WINDOW_FULL_HISTORY_CUTOFF } from "@orb/kit/recall";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -8,11 +8,11 @@ const ids = createSeededIds();
 const chatId = mintTypeId(ID_PREFIX.chat, ids.next);
 const scopedCharacterId = mintTypeId(ID_PREFIX.character, ids.next);
 
-function key(tier: number, blockIdx: number): RecallBlockKey {
+function key(tier: number, blockIdx: number): BlockKey {
   return { chatId, tier, blockIdx, scopedCharacterId };
 }
 
-function rows(...entries: readonly (readonly [RecallBlockKey, string])[]): Map<string, { text: string }> {
+function rows(...entries: readonly (readonly [BlockKey, string])[]): Map<string, { text: string }> {
   return new Map(entries.map(([blockKey, text]) => [blockKeyStr(blockKey), { text }]));
 }
 

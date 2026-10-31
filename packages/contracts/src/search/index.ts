@@ -7,6 +7,7 @@
 
 import type { AssetId, CharacterId, ChatId, DocumentChunkId, DocumentId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import type { BlockKey } from "@orb/kit/recall";
 import { z } from "zod";
 import type { ImageLens } from "../embeddings/index.ts";
 import { imageLensSchema } from "../embeddings/index.ts";
@@ -28,17 +29,7 @@ const SEARCH_SUGGEST_MAX_LIMIT = 100;
  *  than an unbounded ranked fetch. Clients ask ≤ 20. */
 export const SEARCH_TOP_N_MAX = 200;
 
-/** The block-level identity of one digest/segment block. `search.corpus` dedupes ranked blocks by this
- *  key, and `memory`'s tiered bridge passes the surviving keys as `MemoryQueryOptions.candidates`.
- *  `scopedCharacterId` carries the egocentric POV: two scoped-group characters can produce digests for
- *  the SAME `(chatId, tier, blockIdx)` from different POVs, so it's part of the key — always a real
- *  branded `CharacterId`, never `''` or null. */
-export interface BlockKey {
-  chatId: ChatId;
-  tier: number;
-  blockIdx: number;
-  scopedCharacterId: CharacterId;
-}
+export type { BlockKey } from "@orb/kit/recall";
 
 /** ONE RANKED BLOCK as retrieval hands it back across the domain seam — the block's identity plus BOTH
  *  ranking readouts, so a caller that has to EXPLAIN a result (memory's recall trace, #250) is not left
