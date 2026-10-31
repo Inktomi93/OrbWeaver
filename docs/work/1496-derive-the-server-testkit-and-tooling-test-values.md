@@ -59,6 +59,24 @@ Row numbers are the rows of reports/test-derivation-audit/shard-b.md.
 | 87 | `REFINERY_RESPONSE_FORMATS` has no door, and a door export only a test imports is refused. It needs the stage names moved to a contracts tuple first. |
 | 69, 68, 70, 71, 73, 88, 89 | Browser CT rows. Each needs a CT run and, for 69, a tooling door export; left for a CT leg. |
 
+### Fixed in the `tests/server/domain` domain
+
+| Rows | Fix |
+| - | - |
+| 31, 44 | `tests/support/node/factories/portable-chat.ts` and `tests/support/node/chat/cast.ts` replace the local message, snapshot, room, character, persona and avatar builders in `library-planes`, `identity` and `persona-resolution`. |
+| 18, 19, 21 | `makeProviderRow` and `makePluginProviderRow` build every provider row in the provider-rows, provider-contributions and provider-crash-window suites. |
+| 28, 29, 37 | The image-sweep suite reads its lens from `IMAGE_LENSES` and asserts the refusal through its cause; the guest asset read types its expected view from `PluginBridge`. |
+| 36, 84 | `PUBLIC_PEER_ADDRESS` replaces the literal throughout `tests/server/domain`. |
+| 1, 3, 5, 34, 35, 45 and the unseeded ids named by the sweep | Absent ids come from the root's own seeded source, so one cannot collide with a minted row; bytes-only seeds use a seeded generator. |
+
+### Ruled to stay (tests/server/domain)
+
+| Rows | Reason |
+| - | - |
+| 25, 26 | The marker, source and guided-action literals are compared against closed unions, so `tsc` refuses a rename. `AGENTS.md` (type homes and unions) closes a case with a type. The builtin provider id `custom-openai` has no production tuple; it belongs to item 1504. |
+| 35 | The floors throw a plain `Error`; a class is production work. |
+| 40 | The host's call must pass the gate; the verbs return a view, an id or nothing, so the gate case asserts that it is not refused. |
+
 ### Ruled to stay
 
 | Rows | Reason |

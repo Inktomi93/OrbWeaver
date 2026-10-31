@@ -5,6 +5,7 @@
 import { builtinProvider } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { messageVariants } from "@orb/db";
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -80,7 +81,7 @@ async function cacheRoom(
         secretBoxKey: Buffer.alloc(32, 1),
         networkExecution: {
           resolver: (hostname): Promise<readonly string[]> =>
-            hostname === host ? Promise.resolve(["93.184.215.14"]) : Promise.reject(new Error(`unscripted cache-economics address: ${hostname}`)),
+            hostname === host ? Promise.resolve([PUBLIC_PEER_ADDRESS]) : Promise.reject(new Error(`unscripted cache-economics address: ${hostname}`)),
         },
       },
       providerFetch: async (input, init) => {

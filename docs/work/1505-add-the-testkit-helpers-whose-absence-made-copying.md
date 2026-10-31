@@ -35,4 +35,13 @@ Built, each behind its door with its own test:
 | `PUBLIC_PEER_ADDRESS` | `tests/support/iso/network.ts`, iso door; used across `tests/support` |
 | `plantTrigger` | `tests/support/node/db-faults.ts`, composed door; `refuseWrites` is built on it; used by `tests/support/node/surface-data.int.test.ts` |
 
-Not built yet: the PortableChat builder and the chat character, persona and room builders. The copies outside `tests/support` still spell the peer address, provider rows, style slice and actor entries by hand.
+Also built, each with its own test:
+
+| Helper | Home and door |
+| - | - |
+| `makeProviderRow` (any namespace; `makePluginProviderRow` is built on it) | `tests/support/iso/provider-rows.ts`, iso door |
+| `makePortableChat`, `makePortableGame`, `makePortableMessage`, `makePortableTurnSnapshot` | `tests/support/node/factories/portable-chat.ts`, helpers door |
+| `storeAvatar`, `addCharacter`, `addPersona`, `startRoom` | `tests/support/node/chat/cast.ts`, composed door |
+| `createMemoryBackfillRoom`, `summaryReply` | `tests/support/node/factories/`, composed door |
+
+The `tests/server/domain` suites use the peer address, provider rows, seeded ids, the PortableChat builder and the cast builders. The other domains still spell them by hand.

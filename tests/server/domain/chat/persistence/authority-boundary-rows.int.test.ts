@@ -8,6 +8,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { chatDigests, chatSegments, messages, messageVariants } from "@orb/db";
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -297,7 +298,7 @@ test("post-turn memory detaches from the reply and physically unwinds with its p
   await using root = await createServerHarness({
     db,
     providerFetch: execute,
-    networkExecution: { fetch: execute, resolver: () => Promise.resolve(["93.184.215.14"]) },
+    networkExecution: { fetch: execute, resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]) },
   });
   const { owner, caller } = await memoryActors(root);
   const card = await caller.character.create({

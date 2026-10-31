@@ -4,7 +4,7 @@ import type { ChatBusEvent, MessageView, TurnOutcome } from "@orb/contracts/chat
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import type { LibSqlWrap } from "@orb/db";
 import { closeDb } from "@orb/db";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot, PeerLease } from "@orb/testkit/node/composed";
 import { freshDb, seedPeerLease } from "@orb/testkit/node/composed";
@@ -91,11 +91,11 @@ const INVOKE: Record<Verb, (f: SlotRoom) => Promise<TurnOutcome>> = {
   },
 };
 const MISSING: Omit<typeof INVOKE, "generate"> = {
-  swipe: async ({ h }: SlotRoom) => await h.root.services.chat.swipe({ principal: h.owner, chatId: h.chatId, messageId: mintTypeId(ID_PREFIX.message) }),
+  swipe: async ({ h }: SlotRoom) => await h.root.services.chat.swipe({ principal: h.owner, chatId: h.chatId, messageId: h.root.ids.typeId(ID_PREFIX.message) }),
   continueTurn: async ({ h }: SlotRoom) =>
-    await h.root.services.chat.continueTurn({ principal: h.owner, chatId: h.chatId, messageId: mintTypeId(ID_PREFIX.message) }),
+    await h.root.services.chat.continueTurn({ principal: h.owner, chatId: h.chatId, messageId: h.root.ids.typeId(ID_PREFIX.message) }),
   forceCharacterTurn: async ({ h }: SlotRoom) =>
-    await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: mintTypeId(ID_PREFIX.character) }),
+    await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: h.root.ids.typeId(ID_PREFIX.character) }),
 };
 const ACCEPTED: Record<Verb, (f: SlotRoom) => Extract<ChatBusEvent, { type: "turnAccepted" }>> = {
   swipe: ({ h, reply }) => ({ type: "turnAccepted", chatId: h.chatId, intent: "swipe", targetMessageId: reply.id, speakerCharacterId: reply.characterId }),
@@ -199,7 +199,7 @@ test("generate: HAPPY: accepts a FRESH slot (no ghost target, no speaker yet) be
 test("generate: unknown speaker (post-accept NOT_FOUND) → the accepted slot CLOSES with turnAborted", async () => {
   await using f = await room();
   await expect(
-    f.h.root.services.chat.generate({ principal: f.h.owner, chatId: f.h.chatId, speakerCharacterId: mintTypeId(ID_PREFIX.character) }),
+    f.h.root.services.chat.generate({ principal: f.h.owner, chatId: f.h.chatId, speakerCharacterId: f.h.root.ids.typeId(ID_PREFIX.character) }),
   ).rejects.toThrow();
   expect(f.events.map(({ type }) => type)).toEqual(["turnAccepted", "turnAborted"]);
   expect(f.events[1]).toMatchObject({ intent: "generate", reason: "error" });

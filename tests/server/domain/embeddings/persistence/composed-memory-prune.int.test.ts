@@ -6,6 +6,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { EMBEDDING_FLOOR } from "@orb/contracts/inference";
 import { chatDigests, embedGenerations, embedGenerationTargets } from "@orb/db";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusProviderExecution, createServerHarness } from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
@@ -25,7 +26,7 @@ test("the composed pruner resolves the present host's persisted generation and d
     providerFetch: physical.execute,
     networkExecution: {
       resolver: (hostname) =>
-        hostname === new URL(ENDPOINT).hostname ? Promise.resolve(["93.184.215.14"]) : Promise.reject(new Error("unscripted prune provider hostname")),
+        hostname === new URL(ENDPOINT).hostname ? Promise.resolve([PUBLIC_PEER_ADDRESS]) : Promise.reject(new Error("unscripted prune provider hostname")),
     },
   });
   const host = await root.principalFor(root.ownerId);

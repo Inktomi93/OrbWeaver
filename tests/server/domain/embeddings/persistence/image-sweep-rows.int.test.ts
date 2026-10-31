@@ -4,6 +4,7 @@
 // @subject packages/server/src/domain/embeddings/indexer/image.ts
 
 import { rm } from "node:fs/promises";
+import { IMAGE_LENSES } from "@orb/contracts/embeddings";
 import { embedGenerations, embedSpaceState, imageAnalyses, imageEmbeddings } from "@orb/db";
 import { readSeedAvatar, SEED_MANIFEST } from "@orb/default-content";
 import type { AssetId } from "@orb/kit/ids";
@@ -22,6 +23,8 @@ import {
 import { eq } from "drizzle-orm";
 
 const CAPTION_REQUEST = "POST /v1/chat/completions";
+const [, CAPTIONED_LENS] = IMAGE_LENSES;
+const VECTOR_REFUSAL = "the vector store refused the write";
 
 function imageProvider(): ReturnType<typeof createCorpusProviderExecution> {
   return createCorpusProviderExecution({
@@ -84,7 +87,7 @@ test("a sweep captions and embeds each avatar once, resumes at no cost, and forc
   // The quote is what the sweep spent: one caption per avatar.
   expect(room.captions()).toBe(quoted);
   expect(await root.db.select().from(imageAnalyses)).toHaveLength(2);
-  expect((await root.db.select().from(imageEmbeddings)).map((row) => row.lens)).toEqual(["image-captioned", "image-captioned"]);
+  expect((await root.db.select().from(imageEmbeddings)).map((row) => row.lens)).toEqual([CAPTIONED_LENS, CAPTIONED_LENS]);
   expect(await embeddings.countAssetAnalysisCalls({ ownerId: owner.userId, force: false })).toBe(0);
 
   // Resumable: a rerun checks the stored hash before any caption or vector request leaves.
@@ -210,9 +213,11 @@ test("an avatar whose stored bytes are not a decodable image fails alone like a 
 test("a failure that is not a missing file stops the sweep instead of failing each asset", async () => {
   await using lifetime = new AsyncDisposableStack();
   const { root } = await unindexedAvatars(2, lifetime);
-  await using fault = await refuseWrites(root.db, { table: imageEmbeddings, event: "INSERT", message: "the vector store refused the write" });
+  await using fault = await refuseWrites(root.db, { table: imageEmbeddings, event: "INSERT", message: VECTOR_REFUSAL });
 
-  await expect(root.app.embeddings.embedAssets({ ownerId: null, force: false, signal: signal() })).rejects.toThrow();
+  await expect(root.app.embeddings.embedAssets({ ownerId: null, force: false, signal: signal() })).rejects.toMatchObject({
+    cause: expect.objectContaining({ message: expect.stringContaining(VECTOR_REFUSAL) }),
+  });
 
   // Positive control: with the fault lifted the same sweep embeds both avatars.
   await fault.lift();

@@ -11,6 +11,7 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import { processMacros } from "@orb/kit/macro";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { AppRouter } from "@orb/server";
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -276,7 +277,7 @@ test("imagery retains a real dropped-edit warning and filters a real native unsu
   await using root = await createServerHarness({
     startJobs: false,
     secretBoxKey: Buffer.alloc(32, 3),
-    networkExecution: { resolver: () => Promise.resolve(["93.184.215.14"]) },
+    networkExecution: { resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]) },
     providerFetch: (input, init) => {
       const request = new Request(input, init);
       if (request.method === "GET" && request.url.startsWith(`${endpoint}/models`)) {

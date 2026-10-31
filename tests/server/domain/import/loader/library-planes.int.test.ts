@@ -12,15 +12,14 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import type { PortableKind } from "@orb/contracts/portability";
-import { rpgGameConfigSchema, rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import type { CharacterHandle, ChatId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { PortableChat } from "@orb/server/primitives/serde/chat-bundle";
 import { buildChatBundleFile, CHAT_BUNDLE_EXT } from "@orb/server/primitives/serde/chat-bundle";
 import { createSeededIds, FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, seedRpgCheckpoint, seedRpgGame, seedTranscript } from "@orb/testkit/node/composed";
+import { makePortableChat, makePortableGame, makePortableMessage, makePortableTurnSnapshot } from "@orb/testkit/node/helpers";
 
 const EXPORT_ROUTE = "/api/export/library";
 const BUNDLE_ROUTE = "/api/import/bundle";
@@ -150,100 +149,49 @@ const ANCHORED_LOCATION = "the ferry landing";
 const ANCHORED_JOURNAL = "The ferry was lost";
 const SWIPED_LOCATION = "the bridge that held";
 
-function line(role: "user" | "assistant", content: string): PortableChat["messages"][number] {
-  return {
-    role,
-    kind: "standard",
-    speakerHandle: role === "assistant" ? HANDLE : null,
-    personaName: null,
-    createdAt: FROZEN_AT_MS,
-    selectedIdx: 0,
-    variants: [
-      {
-        idx: 0,
-        content,
-        model: null,
-        provider: null,
-        tokensIn: null,
-        tokensOut: null,
-        tokenProvenance: "unrecorded",
-        reasoning: null,
-        ttftMs: null,
-        genStartedAt: null,
-        genFinishedAt: null,
-        variableDelta: null,
-        metadata: null,
-      },
-    ],
-  };
-}
-
-type PortableGame = NonNullable<PortableChat["rpg"]>;
-
-/** One committed turn snapshot at `messages[messageIndex]`'s variant `variantIdx`, recording `location`. */
-function turnSnapshot(messageIndex: number, variantIdx: number, location: string): PortableGame["snapshots"][number] {
-  return {
-    messageIndex,
-    variantIdx,
-    asOfMessageIndex: null,
-    bookmark: false,
-    committed: true,
-    createdAt: FROZEN_AT_MS,
-    state: rpgSnapshotStateSchema.parse({ clock: null, calendarDate: null, weather: null, fieldLocks: null, location }),
-  };
-}
-
-/** The anchored room around the given transcript and campaign planes. */
-function roomBundle(messages: PortableChat["messages"], rpg: Pick<PortableGame, "snapshots" | "journal" | "turnToolCalls" | "checkpoints">): Uint8Array {
-  return buildChatBundleFile({
-    title: ANCHORED_TITLE,
-    createdAt: FROZEN_AT_MS,
-    updatedAt: FROZEN_AT_MS,
-    starred: false,
-    archived: false,
-    compactSummary: null,
-    compactedAtSeq: null,
-    metadata: null,
-    variableValues: null,
-    userMacroValues: null,
-    anchorPersonaName: null,
-    characterHandles: [HANDLE],
-    tagNames: [],
-    injections: [],
-    messages,
-    rpg: { mode: "lite", status: "active", sessionNumber: 1, config: rpgGameConfigSchema.parse({}), createdAt: FROZEN_AT_MS, sheets: [], ...rpg },
-  });
-}
-
 /** A four-message room whose campaign rows are all anchored to `messages[turn]`'s first variant. */
 function anchoredBundle(turn: number): Uint8Array {
   const anchor = { messageIndex: turn, variantIdx: 0 };
-  return roomBundle(
-    [line("user", "Do we cross?"), line("assistant", "The bridge groans."), line("user", "Then the ferry."), line("assistant", "The ferry waits.")],
-    {
-      snapshots: [turnSnapshot(turn, 0, ANCHORED_LOCATION)],
-      journal: [{ type: "event", label: "", title: ANCHORED_JOURNAL, content: "Lost.", ...anchor, sourceMessageIndex: turn, createdAt: FROZEN_AT_MS }],
-      turnToolCalls: [{ ...anchor, calls: [{ name: "update_scene", args: "{}", verdict: "applied", issues: [] }], createdAt: FROZEN_AT_MS }],
-      checkpoints: [{ snapshotIndex: 0, label: CHECKPOINT, trigger: "manual", createdAt: FROZEN_AT_MS }],
-    },
+  return buildChatBundleFile(
+    makePortableChat({
+      title: ANCHORED_TITLE,
+      characterHandles: [HANDLE],
+      messages: [
+        makePortableMessage("user", "Do we cross?"),
+        makePortableMessage("assistant", "The bridge groans.", { speakerHandle: HANDLE }),
+        makePortableMessage("user", "Then the ferry."),
+        makePortableMessage("assistant", "The ferry waits.", { speakerHandle: HANDLE }),
+      ],
+      rpg: makePortableGame({
+        snapshots: [makePortableTurnSnapshot(turn, 0, ANCHORED_LOCATION)],
+        journal: [{ type: "event", label: "", title: ANCHORED_JOURNAL, content: "Lost.", ...anchor, sourceMessageIndex: turn, createdAt: FROZEN_AT_MS }],
+        turnToolCalls: [{ ...anchor, calls: [{ name: "update_scene", args: "{}", verdict: "applied", issues: [] }], createdAt: FROZEN_AT_MS }],
+        checkpoints: [{ snapshotIndex: 0, label: CHECKPOINT, trigger: "manual", createdAt: FROZEN_AT_MS }],
+      }),
+    }),
   );
 }
 
 /** A two-message room whose assistant turn was swiped: the checkpoint names the first variant's snapshot, and
  *  the second variant is the selected one. */
 function swipedPinBundle(): Uint8Array {
-  const first = line("assistant", "The bridge groans.");
+  const first = makePortableMessage("assistant", "The bridge groans.", { speakerHandle: HANDLE });
   const [variant] = first.variants;
   if (variant === undefined) {
     throw new Error("the assistant line has no variant");
   }
   const swiped = { ...first, selectedIdx: 1, variants: [variant, { ...variant, idx: 1, content: "The bridge holds." }] };
-  return roomBundle([line("user", "Do we cross?"), swiped], {
-    snapshots: [turnSnapshot(1, 0, ANCHORED_LOCATION), turnSnapshot(1, 1, SWIPED_LOCATION)],
-    journal: [],
-    turnToolCalls: [],
-    checkpoints: [{ snapshotIndex: 0, label: CHECKPOINT, trigger: "manual", createdAt: FROZEN_AT_MS }],
-  });
+  return buildChatBundleFile(
+    makePortableChat({
+      title: ANCHORED_TITLE,
+      characterHandles: [HANDLE],
+      messages: [makePortableMessage("user", "Do we cross?"), swiped],
+      rpg: makePortableGame({
+        snapshots: [makePortableTurnSnapshot(1, 0, ANCHORED_LOCATION), makePortableTurnSnapshot(1, 1, SWIPED_LOCATION)],
+        checkpoints: [{ snapshotIndex: 0, label: CHECKPOINT, trigger: "manual", createdAt: FROZEN_AT_MS }],
+      }),
+    }),
+  );
 }
 
 test("a campaign's turn-anchored rows land on the restored variant of the turn they were exported under, not on another turn's", async () => {

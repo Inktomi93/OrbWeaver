@@ -13,6 +13,7 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { MS_PER_HOUR, MS_PER_SECOND } from "@orb/kit/time";
 import { PLUGIN_ASSET_EGRESS_PER_HOUR, PLUGIN_EGRESS_PER_HOUR, PLUGIN_QUIET_LLM_PER_HOUR, PLUGIN_SEARCH_QUERY_PER_HOUR } from "@orb/server/domain/plugin";
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -107,7 +108,7 @@ async function floorRoot(newId: RawIdGenerator): Promise<FloorRoot> {
     providerFetch: network,
     networkExecution: {
       fetch: network,
-      resolver: (host) => Promise.resolve([host === NET_HOST ? "93.184.215.14" : "127.0.0.1"]),
+      resolver: (host) => Promise.resolve([host === NET_HOST ? PUBLIC_PEER_ADDRESS : "127.0.0.1"]),
     },
   });
   const { owner, connections } = await seedCorpusActors(root);

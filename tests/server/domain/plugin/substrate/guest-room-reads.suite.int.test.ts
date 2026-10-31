@@ -8,6 +8,7 @@ import { spawn } from "node:child_process";
 import type { Principal } from "@orb/contracts/identity";
 import { PluginSuggestedError } from "@orb/contracts/plugin";
 import type { WorldBookId } from "@orb/kit/ids";
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -72,7 +73,7 @@ async function room(): Promise<Room> {
     memoryEnabled: false,
     server: {
       pluginSpawn: spawn,
-      networkExecution: { fetch: network, resolver: (host) => Promise.resolve([host === NET_HOST ? "93.184.215.14" : "127.0.0.1"]) },
+      networkExecution: { fetch: network, resolver: (host) => Promise.resolve([host === NET_HOST ? PUBLIC_PEER_ADDRESS : "127.0.0.1"]) },
     },
   });
   const member = await h.root.principalFor((await h.root.actor()).id);

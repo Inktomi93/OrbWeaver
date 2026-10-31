@@ -1,10 +1,12 @@
 // A controlled image/tool endpoint speaks native Google bytes; plugin execution and asset retention stay real.
+
 import { spawn } from "node:child_process";
 import { providerDefSchema } from "@orb/contracts/inference";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginToolWireName } from "@orb/contracts/plugin";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
+import { createSeededIds } from "@orb/testkit/iso";
 import type { ServerHarnessOptions } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
@@ -34,7 +36,7 @@ export function nativeText(text: string, thoughtSignature?: string): JsonValue {
 }
 
 export function nativeImage(invalid = false): JsonValue {
-  const bytes = invalid ? Buffer.from("hello") : makeAssetBytes(mintTypeId(ID_PREFIX.asset));
+  const bytes = invalid ? Buffer.from("hello") : makeAssetBytes(createSeededIds().typeId(ID_PREFIX.asset));
   return { inlineData: { mimeType: "image/png", data: Buffer.from(bytes).toString("base64") }, thoughtSignature: IMAGE_SIGNATURE };
 }
 

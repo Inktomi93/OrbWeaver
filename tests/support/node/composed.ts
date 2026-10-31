@@ -11,6 +11,8 @@ export type { AtlasBootOptions, CannedResponse } from "./atlas-guest.ts";
 export { bootAtlas, bootAtlasDates, lastAtlasState } from "./atlas-guest.ts";
 export { prepareBackupFolder } from "./backup-folder.ts";
 export { readRoomCanon } from "./chat/canon.ts";
+export type { StoredAvatar } from "./chat/cast.ts";
+export { addCharacter, addPersona, startRoom, storeAvatar } from "./chat/cast.ts";
 export type { ChatRoot, ChatRootOptions } from "./chat/composed.ts";
 export { createChatRoot } from "./chat/composed.ts";
 export {

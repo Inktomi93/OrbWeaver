@@ -4,13 +4,12 @@
 // @subject packages/server/src/domain/connection/persistence/provider-rows.ts
 
 import { spawn } from "node:child_process";
-import type { ProviderDef } from "@orb/contracts/inference";
-import { PLUGIN_PROVIDER_ID_PREFIX, providerDefSchema } from "@orb/contracts/inference";
 import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { pluginProviderClaims, providerRows, users } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
+import { makeProviderRow, pluginProviderId } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makePluginBundle } from "@orb/testkit/node/composed";
@@ -19,19 +18,7 @@ import { eq } from "drizzle-orm";
 // Each enable starts the real sandbox child process, which outlasts the default test budget.
 const PLUGIN_LIFECYCLE_TIMEOUT_MS = 30_000;
 const PLUGIN = "acme-plugin";
-const PLUGIN_PROVIDER = `${PLUGIN_PROVIDER_ID_PREFIX}${PLUGIN}/acme`;
-
-const provider = (id: string, label: string): ProviderDef =>
-  providerDefSchema.parse({
-    id,
-    label,
-    wire: "openai-compat",
-    dialect: "openai-compatible",
-    auth: "endpoint",
-    apis: ["chat-completions"],
-    catalog: "url",
-    metered: false,
-  });
+const PLUGIN_PROVIDER = pluginProviderId(PLUGIN, "acme");
 
 const manifestWith = (label: string): PluginManifest =>
   pluginManifestSchema.parse({
@@ -42,7 +29,7 @@ const manifestWith = (label: string): PluginManifest =>
     entry: PLUGIN_MAIN_ENTRY,
     description: "Serves one provider.",
     capabilities: ["storage.kv"],
-    providers: [provider(PLUGIN_PROVIDER, label)],
+    providers: [makeProviderRow(PLUGIN_PROVIDER, { label })],
   });
 
 async function newRoot(): Promise<ServerTestHarness & AsyncDisposable> {
@@ -71,14 +58,14 @@ async function installAcme(root: ServerTestHarness, owner: UserId, label: string
   return { pluginId: installed.id, status: outcome.status };
 }
 
-const ACME_PLUGIN_ID = provider(PLUGIN_PROVIDER, "Acme").id;
+const ACME_PLUGIN_ID = PLUGIN_PROVIDER;
 const servedLabel = (root: ServerTestHarness, viewer: UserId): string | undefined => root.services.connection.registry.get(ACME_PLUGIN_ID, viewer)?.label;
 
 test("an admin row is replaced in place, dropped once, and never takes a plugin id", async () => {
   await using root = await newRoot();
   const registry = root.services.connection.registry;
   const admin = { admin: root.ownerId };
-  const acme = provider("acme-endpoint", "Acme");
+  const acme = makeProviderRow("acme-endpoint", { label: "Acme" });
 
   await registry.register(acme, admin);
   await registry.register({ ...acme, label: "Acme v2" }, admin);
@@ -88,7 +75,7 @@ test("an admin row is replaced in place, dropped once, and never takes a plugin 
 
   // A plugin: id is reserved for manifests; the refusal writes nothing, and a bare id is the positive control.
   const rowsBefore = await root.db.select().from(providerRows);
-  await expect(registry.register(provider(PLUGIN_PROVIDER, "Squat"), admin)).rejects.toBeInstanceOf(ProviderError);
+  await expect(registry.register(makeProviderRow(PLUGIN_PROVIDER, { label: "Squat" }), admin)).rejects.toBeInstanceOf(ProviderError);
   expect(await root.db.select().from(providerRows)).toEqual(rowsBefore);
 
   await registry.drop(acme.id);

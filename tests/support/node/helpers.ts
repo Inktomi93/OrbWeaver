@@ -28,6 +28,7 @@ export { createTestEnv } from "./env.ts";
 export { makeRuleView } from "./factories/automation-view.ts";
 export { makeChatDetail, makeChatId, makeChatSummaryView, makeRedeemInviteResult } from "./factories/chat-view.ts";
 export { makePluginRow, makePluginScriptedPage } from "./factories/plugin-view.ts";
+export { makePortableChat, makePortableGame, makePortableMessage, makePortableTurnSnapshot } from "./factories/portable-chat.ts";
 export { makePresetDetail, makePresetSummary } from "./factories/preset-view.ts";
 export { principal } from "./factories/principal.ts";
 export { makeCachePolicy, makeResolved, makeResolvedView, TEST_BASE_URL, TEST_OWNER_ID, TEST_PROVIDER_ID } from "./factories/resolved-connection.ts";

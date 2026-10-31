@@ -16,7 +16,7 @@ export { DEFAULT_EMBED_MODEL, testModelId, testProviderId } from "./inference-id
 export { PUBLIC_PEER_ADDRESS } from "./network.ts";
 export { forEachNonEmpty } from "./non-empty.ts";
 export { makePromptConfig } from "./preset-config.ts";
-export { makePluginProviderRow, pluginProviderId } from "./provider-rows.ts";
+export { makePluginProviderRow, makeProviderRow, pluginProviderId } from "./provider-rows.ts";
 export { makeRpgActorEntry, makeRpgActorIdentity } from "./rpg-state.ts";
 export type { SurfaceCoverageDisposition, SurfaceCoverageInventory } from "./surface-coverage.ts";
 export { surfaceCoverageKey } from "./surface-coverage.ts";

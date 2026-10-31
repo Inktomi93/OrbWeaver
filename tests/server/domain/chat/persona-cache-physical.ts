@@ -1,10 +1,12 @@
 // Native Anthropic input carries the cache proof; only response bytes and canonical-host DNS are supplied.
+
 import { builtinProvider, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
@@ -63,7 +65,7 @@ export async function personaRoom(
         secretBoxKey: Buffer.alloc(32, 1),
         networkExecution: {
           resolver: (host): Promise<readonly string[]> =>
-            host === hostname ? Promise.resolve(["93.184.215.14"]) : Promise.reject(new Error(`unscripted persona provider address: ${host}`)),
+            host === hostname ? Promise.resolve([PUBLIC_PEER_ADDRESS]) : Promise.reject(new Error(`unscripted persona provider address: ${host}`)),
         },
       },
       providerFetch: async (input, init) => {

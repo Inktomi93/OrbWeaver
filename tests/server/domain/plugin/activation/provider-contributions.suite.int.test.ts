@@ -6,13 +6,14 @@
 
 import { spawn } from "node:child_process";
 import type { Principal } from "@orb/contracts/identity";
-import type { ProviderId } from "@orb/contracts/inference";
-import { CONNECTION_OP_CODES, PLUGIN_PROVIDER_ID_PREFIX, pluginNameOfProviderId, providerDefSchema } from "@orb/contracts/inference";
+import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, pluginNameOfProviderId } from "@orb/contracts/inference";
 import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { NoConnectionError, ProviderError } from "@orb/inference";
 import type { PluginId } from "@orb/kit/ids";
 import { ManifestInvalidError, PluginCrashedError } from "@orb/server/domain/plugin";
+import { makePluginProviderRow, pluginProviderId } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { CORPUS_EMBEDDING_VECTOR, createCorpusProviderExecution, createServerHarness, makePluginBundle, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
@@ -21,7 +22,7 @@ const GUEST = "// provider-only guest";
 const PROVIDER_PLUGIN = "provider-plugin";
 const VENDOR_PLUGIN = "vendor";
 const RELAY_PLUGIN = "relay";
-const PROVIDER_ID = `${PLUGIN_PROVIDER_ID_PREFIX}${PROVIDER_PLUGIN}/acme`;
+const PROVIDER_ID = pluginProviderId(PROVIDER_PLUGIN, "acme");
 const GENUINE_HOST = "api.genuine-vendor.example";
 const SQUAT_HOST = "collector.squatter.example";
 
@@ -38,33 +39,14 @@ function manifestOf(over: Record<string, unknown>): PluginManifest {
   });
 }
 
-const endpointProvider = (label: string): Record<string, unknown> => ({
-  id: PROVIDER_ID,
-  label,
-  wire: "openai-compat",
-  dialect: "openai-compatible",
-  auth: "endpoint",
-  apis: ["chat-completions"],
-  catalog: "url",
-  metered: false,
-});
+const endpointProvider = (label: string): ProviderDef => makePluginProviderRow(PROVIDER_PLUGIN, "acme", { label });
 
 function endpointBundle(root: ServerTestHarness, label = "Acme", version = "1.0.0"): Uint8Array {
   return makePluginBundle(manifestOf({ version, providers: [endpointProvider(label)] }), GUEST, root.clock.now());
 }
 
-const hostedProvider = (host: string): Record<string, unknown> => ({
-  id: `${PLUGIN_PROVIDER_ID_PREFIX}${VENDOR_PLUGIN}/hosted`,
-  label: "Vendor",
-  wire: "openai-compat",
-  dialect: "openai-compatible",
-  auth: "apiKey",
-  baseUrl: `https://${host}/v1`,
-  apis: ["chat-completions"],
-  serves: ["chat"],
-  catalog: "url",
-  metered: false,
-});
+const hostedProvider = (host: string): ProviderDef =>
+  makePluginProviderRow(VENDOR_PLUGIN, "hosted", { label: "Vendor", auth: "apiKey", baseUrl: `https://${host}/v1`, serves: ["chat"] });
 
 function hostedBundle(root: ServerTestHarness, host: string): Uint8Array {
   return makePluginBundle(
@@ -147,7 +129,7 @@ test("an invalid provider row is refused at install and leaves nothing offered",
   const who = await owner(root);
   const valid = makePluginBundle(manifestOf({}), GUEST, root.clock.now());
   // The refusal path needs a wire the manifest type cannot spell, so the one field is cast to feed it bad input.
-  const row = { ...providerDefSchema.parse(endpointProvider("Acme")), wire: "guest-backend" as never };
+  const row = { ...endpointProvider("Acme"), wire: "guest-backend" as never };
   const bad = makePluginBundle({ ...manifestOf({}), providers: [row] }, GUEST, root.clock.now());
   await expect(root.services.plugin.install({ caller: who, bundle: bad, grant: [] })).rejects.toBeInstanceOf(ManifestInvalidError);
   expect(await root.services.plugin.list({ caller: who })).toEqual([]);
@@ -161,7 +143,7 @@ test("a squatted provider id blocks and shadows nobody else", { tags: ["slow"] }
   const squatter = await owner(root);
   const victim = await owner(root);
   const registry = root.services.connection.registry;
-  const id = providerDefSchema.parse(hostedProvider(GENUINE_HOST)).id;
+  const id = hostedProvider(GENUINE_HOST).id;
 
   await enable(root, squatter, hostedBundle(root, SQUAT_HOST), ["net.fetch"]);
   const genuine = await enable(root, victim, hostedBundle(root, GENUINE_HOST), ["net.fetch"]);
@@ -254,7 +236,7 @@ test("an owner's retained connection never follows its provider id to another de
   await using root = await createServerHarness({ pluginSpawn: spawn, secretBoxKey: SECRET_BOX_TEST_KEY });
   const victim = await owner(root);
   const other = await owner(root);
-  const id = providerDefSchema.parse(hostedProvider(GENUINE_HOST)).id;
+  const id = hostedProvider(GENUINE_HOST).id;
   const registry = root.services.connection.registry;
 
   const original = await enable(root, victim, hostedBundle(root, GENUINE_HOST), ["net.fetch"]);
@@ -298,18 +280,13 @@ const RELAY_HOST = "relay.plugin-author.example";
 const RELAY_MODEL = "relay-model";
 const RELAY_REPLY = "relayed reply";
 const RELAY_ADDRESS = "93.184.216.34";
-const RELAY_PROVIDER = {
-  id: `${PLUGIN_PROVIDER_ID_PREFIX}${RELAY_PLUGIN}/anthropic`,
+const RELAY_BASE_URL = `https://${RELAY_HOST}/v1`;
+const RELAY_PROVIDER = makePluginProviderRow(RELAY_PLUGIN, "anthropic", {
   label: "Anthropic",
-  wire: "openai-compat",
-  dialect: "openai-compatible",
   auth: "apiKey",
-  baseUrl: `https://${RELAY_HOST}/v1`,
-  apis: ["chat-completions"],
+  baseUrl: RELAY_BASE_URL,
   serves: ["chat", "summarize", "structured"],
-  catalog: "url",
-  metered: false,
-} as const;
+});
 
 interface RelayWorld {
   readonly root: ServerTestHarness;
@@ -322,7 +299,7 @@ interface RelayWorld {
 
 async function relayWorld(lifetime: AsyncDisposableStack): Promise<RelayWorld> {
   const wire = createCorpusProviderExecution({
-    baseUrl: RELAY_PROVIDER.baseUrl,
+    baseUrl: RELAY_BASE_URL,
     modelIds: [RELAY_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
     chatText: RELAY_REPLY,
@@ -351,7 +328,7 @@ async function relayWorld(lifetime: AsyncDisposableStack): Promise<RelayWorld> {
     root.clock.now(),
   );
   await enable(root, installer, bundle, ["net.fetch"]);
-  return { root, installer, stranger, relayId: providerDefSchema.parse(RELAY_PROVIDER).id, sent };
+  return { root, installer, stranger, relayId: RELAY_PROVIDER.id, sent };
 }
 
 test("the installer lists models, saves a connection and generates through its own plugin provider, and the key reaches only the plugin's host", {
@@ -382,7 +359,7 @@ test("the installer lists models, saves a connection and generates through its o
   await root.services.connection.setBinding({ principal: installer, task: "summarize", connectionId: saved.id });
 
   const { resolved } = await root.services.connection.resolve({ task: "chat", principal: installer });
-  expect(resolved).toMatchObject({ providerId: relayId, baseUrl: RELAY_PROVIDER.baseUrl, model: RELAY_MODEL });
+  expect(resolved).toMatchObject({ providerId: relayId, baseUrl: RELAY_BASE_URL, model: RELAY_MODEL });
   const summary = await (await root.app.roleClientsFor(installer.userId)).summarize([{ systemPrompt: "be brief", userPrompt: "hello" }]);
   expect(summary.items.map((item) => item.text)).toEqual([RELAY_REPLY]);
   expect(sent.some((request) => new URL(request.url).pathname.endsWith("/chat/completions"))).toBe(true);

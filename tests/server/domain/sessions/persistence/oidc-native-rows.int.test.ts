@@ -9,7 +9,7 @@ import { closeDb, oidcPendingSignups, oidcTransactions, sessions, users } from "
 
 import { brandedId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
-import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
+import { createControlledTimers, createFrozenClock, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { beginOidcLogin, cookieHeader, finishOidcLogin, signInWithOidc } from "@orb/testkit/node/auth";
 import { configureOidc, createServerHarness, freshDb, freshHeldDb } from "@orb/testkit/node/composed";
@@ -466,7 +466,7 @@ test("configured native issuer execution preserves offset shared-byte views and 
   await using root = await createServerHarness({
     networkExecution: {
       resolver: (hostname) =>
-        hostname === new URL(ISSUER).hostname ? Promise.resolve(["93.184.215.14"]) : Promise.reject(new Error("unscripted issuer host")),
+        hostname === new URL(ISSUER).hostname ? Promise.resolve([PUBLIC_PEER_ADDRESS]) : Promise.reject(new Error("unscripted issuer host")),
       fetch: execute,
     },
   });
