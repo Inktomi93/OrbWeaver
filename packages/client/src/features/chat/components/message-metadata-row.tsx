@@ -37,6 +37,16 @@ export function MessageTimestamp({ message, show }: { readonly message: MessageV
   );
 }
 
+/** The message number: the row's id as a quiet metadata datum. It sits in the metadata row, or under a welded portrait
+ *  when the skin says so (`RowSkin.numberPlacement`). Null when `showMessageId` is off. */
+export function MessageNumber({ message }: { readonly message: MessageView }): ReactElement {
+  return (
+    <Text as="span" ink="muted" voice="code" data-slot="message-metadata-id" className="text-center wrap-anywhere inline-full">
+      {message.id}
+    </Text>
+  );
+}
+
 /** The token count shown per message — output tokens (the generated length, ST parity) falling back
  *  to input tokens when a variant has no output (never fabricates a sum that double-counts a resend). */
 function tokenCount(message: MessageView): number | null {
