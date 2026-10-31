@@ -1,12 +1,12 @@
 import { tv } from "#lib";
 
-// The stripe and glow of a region's one focal treatment (CD3): the speaker-ink leading edge and a glow behind the box.
+// The edge ring and glow of a region's one focal treatment (CD3): a speaker-ink ring around the box and a glow behind it. The ring is
+// a shadow, not a border, so a rounded box carries no one-sided border.
 export const focalSectionVariants = tv({
   variants: {
     focal: {
       true: `
-        relative isolate rounded-(--radius-base) [border-inline-start-width:var(--immersive-stripe-width)] [border-inline-start-style:solid]
-        [border-inline-start-color:var(--color-speaker)] p-row
+        relative isolate rounded-(--radius-base) p-row ring-1 ring-(--color-speaker)
         before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-(--radius-base) before:opacity-40 before:shadow-glow
         before:content-['']
       `,
