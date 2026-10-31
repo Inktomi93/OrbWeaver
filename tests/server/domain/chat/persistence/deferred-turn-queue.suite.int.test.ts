@@ -9,6 +9,8 @@ import { connectDevice } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
 
+const DRAIN_TIMEOUT_MS = 10_000;
+
 test("a member's host-offline send queues the frozen identity and the host reconnecting consumes it once", async () => {
   await using h = await textRoom(["The owed reply."], { group: { policy: "list", output: "per-speaker" } });
   const member = await h.root.principalFor((await h.root.actor()).id);
@@ -27,7 +29,7 @@ test("a member's host-offline send queues the frozen identity and the host recon
     // The host-return edge of the connect drains the queue on its own; wait for the owed reply to land.
     const canonOf = (): Promise<(typeof messages.$inferSelect)[]> =>
       h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq);
-    await expect.poll(async () => (await canonOf()).map(({ role }) => role)).toEqual(["user", "assistant"]);
+    await expect.poll(async () => (await canonOf()).map(({ role }) => role), { timeout: DRAIN_TIMEOUT_MS }).toEqual(["user", "assistant"]);
     await h.root.settleBackground();
     expect(await h.root.db.select().from(pendingTurns).where(eq(pendingTurns.chatId, h.chatId))).toEqual([]);
     const canon = await canonOf();

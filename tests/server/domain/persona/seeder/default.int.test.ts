@@ -9,6 +9,7 @@ import { createFindSeededDefault } from "@orb/server/domain/persona";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, freshDb, refuseWrites } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
+import { vi } from "vitest";
 
 // An automation-started stack: the one posture whose persona seeder creates the default instead of asking.
 const AUTOMATION_STACK = { ["E2E_HARNESS"]: "on" } as const;
@@ -56,7 +57,19 @@ test("a lost persona latch heals only its own artifact and independently preserv
   expect(await createFindSeededDefault((args) => services.persona.list(args))(actor)).toBeNull();
   const survivor = await services.persona.create({ principal: actor, input: { name: "Traveler", description: "", metadata: { seededDefault: true } } });
   await services.settings.updateUserSettingsSection({ principal: actor, input: { section: "seeds", patch: { defaultPersonaId: mine.id } } });
+  // A fresh account's seed stores the shipped persona art, which names the bytes the heal path must not store.
+  const fresh = await principal(root, (await root.actor()).id);
+  await root.app.contentSeeder.ensureSeeded(fresh);
+  const freshAvatar = (await services.persona.list({ principal: fresh }))[0]?.avatarAssetId;
+  const art = freshAvatar === null || freshAvatar === undefined ? undefined : await services.assets.assetCasRefById(freshAvatar);
+  if (art === undefined) {
+    throw new Error("the fresh seed stored no persona art");
+  }
+  const store = vi.spyOn(services.assets, "store");
   await root.app.contentSeeder.ensureSeeded(actor);
+  expect((await Promise.all(store.mock.results.map((result) => result.value as Promise<{ readonly hash: string }>))).map(({ hash }) => hash)).not.toContain(
+    art.hash,
+  );
   expect(await services.persona.list({ principal: actor })).toHaveLength(2);
   const config = (await services.settings.getUserSettings({ principal: actor })).config;
   expect(config.seeds.defaultPersonaId).toBe(mine.id);

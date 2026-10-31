@@ -10,3 +10,9 @@ export async function connectDevice(root: Pick<ServerTestHarness, "internalCalle
   const caller = await root.internalCallerFor(userId, signal);
   await caller.stream.connect({ socketId });
 }
+
+/** Whether `userId` reads online through the disclosure query a client asks, asked as `asker`. */
+export async function isOnline(root: Pick<ServerTestHarness, "internalCallerFor">, asker: UserId, userId: UserId): Promise<boolean> {
+  const caller = await root.internalCallerFor(asker);
+  return (await caller.notifications.presence({ userIds: [userId] })).onlineUserIds.includes(userId);
+}

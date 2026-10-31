@@ -9,7 +9,7 @@ import type { JsonValue } from "@orb/kit/json";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
-import { connectDevice } from "@orb/testkit/node/composed";
+import { connectDevice, isOnline } from "@orb/testkit/node/composed";
 import {
   attachPersonaLore,
   inputMessages,
@@ -352,10 +352,12 @@ test("Bob leaving removes only his people entry from the native system", async (
 });
 
 test("Bob going offline changes no native static byte and keeps his people entry", async () => {
-  await using room = await people();
+  await using room = await people({ multiHuman: true });
   await send(room.h, room.h.owner, "hello");
+  expect(await isOnline(room.h.root, room.h.owner.userId, room.bob.userId)).toBe(true);
   room.bobOnline.abort();
   room.h.root.clock.advance(60_000);
+  expect(await isOnline(room.h.root, room.h.owner.userId, room.bob.userId)).toBe(false);
   await send(room.h, room.h.owner, "still here?");
   const inputs = await personaInputs(room.h);
   const systems = inputs.map(inputSystem);
@@ -383,12 +385,14 @@ test("each real member persona book resolves user and persona against its own ow
 });
 
 test("Bob offline retains his persona lore and the exact native static block", async () => {
-  await using room = await people();
+  await using room = await people({ multiHuman: true });
   await attachPersonaLore(room.h, room.h.owner, room.alicePersona.id, "{{user}} likes tea ({{persona}})");
   await attachPersonaLore(room.h, room.bob, room.bobPersona.id, "{{user}} hates spiders ({{persona}})");
   await send(room.h, room.h.owner, "hello");
+  expect(await isOnline(room.h.root, room.h.owner.userId, room.bob.userId)).toBe(true);
   room.bobOnline.abort();
   room.h.root.clock.advance(60_000);
+  expect(await isOnline(room.h.root, room.h.owner.userId, room.bob.userId)).toBe(false);
   await send(room.h, room.h.owner, "still here?");
   const inputs = await personaInputs(room.h);
   const systems = inputs.map(inputSystem);
