@@ -52,7 +52,7 @@ test("native chat output suppliers retain exact canon, viewer projections, page 
     personality: null,
     greetings: null,
   });
-  expect(reads.listMessages.messages).toEqual([expect.objectContaining(result.edited)]);
+  expect(reads.listMessages.messages.map(({ position: _stamped, ...view }) => view)).toEqual([result.edited]);
   expect(result.older.messages.map((message) => [message.role, message.seq])).toEqual([["user", assistant.seq - 1]]);
   expect(reads.listMessageVariants.map((variant) => [variant.variantId, variant.idx])).toEqual([
     [assistant.selectedVariantId, 0],
