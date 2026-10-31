@@ -36,16 +36,12 @@ export interface ParsedConfigQuery {
   readonly group?: string;
   /** `@plugin:<slug>`, lowercased. */
   readonly plugin?: string;
-  /** `@` words that parse as tokens but aren't in the grammar (a typo, an empty value) — surfaced, never
-   *  silently dropped as search text: `@shefl:app` matching a row about shelves would be a lie. */
-  readonly unknown: readonly string[];
 }
 
 const VALUE_TOKEN_RE = /^@(shelf|in|plugin):(.*)$/iu;
 
 interface MutableParse {
   terms: string[];
-  unknown: string[];
   modified: boolean;
   advanced: boolean;
   shelf?: string;
@@ -66,8 +62,8 @@ function applyTokenWord(word: string, out: MutableParse): void {
   }
   const valued = VALUE_TOKEN_RE.exec(word);
   const value = valued?.[2];
+  // A typo or an empty value is dropped, never searched as text: `@shefl:app` matching a row about shelves would be a lie.
   if (valued === null || value === undefined || value.length === 0) {
-    out.unknown.push(word);
     return;
   }
   const kind = (valued[1] ?? "").toLowerCase();
@@ -83,7 +79,7 @@ function applyTokenWord(word: string, out: MutableParse): void {
 /** Parse a live query into free-text terms + the typed filters. Whitespace-tokenised; later duplicate
  *  value-tokens win (the one nearest the caret is the one being edited). */
 export function parseConfigQuery(text: string): ParsedConfigQuery {
-  const out: MutableParse = { terms: [], unknown: [], modified: false, advanced: false };
+  const out: MutableParse = { terms: [], modified: false, advanced: false };
   for (const word of text.split(/\s+/u)) {
     if (word.length === 0) {
       continue;
@@ -101,7 +97,6 @@ export function parseConfigQuery(text: string): ParsedConfigQuery {
     ...(out.shelf === undefined ? {} : { shelf: out.shelf }),
     ...(out.group === undefined ? {} : { group: out.group }),
     ...(out.plugin === undefined ? {} : { plugin: out.plugin }),
-    unknown: out.unknown,
   };
 }
 
