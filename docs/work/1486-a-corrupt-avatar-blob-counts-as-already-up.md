@@ -22,4 +22,4 @@ A corrupt blob is reported as a failed asset with its id and shown to the owner 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+A stored file whose bytes carry no known image signature threw nothing: the raw lens was a no-op in the text space and the analysis call failed into the skip shape, so the sweep counted it skipped. `loadAdmittedAsset` (`packages/server/src/domain/embeddings/indexer/image.ts`) now raises `AssetFileCorruptError` when the admission verdict is not `recognized`, and `embed-assets.ts` fails that asset like a missing file. Pinned by `tests/server/domain/embeddings/persistence/image-sweep-rows.int.test.ts` (a 5-byte blob stored through `assets.store`, swept through `embeddings.embedAssets`; red as `{ embedded: 1, skipped: 1 }`, green as `failedAssets: [id]`). The Jobs row names it through the failed-assets row, whose line now reads missing or unreadable.

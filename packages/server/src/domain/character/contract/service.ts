@@ -3,6 +3,7 @@
 
 import type { ReapAssetsOp } from "@orb/contracts/assets";
 import type {
+  CharacterAvatarNames,
   CharacterBulkTagResult,
   CharacterDetail,
   CharacterRef,
@@ -46,6 +47,7 @@ import type {
   ListCharactersParams,
   ListCharacterTagGroupsParams,
   ListSnapshotsParams,
+  NamesByAvatarAssetsParams,
   RemoveCharacterParams,
   RestoreParams,
   RewriteGreetingParams,
@@ -112,6 +114,8 @@ export interface CharacterService {
   readonly create: CreateCharacterOp;
   readonly get: GetCharacterOp;
   readonly count: (params: ListCharacterTagGroupsParams) => Promise<number>;
+  /** The caller's characters named by the avatar asset ids they wear — a by-ids read, never a page walk. */
+  readonly namesByAvatarAssets: (params: NamesByAvatarAssetsParams) => Promise<CharacterAvatarNames>;
   readonly list: (params: ListCharactersParams) => Promise<ListCharactersResult>;
   /** The GROUP-BY-TAG census over the SAME lens `list` pages (#1696) — see `verbs/list-tag-groups.ts`. */
   readonly listTagGroups: (params: ListCharacterTagGroupsParams) => Promise<ListCharacterTagGroupsResult>;

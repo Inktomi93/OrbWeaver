@@ -673,6 +673,24 @@ export async function findByOwnerName(db: Db, ownerId: UserId, name: string, cas
   return rows.map((row) => row.id);
 }
 
+/** The owner's characters named by the avatar asset ids they wear, oldest first so a shared avatar names its
+ *  first wearer. One `IN` read over the owner's rows; synthetic group identities are never user-facing. */
+export async function namesByOwnerAvatarAssets(
+  db: Db,
+  ownerId: UserId,
+  assetIds: readonly AssetId[],
+): Promise<{ readonly assetId: AssetId; readonly name: string }[]> {
+  if (assetIds.length === 0) {
+    return [];
+  }
+  const rows = await db
+    .select({ assetId: characters.avatarAssetId, name: characters.name })
+    .from(characters)
+    .where(and(eq(characters.ownerId, ownerId), inArray(characters.avatarAssetId, [...assetIds]), eq(characters.synthetic, false)))
+    .orderBy(asc(characters.createdAt), asc(characters.id));
+  return rows.flatMap((row) => (row.assetId === null ? [] : [{ assetId: row.assetId, name: row.name }]));
+}
+
 /** Re-import dedup oracle: the id of the owner's character carrying `importHash` as its import identity or as
  *  the art-less identity it kept when it took its art ({@link attachArtIfMissing}), or undefined. Oldest wins. */
 export async function findByOwnerImportHash(db: Db, ownerId: UserId, importHash: string): Promise<CharacterId | undefined> {
