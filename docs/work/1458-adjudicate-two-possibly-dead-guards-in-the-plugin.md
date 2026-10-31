@@ -6,11 +6,13 @@ priority: P3
 area: connection
 ---
 
-# Adjudicate three possibly dead guards in the plugin provider rows
+# Adjudicate possibly dead guards the restoration lanes found
 
 ## What
 
 packages/server/src/domain/connection/persistence/provider-rows.ts: the post-write re-read in replacePluginProviderRows (a plugin claims only ids under its own manifest id and (owner, slug) is unique, so no production path races two claims of one id), and the orphan reap branch in reconcilePluginClaims (no verb deletes a user; only a raw cascade would reach it). The plugin restoration lane adds a third: the pre-batch conflictingProviderDefinition check in replacePluginProviderRows changes no observable output, because the post-batch raced check still refuses a changed definition. The restoration lanes could not reach these through production.
+
+Restoration batch 5 adds three more whose removal changed no output: the openai-compat shaper's effort strip on a row that spells no effort field, the endpoint inspector's `failure === undefined` term in `ok` (the catch arm already returns false). The batch 5 review confirmed both dead. (The rpg import's existing-game pre-check was also listed; review proved it live, so it is not in scope.)
 
 ## Why
 
