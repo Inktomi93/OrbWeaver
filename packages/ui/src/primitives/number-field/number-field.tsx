@@ -76,6 +76,9 @@ export interface NumberFieldProps extends NumberFieldRootProps, VariantProps<typ
    *  Field-wrapped call site may ALSO pass it: it costs the input nothing and it is what names the
    *  Increment/Decrement buttons, which no `<Field>` label reaches (see `stepperLabel`). */
   "aria-label"?: string | undefined;
+  /** Focus the input on mount, for a field that appears as the answer to an explicit click (click-to-edit). Routed
+   *  to `NumberField.Input`; the Root would park it on the wrapper `<div>`. */
+  autoFocus?: boolean | undefined;
 }
 
 /**
@@ -102,6 +105,7 @@ export function NumberField(props: NumberFieldProps): ReactElement {
     placeholder,
     "aria-describedby": describedBy,
     "aria-label": ariaLabel,
+    autoFocus,
     size,
     layout,
     ...rest
@@ -110,7 +114,7 @@ export function NumberField(props: NumberFieldProps): ReactElement {
   const identity = useFieldIdentity(rest.id, rest.name);
   // Base UI mirrors the name onto a hidden number input only; the visible input a user fills carries it too.
   const nameProp = identity.name === undefined ? {} : { name: identity.name };
-  const hasSteppers = layout !== "inline";
+  const hasSteppers = layout !== "inline" && layout !== "tile";
   const hasScrub = scrubLabel !== undefined && scrubLabel !== null;
   const boundsId = useId();
   const bounds = boundsDescription(rest.min, rest.max, rest.locale, rest.format);
@@ -145,6 +149,8 @@ export function NumberField(props: NumberFieldProps): ReactElement {
         <BaseNumberField.Input
           aria-describedby={inputDescribedBy === "" ? undefined : inputDescribedBy}
           aria-label={ariaLabel}
+          // eslint-disable-next-line jsx-a11y/no-autofocus -- forwards the caller's explicit click-to-edit focus; the primitive never sets it
+          autoFocus={autoFocus}
           className={slots.input()}
           data-slot="number-field-input"
           {...nameProp}

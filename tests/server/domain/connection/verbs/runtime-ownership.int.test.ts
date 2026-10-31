@@ -1,3 +1,4 @@
+import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { makeGenerationCapability } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -14,7 +15,7 @@ test("connection admission and use-for-everything retain canonical API and fundi
     model: "owned-model",
     declared: { kind: "generation", features: { detectServer: false }, generation: makeGenerationCapability() },
   } as const;
-  await expect(services.connection.create({ ...fields, api: "agent-sdk" })).rejects.toMatchObject({ code: "connection_api_incoherent" });
+  await expect(services.connection.create({ ...fields, api: "agent-sdk" })).rejects.toMatchObject({ code: CONNECTION_OP_CODES.apiIncoherent });
   const row = await services.connection.create(fields);
   expect((await services.connection.useForEverything({ principal: ownerPrincipal, connectionId: row.id })).map((binding) => binding.task)).toEqual(["chat"]);
   await services.connection.update({ principal: ownerPrincipal, connectionId: row.id, patch: { allowBackground: true } });

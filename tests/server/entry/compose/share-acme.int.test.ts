@@ -13,7 +13,7 @@ import { connect } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { IpCertificateSetting } from "@orb/contracts/identity";
-import { authMeSchema, CSRF_HEADER, ipCertificateSettingSchema } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, authMeSchema, CSRF_HEADER, ipCertificateSettingSchema } from "@orb/contracts/identity";
 import { closeDb } from "@orb/db";
 import { IP_CERTIFICATE_FILE_NAMES } from "@orb/server/foundation/data-layout";
 import { createControlledTimers, createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso";
@@ -44,7 +44,7 @@ async function setup(holdPath?: string, options: ServerHarnessOptions = {}): Pro
   const held = holdPath === undefined ? undefined : authority.hold(holdPath);
   const harness = owners.use(
     await createServerHarness({
-      env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
+      env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
       bindHost: "0.0.0.0",
       allowPublicBind: true,
       share: { acme: { directoryUrl: authority.directoryUrl, polling: { attempts: 2, minMs: 1, maxMs: 2 } } },
@@ -316,7 +316,7 @@ test("shutdown preserves borrowed certificates for real restart; a corrupt store
     db,
     ownerId: first.harness.ownerId,
     secretsDir: first.harness.secretsDir,
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
     bindHost: "0.0.0.0",
     allowPublicBind: true,
     share: { acme: { directoryUrl: first.authority.directoryUrl, polling: { attempts: 2, minMs: 1, maxMs: 2 } } },

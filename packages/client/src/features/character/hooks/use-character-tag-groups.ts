@@ -13,15 +13,15 @@
 // the census and the rows can never be answers about different scopes — which is the whole failure mode the
 // prior arm refused a census over.
 
+import type { ListCharacterTagGroupsResult } from "@orb/contracts/character";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
-import type { TagGroupCensus } from "../lib/character-list-view.ts";
 import { useLibraryScope } from "./use-library-scope.ts";
 
 /** The census, or `null` while the read is in flight / has failed — which the fold renders as "the library's
  *  numbers are not known yet", never as a page-derived count. A failed census is the same statement: the
  *  grouped view stays usable over the loaded rows and simply claims nothing about the library. */
-export function useCharacterTagGroups(enabled: boolean): TagGroupCensus | null {
+export function useCharacterTagGroups(enabled: boolean): ListCharacterTagGroupsResult | null {
   const trpc = useTRPC();
   const scope = useLibraryScope();
   const { data } = useQuery({ ...trpc.character.listTagGroups.queryOptions(scope.args), enabled });

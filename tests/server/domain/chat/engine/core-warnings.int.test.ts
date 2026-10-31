@@ -1,12 +1,14 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Saved capabilities and owned media cause real funnel warnings, never fabricated ChatResult events.
 import type { ChatBusEvent } from "@orb/contracts/chat";
+import { WARNING_CODE } from "@orb/contracts/inference";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, makeAssetBytes } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
+import { SETTINGS_ADJUSTED_CODE } from "#contracts/chat/bus.ts";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
 
 const REPLY = "The actual text-only reply.";
@@ -81,8 +83,8 @@ test("an unsupported actual temperature reaches the room as settings_adjusted na
   const outcome = await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId, intent: { temperature: 0.9 } });
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages).toMatchObject([{ content: REPLY }]);
-  expect(events.filter((event) => event.type === "warning" && event.code === "settings_adjusted" && event.knob === "temperature")).toMatchObject([
-    { adjustment: "sampling_knob_dropped", knob: "temperature" },
+  expect(events.filter((event) => event.type === "warning" && event.code === SETTINGS_ADJUSTED_CODE && event.knob === "temperature")).toMatchObject([
+    { adjustment: WARNING_CODE.samplingKnobDropped, knob: "temperature" },
   ]);
   const requests = h.requests.filter((request) => request.method === "POST" && new URL(request.url).pathname.endsWith("/chat/completions"));
   expect(requests).toHaveLength(1);

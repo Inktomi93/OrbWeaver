@@ -13,6 +13,7 @@ import type { GenerateImageActionArgs } from "#imagery";
 import type { PluginNotificationRecipient } from "#notifications";
 import type {
   PluginAssetView,
+  PluginCardDataMatch,
   PluginCharacterView,
   PluginMessageView,
   PluginQuietOptions,
@@ -321,6 +322,9 @@ export interface PluginBridge {
      *  targets only this plugin's own key. Returns the stored blob or `null` when none is stored on that owned
      *  character. */
     readonly getCardData: (characterId: SandboxWireId<CharacterId>, liveness?: PluginInvocationLiveness) => Promise<Record<string, unknown> | null>;
+    /** The installer's characters whose stamp for this plugin holds any of `values` (`host.character.findCardData`,
+     *  capability `character.card_state`). The domain builder closes over the installer and the slug. */
+    readonly findCardData: (values: readonly string[], liveness?: PluginInvocationLiveness) => Promise<readonly PluginCardDataMatch[]>;
   };
   /** Publish a PRIVATE plugin event (`host.pubsub.emit`, capability `plugin_events`). The
    *  domain builder closes over the INSTALLER + the emitter's own manifest SLUG (both un-forgeable — a guest

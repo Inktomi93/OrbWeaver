@@ -1,5 +1,7 @@
 // @subject packages/server/src/transport/trpc/routers/chat.ts
 // @subject packages/kit/src/time/index.ts
+
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { createFrozenClock } from "@orb/testkit/iso";
@@ -9,7 +11,7 @@ import { CLOCK_CONFIG, CLOCK_PREFIX, KATHMANDU, KATHMANDU_CLOCK, NOW } from "./t
 
 test("the actual mounted send refuses numeric or missing zones before provider work after a valid zoned request", async () => {
   await using h = await textRoom(["The keeper records the requested clock."], {
-    server: { clock: createFrozenClock(NOW), physicalPeer: () => "127.0.0.1", env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" } },
+    server: { clock: createFrozenClock(NOW), physicalPeer: () => "127.0.0.1", env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" } },
     group: { output: "per-speaker", policy: "list" },
     promptConfig: CLOCK_CONFIG,
   });

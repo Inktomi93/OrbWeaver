@@ -43,7 +43,7 @@ import type { GeneratePicturePrompt, SizePresetName } from "@orb/contracts/image
 import type { SendAvailability } from "@orb/contracts/inference";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ResolveConnectedPersonaOp, ResolveCurrentPersonaOp, ResolveDefaultPersonaOp, ResolveUserPublicsOp } from "@orb/contracts/persona";
-import type { ChoiceBlockSpec, ResolveUtilityPresetParams, UserIntent } from "@orb/contracts/preset";
+import type { ChoiceBlockSpec, ResolveUtilityPresetParams, RolePresetParams, UserIntent } from "@orb/contracts/preset";
 import type { CopyHandoffRegexScriptsArgs, CountHandoffRegexScripts } from "@orb/contracts/regex";
 import type { CancelStateRoundsOp } from "@orb/contracts/rpg";
 import type { MemoryQueryOptions, ResolveCorpusSourceState, ScoredBlock } from "@orb/contracts/search";
@@ -52,7 +52,7 @@ import type { CopyHandoffBooksArgs, CountHandoffBooks } from "@orb/contracts/wor
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { StatementToken } from "@orb/db/wiring";
-import type { BindingActor, Resolved, RoleClientsWithSignal, SideGenSampling, SummarizeResult, WireTool } from "@orb/inference";
+import type { BindingActor, Resolved, RoleClientsWithSignal, SummarizeResult, WireTool } from "@orb/inference";
 import type {
   AssetId,
   CharacterId,
@@ -150,7 +150,7 @@ export type SummarizeOp = (funderUserId: UserId, ...args: Parameters<RoleClients
  *  preset the turn runs: the same ladder (a game's GM-voice preset, else the host's default). Resolved at the entry
  *  root (chat never reads the preset domain); a hostless/stale room degrades to the system-default params.
  *  `maxContextTokens` sets the window on a route that sends one, so the pass runs the turn's own. */
-export type ResolveChatPresetParamsOp = (chatId: ChatId) => Promise<SideGenSampling & Pick<UserIntent, "maxContextTokens">>;
+export type ResolveChatPresetParamsOp = (chatId: ChatId) => Promise<RolePresetParams & Pick<UserIntent, "maxContextTokens">>;
 
 /** B7 — a user's per-user reaction defaults, picked off the same schema-real `UserSettings.chat` arm the
  *  turn path consumes as `ChatBehaviorInputs` (never a re-spelled shape). The op half of
@@ -273,7 +273,7 @@ export type PostNarratorMessage = (
 ) => Promise<{ readonly messageId: MessageId; readonly variantId: MessageVariantId }>;
 
 /** The chat-bus emit the narrator-post op needs (durable-first) — chat's own collaborator, wired at the root
- *  (the `GenerateImageDeps` shape; not on `ChatContext`). */
+ *  (the `PostNarratorMessageDeps` shape; not on `ChatContext`). */
 export interface PostNarratorMessageDeps {
   readonly emit: EmitDurableChatEventOp;
   /** The husk→real transition (R0) -- a narrator post is canon, so it claims. */

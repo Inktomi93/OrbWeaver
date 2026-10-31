@@ -92,13 +92,14 @@
 //    import funnel a hand-uploaded card file takes and the character arrives WITH its avatar. A hub that
 //    serves native card JSON instead (Wyvern, RisuRealm's json-v3) ingests that; a PNG-only hub whose PNG
 //    arm fails answers an honest error toast. Then `character.setCardData` stamps WHERE IT CAME FROM under
-//    this plugin's own reserved key (portable, unforgeable), and the private `storage.kv` owned-index is the
-//    fast "in your library" lookup.
+//    this plugin's own reserved key (portable, unforgeable), and `character.findCardData` reads those stamps
+//    back for the "in your library" badge. The stamp lives on the character, so deleting the character clears
+//    the badge; a private index would have to be told.
 //
 //  * RESIDENT SESSION STATE. `session` below is a plain module variable: a resident guest lives from
 //    activation to disable, so a browse session (which page was I on?) is honestly module state. It dies on
-//    respawn — exactly right for a search session, and exactly wrong for the owned-index and the art cache,
-//    which is why THOSE live in storage. Choose the plane by the data's lifetime, not by habit.
+//    respawn — exactly right for a search session, and exactly wrong for the art cache, which is why THAT
+//    lives in storage. Choose the plane by the data's lifetime, not by habit.
 
 const host = orb.host(1);
 
@@ -255,7 +256,7 @@ const BOTBOORU_XHR_HEADERS = Object.fromEntries([
   ["Accept", "application/json"],
 ]);
 
-// ── the art cache (ONE kv key — the 256-key budget already carries the owned-index) ───────────────────────
+// ── the art cache (ONE kv key, inside the plugin's kv key budget) ─────────────────────────────────────────
 /** kv key holding `{ "<source>:<ref>": { a: assetId, t: fetchedAtMs }, … }` — every cover/hero this plugin
  *  has already pulled into the installer's CAS. A SPEED cache: a repeat search or a page you flip back to
  *  paints its art instantly instead of re-downloading it. Why the TTL: a scheduled assets-GC can reap
@@ -2018,8 +2019,66 @@ async function runOpen(seq: number, result: AtlasRow): Promise<void> {
   }
 }
 
-// ── the owned-index (fast lookup) + the card stamp (durable provenance) ────────────────────────────────────
-const ownedKey = (result: AtlasRow): string => `owned:${result.source}:${result.ref}`;
+// ── the card stamp (provenance, and the "in your library" lookup) ─────────────────────────────────────────
+/** The host refuses a longer `character.findCardData` list, so {@link libraryKeys} sends batches of this size. */
+const CARD_FIND_VALUES_MAX = 64;
+/** The prefix of the kv index this guest no longer keeps. */
+const RETIRED_OWNED_PREFIX = "owned:";
+
+/** Every `<source>:<ref>` one stamp names. A card reached from a second hub dedupes to one character, so `keys`
+ *  lists them all. An older stamp carries only the hub label and `ref`, and a forged one may carry anything, so
+ *  every field is read as untrusted data. */
+function stampKeys(stamp: Readonly<Record<string, unknown>>): string[] {
+  const listed = stamp["keys"];
+  const keys = Array.isArray(listed) ? listed.filter((key): key is string => typeof key === "string") : [];
+  const ref = str(stamp["ref"]);
+  const source = SOURCE_KEYS.find((key) => SOURCES[key].label === stamp["source"]);
+  return ref === undefined || source === undefined ? keys : [...keys, `${source}:${ref}`];
+}
+
+/** Which of `rows` are in the library, as a set of `artKey`s. It asks for the bare `ref` too, because an older
+ *  stamp holds no `keys`; {@link stampKeys} then rejects a same-numbered card from another hub. The badge is
+ *  decoration, so a refused read shows no badge rather than failing the page. */
+async function libraryKeys(rows: readonly AtlasRow[]): Promise<ReadonlySet<string>> {
+  const owned = new Set<string>();
+  if (!host.grants.includes("character.card_state")) {
+    return owned;
+  }
+  const values = [...new Set(rows.flatMap((row) => [artKey(row), row.ref]))];
+  try {
+    for (let start = 0; start < values.length; start += CARD_FIND_VALUES_MAX) {
+      const matches = await host.character.findCardData(values.slice(start, start + CARD_FIND_VALUES_MAX));
+      for (const key of matches.flatMap((match) => stampKeys(match.data))) {
+        owned.add(key);
+      }
+    }
+  } catch (err) {
+    host.log.info(`library lookup failed: ${String(err)}`);
+  }
+  return owned;
+}
+
+/** Stamp the character, keeping every hub card it already answers for. */
+async function stampCard(characterId: string, result: AtlasRow): Promise<void> {
+  const prior = await host.character.getCardData(characterId);
+  await host.character.setCardData(characterId, {
+    source: SOURCES[result.source].label,
+    ref: result.ref,
+    importedAtMs: host.clock.nowEpochMs(),
+    keys: [...new Set([...stampKeys(prior ?? {}), artKey(result)])],
+  });
+}
+
+/** Drop what the retired kv index left behind, so its keys stop spending the plugin's kv budget. An empty list
+ *  is the common case and costs one read. A refusal leaves the keys for the next activation. */
+async function sweepRetiredIndex(): Promise<void> {
+  try {
+    const retired = await host.storage.list(RETIRED_OWNED_PREFIX);
+    await mapLimit(retired, (key) => host.storage.delete(key));
+  } catch (err) {
+    host.log.info(`retired index sweep failed: ${String(err)}`);
+  }
+}
 
 /** The PNG-first import arm: card file → installer CAS → the SAME import funnel a hand-uploaded PNG takes,
  *  so the character arrives WITH its embedded avatar. `null` on ANY failure (no grant, no PNG on this hub,
@@ -2044,8 +2103,8 @@ async function addViaPng(result: AtlasRow): Promise<{ readonly characterId: stri
 /** A toast the ADD PATH may not die on (#1698). `host.ui.toast` is rate-limited to one notice every
  *  `PLUGIN_TOAST_COOLDOWN_SECONDS` per plugin and REFUSES BY THROWING (the host's outbox is deliberate about
  *  that: a plugin over its floor should learn so). The add path used to `await` it mid-function, so a refused
- *  toast threw straight through `addToLibrary` — which silently skipped the provenance stamp AND the owned
- *  index below it, and stopped the caller from republishing the page at all. A second add inside ten seconds
+ *  toast threw straight through `addToLibrary` — which silently skipped the provenance stamp below it, and
+ *  stopped the caller from republishing the page at all. A second add inside ten seconds
  *  therefore changed nothing on screen and lost the card's provenance. The notice is BEST-EFFORT; the writes
  *  and the page are not. Logged rather than swallowed: the refusal is a real fact about this plugin's budget. */
 async function say(level: PluginToastLevel, message: string): Promise<void> {
@@ -2059,8 +2118,8 @@ async function say(level: PluginToastLevel, message: string): Promise<void> {
 /** Add one card to the library: PNG-first (definition + avatar in one pass), JSON fold where the hub serves
  *  card JSON; then stamp + remember.
  *
- *  RETURNS THE OUTCOME, and that is the #1698 fix's other half. The detail page's owned line used to be read
- *  back out of the owned INDEX, which this function has just written — so the instant a first-ever import
+ *  RETURNS THE OUTCOME, and that is the #1698 fix's other half. The detail page's owned line reads the stamp
+ *  this function has just written — so without the outcome, the instant a first-ever import
  *  succeeded the page said "Already in your library", i.e. the one moment the surface exists for reported
  *  that nothing had happened. Ownership-at-rest and what-just-happened are two different facts; the caller
  *  now hands the second one to `publishDetail`. `"added"` / `"already"` / `null` (the hub refused). */
@@ -2081,13 +2140,8 @@ async function addToLibrary(result: AtlasRow, raw: unknown): Promise<ImportOutco
   // The PORTABLE stamp: this plugin's own reserved key on the card. Survives export→import; readable and
   // writable by card-atlas alone (the host stamps the namespace from the manifest slug — unforgeable).
   if (host.grants.includes("character.card_state")) {
-    await host.character.setCardData(characterId, {
-      source: SOURCES[result.source].label,
-      ref: result.ref,
-      importedAtMs: host.clock.nowEpochMs(),
-    });
+    await stampCard(characterId, result);
   }
-  await host.storage.set(ownedKey(result), characterId);
   if (created) {
     await say("success", `${result.name} is in your library.`);
     return "added";
@@ -2114,8 +2168,7 @@ function tileTags(result: AtlasRow): readonly string[] {
 async function publishBrowse(status: string, sourceKey?: SourceKey, loading = false): Promise<void> {
   const cache = await loadArtCache();
   const rows = session === null ? [] : session.pageRows;
-  // Bounded, and each read folds its own failure — the owned badge is decoration, never worth an action.
-  const owned = await mapLimit(rows, (result) => host.storage.get(ownedKey(result)).catch(() => null));
+  const owned = await libraryKeys(rows);
   const menuKey = sourceKey ?? (session === null ? "tavern" : session.sourceKey);
   await host.ui.setState("atlas_page", {
     stage: "browse",
@@ -2133,7 +2186,7 @@ async function publishBrowse(status: string, sourceKey?: SourceKey, loading = fa
         title: result.name,
         subtitle: result.pop === "" ? result.creator : `${result.creator} · ${result.pop}`,
         ...(chips.length === 0 ? {} : { tags: chips }),
-        ...(owned[i] === null ? {} : { badge: "in your library" }),
+        ...(owned.has(artKey(result)) ? { badge: "in your library" } : {}),
         ...(cover === undefined ? {} : { assetId: cover }),
       };
     }),
@@ -2149,16 +2202,16 @@ const OUTCOME_LINE = {
   already: "Already in your library — nothing was duplicated.",
 };
 
-function outcomeLine(outcome: ImportOutcome | undefined, ownedId: string | null): string {
+function outcomeLine(outcome: ImportOutcome | undefined, inLibrary: boolean): string {
   if (outcome !== undefined) {
     return OUTCOME_LINE[outcome];
   }
-  return ownedId === null ? "" : "Already in your library — adding again just re-checks the bytes.";
+  return inLibrary ? "Already in your library — adding again just re-checks the bytes." : "";
 }
 
 async function publishDetail(result: AtlasRow, blurb: string, outcome?: ImportOutcome): Promise<void> {
   const cache = await loadArtCache();
-  const ownedId = await host.storage.get(ownedKey(result));
+  const owned = await libraryKeys([result]);
   // The hero: the sharper cached variant when one has landed, else the grid cover — so the decision surface
   // paints art INSTANTLY from cache and upgrades in place (the open continuation fetches the variant lazily).
   const art = cachedArt(cache, heroKey(result)) ?? cachedArt(cache, artKey(result)) ?? "";
@@ -2186,7 +2239,7 @@ async function publishDetail(result: AtlasRow, blurb: string, outcome?: ImportOu
       // The OUTCOME wins where there is one — this render is the answer to a button press, and the person is
       // owed what just happened rather than a standing property of the library. `undefined` (every publish
       // that is not an add's) falls back to the rest state.
-      owned: outcomeLine(outcome, ownedId),
+      owned: outcomeLine(outcome, owned.has(artKey(result))),
       art,
     },
   });
@@ -2374,6 +2427,7 @@ if (canBrowse) {
     if (sfwOn) {
       registerAtlasPage(true);
     }
+    await sweepRetiredIndex();
     await publishBrowse("Search to begin — the atlas covers nine community hubs.");
   })().catch((err) => host.log.warn(`atlas boot failed: ${String(err)}`));
 }

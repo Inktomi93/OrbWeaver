@@ -10,26 +10,17 @@ import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResu
 import type { ProviderScrubSet } from "./errors.ts";
 import type { Resolved } from "./resolved.ts";
 
-interface DiagnosticRequestCommon {
+/** What every diagnostic round-trip takes: the probe, the credit read, the endpoint inspector (the ACTUAL shaped
+ *  request, headers redacted, plus the raw response) and the subscription auth verify (a tiny SDK turn under THIS
+ *  user's claude-sub row). */
+export interface DiagnosticRequestCommon {
   readonly connection: Resolved;
   readonly signal?: AbortSignal | undefined;
 }
 
-/** Credential-health round-trip. */
-export type ProbeRequest = DiagnosticRequestCommon;
-
-export type AccountCreditsRequest = DiagnosticRequestCommon;
-
 export interface GenerationCostRequest extends DiagnosticRequestCommon {
   readonly generationId: string;
 }
-
-/** The "Test endpoint" inspector against an `auth: endpoint` row — the ACTUAL shaped request (headers
- *  redacted) plus the raw response. */
-export type InspectRequest = DiagnosticRequestCommon;
-
-/** The subscription auth verify — a tiny SDK turn under THIS user's claude-sub row. */
-export type VerifyAuthRequest = DiagnosticRequestCommon;
 
 /** What a model-list read needs from a connection: which wire and provider, whose credential, which server.
  *  Narrower than `Resolved` on purpose — a DRAFT (no row, no model, no capability yet) lists through the same
@@ -55,10 +46,10 @@ export interface ModelsDial {
 }
 
 export interface ProviderDiagnostics {
-  readonly probe: (req: ProbeRequest) => Promise<CredentialHealth>;
-  readonly accountCredits: (req: AccountCreditsRequest) => Promise<AccountCredits>;
+  readonly probe: (req: DiagnosticRequestCommon) => Promise<CredentialHealth>;
+  readonly accountCredits: (req: DiagnosticRequestCommon) => Promise<AccountCredits>;
   readonly generationCost: (req: GenerationCostRequest) => Promise<GenerationCost>;
-  readonly inspect: (req: InspectRequest) => Promise<EndpointInspection>;
-  readonly verifyAuth: (req: VerifyAuthRequest) => Promise<VerifyAuthResult>;
+  readonly inspect: (req: DiagnosticRequestCommon) => Promise<EndpointInspection>;
+  readonly verifyAuth: (req: DiagnosticRequestCommon) => Promise<VerifyAuthResult>;
   readonly listModels: (req: ListModelsRequest) => Promise<ModelListing>;
 }

@@ -247,7 +247,7 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
     // Two provenance channels, never both: a file upload carries a filename; a plugin funnel carries no
     // filename at all (its wire shape is `{card}`/`{assetId}`, never a name) but knows its OWN manifest id
     // — paired with this card's own `importHash` so an equal-content re-ingest through the SAME plugin mints
-    // the SAME `importedFrom` (the `findByImportedFrom` re-ingest match).
+    // the SAME `importedFrom`.
     const importedFrom = filename ?? (pluginId === undefined ? null : pluginImportedFrom(pluginId, importHash));
     const ref = await ctx.createCharacter({
       ownerId: ctx.ownerId,

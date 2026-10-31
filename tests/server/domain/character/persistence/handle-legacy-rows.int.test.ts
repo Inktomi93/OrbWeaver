@@ -4,9 +4,9 @@
 // @subject packages/server/src/domain/export/verbs/portable-exports.ts
 // @subject packages/server/src/domain/export/verbs/export-chat-bundle.ts
 import { characterHandleSchema, createCharacterSchema } from "@orb/contracts/character";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
-import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
+import { PORTABILITY_ROUTES, PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import { characters } from "@orb/db";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -16,8 +16,8 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, extractZip, seedTranscript } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
-const EXPORT_ROUTE = "/api/export/library?kinds=character,chat";
-const BUNDLE_ROUTE = "/api/import/bundle";
+const EXPORT_ROUTE = `${PORTABILITY_ROUTES.exportLibrary}?kinds=character,chat`;
+const BUNDLE_ROUTE = PORTABILITY_ROUTES.importBundle;
 const SIGNED_IN_ROUTE = "/api/trpc/sessions.me";
 const WORKLOAD_DEADLINE_MS = 60_000;
 const SOURCE_ID_CURSOR = 2 ** 29;
@@ -29,7 +29,7 @@ async function signedInBox(ids?: ReturnType<typeof createSeededIds>): Promise<Se
   const root = await createServerHarness({
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
     ...(ids === undefined ? {} : { ids }),
   });
   expect((await root.http.request(SIGNED_IN_ROUTE)).status).toBe(200);

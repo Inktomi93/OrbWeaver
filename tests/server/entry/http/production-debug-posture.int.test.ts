@@ -1,5 +1,7 @@
 // @subject packages/server/src/entry/http/app.ts
 import process from "node:process";
+import { AUTH_FALLBACK_KEY, AUTH_FALLBACK_TRUSTED_PEERS_KEY, AUTH_MODE_KEY, OWNER_HANDLES_KEY } from "@orb/contracts/identity";
+import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
 import { expect, test } from "@orb/testkit/node";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
@@ -45,13 +47,13 @@ test.for([
   const child = runNicedSync(process.execPath, ["--input-type=module", "--eval", OBSERVE_PRODUCTION], {
     env: testProcessEnv({
       ["NODE_ENV"]: "production",
-      ["AUTH_MODE"]: "single-user",
-      ["AUTH_FALLBACK"]: "owner",
-      ["AUTH_FALLBACK_TRUSTED_PEERS"]: "",
+      [AUTH_MODE_KEY]: "single-user",
+      [AUTH_FALLBACK_KEY]: "owner",
+      [AUTH_FALLBACK_TRUSTED_PEERS_KEY]: "",
       ["BIND_HOST"]: "127.0.0.1",
       ["ORB_CONTAINER"]: "false",
-      ["OWNER_HANDLES"]: "production-debug-owner",
-      ["DEBUG_TOKEN"]: configuredToken ? DEBUG_TOKEN : undefined,
+      [OWNER_HANDLES_KEY]: "production-debug-owner",
+      [DEBUG_TOKEN_ENV]: configuredToken ? DEBUG_TOKEN : undefined,
       ["LOG_LEVEL"]: "silent",
     }),
     timeout: budget(LONG_TEST_TIMEOUT_BASE_MS),

@@ -51,6 +51,8 @@ export interface AtlasBootOptions {
   /** Supplied ⇒ `host.character.ingest` answers it (and `ingestAsset` rejects, so the guest folds to the
    *  JSON arm the way a PNG-less hub does). Absent ⇒ there is no character plane at all. */
   readonly ingest?: (card: unknown) => AtlasIngestOutcome;
+  /** Keys already in the scripted KV before activation. */
+  readonly kv?: Readonly<Record<string, string>>;
   /** Throw to script an external toast refusal; this does not implement host rate admission. */
   readonly onToast?: (toast: AtlasToast, index: number) => void;
 }
@@ -68,7 +70,7 @@ export async function bootAtlas(options: AtlasBootOptions = {}): Promise<AtlasDr
   const toasts: AtlasToast[] = [];
   const ingests: string[] = [];
   const cardData = new Map<string, unknown>();
-  const kv = new Map<string, string>();
+  const kv = new Map<string, string>(Object.entries(options.kv ?? {}));
   let onAction: NonNullable<Parameters<PluginHostV1["ui"]["register"]>[0]["onAction"]> | null = null;
   const ingest = options.ingest;
   const character =
@@ -86,6 +88,8 @@ export async function bootAtlas(options: AtlasBootOptions = {}): Promise<AtlasDr
             cardData.set(characterId, data);
             return Promise.resolve();
           },
+          getCardData: (): Promise<null> => Promise.resolve(null),
+          findCardData: (): Promise<readonly never[]> => Promise.resolve([]),
         };
   const surface = {
     version: 1,
@@ -134,7 +138,7 @@ export async function bootAtlas(options: AtlasBootOptions = {}): Promise<AtlasDr
         kv.delete(key);
         return Promise.resolve();
       },
-      list: (): Promise<string[]> => Promise.resolve([...kv.keys()]),
+      list: (prefix = ""): Promise<string[]> => Promise.resolve([...kv.keys()].filter((key) => key.startsWith(prefix))),
     },
     net: {
       fetch: (url: string): Promise<{ status: number; body: string }> => {

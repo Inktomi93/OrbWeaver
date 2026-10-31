@@ -8,8 +8,11 @@
 
 import { join } from "node:path";
 import { HEALTH_STATUSES, healthResponseSchema } from "@orb/contracts/diagnostics";
+import { OWNER_HANDLES_KEY } from "@orb/contracts/identity";
+import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { expect, test } from "@orb/testkit/node";
 import { describe, vi } from "vitest";
+import { DATABASE_URL_KEY, LOCAL_LIGHT_CACHE_DIR_KEY } from "../../../packages/server/src/foundation/data-layout/contract.ts";
 import { E2E_RUN_ROOT, LOCAL_OWNER, MODE_PROJECTS, SINGLE_USER, selectedModeProjects } from "./modes.ts";
 import { ALLOW_DEV_TARGET_ENV, DEV_STACK_PORTS, devTargetAllowed, probeTarget, targetRefusal } from "./target-guard.ts";
 
@@ -66,17 +69,17 @@ describe("mode projects (default, no override)", () => {
       for (const url of [mode.baseUrl, mode.backendUrl]) {
         expect(DEV_STACK_PORTS, `${mode.name} ${url}`).not.toContain(new URL(url).port);
       }
-      expect(mode.webServerEnv["DATABASE_URL"], mode.name).toBe(`file:${join(mode.webServerEnv["DATA_DIR"] ?? "", "orb.db")}`);
+      expect(mode.webServerEnv[DATABASE_URL_KEY], mode.name).toBe(`file:${join(mode.webServerEnv["DATA_DIR"] ?? "", "orb.db")}`);
       // The secrets, caches and reports derive from the root, not the db slot: without this the harness
       // stack would generate its keyfiles into the checkout's real `data/secrets/`.
       expect(mode.webServerEnv["DATA_DIR"]?.startsWith(`${E2E_RUN_ROOT}/`), mode.name).toBe(true);
       expect(mode.webServerEnv["LOCAL_LIGHT_PREFETCH"], mode.name).toBe("off");
-      expect(mode.webServerEnv["LOCAL_LIGHT_CACHE_DIR"]?.startsWith(`${E2E_RUN_ROOT}/`), mode.name).toBe(false);
+      expect(mode.webServerEnv[LOCAL_LIGHT_CACHE_DIR_KEY]?.startsWith(`${E2E_RUN_ROOT}/`), mode.name).toBe(false);
     }
   });
 
   test("the single-user project is the one that regressed — it is isolated by default", () => {
-    expect(SINGLE_USER.webServerEnv["DATABASE_URL"]).toBe(`file:${join(E2E_RUN_ROOT, "single", "orb.db")}`);
+    expect(SINGLE_USER.webServerEnv[DATABASE_URL_KEY]).toBe(`file:${join(E2E_RUN_ROOT, "single", "orb.db")}`);
     expect(targetRefusal(SINGLE_USER, STAMPED, false)).toBeUndefined();
   });
 
@@ -87,7 +90,7 @@ describe("mode projects (default, no override)", () => {
   // are invisible to every source-scoped tool and to a box with no `.env`.
   test("every mode PINS the box owner handle — an ambient OWNER_HANDLES cannot redefine the fixture's owner", () => {
     for (const mode of MODE_PROJECTS) {
-      expect(mode.webServerEnv["OWNER_HANDLES"], mode.name).toBe(LOCAL_OWNER.handle);
+      expect(mode.webServerEnv[OWNER_HANDLES_KEY], mode.name).toBe(LOCAL_OWNER.handle);
     }
   });
 
@@ -96,7 +99,7 @@ describe("mode projects (default, no override)", () => {
       // ORB_ENV_NO_OVERRIDE only decides who WINS for a key the harness also sets; every key it does NOT set
       // still gets filled from the file. ORB_ENV_NO_FILE is the same ambient-proofing vitest.config.ts applies
       // to the node lanes, for the same measured reason (a live box's AUTH_MODE/WIRE_CAPTURE reddening tests).
-      expect(mode.webServerEnv["ORB_ENV_NO_FILE"], mode.name).toBe("1");
+      expect(mode.webServerEnv[ENV_NO_FILE_KEY], mode.name).toBe("1");
     }
   });
 });

@@ -123,17 +123,34 @@ export interface CorpusConnections {
   readonly text: CorpusConnectionView;
 }
 
-/** Configure explicit physical corpus models through real owner admission; no runtime/role resolver is replaced. */
-export async function seedCorpusConnections(root: ServerHarness, principal: Principal): Promise<CorpusConnections> {
-  const embed = await root.services.connection.create({
+/** The model id of the second embedding encoder a case adds beside the corpus encoder. */
+export const CORPUS_ALTERNATE_EMBED_MODEL = `${CORPUS_EMBED_MODEL}-alternate`;
+
+/** One embedding connection on the corpus endpoint, unbound: the declaration every corpus encoder carries, over the model it names
+ *  and the inputs it takes. A different model is a different encoder identity, so binding it moves the owner's embedding space. */
+export function seedEmbeddingConnection(
+  root: ServerHarness,
+  principal: Principal,
+  options: { readonly model: string; readonly input?: readonly ("text" | "image")[] },
+): Promise<CorpusConnectionView> {
+  return root.services.connection.create({
     principal,
     providerId: "custom-openai",
     credentialId: null,
     baseUrl: CORPUS_PROVIDER_ENDPOINT,
-    model: CORPUS_EMBED_MODEL,
+    model: options.model,
     allowBackground: true,
-    declared: { kind: "embedding", embedding: { dims: CORPUS_EMBEDDING_VECTOR.length, maxInputTokens: 8192 }, features: { detectServer: false } },
+    declared: {
+      kind: "embedding",
+      embedding: { dims: CORPUS_EMBEDDING_VECTOR.length, maxInputTokens: 8192, ...(options.input === undefined ? {} : { input: [...options.input] }) },
+      features: { detectServer: false },
+    },
   });
+}
+
+/** Configure explicit physical corpus models through real owner admission; no runtime/role resolver is replaced. */
+export async function seedCorpusConnections(root: ServerHarness, principal: Principal): Promise<CorpusConnections> {
+  const embed = await seedEmbeddingConnection(root, principal, { model: CORPUS_EMBED_MODEL });
   const text = await root.services.connection.create({
     principal,
     providerId: "custom-openai",

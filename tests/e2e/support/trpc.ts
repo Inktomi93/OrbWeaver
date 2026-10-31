@@ -5,6 +5,7 @@ import { chatInspectionSchema, debugErrorsResponseSchema, rpgTracesResponseSchem
 import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterHandle, CharacterId, ChatId, MessageId, UserConnectionId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
 import type {
   ActorRefInput,
   CompactionIntent,
@@ -51,7 +52,7 @@ const BASE_URL = SINGLE_USER.baseUrl;
  * reason invisible in the diff.
  */
 // biome-ignore lint/style/noProcessEnv: e2e node support reads its env directly, exactly as the dev-target gate above does (its sanctioned peer).
-const DEBUG_TOKEN = DEV_TARGET_ALLOWED ? (process.env["DEBUG_TOKEN"] ?? E2E_DEBUG_TOKEN) : E2E_DEBUG_TOKEN;
+const DEBUG_TOKEN = DEV_TARGET_ALLOWED ? (process.env[DEBUG_TOKEN_ENV] ?? E2E_DEBUG_TOKEN) : E2E_DEBUG_TOKEN;
 
 const debugHeaders = (): Record<string, string> => ({ "x-debug-token": DEBUG_TOKEN });
 

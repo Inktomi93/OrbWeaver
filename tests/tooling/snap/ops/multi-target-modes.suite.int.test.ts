@@ -7,6 +7,7 @@ import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
+import { AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { CliResult } from "@orb/testkit/tooling";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
@@ -21,7 +22,6 @@ import { scaledBudget } from "../../_load-budget.ts";
 const CLI_TIMEOUT_MS = scaledBudget(120_000, 4);
 const READY_ATTEMPTS = 100;
 const READY_POLL_MS = 50;
-const AUTH_MODE_KEY = "AUTH_MODE";
 vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
 
 const PAGE = `<!doctype html><html lang="en" data-app-ready="settled"><head><meta charset="utf-8"><title>multi target</title></head>

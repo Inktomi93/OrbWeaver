@@ -206,3 +206,30 @@ test("label and promoted tracker voices keep the editor step and row height", as
   const promoted = promotedCell.getByRole("button", { name: promotedName, exact: true });
   await expectStableValueEdit(promoted, promotedCell, promotedName, SCORE);
 });
+
+test("an attribute tile takes numbers only, steps by one on the arrow keys and states the profile's range", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const room = await gameRoom(root);
+  await room.setInheritedValues();
+  const reads = await room.reads();
+  const { owner } = participants(reads, root.ownerId);
+  await routeTrpc(page, reads.routes);
+  await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId: room.chatId, tab: "rpg.status" });
+  await page.getByRole("button", { name: `Open ${owner}`, exact: true }).click();
+  const name = `${LABEL} value`;
+  const cell = page.locator('[data-slot="stat-cell"]').filter({ has: page.getByText(LABEL, { exact: true }) });
+  await cell.getByRole("button", { name, exact: true }).click();
+  const field = cell.getByRole("textbox", { name, exact: true });
+  await expect(field).toHaveValue(String(SCORE));
+  await field.press("ArrowUp");
+  await expect(field).toHaveValue(String(SCORE + 1));
+  await field.press("ArrowDown");
+  await field.press("ArrowDown");
+  await expect(field).toHaveValue(String(SCORE - 1));
+  await field.fill("");
+  await field.pressSequentially("ab");
+  await expect(field).toHaveValue("");
+  const { min, max } = room.profile.range;
+  await expect(field).toHaveAccessibleDescription(`Between ${min} and ${max}`);
+  await expect(field).toHaveAttribute("placeholder", `${min}–${max}`);
+});

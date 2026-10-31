@@ -4,6 +4,7 @@ import { lookup } from "node:dns/promises";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { errorMessage } from "@orb/kit/error-message";
 import { createFrozenClock } from "../iso/clock.ts";
 import { createSeededIds } from "../iso/ids.ts";
@@ -134,7 +135,7 @@ export async function createCorpusRecipe(parent: string): Promise<CorpusRecipe> 
     server: {
       clock,
       ids,
-      env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
+      env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
       providerFetch: execution.execute,
       secretBoxKey: key,
       temporaryParentDir: parent,

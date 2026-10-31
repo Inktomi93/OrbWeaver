@@ -10,12 +10,11 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { ChatId } from "@orb/kit/ids";
-import type { Query, QueryClient } from "@tanstack/react-query";
+import type { InvalidateQueryFilters, Query, QueryClient } from "@tanstack/react-query";
 import { busDupCheck, busInvalidate, IS_DEV, runAfterViewTransition, surfaceDeferredFailure } from "#lib";
 import { collapseFilters, filterKeyName } from "./collapse-filters.ts";
 import { allAutomationRoomFilters, automationEventFilters } from "./invalidation-automation.ts";
 import { applyCanonView } from "./invalidation-carrier.ts";
-import type { InvalidateFilter } from "./invalidation-reads.ts";
 import {
   // The RPG bus's whole map lives in the reads module, and the user bus's in `invalidation-user.ts`: this file stays
   // under the 450-line cap — seam unchanged.
@@ -34,8 +33,6 @@ import {
 } from "./invalidation-reads.ts";
 import { allUserRootFilters, identityFilters, USER_BUS_FILTERS } from "./invalidation-user.ts";
 import type { Trpc } from "./trpc.ts";
-
-export type { InvalidateFilter } from "./invalidation-reads.ts";
 
 export interface Invalidation {
   /** The bus half — routes a `ChatBusEvent` through the exhaustive map. Fire-and-forget. */
@@ -62,14 +59,14 @@ export interface Invalidation {
    *  reads rides the `identityChanged` member (W7b) — one filter helper, two entry points. */
   readonly invalidateIdentity: () => void;
   /** The mutation half — `createEntityMutation.onSettled` routes its filters through here. */
-  readonly invalidateFilters: (filters: readonly InvalidateFilter[]) => void;
+  readonly invalidateFilters: (filters: readonly InvalidateQueryFilters[]) => void;
 }
 
 type BusFilterMap = {
-  readonly [K in ChatBusEvent["type"]]: (event: Extract<ChatBusEvent, { type: K }>, trpc: Trpc) => readonly InvalidateFilter[];
+  readonly [K in ChatBusEvent["type"]]: (event: Extract<ChatBusEvent, { type: K }>, trpc: Trpc) => readonly InvalidateQueryFilters[];
 };
 
-const nothing = (): readonly InvalidateFilter[] => [];
+const nothing = (): readonly InvalidateQueryFilters[] => [];
 
 const BUS_FILTERS: BusFilterMap = {
   delta: nothing,
@@ -200,7 +197,7 @@ const BUS_FILTERS: BusFilterMap = {
   roomEntityChanged: (e, trpc) => ROOM_ENTITY_FILTERS[e.entity](e.chatId, trpc),
 };
 
-type RefetchTarget = NonNullable<InvalidateFilter["refetchType"]>;
+type RefetchTarget = NonNullable<InvalidateQueryFilters["refetchType"]>;
 
 function combinedRefetchTarget(targets: ReadonlySet<RefetchTarget>): RefetchTarget {
   if (targets.has("all") || (targets.has("active") && targets.has("inactive"))) {
@@ -247,14 +244,14 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
       }
     });
   }
-  function retainInitialReads(filter: InvalidateFilter): void {
+  function retainInitialReads(filter: InvalidateQueryFilters): void {
     for (const query of deps.queryClient.getQueryCache().findAll(filter)) {
       if (query.state.data === undefined && query.state.fetchStatus !== "idle") {
         retainInitialInvalidation(query, filter.refetchType ?? filter.type ?? "active");
       }
     }
   }
-  const invalidateFilters = (filters: readonly InvalidateFilter[]): void => {
+  const invalidateFilters = (filters: readonly InvalidateQueryFilters[]): void => {
     const collapsed = collapseFilters(filters);
     // A wire confirmation repainting a cold pane mid-crossfade is motion jank; outside native motion this
     // seam stays synchronous, and the already-applied event carrier remains visible immediately either way.
@@ -275,7 +272,7 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
       // Apply BEFORE the invalidate: the refetch this same event fires is what will confirm the row, and
       // between the two the cache must already carry the committed bytes (see `applyCanonView`).
       applyCanonView(deps.queryClient, deps.trpc, event);
-      const handler = BUS_FILTERS[event.type] as (e: ChatBusEvent, t: Trpc) => readonly InvalidateFilter[];
+      const handler = BUS_FILTERS[event.type] as (e: ChatBusEvent, t: Trpc) => readonly InvalidateQueryFilters[];
       const filters = handler(event, deps.trpc);
       if (IS_DEV) {
         busInvalidate(event.type, event.chatId, filters.map(filterKeyName));
@@ -283,7 +280,7 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
       invalidateFilters(filters);
     },
     invalidateUser: (event): void => {
-      const handler = USER_BUS_FILTERS[event.type] as (e: UserBusEvent, t: Trpc) => readonly InvalidateFilter[];
+      const handler = USER_BUS_FILTERS[event.type] as (e: UserBusEvent, t: Trpc) => readonly InvalidateQueryFilters[];
       const filters = handler(event, deps.trpc);
       if (IS_DEV) {
         busInvalidate(event.type, "user", filters.map(filterKeyName));
@@ -291,7 +288,7 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
       invalidateFilters(filters);
     },
     invalidateRpg: (event): void => {
-      const handler = RPG_BUS_FILTERS[event.type] as (e: RpgBusEvent, t: Trpc) => readonly InvalidateFilter[];
+      const handler = RPG_BUS_FILTERS[event.type] as (e: RpgBusEvent, t: Trpc) => readonly InvalidateQueryFilters[];
       const filters = handler(event, deps.trpc);
       if (IS_DEV) {
         busInvalidate(event.type, event.chatId, filters.map(filterKeyName));

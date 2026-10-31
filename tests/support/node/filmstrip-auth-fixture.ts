@@ -3,13 +3,13 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
+import { AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { isPlainObject } from "@orb/kit/guards";
 import { spawnNicedChild } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 
 const READY_ATTEMPTS = 100;
 const READY_POLL_MS = 50;
-const AUTH_MODE_KEY = "AUTH_MODE";
 
 const SOURCE = `
 import { createServer } from "node:http";

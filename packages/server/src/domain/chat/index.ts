@@ -89,6 +89,7 @@ export { createChatPublication } from "./substrate/publication.ts";
 // The standalone (out-of-turn) variable write — the injected `applyVariableOps`
 // op automation wires at the composition root; principal-free, teaches chat nothing automation-shaped.
 export { applyStandaloneVariableOps } from "./substrate/variable-ops.ts";
+export { eventViewMessageId, withViewPosition } from "./substrate/view-position.ts";
 // Chat's OWN S2 teaching contributions (the ratified `teaching-contribution.ts` root slot) — contributor #0,
 // the rpg-gather projection. Assembled into `ChatContext.teaching` at `entry/compose` and nowhere else.
 export { createChatTeachingContributions } from "./teaching-contribution.ts";

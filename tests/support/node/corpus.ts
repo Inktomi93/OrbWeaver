@@ -9,6 +9,7 @@ import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { inspect } from "node:util";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, DEFAULT_USER_HANDLE_KEY, OWNER_HANDLES_KEY } from "@orb/contracts/identity";
 import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
 import { localPath, pendingTurns, workloads } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
@@ -157,12 +158,12 @@ export interface CorpusServerHarness extends ServerTestHarness {
 }
 
 /** A resumed corpus root's record posture; a caller's `env` keys lay over it. */
-const CORPUS_RECORD_POSTURE = { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } as const satisfies AuthModeEnv<"local">;
+const CORPUS_RECORD_POSTURE = { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } as const satisfies AuthModeEnv<"local">;
 
 // The retained owner's handle is the fallback placeholder, while the owner policy stays the default record's.
 async function retainedOwnerPolicy(handle: string): Promise<NonNullable<ServerHarnessOptions["rolePolicyConfig"]>> {
   const { createTestEnv } = await import("./env.ts");
-  return { ["DEFAULT_USER_HANDLE"]: handle, ["OWNER_HANDLES"]: createTestEnv().DEFAULT_USER_HANDLE };
+  return { [DEFAULT_USER_HANDLE_KEY]: handle, [OWNER_HANDLES_KEY]: createTestEnv().DEFAULT_USER_HANDLE };
 }
 
 export type CorpusHarnessOptions = Omit<
@@ -596,7 +597,7 @@ async function initializeCorpusOwner(
     ...runtime,
     startJobs: !privateSource,
     ownerId: null,
-    env: { ...options.server.env, ["AUTH_MODE"]: "oidc", ["AUTH_FALLBACK"]: "deny" },
+    env: { ...options.server.env, [AUTH_MODE_KEY]: "oidc", [AUTH_FALLBACK_KEY]: "deny" } as const,
     // biome-ignore lint/style/useNamingConvention: OIDC_SIGNUP is the canonical startup setting; the fresh corpus exercises the real pending-join path.
     oidc: { ...NATIVE_OIDC_SETTINGS, OIDC_SIGNUP: false },
     networkExecution: {
@@ -818,7 +819,7 @@ async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProdu
       ...(ownerHandle === undefined
         ? {}
         : {
-            env: { ...options.server.env, ["AUTH_FALLBACK"]: "deny" },
+            env: { ...options.server.env, [AUTH_FALLBACK_KEY]: "deny" },
             rolePolicyConfig: { ...(await retainedOwnerPolicy(ownerHandle)), ...options.server.rolePolicyConfig },
           }),
       sdkSpawn: sdkExecution.spawn,

@@ -23,7 +23,7 @@ import type {
   PluginCommandArgValue,
   PluginCommandPlacement,
   PluginSurfaceAnchor,
-  PluginSurfaceSpec,
+  PluginSurfaceNode,
   PluginSurfaceTier,
   PluginToastLevel,
 } from "./ui.ts";
@@ -60,22 +60,6 @@ export interface PluginCharacterView {
   readonly name: string;
   readonly avatarAssetId: SandboxWireId<AssetId> | null;
 }
-
-// The same `set`/`add`/`inc`/`dec`/`delete` op vocabulary the delta model defines — the ONE home is the kit
-// `VarOp` (aliased, never re-spelled); a guest write rides the SAME delta seam actions use.
-type PluginVariableOp = VarOp;
-
-/** The OPTIONAL compare-and-set half of a guest variable write (#1555) — the ONE home is
- *  `@orb/contracts/chat`'s {@link VariablePrecondition}, aliased here the way {@link PluginVariableOp} aliases
- *  the kit op. A guest that read a value, computed from it and wants the write to land only if nothing moved
- *  underneath passes its belief; the shape is deliberately NOT an op member (see the one home for why). */
-type PluginVariablePrecondition = VariablePrecondition;
-
-/** What `chat.applyVariableOps` answers (#1555) — `@orb/contracts/chat`'s {@link VariableWriteResult}, aliased.
- *  A lost race is DATA the guest branches on (`outcome === "stale"` + the live values), never a throw: an
- *  uncaught throw here would spend one of the three crash strikes that auto-disable a plugin, and losing a
- *  contended write is a normal outcome, not a fault. */
-type PluginVariableWriteResult = VariableWriteResult;
 
 /** Mirror of the `insert_world_info_entry` action's entry fields — attached-book-only, entryKey-
  *  updatable, host-side idempotent. */
@@ -145,6 +129,16 @@ export interface PluginSearchHit {
   readonly documentName: string;
   readonly content: string;
   readonly score: number;
+}
+
+/** The most strings one `character.findCardData` call may name, and the most distinct stamps it answers with. An
+ *  over-long list is refused rather than clipped: a clipped lookup would read as "not in the library". */
+export const PLUGIN_CARD_DATA_FIND_MAX = 64;
+
+/** One `character.findCardData` hit: a distinct stamp of this plugin's and one installer-owned character holding it. */
+export interface PluginCardDataMatch {
+  readonly characterId: SandboxWireId<CharacterId>;
+  readonly data: Record<string, unknown>;
 }
 
 /** The most images one `llm.quiet` call may attach. Four is the
@@ -228,11 +222,7 @@ export interface PluginHostV1 {
      *  writing anything, so a read → compute → write guest (a clock tick, a counter) can retry against `actual`
      *  instead of silently losing its update to a writer on the other side of the invoke queue. Omit `expect`
      *  for an unconditional write — it can only answer `applied`. */
-    applyVariableOps: (
-      chat: ChatHandle,
-      ops: readonly PluginVariableOp[],
-      expect?: readonly PluginVariablePrecondition[],
-    ) => Promise<PluginVariableWriteResult>;
+    applyVariableOps: (chat: ChatHandle, ops: readonly VarOp[], expect?: readonly VariablePrecondition[]) => Promise<VariableWriteResult>;
     /** Surface quick-reply chips (the automation bus event) — capability: chat.quick_reply */
     surfaceQuickReply: (chat: ChatHandle, choices: readonly { label: string; sendText: string }[]) => Promise<void>;
     /** Request an autonomous turn — capability: turn.trigger. Budget/consent-gated EXACTLY like the
@@ -444,6 +434,18 @@ export interface PluginHostV1 {
      *  never another plugin's `plugin_<otherslug>` field. Returns the stored blob, or `null` when this plugin has
      *  written none on that (owned) character. */
     getCardData: (characterId: SandboxWireId<CharacterId>) => Promise<Record<string, unknown> | null>;
+    /** Find the INSTALLER's OWN characters whose per-card state for THIS plugin holds any of `values` as a string,
+     *  at any depth of the stamp. capability: `character.card_state`, the same reach as {@link getCardData} without
+     *  naming a character first.
+     *
+     *  The host matches stored strings and reads no field name, so the stamp's shape stays the plugin's own. The
+     *  slug and owner scope are closed over host-side. A stamp arrives with imported cards too, so a match is
+     *  plugin data, not proof of origin: a forged stamp can only mislead this plugin about the installer's own
+     *  library. A non-object value under the key never matches. More than {@link PLUGIN_CARD_DATA_FIND_MAX}
+     *  values is a refusal of the call. Characters with identical stamps collapse to one match, because a copy keeps
+     *  its stamp and a library of copies must not crowd out another card, so `characterId` names one holder rather
+     *  than every holder. Matches stop at the same count of distinct stamps. */
+    findCardData: (values: readonly string[]) => Promise<readonly PluginCardDataMatch[]>;
   };
 
   readonly events: {
@@ -607,7 +609,7 @@ export interface PluginHostV1 {
       title: string; // the shell label line (≤ 80 chars)
       tier: PluginSurfaceTier; // scripted requires the bundle's ui.js (U4)
       toolName?: string; // required for, and only for, the tool-card anchor (ui.ts registration schema)
-      spec?: PluginSurfaceSpec; // REQUIRED for the static tier; zod-validated host-side (ui.ts)
+      spec?: PluginSurfaceNode; // REQUIRED for the static tier; zod-validated host-side (ui.ts)
       onAction?: (a: { actionId: string; values: Record<string, string>; chat: ChatHandle | null }) => void | Promise<void>;
     }) => void;
     /** Publish surface STATE (the data the spec's `$state` bindings resolve against). ≤ 16 KiB JSON; replaces
@@ -774,6 +776,8 @@ export const HOST_FUNCTION_CAPABILITY = {
   // the whole membrane-tier wall (the `storage.kv` posture, one plane over onto the card's residual extensions).
   "character.setCardData": "character.card_state",
   "character.getCardData": "character.card_state",
+  // The same consent line: it reads back only what `getCardData` can read, across the installer's own characters.
+  "character.findCardData": "character.card_state",
   "events.on": "events.subscribe",
   // U8 §5a — both the private-event emit and subscribe ride the ONE `plugin_events` grant (a single consent line
   // covers "send and receive private events among your own plugins"). A plugin that may emit may subscribe and

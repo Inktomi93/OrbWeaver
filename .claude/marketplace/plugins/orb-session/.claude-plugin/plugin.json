@@ -1,0 +1,6 @@
+{
+  "name": "orb-session",
+  "version": "1.0.0",
+  "description": "Puts the orchestrator skill into every orbweaver orchestrating session's system prompt, so it survives compaction whole.",
+  "author": { "name": "Orbweaver" }
+}

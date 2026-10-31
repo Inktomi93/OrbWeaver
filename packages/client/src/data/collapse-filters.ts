@@ -3,21 +3,19 @@
 import type { InvalidateQueryFilters, QueryKey } from "@tanstack/react-query";
 import { partialMatchKey } from "@tanstack/react-query";
 
-type InvalidateFilter = InvalidateQueryFilters;
-
 /** A filter that narrows on NOTHING but its key — the only shape whose coverage is decidable from the key
  *  alone. Every filter this seam is handed is one (they all come from the tRPC proxy's `pathFilter()` /
  *  `queryFilter(input)`, neither of which is ever passed options here), but a filter carrying `exact` /
  *  `predicate` / `refetchType` would mean something the key does not say, so it is never used to eliminate
  *  another and is never eliminated. */
-function isKeyOnlyFilter(filter: InvalidateFilter): filter is InvalidateFilter & { readonly queryKey: QueryKey } {
+function isKeyOnlyFilter(filter: InvalidateQueryFilters): filter is InvalidateQueryFilters & { readonly queryKey: QueryKey } {
   return filter.queryKey !== undefined && Object.keys(filter).every((prop) => prop === "queryKey");
 }
 
 /** Does `broad` reach every query `narrow` would? react-query matches a filter key by PARTIAL PREFIX
  *  (`partialMatchKey`, the same predicate `matchQuery` runs), so a key that is itself a partial prefix of
  *  another names a strictly wider set: `[["persona"]]` (the root `pathFilter`) covers `[["persona","list"]]`. */
-function subsumes(broad: InvalidateFilter, narrow: InvalidateFilter): boolean {
+function subsumes(broad: InvalidateQueryFilters, narrow: InvalidateQueryFilters): boolean {
   return isKeyOnlyFilter(broad) && isKeyOnlyFilter(narrow) && partialMatchKey(narrow.queryKey, broad.queryKey);
 }
 
@@ -39,8 +37,8 @@ function subsumes(broad: InvalidateFilter, narrow: InvalidateFilter): boolean {
  * the reads they own (rows overlapping is correct — they fire independently), and no future member can drift
  * a heal wave back into a double fetch.
  */
-export function collapseFilters(filters: readonly InvalidateFilter[]): readonly InvalidateFilter[] {
-  const kept: InvalidateFilter[] = [];
+export function collapseFilters(filters: readonly InvalidateQueryFilters[]): readonly InvalidateQueryFilters[] {
+  const kept: InvalidateQueryFilters[] = [];
   for (const filter of filters) {
     if (kept.some((already) => subsumes(already, filter))) {
       continue;
@@ -61,7 +59,7 @@ export function collapseFilters(filters: readonly InvalidateFilter[]): readonly 
 /** The tRPC filter's dotted path — the readable key name the `[bus]` dev log keys off. Dev-only. Homed here
  *  (not in `invalidation.ts`) for the SAME reason this file exists: the seam file is at its component-size cap,
  *  and a filter-key helper is filter logic with one consumer, exactly what this file already collects. */
-export function filterKeyName(filter: InvalidateFilter): string {
+export function filterKeyName(filter: InvalidateQueryFilters): string {
   const queryKey = (filter as { readonly queryKey?: readonly unknown[] }).queryKey;
   const path = Array.isArray(queryKey) ? queryKey[0] : undefined;
   return Array.isArray(path) ? path.join(".") : "?";

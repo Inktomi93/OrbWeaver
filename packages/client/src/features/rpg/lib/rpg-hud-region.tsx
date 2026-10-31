@@ -13,15 +13,15 @@
 // rpg NEVER imports chat: `main.tsx` (the door) builds this and assembles it into the `chat-context-regions`
 // contributor registry, which chat's `defineContextTabs` consumes blind (lockdown §6c).
 
-import type { ChatContextState, ContextRegionDef } from "#lib";
+import type { CommittedChatContext, ContextRegionDef } from "#lib";
 import { defineContextRegion } from "#lib";
 import { RpgHudBand } from "../components/rpg-hud-band.tsx";
 import type { RpgContextTabsDeps } from "./rpg-game-chat.ts";
 import { makeIsGameChat } from "./rpg-game-chat.ts";
 
-export function makeRpgHudRegion(deps: RpgContextTabsDeps): ContextRegionDef<ChatContextState> {
+export function makeRpgHudRegion(deps: RpgContextTabsDeps): ContextRegionDef<CommittedChatContext> {
   const isGameChat = makeIsGameChat(deps);
-  return defineContextRegion<ChatContextState>({
+  return defineContextRegion<CommittedChatContext>({
     id: "rpg.hud",
     claims: isGameChat,
     // The band's own state comes from its own hooks inside its own components — `S` never crosses into the
