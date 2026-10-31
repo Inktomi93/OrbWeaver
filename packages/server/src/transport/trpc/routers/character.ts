@@ -75,14 +75,14 @@ export const characterRouter = t.router({
       }),
     ),
 
-  // The GROUP-BY-TAG CENSUS (#1696) — the same LENS axes `list` takes and none of its paging ones. A census
-  // that could be sorted, cursored or limited would be window-dependent again, which is exactly the defect
-  // it exists to close, so those three are not in the shape at all.
   namesByAvatarAssets: authedProcedure
     .output(characterAvatarNamesResultSchema)
     .input(characterAvatarNamesInputSchema)
     .query(({ ctx, input }) => ctx.services.character.namesByAvatarAssets({ principal: ctx.auth, assetIds: input.assetIds })),
 
+  // The GROUP-BY-TAG CENSUS — the same LENS axes `list` takes and none of its paging ones. A census
+  // that could be sorted, cursored or limited would be window-dependent again, which is exactly the defect
+  // it exists to close, so those three are not in the shape at all.
   listTagGroups: authedProcedure
     .output(listCharacterTagGroupsResultSchema)
     .input(characterCensusInputSchema.optional())
