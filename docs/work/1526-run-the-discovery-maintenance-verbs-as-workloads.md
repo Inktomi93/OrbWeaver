@@ -23,4 +23,8 @@ Each verb runs from a workload; search ranks digests, segments and images on com
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The existing `csls` workload (no new kind, no migration) now runs the character, digest, segment and image hub passes and the digest story-time backfill (`packages/server/src/domain/discovery/workload-contributions.ts`). Its result sums the rows scored across the four kinds.
+
+- `tests/server/domain/discovery/persistence/hub-score-workload.int.test.ts` fails before the change (digest and segment `hub_score` stay null after a `csls` run) and passes after.
+- `tests/support/node/corpus-knowledge-hub-scores.int.test.ts` does the same for `image_embeddings.hub_score`.
+- Search already reads `hub_score` on digest, segment and image rows (`packages/server/src/domain/search/persistence/digest-rows.ts`, `image-nearest.ts`); no read-side change was needed.

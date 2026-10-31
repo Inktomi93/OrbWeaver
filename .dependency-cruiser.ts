@@ -674,6 +674,14 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/preset/components/macro-text.tsx":
       "MacroText: the preset surface's one template printer, which its two readouts import and no door forwards",
   },
+  "tests/client/features/chat/components/chat-forks-and-duplicate.ct.tsx": {
+    "packages/client/src/features/chat/lib/message-action-names.ts":
+      "MESSAGE_ACTIONS_MENU_NAME and MESSAGE_DUPLICATE_NAME: the row menu trigger and the duplicate item the suite addresses",
+  },
+  "tests/client/features/chat/components/_chat-forks-stories.tsx": {
+    "packages/client/src/features/chat/components/settings-context-tab.tsx":
+      "CommittedSettingsTab: the This-chat tab body, which only the chats section renders and no door forwards",
+  },
   "tests/client/features/chat/components/message-reasoning-and-move.ct.tsx": {
     "packages/client/src/features/chat/lib/message-action-names.ts": "the reasoning and move action names and refusal copy the suite addresses",
   },
