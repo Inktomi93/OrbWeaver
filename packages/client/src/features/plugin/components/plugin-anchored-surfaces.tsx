@@ -27,19 +27,19 @@ export interface PluginAnchoredSurfacesProps {
    *  then reads/writes the plugin-wide state row only, which is the honest answer (there is no room yet for a
    *  room-keyed publication to belong to). */
   readonly chatId?: ChatId;
-  /** Drawn inside a touch device's plugin-panels sheet, the flank's other host. */
-  readonly inSheet?: boolean;
-  readonly sidecar?: boolean;
 }
 
 /** Render an anchor without suspending its enclosing room or reserving empty host space. */
 export function PluginAnchoredSurfaces(props: PluginAnchoredSurfacesProps): ReactElement | null {
-  const visible = useVisibleAnchoredSurfaces(props.anchor, props.chatId, props.sidecar);
+  const visible = useVisibleAnchoredSurfaces(props.anchor, props.chatId);
   return <PluginAnchoredSurfaceList {...props} surfaces={visible} />;
 }
 
 export interface PluginAnchoredSurfaceListProps extends PluginAnchoredSurfacesProps {
   readonly surfaces: readonly RenderableSurface[];
+  /** Drawn inside a touch device's plugin-panels sheet, the flank's other host. */
+  readonly inSheet?: boolean;
+  readonly sidecar?: boolean;
 }
 
 /** Render a host's already-partitioned panels without adding another published-state observer. */
