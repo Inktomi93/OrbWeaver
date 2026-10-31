@@ -86,6 +86,10 @@ function Bubble({ x, y, width, height }: { readonly x: number; readonly y: numbe
   );
 }
 
+function Tick({ x, y }: { readonly x: number; readonly y: number }): ReactElement {
+  return <rect data-slot="chat-style-tick" x={x} y={y} width={4} height={26} fill="currentColor" opacity={0.8} />;
+}
+
 function Portrait({ x, y, width, height }: { readonly x: number; readonly y: number; readonly width: number; readonly height: number }): ReactElement {
   return (
     <g data-slot="chat-style-portrait" fill="currentColor">
@@ -166,17 +170,19 @@ const STYLE_DRAWINGS: Record<ChatStyle, ReactElement> = {
     <>
       <Speaker speaker="user">
         <Bubble x={144} y={22} width={220} height={86} />
+        <Tick x={360} y={36} />
         <Avatar x={384} y={44} />
         <Header x={300} y={37} />
         <Prose x={160} y={60} width={172} short={true} />
       </Speaker>
       <Speaker speaker="assistant">
         <Bubble x={44} y={128} width={308} height={156} />
+        <Tick x={348} y={144} />
         <Avatar x={24} y={150} />
         <g data-slot="chat-style-banner" fill="currentColor">
-          <rect x={44} y={128} width={308} height={62} rx={10} opacity={0.2} />
-          <circle cx={198} cy={150} r={9} opacity={0.7} />
-          <rect x={180} y={164} width={36} height={18} rx={9} opacity={0.7} />
+          <rect x={198} y={128} width={154} height={62} rx={10} opacity={0.2} />
+          <circle cx={262} cy={150} r={9} opacity={0.7} />
+          <rect x={244} y={164} width={36} height={18} rx={9} opacity={0.7} />
         </g>
         <Header x={60} y={202} />
         <Prose x={60} y={224} width={260} />
@@ -186,16 +192,18 @@ const STYLE_DRAWINGS: Record<ChatStyle, ReactElement> = {
   hush: (
     <>
       <Speaker speaker="user">
-        <rect data-slot="chat-style-stripe" x={144} y={34} width={4} height={86} fill="currentColor" opacity={0.8} />
+        <Bubble x={144} y={34} width={220} height={86} />
+        <Tick x={360} y={48} />
         <Avatar x={384} y={56} />
         <Header x={300} y={49} />
-        <Prose x={164} y={72} width={196} short={true} />
+        <Prose x={160} y={72} width={172} short={true} />
       </Speaker>
       <Speaker speaker="assistant">
-        <rect data-slot="chat-style-stripe" x={44} y={156} width={4} height={112} fill="currentColor" opacity={0.8} />
+        <Bubble x={44} y={156} width={308} height={112} />
+        <Tick x={348} y={170} />
         <Avatar x={24} y={178} />
-        <Header x={64} y={171} />
-        <Prose x={64} y={195} width={296} />
+        <Header x={60} y={171} />
+        <Prose x={60} y={195} width={260} />
       </Speaker>
     </>
   ),

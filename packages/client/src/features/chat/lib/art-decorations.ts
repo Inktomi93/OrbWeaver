@@ -29,7 +29,7 @@ export interface BubbleDecorationArgs {
    *  chip, ripple lost its whole identity (its portrait IS an avatarTreatment), and echo/whisper ignored it
    *  entirely — a reader who turned avatars off still got a screen dominated by character art in two of
    *  eight modes. One concept, one behaviour: the toggle governs ALL identity art, chip and immersive
-   *  alike. A decorator that paints CHROME rather than identity (hush's speaker stripe, whisper's stripe)
+   *  alike. A decorator that paints CHROME rather than identity (the speaker tick of hush and whisper)
    *  is unaffected — it is not art of anybody. */
   readonly showInChatAvatars: boolean;
 }
@@ -118,15 +118,15 @@ export function echoDecoration(args: BubbleDecorationArgs): BubbleDecoration | n
 // box to crop against and text can never sit on the art. aspect-ratio derives its height from the
 // bubble's fluid width so the box always matches the server's 3:1 crop.
 export function whisperDecoration(args: BubbleDecorationArgs, feather: NonNullable<StackProps["feather"]>): BubbleDecoration {
-  // The speaker STRIPE is chrome (a colour tick, not a portrait), so it survives an avatars-off reader;
+  // The speaker TICK is chrome (a colour bar, not a portrait), so it survives an avatars-off reader;
   // the BAND is identity art and does not (#212-6). Both roles get it: a persona's banner is its image here
   // as a character's is (owner ruling, as Moonlit Echoes paints both), with the same hue-tile fallback.
   if (args.kind === null || !args.showInChatAvatars) {
-    return { treatment: "stripeTop" };
+    return { treatment: "tickEnd" };
   }
   const urlAt = imageSource(args, "banner");
   return {
-    treatment: "stripeTop",
+    treatment: "tickEnd",
     headerBand: {
       color: avatarFallbackHueColor(args.hueSeed),
       feather,

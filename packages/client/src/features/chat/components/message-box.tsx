@@ -21,6 +21,7 @@ const PLATE_INSET = "px-section py-row @max-cq-28:pe-block";
 // stock SillyTavern's document does, so the page keeps its reading width.
 const PAGE_INSET = "px-gutter pbs-row @max-cq-28:px-tight";
 const PAGE_LAST_ROW_FLOOR = "min-block-(--immersive-document-last-row-min-height)";
+const ECHO_CARD_FLOOR = "min-block-(--immersive-echo-min-height)";
 
 /** The box's arrangement: `stack` lays the content out at the row gap on the box's own inset; `bare` (whisper's band
  *  above its inset stack) and `weld` (ripple's portrait beside its inset stack) hand the inset to their own content. */
@@ -70,6 +71,7 @@ function BubbleCard({ role, shape, phoneCap, editing, receded, positioned, artDe
         phoneCap && BUBBLE_PHONE_CAP,
         spansColumn ? "inline-full" : undefined,
         positioned && "relative",
+        positioned && ECHO_CARD_FLOOR,
       )}
     >
       {children}

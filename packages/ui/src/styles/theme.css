@@ -220,6 +220,9 @@
   --immersive-whisper-banner-viewport-cap: 12.5;
   --immersive-whisper-feather: 70%;
   --immersive-stripe-width: 0.1875rem;
+  --immersive-tick-length: 1.625rem;
+  --immersive-tick-offset: 2.5rem;
+  --immersive-echo-min-height: 12.375rem;
   --immersive-ripple-portrait-width: 11.25rem;
   --immersive-document-last-row-min-height: 4.375rem;
   --immersive-ripple-portrait-width-phone: 6.25rem;

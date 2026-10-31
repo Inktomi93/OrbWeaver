@@ -65,11 +65,10 @@ const MOONLIT_PORTRAIT: Record<ThemeChatStyle, Reference> = {
   hush: {
     moonlit: 336,
     measure: "prose",
-    difference: -19,
+    difference: -16,
     parts: [
       { px: -30, why: "the chip and its gap sit outside the card, where Moonlit draws its avatar inside a full-width card" },
       { px: 14.4, why: "the card pads 12px each side where Moonlit pads 19.2px" },
-      { px: -3, why: "the speaker stripe is 3px" },
     ],
   },
   ripple: {

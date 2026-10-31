@@ -158,6 +158,9 @@ export const stackVariants = tv({
       userBubble: "orb-art-band [--art-feather-fill:var(--color-user-bubble)]",
       systemBubble: "orb-art-band [--art-feather-fill:var(--color-system-bubble)]",
     },
+    // The side a feathered band dissolves toward: the foot by default, or the left edge for a band that sits at the
+    // right of its card. Physical, like the art masks beside it.
+    featherToward: { left: "[--art-feather-toward:to_left]" },
     // A list item that genuinely arrives eases in from `from` to `settle`; a remounted item takes neither.
     arrival: ARRIVAL,
     focusTarget: FOCUS_TARGET,

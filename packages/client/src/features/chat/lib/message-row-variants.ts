@@ -125,7 +125,7 @@ function rippleAvatarTreatment(kind: RowAttribution["kind"]): AvatarTreatment {
 }
 
 function hushDecoration(): BubbleDecoration {
-  return { treatment: "stripeStart" };
+  return { treatment: "tickEnd" };
 }
 
 /** The exhaustive chatStyle → skin table; a new chatStyle fails to compile without a row here. */
@@ -225,7 +225,6 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     avatarTreatment: iconLeftTreatment,
     bubbleDecoration: hushDecoration,
     bubbleLayout: "single",
-    // Inside puts the header beside the speaker stripe, not under it.
     headerPlacement: "inside",
     swipeFoot: SWIPE_FOOT_INSIDE,
     pinnedHeader: PINNED_CARD,

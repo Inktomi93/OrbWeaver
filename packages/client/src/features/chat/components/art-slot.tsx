@@ -143,9 +143,10 @@ export function WhisperBand({
       hoverDim={tappable ? "self" : undefined}
       imageFit="underFeather"
       feather={band.feather}
+      featherToward="left"
       featherSrc={showsImage ? url : undefined}
-      // Moonlit Echoes' Glimmer preset: the banner is half the card, centred; a phone widens it to 55%.
-      className="relative mx-auto inline-1/2 max-inline-(--immersive-whisper-banner-inline-cap) @max-cq-28:inline-11/20"
+      // Moonlit Echoes: the banner sits at the card's top right, half its width, and dissolves toward the left; a phone widens it to 55%.
+      className="relative ms-auto inline-1/2 max-inline-(--immersive-whisper-banner-inline-cap) @max-cq-28:inline-11/20"
       ref={attach}
       style={style}
     >

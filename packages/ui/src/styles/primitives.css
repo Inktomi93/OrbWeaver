@@ -50,12 +50,13 @@
   mask-composite: intersect;
 }
 
-/* Without an image the feather preserves a solid upper band for the fallback initial. */
+/* Without an image the feather preserves a solid upper band for the fallback initial. `--art-feather-toward` names the
+ * side the art dissolves toward; the default is the foot. */
 @utility orb-art-band {
   --art-image: none;
   --art-feather-start: 0%;
   --art-feather-end: var(--immersive-whisper-feather);
-  --art-feather: linear-gradient(to bottom, transparent var(--art-feather-start), var(--art-feather-fill) var(--art-feather-end));
+  --art-feather: linear-gradient(var(--art-feather-toward, to bottom), transparent var(--art-feather-start), var(--art-feather-fill) var(--art-feather-end));
   aspect-ratio: var(--aspect-banner);
   background-image: var(--art-feather), var(--art-image);
 }

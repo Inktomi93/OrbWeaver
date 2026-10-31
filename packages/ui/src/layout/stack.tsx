@@ -44,6 +44,7 @@ export function Stack({
   artPane,
   columnMeasure,
   feather,
+  featherToward,
   featherSrc,
   style,
   arrival,
@@ -88,6 +89,7 @@ export function Stack({
         artPane,
         columnMeasure,
         feather,
+        featherToward,
         arrival,
         className,
       })}

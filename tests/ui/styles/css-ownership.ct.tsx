@@ -42,20 +42,32 @@ test("wordmark halo follows the backdrop and art initials follow their size cont
   expect(await value(halo, "text-shadow")).not.toBe(shadow);
 });
 
-test("portrait inset and speaker edges are primitive recipes, not inline overrides", async ({ mount }) => {
+test("portrait inset is a primitive recipe, not an inline override", async ({ mount }) => {
   const root = await mount<typeof ArtRecipesStory>(STORY, {});
   for (const side of ["start", "end"] as const) {
     const box = root.locator(`[data-case="portrait-${side}"]`);
     expect(await value(box, `padding-inline-${side}`)).toBe(await resolved(box, `padding-inline-${side}`, "var(--art-pane-width)"));
   }
-  for (const [name, side] of [
-    ["top", "block-start"],
-    ["start", "inline-start"],
-  ] as const) {
-    const box = root.locator(`[data-case="stripe-${name}"]`);
-    expect(await value(box, `border-${side}-width`)).toBe(await resolved(box, `border-${side}-width`, `var(${TOKENS["immersive.stripe-width"].cssVar})`));
-    expect(await value(box, `border-${side}-style`)).toBe("solid");
-  }
+});
+
+test("a speaker tick is a short bar flush to the inline end, sized by the immersive tokens", async ({ mount }) => {
+  const root = await mount<typeof ArtRecipesStory>(STORY, {});
+  const box = root.locator('[data-case="tick-end"]');
+  const tick = (property: string): Promise<string> => box.evaluate((element, name) => getComputedStyle(element, "::after").getPropertyValue(name), property);
+  expect(await tick("position")).toBe("absolute");
+  expect(await tick("inset-inline-end")).toBe("0px");
+  expect(await tick("width")).toBe(await resolved(box, "width", `var(${TOKENS["immersive.stripe-width"].cssVar})`));
+  expect(await tick("height")).toBe(await resolved(box, "height", `var(${TOKENS["immersive.tick-length"].cssVar})`));
+  expect(await tick("inset-block-start")).toBe(await resolved(box, "inset-block-start", `var(${TOKENS["immersive.tick-offset"].cssVar})`));
+  expect(await tick("background-color")).toBe(await resolved(box, "background-color", "var(--color-speaker)"));
+});
+
+test("a feather toward the left fades the banner from its right edge", async ({ mount }) => {
+  const root = await mount<typeof ArtRecipesStory>(STORY, {});
+  const down = await value(root.locator('[data-case="band"]'), "background-image");
+  const left = await value(root.locator('[data-case="band-left"]'), "background-image");
+  expect(down).not.toMatch(/linear-gradient\((?:270deg|-90deg|to left),/u);
+  expect(left).toMatch(/linear-gradient\((?:270deg|-90deg|to left),/u);
 });
 
 test("portrait masks mirror and a banner's fallback feather changes when an image loads", async ({ mount }) => {
