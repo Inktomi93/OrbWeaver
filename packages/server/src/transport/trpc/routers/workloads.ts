@@ -29,7 +29,7 @@ import {
   workloadScheduleViewSchema,
 } from "@orb/contracts/workloads";
 
-import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { requireOwner } from "#domain/admin";
 import { authedProcedure, t } from "../trpc.ts";
@@ -42,7 +42,6 @@ export const workloadsRouter = t.router({
         input: startWorkloadEnvelope,
         // The run mode (default singular). A bulk CREATE-kind additionally carries the mint target.
         mode: workloadModeSchema.default("singular"),
-        targetOwnerId: brandedId("UserId").optional(),
         dependsOn: z.array(typeIdSchema(ID_PREFIX.workload)).optional(),
         scheduledAt: z.number().optional(),
       }),
@@ -58,7 +57,6 @@ export const workloadsRouter = t.router({
         caller: ctx.auth,
         mode: input.mode,
         ownerId: ctx.auth.userId,
-        ...(input.targetOwnerId !== undefined ? { targetOwnerId: input.targetOwnerId } : {}),
         ...(input.dependsOn !== undefined ? { dependsOn: input.dependsOn } : {}),
         ...(input.scheduledAt !== undefined ? { scheduledAt: input.scheduledAt } : {}),
       });
@@ -71,8 +69,6 @@ export const workloadsRouter = t.router({
       z.object({
         input: startWorkloadEnvelope,
         mode: workloadModeSchema.default("singular"),
-        targetOwnerId: brandedId("UserId").optional(),
-        assumeAdmitted: z.boolean().optional(),
       }),
     )
     .query(({ ctx, input }) => {
@@ -83,8 +79,6 @@ export const workloadsRouter = t.router({
         input: asStartWorkloadInput(input.input),
         caller: ctx.auth,
         mode: input.mode,
-        ...(input.assumeAdmitted !== undefined ? { assumeAdmitted: input.assumeAdmitted } : {}),
-        ...(input.targetOwnerId !== undefined ? { targetOwnerId: input.targetOwnerId } : {}),
       });
     }),
 

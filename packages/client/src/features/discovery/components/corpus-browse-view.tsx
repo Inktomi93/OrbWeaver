@@ -9,8 +9,7 @@
 // catalog", a substring `q`) four rows under the omnibox — two inputs, both narrowing the same list, whose
 // difference (substring vs semantic) is invisible to the person typing. The omnibox is the truer home: it
 // is the pane's PRIMARY control, it carries suggestions, and it searches the whole corpus rather than one
-// distilled catalog. So the second box is gone; free text is the omnibox's, FACETS are this view's. The
-// `q` param on `browseCharacters` survives server-side for a future caller — no client sends it today.
+// distilled catalog. So the second box is gone; free text is the omnibox's, FACETS are this view's.
 //
 // EVERY DISTILLED CARD IS REACHABLE, AND THE LIST IS WINDOWED (A8 + C5, side-eye corpus re-pass 2026-08-19).
 // Two defects with one shape:

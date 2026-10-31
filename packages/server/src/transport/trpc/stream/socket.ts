@@ -94,14 +94,11 @@ export interface RunSocketArgs {
   readonly cell: SocketCell;
   readonly principal: Principal;
   readonly services: Services;
-  /** The request's multi-human capability — part of every room's `RoomArgs` (a room whose surface is
-   *  multi-human-only owns that belt on its attach; see `room-source.ts`). */
-  readonly multiHumanCapable: boolean;
   readonly signal: AbortSignal;
 }
 
 export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnvelope<StreamFrame>> {
-  const { registry, cell, principal, services, liveBuses, multiHumanCapable, signal, logger, serverInstanceId, traces } = args;
+  const { registry, cell, principal, services, liveBuses, signal, logger, serverInstanceId, traces } = args;
   const { superviseSettled } = createDetachedSupervision(logger, traces);
   const socketId: SocketId = cell.socketId;
   const queue = createFrameQueue({
@@ -121,7 +118,7 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
     // abort. Ends if any of those three steps is removed or the abort return stops being teardown-only.
     try {
       const source = roomSourceFor(ref);
-      for await (const frame of source.run({ ref, principal, services, liveBuses, multiHumanCapable, cursor, signal: control.signal })) {
+      for await (const frame of source.run({ ref, principal, services, liveBuses, cursor, signal: control.signal })) {
         if (control.signal.aborted) {
           return;
         }

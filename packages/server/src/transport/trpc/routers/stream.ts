@@ -71,7 +71,6 @@ export const streamRouter = t.router({
           principal: ctx.auth,
           services: ctx.services,
           liveBuses: ctx.liveBuses,
-          multiHumanCapable: ctx.multiHumanCapable,
           signal: sig,
         }),
         ctx.logger,
@@ -86,7 +85,6 @@ export const streamRouter = t.router({
       principal: ctx.auth,
       services: ctx.services,
       liveBuses: ctx.liveBuses,
-      multiHumanCapable: ctx.multiHumanCapable,
     });
     ctx.sockets.attach(ctx.auth.userId, input.socketId, input.ref, input.sinceSeq ?? null);
   }),
