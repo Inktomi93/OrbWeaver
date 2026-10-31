@@ -32,4 +32,7 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+6 rows: applied 0, kept 6 (5 deliberate, 1 with a reason), handed off 0, owner question 0. No code changed. Scan: ast-grep inline rule (identifier, type_identifier, property_identifier), `-l ts` and `-l tsx`, `packages tests` (5200 ts and 1450 tsx files): each name is declared once and used only in its own domain's contract, service and verb files.
+
+- `EmbedCharacterCardParams` against `RemoveCharacterParams`, `ListSnapshotsParams`, `ListConnectedParams` and `ListForCharacterParams` (5 rows; two are the same pair name from the world-info and regex domains): kept as deliberate. Both sides of every row are one verb's `...Params` in a domain's `contract/params.ts`; `docs/law/Core-0-Architecture-and-Structure.md` section 4 ("every verb's \*Params") gives each verb its own named input.
+- `RevokeSessionParams` / `CookieAdmission`: kept. `RevokeSessionParams` (`domain/admin/contract/params.ts`) is the admin verb's input; `CookieAdmission` (`entry/auth/seam.ts`, private) is what the cookie path of the auth seam returns. Both hold `{ principal, sessionId }` today, but an entry seam result and a domain verb input change for different reasons, and the entry layer would have to import a domain contract type for a private two-field shape.
