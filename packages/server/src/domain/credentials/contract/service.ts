@@ -10,10 +10,11 @@
 // consequences, because only this domain writes `user_credentials`.
 
 import type { CredentialStorageStatus, CredentialView, RecordProbeOutcomeOp, RelabelCredentialOp, ResolvedSecret } from "@orb/contracts/credentials";
+import type { Wire } from "@orb/contracts/inference";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { InferenceDeps, ProviderRegistry } from "@orb/inference";
-import type { UserCredentialId } from "@orb/kit/ids";
+import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AuditEntry, Logger } from "#foundation/observability";
 import type { SecretBox } from "#infra/crypto";
@@ -48,6 +49,9 @@ export interface CredentialContext {
   /** Fires `credentialsChanged` with the owner's `userId` after every user-facing credential mutation's
    *  durable write, so a second device's list refetches. */
   readonly emitUserEvent: EmitUserEvent;
+  /** Remove the owner's per-user runtime state for one wire (the agent-sdk CLI's config directory). `remove`
+   *  calls it once the owner holds no key on that wire, so a remaining key keeps its runtime's state. */
+  readonly releaseRuntimeState: (ownerId: UserId, wire: Wire) => void;
 }
 
 /** The credential surface. The turn-time `resolve` is the only consumer-facing construction of a

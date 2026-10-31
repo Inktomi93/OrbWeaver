@@ -6,7 +6,6 @@ import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG, TEMPLATE_DEFS } from "@orb/contracts/preset";
-import { DomainNotFoundError } from "@orb/kit/errors";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { parseIanaTimeZone } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
@@ -37,11 +36,6 @@ async function previewText(h: ChatRoot): Promise<string> {
   return `${prompt.static}\n${prompt.dynamic}`;
 }
 
-async function peekText(h: ChatRoot): Promise<string> {
-  const prompt = await h.root.services.chat.peekPrompt({ principal: h.owner, chatId: h.chatId });
-  return `${prompt.static}\n${prompt.dynamic}`;
-}
-
 async function send(h: ChatRoot, timeZone?: IanaTimeZone): Promise<void> {
   const outcome = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Go on.", ...(timeZone === undefined ? {} : { timeZone }) });
   expect(outcome.aborted).toBe(false);
@@ -66,10 +60,9 @@ test("the preview builds the next turn's prompt and writes nothing: no canon, no
   const canonBefore = await readRoomCanon(h.root, h.owner, h.chatId);
   const requestsBefore = h.requests.length;
 
-  const peeked = await h.root.services.chat.peekPrompt({ principal: h.owner, chatId: h.chatId });
   const previewed = await preview(h);
-  expect(previewed.prompt.static).toBe(peeked.static);
   expect(previewed.prompt.static).toContain("The room is quiet.");
+  expect((await preview(h)).prompt.static).toBe(previewed.prompt.static);
   expect(await readRoomCanon(h.root, h.owner, h.chatId)).toEqual(canonBefore);
   expect(await h.root.services.chat.getRuntimeVariables({ principal: h.owner, chatId: h.chatId })).toEqual({});
   expect(h.requests).toHaveLength(requestsBefore);
@@ -224,10 +217,9 @@ test("re-pinning the anchor drops the swapped-out persona from the preview, the 
   expect(swapped).toContain(after);
 
   await h.root.services.chat.setChatAnchorPersona({ principal: h.owner, chatId: h.chatId, personaId: current.id });
-  for (const text of [await previewText(h), await peekText(h)]) {
-    expect(text).toContain(after);
-    expect(text).not.toContain(before);
-  }
+  const anchored = await previewText(h);
+  expect(anchored).toContain(after);
+  expect(anchored).not.toContain(before);
   await send(h);
   const wire = await newestWire(h);
   expect(wire).toContain(after);
@@ -243,7 +235,6 @@ test("a member's persona leaves the host's preview and the next turn when that m
 
   await h.root.services.chat.kick({ principal: h.owner, chatId: h.chatId, userId: member.userId });
   expect(await previewText(h)).not.toContain(description);
-  expect(await peekText(h)).not.toContain(description);
   await send(h);
   expect(await newestWire(h)).not.toContain(description);
 });
@@ -374,12 +365,4 @@ test("the template readout renders the inspected preset through the room's own i
   expect(impersonate).not.toContain("{{user}}");
   expect(impersonate).toContain("{{person}}");
   expect(impersonate).toContain("{{input}}");
-
-  // One rack row renders on its own; a row the room's preset does not hold is not found.
-  const [first] = DEFAULT_PROMPT_CONFIG.sections;
-  expect(first).toBeDefined();
-  await h.root.services.chat.previewSection({ principal: h.owner, chatId: h.chatId, sectionId: first?.id ?? "<no section>" });
-  await expect(h.root.services.chat.previewSection({ principal: h.owner, chatId: h.chatId, sectionId: "no-such-section" })).rejects.toBeInstanceOf(
-    DomainNotFoundError,
-  );
 });

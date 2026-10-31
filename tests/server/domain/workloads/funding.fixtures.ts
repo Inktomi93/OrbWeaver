@@ -2,7 +2,6 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { refineryScorePayloadSchema } from "@orb/contracts/refinery";
 import type { StartWorkloadInput, WorkloadRunnableRow } from "@orb/contracts/workloads";
-import { databaseHandle } from "@orb/db/wiring-driver";
 import type { WorkloadId } from "@orb/kit/ids";
 import { runWorkload } from "@orb/server/domain/workloads";
 import type { ServerTestHarness, seedRecallRoom } from "@orb/testkit/node/composed";
@@ -95,22 +94,7 @@ export async function executeAdmitted(root: ServerTestHarness, id: WorkloadId): 
 }
 
 export async function executeRow(root: ServerTestHarness, row: WorkloadRunnableRow): Promise<void> {
-  await runWorkload(
-    {
-      db: databaseHandle(root.db),
-      logger: root.logger,
-      traces: root.rings.traces,
-      contributions: root.app.workloadContributions,
-      now: root.clock.now,
-      audit: root.app.audit,
-      emitEvent: root.app.workloadEvents.emitWorkloadEvent,
-      heartbeatMs: 0,
-      cancelPollMs: 0,
-      scheduleInterval: root.timers.interval,
-    },
-    row,
-    new AbortController().signal,
-  );
+  await runWorkload({ ...root.workloadExecution, heartbeatMs: 0, cancelPollMs: 0 }, row, new AbortController().signal);
 }
 
 export async function observeQueued(root: ServerTestHarness, id: WorkloadId): Promise<WorkloadRunnableRow> {

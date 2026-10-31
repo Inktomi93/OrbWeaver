@@ -62,6 +62,7 @@ import {
   reactivatePluginsOnBoot,
   rebuildStatsTimelineOnBoot,
   reclaimLocksOnBoot,
+  rehashPluginProviderDefinitionsOnBoot,
   removeOwnerClaimFileOnSpend,
   repairStaleJoinSeqOnBoot,
   runBootMigrations,
@@ -301,6 +302,9 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // `run_tool` automation arm under it stops firing. Idempotent, and a no-op on a box with no hyphenated
     // plugin slug installed. Runs before compose, which is where the first plugin activation lives.
     await migratePluginToolWireNamesOnBoot({ logger: seams.logger, db: bootDb });
+    // DATA repair, same window: a plugin provider definition whose stored bytes changed under its hash keeps a
+    // stale claim that refuses the plugin's own definition at activation, so it moves before compose.
+    await rehashPluginProviderDefinitionsOnBoot({ logger: seams.logger, db: bootDb });
 
     // #1600 ONE-TIME DATA heal, same window: a `user_settings` row pinning a background asset that predates
     // #1478.1's ownership+kind guard (dev data, or any asset whose `kind` was never `background`) refuses

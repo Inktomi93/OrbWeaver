@@ -17,7 +17,6 @@ import type {
   VerifyAuthResult,
 } from "@orb/contracts/providers";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import type { AgentTurnRequest } from "./agent.ts";
 import type { ChatRequest, ChatResult } from "./chat.ts";
 import type { DiagnosticRequestCommon, GenerationCostRequest, ListModelsRequest } from "./diagnostics.ts";
 import type {
@@ -35,7 +34,6 @@ import type {
 export interface ProviderBackend {
   readonly wire: Wire;
   readonly runChatTurn?: ((req: ChatRequest) => Promise<ChatResult>) | undefined;
-  readonly runAgentTurn?: ((req: AgentTurnRequest) => Promise<ChatResult>) | undefined;
   readonly embed?: ((req: EmbedRequest) => Promise<EmbedResult>) | undefined;
   readonly rerank?: ((req: RerankRequest) => Promise<RerankResult>) | undefined;
   readonly imageEmbed?: ((req: ImageEmbedRequest) => Promise<ImageEmbedResult>) | undefined;
@@ -89,7 +87,6 @@ export type ReadOwnedExecutionConnection = (connectionId: UserConnection["id"], 
  *  `Resolved` connection and never see a wire or a backend. */
 export interface ProviderExecutor {
   readonly runChatTurn: (req: ChatRequest) => Promise<ChatResult>;
-  readonly runAgentTurn: (req: AgentTurnRequest) => Promise<ChatResult>;
   readonly embed: (req: EmbedRequest) => Promise<EmbedResult>;
   readonly rerank: (req: RerankRequest) => Promise<RerankResult>;
   readonly imageEmbed: (req: ImageEmbedRequest) => Promise<ImageEmbedResult>;

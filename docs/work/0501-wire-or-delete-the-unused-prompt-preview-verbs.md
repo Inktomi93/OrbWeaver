@@ -23,4 +23,12 @@ Wire each verb to a router procedure or product caller, or delete it and its tes
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Deleted by owner ruling. The chat Context panel's Preview tab and the preset readout run on `previewAssembly`, which builds the same next-turn prompt `peekPrompt` returned and renders every section `previewSection` rendered one at a time. Neither verb had a router procedure or a product caller.
+
+Deleted with them: the `previewSection` assembly render and its substrate bridge, `SectionPreview`, both params types, and `MacroRegistry.requirementsOf`, which only the preview engine was to read. The `requires` option stays, because the prompt-cache warning reads it.
+
+Test uses now run on `previewAssembly`:
+
+- `tests/server/domain/chat/assembly/section-render-prng.int.test.ts` keeps its PRNG-stability cases.
+- `tests/server/domain/chat/verbs/read-gates.int.test.ts` keeps the host-only gate and the full-card evidence.
+- `tests/server/domain/chat/verbs/read-preview-honesty.int.test.ts` keeps the no-write and persona cases.

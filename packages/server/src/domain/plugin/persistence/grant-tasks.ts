@@ -1,5 +1,5 @@
 // Check the installer predicate before interpreting a plugin's private manifest capabilities.
-import { pluginGrantTasks, pluginManifestSchema } from "@orb/contracts/plugin";
+import { pluginGrantTasks, storedPluginManifestSchema } from "@orb/contracts/plugin";
 import { plugins } from "@orb/db";
 import { fetchOwned } from "@orb/db/query";
 import type { DatabaseHandle } from "@orb/db/wiring";
@@ -10,6 +10,6 @@ export function createPluginGrantTasksOf(handle: DatabaseHandle): PluginGrantTas
   const db = databaseForOwner(handle);
   return async (pluginId, userId): ReturnType<PluginGrantTasksOf> => {
     const row = await fetchOwned(db, plugins, pluginId, userId);
-    return row === undefined ? null : pluginGrantTasks(pluginManifestSchema.parse(row.manifest).capabilities);
+    return row === undefined ? null : pluginGrantTasks(storedPluginManifestSchema.parse(row.manifest).capabilities);
   };
 }
