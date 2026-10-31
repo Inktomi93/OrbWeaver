@@ -13,7 +13,7 @@ import type { AssetId, CharacterId, PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
-import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
+import type { GuestOps, GuestRun, ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -21,13 +21,13 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
   createServerHarness,
+  guestRunner,
+  installGuest,
   makeAssetBytes,
   seedAsset,
   seedCorpusActors,
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
-import type { GuestOps, GuestRun } from "./_guest-command.ts";
-import { guestRunner, installGuest } from "./_guest-command.ts";
 
 const SCOPE_OPS = {
   readAsset: "(h, room, a) => h.assets.read(a.assetId)",

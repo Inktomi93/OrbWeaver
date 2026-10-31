@@ -3,7 +3,6 @@
 // @subject packages/server/src/domain/workloads/engine/runner.ts
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characterEmbeddings, users, workloads } from "@orb/db";
-import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { runWorkload } from "@orb/server/domain/workloads";
 import { expect, test } from "@orb/testkit/node";
@@ -69,22 +68,7 @@ test("owner deletion between queue observation and atomic claim cannot upgrade a
   expect(captured.id).toBe(ref.id);
   await root.db.delete(users).where(eq(users.id, member.userId));
   const run = vi.spyOn(root.app.workloadContributions.csls, "run");
-  await runWorkload(
-    {
-      db: databaseHandle(root.db),
-      logger: root.logger,
-      traces: root.rings.traces,
-      contributions: root.app.workloadContributions,
-      audit: root.app.audit,
-      now: root.clock.now,
-      emitEvent: root.app.workloadEvents.emitWorkloadEvent,
-      heartbeatMs: 0,
-      cancelPollMs: 0,
-      scheduleInterval: root.timers.interval,
-    },
-    captured,
-    new AbortController().signal,
-  );
+  await runWorkload({ ...root.workloadExecution, heartbeatMs: 0, cancelPollMs: 0 }, captured, new AbortController().signal);
   expect(run).not.toHaveBeenCalled();
   expect(await createQueueScanner(root)(root.clock.now() + QUEUE_OBSERVATION_DELAY_MS, "sweep")).toBeNull();
   expect(await root.services.workloads.get({ caller: null, id: ref.id })).toMatchObject({ status: "failed" });

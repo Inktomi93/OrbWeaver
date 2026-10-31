@@ -230,6 +230,8 @@ export interface ServerTestHarness extends ComposedServerRoot, AsyncDisposable {
   readonly ownerClaimFile?: string;
   readonly settleBackground: ServicesResult["settleBackground"];
   readonly workloadExecutionSignal?: ServerHarnessOptions["workloadExecutionSignal"];
+  /** The runner deps this root's own workload driver uses, so a suite runs one admitted row the way it does. */
+  readonly workloadExecution: WorkloadRunnerDeps;
   readonly runAdmittedWorkload?: (id: WorkloadId, signal: AbortSignal) => Promise<void>;
   readonly tickWorkloadSchedules?: () => Promise<void>;
   readonly settleSharing: ShareGraph["settle"];
@@ -714,7 +716,7 @@ export async function createServerHarness(
     traces: rings.traces,
     now: clock.now,
     contributions: app.workloadContributions,
-    audit: app.audit,
+    audit: audit.log,
     emitEvent: app.workloadEvents.emitWorkloadEvent,
     scheduleInterval: timers.interval,
   } satisfies WorkloadRunnerDeps;
@@ -787,6 +789,7 @@ export async function createServerHarness(
     secretsDir,
     settleBackground: app.settleBackground,
     ...workloadDriver,
+    workloadExecution,
     workloadExecutionSignal: options.workloadExecutionSignal,
     settleSharing: sharing.settle,
     async [Symbol.asyncDispose](): Promise<void> {

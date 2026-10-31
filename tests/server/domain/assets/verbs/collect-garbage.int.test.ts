@@ -15,6 +15,8 @@ import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_PROVIDER_ENDPOINT,
   freshHeldDb,
+  guestRunner,
+  installGuest,
   makeAssetBytes,
   makePluginBundle,
   plantForeignRoomBackground,
@@ -23,13 +25,14 @@ import {
   seedDistributedPlugin,
   seedInstalledPlugin,
   seedInvitedChatParticipant,
-  seedPluginFetchedAsset,
 } from "@orb/testkit/node/composed";
 import type { GcBox, StoredRef } from "../gc-box.ts";
 import {
   ageOnly,
   attach,
   aWeekAgo,
+  COVER_HOST,
+  COVER_URL,
   GC_IMAGE_MODEL,
   inlineImage,
   openBox,
@@ -58,9 +61,8 @@ function gcPluginBundle(slug: string, image: Uint8Array): Uint8Array {
     version: "1.0.0",
     hostVersion: PLUGIN_HOST_VERSIONS[0],
     entry: PLUGIN_MAIN_ENTRY,
-    description: "Ships one cover image and fetches another.",
-    capabilities: ["net.fetch_asset"],
-    netHosts: ["covers.example.invalid"],
+    description: "Ships one cover image.",
+    capabilities: [],
   });
   return makePluginBundle(manifest, GC_PLUGIN_SOURCE, FROZEN_AT_MS, { [GC_PLUGIN_IMAGE_PATH]: image });
 }
@@ -107,7 +109,7 @@ async function plantEveryReference(box: GcBox): Promise<Record<string, StoredRef
   const pluginAssets = async (): Promise<readonly AssetListItem[]> =>
     await root.services.assets.listOwned({ principal, kind: "plugin", limit: ASSET_LIST_LIMIT_MAX });
   const beforeInstall = new Set((await pluginAssets()).map(({ assetId }) => assetId));
-  const installed = await seedInstalledPlugin(root, {
+  await seedInstalledPlugin(root, {
     caller: principal,
     bundle: gcPluginBundle("gc-witness", makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))),
     grant: [],
@@ -121,14 +123,19 @@ async function plantEveryReference(box: GcBox): Promise<Record<string, StoredRef
   }
   refs["plugins.bundle_asset_id"] = { assetId: bundle.assetId, hash: bundle.hash };
   refs["plugin_assets.asset_id (bundle image)"] = { assetId: shipped.assetId, hash: shipped.hash };
-  const fetched = await seedPluginFetchedAsset(root, {
-    pluginId: installed.outcome.id,
-    installerUserId: principal.userId,
-    bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)),
-    mime: PNG,
-  });
-  // The op answers the guest's sandbox wire id; parsing it is the boundary a guest's id crosses into the host.
-  refs["plugin_assets.asset_id (fetched)"] = await storedRow(box, typeIdSchema(ID_PREFIX.asset).parse(fetched.assetId));
+  // A real guest fetches remote art into the installer's library through `net.fetchAsset`.
+  const fetcher = await installGuest(
+    root,
+    principal,
+    { slug: "gc-fetcher", capabilities: ["net.fetch_asset"], netHosts: [COVER_HOST] },
+    { fetch: "async (h, room, a) => (await h.net.fetchAsset(a.url)).assetId" },
+  );
+  const fetched = await guestRunner({ root, caller: principal, pluginId: fetcher, chatId: null })("fetch", { url: COVER_URL });
+  if (!fetched.ok) {
+    throw new Error(`the guest's fetch failed with ${fetched.name}`);
+  }
+  // The guest reports its sandbox wire id; parsing it is the boundary a guest's id crosses into the host.
+  refs["plugin_assets.asset_id (fetched)"] = await storedRow(box, typeIdSchema(ID_PREFIX.asset).parse(fetched.value));
 
   // Published to every user, then the publisher uninstalls their own copy: the publication is the bundle's only
   // reference, and the uninstall's no-grace reap already had to honor it.
