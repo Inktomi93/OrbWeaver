@@ -9,6 +9,7 @@ import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { seedRecallRoom, seedRpgGame } from "@orb/testkit/node/composed";
+import { RPG_OP_CODES } from "#server/domain/rpg/contract/op-codes.ts";
 
 type RpgService = ServerTestHarness["services"]["rpg"];
 type ChatId = Awaited<ReturnType<typeof seedRecallRoom>>;
@@ -85,7 +86,7 @@ const GATES: Readonly<Record<keyof RpgService, Gate>> = {
   populateFromCharacter: {
     gate: "host",
     call: (g, who) => g.rpg.populateFromCharacter({ principal: who, chatId: g.chatId, actorRef: NPC }),
-    hostRefusedWith: "rpg_actor_has_no_card",
+    hostRefusedWith: RPG_OP_CODES.actorHasNoCard,
   },
   getGame: { gate: "member", call: (g, who) => g.rpg.getGame({ principal: who, chatId: g.chatId }) },
   getTrackerView: { gate: "member", call: (g, who) => g.rpg.getTrackerView({ principal: who, chatId: g.chatId }) },

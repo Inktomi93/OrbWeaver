@@ -20,6 +20,7 @@ import { readEstimateDigestVectors, readRunDigestVectors } from "../persistence/
 import { collapseByHash } from "../substrate/collapse.ts";
 import { kmeans } from "../substrate/kmeans.ts";
 import { backfillMsgMidAt } from "./backfill.ts";
+import { THEME_NAME_KEYWORDS_LEAD } from "./name-prompt.ts";
 import { parseThemeName } from "./utils.ts";
 
 const DEFAULT_SEED = 1;
@@ -155,7 +156,7 @@ async function nameDrafts(drafts: readonly ClusterDraft[], rc: RoleClients, samp
       targets.push(i);
       inputs.push({
         systemPrompt: NAME_SYSTEM,
-        userPrompt: `Shared keywords: ${topKeywords(draft.memberRows).join(", ")}`,
+        userPrompt: `${THEME_NAME_KEYWORDS_LEAD} ${topKeywords(draft.memberRows).join(", ")}`,
       });
     }
   }

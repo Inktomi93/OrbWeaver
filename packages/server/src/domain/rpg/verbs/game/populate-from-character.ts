@@ -42,6 +42,7 @@
 import type { RpgSheet, RpgSnapshotState } from "@orb/contracts/rpg";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, RpgGameId } from "@orb/kit/ids";
+import { RPG_OP_CODES } from "#src/domain/rpg/contract/op-codes.ts";
 import type { PopulateFromCharacterParams } from "#src/domain/rpg/contract/params.ts";
 import type { PopulateResult } from "#src/domain/rpg/contract/results.ts";
 import type { RpgContext, RpgPopulateDelta, RpgService } from "#src/domain/rpg/contract/service.ts";
@@ -74,7 +75,7 @@ function fillSheet(current: RpgSheet, filled: RpgPopulateDelta["sheet"]): RpgShe
  *  reads as a broken button. */
 function characterIdOf(params: PopulateFromCharacterParams): CharacterId {
   if (params.actorRef.kind !== "character") {
-    throw new DomainOperationError("rpg_actor_has_no_card", "only a character actor can be populated from a card");
+    throw new DomainOperationError(RPG_OP_CODES.actorHasNoCard, "only a character actor can be populated from a card");
   }
   return params.actorRef.characterId;
 }
@@ -93,7 +94,7 @@ export function createPopulateFromCharacter(ctx: RpgContext): Pick<RpgService, "
     // refusal, not a silent no-op: the host asked for a specific character's card.
     const corpus = await ctx.resolveCardCorpus(game.chatId, characterId);
     if (corpus === null) {
-      throw new DomainOperationError("rpg_card_unreadable", "this character's card could not be read for the game's host");
+      throw new DomainOperationError(RPG_OP_CODES.cardUnreadable, "this character's card could not be read for the game's host");
     }
 
     // The resolution-ladder head the round's inventory/quest writes apply onto (the same base a state round reads).

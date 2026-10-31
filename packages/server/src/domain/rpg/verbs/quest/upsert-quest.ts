@@ -6,6 +6,7 @@
 import type { RpgQuest } from "@orb/contracts/rpg";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { RpgQuestId } from "@orb/kit/ids";
+import { RPG_OP_CODES } from "#src/domain/rpg/contract/op-codes.ts";
 import type { UpsertQuestParams } from "#src/domain/rpg/contract/params.ts";
 import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
 import { resolveHost } from "#src/domain/rpg/guard.ts";
@@ -35,7 +36,7 @@ export function createUpsertQuest(ctx: RpgContext): Pick<RpgService, "upsertQues
     if (!written.ok) {
       // The F1 write-boundary backstop refused. This verb's own patch is schema-shaped, so the only route here
       // is a base snapshot that is already contract-invalid — surface it (no-swallow), never a silent no-op.
-      throw new DomainOperationError("rpg_snapshot_state_invalid", written.reason);
+      throw new DomainOperationError(RPG_OP_CODES.snapshotStateInvalid, written.reason);
     }
     const snapshotId = written.snapshotId;
 

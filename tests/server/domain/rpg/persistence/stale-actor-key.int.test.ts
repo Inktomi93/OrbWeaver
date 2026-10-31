@@ -7,6 +7,7 @@ import { rpgSnapshots } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { seedRecallRoom, seedRpgGame } from "@orb/testkit/node/composed";
 import { sql } from "drizzle-orm";
+import { RPG_OP_CODES } from "#server/domain/rpg/contract/op-codes.ts";
 
 const STALE_ACTOR_STATE = [
   {
@@ -27,7 +28,7 @@ test("a snapshot actor row under the retired cast spelling fails the whole read 
   await db.update(rpgSnapshots).set({ actorState: sql`${JSON.stringify(STALE_ACTOR_STATE)}` });
 
   await expect(harness.services.rpg.getTrackerView({ principal: host, chatId })).rejects.toMatchObject({
-    code: "rpg_state_corrupt",
+    code: RPG_OP_CODES.stateCorrupt,
     message: expect.stringContaining("actorState"),
   });
 

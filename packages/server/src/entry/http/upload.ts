@@ -15,6 +15,7 @@ import { DOCUMENT_DESTINATION_FORM_FIELD, documentDestinationSchema } from "@orb
 import { docUploadMime } from "@orb/contracts/extraction";
 import type { CardImportResult } from "@orb/contracts/import";
 import { cardLorebookRestoreResultSchema } from "@orb/contracts/import";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import type { ImportCardScripts } from "@orb/contracts/regex";
 import type { ImportTagPort } from "@orb/contracts/tag";
 import { ASSET_UPLOAD_MAX_BYTES, DATABANK_UPLOAD_MAX_BYTES, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
@@ -46,10 +47,8 @@ const UNSUPPORTED_MEDIA_TYPE = 415;
 const ASSET_TOO_LARGE = "asset_too_large";
 const FALLBACK_MIME = "application/octet-stream";
 const ASSET_UPLOAD_ROUTE = "/api/assets/upload";
-const IMPORT_ROUTE = "/api/import";
-// The #1598 RESTORE door: an ordinary re-upload through IMPORT_ROUTE now KEEPS an edited primary book, so
+// The #1598 RESTORE door: an ordinary re-upload through PORTABILITY_ROUTES.importCards now KEEPS an edited primary book, so
 // "put the card's own lorebook back" is this separate, explicitly-asked-for route.
-const LOREBOOK_RESTORE_ROUTE = "/api/import/restore-card-lorebook";
 const DATABANK_UPLOAD_ROUTE = "/api/databank/upload";
 const UPLOAD_FIELD = "file";
 const KIND_FIELD = "kind";
@@ -239,7 +238,7 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
   // #1598 — the explicit restore. ONE card file, the same belts as the batch import (auth → CSRF → body cap).
   // Every refusal (unreadable card, no embedded book, no character imported from these exact bytes) comes back
   // as the verb's own operator-facing sentence with a 400, never a throw: the door renders what the domain said.
-  app.post(LOREBOOK_RESTORE_ROUTE, authCsrfGuard, bodyCap(IMPORT_MAX_TOTAL_BYTES), async (c) => {
+  app.post(PORTABILITY_ROUTES.restoreCardLorebook, authCsrfGuard, bodyCap(IMPORT_MAX_TOTAL_BYTES), async (c) => {
     const principal = c.get("principal");
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);
@@ -262,7 +261,7 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
     return outcome.ok ? c.json(outcome) : c.json(outcome, BAD_REQUEST);
   });
 
-  app.post(IMPORT_ROUTE, authCsrfGuard, bodyCap(IMPORT_MAX_TOTAL_BYTES), async (c) => {
+  app.post(PORTABILITY_ROUTES.importCards, authCsrfGuard, bodyCap(IMPORT_MAX_TOTAL_BYTES), async (c) => {
     const principal = c.get("principal");
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);

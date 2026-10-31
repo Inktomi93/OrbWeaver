@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { CHARACTER_HANDLE_CONFLICT_OP_CODE, CHARACTER_HANDLE_WIRE_KEY, CHARACTER_LIST_SORTS, characterCardV3Schema } from "@orb/contracts/character";
+import { exportCharacterPath } from "@orb/contracts/portability";
 import { THEME_FONT_ALLOWLIST } from "@orb/contracts/theme";
 import type { CharacterId, PersonaId, TagId } from "@orb/kit/ids";
 import { isPng, readCardChunk } from "@orb/kit/png-card-chunk";
@@ -11,7 +12,7 @@ import { parseSurfaceProviderEvidence, surfaceCoverageKey } from "@orb/testkit/i
 import { attachNativeFile, isTrpcRequestFor, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
 import type { Locator, Page, Route } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { CHARACTER_ACTION_SCOPE_IDS, CHARACTER_ACTIONS, EXPORT_CHARACTER_PATH } from "#client/features/character/lib/character-actions.ts";
+import { CHARACTER_ACTION_SCOPE_IDS, CHARACTER_ACTIONS } from "#client/features/character/lib/character-actions.ts";
 import { CHARACTER_CARD_FACETS } from "#client/features/character/lib/character-card-facets.ts";
 import { characterCardFormFromDetail, characterUpdateDiff } from "#client/features/character/lib/character-card-form-model.ts";
 import { CHARACTERS_SECTION_LABEL } from "#client/features/character/lib/characters-section-label.ts";
@@ -1029,7 +1030,7 @@ async function exportCommandCharacter(flow: CharacterFlow, card: SourceCharacter
     const download = await pending;
     expect(await download.failure()).toBeNull();
     const url = new URL(download.url());
-    expect(`${url.pathname}${url.search}`).toBe(`${EXPORT_CHARACTER_PATH}${card.id}${format.query}`);
+    expect(`${url.pathname}${url.search}`).toBe(`${exportCharacterPath(card.id)}${format.query}`);
     const path = await download.path();
     const bytes = await readFile(path);
     const png = format.query === "";

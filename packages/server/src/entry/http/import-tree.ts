@@ -32,6 +32,7 @@ import {
   treeLayoutDeclarationSchema,
 } from "@orb/contracts/import";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_FILES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { DomainConflictError } from "@orb/kit/errors";
@@ -53,8 +54,6 @@ const BAD_REQUEST = 400;
 const PAYLOAD_TOO_LARGE = 413;
 const CONFLICT = 409;
 const ACCEPTED = 202;
-const TREE_ROUTE = "/api/import/tree";
-const REVIEW_ROUTE = "/api/import/tree/review";
 /** Staging dirs are per-uploader, so they are created rwx for the app user only. */
 const OWNER_ONLY_DIR = 0o700;
 
@@ -322,7 +321,7 @@ interface TreeContext {
  *  batch, sniffs the layout, and starts the matching per-owner import workload, replying 202 with the id. */
 export function registerImportTree(app: Hono<PrincipalEnv>, deps: ImportTreeDeps): void {
   const nativeDirs = new Set(deps.registry.map((entity) => entity.dir.replace(TRAILING_SLASH, "")));
-  app.post(TREE_ROUTE, authCsrfGuard, bodyCap(IMPORT_TREE_MAX_TOTAL_BYTES), async (c) => {
+  app.post(PORTABILITY_ROUTES.importTree, authCsrfGuard, bodyCap(IMPORT_TREE_MAX_TOTAL_BYTES), async (c) => {
     const principal = c.get("principal");
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);
@@ -359,7 +358,7 @@ export function registerImportTree(app: Hono<PrincipalEnv>, deps: ImportTreeDeps
  *  starts. The browser sends only the `settings.json` + `User Avatars/` parts; the answer lists the personas
  *  the real run would split. */
 function registerPersonaReview(app: Hono<PrincipalEnv>, deps: ImportTreeDeps): void {
-  app.post(REVIEW_ROUTE, authCsrfGuard, bodyCap(IMPORT_TREE_MAX_TOTAL_BYTES), async (c) => {
+  app.post(PORTABILITY_ROUTES.importTreeReview, authCsrfGuard, bodyCap(IMPORT_TREE_MAX_TOTAL_BYTES), async (c) => {
     const principal = c.get("principal");
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);

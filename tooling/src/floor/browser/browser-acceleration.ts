@@ -1,5 +1,8 @@
 import type { Browser } from "@playwright/test";
 
+/** The launch switch that asks Chromium for the GPU; every browser launch leads with it. */
+export const GPU_LAUNCH_SWITCH = "--enable-gpu";
+
 const SOFTWARE_RENDERER = /swiftshader|software rasterizer|llvmpipe/iu;
 
 export interface BrowserAccelerationEvidence {
@@ -19,7 +22,7 @@ export function classifyBrowserAcceleration(backend: string, gpuCompositing: str
 }
 
 export function browserArgsWithAcceleration(callerArgs: readonly string[] = []): string[] {
-  return ["--enable-gpu", ...callerArgs];
+  return [GPU_LAUNCH_SWITCH, ...callerArgs];
 }
 
 export async function readBrowserAcceleration(browser: Browser): Promise<BrowserAccelerationEvidence> {

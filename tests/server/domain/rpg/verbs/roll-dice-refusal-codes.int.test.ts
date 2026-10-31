@@ -6,6 +6,7 @@
 import { DICE_BOUNDS } from "@orb/kit/dice";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, seedCorpusActors, seedRecallRoom, seedRpgGame } from "@orb/testkit/node/composed";
+import { RPG_OP_CODES } from "#server/domain/rpg/contract/op-codes.ts";
 
 test("a kit-width count past the rpg policy is out of bounds, and a wider one is unparseable", async () => {
   await using root = await createServerHarness();
@@ -14,6 +15,6 @@ test("a kit-width count past the rpg policy is out of bounds, and a wider one is
   await seedRpgGame(root, { principal: owner, chatId, mode: "lite", ruleset: "d20" });
   const roll = (notation: string): Promise<unknown> => root.services.rpg.rollDice({ principal: owner, chatId, notation });
 
-  await expect(roll(`${DICE_BOUNDS.maxDice}d6`)).rejects.toMatchObject({ code: "rpg_dice_out_of_bounds" });
-  await expect(roll(`${DICE_BOUNDS.maxDice * 10}d6`)).rejects.toMatchObject({ code: "rpg_bad_dice_notation" });
+  await expect(roll(`${DICE_BOUNDS.maxDice}d6`)).rejects.toMatchObject({ code: RPG_OP_CODES.diceOutOfBounds });
+  await expect(roll(`${DICE_BOUNDS.maxDice * 10}d6`)).rejects.toMatchObject({ code: RPG_OP_CODES.badDiceNotation });
 });

@@ -8,6 +8,7 @@ import type { DiceNotation } from "@orb/kit/dice";
 import { parseDiceNotation, rollDiceNotation } from "@orb/kit/dice";
 import { DomainOperationError } from "@orb/kit/errors";
 import { readOwnKey } from "@orb/kit/objects";
+import { RPG_OP_CODES } from "#src/domain/rpg/contract/op-codes.ts";
 import type { RollDiceParams } from "../contract/params.ts";
 import type { RollDiceResult } from "../contract/results.ts";
 import type { RpgContext, RpgGameRow, RpgService } from "../contract/service.ts";
@@ -23,10 +24,10 @@ const MIN_MEMBER_FACES = 2;
 function parseNotation(notation: string): DiceNotation {
   const parsed = parseDiceNotation(notation);
   if (parsed === null) {
-    throw new DomainOperationError("rpg_bad_dice_notation", `unparseable dice notation "${notation}"`);
+    throw new DomainOperationError(RPG_OP_CODES.badDiceNotation, `unparseable dice notation "${notation}"`);
   }
   if (!rpgDiceInBounds(parsed) || parsed.faces < MIN_MEMBER_FACES) {
-    throw new DomainOperationError("rpg_dice_out_of_bounds", `dice notation "${notation}" is out of bounds`);
+    throw new DomainOperationError(RPG_OP_CODES.diceOutOfBounds, `dice notation "${notation}" is out of bounds`);
   }
   return parsed;
 }
@@ -38,18 +39,18 @@ async function resolveAbility(
   key: string,
 ): Promise<{ readonly modifier: number; readonly label: string }> {
   if (params.notation.trim().toLowerCase() !== "d20") {
-    throw new DomainOperationError("rpg_bad_ability_dice", "an ability check rolls d20 without a caller-supplied modifier");
+    throw new DomainOperationError(RPG_OP_CODES.badAbilityDice, "an ability check rolls d20 without a caller-supplied modifier");
   }
   const profile = game.config.statProfile;
   const ability = profile.attributes.find((def) => def.key === key);
   if (ability === undefined) {
-    throw new DomainOperationError("rpg_unknown_attribute", `attribute "${key}" is not in the profile`);
+    throw new DomainOperationError(RPG_OP_CODES.unknownAttribute, `attribute "${key}" is not in the profile`);
   }
   const sheet = await findSheet(ctx.db, game.id, { userId: params.principal.userId });
   // A host label can mint an `Object.prototype` member name as the key; only the sheet's own score counts.
   const score = sheet === undefined ? undefined : readOwnKey(sheet.sheet.attributes, ability.key);
   if (score === undefined) {
-    throw new DomainOperationError("rpg_unset_ability", `Set your ${ability.label} score before rolling an ability check.`);
+    throw new DomainOperationError(RPG_OP_CODES.unsetAbility, `Set your ${ability.label} score before rolling an ability check.`);
   }
   return { modifier: rpgAttributeModifier(profile, score), label: ability.label.replace(ABILITY_LABEL_BREAKS, " ") };
 }

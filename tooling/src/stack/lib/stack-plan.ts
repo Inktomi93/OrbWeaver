@@ -1,6 +1,7 @@
 // Every decision the dev supervisor makes before it spawns anything, pure over an env record: the pins a
 // host export wins over, the run dir, the port pair, the leader env and the log paths.
 import { isAbsolute, join, resolve } from "node:path";
+import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { DEV_PORTS, MAX_TCP_PORT } from "../../floor/host/ports.ts";
 import type { DevPinKey, DevPins, PinSource, StackContext, StackLogs } from "../contract/types.ts";
 import { DEV_PIN_KEYS } from "../contract/types.ts";
@@ -11,8 +12,6 @@ export const RUN_DIR_ENV = "STACK_RUN_DIR";
 export const PORT_ENV = "PORT";
 export const VITE_PORT_ENV = "VITE_PORT";
 export const VITE_API_TARGET_ENV = "VITE_API_TARGET";
-/** The server's switch that skips `.env` entirely; a sidecar sets it so the operator's file cannot leak in. */
-export const ENV_NO_FILE = "ORB_ENV_NO_FILE";
 /** The pin keys the supervisor filled, handed to the leader: in the leader's own env every pin reads as a
  *  host export, so the supervisor's verdict travels with the launch. */
 export const PINNED_KEYS_ENV = "ORB_STACK_PINNED";
@@ -78,7 +77,7 @@ export function stackPorts(
   ambient: Readonly<Record<string, string | undefined>>,
   envFileText: string | null,
 ): { readonly server: number; readonly vite: number } {
-  const fileEnv = ambient[ENV_NO_FILE] === undefined || ambient[ENV_NO_FILE] === "" ? parseEnvText(envFileText ?? "") : {};
+  const fileEnv = ambient[ENV_NO_FILE_KEY] === undefined || ambient[ENV_NO_FILE_KEY] === "" ? parseEnvText(envFileText ?? "") : {};
   return {
     server: portFrom(fileEnv[PORT_ENV] ?? ambient[PORT_ENV], DEV_PORTS.server),
     vite: portFrom(fileEnv[VITE_PORT_ENV] ?? ambient[VITE_PORT_ENV], DEV_PORTS.vite),

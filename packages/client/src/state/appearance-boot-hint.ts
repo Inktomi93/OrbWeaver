@@ -10,6 +10,7 @@ import { pickKeys } from "@orb/kit/objects";
 import type { SeedThemeName } from "#lib";
 import { isSeedThemeName } from "#lib";
 import { createPersistedStore } from "./create-persisted-store.ts";
+import { APPEARANCE_BOOT_HINT_NAME, APPEARANCE_BOOT_HINT_VERSION } from "./durable-local-keys.ts";
 
 /** The root attribute the generated `[data-theme="…"]` palette blocks in the ui package's theme.css select on. */
 export const DATA_THEME_ATTR = "data-theme";
@@ -33,8 +34,6 @@ const DEFAULT_AXES: AppearanceBootAxes = appearanceSettingsSchema.parse({});
 
 const DEFAULT_STATE: AppearanceBootHintState = { ...DEFAULT_AXES, dataTheme: null };
 
-const PERSIST_VERSION = 1;
-
 /** TOTAL: any shape that is not a valid remembered answer degrades to "this device knows nothing". */
 function migrate(persisted: unknown): AppearanceBootHintState {
   if (!isPlainObject(persisted)) {
@@ -46,8 +45,8 @@ function migrate(persisted: unknown): AppearanceBootHintState {
   return { ...pickKeys(axes, APPEARANCE_BOOT_AXES), dataTheme: typeof dataTheme === "string" && isSeedThemeName(dataTheme) ? dataTheme : null };
 }
 
-const useAppearanceBootHintStore = createPersistedStore<AppearanceBootHintState>("appearance-boot", (): AppearanceBootHintState => DEFAULT_STATE, {
-  version: PERSIST_VERSION,
+const useAppearanceBootHintStore = createPersistedStore<AppearanceBootHintState>(APPEARANCE_BOOT_HINT_NAME, (): AppearanceBootHintState => DEFAULT_STATE, {
+  version: APPEARANCE_BOOT_HINT_VERSION,
   migrate,
   partialize: (s): AppearanceBootHintState => ({ ...pickKeys(s, APPEARANCE_BOOT_AXES), dataTheme: s.dataTheme }),
 });

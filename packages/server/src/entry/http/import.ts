@@ -19,6 +19,7 @@ import { mkdir, open, rm } from "node:fs/promises";
 import { join } from "node:path";
 import type { Principal } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { IMPORT_BUNDLE_MAX_BYTES } from "@orb/contracts/uploads";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { IdSource, UserId } from "@orb/kit/ids";
@@ -34,7 +35,6 @@ const BAD_REQUEST = 400;
 const PAYLOAD_TOO_LARGE = 413;
 const CONFLICT = 409;
 const ACCEPTED = 202;
-const BUNDLE_ROUTE = "/api/import/bundle";
 const ALREADY_RUNNING = "a bundle import is already running for this account";
 /** Staging dirs are per-uploader, so they are created rwx for the app user only. */
 const OWNER_ONLY_DIR = 0o700;
@@ -89,7 +89,7 @@ export function registerImportBundle(app: Hono<PrincipalEnv>, deps: ImportBundle
   // Owners whose upload is still staging. The single-active lock only answers at `start`, after a whole
   // bundle (up to the 4 GiB cap) is on disk, so without this one member could stage many bundles at once.
   const staging = new Set<UserId>();
-  app.post(BUNDLE_ROUTE, async (c) => {
+  app.post(PORTABILITY_ROUTES.importBundle, async (c) => {
     const principal = c.get("principal");
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);

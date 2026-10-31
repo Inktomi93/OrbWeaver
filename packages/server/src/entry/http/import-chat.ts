@@ -15,6 +15,7 @@
 import type { ChatImportResult } from "@orb/contracts/import";
 import { chatImportResultSchema } from "@orb/contracts/import";
 import type { PortabilityRegistry, PortableEntity } from "@orb/contracts/portability";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
@@ -27,7 +28,6 @@ const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;
 const BAD_REQUEST = 400;
 const PAYLOAD_TOO_LARGE = 413;
-const CHAT_ROUTE = "/api/import/chat";
 const UPLOAD_FIELD = "file";
 const CHAT_KIND = "chat";
 
@@ -83,7 +83,7 @@ export function registerImportChat(app: ImportApp, deps: ImportChatDeps): void {
   }
 
   app.post(
-    CHAT_ROUTE,
+    PORTABILITY_ROUTES.importChat,
     // Auth-first + CSRF, ahead of the body-limit belt so an anonymous/cross-site caller is rejected before a
     // body byte is read (the sibling upload routes' belt order). Inline, so the ctx types come off `app`.
     // CSRF keys on the ambient-credential arms `via !== "header"` (cookie + the loopback owner fallback) —
