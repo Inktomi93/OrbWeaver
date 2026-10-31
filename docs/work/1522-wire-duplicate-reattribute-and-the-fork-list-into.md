@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-The server verbs duplicateMessage, reattributeMessages and listForks have no client caller (items 1500 Evidence). Wire Duplicate into the message menu, a host Reattribute action, and a fork list in the chat details panel. The persona tools already offer a reattribute option: find it, and make one reattribute path that both use rather than a second one. Check where SillyTavern places duplicate, reattribute and branch lists and follow its placement where our layout allows.
+The server verbs duplicateMessage, reattributeMessages and listForks have no client caller (items 1500 Evidence). Wire Duplicate into the message menu, a per-message Reattribute action in the message menu, and a fork list in the chat details panel. The persona tools already reattribute a whole chat; the message action reattributes one message. Keep both. They share one server path where the whole-chat action can call the per-message verb; do not build a second write path. Check where SillyTavern places duplicate, reattribute and branch lists and follow its placement where our layout allows.
 
 ## Why
 
@@ -19,7 +19,7 @@ Owner ruling: these are wanted features, built server-side and never surfaced.
 
 ## Done when
 
-Each action is reachable from the UI and runs the production verb; one reattribute path serves persona work and the message action; CTs mount each action through the production surface; side-eye passes the placements.
+Each action is reachable from the UI and runs the production verb; the per-message and whole-chat reattribute actions write through one server path; CTs mount each action through the production surface; side-eye passes the placements.
 
 ## Evidence
 
