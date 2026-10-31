@@ -1,5 +1,5 @@
 ---
-kind: work
+kind: bug
 status: open
 updated: 2026-10-31
 priority: P3
@@ -7,7 +7,7 @@ area: client
 plan: cross-surface-consistency
 ---
 
-# Rule editor audit leftovers: cohort-anatomy field-row heights and the caveat-outweighed autosave alert (keeps 0550 from its done line)
+# Settings list group heights: the open group is 114px beside collapsed groups at 32px (design audit cohort-anatomy P2)
 
 ## What
 
