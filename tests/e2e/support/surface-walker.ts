@@ -287,7 +287,7 @@ async function walkMenuTerminal(walk: SurfaceWalk, menu: Locator, items: Locator
     return;
   }
   await menu.press("End");
-  await expect(items.last()).toBeFocused();
+  await expect(items.last()).toHaveAttribute("data-highlighted", "");
   await checkpoint(walk, `${prefix}/terminal`, menu, items.last());
 }
 

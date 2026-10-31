@@ -1294,9 +1294,6 @@ export async function walkChatReading(input: SurfaceFlow): Promise<void> {
   const messageOperations: MessageOperationProof[] = [];
   const flow: Journey = { ...createSurfaceWalk(input, [{ id: "chat-reading", kind: "chat-journey" }]), messageOperations };
   try {
-    await flow.page.goto("/");
-    await waitForAppReady(flow.page);
-    await flow.requestPanes();
     const rooms = await readChats(flow);
     const candidates = rooms.toSorted((a, b) => b.messageCount - a.messageCount);
     subjectCoverage(flow, rooms);
@@ -1314,6 +1311,9 @@ export async function walkChatReading(input: SurfaceFlow): Promise<void> {
     }
     messageOperations.push(...(await runChatMessageOperations(input)));
     expect(await readCanon(flow, room.id), "Disposable operation proofs must leave the entire original reading canon untouched").toEqual(messages);
+    await flow.page.goto("/");
+    await waitForAppReady(flow.page);
+    await flow.requestPanes();
     const witnesses = new Map([[first.id, first]]);
     addRoleWitnesses(flow, witnesses, messages);
     const last = messages.at(-1);
