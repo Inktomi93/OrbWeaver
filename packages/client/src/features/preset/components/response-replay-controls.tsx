@@ -89,7 +89,7 @@ function ReplayRetention({ form, disabled }: { readonly form: AppForm; readonly 
             min={RESPONSE_CACHE_TTL_BOUNDS.min}
             max={RESPONSE_CACHE_TTL_BOUNDS.max}
             step={1}
-            placeholder={`${RESPONSE_CACHE_TTL_BOUNDS.default} (provider default)`}
+            placeholder={`${RESPONSE_CACHE_TTL_BOUNDS.default} (default)`}
             value={draft === null ? (field.state.value ?? null) : draft.value}
             onBlur={field.handleBlur}
             onValueChange={(value): void => setDraft({ value })}
