@@ -4,6 +4,7 @@
 // never macro-processed.
 
 import type { CharacterCard } from "@orb/contracts/character";
+import type { RolePresetParams } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type {
   RefineryAnalyzeMode,
@@ -18,8 +19,7 @@ import type {
   RefinerySelection,
   RefineryStage,
 } from "@orb/contracts/refinery";
-import type { ResponseFormat, RoleClients, SummarizeOptions } from "@orb/contracts/role-clients";
-import type { SideGenSampling } from "@orb/inference";
+import type { ResponseFormat, RoleClients } from "@orb/contracts/role-clients";
 import type { z } from "zod";
 
 /** One stage call's parse seam (built fresh per run — the capture is per-call state). */
@@ -101,7 +101,7 @@ export interface ForgeTurnArgs {
   readonly stage: RefinerySchemaStage;
   readonly userPrompt: string;
   readonly overrides: ProseOverrides;
-  readonly sampleOpts: SummarizeOptions;
+  readonly sampleOpts: RolePresetParams;
   readonly arm: RefineryForgeArm;
   /** The caller's role-client bundle — every forge call is `structured` on it. */
   readonly rc: RoleClients;
@@ -140,7 +140,7 @@ export type StageEstimateSubject =
 export interface StageBudgetFitArgs {
   readonly subject: StageEstimateSubject;
   /** The caller's Utility-role preset params (D299), `undefined` under task defaults, unchanged by any of this. */
-  readonly presetParams: SideGenSampling | undefined;
+  readonly presetParams: RolePresetParams | undefined;
 }
 
 /** The refusal RECEIPT (`stageBudgetMisfitOf` — null when the run fits): the two numbers the user needs to

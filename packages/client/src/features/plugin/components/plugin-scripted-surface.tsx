@@ -19,7 +19,7 @@
 // stay silent without a tree. Tool cards keep their generic persisted record because transcript canon cannot
 // disappear. A crash still feeds the 3-strike policy, so repeated failure disables the plugin.
 
-import type { PluginCapability, PluginSurfaceAnchor, PluginSurfaceSpec } from "@orb/contracts/plugin";
+import type { PluginCapability, PluginSurfaceAnchor, PluginSurfaceNode } from "@orb/contracts/plugin";
 import type { ChatId, PluginId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
@@ -58,7 +58,7 @@ export interface PluginScriptedSurfaceProps {
 type ScriptedSurfaceState =
   | { readonly bootKey: string; readonly kind: "booting" }
   | { readonly bootKey: string; readonly kind: "ready-empty" }
-  | { readonly bootKey: string; readonly kind: "ready-tree"; readonly tree: PluginSurfaceSpec }
+  | { readonly bootKey: string; readonly kind: "ready-tree"; readonly tree: PluginSurfaceNode }
   | { readonly bootKey: string; readonly kind: "failed" };
 
 export function PluginScriptedSurface({

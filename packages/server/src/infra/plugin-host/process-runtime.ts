@@ -32,6 +32,7 @@ import type {
   PluginSurfaceRegistration,
   PluginToolRegistration,
   PluginTransformRegistration,
+  SnippetResult,
 } from "@orb/contracts/plugin";
 import {
   PLUGIN_LOG_LEVELS,
@@ -59,14 +60,7 @@ import {
   PLUGIN_SNIPPET_RUNTIME_MAX,
 } from "./budgets.ts";
 import type { PluginNetEgress } from "./contract/net-egress.ts";
-import type {
-  CreateInstanceInputIn,
-  CreateInstanceOutcomeOut,
-  CreateLogicalInstanceInputIn,
-  PluginHostSeamDeps,
-  ProcessPluginHost,
-  SnippetRunOut,
-} from "./contract/port.ts";
+import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, CreateLogicalInstanceInputIn, PluginHostSeamDeps, ProcessPluginHost } from "./contract/port.ts";
 import type { BrokerParentMessage, ParentBrokerMessage, RpcResult } from "./contract/process-protocol.ts";
 import { createPluginNetEgress } from "./net-egress.ts";
 import { PluginIpcSender, parsePluginIpcMessage } from "./process-channel.ts";
@@ -935,7 +929,7 @@ function parseCreateOutcome(value: unknown, grants: ReadonlySet<PluginCapability
   return { ok: true, instance: registrations };
 }
 
-function parseSnippetOutcome(value: unknown): SnippetRunOut {
+function parseSnippetOutcome(value: unknown): SnippetResult {
   const parsed = snippetResultSchema.safeParse(value);
   if (!parsed.success) {
     throw new Error("plugin broker: malformed snippet response");
@@ -1294,7 +1288,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       const lease = await pool.acquire(binding, { signal });
       return await invokeWithLease({ binding, lease, handler, argsJson, chat }, generation);
     },
-    runSnippet: async (input): Promise<SnippetRunOut> => {
+    runSnippet: async (input): Promise<SnippetResult> => {
       const releaseAdmission = acquireSnippetAdmission();
       if (releaseAdmission === null) {
         throw new DomainConflictError(`the plugin host is running its maximum of ${PLUGIN_SNIPPET_RUNTIME_MAX} snippets — wait a moment and run it again`);

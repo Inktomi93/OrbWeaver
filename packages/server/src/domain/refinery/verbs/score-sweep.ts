@@ -35,11 +35,11 @@
 // fire N retry calls at once — the exact 429 storm the wave size bounds).
 
 import type { RefineryScoreTarget } from "@orb/contracts/character";
+import type { RolePresetParams } from "@orb/contracts/preset";
 import type { RefineryScorePayload, RefineryScoreSweepResult, RefinerySelection } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
 import type { RoleClients, StructuredOptions } from "@orb/contracts/role-clients";
 import type { ReportProgress } from "@orb/contracts/workloads";
-import type { SideGenSampling } from "@orb/inference";
 import { ProviderError, runStructuredTurn } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -91,7 +91,7 @@ interface SweepItem {
  * caller capped their own preset; a sweep is a bulk pass with per-card containment, no fit line to have
  * warned anyone, and under the BULK arm no single caller at all (`presetParams` is `undefined` there).
  */
-function sweepOutputSamplingOf(items: readonly SweepItem[], presetParams: SideGenSampling | undefined, contextTokens: number | null): SideGenSampling {
+function sweepOutputSamplingOf(items: readonly SweepItem[], presetParams: RolePresetParams | undefined, contextTokens: number | null): RolePresetParams {
   // Non-empty by the caller's `ready.length === 0` early return.
   const hungriest = items.reduce((a, b) => (outputEstimateOf(b.subject) > outputEstimateOf(a.subject) ? b : a));
   const widestInput = items.reduce((max, item) => Math.max(max, estimateTokens(`${item.system}\n${item.user}`)), 0);

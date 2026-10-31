@@ -1,4 +1,4 @@
-import type { BackfillPassResult, ChatBusEvent, MemoryBackfillResult, MemoryRecallSlice, MessageKind } from "@orb/contracts/chat";
+import type { ChatBusEvent, MemoryBackfillResult, MemoryRecallSlice, MessageKind } from "@orb/contracts/chat";
 import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { MemoryRetrievalMode } from "@orb/contracts/search";
 import type { CharacterId, ChatDigestId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
@@ -234,9 +234,6 @@ export interface MemoryRecallRecord {
   readonly trace: MemoryRecallSlice;
 }
 
-/** The read filter for the ring: narrow to one chat's recalls, and/or the most-recent N. */
-export type MemoryRecallFilter = RecorderFilter;
-
 /** The injected recall-trace sink (`ChatContext.recordRecall`) — synchronous, side-effect-only, and it must
  *  never throw into the turn path. Absent ⇒ nothing records (a hand-built ctx / a unit test), and recall is
  *  byte-identical either way. */
@@ -261,7 +258,7 @@ export type MemoryRecallPhaseEmitter = (event: MemoryRecallBusEvent) => void;
 export interface MemoryRecallRecorder {
   readonly sink: MemoryRecallSink;
   /** The matching records in chronological order, capped to the most-recent `limit` (default: ring depth). */
-  readonly recent: (filter?: MemoryRecallFilter) => readonly MemoryRecallRecord[];
+  readonly recent: (filter?: RecorderFilter) => readonly MemoryRecallRecord[];
 }
 
 /** The per-call build observability fragment (docs/law/Knowledge-Cluster.md §3a `memoryTrace.build`). Folded into
@@ -315,28 +312,16 @@ export interface ParsedDigest {
   readonly keywords: string[];
 }
 
-// ── The corpus-sweep counts (`substrate/backfill.ts`). These DERIVE `@orb/contracts/chat` rather than
-//    re-spelling it: the sweep's fold IS the workload's terminal RESULT — `workload-contributions.ts` returns
-//    the value the sweep produced straight through as the contract type, and it lands verbatim in the durable
-//    workload result JSON. One home for that shape (contracts, which cannot import a domain), so a field the
-//    contracts shape grows can never silently miss this side. The sweep-vocabulary NAMES stay: `substrate/`'s
-//    signatures read as counts, not as a workload result. ──
+// ── The corpus-sweep counts (`substrate/backfill.ts`) use `BackfillPassResult` and `MemoryBackfillResult` from
+//    `@orb/contracts/chat` directly: the sweep's fold IS the workload's terminal RESULT — `workload-contributions.ts`
+//    returns the value the sweep produced straight through as the contract type, and it lands verbatim in the
+//    durable workload result JSON. One home for that shape (contracts, which cannot import a domain). ──
 
-/** One sweep pass's fold: entities visited × rows actually written. */
-export type BackfillPassCounts = BackfillPassResult;
-
-/** The memory-backfill sweep result: the segment pass (scanned = chats) + the digest pass (scanned =
- *  scope buckets). `failed` = chats whose build threw an UNEXPECTED error and were isolated-and-skipped
- *  (the sweep survives one bad chat, but the failure is NOT silent — it is logged at `error` level AND
- *  counted here so the workload result surfaces it; #41). A healthy sweep is `failed: 0`; any non-zero
- *  value is a signal to investigate, never a chat silently losing its memory without a trace. NOT exported:
- *  its only reader is {@link MemoryBackfillSweepCounts} below, and the sweep's callers take THAT. Kept as a
- *  named alias rather than inlined because it IS the cite-or-derive receipt the `ast respell` lens reads — a
- *  bare alias naming the contracts symbol is the derive, so this must never become a hand-spelled twin. */
-type MemoryBackfillCounts = MemoryBackfillResult;
-
-/** Internal completion evidence consumed by the workload terminal; only checked owner-spaces are listed. */
-export type MemoryBackfillSweepCounts = MemoryBackfillCounts & {
+/** The memory-backfill sweep result (segment pass: scanned = chats; digest pass: scanned = scope buckets) plus the
+ *  completion evidence the workload terminal consumes; only checked owner-spaces are listed. `failed` counts chats
+ *  whose build threw an UNEXPECTED error and were isolated-and-skipped: the sweep survives one bad chat, logs it at
+ *  `error` level and counts it here so the workload result surfaces it. A healthy sweep is `failed: 0`. */
+export type MemoryBackfillSweepCounts = MemoryBackfillResult & {
   readonly completedSpaces: readonly MemoryEmbedSpace[];
 };
 

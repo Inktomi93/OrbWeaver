@@ -1,2 +1,2 @@
 -- Filled by item 1498: strips the retired agent task from stored provider rows and plugin manifests.
-SELECT 1;
+UPDATE `provider_rows` SET `serves` = `serves` WHERE 0;

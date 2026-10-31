@@ -6,15 +6,13 @@ import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
 import type { CoreWireReply } from "../engine/core-physical.ts";
-import { coreFrame, coreHttpRoom, coreSse } from "../engine/core-physical.ts";
+import { CORE_ROOM_GROUP, coreFrame, coreHttpRoom, coreSse } from "../engine/core-physical.ts";
 
 export const TURN_SCENE_TOOL = RPG_LITE_TOOL_NAMES[2];
 
-/** Persist and bind the actual tools-capable model; no resolved connection is fabricated. */
-export async function turnToolsRoom(replies: readonly CoreWireReply[], options: Omit<ChatRootOptions, "providerFetch"> = {}): Promise<ChatRoot> {
-  await using construction = new AsyncDisposableStack();
-  const h = construction.use(await coreHttpRoom(replies, options));
-  const connection = await h.root.services.connection.create({
+/** Persist the actual tools-capable model without binding it; no resolved connection is fabricated. */
+export async function createToolsConnection(h: ChatRoot): ReturnType<ChatRoot["root"]["services"]["connection"]["create"]> {
+  return await h.root.services.connection.create({
     principal: h.owner,
     providerId: "custom-openai",
     credentialId: null,
@@ -26,9 +24,24 @@ export async function turnToolsRoom(replies: readonly CoreWireReply[], options: 
       features: { detectServer: false },
     },
   });
+}
+
+/** Persist and bind the actual tools-capable model. */
+export async function turnToolsRoom(replies: readonly CoreWireReply[], options: Omit<ChatRootOptions, "providerFetch"> = {}): Promise<ChatRoot> {
+  await using construction = new AsyncDisposableStack();
+  const h = construction.use(await coreHttpRoom(replies, options));
+  const connection = await createToolsConnection(h);
   await h.caller.connection.setBinding({ task: "chat", connectionId: connection.id });
   const lifetime = construction.move();
   return { ...h, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
+}
+
+/** Start another chat with the room's characters under the core group posture, so a case sharing the room keeps its own canon. */
+export async function startCoreChat(h: ChatRoot): Promise<ChatRoot["chatId"]> {
+  const { chat } = await h.caller.chat.startChat({ characterIds: h.characters.map(({ id }) => id), opening: "none" });
+  await h.caller.chat.setGroupConfig({ chatId: chat.id, config: CORE_ROOM_GROUP });
+  await h.root.settleBackground();
+  return chat.id;
 }
 
 /** Create the engaged game through its host-only door after the actual model binding exists. */

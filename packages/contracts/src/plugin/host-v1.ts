@@ -23,7 +23,7 @@ import type {
   PluginCommandArgValue,
   PluginCommandPlacement,
   PluginSurfaceAnchor,
-  PluginSurfaceSpec,
+  PluginSurfaceNode,
   PluginSurfaceTier,
   PluginToastLevel,
 } from "./ui.ts";
@@ -60,22 +60,6 @@ export interface PluginCharacterView {
   readonly name: string;
   readonly avatarAssetId: SandboxWireId<AssetId> | null;
 }
-
-// The same `set`/`add`/`inc`/`dec`/`delete` op vocabulary the delta model defines — the ONE home is the kit
-// `VarOp` (aliased, never re-spelled); a guest write rides the SAME delta seam actions use.
-type PluginVariableOp = VarOp;
-
-/** The OPTIONAL compare-and-set half of a guest variable write (#1555) — the ONE home is
- *  `@orb/contracts/chat`'s {@link VariablePrecondition}, aliased here the way {@link PluginVariableOp} aliases
- *  the kit op. A guest that read a value, computed from it and wants the write to land only if nothing moved
- *  underneath passes its belief; the shape is deliberately NOT an op member (see the one home for why). */
-type PluginVariablePrecondition = VariablePrecondition;
-
-/** What `chat.applyVariableOps` answers (#1555) — `@orb/contracts/chat`'s {@link VariableWriteResult}, aliased.
- *  A lost race is DATA the guest branches on (`outcome === "stale"` + the live values), never a throw: an
- *  uncaught throw here would spend one of the three crash strikes that auto-disable a plugin, and losing a
- *  contended write is a normal outcome, not a fault. */
-type PluginVariableWriteResult = VariableWriteResult;
 
 /** Mirror of the `insert_world_info_entry` action's entry fields — attached-book-only, entryKey-
  *  updatable, host-side idempotent. */
@@ -238,11 +222,7 @@ export interface PluginHostV1 {
      *  writing anything, so a read → compute → write guest (a clock tick, a counter) can retry against `actual`
      *  instead of silently losing its update to a writer on the other side of the invoke queue. Omit `expect`
      *  for an unconditional write — it can only answer `applied`. */
-    applyVariableOps: (
-      chat: ChatHandle,
-      ops: readonly PluginVariableOp[],
-      expect?: readonly PluginVariablePrecondition[],
-    ) => Promise<PluginVariableWriteResult>;
+    applyVariableOps: (chat: ChatHandle, ops: readonly VarOp[], expect?: readonly VariablePrecondition[]) => Promise<VariableWriteResult>;
     /** Surface quick-reply chips (the automation bus event) — capability: chat.quick_reply */
     surfaceQuickReply: (chat: ChatHandle, choices: readonly { label: string; sendText: string }[]) => Promise<void>;
     /** Request an autonomous turn — capability: turn.trigger. Budget/consent-gated EXACTLY like the
@@ -627,7 +607,7 @@ export interface PluginHostV1 {
       title: string; // the shell label line (≤ 80 chars)
       tier: PluginSurfaceTier; // scripted requires the bundle's ui.js (U4)
       toolName?: string; // required for, and only for, the tool-card anchor (ui.ts registration schema)
-      spec?: PluginSurfaceSpec; // REQUIRED for the static tier; zod-validated host-side (ui.ts)
+      spec?: PluginSurfaceNode; // REQUIRED for the static tier; zod-validated host-side (ui.ts)
       onAction?: (a: { actionId: string; values: Record<string, string>; chat: ChatHandle | null }) => void | Promise<void>;
     }) => void;
     /** Publish surface STATE (the data the spec's `$state` bindings resolve against). ≤ 16 KiB JSON; replaces

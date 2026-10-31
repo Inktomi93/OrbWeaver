@@ -186,8 +186,10 @@ export interface ReplayChatEventsParams extends ChatScopedParams {
   readonly afterSeq?: number | undefined;
 }
 
-/** `chatEventBounds` — the durable chat-bus log's cursor bounds. */
-export type ChatEventBoundsParams = ChatScopedParams;
+/** `chatEventBounds` — the durable chat-bus log's cursor bounds. `positionOf` names the row a live view carries. */
+export interface ChatEventBoundsParams extends ChatScopedParams {
+  readonly positionOf?: MessageId | undefined;
+}
 
 /** `send` — persist a user message then run the AI turn. */
 export interface SendParams extends ChatScopedParams, ViewerClockParams {
