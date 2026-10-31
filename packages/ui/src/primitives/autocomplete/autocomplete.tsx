@@ -3,7 +3,7 @@ import { Autocomplete as BaseAutocomplete } from "@base-ui/react/autocomplete";
 import type { ReactElement, ReactNode } from "react";
 import type { VariantProps } from "tailwind-variants";
 import type { PortalContainer } from "#lib";
-import { ANCHOR_GAP_INPUT, cn, formatSuggestionCount, usePortalContainer, variantAttrs } from "#lib";
+import { ANCHOR_GAP_INPUT, formatSuggestionCount, usePortalContainer, variantAttrs } from "#lib";
 import { useFieldIdentity } from "#primitives/field";
 import { Icon, X } from "#primitives/icons";
 import { autocompleteVariants } from "./variants.ts";
@@ -83,8 +83,6 @@ export interface AutocompleteProps extends AutocompletePassthrough {
   size?: AutocompleteSize;
   /** Accessible name for the clear button. @defaultValue "Clear" */
   clearLabel?: string;
-  /** Applied to the input (the in-flow element). */
-  className?: string;
   id?: BaseRootProps<string>["id"];
   /** Render an arrow pointing at the input inside the popup. @defaultValue false */
   arrow?: boolean;
@@ -172,7 +170,6 @@ function AutocompleteField({
   inline,
   ariaLabel,
   ariaDescribedby,
-  className,
   clearLabel,
   id,
   name,
@@ -183,7 +180,6 @@ function AutocompleteField({
   readonly inline: boolean;
   readonly ariaLabel: string | undefined;
   readonly ariaDescribedby: string | undefined;
-  readonly className: string | undefined;
   readonly clearLabel: string;
   readonly id: BaseRootProps<string>["id"];
   readonly name: string | undefined;
@@ -196,7 +192,7 @@ function AutocompleteField({
       <BaseAutocomplete.Input
         aria-describedby={ariaDescribedby}
         aria-label={ariaLabel}
-        className={cn(slots.input(), className)}
+        className={slots.input()}
         data-slot="autocomplete-input"
         id={id}
         {...(name === undefined ? {} : { name })}
@@ -234,7 +230,6 @@ export function Autocomplete({
   "aria-describedby": ariaDescribedby,
   clearLabel = "Clear",
   size,
-  className,
   id,
   arrow = false,
   side,
@@ -283,7 +278,6 @@ export function Autocomplete({
         size={size}
         ariaDescribedby={ariaDescribedby}
         ariaLabel={ariaLabel}
-        className={className}
         clearLabel={clearLabel}
         id={identity.id}
         inline={inline}

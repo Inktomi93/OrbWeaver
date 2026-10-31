@@ -33,9 +33,7 @@ export interface TabsTabProps extends BaseTabsTabProps, Pick<TabsAxes, "layout" 
   className?: string;
 }
 
-export interface TabsIndicatorProps extends BaseTabsIndicatorProps {
-  className?: string;
-}
+export type TabsIndicatorProps = Omit<BaseTabsIndicatorProps, "className">;
 
 export interface TabsPanelProps extends BaseTabsPanelProps {
   className?: string;
@@ -190,7 +188,7 @@ function observeIndicatorGlide(node: HTMLElement): () => void {
   };
 }
 
-export function TabsIndicator({ className, ...rest }: TabsIndicatorProps): ReactElement {
+export function TabsIndicator(rest: TabsIndicatorProps): ReactElement {
   const indicatorRef = useRef<HTMLSpanElement | null>(null);
   useLayoutEffect((): (() => void) | undefined => {
     const node = indicatorRef.current;
@@ -198,7 +196,7 @@ export function TabsIndicator({ className, ...rest }: TabsIndicatorProps): React
   }, []);
   return (
     <BaseTabs.Indicator
-      className={cn(tabsVariants().indicator(), className)}
+      className={tabsVariants().indicator()}
       data-slot="tabs-indicator"
       {...rest}
       // The seal owns this node's ref (the glide above is its only reader). Last, so a spread cannot lose it.
