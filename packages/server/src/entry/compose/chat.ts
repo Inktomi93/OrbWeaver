@@ -8,6 +8,7 @@
 import type {
   ClaimChatOp,
   GetMembership,
+  RequestTurnOp,
   ResolveCanonWindow,
   ResolveRegexSources,
   ResolveRpgCardCorpus,
@@ -32,8 +33,8 @@ import type { CharacterService } from "#domain/character";
 import { createCharacterRoomProjections, createCopyHandoffCards, createLoadSeatCards } from "#domain/character";
 import type {
   BeginGenerationObservation,
+  ChatAssemblyContext,
   ChatBoundBackfillOps,
-  ChatContext,
   ChatInferenceDeps,
   ChatRoomInputs,
   ChatService,
@@ -47,7 +48,6 @@ import type {
   PresenceReadOp,
   PromptCacheMinDepthOp,
   PromptTransformRegistry,
-  RequestTurnOp,
   ResolveChatPresetParamsOp,
   SignupInviteDeps,
   SignupInviteOps,
@@ -128,14 +128,14 @@ export interface ChatComposeInput {
 
   readonly timers: TimerScheduler;
   readonly backgroundSignal?: AbortSignal;
-  readonly trackBackground?: ChatContext["trackBackground"];
-  readonly recordTurnOutcome?: ChatContext["recordTurnOutcome"];
+  readonly trackBackground?: ChatAssemblyContext["trackBackground"];
+  readonly recordTurnOutcome?: ChatAssemblyContext["recordTurnOutcome"];
   readonly random: RandomSource;
   readonly idSource: IdSource;
   /** The root's logger; the memory log and the best-effort audit write go through it. */
   readonly logger: Logger;
   /** A user's Utility-role preset params (`side-gen-params.ts`), for the arbiter and the memory build. */
-  readonly resolveUtilityPresetParams: ChatContext["resolveUtilityPresetParams"];
+  readonly resolveUtilityPresetParams: ChatAssemblyContext["resolveUtilityPresetParams"];
   readonly mediaProcessing: Pick<ImageRefAssets, "frameCount" | "prepareVideo">;
   /** Optional — absent wires `ChatContext.tools` to null (byte-identical no-op). */
   readonly toolUse?: ToolUseService | undefined;
@@ -178,7 +178,7 @@ export interface ChatComposeInput {
   readonly notifications: NotificationsService;
   readonly resolveHandle: SessionsService["resolveHandle"];
   /** The disabled-account containment read (`createResolveUserEnabled` over sessions). */
-  readonly resolveUserEnabled: ChatContext["resolveUserEnabled"];
+  readonly resolveUserEnabled: ChatAssemblyContext["resolveUserEnabled"];
   /** D259 — the live `AUTH_MODE`: it picks whether invites may create accounts and stamps every invite. */
   readonly authMode: AuthMode;
   /** D259 — the foreign halves of the signup batch, all built at the root: the sessions account statement, the
@@ -194,7 +194,7 @@ export interface ChatComposeInput {
   readonly recallRecorder?: MemoryRecallRecorder | undefined;
   /** The databank `{{databank}}`-slot GATHER op (DB6) — OPTIONAL; absent wires `ChatContext.gatherDatabank`
    *  to undefined (byte-identical no-op). Bridged from `databank.gatherRetrieval` at the composition root. */
-  readonly gatherDatabank?: ChatContext["gatherDatabank"];
+  readonly gatherDatabank?: ChatAssemblyContext["gatherDatabank"];
   /** The compose-tier executor FENCE (§7.5-1a): chat receives exactly the bound `runChatTurn`. */
   readonly runChatTurn: ProviderExecutor["runChatTurn"];
   /** The deployment's Anthropic prompt-cache depth FLOOR, read per turn off the resolved AppSettings tier
@@ -207,17 +207,17 @@ export interface ChatComposeInput {
   readonly materializeBackground: MaterializeBackgroundOp;
   /** §6.7's inline-reply picture store, built at the keystone (it needs the boot-level per-image byte cap) —
    *  the `materializeBackground` precedent one line up. */
-  readonly storeInlineReplyImage: ChatContext["storeInlineReplyImage"];
+  readonly storeInlineReplyImage: ChatAssemblyContext["storeInlineReplyImage"];
   readonly readPresence: PresenceReadOp;
   /** imagery's orchestrator → chat's `generatePicture` op (mapped to the chat-local structural result below). */
   readonly generatePicture: ImageryService["generatePicture"];
   /** The injected rpg turn ops (D58) — OPTIONAL; absent wires `ChatContext.rpg` to null
    *  (byte-identical no-op). Built at the composition root over the rpg service + its standalone gather op. */
-  readonly rpg?: ChatContext["rpg"] | undefined;
+  readonly rpg?: ChatAssemblyContext["rpg"] | undefined;
   /** FOREIGN S2 teaching contributions — OPTIONAL; absent wires the
    *  registry to chat's own contribution alone (byte-identical no-op, the `rpg` precedent).
    *  Chat's own contributor is ALWAYS present, which is why the ctx field itself is not nullable. */
-  readonly teaching?: ChatContext["teaching"] | undefined;
+  readonly teaching?: ChatAssemblyContext["teaching"] | undefined;
   /** The per-turn PLUGIN-MACRO resolve — OPTIONAL; absent wires
    *  `ChatContext.pluginMacros` to null (byte-identical no-op, the `rpg` precedent). Minted at the
    *  composition root as the plugin-macro registry's `resolveForTurn`, so chat and the plugin plane share ONE
@@ -381,7 +381,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     () => input.settings.getEffectiveConfig().promptTransformDeadlineMs,
   );
 
-  const chatCtx: ChatContext = {
+  const chatCtx: ChatAssemblyContext = {
     logger: input.logger,
     traces: input.traces,
     resolveCorpusSourceState: input.search.resolveCorpusSourceState,

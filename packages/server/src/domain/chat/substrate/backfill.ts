@@ -21,13 +21,14 @@
 // silent-skip engine: an isolated chat is COUNTED (`failed`) and logged at `error` level — see there.
 
 import type { BackfillPassResult, ImportWindow } from "@orb/contracts/chat";
+import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { SummarizeInput } from "@orb/contracts/role-clients";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import { isAborted } from "#primitives/abort";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
 import type { ChatContext } from "../contract/context.ts";
-import type { MemoryBackfillSweepCounts, MemoryEmbedSpace, MemoryScope, ResolveBackfillMemoryConfig } from "../contract/memory.ts";
+import type { MemoryBackfillSweepCounts, MemoryScope, ResolveBackfillMemoryConfig, Tier0Counts } from "../contract/memory.ts";
 import type { MemorySweepArgs } from "../contract/workloads.ts";
 import {
   collectConsolidationTier,
@@ -276,20 +277,11 @@ async function summarizeAllPending(ctx: ChatContext, funderUserId: UserId, plans
   return perPlanTexts;
 }
 
-/** The per-bucket commit tally accumulated across PHASE 3 (tier-0 store) + PHASE 4 (consolidation), emitted as
- *  the bucket's `memory.build` trace at the end — observability parity with the live path's per-turn trace.
- *  Shape mirrors the digest build's tier-0 counts so it feeds `logBuild` directly. */
-interface PlanCommit {
-  written: number;
-  skipped: number;
-  skippedTokenGuard: number;
-  skippedEmpty: number;
-}
-
 /** The mutable commit state threaded through PHASE 3 + PHASE 4 (bundled to keep the helpers at ≤4 params). */
 interface CommitState {
   readonly plans: readonly DigestPlan[];
-  readonly perPlan: PlanCommit[];
+  /** Per bucket, accumulated across PHASE 3 (tier-0 store) + PHASE 4 (consolidation); emitted as the bucket's `memory.build` trace. */
+  readonly perPlan: Tier0Counts[];
   readonly signal: AbortSignal;
   readonly funderUserId: UserId;
 }

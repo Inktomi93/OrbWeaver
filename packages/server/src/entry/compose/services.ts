@@ -74,7 +74,7 @@ import type { AutomationService } from "#domain/automation";
 import { createAutomationTeachingContributions, createRuleOwnedBy, startAutomationWatcher } from "#domain/automation";
 import type { DefaultCharacterSeeder } from "#domain/character";
 import { createCharacterImportOps, createFindSeedCharacter } from "#domain/character";
-import type { ChatContext, MemoryRecallRecorder, SignupInviteOps } from "#domain/chat";
+import type { ChatAssemblyContext, MemoryRecallRecorder, SignupInviteOps } from "#domain/chat";
 import {
   createChatBus,
   createChatPublication,
@@ -83,7 +83,7 @@ import {
   createResolveViewerVisibility,
   isCharacterSeated,
   loadPresentHostUserId,
-  requireParticipant,
+  requireWiredParticipant,
 } from "#domain/chat";
 import type { ConnectionContext } from "#domain/connection";
 import { createConnectionPorts, createConnectionService, createSessionEntryWriter } from "#domain/connection";
@@ -801,7 +801,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       personaName: (caller, id) => persona.get({ principal: caller, personaId: id }),
       presetName: (userId, id) => preset.get({ userId, id }),
     }),
-    requireParticipant: (principal, chatId) => requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
+    requireParticipant: (principal, chatId) => requireWiredParticipant({ db, can }, principal, chatId).then((): void => undefined),
     audit: (entry): Promise<void> => audit(entry, now()),
     emitUserEvent: publishUserEvent,
   };
@@ -1025,9 +1025,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // (chat's `rpgChatOps` is rpg's dep). The delegate below forwards to a late-bound holder bound SYNCHRONOUSLY
   // once rpg composes, a few lines down (the agents-delegate precedent) — no request can run before then, so the
   // holder is always live at call time (a null read would be a compose-order bug, hence the throw).
-  const rpgBinding = createBinding<NonNullable<ChatContext["rpg"]>>("rpg ops accessed before the rpg seam composed (compose-order bug)");
+  const rpgBinding = createBinding<NonNullable<ChatAssemblyContext["rpg"]>>("rpg ops accessed before the rpg seam composed (compose-order bug)");
   const rpgOps = rpgBinding.read;
-  const rpgOpsDelegate: NonNullable<ChatContext["rpg"]> = {
+  const rpgOpsDelegate: NonNullable<ChatAssemblyContext["rpg"]> = {
     planGameBirth: (chatId, params) => rpgOps().planGameBirth(chatId, params),
     gameBirthCommitted: (chatId) => rpgOps().gameBirthCommitted(chatId),
     resolvePresetOverride: (chatId) => rpgOps().resolvePresetOverride(chatId),

@@ -21,7 +21,7 @@ import {
   createResolveStandingAsks,
   createResolveViewerVisibility,
   loadPresentHostUserId,
-  requireAuthorOrHost,
+  requireWiredAuthorOrHost,
   setParticipantActivePersona,
 } from "#domain/chat";
 import { resolveActiveDocumentIds, resolveActiveDocumentScope } from "#domain/databank";
@@ -235,7 +235,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     // its seat/anchor pointers, then fans the captured set — the post-write `emit` path above would see ∅.
     captureRoomReachForDelete: deleteReachCapture.persona,
     requireChatAuthorOrHost: async (principal, chatId, targetUserId) => {
-      await requireAuthorOrHost({ db, can }, principal, chatId, targetUserId);
+      await requireWiredAuthorOrHost({ db, can }, principal, chatId, targetUserId);
     },
     setChatActivePersona: async (chatId, targetUserId, personaId) => {
       await setParticipantActivePersona(db, deps.emitChatEvent, { chatId, targetUserId, personaId });

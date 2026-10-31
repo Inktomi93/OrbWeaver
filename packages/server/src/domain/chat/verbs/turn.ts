@@ -16,9 +16,13 @@ import type {
   ChatMetadata,
   ClaimChatOp,
   GroupConfig,
+  GuidedSteer,
+  ImpersonateStreamDelta,
   MacroFreezeRecord,
   MessageView,
   PlainChatWarningCode,
+  RequestTurnOp,
+  RequestTurnParams,
   SmartPicker,
   SpeakerRef,
   TurnKind,
@@ -56,15 +60,13 @@ import type {
   ContinueTurnParams,
   ForceCharacterTurnParams,
   GenerateParams,
-  GuidedSteer,
   ImpersonateStreamParams,
-  RequestTurnParams,
   RevertContinueParams,
   SendParams,
   SwipeParams,
   UndoContinueParams,
 } from "../contract/params.ts";
-import type { DrainDeferredTurnsScope, DrainReport, ImpersonateStreamDelta, RequestTurnOp, TurnEngine, TurnOutcome, TurnPrep } from "../contract/results.ts";
+import type { DrainDeferredTurnsScope, DrainReport, TurnEngine, TurnOutcome, TurnPrep } from "../contract/results.ts";
 import { KIND_TO_INTENT } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHost, requireParticipant } from "../guard.ts";

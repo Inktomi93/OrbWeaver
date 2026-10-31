@@ -84,8 +84,6 @@ import type { MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./me
 import type { RpgTurnOps } from "./rpg-turn.ts";
 import type { HashTokenOp, SignupInviteCapability, SignupInviteDeps } from "./signup.ts";
 
-export type { ResolveViewerVisibility, StoreSegmentParams } from "@orb/contracts/chat";
-
 export type {
   BoundToolExecution,
   ChatToolExecFrame,

@@ -20,13 +20,15 @@
 // SELF-HEAL on the content hash (a swipe/edit at the protected tip never touches a settled segment).
 // DETERMINISM (D46): blockIdx order; injected embed; no clock/random. NO ownerId (D20 — chat FK derives owner).
 
+import type { StoreSegmentParams } from "@orb/contracts/chat";
+import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
-import type { ChatContext, StoreSegmentParams } from "#src/domain/chat/contract/context.ts";
+import type { ChatContext } from "#src/domain/chat/contract/context.ts";
 import { resolveCfg } from "../constants.ts";
 import { loadCanonThroughSeq, loadChatMeta, loadSegmentHashes, loadTranscriptNames } from "../persistence/queries.ts";
-import type { MemoryConfig, MemoryEmbedSpace, MsgRow, SegmentPassCounts } from "../types.ts";
+import type { MemoryConfig, MsgRow, SegmentPassCounts } from "../types.ts";
 import { chunkBlockForEmbedWindow } from "./substrate/token-guard.ts";
 import { blockHash, sliceBlocks } from "./substrate/transcript.ts";
 
