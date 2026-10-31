@@ -5,7 +5,7 @@
 // and two of them call each other — homing the vocabulary here is what keeps that from being an
 // import cycle.
 
-const WEAVE_CHARACTERS = ["calm", "lively", "full"] as const;
+const WEAVE_CHARACTERS = ["calm", "full"] as const;
 export type WeaveCharacter = (typeof WEAVE_CHARACTERS)[number];
 
 /** Head-down at the hub — the posture a resting orb-weaver actually holds. */
@@ -38,12 +38,11 @@ export interface CharacterPreset {
   readonly twitch: boolean;
 }
 
-/** The three characters (weave-lab §3). DEVIATION, deliberate: `calm.turnRate` is the SHIPPED 0.22,
+/** The characters (weave-lab §3). DEVIATION, deliberate: `calm.turnRate` is the SHIPPED 0.22,
  *  not the lab's 0.18 — the shipped value is the one the owner's "turbo" ruling tuned, and `calm` is
- *  the default, so the default must be today's motion exactly. The other two are the lab's. */
+ *  the default, so the default must be today's motion exactly. The other is the lab's. */
 export const WEAVE_CHARACTER_PRESETS: Record<WeaveCharacter, CharacterPreset> = {
   calm: { burst: 0, gaitHz: 0.012, gaitAmp: 0.2, turnRate: 0.22, sprint: 0.16, inspectMs: 500, twitch: false },
-  lively: { burst: 0.35, gaitHz: 0.016, gaitAmp: 0.26, turnRate: 0.24, sprint: 0.24, inspectMs: 750, twitch: true },
   full: { burst: 0.55, gaitHz: 0.02, gaitAmp: 0.3, turnRate: 0.3, sprint: 0.3, inspectMs: 950, twitch: true },
 };
 
