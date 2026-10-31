@@ -3,7 +3,7 @@
 
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { auditLogs, chatEvents, regexScripts } from "@orb/db";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import type { Fixtures } from "@orb/testkit/node";
 import { expect } from "@orb/testkit/node";
@@ -68,6 +68,7 @@ held(
 
 test("a foreign or missing global book never fans its captured rooms, while an owned delete fans after cascade without a durable event", async ({
   db,
+  ids,
   app,
   ownerCaller,
   otherCaller,
@@ -91,7 +92,7 @@ test("a foreign or missing global book never fans its captured rooms, while an o
   frames.length = 0;
   const durableBefore = await db.select().from(chatEvents);
   await expect(ownerCaller.worldInfo.removeBook({ bookId: book.id })).toThrowTRPCError("NOT_FOUND");
-  await expect(ownerCaller.worldInfo.removeBook({ bookId: mintTypeId(ID_PREFIX.worldBook) })).toThrowTRPCError("NOT_FOUND");
+  await expect(ownerCaller.worldInfo.removeBook({ bookId: ids.typeId(ID_PREFIX.worldBook) })).toThrowTRPCError("NOT_FOUND");
   expect(frames).toEqual([]);
   expect(await otherCaller.worldInfo.removeBook({ bookId: book.id })).toEqual({ deleted: true });
   expect(frames).toEqual([{ seq: null, event: { type: "roomEntityChanged", chatId: room.id, entity: "world-info" } }]);

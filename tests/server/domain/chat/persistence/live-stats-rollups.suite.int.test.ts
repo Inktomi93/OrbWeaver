@@ -6,7 +6,7 @@ import type { TurnOutcome } from "@orb/contracts/chat";
 import { parseVariantMetadata, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
 import { builtinProvider } from "@orb/contracts/inference";
 import { characterStats, chatGenerationObservations, dailyStats, messages, messageVariants, modelStats, ownerStats } from "@orb/db";
-import { createFrozenClock } from "@orb/testkit/iso";
+import { createFrozenClock, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -17,6 +17,7 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  SECRET_BOX_TEST_KEY,
 } from "@orb/testkit/node/composed";
 import { createSdkProcessSpawner, terminalSseLine } from "@orb/testkit/node/helpers";
 import { captureSdkSessionRows } from "@orb/testkit/node/rows";
@@ -178,10 +179,10 @@ test("new-slot + swipe + continue + reviewed impersonate commit: no drift vs rec
   await using h = await createChatRoot({
     memoryEnabled: false,
     server: {
-      secretBoxKey: Buffer.alloc(32, 1),
+      secretBoxKey: SECRET_BOX_TEST_KEY,
       networkExecution: {
         resolver: (host): Promise<readonly string[]> =>
-          host === hostname ? Promise.resolve(["93.184.215.14"]) : Promise.reject(new Error(`unscripted native stats address resolution: ${host}`)),
+          host === hostname ? Promise.resolve([PUBLIC_PEER_ADDRESS]) : Promise.reject(new Error(`unscripted native stats address resolution: ${host}`)),
       },
     },
     providerFetch: async (input, init) => {
@@ -370,7 +371,7 @@ test("native SDK provenance persists beside the actual reasoning window in one p
       memoryEnabled: false,
       providerFetch: corpus.execute,
       server: {
-        secretBoxKey: Buffer.alloc(32, 1),
+        secretBoxKey: SECRET_BOX_TEST_KEY,
         sdkSpawn: (options) => {
           child = spawn(options);
           return child;

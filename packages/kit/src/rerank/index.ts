@@ -2,7 +2,7 @@
 // candidates pass through after the ranked ones, hits map back by caller id, and a runner rejection propagates.
 
 /** What a rerank run hands back: scored hits naming the caller's ids. */
-export interface RerankOutcome {
+interface RerankOutcome {
   readonly hits: readonly { readonly id: string }[];
 }
 

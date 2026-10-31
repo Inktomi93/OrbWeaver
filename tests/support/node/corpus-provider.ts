@@ -1,6 +1,7 @@
 // Only raw vendor HTTP bytes vary. Resolution, structured validation, vector decoding and accounting stay real.
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import { REFINERY_RESPONSE_FORMATS } from "../../../packages/server/src/domain/refinery/substrate/stage-resolution.ts";
 import { servePhysicalPeer } from "./physical-peer.ts";
 import type { TerminalFrameOptions } from "./provider-stream.ts";
 import { terminalSseLine } from "./provider-stream.ts";
@@ -25,8 +26,10 @@ export const CORPUS_REFINERY_SCHEMA_REVISION = "corpus_refinery_score_revision";
 const CUSTOM_SCORE_REPLY = JSON.stringify({ overallScore: 8, notes: "The keeper preserves the ledger's character." });
 
 /** The refinery stage replies the scripted edge answers, keyed by the wire schema name the stage requests. */
-export const CORPUS_REFINERY_REPLY_NAMES = ["refinery_score", "refinery_rewrite", "refinery_analyze"] as const;
-const [REFINERY_SCORE_REPLY, REFINERY_REWRITE_REPLY, REFINERY_ANALYZE_REPLY] = CORPUS_REFINERY_REPLY_NAMES;
+const REFINERY_SCORE_REPLY = REFINERY_RESPONSE_FORMATS.score.name;
+const REFINERY_REWRITE_REPLY = REFINERY_RESPONSE_FORMATS.rewrite.name;
+const REFINERY_ANALYZE_REPLY = REFINERY_RESPONSE_FORMATS.analyze.name;
+export const CORPUS_REFINERY_REPLY_NAMES = [REFINERY_SCORE_REPLY, REFINERY_REWRITE_REPLY, REFINERY_ANALYZE_REPLY] as const;
 
 export const CORPUS_STRUCTURED_REPLIES: ReadonlyMap<string, string> = new Map([
   [

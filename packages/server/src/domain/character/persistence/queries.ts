@@ -35,7 +35,7 @@ import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import { addSpanEvent } from "#foundation/observability";
 import { AssetNotFoundError } from "../contract/errors.ts";
-import type { CharacterListFilter } from "../contract/params.ts";
+import type { CharacterListFilter, StampImportIdentityParams } from "../contract/params.ts";
 import type { SnapshotSummary } from "../contract/results.ts";
 
 const LIMIT_ONE = 1;
@@ -752,10 +752,7 @@ export async function ownedCarriedBackground(db: Db, ownerId: UserId, background
 }
 
 /** Write `importHash` onto an owned character that carries no import identity yet. True when written. */
-export async function stampImportHashIfUnset(
-  db: Db,
-  { ownerId, characterId, importHash }: { ownerId: UserId; characterId: CharacterId; importHash: string },
-): Promise<boolean> {
+export async function stampImportHashIfUnset(db: Db, { ownerId, characterId, importHash }: StampImportIdentityParams): Promise<boolean> {
   const rows = await db
     .update(characters)
     .set({ importHash })
@@ -764,14 +761,15 @@ export async function stampImportHashIfUnset(
   return rows.length > 0;
 }
 
+interface ImportedFromMatch {
+  readonly importedFrom: string;
+  readonly characterId: CharacterId;
+}
+
 /** Batched provenance oracle: the owner's characters whose `importedFrom` is any of `values` (an `IN` read
  *  over the owner's rows; `imported_from` carries no index). Empty `values` short-circuits to no rows (never a bare `IN ()`). Owner-scoped in the WHERE, so
  *  a different owner's same-provenance card is never returned. */
-export async function findByOwnerImportedFrom(
-  db: Db,
-  ownerId: UserId,
-  values: readonly string[],
-): Promise<{ importedFrom: string; characterId: CharacterId }[]> {
+export async function findByOwnerImportedFrom(db: Db, ownerId: UserId, values: readonly string[]): Promise<ImportedFromMatch[]> {
   if (values.length === 0) {
     return [];
   }
@@ -779,7 +777,7 @@ export async function findByOwnerImportedFrom(
     .select({ importedFrom: characters.importedFrom, id: characters.id })
     .from(characters)
     .where(and(eq(characters.ownerId, ownerId), inArray(characters.importedFrom, [...values])));
-  const out: { importedFrom: string; characterId: CharacterId }[] = [];
+  const out: ImportedFromMatch[] = [];
   for (const row of rows) {
     if (row.importedFrom !== null) {
       out.push({ importedFrom: row.importedFrom, characterId: row.id });

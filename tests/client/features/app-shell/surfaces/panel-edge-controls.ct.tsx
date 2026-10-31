@@ -3,11 +3,10 @@
 
 import { contextToggleLabel } from "@orb/client/lib";
 import { boxOf, seedShellState } from "@orb/testkit/browser/spec";
-import { SECTION_PROCEDURES } from "@orb/testkit/ct";
+import { channelName, SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, routeRoom, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -153,7 +152,7 @@ test.describe("on a wide desktop, the edge controls in the page", () => {
     await mount<typeof AppShellStory>(STORY, {});
     const edge = page.getByRole("button", { name: "Hide list panel", exact: true });
     await expect(edge).toBeVisible();
-    await page.locator(".shell-rail").getByRole("button", { name: "Home", exact: true }).first().hover();
+    await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.home, exact: true }).first().hover();
     const tip = page.locator('[data-slot="tooltip-popup"]');
     await expect(tip).toBeVisible();
     const box = await boxOf(edge);

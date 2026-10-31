@@ -56,7 +56,7 @@ export function PluginCommandsMenu({ presentation }: { readonly presentation: "b
       <>
         {commands.map((command) => (
           <Button disabled={isPending} variant="ghost" key={`${command.pluginId}:${command.name}`} onClick={(): void => runCommand(command)} size="sm">
-            <Text voice="label">
+            <Text ink="inherit" voice="label">
               {pluginCommandAttributedActionLabel(pluginCommandShownName(command.pluginName, command.slug, shared), command.group ?? "Commands", command.name)}
             </Text>
           </Button>

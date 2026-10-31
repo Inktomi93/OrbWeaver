@@ -1,5 +1,6 @@
 import { expect, test } from "@orb/testkit/tooling";
 import { browserLaunchEnvironment, nativeBrowserLaunchOptions } from "@orb/tooling/floor/browser/browser";
+import { GPU_LAUNCH_SWITCH } from "@orb/tooling/floor/browser/browser-acceleration";
 import type { GraphicalSessionDeps } from "@orb/tooling/floor/host/platform";
 import { inheritedProcessEnv, withProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { inheritedRunMarker, mintRunMarker, RUN_LEASE_ENV, RUN_MARKER_ENV, runLeaseArg, runMarkerArg } from "@orb/tooling/floor/process/run-marker";
@@ -15,7 +16,7 @@ test("native Chromium preserves explicit graphics and caller launch choices besi
         headless: true,
         timeout: 1234,
       });
-      expect(options.args).toEqual(["--enable-gpu", "--disable-gpu", "--ozone-platform=wayland", runMarkerArg(marker), runLeaseArg(lease)]);
+      expect(options.args).toEqual([GPU_LAUNCH_SWITCH, "--disable-gpu", "--ozone-platform=wayland", runMarkerArg(marker), runLeaseArg(lease)]);
       expect(options.env).toMatchObject({ ["DISPLAY"]: "", ["XAUTHORITY"]: "/caller/authority", [RUN_MARKER_ENV]: marker, [RUN_LEASE_ENV]: lease });
       expect(options.headless).toBe(true);
       expect(options.timeout).toBe(1234);
@@ -40,7 +41,7 @@ test("native config construction cannot mint an owner when no run identity was i
   await withProcessEnv(RUN_MARKER_ENV, "", async () => {
     await withProcessEnv(RUN_LEASE_ENV, "", () => {
       const options = nativeBrowserLaunchOptions("chromium", { env: { ["DISPLAY"]: "" } });
-      expect(options.args).toEqual(["--enable-gpu"]);
+      expect(options.args).toEqual([GPU_LAUNCH_SWITCH]);
       expect(inheritedRunMarker()).toBeNull();
       return Promise.resolve();
     });
@@ -65,7 +66,7 @@ test("macOS and Windows native launch profiles do not depend on Linux sessions o
     const base = { ["PATH"]: "native-path" };
     expect(browserLaunchEnvironment(base, [], deps)).toBe(base);
     const options = nativeBrowserLaunchOptions("chromium", { headless: true }, deps);
-    expect(options.args).toContain("--enable-gpu");
+    expect(options.args).toContain(GPU_LAUNCH_SWITCH);
     expect(options.env?.["DISPLAY"]).toBe(inherited["DISPLAY"]);
     expect(options.env?.["XAUTHORITY"]).toBe(inherited["XAUTHORITY"]);
     expect(options.env?.["WAYLAND_DISPLAY"]).toBe(inherited["WAYLAND_DISPLAY"]);
@@ -91,7 +92,7 @@ test("headless Linux without session discovery keeps the ordinary browser fallba
   expect(browserLaunchEnvironment(base, [], deps)).toBe(base);
   expect(calls).toEqual(["loginctl"]);
   const options = nativeBrowserLaunchOptions("chromium", { args: ["--disable-gpu"], headless: true }, deps);
-  expect(options.args?.slice(0, 2)).toEqual(["--enable-gpu", "--disable-gpu"]);
+  expect(options.args?.slice(0, 2)).toEqual([GPU_LAUNCH_SWITCH, "--disable-gpu"]);
   expect(options.headless).toBe(true);
 });
 

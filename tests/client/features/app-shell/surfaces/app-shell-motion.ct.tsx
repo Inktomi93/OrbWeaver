@@ -444,7 +444,7 @@ test.describe("a section swap", () => {
     await recordLayoutShift(page);
     const startX = await mainX(page);
     await startSampler(page, ["main"]);
-    await page.locator(".shell-rail").getByRole("button", { name: "Home", exact: true }).click();
+    await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.home, exact: true }).click();
     await expect.poll(() => mainX(page)).not.toBe(startX);
     await waitForShellIdle(page);
     const endX = await mainX(page);
@@ -528,7 +528,7 @@ test.describe("a section swap", () => {
     await mount<typeof AppShellStory>(STORY, {});
     const grid = page.locator(".shell-grid");
     for (const [label, id] of [
-      ["Home", "home"],
+      [SECTION_LABELS.home, "home"],
       ["Chats", "chats"],
       ["Characters", "characters"],
     ] as const) {

@@ -2,7 +2,7 @@
 // @subject packages/server/src/domain/import/verbs/import-character.ts
 // The owner binders drive the genuine services and database; foreign arguments cannot replace the authenticated authority.
 import { createCharacterSchema } from "@orb/contracts/character";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { createInstallerCharacterImport } from "@orb/server/domain/import";
 import { expect, test } from "@orb/testkit/node";
 import { isOwner } from "@orb/testkit/node/auth";
@@ -73,7 +73,7 @@ test("the installer factory uses the row-resolved role and the real import funne
     resolvePrincipal,
     contextFor: harness.app.crossFeatureOps.importContextFor,
   });
-  const pluginId = mintTypeId(ID_PREFIX.plugin);
+  const pluginId = harness.ids.typeId(ID_PREFIX.plugin);
   const bytes = new TextEncoder().encode(
     '{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"Installer role control","description":"Owned imported card","first_mes":"Hello"}}',
   );

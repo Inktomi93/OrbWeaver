@@ -6,7 +6,7 @@ import { characterCardV3Schema } from "@orb/contracts/character";
 import { regexScriptCardSchema } from "@orb/contracts/regex";
 import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterHandle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { messageRoleToSt } from "@orb/kit/message-role";
 import { matchEntryKeys } from "@orb/kit/world-info";
 import type { CardImportIdentity, ExportCardFields, ExportWorldEntry } from "@orb/server/primitives/serde/card";
@@ -463,10 +463,8 @@ describe("cardImportHash is the import identity", () => {
     expect(cardImportHash(identity({ card: scripted("st-client-id") }))).not.toBe(base);
   });
 
-  test("a script's id is provenance: the same script under another id is the same character", () => {
-    expect(cardImportHash(identity({ card: scripted("st-client-id") }))).toBe(
-      cardImportHash(identity({ card: scripted("regex_script_01library0000000000000") })),
-    );
+  test("a script's id is provenance: the same script under another id is the same character", ({ ids }) => {
+    expect(cardImportHash(identity({ card: scripted("st-client-id") }))).toBe(cardImportHash(identity({ card: scripted(ids.typeId(ID_PREFIX.regexScript)) })));
   });
 });
 

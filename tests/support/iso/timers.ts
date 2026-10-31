@@ -1,5 +1,6 @@
 import type { TimerScheduler } from "@orb/kit/time";
 import type { Clock } from "./clock.ts";
+import { createFrozenClock } from "./clock.ts";
 
 interface PendingTimer {
   readonly callback: () => void;
@@ -60,4 +61,9 @@ export function createControlledTimers(clock: Clock): ControlledTimers {
       pending.clear();
     },
   };
+}
+
+/** A fresh scheduler on its own frozen clock, for a case that never waits on a deadline so nothing advances it. */
+export function createQuietTimers(): ControlledTimers {
+  return createControlledTimers(createFrozenClock());
 }

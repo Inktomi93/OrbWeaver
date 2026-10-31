@@ -1,10 +1,22 @@
 /* eslint-disable orb/ct-responder-reads-input -- the subject is routeTrpc's own response semantics, so each responder is the scripted marker under test */
 // Native route failures must fail the owning CT even when the page handles the network error and keeps rendering.
+import { authConfigSchema } from "@orb/contracts/auth-config";
 import { presetDetailSchema, presetIdInputSchema } from "@orb/contracts/preset";
+import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { serveCorpusProcedures } from "@orb/testkit/ct";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
-import { isTrpcRequestFor, malformedOrForwardTrpcWire, readTrpcOutput, routeTrpc, trpcEndSubscription, trpcError, trpcHold } from "../node/route-trpc.ts";
+import { routeAuthConfig } from "../node/route-auth-config.ts";
+import {
+  abortProcedure,
+  isTrpcRequestFor,
+  malformedOrForwardTrpcWire,
+  readTrpcOutput,
+  routeTrpc,
+  trpcEndSubscription,
+  trpcError,
+  trpcHold,
+} from "../node/route-trpc.ts";
 
 const ORIGIN = "http://route-trpc.test";
 const HEADING = "The subject heading still renders";
@@ -119,4 +131,52 @@ test("native output capture validates unbatched success and refuses server error
     await fetch(`/api/trpc/preset.get?input=${encodeURIComponent(JSON.stringify({ id }))}`);
   }, preset.id);
   await expect(readTrpcOutput(await malformed, "preset.get", presetDetailSchema)).rejects.toThrow();
+});
+
+test("abortProcedure refuses a procedure alone or batched, leaves others served, and its restore lifts the refusal", async ({ page }) => {
+  await page.route(`${ORIGIN}/**`, (route) => route.fulfill({ contentType: "application/json", body: "{}" }));
+  await page.goto(ORIGIN);
+  const probe = (path: string): Promise<"served" | "refused"> =>
+    page.evaluate(
+      async (url) =>
+        await fetch(url).then(
+          () => "served" as const,
+          () => "refused" as const,
+        ),
+      path,
+    );
+  const lift = await abortProcedure(page, "preset.list");
+  expect(await probe("/api/trpc/preset.list")).toBe("refused");
+  expect(await probe("/api/trpc/character.list,preset.list?batch=1")).toBe("refused");
+  expect(await probe("/api/trpc/character.list")).toBe("served");
+  await lift();
+  expect(await probe("/api/trpc/preset.list")).toBe("served");
+});
+
+test("routeAuthConfig serves a parsed config the client accepts, and a captured body verbatim", async ({ page }) => {
+  const config = authConfigSchema.parse({
+    mode: "local",
+    localEnabled: true,
+    oidcEnabled: false,
+    oidcProviderName: "",
+    localFirstRun: false,
+    discreetLogin: false,
+    defaultHandle: null,
+    multiHumanCapable: true,
+    forbidExternalMedia: false,
+    trustHtml: false,
+    allowInteractiveCards: false,
+    uploads: DEFAULT_UPLOAD_CAPS,
+    transport: "https",
+    clientScope: "private",
+    share: { state: "off", url: null },
+  });
+  await page.route(`${ORIGIN}/**`, (route) => route.fulfill({ contentType: "text/html", body: "<p>auth</p>" }));
+  await page.goto(ORIGIN);
+  await routeAuthConfig(page, config);
+  const served: unknown = await page.evaluate(async () => (await fetch("/api/auth/config")).json());
+  expect(authConfigSchema.parse(served)).toEqual(config);
+  const captured = JSON.stringify({ ...config, mode: "oidc", localEnabled: false, oidcEnabled: true });
+  await routeAuthConfig(page, captured);
+  expect(await page.evaluate(async () => (await fetch("/api/auth/config")).text())).toBe(captured);
 });

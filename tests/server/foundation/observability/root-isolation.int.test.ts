@@ -95,7 +95,8 @@ test("two roots in one worker keep their own log, request and trace rings, audit
 
   {
     await using _withheld = await withheldTable(first.db, auditLogs);
-    await first.app.audit({ actorUserId: first.ownerId, action: "root-isolation.probe" }, first.clock.now());
+    // An audited production write; the settings row lands, and only its audit row is refused.
+    await first.services.settings.updateAppSettings({ principal: await first.principalFor(first.ownerId), partial: { corpusAutoindex: false } });
   }
   expect((await debugRead(first, "/api/_debug/db/stats", debugReads.stats)).auditFailures.count).toBe(1);
   expect((await debugRead(second, "/api/_debug/db/stats", debugReads.stats)).auditFailures.count).toBe(0);

@@ -28,10 +28,9 @@ import type { Logger, TraceRing } from "#foundation/observability";
 import { createDetachedSupervision } from "#foundation/observability";
 import type { PluginEventBus, PluginRegistrationHandle } from "../contract/ops.ts";
 
-/** One resident subscriber on a channel: the delivering plugin's slug (for the deactivate sweep) + the closure
- *  that re-enters its guest handler with the JSON payload, under that plugin's own invocation budget. */
+/** One resident subscriber on a channel: the closure that re-enters its guest handler with the JSON payload,
+ *  under that plugin's own invocation budget. */
 interface Subscriber {
-  readonly subscriberSlug: string;
   readonly deliver: (payloadJson: string) => void;
 }
 
@@ -47,7 +46,7 @@ export function createPluginEventBus(logger: Logger, traces: TraceRing): PluginE
   const { superviseDetached } = createDetachedSupervision(logger, traces);
   const channels = new Map<string, Set<Subscriber>>();
   return {
-    register: ({ installer, subscriberSlug, subscriptions, invoke }): PluginRegistrationHandle => {
+    register: ({ installer, subscriptions, invoke }): PluginRegistrationHandle => {
       // One Subscriber per collected subscription, added to its channel's set. A plugin listening to
       // `(emitterSlug, name)` joins the channel `installer:emitterSlug:name`; if that emitter is not installed (or
       // never emits) the channel simply never fires — a bogus emitterSlug costs one idle set entry, nothing more.
@@ -55,7 +54,6 @@ export function createPluginEventBus(logger: Logger, traces: TraceRing): PluginE
       for (const sub of subscriptions) {
         const key = channelKey(installer, sub.emitterSlug, sub.name);
         const entry: Subscriber = {
-          subscriberSlug,
           deliver: (payloadJson): void => {
             // Fire-and-forget under the subscriber's OWN invocation budget (the port's `invoke` runs the guest
             // handler under the FIFO + CPU guard). A throwing/slow handler is contained to that plugin's crash

@@ -12,6 +12,7 @@ import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, OIDC_ALLOWED_GROUPS_KEY, OWNER_HANDLE
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
 import { expect, test } from "@orb/testkit/tooling";
+import { E2E_PORT_OFFSET_ENV } from "@orb/tooling/floor/host/ports";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv, processEnvValue, testProcessEnv, withProcessEnv } from "@orb/tooling/floor/process/process-env";
 
@@ -126,4 +127,12 @@ test("withProcessEnv restores a present key byte-for-byte after a rejected worke
     expect(processEnvValue(PRESENT_ENV_KEY)).toBe("original-value");
   });
   expect(Object.hasOwn(inheritedProcessEnv(), PRESENT_ENV_KEY)).toBe(false);
+});
+
+test("a run's e2e port offset reaches the test environment under the name the e2e config reads", async () => {
+  await withProcessEnv(E2E_PORT_OFFSET_ENV, "40", () => {
+    expect(testProcessEnv()[E2E_PORT_OFFSET_ENV]).toBe("40");
+    return Promise.resolve();
+  });
+  expect(testProcessEnv()[E2E_PORT_OFFSET_ENV]).toBe(processEnvValue(E2E_PORT_OFFSET_ENV));
 });

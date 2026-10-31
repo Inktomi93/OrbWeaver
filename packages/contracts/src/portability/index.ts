@@ -109,7 +109,7 @@ export interface PortableEnvelope {
 //  silently became U+FFFD and the corrupted string still passed `JSON.parse` — a corrupted artifact "imported
 //  successfully" with altered text. Byte fidelity is checked BEFORE `JSON.parse` even runs, so a file that
 //  fails it never reaches the JSON-syntax check at all; the two reasons are never both true of one file.
-export const PORTABLE_PARSE_FAILURES = ["not-json", "invalid-encoding", "foreign-kind", "newer-version", "malformed"] as const;
+const PORTABLE_PARSE_FAILURES = ["not-json", "invalid-encoding", "foreign-kind", "newer-version", "malformed"] as const;
 
 export type PortableParseFailure = (typeof PORTABLE_PARSE_FAILURES)[number];
 

@@ -1,5 +1,6 @@
 // @subject packages/server/src/entry/compose/services.ts
 // The harness root's seeded nonce, not an ambient UUID, names the supervised work the composed graph starts.
+
 import { readdir } from "node:fs/promises";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";

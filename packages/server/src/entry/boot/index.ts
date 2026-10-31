@@ -16,6 +16,7 @@ export { announceOwnerClaim, removeOwnerClaimFileOnSpend } from "./owner-claim.t
 export { reactivatePluginsOnBoot } from "./reactivate-plugins.ts";
 export { rebuildStatsTimelineOnBoot } from "./rebuild-stats-timeline.ts";
 export { reclaimLocksOnBoot } from "./reclaim-locks.ts";
+export { rehashPluginProviderDefinitionsOnBoot } from "./rehash-plugin-provider-definitions.ts";
 export { repairStaleJoinSeqOnBoot } from "./repair-stale-join-seq.ts";
 export { seedCasSchedules } from "./seed-cas-schedules.ts";
 export { seedCredentialFromEnv } from "./seed-credential.ts";

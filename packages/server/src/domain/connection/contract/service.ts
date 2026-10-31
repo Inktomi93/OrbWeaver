@@ -28,7 +28,7 @@ import type { SettingsKvPort } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
-import type { BindingStore, ConnectionStore, InferenceRuntime, ProviderRegistry, ProviderStore, ResolveOutcome, SnapshotStore } from "@orb/inference";
+import type { BindingStore, ConnectionStore, InferenceRuntime, ProviderStore, ResolveOutcome, SnapshotStore } from "@orb/inference";
 import type { ConnectionBindingId, PluginId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AuditEntry } from "#foundation/observability";
@@ -146,7 +146,6 @@ export interface ConnectionService {
   readonly providersAvailable: (params: ProvidersAvailableParams) => Promise<readonly ProviderAvailability[]>;
   readonly registerPluginProviders: (params: RegisterPluginProvidersParams) => Promise<void>;
   readonly dropPluginProviders: (params: DropPluginProvidersParams) => Promise<void>;
-  readonly registry: ProviderRegistry;
 }
 
 /** Runtime persistence ports; the snapshot adapter delegates storage to the settings owner. */

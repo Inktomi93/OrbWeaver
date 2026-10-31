@@ -22,11 +22,11 @@ export type BulkImportPersonas = (args: {
   readonly collisions?: PersonaCollisionChoices | undefined;
 }) => Promise<BulkImportPersonasResult>;
 
-export interface ListPersonasParams {
+interface ListPersonasParams {
   readonly principal: Principal;
 }
 
-export interface ExportPersonaParams {
+interface ExportPersonaParams {
   readonly principal: Principal;
   readonly personaId: PersonaId;
 }
@@ -34,7 +34,7 @@ export interface ExportPersonaParams {
 /** The FILE is the unit (the thin-arm law): the single-entity door and the bundle descriptor hand the same
  *  bytes to the same verb, so the two paths can never drift. Never carries avatarAssetId — the backup shape
  *  (personaBackupSchema) excludes it. */
-export interface ImportPersonaParams {
+interface ImportPersonaParams {
   readonly principal: Principal;
   readonly bytes: Uint8Array;
 }
@@ -42,9 +42,7 @@ export interface ImportPersonaParams {
 /** `import` — NEVER throws for a malformed file (the delivery core's per-file isolation contract); a
  *  refusal carries the operator-facing reason the import door renders. `created:false` means a same-named
  *  persona was merged in place. */
-export type PersonaImportOutcome =
-  | { readonly ok: true; readonly persona: PersonaDetail; readonly created: boolean }
-  | { readonly ok: false; readonly error: string };
+type PersonaImportOutcome = { readonly ok: true; readonly persona: PersonaDetail; readonly created: boolean } | { readonly ok: false; readonly error: string };
 
 /** The caller's personas, newest first. */
 export type ListPersonasOp = (params: ListPersonasParams) => Promise<PersonaDetail[]>;

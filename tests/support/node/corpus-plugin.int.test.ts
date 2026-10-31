@@ -38,7 +38,7 @@ test("native withdrawal removes matching copies but retains a recipient's upgrad
   expect(captured.after.kv.map(({ value }) => value)).toEqual([CORPUS_PLUGIN_STORAGE_VALUE]);
   expect(captured.ownerInstalls).toEqual([]);
   expect(captured.remainingPublications).toEqual([]);
-  expect(captured.lateApplication).toEqual({ installedSlugs: [], skippedSlugs: [] });
+  expect(captured.lateApplication).toEqual({ installedSlugs: [] });
   const recipientRpc = await root.internalCallerFor(recipient.id);
   expect(
     await recipientRpc.plugin.uiHostCall({ pluginId: captured.after.plugin.id, fn: "storage.get", argsJson: JSON.stringify([CORPUS_PLUGIN_STORAGE_KEY]) }),
@@ -125,7 +125,7 @@ test("the corpus keeps real consent, per-owner provider claims and distribution 
   expect(snapshots.distribution.repeated).toEqual(captured.repeated.outcome);
   await expect(recipientRpc.plugin.getSurfaceState(snapshots.ownerActive.reads.state.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
   expect(await recipientRpc.plugin.getSurfaceState(snapshots.recipientActive.reads.state.input)).toEqual({ entry: "Initial ledger entry" });
-  const registry = root.services.connection.registry;
+  const registry = root.app.runtime.providers.registry;
   for (const provider of CORPUS_PLUGIN_PROVIDER_MANIFEST.providers ?? []) {
     expect(registry.get(provider.id, root.ownerId)).toBeUndefined();
     expect(registry.get(provider.id, other.id)).toEqual(provider);
@@ -178,6 +178,6 @@ test("a real stranger cannot enable the corpus owner's install or alter either o
   expect(await root.db.select().from(pluginKv)).toEqual(before.kv);
   expect(await root.db.select().from(pluginProviderClaims)).toEqual(before.claims);
   for (const provider of CORPUS_PLUGIN_PROVIDER_MANIFEST.providers ?? []) {
-    expect(root.services.connection.registry.get(provider.id, stranger.id)).toBeUndefined();
+    expect(root.app.runtime.providers.registry.get(provider.id, stranger.id)).toBeUndefined();
   }
 });

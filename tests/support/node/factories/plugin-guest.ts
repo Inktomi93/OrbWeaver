@@ -6,9 +6,9 @@ import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@
 import type { ChatId, PluginId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
-import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { makePluginBundle } from "@orb/testkit/node/composed";
 import { z } from "zod";
+import type { ServerTestHarness } from "../server.ts";
+import { makePluginBundle } from "./plugin.ts";
 
 const COMMAND = "run";
 
@@ -19,7 +19,7 @@ const outcomeSchema = z.discriminatedUnion("ok", [
   z.strictObject({ ok: z.literal(true), value: jsonValueSchema }),
   z.strictObject({ ok: z.literal(false), name: z.string() }),
 ]);
-export type GuestOutcome = z.infer<typeof outcomeSchema>;
+type GuestOutcome = z.infer<typeof outcomeSchema>;
 
 function guestSource(ops: GuestOps): string {
   const table = Object.entries(ops)
@@ -40,7 +40,7 @@ h.ui.registerCommand({ name: ${JSON.stringify(COMMAND)}, describe: "Run one host
 }});`;
 }
 
-export interface GuestPlugin {
+interface GuestPlugin {
   readonly slug: string;
   readonly capabilities: readonly PluginCapability[];
   readonly netHosts?: readonly string[];
@@ -64,7 +64,7 @@ export async function installGuest(root: ServerTestHarness, caller: Principal, p
   return installed.id;
 }
 
-export interface GuestTarget {
+interface GuestTarget {
   readonly root: ServerTestHarness;
   readonly caller: Principal;
   readonly pluginId: PluginId;

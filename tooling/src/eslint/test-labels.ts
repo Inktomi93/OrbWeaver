@@ -31,7 +31,7 @@ const ENV_VALUE = /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/u;
 
 /** What an extended entry is. A label-kind entry is located by a spec; the others are values a test asserts or sends. */
 const EXTENDED_KINDS = ["function", "copy", "code", "route", "env"] as const;
-export type ExtendedKind = (typeof EXTENDED_KINDS)[number];
+type ExtendedKind = (typeof EXTENDED_KINDS)[number];
 
 /** One exported string: the module that owns it and the path to it, such as `IMMERSIVE_CARD_LABELS.rawSource`. */
 export interface ExportedLabel {

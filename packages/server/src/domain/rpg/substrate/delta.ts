@@ -33,7 +33,7 @@ import type { DeltaContext, PlaneDiffRenderer, RegisteredPlaneDiff } from "../co
 //  place `select`→`render` are threaded, so the slice `T` stays private to the renderer. P1 REGISTERS its
 //  relationship + cast-field renderers by calling this in `PLANE_DIFF_RENDERERS` — no monolith edit, no cast.
 function definePlaneDiff<T>(r: PlaneDiffRenderer<T>): RegisteredPlaneDiff {
-  return { plane: r.plane, run: (prev, cur, ctx) => r.render(r.select(prev), r.select(cur), ctx) };
+  return { run: (prev, cur, ctx) => r.render(r.select(prev), r.select(cur), ctx) };
 }
 
 /** A signed numeric delta line: `HP 12→16 (+4)`. */

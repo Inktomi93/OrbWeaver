@@ -168,7 +168,7 @@ export const connectionRouter = t.router({
   refreshCatalog: adminProcedure
     .input(z.object({ providerId: providerIdSchema }))
     .output(catalogRefreshOutcomeSchema)
-    .mutation(({ ctx, input, signal }) => ctx.services.connection.refreshCatalog({ providerId: input.providerId, signal })),
+    .mutation(({ ctx, input }) => ctx.services.connection.refreshCatalog({ providerId: input.providerId })),
 
   // ── diagnostics (each against ONE of the caller's rows)
   probe: authedProcedure

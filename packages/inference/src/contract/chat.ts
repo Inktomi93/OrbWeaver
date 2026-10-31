@@ -311,13 +311,7 @@ export interface ContextUsage {
   readonly model: string;
 }
 
-export interface AgentMcpServerHealth {
-  readonly name: string;
-  readonly status: string;
-  readonly error?: string | undefined;
-}
-
-/** The result every chat/agent backend returns. No session id — the session is backend-internal. */
+/** The result every chat backend returns. No session id — the session is backend-internal. */
 export interface ChatResult {
   readonly reply: string;
   readonly textSignatures?: readonly TextSignature[] | undefined;
@@ -366,7 +360,6 @@ export interface ChatResult {
   /** Inline reply pictures (§6.7) — a chat model whose `output.modalities ∋ image` answered with them. */
   readonly images?: readonly GeneratedImage[] | undefined;
   readonly contextUsage?: ContextUsage | undefined;
-  readonly mcpServerHealth?: readonly AgentMcpServerHealth[] | undefined;
   readonly events: readonly ChatEvent[];
   readonly rateLimit: RateLimitSnapshot | null;
 }

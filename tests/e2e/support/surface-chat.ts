@@ -1390,7 +1390,7 @@ async function commandRoom(flow: Journey, chatId: ChatId, search: string): Promi
   return room;
 }
 
-async function commandMenu(flow: Journey, room: ChatSummary): Promise<Locator> {
+async function chatRowMenu(flow: Journey, room: ChatSummary): Promise<Locator> {
   await enterChatsList(flow);
   await flow.requestPanes();
   const show = flow.page.getByRole("button", { name: "Show list panel", exact: true });
@@ -1418,7 +1418,7 @@ async function commandMenuOwner(menu: Locator): Promise<Locator> {
 }
 
 async function commandExports(flow: Journey, room: ChatSummary): Promise<void> {
-  let menu = await commandMenu(flow, room);
+  let menu = await chatRowMenu(flow, room);
   const exportTrigger = menu.getByRole("menuitem", { name: "Export transcript", exact: true });
   await exportTrigger.focus();
   await exportTrigger.press("ArrowRight");
@@ -1438,7 +1438,7 @@ async function commandExports(flow: Journey, room: ChatSummary): Promise<void> {
   for (const raw of labels) {
     const label = raw.trim();
     const id = `commands/export/${label}`;
-    menu = await commandMenu(flow, room);
+    menu = await chatRowMenu(flow, room);
     const downloadOwner = await commandMenuOwner(menu);
     const trigger = menu.getByRole("menuitem", { name: "Export transcript", exact: true });
     await trigger.focus();
@@ -1519,7 +1519,7 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
       timeZone: UTC_TIME_ZONE,
     });
     let room = await commandRoom(flow, chat.id, title);
-    let menu = await commandMenu(flow, room);
+    let menu = await chatRowMenu(flow, room);
     const labels = await menu.locator('[role="menuitem"]:not([aria-haspopup="menu"])').allTextContents();
     for (const label of labels) {
       const id = `commands/lifecycle/${label.trim()}`;
@@ -1546,7 +1546,7 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
       ["Unstar", false],
     ] as const) {
       room = await commandRoom(flow, chat.id, title);
-      const starMenu = await commandMenu(flow, room);
+      const starMenu = await chatRowMenu(flow, room);
       expectChat(flow, `commands/lifecycle/${label}`, "menu-operation");
       await flow.action(`commands/${label}`, {
         action: async () => {
@@ -1570,7 +1570,7 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
     room = await commandRoom(flow, chat.id, title);
     await commandExports(flow, room);
     await commandEdit(flow, room);
-    menu = await commandMenu(flow, await commandRoom(flow, chat.id, title));
+    menu = await chatRowMenu(flow, await commandRoom(flow, chat.id, title));
     await flow.action("commands/archive", {
       action: async () => {
         await menu.getByRole("menuitem", { name: "Archive", exact: true }).click();
@@ -1582,7 +1582,7 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
     });
     record(flow, "commands/lifecycle/Archive", "visited", "Native archive persisted and removed the exact disposable subject from the non-archived list");
     await flow.client.chat.archive.mutate({ chatId: chat.id, archived: false });
-    menu = await commandMenu(flow, await commandRoom(flow, chat.id, title));
+    menu = await chatRowMenu(flow, await commandRoom(flow, chat.id, title));
     await menu.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
     const confirm = flow.page.getByRole("alertdialog", { name: `Delete "${renamed}"?`, exact: true });
     await expect(confirm).toBeVisible();

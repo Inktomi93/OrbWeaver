@@ -11,7 +11,7 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
   const { imagery, settings, resolveOwnerPrincipal, roleClientsFor } = deps;
   return {
     requestTurn: async (req): ReturnType<AutomationRuntimeOps["requestTurn"]> => {
-      const outcome = await deps.requestTurn({
+      await deps.requestTurn({
         chatId: req.chatId,
         initiator: "automation",
         triggeredBy: req.authorUserId,
@@ -22,7 +22,6 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
         ...(req.speakerCharacterId !== undefined ? { speakerCharacterId: req.speakerCharacterId } : {}),
         ...(req.guided !== undefined ? { guided: { action: "response", input: req.guided } } : {}),
       });
-      return { messageCount: outcome.messages.length };
     },
     generatePicture: async (req): ReturnType<AutomationRuntimeOps["generatePicture"]> => {
       const { authorUserId, ruleId, chatId, automationDepth, quiet, ...pictureArgs } = req;
@@ -50,7 +49,6 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
           { initiator: "automation", automationDepth },
         );
       }
-      return { imageCount: picture.images.length };
     },
     listBackgroundChoices: async (authorUserId): ReturnType<AutomationRuntimeOps["listBackgroundChoices"]> => {
       const config = (await settings.getUserSettings({ principal: await resolveOwnerPrincipal(authorUserId) })).config;

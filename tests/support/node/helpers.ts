@@ -1,7 +1,7 @@
 // The node helpers door: Node-side helpers that never load the server graph at import, importable outside vitest.
 
 export { loadAppearancePreset } from "@orb/tooling/floor/appearance/appearance-flags";
-export type { AnthropicInputUsage, AnthropicMessageEnd, AnthropicStreamEvent, ScriptedMessageDelta } from "./anthropic-stream.ts";
+export type { AnthropicStreamEvent } from "./anthropic-stream.ts";
 export {
   anthropicSse,
   anthropicTextReply,
@@ -28,6 +28,7 @@ export { createTestEnv } from "./env.ts";
 export { makeRuleView } from "./factories/automation-view.ts";
 export { makeChatDetail, makeChatId, makeChatSummaryView, makeRedeemInviteResult } from "./factories/chat-view.ts";
 export { makePluginRow, makePluginScriptedPage } from "./factories/plugin-view.ts";
+export { makePortableChat, makePortableGame, makePortableMessage, makePortableTurnSnapshot } from "./factories/portable-chat.ts";
 export { makePresetDetail, makePresetSummary } from "./factories/preset-view.ts";
 export { principal } from "./factories/principal.ts";
 export { makeCachePolicy, makeResolved, makeResolvedView, TEST_BASE_URL, TEST_OWNER_ID, TEST_PROVIDER_ID } from "./factories/resolved-connection.ts";
@@ -37,6 +38,7 @@ export { startFakeAcme } from "./fake-acme.ts";
 export { startFilmstripAuthFixture } from "./filmstrip-auth-fixture.ts";
 export { freeLoopbackPort } from "./free-port.ts";
 export { requestWithHost } from "./host-request.ts";
+export { warningCodes } from "./inference-warnings.ts";
 export { lanAddress } from "./lan-address.ts";
 export { magicBytes } from "./magic-bytes.ts";
 export { attachNativeFile } from "./native-attachments.ts";
@@ -46,7 +48,7 @@ export { openAiServer, recordRequest, SLEEP_PROBE_SUFFIX } from "./openai-server
 export type { TerminalFrameOptions } from "./provider-stream.ts";
 export { terminalSseLine } from "./provider-stream.ts";
 export type { TrpcRequestFilter } from "./route-trpc.ts";
-export { isTrpcRequestFor, matchesTrpcRequestInput, readTrpcOutput } from "./route-trpc.ts";
+export { abortProcedure, isTrpcRequestFor, matchesTrpcRequestInput, readTrpcOutput } from "./route-trpc.ts";
 export type { SdkPrivateDiagnosticInput, SdkPrivateDiagnosticResult, SdkScriptSpawn } from "./sdk-process.ts";
 export {
   createSdkProcessSpawner,
@@ -55,10 +57,11 @@ export {
   SDK_SCRIPT_IDENTITY_TYPE,
   sdkPrivateDiagnosticResultSchema,
 } from "./sdk-process.ts";
+export { SECRET_BOX_TEST_KEY } from "./secret-box-key.ts";
 export { STORY_SHOT_DIR } from "./story-shot.ts";
 export { SURFACE_CHECKS } from "./surface-audit.ts";
 export type { PreparedSurfaceData } from "./surface-data.ts";
-export { assertSurfaceRunOutput, createSurfaceArtifactRun, openPreparedSurfaceRoot, prepareSurfaceData, surfaceGenerationSchema } from "./surface-data.ts";
+export { assertSurfaceRunOutput, createSurfaceArtifactRun, openPreparedSurfaceRoot, prepareSurfaceData } from "./surface-data.ts";
 export {
   initializeSurfaceAgentEntry,
   prepareSurfaceAgentReport,
@@ -85,7 +88,6 @@ export {
   surfaceNativeTimeout,
   surfaceRunConfigSchema,
 } from "./surface-run.ts";
-export { ownedTempDir } from "./temp-dir.ts";
 export type { TlsAnswer } from "./tls-hop.ts";
 export { tlsRequest } from "./tls-hop.ts";
 export { webVitalsSource } from "./web-vitals-source.ts";

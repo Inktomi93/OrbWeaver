@@ -151,7 +151,7 @@ export function Band({ label, chevron, icon, count, censusAlign = "trailing", ma
           column because a tracked label inside a `truncate` box was clipping "Regex scripts" by 0.42px on the
           271px both-panels pane. The voice keeps it for its dozen other consumers; this band no longer has a
           trailing tracking column to reclaim, so the clip is gone by construction rather than by compensation. */}
-      <Text as="span" className="truncate" data-slot="band-label" voice="label">
+      <Text ink="inherit" as="span" className="truncate" data-slot="band-label" voice="label">
         {label}
       </Text>
       {count === undefined ? null : (

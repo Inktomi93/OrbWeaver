@@ -1,7 +1,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { actionGroupGeometry, resolvedLength } from "@orb/testkit/browser/spec";
-import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { holdServed, routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import {
@@ -124,7 +124,7 @@ for (const regime of REGIMES) {
         throw new Error("The corpus has no greeting completion connection");
       }
       await caller.connection.setBinding({ task: "summarize", connectionId: connection.id });
-      await page.route("**/api/auth/config", (route) => route.fulfill({ json: corpus.auth.signedInConfig }));
+      await routeAuthConfig(page, corpus.auth.signedInConfig);
       const generation = holdServed();
       await routeTrpc(page, {
         ...serveCorpusProcedures(caller, [

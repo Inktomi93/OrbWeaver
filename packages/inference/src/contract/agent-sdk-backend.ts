@@ -20,7 +20,7 @@ import type {
   WireCaptureSink,
 } from "#contract";
 import type { AgentSdkQueryLease } from "./agent-sdk-execution.ts";
-import type { AgentMcpServerHealth, ChatDeltaSubscription, ChatRequestBase } from "./chat.ts";
+import type { ChatDeltaSubscription, ChatRequestBase } from "./chat.ts";
 import type { ProviderLogger, ProviderTurnUsage } from "./http.ts";
 import type { InferenceDeps, InferenceLog } from "./runtime.ts";
 import type { PlannedResponseFormat } from "./structured.ts";
@@ -110,9 +110,7 @@ export interface AgentSdkLog {
     readonly unliftable?: { readonly tool: string; readonly construct: string; readonly path: string };
   }) => void;
   readonly compaction: (fields: Record<string, unknown>) => void;
-  readonly dialog: (entry: { readonly source: "elicitation" | "user-dialog"; readonly kind: string }) => void;
   readonly capability: ProviderLogger["capability"];
-  readonly mcp: (entry: { readonly unhealthy: boolean; readonly servers: readonly AgentMcpServerHealth[] }) => void;
   readonly info: InferenceLog["info"];
   readonly warn: InferenceLog["warn"];
   readonly debug: InferenceLog["debug"];

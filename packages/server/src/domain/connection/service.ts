@@ -39,6 +39,5 @@ export function createConnectionService(input: DbAssemblyInput<ConnectionContext
     ...createCatalogs(ctx),
     ...createDiagnostics(ctx),
     ...createProviders(ctx),
-    registry: ctx.runtime.providers.registry,
   };
 }

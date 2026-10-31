@@ -2,9 +2,9 @@
 // (D28 — no version table). For each staged card: store its bytes through `storeBlob` (the single
 // coherence writer) — but ONLY when the card's own content hash matches its recorded `importHash` (the
 // whole-file sha-256 the import path stamped on the flat row; a mismatch is a wrong/corrupt staging file,
-// counted `mismatched`, never stored and never linked) — then link `characters.avatarAssetId` to it. Stores
+// never stored and never linked) — then link `characters.avatarAssetId` to it. Stores
 // run at BOUNDED CONCURRENCY (~8); the links land as ONE batched UPDATE via the `@orb/db/query` batch helpers.
-// `dryRun` forecasts the same link/mismatch split (the hash verdict needs no store) without writing bytes or
+// `dryRun` forecasts the same link count (the hash verdict needs no store) without writing bytes or
 // the pointer. UN-PRINCIPAL (D20) — the `ownerId` scopes every store + the batched UPDATE.
 //
 // The pointer WRITE is not assets' to make: `characters.avatarAssetId` belongs to `domain/character`, so the
@@ -51,45 +51,32 @@ async function storeCard(ctx: AssetsContext, ownerId: UserId, card: BackfillCard
   return { characterId: card.characterId, assetId: stored.assetId };
 }
 
-async function storeWave(ctx: AssetsContext, ownerId: UserId, cards: readonly BackfillCard[]): Promise<{ links: CharacterAvatarLink[]; mismatched: number }> {
+async function storeWave(ctx: AssetsContext, ownerId: UserId, cards: readonly BackfillCard[]): Promise<CharacterAvatarLink[]> {
   const results = await Promise.all(cards.map((card) => storeCard(ctx, ownerId, card)));
-  const links: CharacterAvatarLink[] = [];
-  let mismatched = 0;
-  for (const result of results) {
-    if (result === undefined) {
-      mismatched++;
-    } else {
-      links.push(result);
-    }
-  }
-  return { links, mismatched };
+  return results.filter((result) => result !== undefined);
 }
 
 export function createBackfillAvatars(ctx: AssetsContext): AssetsService["backfillAvatars"] {
   return async ({ ownerId, cards, dryRun = false, signal }) => {
     if (signal !== undefined && isAborted(signal)) {
-      return { scanned: 0, linked: 0, mismatched: 0, dryRun };
+      return { scanned: 0, linked: 0 };
     }
     if (dryRun) {
       // Validate-only: nothing is stored, but the integrity verdict comes from the bytes, so the forecast is
       // the REAL split the run would produce ("report what WOULD link" — contract/maintenance.ts). A fixed
       // 0/0 forecast reported an all-clear for a population that was entirely mismatched.
-      const mismatchedCards = cards.filter((card) => !matchesImportHash(card)).length;
-      return { scanned: cards.length, linked: cards.length - mismatchedCards, mismatched: mismatchedCards, dryRun: true };
+      return { scanned: cards.length, linked: cards.filter(matchesImportHash).length };
     }
 
     const links: CharacterAvatarLink[] = [];
     let scanned = 0;
-    let mismatched = 0;
     for (let i = 0; i < cards.length; i += CONCURRENCY) {
       if (signal !== undefined && isAborted(signal)) {
         break;
       }
       const wave = cards.slice(i, i + CONCURRENCY);
-      const result = await storeWave(ctx, ownerId, wave);
       scanned += wave.length;
-      mismatched += result.mismatched;
-      links.push(...result.links);
+      links.push(...(await storeWave(ctx, ownerId, wave)));
     }
 
     if (links.length > 0) {
@@ -98,6 +85,6 @@ export function createBackfillAvatars(ctx: AssetsContext): AssetsService["backfi
       // owning-domain op, never an assets-side UPDATE (Constitution.md §2; Tier-1-DB.md §"Cross-tier composition").
       await ctx.linkCharacterAvatars({ ownerId, links });
     }
-    return { scanned, linked: links.length, mismatched, dryRun: false };
+    return { scanned, linked: links.length };
   };
 }

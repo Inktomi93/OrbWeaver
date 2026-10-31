@@ -546,7 +546,6 @@ function stashConfirmFirstArm(
     chatId,
     source,
     actorUserId: frame.authorUserId,
-    summary,
     expiresAt,
     payload: { via: "arm", stashed: { action, frame, continuation } },
   });

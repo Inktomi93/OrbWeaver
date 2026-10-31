@@ -2,6 +2,7 @@
 // Shared by the assets suites whose verdict is what the one reference collector keeps: the sweep, its
 // unreadable-reference persistence suite, the portability export and the sweep's overlap with an import.
 
+import { spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -13,7 +14,7 @@ import type { Db } from "@orb/db";
 import { closeDb } from "@orb/db";
 import { contentSpanRaw } from "@orb/kit/content";
 import type { AssetId, CharacterHandle, ChatId, MessageId, UserId, WorkloadId } from "@orb/kit/ids";
-import { castId, ID_PREFIX } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBEDDING_VECTOR,
@@ -28,6 +29,11 @@ import { onTestFinished } from "vitest";
 export const PNG = "image/png";
 const WORKLOAD_DEADLINE_MS = 30_000;
 export const GC_IMAGE_MODEL = "gc-image-v1";
+/** The remote art host a guest's `net.fetchAsset` reaches; the box serves one image there. */
+export const COVER_HOST = "covers.example.test";
+export const COVER_URL = `https://${COVER_HOST}/cover.png`;
+// A public address for the cover host, so the egress guard treats it as the internet it stands for.
+const COVER_ADDRESS = "93.184.215.14";
 
 export interface GcBox {
   readonly root: ServerTestHarness;
@@ -45,7 +51,8 @@ export interface StoredRef {
 const LOOPBACK_OWNER = { physicalPeer: () => "127.0.0.1", env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" } } as const;
 
 /** One harness on a scratch CAS; a supplied db is closed after the harness that used it. The scripted provider
- *  answers only an image generation, with whatever bytes a test pushes into `images` first. */
+ *  answers only an image generation, with whatever bytes a test pushes into `images` first. Plugin guests run as
+ *  real processes, and the cover host answers a guest's fetch with one image. */
 export async function openBox(db?: Db, options: { readonly loopbackOwner?: boolean; readonly ids?: ServerHarnessOptions["ids"] } = {}): Promise<GcBox> {
   const dir = await mkdtemp(join(tmpdir(), "orb-assets-gc-"));
   const casDir = join(dir, "cas");
@@ -57,10 +64,23 @@ export async function openBox(db?: Db, options: { readonly loopbackOwner?: boole
     structuredReplies: new Map(),
     images,
   });
+  const cover = makeAssetBytes(mintTypeId(ID_PREFIX.asset));
+  // Provider and plugin egress share the root's one network door, so one function answers both by host.
+  const network: typeof fetch = async (input, init) => {
+    const request = new Request(input, init);
+    return new URL(request.url).hostname === COVER_HOST
+      ? new Response(Uint8Array.from(cover), { headers: { "content-type": PNG } })
+      : await wire.execute(request);
+  };
   const root = await createServerHarness({
     startJobs: false,
     casDir,
-    providerFetch: wire.execute,
+    providerFetch: network,
+    pluginSpawn: spawn,
+    networkExecution: {
+      fetch: network,
+      resolver: (host) => (host === COVER_HOST ? Promise.resolve([COVER_ADDRESS]) : Promise.reject(new Error(`unscripted DNS lookup: ${host}`))),
+    },
     ...(db === undefined ? {} : { db }),
     ...(options.loopbackOwner === true ? LOOPBACK_OWNER : {}),
     ...(options.ids === undefined ? {} : { ids: options.ids }),

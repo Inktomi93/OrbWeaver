@@ -8,7 +8,7 @@ import { PLUGIN_LORE_ENTRIES_PER_BOOK_MAX } from "@orb/contracts/plugin";
 import type { WorldBookId } from "@orb/kit/ids";
 import { neutralizeMacros } from "@orb/kit/macro";
 import { expect, test } from "@orb/testkit/node";
-import type { ChatRoot } from "@orb/testkit/node/composed";
+import type { ChatRoot, GuestRun } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -16,9 +16,9 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  guestRunner,
+  installGuest,
 } from "@orb/testkit/node/composed";
-import type { GuestRun } from "./_guest-command.ts";
-import { guestRunner, installGuest } from "./_guest-command.ts";
 
 const LORE_OPS = {
   lore: "(h, room, a) => h.worldInfo.upsertEntry(room, a.entry)",

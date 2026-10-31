@@ -2,11 +2,12 @@
 
 import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
 import { pluginProviderClaims, providerRows } from "@orb/db";
+import type { ProviderRegistry } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import type { PluginService } from "@orb/server/domain/plugin";
 import { and, eq } from "drizzle-orm";
 import type { ServerProducerRoot } from "../../server.ts";
-import type { ConnectionService, ProviderRow, SeededPluginProvider } from "../provider.ts";
+import type { ProviderRow, SeededPluginProvider } from "../provider.ts";
 
 /** Provider IDs come from the genuine parsed bundle manifest, not a fixture-side namespace/hash fold. */
 export async function seedPluginProvidersRows(
@@ -52,10 +53,10 @@ export async function seedPluginProvidersRows(
 export async function seedAdminProviderRows(
   root: ServerProducerRoot,
   definition: ProviderDef,
-  origin: Extract<Parameters<ConnectionService["registry"]["register"]>[1], { readonly admin: UserId }>,
+  origin: Extract<Parameters<ProviderRegistry["register"]>[1], { readonly admin: UserId }>,
 ): Promise<ProviderRow> {
   const db = root.db;
-  const register = root.services.connection.registry.register;
+  const register = root.app.runtime.providers.registry.register;
   const registered = await register(definition, origin);
   const row = await db
     .select()

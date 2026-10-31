@@ -7,7 +7,7 @@ import type { ChatEvent, ChatHistoryMessage } from "@orb/inference";
 import { isPlainObject } from "@orb/kit/guards";
 import { expect, test } from "@orb/testkit/node";
 import type { RecordedRequest } from "@orb/testkit/node/helpers";
-import { openAiServer } from "@orb/testkit/node/helpers";
+import { openAiServer, warningCodes } from "@orb/testkit/node/helpers";
 import { createRuntimeRoot, generationCapability, wireConnection } from "../../roles/runtime.fixtures.ts";
 
 type Connection = Parameters<typeof wireConnection<"chat">>[1];
@@ -44,10 +44,6 @@ async function send(
 
 function ignoredKeys(events: readonly ChatEvent[]): string[] {
   return events.flatMap((event) => (event.kind === "warning" && event.code === WARNING_CODE.customParametersIgnored ? [String(event.key)] : []));
-}
-
-function warningCodes(events: readonly ChatEvent[]): string[] {
-  return events.flatMap((event) => (event.kind === "warning" ? [event.code] : []));
 }
 
 const NO_THINKING_SWITCH = generationCapability({ reasoning: { mode: "none", enabled: false } });
@@ -450,5 +446,5 @@ test("a mandatory-reasoning model keeps its thinking and its effort through a de
   expect(sent.body["continue_final_message"]).toBe(true);
   expect(sent.body["chat_template_kwargs"]).toMatchObject({ ["enable_thinking"]: true });
   expect(sent.body["reasoning_effort"]).toBe("high");
-  expect(warningCodes(sent.events)).not.toContain("reasoning_dropped_for_prefill");
+  expect(warningCodes(sent.events)).not.toContain(WARNING_CODE.reasoningDroppedForPrefill);
 });

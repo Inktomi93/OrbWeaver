@@ -95,6 +95,6 @@ export function createCollectGarbage(ctx: AssetsContext): AssetsService["collect
       scanned += counts.scanned;
       reclaimed += counts.reclaimed;
     }
-    return { scanned, reclaimed, dryRun };
+    return { scanned, reclaimed };
   };
 }

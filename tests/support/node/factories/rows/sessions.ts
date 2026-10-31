@@ -6,7 +6,6 @@ import type { Db } from "@orb/db";
 import { oidcPendingSignups, oidcTransactions, rateLimitBuckets, sessions } from "@orb/db";
 import type { ExternalId } from "@orb/kit/ids";
 import type { AdminService } from "@orb/server/domain/admin";
-import { revokeUserSessionsResultSchema } from "@orb/server/domain/admin";
 import { eq } from "drizzle-orm";
 import type { CapturedCookieAuth } from "../../corpus-auth.ts";
 import { captureCookieAuth } from "../../corpus-auth.ts";
@@ -67,10 +66,10 @@ export async function seedRevokedUserSessionsRows(
   const db = root.db;
   const revoke = root.services.admin.revokeUserSessions;
   const list = root.services.admin.listSessions;
-  const result = revokeUserSessionsResultSchema.parse(await revoke(params));
+  await revoke(params);
   const views = (await list(params)).map((view) => sessionAdminViewSchema.parse(view));
   const rows = await db.select().from(sessions).where(eq(sessions.userId, params.userId)).orderBy(sessions.id);
-  return { result, views, rows };
+  return { views, rows };
 }
 
 /** Drive the real login request and capture opaque producer keys; the fixture never computes a throttle window or identity. */

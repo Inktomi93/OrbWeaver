@@ -3,7 +3,6 @@
 // injects into the other domains that gate; a sibling domain never runtime-imports them sideways.
 
 export type { AdminCardEmbedDeps } from "./contract/ops.ts";
-export { revokeUserSessionsResultSchema } from "./contract/results.ts";
 export type { AdminContext, AdminService, ServerRestartPort } from "./contract/service.ts";
 export { can, isAdmin, isOwner, requireAdmin, requireOwner } from "./guard.ts";
 export { createAdminService } from "./service.ts";

@@ -8,10 +8,6 @@ import type { PortMember } from "./restated-port.ts";
 import { effectiveMember, flowMembers, flowsAt } from "./restated-port.ts";
 import { isProduction, loadScanWorld, realpath } from "./worlds.ts";
 
-/** A member's scan key to the keys of the slots production code hands its value into, such as a composition root
- *  wiring an owner's verb into a consumer's port across domains, where no reference links the two declarations. */
-export type MemberFlows = ReadonlyMap<string, ReadonlySet<string>>;
-
 // The scan key of a member declared directly in an interface or an object type alias; null for any other member.
 function memberKey(root: string, member: PortMember): string | null {
   const holder = member.parent;

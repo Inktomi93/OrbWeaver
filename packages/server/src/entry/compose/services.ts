@@ -97,7 +97,7 @@ import { createImageryPortability } from "#domain/imagery";
 import { buildImportContext, cardPngIdentity, createInstallerCharacterImport, serializeImportCard } from "#domain/import";
 import type { DefaultPersonaSeeder, ResolvePersonasForParticipants } from "#domain/persona";
 import { createSeedPersonaWithCompletion } from "#domain/persona";
-import type { DistributedPluginApplier, PluginHostOps } from "#domain/plugin";
+import type { DistributedPluginApplier } from "#domain/plugin";
 import {
   createDistributedPluginApplier,
   createPluginGrantTasksOf,
@@ -137,7 +137,7 @@ import { createAttachOwnedBooksByName, createImportStandaloneLorebook } from "#d
 import { APP_NAME, APP_URL } from "#foundation/config";
 import type { Env } from "#foundation/env/record";
 import { allowedHostsInput, installKind, publicAddresses } from "#foundation/env/record";
-import type { AuditEntry, AuditWiring, Logger, ObservabilityRings, WireCaptureSpill } from "#foundation/observability";
+import type { AuditWiring, Logger, ObservabilityRings, WireCaptureSpill } from "#foundation/observability";
 import {
   addSpanEvent,
   createBugReportDiagnosticsRead,
@@ -160,7 +160,7 @@ import { createVideoPreparer } from "#infra/media";
 import type { ScopedEgress, ScopedEgressOptions } from "#infra/network";
 import { createScopedEgress } from "#infra/network";
 import type { Cas } from "#infra/storage";
-import { createCas, createUserRuntimeDirs, createVariantCache } from "#infra/storage";
+import { createCas, createUserRuntimeDirs, createVariantCache, RUNTIME_TOOL_OF_WIRE } from "#infra/storage";
 import type { BackgroundWork } from "#infra/tasks";
 import { createBackgroundWork } from "#infra/tasks";
 import { createScopedTimers } from "#infra/timers";
@@ -374,7 +374,6 @@ export interface ServicesResult extends AsyncDisposable {
   /** The ONE inference runtime (§3.3) — surfaced for the boot's local-light prefetch plan and the composed-real
    *  int tests; every domain reaches it through its own injected ops, never this handle. */
   readonly runtime: InferenceRuntime;
-  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /** The root's suppressed audit failures, for its `/api/_debug/db/stats` read. */
   readonly auditFailures: AuditWiring["failures"];
   readonly effectiveConfig: EffectiveConfigWiring;
@@ -420,9 +419,6 @@ export interface ServicesResult extends AsyncDisposable {
     /** The installer's import context: character, assets and tag binders under one Principal. */
     readonly importContextFor: (principal: Principal) => ReturnType<typeof buildImportContext>;
   };
-  /** The plugin host's fetched-asset op, surfaced so a suite stores a fetched asset through the op a guest's
-   *  `net.fetchAsset` runs, with no guest process. */
-  readonly storePluginFetchedAsset: PluginHostOps["assets"]["storeFetched"];
   /** D259 — chat's signup-invite ops, for the local signup route. */
   readonly signupInvites: SignupInviteOps;
   /** The per-user local-light seed, surfaced for the signup route (it runs after the signup commit). */
@@ -685,6 +681,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     findProvider: (providerId, viewer) => runtimeRef().providers.registry.get(providerId, viewer),
     audit,
     emitUserEvent: publishUserEvent,
+    releaseRuntimeState: (ownerId, wire) => {
+      const tool = RUNTIME_TOOL_OF_WIRE[wire];
+      if (tool !== undefined) {
+        userRuntimeDirs.remove(ownerId, tool);
+      }
+    },
   });
 
   const runtime = await createInferenceRuntime({
@@ -1311,7 +1313,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
 
   pluginLifetime = automationPlugin;
-  const { automation, plugin, storeFetchedAsset } = automationPlugin;
+  const { automation, plugin } = automationPlugin;
 
   // ── roster-preset (saved parties, D61 B6) — built AFTER chat AND after automation (moved below the
   // automation-plugin seam when B10's rules rider landed): `applyToChat` drives chat's own host-gated
@@ -1609,7 +1611,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     workloadContributions,
     databankIngest,
     runtime,
-    audit,
     auditFailures: deps.audit.failures,
     effectiveConfig,
     secretBox,
@@ -1635,6 +1636,5 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     wireCaptureOn,
     cas,
     crossFeatureOps: { resolveChatHostUserId, resolvePersonasForParticipants, importContextFor: installerImportContext },
-    storePluginFetchedAsset: storeFetchedAsset,
   };
 }

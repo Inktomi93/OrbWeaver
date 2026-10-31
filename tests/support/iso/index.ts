@@ -16,8 +16,8 @@ export { DEFAULT_EMBED_MODEL, testModelId, testProviderId } from "./inference-id
 export { PUBLIC_PEER_ADDRESS } from "./network.ts";
 export { forEachNonEmpty } from "./non-empty.ts";
 export { makePromptConfig } from "./preset-config.ts";
-export { makePluginProviderRow, pluginProviderId } from "./provider-rows.ts";
-export { makeRpgActorEntry, makeRpgActorIdentity } from "./rpg-state.ts";
+export { makePluginProviderRow, makeProviderRow, pluginProviderId } from "./provider-rows.ts";
+export { makeRpgActorIdentity, makeRpgActorVolatile } from "./rpg-state.ts";
 export type { SurfaceCoverageDisposition, SurfaceCoverageInventory } from "./surface-coverage.ts";
 export { surfaceCoverageKey } from "./surface-coverage.ts";
 export type { SurfaceProviderEvidence } from "./surface-data.ts";
@@ -25,5 +25,6 @@ export { parseSurfaceProviderEvidence, SURFACE_DATA_MODES } from "./surface-data
 export type { SurfacePass } from "./surface-pass.ts";
 export { SURFACE_HTTP_ANNOTATION, SURFACE_PASSES } from "./surface-pass.ts";
 export { ACCEPTED_BASES } from "./theme-bases.ts";
+export { EDGE_FALLBACK_SCOPE, TONE_FALLBACK_SCOPE } from "./theme-fallback-cases.ts";
 export type { ControlledTimers } from "./timers.ts";
-export { createControlledTimers } from "./timers.ts";
+export { createControlledTimers, createQuietTimers } from "./timers.ts";

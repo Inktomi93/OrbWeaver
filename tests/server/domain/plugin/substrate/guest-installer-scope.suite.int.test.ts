@@ -7,13 +7,14 @@
 import { spawn } from "node:child_process";
 import { createCharacterSchema, parsePluginImportedFrom } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
+import type { PluginBridge } from "@orb/contracts/plugin";
 import { PLUGIN_CARD_DATA_FIND_MAX, PluginCapabilityError } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
-import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
+import type { GuestOps, GuestRun, ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -21,13 +22,13 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
   createServerHarness,
+  guestRunner,
+  installGuest,
   makeAssetBytes,
   seedAsset,
   seedCorpusActors,
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
-import type { GuestOps, GuestRun } from "./_guest-command.ts";
-import { guestRunner, installGuest } from "./_guest-command.ts";
 
 const SCOPE_OPS = {
   readAsset: "(h, room, a) => h.assets.read(a.assetId)",
@@ -119,10 +120,12 @@ test("a guest reads assets only from its installer's own storage", { tags: ["slo
   const theirs = await ownAsset(o.root, o.stranger);
   const { run } = await o.guest(o.owner, "asset-reader");
 
-  expect(await run("readAsset", { assetId: mine.assetId })).toEqual({
-    ok: true,
-    value: { mime: "image/png", sizeBytes: mine.bytes.byteLength, dataBase64: Buffer.from(mine.bytes).toString("base64") },
-  });
+  const view: NonNullable<Awaited<ReturnType<PluginBridge["assets"]["read"]>>> = {
+    mime: "image/png",
+    sizeBytes: mine.bytes.byteLength,
+    dataBase64: Buffer.from(mine.bytes).toString("base64"),
+  };
+  expect(await run("readAsset", { assetId: mine.assetId })).toEqual({ ok: true, value: view });
   expect(await run("readAsset", { assetId: theirs.assetId })).toEqual({ ok: true, value: null });
 });
 

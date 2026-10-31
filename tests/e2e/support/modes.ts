@@ -34,7 +34,7 @@ import { join, resolve } from "node:path";
 import process from "node:process";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { assertPrivateCorpusNetwork, assertPrivateCorpusOutput, assertPrivateCorpusOutputArguments, loadCorpusFixture } from "@orb/testkit/node/composed";
-import { DEV_PORTS, ENGINE_PORTS, e2eRunPorts } from "@orb/tooling/floor/host/ports";
+import { DEV_PORTS, E2E_PORT_OFFSET_ENV, ENGINE_PORTS, e2eRunPorts } from "@orb/tooling/floor/host/ports";
 import { exportProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import type { IssuerTls } from "./oidc-issuer.ts";
@@ -52,10 +52,9 @@ if (runToken === undefined || !/^[1-9]\d*-[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9
 if (E2E_RUN_IS_OWNER) {
   exportProcessEnv(RUN_TOKEN_ENV, runToken);
 }
-const PORT_OFFSET_ENV = "E2E_PORT_OFFSET";
-const rawPortOffset = process.env[PORT_OFFSET_ENV];
+const rawPortOffset = process.env[E2E_PORT_OFFSET_ENV];
 if (rawPortOffset !== undefined && !/^\d+$/u.test(rawPortOffset)) {
-  throw new Error(`${PORT_OFFSET_ENV} must be a non-negative integer, got ${JSON.stringify(rawPortOffset)}`);
+  throw new Error(`${E2E_PORT_OFFSET_ENV} must be a non-negative integer, got ${JSON.stringify(rawPortOffset)}`);
 }
 /** Every port this run binds: the registry's base rows shifted together by `E2E_PORT_OFFSET`, so a second run on the box does not collide. */
 export const E2E_RUN_PORTS = e2eRunPorts(rawPortOffset === undefined ? 0 : Number(rawPortOffset));
