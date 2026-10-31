@@ -10,7 +10,7 @@ import {
   automationSuggestionSource,
 } from "#features/automation";
 import { characterCreateChrome, characterSlashCommands } from "#features/character";
-import { chatMessageReactionsSurface, chatSlashCommands, makeChatControlsContribution } from "#features/chat";
+import { chatMembersChrome, chatMemoryChrome, chatMessageReactionsSurface, chatSlashCommands, makeChatControlsContribution } from "#features/chat";
 import { configPaletteSource } from "#features/config";
 import { corpusModePaletteSource } from "#features/discovery";
 import { imagerySlashCommands } from "#features/imagery";
@@ -158,6 +158,8 @@ export const corpusContextTabs = createContributorRegistry<ContextTabDef<CorpusC
 // conditions; the zone is shell-global, the affordance is not.
 export const chromeWidgets: readonly ChromeEntry[] = [
   notificationsChrome,
+  chatMembersChrome,
+  chatMemoryChrome,
   pluginCommandsChrome,
   characterCreateChrome,
   contextToggleChrome,

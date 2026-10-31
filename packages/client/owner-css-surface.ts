@@ -869,7 +869,6 @@ export const OWNER_CSS_SHELL_CLASSES = [
   "shell-chat-chip-count",
   "shell-chat-header-avatar",
   "shell-chat-header-lead",
-  "shell-chat-member-chip",
   "shell-content",
   "shell-content-primacy-sentinel",
   "shell-context-header",

@@ -23,11 +23,14 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { viewerTimeZone } from "#lib";
+import { useOpenRequests, viewerTimeZone } from "#lib";
 import type { RecallState } from "#state";
 import { useRecallState } from "#state";
 import { useSetMemoryEnabled, useStartMemoryBackfill } from "../hooks/use-memory-mutations.ts";
+import { recallLabel } from "../lib/recall-label.ts";
+import { recallRequests } from "../lib/recall-requests.ts";
 import { MemoryOnConfirm } from "./memory-on-confirm.tsx";
 import { MemoryRecallDetail } from "./memory-recall-detail.tsx";
 
@@ -36,19 +39,6 @@ export interface ChatRecallIndicatorProps {
   /** The viewer holds the room HOST role (`ChatDetail.viewerIsHost`) — gates the popover's full recall detail
    *  (the `previewAssembly` read is `requireHost` server-side; a member sees the count summary only). */
   readonly viewerIsHost: boolean;
-}
-
-/** The accessible name for each recall state — the state lives in the NAME (the visible count is `aria-hidden`),
- *  so a screen reader is the equal of the eye. Stable "Memory" prefix leads so a role+name lookup survives the
- *  value change (the roster-chip precedent, WCAG 2.5.3). */
-function recallLabel(recall: RecallState | null): string {
-  if (recall === null) {
-    return "Memory — idle";
-  }
-  if (recall.phase === "recalling") {
-    return "Memory — recalling";
-  }
-  return `Memory — ${recall.count} recalled`;
 }
 
 /** Whether Memory is off for the host's account, and how to open the turn-on confirm. A member's chip carries none. */
@@ -95,54 +85,83 @@ function RecallIndicatorBody({ chatId, viewerIsHost, memory }: ChatRecallIndicat
   const recall = useRecallState(chatId);
   const count = recall?.phase === "recalled" ? recall.count : null;
   const phase: RecallState["phase"] | "idle" = recall === null ? "idle" : recall.phase;
+  // The topbar's overflow menu cannot reach the chip once the row moved it out, so it asks for the same surface in a dialog.
+  const [dialogOpen, setDialogOpen] = useState(false);
+  useOpenRequests(recallRequests, (): void => setDialogOpen(true));
   return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <Button
-            type="button"
-            // THE ACTIONABLE CHIP LIFTS ITS INK (#878 F12, side-eye 2026-08-30). Both bands' chip
-            // rows had the grammar INVERTED: the pill shape marked the items you cannot click and the bare
-            // ghost marked the one you can. MEASURED before choosing the axis — and the first attempt was
-            // WRONG: an outline style looked like "an edge means pressable", but a `soft` Badge draws the
-            // SAME 1px hairline (`bw:"1px"`, identical `borderTopColor` on all three chips), so the border
-            // could never be the distinction. The FILL/INK pair is: an inert datum holds the muted step on
-            // a tint, and the actionable chip lifts to the FOREGROUND on bare ground, with the hover/active
-            // fill, the focus ring and the pointer cursor no datum has. Colour-as-liveness is the axis the
-            // bracket already uses one slot up (the kicker's selection half, #102), so the pane teaches it
-            // once. `shape="pill"` keeps the mock's ONE chip family.
-            variant="outline"
-            shape="pill"
-            size="sm"
-            aria-label={recallLabel(recall)}
-            // The coarse INLINE touch floor (#875 F6): at rest this chip is glyph-only, so its `sm` height
-            // floor left it 40px wide against the 44px short side — the fragment's note carries the
-            // measurement.
-            className="shrink-0 whitespace-nowrap"
-            touchFloor="inline"
-            data-recall-phase={phase}
-          >
-            {/* The pulse is the ONLY motion, a quiet breath while recalling, never a spin (owner ruling). When reduced
+    <>
+      <Popover>
+        <PopoverTrigger
+          render={
+            <Button
+              type="button"
+              // THE ACTIONABLE CHIP LIFTS ITS INK (#878 F12, side-eye 2026-08-30). Both bands' chip
+              // rows had the grammar INVERTED: the pill shape marked the items you cannot click and the bare
+              // ghost marked the one you can. MEASURED before choosing the axis — and the first attempt was
+              // WRONG: an outline style looked like "an edge means pressable", but a `soft` Badge draws the
+              // SAME 1px hairline (`bw:"1px"`, identical `borderTopColor` on all three chips), so the border
+              // could never be the distinction. The FILL/INK pair is: an inert datum holds the muted step on
+              // a tint, and the actionable chip lifts to the FOREGROUND on bare ground, with the hover/active
+              // fill, the focus ring and the pointer cursor no datum has. Colour-as-liveness is the axis the
+              // bracket already uses one slot up (the kicker's selection half, #102), so the pane teaches it
+              // once. `shape="pill"` keeps the mock's ONE chip family.
+              variant="outline"
+              shape="pill"
+              size="sm"
+              aria-label={recallLabel(recall)}
+              // The coarse INLINE touch floor (#875 F6): at rest this chip is glyph-only, so its `sm` height
+              // floor left it 40px wide against the 44px short side — the fragment's note carries the
+              // measurement.
+              className="shrink-0 whitespace-nowrap"
+              touchFloor="inline"
+              data-recall-phase={phase}
+            >
+              {/* The pulse is the ONLY motion, a quiet breath while recalling, never a spin (owner ruling). When reduced
                 motion resolves on, the motion floor stills it to a static labeled icon. Muted when idle (present but
                 inactive, never implying a recall); full weight once memories are retrieved. */}
-            <Icon icon={BrainCircuit} size="sm" receded={recall === null} pulse={recall?.phase === "recalling"} />
-            {count === null ? null : (
-              // The count is the visible label step, the same type as the roster chip's digit (never a mono value).
-              <Text as="span" voice="label" className="shell-chat-chip-count" ink="inherit" aria-hidden={true}>
-                {count}
-              </Text>
-            )}
-          </Button>
-        }
-      />
-      <PopoverPopup side="bottom" align="end">
-        <Stack gap="block" className="min-inline-(--width-popup-narrow)">
-          <PopoverTitle>Memory recall</PopoverTitle>
-          {memory.off ? <MemoryOffSummary onTurnOn={memory.onTurnOn} /> : <RecallSummary recall={recall} />}
-          {viewerIsHost && recall !== null ? <RecallHostDetail chatId={chatId} /> : null}
+              <Icon icon={BrainCircuit} size="sm" receded={recall === null} pulse={recall?.phase === "recalling"} />
+              {count === null ? null : (
+                // The count is the visible label step, the same type as the roster chip's digit (never a mono value).
+                <Text as="span" voice="label" className="shell-chat-chip-count" ink="inherit" aria-hidden={true}>
+                  {count}
+                </Text>
+              )}
+            </Button>
+          }
+        />
+        <PopoverPopup side="bottom" align="end">
+          <Stack gap="block" className="min-inline-(--width-popup-narrow)">
+            <PopoverTitle>Memory recall</PopoverTitle>
+            <RecallPanel chatId={chatId} memory={memory} recall={recall} viewerIsHost={viewerIsHost} />
+          </Stack>
+        </PopoverPopup>
+      </Popover>
+      <FormDialog dismissLabel="Close" onOpenChange={setDialogOpen} open={dialogOpen} size="sm" title="Memory recall">
+        <Stack gap="block">
+          <RecallPanel chatId={chatId} memory={memory} recall={recall} viewerIsHost={viewerIsHost} />
         </Stack>
-      </PopoverPopup>
-    </Popover>
+      </FormDialog>
+    </>
+  );
+}
+
+/** What the recall surface says, whichever surface holds it: the popover under the chip, or the dialog the topbar's overflow menu opens. */
+function RecallPanel({
+  chatId,
+  memory,
+  recall,
+  viewerIsHost,
+}: {
+  readonly chatId: ChatId;
+  readonly memory: MemoryDoor;
+  readonly recall: RecallState | null;
+  readonly viewerIsHost: boolean;
+}): ReactElement {
+  return (
+    <>
+      {memory.off ? <MemoryOffSummary onTurnOn={memory.onTurnOn} /> : <RecallSummary recall={recall} />}
+      {viewerIsHost && recall !== null ? <RecallHostDetail chatId={chatId} /> : null}
+    </>
   );
 }
 

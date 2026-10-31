@@ -35,6 +35,18 @@ function narrowTitleShare(width: number): number {
   return width * (width <= NARROWEST.width ? TITLE_SHARE_NARROWEST : TITLE_SHARE_PHONE);
 }
 
+/** A trail chip that sits in the row is a glyph at the touch floor inside the viewport; one the row moved is inert and out of flow. */
+async function expectSeatedGlyphOrMoved(chip: Locator, floor: number, width: number): Promise<void> {
+  const seated = (await chip.count()) > 0 && (await chip.evaluate((node) => node.closest("[inert]") === null));
+  if (!seated) {
+    return;
+  }
+  const box = await chip.boundingBox();
+  expect(Math.min(box?.width ?? 0, box?.height ?? 0)).toBeGreaterThanOrEqual(floor);
+  expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(width);
+  await expect(chip.locator(".shell-chat-chip-count")).toBeHidden();
+}
+
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
 let root: Root;
@@ -554,7 +566,7 @@ test.describe("an open named group room on a phone, coarse pointer", () => {
   test.use({ hasTouch: true });
 
   for (const width of [320, 390, 430]) {
-    test(`at ${String(width)} the members and memory chips stay on the row as glyphs at the touch floor, after a title that keeps its share of the row`, async ({
+    test(`at ${String(width)} the members and memory entries sit in the trail as glyphs at the touch floor, or in its overflow menu, after a title that keeps its share of the row`, async ({
       corpus,
       mount,
       page,
@@ -563,22 +575,17 @@ test.describe("an open named group room on a phone, coarse pointer", () => {
       await seedShellState(page, { activeSection: "chats" });
       const room = await openNamedRoom(page, corpus, await ownerCaller());
       await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: room.id });
-      const members = page.locator(MEMBERS_CHIP);
-      const memory = page.locator(MEMORY_CHIP);
+      const trail = page.locator(".shell-topbar-trail");
       const title = page.locator(NARROW_TITLE);
       await expect(title).toHaveText(`${room.title} · ${room.cast}`);
-      await expect(members).toBeVisible();
-      await expect(memory).toBeVisible();
-      await expect(members.locator(".shell-chat-chip-count")).toBeHidden();
       const floor = await touchTarget(page);
-      const [membersBox, memoryBox, titleBox] = await Promise.all([members.boundingBox(), memory.boundingBox(), title.boundingBox()]);
+      const titleBox = await title.boundingBox();
       expect(titleBox?.width ?? 0).toBeGreaterThanOrEqual(narrowTitleShare(width));
-      expect((titleBox?.x ?? 0) + (titleBox?.width ?? 0)).toBeLessThanOrEqual((membersBox?.x ?? 0) + 1);
-      expect((membersBox?.x ?? 0) + (membersBox?.width ?? 0)).toBeLessThanOrEqual((memoryBox?.x ?? 0) + 1);
-      expect((memoryBox?.x ?? 0) + (memoryBox?.width ?? 0)).toBeLessThanOrEqual(width);
-      for (const chip of [membersBox, memoryBox]) {
-        expect(Math.min(chip?.width ?? 0, chip?.height ?? 0)).toBeGreaterThanOrEqual(floor);
+      // Each entry is a glyph chip in the trail inside the row, or it has moved into the "More top bar actions" menu.
+      for (const chip of [page.locator(`.shell-topbar-trail ${MEMBERS_CHIP}`), page.locator(`.shell-topbar-trail ${MEMORY_CHIP}`)]) {
+        await expectSeatedGlyphOrMoved(chip, floor, width);
       }
+      await expect(trail.getByRole("button", { name: "More top bar actions", exact: true }).or(trail.locator(MEMBERS_CHIP))).toBeVisible();
     });
   }
 

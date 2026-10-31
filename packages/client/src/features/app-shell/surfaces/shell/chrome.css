@@ -136,7 +136,8 @@
   }
   @container shell-main (max-width: 56rem) {
     .shell-topbar-identity .shell-chat-header-avatar,
-    .shell-topbar-identity .shell-chat-chip-count {
+    .shell-topbar-identity .shell-chat-chip-count,
+    .shell-topbar-trail .shell-chat-chip-count {
       display: none;
     }
   }
@@ -173,12 +174,6 @@
     .shell-topbar-identity[data-identity="wide"] {
       display: none;
     }
-    /* The chat identity keeps its glyph-only state chips after the screen title. */
-    .shell-topbar-identity[data-identity="wide"]:has(.shell-chat-member-chip) {
-      display: flex;
-      flex: none;
-      order: 1;
-    }
     .shell-topbar-identity[data-identity="wide"] .shell-chat-header-lead {
       display: none;
     }
@@ -192,8 +187,8 @@
       inline-size: 0;
       flex: 1;
     }
-    /* A chat's screen title is the participants, so it takes the title step to fit more names beside the chips. */
-    .shell-topbar-lead:has(.shell-chat-member-chip) .shell-topbar-identity[data-identity="narrow"] .shell-topbar-title {
+    /* A chat's screen title is the participants, so it takes the title step to fit more names beside the trail. */
+    .shell-topbar-lead:has(.shell-chat-header-lead) .shell-topbar-identity[data-identity="narrow"] .shell-topbar-title {
       font-size: var(--text-title);
       line-height: var(--leading-title);
     }
@@ -207,14 +202,6 @@
     .shell-topbar-lead {
       flex-basis: 0;
       min-inline-size: min-content;
-    }
-  }
-
-  /* A column this narrow beside a panel edge control has no room for the chips, which are fixed-size and cannot move
-   * into the trail's menu; their facts are tabs of the Details pane, which that control opens. */
-  @container shell-main (max-width: 24rem) {
-    .shell-grid[data-context-edge] .shell-topbar-identity[data-identity="wide"]:has(.shell-chat-member-chip) {
-      display: none;
     }
   }
 

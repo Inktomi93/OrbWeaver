@@ -41,6 +41,7 @@ const QUALIFIED = {
   ],
   contextHeader: [[DESKTOP, TEXT_200]],
   charactersBand: [[PHONE, TEXT_200]],
+  roomHeader: [[PHONE, TEXT_200]],
   room: [
     [DESKTOP, TEXT_200],
     [PHONE, TEXT_200],
@@ -265,6 +266,19 @@ for (const [viewport, scale] of QUALIFIED.charactersBand) {
       // The list is the band's reason to exist: a character row must be on screen, not only the band's controls.
       const list = page.locator(".shell-panel[data-panel-side='list']");
       await expect(list.getByRole("listitem").first()).toBeInViewport();
+    });
+  });
+}
+
+for (const [viewport, scale] of QUALIFIED.roomHeader) {
+  test.describe(`room header at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    test("keeps every header control reachable and the overflow trigger in the row", async ({ mount, page }) => {
+      await openFirstRoom(() => mount<typeof AppShellStory>(STORY, {}), page);
+      await scaleRoot(page, scale.factor);
+      await expect.poll(() => findings(page.locator(".shell-topbar"))).toEqual([]);
+      expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
     });
   });
 }

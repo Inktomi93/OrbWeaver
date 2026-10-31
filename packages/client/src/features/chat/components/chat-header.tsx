@@ -24,9 +24,9 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
-import type { ChatContextTabId } from "#lib";
 import { authoredChatName, deriveChatTitle } from "#lib";
-import { revealContextPanel } from "#state";
+import { useRoomRoster } from "../hooks/use-room-roster.ts";
+import { openMembersTab } from "../lib/open-members-tab.ts";
 import { filterCharacters } from "../lib/roster.ts";
 import { ChatHeaderTitle } from "./chat-header-title.tsx";
 import { ChatRecallIndicator } from "./chat-recall-indicator.tsx";
@@ -44,8 +44,6 @@ interface CommittedIdentity {
   /** The user's own name for the room; null until they set one (a stamped default title counts as none). */
   readonly roomName: string | null;
   readonly createdAt: number;
-  /** The PRESENT seats (people and characters) — the number on the roster chip, which is what the Members tab lists. */
-  readonly memberCount: number;
   /** Has the room's own read landed? `false` ⇒ there is no identity yet, only the shape of one. */
   readonly resolved: boolean;
   /** The viewer holds the room HOST role — gates the recall indicator's host-only detail popover and renaming. */
@@ -81,7 +79,6 @@ function useCommittedIdentity(chatId: ChatId): CommittedIdentity {
         ? authored
         : null,
     createdAt: chat?.createdAt ?? 0,
-    memberCount: participants.filter((p) => p.leftSeq === null).length,
     resolved: chat !== undefined,
     viewerIsHost: chat?.viewerIsHost === true,
   };
@@ -102,7 +99,7 @@ function useCommittedIdentity(chatId: ChatId): CommittedIdentity {
  * frame — `useStartChat` seeds this exact key from `startChat`'s own response.
  */
 export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElement {
-  const { characters, participantsLabel, roomName, createdAt, memberCount, resolved, viewerIsHost } = useCommittedIdentity(chatId);
+  const { characters, participantsLabel, roomName, createdAt, resolved, viewerIsHost } = useCommittedIdentity(chatId);
 
   if (!resolved) {
     return (
@@ -122,10 +119,6 @@ export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElem
         <CharacterAvatars characters={characters} />
         <ChatHeaderTitle chatId={chatId} label={participantsLabel} roomName={roomName} createdAt={createdAt} canRename={viewerIsHost} />
       </Row>
-      <ChatRosterEntry memberCount={memberCount} />
-      {/* The memory-recall slot — a STABLE topbar control beside the members chip (#313), reflecting the
-          current turn's recall phase (idle / recalling… / retrieved N), never a per-message chip. */}
-      <ChatRecallIndicator chatId={chatId} viewerIsHost={viewerIsHost} />
     </Row>
   );
 }
@@ -141,7 +134,7 @@ function RosterChipButton({ count, onClick }: { readonly count: number; readonly
       shape="pill"
       size="sm"
       aria-label={`Members — ${count}`}
-      className="shell-chat-member-chip shrink-0 whitespace-nowrap"
+      className="shrink-0 whitespace-nowrap"
       touchFloor="inline"
       onClick={onClick}
     >
@@ -153,27 +146,31 @@ function RosterChipButton({ count, onClick }: { readonly count: number; readonly
   );
 }
 
-/** Open the Members context tab — the roster chip's action in a GROUP room. Entry-only: it
- *  never toggles closed (the collapse affordance is the context header's own control, D66 §2). */
-function openMembersTab(): void {
-  revealContextPanel("members" satisfies ChatContextTabId);
-}
-
 /**
- * The topbar members entry — the ONE roster doorway (chat-header §2/§9). It always renders (every committed
- * room has a roster) and it always opens the Members context tab.
+ * The topbar members entry — the ONE roster doorway (chat-header §2/§9). It is a `topbar.trail` widget now, so the
+ * trail's overflow row moves it into the "More top bar actions" menu when the header does not fit. It always opens
+ * the Members context tab. Its resting place is the trail at every width; it used to sit in the header lead.
  *
  * SUPERSESSION (#162, owner-ruled 2026-08-18). It used to FORK: a group opened the Members tab, and a SOLO
- * chat opened a compact `SoloRosterMenu` popover here — the present seats plus a host-only "Add a character"
- * (owner ruling 2026-07-25). That popover existed for one reason: the Members tab was SIZE-GATED and did not
- * exist for a 1:1 room, so the roster had nowhere else to live. The size gate is what produced the owner's
- * "Chat Members lost detail" report, and it is gone (`lib/roster.ts::membersTabJustified` — the floor is now
- * zero for a host, and the tab carries the characters, the add-character door and the invite door in one place).
- * With one roster surface for every room state, a second one in the topbar is not a fallback, it is a fork —
- * so the popover, its seat rows and their imports were deleted here rather than left beside the new home.
+ * chat opened a compact `SoloRosterMenu` popover here. That popover existed because the Members tab was
+ * SIZE-GATED; with one roster surface for every room state a second one in the topbar is a fork, so it was deleted.
  */
-function ChatRosterEntry({ memberCount }: { readonly memberCount: number }): ReactElement {
+export function RoomRosterChip(): ReactElement | null {
+  const { chatId, resolved, memberCount } = useRoomRoster();
+  if (chatId === null || !resolved) {
+    return null;
+  }
   return <RosterChipButton count={memberCount} onClick={openMembersTab} />;
+}
+
+/** The memory-recall slot — a STABLE topbar control (#313), reflecting the current turn's recall phase (idle /
+ *  recalling… / retrieved N), never a per-message chip. A `topbar.trail` widget, after the roster chip, so it overflows first. */
+export function RoomRecallChip(): ReactElement | null {
+  const { chatId, resolved, viewerIsHost } = useRoomRoster();
+  if (chatId === null || !resolved) {
+    return null;
+  }
+  return <ChatRecallIndicator chatId={chatId} viewerIsHost={viewerIsHost} />;
 }
 
 /** The lead character's face, for a ONE-character room. A group room's faces live in the cast row under the
