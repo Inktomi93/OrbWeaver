@@ -1,4 +1,4 @@
-import { CHAT_PLUGINS_TAB_LABEL } from "@orb/client/lib";
+import { CHAT_PLUGINS_TAB_LABEL, contextToggleLabel } from "@orb/client/lib";
 import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ChatId } from "@orb/kit/ids";
@@ -6,7 +6,6 @@ import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
-import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import type { RpgRoomStory } from "./_own-key-panels-stories.tsx";
 
 test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });

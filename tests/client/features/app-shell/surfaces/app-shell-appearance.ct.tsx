@@ -2,6 +2,7 @@
 // panes, the dials it stamps on the root, the remembered boot hint, and what survives a handover to the pending mark.
 
 import { crc32, deflateSync } from "node:zlib";
+import { contextToggleLabel } from "@orb/client/lib";
 import type { StoredAsset } from "@orb/contracts/assets";
 import { BLOB_ROUTE } from "@orb/contracts/assets";
 import { CSRF_HEADER } from "@orb/contracts/identity";
@@ -17,7 +18,6 @@ import type { CorpusPlayback } from "@orb/testkit/iso";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
-import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { AppShellModalStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { ShellToPendingStory } from "./_shell-handover-stories.tsx";

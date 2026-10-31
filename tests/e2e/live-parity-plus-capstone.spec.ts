@@ -28,7 +28,7 @@ import { castId } from "@orb/kit/ids";
 import { revealActionName } from "@orb/ui/lib";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
+import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { IMMERSIVE_CARD_LABELS } from "../../packages/ui/src/content/immersive-card/control-labels.ts";
 import { openContextTab, openNewestChat } from "./support/chat-room.ts";
 import { WAIT_LIVE_TURN_MS, WAIT_ROUND_TRIP_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";

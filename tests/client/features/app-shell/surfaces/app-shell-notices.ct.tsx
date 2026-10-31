@@ -1,11 +1,12 @@
 // The shell's notice overlay and its stray-file guard: a notice never moves the content column, a burst stays inside
 // the overlay's cap, the empty overlay passes the pointer through, and only a file nothing else handled is swallowed.
+
+import { contextToggleLabel } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { dropOn, seedShellState, settledBox } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import type { AppShellModalStory, AppShellNoticeStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
 

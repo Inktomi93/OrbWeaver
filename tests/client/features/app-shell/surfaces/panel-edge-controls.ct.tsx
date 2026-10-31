@@ -1,12 +1,12 @@
 // Each side panel is opened and closed from one control at its own edge: it sits in the panel's header, a collapsed panel
 // leaves it in the same screen position, the centre topbar carries neither toggle, and an open sheet keeps one dismiss.
 
+import { contextToggleLabel } from "@orb/client/lib";
 import { boxOf, seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, routeRoom, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";

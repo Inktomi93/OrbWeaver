@@ -2,13 +2,14 @@
 // A phone's empty Corpus Explore: the door out of the empty finder (a library with no characters, the only library whose
 // browse is empty) and the door in the CONTEXT sheet (characters and no digests) both reveal the understanding overview,
 // hand focus to Content and close the sheets.
+
+import { contextToggleLabel } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { createFirstBootHarness, seedCharacter } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
-import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const LIST = '.shell-panel[data-panel-side="list"]';

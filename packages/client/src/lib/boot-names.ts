@@ -1,11 +1,8 @@
-// The names a cold boot is addressed by: the mount node, the readiness marker and the durable-local keys.
+// The names a cold boot is addressed by: the readiness marker and the durable-local keys.
 // Zero imports, so a test or the e2e transform reads them without loading the app graph.
 
 /** The `<html>` marker the readiness signal raises: presence means stop waiting, the value says whether the reads settled. */
 export const APP_READY_ATTR = "data-app-ready";
-
-/** The mount node `index.html` declares. */
-export const APP_ROOT_ID = "root";
 
 /** The door prefix every persisted store's localStorage key starts with. */
 export const DURABLE_LOCAL_PREFIX = "orb:";

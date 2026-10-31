@@ -53,6 +53,7 @@ export {
   utilityReadsImages,
 } from "./connection-roles.ts";
 export { CONSOLE_STYLES } from "./console-styles.ts";
+export { contextToggleLabel } from "./context-toggle-label.ts";
 export type {
   CharacterDetailContribution,
   CharacterDetailState,
@@ -213,6 +214,7 @@ export { RenderProfiler } from "./render-profiler.tsx";
 export type { RowRenderPolicy } from "./render-trust.ts";
 export { DEPLOYMENT_FLOOR, resolveRowRenderPolicy } from "./render-trust.ts";
 export { dataThemeOf, isSeedThemeName, resolveThemeScopeTokens, type SeedThemeName } from "./resolve-theme-scope-tokens.ts";
+export { ROW_DELETE_NAME, ROW_RENAME_NAME } from "./row-menu-names.ts";
 export {
   chatWithActionName,
   duplicateActionName,

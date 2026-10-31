@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { CHAT_PLUGINS_TAB_LABEL } from "@orb/client/lib";
+import { CHAT_PLUGINS_TAB_LABEL, contextToggleLabel } from "@orb/client/lib";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { seedShellState } from "@orb/testkit/browser/spec";
@@ -7,7 +7,6 @@ import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SE
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import { CHAT_PANEL_HIDE_LABEL, PLUGIN_PANELS_SHEET_LABEL, showInChatLabel } from "#client/features/plugin/lib/plugin-copy.ts";
 import {
   CHAT_PLUGINS_EMPTY_TITLE,

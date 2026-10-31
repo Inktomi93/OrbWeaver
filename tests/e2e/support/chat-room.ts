@@ -26,9 +26,10 @@ import { HOST_BAND, openContextSections, SECTION_LABELS } from "@orb/testkit/ct"
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
-import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import { CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
 import { APP_READY_ATTR } from "#client/lib/boot-names.ts";
+import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
+import { ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
 import { streamTapOf, waitForRoomOpened } from "./stream-tap.ts";
 import { WAIT_SETTLE_MS, WAIT_SHORT_MS, WAIT_STREAM_MS, WAIT_SURFACE_MS } from "./timeouts.ts";
 
@@ -243,7 +244,7 @@ export async function openUtilityMenu(page: Page): Promise<void> {
  *  round-trip so a subsequent reload reads DB truth, not an in-flight write. */
 export async function renameOpenChat(page: Page, title: string): Promise<void> {
   await openChatOptions(page);
-  await page.getByRole("menuitem", { name: "Rename" }).click();
+  await page.getByRole("menuitem", { name: ROW_RENAME_NAME }).click();
   const input = page.getByRole("textbox", { name: "Chat title" });
   await expect(input).toBeVisible();
   await input.fill(title);
@@ -260,7 +261,7 @@ export async function renameFirstChatViaRowKebab(page: Page, title: string): Pro
   await expect(kebab).toBeVisible({ timeout: WAIT_SURFACE_MS });
   await kebab.focus();
   await kebab.press("Enter");
-  await page.getByRole("menuitem", { name: "Rename" }).click();
+  await page.getByRole("menuitem", { name: ROW_RENAME_NAME }).click();
   const input = page.getByRole("textbox", { name: "Chat title" });
   await expect(input).toBeVisible();
   await input.fill(title);

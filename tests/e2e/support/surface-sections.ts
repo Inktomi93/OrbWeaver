@@ -19,7 +19,6 @@ import { attachNativeFile, isTrpcRequestFor, matchesTrpcRequestInput, readTrpcOu
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Locator, Request, Response } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import { CHARACTERS_SECTION_LABEL } from "#client/features/character/lib/characters-section-label.ts";
 import { CHATS_SECTION_LABEL } from "#client/features/chat/lib/chats-section-label.ts";
 import { homeAlsoOpenVisible } from "#client/features/chat/lib/home-also-open-visibility.ts";
@@ -36,7 +35,9 @@ import { ANALYTICS_DEFAULT_SORT, ANALYTICS_SORT_OPTIONS } from "#client/features
 import { LEADERBOARD_ROW_ATTR } from "#client/features/stats/lib/leaderboard-row-attr.ts";
 import { BLANK_CHAT_NAME, START_TEMP_CHAT_NAME } from "#client/lib/chat-launch-names.ts";
 import { deriveChatTitle } from "#client/lib/chat-title.ts";
+import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { CORPUS_MODE_LABELS, CORPUS_MODES } from "#client/lib/corpus-modes.ts";
+import { ROW_DELETE_NAME, ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
 import type { SectionId } from "#client/state/section-ids.ts";
 import { SECTION_IDS } from "#client/state/section-ids.ts";
@@ -470,14 +471,14 @@ async function disposableLabelDelete(journey: Journey, scope: Locator, prefix: s
     await row.hover();
     await row.locator('button[aria-haspopup="menu"]').click();
     const menu = journey.flow.page.getByRole("menu");
-    await expect(menu.getByRole("menuitem")).toHaveText(["Delete"]);
-    await menu.getByRole("menuitem", { name: "Delete", exact: true }).click();
+    await expect(menu.getByRole("menuitem")).toHaveText([ROW_DELETE_NAME]);
+    await menu.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
     const confirm = journey.flow.page.getByRole("alertdialog", { name: `Delete "${tag.name}"?`, exact: true });
     await expect(confirm).toBeVisible();
     await checkpoint(journey, `${prefix}/disposable/Delete/confirm`, confirm);
     await journey.flow.action(`${prefix}/disposable/${tag.id}/Delete`, {
       action: async () => {
-        await confirm.getByRole("button", { name: "Delete", exact: true }).click();
+        await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
       },
       ready: async () => {
         await expect(confirm).toBeHidden();
@@ -1216,7 +1217,7 @@ async function homeSavedRosters(journey: Journey, trigger: Locator, id: string):
       ready: async () => {
         await expect(confirm).toBeVisible();
         await expect(confirm).toContainText(roster.name);
-        await expect(confirm.getByRole("button", { name: "Delete", exact: true })).toBeEnabled();
+        await expect(confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true })).toBeEnabled();
       },
     });
     await checkpoint(journey, operation, confirm);
@@ -1959,12 +1960,12 @@ async function duplicateAndDeleteSection(run: PresetCommandRun, drill: Locator, 
   expect(copyFields).toEqual(originalFields);
   rememberPresetCommand(run, "Section actions/Duplicate", `${presetId}/${sectionId}: native Duplicate persisted ${copyId} with the same section fields`);
   await drill.getByRole("button", { name: "Section actions", exact: true }).click();
-  await journey.flow.page.getByRole("menu").getByRole("menuitem", { name: "Delete", exact: true }).click();
+  await journey.flow.page.getByRole("menu").getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
   const confirm = journey.flow.page.getByRole("alertdialog", { name: "Delete this section?", exact: true });
   await checkpoint(journey, `presets/commands/${sectionId}/Delete/confirm`, confirm);
   await journey.flow.action(`presets/commands/${sectionId}/Delete`, {
     action: async () => {
-      await confirm.getByRole("button", { name: "Delete", exact: true }).click();
+      await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
     },
     ready: async () => {
       await expect(confirm).toBeHidden();
@@ -2010,12 +2011,12 @@ async function deleteDisposablePreset(run: PresetCommandRun, name: string): Prom
   const { journey, presetId } = run;
   expect(journey.flow.run.subjects.presets.some(({ id }) => id === presetId)).toBe(false);
   const menu = await openPresetRowMenu(journey, name);
-  await menu.getByRole("menuitem", { name: "Delete", exact: true }).click();
+  await menu.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
   const confirm = journey.flow.page.getByRole("alertdialog", { name: `Delete "${name}"?`, exact: true });
   await checkpoint(journey, `presets/commands/${presetId}/Delete/confirm`, confirm);
   await journey.flow.action(`presets/commands/${presetId}/Delete`, {
     action: async () => {
-      await confirm.getByRole("button", { name: "Delete", exact: true }).click();
+      await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
     },
     ready: async () => {
       await expect(confirm).toBeHidden();
@@ -2197,7 +2198,7 @@ async function databankDisposable(journey: Journey): Promise<void> {
     await journey.flow.page.getByRole("menuitem", { name: "Feed every chat", exact: true }).click();
     await expect.poll(async () => (await journey.flow.client.databank.listGlobal.query()).includes(document.id)).toBe(true);
     await actions().click();
-    await journey.flow.page.getByRole("menuitem", { name: "Rename", exact: true }).click();
+    await journey.flow.page.getByRole("menuitem", { name: ROW_RENAME_NAME, exact: true }).click();
     const rename = journey.flow.page.getByRole("dialog", { name: "Rename document", exact: true });
     await rename.getByRole("textbox", { name: "Document name", exact: true }).fill(renamed);
     await rename.getByRole("button", { name: "Save", exact: true }).click();
@@ -2222,10 +2223,10 @@ async function databankDisposable(journey: Journey): Promise<void> {
     await pane(journey, "list")
       .getByRole("button", { name: rowActionsName(renamed), exact: true })
       .click();
-    await journey.flow.page.getByRole("menuitem", { name: "Delete", exact: true }).click();
+    await journey.flow.page.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
     const confirm = journey.flow.page.getByRole("alertdialog", { name: `Delete "${renamed}"?`, exact: true });
     await checkpoint(journey, "databank/disposable/delete-confirm", confirm);
-    await confirm.getByRole("button", { name: "Delete", exact: true }).click();
+    await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
     await expect(confirm).toBeHidden();
     await expect.poll(async () => (await journey.flow.client.databank.list.query({ search: renamed })).items.some(({ id }) => id === document.id)).toBe(false);
     await expect(pane(journey, "list").getByText("No matches", { exact: true })).toBeVisible();

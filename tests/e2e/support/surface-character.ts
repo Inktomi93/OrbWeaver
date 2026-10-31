@@ -11,12 +11,12 @@ import { parseSurfaceProviderEvidence, surfaceCoverageKey } from "@orb/testkit/i
 import { attachNativeFile, isTrpcRequestFor, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
 import type { Locator, Page, Route } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import { CHARACTER_ACTION_SCOPE_IDS, CHARACTER_ACTIONS, EXPORT_CHARACTER_PATH } from "#client/features/character/lib/character-actions.ts";
 import { CHARACTER_CARD_FACETS } from "#client/features/character/lib/character-card-facets.ts";
 import { characterCardFormFromDetail, characterUpdateDiff } from "#client/features/character/lib/character-card-form-model.ts";
 import { CHARACTERS_SECTION_LABEL } from "#client/features/character/lib/characters-section-label.ts";
 import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
+import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
 import { charactersRailButton, waitForAppReady } from "./chat-room.ts";
 import type { SurfaceFlow } from "./surface-flow.ts";

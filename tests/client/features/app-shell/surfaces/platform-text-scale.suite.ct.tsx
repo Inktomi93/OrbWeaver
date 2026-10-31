@@ -3,13 +3,14 @@
 // setting is bounded by `FONT_SCALE`, so these scales are the root multiplier the writer carries; `:root { font-size }` multiplies it the
 // same way, but a `rem` inside a media query stays at the platform default, so a browser whose own default is 200% would
 // also flip the shell regime. Only the combinations that hold are listed in QUALIFIED; the rest are open defects on the board.
+
+import { contextToggleLabel } from "@orb/client/lib";
 import type { CharacterId } from "@orb/kit/ids";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { AppShellCharacterStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { PlantedControlsStory } from "./_text-scale-probe-stories.tsx";

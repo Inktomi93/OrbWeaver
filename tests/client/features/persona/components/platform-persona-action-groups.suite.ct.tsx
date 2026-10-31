@@ -1,3 +1,4 @@
+import { ROW_DELETE_NAME } from "@orb/client/lib";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { actionGroupGeometry, resolvedLength } from "@orb/testkit/browser/spec";
@@ -70,7 +71,7 @@ for (const regime of REGIMES) {
       const footer = editor.locator('[data-slot="persona-editor-footer"]');
       const duplicate = footer.getByRole("button", { name: "Duplicate", exact: true });
       const exportButton = footer.getByRole("button", { name: "Export", exact: true });
-      const remove = footer.getByRole("button", { name: "Delete", exact: true });
+      const remove = footer.getByRole("button", { name: ROW_DELETE_NAME, exact: true });
       await expect(editor.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
       await duplicate.focus();
       await page.keyboard.press("Tab");

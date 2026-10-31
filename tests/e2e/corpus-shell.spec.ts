@@ -12,16 +12,15 @@ import { pickKeys } from "@orb/kit/objects";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { Locator, Page } from "@playwright/test";
 import { z } from "zod";
-import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import {
   ACTIVE_USER_KEY,
   APP_READY_ATTR,
-  APP_ROOT_ID,
   APPEARANCE_BOOT_HINT_NAME,
   APPEARANCE_BOOT_HINT_VERSION,
   DURABLE_LOCAL_PREFIX,
   durableLocalStorageKey,
 } from "#client/lib/boot-names.ts";
+import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import type { AppearanceBootHintState } from "#client/state/appearance-boot-hint.ts";
 import { channelName } from "../client/lib/appearance-channel-names.ts";
 import type { ActorClient } from "./support/actors.ts";
@@ -66,6 +65,8 @@ function crashingAuthedAppChunk(real: string): string {
 
 // The schema's own defaults: what a device that was never told anything replays.
 const defaultAppearance = appearanceSettingsSchema.parse({});
+// The mount node `index.html` declares and `main.tsx` addresses by literal (its DOM home in eslint.config.ts is keyed on that literal).
+const ROOT_ID = "root";
 const BOOT_TRAIL = "__appearanceBootTrail";
 const STYLE_ATTR = "style";
 
@@ -123,7 +124,7 @@ async function recordBoot(page: Page, hint: AppearanceBootHintState | null): Pro
     stored: hint,
     name: APPEARANCE_BOOT_HINT_NAME,
     version: APPEARANCE_BOOT_HINT_VERSION,
-    rootId: APP_ROOT_ID,
+    rootId: ROOT_ID,
     trailName: BOOT_TRAIL,
     activeUserKey: ACTIVE_USER_KEY,
     prefix: DURABLE_LOCAL_PREFIX,

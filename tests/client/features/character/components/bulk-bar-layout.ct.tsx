@@ -1,3 +1,4 @@
+import { ROW_DELETE_NAME } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import type { LayoutBox } from "@orb/testkit/browser/spec";
@@ -76,7 +77,7 @@ for (const regime of REGIMES) {
       const verbs = [
         bar.getByRole("button", { name: "Tag", exact: true }),
         bar.getByRole("button", { name: "Archive", exact: true }),
-        bar.getByRole("button", { name: "Delete", exact: true }),
+        bar.getByRole("button", { name: ROW_DELETE_NAME, exact: true }),
       ];
       const parts = [count, ...verbs, bar.getByRole("button", { name: "Clear selection", exact: true })];
       for (const part of parts) {

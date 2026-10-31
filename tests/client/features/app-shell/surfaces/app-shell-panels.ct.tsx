@@ -1,13 +1,14 @@
 // The shell's LIST and CONTEXT panes on the production section registry: each section's pane capability, the
 // width regimes and the content-primacy crossover, the overlay sheets and their dismissals, the landmarks and the
 // skip, focus around the panes, and the both-docked squeeze, all read off the rendered grid.
+
+import { contextToggleLabel } from "@orb/client/lib";
 import { persistedOverrides, resolvedLength, seedShellState, shellTracks } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { loadAppearancePreset } from "@orb/testkit/node/helpers";
 import type { Locator, Page } from "@playwright/test";
-import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import type { AppShellListDockStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 

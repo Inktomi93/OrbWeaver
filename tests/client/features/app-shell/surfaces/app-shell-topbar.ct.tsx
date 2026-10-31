@@ -2,7 +2,7 @@
 // row's geometry at the narrowest width, the Characters band's doors moving to the trail while the list is the screen,
 // and an open room's identity: its participants, its name, its chips and the context pane's header on the same horizon.
 import { TRAIL_OVERFLOW_LABEL } from "@orb/client/components";
-import { censusTitle, chatRoomTitle } from "@orb/client/lib";
+import { censusTitle, chatRoomTitle, contextToggleLabel } from "@orb/client/lib";
 import type { ChatId } from "@orb/kit/ids";
 import { pixel, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import type { TrpcWireOutput } from "@orb/testkit/ct";
@@ -13,7 +13,6 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { makePluginRow } from "@orb/testkit/node/helpers";
 import type { Locator, Page } from "@playwright/test";
 import { commandShortcutLabel } from "#client/features/app-shell/lib/command-shortcut-label.ts";
-import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { AppShellTrailProjectionStory } from "./_trail-projection-stories.tsx";
 import { JUMP_CHIP, namedGroupRoom, routeRoom, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";

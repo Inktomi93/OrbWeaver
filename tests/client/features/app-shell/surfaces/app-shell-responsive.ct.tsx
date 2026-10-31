@@ -1,12 +1,13 @@
 // The shell at phone widths on the production registry: the You sheet and its handoffs, the one-shell screens and
 // their landmarks, the phone drawers and sheets, and the reading order of the tab bar.
+
+import { contextToggleLabel } from "@orb/client/lib";
 import { dispatchCommandKey, seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
-import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeRoom, SHELL_STORIES, touchDrag } from "./app-shell-ct.ts";
 

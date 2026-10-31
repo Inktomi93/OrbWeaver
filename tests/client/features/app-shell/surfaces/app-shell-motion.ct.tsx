@@ -2,6 +2,7 @@
 // frame and keeps inside its corridor, what reduced motion does instead, the phone's cancel, and the scoped section
 // view transition. Every sampler records per animation frame, because the defects it judges are one frame wide.
 import { spawn } from "node:child_process";
+import { contextToggleLabel } from "@orb/client/lib";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
 import { emulateMedia, releaseEmulatedMedia, resolvedLength, seedShellState, shellTracks } from "@orb/testkit/browser/spec";
@@ -10,7 +11,6 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, PHONE, SHELL_STORIES } from "./app-shell-ct.ts";
 

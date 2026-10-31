@@ -19,7 +19,7 @@ import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/m
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { useState } from "react";
-import { ROW_DELETE_NAME } from "../lib/row-menu-names.ts";
+import { ROW_DELETE_NAME } from "#lib";
 import type { ConfirmDialogProps } from "./confirm-dialog.tsx";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
 

@@ -4,8 +4,9 @@
 import { CORPUS_MODE_LABELS, CORPUS_WHOLE_LABEL, pruneConfirmLabel, testId } from "@orb/client/lib";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
-import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import { LEADERBOARD_ROW_ATTR } from "#client/features/stats/lib/leaderboard-row-attr.ts";
+import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
+import { ROW_DELETE_NAME } from "#client/lib/row-menu-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
@@ -245,8 +246,8 @@ test.describe("committed corpus workbench", () => {
     // The finder windows a large library, so its own filter brings this cell's row into the tree.
     await list.getByRole("textbox", { name: "Filter tags", exact: true }).fill(name);
     await list.getByRole("button", { name: `Actions for ${name}`, exact: true }).click();
-    await page.getByRole("menuitem", { name: "Delete" }).click();
-    await page.getByRole("alertdialog").getByRole("button", { name: "Delete", exact: true }).click();
+    await page.getByRole("menuitem", { name: ROW_DELETE_NAME }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
     await expect(page.getByRole("alertdialog")).toHaveCount(0);
     // The row that opened the confirm is gone with its tag, so the finder root is the landing.
     await expect(list.locator('[data-slot="labels-finder"]')).toBeFocused();

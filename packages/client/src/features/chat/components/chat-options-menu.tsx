@@ -27,6 +27,7 @@ import { useId, useRef, useState } from "react";
 import { RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { createEntityMutation, useGatedQuery, useInvalidation, useStartChat, useTRPC } from "#data";
+import { ROW_RENAME_NAME } from "#lib";
 import {
   enterSelectionMode,
   GAME_MODE_KEPT_LINE,
@@ -38,7 +39,6 @@ import {
   openCharacterGallery,
   selectChat,
 } from "#state";
-import { ROW_RENAME_NAME } from "../../../lib/row-menu-names.ts";
 import { useDeleteChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutations.ts";
 import { BACK_TO_PARENT_CHAT_LABEL, CHAT_DELETE_NAME, CHAT_SELECT_MESSAGES_NAME } from "../lib/chat-options-names.ts";
 import { RenameChatDialog } from "./rename-chat-dialog.tsx";

@@ -1,4 +1,4 @@
-import { testId } from "@orb/client/lib";
+import { contextToggleLabel, testId } from "@orb/client/lib";
 import type { CreateCharacterInput } from "@orb/contracts/character";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { RefinableField } from "@orb/contracts/refinery";
@@ -9,7 +9,6 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
-import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import type { RefineryCompositionShellStory } from "./_refinery-composition-stories.tsx";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;

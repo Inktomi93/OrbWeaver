@@ -1,8 +1,9 @@
 // The production chat's resolved context tabs remain reachable without scrolling the header strip.
+
+import { contextToggleLabel } from "@orb/client/lib";
 import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import type { AppShellRoomStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
 

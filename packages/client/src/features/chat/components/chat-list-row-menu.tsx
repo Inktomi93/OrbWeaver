@@ -24,7 +24,7 @@ import { MenuItem, MenuLinkItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger 
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { RowActionsMenu } from "#components";
-import { ROW_RENAME_NAME } from "../../../lib/row-menu-names.ts";
+import { ROW_RENAME_NAME } from "#lib";
 import type { ChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
 import { RenameChatDialog } from "./rename-chat-dialog.tsx";
 

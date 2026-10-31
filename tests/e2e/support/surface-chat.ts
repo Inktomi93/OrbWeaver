@@ -18,7 +18,6 @@ import { attachNativeFile, isTrpcRequestFor, matchesTrpcRequestInput, readTrpcOu
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Locator, Response, Route } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import { CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
 import { CHAT_DELETE_NAME, CHAT_SELECT_MESSAGES_NAME } from "#client/features/chat/lib/chat-options-names.ts";
 import { COMPOSER_CLEAR_INPUT_NAME, COMPOSER_CORRECTIONS_NAME, COMPOSER_IMAGINE_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
@@ -35,6 +34,7 @@ import { pluginCommandShownName, sharedPluginNames } from "#client/features/plug
 import { PLUGIN_PANELS_SHEET_LABEL } from "#client/features/plugin/lib/plugin-copy.ts";
 import { CHAT_PLUGINS_OPEN_LABEL } from "#client/features/plugin/lib/plugin-panel-copy.ts";
 import { deriveChatTitle } from "#client/lib/chat-title.ts";
+import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { renderMessageForDisplay } from "#client/lib/message-render.ts";
 import { CHAT_PLUGINS_TAB_LABEL } from "#client/lib/registry-contracts.ts";
 import { ROW_DELETE_NAME, ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
@@ -1525,7 +1525,7 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
       expectChat(flow, id, "menu-operation");
       record(flow, id, "unvisited", "Native available command seeded before execution; only its completed operation can supersede this disposition");
     }
-    await menu.getByRole("menuitem", { name: "Rename", exact: true }).click();
+    await menu.getByRole("menuitem", { name: ROW_RENAME_NAME, exact: true }).click();
     const dialog = flow.page.getByRole("dialog", { name: "Rename chat", exact: true });
     const renamed = `${title} renamed`;
     await dialog.getByRole("textbox", { name: "Chat title", exact: true }).fill(renamed);
@@ -1582,12 +1582,12 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
     record(flow, "commands/lifecycle/Archive", "visited", "Native archive persisted and removed the exact disposable subject from the non-archived list");
     await flow.client.chat.archive.mutate({ chatId: chat.id, archived: false });
     menu = await commandMenu(flow, await commandRoom(flow, chat.id, title));
-    await menu.getByRole("menuitem", { name: "Delete", exact: true }).click();
+    await menu.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
     const confirm = flow.page.getByRole("alertdialog", { name: `Delete "${renamed}"?`, exact: true });
     await expect(confirm).toBeVisible();
     await flow.action("commands/delete-confirm", {
       action: async () => {
-        await confirm.getByRole("button", { name: "Delete", exact: true }).click();
+        await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
       },
       ready: async () => {
         await expect(confirm).toBeHidden();
@@ -1888,12 +1888,12 @@ async function messageCopyAndDelete(flow: Journey, message: MessageView): Promis
   }
   await messageOperationDone(flow, message, "Copy", "Native clipboard write completed with the production success acknowledgement");
   menu = await messageOperationMenu(flow, message);
-  await menu.getByRole("menuitem", { name: "Delete", exact: true }).click();
+  await menu.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
   const confirm = flow.page.getByRole("alertdialog", { name: "Delete this message?", exact: true });
   await expect(confirm).toBeVisible();
   await flow.action("message-operations/delete", {
     action: async () => {
-      await confirm.getByRole("button", { name: "Delete", exact: true }).click();
+      await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
     },
     ready: async () => {
       await expect(confirm).toBeHidden();
@@ -1901,7 +1901,12 @@ async function messageCopyAndDelete(flow: Journey, message: MessageView): Promis
       await expect.poll(async () => (await readCanon(flow, message.chatId)).some(({ id }) => id === message.id)).toBe(false);
     },
   });
-  await messageOperationDone(flow, message, "Delete", "Native destructive confirmation removed the exact disposable message from rendered and persisted canon");
+  await messageOperationDone(
+    flow,
+    message,
+    ROW_DELETE_NAME,
+    "Native destructive confirmation removed the exact disposable message from rendered and persisted canon",
+  );
 }
 
 /** Execute row commands on disposable canon; original reading-menu inventories retain their own dispositions. */
