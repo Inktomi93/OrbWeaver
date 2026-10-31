@@ -2,9 +2,10 @@ import { CtIsolation } from "@orb/testkit/browser";
 import { Card } from "@orb/ui/card";
 import { Stack } from "@orb/ui/layout";
 import { Spoiler } from "@orb/ui/spoiler";
-import { ThemeScope } from "@orb/ui/theme-scope";
-import { SEED_THEME_VALUE_SETS, TONES } from "@orb/ui/tokens";
+import { TONES } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
+import type { SeedScopeProps } from "../_seed-scope.tsx";
+import { SeedScope } from "../_seed-scope.tsx";
 
 /** A layout twin: the same gap on a bare Stack, so the Spoiler's forwarded layout reads against it. */
 function Rows(): ReactElement {
@@ -33,23 +34,12 @@ function Rows(): ReactElement {
   );
 }
 
-/** A Spoiler beside its Stack twin and inside a Card of every tone, under a seed palette and an optional nested custom scope. */
-export function SpoilerStory({ theme, background }: { readonly theme?: keyof typeof SEED_THEME_VALUE_SETS; readonly background?: string }): ReactElement {
-  const ambient = theme === undefined ? undefined : SEED_THEME_VALUE_SETS[theme].vars;
+export function SpoilerStory(props: SeedScopeProps): ReactElement {
   return (
     <CtIsolation subject="Spoiler" isolates="A concealed and a revealed Spoiler beside a Stack twin, and a concealed Spoiler inside a Card of every tone">
-      <div data-theme={theme} style={{ backgroundColor: "var(--color-background)", padding: "1rem" }}>
-        {background === undefined ? (
-          <Rows />
-        ) : (
-          <ThemeScope
-            tokens={{ background }}
-            {...(ambient === undefined ? {} : { ambientBackground: ambient["--color-background"], ambientAccent: ambient["--color-primary"] })}
-          >
-            <Rows />
-          </ThemeScope>
-        )}
-      </div>
+      <SeedScope {...props}>
+        <Rows />
+      </SeedScope>
     </CtIsolation>
   );
 }

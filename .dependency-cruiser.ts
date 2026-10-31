@@ -121,6 +121,7 @@ const MOUNT_SUPPORT_FILES = {
 const MOUNT_HELPER_FILES = {
   "^tests/client/features/app-shell/surfaces/trail-projection\\.ts$": "values the trail projection story and its spec share",
   "^tests/client/features/auth/components/pending-join-fixtures\\.ts$": "the pending-join story's parsed fixtures",
+  "^tests/ui/primitives/_seed-scope\\.tsx$": "the seed palette and nested custom scope every ui primitive story mounts its cases in",
 } as const satisfies Readonly<Record<string, string>>;
 // The only files of a browser package outside `src/` that its `src/` imports; each is judged by a reachable rule.
 const BROWSER_PACKAGE_ROOT_FILES = {

@@ -6,7 +6,7 @@
 // hidden so it never becomes a phantom tab-stop.
 
 import { Button } from "@orb/ui/button";
-import { Card } from "@orb/ui/card";
+import { FloatingChip } from "@orb/ui/floating-chip";
 import { ChevronDown, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
@@ -33,7 +33,7 @@ export function JumpToLatestPill({ count, visible, onJump }: JumpToLatestPillPro
       className="pointer-events-none absolute inset-x-0 inset-be-block z-(--z-overlay)"
       data-slot="jump-to-latest"
     >
-      <Card className="flex items-center inline-fit" padding="none" presence={visible ? "shown" : "hidden"} tone="popover" shape="pill" shadow="overlay">
+      <FloatingChip className="flex items-center inline-fit" presence={visible ? "shown" : "hidden"}>
         <Button
           type="button"
           variant="ghost"
@@ -48,7 +48,7 @@ export function JumpToLatestPill({ count, visible, onJump }: JumpToLatestPillPro
           <Icon icon={ChevronDown} size="sm" />
           {label}
         </Button>
-      </Card>
+      </FloatingChip>
     </Row>
   );
 }
