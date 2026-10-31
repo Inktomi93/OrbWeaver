@@ -50,7 +50,7 @@ export function createMaterializeBackground(deps: MaterializeBackgroundDeps): Ma
 
     let mime: string;
     try {
-      // No `allowedMime` restriction needed beyond the sniff: the sniffer only recognizes the 5 non-executable
+      // No mime restriction needed beyond the sniff: the sniffer only recognizes the 5 non-executable
       // raster signatures, so the guard already refuses SVG/HTML/text. The caps bound the decompression bomb.
       mime = isAllowedImageBuffer(bytes, { maxBytes }).mime;
     } catch (err) {
