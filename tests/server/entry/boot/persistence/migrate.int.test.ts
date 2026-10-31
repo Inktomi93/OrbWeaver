@@ -5,15 +5,15 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Db } from "@orb/db";
 import { backupBeforeMigrate, checkBaseline, closeDb, createDb, hasPendingMigrations, listBackupFiles, messageVariants, runMigrations } from "@orb/db";
+import { isBackupFileName } from "@orb/db/backup-names";
 import { DomainOperationError } from "@orb/kit/errors";
 import { runBootMigrations } from "@orb/server/entry/boot";
 import { expect, test } from "@orb/testkit/node";
-import { createTestLogger, migrationsBefore, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
+import { createTestLogger, migrationsBeforeLatest, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
 import { seedMessageRow } from "@orb/testkit/node/rows";
 import { sql } from "drizzle-orm";
 
 const DB_NAME = "orb.db";
-const LAST_MIGRATION = "0006_bookmark-checkpoint-snapshots";
 const CONTENT = "committed-in-wal";
 
 interface Layout {
@@ -67,7 +67,7 @@ test("a fresh boot migrates to the shipped chain with a backup in the backup dir
 });
 
 test("the pre-migration backup restores a commit still in the WAL, from before the migration ran", async ({ importStagingDir }) => {
-  await using previous = await migrationsBefore(LAST_MIGRATION);
+  await using previous = await migrationsBeforeLatest();
   const where = layoutIn(importStagingDir);
   const db = await previousChainDb(where, previous.path);
   try {
@@ -92,7 +92,7 @@ test("the pre-migration backup restores a commit still in the WAL, from before t
 });
 
 test("a backup that cannot be taken aborts the boot before the migration, and the retry with room migrates", async ({ importStagingDir }) => {
-  await using previous = await migrationsBefore(LAST_MIGRATION);
+  await using previous = await migrationsBeforeLatest();
   const where = layoutIn(importStagingDir);
   const db = await previousChainDb(where, previous.path);
   try {
@@ -113,7 +113,7 @@ test("a backup that cannot be taken aborts the boot before the migration, and th
 });
 
 test("debris at the backup's own path is replaced by a real snapshot instead of wedging every retry", async ({ importStagingDir }) => {
-  await using previous = await migrationsBefore(LAST_MIGRATION);
+  await using previous = await migrationsBeforeLatest();
   const where = layoutIn(importStagingDir);
   const db = await previousChainDb(where, previous.path);
   try {
@@ -142,14 +142,17 @@ test("debris at the backup's own path is replaced by a real snapshot instead of 
 });
 
 test("a boot that migrates prunes the oldest backups and keeps the newest; a boot with nothing pending prunes nothing", async ({ importStagingDir }) => {
-  await using previous = await migrationsBefore(LAST_MIGRATION);
+  await using previous = await migrationsBeforeLatest();
   const where = layoutIn(importStagingDir);
   const db = await previousChainDb(where, previous.path);
   try {
     mkdirSync(where.backupDir, { recursive: true });
     const stamps = [1, 2, 3, 4, 5, 6, 7, 8];
     for (const stamp of stamps) {
-      writeFileSync(join(where.backupDir, `${DB_NAME}.backup-${stamp}`), "older backup");
+      const planted = `${DB_NAME}.backup-${stamp}`;
+      // A planted copy must be one the sweep recognises, or the retention case proves nothing.
+      expect(isBackupFileName(planted, DB_NAME)).toBe(true);
+      writeFileSync(join(where.backupDir, planted), "older backup");
     }
     await boot(db, where);
 

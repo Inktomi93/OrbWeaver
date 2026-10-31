@@ -69,6 +69,19 @@ for (const { name, ...props } of SEMANTIC_CASES) {
   });
 }
 
+for (const { name, ...props } of SEMANTIC_CASES) {
+  test(`${name}: every message bubble's ink clears its own painted fill`, async ({ mount, page }) => {
+    const component = await mount<typeof BubbleSeparationStory>("tests/ui/content/theme-scope/_contrast-stories/BubbleSeparationStory", props);
+    const bubbles = await component.locator("[data-bubble]").all();
+    expect(bubbles.length).toBeGreaterThan(0);
+    for (const bubble of bubbles) {
+      await bubble.scrollIntoViewIfNeeded();
+      const receipt = await pixelContrast(page, bubble);
+      expect(receipt.ratio, `${(await bubble.getAttribute("data-bubble")) ?? "bubble"}: ${receipt.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+    }
+  });
+}
+
 const TONE_CASES = [
   { name: "hearth seed" },
   ...SEED_THEMES.map((theme) => ({ name: `${theme} seed`, theme })),

@@ -1,11 +1,11 @@
 // Public URL execution cannot acquire configured-endpoint authority from extra JavaScript options.
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 
 const PRIVATE_HOST = "private-egress.test";
 const PRIVATE_ADDRESS = "192.168.1.50";
 const PRIVATE_PORT = 8000;
-const PUBLIC_ADDRESS = "93.184.215.14";
 const PUBLIC_HOST = "public-egress.test";
 const PUBLIC_URL = `https://${PUBLIC_HOST}/start`;
 
@@ -19,7 +19,7 @@ test.for(forgedCases)("public execution refuses an extra configured option for $
   const calls: string[] = [];
   await using root = await createServerHarness({
     networkExecution: {
-      resolver: (hostname) => Promise.resolve([hostname === PRIVATE_HOST ? PRIVATE_ADDRESS : PUBLIC_ADDRESS]),
+      resolver: (hostname) => Promise.resolve([hostname === PRIVATE_HOST ? PRIVATE_ADDRESS : PUBLIC_PEER_ADDRESS]),
       fetch: (input, init) => {
         calls.push(new Request(input, init).url);
         return Promise.resolve(new Response("owned physical bytes"));
@@ -42,7 +42,7 @@ test.for([
   const calls: string[] = [];
   await using root = await createServerHarness({
     networkExecution: {
-      resolver: (hostname) => Promise.resolve([hostname === PRIVATE_HOST ? PRIVATE_ADDRESS : PUBLIC_ADDRESS]),
+      resolver: (hostname) => Promise.resolve([hostname === PRIVATE_HOST ? PRIVATE_ADDRESS : PUBLIC_PEER_ADDRESS]),
       fetch: (input, init) => {
         const url = new Request(input, init).url;
         calls.push(url);
@@ -63,7 +63,7 @@ test("public execution still reads an allowed public response through its owned 
   const calls: string[] = [];
   await using root = await createServerHarness({
     networkExecution: {
-      resolver: () => Promise.resolve([PUBLIC_ADDRESS]),
+      resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]),
       fetch: (input, init) => {
         calls.push(new Request(input, init).url);
         return Promise.resolve(new Response("public bytes", { headers: { "content-type": "text/plain" } }));
@@ -82,7 +82,7 @@ test("the public required-host boundary refuses an off-host redirect before its 
   const calls: string[] = [];
   await using root = await createServerHarness({
     networkExecution: {
-      resolver: () => Promise.resolve([PUBLIC_ADDRESS]),
+      resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]),
       fetch: (input, init) => {
         calls.push(new Request(input, init).url);
         return Promise.resolve(Response.redirect("https://other-egress.test/image", 302));
@@ -121,7 +121,7 @@ test("configured execution preserves the caller's native manual-redirect request
   const next = "https://other-egress.test/configured";
   await using root = await createServerHarness({
     networkExecution: {
-      resolver: () => Promise.resolve([PUBLIC_ADDRESS]),
+      resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]),
       fetch: (input, init) => {
         requests.push(new Request(input, init));
         return Promise.resolve(Response.redirect(next, 302));
@@ -141,7 +141,7 @@ test("disposing the actual root revokes a held public response and its execution
   const calls: string[] = [];
   await using root = await createServerHarness({
     networkExecution: {
-      resolver: () => Promise.resolve([PUBLIC_ADDRESS]),
+      resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]),
       fetch: (input, init) => {
         calls.push(new Request(input, init).url);
         return Promise.resolve(new Response("held public bytes"));

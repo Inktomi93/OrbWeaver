@@ -251,7 +251,7 @@ async function commitDigestPlan(ctx: ChatContext, plan: DigestPlan, texts: reado
     skippedEmpty: stored.skippedEmpty + consolidated.skippedEmpty,
   };
   logBuild(ctx, plan.scope, { startedAt: plan.startedAt, counts: total });
-  return { written: total.written, skipped: total.skipped };
+  return { written: total.written };
 }
 
 /** The ONE place both the live per-turn build and the corpus-wide backfill summarize: a batched, per-item-
@@ -269,7 +269,7 @@ export function summarizeDigestBatch(ctx: ChatContext, funderUserId: UserId, inp
 export async function generateDigests(ctx: ChatContext, args: GenerateDigestsArgs): Promise<MemoryPassCounts> {
   const plan = await planDigests(ctx, args);
   if (plan === null) {
-    return { written: 0, skipped: 0 };
+    return { written: 0 };
   }
   const texts = await summarizeDigestBatch(
     ctx,

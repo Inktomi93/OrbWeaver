@@ -4,7 +4,7 @@ import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { GenerationProvenance } from "@orb/contracts/imagery";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
+import { createSeededIds } from "@orb/testkit/iso";
 import { test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -18,8 +18,6 @@ import {
   makeAssetBytes,
   seedCorpusConnections,
 } from "@orb/testkit/node/composed";
-
-const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 export const PORTRAIT_MODEL = "automation-portrait-fixture";
 
@@ -36,7 +34,7 @@ export const portraitTest = test.extend<{ portrait: PortraitFixture }>({
       embedding: CORPUS_EMBEDDING_VECTOR,
       chatText: "An illustrated keeper stands beside the orbital loom.",
       structuredReplies: CORPUS_STRUCTURED_REPLIES,
-      images: [makeAssetBytes(ids.typeId(ID_PREFIX.asset))],
+      images: [makeAssetBytes(createSeededIds().typeId(ID_PREFIX.asset))],
     });
     await using root = await createServerHarness({ providerFetch: physical.execute });
     const principal = await root.principalFor(root.ownerId);

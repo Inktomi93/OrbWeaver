@@ -13,6 +13,8 @@ export type {
 } from "./contract/service.ts";
 export { seedLocalLightConnections } from "./persistence/local-light-seed.ts";
 export { createConnectionPorts } from "./persistence/ports.ts";
+// Serves the `entry/boot` rehash step; connection owns the provider tables.
+export { rehashPluginProviderDefinitions } from "./persistence/provider-rows.ts";
 // The agent-sdk prompt-cache lineage writes (D8), injected into the inference runtime at the composition root.
 export { createSessionEntryWriter } from "./persistence/session-entries.ts";
 export { createConnectionService } from "./service.ts";

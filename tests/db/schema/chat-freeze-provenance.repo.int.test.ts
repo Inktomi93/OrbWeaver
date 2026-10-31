@@ -3,15 +3,13 @@ import { cp, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { assertReferentialIntegrity, closeDb, createDb, messages, messageVariants, runMigrations } from "@orb/db";
-import { ID_PREFIX } from "@orb/kit/ids";
+import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { runBootMigrations } from "@orb/server/entry/boot";
-import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
+import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createTestLogger, migrationsBefore, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
 import { seedMessageRow } from "@orb/testkit/node/rows";
 import { eq, sql } from "drizzle-orm";
-
-const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 const MIGRATION = "0004_freeze-provenance";
 const RECORD = [{ name: "roll", args: "1d1", value: "1" }];
@@ -20,7 +18,9 @@ test("the shipped database rejects incoherent provenance on insert, update and u
   const db = await createDb(":memory:");
   try {
     await runMigrations(db, SHIPPED_MIGRATIONS);
-    const row = await seedMessageRow(db, { content: "Baked 1" });
+    // One id source for the seeded row and the colliding insert, so the insert's id cannot repeat a seeded one.
+    const source = createIdSource(createSeededIds().next);
+    const row = await seedMessageRow(db, { content: "Baked 1" }, source);
     for (const invalid of ["[]", "{}", "null", "not json"]) {
       await expect(db.run(sql`update message_variants set macro_freezes=${invalid} where id=${row.variantId}`)).rejects.toMatchObject({
         cause: { code: "SQLITE_CONSTRAINT" },
@@ -31,7 +31,7 @@ test("the shipped database rejects incoherent provenance on insert, update and u
     });
     await expect(
       db.run(
-        sql`insert into message_variants(id,message_id,idx,content,raw_content) values(${ids.typeId(ID_PREFIX.messageVariant)},${row.id},1,${"same"},${"same"})`,
+        sql`insert into message_variants(id,message_id,idx,content,raw_content) values(${source.typeId(ID_PREFIX.messageVariant)},${row.id},1,${"same"},${"same"})`,
       ),
     ).rejects.toMatchObject({ cause: { code: "SQLITE_CONSTRAINT" } });
     const before = await db.select().from(messageVariants);

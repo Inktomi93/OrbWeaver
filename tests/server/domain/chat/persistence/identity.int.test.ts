@@ -1,59 +1,11 @@
 // @subject packages/server/src/domain/chat/persistence/identity.ts
 // The room's identity set is read through its two public doors, `getChat` and `listMessages`; no row is read or written
 // here. Coverage is member-gated: every id the room's roster, pin or stored lines name resolves, whoever owns it.
-import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatIdentity } from "@orb/contracts/chat";
-import { createPersonaSchema } from "@orb/contracts/persona";
-import type { CharacterId, PersonaId } from "@orb/kit/ids";
-import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
-import type { ChatRoot } from "@orb/testkit/node/composed";
-import { makeAssetBytes } from "@orb/testkit/node/composed";
+import { addCharacter, addPersona, startRoom, storeAvatar } from "@orb/testkit/node/composed";
 import { invitePerson } from "../persona-cache-physical.ts";
 import { textRoom } from "../scenario-physical.ts";
-
-type Principal = ChatRoot["owner"];
-
-async function avatarHash(
-  h: ChatRoot,
-  principal: Principal,
-): Promise<{ readonly assetId: Awaited<ReturnType<ChatRoot["root"]["services"]["assets"]["store"]>>["assetId"]; readonly hash: string }> {
-  const stored = await h.root.services.assets.store({
-    principal,
-    bytes: makeAssetBytes(h.root.idSource.typeId(ID_PREFIX.asset)),
-    kind: "avatar",
-    mime: "image/png",
-  });
-  return { assetId: stored.assetId, hash: stored.hash };
-}
-
-async function character(h: ChatRoot, handle: string, avatar?: Awaited<ReturnType<typeof avatarHash>>): Promise<CharacterId> {
-  const view = await h.root.services.character.create({
-    principal: h.owner,
-    input: createCharacterSchema.parse({
-      handle,
-      name: handle,
-      description: `${handle} description`,
-      ...(avatar === undefined ? {} : { avatarAssetId: avatar.assetId }),
-    }),
-  });
-  return view.id;
-}
-
-async function persona(h: ChatRoot, principal: Principal, name: string, avatar?: Awaited<ReturnType<typeof avatarHash>>): Promise<PersonaId> {
-  const view = await h.root.services.persona.create({
-    principal,
-    input: createPersonaSchema.parse({ name, description: `${name} description`, ...(avatar === undefined ? {} : { avatarAssetId: avatar.assetId }) }),
-  });
-  return view.id;
-}
-
-async function room(
-  h: ChatRoot,
-  characterIds: readonly CharacterId[],
-): Promise<Awaited<ReturnType<ChatRoot["root"]["services"]["chat"]["startChat"]>>["chat"]["id"]> {
-  return (await h.root.services.chat.startChat({ principal: h.owner, characterIds: [...characterIds], opening: "none" })).chat.id;
-}
 
 function entry(identities: readonly ChatIdentity[], id: string): ChatIdentity | undefined {
   return identities.find((identity) => identity.id === id);
@@ -61,11 +13,11 @@ function entry(identities: readonly ChatIdentity[], id: string): ChatIdentity | 
 
 test("a roster character and a seat persona each resolve with their kind, and an avatar-less entity keeps a null hash", async () => {
   await using h = await textRoom(["unused"]);
-  const portrait = await avatarHash(h, h.owner);
-  const aria = await character(h, "iris", portrait);
-  const bare = await character(h, "bare");
-  const nyx = await persona(h, h.owner, "nyx");
-  const chatId = await room(h, [aria, bare]);
+  const portrait = await storeAvatar(h, h.owner);
+  const aria = await addCharacter(h, "iris", portrait);
+  const bare = await addCharacter(h, "bare");
+  const nyx = await addPersona(h, h.owner, "nyx");
+  const chatId = await startRoom(h, [aria, bare]);
   await h.root.services.persona.setActivePersona({ principal: h.owner, chatId, personaId: nyx });
 
   const { identities } = await h.root.services.chat.getChat({ principal: h.owner, chatId });
@@ -78,16 +30,16 @@ test("a roster character and a seat persona each resolve with their kind, and an
 
 test("a room naming no character, seat persona or pin has an empty identity set", async () => {
   await using h = await textRoom(["unused"]);
-  const chatId = await room(h, []);
+  const chatId = await startRoom(h, []);
   expect((await h.root.services.chat.getChat({ principal: h.owner, chatId })).identities).toEqual([]);
 });
 
 test("a persona that signed a line but no longer holds a seat still resolves in the transcript's identities", async () => {
   await using h = await textRoom(["unused"]);
-  const portrait = await avatarHash(h, h.owner);
-  const worn = await persona(h, h.owner, "worn");
-  const old = await persona(h, h.owner, "mira", portrait);
-  const chatId = await room(h, [await character(h, "kai")]);
+  const portrait = await storeAvatar(h, h.owner);
+  const worn = await addPersona(h, h.owner, "worn");
+  const old = await addPersona(h, h.owner, "mira", { avatar: portrait });
+  const chatId = await startRoom(h, [await addCharacter(h, "kai")]);
   await h.root.services.persona.setActivePersona({ principal: h.owner, chatId, personaId: old });
   await h.root.services.chat.commitMessage({ principal: h.owner, chatId, content: "signed by mira" });
   await h.root.services.persona.setActivePersona({ principal: h.owner, chatId, personaId: worn });
@@ -108,10 +60,10 @@ test("a persona that signed a line but no longer holds a seat still resolves in 
 
 test("a removed character keeps the portrait its stored lines still show", async () => {
   await using h = await textRoom(["Iris speaks."]);
-  const portrait = await avatarHash(h, h.owner);
-  const aria = await character(h, "iris", portrait);
-  const bryn = await character(h, "bryn");
-  const chatId = await room(h, [aria, bryn]);
+  const portrait = await storeAvatar(h, h.owner);
+  const aria = await addCharacter(h, "iris", portrait);
+  const bryn = await addCharacter(h, "bryn");
+  const chatId = await startRoom(h, [aria, bryn]);
   const turn = await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId, characterId: aria });
   expect(turn.aborted).toBe(false);
   expect(entry((await h.root.services.chat.listMessages({ principal: h.owner, chatId })).identities, aria)?.avatarHash).toBe(portrait.hash);
@@ -128,12 +80,12 @@ test("a removed character keeps the portrait its stored lines still show", async
 
 test("a member's persona resolves in the host's room with its own name and avatar; the set is not owner-scoped", async () => {
   await using h = await textRoom(["unused"]);
-  const hostFace = await avatarHash(h, h.owner);
-  const hostPersona = await persona(h, h.owner, "host_pov", hostFace);
-  const chatId = await room(h, [await character(h, "kai")]);
+  const hostFace = await storeAvatar(h, h.owner);
+  const hostPersona = await addPersona(h, h.owner, "host_pov", { avatar: hostFace });
+  const chatId = await startRoom(h, [await addCharacter(h, "kai")]);
   const member = await invitePerson({ ...h, chatId });
-  const memberFace = await avatarHash(h, member);
-  const memberPersona = await persona(h, member, "member_pov", memberFace);
+  const memberFace = await storeAvatar(h, member);
+  const memberPersona = await addPersona(h, member, "member_pov", { avatar: memberFace });
   await h.root.services.persona.setActivePersona({ principal: h.owner, chatId, personaId: hostPersona });
   await h.root.services.persona.setActivePersona({ principal: member, chatId, personaId: memberPersona });
 
@@ -147,8 +99,8 @@ test("a member's persona resolves in the host's room with its own name and avata
 
 test("a pinned persona whose owner left the room still resolves for the room that holds the pin", async () => {
   await using h = await textRoom(["unused"]);
-  const pinned = await persona(h, h.owner, "founder_pov");
-  const chatId = await room(h, [await character(h, "kai")]);
+  const pinned = await addPersona(h, h.owner, "founder_pov");
+  const chatId = await startRoom(h, [await addCharacter(h, "kai")]);
   await h.root.services.chat.setChatAnchorPersona({ principal: h.owner, chatId, personaId: pinned });
   const member = await invitePerson({ ...h, chatId });
   expect((await h.root.services.chat.getChat({ principal: h.owner, chatId })).anchorState).toBe("live");

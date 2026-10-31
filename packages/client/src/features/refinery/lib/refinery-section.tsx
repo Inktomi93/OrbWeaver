@@ -21,6 +21,7 @@ import { useRefineryListHeader } from "../hooks/use-refinery-list-header.tsx";
 import { useRefineryCensus, useRefinerySession, useRefinerySessions } from "../hooks/use-refinery-sessions.ts";
 import { RefineryContentSurface } from "../surfaces/refinery-content-surface.tsx";
 import { RefineryListSurface } from "../surfaces/refinery-list-surface.tsx";
+import { REFINERY_SECTION_LABEL } from "./refinery-section-label.ts";
 
 /** The Runs · Setup · Versions tab DEFS (delta 2 arm A) — the array lives with
  *  the section (a component module exports only components); the BODIES are the components. */
@@ -50,11 +51,6 @@ function useRefineryContextState(): RefineryContextState | null {
   const session = useRefinerySession(sessionId);
   return sessionId === null || session.data === undefined ? null : { sessionId, characterId: session.data.characterId };
 }
-
-/** The section's NAME — the rail entry AND (with the census beside it, #1676) the phone topbar's screen
- *  title. Deliberately NOT the LIST band's title: that band names what the pane holds ("Sessions"), which is
- *  a different statement from what this SCREEN is called. */
-const REFINERY_SECTION_LABEL = "Refinery";
 
 /** The open session's title for the mobile topbar (null heals to the section label — never a blank bar).
  *  Falls back to the CHARACTER NAME, not "Untitled session" (side-eye 2026-08-09 P2): `session.name` is

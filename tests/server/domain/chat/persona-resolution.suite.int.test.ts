@@ -3,13 +3,12 @@
 // Persona resolution on the native provider bytes: a card's identity follows the room's pinned anchor, the prompt's
 // voice follows the speaker's seat, and neither a seat swap nor a re-pin rewrites a stored message's persona stamp.
 import { createCharacterSchema } from "@orb/contracts/character";
-import { createPersonaSchema } from "@orb/contracts/persona";
 import type { PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PersonaId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
-import { readRoomCanon } from "@orb/testkit/node/composed";
+import { addPersona, readRoomCanon } from "@orb/testkit/node/composed";
 import { inputMessages, inputSystem, invitePerson, messageText, personaInputs, personaRoom } from "./persona-cache-physical.ts";
 
 const VOICE_PROBE: PromptSection = { type: "literal", id: "voice", name: "voice", role: "system", enabled: true, content: "PROMPT_USER=<{{user}}>" };
@@ -23,10 +22,6 @@ function room(replies: readonly string[], description = CARD_DESCRIPTION): Promi
     characters: [createCharacterSchema.parse({ handle: "mary", name: "Mary", description })],
     group: { output: "per-speaker", policy: "list", allowSelfResponses: true },
   });
-}
-
-async function persona(h: ChatRoot, name: string, description: string): Promise<PersonaId> {
-  return (await h.root.services.persona.create({ principal: h.owner, input: createPersonaSchema.parse({ name, description }) })).id;
 }
 
 function probe(text: string, key: string): string | null {
@@ -57,7 +52,7 @@ async function pin(h: ChatRoot, personaId: PersonaId | null): Promise<void> {
 
 test("anchor and seat on one persona: the card and the prompt both name it", async () => {
   await using h = await room(["one"]);
-  const alex = await persona(h, "Alex", "Alex is a doctor");
+  const alex = await addPersona(h, h.owner, "Alex", { description: "Alex is a doctor" });
   await seat(h, alex);
   await pin(h, alex);
   await say(h, "hello");
@@ -68,8 +63,8 @@ test("anchor and seat on one persona: the card and the prompt both name it", asy
 
 test("a seat swap leaves the card on the anchor, moves the prompt to the seat, and keeps a stamped line on its author", async () => {
   await using h = await room(["one", "two"]);
-  const alex = await persona(h, "Alex", "Alex is a doctor");
-  const steve = await persona(h, "Steve", "Steve is a soldier");
+  const alex = await addPersona(h, h.owner, "Alex", { description: "Alex is a doctor" });
+  const steve = await addPersona(h, h.owner, "Steve", { description: "Steve is a soldier" });
   await seat(h, alex);
   await pin(h, alex);
   await say(h, "{{user}} waves");
@@ -88,8 +83,8 @@ test("a seat swap leaves the card on the anchor, moves the prompt to the seat, a
 
 test("re-pinning the anchor moves the card's identity and drops the previous anchor's description", async () => {
   await using h = await room(["one", "two"], BARE_CARD_DESCRIPTION);
-  const alex = await persona(h, "Alex", "my hair is brown");
-  const steve = await persona(h, "Steve", "Steve is a mage");
+  const alex = await addPersona(h, h.owner, "Alex", { description: "my hair is brown" });
+  const steve = await addPersona(h, h.owner, "Steve", { description: "Steve is a mage" });
   await seat(h, steve);
   await pin(h, alex);
   await say(h, "first");
@@ -107,8 +102,8 @@ test("re-pinning the anchor moves the card's identity and drops the previous anc
 
 test("a card's {{persona}} resolves the anchor's description, never the speaking seat's", async () => {
   await using h = await room(["one"]);
-  const alex = await persona(h, "Alex", "a traveling doctor");
-  const steve = await persona(h, "Steve", "a hardened soldier");
+  const alex = await addPersona(h, h.owner, "Alex", { description: "a traveling doctor" });
+  const steve = await addPersona(h, h.owner, "Steve", { description: "a hardened soldier" });
   await seat(h, steve);
   await pin(h, alex);
   await say(h, "hello");
@@ -118,8 +113,8 @@ test("a card's {{persona}} resolves the anchor's description, never the speaking
 
 test("swapping the seat or re-pinning the anchor never rewrites a stored message's persona stamp", async () => {
   await using h = await room(["one", "two"]);
-  const alex = await persona(h, "Alex", "Alex is a doctor");
-  const steve = await persona(h, "Steve", "Steve is a soldier");
+  const alex = await addPersona(h, h.owner, "Alex", { description: "Alex is a doctor" });
+  const steve = await addPersona(h, h.owner, "Steve", { description: "Steve is a soldier" });
   await seat(h, alex);
   await pin(h, alex);
   await say(h, "from alex");
@@ -143,8 +138,8 @@ test("in a two-human room each stored line resolves {{user}} to the persona it w
   using _presence = { [Symbol.dispose]: (): void => online.abort() };
   h.root.app.presence.connect(h.owner.userId, online.signal);
   h.root.app.presence.connect(bob.userId, online.signal);
-  const nova = await persona(h, "Nova", "Nova leads");
-  const juno = (await h.root.services.persona.create({ principal: bob, input: createPersonaSchema.parse({ name: "Juno", description: "Juno follows" }) })).id;
+  const nova = await addPersona(h, h.owner, "Nova", { description: "Nova leads" });
+  const juno = await addPersona(h, bob, "Juno", { description: "Juno follows" });
   await seat(h, nova);
   await h.root.services.persona.setActivePersona({ principal: bob, chatId: h.chatId, personaId: juno });
   await pin(h, nova);

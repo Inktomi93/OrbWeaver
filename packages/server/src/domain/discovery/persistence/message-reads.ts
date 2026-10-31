@@ -46,7 +46,6 @@ export async function readForgottenGemCandidates(db: Db, ownerId: UserId): Promi
 
 interface CharacterMessageSample {
   readonly content: string;
-  readonly createdAt: number;
 }
 
 /** The character's most-recent PLAYED assistant scenes (the SELECTED variant's content only) — the grounding
@@ -55,7 +54,7 @@ interface CharacterMessageSample {
  *  `messages.createdAt` ONLY — NEVER an economics column (tokens/cost live on `message_variants`, stats-private). */
 export async function readCharacterMessageSamples(db: Db, ownerId: UserId, characterId: CharacterId, limit: number): Promise<CharacterMessageSample[]> {
   return await db
-    .select({ content: messageVariants.content, createdAt: messages.createdAt })
+    .select({ content: messageVariants.content })
     .from(messages)
     .innerJoin(characters, and(eq(characters.id, messages.characterId), ownedRealCharacters(ownerId)))
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))

@@ -7,7 +7,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatBusEvent, TurnOutcome } from "@orb/contracts/chat";
 import { builtinProvider } from "@orb/contracts/inference";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginToolWireName } from "@orb/contracts/plugin";
-import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
+import { createControlledTimers, createFrozenClock, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
@@ -18,6 +18,7 @@ import {
   createChatRoot,
   createCorpusProviderExecution,
   makePluginBundle,
+  SECRET_BOX_TEST_KEY,
   seedInstalledPlugin,
   seedPluginGrant,
 } from "@orb/testkit/node/composed";
@@ -163,11 +164,11 @@ async function cancellationRoom(): Promise<CancellationRoom> {
       characters,
       group: { output: "per-speaker", policy: "list" },
       server: {
-        secretBoxKey: Buffer.alloc(32, 1),
+        secretBoxKey: SECRET_BOX_TEST_KEY,
         pluginSpawn: spawn,
         networkExecution: {
           resolver: (host): Promise<readonly string[]> =>
-            host === hosted.hostname ? Promise.resolve(["93.184.215.14"]) : Promise.reject(new Error(`unscripted cancellation provider address: ${host}`)),
+            host === hosted.hostname ? Promise.resolve([PUBLIC_PEER_ADDRESS]) : Promise.reject(new Error(`unscripted cancellation provider address: ${host}`)),
         },
         clock,
         random: () => 0.5,

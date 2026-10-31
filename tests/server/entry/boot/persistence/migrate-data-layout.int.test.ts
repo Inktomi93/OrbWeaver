@@ -220,9 +220,8 @@ test("a legacy tree moves every named entry byte for byte, snapshots the db firs
   expect(listBackupFiles(layout.backups, DB_FILE_NAME)).toEqual(before);
 });
 
-test.for(KEYED)(
-  "an explicit $keptBy keeps legacy $name where it is and names it as left in place; every other entry still moves",
-  async ({ name, keptBy }, { importStagingDir }) => {
+forEachNonEmpty(KEYED, "keyed legacy entries", ({ name, keptBy }) => {
+  test(`an explicit ${keptBy} keeps legacy ${name} where it is and names it as left in place; every other entry still moves`, async ({ importStagingDir }) => {
     const root = freshRoot(importStagingDir);
     await plantLegacyTree(root, importStagingDir);
     const kept: Partial<Record<typeof keptBy, string>> = {
@@ -248,8 +247,8 @@ test.for(KEYED)(
     expect(existsSync(join(root, targetOf(name)))).toBe(false);
     // The db is snapshotted only when it moves, since the snapshot protects the move.
     expect(snapshotsIn(layout)).toHaveLength(name === DB_FILE_NAME ? 0 : 1);
-  },
-);
+  });
+});
 
 test("a legacy path whose target holds data refuses before any move, and moves once the target is cleared", async ({ importStagingDir }) => {
   const root = freshRoot(importStagingDir);
@@ -282,14 +281,7 @@ test("a zero-byte legacy db at the root is not data: it is ignored, never delete
   expect(statSync(join(root, DB_FILE_NAME)).size).toBe(0);
 });
 
-// The subjects are every directory entry the table holds, so a renamed entry is still refused; an empty table would
-// register no case at all, which the guard below turns into a failure.
-test("the cross-filesystem cases have directory entries to run over", () => {
-  expect(DIR_ENTRIES.length).toBeGreaterThan(0);
-  expect(DIR_ENTRIES.some((name) => targetOf(name).startsWith(`${CACHE_DIR}/`))).toBe(true);
-});
-
-forEachNonEmpty(DIR_ENTRIES, "directory entries", (name) => {
+forEachNonEmpty(DIR_ENTRIES, "directory legacy entries", (name) => {
   test(`a source on another filesystem (${name}) refuses before any write; with the root's device it moves`, async ({ importStagingDir }) => {
     const root = freshRoot(importStagingDir);
     await plantLegacyTree(root, importStagingDir);
@@ -321,7 +313,10 @@ test("a target container linked onto another filesystem refuses before any write
   expect(existsSync(join(root, DB_FILE_NAME))).toBe(true);
 
   await migrate(layout, { deviceOf: SAME_DEVICE });
-  const linked = DIR_ENTRIES.find((name) => targetOf(name).startsWith(`${CACHE_DIR}/`)) ?? "missing-entry";
+  const linked = DIR_ENTRIES.find((name) => targetOf(name).startsWith(`${CACHE_DIR}/`));
+  if (linked === undefined) {
+    throw new Error("no legacy directory entry lands under the cache container, so the linked-container case has no subject");
+  }
   expect(readFileSync(join(elsewhere, relative(CACHE_DIR, targetOf(linked)), MARKER), "utf8")).toBe(`legacy ${linked}`);
 });
 
@@ -448,8 +443,8 @@ test("a resume refuses when a pending entry has neither side, a state a rename c
 });
 
 forEachNonEmpty(
-  KEYED.filter(({ name }) => DIR_ENTRIES.includes(name)).map(({ name, keptBy }) => ({ name, keptBy })),
-  "keyed directory entries",
+  KEYED.filter(({ name }) => DIR_ENTRIES.includes(name)),
+  "keyed directory legacy entries",
   ({ name, keptBy }) => {
     test(`a rename that fails at apply time refuses every boot with one snapshot until the env keeps ${name}, then the rest moves`, async ({
       importStagingDir,

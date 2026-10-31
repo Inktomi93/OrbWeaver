@@ -1,5 +1,6 @@
 // Native JOSE verification and bounded key retrieval run through the actual composed server capability.
 // @subject packages/server/src/infra/auth/jwks.ts
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { test as base, expect } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -24,7 +25,8 @@ const test = base.extend<{ issuer: Issuer; jwks: string; root: ServerTestHarness
   root: async ({ issuer }, use) => {
     await using root = await createServerHarness({
       networkExecution: {
-        resolver: (hostname) => (hostname === ALLOW[0] ? Promise.resolve(["93.184.215.14"]) : Promise.reject(new Error("unscripted JWKS address resolution"))),
+        resolver: (hostname) =>
+          hostname === ALLOW[0] ? Promise.resolve([PUBLIC_PEER_ADDRESS]) : Promise.reject(new Error("unscripted JWKS address resolution")),
         fetch: issuer.fetch,
       },
     });

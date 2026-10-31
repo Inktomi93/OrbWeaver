@@ -2,6 +2,7 @@
 // member's password-login cookie. A staged bundle belongs to its uploader, and naming another's handle imports nothing.
 // @subject packages/server/src/entry/http/export.ts
 // @subject packages/server/src/entry/http/import.ts
+
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
@@ -11,13 +12,12 @@ import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, extractZip } from "@orb/testkit/node/composed";
+import { createServerHarness, extractZip, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { describe, vi } from "vitest";
 import { signedInMember } from "../_auth-roots.ts";
 
 const EXPORT_ROUTE = PORTABILITY_ROUTES.exportLibrary;
 const BUNDLE_ROUTE = PORTABILITY_ROUTES.importBundle;
-const WORKLOAD_DEADLINE_MS = 60_000;
 /** A relay tell: the loopback socket speaks for a third party, so the owner fallback refuses it. */
 const ANONYMOUS = { "x-forwarded-for": "203.0.113.9" };
 const STAGED_TOKEN = /^import-bundle-[0-9a-f-]{36}\.zip$/u;

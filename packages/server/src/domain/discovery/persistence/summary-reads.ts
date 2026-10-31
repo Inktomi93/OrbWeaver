@@ -12,7 +12,7 @@
 // identity through this row is exactly how 327 imported characters all rendered "Unknown".
 
 import type { Db } from "@orb/db";
-import { assets, characterSummaries, characters } from "@orb/db";
+import { characterSummaries, characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray, sql } from "drizzle-orm";
 
@@ -29,10 +29,6 @@ interface CardFacetRow {
    *  writer, F6) — this is a read, and it takes the SQL path for the same reason the score sorts do: the
    *  column parser is a character-domain seam a sibling domain may not import. */
   readonly refineryScore: number | null;
-  /** The CAS hash of the card's CURRENT avatar, or `null` when it has none — the face that goes beside the
-   *  display name this row already resolves. LEFT-joined on purpose: an inner join would silently delete
-   *  every faceless card from the archetype clusters, the projection and the similarity graph. */
-  readonly avatarHash: string | null;
 }
 
 /** The score projection, spelled once for both reads below. */
@@ -48,11 +44,9 @@ export async function readOwnedCardFacets(db: Db, ownerId: UserId): Promise<Card
       tags: characterSummaries.tags,
       elevatorPitch: characterSummaries.elevatorPitch,
       refineryScore: refineryScoreExpr,
-      avatarHash: assets.hash,
     })
     .from(characterSummaries)
     .innerJoin(characters, eq(characters.id, characterSummaries.characterId))
-    .leftJoin(assets, eq(assets.id, characters.avatarAssetId))
     .where(eq(characters.ownerId, ownerId));
 }
 
@@ -87,11 +81,9 @@ export async function readOwnedCardFacet(db: Db, ownerId: UserId, characterId: C
       tags: characterSummaries.tags,
       elevatorPitch: characterSummaries.elevatorPitch,
       refineryScore: refineryScoreExpr,
-      avatarHash: assets.hash,
     })
     .from(characterSummaries)
     .innerJoin(characters, eq(characters.id, characterSummaries.characterId))
-    .leftJoin(assets, eq(assets.id, characters.avatarAssetId))
     .where(and(eq(characters.ownerId, ownerId), eq(characterSummaries.characterId, characterId)))
     .limit(1);
   return rows[0];

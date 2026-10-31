@@ -60,16 +60,14 @@ test("admin output captures retain native identities and clocks while excluding 
 
   root.clock.advance(2000);
   const revoked = await seedRevokedUserSessionsRows(root, { principal: owner, userId: created.view.id });
-  expect(revoked.result).toEqual({ revoked: 1 });
   expect(revoked.views).toEqual([{ ...session.view, revokedAt: root.clock.now() }]);
   expect(revoked.rows).toMatchObject([{ id: session.row.id, userId: created.view.id, revokedAt: root.clock.now(), oidcIdTokenCiphertext: null }]);
   expect(await root.app.sessions.validate(session.created.token)).toBeNull();
   expect(await root.app.sessions.validate(otherSession.created.token)).toMatchObject({ userId: foreign.id });
   const repeated = await seedRevokedUserSessionsRows(root, { principal: owner, userId: created.view.id });
-  expect(repeated.result).toEqual({ revoked: 0 });
   expect(repeated.views).toEqual(revoked.views);
 
-  const views = JSON.stringify({ user: created.view, session: session.view, revoked: revoked.result, sessions: revoked.views });
+  const views = JSON.stringify({ user: created.view, session: session.view, sessions: revoked.views });
   for (const secret of [PASSWORD, ID_TOKEN, created.row.passwordHash, session.created.token, session.row.tokenHash, session.row.oidcIdTokenCiphertext]) {
     if (secret === null) {
       throw new Error("the native private witness was not produced");

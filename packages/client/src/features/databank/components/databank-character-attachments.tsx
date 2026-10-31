@@ -122,7 +122,7 @@ function CharacterDoor({ id, name }: { readonly id: CharacterId; readonly name: 
   return (
     <Button className="flex-1 justify-start min-inline-0" variant="ghost" onClick={(): void => openCharacter(id)} size="sm" type="button">
       <Icon icon={Users} size="xs" />
-      <Text as="span" className="truncate min-inline-0" voice="label">
+      <Text ink="inherit" as="span" className="truncate min-inline-0" voice="label">
         {name}
       </Text>
     </Button>

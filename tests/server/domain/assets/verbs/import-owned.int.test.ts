@@ -7,14 +7,11 @@ import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ExternalId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { createImportAvatarStore, createImportOwnedAsset } from "@orb/server/domain/assets";
-import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { isAdmin, isOwner } from "@orb/testkit/node/auth";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
-
-const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 test("foreign malformed bytes and absence share the same refusal before import; same-owner bytes retain actor and payload", async (): Promise<void> => {
   await using harness = await createServerHarness({
@@ -57,7 +54,9 @@ test("foreign malformed bytes and absence share the same refusal before import; 
     importBytes,
   });
   await expect(ingest({ installerUserId: own.userId, assetId: stored.assetId, pluginId: null })).rejects.toBeInstanceOf(DomainNotFoundError);
-  await expect(ingest({ installerUserId: own.userId, assetId: ids.typeId(ID_PREFIX.asset), pluginId: null })).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(ingest({ installerUserId: own.userId, assetId: harness.ids.typeId(ID_PREFIX.asset), pluginId: null })).rejects.toBeInstanceOf(
+    DomainNotFoundError,
+  );
   expect(importBytes).not.toHaveBeenCalled();
   expect(Array.from(await ingest({ installerUserId: own.userId, assetId: ownStored.assetId, pluginId: null }))).toEqual(Array.from(ownBytes));
   expect(read.mock.calls.every(([actor]) => actor === own)).toBe(true);

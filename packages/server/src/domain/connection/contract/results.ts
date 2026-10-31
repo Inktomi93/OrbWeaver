@@ -43,7 +43,6 @@ export const catalogRefreshOutcomeSchema = z.strictObject({ models: z.int().nonn
 
 export interface EmbedSpace {
   readonly fingerprint: string;
-  readonly model: string;
   readonly dim: number;
 }
 

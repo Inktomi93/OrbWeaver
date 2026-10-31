@@ -15,14 +15,12 @@ import type { OwnedAssetCursor } from "@orb/contracts/assets";
 import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import { CHARACTER_HANDLE_WIRE_KEY, characterCardV3Schema, characterHandleSchema, createCharacterSchema } from "@orb/contracts/character";
 import { parseVariantMetadata } from "@orb/contracts/chat";
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { portableImageryCallSchema } from "@orb/contracts/imagery";
-import { importStartedSchema } from "@orb/contracts/import";
 import type { PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
-import { exportCharacterPath, PORTABILITY_ROUTES, PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
+import { exportCharacterPath, PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { ASSET_SCHEME, assetIdsInContent } from "@orb/kit/content";
-import type { AssetId, CharacterHandle, CharacterId, ChatId, UserId, WorkloadId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { buildChatBundleFile, CHAT_BUNDLE_EXT, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
@@ -30,21 +28,17 @@ import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
-  CORPUS_EMBEDDING_VECTOR,
   CORPUS_PROVIDER_ENDPOINT,
-  createCorpusProviderExecution,
-  createServerHarness,
+  exportLibrary,
   extractZip,
+  imageProvider,
   makeAssetBytes,
+  restoreBundle,
   seedTranscript,
+  signedInBox,
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
 
-const EXPORT_ROUTE = PORTABILITY_ROUTES.exportLibrary;
-const BUNDLE_ROUTE = PORTABILITY_ROUTES.importBundle;
-/** Any signed-in request runs the first-login seed; this one reads nothing else. */
-const SIGNED_IN_ROUTE = "/api/trpc/sessions.me";
-const WORKLOAD_DEADLINE_MS = 60_000;
 /** Asset ids restore verbatim, so the exporting box mints from its own band. */
 const SOURCE_ID_CURSOR = 2 ** 29;
 /** A second restore target, which also restores ids it did not mint. */
@@ -54,45 +48,8 @@ const PNG = "image/png";
 const CHOSEN_HANDLE = castId<CharacterHandle>("lantern-warden");
 const CHARACTER_NAME = "Keeper";
 
-/** A local box whose loopback requests act as its owner, after that owner's first-login seed has settled. */
-async function signedInBox(ids?: ReturnType<typeof createSeededIds>, providerFetch?: typeof fetch): Promise<ServerTestHarness> {
-  const root = await createServerHarness({
-    physicalPeer: () => "127.0.0.1",
-    startJobs: false,
-    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
-    ...(ids === undefined ? {} : { ids }),
-    ...(providerFetch === undefined ? {} : { providerFetch }),
-  });
-  expect((await root.http.request(SIGNED_IN_ROUTE)).status).toBe(200);
-  await root.settleBackground();
-  return root;
-}
-
-async function exportLibrary(root: ServerTestHarness, kinds?: readonly PortableKind[]): Promise<Uint8Array> {
-  const response = await root.http.request(kinds === undefined ? EXPORT_ROUTE : `${EXPORT_ROUTE}?kinds=${kinds.join(",")}`);
-  expect(response.status).toBe(200);
-  return new Uint8Array(await response.arrayBuffer());
-}
-
-/** Upload the bundle and run its import workload to the end; the workload's own status and tallies. */
-async function restore(root: ServerTestHarness, bundle: Uint8Array): Promise<{ readonly status: string; readonly failed: number | undefined }> {
-  const response = await root.http.request(BUNDLE_ROUTE, { method: "POST", headers: { [CSRF_HEADER]: "1" }, body: bundle });
-  expect(response.status).toBe(202);
-  const id: WorkloadId = importStartedSchema.parse(await response.json()).workloadId;
-  const run = root.runAdmittedWorkload;
-  if (run === undefined) {
-    throw new Error("the harness owns workload execution only with startJobs: false");
-  }
-  await run(id, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
-  const row = await root.services.workloads.get({ caller: await root.principalFor(root.ownerId), id });
-  if (row.kind !== "import-bundle" || row.poison) {
-    throw new Error("the bundle upload left no typed import-bundle workload");
-  }
-  return { status: row.status, failed: row.result?.failed };
-}
-
 test("a chat restores with its character when the character's handle is not the slug of its name", { tags: ["slow"] }, async () => {
-  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR) });
   const owner = await source.principalFor(source.ownerId);
   await source.services.character.create({
     principal: owner,
@@ -106,7 +63,7 @@ test("a chat restores with its character when the character's handle is not the 
   const bundle = await exportLibrary(source, ["character", "chat"]);
 
   await using target = await signedInBox();
-  const outcome = await restore(target, bundle);
+  const outcome = await restoreBundle(target, bundle);
   const caller = await target.internalCallerFor(target.ownerId);
   const restored = (await caller.character.list({})).items.filter((item) => item.name === CHARACTER_NAME);
   const [character] = restored;
@@ -146,7 +103,7 @@ async function restoreCard(root: ServerTestHarness, filename: string, bytes: Uin
 }
 
 test("a carried handle that is not a minted slug restores under the name slug, and the next library export still succeeds", { tags: ["slow"] }, async () => {
-  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR) });
   const card = await cardCarrying(source, { handle: "wanderer", name: "Wanderer", description: "A wanderer maps the outer rings." }, "..");
 
   await using target = await signedInBox();
@@ -167,7 +124,7 @@ test("two different cards carrying one over-long handle both restore inside the 
   if (cap === null) {
     throw new Error("the handle contract states no length cap");
   }
-  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR) });
   // At the cap exactly: a collision suffix appended to it would overflow the contract.
   const longHandle = "a".repeat(cap);
   const first = await cardCarrying(source, { handle: "twin", name: "Twin", description: "The elder twin keeps the lamps." }, longHandle);
@@ -232,7 +189,7 @@ test("a chat re-links to a character whose handle slugifyHandle minted, however 
 });
 
 test("a restored chat binds to its own card when another character already holds that card's handle", { tags: ["slow"] }, async () => {
-  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR) });
   await source.services.character.create({
     principal: await source.principalFor(source.ownerId),
     input: createCharacterSchema.parse({ handle: CHOSEN_HANDLE, name: CHARACTER_NAME, description: "A keeper tends the orbital ledger." }),
@@ -249,7 +206,7 @@ test("a restored chat binds to its own card when another character already holds
     principal: await target.principalFor(target.ownerId),
     input: createCharacterSchema.parse({ handle: CHOSEN_HANDLE, name: CHARACTER_NAME, description: "A different keeper, already here." }),
   });
-  const outcome = await restore(target, bundle);
+  const outcome = await restoreBundle(target, bundle);
   const keepers = await charactersNamed(target, CHARACTER_NAME);
 
   expect({
@@ -266,7 +223,7 @@ test("a restored chat binds to its own card when another character already holds
 });
 
 test("a restored chat binds to the existing character its card deduped onto, under that character's handle", { tags: ["slow"] }, async () => {
-  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR) });
   const owner = await source.principalFor(source.ownerId);
   const created = await source.services.character.create({
     principal: owner,
@@ -283,7 +240,7 @@ test("a restored chat binds to the existing character its card deduped onto, und
 
   await using target = await signedInBox();
   expect(await restoreCard(target, "Warden.png", firstCard)).toEqual({ ok: true, created: true });
-  const outcome = await restore(target, bundle);
+  const outcome = await restoreBundle(target, bundle);
   const wardens = await charactersNamed(target, "Warden");
 
   expect({
@@ -296,7 +253,7 @@ test("a restored chat binds to the existing character its card deduped onto, und
 });
 
 test("a chat bundle written before seats carried their card still re-links by handle", { tags: ["slow"] }, async () => {
-  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR) });
   const owner = await source.principalFor(source.ownerId);
   const keeperAtSource = await source.services.character.create({
     principal: owner,
@@ -314,7 +271,7 @@ test("a chat bundle written before seats carried their card still re-links by ha
   const cards = await exportLibrary(source, ["character"]);
 
   await using target = await signedInBox();
-  await restore(target, cards);
+  await restoreBundle(target, cards);
   const chat = target.app.portability.find((entity) => entity.kind === "chat");
   if (chat === undefined) {
     throw new Error("production composition has no chat portability descriptor");
@@ -357,7 +314,7 @@ test("a chat bundle naming a synthetic group character's handle never binds to t
 });
 
 test("a seat's card identity resolves only inside the importing account", { tags: ["slow"] }, async () => {
-  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR) });
   const made = await source.services.character.create({
     principal: await source.principalFor(source.ownerId),
     input: createCharacterSchema.parse({ handle: CHOSEN_HANDLE, name: CHARACTER_NAME, description: "A keeper tends the orbital ledger." }),
@@ -430,12 +387,12 @@ async function ownedAssetHashes(root: ServerTestHarness): Promise<Set<string>> {
 // A restore into a box that already holds the card dedups onto it only when the two identities match, so one
 // character per box after every crossing is the identity holding across exports.
 test("a restored card keeps its import identity through the next export and restore, whatever its star", { tags: ["slow"] }, async () => {
-  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR) });
   expect(await restoreCard(source, "archivist.json", new TextEncoder().encode(STARRED_CARD))).toEqual({ ok: true, created: true });
   const sourceBundle = await exportLibrary(source);
 
   await using target = await signedInBox();
-  await restore(target, sourceBundle);
+  await restoreBundle(target, sourceBundle);
   const [restored] = await charactersNamed(target, ARCHIVIST);
   if (restored === undefined) {
     throw new Error("the restore landed no archivist");
@@ -444,12 +401,12 @@ test("a restored card keeps its import identity through the next export and rest
   await target.services.character.update({ principal: await target.principalFor(target.ownerId), characterId: restored.id, input: { starred: true } });
   const targetBundle = await exportLibrary(target);
 
-  await using third = await signedInBox(createSeededIds(THIRD_BOX_ID_CURSOR));
-  await restore(third, targetBundle);
+  await using third = await signedInBox({ ids: createSeededIds(THIRD_BOX_ID_CURSOR) });
+  await restoreBundle(third, targetBundle);
   const [sourceAssets, targetAssets, thirdAssets] = [await ownedAssetHashes(source), await ownedAssetHashes(target), await ownedAssetHashes(third)];
   // The target's own re-export, now starred, back into the target.
-  await restore(target, targetBundle);
-  await restore(source, targetBundle);
+  await restoreBundle(target, targetBundle);
+  await restoreBundle(source, targetBundle);
 
   expect({
     charactersPerBox: [
@@ -462,7 +419,7 @@ test("a restored card keeps its import identity through the next export and rest
 });
 
 test("user settings restore onto the background art the fresh box already seeded", { tags: ["slow"] }, async () => {
-  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR) });
   const owner = await source.principalFor(source.ownerId);
   const seeded = (await source.services.settings.getUserSettings({ principal: owner })).config.appearance.backgroundLibrary;
   const [plate] = seeded;
@@ -494,7 +451,7 @@ test("user settings restore onto the background art the fresh box already seeded
   const bundle = await exportLibrary(source);
 
   await using target = await signedInBox();
-  const outcome = await restore(target, bundle);
+  const outcome = await restoreBundle(target, bundle);
   const appearance = (await target.services.settings.getUserSettings({ principal: await target.principalFor(target.ownerId) })).config.appearance;
   /** The bytes an id names on the target, or null when it names no asset there. */
   const hashOf = async (assetId: string): Promise<string | null> => (await target.services.assets.assetCasRefById(castId(assetId)))?.hash ?? null;
@@ -543,7 +500,7 @@ async function galleryHashes(root: ServerTestHarness): Promise<string[]> {
 // The fresh box already holds the seeded plates and avatars under its own ids, so each one the source library
 // refers to restores onto those bytes and every referrer re-links by content.
 test("a full library restore into a fresh box reports no failures and leaves no reference dangling", { tags: ["slow"] }, async () => {
-  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR) });
   const owner = await source.principalFor(source.ownerId);
   const [plate] = (await source.services.settings.getUserSettings({ principal: owner })).config.appearance.backgroundLibrary;
   if (plate === undefined) {
@@ -571,7 +528,7 @@ test("a full library restore into a fresh box reports no failures and leaves no 
   const bundle = await exportLibrary(source);
 
   await using target = await signedInBox();
-  const outcome = await restore(target, bundle);
+  const outcome = await restoreBundle(target, bundle);
   const caller = await target.internalCallerFor(target.ownerId);
   const [character] = (await caller.character.list({})).items.filter((item) => item.name === CHARACTER_NAME);
   const [room] = character === undefined ? [] : (await caller.chat.listChats({ characterId: character.id })).items;
@@ -609,23 +566,23 @@ async function characterNames(root: ServerTestHarness): Promise<string[]> {
 }
 
 test("a seeded library restored into a fresh box keeps one copy of each starter card", { tags: ["slow"] }, async () => {
-  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR) });
   const sourceNames = await characterNames(source);
   const bundle = await exportLibrary(source);
 
   await using target = await signedInBox();
-  const outcome = await restore(target, bundle);
+  const outcome = await restoreBundle(target, bundle);
 
   expect({ outcome, names: await characterNames(target) }).toEqual({ outcome: { status: "succeeded", failed: 0 }, names: sourceNames });
 });
 
 test("an imported card keeps its star, alone and through a library restore", { tags: ["slow"] }, async () => {
-  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR) });
   expect(await restoreCard(source, "archivist.json", new TextEncoder().encode(STARRED_CARD))).toEqual({ ok: true, created: true });
   const bundle = await exportLibrary(source, ["character"]);
 
   await using target = await signedInBox();
-  await restore(target, bundle);
+  await restoreBundle(target, bundle);
   const starredOn = async (root: ServerTestHarness): Promise<boolean[]> => {
     const caller = await root.internalCallerFor(root.ownerId);
     const found = await charactersNamed(root, ARCHIVIST);
@@ -642,16 +599,6 @@ const documentFileSchema = z.object({ sourceAssetId: typeIdSchema(ID_PREFIX.asse
 const IMAGE_MODEL = "ledger-image-v1";
 
 /** A provider that answers each image generation with the next of `pictures`, over the loopback corpus endpoint. */
-function imageProvider(pictures: Uint8Array[]): typeof fetch {
-  return createCorpusProviderExecution({
-    modelIds: [IMAGE_MODEL],
-    embedding: CORPUS_EMBEDDING_VECTOR,
-    chatText: "",
-    structuredReplies: new Map(),
-    images: pictures,
-  }).execute;
-}
-
 /** Generate one picture through the owner's own image binding, so the box holds native imagery history. */
 async function generateOnePicture(root: ServerTestHarness): Promise<AssetId> {
   const owner = await root.principalFor(root.ownerId);
@@ -725,7 +672,7 @@ async function restoreReferrersOnly(root: ServerTestHarness, ownerId: UserId, bu
 
 test("databank documents and imagery history restore onto bytes the owner holds under another id, never another account's", { tags: ["slow"] }, async () => {
   const pictures: Uint8Array[] = [];
-  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR), imageProvider(pictures));
+  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR), providerFetch: imageProvider(IMAGE_MODEL, pictures) });
   pictures.push(makeAssetBytes(source.idSource.typeId(ID_PREFIX.asset)));
   const owner = await source.principalFor(source.ownerId);
   const documentBytes = new TextEncoder().encode(DOCUMENT_TEXT);
@@ -753,7 +700,7 @@ test("databank documents and imagery history restore onto bytes the owner holds 
   const heldOwner = await held.principalFor(held.ownerId);
   const heldDocument = await held.services.assets.store({ principal: heldOwner, kind: "document", mime: TEXT_MIME, bytes: documentBytes });
   const heldImage = await held.services.assets.store({ principal: heldOwner, kind: "generated", mime: PNG, bytes: imageBytes });
-  const outcome = await restore(held, bundle);
+  const outcome = await restoreBundle(held, bundle);
 
   expect({
     heldUnderOwnIds: heldDocument.assetId !== sourceDocument.assetId && heldImage.assetId !== generated,
@@ -771,7 +718,7 @@ test("databank documents and imagery history restore onto bytes the owner holds 
 });
 
 test("a card's background travels in its export and re-links by content, never onto another account's bytes", { tags: ["slow"] }, async () => {
-  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR) });
   const owner = await source.principalFor(source.ownerId);
   const [plate] = (await source.services.settings.getUserSettings({ principal: owner })).config.appearance.backgroundLibrary;
   if (plate === undefined) {
@@ -800,7 +747,7 @@ test("a card's background travels in its export and re-links by content, never o
   const member = await target.actor();
   const characterDescriptor = target.app.portability.find((entity) => entity.kind === "character");
   const memberRestore = await characterDescriptor?.importFile(member.id, { filename: "Keeper.png", bytes: cardBytes });
-  const outcome = await restore(target, bundle);
+  const outcome = await restoreBundle(target, bundle);
 
   expect({
     member: { ok: memberRestore?.ok, background: await keeperBackground(member.id) },
@@ -816,7 +763,7 @@ test("a card's background travels in its export and re-links by content, never o
 });
 
 test("restoring bytes the owner holds under another id repairs that asset when its stored file is gone", { tags: ["slow"] }, async () => {
-  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR) });
   const owner = await source.principalFor(source.ownerId);
   const bytes = makeAssetBytes(source.idSource.typeId(ID_PREFIX.asset));
   // A backup carries only the assets the library refers to.
@@ -827,7 +774,7 @@ test("restoring bytes the owner holds under another id repairs that asset when i
   await using target = await signedInBox();
   const held = await target.services.assets.store({ principal: await target.principalFor(target.ownerId), kind: "background", mime: PNG, bytes });
   await target.app.cas.remove(target.ownerId, held.hash);
-  const outcome = await restore(target, bundle);
+  const outcome = await restoreBundle(target, bundle);
   const stored = await target.app.cas.exists(target.ownerId, held.hash);
   const restored = stored ? await target.services.assets.loadAssetBytes(held.assetId) : null;
 

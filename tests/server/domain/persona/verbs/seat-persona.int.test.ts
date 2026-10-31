@@ -3,6 +3,7 @@
 // @subject packages/server/src/domain/persona/verbs/set-active.ts
 // @subject packages/server/src/domain/persona/verbs/remove.ts
 
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import type { ChatId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
@@ -34,7 +35,7 @@ test("switching the seat's persona reaches the room's live channel as personaSwi
 });
 
 test("a member who left a room is no longer a seat there, and removing their persona re-seats the room they are still in", async () => {
-  await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny" } });
+  await using root = await createServerHarness({ env: { [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny" } });
   const host = await root.principalFor(root.ownerId);
   const member = await root.principalFor((await root.actor()).id);
   const hostCaller = await root.internalCallerFor(host.userId);

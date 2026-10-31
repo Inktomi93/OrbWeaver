@@ -1,5 +1,14 @@
 import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
-import { createShellAmbientReads, ROOM_PROCEDURES, routeOrbSocket, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import {
+  createShellAmbientReads,
+  ROOM_PROCEDURES,
+  routeAuthConfig,
+  routeOrbSocket,
+  routeTrpc,
+  SECTION_PROCEDURES,
+  serveCorpusProcedures,
+  trpcError,
+} from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
@@ -26,7 +35,7 @@ test("removing a member closes the real confirm onto a surviving roster control"
   await seedShellState(page, { activeSection: "chats" });
   const auth = await root.http.request("/api/auth/config");
   const authBody = await auth.text();
-  await page.route("**/api/auth/config", (route) => route.fulfill({ contentType: "application/json", body: authBody }));
+  await routeAuthConfig(page, authBody);
   const requests = await routeTrpc(page, {
     ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, [

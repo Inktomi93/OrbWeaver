@@ -71,7 +71,7 @@ test("revoke-all evicts session-less SSO even when the target has no cookie sess
     onDetach: vi.fn(),
     onEvicted: evicted,
   });
-  expect(await app.services.admin.revokeUserSessions({ principal: await principal(harness, actor.id), userId: target.id })).toEqual({ revoked: 0 });
+  await app.services.admin.revokeUserSessions({ principal: await principal(harness, actor.id), userId: target.id });
   expect(evicted).toHaveBeenCalledOnce();
 });
 

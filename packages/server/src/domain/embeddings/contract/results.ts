@@ -38,26 +38,6 @@ export interface ImageAdmissionVerdict {
   readonly height: number | null;
 }
 
-/** Rows reclaimed from the OLD embed space by the chat-memory purge — one count per model-keyed
- *  chat-memory vector table. */
-export interface PurgeMemoryVectorsResult {
-  readonly segments: number;
-  readonly digests: number;
-}
-
-/** Rows deleted by the chat-memory shrink prune — blocks that no longer exist in canon (and, for digests,
- *  the consolidations that folded them). Zero on every ordinary build; non-zero exactly when the ingest set
- *  shrank, which makes it the observability signal for a leak that used to be silent. */
-export interface PruneMemoryBlocksResult {
-  readonly rowsDeleted: number;
-}
-
-/** Rows reclaimed from the OLD embed space by the document-chunk purge — the databank arm of
- *  the model-change reclaim, mirroring {@link PurgeMemoryVectorsResult}. */
-export interface PurgeDocumentVectorsResult {
-  readonly chunks: number;
-}
-
 const IMAGE_SPACE_DEGRADES = ["no-image-embed-connection", "image-embed-model-takes-no-image-input"] as const;
 /** WHY an owner's images fell back to the captioned-text lens (§10-3): either no `imageEmbed` connection is
  *  bound at all, or the bound one resolves to a model that declares no `image` input. Two causes, one

@@ -50,7 +50,7 @@ export interface SnapshotGameRef {
 
 /** What EVERY snapshot write carries regardless of arm: the minted id, the owning game, the injected clock
  *  (no ambient clock in persistence). */
-interface SnapshotWriteBase {
+export interface SnapshotWriteBase {
   readonly id: RpgSnapshotId;
   readonly gameId: RpgGameId;
   readonly now: number;

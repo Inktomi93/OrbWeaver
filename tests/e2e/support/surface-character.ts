@@ -9,8 +9,8 @@ import { controlledPanel, markExpectedSurfaceHttpFailure, publishSurfaceInventor
 import type { SurfaceAuditRequest } from "@orb/testkit/ct";
 import type { SurfaceCoverageInventory } from "@orb/testkit/iso";
 import { parseSurfaceProviderEvidence, surfaceCoverageKey } from "@orb/testkit/iso";
-import { attachNativeFile, isTrpcRequestFor, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
-import type { Locator, Page, Route } from "@playwright/test";
+import { abortProcedure, attachNativeFile, isTrpcRequestFor, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
+import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { CHARACTER_ACTION_SCOPE_IDS, CHARACTER_ACTIONS } from "#client/features/character/lib/character-actions.ts";
 import { CHARACTER_CARD_FACETS } from "#client/features/character/lib/character-card-facets.ts";
@@ -650,11 +650,7 @@ async function snapshotJourney(flow: CharacterFlow, characterId: CharacterId, hi
 }
 
 async function historyFailureJourney(flow: CharacterFlow, name: string): Promise<void> {
-  const matcher = /\/api\/trpc\/[^?]*character\.listSnapshots(?:[?,]|$)/u;
-  const fault = async (route: Route): Promise<void> => {
-    await route.abort("aborted");
-  };
-  await flow.page.route(matcher, fault);
+  const lift = await abortProcedure(flow.page, "character.listSnapshots");
   let history: Locator;
   try {
     await flow.page.reload();
@@ -666,7 +662,7 @@ async function historyFailureJourney(flow: CharacterFlow, name: string): Promise
     await retry.scrollIntoViewIfNeeded();
     await recordState(flow, "history-transport-error", history, { witnesses: [retry], state: "error" });
   } finally {
-    await flow.page.unroute(matcher, fault);
+    await lift();
   }
   await history.getByRole("button", { name: "Retry", exact: true }).press("Enter");
   await record(flow, "history-recovered-log", history, [history.getByRole("button", { name: "Restore", exact: true })]);
@@ -677,11 +673,7 @@ async function lookFailureJourney(flow: CharacterFlow, characterId: CharacterId)
   const before = await flow.client.character.get.query({ characterId });
   const next = alternateFont(before.themeOverride?.font);
   const font = look.getByRole("combobox", { name: "Font", exact: true });
-  const matcher = /\/api\/trpc\/[^?]*character\.update(?:[?,]|$)/u;
-  const fault = async (route: Route): Promise<void> => {
-    await route.abort("aborted");
-  };
-  await flow.page.route(matcher, fault);
+  const lift = await abortProcedure(flow.page, "character.update");
   const status = look.locator('[data-slot="autosave-status"]');
   try {
     await font.scrollIntoViewIfNeeded();
@@ -693,7 +685,7 @@ async function lookFailureJourney(flow: CharacterFlow, characterId: CharacterId)
     await retry.scrollIntoViewIfNeeded();
     await recordState(flow, "look-failed-save-draft", look, { state: "error", errorSource: "interaction", witnesses: [retry] });
   } finally {
-    await flow.page.unroute(matcher, fault);
+    await lift();
   }
   await status.getByRole("button", { name: "Retry", exact: true }).press("Enter");
   await expect.poll(async () => (await flow.client.character.get.query({ characterId })).themeOverride?.font).toBe(next);
@@ -806,18 +798,14 @@ async function originalContextJourney(flow: CharacterFlow, characterId: Characte
 async function recoveryJourney(flow: CharacterFlow, name: string): Promise<void> {
   await closeOverlay(flow.page);
   await openList(flow);
-  const fault = async (route: Route): Promise<void> => {
-    await route.abort("aborted");
-  };
-  const matcher = /\/api\/trpc\/[^?]*character\.list(?:[?,]|$)/u;
-  await flow.page.route(matcher, fault);
+  const lift = await abortProcedure(flow.page, "character.list");
   try {
     await flow.page.getByRole("textbox", { name: "Search characters", exact: true }).fill(`${name} deliberately failed read`);
     const list = flow.page.locator(LIST);
     const retry = list.getByRole("button", { name: "Retry", exact: true });
     await recordState(flow, "library-transport-failure", list, { witnesses: [retry], state: "error" });
   } finally {
-    await flow.page.unroute(matcher, fault);
+    await lift();
   }
   const retry = flow.page.locator(LIST).getByRole("button", { name: "Retry", exact: true });
   await retry.click();
@@ -884,7 +872,7 @@ function completedCommand(flow: CharacterFlow, id: (typeof COMMAND_ACTION_IDS)[n
   flow.observations.push({ id, kind: "action", disposition: "visited", reason });
 }
 
-async function commandMenu(flow: CharacterFlow): Promise<Locator> {
+async function characterCommandMenu(flow: CharacterFlow): Promise<Locator> {
   await contextTab(flow, "Overview");
   await flow.page.locator(CONTEXT).getByRole("button", { name: "Character actions", exact: true }).click();
   return flow.page.getByRole("menu");
@@ -918,7 +906,7 @@ async function createCommandCharacter(flow: CharacterFlow, name: string, subject
 }
 
 async function duplicateCommandCharacter(flow: CharacterFlow, parent: SourceCharacter, name: string, subjects: CommandSubjects): Promise<SourceCharacter> {
-  await (await commandMenu(flow)).getByRole("menuitem", { name: CHARACTER_ACTIONS.duplicate.label, exact: true }).click();
+  await (await characterCommandMenu(flow)).getByRole("menuitem", { name: CHARACTER_ACTIONS.duplicate.label, exact: true }).click();
   const confirm = flow.page.getByRole("alertdialog", { name: "Duplicate this character?", exact: true });
   await record(flow, "commands-duplicate-confirm", confirm, [confirm.getByRole("button", { name: CHARACTER_ACTIONS.duplicate.label, exact: true })]);
   await flow.action("characters-commands-duplicate", {
@@ -1024,7 +1012,7 @@ async function exportCommandCharacter(flow: CharacterFlow, card: SourceCharacter
   for (const [index, format] of CHARACTER_ACTIONS.exportCard.formats.entries()) {
     const id = `commands-export-format-${index}`;
     expectSubject(flow, id, "download");
-    const menu = await commandMenu(flow);
+    const menu = await characterCommandMenu(flow);
     const exportItem = menu.getByRole("menuitem", { name: CHARACTER_ACTIONS.exportCard.label, exact: true });
     await exportItem.focus();
     await exportItem.press("ArrowRight");
@@ -1091,7 +1079,7 @@ async function archiveCommandCharacters(flow: CharacterFlow, parent: SourceChara
   await archived.click();
   await list.getByRole("button", { name: "Select multiple", exact: true }).click();
   await openCard(flow, copy.name);
-  const menu = await commandMenu(flow);
+  const menu = await characterCommandMenu(flow);
   const unarchiveLabel = CHARACTER_ACTIONS.archive.toggledLabel;
   if (unarchiveLabel === null) {
     throw new Error("The production archive action has no reverse label");
@@ -1106,7 +1094,7 @@ async function archiveCommandCharacters(flow: CharacterFlow, parent: SourceChara
       await expect.poll(async () => (await flow.client.character.get.query({ characterId: copy.id })).archived).toBe(false);
     },
   });
-  const restoredMenu = await commandMenu(flow);
+  const restoredMenu = await characterCommandMenu(flow);
   await record(flow, "commands-archive-restored", restoredMenu, [restoredMenu.getByRole("menuitem", { name: CHARACTER_ACTIONS.archive.label, exact: true })]);
   await flow.page.keyboard.press("Escape");
   completedCommand(
@@ -1117,7 +1105,7 @@ async function archiveCommandCharacters(flow: CharacterFlow, parent: SourceChara
 }
 
 async function convertCommandCharacter(flow: CharacterFlow, card: SourceCharacter, subjects: CommandSubjects): Promise<void> {
-  const menu = await commandMenu(flow);
+  const menu = await characterCommandMenu(flow);
   await flow.action("characters-commands-convert", {
     action: async (): Promise<void> => {
       await menu.getByRole("menuitem", { name: CHARACTER_ACTIONS.convertToPersona.label, exact: true }).click();
@@ -1167,7 +1155,7 @@ async function convertCommandCharacter(flow: CharacterFlow, card: SourceCharacte
 }
 
 async function deleteCommandCharacters(flow: CharacterFlow, parent: SourceCharacter, copy: SourceCharacter, subjects: CommandSubjects): Promise<void> {
-  await (await commandMenu(flow)).getByRole("menuitem", { name: CHARACTER_ACTIONS.delete.label, exact: true }).click();
+  await (await characterCommandMenu(flow)).getByRole("menuitem", { name: CHARACTER_ACTIONS.delete.label, exact: true }).click();
   const single = flow.page.getByRole("alertdialog", { name: "Delete this character?", exact: true });
   await record(flow, "commands-delete-single-confirm", single, [single.getByRole("button", { name: CHARACTER_ACTIONS.delete.label, exact: true })]);
   await flow.action("characters-commands-delete-single", {

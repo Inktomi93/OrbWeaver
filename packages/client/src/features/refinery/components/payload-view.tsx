@@ -428,12 +428,12 @@ function RowsBlock({ field, row, value }: { field: PlanField; row: RowPlan; valu
               >
                 <Row align="center" gap="row">
                   {row.header.map((h) => (
-                    <Text as="span" key={h.key} voice={h === row.header[0] ? "label" : "gloss"}>
+                    <Text as="span" ink={h === row.header[0] ? "inherit" : undefined} key={h.key} voice={h === row.header[0] ? "label" : "gloss"}>
                       {scalarText(readOwnKey(item, h.key))}
                     </Text>
                   ))}
                   {scoreValue !== null && scoreWidget !== undefined ? (
-                    <Text as="span" voice="datum">
+                    <Text ink="inherit" as="span" voice="datum">
                       — {scoreValue}
                     </Text>
                   ) : null}

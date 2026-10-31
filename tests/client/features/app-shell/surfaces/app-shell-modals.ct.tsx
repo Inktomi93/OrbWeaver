@@ -2,12 +2,11 @@
 // overflow inside the popup, Escape, and the theme, colorization and density the portal inherits from the shell.
 import type { ModalSlotId } from "@orb/client/state";
 import { MODAL_SLOT_IDS } from "@orb/client/state";
-import { SECTION_LABELS } from "@orb/testkit/ct";
+import { channelName, SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
-import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { AppShellModalStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 

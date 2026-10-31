@@ -412,7 +412,7 @@ The legacy collector and contribution cases exercised `collectTeaching` and the 
 
 | Reference case group | Decision | Maintained home or reason |
 | - | - | - |
-| Inspector gates: `peekPrompt`, `previewAssembly`, `previewSection`, `previewActionTemplates`, `getShapeTrace`, `getVariantWire` are host-only; outsiders get not-found; member reads carry no full-only card bytes | Rebuild | [Read gates](../../../tests/server/domain/chat/verbs/read-gates.int.test.ts), with the host read of the same call as the positive control. |
+| Inspector gates: `previewAssembly`, `previewActionTemplates`, `getShapeTrace`, `getVariantWire` are host-only; outsiders get not-found; member reads carry no full-only card bytes | Rebuild | [Read gates](../../../tests/server/domain/chat/verbs/read-gates.int.test.ts), with the host read of the same call as the positive control. |
 | Cross-room variant read: refusal matches an unknown id; sibling list is room-scoped | Rebuild | [Read gates](../../../tests/server/domain/chat/verbs/read-gates.int.test.ts). |
 | Non-participant gets not-found on every room read | Rebuild | [Read gates](../../../tests/server/domain/chat/verbs/read-gates.int.test.ts): a table of reads with a host and a member as controls. |
 | Library lists only the caller's rooms; archived and temporary rooms; viewer role | Rebuild | [Read gates](../../../tests/server/domain/chat/verbs/read-gates.int.test.ts). |

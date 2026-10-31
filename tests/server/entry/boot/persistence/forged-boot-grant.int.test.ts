@@ -22,14 +22,12 @@ import { createListSeedAccountIds, createSettleSessionSecret } from "@orb/server
 import { ensureSeedThemes, healLegacyBackgroundPins } from "@orb/server/domain/settings";
 import { reconcileOwnersMissingTimeline } from "@orb/server/domain/stats";
 import { reclaimInFlightOnBoot } from "@orb/server/domain/workloads";
-import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
+import { rehashPluginProviderDefinitionsOnBoot } from "@orb/server/entry/boot";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { bootGrantFor } from "@orb/testkit/node/helpers";
 import { seedChatRow, seedUser } from "@orb/testkit/node/rows";
 import { sql } from "drizzle-orm";
-
-const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 type ServerHarness = Awaited<ReturnType<typeof createServerHarness>>;
 
@@ -62,6 +60,7 @@ const VERBS: readonly { readonly name: string; readonly run: (grant: BootDatabas
   { name: "hasRedeemableInvite", run: (grant, root) => hasRedeemableInvite(grant, root.clock.now()) },
   { name: "automation migratePluginToolWireNames", run: (grant) => migrateAutomationArms(grant, RENAMES) },
   { name: "hasSealedCredentials", run: (grant) => hasSealedCredentials(grant) },
+  { name: "rehashPluginProviderDefinitionsOnBoot", run: (grant, root) => rehashPluginProviderDefinitionsOnBoot({ db: grant, logger: root.logger }) },
   {
     name: "createSettleSessionSecret",
     run: async (grant, root) =>
@@ -90,7 +89,7 @@ async function rootWithStaleSeat(): Promise<ServerHarness> {
   const root = await createServerHarness();
   const chat = await seedChatRow(root.db);
   await root.db.insert(chatParticipants).values({
-    id: ids.typeId(ID_PREFIX.chatParticipant),
+    id: root.ids.typeId(ID_PREFIX.chatParticipant),
     chatId: chat.id,
     kind: "human",
     userId: (await seedUser(root.db)).id,

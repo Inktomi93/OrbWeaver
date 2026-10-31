@@ -25,7 +25,7 @@ export interface RpgTurnTranscriptMessage {
 /** The completed turn's captured facts, never re-resolved against a later host or preset. The resolved
  *  connection, the terminal tool calls and the cancellation signal ride beside it in the consumer's own
  *  turn-context type. */
-export interface RpgTurnFacts {
+interface RpgTurnFacts {
   /** Continuation replaces its selected variant snapshot; other kinds write a new variant. */
   readonly kind: TurnKind;
   readonly transcript: readonly RpgTurnTranscriptMessage[];

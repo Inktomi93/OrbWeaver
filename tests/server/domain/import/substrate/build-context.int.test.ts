@@ -4,12 +4,9 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { createInstallerCharacterImport } from "@orb/server/domain/import";
-import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { isOwner } from "@orb/testkit/node/auth";
 import { vi } from "vitest";
-
-const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 test("owner binders retain Principal identity and ignore foreign owner arguments through real character/tag writes", async ({
   services,
@@ -76,7 +73,7 @@ test("the installer factory uses the row-resolved role and the real import funne
     resolvePrincipal,
     contextFor: harness.app.crossFeatureOps.importContextFor,
   });
-  const pluginId = ids.typeId(ID_PREFIX.plugin);
+  const pluginId = harness.ids.typeId(ID_PREFIX.plugin);
   const bytes = new TextEncoder().encode(
     '{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"Installer role control","description":"Owned imported card","first_mes":"Hello"}}',
   );

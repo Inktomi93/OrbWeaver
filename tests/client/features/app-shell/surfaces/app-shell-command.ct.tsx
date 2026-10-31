@@ -1,7 +1,7 @@
 // The command palette through the production shell: its click and chord doors, the shortcut's own filter and
 // lifetime, focus return, and the result viewport's geometry while filtering.
 import { dispatchCommandKey } from "@orb/testkit/browser/spec";
-import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { createShellAmbientReads, routeTrpc, SECTION_LABELS, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
@@ -215,7 +215,7 @@ test("filtering keeps the dialog, its search and its result viewport where they 
   expect(before.results?.height).toBeCloseTo(compactPx, 0);
 
   await search.fill("refinery");
-  await expect(palette.getByRole("option", { name: "Refinery", exact: true })).toBeVisible();
+  await expect(palette.getByRole("option", { name: SECTION_LABELS.refinery, exact: true })).toBeVisible();
   const after = { dialog: await palette.boundingBox(), search: await search.boundingBox(), results: await results.boundingBox() };
   expect(after.dialog?.y).toBeCloseTo(before.dialog?.y ?? Number.NaN, 1);
   expect(after.search?.y).toBeCloseTo(before.search?.y ?? Number.NaN, 1);
@@ -236,7 +236,7 @@ test("the palette's focused combobox exposes its roving selection, opened from t
   const palette = page.getByRole("dialog", PALETTE);
   const search = palette.getByRole("combobox");
   await search.fill("refinery");
-  await expect(palette.getByRole("option", { name: "Refinery", exact: true })).toBeVisible();
+  await expect(palette.getByRole("option", { name: SECTION_LABELS.refinery, exact: true })).toBeVisible();
   await search.press("ArrowDown");
   const selected = palette.getByRole("option", { selected: true });
   await expect(selected).toBeVisible();

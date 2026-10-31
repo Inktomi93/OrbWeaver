@@ -88,7 +88,6 @@ async function stageStateRound(ctx: RpgContext, game: RpgGameRow, turn: Complete
   const reconcile = await isReconcileBeat(ctx.db, game);
   const delta = await runRound({
     chatId: game.chatId,
-    gameId: game.id,
     turnId: turn.turnId,
     messageId: turn.messageId,
     variantId: turn.variantId,

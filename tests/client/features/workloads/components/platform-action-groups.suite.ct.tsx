@@ -9,7 +9,7 @@ import { exportCharacterPath, PORTABILITY_ROUTES } from "@orb/contracts/portabil
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { actionGroupGeometry, resolvedLength, settledBox } from "@orb/testkit/browser/spec";
-import { routeOrbSocket, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { routeAuthConfig, routeOrbSocket, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -54,7 +54,7 @@ async function routeImportReads(page: Page, root: ServerTestHarness): Promise<vo
   const auth = await root.http.request("/api/auth/config");
   const authBody = await auth.text();
   expect(auth.status).toBe(200);
-  await page.route("**/api/auth/config", (route) => route.fulfill({ contentType: "application/json", body: authBody }));
+  await routeAuthConfig(page, authBody);
 }
 
 // WebKit applies CORS after URL rewriting; the adapter preserves native multipart bytes across the gallery/root origins.

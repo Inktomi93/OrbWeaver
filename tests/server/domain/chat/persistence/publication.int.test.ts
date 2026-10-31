@@ -9,15 +9,12 @@ import { databaseHandle } from "@orb/db/wiring-driver";
 import { statementToken } from "@orb/db/wiring-owner";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { createChatBus, createChatPublication } from "@orb/server/domain/chat";
-import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createTestLogger } from "@orb/testkit/node/composed";
 import { seedChatRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
-
-const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 async function hostedRoom(
   harness: ServerTestHarness,
@@ -30,6 +27,7 @@ test("durable append precedes fan, a lost claim converges without fan, and a del
   harness,
   db,
   clock,
+  ids,
 }): Promise<void> => {
   const { room, host } = await hostedRoom(harness);
   const published: ChatLivePublish[] = [];
@@ -58,7 +56,7 @@ test("durable append precedes fan, a lost claim converges without fan, and a del
   expect(published).toHaveLength(1);
 });
 
-test("quiet entity churn may coalesce but a terminal delete remains live and append-free", async ({ harness, db, clock }): Promise<void> => {
+test("quiet entity churn may coalesce but a terminal delete remains live and append-free", async ({ harness, db, clock, ids }): Promise<void> => {
   const { room } = await hostedRoom(harness);
   const before = await db.select().from(chatEvents);
   const publish = vi.fn();

@@ -1,4 +1,5 @@
 // A controlled image/tool endpoint speaks native Google bytes; plugin execution and asset retention stay real.
+
 import { spawn } from "node:child_process";
 import type { GroupConfigInput } from "@orb/contracts/chat";
 import { providerDefSchema } from "@orb/contracts/inference";
@@ -6,7 +7,7 @@ import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginTo
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
-import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
+import { createSeededIds } from "@orb/testkit/iso";
 import type { ChatRoot, ServerHarnessOptions } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
@@ -17,12 +18,11 @@ import {
   createCorpusProviderExecution,
   makeAssetBytes,
   makePluginBundle,
+  SECRET_BOX_TEST_KEY,
   seedAdminProvider,
   seedInstalledPlugin,
   seedPluginGrant,
 } from "@orb/testkit/node/composed";
-
-const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 export const IMAGE_PROSE = "She unrolls the map.";
 export const IMAGE_SIGNATURE = "private-native-image-signature";
@@ -38,7 +38,7 @@ export function nativeText(text: string, thoughtSignature?: string): JsonValue {
 }
 
 export function nativeImage(invalid = false): JsonValue {
-  const bytes = invalid ? Buffer.from("hello") : makeAssetBytes(ids.typeId(ID_PREFIX.asset));
+  const bytes = invalid ? Buffer.from("hello") : makeAssetBytes(createSeededIds().typeId(ID_PREFIX.asset));
   return { inlineData: { mimeType: "image/png", data: Buffer.from(bytes).toString("base64") }, thoughtSignature: IMAGE_SIGNATURE };
 }
 
@@ -119,7 +119,7 @@ export async function imageRoom(
     await createChatRoot({
       memoryEnabled: false,
       group: IMAGE_ROOM_GROUP,
-      server: { secretBoxKey: Buffer.alloc(32, 1), pluginSpawn: spawn, ...(physicalOptions.db === undefined ? {} : { db: physicalOptions.db }) },
+      server: { secretBoxKey: SECRET_BOX_TEST_KEY, pluginSpawn: spawn, ...(physicalOptions.db === undefined ? {} : { db: physicalOptions.db }) },
       providerFetch: async (input, init) => {
         const request = new Request(input, init);
         if (request.method === "POST" && new URL(request.url).pathname.endsWith(":streamGenerateContent")) {

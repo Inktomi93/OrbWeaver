@@ -148,7 +148,7 @@ interface ActionTemplatePreview {
  *  the inspected preset, resolved against the bound chat, plus the identity bindings that resolution used.
  *
  *  HOST-GATED like the rest of the preview family: a rendered template can carry `{{charsysinfo}}` /
- *  `{{description}}` / `{{persona}}`, i.e. the D22 full-fidelity card bytes `previewSection` is host-gated
+ *  `{{description}}` / `{{persona}}`, i.e. the D22 full-fidelity card bytes `previewAssembly` is host-gated
  *  for. Nothing here persists — it is a dry-run render of the chat as it stands. */
 export interface ActionTemplatesPreview {
   /** WHAT `{{user}}`/`{{char}}` resolved TO in this chat — the readout's bound gloss names the resolution
@@ -169,8 +169,8 @@ export type ChatVariables = Record<string, string>;
 
 /** One PICKABLE user macro as the picks pane sees it (#24) — the least-privilege projection of the active
  *  preset's `UserMacroSpec`: identity + the typed INPUT declarations only. The macro BODY and its declared
- *  `args` are deliberately NOT projected — the body is prompt content (the same class `previewAssembly`/
- *  `previewSection` are host-gated for), while this read is member-gated because a picker needs the
+ *  `args` are deliberately NOT projected — the body is prompt content (the same class `previewAssembly`
+ *  is host-gated for), while this read is member-gated because a picker needs the
  *  question, not the template. `inputs` is kit's own `UserMacroInputDef` (contracts/preset's authored
  *  schema is pinned assignable to it), so the pane renders each control off the ONE input vocabulary.
  *  NON-exported (the `matrix.ts` idiom): its ONE consumer is {@link UserMacroPicksView}, which carries it

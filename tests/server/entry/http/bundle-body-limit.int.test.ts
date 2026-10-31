@@ -1,4 +1,5 @@
 // @subject packages/server/src/entry/http/import.ts
+
 import { readdir, readFile, stat, statfs } from "node:fs/promises";
 import { join } from "node:path";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
@@ -6,10 +7,9 @@ import { importStartedSchema } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { IMPORT_BUNDLE_MAX_BYTES, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { BUNDLE_ROUTE, bodyRequest, CSRF_HEADERS, observedBody, REQUEST_CHUNK_BYTES } from "./_body-limit-inputs.ts";
 
-const WORKLOAD_DEADLINE_MS = 60_000;
 /** The extractor's rejection kind for bytes that are not a zip, as opposed to its `too-large` size refusal. */
 const MALFORMED_ARCHIVE = /zip rejected \(malformed\)/u;
 

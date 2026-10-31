@@ -5,7 +5,7 @@ import { THEME_FONT_ALLOWLIST } from "@orb/contracts/theme";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { actionGroupGeometry, seedShellState, settledBox } from "@orb/testkit/browser/spec";
 import type { TrpcRoutes } from "@orb/testkit/ct";
-import { createShellAmbientReads, holdServed, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { createShellAmbientReads, holdServed, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -47,7 +47,7 @@ async function prepare(
     }),
   });
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
-  await page.route("**/api/auth/config", (route) => route.fulfill({ json: corpus.auth.signedInConfig }));
+  await routeAuthConfig(page, corpus.auth.signedInConfig);
   await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "docked", context: "collapsed" } } });
   const reads = {
     ...createShellAmbientReads(corpus, root.ownerId),

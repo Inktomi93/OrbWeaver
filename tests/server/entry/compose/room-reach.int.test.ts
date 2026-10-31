@@ -3,16 +3,14 @@ import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { chatDocuments, chatRegexScripts } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { ServicesResult } from "@orb/server/entry/compose";
-import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect } from "@orb/testkit/node";
 import { withheldTable } from "@orb/testkit/node/composed";
 import { onTestFinished, vi } from "vitest";
 import { test } from "./room-reach.fixtures.ts";
 
-const ids = createSeededIds(FIXTURE_ID_CURSOR);
-
 test("bulk regex capture fans only confirmed owned scripts, once per room, and never a host-only library tier", async ({
   app,
+  ids,
   ownerCaller,
   otherCaller,
 }): Promise<void> => {

@@ -10,6 +10,5 @@ export interface CapturedCredentialExecution {
 
 /** One atomic strike result distinguishes a replaced owned key from a missing or foreign row. */
 export interface CredentialExecutionStrike {
-  readonly id: UserCredentialId;
   readonly applied: boolean;
 }

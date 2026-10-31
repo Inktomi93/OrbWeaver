@@ -31,7 +31,7 @@ export function RelationshipBadge({ relationship }: { readonly relationship: Rpg
     // full text. `min-w-0` lets the truncating child actually shrink inside the flex badge.
     return (
       <Badge size="sm" data-slot="relationship-badge" className="max-inline-(--width-control-col) min-inline-0">
-        <Text as="span" className="truncate" voice="label">
+        <Text ink="inherit" as="span" className="truncate" voice="label">
           {label}
         </Text>
       </Badge>
@@ -44,7 +44,7 @@ export function RelationshipBadge({ relationship }: { readonly relationship: Rpg
   return (
     <Badge size="sm" tone={decor.tone} data-slot="relationship-badge">
       <Icon icon={decor.glyph} size="xs" />
-      <Text as="span" voice="label">
+      <Text ink="inherit" as="span" voice="label">
         {relationship.kind}
       </Text>
     </Badge>

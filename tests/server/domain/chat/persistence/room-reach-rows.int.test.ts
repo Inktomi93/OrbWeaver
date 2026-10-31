@@ -5,7 +5,6 @@ import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { auditLogs, chatEvents, regexScripts } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { ServicesResult } from "@orb/server/entry/compose";
-import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import type { Fixtures } from "@orb/testkit/node";
 import { expect } from "@orb/testkit/node";
 import type { HeldDb } from "@orb/testkit/node/composed";
@@ -13,8 +12,6 @@ import { freshHeldDb } from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
 import { onTestFinished } from "vitest";
 import { test } from "../../../entry/compose/room-reach.fixtures.ts";
-
-const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 const heldDbTest = test.extend<{ heldDb: HeldDb }>({
   heldDb: async ({}, use): Promise<void> => {
@@ -71,6 +68,7 @@ held(
 
 test("a foreign or missing global book never fans its captured rooms, while an owned delete fans after cascade without a durable event", async ({
   db,
+  ids,
   app,
   ownerCaller,
   otherCaller,

@@ -70,7 +70,6 @@ interface CollectState {
   readonly unreadableCards: string[];
   readonly skippedChats: string[];
   readonly skippedCharacters: string[];
-  readonly collidedCards: { file: string; handle: CharacterHandle }[];
   /** Top-level profile entries the importer does not process (assets/backgrounds/extensions/presets/…). */
   readonly unhandled: string[];
   /** settings.json top-level sections the importer does not process (only `power_user.personas` is read). */
@@ -204,15 +203,12 @@ function rethrowInfraFailure(error: unknown, path: string, operation: string): v
 
 // Numeric suffix instead of silently overwriting the first card on a slug collision. THE seam where a
 // filename-derived slug becomes a card handle — castId here, so every downstream position stays branded.
-function disambiguate(state: CollectState, base: string, file: string): CharacterHandle {
+function disambiguate(state: CollectState, base: string): CharacterHandle {
   let handle = castId<CharacterHandle>(base);
   let n = 2;
   while (state.byHandle.get(handle)?.card !== undefined) {
     handle = castId<CharacterHandle>(`${base}-${n}`);
     n += 1;
-  }
-  if (handle !== base) {
-    state.collidedCards.push({ file, handle });
   }
   return handle;
 }
@@ -235,7 +231,7 @@ async function collectCards(fs: ImportFsPort, profileDir: string, state: Collect
       state.skippedCharacters.push(parsed.card.name);
       continue;
     }
-    const handle = disambiguate(state, slugifyHandle(stem), ent.name);
+    const handle = disambiguate(state, slugifyHandle(stem));
     // The card's `extensions.world` NAME-LINK (a lorebook NAME, not an id — 35 of 313 corpus cards carry
     // one). It stays in the extensions residue too (lossless); this copy is the driver's attach key.
     const worldRaw = parsed.card.extensions?.["world"];
@@ -298,8 +294,7 @@ async function collectChatsForDir(args: {
 
 // A chat dir whose slug minus an ST folder-name decoration matches a card (`chatDirCardCandidates`, the one
 // rule the browser planner also pairs by). First candidate wins.
-function fuzzyPair(state: CollectState): { chatDir: string; handle: CharacterHandle }[] {
-  const fuzzyPairedDirs: { chatDir: string; handle: CharacterHandle }[] = [];
+function fuzzyPair(state: CollectState): void {
   for (const [handle, g] of state.byHandle) {
     if (g.card !== undefined || g.chats.length === 0) {
       continue;
@@ -309,12 +304,10 @@ function fuzzyPair(state: CollectState): { chatDir: string; handle: CharacterHan
       if (target?.card !== undefined && !state.skippedHandles.has(base)) {
         target.chats.push(...g.chats);
         g.chats = [];
-        fuzzyPairedDirs.push({ chatDir: handle, handle: castId<CharacterHandle>(base) });
         break;
       }
     }
   }
-  return fuzzyPairedDirs;
 }
 
 // Standalone lorebooks: `<profileDir>/worlds/*.json`, the ST grammar or an orb export, through the ONE
@@ -486,7 +479,7 @@ async function collectGroups(fs: ImportFsPort, profileDir: string, state: Collec
       continue;
     }
     const { chats, missingChatLeaves } = await collectGroupChats({ fs, profileDir, leaves: parsed.chatLeaves, groupName: parsed.name, wallClockZone });
-    state.groups.push({ parsed, sourceFile, chats, missingChatLeaves });
+    state.groups.push({ parsed, chats, missingChatLeaves });
   }
 }
 
@@ -717,7 +710,6 @@ export async function collectBundlesFromDir(
     unreadableCards: [],
     skippedChats: [],
     skippedCharacters: [],
-    collidedCards: [],
     unhandled: [],
     unhandledSettings: [],
     truncatedDirs: [],
@@ -739,7 +731,7 @@ export async function collectBundlesFromDir(
     }
   }
 
-  const fuzzyPairedDirs = fuzzyPair(state);
+  fuzzyPair(state);
   const personas = await collectPersonas(fs, profileDir);
   const tagsByEntityKey = await collectTags(fs, profileDir);
   const appearance = await collectAppearance(fs, profileDir);
@@ -787,10 +779,8 @@ export async function collectBundlesFromDir(
     unreadableGroups: state.unreadableGroups,
     skippedChats: state.skippedChats,
     skippedCharacters: state.skippedCharacters,
-    collidedCards: state.collidedCards,
     unhandled: state.unhandled,
     unhandledSettings: state.unhandledSettings,
     truncatedDirs: state.truncatedDirs,
-    fuzzyPairedDirs,
   };
 }

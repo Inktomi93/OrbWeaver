@@ -32,9 +32,7 @@ export interface CreateUserParams extends AdminActorParams {
   readonly role?: UserRole;
 }
 
-/** The explicit confirm is typed `true`, so no caller reaches the verb without it; the router refuses any other value. */
 export interface RestartParams extends AdminActorParams {
-  readonly confirm: true;
   readonly expectedServerInstanceId: string;
 }
 
