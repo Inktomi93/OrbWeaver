@@ -56,6 +56,8 @@ Each member in the table is reached by a typed reference: the bridge's dispatch 
 | `PluginService.upgradeFromUrl` | owner call, unchanged |
 | `ToolUseService.registerPluginTool` | linked: the registrar's tool-use slot is the named `PluginToolRegistrar` port, which the composition root fills from `ToolUseService` |
 
+The `PluginChatReads`, `PluginWorldInfoReads`, `PluginDocumentReads` and `PluginNotificationDelivery` rows are scan false positives: production reaches them through a `satisfies` key, a spread, an indexed access or an overload, which the member scan of item [1447](1447-extend-pnpm-unwired-ts-7-1-engine-and.md) reads. They stay, plugin-facing, with the derived slots above. Nothing a guest can reach through the host ABI was deleted; `ChatService.getVariables` is not on the guest path, because the bridge's `chat.getVariables` reads `ChatAutomationReads.readVariables`.
+
 Production-path tests that reach the linked members: `tests/support/node/corpus-plugin-host.int.test.ts` (chat, world-info and search reads), `tests/support/node/corpus-notifications.int.test.ts` (`plugin-disabled`), `tests/server/domain/notifications/persistence/plugin-consent-rows.int.test.ts` (the standing trio), `tests/server/domain/tool-use/verbs/installer-authority.int.test.ts` (tool registration and `unregister`), and the new `tests/server/domain/plugin/activation/sleeping-runtime-wake.int.test.ts` (`reloadMainJs`; it fails with "resident runtime is missing its durable source loader" when activation omits the loader).
 
 ### Owner calls
