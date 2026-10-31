@@ -28,7 +28,6 @@ export interface IdSource {
   readonly typeId: <P extends TypeIdPrefix>(prefix: P) => TypeIdOf<P>;
   readonly userId: () => UserId;
   readonly rpgQuestId: () => RpgQuestId;
-  readonly socketId: () => SocketId;
   readonly unprefixed: () => string;
   /** A bare UUID string for a persisted plain-string id whose stored shape is a UUID, never a TypeID. */
   readonly uuid: () => string;
@@ -382,7 +381,6 @@ export function createIdSource(generate?: RawIdGenerator): IdSource {
     typeId: (prefix) => mintTypeId(prefix, generate),
     userId: () => mintUserId(generate),
     rpgQuestId: () => mintRpgQuestId(generate),
-    socketId: () => mintSocketId(generate),
     unprefixed: () => newId(generate),
     uuid: () => newUuid(generate),
   };

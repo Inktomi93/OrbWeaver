@@ -88,9 +88,6 @@ export function createEmbeddingReindexTriggers(deps: EmbeddingReindexDeps): Embe
     ];
   };
 
-  const enqueueEmbedReindex = async (scope: UserId | null): Promise<void> => {
-    await Promise.all(embedSweeps(scope).map((s) => superviseSettled(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start)));
-  };
   const detachEmbedReindex = (scope: UserId | null): void => {
     for (const s of embedSweeps(scope)) {
       supervise(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start);
@@ -122,5 +119,5 @@ export function createEmbeddingReindexTriggers(deps: EmbeddingReindexDeps): Embe
       );
     }
   };
-  return { enqueueEmbedReindex, detachEmbedReindex, detachRepointReindex, detachStaleSpaceReindex, refreshAutoindex };
+  return { detachEmbedReindex, detachRepointReindex, detachStaleSpaceReindex, refreshAutoindex };
 }

@@ -67,7 +67,7 @@ function LogLineRow({ line, slots }: LogLineRowProps): ReactElement {
 const NEAR_BOTTOM_SLACK_PX = 4;
 
 // Tail threshold for the virtualized path — recomputed from the raw scroll node's live geometry
-// rather than message-list's own isAtEnd(), so it never depends on virtual-core's internal offset
+// rather than the virtualizer's own isAtEnd(), so it never depends on virtual-core's internal offset
 // being flushed first.
 const VIRTUAL_TAIL_SLACK_PX = 80;
 
@@ -100,7 +100,7 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
   // Mirrors isNearBottomRef for the virtualized path — updated only from a real scroll.
   const wasAtEndRef = useRef(true);
   const virtualScrollNodeRef = useRef<HTMLDivElement | null>(null);
-  // Computes tail-proximity from the scroll node's live geometry rather than message-list's own
+  // Computes tail-proximity from the scroll node's live geometry rather than the virtualizer's own
   // isAtEnd(), which reads its own cached offset and can race a sibling scroll listener, wrongly
   // reading a reader who just scrolled up as "at the tail" and yanking them on the next append.
   const handleVirtualScrollRef = useRef((): void => {

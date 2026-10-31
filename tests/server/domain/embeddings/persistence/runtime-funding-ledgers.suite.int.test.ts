@@ -129,7 +129,6 @@ test("a pinned encoder whose real connection was removed refuses without a provi
 
 for (const task of ROLE_CLIENT_TASKS) {
   test(`the bound ${task} caller re-reads its owner's current funding without making a refused purchase`, async ({
-    app,
     harness,
     db,
     ownerCaller,
@@ -137,7 +136,7 @@ for (const task of ROLE_CLIENT_TASKS) {
   }) => {
     const captured = await fundingConnection({ ownerCaller, harness, task });
     await ownerCaller.connection.setBinding({ task: bindingTaskOf(task), connectionId: captured.connectionId });
-    const roles = await app.roleClientsFor(harness.ownerId);
+    const roles = await harness.roleClientsFor(harness.ownerId);
     await BOUND_EXECUTE[task](roles);
     expect(fundingProvider.calls).toHaveLength(1);
     const before = await db.select().from(embeddingCalls).where(eq(embeddingCalls.connectionId, captured.connectionId));

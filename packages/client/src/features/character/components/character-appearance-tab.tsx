@@ -24,7 +24,6 @@ import type { Theme, ThemeBackground, ThemeOverride, ThemeRadius } from "@orb/co
 import { cardEmbeddableSubset, THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/contracts/theme";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { FieldLayout } from "@orb/ui/field";
 import { ChevronDown, Icon } from "@orb/ui/icons";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
@@ -35,7 +34,7 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import { ThemePreviewPane, ThemeSwatchStrip } from "@orb/ui/theme-swatch";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { BackgroundSourceField, QueryBoundary } from "#components";
+import { BackgroundSourceField, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { AutosaveStatus } from "#forms/editor";
@@ -75,13 +74,10 @@ const THEME_FIELD_NAMES = Object.keys(EMPTY_CHARACTER_THEME_FORM) as (keyof Char
 /**
  * The CONTEXT **Look** tab — this card's own theme override + its carried background.
  *
- * The FIELD ORIENTATION IS SET HERE, not inside the cluster: this component is the tab's only mount, and
- * label-left/control-right is a property of the INSTRUMENT-tier context panel (density spec §3.1), not of
- * the theme cluster. Vertical label-over-swatch turned eleven colour rows into a 54px-per-row ladder that
- * exhausted the viewport before Background was reachable; horizontal halves it. Base UI's horizontal Field
- * self-reverts to stacked below the `@cq-28` container width, so a narrower panel still gets a readable label
- * block. (It rode `character-options-tab.tsx` until #841 folded that shell away with the merge it existed
- * to hold.)
+ * Each colour and select cluster is a `SettingRowGroup`, the settings track every pane shares. Vertical
+ * label-over-swatch turned eleven colour rows into a 54px-per-row ladder that exhausted the viewport before
+ * Background was reachable; the track keeps label-left/control-right and stacks only below its container step.
+ * (It rode `character-options-tab.tsx` until #841 folded that shell away with the merge it existed to hold.)
  */
 export function CharacterLookTab({ characterId }: CharacterAppearanceTabProps): ReactElement {
   return (
@@ -92,9 +88,7 @@ export function CharacterLookTab({ characterId }: CharacterAppearanceTabProps): 
       renderError={(_error, retry): ReactElement => <QueryErrorState label="appearance" onRetry={retry} />}
       reserveKey="character.context.look"
     >
-      <FieldLayout orientation="horizontal">
-        <LookTabBody characterId={characterId} />
-      </FieldLayout>
+      <LookTabBody characterId={characterId} />
     </QueryBoundary>
   );
 }
@@ -232,30 +226,68 @@ function ThemeControlsBody({ characterName, session }: ThemeControlsBodyProps): 
 
       <Grid cols="wide" gap="gutter">
         <Section heading="Surface">
-          <form.AppField name="background">{(field): ReactElement => <field.ColorField label="Background" />}</form.AppField>
-          <form.AppField name="accent">{(field): ReactElement => <field.ColorField label="Accent" />}</form.AppField>
-          <form.AppField name="borderColor">{(field): ReactElement => <field.ColorField label="Border" />}</form.AppField>
+          <SettingRowGroup>
+            <SettingTrackRow>
+              <form.AppField name="background">{(field): ReactElement => <field.ColorField label="Background" />}</form.AppField>
+            </SettingTrackRow>
+            <SettingTrackRow>
+              <form.AppField name="accent">{(field): ReactElement => <field.ColorField label="Accent" />}</form.AppField>
+            </SettingTrackRow>
+            <SettingTrackRow>
+              <form.AppField name="borderColor">{(field): ReactElement => <field.ColorField label="Border" />}</form.AppField>
+            </SettingTrackRow>
+          </SettingRowGroup>
         </Section>
 
         <Section heading="Message text">
-          <form.AppField name="speaker">{(field): ReactElement => <field.ColorField label="Speaker name" />}</form.AppField>
-          <form.AppField name="dialogueColor">{(field): ReactElement => <field.ColorField label="Dialogue" />}</form.AppField>
-          <form.AppField name="narrationColor">{(field): ReactElement => <field.ColorField label="Narration" />}</form.AppField>
-          <form.AppField name="bodyColor">{(field): ReactElement => <field.ColorField label="Body" />}</form.AppField>
+          <SettingRowGroup>
+            <SettingTrackRow>
+              <form.AppField name="speaker">{(field): ReactElement => <field.ColorField label="Speaker name" />}</form.AppField>
+            </SettingTrackRow>
+            <SettingTrackRow>
+              <form.AppField name="dialogueColor">{(field): ReactElement => <field.ColorField label="Dialogue" />}</form.AppField>
+            </SettingTrackRow>
+            <SettingTrackRow>
+              <form.AppField name="narrationColor">{(field): ReactElement => <field.ColorField label="Narration" />}</form.AppField>
+            </SettingTrackRow>
+            <SettingTrackRow>
+              <form.AppField name="bodyColor">{(field): ReactElement => <field.ColorField label="Body" />}</form.AppField>
+            </SettingTrackRow>
+          </SettingRowGroup>
         </Section>
 
         <Section heading="Bubbles">
-          <form.AppField name="userBubbleBg">{(field): ReactElement => <field.ColorField label="Your bubble" />}</form.AppField>
-          <form.AppField name="userBubbleFg">{(field): ReactElement => <field.ColorField label="Your text" />}</form.AppField>
-          <form.AppField name="aiBubbleBg">{(field): ReactElement => <field.ColorField label="Character bubble" />}</form.AppField>
-          <form.AppField name="aiBubbleFg">{(field): ReactElement => <field.ColorField label="Character text" />}</form.AppField>
-          <form.AppField name="systemBubbleBg">{(field): ReactElement => <field.ColorField label="System bubble" />}</form.AppField>
-          <form.AppField name="systemBubbleFg">{(field): ReactElement => <field.ColorField label="System text" />}</form.AppField>
+          <SettingRowGroup>
+            <SettingTrackRow>
+              <form.AppField name="userBubbleBg">{(field): ReactElement => <field.ColorField label="Your bubble" />}</form.AppField>
+            </SettingTrackRow>
+            <SettingTrackRow>
+              <form.AppField name="userBubbleFg">{(field): ReactElement => <field.ColorField label="Your text" />}</form.AppField>
+            </SettingTrackRow>
+            <SettingTrackRow>
+              <form.AppField name="aiBubbleBg">{(field): ReactElement => <field.ColorField label="Character bubble" />}</form.AppField>
+            </SettingTrackRow>
+            <SettingTrackRow>
+              <form.AppField name="aiBubbleFg">{(field): ReactElement => <field.ColorField label="Character text" />}</form.AppField>
+            </SettingTrackRow>
+            <SettingTrackRow>
+              <form.AppField name="systemBubbleBg">{(field): ReactElement => <field.ColorField label="System bubble" />}</form.AppField>
+            </SettingTrackRow>
+            <SettingTrackRow>
+              <form.AppField name="systemBubbleFg">{(field): ReactElement => <field.ColorField label="System text" />}</form.AppField>
+            </SettingTrackRow>
+          </SettingRowGroup>
         </Section>
 
         <Section heading="Type & shape">
-          <form.AppField name="font">{(field): ReactElement => <field.SelectField label="Font" items={FONT_ITEMS} />}</form.AppField>
-          <form.AppField name="radius">{(field): ReactElement => <field.SelectField label="Corner radius" items={RADIUS_ITEMS} />}</form.AppField>
+          <SettingRowGroup>
+            <SettingTrackRow>
+              <form.AppField name="font">{(field): ReactElement => <field.SelectField label="Font" items={FONT_ITEMS} />}</form.AppField>
+            </SettingTrackRow>
+            <SettingTrackRow>
+              <form.AppField name="radius">{(field): ReactElement => <field.SelectField label="Corner radius" items={RADIUS_ITEMS} />}</form.AppField>
+            </SettingTrackRow>
+          </SettingRowGroup>
         </Section>
       </Grid>
 

@@ -123,7 +123,6 @@ export function createMirror<T>(args: {
   return {
     get,
     hydrate,
-    seed,
     amend,
     invalidate: (): void => {
       cache = null;

@@ -2,13 +2,12 @@ import { oidcTransactions } from "@orb/db/schema";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { and, eq, gt, lte } from "drizzle-orm";
-import type { OidcTransaction } from "#infra/auth";
+import type { OidcTransaction, OidcTransactionStore } from "#infra/auth";
 import { OIDC_TRANSACTION_TTL_MS } from "../contract/policy.ts";
 import { deleteExpiredPendingSignups } from "./pending-signups.ts";
 
-export interface DomainOidcStore {
+export interface DomainOidcStore extends Pick<OidcTransactionStore, "consume"> {
   mint: (tx: OidcTransaction) => Promise<void>;
-  consume: (state: string) => Promise<OidcTransaction | null>;
   deleteExpired: (before: number) => Promise<number>;
 }
 

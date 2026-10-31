@@ -132,7 +132,6 @@ export interface VersionedConfig<T> {
    * checks "row absent?" first and only then asks this.
    */
   parseOutcome: (raw: unknown, storedVersion?: number) => VersionedParseOutcome<T>;
-  serialize: (value: T) => string;
   readonly default: T;
   readonly currentVersion: number;
 }
@@ -211,9 +210,6 @@ export function defineVersionedConfig<T>(def: VersionedConfigDef<T>): VersionedC
       return parseOutcome(raw, storedVersion).value;
     },
     parseOutcome,
-    serialize(value: T): string {
-      return JSON.stringify(value);
-    },
     default: def.default,
     currentVersion: def.version,
   };

@@ -1,7 +1,6 @@
 /** Instance-owned promise ordering; job outcomes belong to their callers, never the queue tail. */
 export interface SerialLanes {
   readonly run: <T>(key: string, job: () => Promise<T>) => Promise<T>;
-  readonly activeCount: () => number;
 }
 
 /** Own ordered promise lanes; different keys stay parallel and drained keys are released. */
@@ -22,5 +21,5 @@ export function createSerialLanes(): SerialLanes {
       }
     });
   }
-  return { run: runInLane, activeCount: () => lanes.size };
+  return { run: runInLane };
 }

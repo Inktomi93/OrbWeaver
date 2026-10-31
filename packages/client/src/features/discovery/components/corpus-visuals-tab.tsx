@@ -122,7 +122,7 @@ function FacetExplorer({ facets }: { readonly facets: ImageFacets }): ReactEleme
   const [facetKey, setFacetKey] = useState<FacetKey>(FACET_VIEWS[0].key);
   const [value, setValue] = useState(NO_VALUE);
 
-  const view = FACET_VIEWS.find((v) => v.key === facetKey) ?? FACET_VIEWS[0];
+  const view: FacetView = FACET_VIEWS.find((v) => v.key === facetKey) ?? FACET_VIEWS[0];
   const rows = view.pick(facets);
 
   const facetItems: SelectItems<string> = FACET_VIEWS.map((v) => ({

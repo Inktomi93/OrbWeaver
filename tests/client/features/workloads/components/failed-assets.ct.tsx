@@ -1,4 +1,3 @@
-import { rm } from "node:fs/promises";
 import { CHARACTER_LIST_MAX_LIMIT, createCharacterSchema } from "@orb/contracts/character";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { AssetId } from "@orb/kit/ids";
@@ -72,7 +71,7 @@ test("a finished index run names the avatar whose stored file was gone, in a lib
   if (ref === undefined) {
     throw new Error("the stored avatar must have a CAS reference");
   }
-  await rm(root.app.cas.blobPath(ref.ownerId, ref.hash));
+  await root.app.cas.remove(ref.ownerId, ref.hash);
   const started = await caller.workloads.start({ input: { kind: "index", params: { source: "image" } } });
   await runAdmittedWorkload(started.id, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
   const finished = await caller.workloads.get({ id: started.id });

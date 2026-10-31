@@ -7,14 +7,12 @@
 
 import { useSyncExternalStore } from "react";
 
-/** A single-handle external store: publish/clear the live handle, read it, or subscribe reactively. */
+/** A single-handle external store: publish/clear the live handle or subscribe reactively. */
 export interface FormHandleBridge<THandle> {
   /** Publish the live handle — the editor's mount effect. Replaces any prior handle. */
   readonly publish: (next: THandle) => void;
   /** Clear the handle — the editor's unmount cleanup. Subscribers then see `null`. */
   readonly clear: () => void;
-  /** Non-reactive snapshot (guard/delete code paths + tests read it directly). */
-  readonly read: () => THandle | null;
   /** Reactive: the currently-published handle (`null` = no editor mounted). */
   readonly useHandle: () => THandle | null;
 }
@@ -45,9 +43,6 @@ export function createFormHandleBridge<THandle>(): FormHandleBridge<THandle> {
     clear(): void {
       handle = null;
       emit();
-    },
-    read(): THandle | null {
-      return handle;
     },
     useHandle(): THandle | null {
       return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);

@@ -23,10 +23,6 @@ const DEFAULT_SCROLL_END_THRESHOLD_PX = 80;
 const PROGRAMMATIC_SCROLL_EPSILON_PX = 2;
 
 export interface MessageListHandle {
-  /** Whether the viewport is currently pinned to the tail. */
-  readonly isAtEnd: () => boolean;
-  /** Pixel distance from the true end of the list. */
-  readonly getDistanceFromEnd: () => number;
   /** Imperatively scrolls to the last item. */
   readonly scrollToEnd: () => void;
   /**
@@ -56,7 +52,7 @@ export interface MessageListProps<T> {
    *  resolves against the scroller's CONTENT box, so container padding pinned the sticky band below the
    *  visible top over a guillotined strip of its own prose (#204). Same token map as `gapToken`. */
   readonly blockPaddingToken?: GapToken;
-  /** How close to the true end (px) still counts as "pinned" for `followOnAppend`/`isAtEnd`. */
+  /** How close to the true end (px) still counts as "pinned" for `followOnAppend`. */
   readonly scrollEndThreshold?: number;
   /**
    * Keep the tail pinned as content resizes while the reader is at the bottom, not just on append.
@@ -329,8 +325,6 @@ export function MessageList<T>({
   useImperativeHandle(
     ref,
     (): MessageListHandle => ({
-      isAtEnd: () => virtualizer.isAtEnd(),
-      getDistanceFromEnd: () => virtualizer.getDistanceFromEnd(),
       scrollToEnd: () => {
         setFollowing(true);
         // An explicit jump abandons an active pin: clear the pinned index + collapse the

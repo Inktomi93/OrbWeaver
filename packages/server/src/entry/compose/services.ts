@@ -373,9 +373,6 @@ export interface ServicesResult extends AsyncDisposable {
   /** The ONE inference runtime (§3.3) — surfaced for the boot's local-light prefetch plan and the composed-real
    *  int tests; every domain reaches it through its own injected ops, never this handle. */
   readonly runtime: InferenceRuntime;
-  /** The per-FUNDER `RoleClients` binder (§8.5b): the runtime's binding fold under that user's real Principal.
-   *  The workloads worker binds a pass's role clients from this; entry never touches the raw executor. */
-  readonly roleClientsFor: (funderUserId: UserId, actor?: BindingActor) => Promise<RoleClientsWithSignal>;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /** The root's suppressed audit failures, for its `/api/_debug/db/stats` read. */
   readonly auditFailures: AuditWiring["failures"];
@@ -429,10 +426,7 @@ export interface ServicesResult extends AsyncDisposable {
   readonly signupInvites: SignupInviteOps;
   /** The per-user local-light seed, surfaced for the signup route (it runs after the signup commit). */
   readonly seedUserConnections: SessionsContext["seedUserConnections"];
-  /** The embed-space sweep enqueue (`search-discovery.ts`), surfaced for boot and the seed tools, whose owner seed
-   *  and local-light sweep run outside the compose-built seed. Never rejects. */
-  readonly enqueueEmbedReindex: EmbeddingReindexTriggers["enqueueEmbedReindex"];
-  /** The same sweeps started detached, for a boot seed that must not wait on them. */
+  /** The embed-space sweep started detached (`search-discovery.ts`), for a boot seed that must not wait on them. */
   readonly detachEmbedReindex: EmbeddingReindexTriggers["detachEmbedReindex"];
   /** Boot's re-index of every owner whose stored generation went stale without a user action, detached. */
   readonly detachStaleSpaceReindex: () => void;
@@ -591,8 +585,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // must enqueue the purge+reindex. `workloads` is built far below (the search-discovery seam), so this holder
   // is late-bound after it exists; the connection ctx derefs it at request time (a pane write), never during
   // boot. Until then it is an inert no-op.
-  let embedReindex: Pick<SearchDiscoveryComposeResult, "enqueueEmbedReindex" | "detachEmbedReindex" | "detachStaleSpaceReindex"> = {
-    enqueueEmbedReindex: () => Promise.resolve(),
+  let embedReindex: Pick<SearchDiscoveryComposeResult, "detachEmbedReindex" | "detachStaleSpaceReindex"> = {
     detachEmbedReindex: () => undefined,
     detachStaleSpaceReindex: () => undefined,
   };
@@ -871,7 +864,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   // ── the derived-data cluster + persona/preset/stats/search/discovery/notifications/workloads (the
   // search-discovery seam). Produces `persona` + `preset` (forward-referenced above) and `workloads` +
-  // `enqueueEmbedReindex` (bound onto the keystone's late-bound holder below).
+  // `detachEmbedReindex` (bound onto the keystone's late-bound holder below).
   const searchDiscovery = buildSearchDiscovery({
     logger: deps.logger,
     traces: deps.rings.traces,
@@ -1615,7 +1608,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     workloadContributions,
     databankIngest,
     runtime,
-    roleClientsFor,
     audit,
     auditFailures: deps.audit.failures,
     effectiveConfig,
@@ -1633,7 +1625,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     chatRpgOps: chatCompose.rpgChatOps,
     signupInvites: chatCompose.signupInvites,
     seedUserConnections,
-    enqueueEmbedReindex: (scope) => embedReindex.enqueueEmbedReindex(scope),
     detachEmbedReindex: (scope): void => {
       embedReindex.detachEmbedReindex(scope);
     },

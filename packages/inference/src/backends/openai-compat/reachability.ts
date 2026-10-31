@@ -217,7 +217,7 @@ export function createReachabilityProber(deps: ReachabilityDeps): ReachabilityPr
     return await joinWake(flight, signal);
   };
 
-  return { probe, asleep, wake, invalidate };
+  return { probe, asleep, wake };
 }
 
 export type { ReachabilityDeps, ReachabilityProber } from "../../contract/openai-backend.ts";

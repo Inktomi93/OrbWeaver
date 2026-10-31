@@ -12,15 +12,15 @@ import type { CharacterService } from "#domain/character";
 import type { ExtractQuietDeps, ImageryRoomAccessDeps, ResolveViewerVisibility } from "#domain/chat";
 import { createImageryRoomAccess, createVisibleExtractQuiet } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
-import type { CaptionImageDeps, ImageryService } from "#domain/imagery";
+import type { CaptionImageDeps, ImageryInstructionDeps, ImageryService } from "#domain/imagery";
 import { createCaptionImage, createImageProviderOps, createImageryInstructions, createImageryService, imageryToolDefinitions } from "#domain/imagery";
-import type { SettingsService } from "#domain/settings";
 import { createStatsBatchWiring } from "#domain/stats";
 import type { ToolUseService } from "#domain/tool-use";
 import type { ScopedEgress } from "#infra/network";
 import { minter } from "./minter.ts";
 
-export interface ImageryComposeDeps {
+// The chat room reads and the settings read are their owners' own members, picked so a call through them resolves there.
+export interface ImageryComposeDeps extends Pick<ImageryRoomAccessDeps, "resolveChatHostUserId" | "isCharacterSeated">, ImageryInstructionDeps {
   readonly fetchImageBytes: ScopedEgress["fetchImageBytes"];
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
@@ -35,10 +35,6 @@ export interface ImageryComposeDeps {
   /** The per-FUNDER role-client binder (§8.5b): the caption + extract-quiet side calls spend the run-as
    *  principal's own `summarize` row. */
   readonly roleClientsFor: CaptionImageDeps["roleClientsFor"];
-  /** The chat's present host: the room a preview runs as (D298). */
-  readonly resolveChatHostUserId: ImageryRoomAccessDeps["resolveChatHostUserId"];
-  /** Is the character a present character seat of the chat? A preview's subject must be (chat's `isCharacterSeated`). */
-  readonly isCharacterSeated: ImageryRoomAccessDeps["isCharacterSeated"];
   /** The row-derived host Principal (`createHostPrincipalResolver`), so a run-as principal carries its real role. */
   readonly resolveHostPrincipal: ImageryRoomAccessDeps["resolveHostPrincipal"];
   /** A user's Utility-role preset params (D299), for caption and extract-quiet. */
@@ -47,9 +43,6 @@ export interface ImageryComposeDeps {
    *  BOTH homes, so an imagery mode template resolves `{{house_style}}` the way a turn does. Deref'd only at
    *  request time inside `extractQuiet`, exactly like `resolveViewerVisibility` below. */
   readonly resolveUserMacroDefs: ExtractQuietDeps["resolveUserMacroDefs"];
-  /** ⑫ — the run-as principal's UserSettings read (the FOREIGN-inputs seam) for the per-mode
-   *  prompt-template/caption overrides. Imagery resolves `override ?? shipped-catalog-default` off this. */
-  readonly loadUserSettings: SettingsService["loadUserSettings"];
   readonly maxImageBytes: () => number;
   /** Late-bound: chat's `resolveViewerVisibility` (built after chat). Deref'd only at request time inside the
    *  `extractQuiet` gate — never during boot. */
