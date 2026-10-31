@@ -171,3 +171,30 @@ Kept, with the reader:
 - `StoreDigestParams.signal`: gone. The type is not in the tree after the merge of main, and the row is absent from the current scan.
 
 Ran `pnpm typecheck packages/server/tsconfig.json tsconfig.node.json` (exit 0) and `pnpm test` on `turn-lifetimes-draft-stop.int.test.ts` (the impersonate draft path that calls `generateText`), `persona-matrix.suite.int.test.ts` and `turn-target-refusals.suite.int.test.ts` (14 tests, exit 0).
+
+### Group 3: `chatMetadataSchema` and the `...Data` view rows
+
+Applied: `chatMetadataSchema` now ends `.loose() satisfies z.ZodType<{ [K in keyof ChatMetadata]?: ChatMetadata[K] | undefined }>` (`contract/metadata.ts`), so its keys join `ChatMetadata`'s reads. The plain `z.ZodType<ChatMetadata>` does not fit: the stored read heals with `.catch(undefined)`, so each key may hold `undefined`. No key was deleted: the schema is the stored read of `chats.metadata`, the keys heal corrupt sub-blobs independently, and every key is read through `ChatMetadata` (for example `toolRecurseLimit` in the engine prep). `chatMetadataSchema.group`, `.roomOverrides`, `.opening`, `.toolRecurseLimit`, `.databankVisibility`, `.background`, `.rpg`, `.hostDisplayScripts`, `.offerChoices`, `.charactersCanReact`, `.reactionsEnabled`, `.regexEnabled`, `.memberPersonaLore`, `.regexTiers`: all kept. Persisted JSON: dropping a key would stop healing it and strip it on read.
+
+Kept as wire, with the contract that carries the key:
+- `StartChatData.chat`, `ForkData.chat`: `startChatResultSchema` and `forkResultSchema` (`packages/contracts/src/chat/views.ts:333`, `:334`) are the tRPC output shapes with a `chat` key; the `…Data` interfaces are the server-side narrowing of the same shapes.
+- `RedeemInviteData.chat`, `.participant`, `ChatDetailData.participants`, `ChatListPageData.items`, `ChatLineageData.chain`: each overrides one key of its `Wire…` counterpart in `packages/contracts/src/chat/views.ts`; the override exists to give the wire key its server-side element type. Removing the key removes it from the tRPC output.
+
+Ran `pnpm typecheck packages/server/tsconfig.json tsconfig.node.json` (exit 0).
+
+### Group 4: trace, recorder and event rows
+
+Applied: `TurnPipelineResult.cacheBreakpointFromEnd` (and its write in `engine/pipeline.ts`). No reader: the request carries the value to the provider bridge (`engine/provider-bridge.ts:87`), and the result copy was never used.
+
+Kept, with the reader:
+- `ShapeOutput.stages.multiCharacter`, `.withTail`, `.injected`, `.squashed`, `.named`, `.delivered`: `verbs/read.ts:1473` passes `shaped.stages` to `buildShapeTrace` (`assembly/trace.ts:46`), which reads them for the host's `ShapeTrace` preview.
+- `MemoryRecallRecord.seq`, `.at`, `.scopedCharacterId`, `.trace`: the recall recorder ring (`memory/recall/recorder.ts`) returns whole records to the debug route (`foundation/observability/debug/routes.ts:567` through `transport/debug-recorders/memory-recall.ts`).
+- `MemoryBuildTrace.blocksBuilt`, `.blocksSkipped`, `.summarizeCalls`, `.embedCalls`, `.blocksSkippedTokenGuard`, `.blocksSkippedEmpty`, `.ms`: the `memory.build` arm of `MemoryLogEntry` (`contract/memory.ts:279`) carries the whole trace into the memory log; `memory/generate/digests.ts:436-440` fills it.
+- `TurnPipelineResult.imageDropped`, `.videoDropped`, `.toolsUnsupported`, `.guidedPlacedAsInjection`, `.providerRefused`: `engine/engine.ts:2191-2208` reads each through its own parameter type and emits the matching bus warning.
+- `ChatEmitted.seq`, `.event`: `substrate/publication.ts:13` hands the whole logged value to `publish` (`liveBuses.chat.publishChatEvent`), which fans the cursor-stamped event.
+- `ChatStreamReplayEvent.seq`: it is the resume cursor of `replayStreamEvents` (`verbs/read.ts:1695`); the caller passes it back as `afterSeq`. `tests/support/node/corpus-chat-lifecycle.ts:268` captures the whole result. No router or client calls the verb in this tree: owner question, is `replayStreamEvents` still wanted?
+- `InjectionCandidate.worldEntry.keys`: `assembly/context.ts:995` collects `worldEntry` into `wiTrace.activated`, and `AssembleTrace.wi.activated[].keys` (`packages/contracts/src/chat/assemble.ts:743`) is the host preview panel's field.
+- `actorRekeysSchema.sourceCharacterId`, `.characterId`: persisted JSON in `chat_handoff_resumptions`; `verbs/participants.ts:1073` hands the parsed pairs to `rpg.handoffRekeyActors`. Dropping a key strips it from old rows on read.
+- `responseFormat.schema.responders` (`engine/smart-arbitrate.ts:217`): the model-facing JSON schema key; the reply is read as `reply.responders` (`:233`). Deleting it changes the inference request.
+
+Ran `pnpm typecheck packages/server/tsconfig.json tsconfig.node.json` (exit 0) and `pnpm test` on `prompt-cache-prefix.suite`, `core-modes`, `read-preview-honesty` and `solo-byte-identical.suite` under `tests/server/domain/chat` (35 tests, exit 0).
