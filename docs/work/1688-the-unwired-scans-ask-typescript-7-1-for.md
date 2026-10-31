@@ -31,4 +31,4 @@ Built and run on the planted fixtures:
 - Scans that still load a TypeScript 6 program per world for their checker walks (reflected reads, member flows, built literals, shape hops): the bare, fields, unions and shapes verbs. Porting those walks to 7.1 is not part of this item.
 - Not resolved by either engine, so a false finding remains: a member read only through a structurally identical twin type, and a member handed whole to a function typed on a wider deps bag. A `ReturnType<...>` hop, a whole value serialized by `JSON.stringify` and a whole value spread into a row are credited.
 
-Owed: the full `pnpm unwired fields` run on this commit against the TypeScript 6 run (`--cross-check`), with wall time and peak memory.
+Full `pnpm unwired fields` runs on this commit, one after the other, at box load about 40: engine two on 7.1 took 29:01 with a 7.9 GB peak; `--cross-check` on TypeScript 6 took 35:52 with an 11.5 GB peak. Both reported 2193 findings and 99 disagreements, and a sorted diff of each list is empty. Most of the wall time left is the TypeScript 6 program load for the checker walks above.
