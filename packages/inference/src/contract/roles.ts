@@ -16,7 +16,7 @@ import type {
   RoleClientTask,
   SummarizeInput,
 } from "@orb/contracts/role-clients";
-import type { ModelId, UserId } from "@orb/kit/ids";
+import type { ModelId } from "@orb/kit/ids";
 import type { GenerationObservationCallback } from "./chat.ts";
 import type { GeneratedImage } from "./generation.ts";
 
@@ -108,8 +108,6 @@ interface ImageEditInput {
 
 export interface ImageGenerateRequest extends TaskRequestCommon<"generateImage"> {
   readonly prompt: string;
-  /** The generation owner; the runner has no principal, so the owner rides the request. */
-  readonly owner?: UserId | undefined;
   readonly systemPrompt?: string | undefined;
   readonly n?: number | undefined;
   readonly negativePrompt?: string | undefined;

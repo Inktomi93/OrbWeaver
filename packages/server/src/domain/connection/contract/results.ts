@@ -3,20 +3,17 @@
 // its credential by id). What this file adds is the pane's DERIVED reads. Each strict schema is its procedure's tRPC
 // output parser: an extra key fails the call instead of reaching the browser.
 
-import type { CachePolicy, CachePolicyContext, Capability, ProviderId, ResolvedWarning, RoutableTask, Task } from "@orb/contracts/inference";
-import { cachePolicyContextSchema, cachePolicySchema, capabilitySchema, providerIdSchema, resolvedWarningSchema, taskSchema } from "@orb/contracts/inference";
+import type { CachePolicy, Capability, ProviderId, ResolvedWarning, RoutableTask, Task } from "@orb/contracts/inference";
+import { cachePolicySchema, capabilitySchema, providerIdSchema, resolvedWarningSchema, taskSchema } from "@orb/contracts/inference";
 import { z } from "zod";
 
-/** The capability read for one row (`runtime.capabilities.for`): the descriptor + the warnings it was
- *  synthesized with + the tasks. */
+/** The capability read for one row (`runtime.capabilities.for`): the descriptor + the cache plan + the tasks. */
 export interface ConnectionCapabilityView {
   readonly cache: CachePolicy;
   readonly cacheWarnings: readonly ResolvedWarning[];
-  readonly cacheContext: CachePolicyContext;
   readonly capability: Capability;
   /** The same evidence fold with this row's declaration omitted. */
   readonly baseline: Capability;
-  readonly warnings: readonly ResolvedWarning[];
   readonly tasks: readonly Task[];
   /** The built-in row this row's server was detected as (`features.detectServer`); absent when it reads as itself. */
   readonly detectedProviderId?: ProviderId | undefined;
@@ -25,10 +22,8 @@ export interface ConnectionCapabilityView {
 export const connectionCapabilityViewSchema = z.strictObject({
   cache: cachePolicySchema,
   cacheWarnings: z.array(resolvedWarningSchema).readonly(),
-  cacheContext: cachePolicyContextSchema,
   capability: capabilitySchema,
   baseline: capabilitySchema,
-  warnings: z.array(resolvedWarningSchema).readonly(),
   tasks: z.array(taskSchema).readonly(),
   detectedProviderId: providerIdSchema.optional(),
 }) satisfies z.ZodType<ConnectionCapabilityView>;

@@ -72,7 +72,6 @@ export function blobBannerUrl(hash: string, width: number): string {
 export interface StoredAsset {
   assetId: AssetId;
   hash: string;
-  size: number;
   /** `false` if an index ROW for these bytes already existed (within-user content-addressed dedup, D21).
    *  The row, not the blob: a store that finds the blob already on disk but writes the missing row (crash
    *  recovery) is a creation — that is the flag the `asset.created` emit rides on. */
@@ -89,15 +88,13 @@ const CAS_HASH_HEX_LENGTH = 64;
 
 /** Parses {@link StoredAsset} — the client `uploadAsset` helper's response-boundary validator.
  *
- *  The floor matches what the producer can actually emit (#1371 item 5): `infra/storage/cas.ts` always
- *  returns a 64-char sha-256 hex and a real buffer length, so an empty hash or a negative size was a state
- *  no live path could reach and the schema accepted anyway. This is a RESPONSE validator over our own
- *  server's reply, not an input boundary — the tightening buys a louder failure if the reply ever stops
- *  being what the CAS promises, nothing more, and it is free. */
+ *  The floor matches what the producer can actually emit: `infra/storage/cas.ts` always returns a 64-char
+ *  sha-256 hex, so an empty hash was a state no live path could reach and the schema accepted anyway. This
+ *  is a RESPONSE validator over our own server's reply, not an input boundary — the tightening buys a louder
+ *  failure if the reply ever stops being what the CAS promises, nothing more, and it is free. */
 export const storedAssetSchema = z.object({
   assetId: assetIdSchema,
   hash: z.string().length(CAS_HASH_HEX_LENGTH),
-  size: z.int().nonnegative(),
   created: z.boolean(),
 }) satisfies z.ZodType<StoredAsset>;
 /** The body of a refused `POST /api/assets/upload` (415 wrong contents, 413 over the cap): the reason the
@@ -187,14 +184,13 @@ export const galleryListParamsSchema = z.object({
 });
 export type GalleryListParams = z.infer<typeof galleryListParamsSchema>;
 
-/** One curated gallery item. `hash`/`mime`/`animated` are joined from the `assets` row (owner derives
+/** One curated gallery item. `hash`/`animated` are joined from the `assets` row (owner derives
  *  through that FK — no stamped owner column).
  */
 export interface GalleryItemView {
   readonly galleryItemId: GalleryItemId;
   readonly assetId: AssetId;
   readonly hash: string;
-  readonly mime: string;
   readonly animated: boolean;
   readonly subjectCharacterId: CharacterId | null;
   readonly createdAt: number;
@@ -204,7 +200,6 @@ export const galleryItemViewSchema = z.strictObject({
   galleryItemId: galleryItemIdSchema,
   assetId: assetIdSchema,
   hash: z.string(),
-  mime: z.string(),
   animated: z.boolean(),
   subjectCharacterId: characterIdSchema.nullable(),
   createdAt: z.number(),

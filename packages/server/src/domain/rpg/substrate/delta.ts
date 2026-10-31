@@ -185,7 +185,6 @@ function trackerText(def: RpgTrackerDef, value: RpgTrackerValue | undefined): st
 /** The ACTOR-subject tracker deltas — every carried tracker on every actor, diffed by `key` (never by label:
  *  a rename is not a beat). Silent when the game defines no trackers. */
 const actorTrackersRenderer: PlaneDiffRenderer<ActorState> = {
-  plane: "trackers",
   select: (s) => s.actorState,
   render: (prev, cur, ctx) => {
     if (ctx.trackerDefs.length === 0) {
@@ -213,7 +212,6 @@ const actorTrackersRenderer: PlaneDiffRenderer<ActorState> = {
 /** The GAME-subject tracker deltas (the retired widget renderer) — the same ONE tracker diff, unprefixed
  *  (a game tracker belongs to nobody in particular). */
 const gameTrackersRenderer: PlaneDiffRenderer<RpgSnapshotState["trackerValues"]> = {
-  plane: "gameTrackers",
   select: (s) => s.trackerValues,
   render: (prev, cur, ctx) => {
     const out: string[] = [];
@@ -232,7 +230,6 @@ const gameTrackersRenderer: PlaneDiffRenderer<RpgSnapshotState["trackerValues"]>
 
 /** Conditions — the added/removed set per actor (`+Bleeding`, `-Poisoned`), matched by condition name. */
 const conditionsRenderer: PlaneDiffRenderer<ActorState> = {
-  plane: "conditions",
   select: (s) => s.actorState,
   render: (prev, cur, ctx) =>
     perActor(cur, prev, ctx, (name, p, c) => {
@@ -260,7 +257,6 @@ function inventoryItemChanges(name: string, was: RpgInventoryItem, item: RpgInve
 
 /** Inventory — added / removed / quantity / carrying-detail changes per actor, matched by name. */
 const inventoryRenderer: PlaneDiffRenderer<ActorState> = {
-  plane: "inventory",
   select: (s) => s.actorState,
   render: (prev, cur, ctx) =>
     perActor(cur, prev, ctx, (name, p, c) => {
@@ -284,7 +280,6 @@ const inventoryRenderer: PlaneDiffRenderer<ActorState> = {
 
 /** Wallet — per-actor per-currency signed numeric delta (`gold 40→55 (+15)`), matched by currency name. */
 const walletRenderer: PlaneDiffRenderer<ActorState> = {
-  plane: "wallet",
   select: (s) => s.actorState,
   render: (prev, cur, ctx) =>
     perActor(cur, prev, ctx, (name, p, c) => {
@@ -336,7 +331,6 @@ function timeLines(prev: AmbientSlice, cur: AmbientSlice): readonly string[] {
 }
 
 const ambientRenderer: PlaneDiffRenderer<AmbientSlice> = {
-  plane: "ambient",
   select: (s) => ({ location: s.location, weather: s.weather, clock: s.clock, calendarDate: s.calendarDate }),
   render: (prev, cur) => {
     const out: string[] = [];
@@ -387,7 +381,6 @@ function presenceName(key: string, actors: ActorState, ctx: DeltaContext): strin
  *  reports only scene ENTRY/EXIT.) A LEAVE line is now the WHOLE of what departure means: the NPC's state,
  *  guides and stance all stay on her actor row (R2), so nothing else can diff on the way out. */
 const presentCastRenderer: PlaneDiffRenderer<PresenceSlice> = {
-  plane: "presentCast",
   select: (s) => ({ present: s.presentCharacters, actors: s.actorState }),
   render: (prev, cur, ctx) => {
     const before = new Set(prev.present);
@@ -400,7 +393,6 @@ const presentCastRenderer: PlaneDiffRenderer<PresenceSlice> = {
 
 /** Quests — status flips (`quest "X" completed`) + objective progress (`X: 1/3 → 2/3`), matched by quest id. */
 const questsRenderer: PlaneDiffRenderer<RpgSnapshotState["quests"]> = {
-  plane: "quests",
   select: (s) => s.quests,
   render: (prev, cur) => {
     const before = new Map(prev.map((q) => [q.id, q]));
@@ -442,7 +434,6 @@ function relationshipDisplay(rel: NonNullable<ActorState[number]["identity"]>["r
  *  line IS the steering loop's closed signal (the delta block's referent for "let the change land"). A
  *  first-seen actor with a non-default stance reads as a set-to; a NEUTRAL default is silent (no beat). */
 const relationshipRenderer: PlaneDiffRenderer<ActorState> = {
-  plane: "relationship",
   select: (s) => s.actorState,
   render: (prev, cur, ctx) => {
     const before = new Map(prev.map((a) => [volatileKey(a), a.identity]));
@@ -479,7 +470,6 @@ function actLabel(plot: NonNullable<RpgSnapshotState["plot"]>, act: number): str
  *  (`act 1 → act 2 "The Bone Key"`), and a story retitle. Act title/summary edits within the same act are
  *  silent (authoring polish, not a beat the prose must land). */
 const plotRenderer: PlaneDiffRenderer<RpgSnapshotState["plot"]> = {
-  plane: "plot",
   select: (s) => s.plot,
   render: (prev, cur) => {
     if (cur === null) {

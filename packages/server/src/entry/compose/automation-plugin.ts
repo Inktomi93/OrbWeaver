@@ -377,8 +377,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
           macros,
           invoke,
         }),
-      subscribePubsub: (subscriptions, invoke, scope) =>
-        pluginEventBus.register({ installer: scope.installer.userId, subscriberSlug: scope.slug, subscriptions, invoke }),
+      subscribePubsub: (subscriptions, invoke, scope) => pluginEventBus.register({ installer: scope.installer.userId, subscriptions, invoke }),
     },
   };
   suggestionExecutor.bind(buildConfirmedActRunner(pluginHostOps, pluginBelts));

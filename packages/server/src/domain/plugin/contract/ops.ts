@@ -414,7 +414,7 @@ export interface PluginHostOps {
     ) => PluginRegistrationHandle;
     /** Wire the plugin's COLLECTED private-event subscriptions onto the INSTALLER-scoped resident plugin-event bus.
      * The `subscribeEvent` shape exactly, one plane over — handed the WHOLE collection so
-     *  one plugin's subscriptions register + unregister together, keyed by `(installer, subscriberSlug)` for the
+     *  one plugin's subscriptions register + unregister together through the returned handle for the
      *  deactivate sweep. Wired at compose to `PluginEventBus.register`; the bus fans an emit to the matching
      *  handlers via `invoke`, never onto the automation fan-out. */
     readonly subscribePubsub: (
@@ -454,11 +454,10 @@ export interface PluginMacroRegistry {
  *  delivers is a `TriggerFact`. The domain WRITES it at activation (`register`) and the emit op READS it (`emit`);
  *  the FACTORY lives in `substrate/plugin-event-bus.ts` (the SnippetGate/NotifyFloor convention — seam TYPE here). */
 export interface PluginEventBus {
-  /** Register one plugin's WHOLE collected subscription set for `installer`, keyed by `(installer, subscriberSlug)`
-   *  so `deactivate`/`uninstall`'s `unregister` drops exactly this plugin's subscriptions. Returns the handle. */
+  /** Register one plugin's WHOLE collected subscription set for `installer`. The returned handle
+   *  lets `deactivate`/`uninstall`'s `unregister` drop exactly this plugin's subscriptions. */
   readonly register: (req: {
     readonly installer: UserId;
-    readonly subscriberSlug: string;
     readonly subscriptions: readonly PluginPubsubSubscription[];
     readonly invoke: PluginInvokeHandler;
   }) => PluginRegistrationHandle;

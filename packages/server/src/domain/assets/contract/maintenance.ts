@@ -62,8 +62,6 @@ export interface GcResult {
   readonly reclaimed: number;
 }
 
-// ── reapIfOrphan (targeted, NO grace) ────────────────────────────────────────────────────────────────────
-
 // ── fsck (read-only integrity report) ────────────────────────────────────────────────────────────────────
 
 /** `fsck` options — `signal` aborts the read-only whole-store scan. */
