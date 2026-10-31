@@ -50,12 +50,21 @@
   mask-composite: intersect;
 }
 
-/* Without an image the feather preserves a solid upper band for the fallback initial. */
+/* A portrait dissolves into its card at the edge that meets the text. */
+@utility orb-portrait-fade-end {
+  mask-image: linear-gradient(to right, black calc(100% - var(--immersive-ripple-portrait-fade)), transparent);
+}
+@utility orb-portrait-fade-start {
+  mask-image: linear-gradient(to left, black calc(100% - var(--immersive-ripple-portrait-fade)), transparent);
+}
+
+/* Without an image the feather preserves a solid upper band for the fallback initial. `--art-feather-toward` names the
+ * side the art dissolves toward; the default is the foot. */
 @utility orb-art-band {
   --art-image: none;
   --art-feather-start: 0%;
   --art-feather-end: var(--immersive-whisper-feather);
-  --art-feather: linear-gradient(to bottom, transparent var(--art-feather-start), var(--art-feather-fill) var(--art-feather-end));
+  --art-feather: linear-gradient(var(--art-feather-toward, to bottom), transparent var(--art-feather-start), var(--art-feather-fill) var(--art-feather-end));
   aspect-ratio: var(--aspect-banner);
   background-image: var(--art-feather), var(--art-image);
 }

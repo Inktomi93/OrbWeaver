@@ -18,12 +18,17 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, ReactNode } from "react";
+import { cn } from "#lib";
 import type { RowAttribution } from "../lib/attribution.ts";
 import type { ActionsReveal } from "../lib/message-actions-reveal.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import type { HeaderShape } from "../lib/row-placement.ts";
 import { MessageTimestamp } from "./message-metadata-row.tsx";
 import { NameRowFrame } from "./message-name-row-frame.tsx";
+
+// A phone puts the timestamp under the name, packed to the side the speaker's header packs to.
+const STAMP_STACK_START = "@max-cq-28:flex-nowrap @max-cq-28:flex-col @max-cq-28:items-stretch @max-cq-28:gap-0";
+const STAMP_STACK_END = "@max-cq-28:flex-nowrap @max-cq-28:flex-col @max-cq-28:items-end @max-cq-28:gap-0";
 
 /** The live turn always names its speaker on a line of its own. */
 const GHOST_SHAPE: HeaderShape = { identity: true, ownLine: true };
@@ -76,13 +81,21 @@ function renderRowIdentity(args: {
   readonly message: MessageView;
   readonly showTimestamp: boolean;
   readonly mirrored: boolean;
+  /** The identity chip, when the skin seats it in the header (`RowSkin.chipPlacement`); it leads the cluster. */
+  readonly chip: ReactNode;
+  /** `RowSkin.phoneStamp` is `stacked`: on a phone the timestamp sits under the name. */
+  readonly stackStamp: boolean;
 }): ReactNode {
-  const { attribution, message, showTimestamp, mirrored } = args;
+  const { attribution, message, showTimestamp, mirrored, chip, stackStamp } = args;
   if (attribution.name === null && !showTimestamp) {
     return null;
   }
-  return (
-    <Row gap="field" align="center" className={mirrored ? "flex-row-reverse flex-wrap min-inline-0" : "flex-wrap min-inline-0"}>
+  const cluster = (
+    <Row
+      gap="field"
+      align="center"
+      className={cn("flex-wrap min-inline-0", mirrored && "flex-row-reverse", stackStamp && (mirrored ? STAMP_STACK_END : STAMP_STACK_START))}
+    >
       {attribution.name === null ? null : (
         // BASELINE, like the ghost's copy of this cluster (`renderGhostNameRow`) and like the appearance
         // contract's own declaration for this row (`appearance-invariant-manifest.ts`
@@ -95,6 +108,15 @@ function renderRowIdentity(args: {
         </Row>
       )}
       <MessageTimestamp message={message} show={showTimestamp} />
+    </Row>
+  );
+  if (chip === null) {
+    return cluster;
+  }
+  return (
+    <Row gap="field" align="center" className={cn("flex-wrap min-inline-0", mirrored && "flex-row-reverse")}>
+      {chip}
+      {cluster}
     </Row>
   );
 }
@@ -113,13 +135,27 @@ export function renderRowNameRow(args: {
   readonly role: MessageRole;
   /** The row sits mirrored at the trailing edge (`rowMirrored`): its header packs to that edge too. */
   readonly mirrored: boolean;
+  /** The identity chip the skin seats in the header, or null. */
+  readonly chip: ReactNode;
+  readonly stackStamp: boolean;
+  /** `RowSkin.headerRule`. */
+  readonly rule: boolean;
   readonly shape: HeaderShape;
 }): ReactElement {
   const mirrored = args.mirrored;
   return (
     <NameRowFrame
       identity={
-        args.shape.identity ? renderRowIdentity({ attribution: args.attribution, message: args.message, showTimestamp: args.showTimestamp, mirrored }) : null
+        args.shape.identity
+          ? renderRowIdentity({
+              attribution: args.attribution,
+              message: args.message,
+              showTimestamp: args.showTimestamp,
+              mirrored,
+              chip: args.chip,
+              stackStamp: args.stackStamp,
+            })
+          : null
       }
       actions={args.actions}
       stickyAttribution={args.stickyAttribution}
@@ -129,6 +165,7 @@ export function renderRowNameRow(args: {
       pinnedHeader={args.pinnedHeader}
       messageRole={args.role}
       shape={args.shape}
+      rule={args.rule}
     />
   );
 }
@@ -160,6 +197,10 @@ export function renderGhostNameRow(args: {
   readonly named: boolean;
   /** The hidden stand-in for the settled row's action cluster (`GhostActionsFootprint`), which sets the card's width. */
   readonly actionsFootprint: ReactNode;
+  /** The identity chip the skin seats in the header, or null. */
+  readonly chip: ReactNode;
+  /** `RowSkin.headerRule`. */
+  readonly rule: boolean;
 }): ReactElement | null {
   const attribution = args.attribution;
   if (!args.named) {
@@ -174,6 +215,7 @@ export function renderGhostNameRow(args: {
         pinnedHeader={args.pinnedHeader}
         messageRole="assistant"
         shape={GHOST_UNNAMED_SHAPE}
+        rule={false}
       />
     );
   }
@@ -183,8 +225,11 @@ export function renderGhostNameRow(args: {
   return (
     <NameRowFrame
       identity={
-        <Row gap="field" align="baseline" className="wrap-break-word min-inline-0" data-slot="message-attribution">
-          {renderAttributionName(attribution)}
+        <Row gap="field" align="center" className="flex-wrap min-inline-0">
+          {args.chip}
+          <Row gap="field" align="baseline" className="wrap-break-word min-inline-0" data-slot="message-attribution">
+            {renderAttributionName(attribution)}
+          </Row>
         </Row>
       }
       actions={args.actionsFootprint}
@@ -196,6 +241,7 @@ export function renderGhostNameRow(args: {
       pinnedHeader={args.pinnedHeader}
       messageRole="assistant"
       shape={GHOST_SHAPE}
+      rule={args.rule}
     />
   );
 }

@@ -35,10 +35,17 @@ Differences kept, each as parts that add up (Orbweaver minus Moonlit, px):
 - Bubble -16: -24 for the phone cap (four fifths of the column beside the chip against four fifths of the row) and +8 for 12px card padding against 16px.
 - Echo +8: the text side pads 12px where Moonlit pads 20px; the 93.5px art side matches.
 - Whisper +8: 12px card padding against 16px on each side.
-- Hush -19: -30 for the chip and its gap outside the card (Moonlit draws the avatar inside a full-width card), +14.4 for 12px padding against 19.2px, -3 for the speaker stripe.
+- Hush +8: +14.4 for 12px padding against 19.2px and -6.4 because the transcript column is 368px where Moonlit's card is 374.4px. The chip now sits in the card's header (item 0880) and the speaker stripe is a tick that takes no room, so neither reduces the column.
 - Ripple +5.5: 24px of stack padding against Moonlit's 29.5px of measured insets beside the 100px portrait.
-- Tide +7.4: the train fills the 344px column beside the chip, where Moonlit's pill column is 90% of the 374px row.
+- Tide 0: the column takes `reading.tide-share-phone` (90%) of the row, as Moonlit's does (item 0882).
 
-Echo, whisper and ripple stay at their padding difference because the spacing scale has 12px and 24px steps and no 16px or 20px step; hush needs the avatar inside the card, which is `message-row.tsx` (1435 lane). Either is a way to close them.
+Echo, whisper and ripple stay at their padding difference because the spacing scale has 12px and 24px steps and no 16px or 20px step.
 
-Landscape (844x390): the shell enters its desktop rail regime at that width, so the room is 746px wide and bubble prose is capped at the reading measure (426px against Moonlit's 630px); flat, document and ripple measure 666, 674 and 426px against 732.5, 814 and 698.5. That is the shell lane's regime and the reading measure, not a style table value, so it is not changed here.
+Landscape (844x390): the shell enters its desktop rail regime at this width, so the room is 746px wide where Moonlit's row is 844px. That share is measured in `tests/client/features/chat/components/platform-phone-text-columns.suite.ct.tsx` (the row's width less the viewport's), not typed. Two styles are pinned with parts that add up, within 4px:
+
+- Flat 666px against Moonlit's 732.5px: the shell's share (-98) and the 32px avatar chip (+32, owner ruling).
+- Document 674px against Moonlit's 814px: the shell's share (-98), the 8px between row and column (-8), the page inset of two gutter tokens (-64) and Moonlit's own 30px margin (+30).
+
+Not pinned, with reasons: bubble (426px against 630.4px) is the card hugging the fixture's short lines, not the reading cap, so no reading-measure difference can be recorded from this fixture; echo, ripple and tide follow the card anatomy and the art pane, which item 0880 and the row-anatomy ruling own; whisper and hush were not measured in landscape by Moonlit. A planted wrong Moonlit value (flat 700px) fails the flat case. Green in Chromium and WebKit.
+
+A side-eye comparison against the reference screenshots is not taken: the lane cannot spawn one, so it goes to the orchestrator.

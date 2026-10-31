@@ -259,8 +259,10 @@ export function relativeLuminance({ r, g, b }: Rgb): number {
 
 /** The WCAG contrast ratio (1–21) between two OPAQUE sRGB colours. Composite any alpha before calling. */
 export function wcagContrastRatio(a: Rgb, b: Rgb): number {
-  const la = relativeLuminance(a);
-  const lb = relativeLuminance(b);
+  return luminanceContrast(relativeLuminance(a), relativeLuminance(b));
+}
+
+function luminanceContrast(la: number, lb: number): number {
   return (Math.max(la, lb) + CONTRAST_OFFSET) / (Math.min(la, lb) + CONTRAST_OFFSET);
 }
 
@@ -308,8 +310,26 @@ function quantized({ r, g, b }: Rgb): Rgb {
   return { r: Math.round(r), g: Math.round(g), b: Math.round(b) };
 }
 
+/** A colour's relative luminance as a float colour and as its 8-bit pixel: the two a text pair is judged at. */
+interface Luminances {
+  readonly float: number;
+  readonly pixel: number;
+}
+
+function luminances(color: Rgb): Luminances {
+  return { float: relativeLuminance(color), pixel: relativeLuminance(quantized(color)) };
+}
+
+// The searches judge many inks against fixed grounds, so a caller resolves each ground's luminances once.
+function worstLuminanceContrast(ink: Luminances, surfaces: readonly Luminances[]): number {
+  return Math.min(...surfaces.flatMap((surface) => [luminanceContrast(ink.float, surface.float), luminanceContrast(ink.pixel, surface.pixel)]));
+}
+
 function worstTextContrast(ink: Rgb, surfaces: readonly Rgb[]): number {
-  return Math.min(...surfaces.flatMap((surface) => [wcagContrastRatio(ink, surface), wcagContrastRatio(quantized(ink), quantized(surface))]));
+  return worstLuminanceContrast(
+    luminances(ink),
+    surfaces.map((surface) => luminances(surface)),
+  );
 }
 
 function neutralInkTarget(polarity: SurfacePolarity, anchor: Rgb): number {
@@ -320,7 +340,8 @@ function neutralInkTarget(polarity: SurfacePolarity, anchor: Rgb): number {
 function tryNeutralInkLightness(polarity: SurfacePolarity, surfaces: readonly Rgb[], initial: number, target: number): number | null {
   const increment = polarity === "light" ? -FOREGROUND_L_STEP : FOREGROUND_L_STEP;
   const limit = polarity === "light" ? 0 : 1;
-  const clears = (l: number): boolean => worstTextContrast(oklchToSrgb({ l, c: 0, h: 0 }), surfaces) >= target;
+  const grounds = surfaces.map((surface) => luminances(surface));
+  const clears = (l: number): boolean => worstLuminanceContrast(luminances(oklchToSrgb({ l, c: 0, h: 0 })), grounds) >= target;
   if (clears(initial)) {
     return initial;
   }
@@ -1446,15 +1467,15 @@ export function roleFloorMisses<Role extends string, Knob extends string, Host e
   { ratio = AA_NORMAL_RATIO, judged = (): boolean => true }: RoleFloorJudge<Role, Host> = {},
 ): readonly ToneFloorMiss<Role, Host>[] {
   const misses: ToneFloorMiss<Role, Host>[] = [];
-  // The knob solves call this per candidate, and a role pairs with several grounds: convert each colour once.
-  const pixels = new Map<Oklch, Rgb>();
-  const pixel = (color: Oklch): Rgb => {
-    const known = pixels.get(color);
+  // The knob solves call this per candidate, and a role pairs with several grounds: resolve each colour's luminances once.
+  const resolved = new Map<Oklch, Luminances>();
+  const luminanceOf = (color: Oklch): Luminances => {
+    const known = resolved.get(color);
     if (known !== undefined) {
       return known;
     }
-    const converted = oklchToSrgb(color);
-    pixels.set(color, converted);
+    const converted = luminances(oklchToSrgb(color));
+    resolved.set(color, converted);
     return converted;
   };
   for (const role of Object.keys(scheme.recipes) as Role[]) {
@@ -1462,7 +1483,7 @@ export function roleFloorMisses<Role extends string, Knob extends string, Host e
       if (!judged(role, over)) {
         continue;
       }
-      const measured = worstTextContrast(pixel(colorOf(role)), [pixel("role" in over ? colorOf(over.role) : scheme.palette.hosts[over.host])]);
+      const measured = worstLuminanceContrast(luminanceOf(colorOf(role)), [luminanceOf("role" in over ? colorOf(over.role) : scheme.palette.hosts[over.host])]);
       if (measured < ratio) {
         misses.push({ role, over, ratio: measured });
       }
@@ -1597,13 +1618,35 @@ export function oklabDistance(a: Oklch, b: Oklch): number {
   return Math.hypot(l1 - l2, a1 - a2, b1 - b2);
 }
 
-function framebufferPixel(color: Oklch): Oklch {
-  return srgbToOklch(quantized(oklchToSrgb(color)));
+/** A colour as it paints: its sRGB, the float colour that sRGB holds and its 8-bit pixel, converted once for many comparisons. */
+interface PaintedForms {
+  readonly srgb: Rgb;
+  readonly opaque: Oklch;
+  readonly framebuffer: Oklch;
+}
+
+// A tint search measures one candidate against every host, and every candidate against the same hosts: each colour
+// object converts once. The colours are readonly, so an object's forms never go stale.
+const PAINTED_FORMS = new WeakMap<Oklch, PaintedForms>();
+
+function paintedForms(color: Oklch): PaintedForms {
+  const known = PAINTED_FORMS.get(color);
+  if (known !== undefined) {
+    return known;
+  }
+  const srgb = oklchToSrgb(color);
+  const forms = { srgb, opaque: srgbToOklch(srgb), framebuffer: srgbToOklch(quantized(srgb)) };
+  PAINTED_FORMS.set(color, forms);
+  return forms;
+}
+
+function formsDistance(a: PaintedForms, b: PaintedForms): number {
+  return Math.min(oklabDistance(a.opaque, b.opaque), oklabDistance(a.framebuffer, b.framebuffer));
 }
 
 /** The OKLab distance two colours paint at: the worse of the float colours and their 8-bit pixels. */
 export function paintedDistance(a: Oklch, b: Oklch): number {
-  return Math.min(oklabDistance(opaquePixel(a), opaquePixel(b)), oklabDistance(framebufferPixel(a), framebufferPixel(b)));
+  return formsDistance(paintedForms(a), paintedForms(b));
 }
 
 // Linear channels within this of 0–1 count as in gamut: the bisection below converges onto the boundary from inside.
@@ -1726,7 +1769,7 @@ function solveTint<Host extends string>(palette: TonePalette<Host>, base: Oklch,
   const floorChroma = Math.min(base.c, (TONE_TINT_MIN_CHROMA * percent) / weakestPercent);
   const chroma = Math.max((base.c * percent) / PERCENT, floorChroma);
   const aims = inks.map((ink) => ({
-    ink: oklchToSrgb(ink),
+    ink: luminances(oklchToSrgb(ink)),
     aim: Math.max(AA_NORMAL_RATIO, Math.min(AA_NORMAL_DERIVATION_RATIO, toneContrast(ink, background))),
   }));
   let nearest: Oklch | undefined;
@@ -1735,8 +1778,8 @@ function solveTint<Host extends string>(palette: TonePalette<Host>, base: Oklch,
     if (hosts.some((host) => paintedDistance(candidate, host) < TONE_TINT_SEPARATION)) {
       continue;
     }
-    const candidatePixel = oklchToSrgb(candidate);
-    if (aims.some(({ ink, aim }) => worstTextContrast(ink, [candidatePixel]) < aim)) {
+    const candidatePixel = [luminances(paintedForms(candidate).srgb)];
+    if (aims.some(({ ink, aim }) => worstLuminanceContrast(ink, candidatePixel) < aim)) {
       continue;
     }
     if (candidate.c >= floorChroma - CHROMA_TOLERANCE) {
@@ -1760,8 +1803,8 @@ function solveTint<Host extends string>(palette: TonePalette<Host>, base: Oklch,
 function solveInk<Host extends string>(palette: TonePalette<Host>, base: Oklch, percent: number, grounds: readonly Oklch[]): Oklch {
   const direction = palette.foreground.l < palette.background.l ? -1 : 1;
   const chroma = (base.c * percent) / PERCENT;
-  const groundPixels = grounds.map((ground) => oklchToSrgb(ground));
-  const worst = (l: number): number => worstTextContrast(oklchToSrgb(onHue(l, chroma, base.h)), groundPixels);
+  const groundPixels = grounds.map((ground) => luminances(oklchToSrgb(ground)));
+  const worst = (l: number): number => worstLuminanceContrast(luminances(oklchToSrgb(onHue(l, chroma, base.h))), groundPixels);
   const target = Math.max(AA_NORMAL_RATIO, Math.min(AA_NORMAL_DERIVATION_RATIO, worst(direction > 0 ? 1 : 0)));
   const lightness = nearestClearingLightness(mixOklab(base, percent, palette.foreground).l, direction, (candidate) => worst(candidate) >= target);
   if (lightness === null) {

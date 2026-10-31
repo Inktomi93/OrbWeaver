@@ -174,7 +174,7 @@ test("the picker is one tab stop on the checked cell and the arrow keys move the
 interface SpeakerAnatomy {
   readonly avatars: number;
   readonly bubbles: number;
-  readonly stripes: number;
+  readonly ticks: number;
   /** A portrait flush on this edge of its bubble, or welded on whichever edge the speaker's side puts it. */
   readonly portrait: "welded" | "left" | "right" | null;
   readonly banner: boolean;
@@ -193,8 +193,8 @@ const SPEAKERS = [
 ] as const;
 const ROLES = SPEAKERS.map(({ role }) => role);
 
-function bubblesFor(box: string, layout: string, stripe: boolean): number {
-  if (box !== "bubble" || stripe) {
+function bubblesFor(box: string, layout: string): number {
+  if (box !== "bubble") {
     return 0;
   }
   return layout === "trains" ? 2 : 1;
@@ -209,12 +209,12 @@ function anatomyOf(style: ThemeChatStyle): Anatomy {
     trains: skin.bubbleLayout === "trains" ? SPEAKERS.length : 0,
     speakers: SPEAKERS.map(({ role, kind }) => {
       const decoration = skin.bubbleDecoration?.({ kind, avatarHash: null, name: "Speaker", hueSeed: "speaker", role, showInChatAvatars: true }) ?? null;
-      const stripe = decoration?.treatment === "stripeStart";
+      const tick = decoration?.treatment === "tickEnd";
       const treatment = skin.avatarTreatment(kind);
       return {
         avatars: treatment === "icon-left" ? 1 : 0,
-        bubbles: bubblesFor(skin.box, skin.bubbleLayout, stripe),
-        stripes: stripe ? 1 : 0,
+        bubbles: bubblesFor(skin.box, skin.bubbleLayout),
+        ticks: tick ? 1 : 0,
         portrait: treatment === "sticky-portrait" ? "welded" : (decoration?.art?.side ?? null),
         // The diagram draws the banner on the character's row alone, where the skeleton needs one.
         banner: role === "assistant" && decoration?.headerBand !== undefined,
@@ -239,7 +239,7 @@ function readCounts(
       return {
         avatars: count(message, "chat-style-avatar"),
         bubbles: count(message, "chat-style-bubble"),
-        stripes: count(message, "chat-style-stripe"),
+        ticks: count(message, "chat-style-tick"),
         portraits: count(message, "chat-style-portrait"),
         banners: count(message, "chat-style-banner"),
       };
@@ -328,7 +328,7 @@ for (const style of THEME_CHAT_STYLES) {
       expected.speakers.map((want) => ({
         avatars: want.avatars,
         bubbles: want.bubbles,
-        stripes: want.stripes,
+        ticks: want.ticks,
         portraits: want.portrait === null ? 0 : 1,
         banners: want.banner ? 1 : 0,
       })),

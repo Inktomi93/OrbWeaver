@@ -75,6 +75,22 @@ const COLUMN_PLACEMENTS = ["anchored", "gutterCentred"] as const;
  *  says how its column is seated. */
 type ColumnPlacement = (typeof COLUMN_PLACEMENTS)[number];
 
+const CHIP_PLACEMENTS = ["gutter", "header"] as const;
+/** WHERE THIS SKIN SEATS THE IDENTITY CHIP. `gutter` — a sibling of the content column, beside the card. `header` — the
+ *  first item of the speaker header inside the card (Moonlit Echoes' echo, whisper and hush), so the card spans its whole
+ *  column. A skin whose portrait is welded into the card (ripple) has no chip and takes `gutter`.
+ *  A REQUIRED field: a new chatStyle fails tsc here until it decides where its chip sits. */
+type ChipPlacement = (typeof CHIP_PLACEMENTS)[number];
+
+const CORNER_SETS = ["card", "speech", "pill"] as const;
+/** The corners of this skin's card. `speech` (bubble) is a small corner and a long one on the speaker's side, mirrored for the
+ *  user; `pill` (tide) is a paragraph pill; every other skin takes the card radius. */
+type CornerSet = (typeof CORNER_SETS)[number];
+
+const PHONE_STAMPS = ["inline", "stacked"] as const;
+/** Whether the timestamp sits beside the speaker's name or under it on a phone. */
+type PhoneStamp = (typeof PHONE_STAMPS)[number];
+
 const MESSAGE_BOXES = ["bubble", "plate", "page"] as const;
 /** The box the prose renders in. `bubble` is the role's filled card. `plate` (flat) has no fill at rest and takes
  *  the reading plate over a wallpaper, inset a section from its gutter. `page` (stock document) is a full-track page with
@@ -91,8 +107,16 @@ export interface RowSkin {
   readonly rowAlign: RowAlign;
   /** {@link ColumnPlacement} — how this skin seats the reading column against the identity gutter (#1728). */
   readonly columnPlacement: ColumnPlacement;
+  /** {@link ChipPlacement} — where the identity chip sits. */
+  readonly chipPlacement: ChipPlacement;
+  /** {@link CornerSet} — the corners of the skin's card. */
+  readonly corners: CornerSet;
+  /** {@link PhoneStamp} — where the timestamp sits on a phone. */
+  readonly phoneStamp: PhoneStamp;
+  /** A hairline under the speaker header (ripple). */
+  readonly headerRule: boolean;
   readonly box: MessageBox;
-  /** On a phone a bubble takes at most four fifths of its column, so the other side reads as the other speaker's. */
+  /** The card takes its share of the column (`reading.bubble-share`), never past the reading measure, so the other side reads as the other speaker's. */
   readonly phoneCap: boolean;
   readonly avatarTreatment: (kind: RowAttribution["kind"]) => AvatarTreatment;
   /** The transcript's last row keeps a minimum block size (stock document). */
@@ -125,7 +149,7 @@ function rippleAvatarTreatment(kind: RowAttribution["kind"]): AvatarTreatment {
 }
 
 function hushDecoration(): BubbleDecoration {
-  return { treatment: "stripeStart" };
+  return { treatment: "tickEnd" };
 }
 
 /** The exhaustive chatStyle → skin table; a new chatStyle fails to compile without a row here. */
@@ -134,6 +158,10 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     track: "chat",
     rowAlign: "role",
     columnPlacement: "anchored",
+    chipPlacement: "gutter",
+    corners: "speech",
+    phoneStamp: "stacked",
+    headerRule: false,
     box: "bubble",
     phoneCap: true,
     lastRowFloor: false,
@@ -149,6 +177,10 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     track: "chat",
     rowAlign: "center",
     columnPlacement: "gutterCentred",
+    chipPlacement: "gutter",
+    corners: "card",
+    phoneStamp: "stacked",
+    headerRule: false,
     box: "plate",
     phoneCap: false,
     lastRowFloor: false,
@@ -165,6 +197,10 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     track: "chat",
     rowAlign: "center",
     columnPlacement: "gutterCentred",
+    chipPlacement: "gutter",
+    corners: "card",
+    phoneStamp: "stacked",
+    headerRule: false,
     // Stock SillyTavern's document: a full-track page with no reading cap, no avatar, name or timestamp, user
     // and character rows identical, the text inset as stock insets it.
     box: "page",
@@ -182,6 +218,10 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     track: "echo",
     rowAlign: "role",
     columnPlacement: "anchored",
+    chipPlacement: "header",
+    corners: "card",
+    phoneStamp: "inline",
+    headerRule: false,
     box: "bubble",
     phoneCap: false,
     lastRowFloor: false,
@@ -201,6 +241,10 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     track: "chat",
     rowAlign: "start",
     columnPlacement: "anchored",
+    chipPlacement: "header",
+    corners: "card",
+    phoneStamp: "stacked",
+    headerRule: false,
     box: "bubble",
     phoneCap: false,
     lastRowFloor: false,
@@ -219,13 +263,16 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     track: "chat",
     rowAlign: "center",
     columnPlacement: "gutterCentred",
+    chipPlacement: "header",
+    corners: "card",
+    phoneStamp: "stacked",
+    headerRule: false,
     box: "bubble",
     phoneCap: false,
     lastRowFloor: false,
     avatarTreatment: iconLeftTreatment,
     bubbleDecoration: hushDecoration,
     bubbleLayout: "single",
-    // Inside puts the header beside the speaker stripe, not under it.
     headerPlacement: "inside",
     swipeFoot: SWIPE_FOOT_INSIDE,
     pinnedHeader: PINNED_CARD,
@@ -236,6 +283,10 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     track: "chat",
     rowAlign: "start",
     columnPlacement: "anchored",
+    chipPlacement: "gutter",
+    corners: "card",
+    phoneStamp: "stacked",
+    headerRule: true,
     box: "bubble",
     phoneCap: false,
     lastRowFloor: false,
@@ -252,11 +303,16 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     track: "chat",
     rowAlign: "role",
     columnPlacement: "anchored",
+    chipPlacement: "gutter",
+    corners: "pill",
+    phoneStamp: "stacked",
+    headerRule: false,
     box: "bubble",
     phoneCap: false,
     lastRowFloor: false,
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "trains",
+    columnMeasure: "tide",
     // THE ONE `outside`, and not a concession: a train is N per-paragraph pills with no single container
     // to be inside, and ST's tide reference also names the speaker above the train. It therefore keeps
     // the sibling row AND the #167 chip — over art there is nothing else to back it.

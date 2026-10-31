@@ -1,5 +1,6 @@
 import { CtIsolation } from "@orb/testkit/browser";
 import { Combobox } from "@orb/ui/combobox";
+import { CONTROL_SIZES } from "@orb/ui/lib";
 import type { ReactElement } from "react";
 import { useState } from "react";
 
@@ -36,6 +37,21 @@ export function RerenderingParentStory(): ReactElement {
       <output aria-label="Parent renders">{renders}</output>
       <Combobox aria-label="Keywords" items={["ash", "cinder"].map((item) => item)} onValueChange={(next): void => setChips(next)} value={[...chips]} />
       <output aria-label="Committed chips">{chips.join("|")}</output>
+    </CtIsolation>
+  );
+}
+
+/** Committed chips in a field at every step of the control scale, each field in a fixed cell. */
+export function ChipInsetStory(): ReactElement {
+  return (
+    <CtIsolation subject="Combobox" isolates="The chip box inside the field at each control step, free of feature layout.">
+      <div style={{ display: "grid", gap: "1rem", padding: "1rem", inlineSize: "24rem" }}>
+        {CONTROL_SIZES.map((step) => (
+          <div key={step} data-step={step}>
+            <Combobox aria-label={`Keywords ${step}`} defaultValue={["ember", "cinder"]} size={step} />
+          </div>
+        ))}
+      </div>
     </CtIsolation>
   );
 }

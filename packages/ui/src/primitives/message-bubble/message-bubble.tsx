@@ -23,6 +23,8 @@ export function MessageBubble({
   padding,
   receded,
   artDecoration,
+  share,
+  corners,
   ownSlot = "card-root",
   className,
   ...rest
@@ -30,7 +32,7 @@ export function MessageBubble({
   return (
     <div
       {...rest}
-      {...variantProps(messageBubbleVariants, { messageRole, shape, padding, receded, artDecoration }, className, "neutral")}
+      {...variantProps(messageBubbleVariants, { messageRole, shape, padding, receded, artDecoration, share, corners }, className, "neutral")}
       data-padding={padding === "none" ? "none" : undefined}
       data-shape={shape === "bubble" ? "bubble" : undefined}
       data-slot={ownSlot}

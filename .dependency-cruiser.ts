@@ -606,6 +606,10 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/chat/components/platform-immersive-card-width.suite.ct.tsx": {
     "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the immersive styles whose card width and fill the suite holds",
   },
+  "tests/client/features/chat/components/platform-moonlit-card-shape.suite.ct.tsx": {
+    "packages/client/src/features/chat/lib/message-row-variants.ts":
+      "MESSAGE_ROW_SKINS: the styles that name their speaker and the skins that carry a header rule",
+  },
   "tests/client/features/chat/components/message-reasoning-and-move.ct.tsx": {
     "packages/client/src/features/chat/lib/message-action-names.ts": "the reasoning and move action names and refusal copy the suite addresses",
   },

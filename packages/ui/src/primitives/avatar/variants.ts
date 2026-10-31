@@ -55,6 +55,8 @@ export const avatarVariants = tv({
     },
     // A portrait welded to a card's side takes the card's corners on its outer edge (`CARD_CORNERS`).
     cardCorners: { start: { root: CARD_CORNERS.start }, end: { root: CARD_CORNERS.end } },
+    // A portrait that dissolves into the card at the edge that meets the text: `end` fades its inline-end edge, `start` its start edge.
+    fade: { start: { root: "orb-portrait-fade-start" }, end: { root: "orb-portrait-fade-end" } },
     ring: {
       none: {},
       accent: {

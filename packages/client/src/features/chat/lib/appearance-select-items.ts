@@ -40,7 +40,7 @@ const CHAT_STYLE_DESCRIPTIONS: Record<AppearanceSettings["chatStyle"], string> =
   document: "One centered manuscript column.",
   echo: "The speaker's portrait bleeds into the edge of the bubble.",
   whisper: "Character art forms a wide banner above the message.",
-  hush: "Flat rows, each marked with the speaker's color stripe.",
+  hush: "Each message sits in a quiet card marked with a short speaker-color tick.",
   ripple: "A tall portrait sticks beside the text as you scroll.",
   tide: "Every paragraph becomes its own small bubble.",
 };

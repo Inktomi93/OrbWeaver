@@ -28,11 +28,11 @@ export function ArtRecipesStory({ image = false, theme = "mocha" }: { readonly i
         <Card artDecoration="portraitEnd" data-case="portrait-end">
           End
         </Card>
-        <Card artDecoration="stripeTop" data-case="stripe-top">
-          Top
+        <Card artDecoration="tickEnd" data-case="tick-end">
+          Tick
         </Card>
-        <Stack artDecoration="stripeStart" data-case="stripe-start">
-          Start
+        <Stack artDim="lift" data-case="art-dim">
+          Dim
         </Stack>
         <Stack artMask="start" data-case="mask-start">
           Start
@@ -41,6 +41,9 @@ export function ArtRecipesStory({ image = false, theme = "mocha" }: { readonly i
           End
         </Stack>
         <Stack feather="userBubble" featherSrc={image ? "/grain.svg" : undefined} data-case="band">
+          Band
+        </Stack>
+        <Stack feather="userBubble" featherToward="left" featherSrc={image ? "/grain.svg" : undefined} data-case="band-left">
           Band
         </Stack>
       </Stack>

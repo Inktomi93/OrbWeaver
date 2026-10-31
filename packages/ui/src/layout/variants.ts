@@ -151,13 +151,23 @@ export const stackVariants = tv({
     imageFit: { cover: "bg-cover bg-center bg-no-repeat", underFeather: "bg-size-[auto,cover] bg-position-[left_top,center_top] bg-no-repeat" },
     artDecoration: ART_DECORATION,
     artMask: { start: "orb-art-mask-start", end: "orb-art-mask-end" },
-    columnMeasure: { illustrated: "orb-art-reservation" },
+    // The content column's cap, which a stylesheet rule reads from `--column-measure`: `illustrated` reserves an art pane
+    // beside the measure; `tide` takes its share of the row (more on a phone), never past the reading measure.
+    columnMeasure: {
+      illustrated: "orb-art-reservation",
+      tide: "[--column-measure:var(--reading-tide-share-cap)] @max-cq-28:[--column-measure:var(--reading-tide-share-phone)]",
+    },
     artPane: { portrait: "orb-art-reservation inline-(--art-pane-width)" },
     feather: {
       bubble: "orb-art-band [--art-feather-fill:var(--color-ai-bubble)]",
       userBubble: "orb-art-band [--art-feather-fill:var(--color-user-bubble)]",
       systemBubble: "orb-art-band [--art-feather-fill:var(--color-system-bubble)]",
     },
+    // The side a feathered band dissolves toward: the foot by default, or the left edge for a band that sits at the
+    // right of its card. Physical, like the art masks beside it.
+    featherToward: { left: "[--art-feather-toward:to_left]" },
+    // Art that rests dimmed: `lift` is also a tap target, which returns to full under the pointer.
+    artDim: { rest: "opacity-(--immersive-whisper-band-opacity)", lift: "opacity-(--immersive-whisper-band-opacity) hover:opacity-100" },
     // A list item that genuinely arrives eases in from `from` to `settle`; a remounted item takes neither.
     arrival: ARRIVAL,
     focusTarget: FOCUS_TARGET,
