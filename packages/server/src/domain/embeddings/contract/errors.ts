@@ -1,3 +1,16 @@
+import type { AssetId } from "@orb/kit/ids";
+
+/** The stored file of an asset row is gone (`cas.read` ENOENT). The sweep fails that asset alone; nothing else
+ *  that goes wrong while indexing it is this error. */
+export class AssetFileMissingError extends Error {
+  readonly assetId: AssetId;
+  constructor(assetId: AssetId, options?: ErrorOptions) {
+    super(`embeddings: the stored file of asset ${assetId} is missing`, options);
+    this.name = "AssetFileMissingError";
+    this.assetId = assetId;
+  }
+}
+
 /** A genuine producer failure: the caller decides retry vs skip; store never silently writes a null vector. */
 export class EmbedFailedError extends Error {
   readonly lens: string;

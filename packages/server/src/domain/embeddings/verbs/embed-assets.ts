@@ -3,13 +3,12 @@
 import type { EmbedPassResult } from "@orb/contracts/embeddings";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
-import { isMissingFile } from "#primitives/errno";
+import { AssetFileMissingError } from "../contract/errors.ts";
 import type { EmbedPassParams } from "../contract/params.ts";
 import type { StoreResult } from "../contract/results.ts";
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
 import { completeGenerationScope, resolveImageTargetGeneration } from "../substrate/generation.ts";
 
-// A stored file gone while its asset row remains (`cas.read` ENOENT) fails that asset alone; any other I/O error still stops the sweep.
 const ASSET_OUTCOMES = ["written", "skipped", "failed"] as const;
 type AssetOutcome = (typeof ASSET_OUTCOMES)[number];
 
@@ -19,13 +18,14 @@ interface Sweep {
   readonly receipts: Map<UserId, StoreResult>;
 }
 
+// A stored file gone while its asset row remains fails that asset alone; every other error still stops the sweep.
 async function indexOne(sweep: Sweep, assetId: AssetId, options: Pick<EmbedPassParams, "force" | "signal" | "embedderChanged">): Promise<AssetOutcome> {
   try {
     const result = await sweep.deps.indexAsset(assetId, options);
     await recordReceipt(sweep.ctx, assetId, result, sweep.receipts);
     return result?.outcome === "written" ? "written" : "skipped";
   } catch (error) {
-    if (!isMissingFile(error)) {
+    if (!(error instanceof AssetFileMissingError)) {
       throw error;
     }
     return "failed";

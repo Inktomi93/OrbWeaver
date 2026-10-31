@@ -16,6 +16,7 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
   createServerHarness,
+  refuseWrites,
   seedCorpusConnections,
 } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
@@ -188,4 +189,16 @@ test("an avatar whose stored file is gone fails alone: the rest embed and the ru
     [1, 2],
     [2, 2],
   ]);
+});
+
+test("a failure that is not a missing file stops the sweep instead of failing each asset", async () => {
+  await using lifetime = new AsyncDisposableStack();
+  const { root } = await unindexedAvatars(2, lifetime);
+  await using fault = await refuseWrites(root.db, { table: imageEmbeddings, event: "INSERT", message: "the vector store refused the write" });
+
+  await expect(root.app.embeddings.embedAssets({ ownerId: null, force: false, signal: signal() })).rejects.toThrow();
+
+  // Positive control: with the fault lifted the same sweep embeds both avatars.
+  await fault.lift();
+  expect(await root.app.embeddings.embedAssets({ ownerId: null, force: false, signal: signal() })).toEqual({ embedded: 2, skipped: 0 });
 });

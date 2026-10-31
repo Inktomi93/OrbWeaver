@@ -1,9 +1,10 @@
 // The composed door: helpers that load the server graph. Integration files import it behind the setupFiles warm.
 
-// A suite reads an exported archive through the production extractor, the same hardened unzip an import meets.
+// A summarize call is recognised on the provider wire by the production prompt lead.
 export { SUMMARIZE_TRANSCRIPT_MARKER } from "@orb/server/domain/chat";
 // The production crypto a root's `sessionsCrypto` option defaults to; a suite builds one to spy on before the root closes over it.
 export { SessionsCrypto } from "@orb/server/entry/compose";
+// A suite reads an exported archive through the production extractor, the same hardened unzip an import meets.
 export { extractZip } from "@orb/server/infra/storage/zip";
 export { readAccounts } from "./admin/accounts.ts";
 export type { AtlasBootOptions, CannedResponse } from "./atlas-guest.ts";

@@ -241,9 +241,9 @@ export function Markdown({
   // list elements carry the same never-compiled utilities, and preflight zeroes list-style/margin/padding
   // on `ul`/`ol`, so every chat list rendered as flat unmarked text (owner-observed live). Here the seal
   // takes the ELEMENTS over (`components`, see `list-components.tsx` for the full ruling) instead of
-  // out-painting them from this root: unlike the code element there is no vendor branch to re-implement,
-  // and owning them means our tokens are the ONLY classes on the element rather than a compiled layer
-  // over dead vendor residue. The unscanned-dist ruling is untouched — the values are house tokens.
+  // out-painting them from this root: owning them means our tokens are the ONLY classes on the element
+  // rather than a compiled layer over dead vendor residue. Inline code is owned the same way now
+  // (`inline-code-component.tsx`), through Streamdown's `inlineCode` slot. The unscanned-dist ruling is untouched — the values are house tokens.
   //
   // H19 — THE FAMILY'S FOURTH CASE (side-eye HOME 2026-09-02), taken the #1085 way. Streamdown's `hr` is
   // `cn("my-6 border-border", …)`, so a message containing `---` rendered `[css] dead class · .my-6` in

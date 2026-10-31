@@ -59,7 +59,7 @@ test("a boot after a crash-window auto-disable unlinks the errored install's cla
     columns: [pluginProviderClaims.pluginId],
     message: TEARDOWN_REFUSAL,
   });
-  await expect(crash()).rejects.toThrow();
+  await expect(crash()).rejects.toMatchObject({ cause: expect.objectContaining({ message: expect.stringContaining(TEARDOWN_REFUSAL) }) });
   expect((await root.services.plugin.list({ caller: who })).find((row) => row.id === installed.id)?.status).toBe("errored");
   expect(await linked()).toBe(1);
   await fault.lift();

@@ -10,7 +10,7 @@ import type { ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, pluginNameOfProviderId, providerDefSchema } from "@orb/contracts/inference";
 import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
-import { NoConnectionError } from "@orb/inference";
+import { NoConnectionError, ProviderError } from "@orb/inference";
 import type { PluginId } from "@orb/kit/ids";
 import { ManifestInvalidError, PluginCrashedError } from "@orb/server/domain/plugin";
 import { expect, test } from "@orb/testkit/node";
@@ -437,10 +437,10 @@ test("a retained connection stops resolving at every read and at turn time once 
   await root.services.plugin.uninstall({ caller: installer, pluginId: install.id });
   const spent = sent.length;
 
-  await expect(root.services.connection.capabilities({ principal: installer, connectionId: retained.id })).rejects.toThrow();
+  await expect(root.services.connection.capabilities({ principal: installer, connectionId: retained.id })).rejects.toBeInstanceOf(ProviderError);
   await expect(root.services.connection.resolve({ task: "chat", principal: installer })).rejects.toBeInstanceOf(NoConnectionError);
   await expect(root.services.connection.resolve({ task: "chat", principal: installer, connectionId: retained.id })).rejects.toBeInstanceOf(NoConnectionError);
-  await expect((await root.app.roleClientsFor(installer.userId)).summarize([{ systemPrompt: "s", userPrompt: "u" }])).rejects.toThrow();
+  await expect((await root.app.roleClientsFor(installer.userId)).summarize([{ systemPrompt: "s", userPrompt: "u" }])).rejects.toBeInstanceOf(ProviderError);
   await expect(root.services.connection.probe({ principal: installer, connectionId: retained.id })).rejects.toBeInstanceOf(NoConnectionError);
   expect((await root.services.connection.get({ principal: installer, connectionId: retained.id })).tasks).toEqual([]);
   expect(sent).toHaveLength(spent);

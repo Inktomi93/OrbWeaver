@@ -8,6 +8,7 @@ import { chmod, lstat, mkdir, open, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import type { RelayBinaryRefusal } from "@orb/contracts/identity";
 import { DomainOperationError } from "@orb/kit/errors";
+import { isMissingFile } from "#primitives/errno";
 import type { CloudflaredAsset, CloudflaredBinary, CloudflaredBinaryDeps, CloudflaredPackaging, CloudflaredTarget, ExtractTgz } from "./contract.ts";
 import { CLOUDFLARED_TARGETS } from "./contract.ts";
 
@@ -28,10 +29,6 @@ function isTarget(target: string): target is CloudflaredTarget {
   return (CLOUDFLARED_TARGETS as readonly string[]).includes(target);
 }
 
-function isMissing(err: unknown): boolean {
-  return err instanceof Error && "code" in err && err.code === "ENOENT";
-}
-
 // True for a regular file, false when nothing is there. Anything else at the path (a symlink, a directory) is removed
 // without following it and refused, because the pin names bytes, not a pointer to them.
 async function regularFileAt(path: string): Promise<boolean> {
@@ -43,7 +40,7 @@ async function regularFileAt(path: string): Promise<boolean> {
     await rm(path, { recursive: true, force: true });
     throw refuse("relay_binary_checksum_mismatch", `${path} was not a regular file, so it was removed; start sharing again to download cloudflared.`);
   } catch (err) {
-    if (isMissing(err)) {
+    if (isMissingFile(err)) {
       return false;
     }
     throw err;
