@@ -3,6 +3,7 @@
 import { automationTriggerFor } from "@orb/contracts/automation";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { automationFires, characters } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -24,7 +25,7 @@ import { eq, sql } from "drizzle-orm";
 const PASSWORD = "operator-read-control-password";
 
 test("the settings probe preserves key order and stored values while rejecting anonymous and delegated-admin readers", async () => {
-  await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
+  await using root = await createServerHarness({ env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
   const zeta = { key: "application:debug-zeta", value: { marker: "operator-only-settings-marker", opaque: [null, true, 3] }, updatedAt: root.clock.now() };
   await root.services.settings.setGlobalSetting(zeta.key, zeta.value);
   root.clock.advance(1000);

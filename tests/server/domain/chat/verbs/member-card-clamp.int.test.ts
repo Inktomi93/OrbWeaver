@@ -3,6 +3,7 @@
 // @subject packages/server/src/domain/chat/substrate/auth/clamp.ts
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -11,7 +12,7 @@ const DESCRIPTION = "member-card-sheet-description";
 const STEERING = "member-card-host-only-steering";
 
 test("the member-card level clamps a member's roster card read at the real door and never clamps the host", async () => {
-  await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny" } });
+  await using root = await createServerHarness({ env: { [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny" } });
   const host = await root.principalFor(root.ownerId);
   const member = await root.principalFor((await root.actor()).id);
   const outsider = await root.internalCallerFor((await root.actor()).id);

@@ -28,7 +28,8 @@ vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
 const HEAD = `<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="A fixture page for snap's Lighthouse arm.">
 <title>Snap lighthouse fixture</title>`;
-const CLEAN_BODY = `<main><h1>Plugins</h1><p style="color:#111;background:#fff">Readable body copy.</p>
+const CLEAN_HEADING = "Clean fixture";
+const CLEAN_BODY = `<main><h1>${CLEAN_HEADING}</h1><p style="color:#111;background:#fff">Readable body copy.</p>
 <button type="button">Save changes</button><a href="/other.html">Read the other page</a></main>`;
 /** The plant: a visible label ("Save changes") that the accessible name ("Close") does not contain. */
 const MISMATCH_BUTTON = '<button aria-label="Close">Save changes</button>';
@@ -204,7 +205,7 @@ test("target lookup refusal detaches its native session and preserves the observ
       ).rejects.toThrow("Target.getTargetInfo call #2 refused");
       expect(opened).toBe(2);
       await expect.poll(() => closed, { timeout: scaledBudget(5000) }).toBe(2);
-      expect(await owner.page.getByRole("heading", { name: "Plugins", exact: true }).textContent()).toBe("Plugins");
+      expect(await owner.page.getByRole("heading", { name: CLEAN_HEADING, exact: true }).textContent()).toBe(CLEAN_HEADING);
       expect(owner.browser.isConnected()).toBe(true);
     });
   });

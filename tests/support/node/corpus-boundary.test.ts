@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { FROZEN_AT_MS } from "../iso/clock.ts";
 import { serializeCorpusWire } from "../iso/corpus.ts";
 import { createSeededIds, SEEDED_ID_MAX_CURSOR } from "../iso/ids.ts";
@@ -21,7 +22,7 @@ test("capsule creation refuses an existing data root before opening or modifying
   await expect(
     createCorpusCapsule({
       directory,
-      server: { env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" }, pluginSpawn: spawn },
+      server: { env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" }, pluginSpawn: spawn },
       seed: { ownerPassword: "unused-boundary-password", log: () => undefined },
       privateCredential: { provider: "custom-openai", key: "unused-boundary-credential" },
     }),

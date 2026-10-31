@@ -2,7 +2,14 @@
 // @subject packages/server/src/domain/sessions/persistence/users.ts
 // @subject packages/server/src/domain/sessions/verbs/link-external-id.ts
 // @subject packages/server/src/domain/sessions/verbs/provision-identity.ts
-import { authMeSchema } from "@orb/contracts/identity";
+import {
+  AUTH_FALLBACK_KEY,
+  AUTH_MODE_KEY,
+  authMeSchema,
+  FORWARD_AUTH_TRUSTED_PROXIES_KEY,
+  OIDC_ALLOWED_GROUPS_KEY,
+  OWNER_GROUP_KEY,
+} from "@orb/contracts/identity";
 import { users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle } from "@orb/kit/ids";
@@ -13,6 +20,7 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, createTestEnv } from "@orb/testkit/node/composed";
 import type { SQL } from "drizzle-orm";
 import { eq } from "drizzle-orm";
+import { ADMIN_OP_CODES } from "#server/domain/admin/contract/errors.ts";
 
 const OWNER_GROUP = "identity-owners";
 const MEMBER_GROUP = "identity-members";
@@ -23,8 +31,8 @@ function forwardHeaderRoot(policy: Partial<SessionsRolePolicyConfig> = {}): Prom
   // Only this suite's group policy decides who may sign in here, never a record default.
   const { OIDC_ADMIN_GROUPS: _admins, OIDC_ALLOWED_GROUPS: _allowed, OWNER_GROUP: _owners, ...base } = createTestEnv();
   return createServerHarness({
-    rolePolicyConfig: { ...base, ["OIDC_ALLOWED_GROUPS"]: MEMBER_GROUP, ...policy },
-    env: { ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny", ["FORWARD_AUTH_TRUSTED_PROXIES"]: "127.0.0.1/32" },
+    rolePolicyConfig: { ...base, [OIDC_ALLOWED_GROUPS_KEY]: MEMBER_GROUP, ...policy },
+    env: { [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny", [FORWARD_AUTH_TRUSTED_PROXIES_KEY]: "127.0.0.1/32" },
     physicalPeer: () => "127.0.0.1",
   });
 }
@@ -64,11 +72,11 @@ test("the admin link claim binds an unbound row once and refuses a rebind or a h
   await root.services.admin.linkSsoIdentity({ principal: owner, userId: member.id, externalId: bound });
   await expect(root.services.admin.linkSsoIdentity({ principal: owner, userId: member.id, externalId: subject("identity-link-second") })).rejects.toMatchObject(
     {
-      code: "sso_row_bound",
+      code: ADMIN_OP_CODES.ssoRowBound,
     },
   );
   await expect(root.services.admin.linkSsoIdentity({ principal: owner, userId: other.id, externalId: bound })).rejects.toMatchObject({
-    code: "sso_subject_taken",
+    code: ADMIN_OP_CODES.ssoSubjectTaken,
   });
   expect(await storedSubject(root, eq(users.id, member.id))).toEqual([bound]);
   expect(await storedSubject(root, eq(users.id, other.id))).toEqual([null]);
@@ -84,12 +92,12 @@ test("two concurrent admin links with different subjects bind exactly one", asyn
   );
   const winners = subjects.filter((_, index) => settled[index]?.status === "fulfilled");
   expect(winners).toHaveLength(1);
-  expect(settled.find(({ status }) => status === "rejected")).toMatchObject({ reason: { code: "sso_row_bound" } });
+  expect(settled.find(({ status }) => status === "rejected")).toMatchObject({ reason: { code: ADMIN_OP_CODES.ssoRowBound } });
   expect(await storedSubject(root, eq(users.id, member.id))).toEqual(winners);
 });
 
 test("concurrent owner-policy logins with different subjects adopt the unbound owner row once", async () => {
-  await using root = await forwardHeaderRoot({ ["OWNER_GROUP"]: OWNER_GROUP });
+  await using root = await forwardHeaderRoot({ [OWNER_GROUP_KEY]: OWNER_GROUP });
   expect(await storedSubject(root, eq(users.id, root.ownerId))).toEqual([null]);
   const callers = [
     { handle: handle("identity-owner-a"), subject: subject("identity-owner-a"), groups: OWNER_GROUP },

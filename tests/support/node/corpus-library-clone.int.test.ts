@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ruleViewSchema } from "@orb/contracts/automation";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { effectivePresetSchema, presetDetailSchema, presetSummarySchema, presetUsageViewSchema } from "@orb/contracts/preset";
 import { closeDb, createDb, localPath, runMigrations, sessions } from "@orb/db";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
@@ -34,7 +35,7 @@ test("portable preset and live-rule captures equal fresh native reads in a scrub
   const sourceDb = await createDb(sourceLayout.databaseUrl);
   const clock = createFrozenClock();
   const ids = createSeededIds();
-  const authEnv = { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" };
+  const authEnv = { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" };
   const execution = createCorpusProviderExecution({
     modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,

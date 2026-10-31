@@ -1,8 +1,8 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { IMAGERY_NEGATIVE_SLOT_ID } from "@orb/contracts/imagery";
-import { providerDefSchema } from "@orb/contracts/inference";
+import { providerDefSchema, WARNING_CODE } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import { resolveImageryCaption, resolveImageryTemplate } from "@orb/contracts/settings";
@@ -215,7 +215,7 @@ test("a member's room image uses the host's image connection and live negative p
     startJobs: false,
     providerFetch: wire.execute,
     secretBoxKey: Buffer.alloc(32, 3),
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" },
   });
   const room = await policyRoom(root);
   wire.images.push(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
@@ -326,7 +326,7 @@ test("imagery retains a real dropped-edit warning and filters a real native unsu
   const { resolved } = await root.services.connection.resolve({ principal, task: "generateImage" });
   const nativeConnection: Resolved<"generateImage"> = { ...resolved, task: "generateImage" };
   const native = await root.app.runtime.executor.generateImage({ connection: nativeConnection, prompt: "The orbital loom.", n: 2, edit: { image: pixels } });
-  expect(native.warnings.map(({ code }) => code)).toEqual(["sdk_unsupported_setting", "image_edit_dropped"]);
+  expect(native.warnings.map(({ code }) => code)).toEqual([WARNING_CODE.sdkUnsupportedSetting, WARNING_CODE.imageEditDropped]);
   const avatar = await root.services.assets.store({
     principal,
     bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)),
@@ -347,7 +347,7 @@ test("imagery retains a real dropped-edit warning and filters a real native unsu
     useAvatarReference: true,
     reuse: "never",
   });
-  expect(filtered.warnings).toEqual([{ code: "image_edit_dropped", detail: expect.stringContaining(model) }]);
+  expect(filtered.warnings).toEqual([{ code: WARNING_CODE.imageEditDropped, detail: expect.stringContaining(model) }]);
   const image = filtered.images[0];
   if (image === undefined) {
     throw new Error("the actual imagery warning path stored no generated image");

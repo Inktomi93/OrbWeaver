@@ -2,6 +2,7 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -96,7 +97,7 @@ test("quiet extraction sends only the caller's visible scene through the host's 
   });
   const requests: Request[] = [];
   await using root = await createServerHarness({
-    env: { ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny" },
+    env: { [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny" },
     providerFetch: async (input, init) => {
       const request = new Request(input, init);
       requests.push(request.clone());

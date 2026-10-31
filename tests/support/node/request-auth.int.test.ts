@@ -1,5 +1,5 @@
 import { authConfigSchema } from "@orb/contracts/auth-config";
-import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { vi } from "vitest";
@@ -16,7 +16,7 @@ test.each([
   { peer: undefined, firstRun: false, scope: "public" },
 ])("actual HTTP bootstrap preserves physical peer $peer independently of forged forwarding headers", async ({ peer, firstRun, scope }) => {
   const readPeer = vi.fn(() => peer);
-  await using harness = await createServerHarness({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" }, physicalPeer: readPeer });
+  await using harness = await createServerHarness({ env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" }, physicalPeer: readPeer });
   const response = await harness.http.request("/api/auth/config");
   expect(response.status).toBe(200);
   const config = authConfigSchema.parse(await response.json());
@@ -36,7 +36,7 @@ test.each([
 });
 
 test("local HTTP admission requires its CSRF-protected password flow and rechecks a disabled account", async () => {
-  await using harness = await createServerHarness({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
+  await using harness = await createServerHarness({ env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" } });
   const owner = await harness.internalCallerFor(harness.ownerId);
   const user = await owner.admin.createUser({ handle: HANDLE, password: PASSWORD });
   const anonymous = await harness.http.request("/api/auth/me");
@@ -63,7 +63,7 @@ test("local HTTP admission requires its CSRF-protected password flow and recheck
 });
 
 test("identical actor IDs in independent roots cannot authenticate with the other root's minted cookie", async () => {
-  const authEnv = { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } satisfies NonNullable<Parameters<typeof createServerHarness>[0]>["env"];
+  const authEnv = { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" } satisfies NonNullable<Parameters<typeof createServerHarness>[0]>["env"];
   await using first = await createServerHarness({ env: authEnv });
   await using second = await createServerHarness({ env: authEnv });
   const firstOwner = await first.internalCallerFor(first.ownerId);

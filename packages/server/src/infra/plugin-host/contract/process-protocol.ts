@@ -59,6 +59,7 @@ export const PLUGIN_BRIDGE_OPERATIONS = [
   "character.ingestAsset",
   "character.setCardData",
   "character.getCardData",
+  "character.findCardData",
   "pubsub.emit",
 ] as const;
 export type PluginBridgeOperation = (typeof PLUGIN_BRIDGE_OPERATIONS)[number];

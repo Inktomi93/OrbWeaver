@@ -4,7 +4,7 @@
 // response policy is the same bytes it is without the slice.
 import type { CardFrameMintResponse } from "@orb/contracts/chat";
 import { CARD_FRAME_ROUTE, cardFrameMintResponseSchema } from "@orb/contracts/chat";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import type { CardFrameStyleTokens } from "@orb/kit/card-frame";
 import { buildCardFrameCsp, CARD_FRAME_SAFE_FLOOR, CARD_FRAME_STYLE_TOKEN, cardFrameResponseHeaders } from "@orb/kit/card-frame";
 import { FONT_SCALE_PERCENT } from "@orb/kit/font-scale";
@@ -28,7 +28,7 @@ interface Served {
 }
 
 async function openRoot(): Promise<Root> {
-  return await createServerHarness({ env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" }, physicalPeer: () => "127.0.0.1" });
+  return await createServerHarness({ env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" }, physicalPeer: () => "127.0.0.1" });
 }
 
 async function openChat(root: Root): Promise<ChatId> {

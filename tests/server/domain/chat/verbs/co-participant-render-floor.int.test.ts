@@ -7,6 +7,7 @@
 import { BLOB_ROUTE } from "@orb/contracts/assets";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { contentSpanRaw } from "@orb/kit/content";
 import type { AssetId, ChatId, Handle, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
@@ -53,7 +54,7 @@ async function openRoom(): Promise<Room & AsyncDisposable> {
   const root = await createServerHarness({
     startJobs: false,
     providerFetch: wire.execute,
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" },
   });
   const { owner: host } = await seedCorpusActors(root);
   const character = await root.services.character.create({

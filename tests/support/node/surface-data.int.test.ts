@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { createCharacterSchema } from "@orb/contracts/character";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, DEFAULT_USER_HANDLE_KEY, OWNER_HANDLES_KEY } from "@orb/contracts/identity";
 import type { PluginManifest } from "@orb/contracts/plugin";
 import {
   assets,
@@ -160,8 +161,8 @@ async function sourceDataset(parent: string, withEmbeddings = false): Promise<So
       casDir: layout.assets,
       variantDir: layout.variants,
       importStagingDir: layout.importStaging,
-      rolePolicyConfig: { ["OWNER_HANDLES"]: SOURCE_HANDLE, ["DEFAULT_USER_HANDLE"]: SOURCE_HANDLE },
-      env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
+      rolePolicyConfig: { [OWNER_HANDLES_KEY]: SOURCE_HANDLE, [DEFAULT_USER_HANDLE_KEY]: SOURCE_HANDLE },
+      env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" },
     });
     const owner = await root.principalFor(root.ownerId);
     await root.services.admin.resetPassword({ principal: owner, userId: owner.userId, password: SOURCE_PASSWORD });

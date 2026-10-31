@@ -28,7 +28,14 @@ export interface BridgeAuthority {
   readonly phase: "activation" | "rehydration" | "invocation" | "snippet" | "lifecycle";
 }
 
-const REHYDRATION_READ_OPERATIONS = new Set<PluginBridgeOperation>(["variables.get", "assets.read", "storage.get", "storage.list", "character.getCardData"]);
+const REHYDRATION_READ_OPERATIONS = new Set<PluginBridgeOperation>([
+  "variables.get",
+  "assets.read",
+  "storage.get",
+  "storage.list",
+  "character.getCardData",
+  "character.findCardData",
+]);
 
 const BRIDGE_HOST_FUNCTION = {
   "chat.listMessages": "chat.listMessages",
@@ -63,6 +70,7 @@ const BRIDGE_HOST_FUNCTION = {
   "character.ingestAsset": "character.ingestAsset",
   "character.setCardData": "character.setCardData",
   "character.getCardData": "character.getCardData",
+  "character.findCardData": "character.findCardData",
   "pubsub.emit": "pubsub.emit",
 } as const satisfies Record<Exclude<PluginBridgeOperation, "suggest">, HostFunctionRef>;
 
@@ -159,6 +167,7 @@ export function createRemoteBridge(call: AsyncCall): PluginBridge {
       ingestAsset: (assetId, liveness) => call("character.ingestAsset", [assetId], liveness) as ReturnType<PluginBridge["character"]["ingestAsset"]>,
       setCardData: (characterId, data, liveness) => call("character.setCardData", [characterId, data], liveness) as Promise<void>,
       getCardData: (characterId, liveness) => call("character.getCardData", [characterId], liveness) as ReturnType<PluginBridge["character"]["getCardData"]>,
+      findCardData: (values, liveness) => call("character.findCardData", [values], liveness) as ReturnType<PluginBridge["character"]["findCardData"]>,
     },
     pubsub: { emit: (name, data, liveness) => call("pubsub.emit", [name, data], liveness) as Promise<void> },
   };
@@ -482,6 +491,9 @@ export async function dispatchBridgeCall(
     case "character.getCardData":
       exact(args, 1, operation);
       return await bridge.character.getCardData(stringAt(args, 0, operation));
+    case "character.findCardData":
+      exact(args, 1, operation);
+      return await bridge.character.findCardData(arrayAt(args, 0, operation).map((_, index, values) => stringAt(values, index, operation)));
     case "pubsub.emit":
       exact(args, 2, operation);
       return await bridge.pubsub.emit(stringAt(args, 0, operation), recordAt(args, 1, operation));
