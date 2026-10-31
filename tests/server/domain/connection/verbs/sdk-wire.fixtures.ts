@@ -2,7 +2,7 @@
 
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import type { Resolved } from "@orb/inference";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
 import { createSdkProcessSpawner } from "@orb/testkit/node/helpers";
 
 export const MODEL = "sdk-wire-model";
@@ -10,7 +10,7 @@ export const SDK_TOKEN = "controlled-wire-oauth-token";
 
 export async function rootFor(mode: string): Promise<Awaited<ReturnType<typeof createServerHarness>>> {
   const execute = createSdkProcessSpawner(new URL("./sdk-wire-child.ts", import.meta.url), [mode, MODEL, SDK_TOKEN]);
-  return await createServerHarness({ logLevel: "error", secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: execute });
+  return await createServerHarness({ logLevel: "error", secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: execute });
 }
 
 export async function savedConnection(root: Awaited<ReturnType<typeof createServerHarness>>): Promise<Resolved<"chat">> {

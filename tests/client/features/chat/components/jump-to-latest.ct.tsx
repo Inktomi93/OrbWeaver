@@ -1,7 +1,16 @@
 // The production room receives persisted messages through its real chat event subscription.
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { seedShellState } from "@orb/testkit/browser/spec";
-import { createShellAmbientReads, ROOM_PROCEDURES, routeOrbSocket, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import {
+  createShellAmbientReads,
+  ROOM_PROCEDURES,
+  routeAuthConfig,
+  routeOrbSocket,
+  routeTrpc,
+  SECTION_PROCEDURES,
+  serveCorpusProcedures,
+  trpcError,
+} from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusHarness, createCorpusProviderExecution } from "@orb/testkit/node/composed";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
@@ -61,7 +70,7 @@ for (const [title, nativeScrollend] of [
     await seedShellState(page, { activeSection: "chats" });
     const auth = await root.http.request("/api/auth/config");
     const authBody = await auth.text();
-    await page.route("**/api/auth/config", (route) => route.fulfill({ contentType: "application/json", body: authBody }));
+    await routeAuthConfig(page, authBody);
     await routeTrpc(page, {
       ...createShellAmbientReads(corpus, root.ownerId),
       ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "notifications.presence", "rpg.getGame", "rpg.listTurnToolCalls"]),

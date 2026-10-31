@@ -1,22 +1,23 @@
 // @subject packages/server/src/entry/http/export.ts
+
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { createCharacterSchema } from "@orb/contracts/character";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { importStartedSchema, TREE_FILE_FIELD } from "@orb/contracts/import";
-import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
+import { PORTABILITY_ROUTES, PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness, extractZip, prepareBackupFolder } from "@orb/testkit/node/composed";
+import { createServerHarness, extractZip, prepareBackupFolder, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { CSRF_HEADERS } from "./_body-limit-inputs.ts";
 
-const EXPORT_ROUTE = "/api/export/library";
-const TREE_ROUTE = "/api/import/tree";
+const EXPORT_ROUTE = PORTABILITY_ROUTES.exportLibrary;
+const TREE_ROUTE = PORTABILITY_ROUTES.importTree;
 const WRAPPER = "backup";
-const WORKLOAD_DEADLINE_MS = 60_000;
 
 test("same-named library rows export to distinct archive paths and the whole backup restores as a folder", async () => {
   await using root = await createServerHarness({
-    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
   });

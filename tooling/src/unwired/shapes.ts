@@ -22,13 +22,13 @@ import type { ScanOptions } from "./scan.ts";
 import { scanWorlds, sortDeliberate } from "./scan.ts";
 import { isProduction } from "./worlds.ts";
 
-export const SHAPE_KINDS = ["restated", "synonym", "reexport-chain", "renamed-reexport"] as const;
+const SHAPE_KINDS = ["restated", "synonym", "reexport-chain", "renamed-reexport"] as const;
 /** `restated`: two named object types in different files with the same members, each assignable to the other.
  *  `synonym`: an alias that is a bare reference to another type. `reexport-chain`: an export that re-exports a
  *  re-export from another file. `renamed-reexport`: an export that gives a symbol a second name. */
-export type ShapeKind = (typeof SHAPE_KINDS)[number];
+type ShapeKind = (typeof SHAPE_KINDS)[number];
 
-export interface UnwiredShape {
+interface UnwiredShape {
   readonly key: string;
   readonly file: string;
   readonly line: number;

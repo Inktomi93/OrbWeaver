@@ -85,7 +85,7 @@ export function RpgDiceComposerItems({ chatId }: { readonly chatId: ChatId }): R
                     onClick={(): Promise<void> => rollIntoDraft(chatId, "d20", rollDice, def.key)}
                   >
                     <Icon icon={Dices} size="sm" />
-                    <Text as="span">
+                    <Text ink="inherit" as="span">
                       {def.label}
                       {modifier === null ? "" : ` (${modifier >= 0 ? "+" : ""}${modifier})`}
                     </Text>

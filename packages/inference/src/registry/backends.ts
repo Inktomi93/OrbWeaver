@@ -83,7 +83,6 @@ export function buildBackends(deps: InferenceDeps): BuiltBackends {
   const openAiCompat = createOpenAiCompatBackend({ ...shared, app: deps.app, snapshotStore: deps.snapshotStore });
   const anthropic = createAnthropicBackend(shared);
   const localLight = createLocalLightBackend({
-    now: deps.now,
     log: deps.log,
     superviseDetached: deps.superviseDetached,
     config: deps.localLight,

@@ -8,6 +8,7 @@ import { chatLocks, messages, messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
+import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 import { coreFrame, coreHttpRoom, coreSse } from "../engine/core-physical.ts";
 
 const CORE_LOG_LEVEL = "warn" satisfies LogLevel;
@@ -82,7 +83,7 @@ test.for(REFUSAL_ROWS)("native $label refuses without changing selected canon an
     target === undefined
       ? h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId, intent: { maxOutputTokens: 4096 } })
       : h.root.services.chat.swipe({ principal: h.owner, chatId: h.chatId, messageId: target.id });
-  await expect(operation).rejects.toMatchObject({ code: "empty_generation" });
+  await expect(operation).rejects.toMatchObject({ code: CHAT_OP_CODES.emptyGeneration });
   await expect(operation).rejects.toThrow(row.detail);
   await expect(operation).rejects.toThrow(row.remedy);
   expect(await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId)).orderBy(messages.seq)).toEqual(beforeCanon);

@@ -10,6 +10,7 @@ import {
   createShellAmbientReads,
   holdServed,
   ROOM_PROCEDURES,
+  routeAuthConfig,
   routeOrbSocket,
   routeTrpc,
   SECTION_PROCEDURES,
@@ -128,7 +129,7 @@ for (const regime of [
       await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
       const auth = await root.http.request("/api/auth/config");
       const authBody = await auth.text();
-      await page.route("**/api/auth/config", (route) => route.fulfill({ contentType: "application/json", body: authBody }));
+      await routeAuthConfig(page, authBody);
       const refresh = holdServed();
       let holdReads = false;
       await using heldRefresh = new AsyncDisposableStack();

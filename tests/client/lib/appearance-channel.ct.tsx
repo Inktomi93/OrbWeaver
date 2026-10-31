@@ -2,10 +2,10 @@
 // The channel's registered properties, written by the production root writer: a number's initial value is the contract
 // default. Its CSS readers, including the em-read ones, are the shell's, in app-shell-appearance.ct.tsx.
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
+import { channelName } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { AppearanceChannelStory } from "./_appearance-channel-stories.tsx";
-import { channelName } from "./appearance-channel-names.ts";
 
 const STORY = "tests/client/lib/_appearance-channel-stories/AppearanceChannelStory";
 const DEFAULTS = appearanceSettingsSchema.parse({});

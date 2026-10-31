@@ -2,22 +2,22 @@
 // member's password-login cookie. A staged bundle belongs to its uploader, and naming another's handle imports nothing.
 // @subject packages/server/src/entry/http/export.ts
 // @subject packages/server/src/entry/http/import.ts
+
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
-import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
+import { PORTABILITY_ROUTES, PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, extractZip } from "@orb/testkit/node/composed";
+import { createServerHarness, extractZip, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { describe, vi } from "vitest";
 import { signedInMember } from "../_auth-roots.ts";
 
-const EXPORT_ROUTE = "/api/export/library";
-const BUNDLE_ROUTE = "/api/import/bundle";
-const WORKLOAD_DEADLINE_MS = 60_000;
+const EXPORT_ROUTE = PORTABILITY_ROUTES.exportLibrary;
+const BUNDLE_ROUTE = PORTABILITY_ROUTES.importBundle;
 /** A relay tell: the loopback socket speaks for a third party, so the owner fallback refuses it. */
 const ANONYMOUS = { "x-forwarded-for": "203.0.113.9" };
 const STAGED_TOKEN = /^import-bundle-[0-9a-f-]{36}\.zip$/u;
@@ -33,7 +33,7 @@ async function box(): Promise<Box> {
   const root = await createServerHarness({
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
   });
   const member = await signedInMember(root, castId<Handle>("portability-member"));
   const run = root.runAdmittedWorkload;

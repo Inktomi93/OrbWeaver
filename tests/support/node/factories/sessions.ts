@@ -27,7 +27,6 @@ export interface SeededAdminSession extends SeededBffSession {
 }
 
 export interface CapturedRevokedUserSessions {
-  readonly result: Awaited<ReturnType<AdminService["revokeUserSessions"]>>;
   readonly views: Awaited<ReturnType<AdminService["listSessions"]>>;
   readonly rows: readonly BffSessionRow[];
 }

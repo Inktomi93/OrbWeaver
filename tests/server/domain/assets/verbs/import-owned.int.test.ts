@@ -2,10 +2,10 @@
 
 import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, FORWARD_AUTH_TRUSTED_PROXIES_KEY } from "@orb/contracts/identity";
 import { DomainNotFoundError } from "@orb/kit/errors";
-
 import type { ExternalId, UserId } from "@orb/kit/ids";
-import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { createImportAvatarStore, createImportOwnedAsset } from "@orb/server/domain/assets";
 import { expect, test } from "@orb/testkit/node";
 import { isAdmin, isOwner } from "@orb/testkit/node/auth";
@@ -15,7 +15,7 @@ import { vi } from "vitest";
 
 test("foreign malformed bytes and absence share the same refusal before import; same-owner bytes retain actor and payload", async (): Promise<void> => {
   await using harness = await createServerHarness({
-    env: { ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny", ["FORWARD_AUTH_TRUSTED_PROXIES"]: "127.0.0.1/32" },
+    env: { [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny", [FORWARD_AUTH_TRUSTED_PROXIES_KEY]: "127.0.0.1/32" },
     physicalPeer: () => "127.0.0.1",
   });
   const { services } = harness;
@@ -54,7 +54,9 @@ test("foreign malformed bytes and absence share the same refusal before import; 
     importBytes,
   });
   await expect(ingest({ installerUserId: own.userId, assetId: stored.assetId, pluginId: null })).rejects.toBeInstanceOf(DomainNotFoundError);
-  await expect(ingest({ installerUserId: own.userId, assetId: mintTypeId(ID_PREFIX.asset), pluginId: null })).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(ingest({ installerUserId: own.userId, assetId: harness.ids.typeId(ID_PREFIX.asset), pluginId: null })).rejects.toBeInstanceOf(
+    DomainNotFoundError,
+  );
   expect(importBytes).not.toHaveBeenCalled();
   expect(Array.from(await ingest({ installerUserId: own.userId, assetId: ownStored.assetId, pluginId: null }))).toEqual(Array.from(ownBytes));
   expect(read.mock.calls.every(([actor]) => actor === own)).toBe(true);

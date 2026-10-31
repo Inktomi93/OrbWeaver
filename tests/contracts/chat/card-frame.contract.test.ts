@@ -5,29 +5,24 @@ import { cardFrameMintRequestSchema } from "@orb/contracts/chat";
 import { CARD_FRAME_STYLE_TOKEN, clampCardFrameStyleTokens } from "@orb/kit/card-frame";
 import { FONT_SCALE_PERCENT } from "@orb/kit/font-scale";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { createSeededIds } from "@orb/testkit/iso";
+import { createSeededIds, IN_RANGE_CARD_FRAME_STYLE } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 
 const BASE = { chatId: mintTypeId(ID_PREFIX.chat, createSeededIds().next), characterId: null, html: "<p>card</p>" } as const;
-const SLICE = {
-  [CARD_FRAME_STYLE_TOKEN.radius]: "0.5rem",
-  [CARD_FRAME_STYLE_TOKEN.monoFamily]: "'Geist Mono', ui-monospace, monospace",
-  [CARD_FRAME_STYLE_TOKEN.rootSize]: "125%",
-} as const;
 
 const mint = (styleTokens: unknown): ReturnType<typeof cardFrameMintRequestSchema.safeParse> => cardFrameMintRequestSchema.safeParse({ ...BASE, styleTokens });
 
 test("the mint parses the closed style slice unchanged, whole or in part", () => {
-  const parsed: CardFrameMintRequest = cardFrameMintRequestSchema.parse({ ...BASE, styleTokens: SLICE });
-  expect(parsed.styleTokens).toEqual(SLICE);
+  const parsed: CardFrameMintRequest = cardFrameMintRequestSchema.parse({ ...BASE, styleTokens: IN_RANGE_CARD_FRAME_STYLE });
+  expect(parsed.styleTokens).toEqual(IN_RANGE_CARD_FRAME_STYLE);
   expect(mint({ [CARD_FRAME_STYLE_TOKEN.rootSize]: "90%" }).success).toBe(true);
   expect(mint({}).success).toBe(true);
 });
 
 test("the mint refuses a style key outside the slice, even one the frame clamp would drop", () => {
-  expect(mint(SLICE).success).toBe(true);
-  expect(mint({ ...SLICE, "--sandbox-accent": "12px" }).success).toBe(false);
-  expect(mint({ ...SLICE, "--anything": "1rem" }).success).toBe(false);
+  expect(mint(IN_RANGE_CARD_FRAME_STYLE).success).toBe(true);
+  expect(mint({ ...IN_RANGE_CARD_FRAME_STYLE, "--sandbox-accent": "12px" }).success).toBe(false);
+  expect(mint({ ...IN_RANGE_CARD_FRAME_STYLE, "--anything": "1rem" }).success).toBe(false);
 });
 
 test("the mint refuses a style value that carries CSS, per token grammar", () => {
@@ -40,7 +35,7 @@ test("the mint refuses a style value that carries CSS, per token grammar", () =>
     [CARD_FRAME_STYLE_TOKEN.rootSize, "125px"],
     [CARD_FRAME_STYLE_TOKEN.rootSize, "var(--x)"],
   ] as const) {
-    expect(mint({ ...SLICE, [name]: value }).success, `${name}: ${value}`).toBe(false);
+    expect(mint({ ...IN_RANGE_CARD_FRAME_STYLE, [name]: value }).success, `${name}: ${value}`).toBe(false);
   }
 });
 

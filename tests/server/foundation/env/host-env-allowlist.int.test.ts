@@ -5,6 +5,7 @@
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { expect, test } from "@orb/testkit/node";
 import { z } from "zod";
 
@@ -17,7 +18,7 @@ const reportSchema = z.strictObject({ held: presenceSchema, edited: z.boolean(),
 test("the baseline drops an app secret once the boot scrubs it, keeps the host's own variables, and is a copy", ({ importStagingDir }) => {
   const child = spawnSync(process.execPath, [CHILD, SECRET, MARKER], {
     cwd: importStagingDir,
-    env: { [SECRET]: "ef".repeat(32), [MARKER]: "present", ["ORB_ENV_NO_FILE"]: "1" },
+    env: { [SECRET]: "ef".repeat(32), [MARKER]: "present", [ENV_NO_FILE_KEY]: "1" },
     encoding: "utf8",
   });
   const report = reportSchema.parse(JSON.parse(child.stdout));

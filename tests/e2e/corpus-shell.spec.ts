@@ -9,7 +9,7 @@ import { FONT_SCALE } from "@orb/kit/font-scale";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { pickKeys } from "@orb/kit/objects";
-import { SECTION_LABELS } from "@orb/testkit/ct";
+import { channelName, SECTION_LABELS } from "@orb/testkit/ct";
 import type { Locator, Page } from "@playwright/test";
 import { z } from "zod";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
@@ -22,7 +22,6 @@ import {
   durableLocalStorageKey,
   PERSISTED_STORE_PREFIX,
 } from "#client/state/durable-local-keys.ts";
-import { channelName } from "../client/lib/appearance-channel-names.ts";
 import type { ActorClient } from "./support/actors.ts";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
@@ -45,7 +44,7 @@ const SKIP_LINK = "Skip to content";
 // The topbar's list toggle in both regimes: a desktop names the panel, a phone names the screen a tap lands on.
 const LIST_TOGGLE = /^(?:(?:Show|Hide) list panel|Show .+ (?:list|overview))$/u;
 // The phone's curated bar: three tab sections and the You sheet's door.
-const PHONE_BAR = ["Home", "Chats", "Characters", "You"] as const;
+const PHONE_BAR = [SECTION_LABELS.home, "Chats", "Characters", "You"] as const;
 const PHONE_ONLY = "The bottom bar, the You sheet and push-and-Back are the phone's navigation model";
 const PROBE_GREETING = "The shell probe waits.";
 const PROBE_NAMES = ["Shell Probe Aster", "Shell Probe Birch"] as const;
@@ -262,8 +261,8 @@ const CENSUS_CASES: readonly CensusCase[] = [
   { section: "Presets", label: "Presets", census: async (host) => countCensus((await host.trpc.preset.list.query()).length) },
   { section: "Databank", label: "Databank", census: async (host) => countCensus((await host.trpc.databank.bankHealth.query()).total) },
   {
-    section: "Refinery",
-    label: "Refinery",
+    section: SECTION_LABELS.refinery,
+    label: SECTION_LABELS.refinery,
     bandTitle: "Sessions",
     listStartsCollapsed: true,
     census: async (host) => countCensus((await host.trpc.refinery.listSessions.query()).length),
@@ -457,16 +456,16 @@ test.describe("committed corpus shell", () => {
     const sessions = await ownerActor(baseURL ?? "").trpc.refinery.listSessions.query();
     await openHome(page);
     // Dock the Refinery's LIST once, so the next cold entry mounts its body in the section-switch commit itself.
-    await rail(page).getByRole("button", { name: "Refinery", exact: true }).click();
+    await rail(page).getByRole("button", { name: SECTION_LABELS.refinery, exact: true }).click();
     if ((await listPanel(page).getAttribute("data-panel-mode")) === "collapsed") {
       await page.getByRole("button", { name: "Show list panel" }).click();
     }
     await expect(listPanel(page)).toHaveAttribute("data-panel-mode", "docked");
-    await rail(page).getByRole("button", { name: "Home", exact: true }).click();
+    await rail(page).getByRole("button", { name: SECTION_LABELS.home, exact: true }).click();
     await openHome(page);
 
     const held = await holdTrpcProcedure(page, "refinery.listSessions");
-    await rail(page).getByRole("button", { name: "Refinery", exact: true }).click();
+    await rail(page).getByRole("button", { name: SECTION_LABELS.refinery, exact: true }).click();
     await held.requested;
     await expect(rail(page)).toBeVisible();
     await expect(page.locator(".shell-topbar")).toBeVisible();
@@ -510,7 +509,7 @@ test.describe("committed corpus shell on a phone", () => {
       await expect(bar.getByRole("button", { name, exact: true })).toBeVisible();
     }
     await expect(bar.getByRole("button", { name: SECTION_LABELS.corpus, exact: true })).toHaveCount(0);
-    await expect(bar.getByRole("button", { name: "Refinery", exact: true })).toHaveCount(0);
+    await expect(bar.getByRole("button", { name: SECTION_LABELS.refinery, exact: true })).toHaveCount(0);
     await expect(bar.getByRole("button")).toHaveCount(PHONE_BAR.length);
 
     await bar.getByRole("button", { name: SECTION_LABELS.characters, exact: true }).click();
@@ -526,7 +525,7 @@ test.describe("committed corpus shell on a phone", () => {
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible();
     await expect(sheet.getByRole("button", { name: SECTION_LABELS.settings, exact: true })).toBeVisible();
-    await expect(sheet.getByRole("button", { name: "Refinery", exact: true })).toBeVisible();
+    await expect(sheet.getByRole("button", { name: SECTION_LABELS.refinery, exact: true })).toBeVisible();
 
     await sheet.getByRole("button", { name: SECTION_LABELS.presets, exact: true }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -688,7 +687,7 @@ test.describe("committed corpus shell on a phone", () => {
       });
       expect(offset).toBeGreaterThan(0);
 
-      await rail(page).getByRole("button", { name: "Home", exact: true }).click();
+      await rail(page).getByRole("button", { name: SECTION_LABELS.home, exact: true }).click();
       await expect(name).toBeHidden();
       await rail(page).getByRole("button", { name: SECTION_LABELS.characters, exact: true }).click();
       await expect(name).toHaveValue(PROBE_DRAFT);

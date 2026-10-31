@@ -6,11 +6,11 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { MessageView } from "@orb/contracts/chat";
 import { messages, messageVariants, statsCanonVersions } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
-import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
+import { CHAT_OP_CODES, ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 import { textRoom } from "../scenario-physical.ts";
 
 interface TwoRooms extends AsyncDisposable {
@@ -63,7 +63,7 @@ const VERIFY = {
     await expect(pending).rejects.toBeInstanceOf(ChatNotFoundError);
   },
   undoContinue: async (pending: ReturnType<ChatRoot["root"]["services"]["chat"]["undoContinue"]>): Promise<void> => {
-    await expect(pending).rejects.toMatchObject({ code: "no_continuation" });
+    await expect(pending).rejects.toMatchObject({ code: CHAT_OP_CODES.noContinuation });
   },
 };
 
@@ -74,7 +74,7 @@ test("swipe with a chat-B messageId is refused identically to a nonexistent id â
   const attacker = await canon(f, f.attackerChatId);
   const versions = await f.h.root.db.select().from(statsCanonVersions).orderBy(statsCanonVersions.ownerId);
   await VERIFY.swipe(f.h.root.services.chat.swipe({ principal: f.attacker, chatId: f.attackerChatId, messageId: f.reply.id }));
-  await VERIFY.swipe(f.h.root.services.chat.swipe({ principal: f.attacker, chatId: f.attackerChatId, messageId: mintTypeId(ID_PREFIX.message) }));
+  await VERIFY.swipe(f.h.root.services.chat.swipe({ principal: f.attacker, chatId: f.attackerChatId, messageId: f.h.root.ids.typeId(ID_PREFIX.message) }));
   expect(await canon(f, f.h.chatId)).toEqual(victim);
   expect(await canon(f, f.attackerChatId)).toEqual(attacker);
   expect(await f.h.root.db.select().from(statsCanonVersions).orderBy(statsCanonVersions.ownerId)).toEqual(versions);
@@ -88,7 +88,9 @@ test("continueTurn with a chat-B messageId is refused identically to a nonexiste
   const attacker = await canon(f, f.attackerChatId);
   const versions = await f.h.root.db.select().from(statsCanonVersions).orderBy(statsCanonVersions.ownerId);
   await VERIFY.continueTurn(f.h.root.services.chat.continueTurn({ principal: f.attacker, chatId: f.attackerChatId, messageId: f.reply.id }));
-  await VERIFY.continueTurn(f.h.root.services.chat.continueTurn({ principal: f.attacker, chatId: f.attackerChatId, messageId: mintTypeId(ID_PREFIX.message) }));
+  await VERIFY.continueTurn(
+    f.h.root.services.chat.continueTurn({ principal: f.attacker, chatId: f.attackerChatId, messageId: f.h.root.ids.typeId(ID_PREFIX.message) }),
+  );
   expect(await canon(f, f.h.chatId)).toEqual(victim);
   expect(await canon(f, f.attackerChatId)).toEqual(attacker);
   expect(await f.h.root.db.select().from(statsCanonVersions).orderBy(statsCanonVersions.ownerId)).toEqual(versions);
@@ -103,7 +105,9 @@ test("undoContinue with a chat-B messageId is refused no_continuation â€” B's re
   const attacker = await canon(f, f.attackerChatId);
   const versions = await f.h.root.db.select().from(statsCanonVersions).orderBy(statsCanonVersions.ownerId);
   await VERIFY.undoContinue(f.h.root.services.chat.undoContinue({ principal: f.attacker, chatId: f.attackerChatId, messageId: f.reply.id }));
-  await VERIFY.undoContinue(f.h.root.services.chat.undoContinue({ principal: f.attacker, chatId: f.attackerChatId, messageId: mintTypeId(ID_PREFIX.message) }));
+  await VERIFY.undoContinue(
+    f.h.root.services.chat.undoContinue({ principal: f.attacker, chatId: f.attackerChatId, messageId: f.h.root.ids.typeId(ID_PREFIX.message) }),
+  );
   expect(await canon(f, f.h.chatId)).toEqual(victim);
   expect(await canon(f, f.attackerChatId)).toEqual(attacker);
   expect(await f.h.root.db.select().from(statsCanonVersions).orderBy(statsCanonVersions.ownerId)).toEqual(versions);

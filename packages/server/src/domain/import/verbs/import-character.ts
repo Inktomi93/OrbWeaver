@@ -131,8 +131,8 @@ async function attachCarriedContent(
   ctx: ImportContext,
   characterId: CharacterId,
   carried: CarriedContent,
-): Promise<Pick<ImportCharacterResult, "attachedBooksLinked" | "attachedBooksSkipped" | "regexScriptsLifted" | "regexScriptsReused" | "skippedOverlays">> {
-  const { linked: attachedBooksLinked, skipped: attachedBooksSkipped } = await relinkCarriedBooks(ctx, characterId, carried.attachedBooks);
+): Promise<Pick<ImportCharacterResult, "regexScriptsLifted" | "regexScriptsReused" | "skippedOverlays">> {
+  const { linked: attachedBooksLinked } = await relinkCarriedBooks(ctx, characterId, carried.attachedBooks);
   const skippedOverlays: string[] = [];
 
   if (ctx.importLorebook !== undefined && carried.book !== null && attachedBooksLinked === 0) {
@@ -156,7 +156,7 @@ async function attachCarriedContent(
     regexScriptsReused = lift.reused;
   }
 
-  return { attachedBooksLinked, attachedBooksSkipped, regexScriptsLifted, regexScriptsReused, skippedOverlays };
+  return { regexScriptsLifted, regexScriptsReused, skippedOverlays };
 }
 
 /** EVERY plane a card lands beyond the character row, in one place, because BOTH arms of the verb run it:
@@ -247,7 +247,7 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
     // Two provenance channels, never both: a file upload carries a filename; a plugin funnel carries no
     // filename at all (its wire shape is `{card}`/`{assetId}`, never a name) but knows its OWN manifest id
     // — paired with this card's own `importHash` so an equal-content re-ingest through the SAME plugin mints
-    // the SAME `importedFrom` (the `findByImportedFrom` re-ingest match).
+    // the SAME `importedFrom`.
     const importedFrom = filename ?? (pluginId === undefined ? null : pluginImportedFrom(pluginId, importHash));
     const ref = await ctx.createCharacter({
       ownerId: ctx.ownerId,

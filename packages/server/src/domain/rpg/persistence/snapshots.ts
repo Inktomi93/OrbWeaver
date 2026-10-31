@@ -59,7 +59,7 @@ import type { ChatId, MessageId, MessageVariantId, RpgGameId, RpgSnapshotId } fr
 import { and, count, desc, eq, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { RpgStateCorruptError } from "../contract/errors.ts";
-import type { HandSnapshotTarget, SnapshotGameRef, TurnSnapshotTarget } from "../contract/params.ts";
+import type { HandSnapshotTarget, SnapshotGameRef, SnapshotWriteBase, TurnSnapshotTarget } from "../contract/params.ts";
 import type { NewRpgJournal, NewRpgSnapshot, ResolvedSnapshotHead, RpgSnapshotRow, WriteStagedSnapshotResult } from "../contract/service.ts";
 import { snapshotRowToState } from "../contract/service.ts";
 
@@ -503,7 +503,7 @@ async function findTailMessageId(db: Db, chatId: ChatId): Promise<MessageId | nu
 function snapshotInsertFrom(
   state: RpgSnapshotState,
   row: { readonly fieldLocks: RpgSnapshotState["fieldLocks"]; readonly committed: number; readonly arm: SnapshotArmKeys },
-  base: { readonly id: RpgSnapshotId; readonly gameId: RpgGameId; readonly now: number },
+  base: SnapshotWriteBase,
 ): NewRpgSnapshot {
   return {
     id: base.id,

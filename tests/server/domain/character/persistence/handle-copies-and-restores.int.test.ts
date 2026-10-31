@@ -8,11 +8,11 @@
 // @subject packages/server/src/domain/databank/persistence/portability-write.ts
 // @subject packages/server/src/domain/imagery/persistence/portability-read.ts
 // @subject packages/server/src/domain/imagery/persistence/portability-write.ts
+
 import { characterHandleSchema, createCharacterSchema } from "@orb/contracts/character";
-import { CSRF_HEADER } from "@orb/contracts/identity";
 import { portableImageryCallSchema } from "@orb/contracts/imagery";
-import { importStartedSchema } from "@orb/contracts/import";
 import type { PortableFile, PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { characters, chatParticipants, imageryGenerations } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
@@ -20,21 +20,12 @@ import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import {
-  CORPUS_EMBEDDING_VECTOR,
-  CORPUS_PROVIDER_ENDPOINT,
-  createCorpusProviderExecution,
-  createServerHarness,
-  makeAssetBytes,
-} from "@orb/testkit/node/composed";
+import { CORPUS_PROVIDER_ENDPOINT, createServerHarness, imageProvider, makeAssetBytes, restoreBundle, signedInBox } from "@orb/testkit/node/composed";
 import { seedChatInviteRows, seedInvitedChatParticipantRows } from "@orb/testkit/node/rows";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 
-const EXPORT_ROUTE = "/api/export/library";
-const BUNDLE_ROUTE = "/api/import/bundle";
-const SIGNED_IN_ROUTE = "/api/trpc/sessions.me";
-const WORKLOAD_DEADLINE_MS = 60_000;
+const EXPORT_ROUTE = PORTABILITY_ROUTES.exportLibrary;
 /** Asset ids restore verbatim, so the exporting box mints from its own band. */
 const SOURCE_ID_CURSOR = 2 ** 29;
 /** Inside the length cap, outside the alphabet. */
@@ -45,30 +36,6 @@ const TEXT_MIME = "text/plain";
 const IMAGE_MODEL = "ring-image-v1";
 const ROUND_TRIP_KINDS = ["character", "assets", "gallery", "databank", "imagery"] as const satisfies readonly PortableKind[];
 const documentFileSchema = z.object({ characterHandles: z.array(z.string()) }).loose();
-
-function imageProvider(pictures: Uint8Array[]): typeof fetch {
-  return createCorpusProviderExecution({
-    modelIds: [IMAGE_MODEL],
-    embedding: CORPUS_EMBEDDING_VECTOR,
-    chatText: "",
-    structuredReplies: new Map(),
-    images: pictures,
-  }).execute;
-}
-
-/** A local box whose loopback requests act as its owner, after that owner's first-login seed has settled. */
-async function signedInBox(options: { readonly ids?: ReturnType<typeof createSeededIds>; readonly pictures?: Uint8Array[] } = {}): Promise<ServerTestHarness> {
-  const root = await createServerHarness({
-    physicalPeer: () => "127.0.0.1",
-    startJobs: false,
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
-    ...(options.ids === undefined ? {} : { ids: options.ids }),
-    ...(options.pictures === undefined ? {} : { providerFetch: imageProvider(options.pictures) }),
-  });
-  expect((await root.http.request(SIGNED_IN_ROUTE)).status).toBe(200);
-  await root.settleBackground();
-  return root;
-}
 
 async function createCharacter(root: ServerTestHarness, handle: string, name: string): Promise<CharacterId> {
   const created = await root.services.character.create({
@@ -142,14 +109,6 @@ async function importFile(root: ServerTestHarness, kind: PortableKind, file: Por
   return await descriptor.importFile(root.ownerId, file);
 }
 
-/** Upload the bundle and run its import workload to the end. */
-async function restore(root: ServerTestHarness, bundle: Uint8Array): Promise<string> {
-  const response = await root.http.request(BUNDLE_ROUTE, { method: "POST", headers: { [CSRF_HEADER]: "1" }, body: bundle });
-  const { workloadId } = importStartedSchema.parse(await response.json());
-  await root.runAdmittedWorkload?.(workloadId, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
-  return (await root.services.workloads.get({ caller: await root.principalFor(root.ownerId), id: workloadId })).status;
-}
-
 /** The subject each imported imagery output of `assetId` was linked to. */
 async function importedSubjects(root: ServerTestHarness, assetId: AssetId): Promise<readonly (CharacterId | null)[]> {
   const rows = await root.db
@@ -186,7 +145,7 @@ test("a handoff copy of a card stored outside the alphabet lands under an in-alp
 
 test("a card stored outside the alphabet keeps its gallery, databank and imagery links through a library round trip", async () => {
   const pictures: Uint8Array[] = [];
-  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR), pictures });
+  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR), providerFetch: imageProvider(IMAGE_MODEL, pictures) });
   const owner = await source.principalFor(source.ownerId);
   const characterId = await createCharacter(source, "wanderer", NAME);
   const assetId = await portraitOf(source, pictures, characterId);
@@ -198,7 +157,7 @@ test("a card stored outside the alphabet keeps its gallery, databank and imagery
   const bundle = new Uint8Array(await download.arrayBuffer());
 
   await using target = await signedInBox();
-  const status = await restore(target, bundle);
+  const status = (await restoreBundle(target, bundle)).status;
   const principal = await target.principalFor(target.ownerId);
   const restored = (await (await target.internalCallerFor(target.ownerId)).character.list({})).items.filter((item) => item.name === NAME);
   const restoredIds = restored.map((item) => item.id);
@@ -222,7 +181,7 @@ test("a card stored outside the alphabet keeps its gallery, databank and imagery
 
 test("a databank or imagery file naming a synthetic group handle attaches nothing to the group row", async () => {
   const pictures: Uint8Array[] = [];
-  await using root = await signedInBox({ pictures });
+  await using root = await signedInBox({ providerFetch: imageProvider(IMAGE_MODEL, pictures) });
   const owner = await root.principalFor(root.ownerId);
   const characterId = await createCharacter(root, "wanderer", NAME);
   const { chat } = await root.services.chat.startChat({ principal: owner, characterIds: [characterId], title: "Outer rings" });
@@ -339,7 +298,7 @@ const galleryFileSchema = z
 
 test("an owner's export names no synthetic group row as a gallery, databank or imagery subject", async () => {
   const pictures: Uint8Array[] = [];
-  await using root = await signedInBox({ pictures });
+  await using root = await signedInBox({ providerFetch: imageProvider(IMAGE_MODEL, pictures) });
   const owner = await root.principalFor(root.ownerId);
   const { groupId } = await roomWithGroupRow(root, [await createCharacter(root, "wanderer", NAME)]);
   const assetId = await portraitOf(root, pictures, groupId);

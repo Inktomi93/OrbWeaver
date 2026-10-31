@@ -3,7 +3,8 @@
 import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { GenerationProvenance } from "@orb/contracts/imagery";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
+import { createSeededIds } from "@orb/testkit/iso";
 import { test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -33,7 +34,7 @@ export const portraitTest = test.extend<{ portrait: PortraitFixture }>({
       embedding: CORPUS_EMBEDDING_VECTOR,
       chatText: "An illustrated keeper stands beside the orbital loom.",
       structuredReplies: CORPUS_STRUCTURED_REPLIES,
-      images: [makeAssetBytes(mintTypeId(ID_PREFIX.asset))],
+      images: [makeAssetBytes(createSeededIds().typeId(ID_PREFIX.asset))],
     });
     await using root = await createServerHarness({ providerFetch: physical.execute });
     const principal = await root.principalFor(root.ownerId);

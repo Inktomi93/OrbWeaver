@@ -31,13 +31,13 @@ import type { ScanOptions } from "./scan.ts";
 import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
 import { isProduction } from "./worlds.ts";
 
-export const UNION_KINDS = ["unbuilt", "parsed"] as const;
+const UNION_KINDS = ["unbuilt", "parsed"] as const;
 /** `unbuilt`: no production literal builds the member into a slot of its union. `parsed`: no production literal
  *  builds it either, but production narrows outside input into its tuple with `z.enum` or a membership test, so a
  *  model's structured output, a file, an env var or a platform name can still produce it. */
-export type UnionKind = (typeof UNION_KINDS)[number];
+type UnionKind = (typeof UNION_KINDS)[number];
 
-export interface UnwiredUnionMember {
+interface UnwiredUnionMember {
   readonly key: string;
   readonly kind: UnionKind;
   readonly file: string;

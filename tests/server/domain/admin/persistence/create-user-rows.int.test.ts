@@ -11,6 +11,7 @@ import { signInWithPassword } from "@orb/testkit/node/auth";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { refuseWrites } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
+import { ADMIN_OP_CODES } from "#server/domain/admin/contract/errors.ts";
 import { delegate, NEW_HANDLE, PASSWORD, test } from "../verbs/create-user.fixtures.ts";
 
 async function createAudits(root: ServerTestHarness): Promise<(typeof auditLogs.$inferSelect)[]> {
@@ -41,7 +42,7 @@ test.for(["owner", "0wner"])("the owner seed key and its look-alikes are refused
   const admin = await delegate(root);
   const before = await root.db.select().from(users);
   await expect(root.services.admin.createUser({ principal: admin.principal, handle: castId<Handle>(handle), password: PASSWORD })).rejects.toMatchObject({
-    code: "invalid_handle",
+    code: ADMIN_OP_CODES.invalidHandle,
   });
   expect(await root.db.select().from(users)).toEqual(before);
 });

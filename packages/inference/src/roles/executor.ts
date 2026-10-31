@@ -110,10 +110,6 @@ export function createProviderExecutor(args: {
       execute(req.connection, "chat", req.signal, (connection) =>
         runTask({ span, registry, task: "chat", pick: (b) => b.runChatTurn, req: { ...req, connection } }),
       ),
-    runAgentTurn: (req) =>
-      execute(req.connection, "agent", req.signal, (connection) =>
-        runTask({ span, registry, task: "agent", pick: (b) => b.runAgentTurn, req: { ...req, connection } }),
-      ),
     embed: (req): Promise<EmbedResult> =>
       execute(req.connection, "embed", req.signal, (connection) => {
         const embeddingAccounting = begin(connection, "embed");

@@ -4,22 +4,17 @@
 // response policy is the same bytes it is without the slice.
 import type { CardFrameMintResponse } from "@orb/contracts/chat";
 import { CARD_FRAME_ROUTE, cardFrameMintResponseSchema } from "@orb/contracts/chat";
-import { CSRF_HEADER } from "@orb/contracts/identity";
-import type { CardFrameStyleTokens } from "@orb/kit/card-frame";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { buildCardFrameCsp, CARD_FRAME_SAFE_FLOOR, CARD_FRAME_STYLE_TOKEN, cardFrameResponseHeaders } from "@orb/kit/card-frame";
 import { FONT_SCALE_PERCENT } from "@orb/kit/font-scale";
 import type { ChatId } from "@orb/kit/ids";
+import { IN_RANGE_CARD_FRAME_STYLE } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 
 type Root = Awaited<ReturnType<typeof createServerHarness>>;
 
 const HEADERS = { [CSRF_HEADER]: "1", "content-type": "application/json" } as const;
-const SLICE = {
-  [CARD_FRAME_STYLE_TOKEN.radius]: "0.5rem",
-  [CARD_FRAME_STYLE_TOKEN.monoFamily]: "'Geist Mono', ui-monospace, monospace",
-  [CARD_FRAME_STYLE_TOKEN.rootSize]: "125%",
-} as const satisfies CardFrameStyleTokens;
 
 interface Served {
   readonly status: number;
@@ -28,7 +23,7 @@ interface Served {
 }
 
 async function openRoot(): Promise<Root> {
-  return await createServerHarness({ env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" }, physicalPeer: () => "127.0.0.1" });
+  return await createServerHarness({ env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" }, physicalPeer: () => "127.0.0.1" });
 }
 
 async function openChat(root: Root): Promise<ChatId> {
@@ -64,9 +59,9 @@ function floorHeaders(): Readonly<Record<string, string>> {
 test("an in-range style slice reaches the served document's root unchanged", async () => {
   await using root = await openRoot();
   const chatId = await openChat(root);
-  const served = await mintAndServe(root, chatId, { styleTokens: SLICE });
+  const served = await mintAndServe(root, chatId, { styleTokens: IN_RANGE_CARD_FRAME_STYLE });
   expect(served.status).toBe(200);
-  for (const [name, value] of Object.entries(SLICE)) {
+  for (const [name, value] of Object.entries(IN_RANGE_CARD_FRAME_STYLE)) {
     expect(served.body).toContain(`${name}: ${value};`);
   }
 });
@@ -79,7 +74,7 @@ test("an out-of-range root size is served at the nearest bound of the appearance
     ["400%", `${max}%`],
     ["10%", `${min}%`],
   ] as const) {
-    const served = await mintAndServe(root, chatId, { styleTokens: { ...SLICE, [CARD_FRAME_STYLE_TOKEN.rootSize]: planted } });
+    const served = await mintAndServe(root, chatId, { styleTokens: { ...IN_RANGE_CARD_FRAME_STYLE, [CARD_FRAME_STYLE_TOKEN.rootSize]: planted } });
     expect(served.body).toContain(`${CARD_FRAME_STYLE_TOKEN.rootSize}: ${bounded};`);
     expect(served.body).not.toContain(planted);
   }
@@ -88,14 +83,14 @@ test("an out-of-range root size is served at the nearest bound of the appearance
 test("an extra style key or a CSS-bearing value is refused at the mint", async () => {
   await using root = await openRoot();
   const chatId = await openChat(root);
-  const control = await postMint(root, { chatId, characterId: null, html: "<p>x</p>", styleTokens: SLICE });
+  const control = await postMint(root, { chatId, characterId: null, html: "<p>x</p>", styleTokens: IN_RANGE_CARD_FRAME_STYLE });
   expect(control.status).toBe(200);
   await control.arrayBuffer();
   for (const styleTokens of [
-    { ...SLICE, "--sandbox-accent": "12px" },
-    { ...SLICE, [CARD_FRAME_STYLE_TOKEN.radius]: "8px} </style><script>x()</script>" },
-    { ...SLICE, [CARD_FRAME_STYLE_TOKEN.monoFamily]: "Mono; } body { background: url(//evil.test) }" },
-    { ...SLICE, [CARD_FRAME_STYLE_TOKEN.monoFamily]: 'a"' },
+    { ...IN_RANGE_CARD_FRAME_STYLE, "--sandbox-accent": "12px" },
+    { ...IN_RANGE_CARD_FRAME_STYLE, [CARD_FRAME_STYLE_TOKEN.radius]: "8px} </style><script>x()</script>" },
+    { ...IN_RANGE_CARD_FRAME_STYLE, [CARD_FRAME_STYLE_TOKEN.monoFamily]: "Mono; } body { background: url(//evil.test) }" },
+    { ...IN_RANGE_CARD_FRAME_STYLE, [CARD_FRAME_STYLE_TOKEN.monoFamily]: 'a"' },
   ]) {
     const refused = await postMint(root, { chatId, characterId: null, html: "<p>x</p>", styleTokens });
     expect(refused.status, JSON.stringify(styleTokens)).toBe(400);
@@ -117,7 +112,7 @@ test("the served policy, sandbox and script hash are the production floor bytes,
   await using root = await openRoot();
   const chatId = await openChat(root);
   const bare = await mintAndServe(root, chatId, {});
-  const styled = await mintAndServe(root, chatId, { styleTokens: SLICE });
+  const styled = await mintAndServe(root, chatId, { styleTokens: IN_RANGE_CARD_FRAME_STYLE });
   // Both documents carry exactly the production floor headers; per-request timing and id headers differ by design.
   expect(bare.headers).toMatchObject(floorHeaders());
   expect(styled.headers).toMatchObject(floorHeaders());

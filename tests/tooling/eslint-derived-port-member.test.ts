@@ -2,7 +2,7 @@
 // into it, names the higher-tier member as the restatement, and sends a cross-domain pair to packages/contracts.
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import { Linter } from "eslint";
+import { ESLint, Linter } from "eslint";
 import ts from "typescript";
 import tseslint from "typescript-eslint";
 import { derivedPortMemberRule } from "../../tooling/src/eslint/derived-port.ts";
@@ -246,4 +246,16 @@ test.for([
   for (const [index, expected] of findings.entries()) {
     expect(messages[index]).toContain(expected);
   }
+});
+
+// The cases above register the rule by hand to give it a planted program; this one reads the production config, so the
+// rule's name, its severity and its plugin registration are proven where they are wired.
+test("the production config registers derived-port-member as an error on server compose files", async () => {
+  const root = join(import.meta.dirname, "../..");
+  const config = await new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: root }).calculateConfigForFile(
+    join(root, "packages/server/src/entry/compose/chat.ts"),
+  );
+  expect(config?.rules?.[RULE]).toEqual([2]);
+  // The config loads its own module instance, so the registered rule is compared by its declared meta.
+  expect(config?.plugins?.["orb"]?.rules?.["derived-port-member"]?.meta).toEqual(derivedPortMemberRule.meta);
 });

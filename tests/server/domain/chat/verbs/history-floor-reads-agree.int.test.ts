@@ -7,6 +7,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { JoinHistoryVisibility } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { AssetId, ChatId, Handle, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
@@ -25,7 +26,7 @@ interface Room extends AsyncDisposable {
 }
 
 async function openRoom(): Promise<Room> {
-  const root = await createServerHarness({ startJobs: false, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
+  const root = await createServerHarness({ startJobs: false, env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
   const { owner: host } = await seedCorpusActors(root);
   const character = await root.services.character.create({
     principal: host,

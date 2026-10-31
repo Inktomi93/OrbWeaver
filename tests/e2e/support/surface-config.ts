@@ -4,7 +4,7 @@ import { LIBRARY_PAGE_SIZE_DEFAULT, LIBRARY_PAGE_SIZE_MIN } from "@orb/contracts
 import { controlledPanel, diagnosticTarget, publishSurfaceInventory } from "@orb/testkit/browser/spec";
 import type { SurfaceCoverageDisposition } from "@orb/testkit/iso";
 import { surfaceCoverageKey } from "@orb/testkit/iso";
-import { attachNativeFile, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
+import { abortProcedure, attachNativeFile, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { HIDDEN_AT } from "@orb/ui/lib";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
@@ -1077,11 +1077,7 @@ async function librarySetting(flow: SurfaceFlow, visits: Visit[]): Promise<void>
 }
 
 async function worldInfoRecovery(flow: SurfaceFlow, visits: Visit[]): Promise<void> {
-  const pattern = "**/trpc/*worldInfo.countBooks*";
-  const refuse = async (route: import("@playwright/test").Route): Promise<void> => {
-    await route.abort("aborted");
-  };
-  await flow.page.route(pattern, refuse);
+  const lift = await abortProcedure(flow.page, "worldInfo.countBooks");
   try {
     await flow.page.goto("/config?to=worldInfo");
     await waitForAppReady(flow.page);
@@ -1089,7 +1085,7 @@ async function worldInfoRecovery(flow: SurfaceFlow, visits: Visit[]): Promise<vo
     const retry = content.getByRole("button", { name: "Retry", exact: true });
     await expect(retry).toBeVisible();
     await flow.checkpoint({ name: "config-world-info-real-read-failure", scope: content, witnesses: [retry], state: "error", checks: SURFACE_CHECKS });
-    await flow.page.unroute(pattern, refuse);
+    await lift();
     await retry.focus();
     await retry.press("Enter");
     const count = await flow.client.worldInfo.countBooks.query();
@@ -1104,7 +1100,7 @@ async function worldInfoRecovery(flow: SurfaceFlow, visits: Visit[]): Promise<vo
     });
     visits.push({ name: "World Info aborted real census read/keyboard Retry/recovered library", kind: "action", disposition: "visited" });
   } finally {
-    await flow.page.unroute(pattern, refuse);
+    await lift();
   }
 }
 

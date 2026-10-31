@@ -218,7 +218,7 @@ export interface CueReplay {
  *  terminal final chunk carrying the generation economics.
  *
  *  The `warning` arm is the CHAT role's infra→domain warning hop (D41 no-silent-degrade). The runners raise
- *  resolve/wire drops as infra `WARNING_CODES` on `ChatResult.events`; the compose bridge
+ *  resolve/wire drops as infra `WARNING_CODE` on `ChatResult.events`; the compose bridge
  *  (`createRunChatTurnBridge`) carries them here VERBATIM, in the infra vocabulary. Chat owns its own bus
  *  vocabulary and translates at the engine (`toChatWarning`) — the mirror of the IMAGE role's hop, where
  *  compose hands over a narrowed infra code and `verbs/generate-image.ts` re-maps it to a `ChatWarningCode`.
@@ -235,7 +235,7 @@ export type TurnStreamChunk =
   | { readonly kind: "text"; readonly text: string }
   | { readonly kind: "reasoning"; readonly text: string }
   | ({ readonly kind: "warning" } & ResolvedWarning)
-  // THE PROVIDER DECLINED. Its own arm rather than a `ResolvedWarning`, because `WARNING_CODES` is the
+  // THE PROVIDER DECLINED. Its own arm rather than a `ResolvedWarning`, because `WARNING_CODE` is the
   // resolve/wire DROP vocabulary — "we asked for X and the provider did Y instead" — and a refusal is not a
   // degrade of our settings but the model's verdict on the request. Payload-free: the refusal's `category` /
   // `explanation` / `fallbackModel` are raw upstream strings the chat bus may not carry (`bus.ts`
@@ -455,22 +455,15 @@ export interface TurnPrep {
  * the return value.
  *
  * `generateText` is the NON-PERSISTING sibling: it runs the same assemble→shape→generate half (with the same
- * consent + budget belts a real turn pays) and RETURNS the generated text — acquiring NO lock, writing NO
+ * consent + budget belts a real turn pays) and STREAMS the generated text — acquiring NO lock, writing NO
  * canon slot, emitting NO bus event. It backs the composer-fill flows (guided impersonate drafts the user's
  * next line INTO the composer for review; nothing is committed until the user sends). `onText`, when supplied,
  * receives each TEXT delta AS IT ARRIVES off the generation stream (reasoning deltas excluded) so a caller can
- * stream the generation progressively into the composer; absent ⇒ deltas dropped, only the final text returns.
+ * stream the generation progressively into the composer; absent ⇒ deltas dropped, only the pipeline runs.
  */
 export interface TurnEngine {
   readonly runTurn: (prep: TurnPrep) => Promise<TurnOutcome>;
-  readonly generateText: (prep: TurnPrep, onText?: (text: string) => void) => Promise<GeneratedText>;
-}
-
-/** The {@link TurnEngine.generateText} product — the reduced generation, unpersisted. `aborted` is true when
- *  the turn's signal fired mid-generation (the caller cancelled); `text` is then whatever streamed before. */
-export interface GeneratedText {
-  readonly text: string;
-  readonly aborted: boolean;
+  readonly generateText: (prep: TurnPrep, onText?: (text: string) => void) => Promise<void>;
 }
 
 /** The scope of a deferred-turn drain (Part III §5). `all` = the boot reclaim (every chat's queued turns);

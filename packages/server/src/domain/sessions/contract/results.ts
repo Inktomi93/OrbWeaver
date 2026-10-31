@@ -17,8 +17,7 @@ export interface CreateSessionResult {
 }
 
 /** `validate` output: the cookie-resolved caller's principal-fields incl. `userId`. `role` is re-read from
- *  the `users` row each request. `enabled` is always `true` on a non-null result, because `validate` gates
- *  disabled rows to `null`. */
+ *  the `users` row each request. A disabled row never resolves: `validate` gates it to `null`. */
 export interface ValidatedSession {
   /** WHICH session row this cookie is — the identity a per-SESSION action keys on (F4/W7a: logout on the
    *  phone evicts the phone's live sockets and leaves the desktop's alone). It is deliberately NOT part of the
@@ -29,7 +28,6 @@ export interface ValidatedSession {
   role: UserRoleState;
   handle: Handle;
   externalId: ExternalId | null;
-  enabled: boolean;
 }
 
 /**

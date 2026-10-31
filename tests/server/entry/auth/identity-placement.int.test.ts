@@ -1,7 +1,14 @@
 // D1/D40/D135: verification supplies pre-row identity; the real HTTP seam resolves the stored role.
 // @subject packages/server/src/entry/auth/seam.ts
 // @subject packages/server/src/infra/auth/modes/forward-header.ts
-import { authMeSchema } from "@orb/contracts/identity";
+import {
+  AUTH_FALLBACK_KEY,
+  AUTH_MODE_KEY,
+  authMeSchema,
+  DEFAULT_USER_HANDLE_KEY,
+  FORWARD_AUTH_TRUSTED_PROXIES_KEY,
+  OWNER_HANDLES_KEY,
+} from "@orb/contracts/identity";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
@@ -12,7 +19,7 @@ import { vi } from "vitest";
 
 test("the real header seam hands sessions a pre-row identity and never trusts forged userId or role headers", async () => {
   await using root = await createServerHarness({
-    env: { ["FORWARD_AUTH_TRUSTED_PROXIES"]: "127.0.0.1/32", ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny" },
+    env: { [FORWARD_AUTH_TRUSTED_PROXIES_KEY]: "127.0.0.1/32", [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny" },
     physicalPeer: () => "127.0.0.1",
   });
   const provision = vi.spyOn(root.app.sessions, "provisionIdentity");
@@ -51,8 +58,8 @@ test("fallback and frozen-host identities read the same live owner row instead o
   const placeholder = castId<Handle>("verification-placeholder-is-not-owner");
   // A record names a placeholder apart from the owner only beside an explicit owner handle; the owner keeps the default.
   await using root = await createServerHarness({
-    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
-    rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: placeholder, ["OWNER_HANDLES"]: createTestEnv().DEFAULT_USER_HANDLE },
+    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
+    rolePolicyConfig: { [DEFAULT_USER_HANDLE_KEY]: placeholder, [OWNER_HANDLES_KEY]: createTestEnv().DEFAULT_USER_HANDLE },
     physicalPeer: () => "127.0.0.1",
   });
   const owner = await root.principalFor(root.ownerId);

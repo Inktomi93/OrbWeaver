@@ -14,7 +14,7 @@ import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
 import type { BindingActor, GeneratedImage, ImageGenerateRequest as InferenceImageGenerateRequest, Resolved } from "@orb/inference";
-import type { CharacterId, ChatId, ImageryCallId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ImageryCallId, ImageryGenerationId, UserId } from "@orb/kit/ids";
 import type { Clock, IanaTimeZone } from "@orb/kit/time";
 import type { EditImageParams, ExtractionMode, ExtractPromptParams, MultimodalMode, ReadProvenanceParams } from "./params.ts";
 import type { ExtractedPrompt, GeneratedPicture, GenerationProvenance, ImageryWarning } from "./results.ts";
@@ -70,29 +70,21 @@ interface ImageryCard extends CharacterCard {
 
 export type { GeneratedImage } from "@orb/inference";
 
-/** The text→image request the domain hands the sealed executor. Free mode fills the credential/model/prompt/
- *  negativePrompt/size/n fields; `edit` rides B3/editImage (I4). `systemPrompt` is the optional prepend.
+/** The text→image request the domain hands the sealed executor. Free mode fills the connection/prompt/
+ *  negativePrompt/size/n fields; `edit` rides B3/editImage (I4).
  *  Structural over contract/kit types (no `#infra`) — the widened twin of the infra `ImageGenerateRequest`
- *  (two spellings of one request must not drift). */
+ *  (two spellings of one request must not drift). The executor reads the whole object, so each field here
+ *  is read by the backend wires; the edit belt reads the capability off `connection`. */
 export interface ImageGenerateRequest {
   /** The RESOLVED `generateImage` connection — the runtime dispatches on its wire; credential rides inside. */
   readonly connection: Resolved<"generateImage">;
-  readonly model: ModelId;
   readonly prompt: string;
-  /** The generation owner (the run-as user id) — the widened twin of the infra `ImageGenerateRequest.owner`. */
-  readonly owner?: UserId | undefined;
   readonly n?: number | undefined;
-  readonly systemPrompt?: string | undefined;
   /** Folded into the prompt text by runners whose wire has no native negative field. */
   readonly negativePrompt?: string | undefined;
   /** A hint (same posture as `n`) — passed where the wire supports it. */
   readonly size?: { readonly width: number; readonly height: number } | undefined;
   readonly edit?: InferenceImageGenerateRequest["edit"];
-  /** The resolved model capability the runner's edit-strip belt reads: an `edit` payload
-   *  whose model lacks `input.imageEdit` is stripped + warned, never sent. The domain resolves this at every
-   *  verb (the same model the edit gate reads), so it is REQUIRED here — a request build that omits it fails
-   *  `tsc`, closing the "belt strips every edit because capability was never forwarded" seam. */
-  readonly capability: GenerationCapability;
 }
 
 /** The executor's result — the returned images + the model provenance + the economics + the runner's edit-strip

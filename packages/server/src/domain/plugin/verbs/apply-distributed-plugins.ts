@@ -33,19 +33,17 @@ export function createApplyDistributedPlugins(
   return async ({ caller }: ApplyDistributedPluginsParams) => {
     const records = await listDistributions(ctx.db);
     const installedSlugs: string[] = [];
-    const skippedSlugs: string[] = [];
     // Serial: the set is small (a deployment publishes a handful), and each iteration is a bundle read plus a
     // CAS write plus two verb calls — the install fan-out's reasoning, at the other axis.
     for (const record of records) {
       const held = await alreadyHolds(ctx, caller, record.slug);
       if (held) {
-        skippedSlugs.push(record.slug);
         continue;
       }
       const bundle = await deps.readPublishedBundle(record.bundleAssetId);
       await installDistributedCopy(deps, caller, bundle);
       installedSlugs.push(record.slug);
     }
-    return { installedSlugs, skippedSlugs };
+    return { installedSlugs };
   };
 }

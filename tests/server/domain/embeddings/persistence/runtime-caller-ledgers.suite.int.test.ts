@@ -11,7 +11,7 @@ import { assets, auditLogs, rpgSheets } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { expect } from "@orb/testkit/node";
-import { createServerHarness, makeAssetBytes } from "@orb/testkit/node/composed";
+import { createServerHarness, makeAssetBytes, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
 import { and, eq } from "drizzle-orm";
 import { vi } from "vitest";
@@ -60,7 +60,7 @@ for (const vehicle of ["structured", "tools"] as const) {
     await using root = await createServerHarness({
       providerFetch: fundingProvider.fetch,
       runtimeSpan: fundingProvider.span,
-      secretBoxKey: Buffer.alloc(32, 1),
+      secretBoxKey: SECRET_BOX_TEST_KEY,
       networkExecution,
     });
     const caller = await root.internalCallerFor(root.ownerId);

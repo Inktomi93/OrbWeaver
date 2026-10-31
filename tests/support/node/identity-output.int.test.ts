@@ -1,7 +1,7 @@
 // @subject tests/support/node/corpus-auth.ts
 // @subject tests/support/node/share.ts
 // @subject tests/support/node/factories/notification.ts
-import { SIGN_IN_TARGET_MODES } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, SIGN_IN_TARGET_MODES } from "@orb/contracts/identity";
 import { PRESENCE_READ_MAX_USER_IDS } from "@orb/contracts/notifications";
 import type { LogLevel } from "@orb/contracts/settings";
 import type { ExternalId } from "@orb/kit/ids";
@@ -16,7 +16,7 @@ import { captureShareViews } from "./share.ts";
 const OUTPUT_LOG_LEVEL = "error" satisfies LogLevel;
 
 test("native account and sharing suppliers keep request identity and owner-only diagnostics separate from delegated sign-in guidance", async () => {
-  await using root = await createServerHarness({ logLevel: OUTPUT_LOG_LEVEL, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
+  await using root = await createServerHarness({ logLevel: OUTPUT_LOG_LEVEL, env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
   const owner = await root.principalFor(root.ownerId);
   const admin = await root.actor({ role: "admin" });
   const subject = "private-native-supplier-subject";
@@ -78,7 +78,7 @@ test("native account and sharing suppliers keep request identity and owner-only 
 });
 
 test("native notification snapshots distinguish offline and unknown IDs from unavailable disclosure without leaking last-seen state", async () => {
-  await using root = await createServerHarness({ logLevel: OUTPUT_LOG_LEVEL, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
+  await using root = await createServerHarness({ logLevel: OUTPUT_LOG_LEVEL, env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
   const owner = await root.principalFor(root.ownerId);
   await root.services.settings.updateAppSettings({ principal: owner, partial: { localMultiUser: true } });
   const reader = await root.actor();

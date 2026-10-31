@@ -32,16 +32,16 @@ import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
 import { typeMembers } from "./type-members.ts";
 import { isProduction } from "./worlds.ts";
 
-export const FIELD_KINDS = ["never-read", "never-written", "unreferenced"] as const;
+const FIELD_KINDS = ["never-read", "never-written", "unreferenced"] as const;
 /** `never-read`: production writes it and never reads it. `never-written`: an optional field production reads and
  *  never writes, so every branch on it sees the default. `unreferenced`: production neither reads nor writes it. */
-export type FieldKind = (typeof FIELD_KINDS)[number];
+type FieldKind = (typeof FIELD_KINDS)[number];
 
-export const FIELD_ORIGINS = ["type", "schema"] as const;
+const FIELD_ORIGINS = ["type", "schema"] as const;
 /** `type`: a member of an interface or object type alias. `schema`: a key of a `z.object` schema. */
-export type FieldOrigin = (typeof FIELD_ORIGINS)[number];
+type FieldOrigin = (typeof FIELD_ORIGINS)[number];
 
-export interface UnwiredField {
+interface UnwiredField {
   readonly key: string;
   readonly file: string;
   readonly line: number;

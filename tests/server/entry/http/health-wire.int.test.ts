@@ -1,12 +1,14 @@
 // @subject packages/server/src/entry/http/healthz.ts
+
 import { HEALTH_STATUSES, healthResponseSchema } from "@orb/contracts/diagnostics";
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 
 test.each([
   { peer: "127.0.0.1", headers: new Headers(), identity: true, label: "direct operator" },
   { peer: "127.0.0.1", headers: new Headers({ "x-forwarded-for": "127.0.0.1" }), identity: false, label: "loopback relay" },
-  { peer: "93.184.215.14", headers: new Headers({ "x-forwarded-for": "127.0.0.1" }), identity: false, label: "forged forwarded loopback" },
+  { peer: PUBLIC_PEER_ADDRESS, headers: new Headers({ "x-forwarded-for": "127.0.0.1" }), identity: false, label: "forged forwarded loopback" },
   { peer: undefined, headers: new Headers({ host: "localhost" }), identity: false, label: "missing physical peer with local host" },
 ])("actual health wire preserves operator-only identity for $label", async ({ peer, headers, identity }) => {
   await using harness = await createServerHarness({ physicalPeer: () => peer });

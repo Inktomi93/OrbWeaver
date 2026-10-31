@@ -6,11 +6,11 @@
 
 import { contextToggleLabel, testId } from "@orb/client/lib";
 import type { CharacterId } from "@orb/kit/ids";
-import { seedShellState } from "@orb/testkit/browser/spec";
+import { seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
+import { channelName } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { AppShellCharacterStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { PlantedControlsStory } from "./_text-scale-probe-stories.tsx";
 import { routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -193,7 +193,7 @@ async function findings(scope: Locator): Promise<string[]> {
 
 async function scaleRoot(page: Page, factor: number): Promise<void> {
   // !important: the appearance writer owns the inline value and rewrites it after boot.
-  await page.addStyleTag({ content: `:root { ${FONT_SCALE_PROPERTY}: ${String(factor)} !important; }` });
+  await setRootFontScale(page, FONT_SCALE_PROPERTY, factor);
   await expect.poll(() => page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize))).toBeGreaterThanOrEqual(16 * factor);
 }
 

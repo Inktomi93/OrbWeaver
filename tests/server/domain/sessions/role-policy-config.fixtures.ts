@@ -1,6 +1,6 @@
 // A forward-header root under a given role policy and the header identity it admits.
 
-import { authMeSchema } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, authMeSchema, FORWARD_AUTH_TRUSTED_PROXIES_KEY } from "@orb/contracts/identity";
 import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
 import { expect } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -9,7 +9,7 @@ import { createServerHarness, createTestEnv } from "@orb/testkit/node/composed";
 export function rootForConfig(rolePolicyConfig: SessionsRolePolicyConfig): Promise<ServerTestHarness> {
   return createServerHarness({
     rolePolicyConfig,
-    env: { ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny", ["FORWARD_AUTH_TRUSTED_PROXIES"]: "127.0.0.1/32" },
+    env: { [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny", [FORWARD_AUTH_TRUSTED_PROXIES_KEY]: "127.0.0.1/32" },
     physicalPeer: () => "127.0.0.1",
   });
 }

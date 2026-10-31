@@ -2,9 +2,10 @@
 // @subject packages/server/src/entry/http/app.ts
 // @subject packages/server/src/infra/auth/jwks.ts
 
-import { authMeSchema } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, authMeSchema } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -17,16 +18,17 @@ const KEY_URL = new URL("jwks", ISSUER).href;
 function rootFor(execution: typeof fetch): Promise<ServerTestHarness> {
   return createServerHarness({
     env: {
-      ["AUTH_MODE"]: "forward-header",
-      ["AUTH_FALLBACK"]: "deny",
+      [AUTH_MODE_KEY]: "forward-header",
+      [AUTH_FALLBACK_KEY]: "deny",
       ["FORWARD_AUTH_VERIFY_JWT"]: "true",
       ["FORWARD_AUTH_JWKS_ALLOWLIST"]: KEY_HOST,
       ["FORWARD_AUTH_JWT_ISSUER"]: ISSUER,
       ["FORWARD_AUTH_JWT_AUDIENCE"]: CLIENT_ID,
     },
-    physicalPeer: () => "93.184.215.14",
+    physicalPeer: () => PUBLIC_PEER_ADDRESS,
     networkExecution: {
-      resolver: (hostname) => (hostname === KEY_HOST ? Promise.resolve(["93.184.215.14"]) : Promise.reject(new Error("unscripted JWKS address resolution"))),
+      resolver: (hostname) =>
+        hostname === KEY_HOST ? Promise.resolve([PUBLIC_PEER_ADDRESS]) : Promise.reject(new Error("unscripted JWKS address resolution")),
       fetch: execution,
     },
   });

@@ -9,7 +9,7 @@ import { jsonValueSchema } from "@orb/kit/json";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { AppCaller, Fixtures } from "@orb/testkit/node";
 import { test as baseTest } from "@orb/testkit/node";
-import { freshDb } from "@orb/testkit/node/composed";
+import { freshDb, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
 import type { SdkScriptSpawn } from "@orb/testkit/node/helpers";
 import { createSdkProcessSpawner, TEST_BASE_URL, TEST_PROVIDER_ID, terminalSseLine } from "@orb/testkit/node/helpers";
 import { z } from "zod";
@@ -323,7 +323,7 @@ export const test = baseTest.extend<
     });
   },
   secretBoxKey: async ({}, use): Promise<void> => {
-    await use(Buffer.alloc(32, 1));
+    await use(SECRET_BOX_TEST_KEY);
   },
 });
 
@@ -363,7 +363,7 @@ export async function fundingConnection<T extends Task>(args: {
   return { ...resolved, task };
 }
 
-export type BackgroundTask = Exclude<Task, "chat" | "agent" | "generateImage">;
+export type BackgroundTask = Exclude<Task, "chat" | "generateImage">;
 export type Execute = (runtime: InferenceRuntime, connection: Resolved) => ReturnType<ProviderExecutor[keyof ProviderExecutor]>;
 
 export const INPUTS = [{ systemPrompt: "Answer briefly.", userPrompt: "A funding control." }];

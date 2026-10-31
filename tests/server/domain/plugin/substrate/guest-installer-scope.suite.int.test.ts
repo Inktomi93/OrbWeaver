@@ -7,13 +7,14 @@
 import { spawn } from "node:child_process";
 import { createCharacterSchema, parsePluginImportedFrom } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
-import { PluginCapabilityError } from "@orb/contracts/plugin";
+import type { PluginBridge } from "@orb/contracts/plugin";
+import { PLUGIN_CARD_DATA_FIND_MAX, PluginCapabilityError } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
-import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
+import type { GuestOps, GuestRun, ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -21,18 +22,19 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
   createServerHarness,
+  guestRunner,
+  installGuest,
   makeAssetBytes,
   seedAsset,
   seedCorpusActors,
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
-import type { GuestOps, GuestRun } from "./_guest-command.ts";
-import { guestRunner, installGuest } from "./_guest-command.ts";
 
 const SCOPE_OPS = {
   readAsset: "(h, room, a) => h.assets.read(a.assetId)",
   setCard: "(h, room, a) => h.character.setCardData(a.characterId, a.data)",
   getCard: "(h, room, a) => h.character.getCardData(a.characterId)",
+  findCards: "(h, room, a) => h.character.findCardData(a.values)",
   ingestDocument: "(h, room, a) => h.databank.ingest(a.doc)",
   ingestCharacter: "(h, room, a) => h.character.ingest(a.card)",
   quiet: "(h, room, a) => h.llm.quiet(a.prompt, a.opts)",
@@ -118,10 +120,12 @@ test("a guest reads assets only from its installer's own storage", { tags: ["slo
   const theirs = await ownAsset(o.root, o.stranger);
   const { run } = await o.guest(o.owner, "asset-reader");
 
-  expect(await run("readAsset", { assetId: mine.assetId })).toEqual({
-    ok: true,
-    value: { mime: "image/png", sizeBytes: mine.bytes.byteLength, dataBase64: Buffer.from(mine.bytes).toString("base64") },
-  });
+  const view: NonNullable<Awaited<ReturnType<PluginBridge["assets"]["read"]>>> = {
+    mime: "image/png",
+    sizeBytes: mine.bytes.byteLength,
+    dataBase64: Buffer.from(mine.bytes).toString("base64"),
+  };
+  expect(await run("readAsset", { assetId: mine.assetId })).toEqual({ ok: true, value: view });
   expect(await run("readAsset", { assetId: theirs.assetId })).toEqual({ ok: true, value: null });
 });
 
@@ -141,6 +145,48 @@ test("card state is keyed to the calling plugin's own slug, on its installer's o
   expect(await keeper.run("setCard", { characterId: theirs, data: { hp: 99 } })).toMatchObject({ ok: false });
   expect(await strangersKeeper.run("getCard", { characterId: mine })).toMatchObject({ ok: false });
   expect(await strangersKeeper.run("getCard", { characterId: theirs })).toEqual({ ok: true, value: null });
+});
+
+test("a card-state lookup answers only for the calling plugin's own stamps on its installer's own characters", { tags: ["slow"] }, async () => {
+  await using o = await owners();
+  const mine = await ownCharacter(o.root, o.owner, "own-keeper");
+  const unstamped = await ownCharacter(o.root, o.owner, "bare-keeper");
+  const theirs = await ownCharacter(o.root, o.stranger, "foreign-keeper");
+  const keeper = await o.guest(o.owner, "card-keeper");
+  const sibling = await o.guest(o.owner, "other-keeper");
+  const strangersKeeper = await o.guest(o.stranger, "card-keeper");
+  const data = { deep: { list: ["match-me"] }, count: 7 };
+  await keeper.run("setCard", { characterId: mine, data });
+  await strangersKeeper.run("setCard", { characterId: theirs, data: { other: "match-me" } });
+  await sibling.run("setCard", { characterId: unstamped, data: { other: "match-me" } });
+
+  expect(await keeper.run("findCards", { values: ["match-me", "absent"] })).toEqual({ ok: true, value: [{ characterId: mine, data }] });
+  expect(await sibling.run("findCards", { values: ["match-me"] })).toEqual({ ok: true, value: [{ characterId: unstamped, data: { other: "match-me" } }] });
+  expect(await strangersKeeper.run("findCards", { values: ["match-me"] })).toEqual({ ok: true, value: [{ characterId: theirs, data: { other: "match-me" } }] });
+  // Two plugins stamp one character: the lookup reads only the caller's own key on the row.
+  await sibling.run("setCard", { characterId: mine, data: { note: "sibling-only" } });
+  expect(await keeper.run("findCards", { values: ["sibling-only"] })).toEqual({ ok: true, value: [] });
+  // A stored number is not a string, and an empty list asks nothing.
+  expect(await keeper.run("findCards", { values: ["7"] })).toEqual({ ok: true, value: [] });
+  expect(await keeper.run("findCards", { values: [] })).toEqual({ ok: true, value: [] });
+});
+
+test("a card-state lookup is refused without the grant and over its input cap", { tags: ["slow"] }, async () => {
+  await using o = await owners();
+  const { run } = await o.guest(o.owner, "card-keeper");
+  const ungranted = await installGuest(o.root, o.owner, { slug: "no-card-state", capabilities: [] }, SCOPE_OPS);
+
+  expect(await guestRunner({ root: o.root, caller: o.owner, pluginId: ungranted, chatId: null })("findCards", { values: ["any"] })).toEqual({
+    ok: false,
+    name: new PluginCapabilityError("character.card_state").name,
+  });
+  expect(await run("findCards", { values: Array.from({ length: PLUGIN_CARD_DATA_FIND_MAX }, (_, index) => `value-${index}`) })).toEqual({
+    ok: true,
+    value: [],
+  });
+  expect(await run("findCards", { values: Array.from({ length: PLUGIN_CARD_DATA_FIND_MAX + 1 }, (_, index) => `value-${index}`) })).toMatchObject({
+    ok: false,
+  });
 });
 
 test("library ingests land in the installer's own library, stamped with the calling plugin", { tags: ["slow"] }, async () => {

@@ -1,7 +1,6 @@
 // domain/search/persistence/image-nearest — cross-modal text→image vector scan (row shape + fetch); the
 // image_embeddings analogue of nearest.ts. Four belts in the WHERE: owner (via the joined assets row,
-// never users), space (embed model), the query's width, and lens. hub_score is selected but deliberately not CSLS-adjusted
-// here (see verbs/images.ts).
+// never users), space (embed model), the query's width, and lens. Image hits are ranked by raw distance (see verbs/images.ts).
 
 import type { ImageLens } from "@orb/contracts/embeddings";
 import type { ReadOnlyDb } from "@orb/db";
@@ -17,7 +16,6 @@ interface NearestImage {
    *  a second read (side-eye corpus re-pass U4 — the Images target rendered 20 rows and no images). */
   readonly hash: string;
   readonly distance: number;
-  readonly hubScore: number | null;
   readonly caption: string | null;
 }
 
@@ -37,7 +35,6 @@ export async function nearestImages(db: ReadOnlyDb, params: NearestImagesParams)
       assetId: imageEmbeddings.assetId,
       hash: assets.hash,
       distance,
-      hubScore: imageEmbeddings.hubScore,
       caption: sql<string | null>`case when ${imageEmbeddings.lens} = 'image-captioned' then ${imageAnalyses.caption} else null end`,
     })
     .from(imageEmbeddings)

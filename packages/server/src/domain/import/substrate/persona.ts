@@ -73,12 +73,12 @@ function metadataFromDescriptor(descriptor: Record<string, unknown> | null): Rec
 export function parseStPersonas(settingsRaw: unknown): ParsedPersonas {
   const root = asObj(settingsRaw);
   if (root === null) {
-    return { personas: [], defaultAvatarFile: null };
+    return { personas: [] };
   }
   const pu = asObj(root["power_user"]) ?? root;
   const personasMap = asObj(pu["personas"]);
   if (personasMap === null) {
-    return { personas: [], defaultAvatarFile: null };
+    return { personas: [] };
   }
   const descriptions = asObj(pu["persona_descriptions"]) ?? {};
   const defaultAvatarFile = nullIfEmpty(str(pu["default_persona"]));
@@ -98,5 +98,5 @@ export function parseStPersonas(settingsRaw: unknown): ParsedPersonas {
       metadata: metadataFromDescriptor(descriptor),
     });
   }
-  return { personas, defaultAvatarFile };
+  return { personas };
 }

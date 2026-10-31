@@ -55,7 +55,7 @@ const chatMetadataSchema = z
     memberPersonaLore: z.boolean().optional().catch(undefined),
     regexTiers: regexTierAllowSchema.optional().catch(undefined),
   })
-  .loose();
+  .loose() satisfies z.ZodType<{ [K in keyof ChatMetadata]?: ChatMetadata[K] | undefined }>;
 
 function asRecord(raw: unknown): Record<string, unknown> {
   return raw !== null && typeof raw === "object" ? (raw as Record<string, unknown>) : {};

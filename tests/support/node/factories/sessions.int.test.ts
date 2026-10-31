@@ -1,6 +1,6 @@
 // @subject tests/support/node/factories/rows/sessions.ts
 
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { RATE_LIMIT_CAP_MIN } from "@orb/contracts/settings";
 import { sessions } from "@orb/db";
 import { eq } from "drizzle-orm";
@@ -16,7 +16,7 @@ test("a real session mint persists only its hash and revoke settles the actual r
   expect(capture.row.userId).toBe(actor.id);
   expect(capture.row.expiresAt).toBe(capture.created.expiresAt);
   expect(JSON.stringify(capture.row)).not.toContain(capture.created.token);
-  expect(await root.app.sessions.validate(capture.created.token)).toMatchObject({ sessionId: capture.row.id, userId: actor.id, enabled: true });
+  expect(await root.app.sessions.validate(capture.created.token)).toMatchObject({ sessionId: capture.row.id, userId: actor.id });
   expect(await root.app.sessions.revokeByToken(capture.created.token)).toEqual({ sessionId: capture.row.id, oidcIdToken: null });
   expect(await root.app.sessions.validate(capture.created.token)).toBeNull();
   expect(await root.app.sessions.revokeByToken(capture.created.token)).toBeNull();
@@ -24,7 +24,7 @@ test("a real session mint persists only its hash and revoke settles the actual r
 });
 
 test("the real HTTP login spends its canonical buckets only after CSRF and refuses at the live configured cap", async () => {
-  await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
+  await using root = await createServerHarness({ env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" } });
   const owner = await root.principalFor(root.ownerId);
   const configured = await root.services.settings.updateAppSettings({ principal: owner, partial: { rateLimits: { login: RATE_LIMIT_CAP_MIN } } });
   expect(configured.rateLimits.login).toBe(RATE_LIMIT_CAP_MIN);

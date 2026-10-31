@@ -3,7 +3,7 @@
 
 import { userCredentials } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
 const FIRST_SECRET = "bus-private-first-credential-material";
@@ -11,7 +11,7 @@ const NEXT_SECRET = "bus-private-replacement-credential-material";
 const FOREIGN_SECRET = "bus-private-other-owner-credential-material";
 
 test("canonical credential writes publish only the actual owned branded identity, never stored key material", async () => {
-  await using root = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1) });
+  await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY });
   const owner = await root.internalCallerFor(root.ownerId);
   const foreign = await root.actor();
   const other = await root.internalCallerFor(foreign.id);

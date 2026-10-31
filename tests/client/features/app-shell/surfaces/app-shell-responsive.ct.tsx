@@ -163,7 +163,7 @@ test.describe("the You sheet", () => {
     await mount<typeof AppShellStory>(STORY, {});
     expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     await youTab(page).click();
-    const row = sheet(page).getByRole("button", { name: "Refinery", exact: true });
+    const row = sheet(page).getByRole("button", { name: SECTION_LABELS.refinery, exact: true });
     await expect(row).toBeVisible();
     await expect.poll(() => row.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(LENGTH_BASE_PX["size.control-md"]);
     await row.click();
@@ -340,7 +340,7 @@ test.describe("one shell at the narrowest phone", () => {
     const name = page.getByRole("main").getByRole("textbox", { name: "Name", exact: true });
     await expect(name).toBeVisible();
     const tabBar = page.locator(".shell-rail");
-    await tabBar.getByRole("button", { name: "Home", exact: true }).click();
+    await tabBar.getByRole("button", { name: SECTION_LABELS.home, exact: true }).click();
     await expect(name).toBeHidden();
     const characters = tabBar.getByRole("button", { name: SECTION_LABELS.characters, exact: true });
     await characters.click();

@@ -8,7 +8,7 @@
 // and CAS ordering live in the verbs.
 
 import type { PluginCapability, PluginManifest, PluginOrigin, PluginStatus, PluginView } from "@orb/contracts/plugin";
-import { pluginManifestSchema } from "@orb/contracts/plugin";
+import { pluginManifestSchema, storedPluginManifestSchema } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { plugins } from "@orb/db";
 import type { AwaitableBatchStmt } from "@orb/db/query";
@@ -27,7 +27,7 @@ type PluginRow = typeof plugins.$inferSelect;
 function parsePluginRow(row: PluginRow): PluginRow {
   return {
     ...row,
-    manifest: pluginManifestSchema.parse(row.manifest),
+    manifest: storedPluginManifestSchema.parse(row.manifest),
     grantedCapabilities: pluginManifestSchema.shape.capabilities.parse(row.grantedCapabilities),
     widenedNetHosts: pluginManifestSchema.shape.netHosts.unwrap().parse(row.widenedNetHosts),
   };

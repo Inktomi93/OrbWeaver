@@ -919,6 +919,14 @@ export const DOM_LOOKUP_HOMES = [
     reason: "a roving row discovers its own controls, which depend on the row kind and the pointer",
   },
   {
+    file: "packages/client/src/features/chat/hooks/use-flank-presentation.ts",
+    function: "useOverlayDismiss/onPointerDown",
+    method: "closest",
+    receiver: "event.target",
+    selector: '[data-slot="toast-viewport"]',
+    reason: "the overlay's outside-press exit treats a press in the portaled notice region as inside, since an Undo there restores a panel into the overlay",
+  },
+  {
     file: "packages/client/src/features/config/hooks/use-config-scroll-spy.ts",
     function: "useConfigScrollSpy/initialCompute",
     method: "querySelector",
@@ -2022,7 +2030,14 @@ export default [
     rules: { "orb/no-hand-typed-appearance-channel": "error" },
   },
   { files: ["tests/**/*.ct.tsx", "tests/e2e/**/*.spec.ts"], plugins: { orb: localPlugin }, rules: { "orb/ct-negative-only-case": "error" } },
-  { files: ["tests/**/*.ct.tsx", "tests/e2e/**/*.ts"], plugins: { orb: localPlugin }, rules: { "orb/no-hand-copied-label": "error" } },
+  {
+    // These two suites pin the wire spelling itself, so a derived value would make them assert nothing: the first
+    // asserts that a code is a member of two vocabularies, the second reads the key spellings of the shipped env files.
+    files: ["tests/**/*.{ts,tsx}"],
+    ignores: ["tests/contracts/inference/warnings.contract.test.ts", "tests/tooling/container-security-config.int.test.ts"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/no-hand-copied-label": ["error", { scope: "all" }] },
+  },
   { files: ["tests/ui/**/*-stories.tsx", "tests/client/**/*-stories.tsx"], plugins: { orb: localPlugin }, rules: { "orb/ct-story-root-composition": "error" } },
   {
     files: ["tests/**/*-stories.tsx", "tests/**/*.stories.tsx"],

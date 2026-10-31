@@ -1,8 +1,10 @@
 // @subject packages/server/src/entry/compose/services.ts
 // The harness root's seeded nonce, not an ambient UUID, names the supervised work the composed graph starts.
+
 import { readdir } from "node:fs/promises";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { streamConnectInputSchema } from "@orb/contracts/stream";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
@@ -17,7 +19,7 @@ const SEEDED_UUID = "00000000-0000-4000-8000-0000([0-9a-f]{8})";
 const SEEDED_NONCE = new RegExp(`:${SEEDED_UUID}$`, "u");
 const SEEDED_BUNDLE_TOKEN = new RegExp(`^import-bundle-${SEEDED_UUID}\\.zip$`, "u");
 const HEX_RADIX = 16;
-const BUNDLE_ROUTE = "/api/import/bundle";
+const BUNDLE_ROUTE = PORTABILITY_ROUTES.importBundle;
 
 function traceIds(root: Pick<ServerTestHarness, "observability">): ReadonlySet<string> {
   return new Set(root.observability.traces(TRACE_WINDOW).map((entry) => entry.requestId));
@@ -76,7 +78,7 @@ test("a staged bundle upload is named with the root's seeded nonce", async () =>
   await using root = await createServerHarness({
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
   });
   const minted = root.ids.snapshot();
   const response = await root.http.request(BUNDLE_ROUTE, { method: "POST", headers: { [CSRF_HEADER]: "1" }, body: new Uint8Array([1]) });

@@ -2,14 +2,14 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { slugifyHandle } from "@orb/kit/slug";
-import type { Locator, Page, Route } from "@playwright/test";
+import { abortProcedure } from "@orb/testkit/node/helpers";
+import type { Locator, Page } from "@playwright/test";
 import { AUTOSAVE_RESUME_NAME, AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { charactersRailButton, waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_CORPUS_FIXTURE } from "./support/modes.ts";
 
-const UPDATE_PROCEDURE = /\/api\/trpc\/[^?]*character\.update(?:[?,]|$)/u;
 const EDITOR_NAME = "Edit character";
 
 /** Open the library row stored as `name`; the editor then shows `shown`, which differs when a draft was restored. */
@@ -38,13 +38,10 @@ test.describe("committed corpus editor drafts", () => {
         greetings: [{ text: "Hello." }],
       }),
     });
-    const fault = async (route: Route): Promise<void> => {
-      await route.abort("aborted");
-    };
+    const lift = await abortProcedure(page, "character.update");
     try {
       await page.goto("/");
       await waitForAppReady(page);
-      await page.route(UPDATE_PROCEDURE, fault);
       const form = await openCharacter(page, name);
       await form.getByRole("textbox", { name: "Name", exact: true }).fill(edited);
       await expect(form.locator('[data-slot="autosave-status"]')).toContainText(AUTOSAVE_SAVE_FAILED_TEXT);
@@ -58,12 +55,12 @@ test.describe("committed corpus editor drafts", () => {
 
       // A restored draft is not on the server, so the editor offers to resume saving instead of reading "Saved".
       const status = restored.locator('[data-slot="autosave-status"]');
-      await page.unroute(UPDATE_PROCEDURE, fault);
+      await lift();
       await status.getByRole("button", { name: AUTOSAVE_RESUME_NAME, exact: true }).click();
       await expect.poll(async () => (await host.trpc.character.get.query({ characterId: character.id })).name).toBe(edited);
       await expect(status).toHaveText(AUTOSAVE_SAVED_TEXT);
     } finally {
-      await page.unroute(UPDATE_PROCEDURE, fault);
+      await lift();
       await host.trpc.character.remove.mutate({ characterId: character.id });
     }
   });

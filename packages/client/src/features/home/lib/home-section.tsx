@@ -18,11 +18,12 @@ import type { ContributorRegistry } from "#lib";
 import type { HomeTileContribution, SectionDefinition } from "#state";
 import { NO_SELECTION_TITLE, openNewChatPicker } from "#state";
 import { HomeSurface } from "../surfaces/home-surface.tsx";
+import { HOME_SECTION_LABEL } from "./home-section-label.ts";
 
 export function makeHomeSection(tiles: ContributorRegistry<HomeTileContribution>): SectionDefinition {
   return {
     id: "home",
-    rail: { label: "Home", icon: Compass, group: "primary", mobile: "tab", zone: "rail.brand" },
+    rail: { label: HOME_SECTION_LABEL, icon: Compass, group: "primary", mobile: "tab", zone: "rail.brand" },
     // No member to name — the mobile topbar prints the section label (NO_SELECTION_TITLE).
     useSelectionTitle: NO_SELECTION_TITLE,
     contentInset: { planned: "The full-width Home scroller contains touch shelves that extend through its section inset." },

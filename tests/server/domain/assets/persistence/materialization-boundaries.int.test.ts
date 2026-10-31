@@ -1,17 +1,19 @@
 // Background URLs and native inline images cross the actual production graph and per-owner CAS: a refused
 // download or over-cap image leaves the assets index and message_assets links byte-for-byte unchanged.
+
 import { backgroundMaterializeMessage } from "@orb/contracts/theme";
 import { assets } from "@orb/db";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
+import { createSeededIds, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, makeAssetBytes } from "@orb/testkit/node/composed";
+import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 import { IMAGE_PROSE, imageRoom, nativeText } from "../../chat/engine/inline-image-physical.ts";
 import { inlineImageRows } from "../../chat/persistence/inline-image-rows.ts";
 
 const PUBLIC_URL = "https://public-image.test/image.png";
 const PRIVATE_URL = "https://private-image.test/image.png";
-const PUBLIC_ADDRESS = "93.184.215.14";
 const PRIVATE_ADDRESS = "192.168.1.50";
 const MIME = "image/png";
 const LOW_CAP = 100_000;
@@ -30,7 +32,7 @@ test("public downloads sniff real bytes and store for the caller; a configured p
   await using root = await createServerHarness({
     startJobs: false,
     networkExecution: {
-      resolver: (host) => Promise.resolve([host === new URL(PRIVATE_URL).hostname ? PRIVATE_ADDRESS : PUBLIC_ADDRESS]),
+      resolver: (host) => Promise.resolve([host === new URL(PRIVATE_URL).hostname ? PRIVATE_ADDRESS : PUBLIC_PEER_ADDRESS]),
       fetch: (input, init) => {
         requests.push(new Request(input, init).url);
         return Promise.resolve(new Response(Buffer.from(payload), { headers: { "content-type": "text/html" } }));
@@ -54,7 +56,7 @@ test("public downloads sniff real bytes and store for the caller; a configured p
   await expect(root.services.assets.readOwnedAssetBytes(await root.principalFor(root.ownerId), background.assetId)).rejects.toThrow();
   const before = await root.db.select().from(assets).orderBy(assets.id);
   await expect(root.services.settings.addExternalBackground({ principal: owner, url: PRIVATE_URL })).rejects.toMatchObject({
-    code: "background_unavailable",
+    code: CHAT_OP_CODES.backgroundUnavailable,
     message: backgroundMaterializeMessage("unreachable"),
   });
   expect(requests).toEqual([PUBLIC_URL]);
@@ -66,7 +68,7 @@ test("live download caps and raster dimensions refuse without changing the actua
   await using root = await createServerHarness({
     startJobs: false,
     networkExecution: {
-      resolver: () => Promise.resolve([PUBLIC_ADDRESS]),
+      resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]),
       fetch: () => Promise.resolve(new Response(Buffer.from(payload))),
     },
   });
@@ -97,7 +99,7 @@ test("live download caps and raster dimensions refuse without changing the actua
 });
 
 test("native inline images read the live cap and refuse excessive dimensions while preserving prose and existing storage", async () => {
-  const raster = makeAssetBytes(mintTypeId(ID_PREFIX.asset));
+  const raster = makeAssetBytes(createSeededIds().typeId(ID_PREFIX.asset));
   const padded = new Uint8Array(PAYLOAD_SIZE);
   padded.set(raster);
   const image = (bytes: Uint8Array, claimedMime = MIME): JsonValue => ({ inlineData: { mimeType: claimedMime, data: Buffer.from(bytes).toString("base64") } });
@@ -130,7 +132,7 @@ test("failed downloads cancel unread bodies and conceal physical errors without 
   await using root = await createServerHarness({
     startJobs: false,
     networkExecution: {
-      resolver: () => Promise.resolve([PUBLIC_ADDRESS]),
+      resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]),
       fetch: () => {
         if (mode === "throw") {
           return Promise.reject(new Error("private physical address detail"));
@@ -167,7 +169,7 @@ test("failed downloads cancel unread bodies and conceal physical errors without 
   for (const failure of ["non-success", "throw"]) {
     mode = failure;
     await expect(root.services.settings.addExternalBackground({ principal, url: PUBLIC_URL })).rejects.toMatchObject({
-      code: "background_unavailable",
+      code: CHAT_OP_CODES.backgroundUnavailable,
       message: backgroundMaterializeMessage("unreachable"),
     });
     expect(await root.db.select().from(assets).orderBy(assets.id)).toEqual(before);

@@ -1,4 +1,5 @@
 import { CHARACTER_LIST_MAX_LIMIT, createCharacterSchema } from "@orb/contracts/character";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -28,7 +29,7 @@ test("a finished index run names the avatar whose stored file was gone, in a lib
     images: [],
   });
   await using root = await createServerHarness({
-    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
     physicalPeer: () => "127.0.0.1",
     providerFetch: wire.execute,
     startJobs: false,

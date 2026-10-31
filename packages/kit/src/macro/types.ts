@@ -474,9 +474,8 @@ export interface MacroRegisterOptions {
    *    "char" — needs character context (name, description, personality, scenario, persona, …)
    *    "chat" — needs chat context (lastMessage, lastUserMessage, chatId, model, …)
    *    undefined — context-free (date/time/random/dice, var ops, conditionals, formatting)
-   *  Surfaced via `MacroRegistry.requirementsOf(name)` so the preview engine can build a
-   *  placeholder/demo MacroContext when no chat is active and report which macros got the
-   *  fallback treatment instead of real data. */
+   *  Read through `getOptions` by the preset editor's prompt-cache warning, which has no card to
+   *  render. */
   requires?: "chat" | "char";
 }
 
@@ -491,9 +490,6 @@ export interface MacroRegistry {
   /** Every registered macro name (lowercase lookup keys). The metadata-completeness gate cross-checks
    *  this against `getMetadata` so no registered macro ships without DX metadata. */
   names: () => string[];
-  /** Returns the registered `requires` flag for a macro, or undefined if context-free. Preview
-   *  uses this to mark "this macro was substituted with a placeholder, not real data". */
-  requirementsOf: (name: string) => "chat" | "char" | undefined;
   /** The composed DX metadata for a macro — the authored record plus `volatile` DERIVED from
    *  the registration's `volatile` option (one volatile home, D51). Undefined for names registered
    *  without metadata (the restricted freeze registries). */

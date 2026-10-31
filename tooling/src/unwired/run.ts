@@ -17,9 +17,9 @@ import { scanShapes } from "./shapes.ts";
 import { scanUnions } from "./unions.ts";
 import { TEST_WORLDS } from "./worlds.ts";
 
-export const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes"] as const;
+const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes"] as const;
 /** `scan`, the bare verb, is the member scan. */
-export type ScanVerb = (typeof SCAN_VERBS)[number];
+type ScanVerb = (typeof SCAN_VERBS)[number];
 const VERBS = [...SCAN_VERBS, "ports"] as const;
 type Verb = (typeof VERBS)[number];
 

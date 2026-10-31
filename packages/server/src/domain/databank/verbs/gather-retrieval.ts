@@ -15,13 +15,6 @@ import type { DatabankGatherParams } from "../contract/params.ts";
 import type { DatabankGatherResult } from "../contract/results.ts";
 import type { DatabankContext, DatabankService } from "../contract/service.ts";
 
-/** An id-only provenance ref for a kept chunk (never re-rendered into the prompt). */
-interface KeptRef {
-  readonly documentId: DocumentId;
-  readonly chunkIdx: number;
-  readonly score: number;
-}
-
 /** Fit + render in ONE reading-order pass (§3 + §6). Renders per §3 — within a document chunks joined `\n`,
  *  documents separated `\n\n`, each block headed by `# {documentName}` — while charging each chunk's
  *  INCREMENTAL rendered cost (its header + separators when it starts a new document) against the budget. The
@@ -29,10 +22,9 @@ interface KeptRef {
  *  after drops (whole chunks only — the lowest-best-score document's tail first, never a mid-chunk cut). The
  *  budget is checked on the growing rendered string, so `estimateTokens(text) <= tokenBudget` holds exactly.
  *  The wrapper prose ("Related information:") belongs to the PRESET section around the slot, not here. */
-function fitAndRender(hits: readonly DocumentChunkHit[], tokenBudget: number): { text: string; kept: KeptRef[] } {
+function fitAndRender(hits: readonly DocumentChunkHit[], tokenBudget: number): string {
   let text = "";
   let currentDoc: DocumentId | null = null;
-  const kept: KeptRef[] = [];
   for (const hit of hits) {
     const isNewDoc = hit.documentId !== currentDoc;
     const piece = isNewDoc ? `${text.length > 0 ? "\n\n" : ""}# ${hit.documentName}\n${hit.content}` : `\n${hit.content}`;
@@ -42,9 +34,8 @@ function fitAndRender(hits: readonly DocumentChunkHit[], tokenBudget: number): {
     }
     text = candidate;
     currentDoc = hit.documentId;
-    kept.push({ documentId: hit.documentId, chunkIdx: hit.chunkIdx, score: hit.score });
   }
-  return { text, kept };
+  return text;
 }
 
 export function createGatherRetrieval(ctx: DatabankContext): DatabankService["gatherRetrieval"] {
@@ -64,10 +55,10 @@ export function createGatherRetrieval(ctx: DatabankContext): DatabankService["ga
     if (hits.length === 0) {
       return null;
     }
-    const { text, kept } = fitAndRender(hits, params.tokenBudget);
-    if (kept.length === 0) {
+    const text = fitAndRender(hits, params.tokenBudget);
+    if (text.length === 0) {
       return null; // the budget could not seat even the best chunk — a no-op, byte-identical to absent.
     }
-    return { text, hits: kept, tokensEstimated: estimateTokens(text) };
+    return { text };
   };
 }

@@ -57,16 +57,11 @@ export function createEditImage(ctx: ImageryContext): ImageryService["editImage"
       ctx,
       {
         connection: resolution.connection,
-        model: resolution.connection.model,
-        owner: p.caller.userId,
         prompt: p.instruction,
         n: p.n ?? DEFAULT_IMAGE_COUNT,
         // Omit `size` by default — let the backend preserve the source dimensions (forcing a preset crops/distorts).
         ...(p.size !== undefined ? { size: SIZE_PRESETS[p.size] } : {}),
         edit: { image: imageBytes, ...(p.mask !== undefined ? { mask: p.mask.bytes } : {}) },
-        // Forward the resolved capability the domain gate read so the runner's belt sees the SAME edit-capable
-        // model and lets the edit through (the gate above already threw for a non-edit model).
-        capability: resolution.capability,
       },
       {
         owner: p.caller,

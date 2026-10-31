@@ -222,6 +222,9 @@ export interface E2ERunPorts {
   readonly fixtureProvider: number;
 }
 
+/** The environment variable that carries a run's port offset; `tests/e2e/support/modes.ts` reads it. */
+export const E2E_PORT_OFFSET_ENV = "E2E_PORT_OFFSET";
+
 /**
  * The e2e ports of a run shifted by `offset`. Offset 0 is the registry's base rows. A positive offset throws
  * unless it is a multiple of {@link E2E_PORT_OFFSET_STRIDE} and every shifted port clears the reserved rows

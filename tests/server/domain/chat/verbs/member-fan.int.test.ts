@@ -1,6 +1,8 @@
 // A host's chat-row write fans chatsChanged to every present member's channel, never only to the actor.
 // @subject packages/server/src/domain/chat/verbs/emit-chat-changed.ts
 // @subject packages/server/src/domain/chat/verbs/chat-lifecycle.ts
+
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { UserId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
@@ -10,7 +12,7 @@ import { createServerHarness } from "@orb/testkit/node/composed";
 const END: UserBusEvent = { type: "charactersChanged" };
 
 test("a host title change reaches the co-member's live channel and no outsider's", async () => {
-  await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny" } });
+  await using root = await createServerHarness({ env: { [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny" } });
   const host = await root.principalFor(root.ownerId);
   const member = await root.principalFor((await root.actor()).id);
   const outsider = (await root.actor()).id;

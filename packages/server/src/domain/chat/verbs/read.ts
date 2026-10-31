@@ -3,14 +3,13 @@
 // membership-gated through the one `requireParticipant` chokepoint; listings are pure membership; the
 // lineage/fork walks gate per-ancestor independently (a fork grants no parent membership).
 //
-// The dry-run previews (`previewAssembly`/`peekPrompt`/`previewSection`) build the assemble ctx + render
-// through the `substrate/assembly-access` seam and return the BUILD product for inspection — no turn runs,
-// nothing persists. ALL THREE gate at `requireHost` (matrix `host`): a RENDERED preview resolves the roster's
-// cards at FULL fidelity, so a plain member reading one bypasses the D22 `memberCardVisibility` clamp. That
-// holds per-SECTION, not just for the whole prompt — `main_prompt` renders `character.systemPrompt` (+ every
-// co-speaker's), `post_history` the postHistoryInstructions, `char_description`/`scenario`/`dialogue_examples`
-// the card text, and the `persona` marker another human's persona description — naming a section is not a
-// cheap way around the two host-gated doors above.
+// The dry-run previews (`previewAssembly`, `getShapeTrace`, `previewActionTemplates`) build the assemble ctx
+// + render through the `substrate/assembly-access` seam and return the BUILD product for inspection — no turn
+// runs, nothing persists. Each gates at `requireHost` (matrix `host`): a RENDERED preview resolves the roster's
+// cards at FULL fidelity, so a plain member reading one bypasses the D22 `memberCardVisibility` clamp —
+// `main_prompt` renders `character.systemPrompt` (+ every co-speaker's), `post_history` the
+// postHistoryInstructions, `char_description`/`scenario`/`dialogue_examples` the card text, and the `persona`
+// marker another human's persona description.
 // The member-gated read on this path builds NO rendered bytes: `previewContextFit` returns only the boundary id +
 // budget numbers off a ctx it never serializes.
 //
@@ -41,7 +40,6 @@ import type {
   MessageView,
   NextTurnConnectionView,
   ParticipantData,
-  SectionPreview,
   ShapeTrace,
   TeachingIdentity,
   TeachingKnobs,
@@ -63,10 +61,8 @@ import {
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { composeProse, isPresetProseSlotId, resolveProseText } from "@orb/contracts/prose";
 import { isRpgEngaged } from "@orb/contracts/rpg";
-import type { Resolved } from "@orb/inference";
 import { generationOf, preservesCacheBlockEnds, resolveCarryReasoning } from "@orb/inference";
 import { projectBodyForPreview } from "@orb/kit/content";
-import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, MessageId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RowMacroNameContext } from "@orb/kit/macro";
 import { globalMacroRegistry, resolveRowMacros } from "@orb/kit/macro";
@@ -96,11 +92,9 @@ import type {
   ListMessagesParams,
   ListMessageVariantsParams,
   ListParticipantsParams,
-  PeekPromptParams,
   PreviewActionTemplatesParams,
   PreviewAssemblyParams,
   PreviewContextFitParams,
-  PreviewSectionParams,
   ReplayChatEventsParams,
   ReplayStreamEventsParams,
   StreamEventBoundsParams,
@@ -120,6 +114,7 @@ import type {
 import { gateLineagePerAncestor, requireHost, requireParticipant } from "../guard.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { loadInlineReplyAssetIds } from "../persistence/message-asset-links.ts";
+import { loadMessagePositions, positionCanonPage } from "../persistence/message-positions.ts";
 import { loadPageCursors } from "../persistence/page-cursors.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants, loadPresentVisibilityRows } from "../persistence/participants-read.ts";
@@ -157,7 +152,6 @@ import {
   contextLimitOf,
   loadCharacterCardLore,
   previewActionText,
-  previewSection,
   renderMacros,
   shapeContextForSpeaker,
   shapeTurn,
@@ -180,6 +174,7 @@ import {
 } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
+import { eventViewMessageId, withViewPosition } from "../substrate/view-position.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
 import { buildWireHistory, convertsToEmptyWireRow, replayToolMessageIds, shapeConvertFit } from "../substrate/wire-history.ts";
 
@@ -218,8 +213,6 @@ type ReadVerbs = Pick<
   | "getMemberCard"
   | "previewAssembly"
   | "previewActionTemplates"
-  | "previewSection"
-  | "peekPrompt"
   | "getShapeTrace"
   | "getVariantWire"
   | "previewContextFit"
@@ -250,9 +243,6 @@ interface PreviewInputs extends RoomInputs {
   readonly capability: GenerationCapability | undefined;
   /** The admitted prefix action and effective role floor require stored block ends to survive SHAPE. */
   readonly explicitCacheMarkers: boolean;
-  /** The resolved protocol axis — previewContextFit source-modes the divider boundary on it (agent-sdk → the
-   *  marker coverage point; stateless → the fit boundary). */
-  readonly api: Resolved<"chat">["api"];
 }
 
 /** The room-derived half of {@link PreviewInputs}: everything a read that never calls a model needs. It owns no
@@ -460,8 +450,8 @@ async function buildSummaries(ctx: ChatContext, deps: ReadDeps, rows: readonly C
  *  on the host's own instrument.
  *
  *  It also runs the turn's GM-PRESET REDIRECT (see the block at the `resolveForeignInputs` call), so every
- *  surface built on these inputs — `previewAssembly`, `peekPrompt`, `getShapeTrace`, `previewContextFit`,
- *  `previewSection`, `previewActionTemplates` — answers about the preset the TURN
+ *  surface built on these inputs — `previewAssembly`, `getShapeTrace`, `previewContextFit`,
+ *  `previewActionTemplates` — answers about the preset the TURN
  *  assembles on a game chat — the same preset-redirect hop as the turn, so a preview never renders a preset
  *  the turn wouldn't. */
 async function resolvePreviewInputs(ctx: ChatContext, deps: ReadDeps, chatId: ChatId, opts: PreviewInputsOpts): Promise<PreviewInputs> {
@@ -479,7 +469,6 @@ async function resolvePreviewInputs(ctx: ChatContext, deps: ReadDeps, chatId: Ch
     // The window the next turn sends and fits: the preset's, on a route whose request sets it.
     capability: windowForPreset(generationOf(connection), room.foreign.promptConfig.params.maxContextTokens),
     explicitCacheMarkers: preservesCacheBlockEnds(connection, generationOf(connection), room.foreign.promptConfig.params),
-    api: connection.api,
   };
 }
 
@@ -1095,7 +1084,8 @@ function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["list
     const chronological = afterSeq === undefined ? page.reverse() : page;
     const readsHidden = viewerReadsHidden(membership);
     const reasoningHostOnly = readsHidden ? false : await resolveReasoningHostOnly(ctx, chatId);
-    const messages = readsHidden ? chronological : chronological.map((v) => projectViewForMember(v, reasoningHostOnly));
+    const projected = readsHidden ? chronological : chronological.map((v) => projectViewForMember(v, reasoningHostOnly));
+    const messages = await positionCanonPage(ctx.db, chatId, membership.historyFloorSeq, projected);
     const participants = await deps.loadParticipantViews(chatId);
     const identities = await loadChatIdentityProducer(ctx.db, { participants, messages, anchorPersonaId: membership.chat.anchorPersonaId });
     const firstSeq = messages[0]?.seq ?? (afterSeq === undefined ? beforeSeq : afterSeq + 1);
@@ -1432,29 +1422,11 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
   };
 }
 
-/** `peekPrompt` — the assembled prompt for the NEXT real turn (no generation). The BUILD product only.
- *  HOST/ADMIN (`requireHost`, matrix `peekPrompt: "host"`): the full next-turn prompt reveals merged member
- *  cards at FULL — host/admin only, same D22 rationale as `previewAssembly`. */
-function createPeekPrompt(ctx: ChatContext, deps: ReadDeps): ChatService["peekPrompt"] {
-  return async ({ principal, chatId, speakerCharacterId }: PeekPromptParams): Promise<AssembledPrompt> => {
-    const membership = await requireHost(ctx, principal, chatId);
-    const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
-      anchorPersonaId: membership.chat.anchorPersonaId,
-      speakerCharacterId,
-    });
-    const registry = buildPreviewRegistry(inputs);
-    const { assembleContext } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
-    // Route peekPrompt through the ONE host-audience helper (D59) with the verdict
-    // DERIVED from the loaded membership (no second read; provably host today, leak-free if the gate relaxes).
-    return buildPrompt(inputs.foreign.promptConfig, assembleContext, previewRender(registry));
-  };
-}
-
 /** `getShapeTrace` — the content-free SHAPE trace for the next-turn shaping of the current canon.
  *  HOST/ADMIN (`requireHost`): the SHAPE-phase debug surface, gate-classified `host` in the auth matrix.
  *  Re-runs SHAPE on demand through the turn's own SHAPE → CONVERT → FIT ({@link fitShapedHistory}), so a chat whose
  *  squashed run overruns the window traces the survivors the turn shapes, then projects the stage snapshots + the
- *  resolved breakpoint offset onto the content-free `ShapeTrace` — no content bytes by construction, nothing persists (mirrors `peekPrompt`'s dry-run frame). */
+ *  resolved breakpoint offset onto the content-free `ShapeTrace` — no content bytes by construction, nothing persists (the `previewAssembly` dry-run frame). */
 function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["getShapeTrace"] {
   return async ({ principal, chatId, speakerCharacterId }: GetShapeTraceParams): Promise<ShapeTrace> => {
     const membership = await requireHost(ctx, principal, chatId);
@@ -1482,16 +1454,15 @@ function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["get
 /**
  * `getVariantWire` — the per-variant WIRE RECORD: what ONE PAST generation actually sent, read straight off
  * `message_variants` (`promptSnapshot`/`params`/`macroDraws`). The RETROSPECTIVE member of the preview family:
- * `peekPrompt` renders the next turn, this replays a committed one. Nothing re-renders and nothing persists —
+ * `previewAssembly` renders the next turn, this replays a committed one. Nothing re-renders and nothing persists —
  * a pure read of bytes the engine already stamped, so the answer is byte-faithful to what the model saw
  * (a re-render against today's preset/roster would be a different prompt wearing a past turn's name).
  *
  * HOST/ADMIN (`requireHost`, matrix `getVariantWire: "host"`) — the SAME D22/§3.6/D16 rationale that gates
- * `previewAssembly`/`peekPrompt`/`previewSection`, applied to a STORED prompt: the snapshot carries the
+ * `previewAssembly`, applied to a STORED prompt: the snapshot carries the
  * roster's cards at FULL fidelity, the hidden-class spans the member strip removes (the wire projection rides
  * them verbatim), and the whole assembled history — including slots below a clamped member's D16 floor.
- * Reading a PAST prompt must not be the cheap way around the three host-gated doors (the same hole
- * `previewSection` is closed for).
+ * Reading a PAST prompt must not be the cheap way around the host-gated previews.
  *
  * TENANCY: `loadVariantWire` scopes the variant through its `messages.chatId` join, so a variant belonging to
  * ANOTHER chat is unreachable even for a caller who legitimately hosts the chatId they passed — it collapses
@@ -1603,30 +1574,6 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
   };
 }
 
-/** `previewSection` — render ONE preset section against the live assemble ctx (the COMPOSER/editor preview).
- *  HOST/ADMIN (`requireHost`, matrix `previewSection: "host"`): a rendered section carries the roster's cards
- *  at FULL (`main_prompt` ← systemPrompt, `char_description` ← the card text, `persona` ← another human's
- *  persona), so a member reading one bypasses the D22 clamp exactly as `previewAssembly`/`peekPrompt` would —
- *  see the file header. A member-facing section preview must project through the D22 tier first; it has no
- *  consumer today (the client's Preview tab is host-only, and this verb is not on the tRPC router at all).
- *  An unknown `sectionId` is a leak-free NOT_FOUND (the section, not the chat). */
-function createPreviewSection(ctx: ChatContext, deps: ReadDeps): ChatService["previewSection"] {
-  return async ({ principal, chatId, sectionId, speakerCharacterId }: PreviewSectionParams): Promise<SectionPreview> => {
-    const membership = await requireHost(ctx, principal, chatId);
-    const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
-      anchorPersonaId: membership.chat.anchorPersonaId,
-      speakerCharacterId,
-    });
-    const section = inputs.foreign.promptConfig.sections.find((s) => s.id === sectionId);
-    if (section === undefined) {
-      throw new DomainNotFoundError("prompt_section", sectionId);
-    }
-    const registry = buildPreviewRegistry(inputs);
-    const { assembleContext } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
-    return previewSection(section, assembleContext, inputs.foreign.promptConfig, previewRender(registry));
-  };
-}
-
 /** WHICH stored field a `TEMPLATE_DEFS` row edits, resolved to its EFFECTIVE bytes. The registry's id is
  *  `GuidedActionKind | FormatStringKey | ProseSlotId` and nothing else disambiguates them, so the split
  *  rides `GUIDED_ACTION_KINDS` + `isPresetProseSlotId` — the same derivations the client's row model uses,
@@ -1654,7 +1601,7 @@ function actionTemplateText(config: PromptConfig, id: TemplateDefId): string {
  *
  *  HOST/ADMIN (`requireHost`, matrix `previewActionTemplates: "host"`): a rendered template resolves the
  *  roster's cards at FULL through its macros (`{{charsysinfo}}`/`{{description}}`/`{{persona}}`), the exact
- *  D22 bypass `previewSection` was re-gated for — the preview family is a host instrument.
+ *  D22 bypass `previewAssembly` is gated for — the preview family is a host instrument.
  *
  *  THE OVERRIDE (`presetId`): the editor inspects a preset the chat has NOT adopted, so the read assembles
  *  this room as if that preset were active. It rides the landed `ResolveForeignInputsOp.presetOverride` seam
@@ -1664,7 +1611,7 @@ function actionTemplateText(config: PromptConfig, id: TemplateDefId): string {
  *
  *  PLURAL BY DESIGN: the resolution is ~a dozen string renders over ONE already-built ctx, so answering for
  *  the whole registry makes the readout's row selection a pure client pick — one query per (chat, preset),
- *  one freshness row, no per-row round trip. Nothing persists (the `previewSection` dry-run frame). */
+ *  one freshness row, no per-row round trip. Nothing persists (the `previewAssembly` dry-run frame). */
 function createPreviewActionTemplates(ctx: ChatContext, deps: ReadDeps): ChatService["previewActionTemplates"] {
   return async ({ principal, chatId, presetId, timeZone }: PreviewActionTemplatesParams): Promise<ActionTemplatesPreview> => {
     const membership = await requireHost(ctx, principal, chatId);
@@ -1754,11 +1701,14 @@ function createReplayChatEvents(ctx: ChatContext): ChatService["replayChatEvents
     const floored = rows
       .filter(({ payload }) => !isBelowHistoryFloor(payload, membership.historyFloorSeq))
       .map(({ seq, payload }) => ({ seq, event: payload }));
-    if (readsHidden) {
-      return floored;
-    }
-    const reasoningHostOnly = await resolveReasoningHostOnly(ctx, chatId);
-    return scrubChatEventReplayForMember(floored, membership, reasoningHostOnly);
+    const reasoningHostOnly = readsHidden ? false : await resolveReasoningHostOnly(ctx, chatId);
+    const delivered = readsHidden ? floored : scrubChatEventReplayForMember(floored, membership, reasoningHostOnly);
+    const named = new Set(delivered.flatMap(({ event }) => eventViewMessageId(event) ?? []));
+    const positions = await loadMessagePositions(ctx.db, chatId, membership.historyFloorSeq, [...named]);
+    return delivered.map(({ seq, event }) => {
+      const id = eventViewMessageId(event);
+      return { seq, event: withViewPosition(event, id === undefined ? undefined : positions.get(id)) };
+    });
   };
 }
 
@@ -1774,7 +1724,7 @@ function createReplayChatEvents(ctx: ChatContext): ChatService["replayChatEvents
  *  per-CALLER — the floor is resolved from the SUBSCRIBER's own participant row at the chokepoint, never
  *  from anything the client sends. */
 function createChatEventBounds(ctx: ChatContext): ChatService["chatEventBounds"] {
-  return async ({ principal, chatId }: ChatEventBoundsParams): Promise<ChatEventAttach> => {
+  return async ({ principal, chatId, positionOf }: ChatEventBoundsParams): Promise<ChatEventAttach> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     // `viewerIsHost` piggybacks on the same member-gated probe as the D16 floor (one read per yield): the
     // LIVE fan-out applies the §3.6 member-strip off it, exactly as the durable replay does per caller. P3:
@@ -1788,7 +1738,15 @@ function createChatEventBounds(ctx: ChatContext): ChatService["chatEventBounds"]
     // `ChatDetailData.viewerIsHost` field and the durable replay applies to the rows (D110; the F1 ruling).
     const readsHidden = viewerReadsHidden(membership);
     const reasoningHostOnly = readsHidden ? false : await resolveReasoningHostOnly(ctx, chatId);
-    return { ...(await loadChatEventBounds(ctx.db, chatId)), historyFloorSeq: membership.historyFloorSeq, viewerIsHost: readsHidden, reasoningHostOnly };
+    const messagePosition =
+      positionOf === undefined ? undefined : (await loadMessagePositions(ctx.db, chatId, membership.historyFloorSeq, [positionOf])).get(positionOf);
+    return {
+      ...(await loadChatEventBounds(ctx.db, chatId)),
+      historyFloorSeq: membership.historyFloorSeq,
+      viewerIsHost: readsHidden,
+      reasoningHostOnly,
+      ...(messagePosition === undefined ? {} : { messagePosition }),
+    };
   };
 }
 
@@ -1806,9 +1764,7 @@ export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
     getNextTurnConnection: createGetNextTurnConnection(ctx, deps),
     getMemberCard: createGetMemberCard(ctx, deps),
     previewAssembly: createPreviewAssembly(ctx, deps),
-    previewSection: createPreviewSection(ctx, deps),
     previewActionTemplates: createPreviewActionTemplates(ctx, deps),
-    peekPrompt: createPeekPrompt(ctx, deps),
     getShapeTrace: createGetShapeTrace(ctx, deps),
     getVariantWire: createGetVariantWire(ctx),
     previewContextFit: createPreviewContextFit(ctx, deps),

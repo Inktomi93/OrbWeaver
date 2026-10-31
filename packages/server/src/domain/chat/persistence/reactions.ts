@@ -35,7 +35,6 @@ const LIMIT_ONE = 1;
  *  a cross-boundary contract, and `no-inline-types` homes an EXPORTED shape in `contract/`. The verb reads
  *  it back off the function's own return type instead. */
 interface ReactionRow {
-  readonly messageId: MessageId;
   readonly variantId: MessageVariantId;
   readonly reactorParticipantId: ChatParticipantId;
   readonly emoji: string;

@@ -60,7 +60,6 @@ import type { TurnRetrievalWarningEpisode } from "../contract/memory.ts";
 import { resolveToolRecurseLimit } from "../contract/metadata.ts";
 import type {
   DeliveredCue,
-  GeneratedText,
   HistoryMacroNames,
   PlacedInlineImage,
   ResolvedMediaRef,
@@ -2066,15 +2065,15 @@ function dropDelta(): void {
   // intentionally empty — no consumer for this generation's text deltas.
 }
 
-/** The NON-PERSISTING generation ({@link TurnEngine.generateText}): assemble → shape → generate, then RETURN
- *  the reduced text. It pays the SAME consent + budget belts a real turn does (a generation spends the host's
+/** The NON-PERSISTING generation ({@link TurnEngine.generateText}): assemble → shape → generate, streaming the
+ *  text to `onText`. It pays the SAME consent + budget belts a real turn does (a generation spends the host's
  *  box, persisted or not) but takes NO lock, writes NO canon, and emits NO bus event. `onText`, when supplied,
  *  receives each TEXT delta AS IT ARRIVES off `runTurnPipeline`'s stream (reasoning deltas are not surfaced) —
  *  so a caller can stream the generation into the composer progressively; absent ⇒ deltas dropped. Backs the
  *  composer-fill flows (guided impersonate drafts the user's next line INTO the composer for review). Reads the
  *  FULL canon as context (a `new-slot` at the tail — impersonate's shape). An abort mid-generation is a clean
- *  outcome: `{ text: <whatever streamed>, aborted: true }`; a provider/DB fault still throws. */
-async function generateTextUnpersisted(ctx: EngineContext, prep: TurnPrep, onText: (text: string) => void = dropDelta): Promise<GeneratedText> {
+ *  outcome (the call resolves); a provider/DB fault still throws. */
+async function generateTextUnpersisted(ctx: EngineContext, prep: TurnPrep, onText: (text: string) => void = dropDelta): Promise<void> {
   const connection = prep.connection;
 
   const canonAll = await loadCanonHistory(ctx.db, prep.chatId);
@@ -2082,7 +2081,7 @@ async function generateTextUnpersisted(ctx: EngineContext, prep: TurnPrep, onTex
   const turnId = ctx.newChatTurnId();
   const observations = createGenerationObservationSession(ctx, { chatId: prep.chatId, turnId, sourceMessageId: null, sourceVariantId: null });
   try {
-    const result = await runTurnPipeline({
+    await runTurnPipeline({
       logger: ctx.logger,
       onObservedResult: observations.onObservedResult,
       runChatTurn: ctx.runChatTurn,
@@ -2134,14 +2133,12 @@ async function generateTextUnpersisted(ctx: EngineContext, prep: TurnPrep, onTex
         }
       },
     });
-    return { text: result.content, aborted: false };
   } catch (err) {
-    // An abort (caller-cancel) is a clean outcome — return what streamed. A real provider/DB fault throws.
+    // An abort (caller-cancel) is a clean outcome — what streamed already reached `onText`. A real provider/DB fault throws.
     // No lock/canon/bus to unwind (this path took none), so nothing to emit on the way out.
     if (abortReasonFor(err, prep.signal) === "error") {
       throw err;
     }
-    return { text: "", aborted: true };
   }
 }
 
@@ -2224,11 +2221,11 @@ async function emitCapabilityDropWarnings(
 }
 
 /** The infra→chat warning translation (D41 no-silent-degrade, the READ end). Chat OWNS its bus vocabulary, so
- *  a foreign `WARNING_CODES` member is translated HERE, in the domain — the mirror of the IMAGE role's hop
+ *  a foreign `WARNING_CODE` member is translated HERE, in the domain — the mirror of the IMAGE role's hop
  *  (`entry/compose/imagery.ts` narrows infra→`ImageryWarning`; `verbs/generate-image.ts` re-maps
  *  →`ChatWarningCode`). A code spelled identically in both tuples is a MATCH, never a re-spell.
  *
- *  TOTAL over the infra union by construction: the `assertNever` tail means a NEW `WARNING_CODES` member fails
+ *  TOTAL over the infra union by construction: the `assertNever` tail means a NEW `WARNING_CODE` member fails
  *  `tsc` here until someone rules on it, so a runner drop can never go silently un-surfaced again — the exact
  *  failure this seam was built to end (the runners produced these for months and nothing read them).
  *

@@ -1,26 +1,27 @@
 // @subject packages/server/src/entry/http/import-tree.ts
+
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join, relative } from "node:path";
 import { storedAssetSchema } from "@orb/contracts/assets";
 import { createCharacterSchema } from "@orb/contracts/character";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { importStartedSchema, ST_SECRETS_FILE, ST_SETTINGS_FILE, TREE_FILE_FIELD, TREE_LAYOUT_FIELD } from "@orb/contracts/import";
 import type { PortableKind } from "@orb/contracts/portability";
-import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
+import { PORTABILITY_ROUTES, PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { createThemeInputSchema } from "@orb/contracts/theme";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, makeAssetBytes, prepareBackupFolder } from "@orb/testkit/node/composed";
+import { createServerHarness, makeAssetBytes, prepareBackupFolder, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { CSRF_HEADERS } from "./_body-limit-inputs.ts";
 
-const TREE_ROUTE = "/api/import/tree";
-const EXPORT_ROUTE = "/api/export/library";
+const TREE_ROUTE = PORTABILITY_ROUTES.importTree;
+const EXPORT_ROUTE = PORTABILITY_ROUTES.exportLibrary;
 const ASSET_UPLOAD_ROUTE = "/api/assets/upload";
 const ASSET_FILE_FIELD = "file";
 const WRAPPER = "backup";
-const WORKLOAD_DEADLINE_MS = 60_000;
 
 /** One exported backup entry: its archive path and exact bytes. */
 interface BackupEntry {
@@ -30,7 +31,7 @@ interface BackupEntry {
 
 function harness(): Promise<ServerTestHarness> {
   return createServerHarness({
-    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
   });

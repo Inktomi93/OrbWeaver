@@ -1,11 +1,11 @@
 // @subject packages/server/src/domain/databank/verbs/scrape/scrape-web.ts
 // A user-supplied URL reaches the network only through the composed egress guard, never the ambient fetch.
 
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { afterEach, vi } from "vitest";
 
-const PUBLIC_ADDRESS = "93.184.215.14";
 const PRIVATE_ADDRESS = "192.168.1.50";
 const PRIVATE_HOST = "private-scrape.test";
 const PUBLIC_URL = "https://public-scrape.test/page";
@@ -17,7 +17,7 @@ async function rootWithNetwork(): Promise<{ readonly root: Awaited<ReturnType<ty
   const dialed: string[] = [];
   const root = await createServerHarness({
     networkExecution: {
-      resolver: (hostname) => Promise.resolve([hostname === PRIVATE_HOST ? PRIVATE_ADDRESS : PUBLIC_ADDRESS]),
+      resolver: (hostname) => Promise.resolve([hostname === PRIVATE_HOST ? PRIVATE_ADDRESS : PUBLIC_PEER_ADDRESS]),
       fetch: (input, init) => {
         dialed.push(new Request(input, init).url);
         return Promise.resolve(new Response(PAGE, { headers: { "content-type": "text/html" } }));

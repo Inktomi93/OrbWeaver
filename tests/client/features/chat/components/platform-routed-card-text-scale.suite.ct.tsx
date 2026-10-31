@@ -6,7 +6,7 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import { FONT_SCALE } from "@orb/kit/font-scale";
 import type { ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { ROOM_PROCEDURES, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
@@ -103,7 +103,7 @@ for (const viewport of VIEWPORTS) {
       await using root = room.root;
       const { chatId } = room;
       const caller = await root.internalCallerFor(root.ownerId);
-      await page.route("**/api/auth/config", (route) => route.fulfill({ json: corpus.auth.signedInConfig }));
+      await routeAuthConfig(page, corpus.auth.signedInConfig);
       await routeTrpc(page, serveCorpusProcedures(caller, TRANSCRIPT_READS));
       await routeCardFrames(page, root);
       const story = await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId, fontScale: 1 });

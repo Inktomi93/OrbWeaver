@@ -30,7 +30,7 @@ test("extraction metadata and task routing require their actual witnesses", () =
   expectTypeOf<Meta & { format: "text"; pageCount: number }>().not.toExtend<ExtractionMeta>();
   type TaskFields = Pick<TaskDef, "kind" | "scope" | "spend">;
   expectTypeOf<TaskFields & { routable: false }>().not.toExtend<TaskDef>();
-  expectTypeOf<TaskFields & { routable: false; ridesOn: "agent" }>().not.toExtend<TaskDef>();
+  expectTypeOf<TaskFields & { routable: false; ridesOn: "structured" }>().not.toExtend<TaskDef>();
   expectTypeOf<TaskFields & { routable: false; ridesOn: "chat" }>().toExtend<TaskDef>();
 });
 

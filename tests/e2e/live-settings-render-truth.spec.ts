@@ -17,6 +17,7 @@
 // cleared; the finally block restores appearance + theme to defaults via the API (no storage touch).
 
 import { appearanceGroup } from "@orb/client/features/config";
+import { SECTION_LABELS } from "@orb/testkit/ct";
 import { CONFIG_SECTION_LABEL } from "#client/features/config/lib/config-copy.ts";
 import { THEME_MOCHA_NAME } from "#server/domain/settings/constants.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
@@ -135,7 +136,7 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     expect(bgImage).toContain("url(");
 
     // Leave Settings for Home — let any debounced autosave settle with the pane unmounted.
-    await page.getByRole("button", { name: "Home", exact: true }).click();
+    await page.getByRole("button", { name: SECTION_LABELS.home, exact: true }).click();
 
     // ── 3. The saves are the user's exactly — no self-triggered tail. Two user actions (theme select +
     // the background patch) each fire ONE save. The appearance field edits (kind + seeded id) both ride

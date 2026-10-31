@@ -141,7 +141,7 @@ function SuggestionChip({
           which this does not touch. */}
       <Button type="button" size="sm" variant="ghost" aria-label={`Accept ${name}`} className="max-inline-full min-inline-0" onClick={onAccept}>
         <Icon icon={Check} size="xs" />
-        <Text as="span" voice="label" className="truncate min-inline-0">
+        <Text ink="inherit" as="span" voice="label" className="truncate min-inline-0">
           {name}
         </Text>
       </Button>

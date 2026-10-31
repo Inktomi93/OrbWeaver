@@ -1,7 +1,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
-import { routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, createFirstBootHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
@@ -56,20 +56,9 @@ for (const regime of REGIMES) {
             }),
           });
         }
-        await page.route("**/api/auth/config", (route) => route.fulfill({ json: corpus.auth.signedInConfig }));
+        await routeAuthConfig(page, corpus.auth.signedInConfig);
         await routeTrpc(page, {
-          ...serveCorpusProcedures(caller, [
-            ...SECTION_PROCEDURES,
-            "tag.listTagFilterVocabulary",
-            "persona.list",
-            "rosterPreset.count",
-            "databank.bankHealth",
-            "notifications.list",
-            "plugin.listCommands",
-            "automation.listRulePresets",
-            "chat.getChat",
-            "chat.reapTemporaryChats",
-          ]),
+          ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...SHELL_MOUNT_PROCEDURES]),
         });
         await seedShellState(page, {
           activeSection: "characters",

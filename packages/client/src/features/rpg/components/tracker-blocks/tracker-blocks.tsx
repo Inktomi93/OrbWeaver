@@ -33,11 +33,13 @@ interface StatCellProps {
   /** Commit a new value — present ⇒ editable; absent ⇒ read-only. A `null` is the CLEAR (a blanked field),
    *  the same grammar the sheet's `Level` chip uses: the value's own editor is the only place to unset it. */
   readonly onEditValue?: (next: number | null) => void;
+  /** The ruleset's band for this value; an editable tile takes whole numbers inside it. */
+  readonly range?: { readonly min: number; readonly max: number };
 }
 
 /** One attribute tile — `16` over `STR`, or `—` over `STR` for an unset attribute. Grid-tiled 2-up (lite) to
  *  3-up (wide) by the caller. */
-export function StatCell({ label, value, hint, onEditValue }: StatCellProps): ReactElement {
+export function StatCell({ label, value, hint, onEditValue, range }: StatCellProps): ReactElement {
   return (
     <Card>
       <Stack gap="field" align="center" data-slot="stat-cell">
@@ -56,6 +58,7 @@ export function StatCell({ label, value, hint, onEditValue }: StatCellProps): Re
             // editable value uses. An editor typing over it sees an EMPTY field, not a floor value to delete.
             placeholder={UNSET_DATUM}
             kind="numeric"
+            {...(range === undefined ? {} : { range })}
             onEdit={(next): void => {
               const trimmed = next.trim();
               if (trimmed === "") {
@@ -114,7 +117,7 @@ export function TrackerChip({ label, value, subject, guide = false, onEditValue 
         {label} —{" "}
       </Text>
       {onEditValue === undefined ? (
-        <Text as="span" voice="label">
+        <Text ink="inherit" as="span" voice="label">
           {value}
         </Text>
       ) : (
