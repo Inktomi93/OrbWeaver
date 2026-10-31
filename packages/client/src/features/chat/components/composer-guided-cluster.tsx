@@ -44,6 +44,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useGatedQuery, useTRPC } from "#data";
 import { IMPERSONATE_IN_FLIGHT, IMPERSONATE_WAIT_FOR_TURN, STEER_CUE_CONTINUE, STEER_CUE_SWIPE, SWIPE_NEEDS_REPLY } from "#lib";
 import type { ComposerDraftWrite } from "#state";
@@ -53,9 +54,71 @@ import type { SendRefusal } from "../hooks/use-send-availability.ts";
 import { filterCharacters } from "../lib/roster.ts";
 import { GuidedIconButton, ImpersonateGuidedButton, ImpersonateStopButton, ResponseGuidedButton } from "./composer-guided-buttons.tsx";
 import type { ComposerImageControls } from "./composer-media-group.tsx";
+import type { ComposerMovedReplyActions } from "./composer-utility-menu.tsx";
 import { ComposerGuidedUtilityMenu } from "./composer-utility-menu.tsx";
 import { RewriteDialog } from "./rewrite-dialog.tsx";
 import { useRewriteModal } from "./use-rewrite-modal.ts";
+
+// A box the button row keeps mounted but out of flow while its action sits in the menu, so its width stays measurable.
+const OUT_OF_FLOW = "invisible absolute pointer-events-none";
+// Sub-pixel layout rounding must not flip a fit that holds.
+const FIT_EPSILON = 0.5;
+
+interface UtilitiesRowRefs {
+  readonly row: HTMLElement | null;
+  readonly tools: HTMLElement | null;
+  readonly replies: HTMLElement | null;
+  readonly swipe: HTMLElement | null;
+  readonly continuation: HTMLElement | null;
+}
+
+/** Whether the utilities row has to hand Try another reply and Continue the reply to the menu: true once the row's whole
+ *  run (those two included) is wider than the row. Their boxes stay mounted out of flow, so the run is measurable in
+ *  both states and the answer cannot flap. A ResizeObserver on the row and its parts catches a pane docking and a
+ *  text-scale change the way a narrower window does. */
+function useSecondaryRepliesMoved(actions: ComposerMovedReplyActions): {
+  readonly movedActions: ComposerMovedReplyActions | undefined;
+  readonly boxProps: { readonly className: string; readonly "data-moved": "" | undefined; readonly inert: boolean };
+  readonly refs: { readonly [K in keyof UtilitiesRowRefs]-?: (node: HTMLElement | null) => void };
+} {
+  const [moved, setMoved] = useState(false);
+  const nodes = useRef<{ -readonly [K in keyof UtilitiesRowRefs]: HTMLElement | null }>({
+    row: null,
+    tools: null,
+    replies: null,
+    swipe: null,
+    continuation: null,
+  });
+  useLayoutEffect(() => {
+    const { row, tools, replies, swipe, continuation } = nodes.current;
+    if (row === null || tools === null || replies === null || swipe === null || continuation === null) {
+      return;
+    }
+    const gapOf = (element: HTMLElement): number => Number.parseFloat(getComputedStyle(element).columnGap) || 0;
+    const measure = (): void => {
+      const outOfFlow = swipe.hasAttribute("data-moved");
+      const secondary = outOfFlow ? swipe.getBoundingClientRect().width + continuation.getBoundingClientRect().width + 2 * gapOf(replies) : 0;
+      const run = tools.getBoundingClientRect().width + gapOf(row) + replies.getBoundingClientRect().width + secondary;
+      setMoved(run > row.clientWidth + FIT_EPSILON);
+    };
+    const observer = new ResizeObserver(measure);
+    for (const element of [row, tools, replies, swipe, continuation]) {
+      observer.observe(element);
+    }
+    measure();
+    return (): void => observer.disconnect();
+  }, []);
+  const ref =
+    (key: keyof UtilitiesRowRefs) =>
+    (node: HTMLElement | null): void => {
+      nodes.current[key] = node;
+    };
+  return {
+    movedActions: moved ? actions : undefined,
+    boxProps: { className: moved ? `shrink-0 ${OUT_OF_FLOW}` : "shrink-0", "data-moved": moved ? "" : undefined, inert: moved },
+    refs: { row: ref("row"), tools: ref("tools"), replies: ref("replies"), swipe: ref("swipe"), continuation: ref("continuation") },
+  };
+}
 
 export interface ComposerGuidedClusterProps {
   readonly chatId: ChatId;
@@ -131,6 +194,18 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   const offStatedBy = streamOffReason === undefined && sendUnavailable ? refusalStatedBy : undefined;
   const bandRefusal = refusalStatedBy === undefined ? sendRefusal : undefined;
   const reasonFor = (phaseReason: string): string => persistentOffReason ?? phaseReason;
+  const swipeLabel = hasText ? "Try another reply with this direction" : "Try another reply";
+  const continueLabel = hasText ? "Continue the reply with this direction" : "Continue the reply";
+  const replyEnabled = canTargetTail && idle;
+  const { movedActions, boxProps, refs } = useSecondaryRepliesMoved({
+    swipe: { label: swipeLabel, onAction: (): void => guided.fireSwipe(trimmed), enabled: replyEnabled, disabledReason: reasonFor(SWIPE_NEEDS_REPLY) },
+    continuation: {
+      label: continueLabel,
+      onAction: (): void => fireAndClear(guided.fireContinue),
+      enabled: replyEnabled,
+      disabledReason: reasonFor(SWIPE_NEEDS_REPLY),
+    },
+  });
 
   // CONSUME actions clear the composer on fire; onFireError restores it on failure (D57).
   const fireAndClear = (run: (input: string) => void): void => {
@@ -152,9 +227,10 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
 
   return (
     <Stack className="flex-auto inline-full min-block-0 min-inline-0" gap="glyph" data-slot="composer-guided-cluster">
-      <Row align="center" justify="between" gap="glyph" className="shrink-0 min-inline-0" data-slot="composer-utilities">
-        <Row aria-label="Composer tools" align="center" gap="glyph" className="shrink-0" role="group">
+      <Row align="center" justify="between" gap="glyph" className="shrink-0 min-inline-0" data-slot="composer-utilities" ref={refs.row}>
+        <Row aria-label="Composer tools" align="center" gap="glyph" className="shrink-0" role="group" ref={refs.tools}>
           <ComposerGuidedUtilityMenu
+            moved={movedActions}
             hasText={hasText}
             trimmed={trimmed}
             idle={idle}
@@ -171,7 +247,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
           />
           {actionContributions}
         </Row>
-        <Row align="center" gap="glyph" className="shrink-0">
+        <Row align="center" gap="glyph" className="shrink-0" ref={refs.replies}>
           <Row aria-label="Your message" className="shrink-0 pe-field" data-slot="composer-you-actions" divider="end" gap="glyph" role="group">
             <ImpersonateGuidedButton
               disabled={!idle}
@@ -183,17 +259,19 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
             {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
           </Row>
           <Row aria-label="Their reply" className="shrink-0 min-inline-0" data-slot="composer-them-actions" gap="glyph" role="group">
-            <GuidedIconButton
-              icon={{ glyph: RotateCcw, fills: false }}
-              label={hasText ? "Try another reply with this direction" : "Try another reply"}
-              steerCue={STEER_CUE_SWIPE}
-              hasText={hasText}
-              disabled={!(canTargetTail && idle)}
-              reason={reasonFor(SWIPE_NEEDS_REPLY)}
-              buttonTestId="composerGuidedSwipe"
-              refusalStatedBy={offStatedBy}
-              onFire={(): void => guided.fireSwipe(trimmed)}
-            />
+            <Row {...boxProps} ref={refs.swipe}>
+              <GuidedIconButton
+                icon={{ glyph: RotateCcw, fills: false }}
+                label={swipeLabel}
+                steerCue={STEER_CUE_SWIPE}
+                hasText={hasText}
+                disabled={!replyEnabled}
+                reason={reasonFor(SWIPE_NEEDS_REPLY)}
+                buttonTestId="composerGuidedSwipe"
+                refusalStatedBy={offStatedBy}
+                onFire={(): void => guided.fireSwipe(trimmed)}
+              />
+            </Row>
             <ResponseGuidedButton
               hasText={hasText}
               idle={idle}
@@ -202,17 +280,19 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
               disabledReason={persistentOffReason}
               refusalStatedBy={offStatedBy}
             />
-            <GuidedIconButton
-              icon={{ glyph: FastForward, fills: true }}
-              label={hasText ? "Continue the reply with this direction" : "Continue the reply"}
-              steerCue={STEER_CUE_CONTINUE}
-              hasText={hasText}
-              disabled={!(canTargetTail && idle)}
-              reason={reasonFor(SWIPE_NEEDS_REPLY)}
-              buttonTestId="composerGuidedContinue"
-              refusalStatedBy={offStatedBy}
-              onFire={(): void => fireAndClear(guided.fireContinue)}
-            />
+            <Row {...boxProps} ref={refs.continuation}>
+              <GuidedIconButton
+                icon={{ glyph: FastForward, fills: true }}
+                label={continueLabel}
+                steerCue={STEER_CUE_CONTINUE}
+                hasText={hasText}
+                disabled={!replyEnabled}
+                reason={reasonFor(SWIPE_NEEDS_REPLY)}
+                buttonTestId="composerGuidedContinue"
+                refusalStatedBy={offStatedBy}
+                onFire={(): void => fireAndClear(guided.fireContinue)}
+              />
+            </Row>
           </Row>
         </Row>
       </Row>

@@ -41,7 +41,10 @@ const QUALIFIED = {
   ],
   contextHeader: [[DESKTOP, TEXT_200]],
   charactersBand: [[PHONE, TEXT_200]],
-  room: [[DESKTOP, TEXT_200]],
+  room: [
+    [DESKTOP, TEXT_200],
+    [PHONE, TEXT_200],
+  ],
   jumpToLatest: [
     [PHONE, LAYOUT_300],
     [DESKTOP, LAYOUT_300],
