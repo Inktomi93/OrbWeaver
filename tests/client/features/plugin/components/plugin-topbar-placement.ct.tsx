@@ -134,8 +134,14 @@ test("placed commands that do not fit overflow before any house control and run 
   });
   await openRoom({ root, corpus, page, show }, crowd, OVERFLOW_WIDTH);
   const trail = trailOf(page);
+  const trigger = trail.getByRole("button", { name: TRAIL_OVERFLOW_LABEL });
+  await expect(trigger).toBeVisible();
+  // Only a settled row proves the order: every action is in the row until the first measure.
+  await expect(trail.locator('[data-overflowed] [aria-label="Report a bug"]')).toHaveCount(0);
   await expect(trail.getByRole("button", { name: "Report a bug", exact: true })).toBeVisible();
-  await trail.getByRole("button", { name: TRAIL_OVERFLOW_LABEL }).focus();
+  // The inert inline control stays mounted, so `__orb.pluginUi()` keeps a host for an overflowed command.
+  await expect(trail.locator(`[data-overflowed] [aria-label="${attributed("Command 24")}"]`)).toHaveCount(1);
+  await trigger.focus();
   await page.keyboard.press("Enter");
   const last = page.getByRole("menuitem", { name: attributed("Command 24"), exact: true });
   await expect(last).toBeVisible();
@@ -143,6 +149,34 @@ test("placed commands that do not fit overflow before any house control and run 
   await last.focus();
   await page.keyboard.press("Enter");
   await expect(reached(page, "crowd_24")).toBeVisible();
+});
+
+test("a command placed at composer-action keeps its top bar button, and only composer-media defers to composer-action", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
+  const show = (chatId: ChatId): Promise<unknown> => mount<typeof PluginRoomShellStory>(STORY, { chatId });
+  const both: Registration = {
+    name: "both",
+    placements: [
+      { target: "composer-action", label: "Both" },
+      { target: "topbar", label: "Both" },
+    ],
+  };
+  const twin: Registration = {
+    name: "twin",
+    placements: [
+      { target: "composer-action", label: "Twin" },
+      { target: "composer-media", label: "Twin" },
+    ],
+  };
+  await openRoom({ root, corpus, page, show }, [both, twin], DESKTOP);
+  await expect(pluginControls(trailOf(page))).toHaveCount(1);
+  await expect(pluginControls(trailOf(page))).toHaveAccessibleName(attributed("Both"));
+  await page.getByRole("button", { name: "Plugin actions", exact: true }).click();
+  await expect(page.getByRole("menuitem", { name: new RegExp(PLUGIN_NAME, "u") })).toHaveCount(2);
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Message tools", exact: true }).click();
+  await expect(page.getByRole("menuitem").first()).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: new RegExp(PLUGIN_NAME, "u") })).toHaveCount(0);
 });
 
 test("a phone keeps the top bar row clear: placed commands are You sheet rows and the sheet's palette reaches an unplaced command", async ({

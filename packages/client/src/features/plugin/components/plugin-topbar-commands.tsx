@@ -30,7 +30,9 @@ export function PluginTopbarCommands({ presentation }: { readonly presentation: 
             {...pluginCommandAuditAttributes(item.command.pluginId, item.command.name, "topbar", "topbar")}
           >
             <Icon icon={placedItemGlyph(item)} size="sm" />
-            <Text voice="label">{placedItemLabel(item)}</Text>
+            <Text ink="inherit" voice="label">
+              {placedItemLabel(item)}
+            </Text>
           </Button>
         ))}
       </>
