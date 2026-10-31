@@ -132,7 +132,7 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Partial landing: 10 rows applied, 14 reclassed to keep, the rest not yet judged. The item stays open.
+Final tally of the 99 rows: 15 applied, 1 already gone (`StoreDigestParams.signal`), 1 owner question (`SendParams.blocks`), 82 kept with a named reader. The first block below is the first commit; groups 1 to 4 follow.
 
 Applied: `DigestRow.isGroup`, `.topicAnchor`, `.keywords`; `MemoryPassCounts.skipped` (the digest and segment pass returns drop it); `AutoModeResult.turns` and `.stopReason` (`runAutoMode` returns the messages only; the step-level `done` reason still drives the loop); `CommitMessageParams.blocks`; `ReactionRow.messageId`; `HistoryTurn.extraTokens`; `PreviewInputs.api` (and its write in `resolvePreviewInputs`).
 
