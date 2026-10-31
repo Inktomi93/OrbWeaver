@@ -24,7 +24,7 @@ import type { PresetAssemblyContext } from "#domain/preset";
 import { createExportPresets, createImportPresets } from "#domain/preset";
 import type { SettingsAssemblyContext } from "#domain/settings";
 import { createExportTheme, createExportUserSettings, createImportTheme, createImportUserSettings } from "#domain/settings";
-import type { TagContext } from "#domain/tag";
+import type { TagAssemblyContext } from "#domain/tag";
 import { createImportedCardTag, createTagLibraryExport, createTagLibraryImport } from "#domain/tag";
 import type { WorldInfoExportContext } from "#domain/world-info";
 import { createExportWorldBook, createImportWorldBook, createListOwnedBookIds } from "#domain/world-info";
@@ -34,7 +34,7 @@ import type { LifecycleDoors, NonPortableCanon, PortabilityTableName } from "../
 /** What the registry builder needs from the composition root to compose each descriptor. */
 export interface PortabilityDeps {
   readonly now: Clock;
-  readonly tagCtx: TagContext;
+  readonly tagCtx: TagAssemblyContext;
   readonly settingsCtx: SettingsAssemblyContext;
   readonly presetCtx: PresetAssemblyContext;
   readonly worldInfoExportCtx: WorldInfoExportContext;

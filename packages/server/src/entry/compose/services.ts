@@ -128,7 +128,7 @@ import {
 import type { CertificateController, RelayController, ShareFacts, ShareGraphOptions } from "#domain/share";
 import { createEnableShareSeating, createShareService } from "#domain/share";
 import { createStatsBatchWiring } from "#domain/stats";
-import type { TagContext } from "#domain/tag";
+import type { TagAssemblyContext } from "#domain/tag";
 import { createImportedCardTag, createReadAttachedEntity, createTagService } from "#domain/tag";
 import type { ToolUseService } from "#domain/tool-use";
 import { createToolUseTeachingContributions } from "#domain/tool-use";
@@ -791,7 +791,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const connection = createConnectionService(connectionCtx);
 
   // Built before character so character's by-name card-tag attach port wires to the real tag verb.
-  const tagCtx: TagContext = {
+  const tagCtx: TagAssemblyContext = {
     db,
     now,
     newTagId: minter(ID_PREFIX.tag, idSource),
