@@ -7,7 +7,7 @@ import { Check, Icon } from "#primitives/icons";
 import { mediaGridVariants } from "./variants.ts";
 
 const DEFAULT_MIN_CELL_WIDTH_PX = 96;
-const DEFAULT_OVERSCAN = 2;
+const OVERSCAN = 2;
 
 function computeColumns(containerWidthPx: number, minCellWidthPx: number, gapPx: number): number {
   if (containerWidthPx <= 0) {
@@ -82,8 +82,6 @@ export interface MediaGridProps<T extends MediaGridItem> {
   readonly minCellWidth?: number;
   /** Gap between cells (both axes) as a spacing intent token. */
   readonly gapToken?: GapToken;
-  /** Rows rendered beyond the visible window on each side. Defaults to 2. */
-  readonly overscan?: number;
   /**
    * Turns every cell into a toggle: click/Enter/Space calls `onToggle` instead of `onActivate`,
    * and selected cells get `aria-selected` + a checkmark badge. Omit entirely for a plain
@@ -187,7 +185,6 @@ export function MediaGrid<T extends MediaGridItem>({
   items,
   minCellWidth = DEFAULT_MIN_CELL_WIDTH_PX,
   gapToken,
-  overscan = DEFAULT_OVERSCAN,
   selection,
   onActivate,
   ariaLabel,
@@ -213,7 +210,7 @@ export function MediaGrid<T extends MediaGridItem>({
     // VirtualList's id-keyed rows) since galleries only append, never reorder/prepend.
     getItemKey: (index) => index,
     estimateSize: () => cellEstimateRef.current,
-    overscan,
+    overscan: OVERSCAN,
     gap: gapPx,
     directDomUpdates: true,
     directDomUpdatesMode: "position",
