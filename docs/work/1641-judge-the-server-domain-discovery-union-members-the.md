@@ -46,4 +46,8 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 20 rows = 20 kept (12 `GENRES`, 8 `TONES`).
+
+- Every member is a value of `z.enum(GENRES)` and `z.enum(TONES)` in `DISTILL_PAYLOAD` (`packages/server/src/domain/discovery/verbs/distill.ts:84,86`). That schema is the structured-output grammar sent to the model (`projectJsonSchema`, line 92) and the validator for its reply (`runStructuredTurn`, line 294); the model picks a member and `upsertSummary` stores it in `character_summaries.genre` and `.tone` (line 349). Old stored rows hold every current member. Dropping one reshapes the request schema and orphans stored rows, so it is an inference decision: not applied.
+- Survey: codegraph_explore `GENRES TONES distill.ts discovery distillSchema` (one caller each, `DISTILL_PAYLOAD`); ast-grep string-literal scan over `packages tests tooling` (5913 `.ts`, 1524 `.tsx`): `"science-fiction"` 5, `"slice-of-life"` 4, `"wholesome"` 4, `"supernatural"` 2, all ts, 0 tsx; the non-`distill.ts` hits are the character seeder tags (`packages/server/src/domain/character/seeder/cards.ts`) and test corpus responders. The whole of `distill.ts` was read.
+- No code change.
