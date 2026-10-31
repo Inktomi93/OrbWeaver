@@ -120,6 +120,9 @@ const MOUNT_SUPPORT_FILES = {
 // Feature test helpers a story imports; each stays free of Node imports so the story can load it.
 const MOUNT_HELPER_FILES = {
   "^tests/client/features/app-shell/surfaces/trail-projection\\.ts$": "values the trail projection story and its spec share",
+  "^tests/client/features/app-shell/surfaces/ramp-surfaces\\.ts$":
+    "the shell surfaces the ramp elevation fills, which the ramp badge story portals into and its spec reads",
+  "^tests/client/features/app-shell/_surface-stories\\.tsx$": "the production shell story the ramp badge story wraps with its badges",
   "^tests/client/components/page-template-cases\\.ts$": "the seed and density matrix the page-template stories mount and their spec reads",
   "^tests/client/features/auth/components/pending-join-fixtures\\.ts$": "the pending-join story's parsed fixtures",
   "^tests/ui/primitives/_seed-scope\\.tsx$": "the seed palette and nested custom scope every ui primitive story mounts its cases in",
