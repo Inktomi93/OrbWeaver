@@ -15,9 +15,6 @@ export interface BundleImportReport {
   readonly imported: number;
   readonly skipped: number;
   readonly failed: number;
-  /** True when the signal fired mid-run: the counts describe a PARTIAL import, and every file the driver did
-   *  not reach is present in `outcomes` with `notAttempted`. */
-  readonly aborted: boolean;
 }
 
 export interface BundleImportDeps {

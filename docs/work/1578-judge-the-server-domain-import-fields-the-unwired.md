@@ -43,4 +43,10 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Applied: every row except `Group.dirName`.
+
+- The `ImportChatsResult` and `ImportPersonasResult` unknown rows: every caller reads these by field name (`packages/server/src/domain/import/loader/profile-directory.ts`, `packages/server/src/domain/import/verbs/import-chat-file.ts`, `packages/server/src/domain/import/loader/workload-drivers.ts`), and the value is not serialized whole. The unread counts are deleted.
+- Removing `collidedCards` also removes its push in `disambiguate`; removing `fuzzyPairedDirs` leaves `fuzzyPair` returning nothing. The handle suffix and the chat pairing are unchanged.
+- Kept: `Group.dirName`. The scan reads `??=` as no write. It is written at `packages/server/src/domain/import/loader/collect.ts` in `collectChatsForDir` and read in `collectBundlesFromDir` for `orphanBundles`.
+- Survey: `codegraph_explore` on the result types; `ast-grep` and `rg` over `packages`, `tests`, `scripts`, `tooling` and `docs`.
+- Ran: `pnpm typecheck tsconfig.node.json`; `pnpm test tests/server/domain/import` (one timeout under load, solo rerun of `library-planes.int.test.ts` passed).

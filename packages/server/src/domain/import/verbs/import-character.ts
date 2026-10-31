@@ -131,8 +131,8 @@ async function attachCarriedContent(
   ctx: ImportContext,
   characterId: CharacterId,
   carried: CarriedContent,
-): Promise<Pick<ImportCharacterResult, "attachedBooksLinked" | "attachedBooksSkipped" | "regexScriptsLifted" | "regexScriptsReused" | "skippedOverlays">> {
-  const { linked: attachedBooksLinked, skipped: attachedBooksSkipped } = await relinkCarriedBooks(ctx, characterId, carried.attachedBooks);
+): Promise<Pick<ImportCharacterResult, "regexScriptsLifted" | "regexScriptsReused" | "skippedOverlays">> {
+  const { linked: attachedBooksLinked } = await relinkCarriedBooks(ctx, characterId, carried.attachedBooks);
   const skippedOverlays: string[] = [];
 
   if (ctx.importLorebook !== undefined && carried.book !== null && attachedBooksLinked === 0) {
@@ -156,7 +156,7 @@ async function attachCarriedContent(
     regexScriptsReused = lift.reused;
   }
 
-  return { attachedBooksLinked, attachedBooksSkipped, regexScriptsLifted, regexScriptsReused, skippedOverlays };
+  return { regexScriptsLifted, regexScriptsReused, skippedOverlays };
 }
 
 /** EVERY plane a card lands beyond the character row, in one place, because BOTH arms of the verb run it:
