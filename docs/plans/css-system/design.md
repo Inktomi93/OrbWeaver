@@ -85,7 +85,7 @@ The name row's bubble-ink rule belongs in client globals because it addresses ch
 
 ### Tone roles and one variant vocabulary
 
-[D336](../../adr/0336-tone-roles-and-one-variant-vocabulary.md) owns the ruling: tones, roles, recipes, floors, scoping, the axis vocabulary and the lint constraint. This section owns the order, the mapping and the flagged sites. The phase is not yet built; [item 1421](../../work/1421-build-the-tone-role-tier-and-one-variant.md) tracks it.
+[D336](../../adr/0336-tone-roles-and-one-variant-vocabulary.md) owns the ruling: tones, roles, recipes, floors, scoping, the axis vocabulary and the lint constraint. This section owns the order, the mapping and the flagged sites.
 
 Each step lands alone and leaves the app working. Each step ends with isolated before and after captures of its changed surfaces and a rendered review.
 

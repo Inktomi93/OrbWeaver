@@ -12,7 +12,7 @@ Each primitive hand-mixes its own intent tints with opacity modifiers, so one me
 
 ## Decision
 
-The vocabulary is not yet built; [item 1421](../work/1421-build-the-tone-role-tier-and-one-variant.md) and the [css-system plan](../plans/css-system/design.md) carry it.
+The [css-system plan](../plans/css-system/design.md) records its build order and mapping.
 
 Tones. A tone is an intent color: `primary`, `neutral`, `destructive`, `warning`, `success`, `info`. The intent tokens keep their names and stay hand-tuned `light-dark()` bases under D71. `secondary` is not a tone, because its fill is the neutral ramp.
 

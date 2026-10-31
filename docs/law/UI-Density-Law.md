@@ -145,7 +145,7 @@ Check the rendered value with `getComputedStyle(...)` against the document-resol
 
 ### 4.3 Primitive API deltas the law forced
 
-[D336](../adr/0336-tone-roles-and-one-variant-vocabulary.md) rules the colour, fill and size axes below: `tone` is colour, `variant` is fill style, `ink` is a named ink and `size` is the control scale. Its use-specific components for `Card`, `Button`, `Badge`, `ListRow`, `Row`, `Stack`, `Section` and `Grid` are not yet built; [item 1421](../work/1421-build-the-tone-role-tier-and-one-variant.md) tracks them, and each step rewrites the rows it changes.
+[D336](../adr/0336-tone-roles-and-one-variant-vocabulary.md) rules the colour, fill and size axes below: `tone` is colour, `variant` is fill style, `ink` is a named ink and `size` is the control scale. The use-specific components that left `Card`, `Button`, `Badge`, `ListRow`, `Row`, `Stack`, `Section` and `Grid` own their skins; the Step 4 records in the [css-system plan](../plans/css-system/design.md) list them.
 
 | primitive | delta | why |
 | - | - | - |
