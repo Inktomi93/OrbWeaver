@@ -23,7 +23,8 @@ export const LOCAL_SURFACE_CONTROLS = ["**/tests/support/browser/surface-measure
 /** The gallery and local framework controls share the application's component-test pipeline. */
 export const componentWebServer = {
   command:
-    "pnpm --filter @orb/client exec vite build --configLoader native --mode component-test && pnpm --filter @orb/client exec vite preview --configLoader native --mode component-test",
+    // The preview runs under a non-recursive `exec`: `pnpm --filter … exec` reports the child's SIGTERM from the graceful shutdown as ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL.
+    "pnpm --filter @orb/client exec vite build --configLoader native --mode component-test && pnpm --dir packages/client exec vite preview --configLoader native --mode component-test",
   url: `${origin}/playwright/index.html`,
   reuseExistingServer: false,
   timeout: budget(BASE_SERVER_TIMEOUT_MS),
