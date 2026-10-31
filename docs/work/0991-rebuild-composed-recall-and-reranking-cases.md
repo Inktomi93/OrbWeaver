@@ -65,11 +65,12 @@ New maintained homes:
 | `memory-recall-eval.suite.int.test.ts`: recall at k, stable order, minScore floor, off-corpus query, knob controls (`queryWindow`, `retrieveK`, `rerankTo`), live window over relevance | mixB versus mixC divergence and the live window are in rerank consumers; the knob and floor controls are not. | Rebuild, deferred to item 1302 |
 | `memory-recall-trace.suite.int.test.ts`: trace reaches the log and the recorder | The recorder sink is read by core retrieval and recall audits. | Keep |
 | `recall/recorder.test.ts` | Recall recorder. | Rebuild |
-| `recall/bridge.test.ts`, `format.test.ts`, `query.test.ts`, `window.test.ts` | Pure functions with no server door export. | Move to unit, deferred to [item 1303](1303-pure-recall-and-rerank-rules-live-in-orb.md): a test-only door is rejected by the plan. |
+| `recall/bridge.test.ts`, `format.test.ts`, `window.test.ts` | [Bridge](../../tests/kit/recall/bridge.test.ts) and [format and window](../../tests/kit/recall/format-and-window.test.ts) call `@orb/kit/recall`: coverage walk, per-bucket grids, tier ranges, blank and missing bodies, the live-window boundary and the whole-history cutoff. | Move ([item 1303](1303-pure-recall-and-rerank-rules-live-in-orb.md)) |
+| `recall/query.test.ts` | `buildRecallQuery` renders its text through the chat transcript renderer, which throws a chat error and hashes with `node:crypto`. Kit cannot hold it. | Open: [item 1303](1303-pure-recall-and-rerank-rules-live-in-orb.md) |
 | `engine/rerank-pick.test.ts`: score scales, unbound and failing roles, a named character winning, a muted mention | Smart picker owns negative logits, unbound degrade, mentions and muted seats; rerank consumers owns the ranked pick. | Keep |
-| `engine/rerank-pick.test.ts`: the last-speaker ban and its lift after a human line, rank order across several addressed characters, a name a human player shares, ambiguous titles, common-word names, blank names, the window clip and abort | No maintained case on the rerank path. | Move to unit, deferred to item 1303 |
+| `engine/rerank-pick.test.ts`: the last-speaker ban and its lift after a human line, rank order across several addressed characters, a name a human player shares, ambiguous titles, common-word names, blank names, the window clip and abort | No maintained case on the rerank path. | Open: item 1303. The name and ambiguity rules live in the shared mention reader of `engine/select-speakers.ts`, which `isArbiterEligible` couples to the participant persistence. |
 | `search/substrate/rerank.test.ts`: reorder by hit order, omitted hits after the scored ones in vector order, rejection propagation | Rerank consumers: every consumer's order; a reply naming only the fact's documents leaves the rest in their vector order; a 500 from the engine fails the omnibox search. | Rebuild |
-| `search/substrate/rerank.test.ts`: unscorable candidates placed last | A production row with blank source text is not reachable through a write path. | Move to unit, deferred to item 1303 |
+| `search/substrate/rerank.test.ts`: unscorable candidates placed last | A production row with blank source text is not reachable through a write path. [Apply rerank](../../tests/kit/rerank/apply-rerank.test.ts) calls `applyRerank` from `@orb/kit/rerank`, with the omitted-hit order and the rejection as controls. | Move |
 | `inference/backends/openai-compat/rerank.test.ts` | Rerank consumers: the window clamp, and a reranker bound at the minimum window refused with no request sent. | Rebuild |
 | `contracts/inference/capability/rerank.contract.test.ts` | Capability contracts: positive whole window, closed modalities. The floor's `windowEstimated` value only restates a constant, and a measured window parsing with the flag false only restates an optional boolean field. | Rebuild the refusals; drop the two flag checks. |
 
@@ -90,6 +91,11 @@ Each scratch production change failed the named cases and was reverted.
 | Adoption ignores the seed's labels | The user's own earlier-model row |
 | `maxInputTokens` accepts any number | Capability contracts |
 | The recorder ignores its chat filter | Recall recorder |
+| The bridge walk advances one position instead of one span | Four bridge unit cases |
+| The bridge merges buckets under one owner | The two per-bucket bridge unit cases |
+| The live window compares with `>` | The boundary unit case |
+| The format keeps a blank body | The blank-body unit case |
+| `applyRerank` places unscorable candidates first, or reverses the omitted hits | The unscorable and omitted-hit unit cases |
 | `applyRerank` swallows a failed rerank call | The failed-rerank case: the search resolves in vector order |
 | `applyRerank` reverses the hits the reranker left unscored | The unscored-order case |
 | openai-compat sends a pair whose query clamps to nothing | The minimum-window case: the search resolves instead of refusing |

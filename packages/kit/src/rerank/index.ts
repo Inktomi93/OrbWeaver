@@ -1,21 +1,24 @@
-// Cross-verb rerank orchestration (pure — the runner arrives as an ARG). Pinned: unscorable
-// candidates pass through AFTER ranked ones (never dropped); reorder maps by caller id, not index;
-// rerank rejections PROPAGATE — no silent CSLS fallback.
+// Cross-verb rerank orchestration. The runner arrives as an argument, so the placement rules stay pure: unscorable
+// candidates pass through after the ranked ones, hits map back by caller id, and a runner rejection propagates.
 
-import type { RoleClients } from "@orb/contracts/role-clients";
+/** What a rerank run hands back: scored hits naming the caller's ids. */
+export interface RerankOutcome {
+  readonly hits: readonly { readonly id: string }[];
+}
 
-type RerankRunner = RoleClients["rerank"];
+/** The rerank call, over `{ id, text }` documents. A role client's wider query type is assignable here. */
+export type RerankRun = (query: string, documents: { readonly id: string; readonly text: string }[]) => Promise<RerankOutcome>;
 
 /**
- * Reorder `candidates` by a cross-encoder over `query`, returning at most `topN`. Scorable candidates
- * (non-blank `sourceText`) are reranked by the runner's descending scores; any scorable the runner omits
- * (it returned a capped subset) keep their incoming order AFTER the ranked ones; unscorable candidates are
- * appended last (recall-preserving). The result is capped to `topN`. Rerank rejections propagate.
+ * Reorder `candidates` by a cross-encoder over `query`, returning at most `topN`. Scorable candidates (non-blank
+ * `sourceText`) take the runner's hit order; any scorable the runner omits keep their incoming order after the
+ * ranked ones; unscorable candidates are appended last so recall is preserved. A rerank rejection propagates: there
+ * is no silent fallback to the incoming order.
  */
 export async function applyRerank<T extends { readonly id: string; readonly sourceText: string | null }>(
   query: string,
   candidates: readonly T[],
-  rerank: RerankRunner,
+  rerank: RerankRun,
   topN: number,
 ): Promise<T[]> {
   const scorable: T[] = [];
@@ -28,7 +31,7 @@ export async function applyRerank<T extends { readonly id: string; readonly sour
     }
   }
 
-  // Nothing to cross-encode — keep CSLS order, just cap.
+  // Nothing to cross-encode: keep the incoming order, just cap.
   if (scorable.length === 0) {
     return candidates.slice(0, topN);
   }
@@ -49,7 +52,6 @@ export async function applyRerank<T extends { readonly id: string; readonly sour
       placed.add(hit.id);
     }
   }
-  // Scorable the runner didn't return (budget cap) keep their incoming CSLS order, after the ranked ones.
   const leftover = scorable.filter((c) => !placed.has(c.id));
 
   return [...ranked, ...leftover, ...unscorable].slice(0, topN);
