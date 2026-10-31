@@ -19,7 +19,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { MemberDrillHeader, SettingSwitchRow } from "#components";
+import { EditorPage, MemberDrillHeader, SettingSwitchRow } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { CollectionMemberView } from "#lib";
 import { talkativenessReadout, useFocusOnMount } from "#lib";
@@ -139,20 +139,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
   };
 
   return (
-    // `--width-content-col` — the EDITOR content-column cap, not a reading measure (#1175). See the tag
-    // member editor's twin: this block holds controls, so the prose token is forbidden here by its own
-    // contract, and `max-w-prose` was a third un-derived width. The token's stated consumption is
-    // THREE classes (#1664 — centered, capped, breathing to `--width-content-col-wide` past `@cq-64`);
-    // the tag editor's twin carries the argument and the measured pane widths. The `@cq-64` query measures
-    // the config member anchor's box, not one this surface owns.
-    <Stack
-      className="mx-auto inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)"
-      focusTarget={true}
-      data-slot="roster-member-editor"
-      gap="section"
-      ref={surfaceRef}
-      tabIndex={-1}
-    >
+    <EditorPage focusTarget={true} data-slot="roster-member-editor" gap="section" ref={surfaceRef} tabIndex={-1}>
       {/* THE DRILL ROW (#1747, the mock design §3.4): `← Back to <library>` · the roster's name · this
             collection's ONE member verb, Start chat (§3.4 names it). SAVE STAYS WITH THE FIELDS below: it
             commits the two inputs it sits under and is not a member verb — moving it up would put a
@@ -235,6 +222,6 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
           </Text>
         </Section>
       ) : null}
-    </Stack>
+    </EditorPage>
   );
 }

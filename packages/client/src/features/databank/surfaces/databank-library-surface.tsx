@@ -1,9 +1,7 @@
 // The databank library surface — the Databank LIST hub. Reads `databank.list` + `databank.listGlobal`
 // (D-1's id set, which is what lets the row's `Everywhere` toggle exist WITHOUT legacy's per-row
 // `listAttachments` N+1) and renders a `DatabankLibraryRow` per document. A row click opens the document in
-// CONTENT. The focus/QueryBoundary shell + the search/empty body come from the shared library-surface
-// scaffold, so this pane's density is the same instrument tier presets and the config collections resolve to,
-// by construction.
+// CONTENT. The pane is a `ListPage`, so its density is the instrument tier every LIST pane resolves to.
 //
 // EVERY LENS IS THE SERVER'S (owner ruling 2026-08-13, the `character.list` precedent — landed 2026-08-14).
 // The name search and the ingest-PHASE scope ride as query INPUT, so they are part of the key and changing
@@ -36,14 +34,15 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { FileText, Icon, Search, X } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Input } from "@orb/ui/input";
+import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { LibraryListLayout, LibrarySurfaceShell } from "#components";
+import { LibraryListRows, LibrarySurfaceShell, ListPage } from "#components";
 import type { Trpc } from "#data";
 import { createCollectionSurface, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { timeLib, useDebouncedValue, useFocusOnMount } from "#lib";
@@ -126,27 +125,40 @@ const useDatabankCollection = createCollectionSurface({
 export function DatabankLibrarySurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
+  // The search is pane chrome above the boundary, so it stays on screen while the read is in flight.
+  const [query, setQuery] = useState("");
+  const phaseFilter = useDatabankPhaseFilter();
 
   return (
-    <Stack ref={surfaceRef} className="block-full" focusTarget={true} gap="block" tabIndex={-1}>
-      {/* DELIBERATELY UNRESERVED, AND FOR A DIFFERENT REASON THAN #1748 RECORDED (re-derived on this tree).
-          The sibling library pane (presets) was blocked by a scroll box under the boundary and is hoisted;
-          this pane's body is a self-scrolling `<VirtualList className="h-full">`, which is not a box that can
-          be hoisted — it IS the data-dependent list. `reserveKey`'s measuring Stack is auto-height, so it
-          severs the virtual scroller's height chain and the list stops virtualizing; the only way through is
-          `fill`, and `fill` reserves the PANE box, which this pane already owns from its parent and which
-          never changes. There is nothing to remember, so it stays on the unsplit `LibraryListLayout` (whose
-          rows container is that definite box) rather than gaining a reservation that could only be a
-          tautology. The rows themselves do not suspend at all — see `DatabankList`'s own note. */}
-      <ReExtractBanner />
+    // DELIBERATELY UNRESERVED: the rows are a self-scrolling `<VirtualList className="h-full">`, and a
+    // `reserveKey` measuring Stack is auto-height, so it would sever the scroller's height chain. The `bounded`
+    // body gives the rows the definite box they scroll in.
+    <ListPage
+      body="bounded"
+      lead={
+        <>
+          <ReExtractBanner />
+          {phaseFilter === null ? null : <PhaseFilterChip phase={phaseFilter} />}
+        </>
+      }
+      ref={surfaceRef}
+      search={<Input aria-label="Search documents" onValueChange={setQuery} placeholder="Search documents" value={query} />}
+    >
       <LibrarySurfaceShell errorLabel="your documents" loadingLabel="Loading your documents…">
-        <DatabankList />
+        <DatabankList onClearSearch={(): void => setQuery("")} phaseFilter={phaseFilter} query={query} />
       </LibrarySurfaceShell>
-    </Stack>
+    </ListPage>
   );
 }
 
-function DatabankList(): ReactElement {
+interface DatabankListProps {
+  /** The raw search box value; the list debounces it into the server query. */
+  readonly query: string;
+  readonly phaseFilter: IngestPhase | null;
+  readonly onClearSearch: () => void;
+}
+
+function DatabankList({ query, phaseFilter, onClearSearch }: DatabankListProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const selectedId = useSelectedDocumentId();
@@ -154,11 +166,9 @@ function DatabankList(): ReactElement {
   // resolves, the schema default — so the first page fetches at the same size either way.
   const settingsQuery = useQuery(trpc.settings.getUserSettings.queryOptions());
   const pageSize = settingsQuery.data?.config.library.pageSize ?? DEFAULT_USER_SETTINGS.library.pageSize;
-  const [query, setQuery] = useState("");
   // DEBOUNCED, not deferred: deferring picks a render, and every distinct string here is a round trip now
   // that the predicate is the server's (the character library's ruling).
   const settledQuery = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS);
-  const phaseFilter = useDatabankPhaseFilter();
   const collection = useDatabankCollection({ trpc }, { pageSize, phase: phaseFilter, search: settledQuery });
   const documents = collection.items;
   // THE CLOCK THE STALL THRESHOLD READS is the query's own `dataUpdatedAt` — "when these rows were true" —
@@ -208,14 +218,10 @@ function DatabankList(): ReactElement {
 
   return (
     <>
-      {phaseFilter === null ? null : <PhaseFilterChip phase={phaseFilter} />}
-      <LibraryListLayout
-        empty={<DatabankEmpty needle={settledQuery} onClearSearch={(): void => setQuery("")} phaseFilter={phaseFilter} />}
+      <LibraryListRows
+        empty={<DatabankEmpty needle={settledQuery} onClearSearch={onClearSearch} phaseFilter={phaseFilter} />}
         isEmpty={documents.length === 0}
-        onSearchChange={setQuery}
-        searchLabel="Search documents"
-        searchPlaceholder="Search documents"
-        searchValue={query}
+        scroll={true}
       >
         {/* THE TAIL FETCH IS THE LIST'S OWN. The pane used to render every loaded row into a plain scroll
             container and hang the next-page fetch off an explicit "Load more" button, because a
@@ -245,7 +251,7 @@ function DatabankList(): ReactElement {
             />
           )}
         />
-      </LibraryListLayout>
+      </LibraryListRows>
 
       {renameTarget === null ? null : (
         <DatabankRenameDialog

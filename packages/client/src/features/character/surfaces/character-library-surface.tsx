@@ -38,12 +38,13 @@ import type { CharacterListSort } from "@orb/contracts/character";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { Stack, Surface } from "@orb/ui/layout";
+import { Input } from "@orb/ui/input";
+import { Stack } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
-import { FaceStrip, SkipToFirstRow } from "#components";
+import { FaceStrip, ListPage } from "#components";
 import type { Trpc } from "#data";
 import { createCollectionSurface, useInvalidation, useStartChat, useTRPC } from "#data";
 import { useDebouncedValue, useFocusListArrival } from "#lib";
@@ -74,7 +75,7 @@ import type { CharacterCardItem } from "../components/character-card.tsx";
 import { CharacterCardTile } from "../components/character-card.tsx";
 import { CharacterFilterChips } from "../components/character-filter-chips.tsx";
 import { CharacterLibraryBody } from "../components/character-library-body.tsx";
-import { CharacterLibraryToolbar } from "../components/character-library-toolbar.tsx";
+import { CharacterSortSelect, CharacterViewGroup } from "../components/character-library-toolbar.tsx";
 import { useDuplicateCharacter, useRemoveCharacter } from "../hooks/use-character-context-mutations.ts";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { useCharacterTagGroups } from "../hooks/use-character-tag-groups.ts";
@@ -246,82 +247,81 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library" }: Cha
   const selectedCount = collection.selection.selected.size;
 
   return (
-    // INSTRUMENT tier (UI-Density-Law.md §3.1 LIST panes): the library is a list you SCAN for a face
-    // and a name, not a form you operate.
-    <Surface tier="instrument">
-      <Stack
-        ref={surfaceRef}
-        tabIndex={-1}
-        className="overflow-y-auto block-full min-block-0"
-        focusTarget={true}
-        gap="row"
-        // Escape leaves select mode from anywhere in the pane. A portaled dialog's Escape bubbles through the
-        // React tree, so only keys whose DOM target sits inside this pane count.
-        onKeyDown={(event): void => {
-          if (bulkMode && event.key === "Escape" && event.currentTarget.contains(event.target as Node)) {
-            collection.selection.clear();
-            setBulkMode(false);
-          }
-        }}
-      >
-        {/* The pane's skip link lands on the first character, past the search, sort, favourites and filter chrome. */}
-        <SkipToFirstRow containerRef={surfaceRef}>Skip to characters</SkipToFirstRow>
-        <CharacterLibraryToolbar onQueryChange={setCharacterSearch} query={query} />
-        {/* THE RESULT COUNT, SPOKEN (side-eye 2026-08-03 P2), AND NOW HOUSED (side-eye 2026-08-17 taste a).
-            It is a `role="status"` line that is ALWAYS mounted and always states the count (a region that
-            appears with its first message announces nothing; a count that exists only while filtered shifts
-            the layout on every chip press), and it counts the SERVER's matches, not the loaded rows.
-            It renders inside the Filters group in the `datum` voice now: floating between the rail and the
-            favorites strip in the `gloss` micro voice it read as a debug line, and it is the number the
-            rail's own controls PRODUCE. The chips component draws it — see its datum line. */}
-        <CharacterFilterChips
-          availableTags={scope.availableTags}
-          favoritesOnly={favoritesOnly}
-          onClearFilters={clearCharacterFilters}
-          onCycleTag={cycleTagFilter}
-          onToggleArchived={toggleShowArchived}
-          onToggleFavorites={toggleFavoritesOnly}
-          onToggleOpen={toggleFiltersOpen}
-          open={filtersOpen}
-          resultLabel={resultCountLabel(items.length, collection.totalCount)}
-          showArchived={showArchived}
-          tagFilter={tagFilter}
-          vocabularyEmpty={scope.vocabularyEmpty}
-          vocabularyPending={scope.vocabularyPending}
+    <ListPage
+      body="pane"
+      filters={
+        <>
+          <CharacterViewGroup />
+          {/* The result count is an always-mounted `role="status"` line inside the Filters group, counting the
+              server's matches, not the loaded rows. */}
+          <CharacterFilterChips
+            availableTags={scope.availableTags}
+            favoritesOnly={favoritesOnly}
+            onClearFilters={clearCharacterFilters}
+            onCycleTag={cycleTagFilter}
+            onToggleArchived={toggleShowArchived}
+            onToggleFavorites={toggleFavoritesOnly}
+            onToggleOpen={toggleFiltersOpen}
+            open={filtersOpen}
+            resultLabel={resultCountLabel(items.length, collection.totalCount)}
+            showArchived={showArchived}
+            tagFilter={tagFilter}
+            vocabularyEmpty={scope.vocabularyEmpty}
+            vocabularyPending={scope.vocabularyPending}
+          />
+          {/* Portraits only: the names are already the rows' titles right below. */}
+          <FaceStrip items={favorites} label="Favorite characters" onSelect={openEditor} selectedId={selectedId} verb="Open" />
+        </>
+      }
+      // Escape leaves select mode from anywhere in the pane. A portaled dialog's Escape bubbles through the
+      // React tree, so only keys whose DOM target sits inside this pane count.
+      onKeyDown={(event): void => {
+        if (bulkMode && event.key === "Escape" && event.currentTarget.contains(event.target as Node)) {
+          collection.selection.clear();
+          setBulkMode(false);
+        }
+      }}
+      ref={surfaceRef}
+      search={
+        <Input
+          aria-label="Search characters"
+          className="flex-1 min-inline-(--width-field-floor)"
+          onValueChange={setCharacterSearch}
+          placeholder="Search characters…"
+          value={query}
         />
-        {/* The favorites strip is the shared `FaceStrip` composite now — the
-          private avatar-in-Button copy it used to carry is retired, not duplicated. Portraits only: the
-          names are already the rows' titles right below. */}
-        <FaceStrip items={favorites} label="Favorite characters" onSelect={openEditor} selectedId={selectedId} verb="Open" />
-        <Stack className="flex-1 min-block-(--height-scroll-md)">
-          <CharacterLibraryBody
-            ariaLabel={ariaLabel}
-            categorized={viewMode === "categorized"}
-            error={collection.error}
-            filtered={items}
-            filtersActive={scope.filtersActive}
-            hasNextPage={collection.hasNextPage}
-            isFetchingNextPage={collection.isFetchingNextPage}
-            isPending={collection.isPending}
-            listProps={collection.listProps}
-            loadedProgress={loadedProgressLabel(items.length, collection.totalCount)}
-            onClearSearch={(): void => setCharacterSearch("")}
-            onRetry={collection.refetch}
-            tagGroups={tagGroups}
-            query={settledQuery}
-            renderRow={renderRow}
-          />
-        </Stack>
-        {bulkMode && selectedCount > 0 ? (
-          <CharacterBulkBar
-            ids={[...collection.selection.selected]}
-            onClear={collection.selection.clear}
-            onRemoveSubmitted={collection.selection.remove}
-            selectedCount={selectedCount}
-            trpc={trpc}
-          />
-        ) : null}
+      }
+      searchAside={<CharacterSortSelect />}
+      skipTo="Skip to characters"
+    >
+      <Stack className="flex-1 min-block-(--height-scroll-md)">
+        <CharacterLibraryBody
+          ariaLabel={ariaLabel}
+          categorized={viewMode === "categorized"}
+          error={collection.error}
+          filtered={items}
+          filtersActive={scope.filtersActive}
+          hasNextPage={collection.hasNextPage}
+          isFetchingNextPage={collection.isFetchingNextPage}
+          isPending={collection.isPending}
+          listProps={collection.listProps}
+          loadedProgress={loadedProgressLabel(items.length, collection.totalCount)}
+          onClearSearch={(): void => setCharacterSearch("")}
+          onRetry={collection.refetch}
+          tagGroups={tagGroups}
+          query={settledQuery}
+          renderRow={renderRow}
+        />
       </Stack>
-    </Surface>
+      {bulkMode && selectedCount > 0 ? (
+        <CharacterBulkBar
+          ids={[...collection.selection.selected]}
+          onClear={collection.selection.clear}
+          onRemoveSubmitted={collection.selection.remove}
+          selectedCount={selectedCount}
+          trpc={trpc}
+        />
+      ) : null}
+    </ListPage>
   );
 }

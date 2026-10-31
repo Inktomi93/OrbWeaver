@@ -37,7 +37,7 @@ updated: 2026-10-17
 | a modal | A `ModalDefinition` owned by its feature and registered at the root (§6d) | A shell-owned modal-slot map or route override |
 | an entity list row | `@orb/ui/list-row` or `#components` `LibraryRow` | A hand-rolled interactive row |
 | a paginated collection | `createCollectionSurface` | Hand-wired `useInfiniteQuery` and list state |
-| a small bounded list | `useSuspenseQuery` with `LibrarySurfaceShell` or `LibraryListLayout` | A collection factory for a one-shot read |
+| a small bounded list | `useSuspenseQuery` with `LibrarySurfaceShell` and `LibraryListRows` in a `ListPage` | A collection factory for a one-shot read |
 | a create, update or delete | `createEntityMutation` | Raw `useMutation` with cache surgery |
 | a destructive confirm | `#components` `ConfirmDialog` | Raw `@orb/ui/alert-dialog` in a feature |
 | a multi-field or saved form | `createAutosaveEntityForm` or `createSavedEntityForm` as appropriate | Hand-wired controlled form state |
@@ -238,7 +238,7 @@ A `SectionDefinition` carries its rail identity, panel defaults, placeholder, co
 A list-bearing section declares its selection seam, search policy, and `useListHeader` data hook. The shell renders `ListPaneHeader` from that data.
 Pane availability derives from the list body and context kind. A section cannot declare a separate availability override.
 The shell applies `--spacing-section` as the CONTENT inline inset. A full-bleed surface declares a reason through `{ planned: "<reason>" }`.
-Every roster search uses `ListSearch`. Review enforces this; no census test walks the section lists or Corpus modes.
+Every LIST pane is a `#components` `ListPage`, which marks its search with `ListSearch`. `orb/page-template-shapes` refuses `ListSearch` in a feature.
 A no-search declaration carries a nonempty reason. Type tests reject omitted band, inset, and search declarations.
 The shape's law is the header of `packages/client/src/state/section-registry.ts` (§15).
 

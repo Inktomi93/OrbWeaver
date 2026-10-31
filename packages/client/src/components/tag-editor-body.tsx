@@ -20,6 +20,7 @@ import { AutosaveStatus, createAutosaveEntityForm, touchedFieldError } from "#fo
 import { useFocusOnMount } from "#lib";
 import { setLabelNameFocus, useLabelNameFocus } from "#state";
 import { FOLDER_TYPE_ITEMS, tagColorValueLabel, tagUsageLabel } from "../lib/tag-model.ts";
+import { EditorPage } from "./editor-page.tsx";
 import type { MemberDrillBack } from "./member-drill-header.tsx";
 import { MemberDrillHeader } from "./member-drill-header.tsx";
 import { SettingSwitchRow } from "./setting-switch-row.tsx";
@@ -155,24 +156,7 @@ function TagEditorFields({ tag, others, back, onMerged, session, confirmed, merg
 
   return (
     <Container>
-      {/* `--width-content-col` — the ruled cap for an EDITOR's content column, not a reading measure. This
-          block holds controls, and the prose token's own contract forbids it here: a `ch` resolves in the
-          element's own font, so a measure inherited from a wrapper reads at the wrong scale.
-
-          THE TOKEN'S STATED CONSUMPTION IS THREE CLASSES, NOT ONE. `--width-content-col`'s own
-          `$description` says the column is CENTERED and BREATHES to `--width-content-col-wide` once its
-          container clears `@5xl`; the bare cap alone left-pins the editor and leaves the rest of the pane
-          dead. The `@5xl` arm is reached whenever both side panels are collapsed on a desktop. The query
-          container is the `<Container>` directly above, which is why the cap and the container are two
-          elements. `w-full` rides with `mx-auto` because the pane is a flex column. */}
-      <Stack
-        focusTarget={true}
-        className="mx-auto inline-full max-inline-(--width-content-col) min-inline-0 @cq-64:max-inline-(--width-content-col-wide)"
-        data-slot="tag-member-editor"
-        gap="block"
-        ref={surfaceRef}
-        tabIndex={-1}
-      >
+      <EditorPage focusTarget={true} data-slot="tag-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
         {/* THE DRILL ROW (the mock design §3.4): `← Back to <library>` · the name · this tag's
             own verbs — of which a tag has NONE (§3.4 names each collection's set and tags' is empty: Merge
             is a field below because it needs the target picker, Delete is the row's kebab, D212). The
@@ -220,7 +204,7 @@ function TagEditorFields({ tag, others, back, onMerged, session, confirmed, merg
         <Row gap="field">
           <TagMergeControl others={others} tag={tag} mergeInto={mergeInto} merging={merging} onMerged={onMerged} />
         </Row>
-      </Stack>
+      </EditorPage>
     </Container>
   );
 }

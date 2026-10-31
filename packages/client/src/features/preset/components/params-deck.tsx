@@ -36,13 +36,13 @@
 import type { EffortLevel, GenerationCapability, Range } from "@orb/contracts/inference";
 import type { Quality } from "@orb/contracts/preset";
 import { Field } from "@orb/ui/field";
-import { Section, Stack, Surface } from "@orb/ui/layout";
+import { Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { SettingRowGroup, SettingTrackRow } from "#components";
+import { EditorPage, SettingRowGroup, SettingTrackRow } from "#components";
 import type { AppFormInstance } from "#forms/editor";
 import {
   pageStep,
@@ -98,7 +98,7 @@ const INTEGER_STEP = 1;
 
 export function ParamsDeck({ form, capability, effective, capabilityError, samplerSpelling }: ParamsDeckProps): ReactElement {
   return (
-    <Surface tier="instrument">
+    <>
       {/* THE DECK HAS ITS OWN MEASURE CAP (side-eye 2026-08-19 P2). The editor's content column BREATHES to
           `--width-content-col-wide` (896px) once the pane clears @cq-64 — right for prose and for the rack,
           wrong for an instrument: every surplus pixel goes into the knob TRACK, because the track is the
@@ -119,7 +119,7 @@ export function ParamsDeck({ form, capability, effective, capabilityError, sampl
           exists to prevent. The
           deck is centered (`mx-auto w-full`) precisely so it sits symmetrically inside the column that DOES
           breathe around it. */}
-      <Stack className="mx-auto inline-full max-inline-(--width-content-col)" gap="section">
+      <EditorPage gap="section" kind="instrument">
         <QualityCluster effective={effective} form={form} />
         {/* ONE gate for the model-fed clusters, never three copies of the same sentence (F-02). Its arms are
             PENDING (a skeleton) and FAILED (the server's message) — see the gate's header for why those two
@@ -133,8 +133,8 @@ export function ParamsDeck({ form, capability, effective, capabilityError, sampl
           </>
         )}
         <ParamsLimits capability={capability} effective={effective} form={form} />
-      </Stack>
-    </Surface>
+      </EditorPage>
+    </>
   );
 }
 

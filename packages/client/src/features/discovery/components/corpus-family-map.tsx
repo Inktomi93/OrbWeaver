@@ -4,12 +4,13 @@
 import { AvatarStack } from "@orb/ui/avatar-stack";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
-import { Grid, Row, Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
+import { CollectionGrid } from "#components";
 import type { Trpc } from "#data";
 import { revealContextPanel, selectCorpusArtifact } from "#state";
 import { corpusFamilyAnalysisLabel, corpusFamilyMemberNames, resolveCorpusArchetypeNames } from "../lib/corpus-archetype-presentation.ts";
@@ -56,14 +57,9 @@ function FamilyPlate({ family, name }: { readonly family: VisualFamily; readonly
     // `bg-surface-raised` is the mockup's `.plate` tone and the ONLY one that works in both of this
     // component's homes: inside the focal island it steps DOWN from `--color-card`, and on the page
     // background it steps UP. Card's own `bg-card` default would be invisible inside the island.
-    // A PLATE IS A LIST ITEM (#537, corpus ARIA sweep). The grid rendered as role-less cards, so eight
-    // families reached a screen reader as ONE flat run of text: no boundary to step to between plates, and
-    // no way to tell where a family's NAME ended and its census ("4 members · Elara · Bryn · …") began —
-    // the two spans are separate elements, but nothing said the run had eight parts. The listitem supplies
-    // the boundary, and with it the count, so a reader steps family by family and reads the census inside
-    // the one they stopped on. Deliberately NO `aria-label` here: a named container is announced INSTEAD of
-    // its content by several readers, which would delete the very meta line this is about.
-    <Card nested={true} role="listitem" variant="soft">
+    // The grid's listitem wraps the plate; deliberately no `aria-label` on it, because a named container is
+    // announced instead of its content and would delete the census line.
+    <Card nested={true} variant="soft">
       <Row align="center" gap="row">
         <AvatarStack
           aria-hidden={true}
@@ -159,15 +155,14 @@ export function CorpusFamilyMap({ families, focal, canOpenFamilies }: CorpusFami
           13rem arm does tile 2-up as the mock draws it, but at a ~150px text column, where the gloss clips
           on the CT's two-short-name fixture — the best case this component ever sees. The mock's plate does
           not carry that line. 1-up at the lead column is the honest rendering of the plate we shipped. */}
-      <Grid aria-label="Visual families" cols="auto" gap="row" role="list">
-        {families.map((family, index) => (
-          <FamilyPlate
-            family={family}
-            name={names[index] ?? facetLabel(family.label)}
-            key={`${family.label}-${family.members[0]?.characterId ?? family.size.toString()}`}
-          />
-        ))}
-      </Grid>
+      <CollectionGrid
+        cols="auto"
+        gap="row"
+        itemKey={(family): string => `${family.label}-${family.members[0]?.characterId ?? family.size.toString()}`}
+        items={families}
+        label="Visual families"
+        renderItem={(family, index): ReactElement => <FamilyPlate family={family} name={names[index] ?? facetLabel(family.label)} />}
+      />
     </Stack>
   );
 

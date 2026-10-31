@@ -1,6 +1,6 @@
 // The sessions LIST (delta 3 arm A, ruled: FLAT, newest first, the character as row identity — one
 // selection axis, one row shape; "sessions for X" is a SEARCH, not a structure). A bounded owner list
-// fetched whole ⇒ `useSuspenseQuery` + `LibraryListLayout` (the lockdown §14 adjudication; the paginated
+// fetched whole ⇒ `useSuspenseQuery` + `ListPage` (the lockdown §14 adjudication; the paginated
 // factory is for unbounded browses). The genuine-empty state carries the start door — on a phone this pane IS
 // the screen (the one-shell rule), so a bare "no sessions" would be the whole product on first contact.
 //
@@ -34,11 +34,11 @@ import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
-import { Stack } from "@orb/ui/layout";
+import { Input } from "@orb/ui/input";
 import { ListRow } from "@orb/ui/list-row";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { LibraryListLayout, RowActionsMenu } from "#components";
+import { LibraryListRows, ListPage, RowActionsMenu } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { timeLib, useFocusOnMount } from "#lib";
 import { refinerySectionSelection, requestRefineryLandingFocus, selectRefinerySessionFromList, useMobileViewport, useSelectedRefinerySessionId } from "#state";
@@ -190,8 +190,12 @@ export function RefineryListSurface(): ReactElement {
   );
 
   return (
-    <Stack className="block-full" focusTarget={true} gap="block" ref={surfaceRef} tabIndex={-1}>
-      <LibraryListLayout
+    <ListPage
+      body="bounded"
+      ref={surfaceRef}
+      search={<Input aria-label="Search sessions by character or name" onValueChange={setSearch} placeholder="Search sessions" value={search} />}
+    >
+      <LibraryListRows
         empty={
           <EmptyState
             action={
@@ -224,10 +228,7 @@ export function RefineryListSurface(): ReactElement {
           />
         }
         isEmpty={rows.length === 0}
-        onSearchChange={setSearch}
-        searchLabel="Search sessions by character or name"
-        searchPlaceholder="Search sessions"
-        searchValue={search}
+        scroll={true}
       >
         {rows.map((row) => (
           <ListRow
@@ -247,7 +248,7 @@ export function RefineryListSurface(): ReactElement {
             title={row.characterName}
           />
         ))}
-      </LibraryListLayout>
-    </Stack>
+      </LibraryListRows>
+    </ListPage>
   );
 }

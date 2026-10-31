@@ -20,7 +20,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { ListSearch } from "#components";
+import { ListPage } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
@@ -56,27 +56,30 @@ export function AnalyticsListSurface(): ReactElement {
   const search = useAnalyticsSearchQuery();
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="block-full min-block-0" focusTarget={true} data-testid={testId("analyticsListSurface")} gap="block">
-      {/* §14 LIST anatomy: search → sort → rows. The search is the reach past the page cap; the sort orders
-          the page that comes back. */}
-      <ListSearch>
-        <Input aria-label="Search characters" onValueChange={setAnalyticsSearchQuery} placeholder="Search characters" value={search} />
-      </ListSearch>
-      <ToggleGroup
-        aria-label="Sort characters"
-        className="grid grid-cols-2 inline-full"
-        data-testid={testId("analyticsLeaderboardSort")}
-        value={[sort]}
-        onValueChange={(picked): void => setSort((picked[0] ?? ANALYTICS_DEFAULT_SORT) as SortId)}
-      >
-        {ANALYTICS_SORT_OPTIONS.map((option) => (
-          <Toggle key={option.id} value={option.id} aria-label={`Sort by ${option.label}`}>
-            {option.label}
-          </Toggle>
-        ))}
-      </ToggleGroup>
+    <ListPage
+      body="bounded"
+      data-testid={testId("analyticsListSurface")}
+      filters={
+        <ToggleGroup
+          aria-label="Sort characters"
+          className="grid grid-cols-2 inline-full"
+          data-testid={testId("analyticsLeaderboardSort")}
+          value={[sort]}
+          onValueChange={(picked): void => setSort((picked[0] ?? ANALYTICS_DEFAULT_SORT) as SortId)}
+        >
+          {ANALYTICS_SORT_OPTIONS.map((option) => (
+            <Toggle key={option.id} value={option.id} aria-label={`Sort by ${option.label}`}>
+              {option.label}
+            </Toggle>
+          ))}
+        </ToggleGroup>
+      }
+      ref={surfaceRef}
+      // The search is the reach past the page cap; the sort orders the page that comes back.
+      search={<Input aria-label="Search characters" onValueChange={setAnalyticsSearchQuery} placeholder="Search characters" value={search} />}
+    >
       <LeaderboardRows sort={sort} search={search} />
-    </Stack>
+    </ListPage>
   );
 }
 

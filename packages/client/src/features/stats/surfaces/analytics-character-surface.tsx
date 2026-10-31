@@ -19,7 +19,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { QueryBoundary } from "#components";
+import { DetailHeader, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { CORPUS_MODE_LABELS, testId, timeLib, useFocusOnMount } from "#lib";
 import { useMobileViewport } from "#state";
@@ -117,10 +117,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
         </Button>
       )}
 
-      <Stack gap="field">
-        <Text data-shell-identity="defer" voice="promoted">
-          {stats.name}
-        </Text>
+      <DetailHeader title={stats.name}>
         <Text voice="gloss" role="note">
           This character · Aggregate only
         </Text>
@@ -131,7 +128,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
             <HintTrigger className="" hint={timeLib.formatDateTime(stats.lastActivityAt)} subject="the last activity time" />
           </Row>
         )}
-      </Stack>
+      </DetailHeader>
 
       <Text voice="gloss" role="note">
         {IMPORTED_ACTIVITY_NOTE}

@@ -3,14 +3,13 @@
 import { Button } from "@orb/ui/button";
 import { Icon, MoreVertical, Trash2 } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
-import { Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Select } from "@orb/ui/select";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { ListSearch, QueryBoundary } from "#components";
+import { ListPage, QueryBoundary } from "#components";
 import { QueryErrorState } from "#data";
 import { useFocusOnMount } from "#lib";
 import { selectLabelFromList, setLabelFilter, setTagPruneConfirmOpen, useLabelFilter, useMobileViewport, useSectionListMode, useSelectedLabelId } from "#state";
@@ -28,31 +27,31 @@ export function LabelsListSurface(): ReactElement {
   // The rows say nothing over an empty library (a filter miss is theirs to say), so the finder does.
   const empty = useTagCensus() === 0;
   return (
-    <Stack className="block-full min-block-0" focusTarget={true} data-slot={LABELS_FINDER_SLOT} gap="block" ref={surfaceRef} tabIndex={-1}>
-      <Row align="center" data-slot="labels-control-row" gap="field">
-        <Row align="center" className="flex-1 min-inline-0">
-          <ListSearch>
-            <Input aria-label="Filter tags" onValueChange={setLabelFilter} placeholder="Filter tags…" value={filter} />
-          </ListSearch>
-        </Row>
-        <LabelsSortSelect />
-        <LabelsOverflow />
-      </Row>
-      {empty ? (
-        <Text voice="gloss" data-slot="labels-finder-empty">
-          No tags yet.
-        </Text>
-      ) : null}
-      {/* The rows' windowed arm takes its height from this box, so it is a bounded flex column. */}
-      <Stack className="relative flex-1 overflow-y-auto overscroll-contain min-block-0">
-        <QueryBoundary
-          fallback={<Skeleton className="block-(--height-row-placeholder) inline-full" />}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="tags" onRetry={retry} />}
-        >
-          <TagCollectionRows view={{ selectedId, onSelect: selectLabelFromList, filter }} />
-        </QueryBoundary>
-      </Stack>
-    </Stack>
+    <ListPage
+      data-slot={LABELS_FINDER_SLOT}
+      filters={
+        empty ? (
+          <Text voice="gloss" data-slot="labels-finder-empty">
+            No tags yet.
+          </Text>
+        ) : null
+      }
+      ref={surfaceRef}
+      search={<Input aria-label="Filter tags" onValueChange={setLabelFilter} placeholder="Filter tags…" value={filter} />}
+      searchAside={
+        <>
+          <LabelsSortSelect />
+          <LabelsOverflow />
+        </>
+      }
+    >
+      <QueryBoundary
+        fallback={<Skeleton className="block-(--height-row-placeholder) inline-full" />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="tags" onRetry={retry} />}
+      >
+        <TagCollectionRows view={{ selectedId, onSelect: selectLabelFromList, filter }} />
+      </QueryBoundary>
+    </ListPage>
   );
 }
 

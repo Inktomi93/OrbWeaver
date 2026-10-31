@@ -33,6 +33,9 @@ export const SURFACE_SELECTORS = [
   },
 ] as const;
 
+// The centered editor column: the cap token beside `mx-auto`, in either order. A cap alone is a start-aligned measure.
+const EDITOR_COLUMN = String.raw`/mx-auto.*max-inline-\(--width-content-col\)|max-inline-\(--width-content-col\).*mx-auto/`;
+
 export const UI_FEATURE_RESTRICTIONS = [
   {
     id: "no-layout-context-props",
@@ -127,6 +130,32 @@ export const UI_FEATURE_RESTRICTIONS = [
         selector: `Property:matches([key.type='Identifier'][key.name='maxPages'], [key.type='Literal'][key.value='maxPages'])`,
         message:
           "`maxPages` windows an infinite query's cache: evicted head pages cannot be re-fetched and a client lens searches only the window. Delete the cap and push search, sort and filter server-side onto the keyset (client-architecture-lockdown.md).",
+      },
+    ],
+  },
+  {
+    // Each signature is owned by exactly one page template in packages/client/src/components/, so a match is a
+    // feature rebuilding that template's shape (docs/plans/cross-surface-consistency/design.md "Page templates").
+    id: "page-template-shapes",
+    selectors: [
+      {
+        selector: "JSXOpeningElement[name.name='ListSearch']",
+        message: "A feature marks its own list search: a LIST pane is a `#components` `ListPage`, which owns the search row, the tier and the scroll box.",
+      },
+      {
+        selector: "JSXAttribute[name.name='data-shell-identity']",
+        message:
+          "A feature defers its own name to the shell: a CONTENT pane's identity row is a `#components` `DetailHeader`, which keeps the heading in the outline.",
+      },
+      {
+        selector: `:matches(Literal[value=${EDITOR_COLUMN}], TemplateElement[value.raw=${EDITOR_COLUMN}])`,
+        message:
+          "A feature spells the centered editor column: wrap the editor body in a `#components` `EditorPage`, which owns the cap, the breathe and the tier.",
+      },
+      {
+        selector: "JSXOpeningElement[name.name='Grid']:has(> JSXAttribute[name.name='role'][value.value='list'])",
+        message:
+          "A feature builds its own list grid: a grid of tiles is a `#components` `CollectionGrid`, which names the list and wraps every cell as a listitem.",
       },
     ],
   },

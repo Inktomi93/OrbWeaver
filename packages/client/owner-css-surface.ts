@@ -348,7 +348,6 @@ export const OWNER_CSS_SLOTS = [
   "label-reach",
   "label-review-apply",
   "labels-content",
-  "labels-control-row",
   "labels-finder",
   "labels-finder-empty",
   "labels-library",

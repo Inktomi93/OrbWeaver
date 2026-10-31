@@ -13,10 +13,11 @@
 // words, and the ordinal states rank. The obsolete explanatory legend goes with the bar.
 
 import { Button } from "@orb/ui/button";
-import { Grid, Row, Section, Stack } from "@orb/ui/layout";
+import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import { CollectionGrid } from "#components";
 import type { Trpc } from "#data";
 import { timeLib } from "#lib";
 import { selectCorpusCharacter } from "#state";
@@ -80,11 +81,14 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
       </Text>
       {/* auto-fit at the 16rem tile floor: a wider pane shows MORE tiles, never wider ones. `role="list"`
           needs real `listitem` CHILDREN or the cells are generic to AT and the list announces empty. */}
-      <Grid aria-label="Invested but quiet characters" cols="auto" gap="row" role="list">
-        {gems.map((gem, index) => (
-          <Stack gap="tight" key={gem.characterId} role="listitem">
-            {/* `role="listitem"` rides the layout WRAPPER, never the Button — an interactive element given a
-                non-interactive role is a lie to AT (and eslint's own no-interactive-element-to-noninteractive-role). */}
+      <CollectionGrid
+        cols="auto"
+        gap="row"
+        itemKey={(gem): string => gem.characterId}
+        items={gems}
+        label="Invested but quiet characters"
+        renderItem={(gem, index): ReactElement => (
+          <Stack gap="tight">
             <Button
               className="items-start justify-start text-start inline-full"
               variant="ghost"
@@ -142,8 +146,8 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
               </Row>
             </Button>
           </Stack>
-        ))}
-      </Grid>
+        )}
+      />
     </Section>
   );
 }

@@ -1,5 +1,5 @@
 // The Presets LIST chrome-band header (north-star §4 N2, D66 A1/A2 — the L4 band sweep). Presets was one of
-// the two sections still printing its title INSIDE the pane via `LibraryListLayout`; the title, the live
+// the two sections still printing its title INSIDE the pane; the title, the live
 // preset count, and the pane's create affordances now ride the `.shell-panel-header` band through the
 // section definition's `useListHeader` data slot, like chats/corpus/analytics already did.
 //

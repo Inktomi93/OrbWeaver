@@ -37,7 +37,9 @@ for (const regime of REGIMES) {
       await expect(pane.getByRole("heading", { name: "Activity", exact: true })).toBeVisible();
       await expect(pane.getByText("This character · Aggregate only", { exact: true })).toBeVisible();
       await expect(pane.getByRole("button", { name: "Accounting coverage", exact: true })).toBeVisible();
-      const bodyName = pane.getByText(stats.name, { exact: true });
+      await expect(pane.getByRole("heading", { level: 2, name: stats.name, exact: true })).toHaveCount(1);
+      // The painted name is the outline's twin, hidden from assistive technology so the heading names it once.
+      const bodyName = pane.getByText(stats.name, { exact: true }).and(pane.locator('[aria-hidden="true"]'));
       await expect(bodyName).toHaveCount(1);
       const painted = await bodyName.evaluate((node) => node.getBoundingClientRect().width > 1);
       expect(painted).toBe(!regime.coarse);

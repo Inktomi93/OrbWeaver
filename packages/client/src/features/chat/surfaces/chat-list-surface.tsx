@@ -50,12 +50,12 @@ import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, MessagesSquare, Plus } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
-import { Row, Stack, Surface } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { VirtualList } from "@orb/ui/virtual-list";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
-import { ListSearch, SkipToFirstRow } from "#components";
+import { ListPage } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useTRPC } from "#data";
 import { useDebouncedValue, useFocusListArrival } from "#lib";
@@ -134,74 +134,48 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
   useFocusListArrival(surfaceRef);
 
   return (
-    // INSTRUMENT tier (UI-Density-Law.md §3.1 LIST panes): the pane is scanned, not operated, so its
-    // islands resolve the dense steps. `<Surface>` is display:contents — it declares the tier for the
-    // subtree without adding a box to the height chain.
-    <Surface tier="instrument">
-      <Stack className="block-full min-block-0" focusTarget={true} gap="row" ref={surfaceRef} tabIndex={-1}>
-        {/* The pane's skip link lands on the first chat row, past the faces, search and month chrome. */}
-        <SkipToFirstRow containerRef={surfaceRef}>{SKIP_TO_LIST_LABEL}</SkipToFirstRow>
-        {/* Mock order (side-eye P2b): FACES first, then the scope chip, then search — the faces are the
-          shortcut you arrive for, and burying them under the search box made them read as a filter widget.
-          ON A PHONE the faces slot is the shared Filters DISCLOSURE (#1718 arm A), which holds the faces and
-          the month bound behind one 44px trigger instead of two; the order the reader sees is unchanged,
-          because the panel opens in exactly this position and lays the two controls out in this same order.
-          The CHIP stays outside it either way — it is the character axis's way OUT (#490's one reset
-          contract), and a way out behind a fold is not one. */}
-        {isMobile ? <ChatListPhoneFilters characterFilter={characterFilter} /> : <ChatListFacesStrip characterFilter={characterFilter} />}
-        {characterFilter !== null ? <ChatListFilterChip filter={characterFilter} /> : null}
-        {/* ONE SEARCH VOICE (#99 item 2). Every other search box on the app says what it searches —
-            "Search characters…", "Search presets", "Search your documents", "Search characters, scenes,
-            memories…" — and this one said "Search the weave…", a brand phrase that names no noun and does
-            not match its own accessible name. A WCAG 2.5.3 voice-control user could not say what they saw,
-            and a reader could not tell whether it searched chats, characters or the whole library. The
-            weave is the product's word for itself, which is a fine thing for a hero line and the wrong
-            thing on a filter field. */}
-        {/* ONE RESET CONTRACT FOR BOTH FILTERS (#490). The month control grew a ✕ the moment it held a
-            value and the search field beside it never did — two sibling filters, two different ways out,
-            in one 290px column, and the only "Clear search" in the app lived inside the ZERO-RESULTS empty
-            state. So leaving a 12-of-896 result meant select-all-delete. Same affordance, same gate
-            (non-empty), same glyph, same voice.
-            THE RULING SURVIVES — ITS SHAPE MOVED INSIDE THE FIELD (#525). #490 spelled the pair as two
-            inline Row/Button copies "rather than a shared local component, because the two differ in their
-            field chrome". The chrome difference is still real and still lives at the call sites (the month
-            owes a visible `Field` label; a search box's placeholder IS its label) — what is NOT a call-site
-            difference is the glyph itself, and the reason it moved is that a ✕ hanging in the COLUMN GUTTER
-            read as a sibling control while the month field's native picker glyph sat INSIDE its box, so two
-            mechanically identical filters had two silhouettes. The glyph is now one `ClearFilterGlyph`,
-            inset at the field's own inline end, over a constant inline-end reserve (the glyph's own
-            `--size-control-sm` box, held on both filter fields) so the value never reflows when it appears. */}
-        <Row align="center" className="relative">
-          <ListSearch>
-            <Input
-              aria-label={SEARCH_LABEL}
-              className="flex-1 pe-(--size-control-sm) min-inline-0"
-              onValueChange={setChatListSearch}
-              placeholder="Search chats…"
-              value={query}
-            />
-          </ListSearch>
+    <ListPage
+      body="bounded"
+      // Faces lead and the scope chip follows: the faces are the shortcut you arrive for. On a phone the faces
+      // slot is the shared Filters disclosure, in the same position and order. The chip stays outside it,
+      // because it is the character axis's way out.
+      filters={isMobile ? null : <ChatListMonthFilter />}
+      lead={
+        <>
+          {isMobile ? <ChatListPhoneFilters characterFilter={characterFilter} /> : <ChatListFacesStrip characterFilter={characterFilter} />}
+          {characterFilter !== null ? <ChatListFilterChip filter={characterFilter} /> : null}
+        </>
+      }
+      ref={surfaceRef}
+      search={
+        // One reset contract for both filters: the clear glyph sits inside the field's inline end, over a
+        // constant reserve, so the value never reflows when it appears.
+        <Row align="center" className="relative flex-1 min-inline-0">
+          <Input
+            aria-label={SEARCH_LABEL}
+            className="flex-1 pe-(--size-control-sm) min-inline-0"
+            onValueChange={setChatListSearch}
+            placeholder="Search chats…"
+            value={query}
+          />
           {query === "" ? null : <ClearFilterGlyph label={CLEAR_SEARCH_LABEL} onClick={clearSearch} />}
         </Row>
-        {/* The DESKTOP column's month bound. On a phone it is inside the Filters panel above — one home for
-            the control, two positions, never two copies on screen at once. */}
-        {isMobile ? null : <ChatListMonthFilter />}
-        <Stack className="flex-1 min-block-0">
-          <ChatListBody
-            activeChatId={activeChatId}
-            beforeRecencyAt={beforeRecencyAt}
-            characterFilter={characterFilter}
-            monthLabel={monthLabel}
-            onClearMonth={clearMonth}
-            onClearSearch={clearSearch}
-            onDeletedChat={onDeletedChat}
-            onNewChat={onNewChat}
-            onSelect={onSelect}
-            query={settledQuery}
-          />
-        </Stack>
-      </Stack>
-    </Surface>
+      }
+      skipTo={SKIP_TO_LIST_LABEL}
+    >
+      <ChatListBody
+        activeChatId={activeChatId}
+        beforeRecencyAt={beforeRecencyAt}
+        characterFilter={characterFilter}
+        monthLabel={monthLabel}
+        onClearMonth={clearMonth}
+        onClearSearch={clearSearch}
+        onDeletedChat={onDeletedChat}
+        onNewChat={onNewChat}
+        onSelect={onSelect}
+        query={settledQuery}
+      />
+    </ListPage>
   );
 }
 

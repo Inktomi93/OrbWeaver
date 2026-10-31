@@ -22,10 +22,11 @@ import type { PresetId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Search, SlidersHorizontal } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Input } from "@orb/ui/input";
+import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useDeferredValue, useRef } from "react";
-import { LibraryListFrame, LibraryListRows, LibrarySurfaceShell } from "#components";
+import { LibraryListRows, LibrarySurfaceShell, ListPage } from "#components";
 import { useInvalidation, useSuspenseQueries, useTRPC, useTRPCClient } from "#data";
 import { downloadJson, notify, rowQualifiers, slugifyFilename, timeLib, useFocusListArrival } from "#lib";
 import { selectPreset, setPresetSearchQuery, usePresetSearchQuery, useSelectedPresetId } from "#state";
@@ -56,17 +57,18 @@ export function PresetLibrarySurface({ onSelectPreset }: PresetLibrarySurfacePro
     // when the section opens, and it was an unnamed, role-less `div` — a screen reader announced "group" or
     // nothing at all, so entering the section told the user where they were only if they then Tab'd. It is a
     // region-shaped landmark for exactly this reason; the name is the pane's own noun.
-    <Stack aria-label="Presets list" ref={surfaceRef} className="block-full" focusTarget={true} gap="block" role="region" tabIndex={-1}>
-      {/* THE PANE CHROME AND ITS SCROLL BOX SIT ABOVE THE BOUNDARY (#1748): the reservation's measuring Stack
-          is auto-height, so a scroller under the boundary stops scrolling and strands the rows past the fold.
-          The search input rides up with the frame, so it is also on screen while the read is in flight. The
-          key is minted HERE, not in the shared shell — one literal there would be one box for every library. */}
-      <LibraryListFrame onSearchChange={setPresetSearchQuery} scroll={true} searchLabel="Search presets" searchPlaceholder="Search presets" searchValue={query}>
-        <LibrarySurfaceShell errorLabel="your presets" loadingLabel="Loading your presets…" reserveKey="preset.library">
-          <PresetList onSelectPreset={onSelectPreset ?? selectPreset} />
-        </LibrarySurfaceShell>
-      </LibraryListFrame>
-    </Stack>
+    <ListPage
+      label="Presets list"
+      ref={surfaceRef}
+      search={<Input aria-label="Search presets" onValueChange={setPresetSearchQuery} placeholder="Search presets" value={query} />}
+    >
+      {/* The reservation's measuring Stack is auto-height, so the `scroll` body above the boundary is the pane's
+          scroll box. The key is minted here, not in the shared shell: one literal there would be one box for
+          every library. */}
+      <LibrarySurfaceShell errorLabel="your presets" loadingLabel="Loading your presets…" reserveKey="preset.library">
+        <PresetList onSelectPreset={onSelectPreset ?? selectPreset} />
+      </LibrarySurfaceShell>
+    </ListPage>
   );
 }
 
@@ -206,7 +208,7 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
       isEmpty={filtered.length === 0}
       // The rows' activate toggles are `role="radio"` (side-eye F-19) — this is the group that owns them.
       rowsRadiogroupLabel="Active preset for generation"
-      // The FRAME owns this pane's scroll box, because the boundary sits between it and these rows (#1748).
+      // The `ListPage` body owns this pane's scroll box, because the boundary sits between it and these rows.
       scroll={false}
     >
       {filtered.map((preset, index) => (

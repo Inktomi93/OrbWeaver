@@ -22,7 +22,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, RefObject } from "react";
 import { useDeferredValue, useRef } from "react";
-import { ListSearch, QueryBoundary, SkipToFirstRow } from "#components";
+import { ListPage, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import { setCorpusSearchQuery, setCorpusSearchTarget, useCorpusSearchQuery, useCorpusSearchTargetId } from "#state";
@@ -63,37 +63,39 @@ export function CorpusListSurface(): ReactElement {
   const searching = deferredQuery.trim() !== "";
 
   return (
-    <Stack className="block-full min-block-0" data-testid={testId("corpusListSurface")} gap="block" ref={surfaceRef}>
-      {/* The pane's skip link lands on the first hit, past the target select, the omnibox and the typeahead rows. */}
-      <SkipToFirstRow containerRef={surfaceRef}>Skip to results</SkipToFirstRow>
-      {/* ONE CONTROL ON ONE ROW. Five labels never fit a 272-360px pane side by side without truncating the
-          names that ARE the vocabulary, and a segmented control that wraps leaves a ragged second row, so
-          the target is a select: the same five choices, one row at every width. */}
-      <Select
-        aria-label="Search target"
-        data-testid={testId("corpusSearchTarget")}
-        items={TARGET_ITEMS}
-        onValueChange={(picked): void => setCorpusSearchTarget(picked ?? DEFAULT_TARGET)}
-        value={targetId}
-      />
-      <SearchOmnibox inputRef={omniboxRef} query={query} deferredQuery={deferredQuery} onQuery={setCorpusSearchQuery} />
-      <Stack className="flex-1 min-block-0">
-        {searching ? (
-          <CorpusSearchResults
-            query={deferredQuery}
-            targetId={targetId}
-            retainFinderScroll={true}
-            // The pressed button goes away with the paused state, so focus returns to the field the query is in.
-            onTextInstead={(): void => {
-              setCorpusSearchTarget(CORPUS_TEXT_TARGET_ID);
-              omniboxRef.current?.focus();
-            }}
-          />
-        ) : (
-          <CorpusRestState targetId={targetId} />
-        )}
-      </Stack>
-    </Stack>
+    <ListPage
+      body="bounded"
+      data-testid={testId("corpusListSurface")}
+      // One control on one row: five target labels never fit a narrow pane side by side, so the target is a
+      // select above the omnibox.
+      lead={
+        <Select
+          aria-label="Search target"
+          data-testid={testId("corpusSearchTarget")}
+          items={TARGET_ITEMS}
+          onValueChange={(picked): void => setCorpusSearchTarget(picked ?? DEFAULT_TARGET)}
+          value={targetId}
+        />
+      }
+      ref={surfaceRef}
+      search={<SearchOmnibox inputRef={omniboxRef} query={query} deferredQuery={deferredQuery} onQuery={setCorpusSearchQuery} />}
+      skipTo="Skip to results"
+    >
+      {searching ? (
+        <CorpusSearchResults
+          query={deferredQuery}
+          targetId={targetId}
+          retainFinderScroll={true}
+          // The pressed button goes away with the paused state, so focus returns to the field the query is in.
+          onTextInstead={(): void => {
+            setCorpusSearchTarget(CORPUS_TEXT_TARGET_ID);
+            omniboxRef.current?.focus();
+          }}
+        />
+      ) : (
+        <CorpusRestState targetId={targetId} />
+      )}
+    </ListPage>
   );
 }
 
@@ -134,24 +136,22 @@ function SearchOmnibox({
   const items = suggestionsToShow(pool, trimmed);
 
   return (
-    <Stack data-testid={testId("corpusSearchSuggest")}>
-      <ListSearch>
-        <Autocomplete
-          aria-label="Search your corpus"
-          inline={true}
-          inputRef={inputRef}
-          mode="none"
-          items={items}
-          open={true}
-          value={query}
-          onValueChange={onQuery}
-          // SHORT ENOUGH TO RENDER WHOLE (side-eye re-pass C9): the old line ("Search characters, scenes,
-          // memories…") clipped with NO ellipsis under the `reading` appearance preset — a placeholder cut
-          // mid-word reads as a rendering fault, and the per-target rest hint below already teaches what each
-          // target searches, so the placeholder only has to name the act.
-          placeholder="Search your corpus…"
-        />
-      </ListSearch>
+    <Stack className="flex-1 min-inline-0" data-testid={testId("corpusSearchSuggest")}>
+      <Autocomplete
+        aria-label="Search your corpus"
+        inline={true}
+        inputRef={inputRef}
+        mode="none"
+        items={items}
+        open={true}
+        value={query}
+        onValueChange={onQuery}
+        // SHORT ENOUGH TO RENDER WHOLE (side-eye re-pass C9): the old line ("Search characters, scenes,
+        // memories…") clipped with NO ellipsis under the `reading` appearance preset — a placeholder cut
+        // mid-word reads as a rendering fault, and the per-target rest hint below already teaches what each
+        // target searches, so the placeholder only has to name the act.
+        placeholder="Search your corpus…"
+      />
     </Stack>
   );
 }
