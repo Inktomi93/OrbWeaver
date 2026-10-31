@@ -174,7 +174,7 @@ test("the adjacency bound exempts Hearth's primary beside warning, never destruc
   expect(hueAdjacent(arm("color.destructive"), arm("color.warning"))).toBe(false);
 });
 
-test("on a mid-grey page every colored tone's text, tint and solid keeps its hue", () => {
+test("on a mid-grey page every colored tone's text, text on its tint, tint and solid keep its hue", () => {
   const { scheme, vars, tones } = emittedScope(MID_GREY, {}, HEARTH_ACCENT);
   const lost = tones.flatMap((carried) => {
     if (carried.source === "neutral") {
@@ -182,7 +182,7 @@ test("on a mid-grey page every colored tone's text, tint and solid keeps its hue
     }
     const { base } = carried.source;
     const roles = paintedRoles(scheme, vars, carried);
-    return (["solid", "text", "tint", "tint-active"] as const satisfies readonly ToneRole[]).flatMap((role) => {
+    return (["solid", "text", "text-on-tint", "tint", "tint-active"] as const satisfies readonly ToneRole[]).flatMap((role) => {
       const painted = framebuffer(roles[role]);
       return keepsHue(painted, base.h) ? [] : [`${carried.tone} ${role} paints ${JSON.stringify(painted)} for a base at hue ${base.h.toFixed(1)}`];
     });

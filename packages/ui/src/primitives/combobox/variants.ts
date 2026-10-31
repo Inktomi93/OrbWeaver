@@ -24,7 +24,7 @@ export const comboboxVariants = tv({
     ],
     chips: "contents",
     chip: [
-      "inline-flex items-center gap-field rounded-full bg-secondary py-field ps-block pe-field text-label leading-label text-secondary-foreground outline-none",
+      "inline-flex items-center gap-field rounded-full bg-secondary ps-block pe-field text-label leading-label text-secondary-foreground outline-none",
       FOCUS_RING,
       "data-disabled:opacity-50",
     ],
@@ -54,12 +54,14 @@ export const comboboxVariants = tv({
   variants: {
     // THE CONTROL SCALE (D336): the step's height, so a field sits level with the buttons and toggles of its row. The
     // type stays the field's own pointer-conditional step at every size, because iOS zooms on a smaller focused field.
-    // A floor, not a height: the chips wrap onto further lines inside the one box, which grows with them.
+    // A floor, not a height: the chips wrap onto further lines inside the one box, which grows with them. A chip is the
+    // step's height less the border and the field's inline inset on both sides, so it sits as far from the top edge as
+    // from the start edge; the chip step's field takes the tight inset, the widest that leaves a label-height chip.
     size: {
-      chip: { inputGroup: CONTROL_MIN_BLOCK.chip },
-      sm: { inputGroup: CONTROL_MIN_BLOCK.sm },
-      md: { inputGroup: CONTROL_MIN_BLOCK.md },
-      lg: { inputGroup: CONTROL_MIN_BLOCK.lg },
+      chip: { inputGroup: [CONTROL_MIN_BLOCK.chip, "px-tight"], chip: "block-(--size-combobox-chip-chip)" },
+      sm: { inputGroup: CONTROL_MIN_BLOCK.sm, chip: "block-(--size-combobox-chip-sm)" },
+      md: { inputGroup: CONTROL_MIN_BLOCK.md, chip: "block-(--size-combobox-chip-md)" },
+      lg: { inputGroup: CONTROL_MIN_BLOCK.lg, chip: "block-(--size-combobox-chip-lg)" },
     },
   },
   defaultVariants: { size: "sm" },

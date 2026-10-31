@@ -23,4 +23,6 @@ The placeholder fits or wraps by design, combobox chips have a balanced inset fr
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- F9: the replay lifetime placeholder reads "300 (default)"; the field description names the provider default. `tests/client/features/preset/components/platform-replay-placeholder.suite.ct.tsx` measures the placeholder in the field's own font on the real preset editor. On the old copy it needed 152px of 136 at a fine pointer and 162px of 112 at a coarse one; it fits after, on Chromium and WebKit.
+- F10: a combobox chip's height is its step less the border and the field inset on both sides (`--size-combobox-chip-<step>` in `packages/ui/src/tokens/tokens.json`); the chip step's field takes the tight inset. `tests/ui/primitives/combobox/platform-combobox-chips.suite.ct.tsx` reads the chip's top and start insets and the field height at every step and both pointers. On the old source the `sm` chip sat 1px from the top against 6px inline, and the chip-step field grew to 30px; both match after, on Chromium and WebKit.
+- F8: primary `text-on-tint` already keeps its hue on the mid-grey page: the clamp emits L0.174 C0.071 H29, after the tint solve that fixed F7 lightened the primary tint. `tests/ui/content/theme-scope/tone-knobs.test.ts` now pins `text-on-tint` in its mid-grey hue case; it passes on the current source, because the defect no longer reproduces.

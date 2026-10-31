@@ -243,7 +243,7 @@ export function Combobox({
             {(selected: string[]): ReactNode => (
               <>
                 {selected.map((chip) => (
-                  <BaseCombobox.Chip className={slots.chip()} data-slot="combobox-chip" key={chip}>
+                  <BaseCombobox.Chip className={slots.chip({ size })} data-slot="combobox-chip" key={chip}>
                     {chip}
                     <BaseCombobox.ChipRemove aria-label={removeActionName(chip)} className={slots.chipRemove()} data-slot="combobox-chip-remove">
                       <Icon icon={X} size="xs" />
