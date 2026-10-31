@@ -34,4 +34,4 @@ The boot and env cases are in the data-layout move suite, the env file load suit
 
 The lore case shows the bypass is real: with neutralization removed, a guest holding only `worldinfo.write` set a chat variable on the next turn. The asset scope has two layers, the owner filter and the per-owner storage key; only removing both let another owner's bytes through. The 64-entry ceiling moved to `PLUGIN_LORE_ENTRIES_PER_BOOK_MAX` in `@orb/contracts/plugin` so the case imports it from production.
 
-Open: the cross-owner `search.query` scope needs two indexed owner corpora; the bridge register row names it.
+The cross-owner `search.query` scope landed with [1466](1466-prove-a-guest-s-document-search-ranks-only.md) in the installer scope suite, so the bridge register row names no remainder.
