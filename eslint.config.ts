@@ -2022,7 +2022,14 @@ export default [
     rules: { "orb/no-hand-typed-appearance-channel": "error" },
   },
   { files: ["tests/**/*.ct.tsx", "tests/e2e/**/*.spec.ts"], plugins: { orb: localPlugin }, rules: { "orb/ct-negative-only-case": "error" } },
-  { files: ["tests/**/*.ct.tsx", "tests/e2e/**/*.ts"], plugins: { orb: localPlugin }, rules: { "orb/no-hand-copied-label": "error" } },
+  {
+    // These two suites pin the wire spelling itself, so a derived value would make them assert nothing: the first
+    // asserts that a code is a member of two vocabularies, the second reads the key spellings of the shipped env files.
+    files: ["tests/**/*.{ts,tsx}"],
+    ignores: ["tests/contracts/inference/warnings.contract.test.ts", "tests/tooling/container-security-config.int.test.ts"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/no-hand-copied-label": ["error", { scope: "all" }] },
+  },
   { files: ["tests/ui/**/*-stories.tsx", "tests/client/**/*-stories.tsx"], plugins: { orb: localPlugin }, rules: { "orb/ct-story-root-composition": "error" } },
   {
     files: ["tests/**/*-stories.tsx", "tests/**/*.stories.tsx"],

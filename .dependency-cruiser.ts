@@ -338,6 +338,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/admin/contract/errors.ts": "ADMIN_OP_CODES: the refusal codes admin and sessions suites assert",
   "packages/server/src/domain/credentials/contract/errors.ts": "CREDENTIALS_OP_CODES: the refusal codes credentials suites assert",
   "packages/server/src/domain/settings/contract/errors.ts": "SETTINGS_OP_CODES: the refusal codes settings suites assert",
+  "packages/server/src/foundation/data-layout/contract.ts": "the data-layout slot key constants: the env keys that override one slot each",
   "packages/server/src/domain/chat/contract/metadata.ts": "TOOL_RECURSE_LIMIT_DEFAULT: the default the corpus writes back",
   "packages/server/src/domain/chat/persistence/participants-read.ts": "loadPresentRole: the production role read the authority suite compares against",
   "packages/server/src/domain/import/substrate/appearance.ts":
@@ -455,6 +456,9 @@ const SERVER_TEST_REACHES = {
     "foundation/data-layout":
       "resolveDataLayout and LEGACY_ENTRIES: the record's slots are compared with an independent resolution, which no testkit door offers, and a keyed legacy entry exists only in the table",
   },
+  "tests/server/entry/http/production-debug-posture.int.test.ts": {
+    "foundation/env": "DEBUG_TOKEN_ENV: the secret env key the posture suite sets, which no testkit door names",
+  },
   "tests/server/entry/boot/identity-ownership.int.test.ts": {
     "foundation/data-layout": "SECRET_FILE_NAMES: the suite plants the boot secret files by their production names",
   },
@@ -570,6 +574,10 @@ const PACKAGE_TEST_REACHES = {
     "packages/server/src/foundation/observability/index.ts":
       "wrapLibSqlClient: the client wrapper createDb takes, proven through native close; the raw queries it traces are persistence-tier reads",
     "packages/server/src/foundation/observability/tracing.ts": "getTraceByRequestId: the trace ring read that shows the wrapped client's spans",
+  },
+  "tests/client/features/auth/components/pending-join-fixtures.ts": {
+    "packages/contracts/src/chat/roster.ts":
+      "JOIN_UNAVAILABLE_CODE and ACCOUNT_EXISTS_CODE: the refusal codes the pending-join story answers with, which no contracts door forwards",
   },
   "tests/client/features/character/lib/facet-fill.dom.test.ts": {
     "packages/client/src/features/character/lib/character-card-facets.ts": "facetFillState and CHARACTER_CARD_FACET_IDS: the feature-private facet model",
