@@ -206,7 +206,7 @@ export type ImageCaptionMeta = z.infer<z.ZodObject<typeof imageCaptionMetaSchema
 
 /** The primary vector tables the embeddings domain owns — the single registry all callers derive from.
  *  `document_chunks` is the 5th table, so the model-change purge and hub-score seams cover it uniformly. */
-export const VECTOR_TABLES = ["character_embeddings", "image_embeddings", "chat_digests", "chat_segments", "document_chunks"] as const;
+const VECTOR_TABLES = ["character_embeddings", "image_embeddings", "chat_digests", "chat_segments", "document_chunks"] as const;
 export type VectorTable = (typeof VECTOR_TABLES)[number];
 
 /** One row's CSLS hub score to persist, keyed by the vector row id and its model. */
