@@ -130,7 +130,7 @@ export const regexRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.regex.importScriptFile({ principal: ctx.auth, fileText: input.fileText })),
 
   // The REVERSE rosters (REGROSTER): which presets/characters/rooms attach ONE owned script. Owner-gated on
-  // the script (`getScript`'s gate verbatim) AND filtered again per roster — the preset/character joins
+  // the script AND filtered again per roster — the preset/character joins
   // carry `ownerId`, the rooms go through chat's injected membership filter.
   listScriptUsage: authedProcedure
     .output(regexScriptUsageSchema)

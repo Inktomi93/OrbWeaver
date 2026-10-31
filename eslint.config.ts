@@ -3,7 +3,15 @@ import { createRequire } from "node:module";
 import { relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { staticImportGraph, unsupportedAtFloor, withoutPolyfilled } from "@orb/tooling/browser-support";
-import { authorClassIgnores, baseUiDoors, classClassifier, createOrbPlugin, exportedLabels, shellOwnedSlots } from "@orb/tooling/eslint";
+import {
+  authorClassIgnores,
+  baseUiDoors,
+  classClassifier,
+  createOrbPlugin,
+  exportedLabels,
+  exportedProductionValues,
+  shellOwnedSlots,
+} from "@orb/tooling/eslint";
 import { BUTTON_BOX_OVERFLOW } from "@orb/ui/button/box-hit-area";
 import { TOKENS, TONES } from "@orb/ui/tokens";
 import pluginQuery from "@tanstack/eslint-plugin-query";
@@ -1304,6 +1312,7 @@ const localPlugin = createOrbPlugin({
   shellClasses: new Set(OWNER_CSS_SHELL_CLASSES),
   shellSlots: shellOwnedSlots(ROOT),
   exportedLabels: exportedLabels(ROOT),
+  exportedProductionValues: exportedProductionValues(ROOT),
   appearanceVocabulary: appearanceChannelVocabulary(),
   browserUnsupported: withoutPolyfilled(UNSUPPORTED_AT_FLOOR, POLYFILLED_BUILTINS),
   browserUnsupportedBeforePolyfills: UNSUPPORTED_AT_FLOOR,

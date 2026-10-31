@@ -1,5 +1,5 @@
 // domain/plugin/contract/service — the typed API surface: the infra seam TYPE the domain declares for the
-// sandbox runtime (`PluginHostPort` — `domain/plugin` never imports `#infra/plugin-host`; the runtime is wired
+// sandbox runtime (`PluginHostPort` — `domain/plugin` imports only types from `#infra/plugin-host`; the runtime is wired
 // upward at compose), the resident-instance registry the lifecycle owns, the DI bundle (`PluginContext`), and
 // the `PluginService` surface including inline `runSnippet`. Every cross-tier value is a declared type here; the
 // runtime is assembled at the composition root (one-directional flow: transport → domain/plugin →
@@ -83,7 +83,6 @@ import type {
   UpgradeFromShowcaseParams,
   UpgradeFromStoredGitParams,
   UpgradeFromStoredUrlParams,
-  UpgradeFromUrlParams,
   UpgradePluginParams,
 } from "./params.ts";
 import type {
@@ -102,9 +101,9 @@ import type {
  *  gated the invocation-chat-context (`can(installer,"read",chat)`) + folded host-authority into `grants` /
  *  `chat.canWrite` BEFORE this call — infra is authority-blind (a plugin can never exceed its installer).
  *  `chat` is `null` for an installed plugin's registration-only `main.js`; set for a snippet run. Constructed
- *  ONCE at the trust boundary, never guest-supplied. */
-export interface CreateInstanceInput extends PluginInstanceCreateData {
-  readonly reloadMainJs: () => Promise<string>;
+ *  ONCE at the trust boundary, never guest-supplied. The durable `main.js` re-reader is required here: every
+ *  domain activation is an installed plugin, which the host wakes cold from it. */
+export interface CreateInstanceInput extends PluginInstanceCreateData, Required<Pick<Parameters<ProcessPluginHost["createInstance"]>[0], "reloadMainJs">> {
   readonly bridge: PluginBridge;
 }
 
@@ -418,10 +417,6 @@ export interface PluginService {
    *  run it through the SAME funnel + consent as a file install (delegates to {@link install}). SELF-authority
    *  — mints the caller's own row. */
   readonly installFromUrl: (params: InstallFromUrlParams) => Promise<PluginView>;
-  /** Fetch a NEW bundle at a URL through the egress guard, then upgrade the OWNED plugin through {@link upgrade}
-   *  — #615's re-consent wall applies (reach-widening ⇒ DISABLED). Owner-scoped: a foreign pluginId is a
-   *  leak-free NOT_FOUND checked BEFORE any fetch, so a stranger never triggers server egress. NEVER silent. */
-  readonly upgradeFromUrl: (params: UpgradeFromUrlParams) => Promise<PluginView>;
   /** AUTO UPDATE-CHECK (U8 2b — the thing ST's loader does): for the caller's OWN `url`-origin plugins, re-fetch
    *  each remote bundle through the same egress guard and return exact-byte identity with a newer version.
    *  BATCH + SELF-scoped (no id); a

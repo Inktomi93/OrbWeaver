@@ -11,11 +11,16 @@ type RegisterPluginToolOp = (
   spec: PluginToolSpecData & { readonly invoke: (argsJson: string, chat: InvocationChat | null, signal?: AbortSignal) => Promise<string> },
 ) => PluginToolHandle;
 
+/** The tool-use registry's runtime door, as the plugin registrar reaches it. */
+export interface PluginToolRegistrar {
+  readonly registerPluginTool: RegisterPluginToolOp;
+}
+
 export interface PluginRegistrarDeps {
   readonly logger: Logger;
   /** The root's trace ring each supervised plugin-event delivery seals into. */
   readonly traces: TraceRing;
-  readonly toolUse: { readonly registerPluginTool: RegisterPluginToolOp };
+  readonly toolUse: PluginToolRegistrar;
   readonly promptTransforms: { readonly register: RegisterPromptTransformOp; readonly unregister: UnregisterPromptTransformOp };
   readonly pluginSubscribers: PluginSubscriberRegistry;
   readonly resolveChatAuthority: ResolvePluginChatAuthority;

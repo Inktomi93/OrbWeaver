@@ -582,6 +582,8 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/app-shell/surfaces/app-shell-topbar.ct.tsx": {
     "packages/client/src/features/app-shell/lib/command-shortcut-label.ts":
       "commandShortcutLabel: the platform key hint the command chip's name and description spell",
+    "packages/client/src/lib/chat-rename-names.ts":
+      "renameChatButtonIdentity: the head of the rename button's name, which only this module's own builder uses in production and no door forwards",
   },
   "tests/client/routes/_route-pending-stories.tsx": {
     "packages/client/src/routes/route-pending.tsx": "RoutePending: the router's pending component, which only the router renders and no door forwards",
@@ -621,6 +623,14 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/chat/components/_context-divider-stories.tsx": {
     "packages/client/src/features/chat/components/message-row-divider.tsx":
       "renderContextBoundaryDivider: the divider label's own composition, which only the message row renders and no door forwards",
+  },
+  "tests/client/features/chat/components/_chat-header-title-stories.tsx": {
+    "packages/client/src/features/chat/components/chat-header-title.tsx":
+      "ChatHeaderTitle: the topbar's rename button, which only the chat header renders and no door forwards",
+  },
+  "tests/client/features/character/components/_shelf-face-name-stories.tsx": {
+    "packages/client/src/features/character/components/character-shelf.tsx":
+      "CharacterShelf and ShelfFace: the landing's face buttons, which only the library landing renders and no door forwards",
   },
   "tests/client/features/chat/components/_flank-column-stories.tsx": {
     "packages/client/src/features/chat/components/room-flank.tsx":

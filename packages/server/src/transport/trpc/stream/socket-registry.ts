@@ -169,8 +169,6 @@ export interface SocketRegistry {
   readonly evictUser: (userId: UserId) => number;
   /** Observability (`/api/_debug/stream/sockets`): live sockets, all users or one. */
   readonly liveSocketCount: ShareServiceDeps["liveSocketCount"];
-  /** Sweep cells dark past the window. Called on every entry point; exposed for the reap test. */
-  readonly reap: () => number;
   /** The root's opaque nonce; it keeps each supervised room-pump name unique across re-attaches. */
   readonly newOpaqueId: () => string;
 }
@@ -344,6 +342,5 @@ export function createSocketRegistry(now: () => number, newOpaqueId: () => strin
       }
       return count;
     },
-    reap,
   };
 }

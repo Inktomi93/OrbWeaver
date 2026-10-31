@@ -43,7 +43,7 @@ test("the first rerank on an empty model cache downloads the seeded model and se
     await harness.app.seedUserConnections(harness.ownerId);
     expect(await cachedBytes(harness.modelCacheDir)).toBe(0);
 
-    const clients = await harness.app.roleClientsFor(harness.ownerId);
+    const clients = await harness.roleClientsFor(harness.ownerId);
     const resolved = await clients.resolved("rerank");
     expect(resolved?.model).toBe(SEEDED_RERANKER);
 

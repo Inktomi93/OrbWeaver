@@ -157,8 +157,9 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   });
 
   for (const boundOwner of ownersBoundBeforeCompose) {
-    await built.enqueueEmbedReindex(boundOwner);
+    built.detachEmbedReindex(boundOwner);
   }
+  await built.settleBackground();
 
   // The idempotent boot seeds (owner cards, default persona, preset, themes) — safe on an already-seeded db.
   await seedDefaultPreset({ db: wiringDb, logger: seams.logger, now });

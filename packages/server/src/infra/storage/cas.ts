@@ -197,7 +197,6 @@ export function createCas(rootDir: string, log: Logger): Cas {
   }
 
   return {
-    blobPath,
     exists,
     mtimeMs,
     read,

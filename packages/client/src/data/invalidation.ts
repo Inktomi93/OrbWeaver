@@ -164,8 +164,7 @@ const BUS_FILTERS: BusFilterMap = {
     // member sat on the pre-pick bag forever (staleTime is Infinity; the bus is the only driver).
     trpc.chat.getUserMacroPicks.queryFilter({ chatId: e.chatId }),
     // `getVariablePicks` — the SAME pane's other knob family, the same argument: its picks half is the room's
-    // `chats.variableValues`, read through its own proc, and `setVariables`/`clearVariables` emit this
-    // catch-all.
+    // `chats.variableValues`, read through its own proc, and `setVariables` emits this catch-all.
     trpc.chat.getVariablePicks.queryFilter({ chatId: e.chatId }),
     // B7 — `listReactions` carries the room's RESOLVED `reactionsEnabled` verdict and `setReactionsEnabled` emits
     // THIS catch-all; on `reactionsChanged` alone a host's off-flip would leave every member's pills/doors standing.

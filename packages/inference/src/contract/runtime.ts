@@ -181,7 +181,6 @@ export interface StoredConnectionRead {
 
 export interface ConnectionStore {
   readonly get: (id: UserConnection["id"]) => Promise<StoredConnectionRead | null>;
-  readonly listForOwner: (ownerId: UserId) => Promise<readonly UserConnection[]>;
 }
 
 export interface BindingStore {

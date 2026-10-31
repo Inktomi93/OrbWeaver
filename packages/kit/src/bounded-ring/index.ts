@@ -29,8 +29,8 @@
  *
  *  `T` EXCLUDES `undefined` (`NonNullable<unknown>` — the "anything but null/undefined" constraint), and
  *  that is load-bearing rather than tidiness (#1359): the empty slots of the preallocated buffer ARE
- *  `undefined`, so `newestFirst` skips them while `size()` counts them, and a ring holding a legitimate
- *  `undefined` would report a count its own iteration cannot produce. The bound is FREE — all four
+ *  `undefined`, so `newestFirst` skips them and would silently drop a legitimate
+ *  `undefined` value. The bound is FREE — all four
  *  instantiations hold concrete non-optional records — and it makes the disagreement unrepresentable at
  *  compile time (tier 2) rather than a documented footgun. */
 export interface BoundedRing<T extends NonNullable<unknown>> {
@@ -41,10 +41,6 @@ export interface BoundedRing<T extends NonNullable<unknown>> {
   readonly newestFirst: () => Generator<T>;
   /** Retained values NEWEST-FIRST, capped at `limit` (default: everything retained). */
   readonly recent: (limit?: number) => T[];
-  /** How many values are retained right now (≤ capacity). */
-  readonly size: () => number;
-  /** Drop everything — test isolation, so a prior run's records never bleed into the next assertion. */
-  readonly clear: () => void;
 }
 
 /** Build a ring retaining the most recent `capacity` values. `capacity` must be a positive integer — a
@@ -53,7 +49,7 @@ export function createBoundedRing<T extends NonNullable<unknown>>(capacity: numb
   if (!Number.isInteger(capacity) || capacity <= 0) {
     throw new RangeError(`bounded-ring capacity must be a positive integer, got ${capacity}`);
   }
-  let buf = new Array<T | undefined>(capacity);
+  const buf = new Array<T | undefined>(capacity);
   let head = 0;
   let size = 0;
 
@@ -83,12 +79,6 @@ export function createBoundedRing<T extends NonNullable<unknown>>(capacity: numb
         out.push(value);
       }
       return out;
-    },
-    size: (): number => size,
-    clear: (): void => {
-      buf = new Array<T | undefined>(capacity);
-      head = 0;
-      size = 0;
     },
   };
 }

@@ -4,7 +4,7 @@
 // answer from the forward `listFor*` reads would have meant an N-query fan-out over the whole library).
 // A read: no audit, no emit.
 //
-// THE GATE IS `getScript`'S, EXACTLY: a foreign/absent script collapses to `RegexNotFoundError` before any
+// THE OWNED-SCRIPT GATE COMES FIRST: a foreign/absent script collapses to `RegexNotFoundError` before any
 // junction is touched, so this can never be used to probe someone else's shelf. The rosters are then
 // filtered a SECOND time on their own side — the preset/character joins carry `ownerId`, and the rooms go
 // through chat's injected `resolveVisibleRooms`. Both halves matter: the script gate alone would still let
@@ -14,17 +14,14 @@
 // so the pane reads that off `listGlobal` and renders a switch. Adding a one-element "rosters" arm for it
 // would be a second home for the same boolean.
 
-import { RegexNotFoundError } from "#src/domain/regex/contract/errors.ts";
 import type { ListScriptUsageParams } from "#src/domain/regex/contract/params.ts";
 import type { RegexContext, RegexService } from "#src/domain/regex/contract/service.ts";
-import { listCharactersAttaching, listChatIdsAttaching, listPresetsAttaching, loadOwnedScript } from "#src/domain/regex/persistence/queries.ts";
+import { requireOwnedScript } from "#src/domain/regex/persistence/ownership.ts";
+import { listCharactersAttaching, listChatIdsAttaching, listPresetsAttaching } from "#src/domain/regex/persistence/queries.ts";
 
 export function createListScriptUsage(ctx: RegexContext): RegexService["listScriptUsage"] {
   return async ({ principal, scriptId }: ListScriptUsageParams) => {
-    const record = await loadOwnedScript(ctx.db, principal.userId, scriptId);
-    if (record === undefined) {
-      throw new RegexNotFoundError("regex_script", scriptId);
-    }
+    await requireOwnedScript(ctx.db, principal.userId, scriptId);
     const [presets, characters, chatIds] = await Promise.all([
       listPresetsAttaching(ctx.db, principal.userId, scriptId),
       listCharactersAttaching(ctx.db, principal.userId, scriptId),

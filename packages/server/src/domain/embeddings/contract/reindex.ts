@@ -25,7 +25,6 @@ export interface EmbeddingReindexDeps {
 }
 
 export interface EmbeddingReindexTriggers {
-  readonly enqueueEmbedReindex: (scope: UserId | null) => Promise<void>;
   readonly detachEmbedReindex: (scope: UserId | null) => void;
   readonly detachRepointReindex: (ownerId: UserId) => void;
   readonly detachStaleSpaceReindex: () => void;

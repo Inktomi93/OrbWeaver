@@ -144,6 +144,21 @@ function beatArm(snapshot: RpgPortableSnapshot): SnapshotArm {
   };
 }
 
+/** The positions of the checkpoint copies a v0.3.x file carries as plain hand snapshots. That release saved a
+ *  checkpoint as a hand row created with the checkpoint's own time and pinned it, so a hand snapshot a checkpoint
+ *  names with the same `createdAt` is saved state, not a beat. Migration 0006 applies the same rule in place. A
+ *  hand edit a checkpoint reused was made before it, so it stays a beat. */
+function v03SavedCopies(game: Pick<RpgPortableGame, "snapshots" | "checkpoints">): ReadonlySet<number> {
+  return new Set(
+    game.checkpoints
+      .filter((checkpoint) => {
+        const target = game.snapshots[checkpoint.snapshotIndex];
+        return target !== undefined && !target.bookmark && target.variantId === null && target.createdAt === checkpoint.createdAt;
+      })
+      .map((checkpoint) => checkpoint.snapshotIndex),
+  );
+}
+
 /** One snapshot INSERT from a portable snapshot's state under the given row identity and kind, so a bookmark
  *  copy shares the column mapping with the row it copies. */
 function snapshotValues(source: RpgPortableSnapshot, id: RpgSnapshotId, gameId: RpgGameId, arm: SnapshotArm): typeof rpgSnapshots.$inferInsert {
@@ -185,6 +200,7 @@ export function createImportRpgGame(input: DbAssemblyInput<RpgPortabilityContext
     // Snapshot ids are minted UP FRONT so the checkpoint rows can name them by the position the payload
     // carries — the inverse of the export's `snapshotPosition` index, and the reason both live in this file.
     const snapshotIds = game.snapshots.map(() => ctx.ids.snapshot());
+    const savedCopies = v03SavedCopies(game);
     const stmts: BatchStmt[] = [
       ctx.db.insert(rpgGames).values({
         id: gameId,
@@ -211,9 +227,9 @@ export function createImportRpgGame(input: DbAssemblyInput<RpgPortabilityContext
       ),
       // A carried bookmark is not inserted as itself: it is state a checkpoint saved, and each checkpoint below
       // writes its own bookmark copy. Inserting it would need the row's kind to survive, and a file written
-      // before bookmarks existed cannot say which rows were saved state.
+      // before bookmarks existed cannot say which rows were saved state, so `savedCopies` recognises those.
       ...game.snapshots.flatMap((snapshot, i) =>
-        snapshot.bookmark
+        snapshot.bookmark || savedCopies.has(i)
           ? []
           : [ctx.db.insert(rpgSnapshots).values(snapshotValues(snapshot, snapshotIds[i] ?? ctx.ids.snapshot(), gameId, beatArm(snapshot)))],
       ),

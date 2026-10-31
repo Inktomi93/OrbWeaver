@@ -24,7 +24,6 @@ const EARLIER_DECLARED: DeclaredCapability = {
 
 type Db = ServerTestHarness["db"];
 type Harness = ServerTestHarness;
-type App = ServerTestHarness["app"];
 
 interface EarlierRow {
   readonly label: string;
@@ -99,7 +98,7 @@ interface RerankState {
 }
 
 /** The stored rerank rows, the rerank binding and what the role resolves to now. */
-async function rerankState(db: Db, app: App, ownerId: UserId): Promise<RerankState> {
+async function rerankState(db: Db, harness: Harness, ownerId: UserId): Promise<RerankState> {
   const rows = await db
     .select({
       id: userConnections.id,
@@ -114,7 +113,7 @@ async function rerankState(db: Db, app: App, ownerId: UserId): Promise<RerankSta
     .select({ connectionId: connectionBindings.connectionId })
     .from(connectionBindings)
     .where(and(eq(connectionBindings.userId, ownerId), eq(connectionBindings.task, "rerank")));
-  const resolved = await (await app.roleClientsFor(ownerId)).resolved("rerank");
+  const resolved = await (await harness.roleClientsFor(ownerId)).resolved("rerank");
   return {
     rerankRows: rows.filter((row) => row.label !== ENCODER_SEED.label && row.model !== ENCODER_SEED.model),
     slot: rows.find((row) => row.seedSlot === "rerank"),
@@ -125,14 +124,14 @@ async function rerankState(db: Db, app: App, ownerId: UserId): Promise<RerankSta
 }
 
 /** The curated window of a built-in reranker, read through a fresh account the seed binds to it. */
-async function seededWindow(db: Db, app: App, harness: Harness): Promise<number | null> {
+async function seededWindow(db: Db, harness: Harness): Promise<number | null> {
   const fresh = await harness.actor();
-  return (await rerankState(db, app, fresh.id)).window;
+  return (await rerankState(db, harness, fresh.id)).window;
 }
 
-test("a fresh account gets the seed's reranker in its slot, bound, with the seed model recorded", async ({ db, app, harness }) => {
+test("a fresh account gets the seed's reranker in its slot, bound, with the seed model recorded", async ({ db, harness }) => {
   const account = await harness.actor();
-  const state = await rerankState(db, app, account.id);
+  const state = await rerankState(db, harness, account.id);
   expect(state.slot).toMatchObject({ label: RERANK_SEED.label, model: RERANK_SEED.model, seedModel: RERANK_SEED.model });
   expect(state.boundTo).toBe(state.slot?.id);
   expect(state.servedModel).toBe(RERANK_SEED.model);
@@ -140,14 +139,14 @@ test("a fresh account gets the seed's reranker in its slot, bound, with the seed
 });
 
 test("an earlier release's seed-slot row moves to today's model in place, dropping the facts it stated for the old one", async ({ db, app, harness }) => {
-  const expectedWindow = await seededWindow(db, app, harness);
+  const expectedWindow = await seededWindow(db, harness);
   const account = await harness.actor();
   const [, slotted] = await earlierRelease(db, harness, account.id, [
     { task: "embed", label: ENCODER_SEED.label, seedSlot: "embed", model: ENCODER_SEED.model },
     { task: "rerank", label: RERANK_SEED.label, seedSlot: "rerank", model: EARLIER_RERANK_MODEL, declared: EARLIER_DECLARED },
   ]);
   await app.seedUserConnections(account.id);
-  const state = await rerankState(db, app, account.id);
+  const state = await rerankState(db, harness, account.id);
   expect(state.rerankRows).toEqual([{ id: slotted, label: RERANK_SEED.label, seedSlot: "rerank", model: RERANK_SEED.model, seedModel: RERANK_SEED.model }]);
   expect(state.boundTo).toBe(slotted);
   expect(state.servedModel).toBe(RERANK_SEED.model);
@@ -161,7 +160,7 @@ test("an earlier release's unslotted row under the seed's old label is adopted i
     { task: "rerank", label: EARLIER_RERANK_LABEL, seedSlot: null, model: EARLIER_RERANK_MODEL },
   ]);
   await app.seedUserConnections(account.id);
-  const state = await rerankState(db, app, account.id);
+  const state = await rerankState(db, harness, account.id);
   expect(state.rerankRows).toEqual([{ id: preSlot, label: RERANK_SEED.label, seedSlot: "rerank", model: RERANK_SEED.model, seedModel: RERANK_SEED.model }]);
   expect(state.boundTo).toBe(preSlot);
   expect(state.servedModel).toBe(RERANK_SEED.model);
@@ -172,7 +171,7 @@ test("a reranker the user made on the earlier model is never adopted or moved, a
   // A release before seed slots: the user's own row is the only reranker, so the empty slot cannot block adoption.
   const [own] = await earlierRelease(db, harness, account.id, [{ task: "rerank", label: "My reranker", seedSlot: null, model: EARLIER_RERANK_MODEL }]);
   await app.seedUserConnections(account.id);
-  const state = await rerankState(db, app, account.id);
+  const state = await rerankState(db, harness, account.id);
   expect(state.rerankRows.find((row) => row.id === own)).toEqual({
     id: own,
     label: "My reranker",
@@ -193,14 +192,14 @@ test("the user's later pick of the earlier model on the seeded row survives the 
   await app.seedUserConnections(upgradedAccount.id);
   for (const account of [freshAccount, upgradedAccount]) {
     const principal = await harness.principalFor(account.id);
-    const before = await rerankState(db, app, account.id);
+    const before = await rerankState(db, harness, account.id);
     if (before.slot === undefined) {
       throw new Error("the seed left no rerank slot row");
     }
     await app.services.connection.update({ principal, connectionId: before.slot.id, patch: { model: EARLIER_RERANK_MODEL } });
-    const picked = await rerankState(db, app, account.id);
+    const picked = await rerankState(db, harness, account.id);
     await app.seedUserConnections(account.id);
-    const after = await rerankState(db, app, account.id);
+    const after = await rerankState(db, harness, account.id);
     expect(after.slot).toEqual({ ...before.slot, model: EARLIER_RERANK_MODEL });
     expect(after.slot?.seedModel).toBe(RERANK_SEED.model);
     expect(after.boundTo).toBe(before.slot.id);

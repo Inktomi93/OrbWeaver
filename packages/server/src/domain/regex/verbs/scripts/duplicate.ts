@@ -2,20 +2,17 @@
 // (the `duplicateBook` posture: a copy is a new authored artifact, not a second attachment of the original).
 
 import { regexScripts } from "@orb/db";
-import { RegexNotFoundError } from "#src/domain/regex/contract/errors.ts";
 import type { DuplicateScriptParams } from "#src/domain/regex/contract/params.ts";
 import type { RegexContext, RegexService } from "#src/domain/regex/contract/service.ts";
-import { loadOwnedScript, toRow } from "#src/domain/regex/persistence/queries.ts";
+import { requireOwnedScript } from "#src/domain/regex/persistence/ownership.ts";
+import { toRow } from "#src/domain/regex/persistence/queries.ts";
 
 const COPY_SUFFIX = " (copy)";
 
 export function createDuplicate(ctx: RegexContext): RegexService["duplicateScript"] {
   return async ({ principal, scriptId }: DuplicateScriptParams) => {
     const ownerId = principal.userId;
-    const record = await loadOwnedScript(ctx.db, ownerId, scriptId);
-    if (record === undefined) {
-      throw new RegexNotFoundError("regex_script", scriptId);
-    }
+    const record = await requireOwnedScript(ctx.db, ownerId, scriptId);
     const { id: _sourceId, name: _sourceName, enabled: _sourceEnabled, updatedAt: _sourceUpdatedAt, ...behavior } = toRow(record);
     const at = ctx.now();
     const copyId = ctx.newScriptId();

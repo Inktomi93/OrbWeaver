@@ -38,7 +38,6 @@ interface CollectionSelection {
   readonly selected: ReadonlySet<string>;
   readonly isSelected: (id: string) => boolean;
   readonly toggle: (id: string) => void;
-  readonly selectAll: (ids: readonly string[]) => void;
   /** Remove only these members from the CURRENT selection — for delayed bulk completions that own their
    *  submitted ids but must preserve anything selected while the write was in flight. */
   readonly remove: (ids: readonly string[]) => void;
@@ -129,9 +128,6 @@ export function createCollectionSurface<TItem, TPage, TParams, TPageParam = unkn
             }
             return next;
           });
-        },
-        selectAll: (ids): void => {
-          setSelected(new Set(ids));
         },
         remove: (ids): void => {
           setSelected((prev) => {

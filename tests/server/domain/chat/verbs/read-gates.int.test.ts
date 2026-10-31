@@ -51,7 +51,6 @@ const READ_GATES = {
   getNextTurnConnection: "room-read",
   getMemberCard: "room-read",
   previewAssembly: "inspector",
-  getActivePresetConfig: "elsewhere",
   previewActionTemplates: "inspector",
   previewSection: "inspector",
   peekPrompt: "inspector",
@@ -94,9 +93,7 @@ const READ_GATES = {
   setChatInjection: "elsewhere",
   listChatInjections: "elsewhere",
   deleteChatInjection: "elsewhere",
-  getVariables: "elsewhere",
   setVariables: "elsewhere",
-  clearVariables: "elsewhere",
   setUserMacroValues: "elsewhere",
   getUserMacroPicks: "elsewhere",
   getVariablePicks: "elsewhere",
@@ -182,9 +179,7 @@ test("the assembled-prompt inspectors are host-only, an outsider learns nothing,
 
   const fit = await h.root.services.chat.previewContextFit(scope(member));
   expect("unbound" in fit).toBe(false);
-  const config = await h.root.services.chat.getActivePresetConfig(scope(member));
   expect(JSON.stringify(fit)).not.toContain("SECRET-");
-  expect(JSON.stringify(config)).not.toContain("SECRET-");
 });
 
 test("a host cannot read another room's stored prompt by naming its variant, and the refusal matches an unknown id", async () => {

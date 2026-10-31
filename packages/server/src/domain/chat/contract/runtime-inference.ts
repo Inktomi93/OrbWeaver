@@ -7,12 +7,15 @@ import type { BeginGenerationObservation } from "./generation-observation.ts";
 
 /** Funder-scoped runtime ports and the chat-owned observation seam. */
 
+/** The connection domain's turn-time reads, as chat reaches them. */
+export interface ChatConnectionOps {
+  readonly resolve: (params: ResolveTaskParams) => Promise<ResolveOutcome>;
+  readonly availability: TaskAvailabilityOp;
+  readonly getBoundConnection: GetBoundConnectionOp;
+}
+
 export interface ChatInferenceDeps {
-  readonly connection: {
-    readonly resolve: (params: ResolveTaskParams) => Promise<ResolveOutcome>;
-    readonly availability: TaskAvailabilityOp;
-    readonly getBoundConnection: GetBoundConnectionOp;
-  };
+  readonly connection: ChatConnectionOps;
   readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;
   readonly resolveHostPrincipal: ResolveHostPrincipalOp;
   readonly resolveUtilityPresetParams: ChatContext["resolveUtilityPresetParams"];

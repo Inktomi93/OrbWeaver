@@ -51,7 +51,6 @@ import { createUninstallForAllUsers } from "./verbs/uninstall-for-all-users.ts";
 import { createUpgrade } from "./verbs/upgrade.ts";
 import { createUpgradeFromShowcase } from "./verbs/upgrade-from-showcase.ts";
 import { createUpgradeFromStoredUrl } from "./verbs/upgrade-from-stored-url.ts";
-import { createUpgradeFromUrl } from "./verbs/upgrade-from-url.ts";
 
 /** `distribution` is a SEPARATE parameter, never folded into {@link PluginContext} (D147 clause (a)): the
  *  per-row verbs must keep having no privilege seam at all, and the two admin distribution verbs must have
@@ -103,11 +102,10 @@ export function createPluginService(
     upgrade,
     ...gitSource,
     // U8 seam 15 — the URL-install/update funnel. `previewFromUrl` returns the consent manifest plus exact-byte
-    // identity; `installFromUrl`/`upgradeFromUrl` require that identity, re-fetch through the egress guard, and
+    // identity; `installFromUrl` requires that identity, re-fetch through the egress guard, and
     // delegate only after it matches. Upgrade keeps #615's reach-widening→disabled wall.
     previewFromUrl: createPreviewFromUrl(ctx),
     installFromUrl: createInstallFromUrl(ctx, { install }),
-    upgradeFromUrl: createUpgradeFromUrl(ctx, { upgrade }),
     // U8 2b — the auto update-check returns exact-byte identity for the true one-click upgrade (re-paste-free,
     // from the STORED sourceUrl). Both ride `ctx.fetchBundle`; the upgrade delegates only after an identity
     // match, keeping #615's wall.

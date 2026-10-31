@@ -64,7 +64,7 @@ try {
   const ownerId = await built.sessions.ensureUser(SEED_AUTHOR);
   const author = await createHostPrincipalResolver(built.sessions)(ownerId);
   await built.services.settings.updateAppSettings({ principal: author, partial: { corpusAutoindex: false } });
-  const roles = await built.roleClientsFor(ownerId);
+  const roles = built.runtime.roleClientsFor(author);
   const encoder = await roles.resolved("embed");
   const user = await built.sessions.loadUserById(ownerId);
   if (encoder === null || user === null) {

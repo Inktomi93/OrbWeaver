@@ -33,7 +33,7 @@ test("abort joins actual upstream cancellation even with a consumer-locked body"
     await expect(reader.read()).rejects.toBe(abort.signal.reason);
   } finally {
     released.resolve();
-    await owned.cancel();
+    await owned.settled;
     reader.releaseLock();
   }
 });
@@ -65,7 +65,7 @@ test("an ignored body retains the actual cancellation rejection until cleanup ha
     await expect(owned.response.text()).rejects.toBe(failure);
   } finally {
     released.resolve();
-    await expect(owned.cancel()).rejects.toBe(failure);
+    await expect(owned.settled).rejects.toBe(failure);
   }
 });
 
@@ -112,7 +112,7 @@ test("a pending read cannot settle ownership before upstream cancellation finish
     expect(await reading).toBe(abort.signal.reason);
   } finally {
     released.resolve();
-    await owned.cancel();
+    await owned.settled;
     reader.releaseLock();
   }
 });
@@ -166,7 +166,7 @@ test("an upstream body already errored by the owned abort settles cancellation w
   abort.abort(reason);
   expect(await settled).toBeNull();
   await expect(owned.response.text()).rejects.toBe(reason);
-  await expect(owned.cancel()).resolves.toBeUndefined();
+  await expect(owned.settled).resolves.toBeUndefined();
 });
 
 test("a cancellation hook rejecting with the owned abort reason is still a physical cleanup failure", async () => {
@@ -181,7 +181,7 @@ test("a cancellation hook rejecting with the owned abort reason is still a physi
   abort.abort(reason);
   expect(await settled).toBe(reason);
   await expect(owned.response.text()).rejects.toBe(reason);
-  await expect(owned.cancel()).rejects.toBe(reason);
+  await expect(owned.settled).rejects.toBe(reason);
 });
 
 test("a genuine native fetch clone retains immutable headers and producer metadata", async () => {
@@ -267,13 +267,13 @@ test("shutdown starts every requested clone cancellation before joining their he
     await expect(cloneReader?.read()).rejects.toBe(abort.signal.reason);
   } finally {
     held.resolve();
-    await owned.cancel();
+    await owned.settled;
     originalReader?.releaseLock();
     cloneReader?.releaseLock();
   }
 });
 
-test("a consumer cancel rejects with the physical cleanup error, and settled and cancel() carry the same error", async () => {
+test("a consumer cancel rejects with the physical cleanup error, and settled carries the same error", async () => {
   const failure = new Error("physical upstream cancellation failed");
   const abort = new AbortController();
   const owned = createOwnedResponseBody(new Response(new ReadableStream<Uint8Array>({ cancel: () => Promise.reject(failure) })), abort.signal);
@@ -283,7 +283,6 @@ test("a consumer cancel rejects with the physical cleanup error, and settled and
   }
   await expect(reader.cancel()).rejects.toBe(failure);
   await expect(owned.settled).rejects.toBe(failure);
-  await expect(owned.cancel()).rejects.toBe(failure);
 });
 
 test("settled is one promise: reading it twice and handling one copy raises no unhandled rejection", async () => {
@@ -301,7 +300,6 @@ test("settled is one promise: reading it twice and handling one copy raises no u
     const first = owned.settled;
     const second = owned.settled;
     expect(second).toBe(first);
-    expect(owned.cancel()).toBe(first);
     await owned.response.body?.cancel().catch(() => undefined);
     await expect(first).rejects.toBe(failure);
     await new Promise((resolve) => setTimeout(resolve, 25));
