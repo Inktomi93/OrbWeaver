@@ -120,15 +120,13 @@ function clusterSubgroup(
   return builds.filter((b) => b.memberDigestIds.length > 0);
 }
 
-function buildDrafts(solo: readonly OwnedDigest[], opts: Pick<ComputeThemesOptions, "k">, seed: number): { drafts: ClusterDraft[]; owners: Set<string> } {
+function buildDrafts(solo: readonly OwnedDigest[], opts: Pick<ComputeThemesOptions, "k">, seed: number): ClusterDraft[] {
   const drafts: ClusterDraft[] = [];
-  const owners = new Set<string>();
   for (const [, levelGroup] of groupBy(solo, (r) => `${r.ownerId} ${levelOf(r.tier)}`)) {
     const first = levelGroup[0];
     if (first === undefined) {
       continue;
     }
-    owners.add(first.ownerId);
     const level = levelOf(first.tier);
     let clusterIdx = 0;
     for (const [model, modelGroup] of groupBy(levelGroup, (r) => r.model)) {
@@ -139,7 +137,7 @@ function buildDrafts(solo: readonly OwnedDigest[], opts: Pick<ComputeThemesOptio
       }
     }
   }
-  return { drafts, owners };
+  return drafts;
 }
 
 /** Whether a cluster is big enough to spend a naming call on; smaller ones are stored with no name. */
@@ -187,7 +185,7 @@ export async function countThemeNameCalls(db: Db, opts: ThemeNameEstimateOptions
   if (solo.length === 0) {
     return 0;
   }
-  return buildDrafts(solo, opts, opts.seed ?? DEFAULT_SEED).drafts.filter(nameWorthy).length;
+  return buildDrafts(solo, opts, opts.seed ?? DEFAULT_SEED).filter(nameWorthy).length;
 }
 
 /**
@@ -212,7 +210,7 @@ export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: Compu
   if (solo.length === 0) {
     return { clustersWritten: 0, digestsAssigned: 0, digestsRead: all.length, soloDigestsRead: 0 };
   }
-  const { drafts } = buildDrafts(solo, opts, seed);
+  const drafts = buildDrafts(solo, opts, seed);
   // The funder's Utility-role preset over the `theme_name` posture (§7.5-3 arm ii); prose `summarize`.
   const rc = await deps.roleClientsFor(opts.funderUserId);
   const sampleOpts = resolveSideGenSampling(SIDE_GEN_POSTURES.theme_name, await deps.resolveUtilityPresetParams(opts.funderUserId));

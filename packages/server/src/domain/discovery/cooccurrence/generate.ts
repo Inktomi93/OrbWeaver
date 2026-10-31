@@ -95,7 +95,7 @@ function tallyCooccurrence(digests: readonly NormalizedDigest[]): OwnerTally {
   return { pairs, charKeywords };
 }
 
-function normalizeOwner(digests: readonly DigestKeywords[], hubFraction: number): { normalized: NormalizedDigest[]; hubDropped: number } {
+function normalizeOwner(digests: readonly DigestKeywords[], hubFraction: number): NormalizedDigest[] {
   const perDigest: NormalizedDigest[] = [];
   const df = new Map<string, number>();
   for (const d of digests) {
@@ -113,11 +113,10 @@ function normalizeOwner(digests: readonly DigestKeywords[], hubFraction: number)
   }
   const cutoff = perDigest.length * hubFraction;
   const hub = new Set([...df.entries()].filter(([, c]) => c > cutoff).map(([k]) => k));
-  const normalized = perDigest.map((d) => ({
+  return perDigest.map((d) => ({
     characterId: d.characterId,
     keywords: d.keywords.filter((k) => !hub.has(k)),
   }));
-  return { normalized, hubDropped: hub.size };
 }
 
 // character_keyword_profiles has no ownerId column — delete by characterId IN (owner's characters).
@@ -179,7 +178,7 @@ export async function computeCooccurrence(db: Db, deps: ComputeCooccurrenceDeps,
       (d) => d.contentHash,
       (d) => `${d.scopedCharacterId} ${d.contentHash}`,
     );
-    const { normalized } = normalizeOwner(reps, hubFraction);
+    const normalized = normalizeOwner(reps, hubFraction);
     const tally = tallyCooccurrence(normalized);
     // TOTAL ORDER, not just "by count": the tally is built from an unordered SELECT through two Maps, so a
     // count-only comparator left every tie to insertion order and two runs over an UNCHANGED corpus could

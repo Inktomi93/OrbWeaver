@@ -425,7 +425,7 @@ export interface AnalysisAuditTarget {
   readonly content: string;
 }
 
-/** A rule's analysis state + standing guidance as `persistence/rule-state.ts` reads it. An absent row
+/** A rule's analysis state as `persistence/rule-state.ts` reads it. An absent row
  *  reads as the EMPTY state (a first pass is a cold start, not an error). */
 export interface RuleStateRead {
   readonly state: AnalysisState;
