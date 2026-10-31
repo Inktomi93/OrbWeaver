@@ -43,7 +43,7 @@ export interface TableProps<TData> {
   readonly data: readonly TData[];
   /**
    * Stable per-row id — must be id-based, never the array index: sorting reorders rows, so an
-   * index key would silently reassign a row's React identity, and selection state is keyed by it.
+   * index key would silently reassign a row's React identity.
    */
   readonly getRowId: (row: TData, index: number) => string;
 

@@ -195,7 +195,6 @@ The slots `stat-figure-delta`, `stat-figure-sparkline`, `compare-block-accept`, 
 ### Open follow-ups
 
 - `Table` rows keep a transparent two-pixel start border (`tr` in `ui/src/primitives/table/variants.ts`) so cells sit where they did with selection. Delete it if a two-pixel shift is acceptable.
-- `CharacterPreset` in `ui/src/art/web-weave/web-weave-character.ts` still carries `burst`, `inspectMs` and `twitch`, and the spider painter still carries the twitch path. Only `calm` reaches them now, with `twitch: false` and `burst: 0`.
 - `Autocomplete` and `CompareBlocks` have no component test that mounts them; the typecheck and the caller scans cover their edits.
 
 ### Checks

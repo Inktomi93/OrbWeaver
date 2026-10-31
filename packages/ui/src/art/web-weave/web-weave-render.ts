@@ -17,7 +17,7 @@ import type { WeavePoint } from "./web-weave-math.ts";
 import { clamp01, easeOutCubic } from "./web-weave-math.ts";
 import type { PreyState } from "./web-weave-prey.ts";
 import type { SpiderTracker } from "./web-weave-spider.ts";
-import { idleTwitchPhase, STRAND_OUT_MS, spiderPose, spiralUpTo } from "./web-weave-spider.ts";
+import { STRAND_OUT_MS, spiderPose, spiralUpTo } from "./web-weave-spider.ts";
 import { drawSpiderBody } from "./web-weave-spider-body.ts";
 import type { WeavePluckMap, WeaveSway, WeaveWeather } from "./web-weave-sway.ts";
 import { strandPoint, swayPt } from "./web-weave-sway.ts";
@@ -308,8 +308,7 @@ function paintSpider(ctx: CanvasRenderingContext2D, input: WeaveFrameInput, trac
   if (pose === null) {
     return;
   }
-  // Sprinting blurs her legs regardless of character; twitches only play when she is genuinely idle.
-  const idle = !pose.moving && pose.tap === 0 && input.character.twitch && !input.still;
+  // Sprinting blurs her legs regardless of character.
   ctx.globalAlpha = input.dim;
   drawSpiderBody(ctx, {
     palette: input.palette,
@@ -319,7 +318,6 @@ function paintSpider(ctx: CanvasRenderingContext2D, input: WeaveFrameInput, trac
       gaitHz: pose.sprinting ? SPRINT_GAIT.gaitHz : input.character.gaitHz,
       gaitAmp: pose.sprinting ? SPRINT_GAIT.gaitAmp : input.character.gaitAmp,
       restAmp: REST_GAIT_AMP,
-      twitchPhase: idle ? idleTwitchPhase(input.now, input.web.seed) : 0,
     },
   });
 }
