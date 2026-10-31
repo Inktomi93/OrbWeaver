@@ -14,7 +14,8 @@ import type { Db } from "@orb/db";
 import { closeDb } from "@orb/db";
 import { contentSpanRaw } from "@orb/kit/content";
 import type { AssetId, CharacterHandle, ChatId, MessageId, UserId, WorkloadId } from "@orb/kit/ids";
-import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { castId, ID_PREFIX } from "@orb/kit/ids";
+import { createSeededIds } from "@orb/testkit/iso";
 import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBEDDING_VECTOR,
@@ -64,7 +65,7 @@ export async function openBox(db?: Db, options: { readonly loopbackOwner?: boole
     structuredReplies: new Map(),
     images,
   });
-  const cover = makeAssetBytes(mintTypeId(ID_PREFIX.asset));
+  const cover = makeAssetBytes(createSeededIds().typeId(ID_PREFIX.asset));
   // Provider and plugin egress share the root's one network door, so one function answers both by host.
   const network: typeof fetch = async (input, init) => {
     const request = new Request(input, init);
