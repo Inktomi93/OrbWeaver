@@ -88,9 +88,9 @@ export interface RulePresetCatalogue {
  *  CALLED, and what do its knob keys MEAN (the knob labels the gloss is built from — `lib/roster-copy.ts`).
  *  One query key, so the surfaces share one cache entry. A stored id the catalogue no longer offers falls
  *  back to the raw id — degraded but visible, matching what the apply reports as a skip. */
-export function useRulePresetCatalogue(enabled: boolean): RulePresetCatalogue {
+export function useRulePresetCatalogue(): RulePresetCatalogue {
   const trpc = useTRPC();
-  const catalogueQuery = useQuery({ ...trpc.automation.listRulePresets.queryOptions(), enabled });
+  const catalogueQuery = useQuery(trpc.automation.listRulePresets.queryOptions());
   const byId = new Map((catalogueQuery.data ?? []).map((preset) => [preset.id, preset]));
   return {
     presetOf: (id): RulePresetView | undefined => byId.get(id),
