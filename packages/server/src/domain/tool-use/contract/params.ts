@@ -6,8 +6,6 @@ import type { InvocationChat } from "@orb/contracts/plugin";
 import type { PluginToolSpecData, ToolDescriptor, ToolExecutionData, ToolHandlerResult } from "@orb/contracts/tool-use";
 import type { ToolCallInput } from "@orb/inference";
 
-export type { ToolCallInput } from "@orb/inference";
-
 /** What a handler receives beside its parsed args: the contracts data plus the turn's cancellation, which honoring is
  *  the handler's job. */
 export interface ToolExecutionContext extends ToolExecutionData {
