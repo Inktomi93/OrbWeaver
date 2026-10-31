@@ -19,22 +19,21 @@
 //   5c. `chat_template_kwargs.preserve_reasoning: false` on such a row when the turn's reasoning carry is off.
 //   5d. the row's `reasoningBudgetField` at 0 on a turn the template must not think on, where the row names a switch.
 //   6. `modalities: ["text","image"]` when the funnel resolved `replyImages` (§6.7).
-//   7. the effort spelling: `features.effort: "none"` strips the SDK's `reasoning_effort` with `effort_dropped`.
-//   8. the output-cap spelling: `features.outputCapField: "max_completion_tokens"` renames the SDK's `max_tokens`
+//   7. the output-cap spelling: `features.outputCapField: "max_completion_tokens"` renames the SDK's `max_tokens`
 //      (OpenAI's reasoning models 400 on the old word — inference audit H2, measured 2026-09-20). Never on the
 //      openrouter dialect, which speaks OR's own body.
-//   9. the cache-marker spelling (openrouter only): a message-level `cache_control` moves onto the row's last
+//   8. the cache-marker spelling (openrouter only): a message-level `cache_control` moves onto the row's last
 //      text part. OpenRouter forwards a marker to Anthropic only from a content part and drops a message-level
 //      one (measured: gen-1790134941-TdEvy3D9exFNfO6cf830 read only the system block; the content-part A/B,
 //      gen-1790135929 vs gen-1790135933, read the history). The provider converter writes assistant and tool
 //      rows as strings with a message-level marker, and the history breakpoints land on those rows. A row with
 //      no text part (a tool-call row) passes its marker to the nearest earlier row with text.
-//  10. the same-role fold (after rule 9, only when the admitted prefix plan preserves block ends at a merging
+//   9. the same-role fold (after rule 8, only when the admitted prefix plan preserves block ends at a merging
 //      role floor): consecutive plain user or assistant rows become ONE message with one text
 //      part per row, each row's marker still on its own last part. SHAPE keeps the stored rows of a run apart on
 //      such a wire, so a marked row keeps its bytes and its end when the run grows; this fold keeps the wire
 //      alternating without joining their text. It adds and removes no row, so the tail is whatever SHAPE sent.
-// Rules 3 to 10 compute their keys after the user's own body (rules 1 and 2) and never over it: a top-level key
+// Rules 3 to 9 compute their keys after the user's own body (rules 1 and 2) and never over it: a top-level key
 // an admitted `extras` entry, `includeBody` or `excludeBody` settled stays as the user set it (a `messages` array
 // included, which no row rule rewrites), and so does a `chat_template_kwargs.enable_thinking` the user stated.
 // Warnings are collected on a per-call sink the caller folds into the turn's `warning` events (D41).
@@ -253,23 +252,7 @@ function applyBudgetOff(body: Record<string, unknown>, args: ShapeArgs, owned: R
   return { ...body, [field]: 0 };
 }
 
-/** Rule 7: an effort the SDK spelled onto a server whose row says it has no effort field. One the user's own
- *  body set stays. */
-function applyEffortSpelling(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): Record<string, unknown> {
-  if (
-    args.dialect === "openrouter" ||
-    args.features.effort === "reasoning_effort" ||
-    body[REASONING_EFFORT_KEY] === undefined ||
-    owned.has(REASONING_EFFORT_KEY)
-  ) {
-    return body;
-  }
-  args.warnings.push({ code: "effort_dropped", message: "effort ignored: this endpoint's row spells no reasoning-effort field" });
-  const { [REASONING_EFFORT_KEY]: _dropped, ...rest } = body;
-  return rest;
-}
-
-/** Rule 8: the output cap under the word the server takes. The SDK always writes `max_tokens`; a row that
+/** Rule 7: the output cap under the word the server takes. The SDK always writes `max_tokens`; a row that
  *  declares `max_completion_tokens` gets it renamed, nothing else is touched. A `max_tokens` the user's own body
  *  set stays; a `max_completion_tokens` it set or excluded is the cap, and the SDK's `max_tokens` is dropped. */
 function applyOutputCapSpelling(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): Record<string, unknown> {
@@ -329,7 +312,7 @@ function translateCacheMarkers(body: Record<string, unknown>, args: ShapeArgs): 
   };
 }
 
-/** Rule 9, walked from the end. A message-level marker moves onto its row's last text part. A row with no text
+/** Rule 8, walked from the end. A message-level marker moves onto its row's last text part. A row with no text
  *  (an assistant tool-call row, `content: null`) cannot hold one — an empty text block with `cache_control` is
  *  refused — so its marker moves to the nearest EARLIER row with text: a shorter prefix of the same history,
  *  still a valid cache entry (measured: gen-1790145899-YEYx8CfmJdExgPTOB9u4 dropped, gen-1790145901-ZwS0tawK8pqSw284khqj
@@ -379,7 +362,7 @@ function isPlainTurn(message: unknown): message is Record<string, unknown> {
   );
 }
 
-/** Rule 10: fold consecutive plain same-role rows into one message of parts, one text part per row. */
+/** Rule 9: fold consecutive plain same-role rows into one message of parts, one text part per row. */
 function applySameRoleFold(body: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
   const messages = body[MESSAGES_KEY];
   if (!(args.foldSameRole && Array.isArray(messages))) {
@@ -432,7 +415,7 @@ export function shapeOutboundBody(raw: Record<string, unknown>, args: ShapeArgs)
   if (args.replyImages && !owned.has(MODALITIES_KEY)) {
     body = { ...body, [MODALITIES_KEY]: [...REPLY_MODALITIES] };
   }
-  body = applyOutputCapSpelling(applyEffortSpelling(body, args, owned), args, owned);
+  body = applyOutputCapSpelling(body, args, owned);
   return rowsOwned ? body : applySameRoleFold(translateCacheMarkers(applyCacheMarkerSpelling(applyPlannedCacheMarkers(body, args), args), args), args);
 }
 
