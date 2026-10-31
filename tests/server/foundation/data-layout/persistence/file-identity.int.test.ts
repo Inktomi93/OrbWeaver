@@ -7,6 +7,7 @@ import { closeDb, createDb, localPath } from "@orb/db";
 import { DB_FILE_NAME, fileDatabaseUrl, resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { expect, test } from "@orb/testkit/node";
 import { sql } from "drizzle-orm";
+import { DATABASE_URL_KEY } from "#server/foundation/data-layout/contract.ts";
 
 for (const name of ["ordinary space", "capsule%20root", "literal% root #?", "unicode 雪"]) {
   test(`DataLayout opens the exact filesystem root: ${name}`, async ({ importStagingDir }) => {
@@ -26,7 +27,7 @@ for (const name of ["ordinary space", "capsule%20root", "literal% root #?", "uni
 
 test("DataLayout preserves explicit URL inputs", () => {
   for (const url of ["file:./relative%20path.db", ":memory:", "libsql://example.invalid/db"]) {
-    expect(resolveDataLayout({ ["DATABASE_URL"]: url }).databaseUrl).toBe(url);
+    expect(resolveDataLayout({ [DATABASE_URL_KEY]: url }).databaseUrl).toBe(url);
   }
 });
 

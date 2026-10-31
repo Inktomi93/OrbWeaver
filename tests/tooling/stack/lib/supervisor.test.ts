@@ -3,6 +3,7 @@
 // reaches the current child, and an interactive start opens the app in the browser once, after the server first
 // answers. The effects are injected, so the loop is driven without spawning a server or a browser.
 import { parseEnv } from "node:util";
+import { AUTH_FALLBACK_KEY } from "@orb/contracts/identity";
 import { RESTART_EXIT_CODE, START_SUPERVISOR, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
@@ -141,8 +142,8 @@ test("a file switched from single-user to local between two runs yields a child 
   expect(await superviseStart(run.deps)).toBe(0);
   expect(run.plans).toHaveLength(2);
   // The server refuses `AUTH_FALLBACK=owner` once the mode is `local`: a plan built once would carry it into the respawn.
-  expect(run.plans[0]?.env["AUTH_FALLBACK"]).toBe("owner");
-  expect(run.plans[1]?.env["AUTH_FALLBACK"]).toBeUndefined();
+  expect(run.plans[0]?.env[AUTH_FALLBACK_KEY]).toBe("owner");
+  expect(run.plans[1]?.env[AUTH_FALLBACK_KEY]).toBeUndefined();
   for (const plan of run.plans) {
     expect(plan.env[SUPERVISOR_ENV_KEY]).toBe(START_SUPERVISOR);
   }

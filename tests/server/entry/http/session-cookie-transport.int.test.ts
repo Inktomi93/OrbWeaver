@@ -1,7 +1,7 @@
 // Rule C and Rule E over real logins: the session cookie follows the request's transport, logout reads only that
 // transport's cookie behind its CSRF gate, and a plain-http mint from the public internet logs once per client hour.
 // @subject packages/server/src/entry/http/auth-routes.ts
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { isPlainObject } from "@orb/kit/guards";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -33,7 +33,7 @@ interface Box extends AsyncDisposable {
 
 async function box(): Promise<Box> {
   let peer = LAN_PEER;
-  const root = await createServerHarness({ physicalPeer: () => peer, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
+  const root = await createServerHarness({ physicalPeer: () => peer, env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
   await root.services.admin.createUser({ principal: await root.principalFor(root.ownerId), handle: castId<Handle>(HANDLE), password: PASSWORD });
   return {
     root,
@@ -58,7 +58,7 @@ function names(response: Response): string[] {
 
 describe("logout — CSRF gate (real app)", () => {
   test("cross-site force-logout: cookie present but NO CSRF header → 403, no revoke", async () => {
-    await using root = await createServerHarness({ physicalPeer: () => LAN_PEER, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
+    await using root = await createServerHarness({ physicalPeer: () => LAN_PEER, env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
     const { cookie } = await signedInMember(root, castId<Handle>("force-logout-victim"));
     const forged = await root.http.request("/api/auth/logout", { method: "POST", headers: { cookie } });
     expect(forged.status).toBe(403);
@@ -67,7 +67,7 @@ describe("logout — CSRF gate (real app)", () => {
   });
 
   test("with the CSRF header → revokes + clears (200, A6)", async () => {
-    await using root = await createServerHarness({ physicalPeer: () => LAN_PEER, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
+    await using root = await createServerHarness({ physicalPeer: () => LAN_PEER, env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
     const { cookie } = await signedInMember(root, castId<Handle>("logout-member"));
     expect((await authMe(root, { cookie })).authenticated).toBe(true);
     const logout = await root.http.request("/api/auth/logout", { method: "POST", headers: { cookie, [CSRF_HEADER]: "1" } });

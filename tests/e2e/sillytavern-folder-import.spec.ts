@@ -10,6 +10,7 @@ import { authConfigSchema } from "@orb/contracts/auth-config";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { openingPolicySchema } from "@orb/contracts/chat";
 import { ST_SECRETS_FILE, ST_SETTINGS_FILE } from "@orb/contracts/import";
+import { exportCharacterPath, exportChatPath, PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
 import { slugifyHandle } from "@orb/kit/slug";
 import { budget } from "@orb/tooling/floor/host/load-budget";
@@ -22,7 +23,7 @@ import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_ST_FOLDER } from "./support/modes.ts";
 import { restoreAllowanceMs } from "./support/timeouts.ts";
 
-const TREE_ROUTE = "/api/import/tree";
+const TREE_ROUTE = PORTABILITY_ROUTES.importTree;
 const IMPORT_GROUP_NAME = /^Import /u;
 // Quiet-box bases; `budget` stretches them under measured contention and the allowance grows with the folder.
 const ST_CASE_BASE_MS = 120_000;
@@ -54,9 +55,9 @@ async function syntheticLibrary(page: Page, host: ReturnType<typeof ownerActor>,
     const input = createCharacterSchema.parse({ handle: slugifyHandle(name), name, description, greetings: [{ text: greeting }] });
     const created = await host.trpc.character.create.mutate({ input });
     const { chat } = await host.trpc.chat.startChat.mutate({ characterIds: [created.id], opening: openingPolicySchema.enum["first-message"] });
-    const card = await page.request.get(`/api/export/character/${created.id}`);
+    const card = await page.request.get(exportCharacterPath(created.id));
     expect(card.ok()).toBe(true);
-    const transcript = await page.request.get(`/api/export/chat/${chat.id}?format=jsonl`);
+    const transcript = await page.request.get(`${exportChatPath(chat.id)}?format=jsonl`);
     expect(transcript.ok()).toBe(true);
     const profileDir = join(root, profile);
     await mkdir(join(profileDir, "characters"), { recursive: true });

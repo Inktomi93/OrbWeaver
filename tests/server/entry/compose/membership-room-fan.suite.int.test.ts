@@ -1,5 +1,7 @@
 // The verbs outside the chat domain that write a membership-class table announce the write on the room's chat
 // channel, so a co-member's projection refreshes; the per-person user bus cannot reach them.
+
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import type { Fixtures } from "@orb/testkit/node";
@@ -10,7 +12,7 @@ type ChatFrame = Parameters<Parameters<ServicesResult["liveBuses"]["chat"]["subs
 
 const test = baseTest.extend<Pick<Fixtures, "env">>({
   env: async ({}, use): Promise<void> => {
-    await use({ ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" });
+    await use({ [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" });
   },
 });
 

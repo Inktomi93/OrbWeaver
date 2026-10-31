@@ -7,6 +7,7 @@ import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, readRoomCanon } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
+import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 import type { CoreWireReply } from "./core-physical.ts";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
 
@@ -125,7 +126,7 @@ test.for(EMPTY_RPG_ROWS)("a real folded game refuses $label without a recovery l
   const generating = h.root.observability.inRequestSpan(outer, "controlled public folded generation", () =>
     h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId, intent: { maxOutputTokens: 4096 } }),
   );
-  await expect(generating).rejects.toMatchObject({ code: "empty_generation" });
+  await expect(generating).rejects.toMatchObject({ code: CHAT_OP_CODES.emptyGeneration });
   await expect(generating).rejects.toThrow(row.detail);
   await h.root.settleBackground();
   expect(requests).toBe(row.expectedCalls);

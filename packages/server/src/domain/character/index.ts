@@ -12,7 +12,7 @@ export { createLoadCharacterEmbeddingOwner } from "./persistence/embedding-owner
 export { createCopyHandoffCards } from "./persistence/handoff-copy-write.ts";
 export { migrateSeededCardBackgrounds } from "./persistence/migrate-seeded-backgrounds.ts";
 export { createCharacterOwned, createOwnedCharacterIds } from "./persistence/ownership-ops.ts";
-export { readPluginCardData, writePluginCardData } from "./persistence/plugin-card-data.ts";
+export { findPluginCardData, readPluginCardData, writePluginCardData } from "./persistence/plugin-card-data.ts";
 export {
   createCountRefineryScoreTargets,
   createDeleteSnapshot,

@@ -1,6 +1,8 @@
 // The dev supervisor's pure decisions: a host export wins over a pin, a relative run dir resolves against
 // the repo root from any cwd, and the ports follow the server's own `.env`-over-shell precedence.
 import { join, resolve } from "node:path";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { expect, test } from "@orb/testkit/tooling";
 import { DEV_PORTS } from "../../../../tooling/src/floor/host/ports.ts";
 import { cmdlineNamesCheckout, devStackPins, printablePins, stackContext, stackPorts, stackRunDir } from "../../../../tooling/src/stack/index.ts";
@@ -8,7 +10,7 @@ import { cmdlineNamesCheckout, devStackPins, printablePins, stackContext, stackP
 test("a host export wins over a pin, an empty export does not, and every source is named", () => {
   const pins = devStackPins(
     Object.fromEntries([
-      ["AUTH_MODE", "local"],
+      [AUTH_MODE_KEY, "local"],
       ["SESSION_SECRET", ""],
     ]),
   );
@@ -24,14 +26,14 @@ test("the supervisor's pin verdict travels to the leader, where every pin arrive
   // The supervisor fills two pins from a shell that set the rest; the leader's env then carries all six.
   const supervisor = devStackPins(
     Object.fromEntries([
-      ["AUTH_MODE", "local"],
+      [AUTH_MODE_KEY, "local"],
       ["SESSION_SECRET", "s".repeat(40)],
     ]),
   );
   const ctx = stackContext(
     "/repo",
     Object.fromEntries([
-      ["AUTH_MODE", "local"],
+      [AUTH_MODE_KEY, "local"],
       ["SESSION_SECRET", "s".repeat(40)],
     ]),
     null,
@@ -41,8 +43,8 @@ test("the supervisor's pin verdict travels to the leader, where every pin arrive
   expect(leader.env).toEqual(supervisor.env);
   expect(printablePins(leader)).toEqual(
     Object.fromEntries([
-      ["AUTH_FALLBACK", "owner"],
-      ["AUTH_MODE", "local"],
+      [AUTH_FALLBACK_KEY, "owner"],
+      [AUTH_MODE_KEY, "local"],
       ["DEV_SEED", "on"],
     ]),
   );
@@ -63,7 +65,7 @@ test("the ports follow `.env` over the shell, unless the launch skips the file",
     stackPorts(
       Object.fromEntries([
         ["PORT", "9000"],
-        ["ORB_ENV_NO_FILE", "1"],
+        [ENV_NO_FILE_KEY, "1"],
       ]),
       "PORT=9100\n",
     ),
@@ -88,7 +90,7 @@ test("the context threads one run dir and one port pair into the leader env and 
   expect(ctx.launchEnv["STACK_RUN_DIR"]).toBe(ctx.runDir);
   expect(ctx.launchEnv["VITE_PORT"]).toBe("5175");
   expect(ctx.launchEnv["VITE_API_TARGET"]).toBe("http://127.0.0.1:8790");
-  expect(ctx.launchEnv["AUTH_MODE"]).toBe("single-user");
+  expect(ctx.launchEnv[AUTH_MODE_KEY]).toBe("single-user");
   expect(ctx.ambient["PATH"]).toBe("/bin");
   expect(ctx.ambient["STACK_RUN_DIR"]).toBe(ctx.runDir);
   expect(ctx.logs).toEqual({ stack: join(ctx.runDir, "stack.log"), server: join(ctx.runDir, "server.log"), client: join(ctx.runDir, "client.log") });

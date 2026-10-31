@@ -1,3 +1,4 @@
+import { WARNING_CODE } from "@orb/contracts/inference";
 import { resolveChat } from "@orb/inference";
 import { makeGenerationCapability } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -18,7 +19,7 @@ test("enabled reasoning keeps unknown budgets and effort optional, and adaptive 
     makeGenerationCapability({ reasoning: { mode: "adaptive", enabled: true, effortLevels: ["high"] } }),
   );
   expect(adaptive.reasoning).toEqual({ mode: "adaptive", enabled: true, effort: "high" });
-  expect(adaptive.warnings).toContainEqual(expect.objectContaining({ code: "adaptive_budget_dropped" }));
+  expect(adaptive.warnings).toContainEqual(expect.objectContaining({ code: WARNING_CODE.adaptiveBudgetDropped }));
 });
 
 test("unsupported reasoning carries no invented off spelling", () => {

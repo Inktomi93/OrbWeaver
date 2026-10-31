@@ -1,13 +1,6 @@
 import type { CharacterId } from "@orb/kit/ids";
 
-export type { PluginCardDataRead } from "@orb/contracts/character";
-
-/** One `findByImportedFrom` match — the owner's character carrying a queried `importedFrom` value. The hub
- *  search verb builds a `importedFrom → characterId` map from the batch to stamp its page markers. */
-export interface ImportedFromMatch {
-  readonly importedFrom: string;
-  readonly characterId: CharacterId;
-}
+export type { PluginCardDataHit, PluginCardDataRead } from "@orb/contracts/character";
 
 /** One character's per-item outcome inside `bulkAddCardTag`/`bulkRemoveCardTag` (#1694, internal to the
  *  domain — never crosses the wire; the wire shape is `@orb/contracts/character`'s `CharacterBulkTagResult`,

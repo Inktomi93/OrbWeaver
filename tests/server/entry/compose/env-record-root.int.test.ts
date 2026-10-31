@@ -6,7 +6,8 @@
 // @subject packages/server/src/infra/auth/transport.ts
 // @subject packages/server/src/domain/settings/effective-config/layer.ts
 import { authConfigSchema } from "@orb/contracts/auth-config";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER, FORWARD_AUTH_TRUSTED_PROXIES_KEY } from "@orb/contracts/identity";
+import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
@@ -70,7 +71,7 @@ describe("FORWARD_AUTH_TRUSTED_PROXIES through the record", () => {
 
     await using trusted = await createServerHarness({
       physicalPeer: () => PROXY_PEER,
-      env: { ["IP_ALLOWLIST"]: `${LISTED_PEER}/32`, ["FORWARD_AUTH_TRUSTED_PROXIES"]: `${PROXY_PEER}/32` },
+      env: { ["IP_ALLOWLIST"]: `${LISTED_PEER}/32`, [FORWARD_AUTH_TRUSTED_PROXIES_KEY]: `${PROXY_PEER}/32` },
     });
     expect((await trusted.http.request("/healthz", forwarded)).status).toBe(OK);
   });
@@ -81,7 +82,7 @@ describe("FORWARD_AUTH_TRUSTED_PROXIES through the record", () => {
       authConfigSchema.parse(await (await root.http.request("/api/auth/config", proto)).json()).transport;
     await using untrusted = await createServerHarness({ physicalPeer: () => PROXY_PEER });
     expect(await transportOf(untrusted)).toBe("http");
-    await using trusted = await createServerHarness({ physicalPeer: () => PROXY_PEER, env: { ["FORWARD_AUTH_TRUSTED_PROXIES"]: `${PROXY_PEER}/32` } });
+    await using trusted = await createServerHarness({ physicalPeer: () => PROXY_PEER, env: { [FORWARD_AUTH_TRUSTED_PROXIES_KEY]: `${PROXY_PEER}/32` } });
     expect(await transportOf(trusted)).toBe("https");
   });
 
@@ -96,7 +97,7 @@ describe("every forwarded-header read believes the record's trusted proxies", ()
     return createServerHarness({
       ...options,
       physicalPeer: () => PROXY_PEER,
-      env: { ...options.env, ...(trusted ? { ["FORWARD_AUTH_TRUSTED_PROXIES"]: `${PROXY_PEER}/32` } : {}) },
+      env: { ...options.env, ...(trusted ? { [FORWARD_AUTH_TRUSTED_PROXIES_KEY]: `${PROXY_PEER}/32` } : {}) },
     });
   }
 
@@ -109,14 +110,14 @@ describe("every forwarded-header read believes the record's trusted proxies", ()
   });
 
   test("the auth middleware reads the session cookie of a trusted proxy's https transport", async () => {
-    await using root = await behindProxy({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
+    await using root = await behindProxy({ env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
     const { cookie } = await signedInMember(root, castId<Handle>("forwarded-https-member"), FORWARDED_HTTPS);
     expect(cookie).toMatch(/^__Host-orb_session=/u);
     expect((await authMe(root, { cookie, ...FORWARDED_HTTPS })).authenticated).toBe(true);
   });
 
   test("the login throttle keys a trusted proxy's forwarded client, not the proxy", async () => {
-    await using root = await behindProxy({ env: { ["RATE_LIMIT_LOGIN"]: "1", ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
+    await using root = await behindProxy({ env: { ["RATE_LIMIT_LOGIN"]: "1", [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
     const statuses: number[] = [];
     for (const [client, handle] of [
       [UNLISTED_PEER, "throttle-first"],
@@ -140,9 +141,9 @@ describe("every forwarded-header read believes the record's trusted proxies", ()
       await response.arrayBuffer();
       return response.headers.get("cross-origin-opener-policy");
     };
-    await using untrusted = await behindProxy({ env: { ["ALLOWED_HOSTS"]: PUBLIC_NAME } }, false);
+    await using untrusted = await behindProxy({ env: { [ALLOWED_HOSTS_KEY]: PUBLIC_NAME } }, false);
     expect(await opener(untrusted)).toBeNull();
-    await using trusted = await behindProxy({ env: { ["ALLOWED_HOSTS"]: PUBLIC_NAME } });
+    await using trusted = await behindProxy({ env: { [ALLOWED_HOSTS_KEY]: PUBLIC_NAME } });
     expect(await opener(trusted)).toBe("same-origin");
   });
 

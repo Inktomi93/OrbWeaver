@@ -8,6 +8,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { isDeepStrictEqual } from "node:util";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, OIDC_ALLOWED_GROUPS_KEY, OWNER_HANDLES_KEY } from "@orb/contracts/identity";
+import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
+import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
 import { expect, test } from "@orb/testkit/tooling";
 import { E2E_PORT_OFFSET_ENV } from "@orb/tooling/floor/host/ports";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
@@ -22,21 +25,21 @@ test("the test environment preserves explicit overrides and adds the storage opt
     ["NODE_OPTIONS"]: '--max-old-space-size=16384 --import="/a path/preload.js"',
     ["CT_PORT"]: "3100",
     ["ORB_RUN_MARKER"]: "proof-run",
-    ["AUTH_MODE"]: "synthetic-explicit-auth-mode",
+    [AUTH_MODE_KEY]: "synthetic-explicit-auth-mode",
   };
   const environment = testProcessEnv(overrides);
-  expect(environment).toMatchObject({ ...overrides, ["NODE_OPTIONS"]: `${overrides["NODE_OPTIONS"]} --no-webstorage`, ["ORB_ENV_NO_FILE"]: "1" });
+  expect(environment).toMatchObject({ ...overrides, ["NODE_OPTIONS"]: `${overrides["NODE_OPTIONS"]} --no-webstorage`, [ENV_NO_FILE_KEY]: "1" });
   // Compare the entire snapshot without serializing private parent values into a failure report.
   expect(isDeepStrictEqual(inheritedProcessEnv(), ambient)).toBe(true);
   expect(testProcessEnv(environment)).toEqual(environment);
 });
 
 test.for([
-  "AUTH_MODE",
-  "AUTH_FALLBACK",
-  "DEBUG_TOKEN",
-  "OIDC_ALLOWED_GROUPS",
-  "OWNER_HANDLES",
+  AUTH_MODE_KEY,
+  AUTH_FALLBACK_KEY,
+  DEBUG_TOKEN_ENV,
+  OIDC_ALLOWED_GROUPS_KEY,
+  OWNER_HANDLES_KEY,
   "ANTHROPIC_API_KEY",
   "ORB_UNAPPROVED_TEST_KEY",
   "CT_RUN_SLOT_DIR",
@@ -73,8 +76,8 @@ test("the worker environment preserves intentional runtime, CI and native fixtur
 });
 
 test("an explicit caller retains authority over the env-file opt-out", () => {
-  expect(testProcessEnv()["ORB_ENV_NO_FILE"]).toBe("1");
-  expect(testProcessEnv({ ["ORB_ENV_NO_FILE"]: undefined })["ORB_ENV_NO_FILE"]).toBeUndefined();
+  expect(testProcessEnv()[ENV_NO_FILE_KEY]).toBe("1");
+  expect(testProcessEnv({ [ENV_NO_FILE_KEY]: undefined })[ENV_NO_FILE_KEY]).toBeUndefined();
 });
 
 test("the test environment disables storage after an inherited enabling option in an actual Node child", () => {

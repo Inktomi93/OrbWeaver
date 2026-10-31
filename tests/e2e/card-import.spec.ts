@@ -2,6 +2,7 @@
 import { characterListInputSchema } from "@orb/contracts/character";
 import type { CardImportResult } from "@orb/contracts/import";
 import { cardImportResultSchema } from "@orb/contracts/import";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { isPlainObject } from "@orb/kit/guards";
 import type { Page, Response } from "@playwright/test";
 import { ownerActor } from "./support/actors.ts";
@@ -52,7 +53,9 @@ async function importCard(page: Page): Promise<CardImportResult> {
   await page.getByRole("button", { name: "Import a character card", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Import a character card", exact: true });
   await expect(dialog).toBeVisible();
-  const uploaded = page.waitForResponse((candidate) => candidate.request().method() === "POST" && new URL(candidate.url()).pathname === "/api/import");
+  const uploaded = page.waitForResponse(
+    (candidate) => candidate.request().method() === "POST" && new URL(candidate.url()).pathname === PORTABILITY_ROUTES.importCards,
+  );
   await dialog.locator('input[type="file"]').setInputFiles({ name: "smoke-archivist.json", mimeType: "application/json", buffer: Buffer.from(CARD) });
   const response = await uploaded;
   expect(response.ok()).toBe(true);

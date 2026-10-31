@@ -7,9 +7,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { createCharacterSchema } from "@orb/contracts/character";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, DEFAULT_USER_HANDLE_KEY, OWNER_HANDLES_KEY } from "@orb/contracts/identity";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { createDb, localPath, preCloseHousekeeping, runMigrations, users } from "@orb/db";
-
 import { brandedId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { createCas } from "@orb/server/infra/storage/cas";
@@ -76,8 +76,8 @@ test("private intake retains the existing singleton owner and nonempty content i
       pluginSpawn: spawn,
       ownerId: original.id,
       ids,
-      env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
-      rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: original.handle, ["OWNER_HANDLES"]: createTestEnv().DEFAULT_USER_HANDLE },
+      env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" },
+      rolePolicyConfig: { [DEFAULT_USER_HANDLE_KEY]: original.handle, [OWNER_HANDLES_KEY]: createTestEnv().DEFAULT_USER_HANDLE },
       casDir: layout.assets,
       variantDir: layout.variants,
       importStagingDir: layout.importStaging,
@@ -191,8 +191,8 @@ test("private intake retains the existing singleton owner and nonempty content i
       startJobs: false,
       ownerId: original.id,
       ids,
-      env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
-      rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: original.handle, ["OWNER_HANDLES"]: createTestEnv().DEFAULT_USER_HANDLE },
+      env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" },
+      rolePolicyConfig: { [DEFAULT_USER_HANDLE_KEY]: original.handle, [OWNER_HANDLES_KEY]: createTestEnv().DEFAULT_USER_HANDLE },
       casDir: layout.assets,
       variantDir: layout.variants,
       importStagingDir: layout.importStaging,
@@ -219,8 +219,8 @@ test("private intake retains the existing singleton owner and nonempty content i
       startJobs: false,
       ownerId: original.id,
       ids,
-      env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
-      rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: original.handle, ["OWNER_HANDLES"]: createTestEnv().DEFAULT_USER_HANDLE },
+      env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" },
+      rolePolicyConfig: { [DEFAULT_USER_HANDLE_KEY]: original.handle, [OWNER_HANDLES_KEY]: createTestEnv().DEFAULT_USER_HANDLE },
       casDir: layout.assets,
       variantDir: layout.variants,
       importStagingDir: layout.importStaging,

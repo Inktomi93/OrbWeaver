@@ -8,7 +8,7 @@ import { messages, messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
-import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
+import { CHAT_OP_CODES, ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 import { drain, room } from "../verbs/turn-target-authority.fixtures.ts";
 
 async function canon(h: ChatRoot): Promise<{ readonly message: typeof messages.$inferSelect; readonly variant: typeof messageVariants.$inferSelect }[]> {
@@ -33,7 +33,7 @@ test("a plain member is refused with not_host", async () => {
   await using f = await room();
   const before = await canon(f.h);
   await expect(f.h.root.services.chat.forceCharacterTurn({ principal: f.member, chatId: f.h.chatId, characterId: f.aria.id })).rejects.toMatchObject({
-    code: "not_host",
+    code: CHAT_OP_CODES.notHost,
   });
   expect(await canon(f.h)).toEqual(before);
 });
@@ -82,7 +82,7 @@ test("an EXPLICIT foreign personaId is refused not_persona_owner — nothing com
   });
   const before = await canon(f.h);
   await expect(f.h.root.services.chat.commitMessage({ principal: f.member, chatId: f.h.chatId, content: "hi", personaId: persona.id })).rejects.toMatchObject({
-    code: "not_persona_owner",
+    code: CHAT_OP_CODES.notPersonaOwner,
   });
   expect(await canon(f.h)).toEqual(before);
 });
@@ -95,10 +95,10 @@ test("a member sending with ANOTHER user's personaId is refused not_persona_owne
   });
   const before = await canon(f.h);
   await expect(f.h.root.services.chat.send({ principal: f.member, chatId: f.h.chatId, content: "hi", personaId: persona.id })).rejects.toMatchObject({
-    code: "not_persona_owner",
+    code: CHAT_OP_CODES.notPersonaOwner,
   });
   await expect(drain(f.h.root.services.chat.impersonateStream({ principal: f.member, chatId: f.h.chatId, personaId: persona.id }))).rejects.toMatchObject({
-    code: "not_persona_owner",
+    code: CHAT_OP_CODES.notPersonaOwner,
   });
   expect(await canon(f.h)).toEqual(before);
   expect(f.h.requests.filter((request) => new URL(request.url).pathname.endsWith("/chat/completions"))).toEqual([]);
@@ -134,7 +134,7 @@ test("undoContinue on a never-continued variant is refused no_continuation", asy
   }
   const before = await canon(f.h);
   await expect(f.h.root.services.chat.undoContinue({ principal: f.h.owner, chatId: f.h.chatId, messageId: reply.id })).rejects.toMatchObject({
-    code: "no_continuation",
+    code: CHAT_OP_CODES.noContinuation,
   });
   expect(await canon(f.h)).toEqual(before);
 });
