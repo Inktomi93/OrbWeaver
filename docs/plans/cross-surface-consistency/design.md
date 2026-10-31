@@ -82,6 +82,20 @@ Out of the survey: CONTEXT panel bodies, the chat room, the home and corpus dash
 | `corpus-family-map.tsx`, `character-shelf-face.tsx` | The `listitem` role moved from the plate and the face to the grid's wrapper. |
 | `home-rosters-tile-body.tsx` | The list gained the name `Saved rosters`; it had none. |
 
+### Capture record
+
+Isolated before and after captures at desktop and phone: Chats, Characters, Corpus Explore, Insights and Tags, Databank, Presets and the Preset editor, Refinery, Extensions, Settings and Home. The stage data is thin, so populated detail panes are covered by the CTs, not the captures.
+
+| Surface | Difference | Reason |
+| - | - | - |
+| Chats, Databank, Extensions, Refinery, Home | none | They already had the template's tier and rhythm. |
+| Characters | the filters sit 2px lower | The pane rhythm is `row`; the toolbar used `field`. |
+| Settings LIST | the first shelf moves up 16px under the search | The search row and the body are one pane rhythm; the shelves keep their section gap. |
+| Corpus Explore and Insights | the search field takes the dense field step; blocks sit 4px closer | The LIST pane is the instrument tier, as Chats and Characters already were. |
+| Tags | the rows take the dense row steps; the sort and overflow wrap together below the search on a docked pane | The instrument tier, and the search keeps its floor. Side-eye judges the extra line. |
+| Preset editor on a phone | the header verbs sit at the trailing edge | The name defers to the topbar, so the verbs keep their edge rather than sliding to the start. |
+| Presets, Preset editor and Settings content on a desktop | 1 to 4 pixels | Antialiasing and the persona orb's animation, not layout. |
+
 ## Rejected
 
 Do not substitute board closure, isolated screenshot scores, overflow-only checks, or unexplained screenshot baselines for comparative acceptance. Do not introduce page-specific appearance knobs or a second design system.
