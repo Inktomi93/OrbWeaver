@@ -27,7 +27,7 @@ import type { ConfigSectionContribution } from "./config-section-registry.ts";
  *  Self-cleaning in BOTH directions (the D50 producer-coverage DEFERRED discipline): a key that GAINS a section
  *  REDs its stale entry, and a cite for a key that no longer exists (or for a namespace no section claims)
  *  REDs too. */
-export interface UnclaimedSettingsKey {
+interface UnclaimedSettingsKey {
   readonly section: UserSettingsSection;
   readonly key: string;
   /** WHY there is no editor — an unclaimed knob is the settings-side twin of a dead switch (D107). */
