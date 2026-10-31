@@ -27,8 +27,6 @@ export interface TableColumn<TData> {
   /** Enables the click-to-sort header button + `aria-sort`. @defaultValue false */
   readonly sortable?: boolean;
   readonly align?: "start" | "center" | "end";
-  /** A CSS length (`"8rem"`, `"20%"`) applied to the header cell's `width` — a data-driven layout value. */
-  readonly width?: string;
 }
 
 export interface TableSort {
@@ -302,14 +300,7 @@ export function Table<TData>({
                 const align = column.align ?? "start";
                 const isSorted = sorting?.columnId === column.id;
                 return (
-                  <th
-                    aria-sort={ariaSortFor(column, sorting)}
-                    className={slots.th({ align })}
-                    data-slot="table-header-cell"
-                    key={column.id}
-                    scope="col"
-                    style={column.width === undefined ? undefined : { width: column.width }}
-                  >
+                  <th aria-sort={ariaSortFor(column, sorting)} className={slots.th({ align })} data-slot="table-header-cell" key={column.id} scope="col">
                     {column.sortable === true ? (
                       <button className={slots.sortButton()} data-slot="table-sort-button" onClick={(): void => toggleSort(column.id)} type="button">
                         <span>{column.header}</span>
