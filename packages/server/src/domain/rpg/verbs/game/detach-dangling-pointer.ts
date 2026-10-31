@@ -17,6 +17,7 @@
 // a different door. So the heal only ever fires when the pointed-at game is genuinely gone.
 
 import { DomainOperationError } from "@orb/kit/errors";
+import { RPG_OP_CODES } from "#src/domain/rpg/contract/op-codes.ts";
 import type { DetachDanglingPointerParams } from "#src/domain/rpg/contract/params.ts";
 import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
 import { assertHostRole, notFoundGame } from "#src/domain/rpg/guard.ts";
@@ -34,7 +35,7 @@ export function createDetachDanglingPointer(ctx: RpgContext): Pick<RpgService, "
     // Refuse to detach a LIVE game — the pointer is only "dangling" if the game row is actually gone.
     const game = await findGameByChat(ctx.db, params.chatId);
     if (game !== undefined) {
-      throw new DomainOperationError("rpg_pointer_not_dangling", "the chat's game still exists — turn it off with the game toggle, not a detach");
+      throw new DomainOperationError(RPG_OP_CODES.pointerNotDangling, "the chat's game still exists — turn it off with the game toggle, not a detach");
     }
     // Heal: null the stale pointer (the widened chat op DROPS the `metadata.rpg` sub-blob — the chat is now
     // byte-identical to a never-a-game chat, so the takeover collapses like any plain chat).

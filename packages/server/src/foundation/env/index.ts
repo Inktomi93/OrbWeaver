@@ -8,7 +8,7 @@ import { resolve } from "node:path";
 import process from "node:process";
 import { parseEnv as parseDotenv } from "node:util";
 import type { AuthModeSource } from "@orb/contracts/identity";
-import { ENV_FROM_FILE_KEY, envFromFileKeys } from "@orb/kit/env-file";
+import { ENV_FROM_FILE_KEY, ENV_NO_FILE_KEY, ENV_NO_OVERRIDE_KEY, envFromFileKeys } from "@orb/kit/env-file";
 import { isSupervised } from "@orb/kit/supervisor";
 import { CONTAINER_MARKER_FILES } from "./container.ts";
 import type { Env } from "./record/index.ts";
@@ -86,7 +86,7 @@ function loadEnvFileWithOverride(override: boolean): void {
   // vitest.config.ts: filling unset keys from a real `.env` makes a test assert against the operator's
   // deploy config rather than the schema default, which produced reds that were not regressions (see that
   // file's note). Distinct from ORB_ENV_NO_OVERRIDE below, which keeps the load and only flips precedence.
-  if (process.env["ORB_ENV_NO_FILE"] !== undefined) {
+  if (process.env[ENV_NO_FILE_KEY] !== undefined) {
     return;
   }
   let raw: string;
@@ -113,7 +113,7 @@ function loadEnvFileWithOverride(override: boolean): void {
 // Load a local .env before parsing. override:true so a checked-in dev .env wins over a stale shell
 // export. Two escape hatches (VITEST, ORB_ENV_NO_OVERRIDE=1) keep the override from fighting a one-off
 // invocation that wants its own shell vars honored.
-const skipOverride = process.env["VITEST"] !== undefined || process.env["ORB_ENV_NO_OVERRIDE"] !== undefined;
+const skipOverride = process.env["VITEST"] !== undefined || process.env[ENV_NO_OVERRIDE_KEY] !== undefined;
 loadEnvFileWithOverride(!skipOverride);
 
 // A value present right after the load and not put there by the file came with the process, unless the launcher says

@@ -6,7 +6,7 @@
 // ambient env }` rather than read from the ambient process, so the win32 answer is unit-provable on Linux.
 
 import { SETUP_COMMAND, SHARE_MODE_REFUSAL } from "@orb/contracts/identity";
-import { ENV_FROM_FILE_KEY } from "@orb/kit/env-file";
+import { ENV_FROM_FILE_KEY, ENV_NO_OVERRIDE_KEY } from "@orb/kit/env-file";
 import { START_SUPERVISOR, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
 import { MAX_TCP_PORT } from "../../floor/host/ports.ts";
 import type {
@@ -53,9 +53,6 @@ const OPEN_BROWSER_ON = "on";
 const OPEN_BROWSER_OFF = "off";
 /** The variables an SSH server sets in a remote session: a browser opened there would open on the remote machine. */
 const SSH_SESSION_KEYS = ["SSH_CONNECTION", "SSH_TTY"] as const;
-
-/** The server's switch that stops `.env` overriding the process env (foundation/env reads it at load). */
-const ENV_NO_OVERRIDE = "ORB_ENV_NO_OVERRIDE";
 
 const BUILD_FLAGS: ReadonlyMap<string, StartBuildMode> = new Map([
   ["--build", "force"],
@@ -157,7 +154,7 @@ export function restateFileEnv(
 ): Readonly<Record<string, string>> {
   const restated = Object.entries(fileEnv).flatMap(([key, value]) => (value === undefined || key in overrides ? [] : [[key, value] as const]));
   const fromFile = restated.map(([key]) => key).join(",");
-  return Object.fromEntries([...restated, ...Object.entries(overrides), [ENV_NO_OVERRIDE, "1"], [ENV_FROM_FILE_KEY, fromFile]]);
+  return Object.fromEntries([...restated, ...Object.entries(overrides), [ENV_NO_OVERRIDE_KEY, "1"], [ENV_FROM_FILE_KEY, fromFile]]);
 }
 
 // The refusals `--share` answers with itself: the sign-in modes that already sign people in their own way, which a

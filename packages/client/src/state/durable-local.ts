@@ -44,9 +44,8 @@
 // `orb/persistence-boundary`'s allowlist (`RAW_STORAGE_HOMES` in eslint.config.ts). Nothing else here touches browser storage directly.
 
 import type { UserId, VerifiedUserId } from "@orb/kit/ids";
+import { ACTIVE_USER_KEY } from "./durable-local-keys.ts";
 
-/** Where the last-bound identity is recorded, so a cold boot mints on the right namespace (see the header). */
-const ACTIVE_USER_KEY = "orb:active-user";
 /** A first-user legacy move may span failures, identity switches, and reloads; keep its owner durable. */
 const PENDING_ADOPTION_KEY = "orb:pending-legacy-adoption";
 

@@ -67,7 +67,6 @@ type ScopeActionId<S extends CharacterActionScope> = (typeof CHARACTER_ACTION_SC
 /** The owner-gated card download route (`GET /api/export/character/:characterId`). ONE mint, rendered by
  *  both kebabs that offer `exportCard` — the list row's and the CONTEXT pane's (#838). A single-entity door
  *  is a THIN ARM over the bundle descriptor it shares, never a second serialization path (D121 clause D). */
-export const EXPORT_CHARACTER_PATH = "/api/export/character/";
 
 /** One container the card-export route serves. Both are items of ONE submenu (the chat kebab's grammar) —
  *  a thin arm over the same serialization path, never a second one (D121 clause D). File-local: consumers

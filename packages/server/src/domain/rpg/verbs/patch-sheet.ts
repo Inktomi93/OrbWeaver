@@ -23,6 +23,7 @@ import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { RpgActorRef, RpgSheet } from "@orb/contracts/rpg";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, UserId } from "@orb/kit/ids";
+import { RPG_OP_CODES } from "#src/domain/rpg/contract/op-codes.ts";
 import type { PatchSheetParams } from "../contract/params.ts";
 import type { RpgContext, RpgGameRow, RpgService } from "../contract/service.ts";
 import { assertHostRole, assertOwnUserRef, resolveMember } from "../guard.ts";
@@ -38,11 +39,11 @@ function assertAttributes(game: RpgGameRow, attributes: Readonly<Record<string, 
   const vocab = new Set(profile.attributes.map((a) => a.key));
   for (const [key, value] of Object.entries(attributes)) {
     if (!vocab.has(key)) {
-      throw new DomainOperationError("rpg_unknown_attribute", `attribute "${key}" is not in the profile`);
+      throw new DomainOperationError(RPG_OP_CODES.unknownAttribute, `attribute "${key}" is not in the profile`);
     }
     if (value !== null && (value < profile.range.min || value > profile.range.max)) {
       throw new DomainOperationError(
-        "rpg_attribute_out_of_range",
+        RPG_OP_CODES.attributeOutOfRange,
         `attribute "${key}" (${value}) is out of range [${profile.range.min}, ${profile.range.max}]`,
       );
     }
@@ -94,7 +95,7 @@ function actorIds(ref: RpgActorRef): { characterId: CharacterId | null; userId: 
     return { characterId: null, userId: ref.userId };
   }
   // `npc` actors have no identity sheet (they are scene-only NPCs — their state is the volatile plane).
-  throw new DomainOperationError("rpg_cast_has_no_sheet", "an npc has no identity sheet");
+  throw new DomainOperationError(RPG_OP_CODES.castHasNoSheet, "an npc has no identity sheet");
 }
 
 /** Merge the MA-4 patch onto the current sheet (omit = keep). `level` uses key-presence (`"level" in patch`),

@@ -17,9 +17,8 @@ import {
   TREE_FILE_FIELD,
   TREE_LAYOUT_FIELD,
 } from "@orb/contracts/import";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { throwHttpError } from "./http-error.ts";
-
-const TREE_URL = "/api/import/tree";
 
 /** The `202` accept body: the id of the enqueued import workload to subscribe for progress + the result. */
 export type TreeImportStarted = ImportStarted;
@@ -63,7 +62,7 @@ export async function importTree(
   if (layout !== null) {
     form.append(TREE_LAYOUT_FIELD, layout);
   }
-  const response = await fetch(TREE_URL, {
+  const response = await fetch(PORTABILITY_ROUTES.importTree, {
     method: "POST",
     body: form,
     headers: { [CSRF_HEADER]: "1" },
@@ -74,7 +73,6 @@ export async function importTree(
   return importStartedSchema.parse(await response.json());
 }
 
-const REVIEW_URL = "/api/import/tree/review";
 const AVATARS_DIR_SEGMENT = "User Avatars";
 
 /** The files the persona review reads: every profile's `settings.json` and its `User Avatars/` art. */
@@ -94,7 +92,7 @@ export async function reviewTreePersonas(files: readonly File[]): Promise<readon
   for (const file of reviewed) {
     form.append(TREE_FILE_FIELD, file, relativePathOf(file));
   }
-  const response = await fetch(REVIEW_URL, { method: "POST", body: form, headers: { [CSRF_HEADER]: "1" } });
+  const response = await fetch(PORTABILITY_ROUTES.importTreeReview, { method: "POST", body: form, headers: { [CSRF_HEADER]: "1" } });
   if (!response.ok) {
     await throwHttpError("reviewTreePersonas", response);
   }

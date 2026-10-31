@@ -4,6 +4,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { SUMMARIZE_TRANSCRIPT_MARKER } from "@orb/server/domain/chat";
+import { THEME_NAME_KEYWORDS_LEAD } from "../../../packages/server/src/domain/discovery/themes/name-prompt.ts";
 import { seedCorpusRefinery } from "./corpus-refinery.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import {
@@ -22,7 +23,7 @@ type CorpusCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 
 /** Physical model prose only; the real memory parser and discovery math own every derived field. */
 export function corpusKnowledgeText(requestBody: string): string {
-  if (requestBody.includes("Shared keywords:")) {
+  if (requestBody.includes(THEME_NAME_KEYWORDS_LEAD)) {
     return "Orbital ledger";
   }
   if (requestBody.includes(SUMMARIZE_TRANSCRIPT_MARKER)) {

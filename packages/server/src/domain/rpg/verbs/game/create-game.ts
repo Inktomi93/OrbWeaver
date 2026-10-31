@@ -6,6 +6,7 @@
 import { RPG_GAME_MODES } from "@orb/contracts/rpg";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import { RpgModeUnbuiltError } from "#src/domain/rpg/contract/errors.ts";
+import { RPG_OP_CODES } from "#src/domain/rpg/contract/op-codes.ts";
 import type { CreateGameParams } from "#src/domain/rpg/contract/params.ts";
 import type { CreateGameResult } from "#src/domain/rpg/contract/results.ts";
 import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
@@ -18,7 +19,7 @@ export function createCreateGame(ctx: RpgContext): Pick<RpgService, "createGame"
     // Mode gate FIRST (before authority reveals anything): a bad mode is a caller error, `"full"` is the PHASE
     // refusal that NAMES the graft.
     if (!(RPG_GAME_MODES as readonly string[]).includes(params.mode)) {
-      throw new DomainOperationError("rpg_invalid_mode", `unknown mode "${params.mode}"`);
+      throw new DomainOperationError(RPG_OP_CODES.invalidMode, `unknown mode "${params.mode}"`);
     }
     if (params.mode === "full") {
       throw new RpgModeUnbuiltError();
@@ -37,7 +38,7 @@ export function createCreateGame(ctx: RpgContext): Pick<RpgService, "createGame"
     await ctx.claimChat(params.chatId);
     // One game per chat (the UNIQUE chatId is the belt; this is the friendly refusal).
     if (await findGameByChat(ctx.db, params.chatId)) {
-      throw new DomainOperationError("rpg_already_a_game", "this chat is already a game");
+      throw new DomainOperationError(RPG_OP_CODES.alreadyAGame, "this chat is already a game");
     }
 
     // The birth mechanics (row + pointer mirror + bus emit, no born snapshot) live in the ONE shared

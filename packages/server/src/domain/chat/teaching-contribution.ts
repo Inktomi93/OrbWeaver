@@ -30,6 +30,7 @@ import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { resolveSegmentAnchor, segmentSnippet } from "@orb/kit/speaker-label";
 import type { ChatTeachingRegistry } from "./contract/context.ts";
 import { listAttributionReactions, loadPresentCharacterNames } from "./persistence/reactions.ts";
+import { REACTION_ANONYMOUS_REACTOR, REACTION_WHOLE_MESSAGE_TARGET, reactionNote } from "./reaction-note.ts";
 import { NO_HISTORY_FLOOR } from "./substrate/auth/index.ts";
 
 /** Contributor #0 — the rpg gather's injections + tool names, projected onto the teaching contract.
@@ -159,16 +160,16 @@ function attributionLine(
   characterNames: readonly string[],
   parseable: boolean,
 ): string {
-  const name = row.reactorCharacterName ?? row.reactorPersonaName ?? "A member";
+  const name = row.reactorCharacterName ?? row.reactorPersonaName ?? REACTION_ANONYMOUS_REACTOR;
   const anchor =
     parseable && row.segmentIndex !== null && row.segmentSnippet !== null
       ? resolveSegmentAnchor(row.content, characterNames, { index: row.segmentIndex, speaker: row.segmentSpeaker, snippet: row.segmentSnippet })
       : null;
   if (anchor !== null && row.segmentSnippet !== null) {
     const whose = row.segmentSpeaker ?? "the narration";
-    return `[${name} reacted with ${emoji} to ${whose === "the narration" ? whose : `${whose}'s line`}: "${row.segmentSnippet}"]`;
+    return reactionNote(name, emoji, whose === "the narration" ? whose : `${whose}'s line`, row.segmentSnippet);
   }
-  return `[${name} reacted with ${emoji} to the message: "${segmentSnippet(row.content, REACTION_SEGMENT_SNIPPET_MAX)}"]`;
+  return reactionNote(name, emoji, REACTION_WHOLE_MESSAGE_TARGET, segmentSnippet(row.content, REACTION_SEGMENT_SNIPPET_MAX));
 }
 
 /** Fold the read's chronological rows into note lines under the two per-message caps (K + content — see

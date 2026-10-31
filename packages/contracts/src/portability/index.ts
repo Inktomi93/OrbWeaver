@@ -7,6 +7,8 @@ import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
+export { exportCharacterPath, exportChatPath, PORTABILITY_ROUTES } from "./routes.ts";
+
 /** The closed set of portable entity kinds. New entity = one member here + the union widens everywhere.
  *  Declaration order is the design's list; import order is a separate concern (below). */
 export const PORTABLE_KINDS = [
@@ -107,7 +109,7 @@ export interface PortableEnvelope {
 //  silently became U+FFFD and the corrupted string still passed `JSON.parse` — a corrupted artifact "imported
 //  successfully" with altered text. Byte fidelity is checked BEFORE `JSON.parse` even runs, so a file that
 //  fails it never reaches the JSON-syntax check at all; the two reasons are never both true of one file.
-const PORTABLE_PARSE_FAILURES = ["not-json", "invalid-encoding", "foreign-kind", "newer-version", "malformed"] as const;
+export const PORTABLE_PARSE_FAILURES = ["not-json", "invalid-encoding", "foreign-kind", "newer-version", "malformed"] as const;
 
 export type PortableParseFailure = (typeof PORTABLE_PARSE_FAILURES)[number];
 
