@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: blocked
+status: open
 updated: 2026-10-31
 priority: P2
 area: architecture
-blocked: on 1439
 plan: unwired-code
 ---
 
