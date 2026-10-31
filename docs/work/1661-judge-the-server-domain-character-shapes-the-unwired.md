@@ -39,7 +39,7 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Counts: 14 rows = 6 applied, 2 kept with reason, 6 kept deliberate (law section 4). 0 handed off, 0 owner questions.
+Counts: 13 rows = 5 applied, 2 kept with reason, 6 kept deliberate (law section 4). 0 handed off, 0 owner questions.
 
 - `HandoffCardCopy` reexport-chain: applied. `domain/character/contract/handoff-copy.ts` no longer re-exports it; its one user, `persistence/handoff-copy-write.ts`, imports it from `@orb/contracts/chat`. ast-grep ts, 5949 tracked files, tsx 1525: no other importer through the character contract.
 - `DefaultCharacterSeeder`, `createDefaultCharacterSeeder`, `DEFAULT_CHARACTER_CARDS`, `WELCOME_ASSISTANT_HANDLE`: applied (4 rows). `domain/character/index.ts` exports each from its home (`contract/seeder.ts`, `seeder/cards.ts`, `seeder/seed.ts`). `seeder/index.ts` had `character/index.ts` as its only importer (rg across packages, tests, tooling, docs: 0 other), so it is deleted.
