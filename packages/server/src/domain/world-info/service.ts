@@ -40,7 +40,6 @@ import {
   createBackfillTitles,
   createCreateEntry,
   createGetEntry,
-  createListConstantCanon,
   createListEntries,
   createListEntryIndex,
   createRemoveEntry,
@@ -92,6 +91,5 @@ export function createWorldInfoService(input: DbAssemblyInput<WorldInfoContext>)
     listForChat: createListForChat(ctx),
     upsertEntries: createUpsertEntries(ctx),
     listEntryIndex: createListEntryIndex(ctx),
-    listConstantCanon: createListConstantCanon(ctx),
   };
 }

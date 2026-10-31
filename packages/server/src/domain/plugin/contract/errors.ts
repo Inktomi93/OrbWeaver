@@ -20,7 +20,7 @@ export class ManifestInvalidError extends DomainOperationError {
 }
 
 /** A URL install/upgrade/preview could not FETCH the bundle bytes (U8, seam 15 —
- *  `installFromUrl`/`upgradeFromUrl`/`previewFromUrl`). It is deliberately ONE generic, LEAK-FREE error for
+ *  `installFromUrl`/`previewFromUrl`/`upgradeFromStoredUrl`). It is deliberately ONE generic, LEAK-FREE error for
  *  EVERY fetch failure — an SSRF block (the URL resolved to a private/reserved address), a scheme/redirect
  *  refusal, a non-2xx, or a network error — and that is the security property, not laziness: `safeFetch`'s own
  *  `EgressBlockedError.reason` distinguishes "private-address" from "host-not-allowed", and surfacing that

@@ -7,7 +7,6 @@ export { createBulkSetPlacement } from "./bulk-set-placement.ts";
 export { createCount } from "./count.ts";
 export { createCreate } from "./create.ts";
 export { createDuplicate } from "./duplicate.ts";
-export { createGet } from "./get.ts";
 export { createList } from "./list.ts";
 export { createRemove } from "./remove.ts";
 export { createUpdate } from "./update.ts";

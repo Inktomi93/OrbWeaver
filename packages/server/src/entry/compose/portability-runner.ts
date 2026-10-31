@@ -123,7 +123,6 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     bulkImportChats: deps.bulkImportChats,
     bulkImportPersonas: deps.bulkImportPersonas,
     enqueueImportIndex,
-    reconcileImportStats,
     // R6 — the orb-native chat bundle's three cross-domain re-links (persona by name, the chat-tag overlay,
     // the rpg campaign). Shared by both consumers exactly like the rest of this slice.
     findPersonaByName: ({ ownerId, name }: { readonly ownerId: UserId; readonly name: string }): Promise<PersonaId | null> => findPersonaByName(ownerId, name),

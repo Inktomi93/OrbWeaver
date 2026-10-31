@@ -22,7 +22,7 @@ export type { BeginGenerationObservation } from "./contract/generation-observati
 export type { ImageryRoomAccessDeps } from "./contract/imagery-access.ts";
 export type { ImageRefAssets } from "./contract/media-ref.ts";
 export type { MemoryRecallRecorder } from "./contract/memory.ts";
-export { getGroupConfig, getRoomOverrides, toolRecurseLimitSchema } from "./contract/metadata.ts";
+export { toolRecurseLimitSchema } from "./contract/metadata.ts";
 export type { ChatPublicationDeps } from "./contract/publication.ts";
 export type { ReactToolHandlerDeps } from "./contract/react-tool.ts";
 export type { RequestTurnOp } from "./contract/results.ts";

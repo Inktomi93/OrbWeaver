@@ -5,15 +5,8 @@
 // roomOverrides / opening / providerRouting) is lazy-parsed independently, so a malformed one falls back to
 // its default without nuking its siblings.
 
-import type { ChatMetadata, GroupConfig, RoomOverrides } from "@orb/contracts/chat";
-import {
-  DEFAULT_GROUP_CONFIG,
-  DEFAULT_ROOM_OVERRIDES,
-  openingPolicySchema,
-  regexTierAllowSchema,
-  roomOverridesSchema,
-  storedGroupConfigSchema,
-} from "@orb/contracts/chat";
+import type { ChatMetadata } from "@orb/contracts/chat";
+import { openingPolicySchema, regexTierAllowSchema, roomOverridesSchema, storedGroupConfigSchema } from "@orb/contracts/chat";
 import { chatDocumentVisibilitySchema } from "@orb/contracts/databank";
 import { chatRpgPointerSchema } from "@orb/contracts/rpg";
 
@@ -76,16 +69,6 @@ function asRecord(raw: unknown): Record<string, unknown> {
  *  arm in its TYPE even though the runtime value can no longer hold it. */
 export function parseChatMetadata(raw: unknown): ChatMetadata {
   return stripUndefined(chatMetadataSchema.parse(asRecord(raw))) as ChatMetadata;
-}
-
-/** The effective {@link GroupConfig} for a chat's raw `metadata` blob, or {@link DEFAULT_GROUP_CONFIG}. */
-export function getGroupConfig(rawMetadata: unknown): GroupConfig {
-  return parseChatMetadata(rawMetadata).group ?? DEFAULT_GROUP_CONFIG;
-}
-
-/** The effective {@link RoomOverrides} for a chat's raw `metadata` blob, or {@link DEFAULT_ROOM_OVERRIDES}. */
-export function getRoomOverrides(rawMetadata: unknown): RoomOverrides {
-  return parseChatMetadata(rawMetadata).roomOverrides ?? DEFAULT_ROOM_OVERRIDES;
 }
 
 /** The effective recurse-depth cap for a chat's parsed `toolRecurseLimit`: the engine's two prep sites
