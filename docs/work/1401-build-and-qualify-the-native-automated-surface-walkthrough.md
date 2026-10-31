@@ -1,10 +1,9 @@
 ---
 kind: work
-status: blocked
-updated: 2026-10-30
+status: open
+updated: 2026-10-31
 priority: P1
 area: testing
-blocked: on 1421
 plan: surface-walk
 ---
 
