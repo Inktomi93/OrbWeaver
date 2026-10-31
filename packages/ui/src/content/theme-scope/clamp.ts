@@ -47,6 +47,7 @@ import {
   primaryLiteralResets,
   primaryToneVars,
   solveCarriedToneMix,
+  toneHostReset,
   toneLiteralVars,
   toneMixOf,
   toneMixVars,
@@ -294,7 +295,7 @@ function accentAndTonesOn(
   const mix = solveCarriedToneMix(scheme, sources);
   const primary = toneMixOf(mix, "primary");
   const fallback = accent === undefined || accent.coversSteps ? undefined : { accent: accent.fill, hover: primary.hover, active: primary.active };
-  return { accent, toneVars: { ...toneMixVars(mix), ...toneLiteralVars(scheme, sources) }, fallback };
+  return { accent, toneVars: { ...toneMixVars(mix), ...toneLiteralVars(scheme, sources), ...toneHostReset() }, fallback };
 }
 
 /**

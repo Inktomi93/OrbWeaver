@@ -11,7 +11,7 @@ export const drawerVariants = tv({
     backdrop: `${SCRIM_BASE} z-(--z-modal) transition-opacity duration-(--motion-layout) ease-out-expo data-ending-style:opacity-0 data-starting-style:opacity-0`,
     viewport: "fixed inset-0 z-(--z-modal)",
     popup: `
-      absolute flex flex-col bg-card text-card-foreground shadow-overlay transition-transform duration-(--motion-layout) ease-out-expo
+      absolute flex flex-col bg-card text-card-foreground shadow-overlay transition-transform duration-(--motion-layout) ease-out-expo tone-host-card
       data-swiping:transition-none
     `,
     // `flex-1 min-h-0` (not `h-full`) so the content scroll region resolves against the popup's max-h cap.

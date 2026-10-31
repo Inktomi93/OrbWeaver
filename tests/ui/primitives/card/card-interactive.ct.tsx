@@ -22,9 +22,9 @@ for (const { name, ...props } of SEED_CASES) {
     const component = await mount<typeof CardInteractiveStory>(STORY, props);
     for (const tone of TONES) {
       const row = component.locator(`[data-card-tone="${tone}"]`);
-      const ink = await style(row.locator('[data-probe="text-on-tint"]'), "color");
-      const fill = await style(row.locator('[data-probe="tint-active"]'), "color");
       for (const variant of VARIANTS) {
+        const ink = await style(row.locator(`[data-probe="${variant}-text-on-tint"]`), "color");
+        const fill = await style(row.locator(`[data-probe="${variant}-tint-active"]`), "color");
         const card = row.locator(`[data-case="${variant}"]`);
         await card.scrollIntoViewIfNeeded();
         await card.hover();
@@ -41,9 +41,9 @@ for (const { name, ...props } of SEED_CASES) {
     const component = await mount<typeof CardInteractiveStory>(STORY, props);
     for (const tone of TONES) {
       const row = component.locator(`[data-card-tone="${tone}"]`);
-      const ink = await style(row.locator('[data-probe="text-on-tint"]'), "color");
-      const fill = await style(row.locator('[data-probe="tint-active"]'), "color");
       for (const variant of VARIANTS) {
+        const ink = await style(row.locator(`[data-probe="${variant}-text-on-tint"]`), "color");
+        const fill = await style(row.locator(`[data-probe="${variant}-tint-active"]`), "color");
         const card = row.locator(`[data-case="${variant}"]`);
         await card.scrollIntoViewIfNeeded();
         await card.hover();

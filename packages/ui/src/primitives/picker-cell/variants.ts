@@ -47,7 +47,7 @@ export const pickerCellVariants = tv({
     frame: [
       `
         @container relative flex flex-col gap-field overflow-hidden rounded-control border border-border bg-card p-field text-start outline-none block-full
-        min-inline-0
+        min-inline-0 tone-host-card
       `,
       "transition-colors duration-(--motion-fast) ease-out-expo",
       "hover:border-ring",
