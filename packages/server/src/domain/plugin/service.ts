@@ -145,7 +145,7 @@ export function createPluginService(
     getUiBundle: createGetUiBundle(ctx),
     reportUiCrash: createReportUiCrash(ctx, crashPolicy),
     // …and the U5 COMMAND pair (§4.5), the same two shapes over the same registry: an owner-scoped list the
-    // `/plugin` dispatcher + the Plugins chrome menu both read, and a crash-policy'd round-trip that returns the
+    // `/plugin` dispatcher + the command palette both read, and a crash-policy'd round-trip that returns the
     // drained UI outcome.
     listCommands: createListCommands(ctx, registry),
     invokeUiCommand: createInvokeUiCommand(ctx, registry),

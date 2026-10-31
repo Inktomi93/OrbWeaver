@@ -4,7 +4,7 @@
 //
 // WHY THE SUBJECT LIVES IN `#state` RATHER THAN IN THE MODAL BODY. The opener is a MUTATION RESULT — the toast/
 // dialog outcome of `invokeUiAction`/`invokeUiCommand`, which can be fired from a plugin surface in the chat
-// flank, a settings pane row, an extension page, the composer's `/plugin` dispatch or the Plugins chrome menu.
+// flank, a settings pane row, an extension page, the composer's `/plugin` dispatch, the command palette or a placed command.
 // Those are five different subtrees with five different lifetimes; the modal is a shell-level singleton that
 // outlives all of them (the imagery precedent: it must survive a virtualized row's unmount). A `#state` action
 // is the one channel that reaches it from anywhere without a `#features` import (§5.1).

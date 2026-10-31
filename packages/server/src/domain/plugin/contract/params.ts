@@ -347,7 +347,7 @@ export interface ListCommandsParams {
  *
  *  `args` is the RAW remainder after `/plugin <slug> <name>` (trimmed) — a command owns its own argument grammar
  *  (the `SlashCommandRunner` contract, applied across the membrane). `chatId` is the room the person ran it in,
- *  or `null` when there is none (the chrome menu outside a chat): it is gated as a real invocation chat scope,
+ *  or `null` when there is none (the palette or top bar outside a chat): it is gated as a real invocation chat scope,
  *  so a command that reads the room needs the same authority any other guest read of that room does — a command
  *  is not a back door around the chat-read admission. */
 export interface InvokeUiCommandParams {

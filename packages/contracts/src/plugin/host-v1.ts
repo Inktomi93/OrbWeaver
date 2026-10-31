@@ -627,16 +627,16 @@ export interface PluginHostV1 {
      *  membrane. A guest that wants the current room writes `host.ui.setState(id, state, host.chat.current())`. */
     setState: (surfaceId: string, state: Record<string, unknown>, chat?: ChatHandle) => Promise<void>;
     /** Register a COMMAND at activation (the `register` mirror — resident, rebuilt on re-activation, dropped on
-     *  disable). U5, §4.5. The host routes `/plugin <slug> <name> <rest>` and a first-party "Plugins" chrome menu
-     *  item to `onRun`, which receives ONE `{ args, chat }` object (`args` = the raw remainder after the name, so
+     *  disable). U5, §4.5. The host routes `/plugin <slug> <name> <rest>` and a first-party command palette
+     *  row to `onRun`, which receives ONE `{ args, chat }` object (`args` = the raw remainder after the name, so
      *  a command owns its own argument grammar). A plugin never reaches a top-level slash token: the dispatcher
-     *  and the menu are ONE first-party contribution each, fanning per-plugin off the caller's own installs.
+     *  and the palette are ONE first-party contribution each, fanning per-plugin off the caller's own installs.
      *
      *  `onRun` receives ONE `{ args }` object — the raw remainder after the name, so a command owns its own
      *  argument grammar. THE ROOM IS NOT AN ARGUMENT, deliberately: a command run inside a chat is invoked with
      *  that chat as its invocation scope, so it reaches the room through `chat.current()` exactly as a tool,
      *  transform or event handler does. The opaque handle has ONE mint and one accessor; handing a second copy
-     *  in through the args bag would be a second spelling of the same token. Run outside a room (the chrome menu
+     *  in through the args bag would be a second spelling of the same token. Run outside a room (the palette or top bar
      *  on a non-chat screen), `chat.current()` throws — the honest answer, not a synthesized room.
      *
      *  THE #791 TYPED-ARG GRAMMAR: a command MAY declare `args` (the ST `SlashCommandArgument` core —
@@ -652,8 +652,8 @@ export interface PluginHostV1 {
         name: string; // /^[a-z][a-z0-9_]{0,40}$/, unique per plugin
         describe: string; // the palette/menu one-liner (≤ 200 chars)
         args?: readonly PluginCommandArgSpec[]; // the declared typed args (≤ 16); absent ⇒ one opaque `args` remainder
-        group?: string; // optional subgroup inside the attributed Plugins menu
-        placements?: readonly PluginCommandPlacement[]; // closed host-owned composer placement vocabulary
+        group?: string; // optional subgroup inside the host's attributed placements
+        placements?: readonly PluginCommandPlacement[]; // closed host-owned placement vocabulary
       } & (
         | { composerDraft: true; onRun: (a: { args: string; values: Record<string, PluginCommandArgValue>; draft: string }) => string | Promise<string> }
         | { composerDraft?: never; onRun: (a: { args: string; values: Record<string, PluginCommandArgValue> }) => void | Promise<void> }
