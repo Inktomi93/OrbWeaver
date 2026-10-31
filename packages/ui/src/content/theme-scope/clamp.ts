@@ -45,11 +45,11 @@ import {
   carriedToneSources,
   paintedAccentFill,
   primaryLiteralResets,
+  primaryToneMix,
   primaryToneVars,
   solveCarriedToneMix,
   toneHostReset,
   toneLiteralVars,
-  toneMixOf,
   toneMixVars,
 } from "./tone-knobs.ts";
 
@@ -293,7 +293,7 @@ function accentAndTonesOn(
   }
   const sources = carriedToneSources(scheme, accent?.painted ?? null);
   const mix = solveCarriedToneMix(scheme, sources);
-  const primary = toneMixOf(mix, "primary");
+  const primary = primaryToneMix(mix);
   const fallback = accent === undefined || accent.coversSteps ? undefined : { accent: accent.fill, hover: primary.hover, active: primary.active };
   return { accent, toneVars: { ...toneMixVars(mix), ...toneLiteralVars(scheme, sources), ...toneHostReset() }, fallback };
 }
@@ -310,7 +310,7 @@ function nestedAccentOn(picked: string, ambient: CarriedPalette): AccentAndTones
   }
   const primary = carriedToneSources(scheme, accent.painted).filter(({ tone }) => tone === "primary");
   const mix = solveCarriedToneMix(scheme, primary);
-  const steps = toneMixOf(mix, "primary");
+  const steps = primaryToneMix(mix);
   const fallback = accent.coversSteps ? undefined : { accent: accent.fill, hover: steps.hover, active: steps.active };
   // The ring follows this scope's accent, so it is held above the outer scope's edge again (D159); the tone vars land after the fill's ring.
   const ring = nestedRingOn(ambient, accent.painted);
