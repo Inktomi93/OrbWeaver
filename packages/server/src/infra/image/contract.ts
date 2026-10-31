@@ -1,13 +1,13 @@
 // Image normalization contracts stay with the sealed adapter and contain no sharp implementation types.
 
 /** Container formats accepted by the image adapter. */
-export const IMAGE_FORMATS = ["webp", "png", "jpeg"] as const;
+export const IMAGE_FORMATS = ["webp", "png"] as const;
 
 export type ImageFormat = (typeof IMAGE_FORMATS)[number];
 
 /** Options for {@link ImageAdapter.transform}. `width` is OPTIONAL: omit it to normalize/strip metadata
  *  without resizing (e.g. sanitizing an uploaded original); supply an already-snapped width to produce a
- *  variant. `format` defaults to webp; `quality` applies to the lossy encoders (webp/jpeg). */
+ *  variant. `format` defaults to webp; `quality` applies to the lossy encoder (webp). */
 export interface ImageTransformOptions {
   /** Target width in px (already snapped to the domain's ladder). Omitted ⇒ no resize. Never enlarges. */
   width?: number;
@@ -24,7 +24,7 @@ export interface ImageTransformOptions {
    *  exists at all, not a stylistic choice). */
   position?: "attention";
   format?: ImageFormat;
-  /** Lossy-encoder quality 1–100 (webp/jpeg). */
+  /** Lossy-encoder quality 1–100 (webp). */
   quality?: number;
 }
 

@@ -30,8 +30,6 @@ function encode(pipeline: Sharp, format: ImageFormat, quality: number): Sharp {
   switch (format) {
     case "webp":
       return pipeline.webp({ quality });
-    case "jpeg":
-      return pipeline.jpeg({ quality });
     case "png":
       return pipeline.png();
     default: {
