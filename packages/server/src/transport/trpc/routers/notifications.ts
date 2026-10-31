@@ -68,7 +68,7 @@ export const notificationsRouter = t.router({
 
   dismiss: authedProcedure
     .output(inboxViewSchema)
-    .input(z.object({ notificationId: typeIdSchema(ID_PREFIX.notification) }))
+    .input(z.strictObject({ notificationId: typeIdSchema(ID_PREFIX.notification) }))
     .mutation(({ ctx, input }) =>
       ctx.services.notifications.dismiss({
         principal: ctx.auth,
@@ -82,6 +82,6 @@ export const notificationsRouter = t.router({
   // boundary: an over-bound ask is a BAD_REQUEST before the registry is touched.
   presence: multiHumanProcedure
     .output(presenceSnapshotSchema)
-    .input(z.object({ userIds: z.array(brandedId("UserId")).min(1).max(PRESENCE_READ_MAX_USER_IDS) }))
+    .input(z.strictObject({ userIds: z.array(brandedId("UserId")).min(1).max(PRESENCE_READ_MAX_USER_IDS) }))
     .query(({ ctx, input }) => readPresenceDisclosure(ctx.presence, input.userIds)),
 });

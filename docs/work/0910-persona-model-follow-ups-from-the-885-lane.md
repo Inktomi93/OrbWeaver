@@ -32,11 +32,17 @@ Closed as gone:
 
 - Point 5. The header of `tests/server/domain/chat/persona-resolution.suite.int.test.ts` was rebuilt and holds no seed order; nothing to correct (ast-grep is not the tool for comments; `rg -n -i 'seed|crown|default'` over the file finds only `DEFAULT_PROMPT_CONFIG`).
 
-Open, each needs a decision or a wire change; recommended default given:
+Fixed (points 6 and 7):
 
-- Point 1 (bell entry when the pinned persona is deleted). Default: no bell entry. The room block line already changes and the host sees it where they act; a bell entry for a consequence of the host's own co-member's delete adds an inbox row with no action. Needs the owner.
+- The reseat thunk in `packages/server/src/domain/chat/verbs/capture-persona-seats-for-delete.ts` re-reads the captured chats at reseat time (`loadStillEmptySeatChatIds`, `packages/server/src/domain/chat/persistence/persona-seats.ts`) and writes only seats that are still present and still empty. A seat the owner switched after capture keeps their choice, and an owner who left is skipped, so `setParticipantActivePersona` no longer throws `participantNotFound` after the row is deleted and `remove` reaches `fanReach` and the audit entry. Test: `tests/server/domain/chat/verbs/capture-persona-seats-for-delete.int.test.ts` runs the production capture verb on the harness database and interleaves the owner's switch and leave through production verbs between capture and reseat (red on the old thunk with `participantNotFound`, green after). A seat switched onto the doomed persona after capture stays unfixable without one transaction around capture, delete and reseat.
+
+Owner rulings:
+
+- Point 1 (bell entry when the pinned persona is deleted): no bell entry. The room block line already changes and the host sees it where they act. Closed.
+- Point 8 (a disabled but still seated pin owner): leave it. No `enabled` flag on the participant wire. Closed.
+
+Open:
+
 - Point 4 (a held pin's lore book in the turn's lore pool). It changes what the model receives (inference request shaping); stop and rule it before any change.
-- Points 6 and 7 (reseat after delete). The race needs two writers between the capture and the reseat in `packages/server/src/domain/chat/verbs/capture-persona-seats-for-delete.ts`; no test can drive that interleaving through the composed root. Recommended fix: at reseat time re-read the captured chats and write only seats that are still present and still empty, so a switched seat is kept and a left owner is skipped without throwing. A seat switched onto the doomed persona after capture stays unfixable without one transaction around capture, delete and reseat.
-- Point 8 (a disabled but still seated pin owner). `ChatDetail` participants carry no enabled flag, so the client cannot tell. Recommended fix: add `enabled` to the participant wire shape from `resolveUserEnabled`, drop disabled owners from `memberPins`, and word the room block line for them. It is a contract change, so it is the owner's call.
 
 Owner ruling (point 5): the stale seed-order header comment in the persona-resolution suite may be corrected; the suite's test code stays untouched and its comments may change.

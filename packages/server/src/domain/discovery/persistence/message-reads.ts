@@ -50,8 +50,7 @@ interface CharacterMessageSample {
 
 /** The character's most-recent PLAYED assistant scenes (the SELECTED variant's content only) — the grounding
  *  corpus `askCard` answers from. Owner-belted via `characters.ownerId` ∩ `characters.id = messages.characterId`
- *  (a foreign character reads zero rows), synthetic excluded. SELECTs `message_variants.content` +
- *  `messages.createdAt` ONLY — NEVER an economics column (tokens/cost live on `message_variants`, stats-private). */
+ *  (a foreign character reads zero rows), synthetic excluded. SELECTs `message_variants.content` ONLY — NEVER an economics column (tokens/cost live on `message_variants`, stats-private). */
 export async function readCharacterMessageSamples(db: Db, ownerId: UserId, characterId: CharacterId, limit: number): Promise<CharacterMessageSample[]> {
   return await db
     .select({ content: messageVariants.content })

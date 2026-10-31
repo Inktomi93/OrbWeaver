@@ -18,7 +18,7 @@ import type { DomainEventType } from "#events";
 import type { Principal } from "#identity";
 import { generateImageActionArgsSchema } from "#imagery";
 import { AUTOMATION_NOTICE_COOLDOWN_SECONDS, NOTIFICATION_RECIPIENTS } from "#notifications";
-import type { TurnInitiator } from "../chat/bus.ts";
+import type { TurnOrigin } from "../chat/bus.ts";
 import type { RoutableTask } from "../inference/tasks.ts";
 import type { RulePresetId, RulePresetKnobValues, RulePresetView } from "./presets.ts";
 import { rulePresetIdSchema, rulePresetKnobOutputValuesSchema } from "./presets.ts";
@@ -162,7 +162,6 @@ export const globalVariableKeySchema = z.string().min(1).max(GLOBAL_VARIABLE_KEY
 export interface GlobalVariableView {
   readonly key: string;
   readonly value: string;
-  readonly updatedAt: number;
 }
 
 // ── the per-chat rate cap (loop safety) ──────────────────────────────────────────────────────────
@@ -1118,17 +1117,13 @@ export type AutomationRuleTools = z.output<typeof automationRuleToolsSchema>;
 
 // A turn's origin as the cascade guard reads it (chat's `getTurnOrigin`) — the initiator + the depth
 //  the turn ran at. `null` when the ref names no committed reply slot in the chat.
-interface TurnOriginRead {
-  readonly initiator: TurnInitiator;
-  readonly automationDepth: number;
-}
 export interface ChatAutomationReads {
   /** The triggering message projected to the CEL fact (the SELECTED variant's content, D26). `null` when
    *  the id names no live slot (a raced delete). */
   readonly getMessageFact: (chatId: ChatId, messageId: MessageId) => Promise<NonNullable<TriggerFact["message"]> | null>;
 
   /** The cascade-guard depth read off a committed reply slot. `null` = no such slot / a human turn. */
-  readonly getTurnOrigin: (chatId: ChatId, messageId: MessageId) => Promise<TurnOriginRead | null>;
+  readonly getTurnOrigin: (chatId: ChatId, messageId: MessageId) => Promise<TurnOrigin | null>;
 
   /** The chat's CURRENT runtime variables — the materialized delta-fold cache (CEL `vars`). */
   readonly readVariables: (chatId: ChatId) => Promise<Record<string, string>>;
@@ -1364,7 +1359,7 @@ export const confirmSuggestionResultSchema = z.strictObject({
   outcome: automationRunOutcomeSchema,
 }) satisfies z.ZodType<ConfirmSuggestionResult>;
 
-export const automationChatInputSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });
+export const automationChatInputSchema = z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat) });
 
 /** The automation feedback-bus sink: fans one bus event to its chat's `automation.stream` subscribers. The
  *  `surface_quick_reply` arm's `quickReplySurfaced` is the one MEMBER-visible event; the rest are host-only. */

@@ -1,12 +1,12 @@
 import { AUTOMATION_RULE_MAX_FIRES_PER_HOUR, automationTriggerFor, CHAT_TRIGGER_TYPES, DOMAIN_TRIGGER_TYPES, LIVE_TRIGGERS } from "@orb/contracts/automation";
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { Field } from "@orb/ui/field";
 import { ChevronRight, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useId } from "react";
+import { SettingSwitchRow } from "#components";
 import type { AutosaveSession } from "#forms/editor";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { triggerLabel } from "../lib/rule-copy.ts";
@@ -19,8 +19,6 @@ export function RuleEditorSettings({
   readonly form: AutosaveSession<RuleEditorValues>["form"];
   readonly chatId: ChatId | null;
 }): ReactElement {
-  const triggerId = useId();
-  const labelId = `${triggerId}-label`;
   const triggers = chatId === null ? DOMAIN_TRIGGER_TYPES : [...CHAT_TRIGGER_TYPES, ...DOMAIN_TRIGGER_TYPES];
   return (
     <Stack gap="block">
@@ -53,13 +51,17 @@ export function RuleEditorSettings({
                 items.push({ value: field.state.value.type, label: `${triggerLabel(field.state.value.type)} (unavailable)` });
               }
               return (
-                <Stack gap="tight">
-                  <label id={labelId} htmlFor={triggerId}>
-                    When
-                  </label>
+                <Field
+                  label="When"
+                  description={
+                    <>
+                      {transformOnly ? "Rewrites apply when a reply starts." : "Only supported events are listed."}
+                      {unavailable ? " The stored event is unavailable for this rule. Choose a supported event before saving." : null}
+                    </>
+                  }
+                >
+                  {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- the label association flows through Base UI's FieldRootContext at render time, the same as `SelectField`. */}
                   <Select
-                    id={triggerId}
-                    aria-labelledby={labelId}
                     value={field.state.value.type}
                     items={items}
                     onValueChange={(next): void => {
@@ -69,9 +71,7 @@ export function RuleEditorSettings({
                       }
                     }}
                   />
-                  <Text voice="gloss">{transformOnly ? "Rewrites apply when a reply starts." : "Only supported events are listed."}</Text>
-                  {unavailable ? <Text voice="gloss">The stored event is unavailable for this rule. Choose a supported event before saving.</Text> : null}
-                </Stack>
+                </Field>
               );
             }}
           </form.AppField>
@@ -103,9 +103,13 @@ export function RuleEditorSettings({
       </form.AppField>
       <form.AppField name="matchAutomationEvents">
         {(field): ReactElement => (
-          <field.SwitchField
+          // The ruled switch row (label left, control right), so a described switch does not stack a third line under the single-line fields.
+          <SettingSwitchRow
             label="Include events caused by automation"
             description="Off by default. When on, the existing depth cap still stops recursive chains."
+            checked={field.state.value}
+            onChange={field.handleChange}
+            onBlur={field.handleBlur}
           />
         )}
       </form.AppField>

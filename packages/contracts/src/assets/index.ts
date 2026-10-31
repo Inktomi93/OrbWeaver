@@ -7,6 +7,7 @@ import type { AssetId, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/k
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { Principal } from "#identity";
+import { pageDirectionShape } from "#rpc";
 
 export type { SeedCharacterGallery, StoreSeedCharacterAvatar, StoreSeedPersonaAvatar } from "./seed-art.ts";
 export type { SeededPlateAsset, StoreSeedPlate } from "./seed-plate.ts";
@@ -72,7 +73,6 @@ export function blobBannerUrl(hash: string, width: number): string {
 export interface StoredAsset {
   assetId: AssetId;
   hash: string;
-  size: number;
   /** `false` if an index ROW for these bytes already existed (within-user content-addressed dedup, D21).
    *  The row, not the blob: a store that finds the blob already on disk but writes the missing row (crash
    *  recovery) is a creation — that is the flag the `asset.created` emit rides on. */
@@ -89,15 +89,13 @@ const CAS_HASH_HEX_LENGTH = 64;
 
 /** Parses {@link StoredAsset} — the client `uploadAsset` helper's response-boundary validator.
  *
- *  The floor matches what the producer can actually emit (#1371 item 5): `infra/storage/cas.ts` always
- *  returns a 64-char sha-256 hex and a real buffer length, so an empty hash or a negative size was a state
- *  no live path could reach and the schema accepted anyway. This is a RESPONSE validator over our own
- *  server's reply, not an input boundary — the tightening buys a louder failure if the reply ever stops
- *  being what the CAS promises, nothing more, and it is free. */
+ *  The floor matches what the producer can actually emit: `infra/storage/cas.ts` always returns a 64-char
+ *  sha-256 hex, so an empty hash was a state no live path could reach and the schema accepted anyway. This
+ *  is a RESPONSE validator over our own server's reply, not an input boundary — the tightening buys a louder
+ *  failure if the reply ever stops being what the CAS promises, nothing more, and it is free. */
 export const storedAssetSchema = z.object({
   assetId: assetIdSchema,
   hash: z.string().length(CAS_HASH_HEX_LENGTH),
-  size: z.int().nonnegative(),
   created: z.boolean(),
 }) satisfies z.ZodType<StoredAsset>;
 /** The body of a refused `POST /api/assets/upload` (415 wrong contents, 413 over the cap): the reason the
@@ -137,7 +135,7 @@ export const assetListItemSchema = z.strictObject({
 
 /** The keyset position after one owned asset: the previous page's last `(uploadedAt, assetId)`. One object,
  *  because a tRPC infinite query carries exactly one `cursor`. */
-const ownedAssetCursorSchema = z.object({
+const ownedAssetCursorSchema = z.strictObject({
   uploadedAt: z.int(),
   assetId: assetIdSchema,
 });
@@ -145,17 +143,18 @@ export type OwnedAssetCursor = z.infer<typeof ownedAssetCursorSchema>;
 
 /** `listOwned` wire params. `galleryCandidatesFor` narrows to the caller's images not already in that
  *  character's gallery (the add-picker's read); it filters inside the owner scope and never widens it. */
-export const listOwnedParamsSchema = z.object({
+export const listOwnedParamsSchema = z.strictObject({
   kind: assetKindSchema.optional(),
   limit: z.int().min(ASSET_LIST_LIMIT_MIN).max(ASSET_LIST_LIMIT_MAX),
   galleryCandidatesFor: characterIdSchema.optional(),
   cursor: ownedAssetCursorSchema.optional(),
+  ...pageDirectionShape,
 });
 export type ListOwnedParams = z.infer<typeof listOwnedParamsSchema>;
 
 /** `addToGallery` wire params. Owner-only: the asset and — when given — the subject character must
  *  both be owned by the actor; enforced server-side. */
-export const galleryAddParamsSchema = z.object({
+export const galleryAddParamsSchema = z.strictObject({
   assetId: assetIdSchema,
   subjectCharacterId: characterIdSchema.optional(),
 });
@@ -169,7 +168,7 @@ export const DEFAULT_GALLERY_SORT: GallerySort = "newest";
 
 /** The keyset position after one gallery row: the previous page's last `(createdAt, galleryItemId)`. One
  *  object, because a tRPC infinite query carries exactly one `cursor`. */
-const galleryCursorSchema = z.object({
+const galleryCursorSchema = z.strictObject({
   createdAt: z.int(),
   galleryItemId: galleryItemIdSchema,
 });
@@ -178,23 +177,23 @@ export type GalleryCursor = z.infer<typeof galleryCursorSchema>;
 /** `listGallery` wire params. `subjectCharacterId` omitted = the whole gallery. `chatId` narrows to the
  *  pictures generated in that room; it filters inside the owner scope and never widens it. `sort` omitted =
  *  {@link DEFAULT_GALLERY_SORT}; a `cursor` continues the same sort it was read under. */
-export const galleryListParamsSchema = z.object({
+export const galleryListParamsSchema = z.strictObject({
   subjectCharacterId: characterIdSchema.optional(),
   chatId: (typeIdSchema(ID_PREFIX.chat) satisfies z.ZodType<ChatId>).optional(),
   limit: z.int().min(ASSET_LIST_LIMIT_MIN).max(ASSET_LIST_LIMIT_MAX),
   sort: z.enum(GALLERY_SORTS).optional(),
   cursor: galleryCursorSchema.optional(),
+  ...pageDirectionShape,
 });
 export type GalleryListParams = z.infer<typeof galleryListParamsSchema>;
 
-/** One curated gallery item. `hash`/`mime`/`animated` are joined from the `assets` row (owner derives
+/** One curated gallery item. `hash`/`animated` are joined from the `assets` row (owner derives
  *  through that FK — no stamped owner column).
  */
 export interface GalleryItemView {
   readonly galleryItemId: GalleryItemId;
   readonly assetId: AssetId;
   readonly hash: string;
-  readonly mime: string;
   readonly animated: boolean;
   readonly subjectCharacterId: CharacterId | null;
   readonly createdAt: number;
@@ -204,7 +203,6 @@ export const galleryItemViewSchema = z.strictObject({
   galleryItemId: galleryItemIdSchema,
   assetId: assetIdSchema,
   hash: z.string(),
-  mime: z.string(),
   animated: z.boolean(),
   subjectCharacterId: characterIdSchema.nullable(),
   createdAt: z.number(),
@@ -215,7 +213,7 @@ export const galleryItemViewSchema = z.strictObject({
 
 /** `resolveBlobRefs` wire params — the asset ids a rendered message body references. Bounded to avoid
  *  an unbounded `IN (…)`. */
-export const resolveBlobRefsParamsSchema = z.object({
+export const resolveBlobRefsParamsSchema = z.strictObject({
   assetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX),
 });
 
@@ -242,7 +240,7 @@ export const assetBlobRefSchema = assetListItemSchema.pick({ assetId: true, hash
 /** `resolveChatBlobRefs` wire params — the chat-scoped sibling of {@link resolveBlobRefsParamsSchema}
  *  so a co-participant (not just the owner) can render an inline attachment. The server resolves a pair
  *  only when the asset is structurally referenced in that chat AND both parties are present participants. */
-export const resolveChatBlobRefsParamsSchema = z.object({
+export const resolveChatBlobRefsParamsSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
   assetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX),
 });

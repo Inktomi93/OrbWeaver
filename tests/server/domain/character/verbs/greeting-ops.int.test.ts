@@ -84,7 +84,6 @@ test("the real greeting gate precedes template/funding reads; each completion re
   expect(requests).toHaveLength(0);
   expect(await services.character.generateGreeting({ principal: actor, characterId: card.id, steer: "first" })).toEqual({
     text: "Owned greeting.",
-    costUsd: null,
   });
   expect(await requests[0]?.json()).toMatchObject({
     model: "owned-first",

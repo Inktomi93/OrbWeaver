@@ -45,7 +45,7 @@ export const appRouter = t.router({
   health: publicProcedure.query(() => ({ ok: true }) as const),
   // @test-fixture: the CT typed-read template — the client-data CTs (_ct-stories.tsx) type a suspense
   // query against this echo; it ships as the minimal round-trip fixture, no production UI consumer.
-  echo: publicProcedure.input(z.object({ message: z.string() })).query(({ input }) => ({ message: input.message })),
+  echo: publicProcedure.input(z.strictObject({ message: z.string() })).query(({ input }) => ({ message: input.message })),
 
   // The client error boundary's fire-and-forget report. publicProcedure (anonymous-allowed): a render
   // throw can happen before auth resolves, or because auth is broken. Always returns { ok: true } — the

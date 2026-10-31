@@ -2,7 +2,8 @@
 // freed before the next loads. Every query goes through a batch: one IPC round trip per query is ~500x slower.
 import { relative } from "node:path";
 import type { Expression, Node, SourceFile } from "@typescript/native/ast";
-import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
+import { getTouchingPropertyName } from "@typescript/native/ast";
+import type { APIRequestGenerator, Checker, LanguageService, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
 import { API, SymbolFlags } from "@typescript/native/sync";
 import type { Site } from "./classify.ts";
 import { bridgedConfigText } from "./worlds.ts";
@@ -20,11 +21,13 @@ export function hasFlag(flags: number, flag: number): boolean {
 export class NativeWorld implements Disposable {
   readonly config: string;
   readonly checker: Checker;
+  readonly #languageService: LanguageService;
   /** Every source file of the program outside node_modules, declaration files excluded. */
   readonly files: readonly SourceFile[];
   readonly #api: API;
   readonly #root: string;
   readonly #fileOfPath: ReadonlyMap<string, string>;
+  readonly #sourceOf: ReadonlyMap<string, SourceFile>;
 
   private constructor(root: string, config: string, api: API) {
     this.config = config;
@@ -38,9 +41,11 @@ export class NativeWorld implements Disposable {
       throw new Error(`${config}: the TypeScript 7.1 API loaded no project`);
     }
     this.checker = project.checker;
+    this.#languageService = project.languageService;
     const names = project.program.getSourceFileNames().filter((name) => !(name.includes("/node_modules/") || name.endsWith(".d.ts")));
     this.files = this.batch(names.map((name) => project.program.getSourceFile.gen(name))).flatMap((file) => (file === undefined ? [] : [file]));
     this.#fileOfPath = new Map(this.files.map((file) => [file.path, relative(root, file.fileName)]));
+    this.#sourceOf = new Map(this.files.map((file) => [relative(root, file.fileName), file]));
   }
 
   static open(root: string, config: string): NativeWorld {
@@ -93,6 +98,35 @@ export class NativeWorld implements Disposable {
   /** The repository-relative file a declaration lives in, or null for one outside the world's sources. */
   fileOf(handle: NodeHandle): string | null {
     return this.#fileOfPath.get(handle.path) ?? null;
+  }
+
+  /** Whether the world holds the repository-relative file. */
+  has(file: string): boolean {
+    return this.#sourceOf.has(file);
+  }
+
+  /** The sites TypeScript 7.1 find-references reports for the name at each site, the site itself included. A
+   *  reference in a file outside the world's sources (a library or `node_modules`) is not resolved. */
+  referencesAt(sites: readonly Site[]): Site[][] {
+    return this.batch(sites.map((site) => this.#referencesOf(site)));
+  }
+
+  *#referencesOf(site: Site): APIRequestGenerator<Site[]> {
+    const file = this.#sourceOf.get(site.file);
+    const found: Site[] = [];
+    if (file === undefined) {
+      return found;
+    }
+    const node = getTouchingPropertyName(file, site.position);
+    for (const group of yield* this.#languageService.getReferencedSymbolsForNode.gen(node, site.position)) {
+      for (const handle of group.references.filter((candidate) => this.fileOf(candidate) !== null)) {
+        const reference = yield* handle.resolve.gen();
+        if (reference !== undefined) {
+          found.push(this.siteOf(reference));
+        }
+      }
+    }
+    return found;
   }
 
   /** A node's site in one of the world's files. */
