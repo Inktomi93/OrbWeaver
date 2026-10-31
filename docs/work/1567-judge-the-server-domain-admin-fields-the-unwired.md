@@ -28,4 +28,6 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Both rows applied. `RestartParams.confirm` dropped (the router input keeps `confirm: z.literal(true)` as the wire guard). `revokeUserSessions` now resolves void: the router output schema, `RevokeUserSessionsResult` and the test-support capture of the count went with it; the audit row still records the count. The client reads the mutation result as `unknown`.
+
+Ran `pnpm test tests/server/domain/admin/verbs/session-policy.int.test.ts tests/support/node/factories/admin-views.int.test.ts` (exit 0). Typecheck and the rescan run once at the end of the lane.
