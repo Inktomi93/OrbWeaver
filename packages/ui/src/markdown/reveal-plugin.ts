@@ -182,10 +182,10 @@ function wrapTree(node: HastNode, skipped: boolean, state: WrapState): void {
 }
 
 /**
- * Create one reveal-plugin instance (one per streaming Markdown mount). `now` is injectable for
- * deterministic tests; production uses the wall clock the animations themselves run on.
+ * Create one reveal-plugin instance (one per streaming Markdown mount). It reads the wall clock the
+ * animations themselves run on.
  */
-export function createRevealPlugin(now: () => number = () => performance.now()): RevealPlugin {
+export function createRevealPlugin(): RevealPlugin {
   let lastCount = 0;
   let log: RevealSegment[] = [];
 
@@ -204,7 +204,7 @@ export function createRevealPlugin(now: () => number = () => performance.now()):
   const rehypePlugin =
     () =>
     (tree: unknown): void => {
-      const t = now();
+      const t = performance.now();
       const total = countChars(tree as HastNode);
 
       // Watermark upkeep: a shrink = a new tail block / stream reset; growth appends one segment.
