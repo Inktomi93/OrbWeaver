@@ -120,6 +120,9 @@ const MOUNT_SUPPORT_FILES = {
 // Feature test helpers a story imports; each stays free of Node imports so the story can load it.
 const MOUNT_HELPER_FILES = {
   "^tests/client/features/app-shell/surfaces/trail-projection\\.ts$": "values the trail projection story and its spec share",
+  "^tests/client/features/app-shell/surfaces/ramp-surfaces\\.ts$":
+    "the shell surfaces the ramp elevation fills, which the ramp badge story portals into and its spec reads",
+  "^tests/client/features/app-shell/_surface-stories\\.tsx$": "the production shell story the ramp badge story wraps with its badges",
   "^tests/client/components/page-template-cases\\.ts$": "the seed and density matrix the page-template stories mount and their spec reads",
   "^tests/client/features/auth/components/pending-join-fixtures\\.ts$": "the pending-join story's parsed fixtures",
   "^tests/ui/primitives/_seed-scope\\.tsx$": "the seed palette and nested custom scope every ui primitive story mounts its cases in",
@@ -560,6 +563,10 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/character/lib/character-card-facets.ts": "facetFillState and CHARACTER_CARD_FACET_IDS: the feature-private facet model",
     "packages/client/src/features/character/lib/character-card-form-model.ts": "DEFAULT_CHARACTER_CARD_FORM: the empty form the facet model reads",
   },
+  "tests/client/features/character/components/_tag-row-stories.tsx": {
+    "packages/client/src/features/character/components/character-tags-row.tsx":
+      "CharacterTagsRow: the editor's tag row, which no door forwards and only the hero band renders",
+  },
   "tests/client/lib/platform-polyfills.test.ts": {
     "packages/client/src/lib/platform-polyfills.ts": "the polyfill entry main.tsx imports for its side effect; it exports nothing for a door to forward",
     "packages/client/src/lib/platform-shims.ts": "regExpEscape and isError: the shims the entry installs, compared with the builtins",
@@ -575,6 +582,8 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/app-shell/surfaces/app-shell-topbar.ct.tsx": {
     "packages/client/src/features/app-shell/lib/command-shortcut-label.ts":
       "commandShortcutLabel: the platform key hint the command chip's name and description spell",
+    "packages/client/src/lib/chat-rename-names.ts":
+      "renameChatButtonIdentity: the head of the rename button's name, which only this module's own builder uses in production and no door forwards",
   },
   "tests/client/routes/_route-pending-stories.tsx": {
     "packages/client/src/routes/route-pending.tsx": "RoutePending: the router's pending component, which only the router renders and no door forwards",
@@ -614,6 +623,14 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/chat/components/_context-divider-stories.tsx": {
     "packages/client/src/features/chat/components/message-row-divider.tsx":
       "renderContextBoundaryDivider: the divider label's own composition, which only the message row renders and no door forwards",
+  },
+  "tests/client/features/chat/components/_chat-header-title-stories.tsx": {
+    "packages/client/src/features/chat/components/chat-header-title.tsx":
+      "ChatHeaderTitle: the topbar's rename button, which only the chat header renders and no door forwards",
+  },
+  "tests/client/features/character/components/_shelf-face-name-stories.tsx": {
+    "packages/client/src/features/character/components/character-shelf.tsx":
+      "CharacterShelf and ShelfFace: the landing's face buttons, which only the library landing renders and no door forwards",
   },
   "tests/client/features/chat/components/_flank-column-stories.tsx": {
     "packages/client/src/features/chat/components/room-flank.tsx":

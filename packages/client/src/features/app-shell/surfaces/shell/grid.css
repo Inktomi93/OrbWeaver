@@ -113,6 +113,7 @@
 
   /* Elevation `ramp`: a brightness ladder (rail darkest, panes and content lifted) with the hairlines dropped. */
   .shell-grid[data-elevation="ramp"] .shell-panel {
+    @apply tone-host-surface-raised;
     background: var(--color-surface-raised);
   }
   .shell-grid[data-elevation="ramp"] .shell-panel[data-panel-side="list"],
@@ -128,9 +129,11 @@
     border-block-end: none;
   }
   .shell-grid[data-elevation="ramp"] .shell-main {
+    @apply tone-host-card;
     background: var(--color-card);
   }
   .shell-grid[data-elevation="ramp"] .shell-topbar {
+    @apply tone-host-card;
     background: var(--color-card);
     border-block-end: none;
   }
@@ -153,6 +156,7 @@
 
   /* Every section but chats is a reading surface over the wallpaper, so it takes the panes' backing. */
   .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main {
+    @apply tone-host-card;
     background: var(--color-card);
     text-shadow: none;
   }
