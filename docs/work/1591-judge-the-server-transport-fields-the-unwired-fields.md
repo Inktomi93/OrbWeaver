@@ -86,14 +86,16 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Counts: 53 rows = applied 11, derived 0, kept 38, handed off 3 (1 to item 1698, 2 test-only writers), owner questions 1.
+Counts: 53 rows = applied 8, derived 0, kept 41, handed off 3 (1 to item 1698, 2 test-only writers), owner questions 1.
 
-Method: codegraph on the transport context and routers; compiler probe (removed every candidate key, then `pnpm typecheck packages/client/tsconfig.json tooling/tsconfig.json tsconfig.node.json tsconfig.tests-dom.json`, errors sorted by file kind); after restoring the keys with writers the same five-program run plus `tsconfig.tests-iso.json` exited 0. Suites `tests/server/transport/trpc/stream/recipient-isolation.int.test.ts`, `bounded-list-inputs.int.test.ts`, `live-bus-isolation.int.test.ts`, `routers/chat-reasoning-and-move.int.test.ts` (26 passed).
+Method: codegraph on the transport context and routers; compiler probe (removed every candidate key, then `pnpm typecheck packages/client/tsconfig.json tooling/tsconfig.json tsconfig.node.json tsconfig.tests-dom.json`, errors sorted by file kind); after restoring the keys with writers the same five-program run plus `tsconfig.tests-iso.json` exited 0. Suites `tests/server/transport/trpc/stream/recipient-isolation.int.test.ts`, `bounded-list-inputs.int.test.ts`, `live-bus-isolation.int.test.ts`, `routers/chat-reasoning-and-move.int.test.ts` (26 passed). The compiler probe cannot prove an input key has no writer: `z.object` strips an unknown key, and `as const` and spread writers pass. Each deleted key was searched with a literal `rg` across `packages`, `tests`, `tooling` and `scripts`, and every writer of its procedure was read.
 
 | Rows | Class | Reader or writer |
 | - | - | - |
 | `RateLimitDecision.type`, `RoomArgs.multiHumanCapable` (with `RunSocketArgs.multiHumanCapable` and both `stream.ts` passes) | applied | no reader; the `room-source.ts` comment said no source reads it |
-| `commitMessageSchema.blocks` (and `CommitMessageParams.blocks`), `markRevokedByUser.reason`, `browseCharacters.q`, `cooccurringKeywords.limit`, `editImage.size`, `preset.update.kind`, `start.targetOwnerId`, `estimateModelCalls.targetOwnerId`, `estimateModelCalls.assumeAdmitted` | applied | no writer in production, testkit, tooling, CT stories or tests (typecheck clean across all five programs) |
+| `commitMessageSchema.blocks`, `markRevokedByUser.reason`, `browseCharacters.q`, `cooccurringKeywords.limit`, `editImage.size`, `preset.update.kind` | applied | no writer: the literal search and the writers at `use-composer-utilities.ts:62`, `credential-key-row.tsx:151`, `corpus-browse-view.tsx:79`, `corpus-home-charts.tsx:146`, `image-edit-body.tsx:71`, `use-preset-autosave.ts:157-174` and `preset-editor-surface.tsx:234` send none of them |
+| `start.targetOwnerId`, `estimateModelCalls.targetOwnerId` | kept | `packages/client/src/features/workloads/components/run-workload-dialog.tsx:111`, through an `as const` scope and a spread; a bulk `import-st` run throws without it |
+| `estimateModelCalls.assumeAdmitted` | kept | `packages/client/src/features/chat/components/memory-on-confirm.tsx:14`, through an `as const` estimate |
 | `Context.logger/liveBuses/services/rateLimit/presence/sockets/multiHumanCapable/serverInstanceId` | kept | read as `ctx.<field>` in `routers/stream.ts:47-89`, `routers/chat.ts:658`, `trpc.ts:156`, `trpc.ts:205` |
 | `characterRouter.snapshot.label` | kept | `tests/e2e/support/surface-character.ts` writes it |
 | `impersonateStreamSchema.lastEventId` | kept | `routers/chat.ts:651` refuses a supplied token |
