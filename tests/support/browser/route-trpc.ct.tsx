@@ -4,7 +4,17 @@ import { presetDetailSchema, presetIdInputSchema } from "@orb/contracts/preset";
 import { serveCorpusProcedures } from "@orb/testkit/ct";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
-import { isTrpcRequestFor, malformedOrForwardTrpcWire, readTrpcOutput, routeTrpc, trpcEndSubscription, trpcError, trpcHold } from "../node/route-trpc.ts";
+import { routeAuthConfig } from "../node/route-auth-config.ts";
+import {
+  abortProcedure,
+  isTrpcRequestFor,
+  malformedOrForwardTrpcWire,
+  readTrpcOutput,
+  routeTrpc,
+  trpcEndSubscription,
+  trpcError,
+  trpcHold,
+} from "../node/route-trpc.ts";
 
 const ORIGIN = "http://route-trpc.test";
 const HEADING = "The subject heading still renders";
@@ -119,4 +129,33 @@ test("native output capture validates unbatched success and refuses server error
     await fetch(`/api/trpc/preset.get?input=${encodeURIComponent(JSON.stringify({ id }))}`);
   }, preset.id);
   await expect(readTrpcOutput(await malformed, "preset.get", presetDetailSchema)).rejects.toThrow();
+});
+
+test("abortProcedure refuses a procedure alone or batched, leaves others served, and its restore lifts the refusal", async ({ page }) => {
+  await page.route(`${ORIGIN}/**`, (route) => route.fulfill({ contentType: "application/json", body: "{}" }));
+  await page.goto(ORIGIN);
+  const probe = (path: string): Promise<"served" | "refused"> =>
+    page.evaluate(
+      async (url) =>
+        await fetch(url).then(
+          () => "served" as const,
+          () => "refused" as const,
+        ),
+      path,
+    );
+  const lift = await abortProcedure(page, "preset.list");
+  expect(await probe("/api/trpc/preset.list")).toBe("refused");
+  expect(await probe("/api/trpc/character.list,preset.list?batch=1")).toBe("refused");
+  expect(await probe("/api/trpc/character.list")).toBe("served");
+  await lift();
+  expect(await probe("/api/trpc/preset.list")).toBe("served");
+});
+
+test("routeAuthConfig serves an object as JSON and a captured body verbatim", async ({ page }) => {
+  await page.route(`${ORIGIN}/**`, (route) => route.fulfill({ contentType: "text/html", body: "<p>auth</p>" }));
+  await page.goto(ORIGIN);
+  await routeAuthConfig(page, { mode: "local", localEnabled: true });
+  expect(await page.evaluate(async () => (await fetch("/api/auth/config")).json())).toEqual({ mode: "local", localEnabled: true });
+  await routeAuthConfig(page, '{"mode":"oidc"}');
+  expect(await page.evaluate(async () => (await fetch("/api/auth/config")).text())).toBe('{"mode":"oidc"}');
 });

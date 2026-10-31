@@ -3,11 +3,10 @@
 
 import { contextToggleLabel } from "@orb/client/lib";
 import { boxOf, seedShellState } from "@orb/testkit/browser/spec";
-import { SECTION_PROCEDURES } from "@orb/testkit/ct";
+import { channelName, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, routeRoom, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 

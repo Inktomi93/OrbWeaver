@@ -9,7 +9,7 @@ import { FONT_SCALE } from "@orb/kit/font-scale";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { pickKeys } from "@orb/kit/objects";
-import { SECTION_LABELS } from "@orb/testkit/ct";
+import { channelName, SECTION_LABELS } from "@orb/testkit/ct";
 import type { Locator, Page } from "@playwright/test";
 import { z } from "zod";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
@@ -22,7 +22,6 @@ import {
   durableLocalStorageKey,
   PERSISTED_STORE_PREFIX,
 } from "#client/state/durable-local-keys.ts";
-import { channelName } from "../client/lib/appearance-channel-names.ts";
 import type { ActorClient } from "./support/actors.ts";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";

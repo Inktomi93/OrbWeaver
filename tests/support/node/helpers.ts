@@ -46,7 +46,7 @@ export { openAiServer, recordRequest, SLEEP_PROBE_SUFFIX } from "./openai-server
 export type { TerminalFrameOptions } from "./provider-stream.ts";
 export { terminalSseLine } from "./provider-stream.ts";
 export type { TrpcRequestFilter } from "./route-trpc.ts";
-export { isTrpcRequestFor, matchesTrpcRequestInput, readTrpcOutput } from "./route-trpc.ts";
+export { abortProcedure, isTrpcRequestFor, matchesTrpcRequestInput, readTrpcOutput } from "./route-trpc.ts";
 export type { SdkPrivateDiagnosticInput, SdkPrivateDiagnosticResult, SdkScriptSpawn } from "./sdk-process.ts";
 export {
   createSdkProcessSpawner,

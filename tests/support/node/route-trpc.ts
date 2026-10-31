@@ -3,7 +3,7 @@
 // Subscriptions require an explicit terminal responder or their own SSE helper.
 
 import type { AppRouter } from "@orb/server";
-import type { Page, Request, Response } from "@playwright/test";
+import type { Page, Request, Response, Route } from "@playwright/test";
 import { expect } from "@playwright/test";
 import type { z } from "zod";
 import type { TrpcWire } from "../iso/trpc-wire.ts";
@@ -450,6 +450,18 @@ function matchingProcedureIndexes<P extends TrpcProcedurePath>(request: Request,
 export function isTrpcRequestFor(url: string, path: TrpcProcedurePath): boolean {
   const { pathname } = new URL(url);
   return pathname.startsWith(TRPC_PATH_PREFIX) && procedureNames(new URL(url)).includes(path);
+}
+
+/** Refuse every request that carries `path`, alone or within a batch, as an aborted connection. Returns the call that lifts the refusal. */
+export async function abortProcedure(page: Page, path: TrpcProcedurePath): Promise<() => Promise<void>> {
+  const matches = (url: URL): boolean => isTrpcRequestFor(url.href, path);
+  const refuse = async (route: Route): Promise<void> => {
+    await route.abort("aborted");
+  };
+  await page.route(matches, refuse);
+  return async (): Promise<void> => {
+    await page.unroute(matches, refuse);
+  };
 }
 
 /** A production schema and semantic predicate for a pass-through request hold. */

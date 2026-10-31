@@ -1,11 +1,10 @@
 // The production rail keeps its brand/footer fixed while short desktop layouts scroll section navigation.
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { resolvedLength, seedShellState, settledBox } from "@orb/testkit/browser/spec";
-import { createShellAmbientReads, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { channelName, createShellAmbientReads, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page, TestInfo } from "@playwright/test";
-import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { SectionShellStory } from "../_surface-stories.tsx";
 
 const STORY = "tests/client/features/app-shell/_surface-stories/SectionShellStory";

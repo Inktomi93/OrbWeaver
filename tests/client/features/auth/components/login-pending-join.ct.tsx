@@ -1,5 +1,6 @@
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { unnamedLandmarkElementFindings } from "@orb/testkit/browser/spec";
+import { routeAuthConfig } from "@orb/testkit/ct";
 import type { Page, Request, Route } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { PendingJoinStory } from "./_pending-join-stories.tsx";
@@ -32,7 +33,7 @@ async function previewRoom(page: Page): Promise<void> {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.route("**/api/auth/config", (route) => route.fulfill({ status: 200, json: PENDING_AUTH_CONFIG }));
+  await routeAuthConfig(page, PENDING_AUTH_CONFIG);
   await page.addInitScript(() => {
     if (globalThis.top === globalThis.window) {
       globalThis.history.replaceState(null, "", "/login?pendingJoin=1");

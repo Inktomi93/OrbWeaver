@@ -16,7 +16,7 @@ export { emulateMedia, releaseEmulatedMedia } from "./media-emulation.ts";
 export { diagnosticTarget } from "./performance-entry.ts";
 export { pixelContrast, pixelSurface } from "./pixel-contrast.ts";
 export { beginReading, scrollIntoReadingMessage, tokenColor } from "./reading-position.ts";
-export { enlargeUntilVisible, setRootProperty } from "./root-property.ts";
+export { enlargeUntilVisible, setRootFontScale } from "./root-property.ts";
 export { assertSurfaceReady, auditSurface } from "./settle-surface.ts";
 export {
   controlledPanel,

@@ -23,16 +23,15 @@ Each helper exists behind its door with its own test, and every copy the audits 
 
 ## Evidence
 
-Built, each behind its door with its own test:
+Built by the 1494 lane, each behind its door with a test:
 
-| Helper | Home and door |
-| - | - |
-| `typeId(prefix)` on the seeded ids | `tests/support/iso/ids.ts`, test in `tests/support/node/seeded-ids.test.ts` |
-| `forEachNonEmpty` | `tests/support/iso/non-empty.ts`, iso door |
-| `makePluginProviderRow`, `pluginProviderId` | `tests/support/iso/provider-rows.ts`, iso door |
-| `IN_RANGE_CARD_FRAME_STYLE` | `tests/support/iso/card-frame-style.ts`, iso door |
-| `makeRpgActorEntry`, `makeRpgActorIdentity` | already in `tests/support/iso/rpg-state.ts`; published on the iso door |
-| `PUBLIC_PEER_ADDRESS` | `tests/support/iso/network.ts`, iso door; used across `tests/support` |
-| `plantTrigger` | `tests/support/node/db-faults.ts`, composed door; `refuseWrites` is built on it; used by `tests/support/node/surface-data.int.test.ts` |
+- `SHELL_MOUNT_PROCEDURES` beside `SECTION_PROCEDURES` in `tests/support/node/ct-shell-procedures.ts`, on the `@orb/testkit/ct` door; `tests/support/node/ct-shell-procedures.test.ts` holds the list invariants. Four suites use it.
+- `channelName` in `tests/support/node/appearance-channel-name.ts`, on the `ct` door, reachable from the e2e world; `appearance-channel-name.test.ts` covers every manifest row. `tests/client/lib/appearance-channel-names.ts` stays as a one-line re-export for the UI tier until item 1495 repoints `tests/ui/styles/ramp-enforcement.ct.tsx`.
+- `routeAuthConfig` in `tests/support/node/route-auth-config.ts`, on the `ct` door; the cases are in `tests/support/browser/route-trpc.ct.tsx`. Twenty client suites use it. Two suites keep a live per-request read of the root (`_surface-harness.ts`, `platform-admin-reset-names.suite.ct.tsx`) because they track root state.
+- `abortProcedure` beside `isTrpcRequestFor` in `tests/support/node/route-trpc.ts`, on the `ct` and `node/helpers` doors; its case is in `route-trpc.ct.tsx`. The five e2e fault closures use it.
+- `E2E_PORT_OFFSET_ENV` beside `e2eRunPorts` in `tooling/src/floor/host/ports.ts`; `modes.ts` and `process-env.ts` read it. The surface-walk project names are composed inside `playwright-surface.config.ts`, which a spec cannot import without running the config, so no name constant exists to export.
+- `setRootFontScale` and `enlargeUntilVisible` in `tests/support/browser/root-property.ts`, on the `browser/spec` door.
+- `EDGE_FALLBACK_SCOPE` and `TONE_FALLBACK_SCOPE` in `tests/support/iso/theme-fallback-cases.ts`, on the `iso` door.
+- The e2e disclosure, details and scroll walkers in `tests/support/browser/disclosure-walk.ts`.
 
-Not built yet: the PortableChat builder and the chat character, persona and room builders. The copies outside `tests/support` still spell the peer address, provider rows, style slice and actor entries by hand.
+Not built: the seed-and-scope case table (waits on 1495), and the other builders the What names.

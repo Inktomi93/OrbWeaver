@@ -2,12 +2,11 @@
 // measured to fail: a row claims only what it shows and keeps its trigger on screen; a surface opened from the More menu
 // returns focus to the trigger; arrival focus skips an action that moved into the menu; a pane whose first read cannot proceed
 // offline paints its own copy; hidden entries leave no box and no gap.
-import { enlargeUntilVisible, seedShellState, setRootProperty } from "@orb/testkit/browser/spec";
-import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
+import { enlargeUntilVisible, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
+import { channelName, SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -83,7 +82,7 @@ test.describe("on a phone", () => {
   test("at 300% text every trigger stays on screen", async ({ mount, page }) => {
     await seedShellState(page, { activeSection: "chats" });
     await mount<typeof AppShellStory>(STORY, {});
-    await setRootProperty(page, FONT_SCALE_PROPERTY, 3);
+    await setRootFontScale(page, FONT_SCALE_PROPERTY, 3);
     const { shown, off } = await triggersAgainst(page, PHONE.width);
     expect(shown).toBeGreaterThan(0);
     expect(off).toEqual([]);
@@ -92,7 +91,7 @@ test.describe("on a phone", () => {
   test("keyboard arrival lands on the menu trigger when the band's first action has moved into it", async ({ mount, page }) => {
     await seedShellState(page, { activeSection: "home" });
     await mount<typeof AppShellStory>(STORY, {});
-    await setRootProperty(page, FONT_SCALE_PROPERTY, 4);
+    await setRootFontScale(page, FONT_SCALE_PROPERTY, 4);
     const entry = page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.chats, exact: true });
     await entry.focus();
     await entry.press("Enter");
@@ -104,7 +103,7 @@ test.describe("on a phone", () => {
   test("at 200% text a band keeps its primary inline in the room its shed title left", async ({ mount, page }) => {
     await seedShellState(page, { activeSection: "chats" });
     await mount<typeof AppShellStory>(STORY, {});
-    await setRootProperty(page, FONT_SCALE_PROPERTY, 2);
+    await setRootFontScale(page, FONT_SCALE_PROPERTY, 2);
     const action = page.locator(BAND_ACTION);
     await expect(action.getByRole("button", { name: "New", exact: true })).toBeVisible();
     await expect(action.locator(TRIGGER)).toHaveCount(0);
@@ -129,7 +128,7 @@ test.describe("on the narrowest phone", () => {
   test("at 200% text every trigger stays on screen", async ({ mount, page }) => {
     await seedShellState(page, { activeSection: "characters" });
     await mount<typeof AppShellStory>(STORY, {});
-    await setRootProperty(page, FONT_SCALE_PROPERTY, 2);
+    await setRootFontScale(page, FONT_SCALE_PROPERTY, 2);
     const { shown, off } = await triggersAgainst(page, NARROWEST_PHONE.width);
     expect(shown).toBeGreaterThan(0);
     expect(off).toEqual([]);
@@ -177,7 +176,7 @@ test.describe("on a desktop", () => {
     test(`Escape from ${entry.name}, opened from the More menu, returns focus to the trigger`, async ({ mount, page }) => {
       await seedShellState(page, { activeSection: "chats" });
       await mount<typeof AppShellStory>(STORY, {});
-      await setRootProperty(page, FONT_SCALE_PROPERTY, 3);
+      await setRootFontScale(page, FONT_SCALE_PROPERTY, 3);
       const trigger = page.locator(TRAIL).locator(TRIGGER);
       // By keyboard, as a screen-reader user opens it: the item that held focus is gone when the surface closes.
       await trigger.focus();

@@ -1,8 +1,8 @@
 // A ThemeScope hands the fallback it took to the reporter contexts a host provides: once per scope and fallback, for both
 // the D336 primary fallback and the D159 form-control edge fallback.
+import { EDGE_FALLBACK_SCOPE, TONE_FALLBACK_SCOPE } from "@orb/testkit/iso";
 import { expect, test } from "@playwright/test";
 import type { FallbackDeliveryStory } from "./_fallback-delivery-stories.tsx";
-import { EDGE_FALLBACK_SCOPE, TONE_FALLBACK_SCOPE } from "./fallback-cases.ts";
 
 const STORY = "tests/ui/content/theme-scope/_fallback-delivery-stories/FallbackDeliveryStory";
 
