@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { automationRuleUpdateSchema } from "@orb/contracts/automation";
 import { DOCUMENT_SCOPE_SOURCES } from "@orb/contracts/databank";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { TAG_TARGET_TYPES } from "@orb/contracts/tag";
 import { assertReferentialIntegrity } from "@orb/db";
 import { CHAT_WARNING_CODES } from "../../../packages/contracts/src/chat/bus.ts";
@@ -31,7 +32,7 @@ test("native library projections retain canonical usage, ordering, intake and re
   await using root = await createServerHarness({
     providerFetch: wire.execute,
     secretBoxKey: SECRET_BOX_TEST_KEY,
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" },
   });
   const actors = await seedCorpusActors(root);
   const library = await seedCorpusLibraries(root);

@@ -9,10 +9,11 @@
 // @subject packages/server/src/domain/imagery/persistence/portability-read.ts
 // @subject packages/server/src/domain/imagery/persistence/portability-write.ts
 import { characterHandleSchema, createCharacterSchema } from "@orb/contracts/character";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { portableImageryCallSchema } from "@orb/contracts/imagery";
 import { importStartedSchema } from "@orb/contracts/import";
 import type { PortableFile, PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { characters, chatParticipants, imageryGenerations } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
@@ -31,8 +32,8 @@ import { seedChatInviteRows, seedInvitedChatParticipantRows } from "@orb/testkit
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 
-const EXPORT_ROUTE = "/api/export/library";
-const BUNDLE_ROUTE = "/api/import/bundle";
+const EXPORT_ROUTE = PORTABILITY_ROUTES.exportLibrary;
+const BUNDLE_ROUTE = PORTABILITY_ROUTES.importBundle;
 const SIGNED_IN_ROUTE = "/api/trpc/sessions.me";
 const WORKLOAD_DEADLINE_MS = 60_000;
 /** Asset ids restore verbatim, so the exporting box mints from its own band. */
@@ -61,7 +62,7 @@ async function signedInBox(options: { readonly ids?: ReturnType<typeof createSee
   const root = await createServerHarness({
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
     ...(options.ids === undefined ? {} : { ids: options.ids }),
     ...(options.pictures === undefined ? {} : { providerFetch: imageProvider(options.pictures) }),
   });

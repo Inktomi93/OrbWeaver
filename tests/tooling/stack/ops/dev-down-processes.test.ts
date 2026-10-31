@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import type { LeaderRecord, StackContext } from "../../../../tooling/src/stack/contract/types.ts";
 import { leaderRecordPath, writeLeaderRecord } from "../../../../tooling/src/stack/lib/leader-record.ts";
 import { stackContext } from "../../../../tooling/src/stack/lib/stack-plan.ts";
@@ -31,7 +32,7 @@ for (const departed of [true, false]) {
       windows.checkout,
       Object.fromEntries([
         ["STACK_RUN_DIR", join(scratch, "run")],
-        ["ORB_ENV_NO_FILE", "1"],
+        [ENV_NO_FILE_KEY, "1"],
       ]),
       null,
     );
@@ -55,7 +56,7 @@ test("Windows-edge dev shutdown retains its record on process observation refusa
     windows.checkout,
     Object.fromEntries([
       ["STACK_RUN_DIR", join(scratch, "run")],
-      ["ORB_ENV_NO_FILE", "1"],
+      [ENV_NO_FILE_KEY, "1"],
     ]),
     null,
   );
@@ -68,7 +69,7 @@ test("Windows-edge dev shutdown retains its record on process observation refusa
 });
 
 test("Windows-edge dev shutdown retains its record when taskkill refuses", async ({ scratch, windows }) => {
-  const ctx = stackContext(windows.checkout, { ["STACK_RUN_DIR"]: join(scratch, "run"), ["ORB_ENV_NO_FILE"]: "1" }, null);
+  const ctx = stackContext(windows.checkout, { ["STACK_RUN_DIR"]: join(scratch, "run"), [ENV_NO_FILE_KEY]: "1" }, null);
   writeLeaderRecord(ctx.runDir, record(ctx, windows.rootPid, windows.leafPid));
   windows.state.status = 5;
   windows.state.removeTargets = false;
@@ -79,7 +80,7 @@ test("Windows-edge dev shutdown retains its record when taskkill refuses", async
 });
 
 test("Windows-edge unrecorded owned port holder is stopped through one retained tree", async ({ scratch, windows }) => {
-  const ctx = stackContext(windows.checkout, { ["STACK_RUN_DIR"]: join(scratch, "run"), ["ORB_ENV_NO_FILE"]: "1" }, null);
+  const ctx = stackContext(windows.checkout, { ["STACK_RUN_DIR"]: join(scratch, "run"), [ENV_NO_FILE_KEY]: "1" }, null);
   const result = await doDevDown(
     ctx,
     {},

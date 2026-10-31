@@ -1,5 +1,8 @@
 // @subject tests/support/node/corpus-image-variants.ts
 // @subject tests/support/node/corpus-image-wire.ts
+
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { WARNING_CODE } from "@orb/contracts/inference";
 import { assertReferentialIntegrity } from "@orb/db";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import { CORPUS_VARIANT_EDIT_INSTRUCTION, CORPUS_VARIANT_FREE_PROMPT, CORPUS_VARIANT_OVERRIDE, seedCorpusImageVariants } from "./corpus-image-variants.ts";
@@ -20,7 +23,7 @@ test("native image admission and funded output variants preserve short-edge skip
     images: [],
   });
   await using root = await createServerHarness({
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" },
     providerFetch: wire.wrap(fallback.execute),
     secretBoxKey: SECRET_BOX_TEST_KEY,
   });
@@ -55,7 +58,7 @@ test("native image admission and funded output variants preserve short-edge skip
     prompt: CORPUS_VARIANT_OVERRIDE,
     promptSource: "user",
     mode: "character",
-    warnings: [{ code: "image_edit_dropped" }],
+    warnings: [{ code: WARNING_CODE.imageEditDropped }],
   });
   expect(result.warning.picture.warnings[0]?.detail).toContain(CORPUS_VARIANT_IMAGE_MODEL);
   expect(result.edited.picture).toMatchObject({

@@ -1,3 +1,4 @@
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import { streamConnectInputSchema } from "@orb/contracts/stream";
 import type { ChatId, Handle } from "@orb/kit/ids";
@@ -10,7 +11,7 @@ import { vi } from "vitest";
 
 test("actual authenticated multiplexing enforces socket ownership and withholds foreign and pre-join replay/live bytes", async () => {
   await using harness = await createServerHarness({
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" },
     secretBoxKey: SECRET_BOX_TEST_KEY,
   });
   const initialOwner = await harness.internalCallerFor(harness.ownerId);

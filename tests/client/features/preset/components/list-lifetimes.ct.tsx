@@ -2,7 +2,7 @@ import { choiceBlockSchema, presetDetailSchema, userMacroSchema } from "@orb/con
 import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { AUTOSAVE_RESUME_NAME } from "#client/forms/editor/autosave-status-names.ts";
+import { AUTOSAVE_RESUME_NAME, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import type { PresetListLifetimeStory } from "./_list-lifetime-stories.tsx";
 
 test.use({ trace: "on" });
@@ -87,7 +87,7 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   const component = await mount<typeof PresetListLifetimeStory>("tests/client/features/preset/components/_list-lifetime-stories/PresetListLifetimeStory", {
     presetId,
   });
-  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "Data", exact: true }).click();
   await page.getByRole("button", { name: "{{cohort_macro}}", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Edit macro", exact: true });
@@ -132,7 +132,7 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   await dialog.getByRole("button", { name: "Add input", exact: true }).click();
   await dialog.locator('input[name="userMacros[0].inputs[1].name"]').fill("added_input");
   await dialog.getByRole("group", { name: "Macro input 2", exact: true }).getByRole("button", { name: "Remove", exact: true }).first().click();
-  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toBeVisible();
   await component.update({ presetId, revision: 1 });
   await expect(page.getByLabel("Read revision", { exact: true })).toHaveText("1");
   await expect(dialog).toBeVisible();
@@ -167,7 +167,7 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   await remaining.pressSequentially("er");
   await expect(remaining).toBeFocused();
   await expect(remaining).toHaveValue("Louder");
-  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toBeVisible();
   await component.update({ presetId, revision: 4 });
   await expect(page.getByLabel("Read revision", { exact: true })).toHaveText("4");
   await expect(variable).toBeVisible();
@@ -180,13 +180,13 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   await page.getByRole("button", { name: "cohort_variable", exact: true }).click();
   await expect(remaining).toHaveValue("Louder draft");
   await expect(page.getByText("Restored draft — not saved", { exact: true })).toBeVisible();
-  await expect(page.getByText("Saved", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toHaveCount(0);
   await variable.getByRole("button", { name: "Done", exact: true }).click();
   await page.getByRole("button", { name: AUTOSAVE_RESUME_NAME, exact: true }).press("Enter");
   await expect(page.getByText("Save failed —", { exact: true })).toBeVisible();
   failSaves = false;
   await page.getByRole("button", { name: "Retry", exact: true }).press("Enter");
-  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toBeVisible();
   expect(trpc.lastInput("preset.update")?.config?.variables?.[0]?.options[0]?.label).toBe("Louder draft");
   expect(trpc.lastInput("preset.update")?.config).not.toHaveProperty("variableRowIds");
   await component.update({ presetId, revision: 5 });
@@ -261,9 +261,9 @@ test("pending writes cannot replace newer edits, and explicit reset admits a new
   first.release();
   await second.requested;
   await expect(label).toHaveValue("Newer");
-  await expect(page.getByText("Saved", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toHaveCount(0);
   second.release();
-  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toBeVisible();
   await component.update({ presetId, revision: 2 });
   await expect(page.getByLabel("Read revision", { exact: true })).toHaveText("2");
   await expect(label).toHaveValue("Newer");
@@ -275,7 +275,7 @@ test("pending writes cannot replace newer edits, and explicit reset admits a new
   await page.getByRole("button", { name: "Add variable", exact: true }).click();
   await dialog.getByRole("textbox", { name: "Question", exact: true }).fill("New owner after reset");
   await expect(dialog.getByRole("textbox", { name: "Question", exact: true })).toBeFocused();
-  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toBeVisible();
   expect(trpc.lastInput("preset.update")?.config?.variables?.[0]?.question).toBe("New owner after reset");
   expect(trpc.lastInput("preset.update")?.config).not.toHaveProperty("variableRowIds");
 });

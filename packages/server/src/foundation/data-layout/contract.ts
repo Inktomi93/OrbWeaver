@@ -1,7 +1,12 @@
 // The data layout's shapes: the slot keys an operator may override, the raw input and the resolved tree.
 
 /** The env keys that override one slot each; an unset key derives its slot from `DATA_DIR`. */
-export const DATA_LAYOUT_SLOT_KEYS = ["DATABASE_URL", "ASSETS_DIR", "LOCAL_LIGHT_CACHE_DIR", "USER_RUNTIME_DIR", "IMPORT_STAGING_DIR"] as const;
+export const DATABASE_URL_KEY = "DATABASE_URL";
+export const ASSETS_DIR_KEY = "ASSETS_DIR";
+export const LOCAL_LIGHT_CACHE_DIR_KEY = "LOCAL_LIGHT_CACHE_DIR";
+export const USER_RUNTIME_DIR_KEY = "USER_RUNTIME_DIR";
+export const IMPORT_STAGING_DIR_KEY = "IMPORT_STAGING_DIR";
+export const DATA_LAYOUT_SLOT_KEYS = [DATABASE_URL_KEY, ASSETS_DIR_KEY, LOCAL_LIGHT_CACHE_DIR_KEY, USER_RUNTIME_DIR_KEY, IMPORT_STAGING_DIR_KEY] as const;
 export type DataLayoutSlotKey = (typeof DATA_LAYOUT_SLOT_KEYS)[number];
 
 /** The env keys whose explicit value replaces a generated keyfile; a set one keeps the legacy keyfile in place. */

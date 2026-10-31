@@ -1,6 +1,7 @@
 // @subject packages/server/src/transport/trpc/routers/chat.ts
 // @subject packages/server/src/domain/chat/verbs/edit.ts
 import type { ChatBusEvent } from "@orb/contracts/chat";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import type { ChatId, Handle, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -10,7 +11,7 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
 
 // Per-user credential storage (each principal's chat connection) needs a secret-box key.
-const LOCAL_ENV = { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" };
+const LOCAL_ENV = { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" };
 
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 

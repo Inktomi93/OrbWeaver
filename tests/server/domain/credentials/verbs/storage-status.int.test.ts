@@ -6,6 +6,7 @@ import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
+import { CREDENTIALS_OP_CODES } from "#server/domain/credentials/contract/errors.ts";
 
 const KEY = "storage-status-private-key";
 
@@ -31,6 +32,8 @@ test("disabled storage refuses the secret write its capability view warns about"
   const principal = await root.principalFor(actor.id);
   const caller = await root.internalCallerFor(actor.id);
   expect(await caller.credentials.storageStatus()).toEqual({ enabled: false });
-  await expect(root.services.credentials.add({ principal, provider: TEST_PROVIDER_ID, key: KEY })).rejects.toMatchObject({ code: "credentials_disabled" });
+  await expect(root.services.credentials.add({ principal, provider: TEST_PROVIDER_ID, key: KEY })).rejects.toMatchObject({
+    code: CREDENTIALS_OP_CODES.disabled,
+  });
   expect(await caller.credentials.list()).toEqual([]);
 });
