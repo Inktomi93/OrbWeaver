@@ -3,10 +3,11 @@
 // the ONE cross-domain reach, declared here as an injected-op TYPE and wired at the composition root —
 // never a sideways import, and never a shared cross-feature hub.
 
-import type { BackfillPassResult, ImportWindow } from "@orb/contracts/chat";
-import type { TargetSnapshotOp, WorkloadRunScope } from "@orb/contracts/workloads";
+import type { BackfillPassResult, ImportWindow, IsMemoryEnabledOp } from "@orb/contracts/chat";
+import type { PurgeMemoryVectorsOp } from "@orb/contracts/embeddings";
+import type { TargetSnapshotOp } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
-import type { MemoryBackfillSweepCounts, MemoryEmbedSpace } from "./memory.ts";
+import type { MemoryBackfillSweepCounts } from "./memory.ts";
 
 /** A corpus sweep's argument bundle: the enumeration scope (`null` = the bulk all-owners pass) + the signal. */
 interface CorpusSweepArgs {
@@ -41,12 +42,12 @@ export interface ChatWorkloadDeps {
    *  handed: `null` = every corpus owner (the bulk arm), a `UserId` = that one owner, so a per-owner catch-up
    *  never reaches a neighbour's space. The state write lives in embeddings/persistence — this is the injected
    *  op, never a db reach from chat. */
-  readonly purgeMemoryVectors: (spaces: readonly MemoryEmbedSpace[], enumerationScope: WorkloadRunScope) => Promise<void>;
+  readonly purgeMemoryVectors: PurgeMemoryVectorsOp;
   /** Is the memory subsystem ON for this host (#156)? Resolved through the ONE memory-config merge
    *  (`entry/compose/chat.ts resolveMemoryConfig`: admin defaults ⊕ the host's `memory.enabled` opt-out), so
    *  the admission gate cannot drift from the sweep's own per-host skip (#54) or from the live turn. Injected
    *  because settings is not chat's to read — the same seam shape `ResolveBackfillMemoryConfig` uses. */
-  readonly isMemoryEnabled: (hostUserId: UserId) => Promise<boolean>;
+  readonly isMemoryEnabled: IsMemoryEnabledOp;
   /** Every stored embedding target in the enumeration scope as one comparable string; any target move changes it. */
   readonly targetSnapshot: TargetSnapshotOp;
 }

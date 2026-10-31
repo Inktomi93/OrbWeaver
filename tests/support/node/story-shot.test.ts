@@ -5,10 +5,10 @@
 // path's spelling — "writing to a published alias follows the symlink into the slot". The control performs
 // exactly that write against a real published pointer and reads the slot afterwards, so the assertion below
 // rests on measured behaviour rather than on POSIX folklore.
-import { lstatSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, test } from "vitest";
+import { expect, onTestFinished, test } from "vitest";
 import { STORY_SHOT_DIR, storyShot } from "./story-shot.ts";
 
 /** Every `reports/` family that publishes `latest` POINTERS. A story shot landing in one of
@@ -28,6 +28,7 @@ test("a story shot lands in the pointer-free ct-shots family, whatever spelling 
 
 test("PLANTED CONTROL: writing to a PUBLISHED alias rewrites the finished run's slot, invisibly", () => {
   const dir = mkdtempSync(join(tmpdir(), "orb-story-shot-"));
+  onTestFinished(() => rmSync(dir, { recursive: true, force: true }));
   const slot = join(dir, "runs", "snap", "run-A");
   mkdirSync(slot, { recursive: true });
   mkdirSync(join(dir, "snaps"), { recursive: true });

@@ -22,7 +22,7 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Type } from "@typescript/native/sync";
 import ts from "typescript";
-import type { LiteralRole, Site } from "./classify.ts";
+import type { LiteralRole, Site, ValueUse } from "./classify.ts";
 import { isProductionFile, literalRoleAt, Sources, siteKey, valueUseAt } from "./classify.ts";
 import { ServiceWorld, serviceReferences } from "./language-service.ts";
 import { constituents, declarationKeys, NativeWorld } from "./native.ts";
@@ -31,8 +31,10 @@ import type { ScanOptions } from "./scan.ts";
 import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
 import { isProduction } from "./worlds.ts";
 
-export const UNION_KINDS = ["unbuilt"] as const;
-/** `unbuilt`: no production literal builds the member into a slot of its union. */
+export const UNION_KINDS = ["unbuilt", "parsed"] as const;
+/** `unbuilt`: no production literal builds the member into a slot of its union. `parsed`: no production literal
+ *  builds it either, but production narrows outside input into its tuple with `z.enum` or a membership test, so a
+ *  model's structured output, a file, an env var or a platform name can still produce it. */
 export type UnionKind = (typeof UNION_KINDS)[number];
 
 export interface UnwiredUnionMember {
@@ -223,6 +225,11 @@ function enumerates(sources: Sources, sites: Iterable<Site>): boolean {
   return false;
 }
 
+const NARROWING_USES: ReadonlySet<ValueUse> = new Set<ValueUse>(["parse", "test"]);
+
+const parses = (sources: Sources, sites: Iterable<Site>): boolean =>
+  [...sites].some((site) => isProductionFile(site.file) && NARROWING_USES.has(valueUseAt(sources.get(site.file), site.position)));
+
 function serviceHolds(world: ServiceWorld, node: ts.StringLiteral): boolean {
   const type = world.checker.getContextualType(node);
   if (type === undefined) {
@@ -298,9 +305,11 @@ export function scanUnions(options: ScanOptions): UnionsReport {
   const located = (site: Site): string => `${site.file}:${sources.line(site)}`;
   const findings: UnwiredUnionMember[] = [];
   const disagreements: string[] = [];
+  const parsed = new Set(entries.filter(({ references }) => parses(sources, references.values())).map(({ tuple }) => tuple.key));
   for (const { tuple, member } of candidates) {
     const key = `${tuple.key}.${member.text}`;
-    if (builtTwo.has(member.text) || enumerates(sources, referencesTwo.get(siteKey(tuple.site)) ?? [])) {
+    const two = referencesTwo.get(siteKey(tuple.site)) ?? [];
+    if (builtTwo.has(member.text) || enumerates(sources, two) || parses(sources, two) !== parsed.has(tuple.key)) {
       disagreements.push(key);
       continue;
     }
@@ -308,7 +317,7 @@ export function scanUnions(options: ScanOptions): UnionsReport {
     const of = (role: LiteralSite["role"]): readonly string[] => sites.filter((site) => site.role === role).map((site) => located(site.site));
     findings.push({
       key,
-      kind: "unbuilt",
+      kind: parsed.has(tuple.key) ? "parsed" : "unbuilt",
       file: tuple.site.file,
       line: member.line,
       home: tuple.name,

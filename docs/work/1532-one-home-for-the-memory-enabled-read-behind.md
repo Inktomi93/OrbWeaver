@@ -23,4 +23,7 @@ The member types by IsMemoryEnabledOp, and the census either reports a planted l
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- `VacuousMemoryReceiptDeps.isMemoryEnabled` in `packages/server/src/domain/embeddings/contract/reindex.ts` is typed by `IsMemoryEnabledOp`.
+- The `let isMemoryEnabled` in `packages/server/src/entry/compose/services.ts` is a `createBinding` holder bound once chat exists.
+- The census cannot follow a `let` soundly: it is rebound, so no one member stands behind the name. The limit is recorded in `docs/plans/unwired-code/design.md` under "Judging a finding", with the case `a member a let hop carries to the port` in `tests/tooling/eslint-derived-port-member.test.ts`.
+- `pnpm test tests/server/domain/embeddings` and the typecheck of `packages/server/tsconfig.json` pass.

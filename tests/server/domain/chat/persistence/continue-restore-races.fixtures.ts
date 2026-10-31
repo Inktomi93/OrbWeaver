@@ -1,4 +1,5 @@
-// The restore race cases: one signed continuation per case, held at the native restore write while a competing write commits.
+// The restore race cases: one signed continuation per case in a room booted once per file, held at the native restore write
+// while a competing write commits.
 
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import { chatEvents, chatParticipants, messageVariants, statsCanonVersions } from "@orb/db";
@@ -6,8 +7,10 @@ import { ChatOperationError } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
+import { beforeAll } from "vitest";
 import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
-import { signedContinuation } from "./continue-physical.ts";
+import type { SignedRoom } from "./continue-physical.ts";
+import { signedRoom } from "./continue-physical.ts";
 
 const RESTORE_METHODS = ["undoContinue", "revertContinue"] as const;
 /** Competing turn and membership writes: a newer continuation, a swipe, the member leaving, a role change. */
@@ -42,10 +45,19 @@ function watchUserChanges(h: ChatRoot): AsyncDisposable & { readonly events: Use
 /** Register one case per race: the restore is held at its native write, the race commits, and the restore must refuse
  *  before canon, versions or events change. */
 export function registerRestoreRaces(method: (typeof RESTORE_METHODS)[number], races: readonly RestoreRace[]): void {
+  const shared = Promise.withResolvers<SignedRoom>();
+  beforeAll(async (): Promise<() => Promise<void>> => {
+    const room = await signedRoom();
+    shared.resolve(room);
+    return async (): Promise<void> => {
+      await room[Symbol.asyncDispose]();
+    };
+  });
   test.for(races)(`restore refuses stale ${method} / %s before canon, versions or events`, async (race) => {
-    await using f = await signedContinuation();
-    const { h } = f.image;
-    const args = { principal: h.owner, chatId: h.chatId, messageId: f.slot.id };
+    const room = await shared.promise;
+    const f = await room.continuation();
+    const { h } = room.image;
+    const args = { principal: h.owner, chatId: f.chatId, messageId: f.slot.id };
     if (method === "revertContinue") {
       await h.root.services.chat.undoContinue(args);
     }
@@ -55,7 +67,7 @@ export function registerRestoreRaces(method: (typeof RESTORE_METHODS)[number], r
       throw new Error("the native race fixture did not create an actual tool snapshot");
     }
     await using userChanges = watchUserChanges(h);
-    const gate = f.held.hold(/update "message_variants" set[\s\S]*case when json_type\([\s\S]*continuationTools/u);
+    const gate = room.held.hold(/update "message_variants" set[\s\S]*case when json_type\([\s\S]*continuationTools/u);
     const restoring = h.root.services.chat[method](args);
     const refused = expect(restoring).rejects.toBeInstanceOf(race === "membership" ? ChatNotFoundError : ChatOperationError);
     const mutateVariant = async (patch: Partial<typeof messageVariants.$inferInsert>): Promise<void> => {
@@ -73,13 +85,13 @@ export function registerRestoreRaces(method: (typeof RESTORE_METHODS)[number], r
         await h.root.db
           .update(chatParticipants)
           .set({ leftSeq: 2 })
-          .where(and(eq(chatParticipants.chatId, h.chatId), eq(chatParticipants.userId, h.owner.userId)));
+          .where(and(eq(chatParticipants.chatId, f.chatId), eq(chatParticipants.userId, h.owner.userId)));
       },
       role: async () => {
         await h.root.db
           .update(chatParticipants)
           .set({ role: "member" })
-          .where(and(eq(chatParticipants.chatId, h.chatId), eq(chatParticipants.userId, h.owner.userId)));
+          .where(and(eq(chatParticipants.chatId, f.chatId), eq(chatParticipants.userId, h.owner.userId)));
       },
       preContent: async () => {
         await mutateVariant({ preContinueContent: "Other base." });
@@ -113,13 +125,13 @@ export function registerRestoreRaces(method: (typeof RESTORE_METHODS)[number], r
       await h.root.settleBackground();
       const variants = await h.root.db.select().from(messageVariants).orderBy(messageVariants.idx);
       const versions = await h.root.db.select().from(statsCanonVersions);
-      const events = await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, h.chatId)).orderBy(chatEvents.seq);
+      const events = await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, f.chatId)).orderBy(chatEvents.seq);
       const userEvents = [...userChanges.events];
       gate.release();
       await refused;
       expect(await h.root.db.select().from(messageVariants).orderBy(messageVariants.idx)).toEqual(variants);
       expect(await h.root.db.select().from(statsCanonVersions)).toEqual(versions);
-      expect(await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, h.chatId)).orderBy(chatEvents.seq)).toEqual(events);
+      expect(await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, f.chatId)).orderBy(chatEvents.seq)).toEqual(events);
       await userChanges[Symbol.asyncDispose]();
       expect(userChanges.events).toEqual(userEvents);
     } finally {

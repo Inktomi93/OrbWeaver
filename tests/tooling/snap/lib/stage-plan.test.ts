@@ -9,12 +9,13 @@
 // fence and the three-probe health verdict are lib/stage-bands.ts's, pinned at
 // tests/tooling/snap/lib/stage-bands.test.ts; the table's file I/O, its mutex and the legacy migration are
 // pinned at tests/tooling/snap/ops/stage-marker.int.test.ts. This file keeps what stage-plan still owns.
-import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { OWNER_HANDLES_KEY } from "@orb/contracts/identity";
 import { DEBUG_TOKEN_ENV, OPENROUTER_API_KEY_ENV } from "@orb/server/foundation/env/record";
 import { expect, test } from "@orb/testkit/tooling";
+import { onTestFinished } from "vitest";
 import { DEV_PORTS, STAGE_BAND_COUNT, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
 import { stageDecision } from "../../../../tooling/src/snap/lib/stage-bands.ts";
@@ -248,6 +249,7 @@ test("a common dir that is not a checkout's .git keeps the marker INSIDE it, nev
 
 test("a stage staged from a worktree is visible from main, and vice versa (one shared table)", () => {
   const markerHome = mkdtempSync(join(tmpdir(), "ae-tooling2-marker-"));
+  onTestFinished(() => rmSync(markerHome, { recursive: true, force: true }));
   // Direction 1: the LANE boots the stage on a band…
   writeRow(markerHome, active({ band: 2, checkout: LANE_CHECKOUT, dir: `${LANE_CHECKOUT}/.cache/snap-stage/${SHORT}` }));
   // …and MAIN, resolving the same table home, sees whose that band is.

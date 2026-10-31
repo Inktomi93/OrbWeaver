@@ -346,7 +346,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/entry/boot/migrate-data-layout.ts": "DataLayoutRefusal: the refusal class and reason the layout migration suite asserts",
   "packages/server/src/domain/plugin/contract/errors.ts": "PluginNotFoundError: the refusal class plugin seed cases assert",
   "packages/server/src/domain/plugin/substrate/plugin-macros.ts": "pluginMacroName: the token rule for a plugin's registered macro",
-  "packages/server/src/domain/chat/reaction-note.ts": "reactionNote: the attribution note a reaction writes, which a frame override must collide with",
+  "packages/server/src/domain/chat/substrate/reaction-note.ts":
+    "reactionNote: the attribution note a reaction writes, which a frame override must collide with",
   "packages/server/src/domain/discovery/themes/name-prompt.ts": "THEME_NAME_KEYWORDS_LEAD: the lead the scripted provider recognises a naming request by",
   "packages/server/src/domain/rpg/contract/op-codes.ts": "RPG_OP_CODES: the refusal codes rpg suites assert",
   "packages/server/src/domain/preset/constants.ts":

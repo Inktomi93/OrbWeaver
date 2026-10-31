@@ -1,7 +1,9 @@
 // Automation-only default-persona seed; settings latches and owned art arrive as injected capabilities.
 
+import type { StoreSeedPersonaAvatar } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
-import type { AssetId, PersonaId } from "@orb/kit/ids";
+import type { MarkPersonaSeededOp, PersonaSeededOp } from "@orb/contracts/settings";
+import type { PersonaId } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
 import type { PersonaService } from "./service.ts";
 
@@ -14,8 +16,8 @@ export interface DefaultPersonaSeederDeps {
   readonly autoSeedEnabled: (principal: Principal) => boolean;
   readonly createPersona: (...args: Parameters<PersonaService["create"]>) => Promise<Pick<Awaited<ReturnType<PersonaService["create"]>>, "id">>;
   /** Store the bundled "You" avatar art → its asset id, or `null` when the pack ships none / the store fails. */
-  readonly storeAvatar: (principal: Principal) => Promise<AssetId | null>;
-  readonly isSeeded: (principal: Principal) => Promise<boolean>;
+  readonly storeAvatar: StoreSeedPersonaAvatar;
+  readonly isSeeded: PersonaSeededOp;
   /** LAYER 2 (file header): the id of the row this seeder already minted for this user
    *  (`metadata.seededDefault`), or `null`. Consulted only when the latch says "not seeded", and a hit means
    *  HEAL the latch, create nothing. Deliberately narrower than "owns any persona" — an unrelated persona has
@@ -28,7 +30,7 @@ export interface DefaultPersonaSeederDeps {
    *  persists the latch. Never clobbers an explicit existing pick (the PICK LAW). The order is the contract:
    *  the latch is written LAST so it means "complete" (#1412) — an interrupted mark leaves the user
    *  re-seedable rather than latched-and-pointerless. */
-  readonly markSeeded: (principal: Principal, seededPersonaId: PersonaId) => Promise<void>;
+  readonly markSeeded: MarkPersonaSeededOp;
 }
 
 export interface DefaultPersonaSeeder {

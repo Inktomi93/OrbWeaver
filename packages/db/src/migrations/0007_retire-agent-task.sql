@@ -1,0 +1,1 @@
+-- Filled by item 1498: strips the retired agent task from stored provider rows and plugin manifests.

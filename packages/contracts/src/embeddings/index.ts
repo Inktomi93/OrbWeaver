@@ -250,9 +250,11 @@ export const embedPassResultSchema = z.strictObject({
 export type { EmbeddingConnectionFacts } from "./connection.ts";
 export type { CountDocumentChunksParams, DocumentChunkStoreInput, OwnerChunkCountsParams, PruneDocumentChunksParams } from "./document-vectors.ts";
 export type {
+  BeginDocumentVectorSweepOp,
   CountDocumentChunksByOwnerOp,
   CountDocumentChunksOp,
   DocumentVectorSweepReceipt,
+  EmbeddingsPruneBlocksOp,
   EmbedMoveRefusal,
   GenerationReceipt,
   ListCharacterIds,
@@ -261,7 +263,10 @@ export type {
   PruneDocumentChunksOp,
   PruneDocumentChunksResult,
   PruneMemoryBlocksParams,
+  PurgeDocumentVectorsOp,
+  PurgeMemoryVectorsOp,
   ResolveEmbeddingConnectionOp,
+  ResolveMemoryEmbedSpaceOp,
   SyncTargetGenerationsOp,
   TargetWouldMoveOp,
 } from "./owner-ops.ts";
