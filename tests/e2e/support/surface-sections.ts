@@ -57,6 +57,7 @@ import {
   publishWalk,
   ready,
   reveal,
+  skip,
   switchListScreen,
   walkChoices,
   walkDoor,
@@ -308,7 +309,7 @@ async function loadRefineryPicker(journey: Journey): Promise<void> {
 
 async function context(journey: Journey, prefix: string): Promise<void> {
   if (!(await reveal(journey, "context"))) {
-    observe(journey, `${prefix}/context`, "skipped", "Production section declares no Context pane");
+    observe(journey, `${prefix}/context`, "not-applicable", "Production section declares no Context pane");
     return;
   }
   const region = pane(journey, "context");
@@ -763,7 +764,7 @@ async function corpusTarget(journey: Journey, target: (typeof CORPUS_SEARCH_TARG
   }
   const subject = journey.run.subjects.characters.at(0);
   if (subject === undefined) {
-    observe(journey, "corpus/text/query", "skipped", "No original character is available as a lexical query subject");
+    skip(journey, "corpus/text/query", "no-subject", "No original character is available as a lexical query subject");
     return;
   }
   const character = await journey.client.character.get.query({ characterId: subject.id });
@@ -827,7 +828,7 @@ async function corpusMember(journey: Journey, mode: (typeof CORPUS_MODES)[number
     const rows = await journey.client.tag.listTagsWithUsage.query();
     const subject = rows.find((item) => journey.run.subjects.tags.some(({ id }) => id === item.id));
     if (subject === undefined) {
-      observe(journey, "corpus/labels/member", "skipped", "No original readable tag subject");
+      skip(journey, "corpus/labels/member", "no-subject", "No original readable tag subject");
       return;
     }
     await reveal(journey, "list");
@@ -1882,9 +1883,8 @@ async function refineryWorkbench(journey: Journey, row: Locator, prefix: string)
     },
   });
   await walkScope(journey, content(journey), `${prefix}/workbench`);
-  await refineryDialogs(journey, prefix);
+  await refineryDoors(journey, prefix);
   await context(journey, prefix);
-  await refinerySetup(journey, prefix);
   await refineryVersions(journey, prefix);
   await journey.requestPanes();
   await walkScope(journey, content(journey), `${prefix}/requested-panes`);
@@ -2236,30 +2236,37 @@ async function disposableRefinery(journey: Journey): Promise<void> {
   }
 }
 
-async function dialogDoor(journey: Journey, trigger: Locator, id: string): Promise<void> {
-  await walkDoor(journey, { id, trigger, body: journey.page.getByRole("dialog") });
+// The workbench's dialogs open from plain buttons, which carry no aria-haspopup, so the generic walk cannot find them.
+const REFINERY_WORKBENCH_DOORS = [
+  { name: "Edit scope", id: "scope-dialog" },
+  { name: "Hand-edit", id: "manual-rewrite-dialog" },
+] as const;
+const REFINERY_SETUP_DOORS = ["View Original card", "Change Score schema", "Change Analyze schema"] as const;
+
+async function openSetupTab(journey: Journey): Promise<Locator> {
+  await reveal(journey, "context");
+  const setup = pane(journey, "context").getByRole("tab", { name: "Setup", exact: true });
+  await setup.click();
+  await expect(setup).toHaveAttribute("aria-selected", "true");
+  return pane(journey, "context");
 }
 
-async function refineryDialogs(journey: Journey, prefix: string): Promise<void> {
-  await dialogDoor(journey, content(journey).getByRole("button", { name: "Edit scope", exact: true }), `${prefix}/scope-dialog`);
-  await dialogDoor(journey, content(journey).getByRole("button", { name: "Hand-edit", exact: true }), `${prefix}/manual-rewrite-dialog`);
+async function refineryDoors(journey: Journey, prefix: string): Promise<void> {
+  const dialog = journey.page.getByRole("dialog");
+  for (const door of REFINERY_WORKBENCH_DOORS) {
+    await walkDoor(journey, { id: `${prefix}/${door.id}`, trigger: content(journey).getByRole("button", { name: door.name, exact: true }), body: dialog });
+  }
+  for (const name of REFINERY_SETUP_DOORS) {
+    const setup = await openSetupTab(journey);
+    await walkDoor(journey, { id: `${prefix}/setup/${name}`, trigger: setup.getByRole("button", { name, exact: true }), body: dialog });
+  }
+  await dismissContext(journey);
   observe(
     journey,
     `${prefix}/dialog-submissions`,
     "excluded",
     "Original scope/session/card fields remain unchanged; schema draft generation, rewrite save and paid stage execution are not submitted",
   );
-}
-
-async function refinerySetup(journey: Journey, prefix: string): Promise<void> {
-  for (const name of ["View Original card", "Change Score schema", "Change Analyze schema"]) {
-    await reveal(journey, "context");
-    const setup = pane(journey, "context").getByRole("tab", { name: "Setup", exact: true });
-    await setup.click();
-    await expect(setup).toHaveAttribute("aria-selected", "true");
-    await dialogDoor(journey, pane(journey, "context").getByRole("button", { name, exact: true }), `${prefix}/setup/${name}`);
-  }
-  await dismissContext(journey);
 }
 
 async function refineryVersions(journey: Journey, prefix: string): Promise<void> {
@@ -2334,12 +2341,12 @@ async function extensions(journey: Journey): Promise<void> {
       "Host attribution/native content inspected; arbitrary guest action semantics and external execution are not inferred from shell readiness",
     );
   }
-  observe(
-    journey,
-    "extensions/page-inventory",
-    originals.length === 0 ? "skipped" : "visited",
-    `${String(originals.length)} actual page registrations belonging to original installs; disabled/awaiting-consent installs are not enabled`,
-  );
+  const inventory = `${String(originals.length)} actual page registrations belonging to original installs; disabled/awaiting-consent installs are not enabled`;
+  if (originals.length === 0) {
+    skip(journey, "extensions/page-inventory", "no-subject", inventory);
+  } else {
+    observe(journey, "extensions/page-inventory", "visited", inventory);
+  }
   await journey.requestPanes();
 }
 
@@ -2398,11 +2405,11 @@ export async function walkSection(flow: SurfaceFlow, section: (typeof SURFACE_SE
   try {
     await JOURNEYS[section](journey);
     observe(journey, section, "visited", "Independent native rail itinerary completed; nested omissions retain their own explicit dispositions");
-    observe(
+    skip(
       journey,
       "config/worldInfo",
-      "skipped",
-      "World Info is a production Config collection, not a live rail; Config owner covers its member/entry editors",
+      "another-case",
+      "World Info is a production Config collection, not a live rail; the Config worldInfo case covers its member and entry editors",
     );
     await platformGestures(journey);
   } finally {

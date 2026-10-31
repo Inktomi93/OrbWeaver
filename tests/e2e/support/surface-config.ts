@@ -1,9 +1,8 @@
 import { stat } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { LIBRARY_PAGE_SIZE_DEFAULT, LIBRARY_PAGE_SIZE_MIN } from "@orb/contracts/settings";
-import { controlledPanel, diagnosticTarget, publishSurfaceInventory } from "@orb/testkit/browser/spec";
-import type { SurfaceCoverageDisposition } from "@orb/testkit/iso";
-import { surfaceCoverageKey } from "@orb/testkit/iso";
+import { controlledPanel, diagnosticTarget } from "@orb/testkit/browser/spec";
+import type { SurfaceWitnessDisposition } from "@orb/testkit/iso";
 import { abortProcedure, attachNativeFile, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator } from "@playwright/test";
@@ -18,7 +17,18 @@ import type { ConfigGroupId } from "#client/state/config-group-ids.ts";
 import { CONFIG_GROUP_IDS } from "#client/state/config-group-ids.ts";
 import { waitForAppReady } from "./chat-room.ts";
 import type { SurfaceFlow } from "./surface-flow.ts";
-import { CONTROL_SELECTOR, controlIdentity, unavailableControl } from "./surface-walker.ts";
+import type { SurfaceWalk } from "./surface-walker.ts";
+import {
+  controlIdentity,
+  createSurfaceWalk,
+  expectSubject,
+  observe,
+  publishWalk,
+  skip,
+  checkpoint as walkCheckpoint,
+  walkOpenBody,
+  walkScope,
+} from "./surface-walker.ts";
 
 const APPEARANCE_PARENT_BUDGET_MS = 60_000;
 const APPEARANCE_SECTION_BUDGET_MS = 120_000;
@@ -29,17 +39,23 @@ const CONTEXT = '.shell-panel[data-panel-side="context"]';
 const LIST = '[data-slot="config-list"]';
 const EDITOR = '[data-slot="world-info-member-editor"]';
 
-interface Visit {
-  readonly name: string;
-  readonly target?: string;
-  readonly kind: "category" | "subsection" | "tab" | "disclosure" | "scroll" | "control" | "action";
-  readonly disposition: SurfaceCoverageDisposition;
-  readonly reason?: string;
+type ConfigSubjectKind = "category" | "subsection" | "disclosure" | "control" | "action";
+
+/** Expect a Config subject under its own kind, then record what happened to it. */
+function note(
+  walk: SurfaceWalk,
+  { id, kind }: { readonly id: string; readonly kind: ConfigSubjectKind },
+  disposition: SurfaceWitnessDisposition,
+  reason: string,
+): void {
+  expectSubject(walk, id, kind);
+  observe(walk, id, disposition, reason);
 }
 
-async function checkpoint(flow: SurfaceFlow, name: string, scope: Locator, witness: Locator = scope): Promise<void> {
-  await expect(scope.locator('[aria-busy="true"]:visible, [data-slot="skeleton"]:visible')).toHaveCount(0);
-  await flow.checkpoint({ name: `config-${name}`, scope, witnesses: [witness], state: "loaded", checks: SURFACE_CHECKS });
+// Config bodies also report pending saves through aria-busy, which the walker's skeleton wait does not read.
+async function checkpoint(walk: SurfaceWalk, name: string, scope: Locator, witness: Locator = scope): Promise<void> {
+  await expect(scope.locator('[aria-busy="true"]:visible')).toHaveCount(0);
+  await walkCheckpoint(walk, `config/${name}`, scope, witness);
 }
 
 async function closeContext(flow: SurfaceFlow): Promise<void> {
@@ -94,33 +110,7 @@ async function category(flow: SurfaceFlow, id: ConfigGroupId): Promise<Locator> 
   return group;
 }
 
-async function inViewport(element: Locator, viewport: Awaited<ReturnType<Locator["boundingBox"]>>): Promise<boolean> {
-  if (viewport === null || !(await element.isVisible())) {
-    return false;
-  }
-  return await element.evaluate((node, clip) => {
-    const box = node.getBoundingClientRect();
-    return (
-      box.right > Math.max(clip.x, 0) &&
-      box.left < Math.min(clip.x + clip.width, innerWidth) &&
-      box.bottom > Math.max(clip.y, 0) &&
-      box.top < Math.min(clip.y + clip.height, innerHeight)
-    );
-  }, viewport);
-}
-
-interface ControlCensus {
-  readonly name: string;
-  readonly scope: Locator;
-  readonly visits: Visit[];
-  readonly seen: Set<string>;
-}
-
-async function controls(flow: SurfaceFlow, name: string, scope: Locator, visits: Visit[]): Promise<void> {
-  await inspectControls(flow, { name, scope, visits, seen: new Set<string>() });
-}
-
-async function folderChooser(flow: SurfaceFlow, { name, visits }: Pick<ControlCensus, "name" | "visits">, element: Locator, trigger: Locator): Promise<void> {
+async function folderChooser(flow: SurfaceWalk, name: string, element: Locator, trigger: Locator): Promise<void> {
   const key = await controlIdentity(element);
   await expect(trigger).toHaveAccessibleName("Import a folder…");
   const chooser = flow.page.waitForEvent("filechooser");
@@ -129,212 +119,31 @@ async function folderChooser(flow: SurfaceFlow, { name, visits }: Pick<ControlCe
   expect(await input.evaluate(diagnosticTarget)).toBe(key);
   await expect(element).toHaveAttribute("hidden", "");
   await expect(element).toHaveAttribute("webkitdirectory", "");
-  visits.push({
-    name: `${name}: folder chooser transport`,
-    target: key,
-    kind: "control",
-    disposition: "not-applicable",
-    reason: "Hidden transport is reached through its witnessed visible FolderPicker button, not a user-facing control.",
-  });
-  visits.push({
-    name: `${name}: open native folder chooser`,
-    target: await controlIdentity(trigger),
-    kind: "action",
-    disposition: "visited",
-    reason: "The actual visible trigger emitted its matching native directory chooser; no files were supplied or imported.",
-  });
-}
-
-async function observedControl(element: Locator, key: string, { name, visits }: Pick<ControlCensus, "name" | "visits">): Promise<void> {
-  const snapshot = await element.ariaSnapshot();
-  visits.push({ name: `${name}: ${snapshot}`, target: key, kind: "control", disposition: "observed" });
-  const action = await element.evaluate((node) => node.matches("button, a[href]"));
-  if (action) {
-    visits.push({
-      name: `${name}: ${snapshot}`,
-      kind: "action",
-      disposition: "skipped",
-      reason: "Control witnessed; activation is not implied by its screenshot. Only the named disposable/reversible operations below are activated.",
-    });
-  }
-}
-
-async function inspectControls(flow: SurfaceFlow, { name, scope, visits, seen }: ControlCensus): Promise<void> {
-  await expect(scope).toBeVisible();
-  const roster = await scope.ariaSnapshot();
-  await attachNativeFile(flow.info, flow.info, `config-${name}-controls`, { body: roster, contentType: "text/plain" });
-  const elements = scope.locator(CONTROL_SELECTOR);
-  const viewport = await scope.boundingBox();
-  for (const element of await elements.all()) {
-    const key = await controlIdentity(element);
-    if (seen.has(`control:${key}`)) {
-      continue;
-    }
-    if (await element.evaluate((node) => node.matches('input[hidden][type="file"][webkitdirectory]'))) {
-      const trigger = element.locator("xpath=preceding-sibling::button[1]");
-      if (await inViewport(trigger, viewport)) {
-        await folderChooser(flow, { name, visits }, element, trigger);
-        seen.add(`control:${key}`);
-        continue;
-      }
-    }
-    const unavailable = await unavailableControl(element);
-    if (unavailable !== null) {
-      seen.add(`control:${key}`);
-      visits.push({ name: `${name}: unavailable control`, target: key, kind: "control", disposition: "not-applicable", reason: unavailable });
-      continue;
-    }
-    if (await inViewport(element, viewport)) {
-      seen.add(`control:${key}`);
-      await observedControl(element, key, { name, visits });
-    } else {
-      visits.push({
-        name: `${name}: ${(await element.getAttribute("data-slot")) ?? element.toString()}`,
-        target: key,
-        kind: "control",
-        disposition: "unvisited",
-        reason: "Outside this scroll window or hidden without a verified applicability rule; not counted as witnessed.",
-      });
-    }
-  }
-  await inspectMenus(flow, { name, scope, visits, seen });
-  await inspectSelects(flow, { name, scope, visits, seen });
-}
-
-async function inspectMenus(flow: SurfaceFlow, { name, scope, visits, seen }: ControlCensus): Promise<void> {
-  const menus = scope.locator('button[aria-haspopup="menu"]');
-  const viewport = await scope.boundingBox();
-  const targets = await Promise.all((await menus.all()).map(controlIdentity));
-  for (const [index, key] of targets.entries()) {
-    const trigger = flow.page.locator(key);
-    if (seen.has(`menu:${key}`) || !((await inViewport(trigger, viewport)) && (await trigger.isEnabled()))) {
-      continue;
-    }
-    seen.add(`menu:${key}`);
-    const label = await trigger.ariaSnapshot();
-    await trigger.focus();
-    await trigger.press("Enter");
-    const menu = flow.page.getByRole("menu");
-    await expect(menu).toBeVisible();
-    await checkpoint(flow, `${name}-menu-${index}`, menu);
-    for (const item of await menu.getByRole("menuitem").all()) {
-      visits.push({
-        name: `${name}: ${label}: ${await item.ariaSnapshot()}`,
-        kind: "action",
-        disposition: "excluded",
-        reason:
-          "Menu inspected; this generic category pass does not authorize changing original subjects, installation configuration, credentials, or external execution.",
-      });
-    }
-    await flow.page.keyboard.press("Escape");
-    await expect(menu).toBeHidden();
-  }
-}
-
-async function inspectSelects(flow: SurfaceFlow, { name, scope, seen }: ControlCensus): Promise<void> {
-  const selects = scope.locator('[data-slot="select-trigger"]');
-  const viewport = await scope.boundingBox();
-  for (const [index, select] of (await selects.all()).entries()) {
-    const key = await controlIdentity(select);
-    if (seen.has(`select:${key}`) || !((await inViewport(select, viewport)) && (await select.isEnabled()))) {
-      continue;
-    }
-    seen.add(`select:${key}`);
-    await select.click();
-    const options = await controlledPanel(select);
-    await expect(options).toHaveRole("listbox");
-    await expect(options).toBeVisible();
-    await checkpoint(flow, `${name}-options-${index}`, options);
-    await attachNativeFile(flow.info, flow.info, `config-${name}-options-${index}`, { body: await options.ariaSnapshot(), contentType: "text/plain" });
-    await flow.page.keyboard.press("Escape");
-    await expect(options).toBeHidden();
-  }
-}
-
-async function scroll(flow: SurfaceFlow, name: string, scope: Locator, visits: Visit[]): Promise<void> {
-  const seen = new Set<string>();
-  await scope.evaluate(async (node) => {
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-    const heightTransitions = node
-      .getAnimations({ subtree: true })
-      .filter((animation) => animation instanceof CSSTransition && animation.transitionProperty === "height");
-    await Promise.allSettled(heightTransitions.map((animation) => animation.finished));
-    node.scrollTo({ top: 0, behavior: "instant" });
-  });
-  for (let window = 0; ; window += 1) {
-    await checkpoint(flow, `${name}-window-${window}`, scope);
-    visits.push({ name: `${name}: scroll window ${window}`, kind: "scroll", disposition: "visited" });
-    await inspectControls(flow, { name: `${name}-window-${window}`, scope, visits, seen });
-    const extent = await scope.evaluate((node) => {
-      const box = node.getBoundingClientRect();
-      const visible = Math.min(box.bottom, innerHeight) - Math.max(box.top, 0);
-      return { top: node.scrollTop, height: Math.min(node.clientHeight, Math.max(0, visible)), viewport: node.clientHeight, total: node.scrollHeight };
-    });
-    expect(extent.height, `${name} must have an actual bounded viewport`).toBeGreaterThan(0);
-    if (Math.ceil(extent.top + extent.viewport) >= extent.total) {
-      return;
-    }
-    await scope.evaluate((node, top) => node.scrollTo({ top, behavior: "instant" }), extent.top + extent.height);
-    await expect.poll(async () => await scope.evaluate((node) => node.scrollTop)).toBeGreaterThan(extent.top);
-  }
-}
-
-async function nestedScroll(flow: SurfaceFlow, name: string, scope: Locator, visits: Visit[]): Promise<void> {
-  const descendants = scope.locator("*");
-  const owners = await descendants.evaluateAll((nodes) =>
-    nodes.flatMap((node, index) => {
-      const style = getComputedStyle(node);
-      return node.clientHeight > 0 && node.scrollHeight > node.clientHeight && /auto|scroll/u.test(style.overflowY)
-        ? [{ index, slot: node.getAttribute("data-slot"), id: node.id }]
-        : [];
-    }),
+  note(
+    flow,
+    { id: key, kind: "control" },
+    "not-applicable",
+    "Hidden transport is reached through its witnessed visible FolderPicker button, not a user-facing control.",
   );
-  const bound = await Promise.all(owners.map(async (owner) => ({ ...owner, target: await controlIdentity(descendants.nth(owner.index)) })));
-  await attachNativeFile(flow.info, flow.info, `config-${name}-nested-scroll-owners`, { body: JSON.stringify(bound), contentType: "application/json" });
-  for (const owner of bound) {
-    const element = flow.page.locator(owner.target);
-    if (await element.isVisible()) {
-      await element.scrollIntoViewIfNeeded();
-      await scroll(flow, `${name}-nested-${owner.index}`, element, visits);
-    } else {
-      visits.push({
-        name: `${name}: nested ${owner.id === "" ? (owner.slot ?? owner.index) : owner.id}`,
-        kind: "scroll",
-        disposition: "unvisited",
-        reason: "Hidden nested scroller is not a witnessed scroll window.",
-      });
+  note(
+    flow,
+    { id: `${name}/open-native-folder-chooser`, kind: "action" },
+    "visited",
+    "The actual visible trigger emitted its matching native directory chooser; no files were supplied or imported.",
+  );
+}
+
+/** Every visible folder picker under `scope` emits its own hidden directory chooser. */
+async function folderChoosers(flow: SurfaceWalk, name: string, scope: Locator): Promise<void> {
+  for (const element of await scope.locator('input[hidden][type="file"][webkitdirectory]').all()) {
+    const trigger = element.locator("xpath=preceding-sibling::button[1]");
+    if (await trigger.isVisible()) {
+      await folderChooser(flow, name, element, trigger);
     }
   }
 }
 
-async function neutralDialogs(flow: SurfaceFlow, name: string, scope: Locator, visits: Visit[]): Promise<void> {
-  const triggers = scope.locator('button[aria-haspopup="dialog"]:not([data-slot="color-field-trigger"])');
-  for (let index = 0; index < (await triggers.count()); index += 1) {
-    const trigger = triggers.nth(index);
-    if (!((await trigger.isVisible()) && (await trigger.isEnabled()))) {
-      continue;
-    }
-    const label = await trigger.ariaSnapshot();
-    await trigger.scrollIntoViewIfNeeded();
-    await trigger.click();
-    const dialog = flow.page.getByRole("dialog").or(flow.page.getByRole("alertdialog"));
-    await expect(dialog).toBeVisible();
-    await checkpoint(flow, `${name}-dialog-${index}`, dialog);
-    await disclosures(flow, `${name}-dialog-${index}`, dialog, visits);
-    await controls(flow, `${name}-dialog-${index}`, dialog, visits);
-    await nestedScroll(flow, `${name}-dialog-${index}`, dialog, visits);
-    await flow.page.keyboard.press("Escape");
-    await expect(dialog).toBeHidden();
-    visits.push({
-      name: `${name}: ${label}`,
-      kind: "action",
-      disposition: "visited",
-      reason: "Dialog opened, inspected and dismissed; submission is not claimed.",
-    });
-  }
-}
-
-async function themeBuilder(flow: SurfaceFlow, visits: Visit[]): Promise<string> {
+async function themeBuilder(flow: SurfaceWalk): Promise<string> {
   await category(flow, "appearance");
   const content = flow.page.locator(CONTENT);
   const before = (await flow.client.settings.listThemes.query()).map(({ id }) => id);
@@ -345,32 +154,19 @@ async function themeBuilder(flow: SurfaceFlow, visits: Visit[]): Promise<string>
   await expect(editor).toHaveCount(1);
   const target = await controlIdentity(editor);
   await checkpoint(flow, "theme-unminted-editor", editor, title);
-  for (const [index, color] of (await editor.locator('[data-slot="color-field-trigger"]').all()).entries()) {
-    await color.scrollIntoViewIfNeeded();
-    await color.click();
-    const picker = flow.page.getByRole("dialog", { name: / color picker$/u });
-    await checkpoint(flow, `theme-color-${index}`, picker, picker.getByRole("textbox", { name: "Hex", exact: true }));
-    await flow.page.keyboard.press("Escape");
-    await expect(picker).toBeHidden();
-  }
   await content.getByRole("button", { name: "Show advanced theme tools", exact: true }).click();
   await expect(content.getByRole("heading", { name: "Custom CSS", exact: true })).toBeVisible();
   // eslint-disable-next-line orb/no-hand-copied-label -- This is the theme's scoped live preview heading, not Chat's Preview context tab.
   await expect(content.getByRole("heading", { name: "Preview", exact: true })).toBeVisible();
-  await appearanceSectionScroll(flow, "theme-builder-advanced-reference-preview", editor, visits);
-  await nestedScroll(flow, "theme-builder", editor, visits);
+  // The walk opens each color picker as a dialog door and dismisses it, so nothing mints the theme.
+  await walkScope(flow, editor, "config/theme-builder");
   await content.getByRole("button", { name: "← Back to Looks", exact: true }).click();
   expect((await flow.client.settings.listThemes.query()).map(({ id }) => id)).toEqual(before);
-  visits.push({
-    name: THEME_BUILDER_VISIT,
-    kind: "action",
-    disposition: "visited",
-    reason: "No fields changed; production mint-on-first-edit leaves no new theme.",
-  });
+  note(flow, { id: THEME_BUILDER_VISIT, kind: "action" }, "visited", "No fields changed; production mint-on-first-edit leaves no new theme.");
   return target;
 }
 
-async function connectionAuthoring(flow: SurfaceFlow, visits: Visit[]): Promise<void> {
+async function connectionAuthoring(flow: SurfaceWalk): Promise<void> {
   await category(flow, "connections");
   const content = flow.page.locator(CONTENT);
   await content.getByRole("button", { name: ADD_CONNECTION_PATH.leaf, exact: true }).click();
@@ -386,29 +182,28 @@ async function connectionAuthoring(flow: SurfaceFlow, visits: Visit[]): Promise<
   await expect(catalog).toBeHidden();
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(dialog).toBeHidden();
-  visits.push({ name: "Connections Add connection/provider roster/Cancel", kind: "action", disposition: "visited" });
-  visits.push({
-    name: "Connections List models, Check sign-in, submit connection/key, role rebinding/reindex, saved-key replace/revoke",
-    kind: "action",
-    disposition: "excluded",
-    reason:
-      "No live provider contact, credential mutation, paid execution, or original role/index changes. Provider choices are inspected without selection or submission.",
-  });
+  note(
+    flow,
+    { id: "Connections Add connection/provider roster/Cancel", kind: "action" },
+    "visited",
+    "The empty draft and provider roster rendered; Cancel left no connection.",
+  );
+  note(
+    flow,
+    { id: "Connections List models, Check sign-in, submit connection/key, role rebinding/reindex, saved-key replace/revoke", kind: "action" },
+    "excluded",
+    "No live provider contact, credential mutation, paid execution, or original role/index changes. Provider choices are inspected without selection or submission.",
+  );
 }
 
-async function personas(flow: SurfaceFlow, visits: Visit[]): Promise<void> {
+async function personas(flow: SurfaceWalk): Promise<void> {
   await category(flow, "personas");
   const content = flow.page.locator(CONTENT);
   const rows = await flow.client.persona.list.query();
   const index = rows.findIndex((candidate) => flow.run.subjects.personas.some(({ id }) => id === candidate.id));
   const original = rows[index];
   if (original === undefined) {
-    visits.push({
-      name: "Original persona editor",
-      kind: "action",
-      disposition: "unvisited",
-      reason: "No original persona in source provenance; no synthetic identity is represented as original evidence.",
-    });
+    skip(flow, "Original persona editor", "no-subject", "No original persona in source provenance; no synthetic identity is represented as original evidence.");
     return;
   }
   const expanders = content.locator('[data-persona-row] [data-slot="list-row-body"]');
@@ -419,52 +214,55 @@ async function personas(flow: SurfaceFlow, visits: Visit[]): Promise<void> {
   }
   const editor = content.getByRole("group").filter({ has: flow.page.locator('[data-slot="persona-editor-identity"]') });
   await expect(editor.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(original.name);
-  await scroll(flow, "persona-original-editor", content, visits);
-  await nestedScroll(flow, "persona-original-editor", editor, visits);
-  await editor.getByRole("button", { name: "Connect a character", exact: true }).click();
-  const picker = flow.page.getByRole("dialog", { name: "Connect a character", exact: true });
-  await checkpoint(flow, "persona-connect-character-picker", picker);
-  await controls(flow, "persona-connect-character-picker", picker, visits);
-  await flow.page.keyboard.press("Escape");
-  await expect(picker).toBeHidden();
-  await teacher(flow, "persona-original", visits);
-  visits.push({
-    name: "Original persona editor/placement/world-book catalog/connected-character picker",
-    kind: "action",
-    disposition: "visited",
-    reason: "One provenance-owned persona sampled; description, placement and junctions remain unchanged.",
-  });
-  visits.push({
-    name: "Original persona favorite/default/delete/avatar/description/placement/world-book/connect/disconnect",
-    kind: "action",
-    disposition: "excluded",
-    reason: "Original identity and attachments stay read-only; no account-default or relationship changes.",
-  });
+  await walkScope(flow, editor, "config/persona-original-editor");
+  await teacher(flow, "persona-original");
+  note(
+    flow,
+    { id: "Original persona editor/placement/world-book catalog/connected-character picker", kind: "action" },
+    "visited",
+    "One provenance-owned persona sampled; description, placement and junctions remain unchanged.",
+  );
+  note(
+    flow,
+    { id: "Original persona favorite/default/delete/avatar/description/placement/world-book/connect/disconnect", kind: "action" },
+    "excluded",
+    "Original identity and attachments stay read-only; no account-default or relationship changes.",
+  );
 }
 
-async function remainingDisclosures({ name, scope, visits, seen }: ControlCensus): Promise<void> {
-  for (const button of await scope.locator('button[aria-expanded="false"]:not([aria-haspopup])').all()) {
+// Config's own fold and row disclosures are plain aria-expanded buttons, which the walker's collapsible walk does not open.
+const CONFIG_DISCLOSURE = 'button[aria-expanded="false"]:not([aria-haspopup])';
+const PERSONA_ROW_BODY = '[data-persona-row] [data-slot="list-row-body"]';
+
+async function remainingDisclosures(flow: SurfaceWalk, name: string, scope: Locator, seen: ReadonlySet<string>): Promise<void> {
+  for (const button of await scope.locator(CONFIG_DISCLOSURE).all()) {
     const target = await controlIdentity(button);
-    if (!seen.has(target)) {
-      const sampledSeparately = (await button.locator("xpath=ancestor::*[@data-persona-row]").count()) > 0;
-      visits.push({
-        name: `${name}: disclosure ${target}`,
-        target,
-        kind: "disclosure",
-        disposition: sampledSeparately ? "excluded" : "unvisited",
-        reason: sampledSeparately
-          ? "Original persona rows use the separately named provenance-bounded sample, not an unbounded owner-data walk."
-          : "Closed disclosure was hidden or disabled when traversal ended; it is not counted complete.",
-      });
+    if (seen.has(target)) {
+      continue;
+    }
+    if ((await button.locator("xpath=ancestor::*[@data-persona-row]").count()) > 0) {
+      note(
+        flow,
+        { id: target, kind: "disclosure" },
+        "excluded",
+        "Original persona rows use the separately named provenance-bounded sample, not an unbounded owner-data walk.",
+      );
+    } else {
+      note(
+        flow,
+        { id: target, kind: "disclosure" },
+        "unvisited",
+        `${name}: closed disclosure was hidden or disabled when traversal ended; it is not counted complete.`,
+      );
     }
   }
 }
 
-async function disclosures(flow: SurfaceFlow, name: string, scope: Locator, visits: Visit[]): Promise<void> {
+async function disclosures(flow: SurfaceWalk, name: string, scope: Locator): Promise<void> {
   const seen = new Set<string>();
   for (;;) {
     let next: Locator | undefined;
-    for (const button of await scope.locator('button[aria-expanded="false"]:not([aria-haspopup]):not([data-persona-row] [data-slot="list-row-body"])').all()) {
+    for (const button of await scope.locator(`${CONFIG_DISCLOSURE}:not(${PERSONA_ROW_BODY})`).all()) {
       const key = await controlIdentity(button);
       if (!seen.has(key) && (await button.isVisible()) && (await button.isEnabled())) {
         seen.add(key);
@@ -473,66 +271,42 @@ async function disclosures(flow: SurfaceFlow, name: string, scope: Locator, visi
       }
     }
     if (next === undefined) {
-      await remainingDisclosures({ name, scope, visits, seen });
+      await remainingDisclosures(flow, name, scope, seen);
       return;
     }
-    const label = await next.ariaSnapshot();
+    const target = await controlIdentity(next);
     await next.scrollIntoViewIfNeeded();
     await next.click();
     await expect(next).toHaveAttribute("aria-expanded", "true");
-    await checkpoint(flow, `${name}-disclosure-${seen.size}`, scope, next);
-    await controls(flow, `${name}-disclosure-${seen.size}`, scope, visits);
-    visits.push({ name: `${name}: ${label}`, kind: "disclosure", disposition: "visited" });
+    const id = `config/${name}/disclosure-${String(seen.size)}`;
+    await checkpoint(flow, `${name}/disclosure-${String(seen.size)}`, scope, next);
+    await walkOpenBody(flow, scope, id);
+    note(flow, { id: target, kind: "disclosure" }, "visited", `${name}: opened and its body walked`);
   }
 }
 
-async function aboutOnly(flow: SurfaceFlow, name: string, context: Locator, visits: Visit[]): Promise<void> {
-  await expect(context.locator('[data-slot="teacher-about"], [data-slot="teacher-roster"]')).toBeVisible();
-  await checkpoint(flow, `${name}-teacher-about`, context);
-  visits.push({
-    name: `${name}: teacher About`,
-    kind: "tab",
-    disposition: "visited",
-    reason: "The resolved single About body renders without a redundant tab strip.",
-  });
-}
-
-async function teacher(flow: SurfaceFlow, name: string, visits: Visit[]): Promise<void> {
+async function teacher(flow: SurfaceWalk, name: string): Promise<void> {
   const context = flow.page.locator(CONTEXT);
   if ((await context.getAttribute("data-panel-mode")) === "collapsed") {
     await flow.page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
   }
-  await expect(context).toBeVisible();
-  const tabs = context.getByRole("tab");
-  const names = await tabs.allTextContents();
-  if (names.length === 0) {
-    await aboutOnly(flow, name, context, visits);
-  }
-  for (const label of names) {
-    const tab = context.getByRole("tab", { name: label.trim(), exact: true });
-    await tab.click();
-    await expect(tab).toHaveAttribute("aria-selected", "true");
-    const region = context.getByRole("region", { name: label.trim(), exact: true });
-    await expect(region).toBeVisible();
-    await disclosures(flow, `${name}-teacher-${label}`, region, visits);
-    await checkpoint(flow, `${name}-teacher-${label}`, region);
-    await controls(flow, `${name}-teacher-${label}`, region, visits);
-    visits.push({ name: `${name}: teacher ${label}`, kind: "tab", disposition: "visited" });
-  }
+  await expect(context.locator('[data-slot="teacher-about"], [data-slot="teacher-roster"], [role="tab"]').first()).toBeVisible();
+  // The walk steps the teacher's tabs itself; a single About body renders without a tab strip.
+  await walkScope(flow, context, `config/${name}/teacher`);
   await closeContext(flow);
 }
 
-async function groupDetails(flow: SurfaceFlow, id: ConfigGroupId, visits: Visit[]): Promise<void> {
+async function groupDetails(flow: SurfaceWalk, id: ConfigGroupId): Promise<void> {
   if (id === "connections") {
-    await connectionAuthoring(flow, visits);
+    await connectionAuthoring(flow);
   } else if (id === "personas") {
-    await personas(flow, visits);
+    await personas(flow);
   } else if (id === "admin") {
-    await sameLabelCensusControl(flow, visits);
+    await sameLabelCensusControl(flow);
   }
 }
 
-async function sameLabelCensusControl(flow: SurfaceFlow, visits: Visit[]): Promise<void> {
+async function sameLabelCensusControl(flow: SurfaceWalk): Promise<void> {
   const saves = flow.page.locator(CONTENT).getByRole("button", { name: "Save", exact: true });
   const buttons = await saves.all();
   expect(buttons.length, "The actual Admin sections must supply repeated Save controls for this census control").toBeGreaterThanOrEqual(2);
@@ -552,27 +326,27 @@ async function sameLabelCensusControl(flow: SurfaceFlow, visits: Visit[]): Promi
     body: JSON.stringify({ count: buttons.length, targets }),
     contentType: "application/json",
   });
-  visits.push({
-    name: "Actual Admin id-less same-label Save controls retain distinct census targets",
-    kind: "control",
-    disposition: "visited",
-    reason: "No Save was activated; each maintained structural target resolves to exactly one real production control.",
-  });
+  note(
+    flow,
+    { id: "Actual Admin id-less same-label Save controls retain distinct census targets", kind: "control" },
+    "visited",
+    "No Save was activated; each maintained structural target resolves to exactly one real production control.",
+  );
 }
 
-async function collectionDetails(flow: SurfaceFlow, id: ConfigGroupId, visits: Visit[]): Promise<void> {
+async function collectionDetails(flow: SurfaceWalk, id: ConfigGroupId): Promise<void> {
   if (id === "worldInfo") {
-    await worldInfo(flow, visits);
+    await worldInfo(flow);
   } else if (id === "regex") {
-    await regex(flow, visits);
+    await regex(flow);
   } else if (id === "rosterPreset") {
-    await rosterJourney(flow, visits);
+    await rosterJourney(flow);
   } else {
     throw new Error(`Registered collection ${id} has no member journey; its landing is not coverage`);
   }
 }
 
-async function themeFileChooser(flow: SurfaceFlow, section: Locator, visits: Visit[]): Promise<void> {
+async function themeFileChooser(flow: SurfaceWalk, section: Locator): Promise<void> {
   const trigger = section.getByRole("button", { name: "Import a theme file", exact: true });
   const transport = section.locator('input[data-slot="file-trigger-input"]');
   await expect(transport).toHaveCount(1);
@@ -584,53 +358,21 @@ async function themeFileChooser(flow: SurfaceFlow, section: Locator, visits: Vis
   await trigger.click();
   const input = (await chooser).element();
   expect(await input.evaluate(diagnosticTarget)).toBe(target);
-  visits.push({
-    name: "Theme import native chooser transport",
-    target,
-    kind: "control",
-    disposition: "not-applicable",
-    reason: "The sr-only aria-hidden non-tabstop FileTrigger input is the exact transport emitted by its witnessed visible theme import button.",
-  });
-  visits.push({
-    name: "Open actual theme import file chooser",
-    target: await controlIdentity(trigger),
-    kind: "action",
-    disposition: "visited",
-    reason: "The actual visible trigger emitted its matching native file chooser; no file was supplied and no import is claimed.",
-  });
+  note(
+    flow,
+    { id: target, kind: "control" },
+    "not-applicable",
+    "The sr-only aria-hidden non-tabstop FileTrigger input is the exact transport emitted by its witnessed visible theme import button.",
+  );
+  note(
+    flow,
+    { id: "Open actual theme import file chooser", kind: "action" },
+    "visited",
+    "The actual visible trigger emitted its matching native file chooser; no file was supplied and no import is claimed.",
+  );
 }
 
-async function appearanceSectionScroll(flow: SurfaceFlow, name: string, section: Locator, visits: Visit[]): Promise<void> {
-  const content = flow.page.locator(CONTENT);
-  const seen = new Set<string>();
-  await section.locator(":scope > h3").scrollIntoViewIfNeeded();
-  for (let window = 0; ; window += 1) {
-    await checkpoint(flow, `${name}-window-${window}`, section);
-    visits.push({ name: `${name}: scroll window ${window}`, kind: "scroll", disposition: "visited" });
-    await inspectControls(flow, { name: `${name}-window-${window}`, scope: section, visits, seen });
-    const sectionBox = await section.boundingBox();
-    if (sectionBox === null) {
-      throw new Error(`${name} lost its production section box`);
-    }
-    const extent = await content.evaluate((node) => {
-      const box = node.getBoundingClientRect();
-      return {
-        top: node.scrollTop,
-        bottom: Math.min(box.bottom, innerHeight),
-        stride: Math.min(box.bottom, innerHeight) - Math.max(box.top, 0),
-        remaining: node.scrollHeight - node.scrollTop - node.clientHeight,
-      };
-    });
-    if (sectionBox.y + sectionBox.height <= extent.bottom || extent.remaining <= 0) {
-      return;
-    }
-    expect(extent.stride, `${name} must have an actual bounded content viewport`).toBeGreaterThan(0);
-    await content.evaluate((node, top) => node.scrollTo({ top, behavior: "instant" }), extent.top + Math.min(extent.stride, extent.remaining));
-    await expect.poll(async () => await content.evaluate((node) => node.scrollTop)).toBeGreaterThan(extent.top);
-  }
-}
-
-async function appearanceJourney(flow: SurfaceFlow, names: readonly string[], visits: Visit[]): Promise<void> {
+async function appearanceJourney(flow: SurfaceWalk, names: readonly string[]): Promise<void> {
   const sectionBudgetMs = budget(APPEARANCE_SECTION_BUDGET_MS);
   const builderBudgetMs = budget(THEME_BUILDER_BUDGET_MS);
   const parentBudgetMs = budget(APPEARANCE_PARENT_BUDGET_MS);
@@ -641,7 +383,7 @@ async function appearanceJourney(flow: SurfaceFlow, names: readonly string[], vi
     body: JSON.stringify({ names, sectionBudgetMs, builderBudgetMs, parentBudgetMs, categoryBudgetMs }),
     contentType: "application/json",
   });
-  visits.push({ name: THEME_BUILDER_VISIT, kind: "action", disposition: "unvisited" });
+  expectSubject(flow, THEME_BUILDER_VISIT, "action");
   for (const label of names) {
     await test.step(
       `Appearance section: ${label}`,
@@ -664,14 +406,12 @@ async function appearanceJourney(flow: SurfaceFlow, names: readonly string[], vi
         await flow.requestPanes();
         await checkpoint(flow, `appearance-${label}-landing`, section, title);
         if ((await section.getByRole("button", { name: "Import a theme file", exact: true }).count()) > 0) {
-          await themeFileChooser(flow, section, visits);
+          await themeFileChooser(flow, section);
         }
-        await disclosures(flow, `appearance-${label}`, section, visits);
-        await appearanceSectionScroll(flow, `appearance-${label}`, section, visits);
-        await nestedScroll(flow, `appearance-${label}`, section, visits);
-        await neutralDialogs(flow, `appearance-${label}`, section, visits);
-        await teacher(flow, `appearance-${label}`, visits);
-        visits.push({ name: `appearance: ${label}`, kind: "subsection", disposition: "visited" });
+        await disclosures(flow, `appearance-${label}`, section);
+        await walkScope(flow, section, `config/appearance/${label}`);
+        await teacher(flow, `appearance-${label}`);
+        note(flow, { id: `appearance: ${label}`, kind: "subsection" }, "visited", "The registry-named section landed and its body was walked");
         await attachNativeFile(flow.info, flow.info, `config-appearance-${label}-phase-cost`, {
           body: JSON.stringify({ label, scope: await controlIdentity(section), budgetMs: sectionBudgetMs, elapsedMs: performance.now() - startedAt }),
           contentType: "application/json",
@@ -684,7 +424,7 @@ async function appearanceJourney(flow: SurfaceFlow, names: readonly string[], vi
     "Appearance Looks builder leaf",
     async (): Promise<void> => {
       const startedAt = performance.now();
-      const scope = await themeBuilder(flow, visits);
+      const scope = await themeBuilder(flow);
       await attachNativeFile(flow.info, flow.info, "config-appearance-builder-phase-cost", {
         body: JSON.stringify({ scope, budgetMs: builderBudgetMs, elapsedMs: performance.now() - startedAt }),
         contentType: "application/json",
@@ -720,11 +460,10 @@ async function appearanceJourney(flow: SurfaceFlow, names: readonly string[], vi
         await trigger.click();
         await expect(trigger).toHaveAttribute("aria-expanded", "true");
         await checkpoint(flow, "appearance-parent-fold", content, trigger);
-        await observedControl(trigger, await controlIdentity(trigger), { name: "appearance-parent-fold", visits });
-        visits.push({ name: `appearance: ${label}`, kind: "disclosure", disposition: "visited" });
+        note(flow, { id: `appearance: ${label}`, kind: "disclosure" }, "visited", "The fold reopened from its production navigation label");
       }
-      await teacher(flow, "appearance-parent", visits);
-      visits.push({ name: "appearance", kind: "category", disposition: "visited" });
+      await teacher(flow, "appearance-parent");
+      note(flow, { id: "appearance", kind: "category" }, "visited", "Every registered section, the Looks builder and the parent folds were walked");
       await attachNativeFile(flow.info, flow.info, "config-appearance-parent-phase-cost", {
         body: JSON.stringify({ scope: CONTENT, budgetMs: parentBudgetMs, elapsedMs: performance.now() - startedAt }),
         contentType: "application/json",
@@ -734,7 +473,7 @@ async function appearanceJourney(flow: SurfaceFlow, names: readonly string[], vi
   );
 }
 
-async function groupJourney(flow: SurfaceFlow, id: ConfigGroupId, visits: Visit[]): Promise<void> {
+async function groupJourney(flow: SurfaceWalk, id: ConfigGroupId): Promise<void> {
   const group = await category(flow, id);
   const rows = group.locator('[data-slot="list-row-body"]');
   const names: string[] = [];
@@ -744,50 +483,39 @@ async function groupJourney(flow: SurfaceFlow, id: ConfigGroupId, visits: Visit[
       throw new Error(`Config subsection in ${id} has no production accessible name`);
     }
     names.push(label);
+    expectSubject(flow, `${id}: ${label}`, "subsection");
   }
-  visits.push(...names.map((name): Visit => ({ name: `${id}: ${name}`, kind: "subsection", disposition: "unvisited" })));
   if (id === "appearance") {
-    await appearanceJourney(flow, names, visits);
+    await appearanceJourney(flow, names);
     return;
   }
+  const content = flow.page.locator(CONTENT);
+  // The content pane stacks every section of the group, so it is walked once; each row only proves its landing.
   for (const label of names) {
     const list = await map(flow);
     const currentGroup = list.locator(`[data-slot="config-group"][data-config-group="${id}"]`);
     const row = currentGroup.getByRole("button", { name: label, exact: true }).and(currentGroup.locator('[data-slot="list-row-body"]'));
     await row.scrollIntoViewIfNeeded();
     await row.click();
-    const content = flow.page.locator(CONTENT);
     await expect(content).toBeVisible();
-    await disclosures(flow, `${id}-${label}`, content, visits);
-    visits.push({ name: `${id}: ${label}`, kind: "subsection", disposition: "visited" });
     await flow.requestPanes();
     await checkpoint(flow, `${id}-${label}-landing`, content);
-    await teacher(flow, `${id}-${label}`, visits);
+    await teacher(flow, `${id}-${label}`);
   }
-  const content = flow.page.locator(CONTENT);
-  const tabs = content.getByRole("tab");
-  const tabNames = await tabs.allTextContents();
-  visits.push(...tabNames.map((name): Visit => ({ name: `${id}: ${name}`, kind: "tab", disposition: "unvisited" })));
-  for (const label of tabNames) {
-    const tab = content.getByRole("tab", { name: label.trim(), exact: true });
-    await tab.click();
-    await expect(tab).toHaveAttribute("aria-selected", "true");
-    await disclosures(flow, `${id}-${label}`, content, visits);
-    await scroll(flow, `${id}-${label}`, content, visits);
-    visits.push({ name: `${id}: ${label}`, kind: "tab", disposition: "visited" });
+  await disclosures(flow, id, content);
+  await walkScope(flow, content, `config/${id}`);
+  await folderChoosers(flow, id, content);
+  for (const label of names) {
+    note(flow, { id: `${id}: ${label}`, kind: "subsection" }, "visited", "The row landed on its section and the group's content was walked");
   }
-  await scroll(flow, `${id}-content`, content, visits);
-  await nestedScroll(flow, id, content, visits);
-  await neutralDialogs(flow, id, content, visits);
-  await teacher(flow, id, visits);
-  await groupDetails(flow, id, visits);
+  await groupDetails(flow, id);
   if ((await group.getAttribute("data-collection")) !== null) {
-    await collectionDetails(flow, id, visits);
+    await collectionDetails(flow, id);
   }
-  visits.push({ name: id, kind: "category", disposition: "visited" });
+  note(flow, { id, kind: "category" }, "visited", "Every subsection landed and the group's content and teaching were walked");
 }
 
-async function regex(flow: SurfaceFlow, visits: Visit[]): Promise<void> {
+async function regex(flow: SurfaceWalk): Promise<void> {
   const name = `Surface regex ${flow.pass} ${Date.now()}`;
   try {
     await category(flow, "regex");
@@ -808,9 +536,14 @@ async function regex(flow: SurfaceFlow, visits: Visit[]): Promise<void> {
     await expect(editor.getByRole("textbox", { name: "Result", exact: true })).toHaveValue("walk walk");
     await editor.getByRole("textbox", { name: "Text going in", exact: true }).fill("surface surface");
     await expect(editor.getByRole("textbox", { name: "Text after the whole stream", exact: true })).toBeVisible();
-    await scroll(flow, "regex-editor-and-real-testers", content, visits);
-    await teacher(flow, "regex-member-scopes", visits);
-    visits.push({ name: "Regex disposable create/autosave/real-engine sample and pipeline", kind: "action", disposition: "visited" });
+    await walkScope(flow, content, "config/regex-editor-and-real-testers");
+    await teacher(flow, "regex-member-scopes");
+    note(
+      flow,
+      { id: "Regex disposable create/autosave/real-engine sample and pipeline", kind: "action" },
+      "visited",
+      "The created script autosaved and both testers ran the real engine",
+    );
   } finally {
     for (const script of (await flow.client.regex.listScripts.query()).filter((candidate) => candidate.name === name)) {
       await flow.client.regex.removeScript.mutate({ scriptId: script.id });
@@ -818,15 +551,15 @@ async function regex(flow: SurfaceFlow, visits: Visit[]): Promise<void> {
   }
 }
 
-async function rosterJourney(flow: SurfaceFlow, visits: Visit[]): Promise<void> {
+async function rosterJourney(flow: SurfaceWalk): Promise<void> {
   const original = (await flow.client.rosterPreset.list.query()).find((candidate) => flow.run.subjects.rosters.some(({ id }) => id === candidate.id));
   if (original === undefined) {
-    visits.push({
-      name: "Roster original member editor",
-      kind: "action",
-      disposition: "unvisited",
-      reason: "No original owned roster in the source provenance; landing is not presented as member coverage.",
-    });
+    skip(
+      flow,
+      "Roster original member editor",
+      "no-subject",
+      "No original owned roster in the source provenance; landing is not presented as member coverage.",
+    );
     return;
   }
   await category(flow, "rosterPreset");
@@ -835,24 +568,29 @@ async function rosterJourney(flow: SurfaceFlow, visits: Visit[]): Promise<void> 
   await content.getByRole("button", { name: original.name, exact: true }).click();
   const editor = content.locator('[data-slot="roster-member-editor"]');
   await expect(editor.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(original.name);
-  await scroll(flow, "roster-original-member-seats-rules", content, visits);
-  await teacher(flow, "roster-original-teaching", visits);
-  visits.push({ name: "Roster original member seats/rules/campaign/teaching", kind: "action", disposition: "visited" });
-  visits.push({
-    name: "Roster Start chat, Save, RPG campaign, Delete original",
-    kind: "action",
-    disposition: "excluded",
-    reason: "Original source subject is read-only; this journey does not create a room or replace its stored cast/rules.",
-  });
+  await walkScope(flow, content, "config/roster-original-member-seats-rules");
+  await teacher(flow, "roster-original-teaching");
+  note(
+    flow,
+    { id: "Roster original member seats/rules/campaign/teaching", kind: "action" },
+    "visited",
+    "The original roster's editor and teaching were walked read-only",
+  );
+  note(
+    flow,
+    { id: "Roster Start chat, Save, RPG campaign, Delete original", kind: "action" },
+    "excluded",
+    "Original source subject is read-only; this journey does not create a room or replace its stored cast/rules.",
+  );
 }
 
-async function originalEntry(flow: SurfaceFlow, editor: Locator, title: string, visits: Visit[]): Promise<void> {
+async function originalEntry(flow: SurfaceWalk, editor: Locator, title: string): Promise<void> {
   await editor.getByText(title, { exact: true }).click();
   await expect(editor.getByRole("textbox", { name: "Title", exact: true })).toHaveValue(title);
-  await scroll(flow, "world-info-original-entry", flow.page.locator(CONTENT), visits);
+  await walkScope(flow, flow.page.locator(CONTENT), "config/world-info-original-entry");
 }
 
-async function openBook(flow: SurfaceFlow, name: string): Promise<Locator> {
+async function openBook(flow: SurfaceWalk, name: string): Promise<Locator> {
   await category(flow, "worldInfo");
   const content = flow.page.locator(CONTENT);
   await content.getByRole("textbox", { name: "Filter world info", exact: true }).fill(name);
@@ -862,25 +600,25 @@ async function openBook(flow: SurfaceFlow, name: string): Promise<Locator> {
   return editor;
 }
 
-async function worldInfo(flow: SurfaceFlow, visits: Visit[]): Promise<void> {
+async function worldInfo(flow: SurfaceWalk): Promise<void> {
   const originals = (await flow.client.worldInfo.listBooks.query()).filter((book) => flow.run.subjects.worldBooks.some(({ id }) => id === book.id));
   const original = originals[0];
   if (original !== undefined) {
     const editor = await openBook(flow, original.name);
-    await scroll(flow, "world-info-original-book", flow.page.locator(CONTENT), visits);
-    await teacher(flow, "world-info-original-attachments", visits);
+    await walkScope(flow, flow.page.locator(CONTENT), "config/world-info-original-book");
+    await teacher(flow, "world-info-original-attachments");
     const entries = await flow.client.worldInfo.listEntries.query({ bookId: original.id });
     const entry = entries[0];
     if (entry !== undefined) {
-      await originalEntry(flow, editor, entry.title, visits);
+      await originalEntry(flow, editor, entry.title);
     }
   } else {
-    visits.push({
-      name: "World Info original source book/entry",
-      kind: "action",
-      disposition: "unvisited",
-      reason: "Provenance contains no original owned world book; no synthetic book is presented as original evidence.",
-    });
+    skip(
+      flow,
+      "World Info original source book/entry",
+      "no-subject",
+      "Provenance contains no original owned world book; no synthetic book is presented as original evidence.",
+    );
   }
 
   const name = `Surface ${flow.pass} ${Date.now()}`;
@@ -933,10 +671,10 @@ async function worldInfo(flow: SurfaceFlow, visits: Visit[]): Promise<void> {
     await injection.click();
     await expect(editor.getByRole("textbox", { name: "Depth", exact: true })).toBeVisible();
     await expect(editor.getByRole("combobox", { name: "Role", exact: true })).toBeVisible();
-    await scroll(flow, "world-info-disposable-entry-injection", content, visits);
+    await walkScope(flow, content, "config/world-info-disposable-entry-injection");
     await injection.click();
     await expect(editor.getByRole("combobox", { name: "Placement", exact: true })).toBeVisible();
-    await scroll(flow, "world-info-disposable-entry-placement", content, visits);
+    await walkScope(flow, content, "config/world-info-disposable-entry-placement");
     await editor.getByRole("button", { name: `Delete ${entryName}`, exact: true }).click();
     const confirmation = flow.page.getByRole("alertdialog");
     await checkpoint(flow, "world-info-delete-entry-confirmation", confirmation);
@@ -965,11 +703,12 @@ async function worldInfo(flow: SurfaceFlow, visits: Visit[]): Promise<void> {
       flow.page.getByRole("region", { name: "Alerts", exact: true }).getByText("That book is already in your library — nothing was added.", { exact: true }),
     ).toBeVisible();
     await expect.poll(async () => (await flow.client.worldInfo.listBooks.query()).filter((candidate) => candidate.name === name).length).toBe(1);
-    visits.push({
-      name: "World Info disposable create/details/autosave/injection/delete/export/native file reimport dedup",
-      kind: "action",
-      disposition: "visited",
-    });
+    note(
+      flow,
+      { id: "World Info disposable create/details/autosave/injection/delete/export/native file reimport dedup", kind: "action" },
+      "visited",
+      "Every step read back from the server; the reimport was refused as a duplicate",
+    );
   } finally {
     for (const book of (await flow.client.worldInfo.listBooks.query()).filter((candidate) => candidate.name === name)) {
       await flow.client.worldInfo.removeBook.mutate({ bookId: book.id });
@@ -977,7 +716,7 @@ async function worldInfo(flow: SurfaceFlow, visits: Visit[]): Promise<void> {
   }
 }
 
-async function librarySetting(flow: SurfaceFlow, visits: Visit[]): Promise<void> {
+async function librarySetting(flow: SurfaceWalk): Promise<void> {
   const original = (await flow.client.settings.getUserSettings.query()).config.library.pageSize;
   const next = original === LIBRARY_PAGE_SIZE_MIN ? LIBRARY_PAGE_SIZE_DEFAULT : LIBRARY_PAGE_SIZE_MIN;
   const setting = LIBRARY_SETTINGS_SUBCATEGORY.settings?.find((candidate) => candidate.id === "rows-per-page");
@@ -1002,13 +741,18 @@ async function librarySetting(flow: SurfaceFlow, visits: Visit[]): Promise<void>
     await field.press("Tab");
     await expect.poll(async () => (await flow.client.settings.getUserSettings.query()).config.library.pageSize).toBe(original);
     await expect(field).toHaveValue(String(original));
-    visits.push({ name: "Rows per page native change/readback/native restore", kind: "action", disposition: "visited" });
+    note(
+      flow,
+      { id: "Rows per page native change/readback/native restore", kind: "action" },
+      "visited",
+      "The change and its restore both read back from the server",
+    );
   } finally {
     await flow.client.settings.updateUserSettingsSection.mutate({ section: "library", patch: { pageSize: original } });
   }
 }
 
-async function worldInfoRecovery(flow: SurfaceFlow, visits: Visit[]): Promise<void> {
+async function worldInfoRecovery(flow: SurfaceWalk): Promise<void> {
   const lift = await abortProcedure(flow.page, "worldInfo.countBooks");
   try {
     await flow.page.goto("/config?to=worldInfo");
@@ -1030,70 +774,58 @@ async function worldInfoRecovery(flow: SurfaceFlow, visits: Visit[]): Promise<vo
       state: count === 0 ? "empty" : "loaded",
       checks: SURFACE_CHECKS,
     });
-    visits.push({ name: "World Info aborted real census read/keyboard Retry/recovered library", kind: "action", disposition: "visited" });
+    note(
+      flow,
+      { id: "World Info aborted real census read/keyboard Retry/recovered library", kind: "action" },
+      "visited",
+      "The aborted read showed Retry and the keyboard recovered it",
+    );
   } finally {
     await lift();
   }
 }
 
-async function configCase(flow: SurfaceFlow, name: string, operation: (visits: Visit[]) => Promise<void>): Promise<void> {
-  const visits: Visit[] = [{ name, kind: "action", disposition: "unvisited" }];
+async function configCase(input: SurfaceFlow, name: string, operation: (walk: SurfaceWalk) => Promise<void>): Promise<void> {
+  const walk = createSurfaceWalk(input, [{ id: name, kind: "action" }]);
   try {
-    await flow.page.goto("/config");
-    await waitForAppReady(flow.page);
-    await operation(visits);
-    visits.push({ name, kind: "action", disposition: "visited" });
+    await walk.page.goto("/config");
+    await waitForAppReady(walk.page);
+    await operation(walk);
+    observe(walk, name, "visited", "Independent native Config case completed; nested omissions retain their own dispositions");
   } catch (error) {
-    visits.push({ name, kind: "action", disposition: "failed", reason: error instanceof Error ? error.message : String(error) });
+    observe(walk, name, "failed", error instanceof Error ? error.message : String(error));
     throw error;
   } finally {
-    await configInventory(flow, name, visits);
+    await attachNativeFile(walk.info, walk.info, "config-itinerary", {
+      body: JSON.stringify({ name, registeredCategories: CONFIG_GROUP_IDS, observations: walk.observations }, null, 2),
+      contentType: "application/json",
+    });
+    await publishWalk(walk, `Config ${name}`);
   }
-}
-
-async function configInventory(flow: SurfaceFlow, name: string, visits: readonly Visit[]): Promise<void> {
-  const raw = visits.map((visit) => ({
-    id: visit.target ?? visit.name,
-    kind: visit.kind,
-    disposition: visit.disposition,
-    ...(visit.reason === undefined ? {} : { reason: visit.reason }),
-  }));
-  const witnessed = new Map<string, (typeof raw)[number]>();
-  for (const observation of raw) {
-    const key = surfaceCoverageKey(observation);
-    const previous = witnessed.get(key);
-    // A later scroll window cannot undo a witness collected while the same control was on screen.
-    if (observation.disposition !== "unvisited" || previous === undefined || previous.disposition === "unvisited") {
-      witnessed.set(key, observation);
-    }
-  }
-  const observations = [...witnessed.values()];
-  const expected = [...new Map(observations.map(({ id, kind }) => [surfaceCoverageKey({ id, kind }), { id, kind }])).values()];
-  await attachNativeFile(flow.info, flow.info, "config-itinerary", {
-    body: JSON.stringify({ name, registeredCategories: CONFIG_GROUP_IDS, visits }, null, 2),
-    contentType: "application/json",
-  });
-  await publishSurfaceInventory(flow.info, { name: `Config ${name}`, expected, observations });
 }
 
 /** Traverse the canonical Settings map and search recovery independently of category editors. */
 export async function walkConfigMap(flow: SurfaceFlow): Promise<void> {
-  await configCase(flow, "map-search", async (visits): Promise<void> => {
-    visits.push(...CONFIG_GROUP_IDS.map((id): Visit => ({ name: `map: ${id}`, kind: "control", disposition: "unvisited" })));
-    const list = await map(flow);
+  await configCase(flow, "map-search", async (walk): Promise<void> => {
+    for (const id of CONFIG_GROUP_IDS) {
+      expectSubject(walk, `map: ${id}`, "control");
+    }
+    const list = await map(walk);
     const actual = await list.locator('[data-slot="config-group"]').evaluateAll((groups) => groups.map((group) => group.getAttribute("data-config-group")));
     expect(
       actual.toSorted((left, right) => String(left).localeCompare(String(right))),
       "The owner must reach every registered production Config category",
     ).toEqual(CONFIG_GROUP_IDS.toSorted((left, right) => left.localeCompare(right)));
-    visits.push(...CONFIG_GROUP_IDS.map((id): Visit => ({ name: `map: ${id}`, kind: "control", disposition: "observed" })));
-    await checkpoint(flow, "map", list, list.getByRole("combobox", { name: "Search settings", exact: true }));
+    for (const id of CONFIG_GROUP_IDS) {
+      note(walk, { id: `map: ${id}`, kind: "control" }, "observed", "The registered category renders its band on the map");
+    }
+    await checkpoint(walk, "map", list, list.getByRole("combobox", { name: "Search settings", exact: true }));
     const search = list.getByRole("combobox", { name: "Search settings", exact: true });
     const miss = "surface-walk-no-matching-setting";
     await search.fill(miss);
     const empty = list.getByRole("status").filter({ hasText: `No settings match “${miss}”.` });
     await expect(empty).toBeVisible();
-    await flow.checkpoint({ name: "config-search-empty", scope: list, witnesses: [empty], state: "empty", checks: SURFACE_CHECKS });
+    await walk.checkpoint({ name: "config-search-empty", scope: list, witnesses: [empty], state: "empty", checks: SURFACE_CHECKS });
     await search.fill("");
     await expect(list.locator('[data-slot="config-group"]')).toHaveCount(CONFIG_GROUP_IDS.length);
   });
@@ -1101,22 +833,18 @@ export async function walkConfigMap(flow: SurfaceFlow): Promise<void> {
 
 /** Traverse one actual registered category; another category's failure cannot hide it. */
 export async function walkConfigCategory(flow: SurfaceFlow, id: ConfigGroupId): Promise<void> {
-  await configCase(flow, `category-${id}`, async (visits): Promise<void> => {
-    visits.push({ name: id, kind: "category", disposition: "unvisited" });
-    await groupJourney(flow, id, visits);
+  await configCase(flow, `category-${id}`, async (walk): Promise<void> => {
+    expectSubject(walk, id, "category");
+    await groupJourney(walk, id);
   });
 }
 
 /** Exercise a real failed read and keyboard Retry without depending on another category case. */
 export async function walkConfigRecovery(flow: SurfaceFlow): Promise<void> {
-  await configCase(flow, "read-recovery", async (visits): Promise<void> => {
-    await worldInfoRecovery(flow, visits);
-  });
+  await configCase(flow, "read-recovery", worldInfoRecovery);
 }
 
 /** Change, read back and restore the named user setting in its own native case. */
 export async function walkConfigSettings(flow: SurfaceFlow): Promise<void> {
-  await configCase(flow, "reversible-setting", async (visits): Promise<void> => {
-    await librarySetting(flow, visits);
-  });
+  await configCase(flow, "reversible-setting", librarySetting);
 }

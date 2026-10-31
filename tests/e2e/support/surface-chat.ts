@@ -11,7 +11,7 @@ import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import { controlledPanel, settledBox, usesProgrammaticScroll, walkDisclosures } from "@orb/testkit/browser/spec";
-import type { SurfaceCoverageDisposition } from "@orb/testkit/iso";
+import type { SurfaceWitnessDisposition } from "@orb/testkit/iso";
 import { parseSurfaceProviderEvidence } from "@orb/testkit/iso";
 import { attachNativeFile, isTrpcRequestFor, matchesTrpcRequestInput, readTrpcOutput, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
@@ -1162,7 +1162,7 @@ function addRoleWitnesses(flow: Journey, witnesses: Map<MessageView["id"], Messa
   }
 }
 
-function capabilityStatus(visited: boolean, available: boolean): SurfaceCoverageDisposition {
+function capabilityStatus(visited: boolean, available: boolean): SurfaceWitnessDisposition {
   if (visited) {
     return "observed";
   }
@@ -1200,7 +1200,7 @@ async function missingLibrarySubject(flow: Journey, population: number): Promise
 async function chatCase(
   input: SurfaceFlow,
   name: string,
-  run: (flow: Journey, rooms: readonly ChatSummary[], candidates: readonly ChatSummary[]) => Promise<SurfaceCoverageDisposition>,
+  run: (flow: Journey, rooms: readonly ChatSummary[], candidates: readonly ChatSummary[]) => Promise<SurfaceWitnessDisposition>,
 ): Promise<void> {
   const id = `chat/${name}`;
   const flow: Journey = createSurfaceWalk(input, [{ id, kind: "chat-journey" }]);

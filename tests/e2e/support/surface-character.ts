@@ -4,6 +4,7 @@ import { exportCharacterPath } from "@orb/contracts/portability";
 import { THEME_FONT_ALLOWLIST } from "@orb/contracts/theme";
 import type { CharacterId, PersonaId, TagId } from "@orb/kit/ids";
 import { isPng, readCardChunk } from "@orb/kit/png-card-chunk";
+import type { DistributiveOmit } from "@orb/testkit/browser/spec";
 import { controlledPanel, markExpectedSurfaceHttpFailure } from "@orb/testkit/browser/spec";
 import type { SurfaceAuditRequest } from "@orb/testkit/ct";
 import type { SurfaceCoverageInventory } from "@orb/testkit/iso";
@@ -43,11 +44,12 @@ const UNEXERCISED_ACTIONS = [
 const ACTION_DISPOSITIONS = {
   openInRefinery: {
     disposition: "skipped",
+    skip: "not-activated",
     reason: "The cross-section session-opening action is not executed by this Character-only itinerary; no model operation is requested.",
   },
   setWelcomeGreeter: { disposition: "excluded", reason: "Changing the account's original welcome preference is outside disposable Character mutations." },
 } as const satisfies Readonly<
-  Partial<Record<keyof typeof CHARACTER_ACTIONS, Pick<SurfaceCoverageInventory["observations"][number], "disposition" | "reason">>>
+  Partial<Record<keyof typeof CHARACTER_ACTIONS, DistributiveOmit<SurfaceCoverageInventory["observations"][number], "id" | "kind">>>
 >;
 
 const COMMAND_ACTION_IDS = [

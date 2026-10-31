@@ -4,7 +4,7 @@
 import type { DisclosureWalkHooks, DistributiveOmit } from "@orb/testkit/browser/spec";
 import { controlledPanel, diagnosticTarget, publishSurfaceInventory, usesProgrammaticScroll, walkDisclosures } from "@orb/testkit/browser/spec";
 import type { SurfaceAuditRequest } from "@orb/testkit/ct";
-import type { SurfaceCoverageDisposition, SurfaceCoverageInventory } from "@orb/testkit/iso";
+import type { SurfaceCoverageInventory, SurfaceSkipReason, SurfaceWitnessDisposition } from "@orb/testkit/iso";
 import { attachNativeFile, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
 import { HIDDEN_AT } from "@orb/ui/lib";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
@@ -19,6 +19,7 @@ const MAX_DIALOG_DEPTH = 2;
 const MAX_SCROLL_REGIONS = 32;
 const SCROLL_TOLERANCE = 2;
 const MAX_SCROLL_ADVANCES = 64;
+const MENU_LEAF_KIND = "menu-leaf";
 const LOADING = '[data-slot="skeleton"]:visible';
 const QUERY_ERROR = '[data-slot="query-error"]:visible';
 const VIRTUAL_ROW_SLOT = "virtual-list-row";
@@ -57,14 +58,21 @@ export function expectSubject(walk: SurfaceWalk, id: string, kind: string): void
   }
 }
 
-function recordSubject(walk: SurfaceWalk, subject: SurfaceWalk["expected"][number], disposition: SurfaceCoverageDisposition, reason: string): void {
+type Outcome = DistributiveOmit<SurfaceWalk["observations"][number], "id" | "kind">;
+
+function recordSubject(walk: SurfaceWalk, subject: SurfaceWalk["expected"][number], outcome: Outcome): void {
   const kind = walk.expected.find(({ id }) => id === subject.id)?.kind ?? subject.kind;
   expectSubject(walk, subject.id, kind);
-  walk.observations.push({ id: subject.id, kind, disposition, reason });
+  walk.observations.push({ id: subject.id, kind, ...outcome });
 }
 
-export function observe(walk: SurfaceWalk, id: string, disposition: SurfaceCoverageDisposition, reason: string): void {
-  recordSubject(walk, { id, kind: "surface" }, disposition, reason);
+export function observe(walk: SurfaceWalk, id: string, disposition: SurfaceWitnessDisposition, reason: string): void {
+  recordSubject(walk, { id, kind: "surface" }, { disposition, reason });
+}
+
+/** Leave an available subject unexercised for a listed reason; the walk report counts and lists every skip. */
+export function skip(walk: SurfaceWalk, id: string, why: SurfaceSkipReason, reason: string): void {
+  recordSubject(walk, { id, kind: "surface" }, { disposition: "skipped", skip: why, reason });
 }
 
 export function pane(walk: SurfaceFlow, side: "list" | "context"): Locator {
@@ -96,8 +104,12 @@ export async function checkpoint(walk: SurfaceWalk, id: string, scope: Locator, 
   recordSubject(
     walk,
     { id, kind: "checkpoint" },
-    error ? "failed" : "observed",
-    error ? "Actual production query-error state; not a loaded-content acceptance" : "Actual selected production body rendered without a loading skeleton",
+    {
+      disposition: error ? "failed" : "observed",
+      reason: error
+        ? "Actual production query-error state; not a loaded-content acceptance"
+        : "Actual selected production body rendered without a loading skeleton",
+    },
   );
   expect(error, `${id}: unexpected production read failure; the error-state checkpoint and failed inventory observation retain its diagnostics`).toBe(false);
 }
@@ -110,7 +122,7 @@ export async function checkpointState(
   state: DistributiveOmit<SurfaceAuditRequest, "name" | "scope" | "checks">,
 ): Promise<void> {
   await walk.checkpoint({ name: id, scope, ...state, checks: SURFACE_CHECKS });
-  recordSubject(walk, { id, kind: "checkpoint" }, "observed", `The declared ${state.state} subject witnesses rendered`);
+  recordSubject(walk, { id, kind: "checkpoint" }, { disposition: "observed", reason: `The declared ${state.state} subject witnesses rendered` });
 }
 
 /** Close an overlaid Context, the sheet a phone or narrow shell lays over the content. */
@@ -175,7 +187,7 @@ export function disclosureHooks(walk: SurfaceWalk): DisclosureWalkHooks {
 }
 
 /** What sits inside a body the walk has already opened and checkpointed. */
-async function walkOpenBody(walk: SurfaceWalk, scope: Locator, id: string, depth = 0): Promise<void> {
+export async function walkOpenBody(walk: SurfaceWalk, scope: Locator, id: string, depth = 0): Promise<void> {
   await walkSelects(walk, scope, id);
   await walkMenus(walk, scope, id);
   await walkDialogs(walk, scope, id, depth);
@@ -212,7 +224,7 @@ async function walkTabs(walk: SurfaceWalk, scope: Locator, prefix: string, depth
     for (const [index, tab] of tabs.entries()) {
       const id = `${prefix}/tabs-${String(listIndex)}/${String(index)}`;
       if (await tab.isDisabled()) {
-        observe(walk, id, "skipped", "Production tab is disabled; no body acceptance claimed");
+        skip(walk, id, "disabled", "Production tab is disabled; no body acceptance claimed");
         continue;
       }
       await walk.action(id, {
@@ -237,7 +249,7 @@ async function walkSelects(walk: SurfaceWalk, scope: Locator, prefix: string): P
   for (const [index, select] of selects.entries()) {
     const id = `${prefix}/select-${String(index)}`;
     if (await select.isDisabled()) {
-      observe(walk, id, "skipped", "Actual select is disabled");
+      skip(walk, id, "disabled", "Actual select is disabled");
       continue;
     }
     await walk.action(id, {
@@ -277,13 +289,20 @@ async function walkMenuBody(walk: SurfaceWalk, menu: Locator, prefix: string, de
     await expect(trigger).toBeFocused();
   }
   const leaves = (await menu.locator('[role^="menuitem"]:not([aria-haspopup]):not([aria-disabled="true"])').allTextContents()).map((label) => label.trim());
+  // One row per leaf, so the walk report lists each command the walk read and did not run; a hook may settle them later.
+  for (const [index, leaf] of leaves.entries()) {
+    recordSubject(
+      walk,
+      { id: `${prefix}/leaf-${String(index)}`, kind: MENU_LEAF_KIND },
+      { disposition: "skipped", skip: "not-activated", reason: `Enabled command ${leaf} read, not run` },
+    );
+  }
   await walk.hooks.menuLeaves?.(menu, prefix, leaves);
-  observe(walk, `${prefix}/leaf-actions`, "skipped", `Enabled commands read, not run; a bespoke journey owns activation: ${leaves.join("; ")}`);
 }
 
 async function walkMenuTerminal(walk: SurfaceWalk, menu: Locator, items: Locator, prefix: string): Promise<void> {
   if ((await items.count()) === 0) {
-    observe(walk, `${prefix}/terminal`, "skipped", "All actual items are disabled");
+    skip(walk, `${prefix}/terminal`, "disabled", "All actual items are disabled");
     return;
   }
   await menu.press("End");
@@ -294,7 +313,7 @@ async function walkMenuTerminal(walk: SurfaceWalk, menu: Locator, items: Locator
 /** Open one menu trigger, read its tree and restore the focus it took. */
 export async function walkMenuTrigger(walk: SurfaceWalk, trigger: Locator, id: string): Promise<void> {
   if (await trigger.isDisabled()) {
-    observe(walk, id, "skipped", "Actual menu trigger is disabled");
+    skip(walk, id, "disabled", "Actual menu trigger is disabled");
     return;
   }
   await walk.action(id, {
@@ -379,7 +398,7 @@ async function walkMenus(walk: SurfaceWalk, scope: Locator, prefix: string): Pro
     // Every row of a list repeats one menu; the first stands for its siblings.
     const inRow = await trigger.evaluate((node, selector) => node.closest(selector) !== null, ROW);
     if (inRow && rowSampled) {
-      observe(walk, id, "skipped", `Sibling row menu, represented by the first row of the list: ${await trigger.ariaSnapshot()}`);
+      skip(walk, id, "sibling-sample", `Sibling row menu, represented by the first row of the list: ${await trigger.ariaSnapshot()}`);
       continue;
     }
     rowSampled ||= inRow;
@@ -404,7 +423,7 @@ export async function walkDoor(walk: SurfaceWalk, door: SurfaceDoor, depth = 0):
     return;
   }
   if (await trigger.isDisabled()) {
-    observe(walk, id, "skipped", "The actual door is disabled; no click or body acceptance claimed");
+    skip(walk, id, "disabled", "The actual door is disabled; no click or body acceptance claimed");
     return;
   }
   await walk.action(`${id}/open`, {
@@ -435,7 +454,7 @@ async function walkDialogs(walk: SurfaceWalk, scope: Locator, prefix: string, de
   const triggers = await scope.locator('button[aria-haspopup="dialog"]:visible').all();
   if (depth >= MAX_DIALOG_DEPTH) {
     if (triggers.length > 0) {
-      observe(walk, `${prefix}/nested-dialogs`, "skipped", `${String(triggers.length)} dialog doors inside a dialog beyond the traversal bound`);
+      skip(walk, `${prefix}/nested-dialogs`, "traversal-bound", `${String(triggers.length)} dialog doors inside a dialog beyond the traversal bound`);
     }
     return;
   }
@@ -454,7 +473,7 @@ export async function walkChoices(walk: SurfaceWalk, group: Locator, body: Locat
   for (const [index, choice] of choices.entries()) {
     const id = `${prefix}/${String(index)}`;
     if (await choice.isDisabled()) {
-      observe(walk, id, "skipped", "Production mode is disabled");
+      skip(walk, id, "disabled", "Production mode is disabled");
       continue;
     }
     await walk.action(id, {
@@ -549,12 +568,16 @@ async function controlCensus(walk: SurfaceWalk, scope: Locator, prefix: string):
     const unavailable = await unavailableControl(element);
     if (unavailable !== null) {
       walk.seenControls.add(target);
-      recordSubject(walk, { id: target, kind: "control" }, "not-applicable", unavailable);
+      recordSubject(walk, { id: target, kind: "control" }, { disposition: "not-applicable", reason: unavailable });
     } else if (await element.isVisible()) {
       walk.seenControls.add(target);
-      recordSubject(walk, { id: target, kind: "control" }, "observed", `${prefix}: ${await element.ariaSnapshot()}`);
+      recordSubject(walk, { id: target, kind: "control" }, { disposition: "observed", reason: `${prefix}: ${await element.ariaSnapshot()}` });
     } else {
-      recordSubject(walk, { id: target, kind: "control" }, "skipped", `${prefix}: hidden here, such as a responsive arm; not counted as witnessed`);
+      recordSubject(
+        walk,
+        { id: target, kind: "control" },
+        { disposition: "skipped", skip: "hidden-here", reason: `${prefix}: hidden in this layout; not counted as witnessed` },
+      );
     }
   }
 }
