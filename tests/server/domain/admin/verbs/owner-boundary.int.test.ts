@@ -12,6 +12,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
+import { ADMIN_OP_CODES } from "#server/domain/admin/contract/errors.ts";
 
 const PASSWORD = "native-owner-boundary-password";
 const PRIVATE_PASSWORD_HASH = "private-password-hash";
@@ -68,10 +69,12 @@ test("owner includes delegated admin work while a delegate cannot grant elevated
   await expect(root.services.admin.setRole({ principal: admin, userId: delegated.id, role: "admin" })).rejects.toThrow("requires owner privilege");
   await expect(
     root.services.admin.createUser({ principal: owner, handle: castId<Handle>("second-owner-must-not-exist"), role: "owner", password: PASSWORD }),
-  ).rejects.toMatchObject({ code: "cannot_grant_owner" });
+  ).rejects.toMatchObject({ code: ADMIN_OP_CODES.cannotGrantOwner });
   expect((await caller.admin.listUsers()).filter(({ role }) => role === "owner").map(({ id }) => ({ id }))).toEqual([{ id: root.ownerId }]);
   expect(await caller.admin.setRole({ userId: owner.userId, role: "owner" })).toMatchObject({ id: owner.userId, role: "owner" });
-  await expect(root.services.admin.setRole({ principal: owner, userId: owner.userId, role: "admin" })).rejects.toMatchObject({ code: "cannot_modify_owner" });
+  await expect(root.services.admin.setRole({ principal: owner, userId: owner.userId, role: "admin" })).rejects.toMatchObject({
+    code: ADMIN_OP_CODES.cannotModifyOwner,
+  });
   expect(await root.app.sessions.loadUserById(delegated.id)).toMatchObject({ enabled: true });
   expect(await (await root.internalCallerFor(delegated.id)).sessions.me()).toMatchObject({ globalRole: "user" });
 });

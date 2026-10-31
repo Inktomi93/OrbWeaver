@@ -2,9 +2,10 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { testId } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { personaCollisionReviewSchema, ST_SETTINGS_FILE } from "@orb/contracts/import";
 import { createPersonaSchema } from "@orb/contracts/persona";
+import { exportCharacterPath, PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { actionGroupGeometry, resolvedLength, settledBox } from "@orb/testkit/browser/spec";
@@ -18,7 +19,7 @@ import type { WorkloadActionGroupsStory } from "./_action-groups-stories.tsx";
 
 const STORY = "tests/client/features/workloads/components/_action-groups-stories/WorkloadActionGroupsStory";
 const ROOT_OPTIONS = {
-  env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
+  env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
   physicalPeer: () => "127.0.0.1",
   startJobs: false,
 } as const;
@@ -101,7 +102,7 @@ for (const regime of REGIMES) {
           description: "An exported card for the real preflight.",
         }),
       });
-      const exported = await root.http.request(`/api/export/character/${card.id}`);
+      const exported = await root.http.request(exportCharacterPath(card.id));
       expect(exported.status).toBe(200);
       const bytes = Buffer.from(await exported.arrayBuffer());
       await routeImportReads(page, root);
@@ -150,7 +151,7 @@ for (const regime of REGIMES) {
           description: "A real profile card accompanying its persona settings.",
         }),
       });
-      const exported = await root.http.request(`/api/export/character/${card.id}`);
+      const exported = await root.http.request(exportCharacterPath(card.id));
       expect(exported.status).toBe(200);
       await writeFile(join(cards, "collision-profile-card.png"), Buffer.from(await exported.arrayBuffer()));
       await writeFile(
@@ -174,7 +175,7 @@ for (const regime of REGIMES) {
       await picker.focus();
       await expect(picker).toBeFocused();
       await picker.click();
-      const reviewResponsePromise = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/import/tree/review");
+      const reviewResponsePromise = page.waitForResponse((response) => new URL(response.url()).pathname === PORTABILITY_ROUTES.importTreeReview);
       await (await chooserPromise).setFiles(folder);
       await expect(picker).toBeFocused();
       const reviewResponse = await reviewResponsePromise;

@@ -3,6 +3,7 @@
 // @subject packages/server/src/transport/trpc/routers/automation.ts
 import { once } from "node:events";
 import { createServer } from "node:http";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
@@ -18,7 +19,7 @@ const body = {
 test("lost mounted HTTP response after real commit recovers one unchanged birth with no second position", async () => {
   await using root = await createServerHarness({
     physicalPeer: () => "127.0.0.1",
-    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
+    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
   });
   const owner = await root.internalCallerFor(root.ownerId);
   const other = await root.actor();

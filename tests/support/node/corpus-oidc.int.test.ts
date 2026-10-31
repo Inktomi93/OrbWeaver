@@ -1,6 +1,7 @@
 // @subject tests/support/node/corpus-oidc.ts
 // @subject tests/support/node/factories/sessions.ts
 
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { oidcPendingSignups, oidcTransactions, users } from "@orb/db";
 import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import { seedOidcCorpus } from "./corpus-seed.ts";
@@ -15,7 +16,7 @@ function oidcRoot(
 ): Promise<UnclaimedServerTestHarness> {
   return createServerHarness({
     ownerId: null,
-    env: { ["AUTH_MODE"]: "oidc", ["AUTH_FALLBACK"]: "deny" },
+    env: { [AUTH_MODE_KEY]: "oidc", [AUTH_FALLBACK_KEY]: "deny" } as const,
     oidc: { ...NATIVE_OIDC_SETTINGS, ...settings },
     networkExecution: {
       fetch: issuer.fetch,

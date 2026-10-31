@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import {
   fieldSearchResultSchema,
   searchSpaceStatusSchema,
@@ -57,7 +58,7 @@ test("settled search publication survives native authenticated clone reads and r
   const sourceDb = await createDb(sourceLayout.databaseUrl);
   const clock = createFrozenClock();
   const ids = createSeededIds();
-  const authEnv = { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" };
+  const authEnv = { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" };
   const physical = createCorpusSearchWire(
     createCorpusProviderExecution({
       modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],

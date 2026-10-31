@@ -335,6 +335,11 @@ const SERVER_DOORS = [`${SRV}[^/]+/[^/]+/index\\.ts$`, ...exportedDoors("server"
 const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/character/contract/errors.ts": "CharacterNotFoundError: the refusal class greeting suites assert",
   "packages/server/src/domain/chat/contract/errors.ts": "CHAT_OP_CODES and ChatNotFoundError: the refusal codes and class chat suites assert",
+  "packages/server/src/domain/admin/contract/errors.ts": "ADMIN_OP_CODES: the refusal codes admin and sessions suites assert",
+  "packages/server/src/domain/credentials/contract/errors.ts": "CREDENTIALS_OP_CODES: the refusal codes credentials suites assert",
+  "packages/server/src/domain/settings/contract/errors.ts": "SETTINGS_OP_CODES: the refusal codes settings suites assert",
+  "packages/client/src/features/credentials/lib/connections-copy.ts": "ADD_CONNECTION_NAME: the add-connection button's name",
+  "packages/server/src/foundation/data-layout/contract.ts": "the data-layout slot key constants: the env keys that override one slot each",
   "packages/server/src/domain/chat/contract/metadata.ts": "TOOL_RECURSE_LIMIT_DEFAULT: the default the corpus writes back",
   "packages/server/src/domain/chat/persistence/participants-read.ts": "loadPresentRole: the production role read the authority suite compares against",
   "packages/server/src/domain/import/substrate/appearance.ts":
@@ -396,7 +401,9 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/rpg/lib/unset-datum.ts": "UNSET_DATUM: the unset reading's text",
   "packages/client/src/features/plugin/lib/extensions-copy.ts": "EXTENSIONS_GONE_TITLE: the vanished page's title",
   "packages/client/src/features/plugin/lib/plugin-copy.ts":
-    "approveLabel and CHAT_PANEL_HIDE_LABEL: production action names required by the no-copied-label contract",
+    "approveLabel, CHAT_PANEL_HIDE_LABEL and CHAT_PANEL_UNDO_LABEL: production action names required by the no-copied-label contract",
+  "packages/client/src/features/persona/lib/persona-copy.ts":
+    "PERSONA_NAME_REQUIRED and nowDefaultNotice: the blank-name error and the crown-moved notice the persona suites assert",
   "packages/client/src/features/plugin/lib/plugin-model-copy.ts":
     "PLUGIN_MODEL_HEADING: the production model disclosure name used by plugin presentation assertions",
   "packages/client/src/features/plugin/lib/plugin-panel-copy.ts":
@@ -404,7 +411,10 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/stats/lib/leaderboard-row-attr.ts":
     "LEADERBOARD_ROW_ATTR: the attribute a leaderboard row wears, which the corpus workbench e2e addresses rows by",
   "packages/client/src/features/tag/lib/tag-list-name.ts": "TAG_LIST_NAME: the Labels finder's tag list name",
+  "packages/client/src/lib/app-ready-attribute.ts": "APP_READY_ATTR: the readiness attribute the boot veil exits on",
   "packages/client/src/state/create-persisted-store.ts": "createPersistedStore: the persisted-store factory a type contract reads",
+  "packages/client/src/state/durable-local-keys.ts":
+    "APPEARANCE_BOOT_HINT_NAME and APPEARANCE_BOOT_HINT_VERSION: the key and version the boot hint persists under",
   "packages/client/src/compose/contributors.ts": "chromeWidgets: the shipped chrome widget registry",
   "packages/client/src/compose/home-tiles.ts": "homeTiles: the shipped home tile registry",
 } as const satisfies Readonly<Record<string, string>>;
@@ -426,6 +436,15 @@ const SERVER_TEST_REACHES = {
     "domain/stats": "reconcileOwnersMissingTimeline: a cross-owner boot verb",
     "domain/workloads": "reclaimInFlightOnBoot: a cross-owner boot verb",
   },
+  "tests/server/domain/sessions/persistence/users.int.test.ts": {
+    "domain/admin": "ADMIN_OP_CODES: the refusals of the admin SSO link claim, which binds a sessions-owned row",
+  },
+  "tests/server/domain/sessions/role-policy-config.int.test.ts": {
+    "domain/admin": "ADMIN_OP_CODES: the handle refusal the admin create verb raises under the sessions role policy",
+  },
+  "tests/server/domain/assets/persistence/materialization-boundaries.int.test.ts": {
+    "domain/chat": "CHAT_OP_CODES: the refusal the settings background materialization raises through the chat-owned code table",
+  },
   "tests/server/domain/settings/persistence/seed-ledger-tags.int.test.ts": {
     "domain/character": "DEFAULT_CHARACTER_CARDS: the authored tag list is the expected set the seeded card's tag rows must equal",
   },
@@ -443,6 +462,9 @@ const SERVER_TEST_REACHES = {
   "tests/server/foundation/env/record/floor-defaults.test.ts": {
     "foundation/data-layout":
       "resolveDataLayout and LEGACY_ENTRIES: the record's slots are compared with an independent resolution, which no testkit door offers, and a keyed legacy entry exists only in the table",
+  },
+  "tests/server/entry/http/production-debug-posture.int.test.ts": {
+    "foundation/env": "DEBUG_TOKEN_ENV: the secret env key the posture suite sets, which no testkit door names",
   },
   "tests/server/entry/boot/identity-ownership.int.test.ts": {
     "foundation/data-layout": "SECRET_FILE_NAMES: the suite plants the boot secret files by their production names",
@@ -559,6 +581,10 @@ const PACKAGE_TEST_REACHES = {
     "packages/server/src/foundation/observability/index.ts":
       "wrapLibSqlClient: the client wrapper createDb takes, proven through native close; the raw queries it traces are persistence-tier reads",
     "packages/server/src/foundation/observability/tracing.ts": "getTraceByRequestId: the trace ring read that shows the wrapped client's spans",
+  },
+  "tests/client/features/auth/components/pending-join-fixtures.ts": {
+    "packages/contracts/src/chat/roster.ts":
+      "JOIN_UNAVAILABLE_CODE and ACCOUNT_EXISTS_CODE: the refusal codes the pending-join story answers with, which no contracts door forwards",
   },
   "tests/client/features/character/lib/facet-fill.dom.test.ts": {
     "packages/client/src/features/character/lib/character-card-facets.ts": "facetFillState and CHARACTER_CARD_FACET_IDS: the feature-private facet model",

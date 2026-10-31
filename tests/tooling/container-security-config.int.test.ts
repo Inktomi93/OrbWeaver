@@ -1,3 +1,4 @@
+// Pins the env key spellings of the shipped container files, so it spells them instead of reading the production constants.
 import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";

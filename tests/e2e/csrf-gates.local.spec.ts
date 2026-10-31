@@ -4,6 +4,7 @@
 import { randomBytes } from "node:crypto";
 import { createTrpcClient as createProductionClient } from "@orb/client/data";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { TRPC_BATCH_MAX_ITEMS, TRPC_BATCH_MAX_URL_LENGTH } from "@orb/contracts/rpc";
 import type { Handle, SocketId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -17,13 +18,13 @@ const CSRF = { [CSRF_HEADER]: "1" };
 const INGEST_ROUTES = [
   "/api/assets/upload",
   "/api/databank/upload",
-  "/api/import",
-  "/api/import/restore-card-lorebook",
-  "/api/import/chat",
-  "/api/import/tree",
-  "/api/import/tree/review",
+  PORTABILITY_ROUTES.importCards,
+  PORTABILITY_ROUTES.restoreCardLorebook,
+  PORTABILITY_ROUTES.importChat,
+  PORTABILITY_ROUTES.importTree,
+  PORTABILITY_ROUTES.importTreeReview,
 ] as const;
-const BUNDLE_ROUTE = "/api/import/bundle";
+const BUNDLE_ROUTE = PORTABILITY_ROUTES.importBundle;
 const PRUNE_URL = "/api/trpc/tag.pruneUnusedTags";
 const MARKER_BYTES = 4;
 const FRESH_PASSWORD = "csrf-gates-fresh-password";

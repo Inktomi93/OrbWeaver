@@ -8,6 +8,7 @@ import type { Trpc } from "#data";
 import { useGatedQuery, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { notify } from "#lib";
 import { useActiveChatId } from "#state";
+import { nowDefaultNotice } from "../lib/persona-copy.ts";
 import { resolveNewChatPersona, resolvePlayingPersona } from "../lib/persona-current.ts";
 import { useSetChatActivePersona, useSetChatAnchorPersona } from "./use-chat-persona.ts";
 import { useSetPersonaSeed } from "./use-persona-identity.ts";
@@ -63,7 +64,7 @@ export function useDefaultPersona(notifyOnChange: boolean): { readonly set: (per
   };
   return {
     set: (persona): void => {
-      setSeed.mutate({ section: "seeds", patch: { defaultPersonaId: persona.id } }, { onSuccess: (): void => say(`${persona.name} is now your default.`) });
+      setSeed.mutate({ section: "seeds", patch: { defaultPersonaId: persona.id } }, { onSuccess: (): void => say(nowDefaultNotice(persona.name)) });
     },
     clear: (): void => {
       setSeed.mutate({ section: "seeds", patch: { defaultPersonaId: null } }, { onSuccess: (): void => say("Default persona cleared.") });

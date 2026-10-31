@@ -105,25 +105,43 @@ export type EnvLine = readonly [key: string, value: string];
 /** The env key that selects the sign-in mode. */
 export const AUTH_MODE_KEY = "AUTH_MODE";
 
+/** The env keys the sign-in modes read, each spelled once: the env files, the boot parse's refusals and the suites
+ *  that set them name the key through these. */
+export const AUTH_FALLBACK_KEY = "AUTH_FALLBACK";
+export const AUTH_FALLBACK_TRUSTED_PEERS_KEY = "AUTH_FALLBACK_TRUSTED_PEERS";
+export const OIDC_ISSUER_KEY = "OIDC_ISSUER";
+export const OIDC_CLIENT_ID_KEY = "OIDC_CLIENT_ID";
+export const OIDC_CLIENT_SECRET_KEY = "OIDC_CLIENT_SECRET";
+export const OIDC_REDIRECT_URIS_KEY = "OIDC_REDIRECT_URIS";
+export const FORWARD_AUTH_TRUSTED_PROXIES_KEY = "FORWARD_AUTH_TRUSTED_PROXIES";
+
+/** The env keys the role policy reads to decide who owns the box and who administers it. */
+export const DEFAULT_USER_HANDLE_KEY = "DEFAULT_USER_HANDLE";
+export const OWNER_HANDLES_KEY = "OWNER_HANDLES";
+export const OWNER_GROUP_KEY = "OWNER_GROUP";
+export const OIDC_ADMIN_GROUPS_KEY = "OIDC_ADMIN_GROUPS";
+export const OIDC_ALLOWED_GROUPS_KEY = "OIDC_ALLOWED_GROUPS";
+export const RE_DERIVE_ROLE_ON_LOGIN_KEY = "RE_DERIVE_ROLE_ON_LOGIN";
+
 /** The keys each sign-in mode needs beside `AUTH_MODE`, with example values the owner replaces and the boot parse
  *  accepts. */
 export const SIGN_IN_MODE_KEYS = {
   local: [],
   oidc: [
-    ["OIDC_ISSUER", "https://auth.example.com/application/o/orbweaver/"],
-    ["OIDC_CLIENT_ID", "orbweaver"],
-    ["OIDC_CLIENT_SECRET", "your-client-secret"],
-    ["OIDC_REDIRECT_URIS", "https://orbweaver.example.com/api/auth/oidc/callback"],
+    [OIDC_ISSUER_KEY, "https://auth.example.com/application/o/orbweaver/"],
+    [OIDC_CLIENT_ID_KEY, "orbweaver"],
+    [OIDC_CLIENT_SECRET_KEY, "your-client-secret"],
+    [OIDC_REDIRECT_URIS_KEY, "https://orbweaver.example.com/api/auth/oidc/callback"],
   ],
-  "forward-header": [["FORWARD_AUTH_TRUSTED_PROXIES", "172.18.0.100/32"]],
+  "forward-header": [[FORWARD_AUTH_TRUSTED_PROXIES_KEY, "172.18.0.100/32"]],
 } as const satisfies Record<SignInTargetMode, readonly EnvLine[]>;
 
 /** The two owner-fallback keys a container moves with the mode: the shipped `docker/orbweaver.env` pairs single-user
  *  with the owner fallback and the bridge peers, which production refuses beside a login mode. On bare metal they stay
  *  out of `.env`, where the boot parse refuses them and resolves both from the mode. */
 export const CONTAINER_LOGIN_FALLBACK_ENV = [
-  ["AUTH_FALLBACK", "deny"],
-  ["AUTH_FALLBACK_TRUSTED_PEERS", ""],
+  [AUTH_FALLBACK_KEY, "deny"],
+  [AUTH_FALLBACK_TRUSTED_PEERS_KEY, ""],
 ] as const satisfies readonly EnvLine[];
 
 /** The sign-in keys the host-network overlay pins in its own `environment:` block (it also pins BIND_HOST and PORT,

@@ -20,7 +20,7 @@ const DEFAULT_INJECT_ROLE: MessageRole = "system";
 
 /** The flat form value shape the persona editor binds (nested inject\{depth,role\} flattened). */
 export interface PersonaFormValues {
-  /** Required; a blank name is never sent, so the persona keeps its last saved name. */
+  /** Required; the form holds the write while it is blank. */
   readonly name: string;
   /** Display subtitle — never prompt-injected. `""` ⇒ `null` on save. */
   readonly title: string;
@@ -79,11 +79,10 @@ function metadataFromForm(values: PersonaFormValues, base: PersonaMetadata | nul
 }
 
 /** Build the persona.update partial input from the form values. avatarAssetId/starred are never sent from
- *  here; a blank name is withheld so the server keeps the last saved one. */
+ *  here; the form holds the write while the name is blank. */
 export function personaInputFromForm(values: PersonaFormValues, base: PersonaMetadata | null): UpdatePersonaInput {
-  const name = values.name.trim();
   return {
-    ...(name === "" ? {} : { name }),
+    name: values.name.trim(),
     title: values.title.trim() === "" ? null : values.title,
     description: values.description,
     metadata: metadataFromForm(values, base),

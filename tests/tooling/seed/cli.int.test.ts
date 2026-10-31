@@ -3,6 +3,8 @@
 // boot-FATAL under an incomplete env). Regression for #2407: the CLI used to dispatch through a shared
 // barrel that re-exported all three verbs, so `multi-user` imported the server env schema for
 // no reason.
+
+import { AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { expect, test } from "@orb/testkit/tooling";
 
 test("multi-user runs under an env that is boot-fatal for the SERVER env schema", async ({ runCli }) => {
@@ -11,7 +13,7 @@ test("multi-user runs under an env that is boot-fatal for the SERVER env schema"
   // still imported that schema to dispatch `multi-user`, this would fail on an env-parse ZodError before
   // ever reaching multiUserConfig()'s own SEED_BASE_URL check.
   const result = await runCli("seed", ["multi-user"], {
-    env: { ["AUTH_MODE"]: "oidc" },
+    env: { [AUTH_MODE_KEY]: "oidc" },
   });
   // Refused on ITS OWN missing-config check (SEED_BASE_URL, a UsageError → misuse) never on the server's
   // env parse (which would crash the run-tool try/catch as a tool error) — proves the server schema was
@@ -27,7 +29,7 @@ test("demo and chat still resolve to the server-composing seeders (lazy import w
   // unknown-command usage error, proving the lazy `await import("./ops/<verb>.ts")` dispatch in cli.ts
   // still resolves each verb correctly.
   const result = await runCli("seed", ["demo"], {
-    env: { ["AUTH_MODE"]: "oidc" },
+    env: { [AUTH_MODE_KEY]: "oidc" },
   });
   await expect(result).toExitWith(2);
   expect(result.stderr).toContain("OIDC_ISSUER is required");

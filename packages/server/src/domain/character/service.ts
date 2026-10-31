@@ -20,7 +20,6 @@ import { createCreate } from "./verbs/create.ts";
 import { createDuplicate } from "./verbs/duplicate.ts";
 import { createFindByHandle } from "./verbs/find-by-handle.ts";
 import { createFindByImportHash } from "./verbs/find-by-import-hash.ts";
-import { createFindByImportedFrom } from "./verbs/find-by-imported-from.ts";
 import { createFindByName } from "./verbs/find-by-name.ts";
 import { createFindSyntheticGroupCharacter } from "./verbs/find-synthetic-group-character.ts";
 import { createGenerateGreeting } from "./verbs/generate-greeting.ts";
@@ -73,7 +72,6 @@ export function createCharacterService(input: CharacterAssemblyInput): Character
     findByImportHash: createFindByImportHash(ctx),
     attachImportedArt: createAttachImportedArt(ctx),
     stampImportIdentity: createStampImportIdentity(ctx),
-    findByImportedFrom: createFindByImportedFrom(ctx),
     mintSyntheticGroupCharacter: createMintSyntheticGroupCharacter(ctx),
     findSyntheticGroupCharacter: createFindSyntheticGroupCharacter(ctx),
     rewriteGreeting: createRewriteGreeting(ctx),

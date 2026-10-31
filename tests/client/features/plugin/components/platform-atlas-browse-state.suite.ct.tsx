@@ -77,7 +77,36 @@ function searchResponse(url: URL, query: string): Response {
   throw new Error(`Unscripted Atlas query: ${query}`);
 }
 
-async function enableAtlas(caller: AtlasCaller): Promise<AtlasAddress> {
+const ATLAS_BROWSE_GRANTS = ["storage.kv", "ui.surface", "net.fetch"] as const;
+const ATLAS_LIBRARY_GRANTS = [...ATLAS_BROWSE_GRANTS, "character.ingest", "character.card_state"] as const;
+const LIBRARY_CARD = "Lantern keeper";
+
+/** One Wyvern card, served as both its search row and its native card JSON. */
+function externalLibraryHub(): ExternalAtlasSearch["execution"] {
+  const body = Object.fromEntries([
+    ["name", LIBRARY_CARD],
+    ["description", "A card."],
+    ["personality", ""],
+    ["scenario", ""],
+    ["first_mes", "Hello."],
+    ["mes_example", ""],
+  ]);
+  return {
+    fetch: (input, init): Promise<Response> => {
+      const url = new URL(new Request(input, init).url);
+      if (url.hostname === "api.wyvern.chat" && url.pathname === "/exploreSearch/characters") {
+        return Promise.resolve(Response.json({ totalPages: 1, results: [{ id: "w1", name: LIBRARY_CARD, tags: [] }] }));
+      }
+      if (url.hostname === "api.wyvern.chat" && url.pathname === "/characters/w1") {
+        return Promise.resolve(Response.json(body));
+      }
+      throw new Error(`Unscripted Atlas request: ${url}`);
+    },
+    resolver: (): Promise<string[]> => Promise.resolve(["93.184.215.14"]),
+  };
+}
+
+async function enableAtlas(caller: AtlasCaller, grant: readonly (typeof ATLAS_LIBRARY_GRANTS)[number][] = ATLAS_BROWSE_GRANTS): Promise<AtlasAddress> {
   await caller.settings.updateUserSettingsSection({ section: "appearance", patch: DEFAULT_APPEARANCE_SETTINGS });
   await caller.settings.updateUserSettingsSection({ section: "theme", patch: DEFAULT_USER_SETTINGS.theme });
   const bundleBase64 = Buffer.from(await requireShowcaseBundle("card-atlas")).toString("base64");
@@ -86,7 +115,7 @@ async function enableAtlas(caller: AtlasCaller): Promise<AtlasAddress> {
     installed === undefined ? await caller.plugin.install({ bundleBase64, grant: [] }) : await caller.plugin.upgrade({ pluginId: installed.id, bundleBase64 });
   await caller.plugin.setGrant({
     pluginId: plugin.id,
-    grant: ["storage.kv", "ui.surface", "net.fetch"],
+    grant: [...grant],
     acknowledgedNetHosts: [...(plugin.netHosts ?? [])],
     enable: true,
   });
@@ -121,6 +150,38 @@ async function expectGuidance(body: Locator, copy: string): Promise<void> {
   expect(text.x).toBeGreaterThanOrEqual(host.x - 1);
   expect(text.x + text.width).toBeLessThanOrEqual(host.x + host.width + 1);
 }
+
+test("a card in the library wears its badge on the tile, and loses it when the character is deleted", async ({ page, mount }) => {
+  await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn, networkExecution: externalLibraryHub() });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const address = await enableAtlas(caller, ATLAS_LIBRARY_GRANTS);
+  const search = async (): Promise<void> => {
+    await caller.plugin.invokeUiAction({ ...address, actionId: "search", values: { q: "", source: "wyvern", sort: "relevance", sfw: "false" } });
+    await expect.poll(() => caller.plugin.getSurfaceState(address)).toMatchObject({ stage: "browse", loading: false });
+  };
+  await search();
+  await caller.plugin.invokeUiAction({ ...address, actionId: "open_result", values: { tile: "r0" } });
+  await expect.poll(() => caller.plugin.getSurfaceState(address)).toMatchObject({ stage: "card", detail: { blurb: "A card." } });
+  await caller.plugin.invokeUiAction({ ...address, actionId: "add_to_library", values: {} });
+  await search();
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await routeAtlas(page, caller);
+  const component = await mount<typeof PluginPresentationPageStory>(STORY, { ...address, width: 1000 });
+  const body = page.getByRole("group", { name: "Card Atlas", exact: true });
+  await expect(body.getByText(LIBRARY_CARD, { exact: true })).toBeVisible();
+  await expect(body.getByText("in your library", { exact: true })).toBeVisible();
+  await component.unmount();
+
+  const added = (await caller.character.list({})).items.find((item) => item.name === LIBRARY_CARD);
+  if (added === undefined) {
+    throw new Error("the add landed no character");
+  }
+  await caller.character.remove({ characterId: added.id });
+  await search();
+  await mount<typeof PluginPresentationPageStory>(STORY, { ...address, width: 1000 });
+  await expect(body.getByText(LIBRARY_CARD, { exact: true })).toBeVisible();
+  await expect(body.getByText("in your library", { exact: true })).toHaveCount(0);
+});
 
 for (const regime of REGIMES) {
   test.describe(`Atlas browse guidance ${regime.name}`, () => {

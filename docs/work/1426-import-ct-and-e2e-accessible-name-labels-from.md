@@ -265,3 +265,20 @@ By file, count then path:
 1 tests/tooling/stack/_dev-verbs.ts
 1 tests/tooling/stack/lib/leader-record.test.ts
 ```
+
+## Extended-rule sweep
+
+The sweep rewrote the census sites with the `literal-to-binding` codemod, and by hand where the site is a template or a query. `orb/no-hand-copied-label` now runs at scope `all` over `tests/**/*.{ts,tsx}` and reports no finding; whole-tree ESLint is clean.
+
+| Kind | Findings before | Findings now |
+| - | - | - |
+| route | 48 | 0 |
+| name | 12 | 0 |
+| code | 85 | 0 |
+| env | 547 | 0 |
+
+Production values added for the sweep, each built into the array that held it: the identity, sign-in and role-policy env keys in `packages/contracts/src/identity/index.ts`; the slot keys in `packages/server/src/foundation/data-layout/contract.ts`; the app secret keys in `packages/server/src/foundation/env/record/index.ts`; `WARNING_CODE` in `packages/contracts/src/inference/warnings.ts`, from which `WARNING_CODES` derives; `SETTINGS_ADJUSTED_CODE`, `JOIN_UNAVAILABLE_CODE`, `ACCOUNT_EXISTS_CODE` and `WEAK_PASSWORD_CODE` in the chat contracts.
+
+Two suites pin a wire spelling and are excluded by path in `eslint.config.ts`: `tests/contracts/inference/warnings.contract.test.ts` and `tests/tooling/container-security-config.int.test.ts`. Each carries a one-line reason.
+
+This item stays open for the work the rule cannot see: the accessible names that no production module exports, which need one copy module per feature (the 2456 literal sites above).

@@ -4,6 +4,7 @@
 
 import { join } from "node:path";
 import process from "node:process";
+import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { vi } from "vitest";
 import { installOutputSink } from "../../../tooling/src/floor/cli/log.ts";
 import type { PortOwner } from "../../../tooling/src/floor/host/platform.ts";
@@ -19,7 +20,7 @@ export function devContext(scratch: string): StackContext {
     ["STACK_RUN_DIR", join(scratch, "run")],
     ["PORT", String(PLANTED_PORTS.server)],
     ["VITE_PORT", String(PLANTED_PORTS.vite)],
-    ["ORB_ENV_NO_FILE", "1"],
+    [ENV_NO_FILE_KEY, "1"],
   ]);
   return stackContext(scratch, ambient, null);
 }

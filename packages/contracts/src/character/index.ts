@@ -113,8 +113,8 @@ const PLUGIN_IMPORTED_FROM_PREFIX = "plugin";
  * identity the funnel actually knows and that compose has already verified is the PLUGIN's own manifest id
  * (closed over at `domain/plugin/substrate/bridge.ts`, never guest-supplied) — paired with the imported
  * bytes' own content hash (the SAME hash the row dedupes and displays by), which makes a byte-identical
- * re-ingest through the SAME plugin mint the SAME string (the `findByImportedFrom` re-ingest match, #1702
- * done-criterion 3) without ever trusting plugin-authored content for attribution.
+ * re-ingest through the SAME plugin mint the SAME string without ever trusting plugin-authored content for
+ * attribution. A hub row therefore cannot name this value; a guest matches hub cards through its own card state.
  */
 export function pluginImportedFrom(pluginId: PluginId, contentHash: string): string {
   return `${PLUGIN_IMPORTED_FROM_PREFIX}:${pluginId}:${contentHash}`;
@@ -1019,6 +1019,17 @@ export interface PluginCardDataTarget {
  *  ⇒ the installer owns it, `data` is the stored blob or `null` when this plugin has written none on that
  *  character. Homed HERE per no-inline-types §7.4. */
 export type PluginCardDataRead = { readonly found: false } | { readonly found: true; readonly data: Record<string, unknown> | null };
+/** One plugin's stamp lookup over one owner's characters: `ownerId` and `slug` are host-stamped, `values` is guest text. */
+export interface PluginCardDataLookup {
+  readonly ownerId: UserId;
+  readonly slug: string;
+  readonly values: readonly string[];
+}
+/** A stamp lookup hit: one distinct stored object of the plugin's and one of the owner's characters holding it. */
+export interface PluginCardDataHit {
+  readonly characterId: CharacterId;
+  readonly data: Record<string, unknown>;
+}
 
 export const characterListInputSchema = characterCensusInputSchema
   .extend({
