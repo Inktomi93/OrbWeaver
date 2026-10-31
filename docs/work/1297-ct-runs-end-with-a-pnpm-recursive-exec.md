@@ -23,4 +23,6 @@ The cause is confirmed; a passing CT run prints no failure line, by running the 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Cause confirmed in isolation: `timeout -s TERM 4 pnpm --filter @orb/client exec sleep 30` prints `ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL`; `pnpm --dir packages/client exec sleep 30` under the same SIGTERM prints nothing. The `--filter` form reports a signal-killed child as a failed recursive exec.
+
+`playwright-ct.config.ts` runs the preview under `pnpm --dir packages/client exec`; the build step is unchanged. `CT_PORT=3197 pnpm test:ct tests/client/components/entry-list-consent.ct.tsx`: with the old command the run passes but prints `[WebServer] Error: ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL`; with the new one it passes (1 passed) and prints no failure line. A planted `--outDir f1297-missing-dist` on the preview still fails the run: `Process from config.webServer was not able to start. Exit code: 1`, exit 1.

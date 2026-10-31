@@ -1,4 +1,5 @@
-// Every built client feature slice follows the slice layout, and every feature directory owns a registered definition.
+// Every built client feature slice follows the slice layout, and every feature directory holds a definition-shaped lib file.
+// Registration is proven in state/registry-definitions.dom.test.ts, which holds the production door; a filename proves none.
 import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { expect, test } from "@orb/testkit/node";
@@ -281,9 +282,11 @@ test("layouts the slice contract allows report nothing", () => {
 
 // ── feature ownership of a definition ────────────────────────────────────────────────────────────────────────
 
-const DEFINITION_SUFFIXES = ["-section", "-modal", "-group", "-chrome", "-mode"].flatMap((stem) => [`${stem}.ts`, `${stem}.tsx`]);
+// The stems registry-definitions.dom.test.ts discovers (its DEFINITION_KINDS slots, plus corpus `-mode`). This check
+// reads names only: a helper named like a definition passes here, and the registration proof is that test's.
+const DEFINITION_SUFFIXES = ["-section", "-modal", "-group", "-chrome", "-tile", "-mode"].flatMap((stem) => [`${stem}.ts`, `${stem}.tsx`]);
 
-/** Feature directories with no `lib/*-{section,modal,group,chrome,mode}.{ts,tsx}` file. */
+/** Feature directories with no `lib/*-{section,modal,group,chrome,tile,mode}.{ts,tsx}` file. */
 function unownedFeatures(entries: readonly Entry[]): readonly string[] {
   const owners = new Set(
     entries.flatMap((entry) => {
@@ -296,7 +299,7 @@ function unownedFeatures(entries: readonly Entry[]): readonly string[] {
   return directoryNames(entries, FEATURES).filter((feature) => !owners.has(feature));
 }
 
-test("every real feature directory owns a registered definition", () => {
+test("every real feature directory holds a definition-shaped lib file", () => {
   const entries = listTree(FEATURES);
   expect(directoryNames(entries, FEATURES)).toContain("chat");
   expect(unownedFeatures(entries)).toEqual([]);
@@ -310,9 +313,9 @@ test("a feature with only a non-definition lib file owns nothing", () => {
   expect(unownedFeatures(treeOf({ [`${FEATURES}/__g_orphan/lib/helper.ts`]: "export const g = 1;\n" }))).toEqual(["__g_orphan"]);
 });
 
-test("a lib file named for a mode, section, chrome or group definition makes the feature its owner", () => {
-  const owned = ["labels-mode.tsx", "__g-ownssection-section.tsx", "__g-ownschrome-chrome.tsx", "__g-ownsgroup-group.tsx"].map((file) =>
+test("a lib file named for a mode, section, chrome, tile or group definition makes the feature its owner by name alone", () => {
+  const owned = ["labels-mode.tsx", "__g-ownssection-section.tsx", "__g-ownschrome-chrome.tsx", "__g-ownsgroup-group.tsx", "home-quick-tile.tsx"].map((file) =>
     unownedFeatures(treeOf({ [`${FEATURES}/__g_owner/lib/${file}`]: "export const g = 1;\n" })),
   );
-  expect(owned).toEqual([[], [], [], []]);
+  expect(owned).toEqual([[], [], [], [], []]);
 });

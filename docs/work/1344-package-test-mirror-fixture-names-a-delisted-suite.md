@@ -23,4 +23,6 @@ The two rows use a suite the reach list does list (or a planted fixture of their
 
 ## Evidence
 
-`tests/tooling/native-package-test-mirror.test.ts` now plants the listed chat suite `tests/client/features/chat/lib/empty-send-and-duration.test.ts` and its listed leaf `continue-on-empty.ts`. Before: 2 failed, 31 passed. After: `pnpm test:tools tests/tooling/native-package-test-mirror.test.ts` passes 33 of 33 on a quiet run.
+The listed suite, its leaf and the per-suite rule name are now derived from the dependency-cruiser config's own `tests-client-front-doors-only-listed-*` rule copies (generated from `PACKAGE_TEST_REACHES`), so a delisted suite makes the test throw at load rather than fail two rows. `pnpm test:tools tests/tooling/native-package-test-mirror.test.ts`: 41 of 41 passed.
+
+Earlier landing: `tests/tooling/native-package-test-mirror.test.ts` planted the listed chat suite `tests/client/features/chat/lib/empty-send-and-duration.test.ts` and its listed leaf `continue-on-empty.ts`. Before: 2 failed, 31 passed. After: `pnpm test:tools tests/tooling/native-package-test-mirror.test.ts` passes 33 of 33 on a quiet run.
