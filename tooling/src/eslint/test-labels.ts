@@ -14,10 +14,31 @@ const PRODUCTION_MODULES = "packages/*/src/**/*.ts";
 const NOT_PRODUCTION = /\.(?:test|test-d|d)\.ts$/u;
 const MIN_LABEL_LENGTH = 4;
 
+// The extended index. A label-producing function is named for what it returns (`contextToggleLabel`,
+// `renameChatButtonName`); a copy or name module (`*-copy.ts`, `*-names.ts`) with no value import holds only names, so
+// every string it exports counts whatever the export is called.
+const LABEL_FUNCTION = /(?:Label|Name|Title|Copy|Sentence)s?$/u;
+const COPY_MODULE = /-(?:copy|names)\.ts$/u;
+// An error code object (`CHAT_OP_CODES`, `RPG_OP_CODES`) or a single code (`TURN_LOCKED_OP_CODE`); a code is snake_case
+// with an underscore, which keeps a one-word code such as `locked` from matching ordinary prose.
+const CODE_EXPORT = /(?:_CODES?|_OP_CODE)$/u;
+const CODE_VALUE = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)+$/u;
+const ROUTE_EXPORT = /ROUTES?$/u;
+const MIN_ROUTE_SEGMENTS = 2;
+// An env key constant (`ENV_NO_FILE_KEY`, `STACK_RUN_DIR_ENV`) holds a SCREAMING_SNAKE name.
+const ENV_EXPORT = /(?:_ENV|_KEY)S?$/u;
+const ENV_VALUE = /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/u;
+
+/** What an extended entry is. A label-kind entry is located by a spec; the others are values a test asserts or sends. */
+const EXTENDED_KINDS = ["function", "copy", "code", "route", "env"] as const;
+export type ExtendedKind = (typeof EXTENDED_KINDS)[number];
+
 /** One exported string: the module that owns it and the path to it, such as `IMMERSIVE_CARD_LABELS.rawSource`. */
 export interface ExportedLabel {
   readonly module: string;
   readonly exportName: string;
+  /** Set on an extended entry only. */
+  readonly kind?: ExtendedKind;
 }
 
 function collectStrings(node: ts.Node, path: string, found: (value: string, path: string) => void): void {
@@ -38,13 +59,12 @@ function collectStrings(node: ts.Node, path: string, found: (value: string, path
   }
 }
 
-const isExported = (statement: ts.VariableStatement): boolean =>
-  statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true;
+const hasExportModifier = (node: ts.HasModifiers): boolean => ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true;
 
 function exportedStrings(source: ts.SourceFile): [string, string][] {
   const strings: [string, string][] = [];
   for (const statement of source.statements) {
-    if (ts.isVariableStatement(statement) && isExported(statement)) {
+    if (ts.isVariableStatement(statement) && hasExportModifier(statement)) {
       for (const { name, initializer } of statement.declarationList.declarations) {
         if (initializer !== undefined && ts.isIdentifier(name) && LABEL_EXPORT.test(name.text)) {
           collectStrings(initializer, name.text, (value, exportName) => strings.push([value, exportName]));
@@ -55,6 +75,113 @@ function exportedStrings(source: ts.SourceFile): [string, string][] {
   return strings;
 }
 
+/** The strings an expression can evaluate to when they are all written in it: a literal, or either arm of a conditional or fallback. */
+function resultStrings(node: ts.Node, found: (value: string) => void): void {
+  if (ts.isStringLiteralLike(node)) {
+    found(node.text);
+  } else if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node)) {
+    resultStrings(node.expression, found);
+  } else if (ts.isConditionalExpression(node)) {
+    resultStrings(node.whenTrue, found);
+    resultStrings(node.whenFalse, found);
+  } else if (
+    ts.isBinaryExpression(node) &&
+    (node.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken || node.operatorToken.kind === ts.SyntaxKind.BarBarToken)
+  ) {
+    resultStrings(node.left, found);
+    resultStrings(node.right, found);
+  }
+}
+
+/** Every `return` expression of a function body, not entering a nested function. */
+function returnedExpressions(body: ts.ConciseBody): ts.Expression[] {
+  if (!ts.isBlock(body)) {
+    return [body];
+  }
+  const returned: ts.Expression[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isFunctionLike(node)) {
+      return;
+    }
+    if (ts.isReturnStatement(node) && node.expression !== undefined) {
+      returned.push(node.expression);
+    }
+    ts.forEachChild(node, visit);
+  };
+  ts.forEachChild(body, visit);
+  return returned;
+}
+
+interface NamedBody {
+  readonly name: string;
+  readonly body: ts.ConciseBody;
+}
+
+function functionOf(name: ts.BindingName, initializer: ts.Expression | undefined): NamedBody | undefined {
+  return initializer !== undefined && ts.isIdentifier(name) && (ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer))
+    ? { name: name.text, body: initializer.body }
+    : undefined;
+}
+
+function exportedFunctions(source: ts.SourceFile): NamedBody[] {
+  const functions: NamedBody[] = [];
+  for (const statement of source.statements) {
+    if (ts.isFunctionDeclaration(statement) && hasExportModifier(statement) && statement.name !== undefined && statement.body !== undefined) {
+      functions.push({ name: statement.name.text, body: statement.body });
+    } else if (ts.isVariableStatement(statement) && hasExportModifier(statement)) {
+      functions.push(...statement.declarationList.declarations.flatMap(({ name, initializer }) => functionOf(name, initializer) ?? []));
+    }
+  }
+  return functions;
+}
+
+/** A module with no value import, so a spec's node side loads it without the component graph. */
+const hasValueImport = (source: ts.SourceFile): boolean =>
+  source.statements.some((statement) => ts.isImportDeclaration(statement) && statement.importClause?.phaseModifier !== ts.SyntaxKind.TypeKeyword);
+
+function stringConstants(source: ts.SourceFile, wanted: (name: string) => boolean, kind: ExtendedKind): [string, string, ExtendedKind][] {
+  const strings: [string, string, ExtendedKind][] = [];
+  for (const statement of source.statements) {
+    if (ts.isVariableStatement(statement) && hasExportModifier(statement)) {
+      for (const { name, initializer } of statement.declarationList.declarations) {
+        if (initializer !== undefined && ts.isIdentifier(name) && wanted(name.text)) {
+          collectStrings(initializer, name.text, (value, exportName) => strings.push([value, exportName, kind]));
+        }
+      }
+    }
+  }
+  return strings;
+}
+
+const isRoute = (value: string): boolean => value.startsWith("/") && value.split("/").length - 1 >= MIN_ROUTE_SEGMENTS;
+
+// The value kinds, each with the export names that hold it and the shape its value takes.
+const VALUE_EXPORTS: readonly { readonly kind: ExtendedKind; readonly named: RegExp; readonly valued: (value: string) => boolean }[] = [
+  { kind: "code", named: CODE_EXPORT, valued: (value) => CODE_VALUE.test(value) },
+  { kind: "route", named: ROUTE_EXPORT, valued: isRoute },
+  { kind: "env", named: ENV_EXPORT, valued: (value) => ENV_VALUE.test(value) },
+];
+
+/** Every string the extended index holds for one production module, with the path to it and what it is. */
+function extendedStrings(module: string, source: ts.SourceFile): [string, string, ExtendedKind][] {
+  const found: [string, string, ExtendedKind][] = [];
+  const copyModule = COPY_MODULE.test(module) && !hasValueImport(source);
+  if (copyModule) {
+    found.push(...stringConstants(source, () => true, "copy"));
+  }
+  for (const { name, body } of exportedFunctions(source)) {
+    if (copyModule || LABEL_FUNCTION.test(name)) {
+      for (const expression of returnedExpressions(body)) {
+        resultStrings(expression, (value) => found.push([value, name, "function"]));
+      }
+    }
+  }
+  for (const { kind, named, valued } of VALUE_EXPORTS) {
+    found.push(...stringConstants(source, (name) => named.test(name), kind).filter(([value]) => valued(value)));
+  }
+  return found;
+}
+
 /** The one owner of a label, or none when several exports hold it: a constant that is the label outranks a table field that repeats the word. */
 function soleOwner(held: ReadonlyMap<string, ExportedLabel>): ExportedLabel | undefined {
   const owners = [...held.values()];
@@ -63,30 +190,59 @@ function soleOwner(held: ReadonlyMap<string, ExportedLabel>): ExportedLabel | un
   return candidates.length === 1 ? candidates[0] : undefined;
 }
 
-/**
- * Every string a production `.ts` module exports by value, keyed by the string. A string that two exports of the
- * same rank hold names no single control, so it is left out.
- */
-export function exportedLabels(root: string): ReadonlyMap<string, ExportedLabel> {
+function productionSources(root: string, mustContain: string): { readonly module: string; readonly text: string }[] {
+  return globSync(PRODUCTION_MODULES, { cwd: root })
+    .sort()
+    .filter((module) => !NOT_PRODUCTION.test(module))
+    .map((module) => ({ module, text: readFileSync(join(root, module), "utf8") }))
+    .filter(({ text }) => text.includes(mustContain));
+}
+
+function soleOwners(
+  strings: Iterable<readonly [module: string, value: string, exportName: string, kind: ExtendedKind | undefined]>,
+): ReadonlyMap<string, ExportedLabel> {
   const owners = new Map<string, Map<string, ExportedLabel>>();
-  for (const module of globSync(PRODUCTION_MODULES, { cwd: root }).sort()) {
-    const text = readFileSync(join(root, module), "utf8");
-    if (NOT_PRODUCTION.test(module) || !text.includes("export const")) {
-      continue;
-    }
-    for (const [value, exportName] of exportedStrings(ts.createSourceFile(module, text, ts.ScriptTarget.Latest, false))) {
-      if (value.length >= MIN_LABEL_LENGTH) {
-        const held = owners.get(value) ?? new Map<string, ExportedLabel>();
-        const key = `${module}\n${exportName.split(".")[0]}`;
-        held.set(key, held.get(key) ?? { module, exportName });
-        owners.set(value, held);
-      }
+  for (const [module, value, exportName, kind] of strings) {
+    if (value.length >= MIN_LABEL_LENGTH) {
+      const held = owners.get(value) ?? new Map<string, ExportedLabel>();
+      const key = `${module}\n${exportName.split(".")[0]}`;
+      held.set(key, held.get(key) ?? (kind === undefined ? { module, exportName } : { module, exportName, kind }));
+      owners.set(value, held);
     }
   }
   return new Map(
     [...owners]
       .flatMap(([value, held]) => [[value, soleOwner(held)] as const])
       .filter((entry): entry is readonly [string, ExportedLabel] => entry[1] !== undefined),
+  );
+}
+
+/**
+ * Every string a production `.ts` module exports by value, keyed by the string. A string that two exports of the
+ * same rank hold names no single control, so it is left out.
+ */
+export function exportedLabels(root: string): ReadonlyMap<string, ExportedLabel> {
+  return soleOwners(
+    productionSources(root, "export const").flatMap(({ module, text }) =>
+      exportedStrings(ts.createSourceFile(module, text, ts.ScriptTarget.Latest, false)).map(
+        ([value, exportName]) => [module, value, exportName, undefined] as const,
+      ),
+    ),
+  );
+}
+
+/**
+ * The strings `exportedLabels` does not index: what a label-producing function returns, every string a zero-import copy
+ * or name module exports, the values of an exported error code object, a route constant and an env key constant. Rule
+ * scope `all` reads it; scope `named` does not, so no finding appears before a sweep has fixed its sites.
+ */
+export function exportedProductionValues(root: string): ReadonlyMap<string, ExportedLabel> {
+  return soleOwners(
+    productionSources(root, "export").flatMap(({ module, text }) =>
+      extendedStrings(module, ts.createSourceFile(module, text, ts.ScriptTarget.Latest, false)).map(
+        ([value, exportName, kind]) => [module, value, exportName, kind] as const,
+      ),
+    ),
   );
 }
 
@@ -114,20 +270,123 @@ function locatedName(call: TSESTree.CallExpression): TSESTree.Node | undefined {
   return callee.property.name === "getByRole" ? nameOption(call.arguments[1]) : undefined;
 }
 
-export function handCopiedLabelRule(labels: ReadonlyMap<string, ExportedLabel>): OrbRule {
+const VALUE_KINDS: ReadonlySet<ExtendedKind | undefined> = new Set<ExtendedKind>(["code", "route", "env"]);
+
+// A route is matched whole, or as the head of a longer path: a query, or the id after a `:param` segment.
+function routeHead(route: string): string {
+  const param = route.indexOf("/:");
+  return param === -1 ? route : route.slice(0, param + 1);
+}
+
+function routeOwner(value: string, routes: readonly (readonly [string, ExportedLabel])[]): ExportedLabel | undefined {
+  let best: readonly [string, ExportedLabel] | undefined;
+  for (const entry of routes) {
+    const [route] = entry;
+    const head = routeHead(route);
+    const matches = head === route ? value === route || value.startsWith(`${route}?`) : value.startsWith(head);
+    if (matches && (best === undefined || route.length > best[0].length)) {
+      best = entry;
+    }
+  }
+  return best?.[1];
+}
+
+// A string that names no value: an object key, an import or export source, a type, a directive.
+function isValueSite(node: TSESTree.Node): boolean {
+  const { parent } = node;
+  if (parent === undefined) {
+    return false;
+  }
+  switch (parent.type) {
+    case "Property":
+    case "PropertyDefinition":
+    case "MethodDefinition":
+    case "TSPropertySignature":
+      return !(parent.key === node && !parent.computed);
+    case "ImportDeclaration":
+    case "ExportNamedDeclaration":
+    case "ExportAllDeclaration":
+    case "ImportExpression":
+    case "TSLiteralType":
+    case "TSEnumMember":
+    case "TSExternalModuleReference":
+    case "TSImportType":
+      return false;
+    case "ExpressionStatement":
+      return parent.directive === undefined;
+    default:
+      return true;
+  }
+}
+
+type Scope = "named" | "all";
+
+function scopeOf(options: readonly unknown[]): Scope {
+  const [option] = options;
+  return typeof option === "object" && option !== null && "scope" in option && option.scope === "all" ? "all" : "named";
+}
+
+interface ValueIndex {
+  readonly values: ReadonlyMap<string, ExportedLabel>;
+  readonly routes: readonly (readonly [string, ExportedLabel])[];
+}
+
+function valueIndex(extended: ReadonlyMap<string, ExportedLabel>): ValueIndex {
+  const entries = [...extended];
   return {
-    meta: { type: "problem", schema: [] },
+    values: new Map(entries.filter(([, owner]) => VALUE_KINDS.has(owner.kind) && owner.kind !== "route")),
+    routes: entries.filter(([, owner]) => owner.kind === "route"),
+  };
+}
+
+function reporter(context: OrbRuleContext): (node: TSESTree.Node, value: string, owner: ExportedLabel) => void {
+  return (node, value, owner) =>
+    context.report({
+      node,
+      message: `"${value}" is hand-copied: ${owner.module} exports it as ${owner.exportName}. Import it so the test follows the product.`,
+    });
+}
+
+export function handCopiedLabelRule(labels: ReadonlyMap<string, ExportedLabel>, extended: ReadonlyMap<string, ExportedLabel> = new Map()): OrbRule {
+  const { values, routes } = valueIndex(extended);
+  return {
+    meta: {
+      type: "problem",
+      schema: [{ type: "object", properties: { scope: { enum: ["named", "all"] } }, additionalProperties: false }],
+    },
     create(context: OrbRuleContext): RuleVisitor {
+      const all = scopeOf(context.options) === "all";
+      const report = reporter(context);
+      // A code, route or env key is asserted or sent wherever a test writes it, so every string site is judged.
+      const judge = (node: TSESTree.Node, whole: string | null, head: string): void => {
+        const owner = isValueSite(node) ? ((whole === null ? undefined : values.get(whole)) ?? routeOwner(whole ?? head, routes)) : undefined;
+        if (owner !== undefined) {
+          report(node, whole ?? head, owner);
+        }
+      };
+      // The label an exported string names at a locator call: a label kind, never a code, route or env key.
+      const locatorOwner = (value: string): ExportedLabel | undefined => {
+        const extendedOwner = all ? extended.get(value) : undefined;
+        return labels.get(value) ?? (VALUE_KINDS.has(extendedOwner?.kind) ? undefined : extendedOwner);
+      };
       return {
         "CallExpression[callee.type='MemberExpression']"(call: TSESTree.CallExpression): void {
           const name = locatedName(call);
           const value = name === undefined ? undefined : staticTextValue(context, name);
-          const owner = typeof value === "string" ? labels.get(value) : undefined;
-          if (name !== undefined && owner !== undefined) {
-            context.report({
-              node: name,
-              message: `"${value}" is hand-copied: ${owner.module} exports it as ${owner.exportName}. Import it so the test follows the product.`,
-            });
+          const owner = typeof value === "string" ? locatorOwner(value) : undefined;
+          if (name !== undefined && typeof value === "string" && owner !== undefined) {
+            report(name, value, owner);
+          }
+        },
+        "Literal:exit"(node: TSESTree.Literal): void {
+          if (all && typeof node.value === "string") {
+            judge(node, node.value, node.value);
+          }
+        },
+        "TemplateLiteral:exit"(node: TSESTree.TemplateLiteral): void {
+          const head = node.quasis[0]?.value.cooked ?? "";
+          if (all) {
+            judge(node, node.expressions.length === 0 ? head : null, head);
           }
         },
       };
