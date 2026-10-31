@@ -34,4 +34,10 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+All rows applied.
+
+- The four `kind` discriminants are removed from the store params and their writers. `lens` stays the discriminant.
+- The three result types are removed and their verbs return `Promise<void>`. No caller read a count. The prune test now asserts the surviving rows only.
+- Survey: `codegraph_explore` on the seven symbols; `ast-grep` for `$O.rowsDeleted` and `{ $$$A, kind: "avatar" | "chat-block", $$$R }` over `packages`, `tests`, `scripts`, `tooling` in both `ts` and `tsx` found no remaining reader or writer.
+- Ran: `pnpm typecheck tsconfig.node.json`; `pnpm test` on `composed-memory-prune`, `memory-ops` and `sweep-completion` under `tests/server/domain/embeddings`.
+- Reclass: none.
