@@ -1,33 +1,31 @@
-// The cast of a composed room through the production verbs: a stored avatar, a character, a persona and a room, each
-// named by one string so a case reads as the story it sets up. Each builder returns the production id or hash.
+// The cast of a composed room through the root seeds: a stored avatar, a character, a persona and a room, each named
+// by one string so a case reads as the story it sets up. Each builder returns the production id or hash.
 import { createCharacterSchema } from "@orb/contracts/character";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { makeAssetBytes } from "../factories/asset.ts";
+import { makeAssetBytes, seedAsset } from "../factories/asset.ts";
+import { seedCharacter } from "../factories/character.ts";
+import { seedChat } from "../factories/chat.ts";
+import { seedPersona } from "../factories/persona.ts";
 import type { ChatRoot } from "./composed.ts";
 
 type Principal = ChatRoot["owner"];
 
 export interface StoredAvatar {
-  readonly assetId: Awaited<ReturnType<ChatRoot["root"]["services"]["assets"]["store"]>>["assetId"];
+  readonly assetId: Awaited<ReturnType<typeof seedAsset>>["stored"]["assetId"];
   readonly hash: string;
 }
 
 /** Store one distinct avatar image for `principal`. */
 export async function storeAvatar(h: ChatRoot, principal: Principal): Promise<StoredAvatar> {
-  const stored = await h.root.services.assets.store({
-    principal,
-    bytes: makeAssetBytes(h.root.idSource.typeId(ID_PREFIX.asset)),
-    kind: "avatar",
-    mime: "image/png",
-  });
+  const { stored } = await seedAsset(h.root, { principal, bytes: makeAssetBytes(h.root.idSource.typeId(ID_PREFIX.asset)), kind: "avatar", mime: "image/png" });
   return { assetId: stored.assetId, hash: stored.hash };
 }
 
 /** A character of the room's owner, named and described by `handle`. */
 export async function addCharacter(h: ChatRoot, handle: string, avatar?: StoredAvatar): Promise<CharacterId> {
-  const view = await h.root.services.character.create({
+  const { view } = await seedCharacter(h.root, {
     principal: h.owner,
     input: createCharacterSchema.parse({
       handle,
@@ -46,7 +44,7 @@ export async function addPersona(
   name: string,
   options: { readonly avatar?: StoredAvatar; readonly description?: string } = {},
 ): Promise<PersonaId> {
-  const view = await h.root.services.persona.create({
+  const { view } = await seedPersona(h.root, {
     principal,
     input: createPersonaSchema.parse({
       name,
@@ -59,5 +57,6 @@ export async function addPersona(
 
 /** A new room of the owner's with the given roster and no opening line. */
 export async function startRoom(h: ChatRoot, characterIds: readonly CharacterId[]): Promise<ChatId> {
-  return (await h.root.services.chat.startChat({ principal: h.owner, characterIds: [...characterIds], opening: "none" })).chat.id;
+  const { view } = await seedChat(h.root, { principal: h.owner, characterIds: [...characterIds], opening: "none" });
+  return view.chat.id;
 }

@@ -6,6 +6,7 @@ import type { ControlledTimers } from "@orb/testkit/iso";
 import { createControlledTimers, createFrozenClock, makeCapability, makeGenerationCapability, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { SECRET_BOX_TEST_KEY } from "@orb/testkit/node/helpers";
 
 type ConnectionFields = Omit<Parameters<ServerTestHarness["services"]["connection"]["create"]>[0], "principal">;
 
@@ -17,7 +18,7 @@ export const RUNTIME_ENDPOINT = "http://127.0.0.1:8703/v1";
 export function createRuntimeRoot(options: ServerHarnessOptions = {}): Promise<ServerTestHarness> {
   return createServerHarness({
     startJobs: false,
-    secretBoxKey: Buffer.alloc(32, 1),
+    secretBoxKey: SECRET_BOX_TEST_KEY,
     networkExecution: {
       resolver: (hostname) => {
         if (hostname === "box.local" || hostname === new URL(RUNTIME_ENDPOINT).hostname) {

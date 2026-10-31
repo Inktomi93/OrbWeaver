@@ -1,13 +1,14 @@
 // The outbound body of an openai-compat chat turn, read at the provider edge: the user's own body (extras,
 // includeBody, excludeBody) is the last word, and every computed key leaves a key they settled alone.
 // @subject packages/inference/src/backends/openai-compat/body.ts
+
 import type { WarningCode } from "@orb/contracts/inference";
 import { connectionExtrasSchema, isBeltOwnedBodyKey } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ChatEvent, ChatHistoryMessage } from "@orb/inference";
 import { expect, test } from "@orb/testkit/node";
 import type { RecordedRequest } from "@orb/testkit/node/helpers";
-import { openAiServer } from "@orb/testkit/node/helpers";
+import { openAiServer, warningCodes } from "@orb/testkit/node/helpers";
 import { createRuntimeRoot, generationCapability, wireConnection } from "../../roles/runtime.fixtures.ts";
 
 type Connection = Parameters<typeof wireConnection<"chat">>[1];
@@ -44,10 +45,6 @@ async function send(
 
 function ignoredKeys(events: readonly ChatEvent[]): string[] {
   return events.flatMap((event) => (event.kind === "warning" && event.code === "custom_parameters_ignored" ? [String(event.key)] : []));
-}
-
-function warningCodes(events: readonly ChatEvent[]): string[] {
-  return events.flatMap((event) => (event.kind === "warning" ? [event.code] : []));
 }
 
 const NO_THINKING_SWITCH = generationCapability({ reasoning: { mode: "none", enabled: false } });

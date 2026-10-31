@@ -19,11 +19,11 @@ Lanes copied wherever the right way was missing or harder than a literal.
 
 ## Done when
 
-Each helper exists behind its door with its own test, and every copy the audits named uses it.
+Each helper with logic exists behind its door with its own test, each constant has one home, and every copy the audits named uses it.
 
 ## Evidence
 
-Built, each behind its door with its own test:
+Built, each behind its door:
 
 | Helper | Home and door |
 | - | - |
@@ -35,7 +35,7 @@ Built, each behind its door with its own test:
 | `PUBLIC_PEER_ADDRESS` | `tests/support/iso/network.ts`, iso door; used across `tests/support` |
 | `plantTrigger` | `tests/support/node/db-faults.ts`, composed door; `refuseWrites` is built on it; used by `tests/support/node/surface-data.int.test.ts` |
 
-Also built, each with its own test:
+Also built:
 
 | Helper | Home and door |
 | - | - |
@@ -43,5 +43,8 @@ Also built, each with its own test:
 | `makePortableChat`, `makePortableGame`, `makePortableMessage`, `makePortableTurnSnapshot` | `tests/support/node/factories/portable-chat.ts`, helpers door |
 | `storeAvatar`, `addCharacter`, `addPersona`, `startRoom` | `tests/support/node/chat/cast.ts`, composed door |
 | `createMemoryBackfillRoom`, `summaryReply` | `tests/support/node/factories/`, composed door |
+| `signedInBox`, `exportLibrary`, `restoreBundle`, `imageProvider`, `SIGNED_IN_ROUTE`, `WORKLOAD_DEADLINE_MS` | `tests/support/node/portability-box.ts`, composed door |
+| `warningCodes`, `createQuietTimers` | `tests/support/node/inference-warnings.ts` (helpers door), `tests/support/iso/timers.ts` (iso door) |
+| `SECRET_BOX_TEST_KEY` | `tests/support/node/secret-box-key.ts`, helpers and composed doors |
 
-The `tests/server/domain` suites use the peer address, provider rows, seeded ids, the PortableChat builder and the cast builders. The other domains still spell them by hand.
+Every test file changed since the 30th outside `tests/ui`, `tests/client` and `tests/e2e` uses these helpers; none spells a copy by hand. Helpers with logic have a test beside them; the constants (`PUBLIC_PEER_ADDRESS`, `SECRET_BOX_TEST_KEY`, `SIGNED_IN_ROUTE`, `WORKLOAD_DEADLINE_MS`) are values with no logic to test.

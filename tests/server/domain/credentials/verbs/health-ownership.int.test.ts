@@ -2,7 +2,7 @@ import type { CredentialHealth } from "@orb/contracts/credentials";
 import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
 
 const MODEL = "health-ownership-encoder";
@@ -23,7 +23,7 @@ async function credential(root: ServerTestHarness): Promise<CredentialOwner> {
 
 test("same-ID native connection probes have independent cooldowns and checkedAt clocks", async () => {
   const probeReply = (): Promise<Response> => Promise.resolve(Response.json({ data: [{ id: MODEL }] }));
-  await using first = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), providerFetch: probeReply, startJobs: false });
+  await using first = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, providerFetch: probeReply, startJobs: false });
   await using second = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 2), providerFetch: probeReply, startJobs: false });
   const firstKey = await credential(first);
   const secondKey = await credential(second);
@@ -55,7 +55,7 @@ test("same-ID native connection probes have independent cooldowns and checkedAt 
 });
 
 test("same-ID remote failure streaks trip independently and disposal preserves the sibling's strikes", async () => {
-  await using first = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), ids: createSeededIds(FIXTURE_ID_CURSOR), startJobs: false });
+  await using first = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, ids: createSeededIds(FIXTURE_ID_CURSOR), startJobs: false });
   await using second = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 2), ids: createSeededIds(FIXTURE_ID_CURSOR), startJobs: false });
   const firstKey = await credential(first);
   const secondKey = await credential(second);

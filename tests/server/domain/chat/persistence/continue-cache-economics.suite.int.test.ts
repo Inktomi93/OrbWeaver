@@ -16,6 +16,7 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  SECRET_BOX_TEST_KEY,
 } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
@@ -78,7 +79,7 @@ async function cacheRoom(
       memoryEnabled: false,
       promptConfig: { ...DEFAULT_PROMPT_CONFIG, params: { ...DEFAULT_PROMPT_CONFIG.params, responseCache: { enabled: true } } },
       server: {
-        secretBoxKey: Buffer.alloc(32, 1),
+        secretBoxKey: SECRET_BOX_TEST_KEY,
         networkExecution: {
           resolver: (hostname): Promise<readonly string[]> =>
             hostname === host ? Promise.resolve([PUBLIC_PEER_ADDRESS]) : Promise.reject(new Error(`unscripted cache-economics address: ${hostname}`)),

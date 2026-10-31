@@ -312,7 +312,10 @@ test("a target container linked onto another filesystem refuses before any write
   expect(existsSync(join(root, DB_FILE_NAME))).toBe(true);
 
   await migrate(layout, { deviceOf: SAME_DEVICE });
-  const linked = DIR_ENTRIES.find((name) => targetOf(name).startsWith(`${CACHE_DIR}/`)) ?? "missing-entry";
+  const linked = DIR_ENTRIES.find((name) => targetOf(name).startsWith(`${CACHE_DIR}/`));
+  if (linked === undefined) {
+    throw new Error("no legacy directory entry lands under the cache container, so the linked-container case has no subject");
+  }
   expect(readFileSync(join(elsewhere, relative(CACHE_DIR, targetOf(linked)), MARKER), "utf8")).toBe(`legacy ${linked}`);
 });
 

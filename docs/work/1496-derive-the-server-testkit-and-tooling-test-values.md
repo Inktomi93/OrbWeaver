@@ -50,13 +50,13 @@ Row numbers are the rows of reports/test-derivation-audit/shard-b.md.
 | - | - |
 | 80, 81, 85 | `SURFACE_PROVIDER_REQUESTS` in `tests/support/iso/surface-data.ts` is the one request tuple; the surface peer builds its routes from it. The refused structured schema in `surface-provider.test.ts` is any scripted reply the peer does not serve. |
 | 84 | `PUBLIC_PEER_ADDRESS` replaces the literal in every `tests/support` file. |
+| 87 | The scripted peer's refinery reply names come from `REFINERY_RESPONSE_FORMATS` (`stage-resolution.ts`), read through `TEST_CONSTANT_HOMES`; the stage tuple `REFINERY_STAGES` already exists in contracts, and the wire names were the gap. |
 
 ### Ruled to stay (tests/support)
 
 | Rows | Reason |
 | - | - |
 | 76 | The `surface-data.int.test.ts` triggers corrupt a neighbouring table after a write; `refuseWrites` aborts a write. They are planted through `plantTrigger`, which `refuseWrites` is now built on. |
-| 87 | `REFINERY_RESPONSE_FORMATS` has no door, and a door export only a test imports is refused. It needs the stage names moved to a contracts tuple first. |
 | 69, 68, 70, 71, 73, 88, 89 | Browser CT rows. Each needs a CT run and, for 69, a tooling door export; left for a CT leg. |
 
 ### Fixed in the `tests/server/domain` domain
@@ -65,7 +65,7 @@ Row numbers are the rows of reports/test-derivation-audit/shard-b.md.
 | - | - |
 | 31, 44 | `tests/support/node/factories/portable-chat.ts` and `tests/support/node/chat/cast.ts` replace the local message, snapshot, room, character, persona and avatar builders in `library-planes`, `identity` and `persona-resolution`. |
 | 18, 19, 21 | `makeProviderRow` and `makePluginProviderRow` build every provider row in the provider-rows, provider-contributions and provider-crash-window suites. |
-| 28, 29, 37 | The image-sweep suite reads its lens from `IMAGE_LENSES` and asserts the refusal through its cause; the guest asset read types its expected view from `PluginBridge`. |
+| 28, 29, 37 | The image-sweep suite reads its image kind from a typed `ImageLens` literal and asserts the refusal through its cause; the guest asset read types its expected view from `PluginBridge`. |
 | 36, 84 | `PUBLIC_PEER_ADDRESS` replaces the literal throughout `tests/server/domain`. |
 | 1, 3, 5, 34, 35, 45 and the unseeded ids named by the sweep | Absent ids come from the root's own seeded source, so one cannot collide with a minted row; bytes-only seeds use a seeded generator. |
 
@@ -98,7 +98,7 @@ Row numbers are the rows of reports/test-derivation-audit/shard-b.md.
 | 55 (root block) | The kit's root-block builder is module-private; an export only a test imports is refused. It needs a production home from item 1504. |
 | 57 | The numbered-twin suffix formatter has no production export; item 1504 owns it. |
 | 58, 62 | The data-layout skip refusal and the worker-permission refusal throw a plain `Error` with a message; a code is production work. |
-| 65 | The 200-character cap has no production constant. |
+| 65 | `HANDLE_MAX` is module-private in `packages/contracts/src/character/index.ts`; an export only a test imports is refused, and the cap needs a production export first. |
 | 66 (usage) | The usage fields are required and nullable with no schema defaults, so the base lists them. |
 
 ### Fixed in the `tests/contracts`, `tests/db`, `tests/inference` and `tests/kit` domains
@@ -152,9 +152,9 @@ Row numbers are the rows of reports/test-derivation-audit/shard-b.md.
 
 Kit cannot import ui, so `TINT_PERCENT` and the Hearth page in `tests/kit/theme-derivation/tone-roles.test.ts` stay hand copies. Let `THEME_DERIVATION` in `@orb/kit/theme-derivation` own the tint percentage, and let `packages/ui/tokens.build.ts` write `tone-mix.tint` from it. `tokens.json` then references the kit number and the test imports it.
 
-### Not changed in this leg
+### Not changed
 
-Rows 4, 5 (slot id), 8 to 11, 13 to 16, 25 to 31, 35 (refusal class: the floors throw a plain `Error`, so a class is production work), 36 and 84 (the peer address is done in `tests/support`; the other domains still spell it), 37, 38, 40, 42, 44, 46 to 49, 53 to 58, 60, 62 to 66, 78 to 79, 82 to 83, 86 to 87, 90 to 93, 95 and 96 stay open for a later leg; the browser rows in the `tests/support` table are listed there.
+Every row not in a Fixed table above is ruled to stay with its reason, or is a browser row left for a CT leg (the `tests/support` table names them).
 
 ### Proof
 

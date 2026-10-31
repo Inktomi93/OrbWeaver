@@ -32,23 +32,34 @@ async function pushLiveSchema(db: Db): Promise<void> {
 /** The shipped migration chain, relative to the repo root the test runner starts in. */
 export const SHIPPED_MIGRATIONS = "packages/db/src/migrations";
 
+interface ShippedJournal {
+  readonly journal: Record<string, unknown>;
+  readonly entries: readonly unknown[];
+}
+
+/** The migration journal under `chainDir`, parsed once for every reader of it. */
+async function readJournal(chainDir: string): Promise<ShippedJournal> {
+  const journal = jsonValueSchema.parse(JSON.parse(await readFile(join(chainDir, "meta", "_journal.json"), "utf8")));
+  if (journal === null || typeof journal !== "object" || Array.isArray(journal) || !Array.isArray(journal["entries"])) {
+    throw new Error("shipped migration journal has no entries");
+  }
+  return { journal, entries: journal["entries"] };
+}
+
+const tagOf = (entry: unknown): unknown => (entry !== null && typeof entry === "object" && "tag" in entry ? entry.tag : undefined);
+
 /** A temporary copy of the shipped chain that stops before `tag`, so a forward-migration test can build rows
  *  at the schema the migration upgrades from. Disposing removes the copy. */
 export async function migrationsBefore(tag: string): Promise<AsyncDisposable & { readonly path: string }> {
   const path = await mkdtemp(join(tmpdir(), "orb-migrations-before-"));
   try {
     await cp(SHIPPED_MIGRATIONS, path, { recursive: true });
-    const journalPath = join(path, "meta", "_journal.json");
-    const journal = jsonValueSchema.parse(JSON.parse(await readFile(journalPath, "utf8")));
-    if (journal === null || typeof journal !== "object" || Array.isArray(journal) || !Array.isArray(journal["entries"])) {
-      throw new Error("shipped migration journal has no entries");
-    }
-    const entries = journal["entries"];
-    const index = entries.findIndex((entry) => entry !== null && typeof entry === "object" && !Array.isArray(entry) && entry["tag"] === tag);
+    const { journal, entries } = await readJournal(path);
+    const index = entries.findIndex((entry) => tagOf(entry) === tag);
     if (index < 1) {
       throw new Error(`migration ${tag} has no preceding chain`);
     }
-    await writeFile(journalPath, JSON.stringify({ ...journal, entries: entries.slice(0, index) }));
+    await writeFile(join(path, "meta", "_journal.json"), JSON.stringify({ ...journal, entries: entries.slice(0, index) }));
     return { path, [Symbol.asyncDispose]: () => rm(path, { recursive: true, force: true }) };
   } catch (error) {
     await rm(path, { recursive: true, force: true });
@@ -58,13 +69,11 @@ export async function migrationsBefore(tag: string): Promise<AsyncDisposable & {
 
 /** {@link migrationsBefore} the newest shipped migration: the chain a database holds just before the latest one runs. */
 export async function migrationsBeforeLatest(): Promise<AsyncDisposable & { readonly path: string }> {
-  const journal = jsonValueSchema.parse(JSON.parse(await readFile(join(SHIPPED_MIGRATIONS, "meta", "_journal.json"), "utf8")));
-  const entries = journal !== null && typeof journal === "object" && !Array.isArray(journal) && Array.isArray(journal["entries"]) ? journal["entries"] : [];
-  const latest = entries.at(-1);
-  if (latest === null || typeof latest !== "object" || Array.isArray(latest) || typeof latest["tag"] !== "string") {
+  const latest = tagOf((await readJournal(SHIPPED_MIGRATIONS)).entries.at(-1));
+  if (typeof latest !== "string") {
     throw new Error("shipped migration journal has no newest entry");
   }
-  return await migrationsBefore(latest["tag"]);
+  return await migrationsBefore(latest);
 }
 
 /** A fresh in-memory db with the full schema applied (FK enforcement ON, via createDb). */

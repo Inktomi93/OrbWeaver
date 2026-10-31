@@ -38,6 +38,7 @@ export { startFakeAcme } from "./fake-acme.ts";
 export { startFilmstripAuthFixture } from "./filmstrip-auth-fixture.ts";
 export { freeLoopbackPort } from "./free-port.ts";
 export { requestWithHost } from "./host-request.ts";
+export { warningCodes } from "./inference-warnings.ts";
 export { lanAddress } from "./lan-address.ts";
 export { magicBytes } from "./magic-bytes.ts";
 export { attachNativeFile } from "./native-attachments.ts";
@@ -56,6 +57,7 @@ export {
   SDK_SCRIPT_IDENTITY_TYPE,
   sdkPrivateDiagnosticResultSchema,
 } from "./sdk-process.ts";
+export { SECRET_BOX_TEST_KEY } from "./secret-box-key.ts";
 export { STORY_SHOT_DIR } from "./story-shot.ts";
 export { SURFACE_CHECKS } from "./surface-audit.ts";
 export type { PreparedSurfaceData } from "./surface-data.ts";

@@ -11,6 +11,7 @@ import {
   createChatRoot,
   createCorpusProviderExecution,
   readRoomCanon,
+  SECRET_BOX_TEST_KEY,
 } from "@orb/testkit/node/composed";
 import { createSdkProcessSpawner } from "@orb/testkit/node/helpers";
 import { z } from "zod";
@@ -78,7 +79,7 @@ export async function sdkEngineRoom(
       ...(history === 0 ? {} : { transcript: engineHistory(history) }),
       providerFetch: physical.execute,
       server: {
-        secretBoxKey: Buffer.alloc(32, 1),
+        secretBoxKey: SECRET_BOX_TEST_KEY,
         ids: sdkFixtureIds,
         ...rootOptions.server,
         sdkSpawn: (input) => {

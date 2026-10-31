@@ -13,7 +13,7 @@ import { createThemeInputSchema } from "@orb/contracts/theme";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, makeAssetBytes, prepareBackupFolder } from "@orb/testkit/node/composed";
+import { createServerHarness, makeAssetBytes, prepareBackupFolder, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { CSRF_HEADERS } from "./_body-limit-inputs.ts";
 
 const TREE_ROUTE = PORTABILITY_ROUTES.importTree;
@@ -21,7 +21,6 @@ const EXPORT_ROUTE = PORTABILITY_ROUTES.exportLibrary;
 const ASSET_UPLOAD_ROUTE = "/api/assets/upload";
 const ASSET_FILE_FIELD = "file";
 const WRAPPER = "backup";
-const WORKLOAD_DEADLINE_MS = 60_000;
 
 /** One exported backup entry: its archive path and exact bytes. */
 interface BackupEntry {

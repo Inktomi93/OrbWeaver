@@ -3,7 +3,7 @@
 // @subject packages/server/src/domain/embeddings/verbs/embed-assets.ts
 // @subject packages/server/src/domain/embeddings/indexer/image.ts
 
-import { IMAGE_LENSES } from "@orb/contracts/embeddings";
+import type { ImageLens } from "@orb/contracts/embeddings";
 import { embedGenerations, embedSpaceState, imageAnalyses, imageEmbeddings } from "@orb/db";
 import { readSeedAvatar, SEED_MANIFEST } from "@orb/default-content";
 import type { AssetId } from "@orb/kit/ids";
@@ -22,7 +22,7 @@ import {
 import { eq } from "drizzle-orm";
 
 const CAPTION_REQUEST = "POST /v1/chat/completions";
-const [, CAPTIONED_LENS] = IMAGE_LENSES;
+const CAPTIONED_LENS: ImageLens = "image-captioned";
 const VECTOR_REFUSAL = "the vector store refused the write";
 
 function imageProvider(): ReturnType<typeof createCorpusProviderExecution> {

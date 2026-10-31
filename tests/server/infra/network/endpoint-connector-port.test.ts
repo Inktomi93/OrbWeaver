@@ -1,15 +1,10 @@
 import type { LookupFunction } from "node:net";
 import type { ScopedEgressOptions } from "@orb/server/infra/network";
 import { createScopedEgress, systemFetch } from "@orb/server/infra/network";
-import { createControlledTimers, createFrozenClock, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
+import { createQuietTimers, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createTestLogger } from "@orb/testkit/node/composed";
 import { createTestEnv } from "@orb/testkit/node/helpers";
-
-// A fresh scheduler per egress: these cases never wait on a deadline, so nothing advances it.
-function quietTimers(): ReturnType<typeof createControlledTimers> {
-  return createControlledTimers(createFrozenClock());
-}
 
 const raw = { reached: new Error("controlled raw dial reached"), calls: [] as string[] };
 
@@ -62,7 +57,7 @@ test("the actual connector rejects a wrong hostname port before the physical dia
     traces: null,
     log: createTestLogger(),
     env: createTestEnv(),
-    timers: quietTimers(),
+    timers: createQuietTimers(),
     fetch: systemFetch,
     resolver: rebindingResolver(),
     buildConnector: scriptedConnector,
@@ -80,7 +75,7 @@ test("the connector preserves exact-port, unrelated-CIDR-host and public-address
     traces: null,
     log: createTestLogger(),
     env: createTestEnv(),
-    timers: quietTimers(),
+    timers: createQuietTimers(),
     fetch: systemFetch,
     resolver: resolveByHost,
     buildConnector: scriptedConnector,

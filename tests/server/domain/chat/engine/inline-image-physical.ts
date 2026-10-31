@@ -18,6 +18,7 @@ import {
   createCorpusProviderExecution,
   makeAssetBytes,
   makePluginBundle,
+  SECRET_BOX_TEST_KEY,
   seedAdminProvider,
   seedInstalledPlugin,
   seedPluginGrant,
@@ -118,7 +119,7 @@ export async function imageRoom(
     await createChatRoot({
       memoryEnabled: false,
       group: IMAGE_ROOM_GROUP,
-      server: { secretBoxKey: Buffer.alloc(32, 1), pluginSpawn: spawn, ...(physicalOptions.db === undefined ? {} : { db: physicalOptions.db }) },
+      server: { secretBoxKey: SECRET_BOX_TEST_KEY, pluginSpawn: spawn, ...(physicalOptions.db === undefined ? {} : { db: physicalOptions.db }) },
       providerFetch: async (input, init) => {
         const request = new Request(input, init);
         if (request.method === "POST" && new URL(request.url).pathname.endsWith(":streamGenerateContent")) {

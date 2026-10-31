@@ -15,6 +15,7 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  SECRET_BOX_TEST_KEY,
 } from "@orb/testkit/node/composed";
 
 const MODEL = "claude-opus-5-5";
@@ -62,7 +63,7 @@ export async function personaRoom(
       ...roomOptions,
       memoryEnabled: false,
       server: {
-        secretBoxKey: Buffer.alloc(32, 1),
+        secretBoxKey: SECRET_BOX_TEST_KEY,
         networkExecution: {
           resolver: (host): Promise<readonly string[]> =>
             host === hostname ? Promise.resolve([PUBLIC_PEER_ADDRESS]) : Promise.reject(new Error(`unscripted persona provider address: ${host}`)),

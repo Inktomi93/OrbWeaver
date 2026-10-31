@@ -9,25 +9,16 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
-import { CSRF_HEADER } from "@orb/contracts/identity";
-import { importStartedSchema } from "@orb/contracts/import";
 import { createPersonaSchema } from "@orb/contracts/persona";
-import type { PortableKind } from "@orb/contracts/portability";
-import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
-import type { CharacterHandle, ChatId, WorkloadId } from "@orb/kit/ids";
+import type { CharacterHandle, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { buildChatBundleFile, CHAT_BUNDLE_EXT } from "@orb/server/primitives/serde/chat-bundle";
 import { createSeededIds, FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, seedRpgCheckpoint, seedRpgGame, seedTranscript } from "@orb/testkit/node/composed";
+import { exportLibrary, restoreBundle, seedRpgCheckpoint, seedRpgGame, seedTranscript, signedInBox } from "@orb/testkit/node/composed";
 import { makePortableChat, makePortableGame, makePortableMessage, makePortableTurnSnapshot } from "@orb/testkit/node/helpers";
 
-const EXPORT_ROUTE = PORTABILITY_ROUTES.exportLibrary;
-const BUNDLE_ROUTE = PORTABILITY_ROUTES.importBundle;
-/** Any signed-in request runs the first-login seed; this one reads nothing else. */
-const SIGNED_IN_ROUTE = "/api/trpc/sessions.me";
-const WORKLOAD_DEADLINE_MS = 60_000;
 const SOURCE_ID_CURSOR = 2 ** 29;
 const HANDLE = castId<CharacterHandle>("bridge-warden");
 const TITLE = "The bridge fell";
@@ -35,40 +26,6 @@ const INJECTION = "Keep the tone wry and the stakes personal.";
 const TAG = "campaign";
 const CHECKPOINT = "before the bridge";
 const JOURNAL = "The span gave way under the caravan.";
-
-async function signedInBox(ids?: ReturnType<typeof createSeededIds>): Promise<ServerTestHarness> {
-  const root = await createServerHarness({
-    physicalPeer: () => "127.0.0.1",
-    startJobs: false,
-    env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" },
-    ...(ids === undefined ? {} : { ids }),
-  });
-  expect((await root.http.request(SIGNED_IN_ROUTE)).status).toBe(200);
-  await root.settleBackground();
-  return root;
-}
-
-async function exportLibrary(root: ServerTestHarness, kinds: readonly PortableKind[]): Promise<Uint8Array> {
-  const response = await root.http.request(`${EXPORT_ROUTE}?kinds=${kinds.join(",")}`);
-  expect(response.status).toBe(200);
-  return new Uint8Array(await response.arrayBuffer());
-}
-
-async function restore(root: ServerTestHarness, bundle: Uint8Array): Promise<{ readonly status: string; readonly failed: number | undefined }> {
-  const response = await root.http.request(BUNDLE_ROUTE, { method: "POST", headers: { [CSRF_HEADER]: "1" }, body: bundle });
-  expect(response.status).toBe(202);
-  const id: WorkloadId = importStartedSchema.parse(await response.json()).workloadId;
-  const run = root.runAdmittedWorkload;
-  if (run === undefined) {
-    throw new Error("the harness owns workload execution only with startJobs: false");
-  }
-  await run(id, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
-  const row = await root.services.workloads.get({ caller: await root.principalFor(root.ownerId), id });
-  if (row.kind !== "import-bundle" || row.poison) {
-    throw new Error("the bundle upload left no typed import-bundle workload");
-  }
-  return { status: row.status, failed: row.result?.failed };
-}
 
 /** Everything a restored room carries that the test seeded, read through the product's own verbs. */
 async function planesOf(root: ServerTestHarness, chatId: ChatId): Promise<unknown> {
@@ -94,7 +51,7 @@ async function roomsOf(root: ServerTestHarness): Promise<readonly ChatId[]> {
 }
 
 test("a room's injections, tags and rpg campaign restore into a fresh box, re-anchored to the restored rows, and a second restore adds nothing", async () => {
-  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR) });
   const owner = await source.principalFor(source.ownerId);
   await source.services.character.create({
     principal: owner,
@@ -122,7 +79,7 @@ test("a room's injections, tags and rpg campaign restore into a fresh box, re-an
   const bundle = await exportLibrary(source, ["character", "chat"]);
 
   await using target = await signedInBox();
-  expect(await restore(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
+  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
   const [restoredRoom, ...extra] = await roomsOf(target);
   if (restoredRoom === undefined || extra.length > 0) {
     throw new Error("the restore did not land exactly one room");
@@ -139,7 +96,7 @@ test("a room's injections, tags and rpg campaign restore into a fresh box, re-an
     checkpointId: castId(checkpoint?.id ?? ""),
   });
 
-  expect(await restore(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
+  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
   expect(await roomsOf(target)).toEqual([restoredRoom]);
   expect((await targetCaller.chat.listChatInjections({ chatId: restoredRoom })).map((row) => row.content)).toEqual([INJECTION]);
   expect((await targetCaller.rpg.listCheckpoints({ chatId: restoredRoom })).map((row) => row.label)).toEqual([CHECKPOINT]);
@@ -397,7 +354,7 @@ test("importing a campaign bundle again after the room lost a later message keep
 });
 
 test("an owner's persona, world book, global databank document and settings value restore into a fresh box, and a second restore adds none", async () => {
-  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR) });
   const owner = await source.principalFor(source.ownerId);
   const sourceCaller = await source.internalCallerFor(source.ownerId);
   await source.services.persona.create({
@@ -423,11 +380,11 @@ test("an owner's persona, world book, global databank document and settings valu
     continueOnSend: (await targetCaller.settings.getUserSettings()).config.chat.continueOnSend,
   });
 
-  expect(await restore(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
+  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
   const first = await landed();
   expect(first).toEqual({ personas: ["Backup Persona"], books: ["Backup World"], documents: ["Field Notes"], globalDocuments: 1, continueOnSend: false });
   // No chunk travels in a bundle, so the restored document is searchable only once the restore queues its ingest.
   expect((await targetCaller.workloads.list()).filter((job) => job.kind === "databank-ingest")).toHaveLength(1);
-  expect(await restore(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
+  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
   expect(await landed()).toEqual(first);
 });

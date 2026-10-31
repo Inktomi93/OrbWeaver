@@ -7,13 +7,12 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { importStartedSchema, TREE_FILE_FIELD } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES, PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness, extractZip, prepareBackupFolder } from "@orb/testkit/node/composed";
+import { createServerHarness, extractZip, prepareBackupFolder, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { CSRF_HEADERS } from "./_body-limit-inputs.ts";
 
 const EXPORT_ROUTE = PORTABILITY_ROUTES.exportLibrary;
 const TREE_ROUTE = PORTABILITY_ROUTES.importTree;
 const WRAPPER = "backup";
-const WORKLOAD_DEADLINE_MS = 60_000;
 
 test("same-named library rows export to distinct archive paths and the whole backup restores as a folder", async () => {
   await using root = await createServerHarness({
