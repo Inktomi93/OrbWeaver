@@ -173,8 +173,7 @@ export interface DigestRow {
   readonly contentHash: string;
 }
 
-/** The outcome of a build pass (digests or segments) — written = newly stored (or re-stored on a hash diff). Mirrors the
- *  `MaintenancePassCounts` shape so the composition root can wire it into the `memory-backfill` runner. */
+/** The outcome of a build pass (digests or segments) — written = newly stored (or re-stored on a hash diff). */
 export interface MemoryPassCounts {
   readonly written: number;
 }

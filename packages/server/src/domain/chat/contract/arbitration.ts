@@ -76,20 +76,6 @@ export interface SmartArbitrationResult {
   readonly aborted: boolean;
 }
 
-/** Why an auto-mode AI→AI chain stopped (the dual bound + the interrupt/eligibility/
- *  lock guards). ONE home; the union derives from this tuple (no inline re-spell). */
-const AUTO_MODE_STOP_REASONS = [
-  /** The turn-count cap (`autoModeMaxTurns`) was reached. */
-  "max-turns",
-  /** The caller aborted (the `AbortSignal` fired) — a user interrupt. */
-  "interrupt",
-  /** Arbitration produced no eligible speaker (everyone muted/left, or `manual`/ban-last yielded none). */
-  "no-eligible",
-  /** A concurrent turn holds the per-chat lock (a human send interleaved at a clean seq boundary — §6). */
-  "locked",
-] as const;
-export type AutoModeStopReason = (typeof AUTO_MODE_STOP_REASONS)[number];
-
 /** The result of an auto-mode chain: the committed messages (across all chained turns, in commit order). */
 export interface AutoModeResult {
   readonly messages: readonly MessageView[];
