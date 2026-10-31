@@ -42,4 +42,23 @@ Each member in the table is deleted, wired to the named caller, or linked as its
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+| Member | Outcome |
+| - | - |
+| `ActiveTurnHandle.release` | deleted: every verb disposes the handle with `using`; the registry's dispose stays idempotent |
+| `PromptTransformRegistry.list` | deleted |
+| `ChatContext.searchCorpus` | deleted with its `corpus` dep and its implementation in `createChatMemorySearchOps` |
+| `ChatContext.getGroupConfig`, `getRoomOverrides` | deleted with their op types and the now-unused `getGroupConfig` and `getRoomOverrides` helpers in `contract/metadata.ts` |
+| `ChatBus.readRing` | deleted with the in-process ring it read: nothing else read the ring, and replay reads `chat_events` |
+| `ChatService.getActivePresetConfig` | deleted; its test uses read the room's preset from `DEFAULT_PROMPT_CONFIG` or the preview text |
+| `ChatService.clearVariables` | deleted |
+| `ChatService.listForks`, `previewSection`, `peekPrompt`, `replayStreamEvents`, `streamEventBounds`, `duplicateMessage`, `reattributeMessages` | owner calls, unchanged |
+
+`tests/server/domain/chat/persistence/publication.int.test.ts` now proves durable-first through the fanned seq, which only the committed `chat_events` row can supply, instead of through the ring.
+
+### Owner calls
+
+- `ChatService.listForks` (`packages/server/src/domain/chat/contract/service.ts`): lists the membership-scoped fork children of a chat. No router procedure or client surface reads it; it would surface as a fork list in the chat's details panel. `getChatLineage`, the ancestor half, is routed. Recommendation: wire it with a procedure and a forks list, or delete it if forks stay a one-way lineage.
+- `ChatService.previewSection` and `ChatService.peekPrompt`: one preset section's render, and the next turn's assembled prompt. `packages/server/src/transport/trpc/routers/chat.ts` keeps both unexposed on purpose, and `packages/client/src/features/chat/components/assembly-preview-panel.tsx` defers the section affordance. They would surface in the preset editor and the prompt inspector. Item [0501](0501-wire-or-delete-the-unused-prompt-preview-verbs.md) already holds this question.
+- `ChatService.replayStreamEvents` and `ChatService.streamEventBounds`: the read half of the durable SSE token log (`chat_stream_events`), a late subscriber's resume from a cursor. The live stream resumes from `chat_events`, so nothing reads the token log; deleting these two leaves a table that is written every turn and never read. It would surface as mid-reply resume after a reconnect. Recommendation: decide whether the token log stays; if not, delete the two verbs with the table and its writer in one change.
+- `ChatService.duplicateMessage`: copies a slot and its selected variant to a new tail slot. No procedure or message action offers it; it would surface as a "Duplicate" item in the message menu.
+- `ChatService.reattributeMessages`: the host re-stamps the speaking character of a set of slots. No procedure offers it; it would surface as a host "Reattribute" action on messages.

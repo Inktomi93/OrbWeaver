@@ -40,7 +40,6 @@ import type {
 } from "@orb/contracts/chat";
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
 import type { SendAvailability } from "@orb/contracts/inference";
-import type { PromptConfig } from "@orb/contracts/preset";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type {
   AbortParams,
@@ -50,7 +49,6 @@ import type {
   ArchiveChatParams,
   ChatEventBoundsParams,
   ClearReasoningParams,
-  ClearVariablesParams,
   CommitMessageParams,
   CompactParams,
   ContinueTurnParams,
@@ -68,7 +66,6 @@ import type {
   ForkChatParams,
   GenerateImageParams,
   GenerateParams,
-  GetActivePresetConfigParams,
   GetChatLineageParams,
   GetChatParams,
   GetGroupConfigForChatParams,
@@ -193,8 +190,6 @@ export interface ChatService {
   readonly getMemberCard: (params: GetMemberCardParams) => Promise<MemberCardView>;
   /** The assembled prompt + trace for a hypothetical turn (host/admin debug surface). */
   readonly previewAssembly: (params: PreviewAssemblyParams) => Promise<AssemblyPreview>;
-  /** The resolved `PromptConfig` the chat assembles against. */
-  readonly getActivePresetConfig: (params: GetActivePresetConfigParams) => Promise<PromptConfig>;
   /** Every ACTION template of ONE preset, resolved against THIS chat (D8 / §7.1 — the preset editor's bound
    *  readout). `presetId` is an OVERRIDE resolved owned-or-system under the host; host-gated, nothing persists. */
   readonly previewActionTemplates: (params: PreviewActionTemplatesParams) => Promise<ActionTemplatesPreview>;
@@ -307,7 +302,6 @@ export interface ChatService {
 
   // ── variables ─────────────────────────────────────────────────────────────────
   readonly setVariables: (params: SetVariablesParams) => Promise<void>;
-  readonly clearVariables: (params: ClearVariablesParams) => Promise<void>;
   /** The per-chat user-macro INPUT picks flush (WAVE MU) — `chats.user_macro_values`. Member-gated. */
   readonly setUserMacroValues: (params: SetUserMacroValuesParams) => Promise<void>;
   /** The picks pane read (#24) — the pickable user-macro declarations + the persisted picks. Member-gated. */

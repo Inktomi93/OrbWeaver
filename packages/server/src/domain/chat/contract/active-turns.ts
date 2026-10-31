@@ -8,15 +8,12 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 /** A live turn registration — the caller threads `signal` into the abortable work (the auto-mode chain) and
  *  MUST release it when the turn ends (so a completed turn leaves the registry clean).
  *
- *  It is `Disposable`, and `using handle = activeTurns.register(...)` is THE spelling at a verb: the release
- *  then rides scope exit (normal return, throw, or abort alike) instead of a hand-written `finally`, and it
- *  also covers the window between `register()` and the old `try` — where a throw used to strand the
- *  registration and leave a phantom in-flight turn that made `abort` report `foreignInFlight`. `release()`
- *  stays the NAMED operation (`[Symbol.dispose]` is bound to it, not a second implementation) for the callers
- *  whose release is not scope-shaped; it is idempotent, so both spellings compose. */
+ *  `using handle = activeTurns.register(...)` is THE spelling at a verb: the release rides scope exit (normal
+ *  return, throw, or abort alike) instead of a hand-written `finally`, and it also covers the window between
+ *  `register()` and a `try`, where a throw would strand the registration and leave a phantom in-flight turn
+ *  that made `abort` report `foreignInFlight`. Disposal is idempotent. */
 export interface ActiveTurnHandle extends Disposable {
   readonly signal: AbortSignal;
-  readonly release: () => void;
 }
 
 /** The outcome of an `abort` sweep: how many of the CALLER's turns were signalled + whether a turn owned by

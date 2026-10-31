@@ -51,7 +51,6 @@ import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contrac
 import type { PreparedRetainedCanonStats } from "../contract/generation-observation.ts";
 import type {
   ArchiveChatParams,
-  ClearVariablesParams,
   DeleteChatInjectionParams,
   DeleteChatParams,
   GetRuntimeVariablesParams,
@@ -116,7 +115,6 @@ type ChatLifecycleVerbs = Pick<
   | "getRuntimeVariables"
   | "setVariables"
   | "setUserMacroValues"
-  | "clearVariables"
   | "setChatInjection"
   | "listChatInjections"
   | "deleteChatInjection"
@@ -560,16 +558,6 @@ function createGetRuntimeVariables(ctx: ChatContext): ChatService["getRuntimeVar
   };
 }
 
-/** `clearVariables` — member. Null the persisted variable flush. Emits `chatUpdated`. */
-function createClearVariables(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["clearVariables"] {
-  return async ({ principal, chatId }: ClearVariablesParams): Promise<void> => {
-    await requireParticipant(ctx, principal, chatId);
-    await claimChat(chatId);
-    await commitFencedChatWrite(ctx, chatId, ctx.db.update(chats).set({ variableValues: null, updatedAt: ctx.now() }).where(eq(chats.id, chatId)));
-    await emit({ type: "chatUpdated", chatId });
-  };
-}
-
 /** `setChatInjection` — host-only. `id` set ⇒ update the existing row (scoped to chatId — a foreign/unknown
  *  id is a leak-free NOT_FOUND); absent ⇒ insert a fresh row. Emits `chatUpdated`; returns the resolved view. */
 function createSetChatInjection(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["setChatInjection"] {
@@ -663,7 +651,6 @@ export function createChatLifecycle(ctx: ChatContext, deps: ChatLifecycleDeps): 
     getUserMacroPicks: createGetUserMacroPicks(ctx),
     getVariablePicks: createGetVariablePicks(ctx),
     getRuntimeVariables: createGetRuntimeVariables(ctx),
-    clearVariables: createClearVariables(ctx, emit, claimChat),
     setChatInjection: createSetChatInjection(ctx, emit, claimChat),
     listChatInjections: createListChatInjections(ctx),
     deleteChatInjection: createDeleteChatInjection(ctx, emit, claimChat),

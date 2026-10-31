@@ -115,9 +115,6 @@ export interface PreviewAssemblyParams extends ChatScopedParams, ViewerClockPara
   readonly presetOverride?: PresetId | undefined;
 }
 
-/** `getActivePresetConfig` — the resolved PromptConfig the chat assembles against. */
-export type GetActivePresetConfigParams = ChatScopedParams;
-
 /** `previewActionTemplates` — every ACTION template of ONE preset,
  *  resolved against THIS chat. `presetId` is the editor's OVERRIDE: assemble this room as if that preset were
  *  active, so the preset editor can show a real resolution for a preset the chat has not adopted. It rides the
@@ -457,8 +454,6 @@ export interface SetUserMacroValuesParams extends ChatScopedParams {
 /** `getUserMacroPicks` (#24) — the picks pane's ONE read: the chat's pickable user-macro declarations +
  *  the persisted picks `setUserMacroValues` writes. */
 export type GetUserMacroPicksParams = ChatScopedParams;
-
-export type ClearVariablesParams = ChatScopedParams;
 
 /** `delete` — deletes the chat (host-only; cascades messages/roster/invites/etc.). */
 export type DeleteChatParams = ChatScopedParams;
