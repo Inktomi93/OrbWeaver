@@ -249,6 +249,7 @@ Ink fixes: Card `interactive` hover and press paint `text-tone-text-on-tint`; th
 | `packages/client/src/features/persona/components/persona-panel-row.tsx` (marker) | The row wrapper stamps `data-persona-row`, which the e2e disclosure walker keys on, so only persona rows leave its census. |
 | `packages/client/src/features/persona/components/persona-switch-list.tsx` | `ListRow` was refused: even with the step 4e attribute props it has no `tabIndex` or row focus seam, and the room list is one roving tab stop. The stretched switch button already is the row body, so it takes `selection="rail"` and `data-selected`, the selection rail `ListRow` wears. |
 | `packages/client/src/components/setting-teach-row.tsx`, `packages/client/src/features/plugin/components/plugin-row-leaves.tsx` | `dividerTone` `primary` and `warning` became `tone="primary"` and `tone="warning"`. |
+
 ##### Step 4e record
 
 ListRow takes its state as typed attribute props: `"data-selected"` and `"data-disabled"` carry `""` or nothing, `"aria-expanded"` carries a boolean. The row derives `aria-current` from `data-selected`, so a caller states one fact once. Disabled behavior stays in the primitive: `aria-disabled`, tab order and the dropped click key off `data-disabled`. `density` left with its last caller and `revealActions` stays with its story. `tests/ui/primitives/list-row/list-row-state.dom.test-d.ts` refuses the removed booleans, and `tests/ui/primitives/list-row/state-attributes.ct.tsx` reads the three states from the attributes in the Chromium and WebKit CT projects.

@@ -36,7 +36,7 @@ import { TOKENS } from "#tokens";
 import type { ParsedOklch } from "./color-parse.ts";
 import { compositedBase, serializeOpaqueOklch, toOklch } from "./color-parse.ts";
 import type { CarriedPalette, InputBorderFallback } from "./derive-vars.ts";
-import { carriedPaletteOf, foregroundOn, inputBorderOn, surfaceVarsOn } from "./derive-vars.ts";
+import { carriedPaletteOf, foregroundOn, inputBorderOn, nestedRingOn, surfaceVarsOn } from "./derive-vars.ts";
 import { THEME_OVERRIDE_COLOR_VARS } from "./emit-vars.ts";
 import type { CarriedToneScheme } from "./tone-knobs.ts";
 import {
@@ -136,7 +136,7 @@ export interface ClampedTheme {
   readonly resolvedBackground?: string;
   /** Set when no one ink covers the primary fill and its solid steps, so the solve raised the step knobs (D336). */
   readonly toneFallback?: ToneFallback;
-  /** Set when the carried scope's form-control edge could not hold both D159 bounds; the 3:1 floor wins over the focus-ring ceiling. */
+  /** Set when the scope's form-control edge could not hold both D159 bounds (the 3:1 floor wins over the focus-ring ceiling), or when an accent-only scope's ring cannot sit above the outer carried edge. */
   readonly inputBorderFallback?: InputBorderFallback;
 }
 
@@ -266,6 +266,8 @@ interface AccentAndTones {
   readonly accent: AccentEmission | undefined;
   readonly toneVars: Readonly<Record<string, string>>;
   readonly fallback: ToneFallback | undefined;
+  /** The outer edge an accent-only scope could not hold its ring above (D159); a carried scope reports its own edge instead. */
+  readonly inputBorderFallback?: InputBorderFallback;
 }
 
 /**
@@ -281,7 +283,7 @@ function accentAndTonesOn(
   carriedAmbient: CarriedPalette | null,
 ): AccentAndTones {
   if (carried === null && picked !== undefined && carriedAmbient !== null) {
-    return nestedAccentOn(picked, carriedToneScheme(carriedAmbient));
+    return nestedAccentOn(picked, carriedAmbient);
   }
   const scheme = carried === null ? null : carriedToneScheme(carried);
   const accent = accentEmissionOn(picked, ambientAccent, scheme);
@@ -299,7 +301,8 @@ function accentAndTonesOn(
  * An accent-only scope over a carried palette (D336): its primary lands on that palette's ramp, which the outer scope
  * solved for a different accent, so it judges and solves the primary's fill, ink, steps and literals there.
  */
-function nestedAccentOn(picked: string, scheme: CarriedToneScheme): AccentAndTones {
+function nestedAccentOn(picked: string, ambient: CarriedPalette): AccentAndTones {
+  const scheme = carriedToneScheme(ambient);
   const accent = accentEmissionOn(picked, undefined, scheme);
   if (accent === undefined) {
     return { accent, toneVars: primaryLiteralResets(), fallback: undefined };
@@ -308,7 +311,14 @@ function nestedAccentOn(picked: string, scheme: CarriedToneScheme): AccentAndTon
   const mix = solveCarriedToneMix(scheme, primary);
   const steps = toneMixOf(mix, "primary");
   const fallback = accent.coversSteps ? undefined : { accent: accent.fill, hover: steps.hover, active: steps.active };
-  return { accent, toneVars: primaryToneVars(scheme, mix, primary), fallback };
+  // The ring follows this scope's accent, so it is held above the outer scope's edge again (D159); the tone vars land after the fill's ring.
+  const ring = nestedRingOn(ambient, accent.painted);
+  return {
+    accent,
+    toneVars: { ...primaryToneVars(scheme, mix, primary), ...ring.vars },
+    fallback,
+    ...(ring.fallback === undefined ? {} : { inputBorderFallback: ring.fallback }),
+  };
 }
 
 /**
@@ -418,7 +428,7 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
   // The accent is judged against the CARD a carried base derives (#692) — see `accentEmissionOn`. With no
   // carried background, or when the accent already clears, this is the pre-#692 pass-through: the picked
   // value byte-identical, or nothing at all.
-  const { accent, toneVars, fallback } = accentAndTonesOn(t.accent, ambientAccent, carried, carriedAmbient);
+  const { accent, toneVars, fallback, inputBorderFallback: nestedEdgeFallback } = accentAndTonesOn(t.accent, ambientAccent, carried, carriedAmbient);
   put(THEME_OVERRIDE_COLOR_VARS.accent, accent?.fill);
   put("--color-ring", accent?.fill);
   // The accent's readable foreground derives off the accent this scope actually PAINTS with, so a dark
@@ -490,8 +500,14 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
     ...inheritedInkOn(vars),
     ...(accentSource === undefined ? {} : { accentSource }),
     ...carriedContextOn(carriedBase, fallback),
-    ...(surface?.inputBorderFallback === undefined ? {} : { inputBorderFallback: surface.inputBorderFallback }),
+    ...edgeFallbackOn(surface?.inputBorderFallback, nestedEdgeFallback),
   };
+}
+
+/** The D159 edge fallback a scope reports: its own carried edge, else the outer edge its accent's ring could not clear. A scope has at most one. */
+function edgeFallbackOn(carried: InputBorderFallback | undefined, nested: InputBorderFallback | undefined): Pick<ClampedTheme, "inputBorderFallback"> {
+  const fallback = carried ?? nested;
+  return fallback === undefined ? {} : { inputBorderFallback: fallback };
 }
 
 /** The carried scope's context axes: its resolved base pixel and the D336 fallback it took, each only when present. */

@@ -1,37 +1,25 @@
 // domain/chat/memory/recall/query — build the `MemoryQueryOptions` memory threads into `search.digests`
-// (docs/law/Knowledge-Cluster.md §3b/§6). The chat-scope (#5), the egocentric `scopedCharacterId` (#4), the
-// name-prefixed query TEXT (#4), and the knobs (#6) ALL ride `MemoryQueryOptions` (the `@orb/contracts/search`
-// seam — the foundation homed `queryText`/`scopedCharacterId` there; the chat-side wrapper is gone). PURE —
-// the egocentric query text is memory's pre-call assembly (the resolved-name two-phase, §3 rule 4); the cosine
-// scan is search's. `candidates` is left ABSENT here (the bridge restriction is layered by `recall.ts`).
+// (docs/law/Knowledge-Cluster.md §3b/§6). The window, the scope and the knobs are `@orb/kit/recall` rules; this
+// file renders the window text, which needs the chat's name map and its transcript error, then hands it over.
+// `candidates` is left ABSENT here (the bridge restriction is layered by `recall.ts`).
 
 import type { MemoryQueryOptions } from "@orb/contracts/search";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { RowMacroNameContext, RowPersonaName } from "@orb/kit/macro";
+import { buildRecallQuery as recallQueryOf, recallQueryWindow } from "@orb/kit/recall";
 import { renderTranscript } from "../generate/substrate/transcript.ts";
 import type { MemoryScope, MsgRow, ResolvedMemoryConfig } from "../types.ts";
 
 /** Build the recall query for mixB/mixC: the egocentric (name-prefixed) text over the recent `queryWindow`
  *  messages + the chat-scope + the egocentric bucket + the resolved knobs, all on `MemoryQueryOptions`.
- *  `recent` is oldest→newest; the last `queryWindow` form the retrieval query (the protected-tail-aware recent
- *  window — §3 rule 4 resolved form). `scopedCharacterId` is a real `CharacterId` (inv 8). */
+ *  `recent` is oldest→newest. `scopedCharacterId` is a real `CharacterId` (inv 8). */
 export function buildRecallQuery(
   cfg: ResolvedMemoryConfig,
   scope: MemoryScope,
   recent: readonly MsgRow[],
   names: ReadonlyMap<CharacterId, string>,
 ): Omit<MemoryQueryOptions, "ownerId"> {
-  const window = recent.slice(Math.max(0, recent.length - cfg.queryWindow));
-  return {
-    scope: { chat: scope.chatId },
-    queryText: renderTranscript(window, recallMacroNames(names)),
-    scopedCharacterId: scope.scopedCharacterId,
-    mode: cfg.mode,
-    keywordMatch: cfg.keywordMatch,
-    minScore: cfg.minScore,
-    retrieveK: cfg.retrieveK,
-    rerankTo: cfg.rerankTo,
-  };
+  return recallQueryOf(cfg, scope, renderTranscript(recallQueryWindow(recent, cfg.queryWindow), recallMacroNames(names)));
 }
 
 /** Adapt recall's char-name map (the gather producer, `assemble-gather.ts`) into the `resolveRowMacros`

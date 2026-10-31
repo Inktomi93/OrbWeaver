@@ -1,4 +1,4 @@
-// Pure rules of memory recall: the tiered bridge over a pool of digest positions, the `{{memory}}` block format,
+// Pure rules of memory recall: the tiered bridge over a pool of digest positions, the query shape, the `{{memory}}` block format,
 // the block identity string and the live-window boundary. Rows arrive as structural shapes so the rules name no
 // domain type.
 
@@ -170,4 +170,50 @@ export const LIVE_WINDOW_FULL_HISTORY_CUTOFF = Number.NEGATIVE_INFINITY;
  */
 export function inLiveWindow(seq: number, cutoff: number): boolean {
   return seq >= cutoff;
+}
+
+/** The resolved recall knobs the query reads. `mode` stays the caller's own literal union. */
+export interface RecallKnobs<Mode extends string> {
+  readonly queryWindow: number;
+  readonly mode: Mode;
+  readonly keywordMatch: boolean;
+  readonly minScore: number;
+  readonly retrieveK: number;
+  readonly rerankTo: number;
+}
+
+/** The recent turns the query is made of: the last `queryWindow` of `recent`, which runs oldest to newest. */
+export function recallQueryWindow<T>(recent: readonly T[], queryWindow: number): readonly T[] {
+  return recent.slice(Math.max(0, recent.length - queryWindow));
+}
+
+/** The recall query options the memory domain hands to digest search. */
+export interface RecallQuery<Mode extends string> {
+  readonly scope: { readonly chat: ChatId };
+  readonly queryText: string;
+  readonly scopedCharacterId: CharacterId;
+  readonly mode: Mode;
+  readonly keywordMatch: boolean;
+  readonly minScore: number;
+  readonly retrieveK: number;
+  readonly rerankTo: number;
+}
+
+/** Build the recall query from the already rendered window text: the chat scope, the egocentric bucket and the
+ *  resolved knobs. `candidates` is left absent; the bridge restriction is layered on by the caller. */
+export function buildRecallQuery<Mode extends string>(
+  cfg: RecallKnobs<Mode>,
+  scope: { readonly chatId: ChatId; readonly scopedCharacterId: CharacterId },
+  queryText: string,
+): RecallQuery<Mode> {
+  return {
+    scope: { chat: scope.chatId },
+    queryText,
+    scopedCharacterId: scope.scopedCharacterId,
+    mode: cfg.mode,
+    keywordMatch: cfg.keywordMatch,
+    minScore: cfg.minScore,
+    retrieveK: cfg.retrieveK,
+    rerankTo: cfg.rerankTo,
+  };
 }
