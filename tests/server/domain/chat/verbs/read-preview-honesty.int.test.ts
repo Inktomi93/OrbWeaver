@@ -5,7 +5,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
-import { DEFAULT_PROMPT_CONFIG, TEMPLATE_DEFS } from "@orb/contracts/preset";
+import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG, TEMPLATE_DEFS } from "@orb/contracts/preset";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { parseIanaTimeZone } from "@orb/kit/time";
@@ -287,7 +287,7 @@ test("the preview reads the clock in the viewer's zone, the zone the next turn r
   const clock = "CLOCK {{date}} {{time}} {{weekday}}";
   const config: PromptConfig = {
     ...presetLeading("clock", clock),
-    guidedActions: { ...DEFAULT_PROMPT_CONFIG.guidedActions, response: { ...DEFAULT_PROMPT_CONFIG.guidedActions.response, prompt: clock } },
+    guidedActions: { ...DEFAULT_GUIDED_ACTIONS, response: { ...DEFAULT_GUIDED_ACTIONS.response, prompt: clock } },
   };
   await using h = await textRoom(["ok"], { promptConfig: config });
   const preset = await h.caller.preset.create({ name: "Clock", kind: "custom", config });
@@ -359,9 +359,9 @@ test("the template readout renders the inspected preset through the room's own i
     config: {
       ...DEFAULT_PROMPT_CONFIG,
       guidedActions: {
-        ...DEFAULT_PROMPT_CONFIG.guidedActions,
+        ...DEFAULT_GUIDED_ACTIONS,
         impersonate: {
-          ...DEFAULT_PROMPT_CONFIG.guidedActions.impersonate,
+          ...DEFAULT_GUIDED_ACTIONS.impersonate,
           prompt: "Write {{user}}'s next message from a {{person}}-person perspective. {{input}}",
         },
       },
