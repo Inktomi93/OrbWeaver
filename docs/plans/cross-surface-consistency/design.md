@@ -62,7 +62,7 @@ Out of the survey: CONTEXT panel bodies, the chat room, the home and corpus dash
 
 ### Lint
 
-`orb/page-template-shapes` refuses, in `packages/client/src/features/**`, a `ListSearch` element, the `data-shell-identity` attribute, a class string or template quasi with `mx-auto` beside `max-inline-(--width-content-col)`, and a `Grid` with `role="list"`. Each signature is owned by exactly one template. A start-aligned cap without `mx-auto` is a measure, not the editor column, and passes. A column split across template quasis escapes the rule. The settings pane has no precise signature: its sections are legitimate feature code and its host exists once, so that shape has no rule.
+`orb/page-template-shapes` refuses, in `packages/client/src/features/**`, a `ListSearch` element, the `data-shell-identity` attribute, a class string or template quasi with `mx-auto` beside `max-inline-(--width-content-col)`, a `Grid` with `role="list"`, and a `FieldLayout` with `orientation="horizontal"`. Each signature is owned by exactly one template. A start-aligned cap without `mx-auto` is a measure, not the editor column, and passes. A column split across template quasis escapes the rule. The settings pane has no precise signature: its sections are legitimate feature code and its host exists once, so that shape has no rule. Its rows do: `SettingRowGroup` and `SettingTrackRow` own the only horizontal `FieldLayout`, so a feature that spells one has hand-built a settings row.
 
 ### Judgment sites
 
