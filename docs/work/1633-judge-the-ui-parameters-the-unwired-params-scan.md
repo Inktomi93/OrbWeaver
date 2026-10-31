@@ -141,4 +141,56 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Every row has one disposition below. `pnpm unwired params` is the orchestrator's whole-tree run; it is owed after this lands.
+
+### Applied
+
+| Rows | Change |
+| - | - |
+| `toneMixOf.tone` | `primaryToneMix(mix)` in `ui/src/content/theme-scope/tone-knobs.ts`; the three callers (`clamp.ts`, `tone-knobs.ts`) were all `"primary"` |
+| `createRevealPlugin.now` | the plugin reads `performance.now()`; no caller or test injects a clock |
+| `useFuzzySearch.options.storeFields`, `.fuzzy`, `.prefix`, `.combineWith` | removed from `FuzzySearchOptions`; the index stores `fields`, search is prefix, `FUZZY`, `AND` |
+| `ToolCallBlock.#0.defaultOpen` | removed; all four callers pass only `record` |
+
+### Kept
+
+| Rows | Reason |
+| - | - |
+| every `className` and `trackClassName` row (`ArtBleed`, `WeaveGlyph`, `BarList`, `Chart`, `Heatmap`, `Histogram`, `CoinFigure`, `SegmentedClock`, `StatFigure`, `ThemeSwatchStrip`, `DiffView`, `Autocomplete`, `Combobox`, `CommandInput`, `CompareBlocks`, `CopyButtonStatus`, `MenuSeparator`, `Progress`, `SortableList`, `WebSpinner`, `TabsIndicator`, `ToolCallBlock`, `StreamShimmer`, `TypingDots`) | `docs/law/UI-Primitives-and-Reuse.md:107` makes `cn(xVariants(...), className)` the component shape; owner question 1 |
+| `WeaveGlyph.#0.ink`, `WebSpinner.#0.ink` | `docs/law/UI-Density-Law.md:166` names `tone` and `ink` on both as the primitive's own variants |
+| `avatarStackInlineSize.size`, `ThemeSwatchStrip.#0.size` | a size scale; `avatarStackInlineSize` indexes `AVATAR_SIZE_VAR` by `size` beside `avatarStackOverlap` in `ui/src/primitives/avatar-stack/geometry.ts:47` |
+| `useFuzzySearch.options.boost` | the type is shared with `fuzzySearch`; `client/src/features/config/components/config-search-input.tsx:53` supplies it |
+| `BarList.#0.onChartReady` | `tests/ui/styles/_ramp-enforcement-stories.tsx:74` |
+| `Heatmap.#0.height`, `Heatmap.#0.onChartReady` | `tests/ui/charts/heatmap/_heatmap-paint-stories.tsx:100`, `tests/client/features/app-shell/surfaces/_heatmap-layout-stories.tsx:35` |
+| `SegmentedClock.#0.hidden` | `tests/ui/styles/_ramp-enforcement-stories.tsx:35` |
+| `LogViewer.#0.maxLines` | `tests/ui/primitives/message-list/_scrollport-stories.tsx:51` |
+| `Table.#0.sorting`, `.defaultSorting`, `.onSortingChange` | `tests/ui/primitives/table/table-sort-stories.tsx:40`, `:56` |
+| `Autocomplete.#0.size`, `Combobox.#0.items`, `.defaultValue`, `.size`, `.aria-label` | `tests/ui/primitives/_control-scale-stories.tsx:46`, `:49`; `tests/ui/primitives/combobox/combobox-chips-stories.tsx:38`, `:51` |
+| `BarList.#0.height`, `Histogram.#0.height`, `Histogram.#0.onChartReady`, `Scatter.#0.onChartReady`, `StatFigure.#0.onChartReady` | the chart family contract, `ui/src/charts/chart/contract.ts:16`, read at `ui/src/charts/chart/chart-renderer.tsx:22`; its siblings are supplied by stories |
+| `Autocomplete.#0`: `defaultValue`, `disabled`, `emptyText`, `clearLabel`, `id`, `arrow`, `side`, `align`, `sideOffset`, `container`. `Combobox.#0`: `disabled`, `emptyText`, `aria-describedby`, `id`, `arrow`, `side`, `align`, `sideOffset`, `container`. `Toaster.props.container`, `.swipeDirection`. `Progress.props.formatValue` | the Base UI part set of a primitive door (`docs/work/0989-adjudicate-unused-production-exports-behind-explicit-package-doors.md`, "@orb/ui part sets"); `tooling/src/eslint/ui-containment.ts` requires the `container` prop on a float seal |
+| `BackgroundVideo.#0.paused`, `CrossfadeImage.#0.durationMs`, `MediaTileGridSkeleton.#0.count`, `ColorSwatch.#0.label` | each has behaviour its component reads and documents: `ui/src/primitives/background-video/background-video.tsx:52`, `ui/src/primitives/crossfade-image/crossfade-image.tsx:82`, `ui/src/primitives/media-tile-grid/media-tile-grid.tsx:174`, `ui/src/primitives/color-field/color-field.tsx:36` |
+
+### Handed off
+
+| Row | Supplier |
+| - | - |
+| `useFuzzySearch.options.searchFields` | `tests/ui/fuzzy-search.test.ts:22` only; the knob exists for no production call |
+
+### Ruling fork
+
+`Autocomplete.#0.groups` and `Combobox.#0.groups` are judged `delete (read)`: no production element groups its suggestions. The "@orb/ui part sets" ruling keeps each primitive's full Base UI part set, and Base UI's group parts are in it. Default: keep both until the owner rules. Deadline: before the next unwired-params run.
+
+### Owner questions
+
+1. `className` on `@orb/ui` components: law keeps the prop as the composition seam and the client gate bans using it, so no feature can supply one. Should the prop go from components with no `className` supplier, or stay as the seam?
+2. `WebWeave.#0`: `spider`, `glow`, `onSettled`, `wind`, `character`, `tempo`. Weave-lab motion knobs, with `spider` documented as a future courtesy (`ui/src/art/web-weave/web-weave.tsx:84`). Build a consumer or drop them?
+3. `StatFigure.#0`: `delta`, `trend`, `sparklineHeight`. The component header documents the sparkline and delta tile; no caller supplies them. Build a consumer or drop the sparkline?
+4. `Table.#0`: `getRowLabel`, `density`, `pagination`, `onPaginationChange`, `selectable`, `selectedRowIds`, `defaultSelectedRowIds`, `onSelectedRowIdsChange`, `emptyState`. Does the table primitive keep selection, controlled pagination and its empty state? `CompareBlocks.#0` `accepted`, `onAcceptedChange`, `acceptAllLabel` is the same question for controlled accept state.
+5. Virtualizer knobs: `VirtualList.#0` `overscan`, `lanes`, `rangeExtractor`, `scrollToIndex`, `initialScrollOffset`; `MessageList.#0` `overscan`, `scrollEndThreshold`, `rangeExtractor`, `useCachedMeasurements`; `MediaGrid.#0.overscan`. No supplier. Each is a tuning knob with a named default, not a variant axis; do they go?
+
+### Checks
+
+- `pnpm test tests/ui/fuzzy-search.test.ts tests/ui/content/theme-scope/clamp.test.ts tests/ui/content/theme-scope/tone-knobs.test.ts tests/ui/content/theme-scope/emit-surface.test.ts`
+- `pnpm typecheck packages/ui/tsconfig.json packages/client/tsconfig.json tsconfig.tests-dom.json`
+- `pnpm test:ct tests/ui/markdown/math.ct.tsx tests/ui/content/theme-scope/platform-tone-host.suite.ct.tsx tests/ui/content/theme-scope/emitted-contrast.ct.tsx`
+- No CT mounts `ToolCallBlock`; the typecheck covers its four callers.
