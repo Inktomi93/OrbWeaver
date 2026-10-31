@@ -35,7 +35,7 @@ import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
-import { asc, count, eq, sql } from "drizzle-orm";
+import { asc, count, eq } from "drizzle-orm";
 import { createFrozenClock } from "../iso/clock.ts";
 import { parseSurfaceProviderEvidence } from "../iso/surface-data.ts";
 import { createControlledTimers } from "../iso/timers.ts";
@@ -52,6 +52,7 @@ import {
   createCorpusProviderExecution,
 } from "./corpus-provider.ts";
 import { SHIPPED_MIGRATIONS } from "./db.ts";
+import { plantTrigger } from "./db-faults.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import { makePluginBundle } from "./factories/plugin.ts";
 import { expect, test } from "./fixtures.ts";
@@ -74,6 +75,15 @@ const SOURCE_HANDLE = brandedId("Handle").parse("retained-surface-owner");
 const SOURCE_PASSWORD = "surface-source-password";
 const SOURCE_SECRET = "surface-source-provider-key";
 const STANDALONE_STARTUP_TIMEOUT_MS = 30_000;
+// A trigger on an upgrade that bumps a shipped plugin from its seeded version; each fault adds the corruption it runs.
+const UPGRADE_DRIFT = {
+  table: plugins,
+  event: "UPDATE",
+  timing: "AFTER",
+  name: "surface_upgrade_drift",
+  columns: [plugins.version],
+  when: "OLD.version = '0.0.0' AND NEW.version <> OLD.version",
+} as const;
 const POST_ADMISSION_CREATIONS = 16;
 
 async function exerciseClonedCharacterCrud(
@@ -317,13 +327,12 @@ async function prepareManagedUpgrade(
       input: { section: "onboarding", patch: { seededPluginVersions: { [shipped.id]: installed.version } } },
     });
     if (fault === "consent") {
-      await db.run(
-        sql`CREATE TRIGGER surface_upgrade_drift AFTER UPDATE OF version ON plugins WHEN OLD.version = '0.0.0' AND NEW.version <> OLD.version BEGIN UPDATE plugins SET granted_capabilities = '[]' WHERE id = NEW.id; END`,
-      );
+      await plantTrigger(db, {
+        ...UPGRADE_DRIFT,
+        body: "UPDATE plugins SET granted_capabilities = '[]' WHERE id = NEW.id;",
+      });
     } else if (fault === "subjects") {
-      await db.run(
-        sql`CREATE TRIGGER surface_upgrade_drift AFTER UPDATE OF version ON plugins WHEN OLD.version = '0.0.0' AND NEW.version <> OLD.version BEGIN DELETE FROM tags; END`,
-      );
+      await plantTrigger(db, { ...UPGRADE_DRIFT, body: "DELETE FROM tags;" });
     }
   } finally {
     await preCloseHousekeeping(db);
@@ -673,7 +682,13 @@ test("owner intake refuses lost completed vectors and retains exact private pari
   const db = await createDb(source.layout.databaseUrl);
   try {
     // A persisted source trigger fires only when the copied credential is scrubbed: this is a real SQLite mutation fault.
-    await db.run(sql`CREATE TRIGGER surface_embedding_loss AFTER DELETE ON user_credentials BEGIN DELETE FROM character_embeddings; END`);
+    await plantTrigger(db, {
+      table: userCredentials,
+      event: "DELETE",
+      timing: "AFTER",
+      name: "surface_embedding_loss",
+      body: "DELETE FROM character_embeddings;",
+    });
   } finally {
     await preCloseHousekeeping(db);
   }

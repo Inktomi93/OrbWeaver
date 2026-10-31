@@ -1,12 +1,14 @@
 // @subject tests/support/node/fixtures.ts
 // @subject packages/server/src/entry/auth/seam.ts
 // @subject packages/server/src/domain/persona/verbs/create.ts
+
 import { spawn } from "node:child_process";
 import { authMeSchema, CSRF_HEADER, viewerViewSchema } from "@orb/contracts/identity";
 import { createPersonaSchema, personaDetailSchema } from "@orb/contracts/persona";
 import { pluginSurfaceStateSchema, pluginSurfaceViewSchema } from "@orb/contracts/plugin";
 import { z } from "zod";
 import { corpusReadInput } from "../iso/corpus.ts";
+import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import { captureCookieAuth } from "./corpus-auth.ts";
 import { createCorpusHarness, expect, test } from "./fixtures.ts";
 import type { ServerTestHarness } from "./server.ts";
@@ -107,7 +109,7 @@ test("canonical corpus dice ignore a structural RNG override while the ordinary 
     providerFetch: (): Promise<Response> => Promise.resolve(Response.json({ data: [{ id: MODEL_ID }] })),
     networkExecution: {
       resolver: (hostname: string): Promise<readonly string[]> =>
-        hostname === new URL(MODEL_ENDPOINT).hostname ? Promise.resolve(["93.184.215.14"]) : Promise.reject(new Error("unscripted corpus endpoint")),
+        hostname === new URL(MODEL_ENDPOINT).hostname ? Promise.resolve([PUBLIC_PEER_ADDRESS]) : Promise.reject(new Error("unscripted corpus endpoint")),
     },
     random: (): never => {
       throw new Error("unsupported corpus random override reached production dice");

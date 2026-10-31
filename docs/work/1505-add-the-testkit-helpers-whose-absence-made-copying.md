@@ -23,4 +23,16 @@ Each helper exists behind its door with its own test, and every copy the audits 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Built, each behind its door with its own test:
+
+| Helper | Home and door |
+| - | - |
+| `typeId(prefix)` on the seeded ids | `tests/support/iso/ids.ts`, test in `tests/support/node/seeded-ids.test.ts` |
+| `forEachNonEmpty` | `tests/support/iso/non-empty.ts`, iso door |
+| `makePluginProviderRow`, `pluginProviderId` | `tests/support/iso/provider-rows.ts`, iso door |
+| `IN_RANGE_CARD_FRAME_STYLE` | `tests/support/iso/card-frame-style.ts`, iso door |
+| `makeRpgActorEntry`, `makeRpgActorIdentity` | already in `tests/support/iso/rpg-state.ts`; published on the iso door |
+| `PUBLIC_PEER_ADDRESS` | `tests/support/iso/network.ts`, iso door; used across `tests/support` |
+| `plantTrigger` | `tests/support/node/db-faults.ts`, composed door; `refuseWrites` is built on it; used by `tests/support/node/surface-data.int.test.ts` |
+
+Not built yet: the PortableChat builder and the chat character, persona and room builders. The copies outside `tests/support` still spell the peer address, provider rows, style slice and actor entries by hand.

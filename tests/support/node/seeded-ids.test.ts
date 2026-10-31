@@ -15,6 +15,15 @@ test("restored business IDs continue the shared TypeID and opaque UUID sequence 
   expect([restored.next("persona"), restored.uuid(), restored.next("chat")]).toEqual(expected);
 });
 
+test("typeId mints the next seeded id under the requested prefix, in the same sequence as next", () => {
+  const source = createSeededIds();
+  const chat = source.typeId("chat");
+  expect(chat.startsWith("chat_")).toBe(true);
+  expect(source.next("chat")).not.toBe(chat);
+  source.reset();
+  expect(source.typeId("chat")).toBe(chat);
+});
+
 test("the original zero-seed reset repeats its sequence and an exhausted restored cursor refuses wraparound", () => {
   const source = createSeededIds();
   const first = source.next("chat");

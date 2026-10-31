@@ -1,6 +1,8 @@
 // Finite physical vendor bytes only; native catalog, credential, capability and accounting owners remain installed.
+
 import { builtinProvider } from "@orb/contracts/inference";
 import { z } from "zod";
+import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import { terminalSseLine } from "./provider-stream.ts";
 import type { ServerHarnessOptions } from "./server.ts";
 
@@ -107,7 +109,7 @@ export function createCorpusConnectionWire(): CorpusConnectionWire {
       if (hostname !== new URL(hosted).hostname) {
         return Promise.reject(new Error("unscripted native connection address resolution"));
       }
-      return Promise.resolve(["93.184.215.14"]);
+      return Promise.resolve([PUBLIC_PEER_ADDRESS]);
     },
     requests,
     remaining: (): number => pending.length,

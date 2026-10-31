@@ -44,6 +44,21 @@ Row numbers are the rows of reports/test-derivation-audit/shard-b.md.
 | 33 | `createMemoryBackfillRoom` (`tests/support/node/factories/memory-backfill-room.ts`) is the one memory-backfill room for the chat and workloads estimate suites. |
 | 12, 59, 67, 82, 94 | One local const, one launch-directory helper, typed bus event lists, the `SURFACE_*_ENV` constants, and `plantedTsconfig` in `tests/support/node/tool-fixtures.ts` for the four unwired suites. |
 
+### Fixed in the `tests/support` domain
+
+| Rows | Fix |
+| - | - |
+| 80, 81, 85 | `SURFACE_PROVIDER_REQUESTS` in `tests/support/iso/surface-data.ts` is the one request tuple; the surface peer builds its routes from it. The refused structured schema in `surface-provider.test.ts` is any scripted reply the peer does not serve. |
+| 84 | `PUBLIC_PEER_ADDRESS` replaces the literal in every `tests/support` file. |
+
+### Ruled to stay (tests/support)
+
+| Rows | Reason |
+| - | - |
+| 76 | The `surface-data.int.test.ts` triggers corrupt a neighbouring table after a write; `refuseWrites` aborts a write. They are planted through `plantTrigger`, which `refuseWrites` is now built on. |
+| 87 | `REFINERY_RESPONSE_FORMATS` has no door, and a door export only a test imports is refused. It needs the stage names moved to a contracts tuple first. |
+| 69, 68, 70, 71, 73, 88, 89 | Browser CT rows. Each needs a CT run and, for 69, a tooling door export; left for a CT leg. |
+
 ### Ruled to stay
 
 | Rows | Reason |
@@ -60,7 +75,7 @@ Kit cannot import ui, so `TINT_PERCENT` and the Hearth page in `tests/kit/theme-
 
 ### Not changed in this leg
 
-Rows 4, 5 (slot id), 8 to 11, 13 to 16, 25 to 31, 35 (refusal class: the floors throw a plain `Error`, so a class is production work), 36 and 84 (the public peer address is spelled in many more files than these two and needs a codemod), 37, 38, 40, 42, 44, 46 to 49, 53 to 58, 60, 62 to 66, 68 to 71, 73, 76, 78 to 83, 85 to 93, 95 and 96 stay open for a later leg.
+Rows 4, 5 (slot id), 8 to 11, 13 to 16, 25 to 31, 35 (refusal class: the floors throw a plain `Error`, so a class is production work), 36 and 84 (the peer address is done in `tests/support`; the other domains still spell it), 37, 38, 40, 42, 44, 46 to 49, 53 to 58, 60, 62 to 66, 78 to 79, 82 to 83, 86 to 87, 90 to 93, 95 and 96 stay open for a later leg; the browser rows in the `tests/support` table are listed there.
 
 ### Proof
 
