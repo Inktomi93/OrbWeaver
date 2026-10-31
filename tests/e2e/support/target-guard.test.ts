@@ -12,6 +12,7 @@ import { OWNER_HANDLES_KEY } from "@orb/contracts/identity";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { expect, test } from "@orb/testkit/node";
 import { describe, vi } from "vitest";
+import { DATABASE_URL_KEY, LOCAL_LIGHT_CACHE_DIR_KEY } from "../../../packages/server/src/foundation/data-layout/contract.ts";
 import { E2E_RUN_ROOT, LOCAL_OWNER, MODE_PROJECTS, SINGLE_USER, selectedModeProjects } from "./modes.ts";
 import { ALLOW_DEV_TARGET_ENV, DEV_STACK_PORTS, devTargetAllowed, probeTarget, targetRefusal } from "./target-guard.ts";
 
@@ -68,17 +69,17 @@ describe("mode projects (default, no override)", () => {
       for (const url of [mode.baseUrl, mode.backendUrl]) {
         expect(DEV_STACK_PORTS, `${mode.name} ${url}`).not.toContain(new URL(url).port);
       }
-      expect(mode.webServerEnv["DATABASE_URL"], mode.name).toBe(`file:${join(mode.webServerEnv["DATA_DIR"] ?? "", "orb.db")}`);
+      expect(mode.webServerEnv[DATABASE_URL_KEY], mode.name).toBe(`file:${join(mode.webServerEnv["DATA_DIR"] ?? "", "orb.db")}`);
       // The secrets, caches and reports derive from the root, not the db slot: without this the harness
       // stack would generate its keyfiles into the checkout's real `data/secrets/`.
       expect(mode.webServerEnv["DATA_DIR"]?.startsWith(`${E2E_RUN_ROOT}/`), mode.name).toBe(true);
       expect(mode.webServerEnv["LOCAL_LIGHT_PREFETCH"], mode.name).toBe("off");
-      expect(mode.webServerEnv["LOCAL_LIGHT_CACHE_DIR"]?.startsWith(`${E2E_RUN_ROOT}/`), mode.name).toBe(false);
+      expect(mode.webServerEnv[LOCAL_LIGHT_CACHE_DIR_KEY]?.startsWith(`${E2E_RUN_ROOT}/`), mode.name).toBe(false);
     }
   });
 
   test("the single-user project is the one that regressed — it is isolated by default", () => {
-    expect(SINGLE_USER.webServerEnv["DATABASE_URL"]).toBe(`file:${join(E2E_RUN_ROOT, "single", "orb.db")}`);
+    expect(SINGLE_USER.webServerEnv[DATABASE_URL_KEY]).toBe(`file:${join(E2E_RUN_ROOT, "single", "orb.db")}`);
     expect(targetRefusal(SINGLE_USER, STAMPED, false)).toBeUndefined();
   });
 

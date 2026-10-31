@@ -1,6 +1,7 @@
 // @subject packages/server/src/entry/http/app.ts
 import process from "node:process";
 import { AUTH_FALLBACK_KEY, AUTH_FALLBACK_TRUSTED_PEERS_KEY, AUTH_MODE_KEY, OWNER_HANDLES_KEY } from "@orb/contracts/identity";
+import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
 import { expect, test } from "@orb/testkit/node";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
@@ -52,7 +53,7 @@ test.for([
       ["BIND_HOST"]: "127.0.0.1",
       ["ORB_CONTAINER"]: "false",
       [OWNER_HANDLES_KEY]: "production-debug-owner",
-      ["DEBUG_TOKEN"]: configuredToken ? DEBUG_TOKEN : undefined,
+      [DEBUG_TOKEN_ENV]: configuredToken ? DEBUG_TOKEN : undefined,
       ["LOG_LEVEL"]: "silent",
     }),
     timeout: budget(LONG_TEST_TIMEOUT_BASE_MS),

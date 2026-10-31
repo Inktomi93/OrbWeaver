@@ -12,6 +12,7 @@ import process from "node:process";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { expect, test } from "@orb/testkit/tooling";
 import { processEnvValue } from "@orb/tooling/floor/process/process-env";
+import { ASSETS_DIR_KEY, DATABASE_URL_KEY } from "../../../packages/server/src/foundation/data-layout/contract.ts";
 import type { LeaderRecord } from "../../../tooling/src/stack/index.ts";
 import { LEADER_RECORD_FILE, parseLeaderRecord, probeServedTransform, serializeLeaderRecord } from "../../../tooling/src/stack/index.ts";
 import { scaledBudget } from "../_load-budget.ts";
@@ -124,8 +125,8 @@ function sidecarEnv(scratch: string, ports: { readonly server: number; readonly 
     ["PORT", String(ports.server)],
     ["VITE_PORT", String(ports.vite)],
     ["DATA_DIR", join(scratch, "data")],
-    ["DATABASE_URL", `file:${join(scratch, "data", "orb.db")}`],
-    ["ASSETS_DIR", join(scratch, "data", "assets")],
+    [DATABASE_URL_KEY, `file:${join(scratch, "data", "orb.db")}`],
+    [ASSETS_DIR_KEY, join(scratch, "data", "assets")],
     [ENV_NO_FILE_KEY, "1"],
   ]);
 }

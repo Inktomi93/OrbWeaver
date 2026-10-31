@@ -12,6 +12,7 @@ import { parseEnv } from "node:util";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, SETUP_COMMAND } from "@orb/contracts/identity";
 import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import { ENV_FROM_FILE_KEY, ENV_NO_OVERRIDE_KEY } from "@orb/kit/env-file";
+import { OPENROUTER_API_KEY_ENV } from "@orb/server/foundation/env/record";
 import { expect, test } from "@orb/testkit/tooling";
 import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "@orb/tooling/floor/process/server-entry";
 import {
@@ -196,7 +197,7 @@ test("--share on a just-me file restates .env, switches to local with a quick re
   // Every .env value rides the child env with the file's override off, so the file still wins over the shell.
   expect(launch.plan.env[ENV_NO_OVERRIDE_KEY]).toBe("1");
   expect(launch.plan.env["PORT"]).toBe("8788");
-  expect(launch.plan.env["OPENROUTER_API_KEY"]).toBe("sk-or-abc");
+  expect(launch.plan.env[OPENROUTER_API_KEY_ENV]).toBe("sk-or-abc");
   expect(launch.plan.env[AUTH_MODE_KEY]).toBe("local");
   expect(launch.plan.env["SHARE_RELAY"]).toBe("quick");
   expect(launch.plan.env["BIND_HOST"]).toBe("127.0.0.1");

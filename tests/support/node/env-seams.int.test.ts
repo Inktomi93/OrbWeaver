@@ -10,6 +10,7 @@ import { authConfigSchema } from "@orb/contracts/auth-config";
 import { AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { AgentSdkSpawn } from "@orb/inference";
 import { ID_PREFIX } from "@orb/kit/ids";
+import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
 import { EnvRefusedError } from "@orb/server/foundation/env/refusal";
 import { createCas } from "@orb/server/infra/storage/cas";
 import { CORPUS_SDK_QUERY } from "./corpus-sdk-protocol.ts";
@@ -128,7 +129,7 @@ test("a deploy-only row has no door: a key forced past the raw env type is refus
   // The cast feeds a key the type refuses, as an untyped script can, to show the reader refuses it.
   await expect(createServerHarness({ env: { ["PORT"]: FORCED_PORT } as RawEnvInput })).rejects.toThrow(/PORT has no raw env door/u);
   // A key with a named option is refused the same way, so the record never lacks a knob its caller set.
-  await expect(createServerHarness({ env: { ["DEBUG_TOKEN"]: FORCED_PORT } as RawEnvInput })).rejects.toThrow(/`debugToken` option/u);
+  await expect(createServerHarness({ env: { [DEBUG_TOKEN_ENV]: FORCED_PORT } as RawEnvInput })).rejects.toThrow(/`debugToken` option/u);
   await using root = await createServerHarness({ env: { ["RATE_LIMIT_LOGIN"]: FORCED_PORT } });
   expect(root.env.RATE_LIMIT_LOGIN).toBe(Number(FORCED_PORT));
   expect(root.env.PORT).toBe(createTestEnv().PORT);

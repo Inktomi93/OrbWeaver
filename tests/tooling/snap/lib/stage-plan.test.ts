@@ -13,6 +13,7 @@ import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { OWNER_HANDLES_KEY } from "@orb/contracts/identity";
+import { DEBUG_TOKEN_ENV, OPENROUTER_API_KEY_ENV } from "@orb/server/foundation/env/record";
 import { expect, test } from "@orb/testkit/tooling";
 import { DEV_PORTS, STAGE_BAND_COUNT, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
@@ -207,7 +208,7 @@ test("stageInheritedEnv forwards NOTHING else — the ORB_ENV_NO_FILE hatch stay
   // allowlist is pinned by NAME, not merely by the positives above.
   expect([...STAGE_INHERITED_ENV_KEYS]).toStrictEqual([OWNER_HANDLES_KEY, "CREDENTIALS_KEY", "SESSION_SECRET"]);
   const inherited = Object.keys(stageInheritedEnv(DEV_ENV_SAMPLE));
-  for (const leaked of ["DEBUG_TOKEN", "OPENROUTER_API_KEY", "WIRE_CAPTURE"]) {
+  for (const leaked of [DEBUG_TOKEN_ENV, OPENROUTER_API_KEY_ENV, "WIRE_CAPTURE"]) {
     expect(inherited).not.toContain(leaked);
   }
 });

@@ -16,6 +16,7 @@ import { sql } from "drizzle-orm";
 import { onTestFinished } from "vitest";
 import { z } from "zod";
 import { DataLayoutRefusal } from "#server/entry/boot/migrate-data-layout.ts";
+import { DATABASE_URL_KEY, IMPORT_STAGING_DIR_KEY, LOCAL_LIGHT_CACHE_DIR_KEY } from "#server/foundation/data-layout/contract.ts";
 
 type DataLayoutMigrationReport = Awaited<ReturnType<typeof migrateDataLayout>>;
 type DataLayout = Parameters<typeof migrateDataLayout>[0]["layout"];
@@ -226,9 +227,9 @@ test.for(KEYED)(
     const kept: Partial<Record<typeof keptBy, string>> = {
       ["CREDENTIALS_KEY"]: "cd".repeat(32),
       ["SESSION_SECRET"]: "ef".repeat(32),
-      ["DATABASE_URL"]: pathToFileURL(join(root, DB_FILE_NAME)).href,
-      ["LOCAL_LIGHT_CACHE_DIR"]: join(root, name, MODELS_LEAF),
-      ["IMPORT_STAGING_DIR"]: join(root, name),
+      [DATABASE_URL_KEY]: pathToFileURL(join(root, DB_FILE_NAME)).href,
+      [LOCAL_LIGHT_CACHE_DIR_KEY]: join(root, name, MODELS_LEAF),
+      [IMPORT_STAGING_DIR_KEY]: join(root, name),
     };
     const value = kept[keptBy];
     if (value === undefined) {
@@ -458,7 +459,7 @@ test.for(KEYED.filter(({ name }) => DIR_ENTRIES.includes(name)).map(({ name, kep
       expect(snapshotsIn(layout)).toHaveLength(1);
     }
 
-    const remedied = layoutFor(root, { [keptBy]: keptBy === "LOCAL_LIGHT_CACHE_DIR" ? join(root, name, MODELS_LEAF) : join(root, name) });
+    const remedied = layoutFor(root, { [keptBy]: keptBy === LOCAL_LIGHT_CACHE_DIR_KEY ? join(root, name, MODELS_LEAF) : join(root, name) });
     const report = await migrate(remedied, { rename });
     expect(report.resumed).toBe(true);
     expect(movedFrom(report)).toContain(DB_FILE_NAME);

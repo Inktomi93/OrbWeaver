@@ -25,7 +25,14 @@ import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
 import type { createConfiguredOidc, ServicesDeps } from "@orb/server/entry/compose";
 import { DATA_LAYOUT_SKIP_KEY } from "@orb/server/foundation/data-layout";
 import type { Env, EnvKey, HostFacts } from "@orb/server/foundation/env/record";
-import { ENV_KEYS } from "@orb/server/foundation/env/record";
+import { DEBUG_TOKEN_ENV, ENV_KEYS, LOCAL_INITIAL_PASSWORD_ENV, OPENROUTER_API_KEY_ENV } from "@orb/server/foundation/env/record";
+import {
+  ASSETS_DIR_KEY,
+  DATABASE_URL_KEY,
+  IMPORT_STAGING_DIR_KEY,
+  LOCAL_LIGHT_CACHE_DIR_KEY,
+  USER_RUNTIME_DIR_KEY,
+} from "../../../packages/server/src/foundation/data-layout/contract.ts";
 import { createTestEnv } from "./env.ts";
 
 interface EnvSeamValues extends Required<Pick<ServicesDeps, "casDir" | "importStagingDir">> {
@@ -142,9 +149,9 @@ export const ENV_SEAMS = {
   ["PLUGIN_BROKER_MEMORY_LIMIT_BYTES"]: RAW,
   ["BIND_HOST"]: seam("bindHost", (host) => host),
   ["ALLOW_DEV_PUBLIC_BIND"]: seam("allowPublicBind", String),
-  ["OPENROUTER_API_KEY"]: deployOnly("boot-step"),
+  [OPENROUTER_API_KEY_ENV]: deployOnly("boot-step"),
   ["LOG_LEVEL"]: seam("logLevel", (level) => level),
-  ["DEBUG_TOKEN"]: seam("debugToken", (token) => token),
+  [DEBUG_TOKEN_ENV]: seam("debugToken", (token) => token),
   ["RPG_TRACE"]: seam("rpgTrace", onOff),
   ["WIRE_CAPTURE"]: seam("wireCapture", onOff),
   ["WIRE_CAPTURE_REPLY"]: seam("wireCaptureReply", onOff),
@@ -154,19 +161,19 @@ export const ENV_SEAMS = {
   ["SEED_CONTENT"]: RAW,
   ["ORB_CONTAINER"]: RAW,
   ["DATA_DIR"]: composed("the root's own temporary directory, under `temporaryParentDir` when one is given", ({ rootDir }) => rootDir),
-  ["DATABASE_URL"]: deployOnly("injected-database"),
+  [DATABASE_URL_KEY]: deployOnly("injected-database"),
   [DATA_LAYOUT_SKIP_KEY]: deployOnly("boot-step"),
   ["CLIENT_DIST_DIR"]: seam("clientDistDir", (dir) => dir),
-  ["ASSETS_DIR"]: seam("casDir", (dir) => dir),
-  ["LOCAL_LIGHT_CACHE_DIR"]: composed("the parse's model slot under `DATA_DIR`; the root exposes it as `modelCacheDir`"),
+  [ASSETS_DIR_KEY]: seam("casDir", (dir) => dir),
+  [LOCAL_LIGHT_CACHE_DIR_KEY]: composed("the parse's model slot under `DATA_DIR`; the root exposes it as `modelCacheDir`"),
   ["LOCAL_LIGHT_CPU_PERCENT"]: RAW,
   ["LOCAL_LIGHT_PREFETCH"]: deployOnly("boot-step"),
   ["LOCAL_LIGHT_EMBED_DTYPE"]: RAW,
-  ["IMPORT_STAGING_DIR"]: seam("importStagingDir", (dir) => dir),
+  [IMPORT_STAGING_DIR_KEY]: seam("importStagingDir", (dir) => dir),
   ["ST_PROFILE_DIR"]: composed("a directory under the root's own, so no root reads the checkout's profile snapshot", ({ rootDir }) =>
     join(rootDir, ST_PROFILE_DIR_NAME),
   ),
-  ["USER_RUNTIME_DIR"]: composed("the parse's users slot under `DATA_DIR`"),
+  [USER_RUNTIME_DIR_KEY]: composed("the parse's users slot under `DATA_DIR`"),
   ["PRIVATE_ENDPOINT_ALLOWLIST"]: RAW,
   ["CORPUS_AUTOINDEX"]: RAW,
   ["IMPORT_SKIP_CHARACTERS"]: RAW,
@@ -176,7 +183,7 @@ export const ENV_SEAMS = {
   ["AUTH_BREAK_GLASS"]: RAW,
   [AUTH_FALLBACK_TRUSTED_PEERS_KEY]: RAW,
   ["TRUSTED_PRIVATE_RANGES"]: RAW,
-  ["LOCAL_INITIAL_PASSWORD"]: deployOnly("boot-step"),
+  [LOCAL_INITIAL_PASSWORD_ENV]: deployOnly("boot-step"),
   [FORWARD_AUTH_TRUSTED_PROXIES_KEY]: RAW,
   ["FORWARD_AUTH_USER_HEADER"]: RAW,
   ["FORWARD_AUTH_GROUPS_HEADER"]: RAW,

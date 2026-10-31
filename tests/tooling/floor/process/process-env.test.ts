@@ -10,6 +10,7 @@ import process from "node:process";
 import { isDeepStrictEqual } from "node:util";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, OIDC_ALLOWED_GROUPS_KEY, OWNER_HANDLES_KEY } from "@orb/contracts/identity";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
+import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
 import { expect, test } from "@orb/testkit/tooling";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv, processEnvValue, testProcessEnv, withProcessEnv } from "@orb/tooling/floor/process/process-env";
@@ -35,7 +36,7 @@ test("the test environment preserves explicit overrides and adds the storage opt
 test.for([
   AUTH_MODE_KEY,
   AUTH_FALLBACK_KEY,
-  "DEBUG_TOKEN",
+  DEBUG_TOKEN_ENV,
   OIDC_ALLOWED_GROUPS_KEY,
   OWNER_HANDLES_KEY,
   "ANTHROPIC_API_KEY",

@@ -3,6 +3,7 @@ import { DATA_LAYOUT_SKIP_KEY, LEGACY_ENTRIES, resolveDataLayout } from "@orb/se
 import { AUTH_MODE_DEFAULT_FALLBACK } from "@orb/server/foundation/env/record";
 import { expect, test } from "@orb/testkit/node";
 import { createTestEnv } from "@orb/testkit/node/helpers";
+import { ASSETS_DIR_KEY } from "#server/foundation/data-layout/contract.ts";
 
 // Pinned against an empty environment: a default flipped to "on" would ship capture or tracing into a production box silently.
 test("the debug and observability gates default off, with no debug token", () => {
@@ -31,11 +32,11 @@ test("every data slot reads as its effective path, from the default root, a re-r
     layout.importStaging,
   ]);
 
-  const rerooted = createTestEnv({ ["DATA_DIR"]: "/srv/orb", ["ASSETS_DIR"]: "/blobs" });
-  expect(rerooted.DATA_LAYOUT).toEqual(resolveDataLayout({ ["DATA_DIR"]: "/srv/orb", ["ASSETS_DIR"]: "/blobs" }));
+  const rerooted = createTestEnv({ ["DATA_DIR"]: "/srv/orb", [ASSETS_DIR_KEY]: "/blobs" });
+  expect(rerooted.DATA_LAYOUT).toEqual(resolveDataLayout({ ["DATA_DIR"]: "/srv/orb", [ASSETS_DIR_KEY]: "/blobs" }));
   expect(rerooted.ASSETS_DIR).toBe("/blobs");
   expect(rerooted.DATABASE_URL).toBe(rerooted.DATA_LAYOUT.databaseUrl);
-  expect([...rerooted.DATA_LAYOUT.explicit]).toEqual(["ASSETS_DIR"]);
+  expect([...rerooted.DATA_LAYOUT.explicit]).toEqual([ASSETS_DIR_KEY]);
 });
 
 test("a DATA_LAYOUT_SKIP the layout refuses is refused at the parse, and the same list without the refused name parses", () => {

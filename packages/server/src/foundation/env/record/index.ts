@@ -724,15 +724,19 @@ export function parseEnv({ source, envFileKeys, host, readFile }: EnvParseInput)
   return Object.freeze(parsed.data);
 }
 
+export const OPENROUTER_API_KEY_ENV = "OPENROUTER_API_KEY";
+export const DEBUG_TOKEN_ENV = "DEBUG_TOKEN";
+export const LOCAL_INITIAL_PASSWORD_ENV = "LOCAL_INITIAL_PASSWORD";
+
 /** The app secrets the parse reads. Every child process inherits `process.env` unless its spawn passes an `env`, so
  *  the process loader deletes these once its record holds them. Nothing reads them from `process.env` after the parse. */
 export const APP_SECRET_ENV_KEYS = [
   "SESSION_SECRET",
   "CREDENTIALS_KEY",
   OIDC_CLIENT_SECRET_KEY,
-  "OPENROUTER_API_KEY",
-  "DEBUG_TOKEN",
-  "LOCAL_INITIAL_PASSWORD",
+  OPENROUTER_API_KEY_ENV,
+  DEBUG_TOKEN_ENV,
+  LOCAL_INITIAL_PASSWORD_ENV,
 ] as const satisfies readonly EnvKey[];
 
 /** The three stamps the persona auto-create policy reads. */
