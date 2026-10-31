@@ -2221,11 +2221,11 @@ async function emitCapabilityDropWarnings(
 }
 
 /** The infra→chat warning translation (D41 no-silent-degrade, the READ end). Chat OWNS its bus vocabulary, so
- *  a foreign `WARNING_CODES` member is translated HERE, in the domain — the mirror of the IMAGE role's hop
+ *  a foreign `WARNING_CODE` member is translated HERE, in the domain — the mirror of the IMAGE role's hop
  *  (`entry/compose/imagery.ts` narrows infra→`ImageryWarning`; `verbs/generate-image.ts` re-maps
  *  →`ChatWarningCode`). A code spelled identically in both tuples is a MATCH, never a re-spell.
  *
- *  TOTAL over the infra union by construction: the `assertNever` tail means a NEW `WARNING_CODES` member fails
+ *  TOTAL over the infra union by construction: the `assertNever` tail means a NEW `WARNING_CODE` member fails
  *  `tsc` here until someone rules on it, so a runner drop can never go silently un-surfaced again — the exact
  *  failure this seam was built to end (the runners produced these for months and nothing read them).
  *

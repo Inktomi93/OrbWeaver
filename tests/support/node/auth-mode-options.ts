@@ -1,6 +1,7 @@
 // Auth capabilities and external issuer wiring are runner-neutral; Vitest and native browser consumers share this owner.
 
 import type { AuthMode } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { AUTH_MODE_DEFAULT_FALLBACK } from "@orb/server/foundation/env/record";
 import { z } from "zod";
 import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
@@ -43,7 +44,7 @@ function issuerNetwork(issuer: NativeIssuer): NonNullable<ServerHarnessOptions["
 }
 
 function postureOf<Mode extends AuthMode>(mode: Mode): AuthModeEnv<Mode> {
-  return { ["AUTH_MODE"]: mode, ["AUTH_FALLBACK"]: AUTH_MODE_DEFAULT_FALLBACK[mode] };
+  return { [AUTH_MODE_KEY]: mode, [AUTH_FALLBACK_KEY]: AUTH_MODE_DEFAULT_FALLBACK[mode] };
 }
 
 const MODE_HARNESS: { readonly [Mode in AuthMode]: (issuer: NativeIssuer) => ModeHarnessOptions<Mode> } = {

@@ -42,15 +42,20 @@ function flip(row: HTMLElement, direction: FlankDirection): () => void {
   return release;
 }
 
-/** Stamp the direction whenever the column starts or stops taking its share of the row. Still on first commit. */
-export function useFlankTrackFlip(rowRef: RefObject<HTMLElement | null>, occupiesRow: boolean): void {
+/** Stamp the direction whenever the column starts or stops taking its share of the row. Still on first commit, and
+ *  still when the change is the host's panels arriving or leaving: the column was never in the row then, and the thread
+ *  only gains or loses the control's corner, so a glide by the column's distance would run the wrong way. */
+export function useFlankTrackFlip(rowRef: RefObject<HTMLElement | null>, occupiesRow: boolean, panelMode: boolean): void {
   const previous = useRef<boolean | null>(null);
+  const previousPanelMode = useRef(panelMode);
   const live = useRef<(() => void) | null>(null);
   useLayoutEffect(() => {
     const was = previous.current;
     previous.current = occupiesRow;
+    const hostChanged = previousPanelMode.current !== panelMode;
+    previousPanelMode.current = panelMode;
     const row = rowRef.current;
-    if (was === null || row === null || was === occupiesRow) {
+    if (was === null || row === null || was === occupiesRow || hostChanged) {
       return;
     }
     // A single animation name cannot restart on a value change: stop the live one and flush style first.
@@ -61,7 +66,7 @@ export function useFlankTrackFlip(rowRef: RefObject<HTMLElement | null>, occupie
     }
     const direction: FlankDirection = occupiesRow ? "in" : "out";
     live.current = motionIsReduced() ? settle(row, direction) : flip(row, direction);
-  }, [rowRef, occupiesRow]);
+  }, [rowRef, occupiesRow, panelMode]);
   // A room unmounted mid-FLIP releases it, so no observer or listener outlives the row.
   useEffect(
     () => (): void => {

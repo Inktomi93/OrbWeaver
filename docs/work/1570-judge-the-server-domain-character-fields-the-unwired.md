@@ -18,8 +18,6 @@ plan: unwired-code
 | `StampImportIdentityParams.ownerId` | `server/src/domain/character/contract/params.ts:120` | never-read | unknown | nothing reads this type's fields by name, so its value is handed on whole: find the slot it flows into, then derive that slot from this type or delete the unread fields |
 | `StampImportIdentityParams.characterId` | `server/src/domain/character/contract/params.ts:121` | never-read | unknown | nothing reads this type's fields by name, so its value is handed on whole: find the slot it flows into, then derive that slot from this type or delete the unread fields |
 | `StampImportIdentityParams.importHash` | `server/src/domain/character/contract/params.ts:122` | never-read | unknown | nothing reads this type's fields by name, so its value is handed on whole: find the slot it flows into, then derive that slot from this type or delete the unread fields |
-| `ImportedFromMatch.importedFrom` | `server/src/domain/character/contract/results.ts:8` | unreferenced | delete | delete the field |
-| `ImportedFromMatch.characterId` | `server/src/domain/character/contract/results.ts:9` | unreferenced | delete | delete the field |
 | `refinerySignalsReadParser.score` | `server/src/domain/character/persistence/queries.ts:59` | unreferenced | delete | delete the key |
 | `refinerySignalsReadParser.analysis` | `server/src/domain/character/persistence/queries.ts:63` | unreferenced | delete | delete the key |
 

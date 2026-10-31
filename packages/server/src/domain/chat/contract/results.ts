@@ -218,7 +218,7 @@ export interface CueReplay {
  *  terminal final chunk carrying the generation economics.
  *
  *  The `warning` arm is the CHAT role's infra→domain warning hop (D41 no-silent-degrade). The runners raise
- *  resolve/wire drops as infra `WARNING_CODES` on `ChatResult.events`; the compose bridge
+ *  resolve/wire drops as infra `WARNING_CODE` on `ChatResult.events`; the compose bridge
  *  (`createRunChatTurnBridge`) carries them here VERBATIM, in the infra vocabulary. Chat owns its own bus
  *  vocabulary and translates at the engine (`toChatWarning`) — the mirror of the IMAGE role's hop, where
  *  compose hands over a narrowed infra code and `verbs/generate-image.ts` re-maps it to a `ChatWarningCode`.
@@ -235,7 +235,7 @@ export type TurnStreamChunk =
   | { readonly kind: "text"; readonly text: string }
   | { readonly kind: "reasoning"; readonly text: string }
   | ({ readonly kind: "warning" } & ResolvedWarning)
-  // THE PROVIDER DECLINED. Its own arm rather than a `ResolvedWarning`, because `WARNING_CODES` is the
+  // THE PROVIDER DECLINED. Its own arm rather than a `ResolvedWarning`, because `WARNING_CODE` is the
   // resolve/wire DROP vocabulary — "we asked for X and the provider did Y instead" — and a refusal is not a
   // degrade of our settings but the model's verdict on the request. Payload-free: the refusal's `category` /
   // `explanation` / `fallbackModel` are raw upstream strings the chat bus may not carry (`bus.ts`

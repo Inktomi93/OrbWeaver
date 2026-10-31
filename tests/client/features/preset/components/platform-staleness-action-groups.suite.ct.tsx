@@ -5,6 +5,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import type { StalenessActionGroupsStory } from "./_staleness-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_staleness-action-groups-stories/StalenessActionGroupsStory";
@@ -85,7 +86,7 @@ for (const regime of REGIMES) {
         await page.keyboard.press("Enter");
         await expect.poll(() => calls.count("preset.update")).toBe(writeCount);
         expect(calls.lastInput("preset.update")).toEqual(decision === "clear" ? { id: preset.id, config: { ...preset.config, params: {} } } : undefined);
-        const completion = { clear: page.getByText("Saved", { exact: true }), keep };
+        const completion = { clear: page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true }), keep };
         await expect(completion[decision]).toHaveCount(completionCount);
         const saved = await caller.preset.get({ id: preset.id });
         for (const knob of ["topK", "minP", "dryMultiplier"] as const) {

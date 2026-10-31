@@ -96,7 +96,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   const flank = useFlankPresentation(flankColumnRef, flankControlRef);
   const flankId = useId();
   const flankRowRef = useRef<HTMLDivElement>(null);
-  useFlankTrackFlip(flankRowRef, flank.occupiesRow);
+  useFlankTrackFlip(flankRowRef, flank.occupiesRow, flank.panelMode);
   const flankContributions = resolveRoomAnchor(surfaceContributors, "thread-flank", roomState);
   const aboveComposerContributions = resolveRoomAnchor(surfaceContributors, "above-composer", roomState);
   const composerActionContributions = resolveRoomAnchor(surfaceContributors, "composer-action", roomState);

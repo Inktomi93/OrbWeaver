@@ -8,6 +8,7 @@ import type { ChatService } from "../contract/service.ts";
 import type { MessageWindowAnchor, MessageWindowResolution } from "../contract/views.ts";
 import { requireParticipant } from "../guard.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
+import { positionCanonPage } from "../persistence/message-positions.ts";
 import { loadWindowAnchor, loadWindowRange } from "../persistence/message-window.ts";
 import { loadPageCursors } from "../persistence/page-cursors.ts";
 import { loadMessagesPage } from "../persistence/queries.ts";
@@ -39,7 +40,7 @@ export function createMessageWindow(ctx: ChatContext, deps: { readonly loadParti
     const canon = await readWindowPage(ctx, { chatId, cursor, pageSize, floor, anchorSeq: anchor.seq });
     const readsHidden = viewerReadsHidden(membership);
     const reasoningHostOnly = readsHidden ? false : ((await ctx.rpg?.resolveReasoningHostOnly(chatId)) ?? false);
-    const messages = readsHidden ? canon : canon.map((row) => projectViewForMember(row, reasoningHostOnly));
+    const messages = await positionCanonPage(ctx.db, chatId, floor, readsHidden ? canon : canon.map((row) => projectViewForMember(row, reasoningHostOnly)));
     const participants = await deps.loadParticipantViews(chatId);
     const identities = await loadChatIdentityProducer(ctx.db, { participants, messages });
     const firstSeq = messages[0]?.seq;

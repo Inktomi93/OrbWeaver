@@ -1,15 +1,15 @@
 // An existing owner is immutable under group policy and a second group owner becomes user: an impostor
 // subject leaves the owner's stored row byte-for-byte unchanged.
 
+import { OIDC_ADMIN_GROUPS_KEY, OIDC_ALLOWED_GROUPS_KEY, OWNER_GROUP_KEY } from "@orb/contracts/identity";
 import { users } from "@orb/db";
-
 import { expect, test } from "@orb/testkit/node";
 import { readAccounts } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { headerIdentity, me, rootForPolicy } from "../role-policy-config.fixtures.ts";
 
 test("an existing owner is immutable and a second group owner becomes user, never admin", async () => {
-  await using root = await rootForPolicy({ ["OWNER_GROUP"]: "owners", ["OIDC_ADMIN_GROUPS"]: "admins", ["OIDC_ALLOWED_GROUPS"]: "friends" });
+  await using root = await rootForPolicy({ [OWNER_GROUP_KEY]: "owners", [OIDC_ADMIN_GROUPS_KEY]: "admins", [OIDC_ALLOWED_GROUPS_KEY]: "friends" });
   const owner = await root.principalFor(root.ownerId);
   expect(await me(root, headerIdentity("owners,admins", owner.handle, "first-owner-subject"))).toMatchObject({ role: "owner" });
   expect(await me(root, headerIdentity("", owner.handle, "first-owner-subject"))).toMatchObject({ role: "owner" });

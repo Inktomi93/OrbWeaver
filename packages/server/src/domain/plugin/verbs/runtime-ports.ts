@@ -69,6 +69,8 @@ export function createPluginRuntimeOps(input: DbAssemblyInput<PluginRuntimeDeps>
         }
         return read.data;
       },
+      findCardData: ({ installerUserId, slug, values }): ReturnType<PluginRuntimeOps["cardState"]["findCardData"]> =>
+        deps.findCardData({ ownerId: installerUserId, slug, values }),
     },
     storeFetched: async ({ pluginId, installerUserId, bytes, mime }): ReturnType<PluginRuntimeOps["storeFetched"]> => {
       const caller = await resolveOwnerPrincipal(installerUserId);

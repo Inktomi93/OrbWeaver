@@ -694,7 +694,8 @@ export const signupPreviewRequestSchema = z.strictObject({ token: signupRequestS
 export type SignupPreviewRequest = z.infer<typeof signupPreviewRequestSchema>;
 
 /** The signup route's refusal codes (`{ error: <code> }`). The client maps each to its own copy. */
-export const SIGNUP_ERROR_CODES = ["invalid_request", "already_signed_in", "invite_unavailable", "handle_unavailable", "weak_password"] as const;
+const WEAK_PASSWORD_CODE = "weak_password";
+export const SIGNUP_ERROR_CODES = ["invalid_request", "already_signed_in", "invite_unavailable", "handle_unavailable", WEAK_PASSWORD_CODE] as const;
 export type SignupErrorCode = (typeof SIGNUP_ERROR_CODES)[number];
 
 /** D259 — the OIDC pending-join confirm's body: the persona the new account is seated as, and nothing else.
@@ -706,7 +707,9 @@ export type PendingJoinConfirmRequest = z.infer<typeof pendingJoinConfirmRequest
 export const pendingJoinConfirmResultSchema = z.strictObject({ signedIn: z.boolean(), chatId: typeIdSchema(ID_PREFIX.chat) });
 
 /** D259 — the pending-join routes' refusal codes (`{ error: <code> }`). The client maps each to its own copy. */
-export const PENDING_JOIN_ERROR_CODES = ["invalid_request", "already_signed_in", "join_unavailable", "account_exists"] as const;
+export const JOIN_UNAVAILABLE_CODE = "join_unavailable";
+export const ACCOUNT_EXISTS_CODE = "account_exists";
+export const PENDING_JOIN_ERROR_CODES = ["invalid_request", "already_signed_in", JOIN_UNAVAILABLE_CODE, ACCOUNT_EXISTS_CODE] as const;
 export type PendingJoinErrorCode = (typeof PENDING_JOIN_ERROR_CODES)[number];
 
 /** An invite as the host manages it. NEVER carries the token (raw or hashed) — a leak would let anyone

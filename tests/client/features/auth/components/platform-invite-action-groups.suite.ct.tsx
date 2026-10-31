@@ -1,5 +1,5 @@
 import { SIGNUP_MAX_TTL_MS } from "@orb/contracts/chat";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { actionGroupGeometry } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -99,7 +99,7 @@ for (const regime of REGIMES) {
     for (const destination of ["existing account", "dismiss"] as const) {
       test(`local signup keeps existing-account and Not now actions contained: ${destination}`, async ({ mount, page }, testInfo) => {
         await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
-        await using root = await createServerHarness({ startJobs: false, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
+        await using root = await createServerHarness({ startJobs: false, env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
         const setup = await root.internalCallerFor(root.ownerId);
         await setup.admin.resetPassword({ userId: root.ownerId, password: "synthetic-layout-owner-password" });
         await setup.settings.updateAppSettings({ partial: { localMultiUser: true } });

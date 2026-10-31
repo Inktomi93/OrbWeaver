@@ -8,6 +8,7 @@ import { resolve } from "node:path";
 import process from "node:process";
 import { parseEnv as parseDotenv } from "node:util";
 import type { AuthModeSource } from "@orb/contracts/identity";
+import { AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { ENV_FROM_FILE_KEY, ENV_NO_FILE_KEY, ENV_NO_OVERRIDE_KEY, envFromFileKeys } from "@orb/kit/env-file";
 import { isSupervised } from "@orb/kit/supervisor";
 import { CONTAINER_MARKER_FILES } from "./container.ts";
@@ -127,7 +128,7 @@ function sourceAfterLoad(key: string): AuthModeSource {
 }
 
 // Read once, before anything can scrub or rewrite `process.env`.
-const AUTH_MODE_SOURCE = sourceAfterLoad("AUTH_MODE");
+const AUTH_MODE_SOURCE = sourceAfterLoad(AUTH_MODE_KEY);
 
 /** This process's parsed env, read once at load. Only the composition root reads it (`createProcessSeams` hands it to
  *  every root; `entry/lifecycle.ts` reads it at boot); every other site takes the record as a dependency. */

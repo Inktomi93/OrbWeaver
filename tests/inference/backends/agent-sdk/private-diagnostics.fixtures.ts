@@ -5,6 +5,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import type { SDK_PRIVATE_DIAGNOSTIC_SINKS, SdkPrivateDiagnosticInput, SdkPrivateDiagnosticResult } from "@orb/testkit/node/helpers";
 import { sdkPrivateDiagnosticResultSchema } from "@orb/testkit/node/helpers";
 
@@ -33,7 +34,7 @@ export async function nativeParent(
       env: {
         // biome-ignore lint/style/noProcessEnv: only this isolated native SDK parent receives diagnostic configuration; the test runner and prepared SDK child environment remain unchanged.
         ...process.env,
-        ["ORB_ENV_NO_FILE"]: "1",
+        [ENV_NO_FILE_KEY]: "1",
         ["LOG_LEVEL"]: "error",
         ["CORPUS_AUTOINDEX"]: "false",
         ["CLAUDE_CONFIG_DIR"]: directory,

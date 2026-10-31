@@ -45,3 +45,9 @@ Open, with the reason each is not a clear bar:
 - Oversized switch with a small label: the `Switch` primitive, owned by the tone lane.
 - `shell-list-toggle` has no rule: the marker lives in the shell topbar, owned by the shell lane.
 - Phone topbar side-eye: needs the side-eye role.
+
+Step 7a re-check:
+
+- Suggested tags pushing card fields: board 0613 landed, so that finding is closed with it.
+- Message actions menu: the 1435 lane that owned the toolbar has landed. This re-check did not recount the menu; the rendered review of the phone message toolbar decides it.
+- The remaining open points are decisions or rendered judgments, none a clear bar: context chips (which element wins), triple Connections heading, empty role picker (needs a cross-section opener), gutters 8 versus 24px, the greeting/opening and Every chat/Everywhere vocabulary ruling, the `Switch` label scale, the `shell-list-toggle` rule and the phone topbar. Recommended defaults: keep the Connections heading once at the section level; give the empty role picker a link to the Connections section; rule "Every chat" over "Everywhere" in `docs/law/vocabulary-map.md`; give the `Switch` primitive a size that scales with its label.

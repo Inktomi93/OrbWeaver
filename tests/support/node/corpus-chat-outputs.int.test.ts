@@ -1,4 +1,6 @@
 // @subject tests/support/node/corpus-chat-outputs.ts
+
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { assertReferentialIntegrity } from "@orb/db";
 import { CHAT_OUTPUT_BODY, CHAT_OUTPUT_CONNECTION_LABEL, CHAT_OUTPUT_SECRET, seedCorpusChatOutputs } from "./corpus-chat-outputs.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
@@ -13,7 +15,7 @@ test("native chat output suppliers retain exact canon, viewer projections, page 
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
   });
-  await using root = await createServerHarness({ providerFetch: provider.execute, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
+  await using root = await createServerHarness({ providerFetch: provider.execute, env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
   const result = await seedCorpusChatOutputs(root);
   const { reads, updates, member, invitation } = result;
   const assistant = result.turn.messages.find((message) => message.role === "assistant");
@@ -52,7 +54,7 @@ test("native chat output suppliers retain exact canon, viewer projections, page 
     personality: null,
     greetings: null,
   });
-  expect(reads.listMessages.messages).toEqual([result.edited]);
+  expect(reads.listMessages.messages.map(({ position: _stamped, ...view }) => view)).toEqual([result.edited]);
   expect(result.older.messages.map((message) => [message.role, message.seq])).toEqual([["user", assistant.seq - 1]]);
   expect(reads.listMessageVariants.map((variant) => [variant.variantId, variant.idx])).toEqual([
     [assistant.selectedVariantId, 0],

@@ -2,6 +2,7 @@
 import { CARD_FRAME_MINT_BODY_MAX_BYTES, CARD_FRAME_ROUTE } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { PLUGIN_FRAME_MINT_BODY_MAX_BYTES, PLUGIN_FRAME_ROUTE } from "@orb/contracts/plugin";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { ASSET_UPLOAD_MAX_BYTES, DATABANK_UPLOAD_MAX_BYTES, IMPORT_MAX_TOTAL_BYTES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 
@@ -11,11 +12,11 @@ const AUTH_ATTACK_BYTES = PLUGIN_FRAME_MINT_BODY_MAX_BYTES * 4;
 export const INTAKE_ROUTES = [
   { path: "/api/assets/upload", bytes: ASSET_UPLOAD_MAX_BYTES + 1 },
   { path: "/api/databank/upload", bytes: DATABANK_UPLOAD_MAX_BYTES + 1 },
-  { path: "/api/import", bytes: IMPORT_MAX_TOTAL_BYTES + 1 },
-  { path: "/api/import/restore-card-lorebook", bytes: IMPORT_MAX_TOTAL_BYTES + 1 },
-  { path: "/api/import/chat", bytes: IMPORT_MAX_TOTAL_BYTES + 1 },
-  { path: "/api/import/tree", bytes: IMPORT_TREE_MAX_TOTAL_BYTES + 1 },
-  { path: "/api/import/tree/review", bytes: IMPORT_TREE_MAX_TOTAL_BYTES + 1 },
+  { path: PORTABILITY_ROUTES.importCards, bytes: IMPORT_MAX_TOTAL_BYTES + 1 },
+  { path: PORTABILITY_ROUTES.restoreCardLorebook, bytes: IMPORT_MAX_TOTAL_BYTES + 1 },
+  { path: PORTABILITY_ROUTES.importChat, bytes: IMPORT_MAX_TOTAL_BYTES + 1 },
+  { path: PORTABILITY_ROUTES.importTree, bytes: IMPORT_TREE_MAX_TOTAL_BYTES + 1 },
+  { path: PORTABILITY_ROUTES.importTreeReview, bytes: IMPORT_TREE_MAX_TOTAL_BYTES + 1 },
 ] as const;
 export const FRAME_ROUTES = [
   { path: CARD_FRAME_ROUTE, bytes: CARD_FRAME_MINT_BODY_MAX_BYTES + 1 },
@@ -29,7 +30,7 @@ export const PENDING_ROUTES = ["/api/auth/oidc/pending/preview", "/api/auth/oidc
 export const BACKCHANNEL_ROUTE = { path: "/api/auth/oidc/backchannel-logout", bytes: AUTH_ATTACK_BYTES };
 // The native root also mounts this separately owned, capped diagnostic mutation outside entry/http.
 export const DEBUG_ROUTE = { path: "/api/_debug/bug-report", bytes: DATABANK_UPLOAD_MAX_BYTES + 1 };
-export const BUNDLE_ROUTE = "/api/import/bundle";
+export const BUNDLE_ROUTE = PORTABILITY_ROUTES.importBundle;
 export const LOGOUT_ROUTE = "/api/auth/logout";
 export const PLUGIN_DELETE_ROUTE = `${PLUGIN_FRAME_ROUTE}/:id`;
 export const CSRF_HEADERS = { [CSRF_HEADER]: "1" };

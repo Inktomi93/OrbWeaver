@@ -19,8 +19,8 @@
 //
 // CARRIER COMPLETENESS (why this may stand in for the read): the view is the domain's own `loadMessageView`
 // row — the SAME projection `listMessages` returns — and the bus fan runs it through the SAME member strip
-// the read does (`substrate/member-visibility.ts` VIEW_EVENT_TYPES), so it is byte-for-byte what a refetch
-// of that row would hand this viewer.
+// the read does (`substrate/member-visibility.ts` VIEW_EVENT_TYPES) and stamps this viewer's position, so it is
+// byte-for-byte what a refetch of that row would hand this viewer.
 //
 // THE REFETCH STILL FIRES, deliberately: this patches ONE ROW, while the page also carries `identities` (D137 — a
 // first-time speaker's portrait/name entry) and the rest of the window. The wire read stays authoritative;

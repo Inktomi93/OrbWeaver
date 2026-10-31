@@ -2,9 +2,10 @@
 // The production live channel preserves exact lifecycle order and the durable log preserves canon events.
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatBusEvent, TurnOutcome } from "@orb/contracts/chat";
-import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
+import { SHIPPED_PROMPT_CACHE, WARNING_CODE } from "@orb/contracts/inference";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
+import { SETTINGS_ADJUSTED_CODE } from "#contracts/chat/bus.ts";
 import { textRoom } from "./scenario-physical.ts";
 
 async function setCachePosture(h: ChatRoot, enabled: boolean): Promise<void> {
@@ -41,9 +42,15 @@ test("send publishes user commit then accepted, started, delta, assistant commit
     ]);
     expect(events.at(-1)).toMatchObject({ type: "turnCompleted", intent: "send" });
     const durable = await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId });
-    expect(durable.map(({ event }) => event).filter(({ type }) => type === "messageCommitted")).toEqual(
-      events.filter(({ type }) => type === "messageCommitted"),
-    );
+    // Delivery stamps the viewer's position; everything else comes back exactly as the bus published it.
+    const replayed = durable.map(({ event }) => {
+      if (!("view" in event)) {
+        return event;
+      }
+      const { position: _stamped, ...view } = event.view;
+      return { ...event, view };
+    });
+    expect(replayed.filter(({ type }) => type === "messageCommitted")).toEqual(events.filter(({ type }) => type === "messageCommitted"));
   } finally {
     unsubscribe();
   }
@@ -71,7 +78,7 @@ test("requesting unsupported prefix caching publishes its actual adjustment betw
       "turnCompleted",
     ]);
     expect(events.filter(({ type }) => type === "warning")).toEqual([
-      { type: "warning", chatId: h.chatId, adjustment: "cache_control_adjusted", code: "settings_adjusted" },
+      { type: "warning", chatId: h.chatId, adjustment: WARNING_CODE.cacheControlAdjusted, code: SETTINGS_ADJUSTED_CODE },
     ]);
   } finally {
     unsubscribe();
