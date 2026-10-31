@@ -80,7 +80,7 @@ else
 fi
 # Hook registration binds at session launch, but this script is read fresh on each run: a session launched
 # before orchestrator-inject.mjs was registered gets this line with no injection, hence the fallback.
-echo "    (2) The orchestrator skill is INJECTED into this context by a SessionStart hook, in blocks that start 'Orchestrator skill, part N of M'; do not load it again. If any part is missing, load it with the Skill tool. Follow it before any lane, merge, bridge note or worktree action. A compaction summary's digest of it fails on command detail."
+echo "    (2) The orchestrator skill is in your system prompt (section 'Orchestrator skill', from the orb-session plugin); do not load it again. If it is missing, load it with the Skill tool. Follow it before any lane, merge, bridge note or worktree action."
 echo "    (3) READ IN FULL (cat): ~/.claude/bridge/SESSIONS.md, each unacked note the bridge block lists, and the scratch dispatch map if the line below found it."
 echo "    (4) Honor every MERGE HOLD / sequencing line in the notes; resume live lanes by SendMessage to their agentIds, NEVER respawn."
 if [ "$WHO" = "claude-b" ]; then
@@ -120,7 +120,7 @@ if timeout 15 git fetch -q origin main 2>/dev/null; then
 else
   echo "--- origin fetch failed — main's sync with origin is unverified"
 fi
-echo "--- standing posture and procedure: the injected orchestrator skill (FIRST ACTION 2 above). claude-b registry: ~/.claude/bridge/SESSIONS.md (resume, never re-mint)."
+echo "--- standing posture and procedure: the orchestrator skill in your system prompt (FIRST ACTION 2 above). claude-b registry: ~/.claude/bridge/SESSIONS.md (resume, never re-mint)."
 
 # MEMORY.md GUARD. The harness injects the orchestrator's MEMORY.md and truncates it silently past 200
 # lines or its byte cap, whichever binds first. The index sits beside the transcript:
