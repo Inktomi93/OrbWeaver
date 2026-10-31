@@ -1,10 +1,10 @@
-// Page drivers for a custom property written on `:root`, the way an appearance channel reaches the document.
+// Page drivers for the font-scale channel written on `:root`, the way the appearance writer reaches the document.
 
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
-/** Write `property` on `:root` through one `!important` rule per property, or clear that rule with `null`. */
-export async function setRootProperty(page: Page, property: string, value: number | null): Promise<void> {
+/** Write the font-scale channel `property` (`channelName("fontScale")`) on `:root` through one `!important` rule, or clear that rule with `null`. */
+export async function setRootFontScale(page: Page, property: string, value: number | null): Promise<void> {
   await page.evaluate(
     ([name, written]) => {
       const id = `root-property${name}`;
@@ -27,7 +27,7 @@ export async function enlargeUntilVisible(page: Page, trigger: Locator, property
   let step = 0;
   await expect
     .poll(async () => {
-      await setRootProperty(page, property, ladder[Math.min(step, last)] ?? null);
+      await setRootFontScale(page, property, ladder[Math.min(step, last)] ?? null);
       step += 1;
       return trigger.isVisible();
     })

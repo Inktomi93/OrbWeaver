@@ -34,5 +34,14 @@ Built, each behind its door with its own test:
 | `makeRpgActorEntry`, `makeRpgActorIdentity` | already in `tests/support/iso/rpg-state.ts`; published on the iso door |
 | `PUBLIC_PEER_ADDRESS` | `tests/support/iso/network.ts`, iso door; used across `tests/support` |
 | `plantTrigger` | `tests/support/node/db-faults.ts`, composed door; `refuseWrites` is built on it; used by `tests/support/node/surface-data.int.test.ts` |
+| `SHELL_MOUNT_PROCEDURES` | `tests/support/node/ct-shell-procedures.ts`, ct door; list invariants in `ct-shell-procedures.test.ts` (no production code runs there; a stale name fails `tsc` at the list's `satisfies`); four suites use it |
+| `channelName` | `tests/support/node/appearance-channel-name.ts`, ct door, reachable from the e2e world; test `appearance-channel-name.test.ts` covers every manifest row; `tests/client/lib/appearance-channel-names.ts` stays a one-line re-export for item 1495 |
+| `routeAuthConfig` | `tests/support/node/route-auth-config.ts`, ct door, parameter typed `AuthConfig \| string`; case in `tests/support/browser/route-trpc.ct.tsx`; 21 client suites use it; two suites keep a live per-request root read (`_surface-harness.ts`, `platform-admin-reset-names.suite.ct.tsx`) |
+| `abortProcedure` | beside `isTrpcRequestFor` in `tests/support/node/route-trpc.ts`, ct and `node/helpers` doors; case in `route-trpc.ct.tsx`; the five e2e fault closures use it |
+| `E2E_PORT_OFFSET_ENV` | beside `e2eRunPorts` in `tooling/src/floor/host/ports.ts`; read by `modes.ts` and `process-env.ts`; case in `tests/tooling/floor/process/process-env.test.ts`; the surface-walk project names are composed inside `playwright-surface.config.ts`, so no name constant exists to export |
+| `setRootFontScale`, `enlargeUntilVisible` | `tests/support/browser/root-property.ts`, browser/spec door; cases in `root-property.ct.tsx` |
+| `boxOf` | `tests/support/browser/box-of.ts`, browser/spec door |
+| `EDGE_FALLBACK_SCOPE`, `TONE_FALLBACK_SCOPE` | `tests/support/iso/theme-fallback-cases.ts`, iso door; exercised against the production `ThemeScope` in `tests/ui/content/theme-scope/fallback-delivery.ct.tsx` |
+| `walkDisclosures`, `walkNativeDetails`, `usesProgrammaticScroll` | `tests/support/browser/disclosure-walk.ts`, browser/spec door; case in `disclosure-walk.ct.tsx` |
 
-Not built yet: the PortableChat builder and the chat character, persona and room builders. The copies outside `tests/support` still spell the peer address, provider rows, style slice and actor entries by hand.
+Not built yet: the PortableChat builder and the chat character, persona and room builders, and the seed-and-scope case table (waits on item 1495). The copies outside `tests/support` still spell the peer address, provider rows, style slice and actor entries by hand.

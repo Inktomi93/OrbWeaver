@@ -6,7 +6,7 @@ import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { CharacterId } from "@orb/kit/ids";
 import { actionGroupGeometry, resolvedLength, settledBox } from "@orb/testkit/browser/spec";
-import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
@@ -125,7 +125,7 @@ for (const regime of REGIMES) {
         const before = await caller.assets.listGallery({ subjectCharacterId: card.id, limit: ASSET_LIST_LIMIT_MAX });
         const auth = await root.http.request("/api/auth/config");
         const authBody = await auth.text();
-        await page.route("**/api/auth/config", (route) => route.fulfill({ contentType: "application/json", body: authBody }));
+        await routeAuthConfig(page, authBody);
         await routeTrpc(page, serveCorpusProcedures(caller, ["settings.getUserSettings", "sessions.me", "assets.listGallery", "assets.listOwned"]));
         await corpusMedia();
         await mount<typeof GalleryActionsStory>(`${STORIES}/GalleryActionsStory`, {

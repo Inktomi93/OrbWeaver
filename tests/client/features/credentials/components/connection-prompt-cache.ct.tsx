@@ -2,7 +2,7 @@ import type { PromptCacheSettings } from "@orb/contracts/inference";
 import { builtinProvider, effectivePromptCache, foldFeatures, SUMMARIZE_CONCURRENCY_MAX } from "@orb/contracts/inference";
 import { expectCacheProse } from "@orb/testkit/browser/spec";
 import type { TrpcInput, TrpcRecorder } from "@orb/testkit/ct";
-import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
@@ -110,7 +110,7 @@ async function captureCacheRoute(providerId: string, model: string, replay = fal
 }
 
 async function installCacheRoute(page: Page, captured: CacheCapture): Promise<TrpcRecorder> {
-  await page.route("**/api/auth/config", (route) => route.fulfill({ contentType: "application/json", body: captured.authConfig }));
+  await routeAuthConfig(page, captured.authConfig);
   return await routeTrpc(page, serveCorpusProcedures(captured.caller, CACHE_READS));
 }
 

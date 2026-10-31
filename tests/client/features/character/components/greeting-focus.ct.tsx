@@ -1,4 +1,4 @@
-import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { CharacterExampleLifetimeStory } from "./_example-lifetime-stories.tsx";
@@ -11,7 +11,7 @@ test("removing an alternate opening returns focus to Add opening", async ({ corp
     throw new Error("The corpus has no character");
   }
   await caller.character.update({ characterId: character.id, input: { greetings: [{ text: "First opening" }, { text: "Alternate opening" }] } });
-  await page.route("**/api/auth/config", (route) => route.fulfill({ json: corpus.auth.signedInConfig }));
+  await routeAuthConfig(page, corpus.auth.signedInConfig);
   await routeTrpc(
     page,
     serveCorpusProcedures(caller, [

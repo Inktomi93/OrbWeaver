@@ -2,11 +2,10 @@
 import { CORPUS_MODE_LABELS, contextToggleLabel } from "@orb/client/lib";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { controlledPanel, seedShellState } from "@orb/testkit/browser/spec";
-import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { channelName, createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { z } from "zod";
-import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { SectionShellStory } from "../_surface-stories.tsx";
 import type { HeatmapLayoutStory } from "./_heatmap-layout-stories.tsx";
 

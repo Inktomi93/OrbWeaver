@@ -4,7 +4,7 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
-import { ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createFirstBootHarness, seedCorpusConnections } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
@@ -90,21 +90,7 @@ async function librarySubjects(root: Root): Promise<LibrarySubjects> {
 }
 
 async function routeLibrary(page: Page, subjects: Awaited<ReturnType<typeof librarySubjects>>): Promise<void> {
-  await routeTrpc(
-    page,
-    serveCorpusProcedures(subjects.caller, [
-      ...SECTION_PROCEDURES,
-      ...ROOM_PROCEDURES,
-      "tag.listTagFilterVocabulary",
-      "persona.list",
-      "rosterPreset.count",
-      "databank.bankHealth",
-      "notifications.list",
-      "plugin.listCommands",
-      "automation.listRulePresets",
-      "chat.reapTemporaryChats",
-    ]),
-  );
+  await routeTrpc(page, serveCorpusProcedures(subjects.caller, [...SECTION_PROCEDURES, ...SHELL_MOUNT_PROCEDURES, ...ROOM_PROCEDURES]));
 }
 
 async function expectRoom(page: Page, title: string): Promise<void> {
@@ -118,7 +104,7 @@ for (const mode of ROW_MODES) {
   test(`native library ListRow keeps its preview and timestamp as a description and opens its room by ${mode}`, async ({ page, corpus, mount }) => {
     await using root = await createFirstBootHarness();
     const subjects = await librarySubjects(root);
-    await page.route("**/api/auth/config", (route) => route.fulfill({ json: corpus.auth.signedInConfig }));
+    await routeAuthConfig(page, corpus.auth.signedInConfig);
     await routeLibrary(page, subjects);
     await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "docked", context: "collapsed" } } });
     await mount<typeof ShellAmbientStory>(STORY, {});
@@ -154,7 +140,7 @@ for (const scenario of CAPTION_CASES) {
     const character = scenario.captioned ? subjects.captioned : subjects.plain;
     const chatId = scenario.captioned ? subjects.captionedRoom : subjects.plainRoom;
     const room = await subjects.caller.chat.getChat({ chatId });
-    await page.route("**/api/auth/config", (route) => route.fulfill({ json: corpus.auth.signedInConfig }));
+    await routeAuthConfig(page, corpus.auth.signedInConfig);
     await routeLibrary(page, subjects);
     await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "docked", context: "collapsed" } } });
     await mount<typeof ShellAmbientStory>(STORY, {});
@@ -175,7 +161,7 @@ test("native library starred shelf opens the character editor by keyboard even w
   await using root = await createFirstBootHarness();
   const subjects = await librarySubjects(root);
   const count = await subjects.caller.character.count({ starred: true, archived: false });
-  await page.route("**/api/auth/config", (route) => route.fulfill({ json: corpus.auth.signedInConfig }));
+  await routeAuthConfig(page, corpus.auth.signedInConfig);
   await routeLibrary(page, subjects);
   await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "docked", context: "collapsed" } } });
   await mount<typeof ShellAmbientStory>(STORY, {});

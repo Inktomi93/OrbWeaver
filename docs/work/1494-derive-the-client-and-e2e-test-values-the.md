@@ -34,7 +34,7 @@ Partial: the P2 rows and the listed P3 rows are done; the widened sweep is not f
 - E4: `safeMenuDrills` enumerates the live enabled menu items and drills the ones whose name is in `SAFE_DRILL_NAMES`, built from production name constants (`row-menu-names.ts`, `chat-options-names.ts`, `composer-menu-names.ts`, `message-action-names.ts`).
 - E18: `browser-launch.spec.ts` derives the arguments from `browserArgsWithAcceleration`, fails on an empty command line and on an unnamed renderer.
 - P3: `contextToggleLabel` (moved to `lib/`, on the lib door), the autosave status words (`forms/editor/autosave-status-names.ts`), `MEDIA_QUERIES` and `TOKENS` in the pinned-band suite, `channelName` in the four font-scale suites, `censusTitle`, the portrait route from `BLOB_ROUTE` and `variantKindSchema`, the showcase slugs by `satisfies`, the library page-size bounds, `SHELL_SWAP_DEADLINE_PROPERTY`, `TOKENS` tone roles, the facet inspector `Record`, `hasDevBridge` and `LOGIN_FAILED`.
-- Duplicates merged: `tests/support/browser/disclosure-walk.ts` (disclosure, details walkers and `usesProgrammaticScroll`) serves the chat and section walks; `root-property.ts` (`setRootProperty`, `enlargeUntilVisible`) and `box-of.ts` serve the overflow suites; `openReadingStyle` and `roomStoryProps` in `chat-style-reading.fixtures.ts` serve the five reading-room suites.
+- Duplicates merged: `tests/support/browser/disclosure-walk.ts` (disclosure, details walkers and `usesProgrammaticScroll`) serves the chat and section walks; `root-property.ts` (`setRootFontScale`, `enlargeUntilVisible`) and `box-of.ts` serve the overflow suites; `openReadingStyle` and `roomStoryProps` in `chat-style-reading.fixtures.ts` serve the five reading-room suites.
 - Codemods: `tooling/src/codemods/literal-to-binding` (literal or ast-grep pattern to a production binding, with import) applied the label, status-word and `channelName` rewrites; `rewrite-import-specifiers` and `move-import-names` moved the `contextToggleLabel` imports.
 
 ### Planted proofs
@@ -55,12 +55,40 @@ Each ran with `pnpm e2e:corpus` (project `corpus-desktop-bubble`) or `pnpm test:
 - Mount id: `main.tsx` keeps the literal `"root"`; its DOM home in `eslint.config.ts` is keyed on that literal selector, so production cannot import a constant. The spec keeps `ROOT_ID`.
 - Status text: the autosave readout has its own words file; `SAVE_FAILED_MARKER` names the settings nav marker, a different surface.
 - E14: the relay-tell header is the standard `Forwarded` header, which `lifecycle.ts` refuses without naming; the session read parses a single-call envelope, and `batchResultData` reads batch arrays only.
-- E15: `modes.ts` is the one reader of `E2E_PORT_OFFSET`; `ports.ts` names it as the config boundary.
+- E15: fixed. `E2E_PORT_OFFSET_ENV` is exported beside `e2eRunPorts` in `ports.ts`; `modes.ts` and `process-env.ts` read it.
 - E24: the `pairedControl` table runs inside `page.evaluate` and pairs native inputs with WAI-ARIA roles; no production map exists.
 - C15: the container-unit pattern classifies token values by their CSS unit; no production predicate exists (`text/variants.ts` `artScale` names tokens, not units).
 - E9: slugs are pinned by `satisfies` against `SHOWCASE_PLUGIN_SLUGS`; the polished-draft text is produced inside the plugin guest and has no importable function.
 - Walkers: `surface-config.ts` keeps its own disclosure walk. It differs in kind (button identity, visit records), not only in plumbing.
 
+### Second pass
+
+- Helpers built for 1505 and used at every copy: `SHELL_MOUNT_PROCEDURES`, `routeAuthConfig`, `abortProcedure`, `channelName` on the `ct` door, the iso fallback scopes, `E2E_PORT_OFFSET_ENV`, `setRootFontScale`. Their cases and doors are listed in item 1505's Evidence.
+- E12: the five e2e fault closures and their hand-written tRPC patterns use `abortProcedure`.
+- E13: the two `commandMenu` helpers drive different menus; they are renamed `chatRowMenu` and `characterCommandMenu`.
+- E21: `HOME_SECTION_LABEL` and `REFINERY_SECTION_LABEL` are zero-import leaves that the section definitions read.
+- C21: four suites read `SHELL_MOUNT_PROCEDURES`. C20: the auth-config route copies use `routeAuthConfig`, and the planted scale is derived. C23: the fallback scopes have a testkit home. C5: the font-scale lookups and injectors use `channelName` and `setRootFontScale`.
+
+### Rulings
+
+- E10: `usesProgrammaticScroll` is shared; `nativeWheel` records wheel delivery facts and the chat `scrollViewport` does not, so their bodies differ by purpose.
+
+- E11 and the checkpoint, record and expectSubject helpers: the disclosure and details walkers are one module. The journey bookkeeping differs in shape between the chat, section, character and config walkers (entries named `coverage` against `observations`, `name` against `id`, `detail` against `reason`). Item 1511 splits the walker engine and owns the shared ledger.
+
+- E16: the surface-walk project name is composed inside `playwright-surface.config.ts` (`desktop-${width}-${name}-${pass}`); a spec cannot import the config without running it.
+
+- E17: `JOURNEY_OWNER` is `satisfies Record<SectionId, string>`, so a section with no owner fails `tsc`.
+
+- C4 (list panel): the "Show list panel" and "Hide list panel" names are assembled inside the `@orb/ui` panel-edge primitive from a noun; the product home is in `packages/ui`, which item 1495 owns.
+
+- C20 (live reads): `_surface-harness.ts` and `platform-admin-reset-names.suite.ct.tsx` re-read the root's config per request on purpose and keep their own route.
+
+- `session-freshness.ct.tsx` aborts inside a stateful `/api/auth/me` responder, not a procedure refusal, so it keeps its closure.
+
+- C12: partly open. The expected titles use `censusTitle`; the plugin and its page surfaces in `app-shell-topbar.ct.tsx` (`makePluginRow`, hand ids) are still fabricated behind fixed `plugin.list` and `plugin.listSurfaces` responders. Registering them needs a showcase bundle install through the plugin verb on the corpus root, which is a new seed builder; it is listed under Remaining.
+
+- C16: partly open. The portrait route derives from `BLOB_ROUTE`. `SLOT_RATIO` (0.4 to 0.8) in `platform-art-fallback-initial.suite.ct.tsx` restates the monogram sizing rule, which lives in `@orb/ui` styling with no exported bound; it waits on 1495.
+
 ### Remaining
 
-The widened sweep of the other files in scope. Rows not touched: E6, E8, E10 (the nativeWheel body), E12, E13, E16 (project name), E17, E21, E22, E23, C2, C3, C4 (regexes), C6 to C8, C14, C17, C18, C20 (auth route), C21 to C24, C28. Helpers owned by item 1505 and not built: the shell-mount read list, `channelName` in a testkit door, `routeAuthConfig`, `abortProcedure`, the project names beside `e2eRunPorts`, a home for `fallback-cases.ts`. Item 1504 owns the remaining production homes (the GPU switch, the routes and the env keys); repoint any copy here when each lands.
+Not started: C12 (plugin seed) and C16 (`SLOT_RATIO`), E6 and E8 (the UI sentences and action names need a production constant each, across about eight components), E22, C2, C3, C6 to C8, C14, C17, C18, C22, C24 and C28, and the shared walker ledger (item 1511). The seed-and-scope table waits on 1495.

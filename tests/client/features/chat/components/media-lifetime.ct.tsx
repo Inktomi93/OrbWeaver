@@ -1,6 +1,6 @@
 import { blobUrl } from "@orb/contracts/assets";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { TideMediaLifetimeStory } from "./_media-lifetime-stories.tsx";
@@ -52,7 +52,7 @@ test("Tide retains zoom for identical snapshots and closes obsolete media on mes
     throw new Error("Committed chat omitted its user message");
   }
   await caller.chat.editMessage({ chatId, messageId: message.id, content: `Lead paragraph\n\n![First witness](${firstUrl})`, timeZone: UTC_TIME_ZONE });
-  await page.route("**/api/auth/config", (route) => route.fulfill({ json: corpus.auth.signedInConfig }));
+  await routeAuthConfig(page, corpus.auth.signedInConfig);
   await routeTrpc(page, serveCorpusProcedures(caller, ROOM_READS));
   await corpusMedia();
   const component = await mount<typeof TideMediaLifetimeStory>("tests/client/features/chat/components/_media-lifetime-stories/TideMediaLifetimeStory", {

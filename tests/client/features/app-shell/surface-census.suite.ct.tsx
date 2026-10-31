@@ -10,12 +10,12 @@ import { presetIdInputSchema } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
 import { auditSurface, formatDensityFindings, settledBox } from "@orb/testkit/browser/spec";
+import { channelName } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createSeededIds } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { channelName } from "../../lib/appearance-channel-names.ts";
 import { routeSurfaceReads } from "./_surface-harness.ts";
 import { groupScenario, modalScenario, sectionScenario } from "./_surface-scenarios.ts";
 import type {
