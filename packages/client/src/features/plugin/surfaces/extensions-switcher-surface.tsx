@@ -84,7 +84,7 @@ function ExtensionsPageList(): ReactElement {
               key={page.key}
               leading={<Icon icon={Blocks} size="sm" />}
               onClick={(): void => selectPluginPageFromList(page.key)}
-              selected={page.key === active}
+              data-selected={page.key === active ? "" : undefined}
               title={page.title}
               titleQualifierFace="body"
               // Two plugins may legitimately register a page with the same title ("Browse"). The plugin name

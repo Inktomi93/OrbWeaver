@@ -33,7 +33,7 @@ Current defects:
     - [ ] 4c-2: `MessageBubble` and the plate.
     - [ ] 4c-3: the preview parts, `FloatingChip`, `RoomIsland` and the map.
   - [ ] 4d: the layout boxes.
-  - [ ] 4e: ListRow state.
+  - [x] 4e: ListRow state.
 
 Each step lands alone and leaves the app working.
 
@@ -84,3 +84,9 @@ Step 4c-1:
 
 - `Spoiler` renders Stack behind its own door, `@orb/ui/spoiler`, and Card and Stack refuse `spoiler`; `tests/ui/primitives/spoiler/extracted-spoiler.dom.test-d.ts` pins both. `tests/ui/primitives/spoiler/spoiler.ct.tsx` reads the blur, the selection and the forwarded layout under each seed and a nested custom scope, and inside a Card of every tone, in the Chromium and WebKit CT projects. A planted skin without the selection rule fails it.
 - `tests/ui/primitives/card/card-interactive.ct.tsx` reads the hovered and pressed Card ink against the tone roles and the hover pixels against AA, over a nested mid-grey scope and each seed. The hover test skips on a device that does not hover, so WebKit checks the pressed paint. Removing the new ink classes fails it.
+
+Step 4e:
+
+- ListRow takes `"data-selected"`, `"aria-expanded"` and `"data-disabled"` and derives `aria-current` from `data-selected`; `selected`, `expanded`, `disabled` and `density` are gone. `tests/ui/primitives/list-row/list-row-state.dom.test-d.ts` refuses each, and `tests/ui/primitives/list-row/state-attributes.ct.tsx` reads the three states from the attributes in the Chromium and WebKit CT projects. The literal call sites moved with an ast-grep rewrite over `<ListRow>`; no call site spreads a removed prop.
+- `tests/ui/primitives/list-row/selected-ink.ct.tsx` measures the carried mid-grey selected row and active Tabs cell on painted pixels (the cell read 3.30:1 before the ring fix and clears 4.5:1 after) and holds `text-on-tint` on three seed palettes where it differs from the page ink. `orb-gradient-ring` now paints its border only; its CTA, tab and rail carriers read the fill under them.
+- Before and after captures are under `reports/1421-4e-captures/`: a CTA button and two tab strips under each seed and two custom scopes, and ListRow rows with a selected and an expanded row, a settings-style list and two tab strips under each seed.

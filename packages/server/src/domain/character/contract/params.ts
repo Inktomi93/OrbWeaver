@@ -36,6 +36,10 @@ export interface RemoveCharacterParams extends CharacterActorParams {
   readonly characterId: CharacterId;
 }
 
+export interface NamesByAvatarAssetsParams extends CharacterActorParams {
+  readonly assetIds: readonly AssetId[];
+}
+
 export interface BulkRemoveParams extends CharacterActorParams {
   readonly characterIds: readonly CharacterId[];
 }

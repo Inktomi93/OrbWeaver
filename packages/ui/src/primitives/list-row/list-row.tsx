@@ -156,20 +156,20 @@ export interface ListRowProps {
    * native `<button>` is valid.
    */
   clickable?: boolean;
-  /** Marks the row as the current selection (`data-selected` skin + `aria-current`). */
-  selected?: boolean;
   /**
-   * Marks a clickable row as a DISCLOSURE header (`aria-expanded`) — the row owns a group of child rows
-   * that render below it while open. Use it INSTEAD OF `selected` on a parent whose children carry the
-   * "you are here" marker: `aria-current` on both a parent and its child announces two current items for
-   * one location (side-eye 2026-08-01, the settings nav). Ignored on a non-clickable row (a static div
-   * has nothing to expand).
+   * The row is the current selection: skin it with the selection rail and announce it as `aria-current`. Pass `""`
+   * to set it and `undefined` to clear it; the row derives `aria-current` from it, so a caller never states both.
    */
-  expanded?: boolean;
-  /** Disables the click affordance: removed from tab order, `aria-disabled`, dimmed. */
-  disabled?: boolean;
-  /** `compact` tightens the row to the sm control height for dense surfaces. */
-  density?: "default" | "compact";
+  "data-selected"?: "" | undefined;
+  /**
+   * Marks a clickable row as a DISCLOSURE header — the row owns a group of child rows that render below it while
+   * open. Use it INSTEAD OF `data-selected` on a parent whose children carry the "you are here" marker:
+   * `aria-current` on both a parent and its child announces two current items for one location (the settings nav).
+   * Ignored on a non-clickable row (a static div has nothing to expand).
+   */
+  "aria-expanded"?: boolean | undefined;
+  /** Disables the click affordance: removed from tab order, `aria-disabled`, dimmed. Pass `""` to set it. */
+  "data-disabled"?: "" | undefined;
   /**
    * The TITLE's type step. `default` (the tier's own — `body` at form, `label` at instrument) is right for
    * every dense list. `promoted` takes the `title` step for a list whose rows ARE a surface's content
@@ -229,7 +229,7 @@ function ListRowBody({
         aria-current={ariaCurrent}
         className={slots.body()}
         data-selected={selected ? "" : undefined}
-        data-tone={SELECTION_RAIL_TONE}
+        data-tone={selected ? SELECTION_RAIL_TONE : "neutral"}
         data-slot="list-row-body"
       >
         {children}
@@ -250,7 +250,7 @@ function ListRowBody({
       className={slots.body()}
       data-disabled={disabled ? "" : undefined}
       data-selected={selected ? "" : undefined}
-      data-tone={SELECTION_RAIL_TONE}
+      data-tone={selected ? SELECTION_RAIL_TONE : "neutral"}
       data-slot="list-row-body"
       onClick={disabled ? undefined : onClick}
       ref={bodyRef}
@@ -285,17 +285,17 @@ export function ListRow({
   stackActionsAt = "cq-32",
   rowTint = "body",
   clickable = false,
-  selected = false,
-  expanded,
-  disabled = false,
-  density = "default",
+  "data-selected": dataSelected,
+  "aria-expanded": expanded,
+  "data-disabled": dataDisabled,
   titleStep = "default",
   onClick,
   bodyRef,
   className,
 }: ListRowProps): ReactElement {
+  const selected = dataSelected !== undefined;
+  const disabled = dataDisabled !== undefined;
   const slots = listRowVariants({
-    density,
     clickable,
     float: actionsFloat,
     revealActions,
@@ -318,7 +318,12 @@ export function ListRow({
   return (
     // `data-selected` rides the ROOT as well as the body: the `rowTint="row"` arm paints the selected skin
     // here, and an attribute the default arm simply doesn't style costs nothing.
-    <div className={slots.root({ className })} data-selected={selected ? "" : undefined} data-tone={SELECTION_RAIL_TONE} data-slot="list-row-root">
+    <div
+      className={slots.root({ className })}
+      data-selected={selected ? "" : undefined}
+      data-tone={selected ? SELECTION_RAIL_TONE : "neutral"}
+      data-slot="list-row-root"
+    >
       <ListRowBody
         ariaDescribedBy={describedBy}
         ariaLabel={titleQualifier === undefined ? title : `${title} · ${titleQualifier}`}

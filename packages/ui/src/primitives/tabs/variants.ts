@@ -101,7 +101,7 @@ export const tabsVariants = tv({
       cell: {
         tab: [
           `flex-col gap-0 p-field block-auto min-block-(--size-control-sm) min-inline-(--size-touch-target) ${FOCUS_RING_INSET}`,
-          "border-be-2 border-transparent data-active:border-tone-solid data-active:bg-tone-tint data-active:text-foreground",
+          "border-be-2 border-transparent data-active:border-tone-solid data-active:bg-tone-tint data-active:text-tone-text-on-tint",
           "pointer-coarse:min-block-(--size-control-lg) pointer-fine:@max-cq-20:data-active:border-transparent",
         ],
       },

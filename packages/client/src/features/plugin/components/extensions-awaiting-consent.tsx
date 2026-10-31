@@ -36,7 +36,7 @@ export function ExtensionsAwaitingRows({ plugins }: ExtensionsAwaitingRowsProps)
             key={plugin.id}
             leading={<Icon icon={Blocks} size="sm" />}
             onClick={(): void => selectPluginPageFromList(key)}
-            selected={key === active}
+            data-selected={key === active ? "" : undefined}
             subtitle={NEEDS_APPROVAL_LABEL}
             title={plugin.name}
           />

@@ -24,6 +24,17 @@ export function libraryOrFinder(): HTMLElement | null {
   return canTakeFocus(library) ? library : bySlot(LABELS_FINDER_SLOT);
 }
 
+/** A confirm's `finalFocus` answer that lands on `target`. Base UI reads the answer inside the dialog's own unmount, where a
+ *  focus() is taken straight back to the trigger that opened it, so the focus moves in the microtask after the unmount and
+ *  the answer `false` keeps Base UI from returning focus itself. No target answers `true`: Base UI's own return. */
+export function focusAfterConfirmCloses(target: HTMLElement | null): boolean {
+  if (target === null) {
+    return true;
+  }
+  queueMicrotask(() => target.focus());
+  return false;
+}
+
 /** The finder root: a removed row's own list. */
 export function finderRoot(): HTMLElement | null {
   return bySlot(LABELS_FINDER_SLOT);
