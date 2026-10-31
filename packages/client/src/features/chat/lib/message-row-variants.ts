@@ -82,6 +82,10 @@ const CHIP_PLACEMENTS = ["gutter", "header"] as const;
  *  A REQUIRED field: a new chatStyle fails tsc here until it decides where its chip sits. */
 type ChipPlacement = (typeof CHIP_PLACEMENTS)[number];
 
+const NUMBER_PLACEMENTS = ["metadata", "portrait"] as const;
+/** Where the message number sits: in the metadata row below the card, or under a welded portrait (ripple). */
+type NumberPlacement = (typeof NUMBER_PLACEMENTS)[number];
+
 const CORNER_SETS = ["card", "speech", "pill"] as const;
 /** The corners of this skin's card. `speech` (bubble) is a small corner and a long one on the speaker's side, mirrored for the
  *  user; `pill` (tide) is a paragraph pill; every other skin takes the card radius. */
@@ -115,6 +119,8 @@ export interface RowSkin {
   readonly phoneStamp: PhoneStamp;
   /** A hairline under the speaker header (ripple). */
   readonly headerRule: boolean;
+  /** {@link NumberPlacement} — where the message number sits. */
+  readonly numberPlacement: NumberPlacement;
   readonly box: MessageBox;
   /** The card takes its share of the column (`reading.bubble-share`), never past the reading measure, so the other side reads as the other speaker's. */
   readonly phoneCap: boolean;
@@ -162,6 +168,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     corners: "speech",
     phoneStamp: "stacked",
     headerRule: false,
+    numberPlacement: "metadata",
     box: "bubble",
     phoneCap: true,
     lastRowFloor: false,
@@ -181,6 +188,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     corners: "card",
     phoneStamp: "stacked",
     headerRule: false,
+    numberPlacement: "metadata",
     box: "plate",
     phoneCap: false,
     lastRowFloor: false,
@@ -201,6 +209,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     corners: "card",
     phoneStamp: "stacked",
     headerRule: false,
+    numberPlacement: "metadata",
     // Stock SillyTavern's document: a full-track page with no reading cap, no avatar, name or timestamp, user
     // and character rows identical, the text inset as stock insets it.
     box: "page",
@@ -222,6 +231,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     corners: "card",
     phoneStamp: "inline",
     headerRule: false,
+    numberPlacement: "metadata",
     box: "bubble",
     phoneCap: false,
     lastRowFloor: false,
@@ -245,6 +255,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     corners: "card",
     phoneStamp: "stacked",
     headerRule: false,
+    numberPlacement: "metadata",
     box: "bubble",
     phoneCap: false,
     lastRowFloor: false,
@@ -267,6 +278,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     corners: "card",
     phoneStamp: "stacked",
     headerRule: false,
+    numberPlacement: "metadata",
     box: "bubble",
     phoneCap: false,
     lastRowFloor: false,
@@ -287,6 +299,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     corners: "card",
     phoneStamp: "stacked",
     headerRule: true,
+    numberPlacement: "portrait",
     box: "bubble",
     phoneCap: false,
     lastRowFloor: false,
@@ -307,6 +320,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     corners: "pill",
     phoneStamp: "stacked",
     headerRule: false,
+    numberPlacement: "metadata",
     box: "bubble",
     phoneCap: false,
     lastRowFloor: false,

@@ -40,7 +40,7 @@ import { toolBoundaryDisplayMessage } from "../lib/tool-prose.ts";
 import { MessageActionsRow } from "./message-actions-row.tsx";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { MessageMetadataRow } from "./message-metadata-row.tsx";
-import { artViewFor, renderRowAvatar } from "./message-row-avatar.tsx";
+import { artViewFor, placePortraitNumber, renderRowAvatar } from "./message-row-avatar.tsx";
 import { renderContextBoundaryDivider } from "./message-row-divider.tsx";
 import { placeRowHeader, renderRowNameRow } from "./message-row-header.tsx";
 import { MessageContentColumn, MessageRowBody, MessageRowRoot } from "./message-row-layout.tsx";
@@ -314,7 +314,12 @@ export function MessageRow({
     viewArt,
     artControl,
   });
-  const weldedAvatar = avatarTreatment === "sticky-portrait" ? avatarNode : null;
+  const { welded: weldedAvatar, rowVisibility } = placePortraitNumber({
+    skin,
+    portrait: avatarTreatment === "sticky-portrait" ? avatarNode : null,
+    message,
+    visibility: metadataVisibility,
+  });
   const slots = identitySlots(skin, mirrored, weldedAvatar !== null, avatarNode);
   // §6c/M8 message-footer: absent for a pre-commit draft-greeting row (no `surfaceContributors` passed).
   const footerContributions = resolveMessageFooter(surfaceContributors, message);
@@ -428,7 +433,7 @@ export function MessageRow({
             {/* #106 — the two chrome bands BELOW the bubble. Unlike the name row they are outside any
                 bubble fill in EVERY mode, so their scrim is mode-independent (the skin's `chromeBacking`
                 is not consulted here). Both self-gate on `data-has-bg-image`: no wallpaper, no chip. */}
-            {editing ? null : <MessageMetadataRow message={message} visibility={metadataVisibility} />}
+            {editing ? null : <MessageMetadataRow message={message} visibility={rowVisibility} />}
             {swipeBelow}
             {/* `empty:hidden` on the footer is LOAD-BEARING, caught on a live drive: a contribution can be
                 REGISTERED and still render nothing (TurnToolCallsDisclosure returns null for a turn with no
