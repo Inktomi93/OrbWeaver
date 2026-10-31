@@ -17,6 +17,7 @@ const TREE = {
     "  intoDeadSlot: () => number;",
     "  viaSpread: () => number;",
     "  viaIndex: () => number;",
+    "  viaDeadIndex: () => number;",
     "  byElement(): number;",
     "  /** Named in docs only: {@link Service.docOnly} is not a call. */",
     "  docOnly(): number;",
@@ -33,6 +34,7 @@ const TREE = {
     "    intoDeadSlot: () => 7,",
     "    viaSpread: () => 8,",
     "    viaIndex: () => 9,",
+    "    viaDeadIndex: () => 9,",
     "    byElement: () => 10,",
     "    docOnly: () => 11,",
     "  };",
@@ -63,11 +65,30 @@ const TREE = {
     "export const consumer: Consumer = service;",
     "export const spreader: Spreader = { ...service };",
   ].join("\n"),
+  // Uses no name joins to the member: an overload implementation's props, a literal kept by `satisfies`, a spread
+  // into a call's typed argument. Each has an unused sibling beside it.
+  "packages/a/src/links.ts": [
+    "export interface PublicProps { readonly save?: () => number; readonly spare?: () => number; }",
+    "interface ImplProps { readonly save?: () => number; readonly spare?: () => number; }",
+    "export function makeBoundary(): (props: PublicProps) => number;",
+    "export function makeBoundary(): (props: ImplProps) => number {",
+    "  return (props) => props.save?.() ?? 0;",
+    "}",
+    "export const bounded = makeBoundary()({ save: () => 1, spare: () => 2 });",
+    "export interface Copy { readonly title: () => string; readonly unusedLine: () => string; }",
+    'export const COPY = { a: { title: () => "t", unusedLine: () => "u" } } satisfies Record<string, Copy>;',
+    "export const shownTitle = COPY.a.title();",
+    "export interface Seed { readonly hash?: () => string; readonly stray?: () => string; }",
+    "export interface SeedInput { readonly hash?: () => string; readonly name: string; }",
+    "export const seedOwner = (input: SeedInput): string => input.hash?.() ?? input.name;",
+    'const seedFrom = (seed: Seed): string => seedOwner({ name: "n", ...seed });',
+    'export const seeded = seedFrom({ hash: () => "h", stray: () => "s" });',
+  ].join("\n"),
   "packages/b/tsconfig.json": plantedTsconfig({ lib: LIB, paths: { "@fx/a": ["../a/src/service.ts"] } }),
   "packages/b/src/port.ts": [
     'import type { Service } from "@fx/a";',
     'export type Port = Pick<Service, "viaPort">;',
-    'export interface IndexedPort { readonly viaIndex: Service["viaIndex"]; }',
+    'export interface IndexedPort { readonly viaIndex: Service["viaIndex"]; readonly viaDeadIndex: Service["viaDeadIndex"]; }',
     "export const run = (port: Port, indexed: IndexedPort): number => port.viaPort() + indexed.viaIndex();",
   ].join("\n"),
   "packages/b/src/use.ts": 'import { createService } from "@fx/a";\nexport const reached = createService().acrossPackages();',
@@ -86,18 +107,21 @@ test("the unwired scan tells wired, builder-only, test-only, derived-port, cross
   expect(found.toSorted((a, b) => a.at.localeCompare(b.at))).toEqual([
     { at: "Clock.implementedOnly", kind: "builder-only", tests: 0 },
     { at: "Consumer.intoDeadSlot", kind: "unreferenced", tests: 0 },
+    { at: "Copy.unusedLine", kind: "builder-only", tests: 0 },
+    { at: "ImplProps.spare", kind: "unreferenced", tests: 0 },
+    { at: "IndexedPort.viaDeadIndex", kind: "unreferenced", tests: 0 },
+    { at: "PublicProps.spare", kind: "builder-only", tests: 0 },
+    { at: "Seed.stray", kind: "builder-only", tests: 0 },
     { at: "Service.builderOnly", kind: "builder-only", tests: 0 },
     { at: "Service.docOnly", kind: "builder-only", tests: 0 },
     { at: "Service.intoDeadSlot", kind: "builder-only", tests: 0 },
     { at: "Service.testOnly", kind: "test-only", tests: 1 },
+    { at: "Service.viaDeadIndex", kind: "builder-only", tests: 0 },
   ]);
   expect(report.disagreements).toEqual([]);
-  // The owner's verb reaches production only through the consumer port the composition root hands it into.
-  expect(report.reachedByFlow.toSorted((a, b) => a.key.localeCompare(b.key))).toEqual([
-    { key: "packages/a/src/service.ts:Service.viaCompose", via: "packages/a/src/consumer.ts:Consumer.viaCompose" },
-    { key: "packages/a/src/service.ts:Service.viaIndex", via: "packages/b/src/port.ts:IndexedPort.viaIndex" },
-    { key: "packages/a/src/service.ts:Service.viaSpread", via: "packages/a/src/consumer.ts:Spreader.viaSpread" },
-  ]);
+  // The owner's verb reaches production only through the consumer port the composition root hands it into. Engine one
+  // links a spread into a typed literal and an `Owner["m"]` member itself, so those never need the flow.
+  expect(report.reachedByFlow).toEqual([{ key: "packages/a/src/service.ts:Service.viaCompose", via: "packages/a/src/consumer.ts:Consumer.viaCompose" }]);
 });
 
 test("a deliberate entry moves its member out of the unwired list with its reason", { timeout: 120_000 }, async ({ plantedTree }) => {
@@ -133,7 +157,7 @@ test("each engine finds the cross-package and derived-port uses on its own", { t
     (served.get(`${member.site.file}:${member.site.position}`) ?? []).map((site) => `${site.file}:${sources.line(site)}`),
   );
   expect(uses).toEqual([
-    ["packages/a/src/service.ts:21", "packages/b/src/port.ts:4"],
-    ["packages/a/src/service.ts:22", "packages/b/src/use.ts:2"],
+    ["packages/a/src/service.ts:22", "packages/b/src/port.ts:4"],
+    ["packages/a/src/service.ts:23", "packages/b/src/use.ts:2"],
   ]);
 });

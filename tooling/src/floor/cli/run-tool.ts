@@ -12,6 +12,7 @@
 import process from "node:process";
 import { boxLoadKnobError } from "../host/load-budget.ts";
 import { reexecWithNodeHeapFloor } from "../process/node-heap.ts";
+import { acquireRunTempRoot } from "../process/run-temp-root.ts";
 import type { ExitCode } from "./exit-contract.ts";
 import { EXIT } from "./exit-contract.ts";
 
@@ -56,6 +57,9 @@ export async function runTool(main: () => Promise<number> | number): Promise<voi
   // the UsageError branch writes "ARG ERROR" to stderr and sets exit 3 through escalate(EXIT.misuse); every other throw goes to crashExit, typed never. Ends if either branch stops writing stderr or setting the exit code.
   try {
     prepareToolHeap();
+    // After the heap re-exec, so the folder belongs to the process that keeps running. Its Chromium profiles and
+    // scratch folders go with it; the exit hook removes it on every path, a crash's `process.exit` included.
+    acquireRunTempRoot();
     // THE AMBIENT-KNOB DOOR (#1666). A mis-spelled `ORB_BOX_LOAD` is MISUSE — the same class as bad argv —
     // but it is read lazily by whichever module first needs a budget, which for several instruments is the
     // IMPORT GRAPH: a throw there escapes before these handlers exist and exits 1, i.e. "violations found"

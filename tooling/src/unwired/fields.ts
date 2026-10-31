@@ -2,6 +2,8 @@
 // never reads, reads and never writes (an optional field always at its default), or never names at all.
 import type { CallExpression, Identifier, Node, ObjectLiteralExpression, PropertyAssignment } from "@typescript/native/ast";
 import {
+  isArrayLiteralExpression,
+  isArrowFunction,
   isCallExpression,
   isIdentifier,
   isObjectLiteralExpression,
@@ -9,6 +11,7 @@ import {
   isParenthesizedExpression,
   isPropertyAccessExpression,
   isPropertyAssignment,
+  isPropertySignatureDeclaration,
   isSatisfiesExpression,
   isStringLiteral,
   isTypeReferenceNode,
@@ -16,11 +19,14 @@ import {
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol } from "@typescript/native/sync";
+import ts from "typescript";
 import type { Site, SyntaxRole } from "./classify.ts";
 import { isProductionFile, roleAt, Sources, siteKey } from "./classify.ts";
+import type { ServiceWorld } from "./language-service.ts";
 import { serviceReferences } from "./language-service.ts";
-import { declarationKeys, NativeWorld } from "./native.ts";
-import { propertyIndex } from "./occurrences.ts";
+import { constituents, declarationKeys, hasFlag, NativeWorld } from "./native.ts";
+import type { Reflection } from "./occurrences.ts";
+import { propertyIndex, REFLECTIVE_CALLS } from "./occurrences.ts";
 import type { ScanOptions } from "./scan.ts";
 import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
 import { typeMembers } from "./type-members.ts";
@@ -114,17 +120,49 @@ interface SchemaKey {
   readonly home: string;
   /** The type the schema is checked against, whose member is the key's home. */
   readonly mirror: Node | null;
+  /** The schema is one option of a checked union, so its mirror is the union member with the same keys. */
+  readonly option: boolean;
+  /** Every key name of the schema the key sits in. */
+  readonly names: readonly string[];
+}
+
+const ZOD_UNIONS: ReadonlySet<string> = new Set(["union", "discriminatedUnion"]);
+
+// The `z.lazy(() => schema)` call whose arrow body is `node`, if any.
+function lazyAround(node: Node): Node | null {
+  const arrow = node.parent;
+  const call = arrow.parent;
+  return isArrowFunction(arrow) &&
+    arrow.body === node &&
+    isCallExpression(call) &&
+    isPropertyAccessExpression(call.expression) &&
+    call.expression.name.text === "lazy"
+    ? call
+    : null;
+}
+
+// The outermost expression a schema call is, through parentheses, chained methods such as `.strict()` and `z.lazy`.
+function chainTop(call: Node): Node {
+  let at = call;
+  for (;;) {
+    const { parent } = at;
+    if (isParenthesizedExpression(parent)) {
+      at = parent;
+    } else if (isPropertyAccessExpression(parent) && parent.expression === at && isCallExpression(parent.parent) && parent.parent.expression === parent) {
+      at = parent.parent;
+    } else {
+      const lazy = lazyAround(at);
+      if (lazy === null) {
+        return at;
+      }
+      at = lazy;
+    }
+  }
 }
 
 // `z.strictObject({...}).strict() satisfies z.ZodType<View>` or `const schema: z.ZodType<View> = ...`: the `View`.
-function mirrorOf(call: Node): Node | null {
-  let at = call;
-  while (
-    isParenthesizedExpression(at.parent) ||
-    (isPropertyAccessExpression(at.parent) && at.parent.expression === at && isCallExpression(at.parent.parent) && at.parent.parent.expression === at.parent)
-  ) {
-    at = isParenthesizedExpression(at.parent) ? at.parent : at.parent.parent;
-  }
+function checkedType(call: Node): Node | null {
+  const at = chainTop(call);
   const { parent } = at;
   let checked: Node | undefined;
   if (isSatisfiesExpression(parent)) {
@@ -136,21 +174,56 @@ function mirrorOf(call: Node): Node | null {
   return subject !== undefined && isTypeReferenceNode(subject) ? subject.typeName : null;
 }
 
-function keysOfShape(shape: ObjectLiteralExpression): readonly SchemaKey[] {
-  const home = schemaHome(shape);
-  const mirror = mirrorOf(shape.parent);
-  return shape.properties.flatMap((property) =>
-    isPropertyAssignment(property) && (isIdentifier(property.name) || isStringLiteral(property.name)) ? [{ node: property as NamedKey, home, mirror }] : [],
-  );
+// The checked type of a schema, or of the `z.union([...])` or `z.discriminatedUnion(key, [...])` it is an option of.
+function mirrorOf(call: Node): { readonly mirror: Node | null; readonly option: boolean } {
+  const list = chainTop(call).parent;
+  const union = list.parent;
+  const isOption =
+    isArrayLiteralExpression(list) && isCallExpression(union) && isPropertyAccessExpression(union.expression) && ZOD_UNIONS.has(union.expression.name.text);
+  return isOption ? { mirror: checkedType(union), option: true } : { mirror: checkedType(call), option: false };
 }
 
-// Each mirrored key's own declaration keys and its type member's, or null for a key with no mirror member.
-function* mirrored(checker: Checker, key: SchemaKey, mirror: NativeSymbol | undefined): APIRequestGenerator<readonly string[] | null> {
+function keysOfShape(shape: ObjectLiteralExpression): readonly SchemaKey[] {
+  const home = schemaHome(shape);
+  const { mirror, option } = mirrorOf(shape.parent);
+  const named = shape.properties.flatMap((property) =>
+    isPropertyAssignment(property) && (isIdentifier(property.name) || isStringLiteral(property.name)) ? [property as NamedKey] : [],
+  );
+  const names = named.map((node) => node.name.text);
+  return named.map((node) => ({ node, home, mirror, option, names }));
+}
+
+const sameNames = (a: readonly string[], b: readonly string[]): boolean => a.length === b.length && a.every((name) => b.includes(name));
+
+// A mirrored key's type member: the checked type's property of that name, or for a union option the property of the
+// union member whose keys are the option's keys. Undefined for a key with no mirror member.
+function* mirrored(checker: Checker, key: SchemaKey, mirror: NativeSymbol | undefined): APIRequestGenerator<NativeSymbol | undefined> {
   if (mirror === undefined) {
-    return null;
+    return undefined;
   }
-  const member = yield* checker.getPropertyOfType.gen(yield* checker.getDeclaredTypeOfSymbol.gen(mirror), key.node.name.text);
-  return member === undefined ? null : declarationKeys(member);
+  const declared = yield* checker.getDeclaredTypeOfSymbol.gen(mirror);
+  if (!key.option) {
+    return yield* checker.getPropertyOfType.gen(declared, key.node.name.text);
+  }
+  for (const member of yield* constituents(declared)) {
+    const names = (yield* checker.getPropertiesOfType.gen(member)).map((property) => property.name);
+    if (sameNames(names, key.names)) {
+      return yield* checker.getPropertyOfType.gen(member, key.node.name.text);
+    }
+  }
+  return undefined;
+}
+
+// The sites of the names a mirror member is declared with: type literal members in the tree.
+function* declarationSites(world: NativeWorld, symbol: NativeSymbol | undefined): APIRequestGenerator<readonly Site[]> {
+  const sites: Site[] = [];
+  for (const handle of (symbol?.declarations ?? []).filter((candidate) => world.fileOf(candidate) !== null)) {
+    const node = yield* handle.resolve.gen();
+    if (node !== undefined && isPropertySignatureDeclaration(node)) {
+      sites.push(world.siteOf(node.name));
+    }
+  }
+  return sites;
 }
 
 function schemaKeys(world: NativeWorld): readonly SchemaKey[] {
@@ -189,13 +262,17 @@ function declarations(world: NativeWorld): readonly FieldDeclaration[] {
   const symbols = world.symbolsAt(keys.map(({ node }) => node.name));
   const mirrorNodes = keys.flatMap(({ mirror }) => (mirror === null ? [] : [mirror]));
   const mirrors = new Map(world.symbolsAt(mirrorNodes).map((symbol, at) => [mirrorNodes[at], symbol]));
-  const memberKeys = world.batch(keys.map((key) => mirrored(world.checker, key, key.mirror === null ? undefined : mirrors.get(key.mirror))));
-  // A mirrored key and its type member are one field, reported at the member with both sets of sites.
+  const members = world.batch(keys.map((key) => mirrored(world.checker, key, key.mirror === null ? undefined : mirrors.get(key.mirror))));
+  const memberSites = world.batch(members.map((member) => declarationSites(world, member)));
+  const types = typeMembers(world).filter((member) => !member.callable);
+  const typeKeys = new Set(types.flatMap((member) => member.keys));
+  // A mirrored key and its named type's member are one field, reported at the member with both sets of sites. A key
+  // whose member sits in an anonymous union member stays a schema field that the member's references also reach.
   const joined = new Map<string, { readonly keys: readonly string[]; readonly sites: readonly Site[] }>();
-  for (const [at, member] of memberKeys.entries()) {
+  for (const [at, member] of members.entries()) {
     const own = symbols[at];
     const key = keys[at];
-    for (const memberKey of member ?? []) {
+    for (const memberKey of (member === undefined ? [] : declarationKeys(member)).filter((candidate) => typeKeys.has(candidate))) {
       const seen = joined.get(memberKey) ?? { keys: [], sites: [] };
       joined.set(memberKey, {
         keys: [...seen.keys, ...(own === undefined ? [] : declarationKeys(own))],
@@ -203,24 +280,24 @@ function declarations(world: NativeWorld): readonly FieldDeclaration[] {
       });
     }
   }
-  const fromTypes = typeMembers(world)
-    .filter((member) => !member.callable)
-    .map((member) => ({
-      key: `${member.site.file}:${member.home}.${member.member}`,
-      site: member.site,
-      line: member.line,
-      home: member.home,
-      member: member.member,
-      origin: "type" as const,
-      optional: member.optional,
-      parameterOwned: member.homeKeys.some((key) => owned.has(key)),
-      keys: [...member.keys, ...member.keys.flatMap((key) => joined.get(key)?.keys ?? [])],
-      mirrorSites: member.keys.flatMap((key) => joined.get(key)?.sites ?? []),
-    }));
+  const fromTypes = types.map((member) => ({
+    key: `${member.site.file}:${member.home}.${member.member}`,
+    site: member.site,
+    line: member.line,
+    home: member.home,
+    member: member.member,
+    origin: "type" as const,
+    optional: member.optional,
+    parameterOwned: member.homeKeys.some((key) => owned.has(key)),
+    keys: [...member.keys, ...member.keys.flatMap((key) => joined.get(key)?.keys ?? [])],
+    mirrorSites: member.keys.flatMap((key) => joined.get(key)?.sites ?? []),
+  }));
   const fromSchemas = keys.flatMap(({ node, home }, at) => {
     const site = world.siteOf(node.name);
     const symbol = symbols[at];
-    if (memberKeys[at] !== null) {
+    const member = members[at];
+    const memberKeys = member === undefined ? [] : declarationKeys(member);
+    if (memberKeys.some((key) => typeKeys.has(key))) {
       return [];
     }
     const field: FieldDeclaration = {
@@ -232,12 +309,81 @@ function declarations(world: NativeWorld): readonly FieldDeclaration[] {
       origin: "schema" as const,
       optional: isOptionalSchema(node.initializer),
       parameterOwned: false,
-      keys: symbol === undefined ? [] : declarationKeys(symbol),
-      mirrorSites: [],
+      keys: [...(symbol === undefined ? [] : declarationKeys(symbol)), ...memberKeys],
+      mirrorSites: memberSites[at] ?? [],
     };
     return [field];
   });
   return [...fromTypes, ...fromSchemas];
+}
+
+function serviceReflectionsAt(node: ts.Node): readonly Reflection<ts.Node>[] {
+  if (ts.isSpreadAssignment(node) || ts.isJsxSpreadAttribute(node)) {
+    return [{ value: node.expression, key: null }];
+  }
+  if (ts.isElementAccessExpression(node) && !(ts.isStringLiteralLike(node.argumentExpression) || ts.isNumericLiteral(node.argumentExpression))) {
+    return [{ value: node.expression, key: node.argumentExpression }];
+  }
+  if (ts.isForInStatement(node)) {
+    return [{ value: node.expression, key: null }];
+  }
+  if (ts.isCallExpression(node) && REFLECTIVE_CALLS.has(node.expression.getText())) {
+    return node.arguments.map((value) => ({ value, key: null }));
+  }
+  return [];
+}
+
+function serviceKeyNames(checker: ts.TypeChecker, key: ts.Node): readonly string[] | null {
+  const type = checker.getTypeAtLocation(key);
+  const names: string[] = [];
+  for (const member of type.isUnion() ? type.types : [type]) {
+    if (member.isStringLiteral()) {
+      names.push(member.value);
+    } else if (hasFlag(member.flags, ts.TypeFlags.String)) {
+      return null;
+    }
+  }
+  return names;
+}
+
+// A spread into a typed literal reads only the members a library declares on the target; engine one links the rest to
+// the target's own members, which find-references cannot follow, so engine two leaves them unread.
+function serviceReflectedProperties(checker: ts.TypeChecker, { value, key }: Reflection<ts.Node>): readonly ts.Symbol[] {
+  const names = key === null ? null : serviceKeyNames(checker, key);
+  const type = checker.getNonNullableType(checker.getTypeAtLocation(value));
+  const properties = (type.isUnion() ? type.types : [type]).flatMap((member) =>
+    names === null ? checker.getPropertiesOfType(member) : names.flatMap((name) => checker.getPropertyOfType(member, name) ?? []),
+  );
+  const owner = value.parent.parent;
+  const spread =
+    (ts.isSpreadAssignment(value.parent) && ts.isObjectLiteralExpression(owner)) || (ts.isJsxSpreadAttribute(value.parent) && ts.isJsxAttributes(owner));
+  const target = spread ? checker.getContextualType(owner) : undefined;
+  if (target === undefined) {
+    return properties;
+  }
+  const external = (declaration: ts.Declaration): boolean => declaration.getSourceFile().fileName.includes("/node_modules/");
+  return properties.filter((property) => checker.getPropertyOfType(target, property.name)?.declarations?.every(external) === true);
+}
+
+/** Engine two's view of the reflective reads `propertyIndex` credits in engine one: the sites of the names of the properties read. */
+function serviceReflectedReads(world: ServiceWorld): ReadonlySet<string> {
+  const found = new Set<string>();
+  const visit = (node: ts.Node): void => {
+    const properties = serviceReflectionsAt(node).flatMap((reflection) => serviceReflectedProperties(world.checker, reflection));
+    for (const declaration of properties.flatMap((property) => property.declarations ?? [])) {
+      const name = ts.getNameOfDeclaration(declaration);
+      if (name !== undefined) {
+        found.add(siteKey(world.siteOf(name)));
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  for (const source of world.program.getSourceFiles()) {
+    if (!source.isDeclarationFile && isProduction(world.siteOf(source).file)) {
+      visit(source);
+    }
+  }
+  return found;
 }
 
 interface Tally {
@@ -271,12 +417,24 @@ function rolesOf(sources: Sources, sites: Iterable<Site>): Roles {
   return { read, write, tests };
 }
 
-function kindOf(field: FieldDeclaration, roles: Roles): FieldKind | "wired" {
-  if (roles.read.length === 0) {
+/** What an engine knows about a field beyond its named sites. */
+interface Context {
+  /** Engine two: a spread, computed key, `for…in` or reflective call reads it, which find-references never reports. */
+  readonly reflected: boolean;
+  /** Production writes some field of its home. A home no production code writes gets its value from outside the
+   *  tree (a host object cast from `globalThis`, a parse of external input), so its optional fields are never a
+   *  default the tree chose. */
+  readonly homeWritten: boolean;
+}
+
+function kindOf(field: FieldDeclaration, roles: Roles, context: Context): FieldKind | "wired" {
+  if (roles.read.length === 0 && !context.reflected) {
     return roles.write.length === 0 ? "unreferenced" : "never-read";
   }
-  return roles.write.length === 0 && field.optional && !field.parameterOwned ? "never-written" : "wired";
+  return roles.write.length === 0 && field.optional && !field.parameterOwned && context.homeWritten ? "never-written" : "wired";
 }
+
+const homeOf = (field: FieldDeclaration): string => `${field.site.file}:${field.home}`;
 
 // Engine two's references for a field and its mirrors, each site once and the field's own names left out.
 function mergedSites(names: readonly Site[], second: ReadonlyMap<string, readonly Site[]>): readonly Site[] {
@@ -284,6 +442,8 @@ function mergedSites(names: readonly Site[], second: ReadonlyMap<string, readonl
   const merged = new Map(names.flatMap((name) => second.get(siteKey(name)) ?? []).map((site) => [siteKey(site), site]));
   return [...merged.values()].filter((site) => !own.has(siteKey(site)));
 }
+
+const namesOf = (field: FieldDeclaration): readonly Site[] => [field.site, ...field.mirrorSites];
 
 /** Run both engines over the worlds of `root` for dead data. */
 export function scanFields(options: ScanOptions): FieldsReport {
@@ -306,22 +466,36 @@ export function scanFields(options: ScanOptions): FieldsReport {
     }
     options.log(`${config}: ${fields.length} fields`);
   }
-  const judged = [...tally.values()].flatMap(({ field, sites }) => {
-    const roles = rolesOf(sources, sites.values());
-    const kind = kindOf(field, roles);
+  const rolled = [...tally.values()].map((entry) => ({ ...entry, roles: rolesOf(sources, entry.sites.values()) }));
+  const writtenHomes = new Set(rolled.filter(({ roles }) => roles.write.length > 0).map(({ field }) => homeOf(field)));
+  // Engine one's index already credits a reflective read to its value expression's site.
+  const judged = rolled.flatMap(({ field, roles }) => {
+    const kind = kindOf(field, roles, { reflected: false, homeWritten: writtenHomes.has(homeOf(field)) });
     return kind === "wired" ? [] : [{ field, roles, kind }];
   });
-  const second = serviceReferences(
-    options.root,
-    [...worlds, ...testWorlds],
-    judged.flatMap(({ field }) => [field.site, ...field.mirrorSites]),
-    { log: options.log },
-  );
+  // Engine two judges a home's writes itself, so it is asked about every field of a home with a never-written finding.
+  const homes = new Set(judged.filter(({ kind }) => kind === "never-written").map(({ field }) => homeOf(field)));
+  const siblings = rolled.filter(({ field }) => homes.has(homeOf(field))).map(({ field }) => field);
+  const asked = new Map([...judged.map(({ field }) => field), ...siblings].map((field) => [field.key, field]));
+  const reflectedTwo = new Set<string>();
+  const second = serviceReferences(options.root, [...worlds, ...testWorlds], [...asked.values()].flatMap(namesOf), {
+    log: options.log,
+    visit: (world) => {
+      for (const site of serviceReflectedReads(world)) {
+        reflectedTwo.add(site);
+      }
+    },
+  });
+  const rolesTwo = new Map([...asked.values()].map((field) => [field.key, rolesOf(sources, mergedSites(namesOf(field), second))]));
+  const writtenHomesTwo = new Set([...asked.values()].filter((field) => (rolesTwo.get(field.key)?.write.length ?? 0) > 0).map((field) => homeOf(field)));
   const findings: UnwiredField[] = [];
   const disagreements: FieldsReport["disagreements"][number][] = [];
   for (const { field, roles, kind } of judged) {
-    const confirmed = rolesOf(sources, mergedSites([field.site, ...field.mirrorSites], second));
-    const found = kindOf(field, confirmed);
+    const confirmed = rolesTwo.get(field.key) ?? { read: [], write: [], tests: 0 };
+    const found = kindOf(field, confirmed, {
+      reflected: namesOf(field).some((name) => reflectedTwo.has(siteKey(name))),
+      homeWritten: writtenHomesTwo.has(homeOf(field)),
+    });
     if (found === kind) {
       const sample = [...roles.write, ...roles.read].slice(0, SAMPLE).map((written) => `${written.file}:${sources.line(written)}`);
       const { key, site, line, home, member, origin } = field;

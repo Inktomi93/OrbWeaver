@@ -3,7 +3,42 @@
 import { dirname, join, relative } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import type { IRegularForbiddenRuleType } from "dependency-cruiser";
+import dependencyCruiser from "../../.dependency-cruiser.ts";
 import { scaledBudget } from "./_load-budget.ts";
+
+// A listed suite and its listed leaf come from the config's own per-suite rule copies, which `PACKAGE_TEST_REACHES`
+// generates, so a suite the reach list drops cannot linger here. The pattern text is RegExp.escape output.
+const LISTED_CLIENT_RULE_PREFIX = "tests-client-front-doors-only-listed-";
+const unescapePattern = (pattern: string): string =>
+  pattern
+    .slice(1, -1)
+    .replace(/\\x([0-9a-f]{2})|\\(.)/giu, (_, hex: string | undefined, literal: string | undefined) =>
+      hex === undefined ? (literal ?? "") : String.fromCharCode(Number.parseInt(hex, 16)),
+    );
+const pathNotOf = (rule: IRegularForbiddenRuleType | undefined): readonly string[] => [rule?.to.pathNot ?? []].flat();
+const REGULAR_RULES = dependencyCruiser.forbidden.filter((rule): rule is IRegularForbiddenRuleType => "to" in rule);
+
+/** The first listed chat `.test.ts` suite, its rule's name, and a listed chat leaf its line names. */
+function listedClientSuite(): { readonly rule: string; readonly suite: string; readonly leaf: string } {
+  const baseNot = new Set(pathNotOf(REGULAR_RULES.find(({ name }) => name === "tests-client-front-doors-only")));
+  for (const copy of REGULAR_RULES) {
+    const pattern = copy.from.path;
+    if (copy.name?.startsWith(LISTED_CLIENT_RULE_PREFIX) !== true || typeof pattern !== "string") {
+      continue;
+    }
+    const suite = unescapePattern(pattern);
+    const leaf = pathNotOf(copy)
+      .filter((entry) => !baseNot.has(entry))
+      .map(unescapePattern)
+      .find((file) => file.startsWith("packages/client/src/features/chat/"));
+    if (suite.startsWith("tests/client/features/chat/") && suite.endsWith(".test.ts") && leaf !== undefined) {
+      return { rule: copy.name, suite, leaf };
+    }
+  }
+  throw new Error("the reach list lists no chat client .test.ts suite with a chat leaf");
+}
+const LISTED = listedClientSuite();
 
 // Each row cruises a planted tree in its own process, which a loaded box stretches past the default test timeout.
 const CRUISE_BASE_MS = 30_000;
@@ -23,7 +58,7 @@ const RULE = {
   inferenceDoors: "tests-inference-front-doors-only",
   clientCake: "tests-client-mirror-cake",
   clientDoors: "tests-client-front-doors-only",
-  clientListedDoors: "tests-client-front-doors-only-listed-features-chat-lib-empty-send-and-duration",
+  clientListedDoors: LISTED.rule,
   clientOwnFeature: "tests-client-mirror-own-feature",
   clientOwnTier: "tests-client-mirror-own-tier",
   clientTypes: "tests-client-type-contracts-own-internals",
@@ -49,7 +84,7 @@ const MODULES = {
   rpgDoor: "packages/client/src/features/rpg/index.ts",
   rpgInternal: "packages/client/src/features/rpg/lib/deep.ts",
   stateDoor: "packages/client/src/state/index.ts",
-  chatLeaf: "packages/client/src/features/chat/lib/continue-on-empty.ts",
+  chatLeaf: LISTED.leaf,
   // Test files a suite of another tier or feature may not import: only a tests/support door is shared.
   chatTestHelper: "tests/client/features/chat/_probe-helpers.ts",
   rpgTestHelper: "tests/client/features/rpg/_probe-helpers.ts",
@@ -72,7 +107,7 @@ const SUITE = {
   tier: "tests/client/state/probe.dom.test.ts",
   tierContract: "tests/client/features/probe.dom.test-d.ts",
   // On the closed reach list, which may run exactly the leaf its line names.
-  clientListed: "tests/client/features/chat/lib/empty-send-and-duration.test.ts",
+  clientListed: LISTED.suite,
 } as const;
 
 // A sibling path needs its `./`, or the resolver reads it as a package name.

@@ -253,6 +253,8 @@ test("native collection refuses a missing explicit configuration instead of sile
   expect(collection.stderr).toContain(`${configFile} does not exist`);
 });
 
+const COMMITTED_CASE = "the selected corpus clone serves the captured room identity, content and visible title";
+
 for (const missing of [false, true]) {
   test(`the public corpus smoke runner ${missing ? "propagates empty selection" : "selects the committed case"} and joins clone cleanup`, {
     ...SMOKE_CASE,
@@ -276,15 +278,12 @@ for (const missing of [false, true]) {
     expect(existsSync(clone), transcript).toBe(false);
     expect(existsSync(dirname(clone)), transcript).toBe(false);
     expect(code, transcript).toBe(missing ? 1 : 0);
-    const fragments = missing
-      ? ["No tests found"]
-      : [
-          "the selected corpus clone serves the captured room identity, content and visible title",
-          `Total: ${String(THEME_CHAT_STYLES.length * 2)} tests in 1 file`,
-          ...THEME_CHAT_STYLES.flatMap((style) => [`[corpus-desktop-${style}]`, `[corpus-phone-${style}]`]),
-        ];
-    for (const fragment of fragments) {
-      expect(transcript).toContain(fragment);
-    }
+    expect(transcript).toContain(missing ? "No tests found" : "Listing tests:");
+    // The tag selects every @smoke spec, so the count is whatever the listing itself holds.
+    const listed = transcript.split("\n").filter((line) => /^\s+\[corpus-/u.test(line));
+    expect(Number(/^Total: (\d+) tests? in \d+ files?$/mu.exec(transcript)?.[1]), transcript).toBe(listed.length);
+    const cells = missing ? [] : THEME_CHAT_STYLES.flatMap((style) => [`corpus-desktop-${style}`, `corpus-phone-${style}`]);
+    const unserved = cells.filter((cell) => !listed.some((line) => line.includes(`[${cell}]`) && line.includes(COMMITTED_CASE)));
+    expect(unserved, transcript).toEqual([]);
   });
 }
