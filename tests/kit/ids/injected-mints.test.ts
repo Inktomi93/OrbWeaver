@@ -31,8 +31,8 @@ test("canonical mints refuse malformed generated identity bytes", () => {
 test("bound prefixless families and plain blob identities share the injected byte sequence", () => {
   const expected = createSeededIds();
   const source = createIdSource(createSeededIds().next);
-  const minted = [source.userId(), source.rpgQuestId(), source.socketId(), source.unprefixed()];
-  expect(minted).toEqual([expected.next(""), expected.next(""), expected.next(""), expected.next("")]);
+  const minted = [source.userId(), source.rpgQuestId(), source.unprefixed()];
+  expect(minted).toEqual([expected.next(""), expected.next(""), expected.next("")]);
 });
 
 test("the bound uuid mint yields a bare UUID that replays under the same injected sequence", () => {

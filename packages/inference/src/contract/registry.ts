@@ -22,6 +22,4 @@ export interface ProviderRegistry {
   readonly registerPlugin: (rows: readonly unknown[], origin: Extract<ProviderOrigin, { readonly plugin: PluginId }>) => Promise<readonly ProviderDef[]>;
   /** Unlink this plugin install's claims; each owner's claimed definition remains as their tombstone. */
   readonly dropPlugin: (pluginId: PluginId) => Promise<void>;
-  /** Re-read the store — plugin activation on another replica, an admin edit. */
-  readonly refresh: () => Promise<void>;
 }
