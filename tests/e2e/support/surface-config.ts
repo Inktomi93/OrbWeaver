@@ -6,8 +6,6 @@ import type { SurfaceCoverageDisposition } from "@orb/testkit/iso";
 import { surfaceCoverageKey } from "@orb/testkit/iso";
 import { attachNativeFile, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
 import { budget } from "@orb/tooling/floor/host/load-budget";
-import { HIDDEN_AT } from "@orb/ui/lib";
-import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { LIBRARY_SETTINGS_SUBCATEGORY } from "#client/features/character/lib/library-settings-nav.ts";
@@ -20,6 +18,7 @@ import type { ConfigGroupId } from "#client/state/config-group-ids.ts";
 import { CONFIG_GROUP_IDS } from "#client/state/config-group-ids.ts";
 import { waitForAppReady } from "./chat-room.ts";
 import type { SurfaceFlow } from "./surface-flow.ts";
+import { CONTROL_SELECTOR, controlIdentity, unavailableControl } from "./surface-walker.ts";
 
 const APPEARANCE_PARENT_BUDGET_MS = 60_000;
 const APPEARANCE_SECTION_BUDGET_MS = 120_000;
@@ -29,9 +28,6 @@ const CONTENT = '[data-slot="config-content"]';
 const CONTEXT = '.shell-panel[data-panel-side="context"]';
 const LIST = '[data-slot="config-list"]';
 const EDITOR = '[data-slot="world-info-member-editor"]';
-const VIRTUAL_ROW_SLOT = "virtual-list-row";
-const VIRTUAL_SCROLL_SLOT = "virtual-list-scroll";
-const CONTROL_SELECTOR = 'button, input:not([type="hidden"]), textarea, [role="radio"], [role="combobox"], [role="switch"], [role="checkbox"], select, a[href]';
 
 interface Visit {
   readonly name: string;
@@ -113,70 +109,6 @@ async function inViewport(element: Locator, viewport: Awaited<ReturnType<Locator
   }, viewport);
 }
 
-async function unavailableControl(element: Locator): Promise<string | null> {
-  const pointer = await element.evaluate(
-    (node, { hidden, coarse, fine }) => {
-      const coarseArm = node.closest(`.${CSS.escape(hidden.coarse)}`);
-      if (matchMedia(coarse).matches && coarseArm !== null && getComputedStyle(coarseArm).display === "none") {
-        return "The production hiddenAt=coarse arm is absent for this actual coarse pointer; its alternative remains in the control census.";
-      }
-      const fineArm = node.closest(`.${CSS.escape(hidden.fine)}`);
-      if (matchMedia(fine).matches && fineArm !== null && getComputedStyle(fineArm).display === "none") {
-        return "The production hiddenAt=fine arm is absent for this actual fine pointer; its alternative remains in the control census.";
-      }
-      return null;
-    },
-    { hidden: HIDDEN_AT, coarse: MEDIA_QUERIES["pointer-coarse"], fine: MEDIA_QUERIES["pointer-fine"] },
-  );
-  return (
-    pointer ??
-    (await element.evaluate((node, censusSelector) => {
-      function pairedControl(input: HTMLInputElement): Element | null {
-        let owner = input.previousElementSibling;
-        while (owner?.matches('input[type="hidden"]')) {
-          owner = owner.previousElementSibling;
-        }
-        if (owner === null) {
-          return null;
-        }
-        const selector = [
-          ["radio", '[role="radio"]'],
-          ["checkbox", '[role="switch"]'],
-          ["number", '[data-slot="number-field-input"]'],
-          ["text", '[role="combobox"]'],
-        ].find(([type]) => type === input.type)?.[1];
-        if (selector === undefined) {
-          return null;
-        }
-        return owner.matches(selector) ? owner : owner.querySelector(selector);
-      }
-      if (!(node instanceof HTMLInputElement && node.matches('[aria-hidden="true"][tabindex="-1"]'))) {
-        return null;
-      }
-      const control = pairedControl(node);
-      if (control === null || !control.matches(censusSelector)) {
-        return null;
-      }
-      const box = control.getBoundingClientRect();
-      return box.width * box.height > 0
-        ? "Native aria-hidden, non-tabstop form transport paired with a rendered radio/switch/number field/combobox; the actual accessible control remains in the census."
-        : null;
-    }, CONTROL_SELECTOR))
-  );
-}
-
-async function identity(element: Locator): Promise<string> {
-  const target = await element.evaluate(diagnosticTarget);
-  const index = await element.evaluate((node, slot) => node.closest(`[data-slot="${slot}"]`)?.getAttribute("data-index") ?? null, VIRTUAL_ROW_SLOT);
-  if (index === null) {
-    return target;
-  }
-  const row = element.locator(`xpath=ancestor::*[@data-slot="${VIRTUAL_ROW_SLOT}"][1]`);
-  const viewport = element.locator(`xpath=ancestor::*[@data-slot="${VIRTUAL_SCROLL_SLOT}"][1]`);
-  const [rowTarget, scrollTarget] = await Promise.all([row.evaluate(diagnosticTarget), viewport.evaluate(diagnosticTarget)]);
-  return `${scrollTarget} [data-slot="${VIRTUAL_ROW_SLOT}"][data-index=${JSON.stringify(index)}]${target.slice(rowTarget.length)}`;
-}
-
 interface ControlCensus {
   readonly name: string;
   readonly scope: Locator;
@@ -189,7 +121,7 @@ async function controls(flow: SurfaceFlow, name: string, scope: Locator, visits:
 }
 
 async function folderChooser(flow: SurfaceFlow, { name, visits }: Pick<ControlCensus, "name" | "visits">, element: Locator, trigger: Locator): Promise<void> {
-  const key = await identity(element);
+  const key = await controlIdentity(element);
   await expect(trigger).toHaveAccessibleName("Import a folder…");
   const chooser = flow.page.waitForEvent("filechooser");
   await trigger.click();
@@ -206,7 +138,7 @@ async function folderChooser(flow: SurfaceFlow, { name, visits }: Pick<ControlCe
   });
   visits.push({
     name: `${name}: open native folder chooser`,
-    target: await identity(trigger),
+    target: await controlIdentity(trigger),
     kind: "action",
     disposition: "visited",
     reason: "The actual visible trigger emitted its matching native directory chooser; no files were supplied or imported.",
@@ -234,7 +166,7 @@ async function inspectControls(flow: SurfaceFlow, { name, scope, visits, seen }:
   const elements = scope.locator(CONTROL_SELECTOR);
   const viewport = await scope.boundingBox();
   for (const element of await elements.all()) {
-    const key = await identity(element);
+    const key = await controlIdentity(element);
     if (seen.has(`control:${key}`)) {
       continue;
     }
@@ -272,7 +204,7 @@ async function inspectControls(flow: SurfaceFlow, { name, scope, visits, seen }:
 async function inspectMenus(flow: SurfaceFlow, { name, scope, visits, seen }: ControlCensus): Promise<void> {
   const menus = scope.locator('button[aria-haspopup="menu"]');
   const viewport = await scope.boundingBox();
-  const targets = await Promise.all((await menus.all()).map(identity));
+  const targets = await Promise.all((await menus.all()).map(controlIdentity));
   for (const [index, key] of targets.entries()) {
     const trigger = flow.page.locator(key);
     if (seen.has(`menu:${key}`) || !((await inViewport(trigger, viewport)) && (await trigger.isEnabled()))) {
@@ -303,7 +235,7 @@ async function inspectSelects(flow: SurfaceFlow, { name, scope, seen }: ControlC
   const selects = scope.locator('[data-slot="select-trigger"]');
   const viewport = await scope.boundingBox();
   for (const [index, select] of (await selects.all()).entries()) {
-    const key = await identity(select);
+    const key = await controlIdentity(select);
     if (seen.has(`select:${key}`) || !((await inViewport(select, viewport)) && (await select.isEnabled()))) {
       continue;
     }
@@ -357,7 +289,7 @@ async function nestedScroll(flow: SurfaceFlow, name: string, scope: Locator, vis
         : [];
     }),
   );
-  const bound = await Promise.all(owners.map(async (owner) => ({ ...owner, target: await identity(descendants.nth(owner.index)) })));
+  const bound = await Promise.all(owners.map(async (owner) => ({ ...owner, target: await controlIdentity(descendants.nth(owner.index)) })));
   await attachNativeFile(flow.info, flow.info, `config-${name}-nested-scroll-owners`, { body: JSON.stringify(bound), contentType: "application/json" });
   for (const owner of bound) {
     const element = flow.page.locator(owner.target);
@@ -411,7 +343,7 @@ async function themeBuilder(flow: SurfaceFlow, visits: Visit[]): Promise<string>
   await expect(title).toBeVisible();
   const editor = title.locator("xpath=ancestor::section[1]");
   await expect(editor).toHaveCount(1);
-  const target = await identity(editor);
+  const target = await controlIdentity(editor);
   await checkpoint(flow, "theme-unminted-editor", editor, title);
   for (const [index, color] of (await editor.locator('[data-slot="color-field-trigger"]').all()).entries()) {
     await color.scrollIntoViewIfNeeded();
@@ -512,7 +444,7 @@ async function personas(flow: SurfaceFlow, visits: Visit[]): Promise<void> {
 
 async function remainingDisclosures({ name, scope, visits, seen }: ControlCensus): Promise<void> {
   for (const button of await scope.locator('button[aria-expanded="false"]:not([aria-haspopup])').all()) {
-    const target = await identity(button);
+    const target = await controlIdentity(button);
     if (!seen.has(target)) {
       const sampledSeparately = (await button.locator("xpath=ancestor::*[@data-persona-row]").count()) > 0;
       visits.push({
@@ -533,7 +465,7 @@ async function disclosures(flow: SurfaceFlow, name: string, scope: Locator, visi
   for (;;) {
     let next: Locator | undefined;
     for (const button of await scope.locator('button[aria-expanded="false"]:not([aria-haspopup]):not([data-persona-row] [data-slot="list-row-body"])').all()) {
-      const key = await identity(button);
+      const key = await controlIdentity(button);
       if (!seen.has(key) && (await button.isVisible()) && (await button.isEnabled())) {
         seen.add(key);
         next = flow.page.locator(key);
@@ -608,7 +540,7 @@ async function sameLabelCensusControl(flow: SurfaceFlow, visits: Visit[]): Promi
   for (const button of buttons) {
     expect(await button.evaluate((node) => node.id), "This positive control must exercise id-less production buttons").toBe("");
     await expect(button).toHaveAccessibleName("Save");
-    targets.push(await identity(button));
+    targets.push(await controlIdentity(button));
   }
   expect(new Set(targets).size, "The actual same-label controls must not coalesce in the census Set").toBe(buttons.length);
   for (const target of targets) {
@@ -647,7 +579,7 @@ async function themeFileChooser(flow: SurfaceFlow, section: Locator, visits: Vis
   await expect(transport).toHaveAttribute("aria-hidden", "true");
   await expect(transport).toHaveAttribute("tabindex", "-1");
   await expect(trigger).toBeVisible();
-  const target = await identity(transport);
+  const target = await controlIdentity(transport);
   const chooser = flow.page.waitForEvent("filechooser");
   await trigger.click();
   const input = (await chooser).element();
@@ -661,7 +593,7 @@ async function themeFileChooser(flow: SurfaceFlow, section: Locator, visits: Vis
   });
   visits.push({
     name: "Open actual theme import file chooser",
-    target: await identity(trigger),
+    target: await controlIdentity(trigger),
     kind: "action",
     disposition: "visited",
     reason: "The actual visible trigger emitted its matching native file chooser; no file was supplied and no import is claimed.",
@@ -741,7 +673,7 @@ async function appearanceJourney(flow: SurfaceFlow, names: readonly string[], vi
         await teacher(flow, `appearance-${label}`, visits);
         visits.push({ name: `appearance: ${label}`, kind: "subsection", disposition: "visited" });
         await attachNativeFile(flow.info, flow.info, `config-appearance-${label}-phase-cost`, {
-          body: JSON.stringify({ label, scope: await identity(section), budgetMs: sectionBudgetMs, elapsedMs: performance.now() - startedAt }),
+          body: JSON.stringify({ label, scope: await controlIdentity(section), budgetMs: sectionBudgetMs, elapsedMs: performance.now() - startedAt }),
           contentType: "application/json",
         });
       },
@@ -788,7 +720,7 @@ async function appearanceJourney(flow: SurfaceFlow, names: readonly string[], vi
         await trigger.click();
         await expect(trigger).toHaveAttribute("aria-expanded", "true");
         await checkpoint(flow, "appearance-parent-fold", content, trigger);
-        await observedControl(trigger, await identity(trigger), { name: "appearance-parent-fold", visits });
+        await observedControl(trigger, await controlIdentity(trigger), { name: "appearance-parent-fold", visits });
         visits.push({ name: `appearance: ${label}`, kind: "disclosure", disposition: "visited" });
       }
       await teacher(flow, "appearance-parent", visits);
