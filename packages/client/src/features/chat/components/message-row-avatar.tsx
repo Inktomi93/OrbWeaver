@@ -2,9 +2,11 @@
 // message-row-parts.tsx to stay under the component-size cap; pure (args) => ReactElement like its sibling.
 
 import { blobPortraitUrl } from "@orb/contracts/assets";
+import type { MessageView } from "@orb/contracts/chat";
 import { initialsFor } from "@orb/kit/initials";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Avatar } from "@orb/ui/avatar";
+import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { cn, viewImageActionName } from "#lib";
 import type { ArtViewer } from "../hooks/art-viewer-context.tsx";
@@ -15,6 +17,8 @@ import type { RowSkin } from "../lib/message-row-variants.ts";
 import { avatarSrcProp } from "../lib/message-row-variants.ts";
 import type { ArtView } from "./art-slot.tsx";
 import { ArtButton, FallbackLetter, PortraitAvatar } from "./art-slot.tsx";
+import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
+import { MessageNumber } from "./message-metadata-row.tsx";
 
 // #1728 arm B — a chip in a `1fr` RAIL must hug the centred column's edge or it drifts to the far side of the margin.
 const RAIL_LEADING = "@cq-56:justify-self-end";
@@ -101,6 +105,33 @@ export function renderRowAvatar(args: {
       <Avatar {...avatar}>{initials}</Avatar>
     </ArtButton>
   );
+}
+
+// The portrait and its message number stick together as the row scrolls, at the portrait's own width, so the number wraps
+// beneath it instead of widening the column.
+const PORTRAIT_COLUMN = "sticky inset-bs-0 shrink-0 inline-(--immersive-ripple-portrait-width) @max-cq-28:inline-(--immersive-ripple-portrait-width-phone)";
+
+/** A welded portrait with the message number centred under it when the skin seats the number there (`RowSkin.numberPlacement`)
+ *  and the reader shows it; the metadata row then leaves the number out. */
+export function placePortraitNumber(args: {
+  readonly skin: RowSkin;
+  readonly portrait: ReactElement | null;
+  readonly message: MessageView;
+  readonly visibility: MessageMetadataVisibility;
+}): { readonly welded: ReactElement | null; readonly rowVisibility: MessageMetadataVisibility } {
+  const { skin, portrait, message, visibility } = args;
+  if (portrait === null || skin.numberPlacement !== "portrait" || !visibility.showMessageId) {
+    return { welded: portrait, rowVisibility: visibility };
+  }
+  return {
+    welded: (
+      <Stack align="center" gap="field" className={PORTRAIT_COLUMN}>
+        {portrait}
+        <MessageNumber message={message} />
+      </Stack>
+    ),
+    rowVisibility: { ...visibility, showMessageId: false },
+  };
 }
 
 /** The tap target for echo's tile or whisper's band: the speaker's own art, opened in the transcript's viewer. */
