@@ -25,6 +25,7 @@
 // voice-control user SAYS to press the control, and "Generate reply — Local engine is off" is not sayable.
 
 import type { GuidedImpersonatePerson } from "@orb/contracts/preset";
+import { GUIDED_IMPERSONATE_PERSONS } from "@orb/contracts/preset";
 import type { CharacterId } from "@orb/kit/ids";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import type { FillableIcon, LucideIcon } from "@orb/ui/icons";
@@ -193,11 +194,24 @@ export function ImpersonateStopButton({ onStop }: { readonly onStop: () => void 
   );
 }
 
+const PERSON_LABEL: Record<GuidedImpersonatePerson, string> = { first: "1st person", second: "2nd person", third: "3rd person" };
+
 function resolveGuidedName(base: string, hasText: boolean): string {
   return hasText ? `Guided ${base.toLowerCase()}` : base;
 }
 
-const PERSON_LABEL: Record<GuidedImpersonatePerson, string> = { first: "1st person", second: "2nd person", third: "3rd person" };
+/** The three persons Draft your line writes in, as menu items: the row button's menu and the Message tools submenu share them. */
+export function ImpersonatePersonItems({ onPick }: { readonly onPick: (person: GuidedImpersonatePerson) => void }): ReactElement {
+  return (
+    <>
+      {GUIDED_IMPERSONATE_PERSONS.map((person) => (
+        <MenuItem key={person} onClick={(): void => onPick(person)}>
+          {PERSON_LABEL[person]}
+        </MenuItem>
+      ))}
+    </>
+  );
+}
 
 export function ImpersonateGuidedButton({
   disabled,
@@ -250,11 +264,7 @@ export function ImpersonateGuidedButton({
         <ControlDetail description={description} />
       </Tooltip>
       <MenuPopup>
-        {(["first", "second", "third"] as const).map((person) => (
-          <MenuItem key={person} onClick={(): void => onPick(person)}>
-            {PERSON_LABEL[person]}
-          </MenuItem>
-        ))}
+        <ImpersonatePersonItems onPick={onPick} />
       </MenuPopup>
     </Menu>
   );
