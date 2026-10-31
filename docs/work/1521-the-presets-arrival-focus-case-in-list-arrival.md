@@ -23,4 +23,8 @@ The cause is named (a readiness signal the walk does not wait on, or a product f
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Reproduced on the old test: `pnpm test:ct list-arrival-focus.ct.tsx -g "arriving in presets" --repeat-each=30 --workers=4` on Chromium failed 2 of 30; the walk reached New and the search field but no row (stops `[.., new, search]`, `row` absent).
+
+Cause (test defect): the search field sits in `ListPage` above the library's `QueryBoundary`, so it exists while `preset.list` and `getUserSettings` are still suspended. The case waited only for band focus, so Tab left the pane before any row mounted. Chats and Characters resolve faster and masked it.
+
+Fix: the case waits for the first `list-row-body` in the list pane before the walk. After it, `--repeat-each=30 -g "arriving in"` (all three sections, 90 runs, 4 workers, 1-min load 24 to 34) passed 90 of 90.
