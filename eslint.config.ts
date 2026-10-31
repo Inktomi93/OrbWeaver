@@ -919,6 +919,14 @@ export const DOM_LOOKUP_HOMES = [
     reason: "a roving row discovers its own controls, which depend on the row kind and the pointer",
   },
   {
+    file: "packages/client/src/features/chat/hooks/use-flank-presentation.ts",
+    function: "useOverlayDismiss/onPointerDown",
+    method: "closest",
+    receiver: "event.target",
+    selector: '[data-slot="toast-viewport"]',
+    reason: "the overlay's outside-press exit treats a press in the portaled notice region as inside, since an Undo there restores a panel into the overlay",
+  },
+  {
     file: "packages/client/src/features/config/hooks/use-config-scroll-spy.ts",
     function: "useConfigScrollSpy/initialCompute",
     method: "querySelector",
