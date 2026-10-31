@@ -51,7 +51,7 @@ const rosterPresetMembersSchema = z
  *  mint provenance). Shape-only here; the write verb fully re-resolves the bag against the preset's own
  *  descriptors through automation's injected belt and stores the resolved OUTPUT (the `groupConfig`
  *  posture: garbage refuses at the boundary, a stale bag degrades loudly at apply). */
-const rosterPresetRuleSchema = z.object({
+const rosterPresetRuleSchema = z.strictObject({
   rulePresetId: rulePresetIdSchema,
   knobs: rulePresetKnobValuesSchema.default({}),
 });
@@ -69,7 +69,7 @@ const rosterPresetRulesSchema = z
 /** `create` — the authored artifact: a name + the curated roster, plus the optional chat-open POV anchor
  *  and the optional room-behavior blob. `update` deliberately reuses this WHOLE shape (full replace,
  *  member list included) — a preset is small enough that patch semantics would only buy drift. */
-export const createRosterPresetSchema = z.object({
+export const createRosterPresetSchema = z.strictObject({
   name: z.string().trim().min(1).max(NAME_MAX),
   description: z.string().max(DESCRIPTION_MAX).default(""),
   /** Chat-open `{{user}}` POV to apply at start (`StartChatParams.anchorPersonaId`). Nullable — a
@@ -236,11 +236,11 @@ export const applyRosterPresetResultSchema = z.strictObject({
 /** Maximum Home roster shelf rows; the complete library remains available through All rosters. */
 export const HOME_ROSTER_PREVIEW_LIMIT = 6;
 
-export const rosterPresetIdInputSchema = z.object({ presetId: typeIdSchema(ID_PREFIX.rosterPreset) });
+export const rosterPresetIdInputSchema = z.strictObject({ presetId: typeIdSchema(ID_PREFIX.rosterPreset) });
 
-export const rosterPresetListInputSchema = z.object({ limit: z.int().min(1).max(HOME_ROSTER_PREVIEW_LIMIT).optional() }).optional();
+export const rosterPresetListInputSchema = z.strictObject({ limit: z.int().min(1).max(HOME_ROSTER_PREVIEW_LIMIT).optional() }).optional();
 
-export const applyRosterPresetInputSchema = z.object({
+export const applyRosterPresetInputSchema = z.strictObject({
   presetId: typeIdSchema(ID_PREFIX.rosterPreset),
   chatId: typeIdSchema(ID_PREFIX.chat),
   timeZone: reportedTimeZoneSchema,

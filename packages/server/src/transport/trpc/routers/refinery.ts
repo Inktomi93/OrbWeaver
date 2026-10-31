@@ -31,10 +31,11 @@ import {
   schemaForgeResultSchema,
 } from "@orb/contracts/refinery";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { strictInput } from "@orb/kit/zod-schema";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
-const acceptedFieldSchema = z.object({
+const acceptedFieldSchema = z.strictObject({
   field: refinableFieldSchema,
   greetingIndex: z.int().min(0).optional(),
   // The F-T1 APPEND address: which of the chosen rewrite's NEW greetings this Keep is for (its ordinal
@@ -52,7 +53,7 @@ const rawSchemaSchema = z.record(z.string(), z.unknown());
 export const refineryRouter = t.router({
   startSession: authedProcedure
     .output(refinerySessionViewSchema)
-    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), name: refinerySessionNameSchema.nullable().optional() }))
+    .input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character), name: refinerySessionNameSchema.nullable().optional() }))
     .mutation(({ ctx, input }) =>
       ctx.services.refinery.startSession({
         principal: ctx.auth,
@@ -63,7 +64,7 @@ export const refineryRouter = t.router({
 
   getSession: authedProcedure
     .output(refinerySessionViewSchema)
-    .input(z.object({ sessionId: typeIdSchema(ID_PREFIX.refinerySession) }))
+    .input(z.strictObject({ sessionId: typeIdSchema(ID_PREFIX.refinerySession) }))
     .query(({ ctx, input }) => ctx.services.refinery.getSession({ principal: ctx.auth, sessionId: input.sessionId })),
 
   listSessions: authedProcedure
@@ -72,35 +73,37 @@ export const refineryRouter = t.router({
 
   listRuns: authedProcedure
     .output(z.array(refineryRunViewSchema))
-    .input(z.object({ sessionId: typeIdSchema(ID_PREFIX.refinerySession) }))
+    .input(z.strictObject({ sessionId: typeIdSchema(ID_PREFIX.refinerySession) }))
     .query(({ ctx, input }) => ctx.services.refinery.listRuns({ principal: ctx.auth, sessionId: input.sessionId })),
 
   updateSession: authedProcedure
     .output(refinerySessionViewSchema)
     .input(
-      z.object({
-        sessionId: typeIdSchema(ID_PREFIX.refinerySession),
-        patch: z.object({
-          name: refinerySessionNameSchema.nullable().optional(),
-          guidance: refineryGuidanceSchema.nullable().optional(),
-          // A DELTA, not the value shape — `selection` has a second writer (`applyFields`' greeting remap),
-          // so the wire carries only what the caller is addressing (three-state greetings; see the schema).
-          selection: refinerySelectionPatchSchema.optional(),
-          stageConfig: refineryStageConfigSchema.optional(),
-          status: refinerySessionStatusSchema.optional(),
+      strictInput(
+        z.strictObject({
+          sessionId: typeIdSchema(ID_PREFIX.refinerySession),
+          patch: z.strictObject({
+            name: refinerySessionNameSchema.nullable().optional(),
+            guidance: refineryGuidanceSchema.nullable().optional(),
+            // A DELTA, not the value shape — `selection` has a second writer (`applyFields`' greeting remap),
+            // so the wire carries only what the caller is addressing (three-state greetings; see the schema).
+            selection: refinerySelectionPatchSchema.optional(),
+            stageConfig: refineryStageConfigSchema.optional(),
+            status: refinerySessionStatusSchema.optional(),
+          }),
         }),
-      }),
+      ),
     )
     .mutation(({ ctx, input }) => ctx.services.refinery.updateSession({ principal: ctx.auth, sessionId: input.sessionId, patch: input.patch })),
 
   deleteSession: authedProcedure
-    .input(z.object({ sessionId: typeIdSchema(ID_PREFIX.refinerySession) }))
+    .input(z.strictObject({ sessionId: typeIdSchema(ID_PREFIX.refinerySession) }))
     .mutation(({ ctx, input }) => ctx.services.refinery.deleteSession({ principal: ctx.auth, sessionId: input.sessionId })),
 
   runStage: authedProcedure
     .output(refineryRunViewSchema)
     .input(
-      z.object({
+      z.strictObject({
         sessionId: typeIdSchema(ID_PREFIX.refinerySession),
         stage: refineryStageSchema,
         rewriteRunId: typeIdSchema(ID_PREFIX.refineryRun).optional(),
@@ -112,7 +115,7 @@ export const refineryRouter = t.router({
 
   iterate: authedProcedure
     .output(iterateResultSchema)
-    .input(z.object({ sessionId: typeIdSchema(ID_PREFIX.refinerySession), guidance: refineryGuidanceSchema.optional() }))
+    .input(z.strictObject({ sessionId: typeIdSchema(ID_PREFIX.refinerySession), guidance: refineryGuidanceSchema.optional() }))
     .mutation(({ ctx, input }) =>
       ctx.services.refinery.iterate({
         principal: ctx.auth,
@@ -124,7 +127,7 @@ export const refineryRouter = t.router({
   applyFields: authedProcedure
     .output(applyFieldsResultSchema)
     .input(
-      z.object({
+      z.strictObject({
         sessionId: typeIdSchema(ID_PREFIX.refinerySession),
         accepts: z.array(acceptedFieldSchema).min(1),
         rewriteRunId: typeIdSchema(ID_PREFIX.refineryRun).optional(),
@@ -137,7 +140,7 @@ export const refineryRouter = t.router({
   applyAsCopy: authedProcedure
     .output(applyAsCopyResultSchema)
     .input(
-      z.object({
+      z.strictObject({
         sessionId: typeIdSchema(ID_PREFIX.refinerySession),
         accepts: z.array(acceptedFieldSchema).min(1),
         name: refinerySessionNameSchema.optional(),
@@ -157,7 +160,7 @@ export const refineryRouter = t.router({
   decideRewrite: authedProcedure
     .output(refinerySessionViewSchema)
     .input(
-      z.object({
+      z.strictObject({
         sessionId: typeIdSchema(ID_PREFIX.refinerySession),
         rewriteRunId: typeIdSchema(ID_PREFIX.refineryRun),
         decisions: refineryRewriteSheetSchema,
@@ -169,12 +172,12 @@ export const refineryRouter = t.router({
 
   submitManualRewrite: authedProcedure
     .output(refineryRunViewSchema)
-    .input(z.object({ sessionId: typeIdSchema(ID_PREFIX.refinerySession), fields: z.array(refineryRewriteFieldSchema).min(1) }))
+    .input(strictInput(z.strictObject({ sessionId: typeIdSchema(ID_PREFIX.refinerySession), fields: z.array(refineryRewriteFieldSchema).min(1) })))
     .mutation(({ ctx, input }) => ctx.services.refinery.submitManualRewrite({ principal: ctx.auth, sessionId: input.sessionId, fields: input.fields })),
 
   preflight: authedProcedure
     .output(preflightResultSchema)
-    .input(z.object({ sessionId: typeIdSchema(ID_PREFIX.refinerySession) }))
+    .input(z.strictObject({ sessionId: typeIdSchema(ID_PREFIX.refinerySession) }))
     .query(({ ctx, input }) => ctx.services.refinery.preflight({ principal: ctx.auth, sessionId: input.sessionId })),
 
   // ── the custom-schema library (R3/SF) ────────────────────────────────────────────────────────────────
@@ -184,7 +187,7 @@ export const refineryRouter = t.router({
 
   createSchema: authedProcedure
     .output(refinerySchemaSummarySchema.strict())
-    .input(z.object({ name: z.string(), description: z.string(), stage: refinerySchemaStageSchema, schema: rawSchemaSchema }))
+    .input(z.strictObject({ name: z.string(), description: z.string(), stage: refinerySchemaStageSchema, schema: rawSchemaSchema }))
     .mutation(({ ctx, input }) =>
       ctx.services.refinery.createSchema({ principal: ctx.auth, name: input.name, description: input.description, stage: input.stage, schema: input.schema }),
     ),
@@ -192,9 +195,9 @@ export const refineryRouter = t.router({
   updateSchema: authedProcedure
     .output(refinerySchemaSummarySchema.strict())
     .input(
-      z.object({
+      z.strictObject({
         schemaId: typeIdSchema(ID_PREFIX.refinerySchema),
-        patch: z.object({
+        patch: z.strictObject({
           name: z.string().optional(),
           description: z.string().optional(),
           stage: refinerySchemaStageSchema.optional(),
@@ -205,13 +208,13 @@ export const refineryRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.refinery.updateSchema({ principal: ctx.auth, schemaId: input.schemaId, patch: input.patch })),
 
   deleteSchema: authedProcedure
-    .input(z.object({ schemaId: typeIdSchema(ID_PREFIX.refinerySchema) }))
+    .input(z.strictObject({ schemaId: typeIdSchema(ID_PREFIX.refinerySchema) }))
     .mutation(({ ctx, input }) => ctx.services.refinery.deleteSchema({ principal: ctx.auth, schemaId: input.schemaId })),
 
   generateSchema: authedProcedure
     .output(schemaForgeResultSchema)
     .input(
-      z.object({
+      z.strictObject({
         description: z.string().min(1).max(REFINERY_SCHEMA_DESCRIPTION_MAX),
         stage: refinerySchemaStageSchema,
         arm: refineryForgeArmSchema.optional(),
@@ -223,14 +226,21 @@ export const refineryRouter = t.router({
 
   refineSchema: authedProcedure
     .output(schemaForgeResultSchema)
-    .input(z.object({ schema: rawSchemaSchema, instruction: refineryGuidanceSchema, stage: refinerySchemaStageSchema, arm: refineryForgeArmSchema.optional() }))
+    .input(
+      z.strictObject({
+        schema: rawSchemaSchema,
+        instruction: refineryGuidanceSchema,
+        stage: refinerySchemaStageSchema,
+        arm: refineryForgeArmSchema.optional(),
+      }),
+    )
     .mutation(({ ctx, input }) =>
       ctx.services.refinery.refineSchema({ principal: ctx.auth, schema: input.schema, instruction: input.instruction, stage: input.stage, arm: input.arm }),
     ),
 
   testSchema: authedProcedure
     .output(refineryTestResultSchema)
-    .input(z.object({ schema: rawSchemaSchema, stage: refinerySchemaStageSchema, characterId: typeIdSchema(ID_PREFIX.character) }))
+    .input(z.strictObject({ schema: rawSchemaSchema, stage: refinerySchemaStageSchema, characterId: typeIdSchema(ID_PREFIX.character) }))
     .mutation(({ ctx, input }) =>
       ctx.services.refinery.testSchema({ principal: ctx.auth, schema: input.schema, stage: input.stage, characterId: input.characterId }),
     ),
@@ -239,6 +249,6 @@ export const refineryRouter = t.router({
   // request-header limit.
   schemaPlan: authedProcedure
     .output(refinerySchemaPlanSchema.nullable())
-    .input(z.object({ schema: rawSchemaSchema, stage: refinerySchemaStageSchema }))
+    .input(z.strictObject({ schema: rawSchemaSchema, stage: refinerySchemaStageSchema }))
     .mutation(({ ctx, input }) => ctx.services.refinery.previewSchemaPlan({ principal: ctx.auth, schema: input.schema, stage: input.stage })),
 });

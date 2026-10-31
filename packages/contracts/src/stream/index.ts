@@ -33,6 +33,7 @@ import { z } from "zod";
 import type { AutomationBusEvent } from "#automation";
 import type { ChatBusEvent } from "#chat";
 import type { InboxView } from "#notifications";
+import { trackedEventIdShape } from "#rpc";
 import type { RpgBusEvent } from "#rpg";
 import type { UserBusEvent } from "#user-bus";
 import type { WorkloadEvent } from "#workloads";
@@ -47,12 +48,12 @@ const STREAM_CHANNELS = ["user", "notifications", "chat", "rpg", "automation", "
 //  principal — no input can widen them); the three chat-scoped rooms carry the `chatId` they address, and
 //  `workloads` carries the ONE run it tails (owner-scoped at attach, inside the room's own gate).
 const streamRoomRefSchemas = {
-  user: z.object({ channel: z.literal(STREAM_CHANNELS[0]) }),
-  notifications: z.object({ channel: z.literal(STREAM_CHANNELS[1]) }),
-  chat: z.object({ channel: z.literal(STREAM_CHANNELS[2]), chatId: typeIdSchema(ID_PREFIX.chat) }),
-  rpg: z.object({ channel: z.literal(STREAM_CHANNELS[3]), chatId: typeIdSchema(ID_PREFIX.chat) }),
-  automation: z.object({ channel: z.literal(STREAM_CHANNELS[4]), chatId: typeIdSchema(ID_PREFIX.chat) }),
-  workloads: z.object({ channel: z.literal(STREAM_CHANNELS[5]), workloadId: typeIdSchema(ID_PREFIX.workload) }),
+  user: z.strictObject({ channel: z.literal(STREAM_CHANNELS[0]) }),
+  notifications: z.strictObject({ channel: z.literal(STREAM_CHANNELS[1]) }),
+  chat: z.strictObject({ channel: z.literal(STREAM_CHANNELS[2]), chatId: typeIdSchema(ID_PREFIX.chat) }),
+  rpg: z.strictObject({ channel: z.literal(STREAM_CHANNELS[3]), chatId: typeIdSchema(ID_PREFIX.chat) }),
+  automation: z.strictObject({ channel: z.literal(STREAM_CHANNELS[4]), chatId: typeIdSchema(ID_PREFIX.chat) }),
+  workloads: z.strictObject({ channel: z.literal(STREAM_CHANNELS[5]), workloadId: typeIdSchema(ID_PREFIX.workload) }),
 } satisfies { readonly [Channel in (typeof STREAM_CHANNELS)[number]]: z.ZodType<{ readonly channel: Channel }> };
 const [firstStreamChannel, ...remainingStreamChannels] = STREAM_CHANNELS;
 const streamRoomRefSchema = z.discriminatedUnion("channel", [
@@ -127,20 +128,20 @@ export type StreamControlFrame = { readonly channel: "control" } & (
 export type StreamFrame = StreamDataFrame | StreamControlFrame;
 
 /** `stream.connect` — the ONE EventSource. `socketId` is minted per tab by the client. */
-export const streamConnectInputSchema = z.object({ socketId: brandedId("SocketId") });
+export const streamConnectInputSchema = z.strictObject({ socketId: brandedId("SocketId"), ...trackedEventIdShape });
 
 /** `stream.attach` — rides the batched HTTP link (zero connections, inherits the CSRF header + rate limit).
  *  Returns `void`: delivery NEVER rides a mutation return, so a replay can never interleave ahead of live
  *  frames already queued. `sinceSeq` is a replay REQUEST for a durable room (`0` = from the beginning);
  *  `null`/omitted = live-only from now. */
-export const streamAttachInputSchema = z.object({
+export const streamAttachInputSchema = z.strictObject({
   socketId: brandedId("SocketId"),
   ref: streamRoomRefSchema,
   sinceSeq: z.int().min(0).nullish(),
 });
 
 /** `stream.detach` — drop one room. Idempotent (detaching an unattached room is a no-op). */
-export const streamDetachInputSchema = z.object({
+export const streamDetachInputSchema = z.strictObject({
   socketId: brandedId("SocketId"),
   ref: streamRoomRefSchema,
 });

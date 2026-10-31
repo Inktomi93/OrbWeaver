@@ -161,7 +161,11 @@ function ConnectionsBody({ anchorId }: { readonly anchorId: string }): ReactElem
   }
 
   return (
-    <Section divider={true} heading={CONNECTIONS_LIST_SUBCATEGORY.label} id={anchorId}>
+    // The shell crumb and the pane title already name this screen, so the heading stays in the outline unpainted.
+    <Section id={anchorId}>
+      <Heading className="sr-only" level={3}>
+        {CONNECTIONS_LIST_SUBCATEGORY.label}
+      </Heading>
       <Row gap="field" align="center" justify="between" className="flex-wrap">
         <Text voice="quiet" className="max-inline-(--reading-measure-prose)">
           One provider and one model per connection. Your roles use these connections in rooms you host and for your work outside rooms. Shared-room turns use

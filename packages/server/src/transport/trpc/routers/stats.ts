@@ -29,7 +29,7 @@ export const statsRouter = t.router({
 
   character: authedProcedure
     .output(characterStatsViewSchema.nullable())
-    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) }))
+    .input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character) }))
     .query(({ ctx, input }) => ctx.services.stats.character(ctx.auth.userId, input.characterId)),
 
   leaderboard: authedProcedure

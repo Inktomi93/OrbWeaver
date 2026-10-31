@@ -18,8 +18,8 @@ const sourceFields = {
 
 /** Immutable producer identity retained by a search occurrence across reindexing and transcript edits. */
 export const corpusSourceSchema = z.discriminatedUnion("kind", [
-  z.object({ ...sourceFields, kind: z.literal("segment"), rowId: typeIdSchema(ID_PREFIX.chatSegment), chunkIdx: z.int().nonnegative() }),
-  z.object({
+  z.strictObject({ ...sourceFields, kind: z.literal("segment"), rowId: typeIdSchema(ID_PREFIX.chatSegment), chunkIdx: z.int().nonnegative() }),
+  z.strictObject({
     ...sourceFields,
     kind: z.literal("digest"),
     rowId: typeIdSchema(ID_PREFIX.chatDigest),
@@ -33,14 +33,14 @@ const CORPUS_SOURCE_OUTCOMES = ["resolved", "moved", "deleted", "unavailable"] a
 export type CorpusSourceOutcome = (typeof CORPUS_SOURCE_OUTCOMES)[number];
 
 export const messageWindowTargetSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("source"), source: corpusSourceSchema }),
-  z.object({ kind: z.literal("message"), messageId: typeIdSchema(ID_PREFIX.message) }),
+  z.strictObject({ kind: z.literal("source"), source: corpusSourceSchema }),
+  z.strictObject({ kind: z.literal("message"), messageId: typeIdSchema(ID_PREFIX.message) }),
 ]);
 export type MessageWindowTarget = z.infer<typeof messageWindowTargetSchema>;
 
 export const messageWindowCursorSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("before"), seq: z.int().nonnegative() }),
-  z.object({ kind: z.literal("after"), seq: z.int().nonnegative() }),
+  z.strictObject({ kind: z.literal("before"), seq: z.int().nonnegative() }),
+  z.strictObject({ kind: z.literal("after"), seq: z.int().nonnegative() }),
 ]);
 export type MessageWindowCursor = z.infer<typeof messageWindowCursorSchema>;
 
