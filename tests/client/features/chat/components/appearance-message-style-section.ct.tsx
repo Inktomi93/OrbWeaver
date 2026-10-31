@@ -1,7 +1,8 @@
 // The Message-style appearance section as the settings pane mounts it: the picker's selection and keyboard model, what a
-// pick saves, the schematic geometry of every chat style's diagram against its production skin, and the readability of
-// the picker's text and artwork in every shipped palette. Production runs through the registered section on a corpus root.
+// pick saves, the schematic geometry of every chat style's diagram, and the readability of the picker's text and artwork
+// in every shipped palette. Production runs through the registered section on a corpus root.
 // @subject packages/client/src/features/chat/components/appearance-message-style-section.tsx
+import { DATA_THEME_ATTR } from "@orb/client/state";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
@@ -12,10 +13,6 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
-import { APPEARANCE_MESSAGE_STYLE_KEYS, APPEARANCE_MESSAGE_STYLE_SUBCATEGORY } from "#client/features/chat/lib/appearance-message-style-model.ts";
-import { CHAT_STYLE_ITEMS } from "#client/features/chat/lib/appearance-select-items.ts";
-import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
-import { DATA_THEME_ATTR } from "#client/state/appearance-boot-hint.ts";
 import type { AppearanceChatStylePickerStory } from "./_appearance-chat-style-picker-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_appearance-chat-style-picker-stories/AppearanceChatStylePickerStory";
@@ -24,10 +21,10 @@ const PHONE_WIDTH = 390;
 const NARROW_WIDTH = 360;
 const DESKTOP_VIEWPORT = { width: 1280, height: 900 } as const;
 const PHONE_VIEWPORT = { width: PHONE_WIDTH, height: 844 } as const;
-const SPEAKERS = [
-  { role: "user", kind: "persona" },
-  { role: "assistant", kind: "character" },
-] as const;
+const ROLES = ["user", "assistant"] as const;
+// Each cell names itself and its gloss through `aria-labelledby` and `aria-describedby` on these id suffixes.
+const LABEL = '[id$="-label"]';
+const GLOSS = '[id$="-description"]';
 
 // The WebKit project's phone descriptor is narrower than the desktop container, so each case states its own viewport.
 test.use({ isMobile: false, hasTouch: false, viewport: DESKTOP_VIEWPORT });
@@ -51,32 +48,21 @@ async function serveSection(page: Page): Promise<Awaited<ReturnType<typeof root.
   return caller;
 }
 
-function optionFor(style: ThemeChatStyle): { readonly label: string; readonly description: string } {
-  const option = CHAT_STYLE_ITEMS.find((item) => item.value === style);
-  if (option?.description === undefined) {
-    throw new Error(`chat style ${style} has no label and gloss in the picker's items`);
-  }
-  return { label: option.label, description: option.description };
-}
-
-function settingLabel(id: string): string {
-  const setting = APPEARANCE_MESSAGE_STYLE_SUBCATEGORY.settings.find((row) => row.id === id);
-  if (setting === undefined) {
-    throw new Error(`the message-style section declares no setting ${id}`);
-  }
-  return setting.label;
-}
-
-function cellsOf(page: Page): ReturnType<Page["getByRole"]> {
+function pickerOf(page: Page): Locator {
   return page.getByRole("radiogroup");
 }
 
-test("every chat style is one radio with its label, its gloss and a decorative diagram, and exactly the saved style is checked", async ({ mount, page }) => {
+/** The cell of `style`: the picker draws one cell per chat style, in the order of `THEME_CHAT_STYLES`. */
+function cellOf(page: Page, style: ThemeChatStyle): Locator {
+  return pickerOf(page).getByRole("radio").nth(THEME_CHAT_STYLES.indexOf(style));
+}
+
+test("every chat style is one named radio with a gloss and a decorative diagram, and exactly the saved style is checked", async ({ mount, page }) => {
   await serveSection(page);
   await mount<typeof AppearanceChatStylePickerStory>(STORY, { width: DESKTOP_WIDTH });
 
-  await expect(page.getByRole("heading", { name: APPEARANCE_MESSAGE_STYLE_SUBCATEGORY.label })).toBeVisible();
-  const cards = cellsOf(page);
+  await expect(page.getByRole("heading").first()).toBeVisible();
+  const cards = pickerOf(page);
   await expect(cards.getByRole("radio")).toHaveCount(THEME_CHAT_STYLES.length);
   await expect(cards.locator('[data-slot="chat-style-diagram"]')).toHaveCount(THEME_CHAT_STYLES.length);
   await expect(cards.getByRole("img")).toHaveCount(0);
@@ -86,32 +72,40 @@ test("every chat style is one radio with its label, its gloss and a decorative d
     await expect(diagram).toHaveAttribute("focusable", "false");
   }
 
+  const names: string[] = [];
   for (const style of THEME_CHAT_STYLES) {
-    const { label, description } = optionFor(style);
-    const cell = cards.getByRole("radio", { name: label, exact: true });
-    await expect(cell.getByText(description, { exact: true })).toBeVisible();
-    await expect(cell).toHaveAccessibleDescription(description);
+    const cell = cellOf(page, style);
+    const label = cell.locator(LABEL);
+    const gloss = cell.locator(GLOSS);
+    await expect(label).toBeVisible();
+    await expect(gloss).toBeVisible();
+    // The name is the visible label and the description is the visible gloss, never a second spelling of either.
+    const name = (await label.textContent()) ?? "";
+    await expect(cell).toHaveAccessibleName(name);
+    await expect(cell).toHaveAccessibleDescription((await gloss.textContent()) ?? "");
+    expect(name.trim()).not.toBe("");
+    names.push(name);
     await expect(cell).toHaveAttribute("aria-checked", String(style === DEFAULT_APPEARANCE_SETTINGS.chatStyle));
   }
+  expect(new Set(names).size).toBe(THEME_CHAT_STYLES.length);
   await expect(cards.locator('[aria-checked="true"]')).toHaveCount(1);
 });
 
 test("a pick moves the checked cell and saves only the section's own keys, so a sibling written meanwhile survives", async ({ mount, page }) => {
   const caller = await serveSection(page);
   await mount<typeof AppearanceChatStylePickerStory>(STORY, { width: DESKTOP_WIDTH });
-  const cards = cellsOf(page);
+  const cards = pickerOf(page);
   await expect(cards.getByRole("radio")).toHaveCount(THEME_CHAT_STYLES.length);
 
   // A sibling section's key is written after this section loaded: a patch carrying the whole appearance blob would undo it.
-  expect(APPEARANCE_MESSAGE_STYLE_KEYS).not.toContain("showTimestamps");
   await caller.settings.updateUserSettingsSection({ section: "appearance", patch: { showTimestamps: !DEFAULT_APPEARANCE_SETTINGS.showTimestamps } });
 
   const picked = THEME_CHAT_STYLES.find((style) => style !== DEFAULT_APPEARANCE_SETTINGS.chatStyle);
   if (picked === undefined) {
     throw new Error("the picker offers a single chat style");
   }
-  await cards.getByRole("radio", { name: optionFor(picked).label, exact: true }).click();
-  await expect(cards.getByRole("radio", { name: optionFor(picked).label, exact: true })).toHaveAttribute("aria-checked", "true");
+  await cellOf(page, picked).click();
+  await expect(cellOf(page, picked)).toHaveAttribute("aria-checked", "true");
   await expect(cards.locator('[aria-checked="true"]')).toHaveCount(1);
 
   await expect.poll(async () => (await caller.settings.getUserSettings()).config.appearance.chatStyle).toBe(picked);
@@ -122,12 +116,13 @@ test("a pick moves the checked cell and saves only the section's own keys, so a 
 test("the section's two switches save their own keys and leave the picked style alone", async ({ mount, page }) => {
   const caller = await serveSection(page);
   await mount<typeof AppearanceChatStylePickerStory>(STORY, { width: DESKTOP_WIDTH });
-  await expect(cellsOf(page).getByRole("radio")).toHaveCount(THEME_CHAT_STYLES.length);
+  await expect(pickerOf(page).getByRole("radio")).toHaveCount(THEME_CHAT_STYLES.length);
 
-  const autoFix = page.getByRole("switch", { name: settingLabel("auto-fix-markdown") });
-  const quoted = page.getByRole("switch", { name: settingLabel("color-quoted-speech") });
-  await autoFix.click();
-  await quoted.click();
+  const switches = page.getByRole("switch");
+  await expect(switches).toHaveCount(2);
+  for (const control of await switches.all()) {
+    await control.click();
+  }
 
   await expect
     .poll(async () => {
@@ -141,14 +136,14 @@ test("the section's two switches save their own keys and leave the picked style 
 test("the picker is one tab stop on the checked cell and the arrow keys move the selection", async ({ mount, page }) => {
   await serveSection(page);
   await mount<typeof AppearanceChatStylePickerStory>(STORY, { width: DESKTOP_WIDTH });
-  const cards = cellsOf(page);
-  const order = THEME_CHAT_STYLES.map((style) => cards.getByRole("radio", { name: optionFor(style).label, exact: true }));
+  await expect(pickerOf(page).getByRole("radio")).toHaveCount(THEME_CHAT_STYLES.length);
   const checked = THEME_CHAT_STYLES.indexOf(DEFAULT_APPEARANCE_SETTINGS.chatStyle);
-  const next = order[checked + 1];
-  const current = order[checked];
-  if (next === undefined || current === undefined) {
+  const following = THEME_CHAT_STYLES[checked + 1];
+  if (following === undefined) {
     throw new Error("the default chat style has no successor in the picker");
   }
+  const current = cellOf(page, DEFAULT_APPEARANCE_SETTINGS.chatStyle);
+  const next = cellOf(page, following);
 
   await current.focus();
   await expect(current).toBeFocused();
@@ -160,51 +155,49 @@ test("the picker is one tab stop on the checked cell and the arrow keys move the
 });
 
 interface SpeakerAnatomy {
-  readonly role: string;
   readonly avatars: number;
   readonly bubbles: number;
   readonly stripes: number;
+  /** A portrait flush on this edge of its bubble, or welded on whichever edge the speaker's side puts it. */
   readonly portrait: "welded" | "left" | "right" | null;
   readonly banner: boolean;
 }
 
 interface Anatomy {
-  readonly headerPlacement: string;
+  readonly headerPlacement: "inside" | "outside";
   readonly headers: number;
   readonly trains: number;
-  readonly speakers: readonly SpeakerAnatomy[];
+  readonly speakers: readonly [SpeakerAnatomy, SpeakerAnatomy];
 }
 
-function bubblesFor(box: string, layout: string, stripe: boolean): number {
-  if (box !== "bubble" || stripe) {
-    return 0;
-  }
-  return layout === "trains" ? 2 : 1;
-}
+const CHIP: SpeakerAnatomy = { avatars: 1, bubbles: 0, stripes: 0, portrait: null, banner: false };
+const BUBBLED = { ...CHIP, bubbles: 1 };
+const WELDED: SpeakerAnatomy = { ...BUBBLED, avatars: 0, portrait: "welded" };
+const STRIPED = { ...CHIP, stripes: 1 };
+const TRAINED = { ...CHIP, bubbles: 2 };
+const UNMARKED = { ...CHIP, avatars: 0 };
 
-/** What a style's diagram must draw, read off its production skin and the decoration its art slot paints. */
-function anatomyOf(style: ThemeChatStyle): Anatomy {
-  const skin = MESSAGE_ROW_SKINS[style];
-  return {
-    headerPlacement: skin.headerPlacement,
-    headers: skin.actionsRow.identity ? SPEAKERS.length : 0,
-    trains: skin.bubbleLayout === "trains" ? SPEAKERS.length : 0,
-    speakers: SPEAKERS.map(({ role, kind }) => {
-      const decoration = skin.bubbleDecoration?.({ kind, avatarHash: null, name: "Speaker", hueSeed: "speaker", role, showInChatAvatars: true }) ?? null;
-      const stripe = decoration?.treatment === "stripeStart";
-      const treatment = skin.avatarTreatment(kind);
-      return {
-        role,
-        avatars: treatment === "icon-left" ? 1 : 0,
-        bubbles: bubblesFor(skin.box, skin.bubbleLayout, stripe),
-        stripes: stripe ? 1 : 0,
-        portrait: treatment === "sticky-portrait" ? "welded" : (decoration?.art?.side ?? null),
-        // The diagram draws the banner on the character's row alone, where the skeleton needs one.
-        banner: role === "assistant" && decoration?.headerBand !== undefined,
-      };
-    }),
-  };
-}
+// What each style's diagram draws for the user and the character, one row per style. The skin table that decides this
+// anatomy in production is not behind a client door, so the expectation is spelled here; a new chat style fails `tsc`
+// until it has a row, and the document row is also held to its production skin by the platform picker suite.
+const ANATOMY: Record<ThemeChatStyle, Anatomy> = {
+  bubble: { headerPlacement: "inside", headers: 2, trains: 0, speakers: [BUBBLED, BUBBLED] },
+  flat: { headerPlacement: "inside", headers: 2, trains: 0, speakers: [CHIP, CHIP] },
+  document: { headerPlacement: "inside", headers: 0, trains: 0, speakers: [UNMARKED, UNMARKED] },
+  echo: {
+    headerPlacement: "inside",
+    headers: 2,
+    trains: 0,
+    speakers: [
+      { ...BUBBLED, portrait: "left" },
+      { ...BUBBLED, portrait: "right" },
+    ],
+  },
+  whisper: { headerPlacement: "inside", headers: 2, trains: 0, speakers: [BUBBLED, { ...BUBBLED, banner: true }] },
+  hush: { headerPlacement: "inside", headers: 2, trains: 0, speakers: [STRIPED, STRIPED] },
+  ripple: { headerPlacement: "inside", headers: 2, trains: 0, speakers: [WELDED, WELDED] },
+  tide: { headerPlacement: "outside", headers: 2, trains: 2, speakers: [TRAINED, TRAINED] },
+};
 
 // The three readers below run inside the page: each is self-contained and takes its inputs as arguments.
 
@@ -220,7 +213,6 @@ function readCounts(
     speakers: roles.map((role) => {
       const message = svg.querySelector(`[data-role="${role}"]`) ?? svg;
       return {
-        role,
         avatars: count(message, "chat-style-avatar"),
         bubbles: count(message, "chat-style-bubble"),
         stripes: count(message, "chat-style-stripe"),
@@ -292,26 +284,24 @@ function readFrames(
 }
 
 for (const style of THEME_CHAT_STYLES) {
-  test(`the ${style} diagram draws its skin's anatomy inside its frame`, async ({ mount, page }) => {
+  test(`the ${style} diagram draws its anatomy inside its frame`, async ({ mount, page }) => {
     await serveSection(page);
     await mount<typeof AppearanceChatStylePickerStory>(STORY, { width: DESKTOP_WIDTH });
     const diagram = page.locator(`[data-chat-style="${style}"] [data-slot="chat-style-diagram"]`);
     await expect(diagram).toBeVisible();
-    const expected = anatomyOf(style);
+    const expected = ANATOMY[style];
     await expect(diagram).toHaveAttribute("data-header-placement", expected.headerPlacement);
-    await expect(diagram.locator('[data-slot="chat-style-diagram-message"]')).toHaveCount(SPEAKERS.length);
+    await expect(diagram.locator('[data-slot="chat-style-diagram-message"]')).toHaveCount(ROLES.length);
 
-    const roles = SPEAKERS.map(({ role }) => role);
-    const counts = await diagram.evaluate(readCounts, roles);
-    const frames = await diagram.evaluate(readFrames, roles);
+    const counts = await diagram.evaluate(readCounts, ROLES);
+    const frames = await diagram.evaluate(readFrames, ROLES);
     expect(await diagram.evaluate(readContained)).toBe(true);
     expect(counts.headers).toBe(expected.headers);
     expect(counts.trains).toBe(expected.trains);
     // Positive control: every speaker has prose, so the per-row reads below are of a populated diagram.
-    expect(counts.prose).toBeGreaterThanOrEqual(SPEAKERS.length);
+    expect(counts.prose).toBeGreaterThanOrEqual(ROLES.length);
     expect(counts.speakers).toEqual(
       expected.speakers.map((want) => ({
-        role: want.role,
         avatars: want.avatars,
         bubbles: want.bubbles,
         stripes: want.stripes,
@@ -338,7 +328,7 @@ for (const [width, viewport, label] of [
     await page.setViewportSize(viewport);
     await serveSection(page);
     await mount<typeof AppearanceChatStylePickerStory>(STORY, { width });
-    const cards = cellsOf(page);
+    const cards = pickerOf(page);
     await expect(cards.getByRole("radio")).toHaveCount(THEME_CHAT_STYLES.length);
 
     await expect
@@ -370,7 +360,7 @@ test("the picker lays out in more columns on a desktop than on a phone", async (
   const columns = async (width: number, viewport: { readonly width: number; readonly height: number }): Promise<number> => {
     await page.setViewportSize(viewport);
     await mount<typeof AppearanceChatStylePickerStory>(STORY, { width });
-    const cards = cellsOf(page);
+    const cards = pickerOf(page);
     await expect(cards.getByRole("radio")).toHaveCount(THEME_CHAT_STYLES.length);
     return await cards.evaluate((group) => getComputedStyle(group).gridTemplateColumns.split(" ").length);
   };
@@ -390,19 +380,17 @@ for (const palette of PALETTES) {
       ([attribute, name]) => (name === null ? document.documentElement.removeAttribute(attribute) : document.documentElement.setAttribute(attribute, name)),
       [DATA_THEME_ATTR, palette] as const,
     );
-    const cards = cellsOf(page);
-    await expect(cards.getByRole("radio")).toHaveCount(THEME_CHAT_STYLES.length);
+    await expect(pickerOf(page).getByRole("radio")).toHaveCount(THEME_CHAT_STYLES.length);
 
     const measure = async (target: Locator): Promise<Awaited<ReturnType<typeof pixelContrast>>> => {
       await target.scrollIntoViewIfNeeded();
       return await pixelContrast(page, target);
     };
     for (const style of THEME_CHAT_STYLES) {
-      const { label, description } = optionFor(style);
-      const cell = cards.getByRole("radio", { name: label, exact: true });
-      const name = await measure(cell.getByText(label, { exact: true }));
+      const cell = cellOf(page, style);
+      const name = await measure(cell.locator(LABEL));
       expect(name.ratio, `${style} label: ${name.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
-      const gloss = await measure(cell.getByText(description, { exact: true }));
+      const gloss = await measure(cell.locator(GLOSS));
       expect(gloss.ratio, `${style} gloss: ${gloss.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
       const ink = await measure(cell.locator('[data-slot="chat-style-preview"]'));
       expect(ink.ratio, `${style} diagram: ${ink.describe}`).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
