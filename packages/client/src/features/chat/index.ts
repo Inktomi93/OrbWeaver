@@ -19,6 +19,7 @@ export { chatAttachmentQualitySection } from "./lib/chat-attachment-quality-sect
 export { chatMessageHandlingSection } from "./lib/chat-behavior-message-handling-section.tsx";
 export { chatStreamingSection } from "./lib/chat-behavior-streaming-section.tsx";
 export { makeChatControlsContribution } from "./lib/chat-controls-contribution.tsx";
+export { chatMembersChrome, chatMemoryChrome } from "./lib/chat-room-chrome.tsx";
 export { chatSlashCommands } from "./lib/chat-slash-commands.ts";
 export { makeChatsSection } from "./lib/chats-section.tsx";
 export { commandModal } from "./lib/command-modal.tsx";

@@ -327,6 +327,7 @@
   --height-scroll-sm: 10rem;
   --height-scroll-md: 16rem;
   --height-scroll-lg: 24rem;
+  --height-room-thread-min: 1.4375rem;
   --height-row-placeholder: 4rem;
   --height-home-recents-empty: 12.0625rem;
   --font-weight-normal: 400;
@@ -341,6 +342,7 @@
   --reading-measure-prose: 47ch;
   --reading-measure-min: 65ch;
   --tracking-micro: 0.08em;
+  --dimension-composer-field-min: 12ch;
   --dimension-shell-title-floor: 6ch;
   --dimension-shell-notice-cap: min(14rem, 30dvh);
   --shadow-shell-over-art: 0 1px 3px var(--color-backdrop);
