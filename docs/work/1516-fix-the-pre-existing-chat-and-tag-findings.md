@@ -28,7 +28,7 @@ Each finding is fixed at its shared owner with a CT or a measurement, or ruled w
 
 ## Evidence
 
-Fixed: the tag pill height. The Remove button in `character-tags-row.tsx` takes the `chip` step, the label button's own step, so a pill is one chip tall at a fine and a coarse pointer. `tests/client/features/character/components/platform-tag-pill-height.suite.ct.tsx` mounts the production row and reads the label and Remove heights and the pill against its own padding and edge; red on the old row (Remove 36 against 28 at a fine pointer, 48 against 44 at a coarse one), green in Chromium and WebKit. The sequence chips (`sequence-chips.tsx`) wear the same Badge-plus-default-square pattern and are not covered.
+Fixed: the tag pill height. The Remove button in `character-tags-row.tsx` takes the `chip` step, the label button's own step, so a pill is one chip tall at a fine and a coarse pointer. `tests/client/features/character/components/platform-tag-pill-height.suite.ct.tsx` mounts the production row and reads the label and Remove heights and the pill against its own padding and edge; red on the old row (Remove 36 against 28 at a fine pointer, 48 against 44 at a coarse one), green in Chromium and WebKit. The sequence chips (`sequence-chips.tsx`) wore the same Badge-plus-default-square pattern and take the same step: `tests/client/features/preset/components/platform-sequence-chip-height.suite.ct.tsx` mounts the preset editor on a local-server connection, adds a stop sequence and reads its Remove button against the touch-target token's pointer-conditional value and the chip against its own padding and edge; red on the old chip (36 against 28 at a fine pointer, 48 against 44 at a coarse one), green in Chromium and WebKit.
 
 Not fixed, each a design call:
 
