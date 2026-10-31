@@ -1,5 +1,5 @@
 // domain/plugin/contract/service — the typed API surface: the infra seam TYPE the domain declares for the
-// sandbox runtime (`PluginHostPort` — `domain/plugin` never imports `#infra/plugin-host`; the runtime is wired
+// sandbox runtime (`PluginHostPort` — `domain/plugin` imports only types from `#infra/plugin-host`; the runtime is wired
 // upward at compose), the resident-instance registry the lifecycle owns, the DI bundle (`PluginContext`), and
 // the `PluginService` surface including inline `runSnippet`. Every cross-tier value is a declared type here; the
 // runtime is assembled at the composition root (one-directional flow: transport → domain/plugin →
@@ -102,9 +102,9 @@ import type {
  *  gated the invocation-chat-context (`can(installer,"read",chat)`) + folded host-authority into `grants` /
  *  `chat.canWrite` BEFORE this call — infra is authority-blind (a plugin can never exceed its installer).
  *  `chat` is `null` for an installed plugin's registration-only `main.js`; set for a snippet run. Constructed
- *  ONCE at the trust boundary, never guest-supplied. */
-export interface CreateInstanceInput extends PluginInstanceCreateData {
-  readonly reloadMainJs: () => Promise<string>;
+ *  ONCE at the trust boundary, never guest-supplied. The durable `main.js` re-reader is required here: every
+ *  domain activation is an installed plugin, which the host wakes cold from it. */
+export interface CreateInstanceInput extends PluginInstanceCreateData, Required<Pick<Parameters<ProcessPluginHost["createInstance"]>[0], "reloadMainJs">> {
   readonly bridge: PluginBridge;
 }
 

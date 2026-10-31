@@ -34,12 +34,6 @@ export interface DeleteGlobalVariableParams extends AutomationActorParams {
   readonly key: string;
 }
 
-/** Parameters for the owner-scoped service projection. `prefix` narrows by key prefix; absent reads all.
- *  The CEL environment and test-rule verb call the shared persistence query directly. */
-export interface ListGlobalVariablesParams extends AutomationActorParams {
-  readonly prefix?: string;
-}
-
 // ── rule-lifecycle verb params ──────────────────────────────────────────────────────────────────
 // Every rule verb gates `can(principal, "host", {kind:"chat", membership})` over the chat's membership
 // (rule authoring IS room authority in v1). The editable field set is shared by create + update (a PUT-style

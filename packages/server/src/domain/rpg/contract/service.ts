@@ -212,8 +212,6 @@ export interface RpgStagingStore {
    *  state (read-through — a later tool sees earlier staged writes). Idempotent per turn: a second call with
    *  a different base does NOT reseed (the first tool's base + every overlay is the turn's truth). */
   readonly ensure: (turnId: ChatTurnId, base: RpgSnapshotState) => RpgSnapshotState;
-  /** The current effective state for a turn, or `undefined` if untouched. */
-  readonly peek: (turnId: ChatTurnId) => RpgSnapshotState | undefined;
   /** Overlay a tool-authored patch onto the turn's effective state (locks honored, [merge-clear]). Requires
    *  the bucket to exist (`ensure` first — a tool always resolves its base before writing). Returns the new
    *  effective state. */

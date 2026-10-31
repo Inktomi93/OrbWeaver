@@ -17,7 +17,6 @@ import { createGetGlobalVariable } from "./verbs/get-global-variable.ts";
 import { createGetOwnerBudgets } from "./verbs/get-owner-budgets.ts";
 import { createListChatActivity } from "./verbs/list-chat-activity.ts";
 import { createListFires } from "./verbs/list-fires.ts";
-import { createListGlobalVariables } from "./verbs/list-global-variables.ts";
 import { createListOwnerRules } from "./verbs/list-owner-rules.ts";
 import { createListRulePresets } from "./verbs/list-rule-presets.ts";
 import { createListRuleTools } from "./verbs/list-rule-tools.ts";
@@ -59,7 +58,6 @@ export function createAutomationService(input: DbAssemblyInput<AutomationService
     getGlobalVariable: createGetGlobalVariable(ctx),
     setGlobalVariable: createSetGlobalVariable(ctx),
     deleteGlobalVariable: createDeleteGlobalVariable(ctx),
-    listGlobalVariables: createListGlobalVariables(ctx),
     createRule,
     createRuleFromPreset: createCreateRuleFromPreset(ctx, planRule),
     listRulePresets: createListRulePresets(),

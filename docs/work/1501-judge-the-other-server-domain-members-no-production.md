@@ -52,4 +52,34 @@ Each member in the table is deleted, wired to the named caller, or linked as its
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+| Member | Outcome |
+| - | - |
+| `AssetsService.rebuildFromTree` | owner call, unchanged |
+| `WorkloadServiceContext.isOwner` | linked: `canCloneRow` takes `Pick<WorkloadServiceContext, "isAdmin" \| "isOwner">` |
+| `AutomationService.listGlobalVariables` | deleted with its verb and params; the persistence query keeps its two internal callers and loses the prefix only the verb passed |
+| `CharacterService.findByImportedFrom` | owner call, unchanged |
+| `ConnectionService.availability`, `getBoundConnection` | linked: chat's connection deps are the named `ChatConnectionOps` port, which the composition root fills from `ConnectionService` |
+| `ConnectionService.registerProvider`, `dropProvider` | deleted with their params; plugin rows still register through `registerPluginProviders` |
+| `CredentialsService.markRevoked` | deleted; `maybeRevokeOnAuthFailed` is the runner-internal revoke the docs now name |
+| `DatabankPortabilityContext.enqueueIngest` | linked: the context is `Pick<DatabankContext, …>` |
+| `DiscoveryService.backfillDigestStoryTime`, `computeDigestHubScores`, `computeSegmentHubScores`, `computeImageHubScores` | owner calls, unchanged |
+| `RegexService.getScript` | deleted: the item's premise does not hold, because the regex router has no single-script read. `tests/server/entry/compose/room-reach.int.test.ts` reads the foreign script through the owner's `listScripts` |
+| `RpgStagingStore.peek` | deleted |
+| `RpgRoundsChatOps.resolveHostUserId` | deleted: no round reads it. The composition root reads chat's own `resolveHostUserId` into `resolveRoomFunder`, which stays |
+| `SessionsService.create` | blocked, unchanged: the link is the route port `AuthSessionsPort.create` in `packages/server/src/entry/http/auth-routes.ts`, a sibling lane's file |
+| `SessionsServiceDeps.audit`, `seedUserConnections` | linked, not deleted: `createSessionsContext` reads both, so the delete fails `pnpm typecheck`. The deps extend `Pick<SessionsContext, …>` |
+| `CertificateController.stop` | deleted: the item's premise does not hold. The `stop` that `entry/lifecycle.ts` awaits is the planner maintenance stop; shutdown disposes the controller |
+| `ShareGraph.settle` | deliberate: `tests/server/entry/compose/share-acme.int.test.ts` waits on it as the share graph's settle signal, recorded in `tooling/src/unwired/deliberate.ts` under `docs/law/Spine-Testing.md` |
+| `WorldInfoService.listConstantCanon` | deleted with its query and `LoreConstantCanonRow`: the injected rpg op it served no longer exists |
+| `ImportProfileDeps.reconcileStats` | deleted: no import path calls it. The profile and bundle runs reconcile through the workload settle and the drivers' own `reconcileStats` |
+| `EmbeddingsIndexerContext.roleClientsFor` | linked, not deleted: the indexer's task-model read takes it, so the delete fails `pnpm typecheck`. It picks the member from `EmbeddingsContext` |
+
+New production-path tests: `tests/server/domain/sessions/persistence/login-audit-row.int.test.ts` (a real login's audit row; it fails when the sessions context drops the injected audit writer) and the restore assertion in `tests/server/domain/import/loader/library-planes.int.test.ts` (a restored document's ingest is queued; it fails when the restore writer skips `queueIngest`). Existing ones reach the other links: `tests/server/domain/workloads/persistence/every-owner-authority.int.test.ts` (`isOwner`) and `tests/server/domain/chat/verbs/read-gates.int.test.ts` (`checkSendAvailability`, `getNextTurnConnection`).
+
+### Owner calls
+
+- `AssetsService.rebuildFromTree` (`packages/server/src/domain/assets/contract/service.ts`): disaster recovery that re-derives asset index rows for orphan blobs by hashing the per-user tree. No admin maintenance procedure or workload runs it; it would surface as an admin "rebuild the asset index" action beside the garbage collection and integrity check.
+- `CharacterService.findByImportedFrom` (`packages/server/src/domain/character/contract/service.ts`): the owner's characters whose `importedFrom` matches a batch of values. Its docs name the hub search page's already-imported markers as the caller; no hub surface reads it.
+- `DiscoveryService.backfillDigestStoryTime`: stamps `digest_theme_assignments.msgMidAt` for an owner or every owner. No workload contribution runs it; it would surface as a discovery maintenance workload.
+- `DiscoveryService.computeDigestHubScores`, `computeSegmentHubScores`, `computeImageHubScores`: write the CSLS `hub_score` of digests, segments and images. Only the character pass has a workload; the search verbs read the other three scores, which nothing computes. They would surface as hubness workloads beside the character one.
+- `SessionsService.create` is not a feature question: every login calls it through `AuthSessionsPort.create`, whose narrowed hand-written signature the scan cannot link. Recommendation for the lane that owns `packages/server/src/entry/http/auth-routes.ts`: type it `SessionsService["create"]`.

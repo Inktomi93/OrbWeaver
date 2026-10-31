@@ -43,4 +43,23 @@ Each member in the table is reached by a typed reference: the bridge's dispatch 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+| Member | Outcome |
+| - | - |
+| `PluginChatReads.listMessages`, `listCharacters` | linked: `PluginHostOps.chat` picks them from `PluginChatReads` |
+| `PluginWorldInfoReads.*` | linked: `PluginHostOps.worldInfo` is `PluginWorldInfoReads` plus the writer |
+| `PluginDocumentReads.documents` | linked: `PluginHostOps.search` is `PluginDocumentReads` |
+| `PluginNotificationDelivery.emit` | linked, not deleted: the crash policy's `plugin-disabled` notice calls it, so `pnpm typecheck` refuses the delete at the composition site |
+| `PluginNotificationDelivery` standing trio | linked: `PluginHostOps.notifications` is `PluginNotificationDelivery & PluginNotificationPost` |
+| `PluginToolHandle.unregister` | linked: `PluginRegistrationHandle` picks it from `PluginToolHandle` |
+| `ChatService.getVariables` | deleted: the item's premise does not hold. The bridge's `chat.getVariables` reads `ChatAutomationReads.readVariables`, the runtime fold; this verb was the config-plane view, and the product reads that plane through `getVariablePicks` |
+| `CreateInstanceInput.reloadMainJs` | linked, not deleted: activation passes it and the host's cold wake calls it, so the delete fails `pnpm typecheck`. It derives from the host port's `reloadMainJs` |
+| `PluginService.upgradeFromUrl` | owner call, unchanged |
+| `ToolUseService.registerPluginTool` | linked: the registrar's tool-use slot is the named `PluginToolRegistrar` port, which the composition root fills from `ToolUseService` |
+
+The `PluginChatReads`, `PluginWorldInfoReads`, `PluginDocumentReads` and `PluginNotificationDelivery` rows are scan false positives: production reaches them through a `satisfies` key, a spread, an indexed access or an overload, which the member scan of item [1447](1447-extend-pnpm-unwired-ts-7-1-engine-and.md) reads. They stay, plugin-facing, with the derived slots above. Nothing a guest can reach through the host ABI was deleted; `ChatService.getVariables` is not on the guest path, because the bridge's `chat.getVariables` reads `ChatAutomationReads.readVariables`.
+
+Production-path tests that reach the linked members: `tests/support/node/corpus-plugin-host.int.test.ts` (chat, world-info and search reads), `tests/support/node/corpus-notifications.int.test.ts` (`plugin-disabled`), `tests/server/domain/notifications/persistence/plugin-consent-rows.int.test.ts` (the standing trio), `tests/server/domain/tool-use/verbs/installer-authority.int.test.ts` (tool registration and `unregister`), and the new `tests/server/domain/plugin/activation/sleeping-runtime-wake.int.test.ts` (`reloadMainJs`; it fails with "resident runtime is missing its durable source loader" when activation omits the loader).
+
+### Owner calls
+
+- `PluginService.upgradeFromUrl` (`packages/server/src/domain/plugin/contract/service.ts`): fetches a new bundle from a pasted URL and upgrades an owned plugin through the re-consent wall. No router procedure or client surface offers it; the product upgrades a URL install through `upgradeFromStoredUrl`. It would surface as an "upgrade from URL" action on the plugin's manage page. Recommendation: delete, since the stored-URL one-click upgrade covers the same plugin.

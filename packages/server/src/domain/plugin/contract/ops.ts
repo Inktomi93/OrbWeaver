@@ -26,6 +26,7 @@ import type {
   PluginTransformRegistration,
   PluginWorldInfoReads,
 } from "@orb/contracts/plugin";
+import type { PluginToolHandle } from "@orb/contracts/tool-use";
 import type { UpsertEntriesOp } from "@orb/contracts/world-info";
 import type { AssetId, CharacterId, ChatId, DocumentId, PluginId, SandboxWireId, UserId } from "@orb/kit/ids";
 import type { UserMacroDef } from "@orb/kit/macro";
@@ -60,10 +61,8 @@ export interface PluginInvocationWork extends AsyncDisposable {
 export type PluginInvokeHandler = (handler: PluginHandlerRef, argsJson: PluginInvokeArgs, chat: InvocationChat | null, signal?: AbortSignal) => Promise<string>;
 
 /** The deregistration handle a registrar returns — `deactivate`/`uninstall` calls `unregister` so no ghost
- *  tools/transforms/subscriptions survive a disabled/removed plugin. */
-export interface PluginRegistrationHandle {
-  readonly unregister: () => void;
-}
+ *  tools/transforms/subscriptions survive a disabled/removed plugin. Every registrar returns the tool handle's shape. */
+export type PluginRegistrationHandle = Pick<PluginToolHandle, "unregister">;
 
 /** The per-ACTIVATION scope every registrar call carries (the registrar bundle is one process-wide
  *  compose value, but namespacing + the PL-C ceiling are per-plugin). `slug` is the manifest id (DERIVED from
@@ -82,24 +81,9 @@ export interface PluginActivationScope {
  *  the runtime registrar seams. TYPED here; wired at `entry/compose`. The write ops REUSE automation's
  *  injected types verbatim (one home — a plugin write is the same seam an automation action uses). */
 export interface PluginHostOps {
-  readonly chat: {
-    /** Recent canon projected to the REDUCED plugin view (the read floor is "what a member sees").
-     *  `capability: chat.read`.
-     *
-     *  `floorSeq` is REQUIRED, not optional, and is the D16 canon floor of the human this read runs for — the
-     *  read returns only `messages.seq >= floorSeq`. It is required BY TYPE because the admission that reaches
-     *  this op resolves membership only (`can(installer,"read",chat)` / `loadPresentRole`), and membership
-     *  alone is not visibility: a `from-join`-clamped member is admitted to their room yet may not read its
-     *  pre-join rows. A caller therefore cannot obtain the value without asking chat's `resolveViewerVisibility`
-     *  first — {@link buildPluginBridge} is that caller, and a non-member short-circuits to `[]` there.
-     *
-     *  `readsHidden` is the SECOND half of the same viewer verdict (parity-plus §3.6 / D106): `true` when the
-     *  human this read runs for is the chat HOST (they read hidden-class spans — the reveal plane), `false` for a
-     *  member (hidden `<lie>`/`<ofilter>` spans are STRIPPED from the body before it crosses the realm boundary —
-     *  the plugin realm is a member-reachable surface, so an unstripped body would launder a GM-plane secret to a
-     *  non-host member's snippet). REQUIRED BY TYPE for the same reason as `floorSeq`: the only source is chat's
-     *  `resolveViewerVisibility` (its `role`), so a caller cannot obtain it without the visibility resolve. */
-    readonly listMessages: PluginChatReads["listMessages"];
+  /** `listMessages` and `listCharacters` are chat's reduced reads ({@link PluginChatReads}, which documents their
+   *  visibility contract); the rest are the membrane's chat effects. */
+  readonly chat: Pick<PluginChatReads, "listMessages" | "listCharacters"> & {
     /** THE cross-domain viewer-visibility op (chat's `resolveViewerVisibility`, compose-wired) — the bridge
      *  resolves the INSTALLER's membership + history floor with it before any canon read crosses the realm
      *  boundary. `null` = not a present member ⇒ the guest sees nothing. The TYPE is chat's (type-only
@@ -111,13 +95,6 @@ export interface PluginHostOps {
      *  room-state, not transcript (every member plays against it and post-join turns render it into text via
      *  `{{getvar}}`), so it is NOT floor-clamped — the read-visibility ruling's activity plane. */
     readonly getVariables: ChatAutomationReads["readVariables"];
-    /** The invocation chat's PRESENT CHARACTER roster, projected to the reduced `PluginCharacterView`
-     *  (`chat.listCharacters`, capability `chat.read` — #788 F11). PRINCIPAL-FREE, the `listMessages` posture: the
-     *  bridge resolves the installer's membership via `resolveViewerVisibility` FIRST and short-circuits a
-     *  non-member to `[]`, so this read is reached only for a member of THIS room and carries no owner filter (a
-     *  room's roster is the room's own member-visible state). Wired at compose to the principal-free
-     *  `loadPluginCharacters` reader. Reduced to id/name/avatar — never a co-participant's full card. */
-    readonly listCharacters: PluginChatReads["listCharacters"];
     /** The standalone runtime-variable write — the SAME delta seam automation's `set_variable` arm rides.
      *  `capability: chat.variables.write`. */
     readonly applyVariableOps: PluginBridge["chat"]["applyVariableOps"];
@@ -139,28 +116,11 @@ export interface PluginHostOps {
    *  ("grant + host + book-attached-to-chat + the 64-entry cap"). The grant + host authority are the membrane's;
    *  these two are the domain's, and they are what keep a `worldinfo.write` grant from reaching rooms the plugin
    *  was never admitted to. The automation arm gates both (`arm-executors.ts` — `isBookAttachedToChat` +
-   *  `RULE_MAX_ENTRIES_PER_BOOK`); the plugin path gated neither. */
-  readonly worldInfo: {
+   *  `RULE_MAX_ENTRIES_PER_BOOK`); the plugin path gated neither. The gates and the `worldinfo.read` reads are
+   *  world-info's {@link PluginWorldInfoReads}. */
+  readonly worldInfo: PluginWorldInfoReads & {
     /** The SHARED, hand-edit-safe world-info writer (the ONE write path) — automation's injected type verbatim. */
     readonly upsertEntries: UpsertEntriesOp;
-    /** Is the guest-named book attached to the ADMITTED chat? The attachment IS the room's consent to that
-     *  book's prompt content, so a plugin invoked in chat X may not write a book attached only to chat Y (both
-     *  can be owned by the same installer, which is all the shared writer's ownership gate can see). Wired at
-     *  compose to world-info's own member-gated `listForChat` front door. */
-    readonly isBookAttachedToChat: PluginWorldInfoReads["isBookAttachedToChat"];
-    /** The book's existing entry TITLES, for the per-plugin entry ceiling (a looping guest fills a book
-     *  otherwise). Wired at compose to world-info's owner-gated `listEntryIndex`. */
-    readonly listEntryTitles: PluginWorldInfoReads["listEntryTitles"];
-    /** The `worldinfo.read` READ half (#788 F12): the books ATTACHED to the invocation chat, reduced to
-     *  `PluginWorldBookView`. Wired at compose to world-info's member-gated `listForChat` under the installer's
-     *  Principal — so a non-member/kicked caller gets `[]` and only books attached to THIS room are ever named.
-     *  Owner-scoped by construction: the installer's own attached books. */
-    readonly listBooksForChat: PluginWorldInfoReads["listBooksForChat"];
-    /** The `worldinfo.read` entry read (#788 F12): the entries of ONE book, reduced to `PluginWorldEntryView`.
-     *  Wired at compose to world-info's OWNER-gated `listEntries`. The ATTACHMENT gate is applied by the bridge
-     *  BEFORE this op (the write path's own `isBookAttachedToChat`), so a `bookId` not attached to the invocation
-     *  chat never reaches here — this op reads only an already-attachment-verified, installer-owned book. */
-    readonly listEntries: PluginWorldInfoReads["listEntries"];
   };
   /** The `assets.read` capability's READ op (#788 seam-11 read half). Read one asset from the INSTALLER's OWN
    *  CAS — wired at compose to the assets domain's OWNER-GATED `readOwnedAssetBytes` under the installer's
@@ -197,9 +157,7 @@ export interface PluginHostOps {
    *  searches only its own library (owner-scoped by construction — a guest names only the query + limit). The
    *  limit is clamped to `PLUGIN_SEARCH_RESULTS_MAX` at the membrane. Returns ranked reduced hits (content
    *  host-capped). No principal resolve — the ownerId in the scope IS the owner gate. */
-  readonly search: {
-    readonly documents: PluginDocumentReads["documents"];
-  };
+  readonly search: PluginDocumentReads;
   /** The plugin-PRIVATE KV plane (`storage.*`; the `plugin_kv` table) — per plugin × installing
    *  owner. DIVERGES from automation (no automation analog): every op is keyed by BOTH `pluginId` AND `ownerId`
    *  (the denormalized guard column), so plugin A can never read plugin B's keys and no cross-owner read is
@@ -234,25 +192,9 @@ export interface PluginHostOps {
    *     Its selector is the PLUGIN SUBSET of the recipient axis (`PLUGIN_NOTIFICATION_RECIPIENTS`): the
    *     actor-excluding member resolves against a TRIGGERING FACT, and a guest `notify` call has none, so the
    *     member is unrepresentable on this seam rather than silently collapsing to `all_members`.
-   *  `emit` capability: NONE (a host-internal crash notice); `post` capability: `notify`. Both wired at compose. */
-  readonly notifications: {
-    readonly emit: PluginNotificationDelivery["emit"];
-    /** The STANDING-ASK TRIO (#1041) the consent prompt drives — a standing ask is a claim that stays true,
-     *  so it has three moves an episodic event does not, and the CALLER picks by what actually changed:
-     *   - `emitStanding` — the ask GREW: record the event as the recipient's ONE live row of its type
-     *     (any active row of that type is superseded in the same batch) and re-badge. New information.
-     *   - `refreshStanding` — the ask SHRANK: correct the SAME row's payload in place (`seq`/`readAt`
-     *     untouched), so answering nine asks one at a time never re-badges the bell nine times.
-     *   - `retractStanding` — the ask is GONE: withdraw the row. There is no zero-count event to record.
-     *  All three are no-ops for a reader who dismissed the row (no active row of the type), which is the
-     *  settled state, not a reason to resurrect it. Wired at compose to `notifications.record`
-     *  (`supersedeActiveOfSameType`) / `notifications.refreshStanding` / `notifications.retract`, each +
-     *  the per-user bus publish. Capability: NONE — host-internal, never reachable from a guest. */
-    readonly emitStanding: PluginNotificationDelivery["emitStanding"];
-    readonly refreshStanding: PluginNotificationDelivery["refreshStanding"];
-    readonly retractStanding: PluginNotificationDelivery["retractStanding"];
-    readonly post: PluginNotificationPost["post"];
-  };
+   *  `emit` capability: NONE (a host-internal crash notice); `post` capability: `notify`. Both wired at compose.
+   *  The standing-ask trio the consent prompt drives is documented on {@link PluginNotificationDelivery}. */
+  readonly notifications: PluginNotificationDelivery & PluginNotificationPost;
   /** Surface transient quick-reply chips (`surfaceQuickReply`; the automation-bus `quickReplySurfaced`
    *  event). Rides the SAME frame-free emit seam automation's `surface_quick_reply` arm does
    *  (`publishAutomationEvent`, composed UP — infra never imports transport), stamping the emit

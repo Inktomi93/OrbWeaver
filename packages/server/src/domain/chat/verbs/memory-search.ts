@@ -8,7 +8,7 @@ export function createChatMemorySearchOps(deps: ChatMemorySearchDeps): ChatMemor
     // EXPLAIN, never a second copy of the content).
     // The digest SPACE is the host's (their `embed`/`rerank` bindings wrote it — vector tasks are owner-scoped,
     // inference program §7.5); `MemoryQueryOptions` carries no owner by D20, so the host is resolved from the
-    // chat FK here, exactly as `searchCorpus` below does. Hostless room ⇒ nothing to recall (leak-free).
+    // chat FK here. Hostless room ⇒ nothing to recall (leak-free).
     // The SPACE refusals degrade here rather than faulting the turn (#2510 — `retrieval-degrade.ts` states
     // the whole boundary): a mid-move or unbound vector space is an ordinary owner state, and the user hears
     // about it through the episode this reports into. Every other search failure still propagates.
@@ -23,24 +23,6 @@ export function createChatMemorySearchOps(deps: ChatMemorySearchDeps): ChatMemor
         { empty: [], onIndexUnavailable: events?.onIndexUnavailable },
       );
       return hits.map((h) => ({ blockKey: h.blockKey, score: h.score, relevance: h.relevance }));
-    },
-    // The owner-wide corpus lens. MemoryQueryOptions deliberately carries no owner, so the owner is
-    // resolved FROM CONTEXT here: the chat's present host (D19 — the room authority). The memory bridge
-    // keeps stored digest identities; standalone transcript sources remain search evidence. Hostless/stale room ⇒ empty
-    // (leak-free unknown-owner, the resolvePromptVariables posture); an empty queryText propagates the
-    // corpus verb's own SEARCH_EMPTY_QUERY refusal (flag-don't-fake).
-    searchCorpus: async (query): ReturnType<ChatMemorySearchOps["searchCorpus"]> => {
-      const hostUserId = await deps.resolveHostUserId(query.scope.chat);
-      if (hostUserId === null) {
-        return [];
-      }
-      const hits = await deps.corpus({
-        ownerId: hostUserId,
-        queryText: query.queryText ?? "",
-        mode: query.mode,
-        minScore: query.minScore,
-      });
-      return hits.flatMap((h) => h.blockKeys);
     },
   };
 }

@@ -4,7 +4,7 @@
 // answer from the forward `listFor*` reads would have meant an N-query fan-out over the whole library).
 // A read: no audit, no emit.
 //
-// THE GATE IS `getScript`'S, EXACTLY: a foreign/absent script collapses to `RegexNotFoundError` before any
+// THE OWNED-SCRIPT GATE COMES FIRST: a foreign/absent script collapses to `RegexNotFoundError` before any
 // junction is touched, so this can never be used to probe someone else's shelf. The rosters are then
 // filtered a SECOND time on their own side — the preset/character joins carry `ownerId`, and the rooms go
 // through chat's injected `resolveVisibleRooms`. Both halves matter: the script gate alone would still let

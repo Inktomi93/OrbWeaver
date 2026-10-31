@@ -23,7 +23,6 @@ import type {
   ClearRevokedParams,
   ListCredentialsParams,
   MarkRevokedByUserParams,
-  MarkRevokedParams,
   RemoveCredentialParams,
   ReplaceCredentialParams,
   ResolveCredentialParams,
@@ -52,7 +51,7 @@ export interface CredentialContext {
 }
 
 /** The credential surface. The turn-time `resolve` is the only consumer-facing construction of a
- *  `ResolvedSecret`; CRUD is ownership-scoped; health has the runner-internal (`markRevoked`) vs
+ *  `ResolvedSecret`; CRUD is ownership-scoped; health has the runner-internal (`maybeRevokeOnAuthFailed`) vs
  *  user-facing (`markRevokedByUser`) split — must not merge. */
 export interface CredentialsService {
   // Turn-time
@@ -78,9 +77,7 @@ export interface CredentialsService {
   readonly storageStatus: () => Promise<CredentialStorageStatus>;
 
   // Health
-  /** Runner-internal revoke (NO ownership check — the runner proved access by holding the id). */
-  readonly markRevoked: (params: MarkRevokedParams) => Promise<void>;
-  /** User-facing revoke (adds the ownership check). MUST stay distinct from `markRevoked` (invariant #6). */
+  /** User-facing revoke (adds the ownership check). MUST stay distinct from `maybeRevokeOnAuthFailed` (invariant #6). */
   readonly markRevokedByUser: (params: MarkRevokedByUserParams) => Promise<void>;
   readonly clearRevoked: (params: ClearRevokedParams) => Promise<void>;
   readonly probeKeyDecrypt: () => Promise<boolean>;

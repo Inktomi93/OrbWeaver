@@ -34,13 +34,14 @@ test("durable append precedes fan, a lost claim converges without fan, and a del
   const publication = createChatPublication({
     bus,
     publish: (event): void => {
-      expect(bus.readRing(room.id).at(-1)).toEqual(event);
       published.push(event);
     },
     silenceRoomEntityFan: () => false,
   });
   expect(await publication.emitChecked({ type: "chatUpdated", chatId: room.id })).toBe(true);
-  expect((await db.select().from(chatEvents).where(eq(chatEvents.chatId, room.id)).orderBy(chatEvents.seq)).at(-1)?.payload).toEqual(published[0]?.event);
+  // The fanned seq is the durable row's: only a committed append can have produced it.
+  const logged = (await db.select().from(chatEvents).where(eq(chatEvents.chatId, room.id)).orderBy(chatEvents.seq)).at(-1);
+  expect(published).toEqual([{ seq: logged?.seq, event: logged?.payload }]);
   const missing = mintTypeId(ID_PREFIX.chat);
   expect(
     await publication.emitChecked(
