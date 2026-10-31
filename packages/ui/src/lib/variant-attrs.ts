@@ -115,7 +115,7 @@ export function variantAttrs<Selection>(recipe: VariantAxisSource<Selection>, se
  * from ONE selection object. Spread it last on the element so the caller's `className` still lands after
  * the recipe's (the `cn(recipe(...), className)` order every primitive already had).
  *
- * `<span data-slot="badge" {...props} {...variantProps(badgeVariants, { intent, tone, size }, className)} />`
+ * `<span data-slot="badge" {...props} {...variantProps(badgeVariants, { tone, variant, size }, className)} />`
  */
 export function variantProps<Selection>(recipe: VariantClassRecipe<Selection>, selection: Selection, className?: string, tone?: ToneStamp): VariantStampProps {
   return { className: cn(recipe(selection), className), ...variantAttrs(recipe, selection, tone) };

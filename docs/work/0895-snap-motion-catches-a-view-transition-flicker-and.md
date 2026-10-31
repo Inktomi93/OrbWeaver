@@ -1,9 +1,10 @@
 ---
 kind: tooling
 status: open
-updated: 2026-10-12
+updated: 2026-10-31
 priority: P2
 area: tooling
+plan: surface-walk
 ---
 
 # snap motion catches a view-transition flicker and never reports a silent near-empty window

@@ -23,8 +23,8 @@
 
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ChatId } from "@orb/kit/ids";
-import { Badge } from "@orb/ui/badge";
 import { BookOpen, Icon } from "@orb/ui/icons";
+import { InlineToken } from "@orb/ui/inline-token";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
@@ -87,7 +87,7 @@ function DisplayScriptRow({ isYours, script }: { readonly isYours: boolean; read
   const name = regexScriptTitle(script);
   return (
     <ListRow
-      markers={script.enabled ? null : <Badge size="inline">OFF</Badge>}
+      markers={script.enabled ? null : <InlineToken>OFF</InlineToken>}
       {...(isYours
         ? {
             actions: (

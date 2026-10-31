@@ -7,7 +7,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import StyleDictionary from "style-dictionary";
 import type { DesignTokens, TransformedToken } from "style-dictionary/types";
-import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_STATIC_SEED_VARS } from "./src/content/theme-scope/emit-vars.ts";
+import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_NON_PALETTE_VARS, THEME_SCOPE_STATIC_SEED_VARS } from "./src/content/theme-scope/emit-vars.ts";
 import type { ContractToken, GeneratedCssValue, TokenContractResult } from "./token-contract.ts";
 import { assertTokenContract, REQUIRED_SEED_VALUE_SET_PATHS, TOKEN_ARTIFACT_PATHS, TOKEN_ARTIFACT_SOURCE_PATHS } from "./token-contract.ts";
 import { assertNoNearDuplicateColors } from "./tokens.near-duplicate.ts";
@@ -514,14 +514,43 @@ function loadSeedThemes(contract: TokenContractResult): SeedTheme[] {
 }
 
 /**
+ * The static polarity tokens a carried scope replaces with literals (`THEME_SCOPE_STATIC_SEED_VARS`), restated at their
+ * root value, so a seed nested inside that scope follows its own `color-scheme` instead of the scope's literal.
+ */
+function staticSeedResets(portableByPath: ReadonlyMap<string, string>): readonly string[] {
+  return THEME_SCOPE_STATIC_SEED_VARS.map((name) => {
+    const path = `color.${name.slice("--color-".length)}`;
+    const value = portableByPath.get(path);
+    if (value === undefined) {
+      throw new Error(`static seed emit var ${name}: no portable base token ${path}`);
+    }
+    return `${name}: ${value};`;
+  });
+}
+
+const NON_PALETTE_EMIT_VARS: ReadonlySet<string> = new Set(THEME_SCOPE_NON_PALETTE_VARS);
+const DECLARED_NAME_RE = /^\s*(--[\w-]+):/gmu;
+
+/** Fails the build when a seed palette block leaves a palette variable a ThemeScope emits to the cascade, where a nested seed would paint the scope's value. */
+function assertSeedBlockRestatesEmitSurface(block: string, label: string): void {
+  const declared = new Set([...block.matchAll(DECLARED_NAME_RE)].map(([, name]) => name));
+  const leaked = THEME_SCOPE_EMIT_VARS.filter((name) => !(NON_PALETTE_EMIT_VARS.has(name) || declared.has(name)));
+  if (leaked.length > 0) {
+    throw new Error(`seed palette block ${label} does not restate ThemeScope emit vars [${leaked.join(", ")}]`);
+  }
+}
+
+/**
  * Seed palettes follow the default root and pointer values in the theme layer, so Light's
  * color-scheme wins by source order. Each seed declares its complete palette.
  */
-function renderSeedThemesBlock(themes: readonly SeedTheme[], toneResets: readonly string[]): string {
+function renderSeedThemesBlock(themes: readonly SeedTheme[], resets: readonly string[]): string {
   const parts: string[] = [];
   for (const theme of themes) {
-    const lines = [...theme.vars.map(([name, value]) => `  ${name}: ${value};`), ...toneResets.map((line) => `  ${line}`)];
-    parts.push(`\n[data-theme="${theme.name}"] {\n  color-scheme: ${theme.colorScheme};\n${lines.join("\n")}\n}\n`);
+    const lines = [...theme.vars.map(([name, value]) => `  ${name}: ${value};`), ...resets.map((line) => `  ${line}`)];
+    const block = `\n[data-theme="${theme.name}"] {\n  color-scheme: ${theme.colorScheme};\n${lines.join("\n")}\n}\n`;
+    assertSeedBlockRestatesEmitSurface(block, `[data-theme="${theme.name}"]`);
+    parts.push(block);
   }
   return parts.join("");
 }
@@ -531,7 +560,7 @@ function renderSeedThemesBlock(themes: readonly SeedTheme[], toneResets: readonl
  * `[data-theme]` block and the shell paints it by stamping nothing; a nested box that must show Hearth under another
  * palette's scope (a theme thumbnail) names this block instead. Same keys as a seed block, values from the base tokens.
  */
-function renderBasePaletteBlock(seeds: readonly SeedTheme[], portableByPath: ReadonlyMap<string, string>, toneResets: readonly string[]): string {
+function renderBasePaletteBlock(seeds: readonly SeedTheme[], portableByPath: ReadonlyMap<string, string>, resets: readonly string[]): string {
   const [seed] = seeds;
   if (seed === undefined) {
     throw new Error("no seed value-set to key the base palette block");
@@ -544,7 +573,9 @@ function renderBasePaletteBlock(seeds: readonly SeedTheme[], portableByPath: Rea
     }
     return `  ${name}: ${value};`;
   });
-  return `\n[data-palette="base"] {\n  color-scheme: dark;\n${[...lines, ...toneResets.map((line) => `  ${line}`)].join("\n")}\n}\n`;
+  const block = `\n[data-palette="base"] {\n  color-scheme: dark;\n${[...lines, ...resets.map((line) => `  ${line}`)].join("\n")}\n}\n`;
+  assertSeedBlockRestatesEmitSurface(block, '[data-palette="base"]');
+  return block;
 }
 
 /** The generated `themes.gen.ts` module — the seed palettes as a typed TS record (parallel to TOKENS),
@@ -633,13 +664,14 @@ export async function generateArtifacts(uiRoot = HERE): Promise<{ themeCss: stri
   }
   const conditions = resolveConditions(contract.conditions, portableByPath);
   const seedThemes = loadSeedThemes(contract);
+  const seedResets = [...staticSeedResets(portableByPath), ...toneSeedResets(tones)];
   return {
     themeCss: renderGeneratedCss(
       flat,
       conditions,
       renderPointerFineBlock(fine, conditions[POINTER_FINE_CONDITION]) +
-        renderSeedThemesBlock(seedThemes, toneSeedResets(tones)) +
-        renderBasePaletteBlock(seedThemes, portableByPath, toneSeedResets(tones)) +
+        renderSeedThemesBlock(seedThemes, seedResets) +
+        renderBasePaletteBlock(seedThemes, portableByPath, seedResets) +
         renderToneBlocks(tones) +
         renderPigmentBlocks(contract.pigments),
       toneRootDefaults(tones),

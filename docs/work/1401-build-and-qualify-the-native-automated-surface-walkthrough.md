@@ -49,6 +49,8 @@ Phase B, parked until the UI program settles (the tone role tier and variant voc
 
 Repeated manual navigation and separate measurements consume model calls and leave fragmented review evidence. Journeys written before the UI program would be rewritten after it.
 
+Phase B also owns the layout-stability matrix and the shared audit run over the surface population: initial document loading and unexpected post-ready movement on Chromium and WebKit, and the design and Snap audits over the same journeys.
+
 ## Done when
 
 Phase A: the fast loop, method, status table and triage are committed; the branch passes independent review and merges; this item is parked with the UI program as its blocker.

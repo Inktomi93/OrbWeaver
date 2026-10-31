@@ -1,9 +1,10 @@
 ---
 kind: tooling
 status: open
-updated: 2026-10-24
+updated: 2026-10-31
 priority: P2
 area: ci
+plan: test-foundation
 ---
 
 # The hosted Node test run spends half its time importing the server graph

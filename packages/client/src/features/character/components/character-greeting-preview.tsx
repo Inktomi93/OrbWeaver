@@ -13,6 +13,7 @@ import { Icon, Pencil, Plus, Trash2, WandSparkles } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { MacroTextarea } from "@orb/ui/macro-textarea";
 import { Markdown } from "@orb/ui/markdown";
+import { Spoiler } from "@orb/ui/spoiler";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
@@ -199,8 +200,8 @@ function GreetingBody({
     <form.Subscribe selector={(s): string => s.values.greetings[index]?.text ?? ""}>
       {(active): ReactElement => (
         <ThemeScope tokens={cardTheme}>
-          <Card ownSlot="character-greeting-bubble" tone="bubble" spoiler={spoilerBlur}>
-            <Stack gap="row">
+          <Card ownSlot="character-greeting-bubble" tone="bubble">
+            <Spoiler gap="row" concealed={spoilerBlur}>
               {active.trim() === "" ? (
                 <Text voice="quiet">No first message yet.</Text>
               ) : (
@@ -208,7 +209,7 @@ function GreetingBody({
                   {active}
                 </Markdown>
               )}
-            </Stack>
+            </Spoiler>
           </Card>
         </ThemeScope>
       )}

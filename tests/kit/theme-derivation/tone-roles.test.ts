@@ -2,6 +2,7 @@
 // space is OKLab, and the tint separation holds between non-adjacent hues at the least tint chroma. The recipe matrix
 // itself runs through the clamp in tests/ui/content/theme-scope/tone-knobs.test.ts.
 import {
+  carriedInks,
   carriedTonePalette,
   familyForegroundLightness,
   mixOklab,
@@ -17,6 +18,8 @@ import { ACCEPTED_BASES } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 
 const TINT_PERCENT = 14;
+/** Hearth's page. */
+const PAGE = { l: 0.158, c: 0.006, h: 60 };
 
 test("one ink covers the accent and muted tints on every accepted base, by retracting the accent only where it must", () => {
   const retracted = ACCEPTED_BASES.filter((base) => {
@@ -45,7 +48,7 @@ test("two tints at the least chroma, the adjacency bound apart in hue, keep the 
 
 test("a tone mix runs in OKLab, so a destructive tint over a warm page keeps the red hue", () => {
   const destructive = { l: 0.72, c: 0.19, h: 25 };
-  const tint = mixOklab(destructive, TINT_PERCENT, carriedTonePalette({ l: 0.158, c: 0.006, h: 60 }).background);
+  const tint = mixOklab(destructive, TINT_PERCENT, carriedTonePalette(PAGE, carriedInks(PAGE)).background);
   // OKLCH would carry the hue toward the page's 60; OKLab keeps the red within a few degrees.
   expect(Math.abs(tint.h - destructive.h)).toBeLessThan(10);
 });

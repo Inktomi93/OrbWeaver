@@ -34,6 +34,7 @@ import type { DocumentId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Icon, Plus } from "@orb/ui/icons";
+import { InlineToken } from "@orb/ui/inline-token";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
@@ -223,10 +224,10 @@ export function HomeDocumentsTileBody(): ReactElement {
                       // (2026-08-19) reaches all three surfaces, not two; safe since the badge inline
                       // arm learned to keep a block svg on the line.
                       subtitleLead: (
-                        <Badge className="me-field" tone={badge.tone} size="inline">
+                        <InlineToken className="me-field" tone={badge.tone}>
                           {badge.glyph === null ? null : <Icon icon={badge.glyph} size="xs" />}
                           {badge.label}
-                        </Badge>
+                        </InlineToken>
                       ),
                     }
                   : {})}

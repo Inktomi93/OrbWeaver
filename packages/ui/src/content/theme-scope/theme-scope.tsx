@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { createContext, use, useEffect } from "react";
-import type { ThemeScopeTokens } from "./clamp.ts";
+import type { AmbientPalette, ThemeScopeTokens } from "./clamp.ts";
 import { clampThemeTokens } from "./clamp.ts";
 import { InputBorderFallbackReporterContext, ToneFallbackReporterContext } from "./tone-fallback.ts";
 
@@ -35,9 +35,15 @@ export interface ThemeScopeProps {
  * exactly as it did pre-#236: an ink-only override passes through unjudged.
  *
  * The value handed down is `ClampedTheme.resolvedBackground`, never a raw prop — so alpha and invalid
- * safe words cannot lie about the pixel nested scopes actually land on.
+ * safe words cannot lie about the pixel nested scopes actually land on. `palette` says whether a scope
+ * that carried that background painted it (D336), which an accent-only descendant solves its primary on.
  */
-const AmbientBaseContext = createContext<string | null>(null);
+const AmbientBaseContext = createContext<AmbientBase | null>(null);
+
+interface AmbientBase {
+  readonly pixel: string;
+  readonly palette: AmbientPalette;
+}
 
 /**
  * The accent a DESCENDANT scope will paint with — this scope's own picked one when it has one, else
@@ -54,9 +60,10 @@ const AmbientAccentContext = createContext<string | null>(null);
 export function ThemeScope({ tokens, children, className, ambientBackground, ambientAccent }: ThemeScopeProps): ReactElement {
   const inheritedBase = use(AmbientBaseContext);
   const inheritedAccent = use(AmbientAccentContext);
-  const ambient = ambientBackground ?? inheritedBase;
+  // The shell hands the active app theme's base to the root scope, which carries that background itself when the theme is custom.
+  const ambient: AmbientBase | null = ambientBackground === undefined ? inheritedBase : { pixel: ambientBackground, palette: "seed" };
   const accentAmbient = ambientAccent ?? inheritedAccent;
-  const clamped = clampThemeTokens(tokens, ambient ?? undefined, accentAmbient ?? undefined);
+  const clamped = clampThemeTokens(tokens, ambient?.pixel, accentAmbient ?? undefined, ambient?.palette);
   const reportFallback = use(ToneFallbackReporterContext);
   const reportInputBorderFallback = use(InputBorderFallbackReporterContext);
   // The fallback's fields, not the object the clamp rebuilds every render, so a scope reports one fallback once.
@@ -91,7 +98,7 @@ export function ThemeScope({ tokens, children, className, ambientBackground, amb
     ...(clamped.color === undefined ? {} : { color: clamped.color }),
   };
   return (
-    <AmbientBaseContext value={clamped.resolvedBackground ?? ambient}>
+    <AmbientBaseContext value={clamped.resolvedBackground === undefined ? ambient : { pixel: clamped.resolvedBackground, palette: "carried" }}>
       <AmbientAccentContext value={clamped.accentSource ?? accentAmbient}>
         <div className={className} style={style} data-slot="theme-scope" {...(clamped.density === undefined ? {} : { "data-density": clamped.density })}>
           {children}

@@ -210,6 +210,30 @@ The button family keeps one render in `packages/ui/src/primitives/button/core.ts
 | `packages/client/src/components/row-actions-menu.tsx`, `packages/ui/src/primitives/hint-trigger/hint-trigger.tsx` | The trigger box is a prop value, so each value renders its own component. |
 | `PictureButton` style | No style draws nothing, which replaces `bare`; `variant="ghost"` keeps the ghost tint for a captioned picture tile. |
 
+##### Step 4b record
+
+`InlineToken` and `IndicatorDot` each own a skin in their own `variants.ts` behind their own door. They share no core: Badge holds no behavior beyond `variantProps`, so a shared render would only wrap one `span`. Both keep `data-slot="badge"`, so owner CSS and the generated slot list keep their hook.
+
+| Site | Choice |
+| - | - |
+| `InlineToken` | Takes `tone` and draws the soft roles only. The token draws no border, so `outline` has nothing to paint, and no site wants a filled word. |
+| `IndicatorDot` | Takes `tone` and `variant` `solid` or `outline`. The ring is `outline` on the tone's `text` role, which replaces Badge `edge="ink"`: the tone edge is too faint at the dot's diameter. |
+| `packages/client/src/components/connection-role-slot.tsx` | `DOT_SKIN` is computed, so the move was a hand edit: it drops `edge` and types its rows from `IndicatorDotProps`. |
+| `badge-family.json` | Badge draws `soft` when no style is named and `IndicatorDot` draws `solid`, so a dot that names no style is refused. No site left it unnamed. |
+
+##### Step 4c record
+
+Step 4c lands as three commits in order: `Spoiler` with the ink fixes, `MessageBubble` with the plate, then the preview parts, `FloatingChip`, `RoomIsland` and the map. Most preview tones sit on `shape="row"`, which stays; only the elevation preview panes use `shape="inset"`. Seven bubble sites in six files move.
+
+`Spoiler` lives in `packages/ui/src/layout/spoiler/` behind its own door, because a primitive sits below the layout group and a group imports no other group. It renders `Stack` and forwards the Stack's layout props, so layout keeps one home and a spoiler site changes no DOM depth. It owns the spoiler skin and `data-concealed`, the attribute the skin keys on, and it stamps `data-slot="spoiler"`. Card and Stack no longer take `spoiler`. The greeting preview places a `Spoiler` inside its Card, so the blur reaches the content and not the card's own fill. The owner-CSS slot `character-spoiler-field` is gone; its `renames.ts` row points at `spoiler`.
+
+| Site | Choice |
+| - | - |
+| `packages/client/src/features/character/components/character-facet-editor.tsx` | Both computed sites became `Spoiler gap="field"` with `concealed` from the eye toggle. |
+| `packages/client/src/features/character/components/character-greeting-preview.tsx` | The Card keeps its bubble tone; its inner Stack became `Spoiler gap="row"`. |
+
+Ink fixes: Card `interactive` hover and press paint `text-tone-text-on-tint`; the compare-blocks side panels paint `text-tone-text-on-tint`; the tool-call-block `pre` and the immersive-card body paint `text-accent-foreground` on the neutral tint.
+
 #### Mapping: Card
 
 | Old value | New |
@@ -400,6 +424,7 @@ Dynamic Type remains deferred. Adopting `-apple-system-body` changes the approve
 ### Remaining acceptance
 
 - Keep item 1299 open until its explicit current-tree native lint and dependency requirements are satisfied.
+- The enlarged-text repairs run before comparative acceptance, in the [cross-surface order](../cross-surface-consistency/design.md#order).
 - Preserve the distinction between source delivery, selected rendered acceptance and full application CI.
 - The Import FormDialog is qualified on Chromium and WebKit at 200% text on the phone and desktop and at 300% layout on desktop. At 300% on a 390px phone the dialog gutter leaves a sliver; item 1299 holds it.
 - Keep fine-pointer finder reveal-transition imagery unqualified. A recent-shelf focus image does not establish that behavior.

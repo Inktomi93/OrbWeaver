@@ -27,8 +27,8 @@
 
 import type { RegexTierKey, RegexTierRowView } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
-import { Badge } from "@orb/ui/badge";
 import { BookOpen, Icon, Unlink } from "@orb/ui/icons";
+import { InlineToken } from "@orb/ui/inline-token";
 import { Row } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
@@ -170,16 +170,14 @@ function RowMarkers({
       {alsoAt.length === 0 ? null : (
         // The count is for the eye: each other tier draws this row under its own heading on the same panel.
         <>
-          <Badge aria-hidden={true} size="inline">
-            +{alsoAt.length}
-          </Badge>
+          <InlineToken aria-hidden={true}>+{alsoAt.length}</InlineToken>
           <Text as="span" className="sr-only">
             {`also attached: ${alsoAt.join(" · ")}`}
           </Text>
         </>
       )}
-      {enabled ? null : <Badge size="inline">OFF</Badge>}
-      {notYours ? <Badge size="inline">previous host</Badge> : null}
+      {enabled ? null : <InlineToken>OFF</InlineToken>}
+      {notYours ? <InlineToken>previous host</InlineToken> : null}
     </Row>
   );
 }

@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-10-11
+updated: 2026-10-31
 priority: P2
 area: plugin
+plan: cross-surface-consistency
 ---
 
 # Third-party topbar extensions render their own button instead of a host Plugins wand
