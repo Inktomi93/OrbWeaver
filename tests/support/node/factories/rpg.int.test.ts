@@ -3,7 +3,7 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
-import { RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
+import { RPG_NO_CHANGES_TOOL, RPG_SNAPSHOT_KIND } from "@orb/contracts/rpg";
 import { messages, rpgCheckpoints, rpgSnapshots } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { eq } from "drizzle-orm";
@@ -111,7 +111,7 @@ test("hand journal capture retains the actual writer's custom label and every-li
   expect(note.id).not.toBe(custom.id);
 });
 
-test("checkpoint capture references the real hand snapshot without manufacturing a canon anchor", async () => {
+test("checkpoint capture references the checkpoint's bookmark copy without manufacturing a canon anchor", async () => {
   await using root = await createServerHarness();
   const params = await gameInputs(root);
   const game = await seedRpgGameRows(root, { ...params, mode: "lite" });
@@ -125,6 +125,7 @@ test("checkpoint capture references the real hand snapshot without manufacturing
     variantId: null,
     asOfMessageId: null,
     committed: 1,
+    kind: RPG_SNAPSHOT_KIND.bookmark,
   });
   expect(await root.db.select().from(messages).where(eq(messages.chatId, params.chatId))).toEqual([]);
 });
