@@ -29,6 +29,7 @@ export function Sample(): ReactElement {
       <Button variant="ghost" size="media" shape="pill">
         portrait
       </Button>
+      <Button aria-label="Send" size="glyph-lg" />
       <Button size="sm">Stays a Button</Button>
     </div>
   );

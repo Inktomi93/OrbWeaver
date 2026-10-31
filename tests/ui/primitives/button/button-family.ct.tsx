@@ -40,6 +40,8 @@ test("each inline step is text-height at its type step and carries the touch-tar
 });
 
 test("a picture button is its picture's box: the bare one draws nothing and dims on hover, the ghost one tints", async ({ mount, page }) => {
+  // Tailwind's `hover:` applies only under `(hover: hover)`, so a touch device keeps both pictures at rest.
+  const hovers = await page.evaluate(() => matchMedia("(hover: hover)").matches);
   const component = await mount<typeof ButtonFamilyBoxesStory>(`${STORIES}/ButtonFamilyBoxesStory`, {});
   const bare = component.getByRole("button", { name: "Bare picture", exact: true });
   const ghost = component.getByRole("button", { name: "Ghost picture", exact: true });
@@ -54,9 +56,9 @@ test("a picture button is its picture's box: the bare one draws nothing and dims
   expect(await style(bare, "background-color")).toBe(transparent);
   expect(await style(bare, "opacity")).toBe("1");
   await bare.hover();
-  await expect.poll(() => style(bare, "opacity")).toBe("0.8");
+  await expect.poll(() => style(bare, "opacity")).toBe(hovers ? "0.8" : "1");
   await ghost.hover();
-  await expect.poll(() => style(ghost, "background-color")).not.toBe(transparent);
+  await expect.poll(async () => (await style(ghost, "background-color")) !== transparent, "the ghost tints exactly when the device hovers").toBe(hovers);
 });
 
 test("every member takes the core's focal, busy and disabled states", async ({ mount }) => {

@@ -186,7 +186,9 @@ Inks on tints. D336 paints text on a tint with the tone's `text-on-tint` role; f
 | 4c | `packages/ui/src/primitives/tool-call-block/variants.ts` `pre`, `packages/ui/src/content/immersive-card/variants.ts` body | `text-foreground` on `bg-muted`, the neutral tint, becomes `text-accent-foreground`. |
 | 4e | Tabs rail cell in `packages/ui/src/primitives/tabs/variants.ts` | `data-active:text-foreground` on `data-active:bg-tone-tint` becomes `data-active:text-tone-text-on-tint`, beside ListRow's `data-selected` state styles. |
 
-Each family map is a list of `{ element, door, match, to, toDoor, attributes }` rows. The first row whose `match` attributes all match wins, so list a more specific match first. A `match` value of `true` matches a bare or `{true}` attribute.
+Each family map holds `defaults` and a list of `{ element, door, match, to, toDoor, attributes }` rows. The first row whose `match` attributes all match wins, so list a more specific match first. A `match` value of `true` matches a bare or `{true}` attribute.
+
+`defaults` names, for every source and target component, the value each style or colour axis resolves when the call site names none; `""` means the axis draws nothing. The codemod refuses and reports a site that leaves such an axis unnamed when the two defaults differ, because the move would change its emphasis silently. A map without a component's defaults fails to load.
 
 | Map | Rows |
 | - | - |

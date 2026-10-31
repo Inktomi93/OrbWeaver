@@ -1,10 +1,10 @@
-// Moves a primitive element that carries a use-specific attribute value to the named component that owns it, by an
-// exact map read from the target directory: `<Button size="glyph-sm">` becomes `<GlyphButton glyph="sm">` from the
-// sibling door. An element with a spread, or with a computed value on a matched attribute, is left for a hand edit;
-// tsc refuses what is left once the primitive drops the value.
+// Moves a primitive element carrying a use-specific attribute value to its named component, by an exact map read from
+// the target directory (`<Button size="glyph-sm">` becomes `<GlyphButton glyph="sm">`). A spread, a computed matched
+// value, or an unnamed axis whose default differs between the two components is refused and left for a hand edit.
 
 import type { Codemod, Edit, GetSelector, RuleConfig, SgNode } from "codemod:ast-grep";
 import type TSX from "codemod:ast-grep/langs/tsx";
+import { warn } from "codemod:runtime";
 import { readFileSync } from "fs";
 import { join } from "path";
 
@@ -70,12 +70,42 @@ function readExtraction(entry: unknown, label: string): Extraction {
   };
 }
 
-function readMap(targetDir: string, mapFile: string): readonly Extraction[] {
-  const parsed: unknown = JSON.parse(readFileSync(join(targetDir, mapFile), "utf8"));
-  if (parsed === null || typeof parsed !== "object" || !("extractions" in parsed) || !Array.isArray(parsed.extractions)) {
-    throw new Error(`${mapFile}: expected { "extractions": [...] }`);
+/** Component → axis → the value it resolves when the call site names none; `""` means the axis draws nothing. */
+type Defaults = ReadonlyMap<string, Readonly<Record<string, string>>>;
+
+interface ExtractionMap {
+  readonly extractions: readonly Extraction[];
+  readonly defaults: Defaults;
+}
+
+function readDefaults(raw: unknown, mapFile: string): Defaults {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(`${mapFile}: expected "defaults": { "<Component>": { "<axis>": "<value>" } }`);
   }
-  return parsed.extractions.map((entry: unknown, index: number) => readExtraction(entry, `${mapFile}: extraction ${index}`));
+  return new Map(
+    Object.entries(raw).map(([component, axes]: [string, unknown]) => {
+      if (axes === null || typeof axes !== "object" || !Object.values(axes).every((value) => typeof value === "string")) {
+        throw new Error(`${mapFile}: defaults.${component} must map each axis to a string`);
+      }
+      return [component, axes as Readonly<Record<string, string>>] as const;
+    }),
+  );
+}
+
+function readMap(targetDir: string, mapFile: string): ExtractionMap {
+  const parsed: unknown = JSON.parse(readFileSync(join(targetDir, mapFile), "utf8"));
+  if (parsed === null || typeof parsed !== "object" || !("extractions" in parsed) || !Array.isArray(parsed.extractions) || !("defaults" in parsed)) {
+    throw new Error(`${mapFile}: expected { "defaults": {...}, "extractions": [...] }`);
+  }
+  const extractions = parsed.extractions.map((entry: unknown, index: number) => readExtraction(entry, `${mapFile}: extraction ${index}`));
+  const defaults = readDefaults(parsed.defaults, mapFile);
+  // Every component on either side states its defaults, so a move that would change an unnamed axis is caught.
+  for (const name of new Set(extractions.flatMap((extraction) => [extraction.element, extraction.to]))) {
+    if (!defaults.has(name)) {
+      throw new Error(`${mapFile}: defaults has no entry for ${name}`);
+    }
+  }
+  return { extractions, defaults };
 }
 
 const ELEMENT: RuleConfig<TSX> = { rule: { any: [{ kind: "jsx_opening_element" }, { kind: "jsx_self_closing_element" }] } };
@@ -137,22 +167,41 @@ function attributeValue(attribute: SgNode<TSX>): MatchValue | null {
 
 const attributeName = (attribute: SgNode<TSX>): string => attribute.child(0)?.text() ?? "";
 
+/**
+ * The axes the move would silently repaint: an axis the element leaves to its default, that the extraction neither
+ * consumes nor writes, and whose default differs between the source and the target component.
+ */
+function changedDefaults(attributes: readonly SgNode<TSX>[], extraction: Extraction, defaults: Defaults): string[] {
+  const source = defaults.get(extraction.element) ?? {};
+  const target = defaults.get(extraction.to) ?? {};
+  const named = new Set([...attributes.map(attributeName), ...Object.keys(extraction.match), ...extraction.attributes.map(([name]) => name)]);
+  return [...new Set([...Object.keys(source), ...Object.keys(target)])].filter((axis) => !named.has(axis) && (source[axis] ?? "") !== (target[axis] ?? ""));
+}
+
 /** The first extraction the element matches, or null; a spread or a computed matched value refuses the element. */
-function extractionFor(element: SgNode<TSX>, candidates: readonly Extraction[]): Extraction | null {
+function extractionFor(element: SgNode<TSX>, candidates: readonly Extraction[], defaults: Defaults, file: string): Extraction | null {
   if (element.children().some((child) => child.kind() === "jsx_expression")) {
     return null;
   }
   const attributes = element.children().filter((child) => child.kind() === "jsx_attribute");
-  for (const extraction of candidates) {
-    const matched = Object.entries(extraction.match).every(([name, expected]) => {
-      const attribute = attributes.find((candidate) => attributeName(candidate) === name);
+  const extraction = candidates.find((candidate) =>
+    Object.entries(candidate.match).every(([name, expected]) => {
+      const attribute = attributes.find((node) => attributeName(node) === name);
       return attribute !== undefined && attributeValue(attribute) === expected;
-    });
-    if (matched) {
-      return extraction;
-    }
+    }),
+  );
+  if (extraction === undefined) {
+    return null;
   }
-  return null;
+  const changed = changedDefaults(attributes, extraction, defaults);
+  if (changed.length > 0) {
+    // A refusal is reported, never rewritten: the hand edit names the axis so the emphasis stays a decision.
+    warn(
+      `use-specific-extraction: refused ${file}:${element.range().start.line + 1}: ${extraction.element} → ${extraction.to} changes the unnamed ${changed.join(", ")}`,
+    );
+    return null;
+  }
+  return extraction;
 }
 
 function renderAttribute([name, value]: readonly [string, string]): string {
@@ -242,7 +291,7 @@ interface Moves {
   readonly added: Added[];
 }
 
-function moveElements(rootNode: SgNode<TSX>, imports: ReadonlyMap<string, ElementImport>, extractions: readonly Extraction[]): Moves {
+function moveElements(rootNode: SgNode<TSX>, imports: ReadonlyMap<string, ElementImport>, map: ExtractionMap, file: string): Moves {
   const moves: Moves = { edits: [], moved: new Set(), added: [] };
   for (const element of rootNode.findAll(ELEMENT)) {
     const name = element.field("name")?.text() ?? "";
@@ -252,7 +301,9 @@ function moveElements(rootNode: SgNode<TSX>, imports: ReadonlyMap<string, Elemen
         ? null
         : extractionFor(
             element,
-            extractions.filter((candidate) => candidate.element === name),
+            map.extractions.filter((candidate) => candidate.element === name),
+            map.defaults,
+            file,
           );
     if (imported === undefined || extraction === null) {
       continue;
@@ -330,10 +381,10 @@ function importEdits(rootNode: SgNode<TSX>, imports: ReadonlyMap<string, Element
 }
 
 const codemod: Codemod<TSX> = (root, options) => {
-  const extractions = readMap(options.targetDir, options.params["map"] ?? DEFAULT_MAP_FILE);
+  const map = readMap(options.targetDir, options.params["map"] ?? DEFAULT_MAP_FILE);
   const rootNode = root.root();
-  const imports = elementImports(rootNode, extractions);
-  const moves = imports.size === 0 ? null : moveElements(rootNode, imports, extractions);
+  const imports = elementImports(rootNode, map.extractions);
+  const moves = imports.size === 0 ? null : moveElements(rootNode, imports, map, root.filename());
   if (moves === null || moves.edits.length === 0) {
     return Promise.resolve(null);
   }

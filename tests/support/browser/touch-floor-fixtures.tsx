@@ -11,7 +11,6 @@
 // arm while claiming to measure the plain one. Both arms are stages of their own.
 
 import { GlyphButton } from "@orb/ui/glyph-button";
-import { InlineAction } from "@orb/ui/inline-action";
 import type { ReactElement } from "react";
 
 /** The BOX-CARRIED regression stage: a plain, undersized, non-pseudo button ALONE in a huge, STATIC
@@ -88,23 +87,6 @@ export function TouchFloorPreFixCtaGlyphStory(): ReactElement {
       </style>
       <div style={{ marginInlineStart: 48 }}>
         <button aria-label="Regenerate" className="cbxh-prefix" data-testid="pre-fix-cta-glyph" type="button" />
-      </div>
-    </div>
-  );
-}
-
-/** The `inline` arm as the focal solid primary — the OTHER arm whose hit area shares a surface with the ring. Its visible box is text-height, its floor rides a full-width
- *  `::before` sized on `--size-touch-target`, and at this intent the CTA ring sits on the `::after`
- *  directly over it. Isolated in a padded wrapper on purpose: this is simultaneously the positive control
- *  for the ring-overlap case AND a stage where a fabricated wrapper credit would be indistinguishable from
- *  a real hit area unless the credit is measured. */
-export function TouchFloorInlinePrimaryStory(): ReactElement {
-  return (
-    <div style={{ padding: 120, position: "static", width: 400 }}>
-      <div style={{ marginInlineStart: 48 }}>
-        <InlineAction data-testid="inline-primary" step="label">
-          Bruised knuckles
-        </InlineAction>
       </div>
     </div>
   );

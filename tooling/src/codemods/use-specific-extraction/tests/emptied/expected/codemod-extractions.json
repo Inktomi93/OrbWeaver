@@ -1,13 +1,109 @@
 {
+  "defaults": {
+    "Button": {
+      "variant": "solid"
+    },
+    "GlyphButton": {
+      "variant": "solid"
+    },
+    "InlineAction": {
+      "variant": "ghost"
+    },
+    "PictureButton": {
+      "variant": ""
+    }
+  },
   "extractions": [
-    { "element": "Button", "door": "button", "match": { "size": "glyph-xs" }, "to": "GlyphButton", "toDoor": "glyph-button", "attributes": [["glyph", "xs"]] },
-    { "element": "Button", "door": "button", "match": { "size": "glyph-sm" }, "to": "GlyphButton", "toDoor": "glyph-button", "attributes": [["glyph", "sm"]] },
-    { "element": "Button", "door": "button", "match": { "size": "glyph-md" }, "to": "GlyphButton", "toDoor": "glyph-button", "attributes": [["glyph", "md"]] },
-    { "element": "Button", "door": "button", "match": { "size": "glyph-lg" }, "to": "GlyphButton", "toDoor": "glyph-button", "attributes": [["glyph", "lg"]] },
-    { "element": "Button", "door": "button", "match": { "size": "inline" }, "to": "InlineAction", "toDoor": "inline-action", "attributes": [["step", "label"]] },
-    { "element": "Button", "door": "button", "match": { "size": "inline-body" }, "to": "InlineAction", "toDoor": "inline-action", "attributes": [["step", "body"]] },
-    { "element": "Button", "door": "button", "match": { "size": "media", "variant": "bare" }, "to": "PictureButton", "toDoor": "picture-button", "attributes": [] },
-    { "element": "Button", "door": "button", "match": { "size": "media" }, "to": "PictureButton", "toDoor": "picture-button", "attributes": [] },
-    { "element": "Button", "door": "button", "match": { "variant": "bare" }, "to": "PictureButton", "toDoor": "picture-button", "attributes": [] }
+    {
+      "element": "Button",
+      "door": "button",
+      "match": {
+        "size": "glyph-xs"
+      },
+      "to": "GlyphButton",
+      "toDoor": "glyph-button",
+      "attributes": [["glyph", "xs"]]
+    },
+    {
+      "element": "Button",
+      "door": "button",
+      "match": {
+        "size": "glyph-sm"
+      },
+      "to": "GlyphButton",
+      "toDoor": "glyph-button",
+      "attributes": [["glyph", "sm"]]
+    },
+    {
+      "element": "Button",
+      "door": "button",
+      "match": {
+        "size": "glyph-md"
+      },
+      "to": "GlyphButton",
+      "toDoor": "glyph-button",
+      "attributes": [["glyph", "md"]]
+    },
+    {
+      "element": "Button",
+      "door": "button",
+      "match": {
+        "size": "glyph-lg"
+      },
+      "to": "GlyphButton",
+      "toDoor": "glyph-button",
+      "attributes": [["glyph", "lg"]]
+    },
+    {
+      "element": "Button",
+      "door": "button",
+      "match": {
+        "size": "inline"
+      },
+      "to": "InlineAction",
+      "toDoor": "inline-action",
+      "attributes": [["step", "label"]]
+    },
+    {
+      "element": "Button",
+      "door": "button",
+      "match": {
+        "size": "inline-body"
+      },
+      "to": "InlineAction",
+      "toDoor": "inline-action",
+      "attributes": [["step", "body"]]
+    },
+    {
+      "element": "Button",
+      "door": "button",
+      "match": {
+        "size": "media",
+        "variant": "bare"
+      },
+      "to": "PictureButton",
+      "toDoor": "picture-button",
+      "attributes": []
+    },
+    {
+      "element": "Button",
+      "door": "button",
+      "match": {
+        "size": "media"
+      },
+      "to": "PictureButton",
+      "toDoor": "picture-button",
+      "attributes": []
+    },
+    {
+      "element": "Button",
+      "door": "button",
+      "match": {
+        "variant": "bare"
+      },
+      "to": "PictureButton",
+      "toDoor": "picture-button",
+      "attributes": []
+    }
   ]
 }

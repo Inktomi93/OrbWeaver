@@ -31,6 +31,7 @@ export function Sample(): ReactElement {
       <PictureButton variant="ghost" shape="pill">
         portrait
       </PictureButton>
+      <GlyphButton aria-label="Send" glyph="lg" />
       <Button size="sm">Stays a Button</Button>
     </div>
   );
