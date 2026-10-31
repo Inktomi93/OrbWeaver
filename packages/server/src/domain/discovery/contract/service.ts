@@ -336,6 +336,10 @@ export interface DiscoveryWorkloadDeps {
     | "computeDuplicatePairs"
     | "computeChatDuplicatePairs"
     | "computeCharacterHubScores"
+    | "computeDigestHubScores"
+    | "computeSegmentHubScores"
+    | "computeImageHubScores"
+    | "backfillDigestStoryTime"
   >;
   readonly loadUserSettings: LoadUserSettings;
   /**
