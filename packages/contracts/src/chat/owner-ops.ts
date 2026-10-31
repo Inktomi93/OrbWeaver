@@ -1,12 +1,12 @@
 // Shared owner data and injected operations; implementations and authority resolution stay in server domains.
 
 import type { AssetId, CharacterId, ChatId, ChatParticipantId, EmbedGenerationId, PresetId, UserId } from "@orb/kit/ids";
+import type { BlockKey } from "@orb/kit/recall";
 import type { IanaTimeZone } from "@orb/kit/time";
 import type { ParticipantRoleState, Principal } from "#identity";
 import type { BindingActor } from "#inference";
 import type { UserMacroSpec } from "#preset";
 import type { RegexScriptRow } from "#regex";
-import type { BlockKey } from "#search";
 import type { TagView } from "#tag";
 import type { ThemeBackground, ThemeOverride } from "#theme";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent, PromptTransform, TurnInitiator } from "./bus.ts";

@@ -12,7 +12,7 @@ import { openingPolicySchema } from "./metadata.ts";
 // (`setSeatKnobs`/`setGroupConfig`/`setRoomOverrides`/`editMessage`/`setSeededGreeting`) against the real
 // room instead. `opening` EXCLUDES `"generate"` — "guide the opening" is now an ordinary post-creation
 // `chat.generate` action against the real room, never a creation-fused turn.
-export const startChatSchema = z.object({
+export const startChatSchema = z.strictObject({
   characterIds: z.array(typeIdSchema(ID_PREFIX.character)),
   anchorPersonaId: typeIdSchema(ID_PREFIX.persona).nullish(),
   title: z.string().nullish(),

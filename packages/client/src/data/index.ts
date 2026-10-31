@@ -35,7 +35,7 @@ export type { ClientRuntime } from "./client-runtime-contract.ts";
 export type { CollectionSurface } from "./create-collection-surface.ts";
 export { createCollectionSurface } from "./create-collection-surface.ts";
 export type { EntityMutateAsync } from "./create-entity-mutation.ts";
-export { createEntityMutation } from "./create-entity-mutation.ts";
+export { createEntityMutation, withProcedureInput } from "./create-entity-mutation.ts";
 export { readAutomationFires } from "./fetch-automation-fires.ts";
 export { fetchPluginUiSource } from "./fetch-plugin-ui-source.ts";
 export { readFresh } from "./fresh-read.ts";

@@ -8,7 +8,7 @@ import type { SelectOption } from "@orb/ui/select/items";
 import { useRef } from "react";
 import { CREATE_TAG_CONFLICT_TOAST, isTagNameConflict, useCreateTag } from "#components";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";
-import type { CollectionInsight, TagSortMode } from "#lib";
+import type { TagSortMode } from "#lib";
 import { COLLECTION_LARGE_GROUP, NEW_LABEL_NAME, notify, tagSortItems, USAGE_KIND_TITLES } from "#lib";
 import { selectLabel, setLabelNameFocus, setTagPruneConfirmOpen, setTagSortMode, useTagSortMode } from "#state";
 
@@ -25,6 +25,15 @@ function uniqueNewTagName(rows: readonly TagWithUsage[], alsoTaken: ReadonlySet<
     name = `${NEW_LABEL_NAME} ${String(suffix)}`;
   }
   return name;
+}
+
+/** One fact about the whole library. Unlike a collection insight, `open` may act on a set of members (the prune
+ *  door acts on every unused tag), so it is present only when the fact has a verb behind it. */
+export interface TagLibraryFact {
+  readonly id: string;
+  readonly label: string;
+  readonly value: string;
+  readonly open?: { readonly label: string; readonly run: () => void };
 }
 
 /** The tag library read, non-suspending. `enabled: false` fetches nothing — the phone-title hook runs in every
@@ -45,7 +54,7 @@ export function useTagCensus(enabled = true): number | undefined {
  * own failure mode, and in a list sorted by use it sits at the far end of the scroll. The per-type rows are
  * the taxonomy's reach: how many tags label each kind of thing. `undefined` while the read settles.
  */
-export function useTagLibrarySummary(): { readonly count: number; readonly facts: readonly CollectionInsight[] } | undefined {
+export function useTagLibrarySummary(): { readonly count: number; readonly facts: readonly TagLibraryFact[] } | undefined {
   const rows = useTagRows();
   if (rows === undefined) {
     return rows;
@@ -56,7 +65,7 @@ export function useTagLibrarySummary(): { readonly count: number; readonly facts
     label: `Tags on ${USAGE_KIND_TITLES[key].toLowerCase()}`,
     value: String(rows.filter((row) => row.usage[key] > 0).length),
   }));
-  const facts: readonly CollectionInsight[] = [
+  const facts: readonly TagLibraryFact[] = [
     {
       id: "unused",
       label: "Unused, no suggestions",

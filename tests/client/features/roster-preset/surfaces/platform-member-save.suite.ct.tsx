@@ -1,3 +1,4 @@
+import { rulePresetKnobBagToInputs } from "@orb/contracts/automation";
 import { createRosterPresetSchema } from "@orb/contracts/roster-preset";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { StreamFrame } from "@orb/contracts/stream";
@@ -26,13 +27,21 @@ async function seedRoster(caller: Caller): Promise<{
     throw new Error("The corpus needs a rule-carrying roster with an anchor persona");
   }
   const original = await caller.rosterPreset.get({ presetId: template.id });
+  // The input names only what the create verb declares; the view's resolved fields stay behind.
   const input = createRosterPresetSchema.parse({
-    ...original,
     name: OPENED_NAME,
     description: "The original roster description.",
+    anchorPersonaId: original.anchorPersonaId,
     game: original.game ?? {},
     groupConfig: original.groupConfig ?? { policy: "list", cardScope: "scoped", output: "per-speaker" },
-    members: original.members.map((member) => ({ ...member, kind: "character" })),
+    members: original.members.map((member) => ({
+      kind: "character",
+      characterId: member.characterId,
+      position: member.position,
+      disabled: member.disabled,
+      ...(member.talkativeness === null ? {} : { talkativeness: member.talkativeness }),
+    })),
+    rules: original.rules.map((rule) => ({ rulePresetId: rule.rulePresetId, knobs: rulePresetKnobBagToInputs(rule.knobs) })),
   });
   const roster = await caller.rosterPreset.create({ input });
   return { input, roster };

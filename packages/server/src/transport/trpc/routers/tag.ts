@@ -23,7 +23,7 @@ import { authedProcedure, t } from "../trpc.ts";
 export const tagRouter = t.router({
   createTag: authedProcedure
     .output(tagViewSchema)
-    .input(z.object({ input: createTagSchema }))
+    .input(z.strictObject({ input: createTagSchema }))
     .mutation(({ ctx, input }) => ctx.services.tag.createTag({ principal: ctx.auth, input: input.input })),
 
   // @test-fixture: the CT typed-read template verb — the client-data CT stories
@@ -33,15 +33,15 @@ export const tagRouter = t.router({
 
   updateTag: authedProcedure
     .output(tagViewSchema)
-    .input(z.object({ tagId: typeIdSchema(ID_PREFIX.tag), patch: updateTagSchema }))
+    .input(z.strictObject({ tagId: typeIdSchema(ID_PREFIX.tag), patch: updateTagSchema }))
     .mutation(({ ctx, input }) => ctx.services.tag.updateTag({ principal: ctx.auth, tagId: input.tagId, patch: input.patch })),
 
   removeTag: authedProcedure
-    .input(z.object({ tagId: typeIdSchema(ID_PREFIX.tag) }))
+    .input(z.strictObject({ tagId: typeIdSchema(ID_PREFIX.tag) }))
     .mutation(({ ctx, input }) => ctx.services.tag.removeTag({ principal: ctx.auth, tagId: input.tagId })),
 
   mergeTags: authedProcedure
-    .input(z.object({ sourceTagId: typeIdSchema(ID_PREFIX.tag), targetTagId: typeIdSchema(ID_PREFIX.tag) }))
+    .input(z.strictObject({ sourceTagId: typeIdSchema(ID_PREFIX.tag), targetTagId: typeIdSchema(ID_PREFIX.tag) }))
     .mutation(({ ctx, input }) =>
       ctx.services.tag.mergeTags({
         principal: ctx.auth,
@@ -80,7 +80,7 @@ export const tagRouter = t.router({
   pruneUnusedTags: authedProcedure.output(pruneUnusedResultSchema).mutation(({ ctx }) => ctx.services.tag.pruneUnusedTags({ principal: ctx.auth })),
 
   setTagOrder: authedProcedure
-    .input(z.object({ orderedIds: z.array(typeIdSchema(ID_PREFIX.tag)).min(1) }))
+    .input(z.strictObject({ orderedIds: z.array(typeIdSchema(ID_PREFIX.tag)).min(1) }))
     .mutation(({ ctx, input }) => ctx.services.tag.setTagOrder({ principal: ctx.auth, orderedIds: input.orderedIds })),
 
   attachTag: authedProcedure.input(attachTagInputSchema).mutation(({ ctx, input }) => {

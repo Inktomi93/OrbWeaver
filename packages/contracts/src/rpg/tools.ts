@@ -15,6 +15,7 @@
 // owner ratified; `upsert_quest`/`add_journal_entry` complete the lite set. `set_widget_value` became
 // `set_tracker` with the tracked-field unification — the widget CONCEPT is gone, so keeping its name would
 // have been the only re-spell in the set.
+// Model tool args keep zod strip mode: a model-invented key is stripped and itemized, never a refused call (D112 (3)).
 
 import { PROTO_KEY } from "@orb/kit/objects";
 import { z } from "zod";

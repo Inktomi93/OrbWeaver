@@ -27,7 +27,7 @@ test("client error fields retain omission, explicit undefined and diagnostic tex
     requestId: "not an id\nwith spaces",
   };
   expect(clientErrorReportSchema.parse(diagnostic)).toEqual(diagnostic);
-  expect(clientErrorReportSchema.parse({ ...diagnostic, ignored: "not retained" })).toEqual(diagnostic);
+  expect(clientErrorReportSchema.safeParse({ ...diagnostic, ignored: "undeclared" }).success).toBe(false);
 });
 
 test("client error required and optional fields reject missing required values and non-string wire values", () => {

@@ -65,3 +65,4 @@ Kept (20):
 - `UserMacroInputOption` / `PluginSelectOption`, `ConfigSettingOption`, `ParamToggleOption`, `ToggleItem` (4 rows): a bare `{ label, value }` pair is not a concept; each types its own control (user-macro inputs, plugin select, config leaf, toggles).
 
 Commands: `pnpm typecheck packages/kit/tsconfig.json packages/ui/tsconfig.json packages/client/tsconfig.json tsconfig.tests-dom.json` exit 0; `pnpm lint:eslint` on the touched paths exit 0; `pnpm depcruise` exit 0. No suite covers `dialogue.ts` or the highlighted-text types beyond the typecheck.
+- The distinct ledger `tooling/src/unwired/distinct-lookalikes.ts` drops the `HighlightedTextRange` pair and records `PinnedSpan` against `Span` and `HiddenRun`; `pnpm test:tools tests/tooling/unwired` exit 0.
