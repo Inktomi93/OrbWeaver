@@ -49,6 +49,7 @@ import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-ghost-stream.ts";
 import type { RowAttribution } from "../lib/attribution.ts";
 import { avatarTreatmentFor } from "../lib/avatar-treatment.ts";
+import type { RowSkin } from "../lib/message-row-variants.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { gutterRailFor } from "../lib/row-placement.ts";
 import { CardBlock } from "./card-block.tsx";
@@ -183,8 +184,14 @@ function GhostBubbleContent(props: {
 function placeAvatar(
   treatment: ReturnType<typeof avatarTreatmentFor>,
   node: ReactElement | null,
-): { readonly weldedAvatar: ReactElement | null; readonly leadingAvatar: ReactElement | null } {
-  return treatment === "sticky-portrait" ? { weldedAvatar: node, leadingAvatar: null } : { weldedAvatar: null, leadingAvatar: node };
+  chipPlacement: RowSkin["chipPlacement"],
+): { readonly weldedAvatar: ReactElement | null; readonly leadingAvatar: ReactElement | null; readonly headerChip: ReactElement | null } {
+  if (treatment === "sticky-portrait") {
+    return { weldedAvatar: node, leadingAvatar: null, headerChip: null };
+  }
+  return chipPlacement === "header"
+    ? { weldedAvatar: null, leadingAvatar: null, headerChip: node }
+    : { weldedAvatar: null, leadingAvatar: node, headerChip: null };
 }
 
 export interface GhostMessageRowProps {
@@ -299,7 +306,7 @@ export function GhostMessageRow({
           avatarShape,
           avatarAspect,
           avatarRing,
-          alignToInsideHeader: skin.headerPlacement === "inside",
+          alignToInsideHeader: skin.headerPlacement === "inside" && skin.chipPlacement === "gutter",
           gutterRail: gutterRailFor(skin, "assistant"),
           // The live turn is always the assistant side, which never mirrors.
           mirrored: false,
@@ -307,7 +314,7 @@ export function GhostMessageRow({
           artControl,
         });
   // Ripple welds its portrait into the bubble, as the settled row does, so the streaming card is the card it settles as.
-  const { weldedAvatar, leadingAvatar } = placeAvatar(avatarTreatment, avatarNode);
+  const { weldedAvatar, leadingAvatar, headerChip } = placeAvatar(avatarTreatment, avatarNode, skin.chipPlacement);
 
   // #116/#288 — the SPEAKER, for the whole generation, in the SAME home the settled row will put it in.
   // The placement is read off the skin here rather than hardcoded because a live turn whose header sat
@@ -320,6 +327,8 @@ export function GhostMessageRow({
       pinnedHeader: skin.pinnedHeader,
       named: skin.actionsRow.identity,
       actionsFootprint: <GhostActionsFootprint chatId={chatId} generationCredit={generationCredit} />,
+      chip: headerChip,
+      rule: skin.headerRule,
     }),
     skin.headerPlacement,
   );
@@ -343,7 +352,7 @@ export function GhostMessageRow({
       />
     ),
     footer: null,
-    facts: { box: skin.box, role: "assistant", phoneCap: skin.phoneCap, lastRowFloor: false, editing: false, receded: false },
+    facts: { box: skin.box, role: "assistant", phoneCap: skin.phoneCap, corners: skin.corners, lastRowFloor: false, editing: false, receded: false },
     decoration,
     weldedAvatar,
     mirrored: false,

@@ -23,18 +23,31 @@ Each listed property matches the report's Moonlit column at 1280, 1920 and phone
 
 ## Evidence
 
-Card width and the hush card are done. The whisper banner, echo's minimum height and hush's tick are open.
+Built: card width, the hush card, the whisper banner, echo's minimum height, the speaker tick and the chip in the header line.
 
-Measured against the Moonlit screenshots in `reports/moonlit-reference/` (desktop captures `194508` echo, `194600` whisper, `194641` hush): Moonlit draws all four as full-width cards. The whisper banner sits at the top right, half the card wide and 100px tall, fading to the left. Hush is a filled rounded card with a short tick at its right edge. Echo's card is about 200px tall (198px measured) with art on the side away from the speaker's chip. Where this item and the earlier adopted whisper preset (a centred 50% banner) disagree, Moonlit wins.
+Reference: `reports/moonlit-reference/` captures `194508` (echo), `194600` (whisper) and `194641` (hush), measured by pixel scan, plus the values this item's What carries. Values only in the item text, which the captures and the measurements note do not show, are marked.
 
-Done:
+Card width. Echo, whisper, hush and ripple cards span their column up to the bubble cap, so every row is one width (`FILL_COLUMN`, `packages/client/src/features/chat/components/message-box.tsx`). The cap is the `--reading-bubble-cap` token (65ch), so Moonlit's 932px desktop card is 650px here: a recorded difference, the reading measure.
 
-- Card width. Before: echo and ripple cards were 477, 630 and 512px for a short user reply, a long reply and a short assistant reply at 1280 and 1920, and whisper 297, 450 and 332. Echo, whisper, hush and ripple cards now span their column up to the bubble cap, so every row is one width (`packages/client/src/features/chat/components/message-box.tsx`, `FILL_COLUMN`). The cap is the `--reading-bubble-cap` token (65ch), which `2ec781f09c` pinned for ripple, so Moonlit's 932px desktop card is 650px here: a recorded difference, the reading measure.
-- Hush card. The skin table row moves hush from `plate` to `bubble` with a card-pinned header (`packages/client/src/features/chat/lib/message-row-variants.ts`), so each row is the role's filled, rounded card with the speaker stripe.
-- Test: `tests/client/features/chat/components/platform-immersive-card-width.suite.ct.tsx` (component test; production room through `ChatRoomShellStory`; styles derived from `MESSAGE_ROW_SKINS`) at 390, 1280 and 1920 plus the hush fill and radius. Red on the old source: 8 failed (whisper at 3 widths, echo and ripple at 1280 and 1920, hush fill). Green after, in Chromium and WebKit. `chat-style-skins.ct.tsx`, `platform-transcript-identity.suite.ct.tsx` and `platform-phone-text-columns.suite.ct.tsx` stay green.
+Whisper banner, echo minimum height and tick (item 1444 primitives, applied in the skin components): the banner sits at the card's top right, half its width, and fades left (`featherToward`); an echo card is at least `immersive.echo-min-height` (198px measured); hush and whisper end each card with a 3px by 26px speaker tick (`tickEnd`).
 
-Open, with what each needs:
+From the item text only: the banner image rests at `immersive.whisper-band-opacity` (80%, `artDim` on `Stack`) and brightens to full under the pointer where it opens full size; on a phone the banner is 55% of the card and at least `immersive.whisper-band-min-height-phone` (125px) tall.
 
-- Whisper banner at the top right, half the card wide and fading to the left: the feather recipe fades to the bottom only (`orb-art-band` in `packages/ui/src/styles/primitives.css`), so this needs a direction variant on `Stack` `feather`, a `@orb/ui` primitive the tone lane owns. Opacity 0.8 and the 125px phone minimum are not visible in the screenshots and stay unmeasured.
-- Echo's roughly 200px minimum height: needs an `immersive` size token in `packages/ui/src/tokens/tokens.json` (tone lane).
-- Hush's short right-edge tick: needs a new `artDecoration` treatment in `packages/ui/src/lib/art-decoration.ts`; today hush keeps its leading stripe.
+Chip in the header line. `RowSkin.chipPlacement` (`gutter` or `header`, a required field of the skin table) seats the chip: echo, whisper and hush put it first in the speaker header inside the card; the other skins keep the gutter, and ripple has no chip (its portrait is welded). `identitySlots` (`packages/client/src/features/chat/lib/row-placement.ts`) decides the slot for the settled row; the streaming ghost follows the same field so a turn does not move its chip when it settles. A mirrored user row packs the chip at the trailing end of the header, after the name, as Moonlit draws it. The cards no longer give 32px to a gutter chip, so on a phone they are as wide as Moonlit's rows allow.
+
+Recorded differences from Moonlit:
+
+- The card is 650px at most on a desktop (reading measure).
+- The tick is 40px below the card top in both styles (Moonlit centres it on an avatar chip it draws 78px tall inside the card; here the chip is the reader's own size). Moonlit's whisper tick is 70px down.
+- The banner is the server's 3:1 crop, 108px tall at a 650px card where Moonlit's is 100px.
+- Echo and whisper drop the chip for a speaker whose art slot paints the fallback letter (no image), so a speaker without an image shows no chip in those two styles. This is the existing rule against showing the letter twice.
+- The 0.8 opacity is pinned in the primitive CT only: the corpus speakers have no image, so a production room never paints the banner image to measure it.
+
+Tests:
+
+- `tests/client/features/chat/components/platform-immersive-card-width.suite.ct.tsx` (production room through `ChatRoomShellStory`): one card width per style at 390, 1280 and 1920; the hush fill; the whisper band (half the card, flush to its top and right, fading left; at 390px 55% and at least the minimum tall); the echo card height at three widths; the hush and whisper tick against the tokens; hush's chip inside the card and on the header line at 390 and 1280. Red on the old source: the two chip cases and the phone band failed (the 19 other cases passed). Green after, in Chromium and WebKit.
+- `tests/ui/styles/css-ownership.ct.tsx` pins `artDim` against its token and the hover return.
+- `chat-style-skins.ct.tsx` counts only a card's own child as its welded portrait; `platform-phone-text-columns.suite.ct.tsx` re-records hush (+8: 14.4 for padding, -6.4 for the 368px column against Moonlit's 374.4px card).
+- `tests/client/features/chat` on Chromium: 243 passed with `css-ownership`.
+
+Captures of every chat style at 1280x900, 1920x1080, 390x844 and 844x390 are taken from a throwaway CT through the production room, before and after the tick change (the isolated snap stage has no chats to open); see the item 1444 Evidence for the differences noted against the captures.

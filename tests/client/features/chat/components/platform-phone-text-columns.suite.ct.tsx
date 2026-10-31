@@ -1,4 +1,4 @@
-// Each chat style's phone text column at 390x844 against the Moonlit Echoes reference, measured on the owner's
+// Each chat style's phone text column at 390x844 (and, below, a few styles at 844x390) against the Moonlit Echoes reference, measured on the owner's
 // SillyTavern with touch emulation (`.mes_text` width). A style matches within a few pixels, or keeps a difference whose
 // recorded parts add up to it: the parts are the reason, and the measured column must land on Moonlit plus that
 // difference, so a drift in either direction fails the case.
@@ -7,6 +7,7 @@ import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { LENGTH_BASE_PX } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 import type { ReadingRoom } from "./chat-style-reading.fixtures.ts";
@@ -63,11 +64,10 @@ const MOONLIT_PORTRAIT: Record<ThemeChatStyle, Reference> = {
   hush: {
     moonlit: 336,
     measure: "prose",
-    difference: -19,
+    difference: 8,
     parts: [
-      { px: -30, why: "the chip and its gap sit outside the card, where Moonlit draws its avatar inside a full-width card" },
       { px: 14.4, why: "the card pads 12px each side where Moonlit pads 19.2px" },
-      { px: -3, why: "the speaker stripe is 3px" },
+      { px: -6.4, why: "the transcript column is 368px where Moonlit's card is 374.4px" },
     ],
   },
   ripple: {
@@ -79,8 +79,8 @@ const MOONLIT_PORTRAIT: Record<ThemeChatStyle, Reference> = {
   tide: {
     moonlit: 336.6,
     measure: "column",
-    difference: 7.4,
-    parts: [{ px: 7.4, why: "the train fills the 344px column beside the chip, where Moonlit's pill column is 90% of the 374px row" }],
+    difference: 0,
+    parts: [],
   },
 };
 
@@ -121,3 +121,49 @@ for (const chatStyle of THEME_CHAT_STYLES) {
     ).toBeLessThanOrEqual(FEW_PX);
   });
 }
+
+// LANDSCAPE, 844x390. The shell enters its desktop rail regime at this width, so the room is narrower than Moonlit's full-width
+// row, and bubble prose rides the reading measure. The shell's share is measured here (the row's width less the viewport's),
+// not typed; the other parts are the styles' own insets. Moonlit measured echo, ripple and tide in landscape too, but their
+// columns follow the card anatomy and are not pinned here; whisper and hush were not measured in landscape. Bubble is not
+// pinned either: its card hugs the fixture's short lines, so the room's text never reaches the reading cap that would explain it.
+const LANDSCAPE = { width: 844, height: 390 } as const;
+/** Moonlit's landscape `.mes_text` widths, from the same note as the portrait values. */
+const MOONLIT_LANDSCAPE = { flat: 732.5, document: 814 } as const;
+/** Moonlit's document text sits 30px short of the viewport (844 against 814). */
+const MOONLIT_DOCUMENT_MARGIN_PX = LANDSCAPE.width - MOONLIT_LANDSCAPE.document;
+
+async function readLandscape(page: Page): Promise<{ readonly row: number; readonly column: number; readonly prose: number }> {
+  const row = page.locator(`[data-slot="message-row"][data-message-id="${longReplyId}"]`);
+  await expect(row).toBeVisible();
+  return row.evaluate((element) => ({
+    row: element.getBoundingClientRect().width,
+    column: element.querySelector('[data-slot="message-content-column"]')?.getBoundingClientRect().width ?? Number.NaN,
+    prose: element.querySelector("p")?.getBoundingClientRect().width ?? Number.NaN,
+  }));
+}
+
+test.describe("landscape", () => {
+  test.use({ viewport: LANDSCAPE, hasTouch: true, isMobile: true });
+
+  test("flat is Moonlit's column less the shell's share, plus the avatar chip", async ({ corpus, mount, page }) => {
+    await openReadingStyle(page, corpus, "flat");
+    await seedShellState(page, { activeSection: "chats" });
+    await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
+    const facts = await readLandscape(page);
+    const shell = facts.row - LANDSCAPE.width;
+    expect(Math.abs(facts.prose - (MOONLIT_LANDSCAPE.flat + shell + AVATAR_CHIP.px)), `flat: ${String(facts.prose)}px`).toBeLessThanOrEqual(FEW_PX);
+  });
+
+  test("document is Moonlit's column less the shell's share, the track step and its page inset, plus Moonlit's own margin", async ({ corpus, mount, page }) => {
+    await openReadingStyle(page, corpus, "document");
+    await seedShellState(page, { activeSection: "chats" });
+    await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
+    const facts = await readLandscape(page);
+    const shell = facts.row - LANDSCAPE.width;
+    const trackStep = facts.column - facts.row;
+    const pageInset = -2 * LENGTH_BASE_PX["spacing.gutter"];
+    const expected = MOONLIT_LANDSCAPE.document + shell + trackStep + pageInset + MOONLIT_DOCUMENT_MARGIN_PX;
+    expect(Math.abs(facts.prose - expected), `document: ${String(facts.prose)}px`).toBeLessThanOrEqual(FEW_PX);
+  });
+});

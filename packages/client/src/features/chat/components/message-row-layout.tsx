@@ -58,10 +58,9 @@ export function MessageRowBody({ skin, ...props }: ComponentProps<typeof Row> & 
 const CENTRED_COLUMN = "col-start-2 min-inline-0 flex-1";
 const ANCHORED_COLUMN = "min-inline-0 flex-1";
 // A train's column hugs its widest pill, so the speaker row above it and the pager under it share the train's edges;
-// the phone cap (nine tenths, owner ruling) sits on the column for the same reason. A mirrored train packs to the
-// trailing edge, beside its own chip.
-const TRAIN_COLUMN = "min-inline-0 max-inline-full @max-cq-28:max-inline-9/10";
-const MIRRORED_TRAIN_COLUMN = "min-inline-0 max-inline-full ms-auto @max-cq-28:max-inline-9/10";
+// the skin's `columnMeasure` caps it. A mirrored train packs to the trailing edge, beside its own chip.
+const TRAIN_COLUMN = "min-inline-0 max-inline-full";
+const MIRRORED_TRAIN_COLUMN = "min-inline-0 max-inline-full ms-auto";
 
 /** The content column for this skin's placement. A MIRRORED row packs its content to the column's trailing edge, so a
  *  phone-capped bubble sits flush against its chip and the cap's gap falls on the far side. */

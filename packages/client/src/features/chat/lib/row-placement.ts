@@ -23,10 +23,27 @@ export function rowMirrored(skin: RowSkin, role: MessageRole): boolean {
  *  for an `anchored` skin whose body is still a flex line (#1728 arm B). A bare helper, not inlined, so
  *  `MessageRow` and `GhostMessageRow` read the SAME decision and neither pays for it in complexity. */
 export function gutterRailFor(skin: RowSkin, role: MessageRole): "none" | "leading" | "trailing" {
-  if (skin.columnPlacement === "anchored") {
+  if (skin.columnPlacement === "anchored" || skin.chipPlacement === "header") {
     return "none";
   }
   return rowMirrored(skin, role) ? "trailing" : "leading";
+}
+
+/** Where each identity node of a row goes: the gutter beside the column (leading, or trailing for a mirrored row), the
+ *  header inside the card, or nowhere because a welded portrait (ripple) is the row's identity. */
+export function identitySlots<Node>(
+  skin: RowSkin,
+  mirrored: boolean,
+  welded: boolean,
+  avatar: Node,
+): { readonly leading: Node | null; readonly trailing: Node | null; readonly header: Node | null } {
+  if (welded) {
+    return { leading: null, trailing: null, header: null };
+  }
+  if (skin.chipPlacement === "header") {
+    return { leading: null, trailing: null, header: avatar };
+  }
+  return mirrored ? { leading: null, trailing: avatar, header: null } : { leading: avatar, trailing: null, header: null };
 }
 
 /** Where the row body sits across the track: a user row at the trailing edge in a skin that aligns by role. */

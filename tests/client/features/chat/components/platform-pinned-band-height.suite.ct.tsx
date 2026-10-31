@@ -1,5 +1,7 @@
 // The pinned header band of every speaker-naming chat style, at a coarse phone portrait: the action rail ends one
-// row step above the band's bottom edge in every style, never flush with the prose below it.
+// row step above the band's bottom edge, never flush with the prose below it. A style that stacks the timestamp under the
+// name has an identity cluster taller than the rail, and the centred rail sits half that excess higher; a header rule adds
+// its own width. Both are read off the rendered band, so the band's height follows the production anatomy.
 
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
@@ -31,8 +33,8 @@ test.afterAll(async () => {
   await root[Symbol.asyncDispose]();
 });
 
-/** Fill between the pinned action rail's lowest edge and the band's bottom edge. */
-async function fillBelowRail(page: Page, chatStyle: ThemeChatStyle): Promise<number> {
+/** The fill under the pinned action rail's lowest edge, and what the band's own anatomy adds to a bare row step. */
+async function fillBelowRail(page: Page, chatStyle: ThemeChatStyle): Promise<{ readonly fill: number; readonly excess: number }> {
   const row = page.locator(`[data-slot="message-row"][data-message-id="${longReplyId}"]`);
   const header = row.locator('[data-slot="message-name-row"]');
   // Mobile WebKit has no wheel input: take the reader's axis by keyboard and start from the transcript's top.
@@ -42,8 +44,15 @@ async function fillBelowRail(page: Page, chatStyle: ThemeChatStyle): Promise<num
   await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBe(0);
   await scrollIntoMessage(row);
   await expect(header, chatStyle).toHaveAttribute("data-pinned", "");
+  const rail = header.locator('[data-slot="message-actions-slot"]');
   const bottom = (locator: Locator): Promise<number> => locator.evaluate((element) => element.getBoundingClientRect().bottom);
-  return (await bottom(header)) - (await bottom(header.locator('[data-slot="message-actions-slot"]')));
+  const height = (locator: Locator): Promise<number> => locator.evaluate((element) => element.getBoundingClientRect().height);
+  const identity = header.locator("> :first-child");
+  const rule = await header.evaluate((element) => Number.parseFloat(getComputedStyle(element).borderBlockEndWidth));
+  return {
+    fill: (await bottom(header)) - (await bottom(rail)),
+    excess: Math.max(0, ((await height(identity)) - (await height(rail))) / 2) + rule,
+  };
 }
 
 for (const chatStyle of NAMED_STYLES) {
@@ -52,8 +61,11 @@ for (const chatStyle of NAMED_STYLES) {
     await seedShellState(page, { activeSection: "chats" });
     await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
     expect(await page.evaluate((query) => matchMedia(query).matches, MEDIA_QUERIES["pointer-coarse"])).toBe(true);
-    const fill = await fillBelowRail(page, chatStyle);
+    const { fill, excess } = await fillBelowRail(page, chatStyle);
     const step = await resolvedLength(page, `var(${TOKENS["spacing.row"].cssVar})`);
-    expect(fill).toBe(step);
+    expect(
+      Math.abs(fill - (step + excess)),
+      `${chatStyle}: ${String(fill)}px under the rail, ${String(step)}px step, ${String(excess)}px of identity and rule`,
+    ).toBeLessThanOrEqual(0.5);
   });
 }

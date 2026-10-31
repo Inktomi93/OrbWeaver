@@ -35,7 +35,7 @@ import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import type { MoveNeighbours } from "../lib/move-neighbours.ts";
-import { actionsRevealFor, gutterRailFor, headerShape, rowMirrored } from "../lib/row-placement.ts";
+import { actionsRevealFor, gutterRailFor, headerShape, identitySlots, rowMirrored } from "../lib/row-placement.ts";
 import { toolBoundaryDisplayMessage } from "../lib/tool-prose.ts";
 import { MessageActionsRow } from "./message-actions-row.tsx";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
@@ -298,6 +298,7 @@ export function MessageRow({
   // #1728 arm B: the two placement facts are single-homed beside the skin table that decides them.
   const gutterRail = gutterRailFor(skin, role);
   const mirrored = rowMirrored(skin, role);
+  const chipInHeader = skin.chipPlacement === "header";
   const avatarNode = renderRowAvatar({
     attribution,
     avatarTreatment,
@@ -307,15 +308,14 @@ export function MessageRow({
     avatarShape,
     avatarAspect,
     avatarRing,
-    alignToInsideHeader: skin.headerPlacement === "inside",
+    alignToInsideHeader: skin.headerPlacement === "inside" && !chipInHeader,
     gutterRail,
     mirrored,
     viewArt,
     artControl,
   });
   const weldedAvatar = avatarTreatment === "sticky-portrait" ? avatarNode : null;
-  const leadingAvatar = weldedAvatar !== null || mirrored ? null : avatarNode;
-  const trailingAvatar = weldedAvatar !== null || !mirrored ? null : avatarNode;
+  const slots = identitySlots(skin, mirrored, weldedAvatar !== null, avatarNode);
   // §6c/M8 message-footer: absent for a pre-commit draft-greeting row (no `surfaceContributors` passed).
   const footerContributions = resolveMessageFooter(surfaceContributors, message);
   const generationCredit = resolveGenerationCredit(metadataVisibility);
@@ -340,6 +340,9 @@ export function MessageRow({
       placement: skin.headerPlacement,
       pinnedHeader: skin.pinnedHeader,
       mirrored,
+      chip: slots.header,
+      stackStamp: skin.phoneStamp === "stacked",
+      rule: skin.headerRule,
       shape: headerShape(skin, lastRow),
       // B7 — the picker's segment-target parse keys the SAME character-name set the span renderer uses
       // (`speakerThemesByName`'s keys); the actions row narrator-gates it against `message.kind` itself.
@@ -385,7 +388,7 @@ export function MessageRow({
             the viewport it cannot, which is a fact of the ruling's input rather than a deviation from it.
             The avatar stays a SIBLING of the column in both arms — §B.1 intact, placement only. */}
         <MessageRowBody skin={skin}>
-          {leadingAvatar}
+          {slots.leading}
           {/* #245 — THE ROW HOLDS ITS OWN BOX OPEN WHILE IT IS EDITED. The column is content-sized (the
               row body shrink-wraps inside the track), and its max-content is usually the NAME ROW — whose
               action cluster is suppressed while editing, deliberately (the editor carries its own
@@ -440,7 +443,7 @@ export function MessageRow({
               </Stack>
             )}
           </MessageContentColumn>
-          {trailingAvatar}
+          {slots.trailing}
         </MessageRowBody>
       </MessageRowRoot>
     </AttachmentUrlProvider>

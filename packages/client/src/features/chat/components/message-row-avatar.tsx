@@ -145,6 +145,7 @@ function stickyPortrait(args: Parameters<typeof renderRowAvatar>[0], target: Vie
       aspect="portrait"
       ring={args.avatarRing}
       cardCorners={weld}
+      fade={args.mirrored ? "start" : "end"}
       fallbackDelay={0}
       hueSeed={args.attribution.hueSeed}
       // Unwrapped, the portrait is the sticky flex item; wrapped, the button is.

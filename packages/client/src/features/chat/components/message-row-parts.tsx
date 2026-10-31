@@ -189,6 +189,7 @@ export function renderRowBubble(args: {
     box: args.skin.box,
     role: args.role,
     phoneCap: args.skin.phoneCap,
+    corners: args.skin.corners,
     lastRowFloor: args.lastRow && args.skin.lastRowFloor,
     editing: args.editing,
     receded: args.message.excludedFromPrompt,

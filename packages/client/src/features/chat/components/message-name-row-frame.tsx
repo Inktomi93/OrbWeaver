@@ -60,6 +60,8 @@ export interface NameRowFrameProps {
   readonly messageRole: MessageRole;
   /** Whether the bar names the speaker and takes a line of its own (`headerShape`). */
   readonly shape: HeaderShape;
+  /** A hairline under the bar (`RowSkin.headerRule`). */
+  readonly rule: boolean;
 }
 
 export function NameRowFrame({
@@ -72,6 +74,7 @@ export function NameRowFrame({
   pinnedHeader,
   messageRole,
   shape,
+  rule,
 }: NameRowFrameProps): ReactElement {
   const sticky = stickyAttribution && (shape.ownLine || actions !== null);
   const { ref, pinned } = usePinnedHeader(sticky);
@@ -98,6 +101,7 @@ export function NameRowFrame({
       overlayClass={overlayClass}
       overlayReveal={shape.ownLine ? undefined : ACTIONS_REVEAL_POSTURE[actionsReveal]}
       reserve={!outside && shape.ownLine}
+      rule={rule}
     >
       {identity}
       {actions === null ? null : (
@@ -154,6 +158,7 @@ interface FrameRowProps {
   readonly overlayClass: string | undefined;
   readonly overlayReveal: (typeof ACTIONS_REVEAL_POSTURE)[ActionsReveal];
   readonly reserve: boolean;
+  readonly rule: boolean;
   readonly children: ReactNode;
 }
 
@@ -177,6 +182,7 @@ function FrameRow({
   overlayClass,
   overlayReveal,
   reserve,
+  rule,
   children,
 }: FrameRowProps): ReactElement {
   return (
@@ -185,6 +191,7 @@ function FrameRow({
       justify={chip ? "end" : "between"}
       align="center"
       gap="field"
+      divider={rule ? "bottom" : undefined}
       data-slot="message-name-row"
       data-placement={placement}
       data-sticky={sticky ? "" : undefined}
