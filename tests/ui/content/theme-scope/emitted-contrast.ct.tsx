@@ -1,10 +1,19 @@
 import type { Oklch } from "@orb/kit/theme-derivation";
-import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, oklabDistance, srgbToOklch, TONE_TINT_SEPARATION, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import {
+  AA_NON_TEXT_RATIO,
+  AA_NORMAL_RATIO,
+  BUBBLE_PAGE_SEPARATION,
+  oklabDistance,
+  srgbToOklch,
+  TONE_TINT_SEPARATION,
+  wcagContrastRatio,
+} from "@orb/kit/theme-derivation";
 import { pixelContrast, pixelSurface } from "@orb/testkit/browser/spec";
 import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_NON_PALETTE_VARS } from "@orb/ui/theme-scope/emit-vars";
 import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
 import type {
+  BubbleSeparationStory,
   NestedSeedStory,
   NestedSeedSurfaceStory,
   ReadingBandStory,
@@ -40,6 +49,23 @@ for (const { name, ...props } of SEMANTIC_CASES) {
     const screenshot = testInfo.outputPath("settled-theme.png");
     await component.screenshot({ path: screenshot, animations: "disabled" });
     await testInfo.attach("settled-theme", { path: screenshot, contentType: "image/png" });
+  });
+}
+
+for (const { name, ...props } of SEMANTIC_CASES) {
+  test(`${name}: every message bubble's fill paints the bubble separation off the page`, async ({ mount, page }) => {
+    const component = await mount<typeof BubbleSeparationStory>("tests/ui/content/theme-scope/_contrast-stories/BubbleSeparationStory", props);
+    const ground = srgbToOklch((await pixelSurface(page, component.locator('[data-sample="page"]'))).rgb);
+    const bubbles = await component.locator("[data-bubble]").all();
+    expect(bubbles.length).toBeGreaterThan(0);
+    const misses: string[] = [];
+    for (const bubble of bubbles) {
+      const distance = oklabDistance(srgbToOklch((await pixelSurface(page, bubble)).rgb), ground);
+      if (distance < BUBBLE_PAGE_SEPARATION) {
+        misses.push(`${(await bubble.getAttribute("data-bubble")) ?? "bubble"} ${distance.toFixed(4)}`);
+      }
+    }
+    expect(misses).toEqual([]);
   });
 }
 
