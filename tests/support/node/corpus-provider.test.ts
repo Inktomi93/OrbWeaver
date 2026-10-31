@@ -1,4 +1,6 @@
 // @subject tests/support/node/corpus-provider.ts
+
+import { ZodError } from "zod";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_PROVIDER_ENDPOINT, createCorpusProviderExecution } from "./corpus-provider.ts";
 import { expect, test } from "./fixtures.ts";
 
@@ -25,7 +27,7 @@ test.each([
   { name: "empty content", content: [] },
   { name: "malformed supplied image URL", content: [{ type: "image_url", ["image_url"]: { url: "not-an-image-url" } }] },
 ])("physical multimodal embedding admission refuses $name", async ({ content }) => {
-  await expect(postConversation(content)).rejects.toThrow();
+  await expect(postConversation(content)).rejects.toThrow(ZodError);
 });
 
 test("physical multimodal embedding admission preserves nonempty text conversations", async () => {

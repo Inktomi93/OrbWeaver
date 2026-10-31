@@ -19,7 +19,7 @@ function staticName(member: TSESTree.MemberExpression): string | undefined {
   if (property.type === "Literal" && typeof property.value === "string") {
     return property.value;
   }
-  return property.type === "TemplateLiteral" && property.expressions.length === 0 ? property.quasis[0]?.value.cooked : undefined;
+  return property.type === "TemplateLiteral" && property.expressions.length === 0 ? (property.quasis[0]?.value.cooked ?? undefined) : undefined;
 }
 
 // `a?.b`, `a!.b`, `a as T` and `a satisfies T` read the same value as `a`.
@@ -71,7 +71,7 @@ const CSS_TEXT = /[{}]/u;
 const ARBITRARY_VALUE = /\[[^\]\s]*var\(/u;
 const VAR_READ = /var\(\s*(--[\w-]+)(?=\s*[,)])/gu;
 const NAME_HEAD = /(?<![\w-])(--[a-z][a-z0-9-]*-)$/u;
-const MEDIA_CONDITION = /\((?:any-)?(?:hover|pointer)\s*:[^()]*\)|\((?:min-|max-)?(?:width|height)\s*(?::|[<>]=?)[^()]*\)/gu;
+const MEDIA_CONDITION = /\((?:any-)?(?:hover|pointer)\s*:[^()]*\)|\((?:min-|max-)?(?:width|height)\s*[:<>][^()]*\)/gu;
 
 const tokenMessage = (name: string, key: string): string =>
   `"${name}" is a hand-typed copy of a design token; read \`TOKENS["${key}"].cssVar\` from \`@orb/ui/tokens\` so the test follows the token.`;
@@ -195,7 +195,7 @@ export const noBareThrowAssertionRule: OrbRule = {
 };
 
 const UNSEEDED_ID_MESSAGE =
-  "`mintTypeId(prefix)` draws an ambient uuidv7, so the run differs each time (Spine-Testing §3). Use the fixture's `ids.typeId(prefix)`, or `createSeededIds(FIXTURE_ID_CURSOR)` from `@orb/testkit/iso` outside a case.";
+  "`mintTypeId(prefix)` draws an ambient uuidv7, so the run differs each time (Spine-Testing §3). Use `ids.typeId(prefix)` from the fixture or `createSeededIds(FIXTURE_ID_CURSOR)` (`@orb/testkit/iso`), or `root.idSource.typeId(prefix)`.";
 
 function calledName(callee: TSESTree.Node): string | undefined {
   const value = unwrapped(callee);

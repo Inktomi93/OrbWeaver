@@ -42,8 +42,8 @@ test("the handles a case opens close with its scope", async () => {
   expect(await counted.db.select().from(users)).toEqual([]);
   expect(await held.db.select().from(users)).toEqual([]);
   await resources.disposeAsync();
-  await expect(counted.db.select().from(users)).rejects.toThrow();
-  await expect(held.db.select().from(users)).rejects.toThrow();
+  await expect(counted.db.select().from(users)).rejects.toMatchObject({ cause: { code: "CLIENT_CLOSED" } });
+  await expect(held.db.select().from(users)).rejects.toMatchObject({ cause: { code: "CLIENT_CLOSED" } });
 });
 
 test("the counter window opens empty — the schema push is excluded", async () => {

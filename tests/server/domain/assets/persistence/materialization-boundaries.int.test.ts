@@ -2,13 +2,17 @@
 // download or over-cap image leaves the assets index and message_assets links byte-for-byte unchanged.
 import { backgroundMaterializeMessage } from "@orb/contracts/theme";
 import { assets } from "@orb/db";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { DomainNotFoundError } from "@orb/kit/errors";
+import { ID_PREFIX } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, makeAssetBytes } from "@orb/testkit/node/composed";
 import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 import { IMAGE_PROSE, imageRoom, nativeText } from "../../chat/engine/inline-image-physical.ts";
 import { inlineImageRows } from "../../chat/persistence/inline-image-rows.ts";
+
+const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 const PUBLIC_URL = "https://public-image.test/image.png";
 const PRIVATE_URL = "https://private-image.test/image.png";
@@ -52,7 +56,7 @@ test("public downloads sniff real bytes and store for the caller; a configured p
   expect(await root.services.assets.listOwned({ principal: owner, limit: 10 })).toMatchObject([
     { assetId: background.assetId, kind: "background", mime: MIME },
   ]);
-  await expect(root.services.assets.readOwnedAssetBytes(await root.principalFor(root.ownerId), background.assetId)).rejects.toThrow();
+  await expect(root.services.assets.readOwnedAssetBytes(await root.principalFor(root.ownerId), background.assetId)).rejects.toThrow(DomainNotFoundError);
   const before = await root.db.select().from(assets).orderBy(assets.id);
   await expect(root.services.settings.addExternalBackground({ principal: owner, url: PRIVATE_URL })).rejects.toMatchObject({
     code: CHAT_OP_CODES.backgroundUnavailable,
@@ -98,7 +102,7 @@ test("live download caps and raster dimensions refuse without changing the actua
 });
 
 test("native inline images read the live cap and refuse excessive dimensions while preserving prose and existing storage", async () => {
-  const raster = makeAssetBytes(mintTypeId(ID_PREFIX.asset));
+  const raster = makeAssetBytes(ids.typeId(ID_PREFIX.asset));
   const padded = new Uint8Array(PAYLOAD_SIZE);
   padded.set(raster);
   const image = (bytes: Uint8Array, claimedMime = MIME): JsonValue => ({ inlineData: { mimeType: claimedMime, data: Buffer.from(bytes).toString("base64") } });

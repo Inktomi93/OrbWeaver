@@ -3,9 +3,12 @@
 // This plants those states on the chain before 0006.
 
 import type { MessageId, MessageVariantId, RpgCheckpointId, RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "../../iso/ids.ts";
 import type { ServerProducerRoot } from "../server.ts";
+
+const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 /** One snapshot row a pre-0006 release left: a turn row keyed to its variant, or a hand row at its as-of slot. */
 export type LegacySnapshot =
@@ -28,7 +31,7 @@ export async function plantLegacyCheckpoint(
 ): Promise<PlantedLegacyCheckpoint> {
   const snapshotIds: RpgSnapshotId[] = [];
   for (const row of args.rows) {
-    const id = mintTypeId(ID_PREFIX.rpgSnapshot);
+    const id = ids.typeId(ID_PREFIX.rpgSnapshot);
     snapshotIds.push(id);
     const keys =
       "variantId" in row ? { messageId: row.messageId, variantId: row.variantId, asOf: null } : { messageId: null, variantId: null, asOf: row.asOfMessageId };
@@ -39,7 +42,7 @@ export async function plantLegacyCheckpoint(
   if (target === undefined) {
     throw new Error("the pinned row is not among the planted rows");
   }
-  const checkpointId = mintTypeId(ID_PREFIX.rpgCheckpoint);
+  const checkpointId = ids.typeId(ID_PREFIX.rpgCheckpoint);
   await root.db.run(sql`insert into rpg_checkpoints (id, game_id, snapshot_id, label, trigger, created_at)
     values (${checkpointId}, ${args.gameId}, ${target}, ${args.label}, 'manual', ${args.at})`);
   return { snapshotIds, checkpointId };

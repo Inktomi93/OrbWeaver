@@ -279,7 +279,7 @@ async function blackArtRoot(page: Page): Promise<Root> {
 /** The reading plate's alpha as the theme derivation sets it for the seeded Light palette's own background. */
 function lightPlateFloor(): number {
   const [l = Number.NaN, c = Number.NaN, h = Number.NaN] = (
-    /oklch\(([\d.]+) ([\d.]+) ([\d.]+)\)/u.exec(SEED_THEME_VALUE_SETS.light.vars["--color-background"]) ?? []
+    /oklch\(([\d.]+) ([\d.]+) ([\d.]+)\)/u.exec(SEED_THEME_VALUE_SETS.light.vars[TOKENS["color.background"].cssVar]) ?? []
   )
     .slice(1)
     .map(Number);
@@ -294,7 +294,7 @@ async function landedMutedContrast(page: Page, surface: Locator, label: string, 
   }
   const point = at(box);
   const landed = await pixel(page, Math.floor(point.x), Math.floor(point.y));
-  const ratio = wcagContrastRatio(await tokenInk(surface, "--color-muted-foreground"), landed);
+  const ratio = wcagContrastRatio(await tokenInk(surface, TOKENS["color.muted-foreground"].cssVar), landed);
   test.info().annotations.push({ type: "over-art-contrast", description: `${label} ${ratio.toFixed(2)}:1 over ${JSON.stringify(landed)}` });
   return ratio;
 }
@@ -393,14 +393,14 @@ function shimmerMs(page: Page, selector: string): Promise<number> {
 
 function breatheTokenMs(page: Page): Promise<number> {
   return page
-    .evaluate(() => {
+    .evaluate((motionBreathe) => {
       const probe = document.createElement("div");
-      probe.style.animationDuration = "var(--motion-breathe)";
+      probe.style.animationDuration = `var(${motionBreathe})`;
       document.body.append(probe);
       const duration = getComputedStyle(probe).animationDuration;
       probe.remove();
       return duration;
-    })
+    }, TOKENS["motion.breathe"].cssVar)
     .then(animationMs);
 }
 
@@ -529,7 +529,7 @@ test("the panel tracks resolve to whole CSS pixels where the raw panel token doe
   for (const width of TRACK_WIDTHS) {
     await page.setViewportSize({ width, height: 900 });
     tracks.push(await resolvedLength(page, "var(--panel-w)"), await resolvedLength(page, "var(--panel-context-w)"));
-    raw.push(await resolvedLength(page, "var(--dimension-panel)"));
+    raw.push(await resolvedLength(page, `var(${TOKENS["dimension.panel"].cssVar})`));
   }
   expect(raw.some((length) => !Number.isInteger(length))).toBe(true);
   expect(tracks.filter((length) => !Number.isInteger(length))).toStrictEqual([]);
@@ -600,9 +600,9 @@ test.describe("contrast more", () => {
 
       await emulateMedia(page, { contrast: "more", transparency: "no-preference" });
       await expect.poll(() => fillAlpha(pane, "::before")).toBeCloseTo(CONTRAST_FILL_ALPHA, 2);
-      const partner = theme === "light" ? "var(--color-reading-plate)" : "transparent";
-      const popover = await mixedFill(dialog, "--color-popover", CONTRAST_FILL, partner);
-      expect(popover).not.toBe(await mixedFill(dialog, "--color-sidebar", CONTRAST_FILL, partner));
+      const partner = theme === "light" ? `var(${TOKENS["color.reading-plate"].cssVar})` : "transparent";
+      const popover = await mixedFill(dialog, TOKENS["color.popover"].cssVar, CONTRAST_FILL, partner);
+      expect(popover).not.toBe(await mixedFill(dialog, TOKENS["color.sidebar"].cssVar, CONTRAST_FILL, partner));
       await expect.poll(() => computed(dialog, "background-color")).toBe(popover);
     });
 
@@ -670,7 +670,7 @@ test.describe("the three-way OS preferences", () => {
       await mount<typeof AppShellStory>(STORY, {});
       const pane = page.locator(LIST);
       await expect(pane).toHaveAttribute("data-panel-mode", "docked");
-      await expect.poll(async () => (await rootValue(page, "--blur-fill-chrome")) === SOLID_FILL).toBe(solid);
+      await expect.poll(async () => (await rootValue(page, TOKENS["blur.fill-chrome"].cssVar)) === SOLID_FILL).toBe(solid);
       await expect.poll(async () => (await carrierBlur(pane)) === "none").toBe(solid);
     });
   }
@@ -686,7 +686,7 @@ test.describe("the three-way OS preferences", () => {
       await mount<typeof AppShellStory>(STORY, {});
       const grid = page.locator(".shell-grid");
       await expect(grid).toBeVisible();
-      await expect.poll(async () => (await rootValue(page, "--blur-fill-chrome")) === CONTRAST_FILL).toBe(applied);
+      await expect.poll(async () => (await rootValue(page, TOKENS["blur.fill-chrome"].cssVar)) === CONTRAST_FILL).toBe(applied);
       await expect.poll(() => computed(grid, "display", "::after")).toBe(applied ? "none" : "block");
     });
   }
@@ -695,7 +695,7 @@ test.describe("the three-way OS preferences", () => {
     await routeAppearance(page, corpus, { reducedTransparency: "on", increasedContrast: "on" });
     await mount<typeof AppShellStory>(STORY, {});
     await expect(page.locator(".shell-grid")).toBeVisible();
-    await expect.poll(() => rootValue(page, "--blur-fill-chrome")).toBe(SOLID_FILL);
+    await expect.poll(() => rootValue(page, TOKENS["blur.fill-chrome"].cssVar)).toBe(SOLID_FILL);
   });
 });
 
@@ -1111,7 +1111,7 @@ test.describe("the light arm over the darkest wallpaper a viewer can save", () =
     await expect(page.locator('[data-slot="theme-background-layer"]')).toBeVisible();
     const plateFloor = lightPlateFloor();
     // The rendered plate is the derived one, and the pane's glass sits over it rather than over the art.
-    expect(alphaOf((await computed(page.locator(LIST), "--color-reading-plate")).trim())).toBeGreaterThanOrEqual(plateFloor);
+    expect(alphaOf((await computed(page.locator(LIST), TOKENS["color.reading-plate"].cssVar)).trim())).toBeGreaterThanOrEqual(plateFloor);
     await expect.poll(() => fillAlpha(page.locator(LIST), "::before")).toBeGreaterThanOrEqual(plateFloor);
     // The pane's right gutter, beside its rows, where only the glass lands.
     expect(
@@ -1141,7 +1141,7 @@ test.describe("the light arm over the darkest wallpaper a viewer can save", () =
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(page.locator('[data-slot="theme-background-layer"]')).toBeVisible();
     const plateFloor = lightPlateFloor();
-    expect(alphaOf((await computed(page.locator(COMPOSER), "--color-reading-plate")).trim())).toBeGreaterThanOrEqual(plateFloor);
+    expect(alphaOf((await computed(page.locator(COMPOSER), TOKENS["color.reading-plate"].cssVar)).trim())).toBeGreaterThanOrEqual(plateFloor);
     for (const surface of [page.locator(COMPOSER), ...ROOM_ROLES.map((role) => bubble(page, role))]) {
       await expect.poll(() => fillAlpha(surface)).toBeGreaterThanOrEqual(plateFloor);
     }
@@ -1169,7 +1169,7 @@ test.describe("root dials", () => {
   test("the chat-width dial is held at its floor below the crossover, meets it there, and yields above it", async ({ corpus, mount, page }) => {
     await routeAppearance(page, corpus, { chatWidthPct: DIAL_PCT });
     await mount<typeof AppShellStory>(STORY, {});
-    const floor = await resolvedLength(page, "var(--dimension-shell-content-floor)");
+    const floor = await resolvedLength(page, `var(${TOKENS["dimension.shell-content-floor"].cssVar})`);
     const crossover = Math.round((floor * 100) / DIAL_PCT);
     const width = (): Promise<number> => resolvedLength(page, "var(--width-shell-content)");
 
@@ -1186,13 +1186,13 @@ test.describe("root dials", () => {
     await routeLiveAppearance(page, corpus, () => state);
     const plain = await mount<typeof AppShellStory>(STORY, {});
     await expect(page.locator(".shell-grid")).toBeVisible();
-    const uncolored = await rootValue(page, "--color-border");
+    const uncolored = await rootValue(page, TOKENS["color.border"].cssVar);
     await plain.unmount();
 
     state = { appearance: { enableThemeColorization: true } };
     await mount<typeof AppShellStory>(STORY, {});
     await expect(page.locator(".shell-grid")).toBeVisible();
-    await expect.poll(() => rootValue(page, "--color-border")).not.toBe(uncolored);
+    await expect.poll(() => rootValue(page, TOKENS["color.border"].cssVar)).not.toBe(uncolored);
   });
 
   test("the font-scale dial sets the document's root font size", async ({ corpus, mount, page }) => {

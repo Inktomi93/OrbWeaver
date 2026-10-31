@@ -10,6 +10,7 @@ import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SE
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, PHONE, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -322,12 +323,12 @@ async function plantShift(page: Page): Promise<void> {
   await page
     .locator("main.shell-content .shell-region-fill")
     .first()
-    .evaluate((region) => {
+    .evaluate((region, dimensionChromeRow) => {
       const spacer = region.ownerDocument.createElement("div");
-      spacer.style.blockSize = "var(--dimension-chrome-row)";
+      spacer.style.blockSize = `var(${dimensionChromeRow})`;
       spacer.style.flex = "none";
       region.prepend(spacer);
-    });
+    }, TOKENS["dimension.chrome-row"].cssVar);
 }
 
 function mainX(page: Page): Promise<number> {

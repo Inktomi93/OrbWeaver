@@ -1,4 +1,4 @@
-import { TOKENS } from "@orb/ui/tokens";
+import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
 import type { SkeletonReservationStory } from "./_skeleton-reservation-stories.tsx";
 
@@ -29,7 +29,7 @@ for (const touch of [false, true]) {
             { fontScale: scale, override: ownerCss, control: TOKENS["size.control-lg"].cssVar },
           );
           await mount<typeof SkeletonReservationStory>("tests/client/components/_skeleton-reservation-stories/SkeletonReservationStory", { rows: ROWS });
-          expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(touch);
+          expect(await page.evaluate((pointerCoarse) => matchMedia(pointerCoarse).matches, MEDIA_QUERIES["pointer-coarse"])).toBe(touch);
           expect(await page.evaluate(() => document.documentElement.style.fontSize)).toBe(`${scale * 100}%`);
           expect(
             await page.evaluate(

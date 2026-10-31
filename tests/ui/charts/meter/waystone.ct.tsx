@@ -1,4 +1,5 @@
 import { resolvedLength } from "@orb/testkit/browser/spec";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
 import type { WaystoneStory } from "./waystone-stories.tsx";
 
@@ -9,7 +10,7 @@ const SAMPLE_MINUTES = 30;
 const SKY_FROM = '[data-slot="waystone-sky-from"]';
 const SKY_TO = '[data-slot="waystone-sky-to"]';
 const ATMOSPHERIC_TOKEN = "var(--color-sky-";
-const EMBER_TOKEN = "var(--color-sky-ember)";
+const EMBER_TOKEN = `var(${TOKENS["color.sky-ember"].cssVar})`;
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", contrast: "no-preference", forcedColors: "none" });
@@ -40,7 +41,7 @@ test("the public clock paints distinct half-hour skies and wraps continuously th
     for (const recipe of [sky.fromRecipe, sky.toRecipe]) {
       expect(recipe).toContain(ATMOSPHERIC_TOKEN);
       expect(recipe).not.toContain("var(--color-track-");
-      expect(recipe).not.toContain("var(--color-background)");
+      expect(recipe).not.toContain(`var(${TOKENS["color.background"].cssVar})`);
     }
     skies.add(JSON.stringify([sky.from, sky.to, sky.cy]));
   }
@@ -75,14 +76,14 @@ test("golden windows paint ember below the midday sky and intermediate hours ble
 
 test("an unset clock keeps the smallest display step while populated clocks retain their container scale", async ({ mount, page }) => {
   const sizes = [
-    { width: 280, token: "--size-meter-md" },
-    { width: 350, token: "--size-meter-lg" },
-    { width: 420, token: "--size-meter-hero" },
+    { width: 280, token: TOKENS["size.meter-md"].cssVar },
+    { width: 350, token: TOKENS["size.meter-lg"].cssVar },
+    { width: 420, token: TOKENS["size.meter-hero"].cssVar },
   ] as const;
   const component = await mount<typeof WaystoneStory>(STORY, { clock: null, width: sizes[0].width });
   const stone = component.locator('[data-slot="waystone"]');
   const scope = stone.locator("xpath=..");
-  const emptySize = await resolvedLength(page, "var(--size-meter-sm)", scope);
+  const emptySize = await resolvedLength(page, `var(${TOKENS["size.meter-sm"].cssVar})`, scope);
   for (const { width, token } of sizes) {
     await component.update({ clock: null, width });
     await expect(stone).toHaveAttribute("data-phase", "unset");

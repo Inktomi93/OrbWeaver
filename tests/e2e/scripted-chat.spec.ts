@@ -127,7 +127,7 @@ for (const stopped of [false, true]) {
       for (const [index, turn] of turns.entries()) {
         await typeAndSend(page.getByRole("textbox", { name: "Message" }), turn.userMessage);
         await assertHeldPrefix(page, fixture, index, turn);
-        await expect(assertIdle(page, 100)).rejects.toThrow();
+        await expect(assertIdle(page, 100)).rejects.toThrow(/Expected|Timed out/u);
         if (stopped) {
           await page.getByRole("button", { name: "Stop generating", exact: true }).click();
           // Peer closure must happen before teardown destroys any fixture socket.
@@ -161,9 +161,9 @@ for (const stopped of [false, true]) {
       if (first === undefined) {
         throw new Error("owned transcript has no greeting");
       }
-      expect(() => assertRenderedCanon(rendered, [{ ...first, id: before[1]?.id ?? first.id }, ...before.slice(1)])).toThrow();
-      expect(() => assertRenderedCanon(rendered, [{ ...first, content: "Wrong synthetic content" }, ...before.slice(1)])).toThrow();
-      expect(() => assertRenderedCanon(rendered, [...before].reverse())).toThrow();
+      expect(() => assertRenderedCanon(rendered, [{ ...first, id: before[1]?.id ?? first.id }, ...before.slice(1)])).toThrow("Expected");
+      expect(() => assertRenderedCanon(rendered, [{ ...first, content: "Wrong synthetic content" }, ...before.slice(1)])).toThrow("Expected");
+      expect(() => assertRenderedCanon(rendered, [...before].reverse())).toThrow("Expected");
       await renameOpenChat(page, TITLE);
       await page.reload();
       await waitForAppReady(page);

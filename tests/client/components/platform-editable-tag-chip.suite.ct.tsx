@@ -5,7 +5,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
-import { TOKENS } from "@orb/ui/tokens";
+import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { EditableTagChipStory } from "./_editable-tag-chip-stories.tsx";
 
 const STORY = "tests/client/components/_editable-tag-chip-stories/EditableTagChipStory";
@@ -25,7 +25,7 @@ for (const appearance of APPEARANCES) {
       const tags = await Promise.all(NAMES.map((name) => caller.tag.createTag({ input: createTagSchema.parse({ name }) })));
       await routeTrpc(page, serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "tag.listTagsWithUsage"]));
       await mount<typeof EditableTagChipStory>(STORY, { tags, appearance: appearance.settings });
-      expect(await page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);
+      expect(await page.evaluate((pointerFine) => matchMedia(pointerFine).matches, MEDIA_QUERIES["pointer-fine"])).toBe(true);
       await page.getByRole("button", { name: "Before tags", exact: true }).focus();
       for (const name of NAMES) {
         const edit = page.getByRole("button", { name: `Edit tag ${name}`, exact: true });
@@ -54,7 +54,7 @@ for (const appearance of APPEARANCES) {
       const tags = await Promise.all(NAMES.map((name) => caller.tag.createTag({ input: createTagSchema.parse({ name }) })));
       await routeTrpc(page, serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "tag.listTagsWithUsage"]));
       await mount<typeof EditableTagChipStory>(STORY, { tags, appearance: appearance.settings });
-      expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      expect(await page.evaluate((pointerCoarse) => matchMedia(pointerCoarse).matches, MEDIA_QUERIES["pointer-coarse"])).toBe(true);
       await expect(page.getByRole("button", { name: "Edit tag OC", exact: true })).toBeVisible();
       const findings = await touchTargetFindings(page);
       await testInfo.attach("actual-hit-target-findings", { body: JSON.stringify(findings), contentType: "application/json" });

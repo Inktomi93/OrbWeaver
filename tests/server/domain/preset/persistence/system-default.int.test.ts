@@ -48,7 +48,7 @@ test("the boot root never overwrites an owned row colliding with the system sent
   });
   const before = await db.select().from(presets).where(eq(presets.id, SYSTEM_DEFAULT_PRESET_ID));
   clock.advance(10);
-  await expect(ensureSystemDefaultPreset(databaseHandle(db), clock.now, createTestLogger())).rejects.toThrow();
+  await expect(ensureSystemDefaultPreset(databaseHandle(db), clock.now, createTestLogger())).rejects.toMatchObject({ cause: { code: "SQLITE_CONSTRAINT" } });
   expect(await db.select().from(presets).where(eq(presets.id, SYSTEM_DEFAULT_PRESET_ID))).toEqual(before);
 });
 

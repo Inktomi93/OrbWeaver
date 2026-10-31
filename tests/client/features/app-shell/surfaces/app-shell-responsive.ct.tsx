@@ -6,7 +6,7 @@ import { dispatchCommandKey, seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
+import { LENGTH_BASE_PX, MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeRoom, SHELL_STORIES, touchDrag } from "./app-shell-ct.ts";
@@ -87,7 +87,7 @@ test.describe("the You sheet", () => {
     page,
   }) => {
     await mount<typeof AppShellStory>(STORY, {});
-    expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    expect(await page.evaluate((pointerCoarse) => matchMedia(pointerCoarse).matches, MEDIA_QUERIES["pointer-coarse"])).toBe(true);
     const tab = youTab(page);
     await tab.tap();
     // The open sheet hides the page behind it from assistive tech, so the visible tab is found by its trigger stamp.
@@ -161,7 +161,7 @@ test.describe("the You sheet", () => {
 
   test("its Refinery row meets the coarse row floor and routes the section, closing the sheet", async ({ mount, page }) => {
     await mount<typeof AppShellStory>(STORY, {});
-    expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    expect(await page.evaluate((pointerCoarse) => matchMedia(pointerCoarse).matches, MEDIA_QUERIES["pointer-coarse"])).toBe(true);
     await youTab(page).click();
     const row = sheet(page).getByRole("button", { name: "Refinery", exact: true });
     await expect(row).toBeVisible();

@@ -1,4 +1,5 @@
 import { expect, test } from "@orb/testkit/node";
+import { TOKENS } from "@orb/ui/tokens";
 import { OWNER_CSS_RENAMES } from "#client/owner-css/renames.ts";
 import { rewriteRenamedHooks } from "#client/owner-css/rewrite.ts";
 
@@ -7,7 +8,7 @@ type Renames = Parameters<typeof rewriteRenamedHooks>[1];
 const RENAMES: Renames = [
   { kind: "slot", name: "bubble", to: "message-bubble" },
   { kind: "shell-class", name: "shell-sidebar", to: "shell-rail" },
-  { kind: "token", name: "--color-accent-fill", to: "--color-primary" },
+  { kind: "token", name: "--color-accent-fill", to: TOKENS["color.primary"].cssVar },
   { kind: "slot", name: "old-chip", to: null },
 ];
 

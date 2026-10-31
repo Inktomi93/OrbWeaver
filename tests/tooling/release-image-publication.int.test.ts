@@ -89,7 +89,7 @@ test("failed release-note reads cannot publish replacement-only notes under the 
   });
   expect(result.code, result.stderr).toBe(71);
   expect(readFileSync(join(scratch, "raw-notes.md"), "utf8")).toBe("");
-  expect(() => readFileSync(join(scratch, "published"), "utf8")).toThrow();
+  expect(() => readFileSync(join(scratch, "published"), "utf8")).toThrow(expect.objectContaining({ code: "ENOENT" }));
 });
 
 test("the release workflow runs on the stable branch and publishes, from the tag, the image compose pulls", ({ repoRoot }) => {

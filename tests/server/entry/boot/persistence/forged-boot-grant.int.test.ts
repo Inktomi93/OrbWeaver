@@ -5,7 +5,7 @@ import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db";
 import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { databaseHandle } from "@orb/db/wiring-driver";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { migratePluginToolWireNames as migrateAutomationArms } from "@orb/server/domain/automation";
 import { backfillPluginProvenance } from "@orb/server/domain/character";
 import {
@@ -22,11 +22,14 @@ import { createListSeedAccountIds, createSettleSessionSecret } from "@orb/server
 import { ensureSeedThemes, healLegacyBackgroundPins } from "@orb/server/domain/settings";
 import { reconcileOwnersMissingTimeline } from "@orb/server/domain/stats";
 import { reclaimInFlightOnBoot } from "@orb/server/domain/workloads";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { bootGrantFor } from "@orb/testkit/node/helpers";
 import { seedChatRow, seedUser } from "@orb/testkit/node/rows";
 import { sql } from "drizzle-orm";
+
+const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 type ServerHarness = Awaited<ReturnType<typeof createServerHarness>>;
 
@@ -87,7 +90,7 @@ async function rootWithStaleSeat(): Promise<ServerHarness> {
   const root = await createServerHarness();
   const chat = await seedChatRow(root.db);
   await root.db.insert(chatParticipants).values({
-    id: mintTypeId(ID_PREFIX.chatParticipant),
+    id: ids.typeId(ID_PREFIX.chatParticipant),
     chatId: chat.id,
     kind: "human",
     userId: (await seedUser(root.db)).id,

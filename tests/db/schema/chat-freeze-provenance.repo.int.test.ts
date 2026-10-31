@@ -3,12 +3,15 @@ import { cp, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { assertReferentialIntegrity, closeDb, createDb, messages, messageVariants, runMigrations } from "@orb/db";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { runBootMigrations } from "@orb/server/entry/boot";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createTestLogger, migrationsBefore, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
 import { seedMessageRow } from "@orb/testkit/node/rows";
 import { eq, sql } from "drizzle-orm";
+
+const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 const MIGRATION = "0004_freeze-provenance";
 const RECORD = [{ name: "roll", args: "1d1", value: "1" }];
@@ -19,14 +22,18 @@ test("the shipped database rejects incoherent provenance on insert, update and u
     await runMigrations(db, SHIPPED_MIGRATIONS);
     const row = await seedMessageRow(db, { content: "Baked 1" });
     for (const invalid of ["[]", "{}", "null", "not json"]) {
-      await expect(db.run(sql`update message_variants set macro_freezes=${invalid} where id=${row.variantId}`)).rejects.toThrow();
+      await expect(db.run(sql`update message_variants set macro_freezes=${invalid} where id=${row.variantId}`)).rejects.toMatchObject({
+        cause: { code: "SQLITE_CONSTRAINT" },
+      });
     }
-    await expect(db.update(messageVariants).set({ rawContent: row.content }).where(eq(messageVariants.id, row.variantId))).rejects.toThrow();
+    await expect(db.update(messageVariants).set({ rawContent: row.content }).where(eq(messageVariants.id, row.variantId))).rejects.toMatchObject({
+      cause: { code: "SQLITE_CONSTRAINT" },
+    });
     await expect(
       db.run(
-        sql`insert into message_variants(id,message_id,idx,content,raw_content) values(${mintTypeId(ID_PREFIX.messageVariant)},${row.id},1,${"same"},${"same"})`,
+        sql`insert into message_variants(id,message_id,idx,content,raw_content) values(${ids.typeId(ID_PREFIX.messageVariant)},${row.id},1,${"same"},${"same"})`,
       ),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ cause: { code: "SQLITE_CONSTRAINT" } });
     const before = await db.select().from(messageVariants);
     await expect(
       db.batch([
@@ -39,7 +46,7 @@ test("the shipped database rejects incoherent provenance on insert, update and u
             set: { content: "same", rawContent: "same", macroFreezes: RECORD },
           }),
       ]),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ code: "SQLITE_CONSTRAINT" });
     expect(await db.select().from(messageVariants)).toEqual(before);
     await db.update(messageVariants).set({ rawContent: "Regex-only original", macroFreezes: null }).where(eq(messageVariants.id, row.variantId));
     expect(await db.select({ raw: messageVariants.rawContent, freezes: messageVariants.macroFreezes }).from(messageVariants)).toEqual([
@@ -88,7 +95,7 @@ test("an invalid existing row refuses the forward migration atomically without c
     await db.update(messageVariants).set({ rawContent: "same" }).where(eq(messageVariants.id, row.variantId));
     const before = await db.select().from(messageVariants);
     const journal = await db.all(sql`select * from __drizzle_migrations order by id`);
-    await expect(runMigrations(db, SHIPPED_MIGRATIONS)).rejects.toThrow();
+    await expect(runMigrations(db, SHIPPED_MIGRATIONS)).rejects.toMatchObject({ code: "SQLITE_CONSTRAINT" });
     expect(await db.select().from(messageVariants)).toEqual(before);
     expect(await db.all(sql`select * from __drizzle_migrations order by id`)).toEqual(journal);
     expect(await db.get(sql`pragma foreign_keys`)).toEqual({ ["foreign_keys"]: 1 });
@@ -136,7 +143,7 @@ test("production boot backs up a copied file database before the provenance rebu
       expect(await saved.select().from(messageVariants)).toEqual(before);
       // The backup precedes the new CHECK, rather than snapshotting the already-migrated copy.
       await saved.run(sql`update message_variants set raw_content=content`);
-      await expect(db.run(sql`update message_variants set raw_content=content`)).rejects.toThrow();
+      await expect(db.run(sql`update message_variants set raw_content=content`)).rejects.toMatchObject({ cause: { code: "SQLITE_CONSTRAINT" } });
     } finally {
       closeDb(saved);
     }

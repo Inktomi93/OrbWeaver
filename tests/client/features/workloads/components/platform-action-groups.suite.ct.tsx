@@ -14,6 +14,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, servePhysicalPeer } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import type { WorkloadActionGroupsStory } from "./_action-groups-stories.tsx";
 
@@ -42,7 +43,7 @@ async function measureActions(row: Locator, controls: readonly Locator[], testIn
   await testInfo.attach(label, { body: JSON.stringify({ geometry, hostGeometry }), contentType: "application/json" });
   expect(geometry.inlineOverflow).toBeLessThanOrEqual(1);
   expect(hostGeometry.inlineOverflow).toBeLessThanOrEqual(1);
-  const floor = await resolvedLength(page, "var(--size-control-sm)", row);
+  const floor = await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`, row);
   for (const box of geometry.controls) {
     expect(box.width).toBeGreaterThanOrEqual(floor);
     expect(box.height).toBeGreaterThanOrEqual(floor);
@@ -110,7 +111,7 @@ for (const regime of REGIMES) {
       await mount<typeof WorkloadActionGroupsStory>(STORY, { sectionId: "backup-import", width: regime.width, appearance: regime.appearance });
       const intro = page.getByText(/^Restore a backup, or bring your SillyTavern library over\./u);
       await expect(intro).toBeVisible();
-      expect((await settledBox(intro)).width).toBeLessThanOrEqual((await resolvedLength(page, "var(--reading-measure-prose)", intro)) + 1);
+      expect((await settledBox(intro)).width).toBeLessThanOrEqual((await resolvedLength(page, `var(${TOKENS["reading.measure-prose"].cssVar})`, intro)) + 1);
       const picker = page.getByLabel("Import a backup or card file", { exact: true });
       await picker.focus();
       await expect(picker).toBeFocused();

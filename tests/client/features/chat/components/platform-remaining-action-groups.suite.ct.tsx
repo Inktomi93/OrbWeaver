@@ -10,6 +10,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, TestInfo } from "@playwright/test";
 import type { GalleryActionsStory, GameTrackerActionsStory, ToolActionsStory } from "./_remaining-action-groups-stories.tsx";
 
@@ -150,7 +151,7 @@ for (const regime of REGIMES) {
         if (!populated) {
           await reachGalleryBodyAction(gallery, add, testInfo);
         }
-        const floor = await resolvedLength(page, "var(--size-control-sm)", close);
+        const floor = await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`, close);
         for (const button of [add, close]) {
           const box = await settledBox(button);
           expect(box.width).toBeGreaterThanOrEqual(floor);
@@ -219,7 +220,7 @@ for (const regime of REGIMES) {
         await expect(group.getByRole("button", { name: hidden ? "Hide from AI" : "Show to AI", exact: true })).toHaveCount(0);
         await measure(visibility.locator(".."), [visibility, remove], testInfo, "tool-action-cluster");
         await measure(page.getByRole("group", { name: "Tool action host", exact: true }), [visibility, remove], testInfo, "tool-action-host");
-        const floor = await resolvedLength(page, "var(--size-control-sm)", visibility);
+        const floor = await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`, visibility);
         for (const control of [visibility, remove]) {
           const box = await settledBox(control);
           expect(box.width).toBeGreaterThanOrEqual(floor);
@@ -277,7 +278,7 @@ for (const regime of REGIMES) {
         const controls = def.shape === "meter" ? [label, maximum, band, lock, remove] : [label, band, lock, remove];
         await measure(label.locator("..").locator(".."), controls, testInfo, `tracker-${def.shape}-cluster`);
         await measure(page.getByRole("group", { name: "Game action host", exact: true }), controls, testInfo, `tracker-${def.shape}-host`);
-        const floor = await resolvedLength(page, "var(--size-control-sm)", band);
+        const floor = await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`, band);
         for (const control of [band, lock, remove]) {
           const box = await settledBox(control);
           expect(box.width).toBeGreaterThanOrEqual(floor);

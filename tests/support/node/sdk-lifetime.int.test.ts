@@ -48,7 +48,9 @@ test("synchronous SDK execution refusal releases the already-armed side-generati
   const connection = await savedSummarizer(harness);
   readPending = harness.timers.pending;
   const before = readPending();
-  await expect(harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "timer control" }] })).rejects.toThrow();
+  await expect(harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "timer control" }] })).rejects.toThrow(
+    ProviderError,
+  );
   expect(execute).toHaveBeenCalled();
   expect(atExecution).toBe(before + 1);
   expect(readPending()).toBe(before);
@@ -165,8 +167,8 @@ test("root cancellation joins its actual SDK child and owned grandchild exit bef
   expect(await turn).toMatchObject({ kind: "aborted" });
   expect(descendantExited).toBe(true);
   expect(child?.exitCode).toBe(0);
-  expect(() => process.kill(pid, 0)).toThrow();
-  await expect(harness.db.all(sql`select 1`)).rejects.toThrow();
+  expect(() => process.kill(pid, 0)).toThrow(expect.objectContaining({ code: "ESRCH" }));
+  await expect(harness.db.all(sql`select 1`)).rejects.toMatchObject({ cause: { code: "CLIENT_CLOSED" } });
   expect(harness.timers.pending()).toBe(0);
 });
 
@@ -212,7 +214,7 @@ test("normal native SDK settlement waits for its owned descendant exit, not only
   }
   expect(descendantExited).toBe(true);
   expect(child?.exitCode).toBe(0);
-  expect(() => process.kill(pid, 0)).toThrow();
+  expect(() => process.kill(pid, 0)).toThrow(expect.objectContaining({ code: "ESRCH" }));
 });
 
 test("raw SDK startup failure retains scrubbed split-UTF8 stderr diagnostics and joins the real child", async () => {
@@ -279,7 +281,7 @@ test("unexpected physical stderr failure stays visible at graph settlement witho
   ).rejects.toMatchObject({ kind: "server" });
   await expect(harness[Symbol.asyncDispose]()).rejects.toBeInstanceOf(AggregateError);
   expect(child?.exitCode).not.toBeNull();
-  await expect(harness.db.all(sql`select 1`)).rejects.toThrow();
+  await expect(harness.db.all(sql`select 1`)).rejects.toMatchObject({ cause: { code: "CLIENT_CLOSED" } });
   expect(harness.timers.pending()).toBe(0);
 });
 
@@ -501,8 +503,8 @@ test("default native root cancellation joins actual child and reaped descendant 
   expect(closed).toBe(true);
   expect(descendantExited).toBe(true);
   expect(child?.exitCode).toBe(0);
-  expect(() => process.kill(pid, 0)).toThrow();
-  await expect(harness.db.all(sql`select 1`)).rejects.toThrow();
+  expect(() => process.kill(pid, 0)).toThrow(expect.objectContaining({ code: "ESRCH" }));
+  await expect(harness.db.all(sql`select 1`)).rejects.toMatchObject({ cause: { code: "CLIENT_CLOSED" } });
 });
 
 test("default native observer construction refusal retains original fault and joins the adopted child", async () => {
@@ -537,7 +539,7 @@ test("default native observer construction refusal retains original fault and jo
   await harness[Symbol.asyncDispose]();
   expect(child).toBeDefined();
   expect(closed).toBe(true);
-  await expect(harness.db.all(sql`select 1`)).rejects.toThrow();
+  await expect(harness.db.all(sql`select 1`)).rejects.toMatchObject({ cause: { code: "CLIENT_CLOSED" } });
 });
 
 test("default native asynchronous spawn refusal joins actual close without a PID receipt", async () => {
@@ -557,7 +559,9 @@ test("default native asynchronous spawn refusal joins actual close without a PID
     },
   });
   const connection = await savedSummarizer(harness);
-  await expect(harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "not dispatched" }] })).rejects.toThrow();
+  await expect(harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "not dispatched" }] })).rejects.toThrow(
+    ProviderError,
+  );
   await harness[Symbol.asyncDispose]();
   expect(child).toBeDefined();
   expect(child?.pid).toBeUndefined();

@@ -85,7 +85,7 @@ test("the shipped widgets pass through by identity, and the whole list is one to
   expect(pairs.length).toBeGreaterThan(0);
   for (const [before, after] of pairs) {
     const byOrder = (before?.order ?? 0) - (after.order ?? 0);
-    expect(byOrder < 0 || (byOrder === 0 && (before?.id ?? "").localeCompare(after.id) < 0), `${before?.id} before ${after.id}`).toBe(true);
+    expect(byOrder === 0 ? (before?.id ?? "").localeCompare(after.id) : byOrder, `${before?.id} before ${after.id}`).toBeLessThan(0);
   }
 });
 

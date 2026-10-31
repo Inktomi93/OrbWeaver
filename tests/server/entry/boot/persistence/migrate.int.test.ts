@@ -99,7 +99,7 @@ test("a backup that cannot be taken aborts the boot before the migration, and th
     // A regular file where the backup dir's parent must be: the copy cannot be written.
     writeFileSync(join(where.dir, "blocker"), "not a directory");
     const blocked = join(where.dir, "blocker", "backups");
-    await expect(boot(db, where, { backupDir: blocked })).rejects.toThrow();
+    await expect(boot(db, where, { backupDir: blocked })).rejects.toMatchObject({ code: "ENOTDIR" });
     expect(await hasPendingMigrations(db, SHIPPED_MIGRATIONS)).toBe(true);
     expect(await contents(db)).toEqual([CONTENT]);
 

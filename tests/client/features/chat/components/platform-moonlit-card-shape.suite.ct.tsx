@@ -68,8 +68,8 @@ test.describe("desktop", () => {
   });
 
   for (const [chatStyle, shareToken, capToken] of [
-    ["bubble", "reading.bubble-share", "--reading-bubble-share-cap"],
-    ["tide", "reading.tide-share", "--reading-tide-share-cap"],
+    ["bubble", "reading.bubble-share", TOKENS["reading.bubble-share-cap"].cssVar],
+    ["tide", "reading.tide-share", TOKENS["reading.tide-share-cap"].cssVar],
   ] as const) {
     test(`${chatStyle} caps at its share of the column, never past the reading measure`, async ({ corpus, mount, page }) => {
       await openReadingStyle(page, corpus, chatStyle);

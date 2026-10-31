@@ -6,6 +6,7 @@ import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProc
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import type { DatabankCompositionShellStory } from "./_databank-composition-stories.tsx";
 
@@ -109,7 +110,7 @@ for (const regime of REGIMES) {
       await expect(hint).toBeVisible();
       await expect(rebuild).toBeEnabled();
       await rebuild.scrollIntoViewIfNeeded();
-      const floor = await resolvedLength(page, "var(--width-field-floor)", hint);
+      const floor = await resolvedLength(page, `var(${TOKENS["width.field-floor"].cssVar})`, hint);
       const boxes = await hint.evaluate((node) => {
         const parent = node.parentElement;
         if (parent === null) {
@@ -125,7 +126,7 @@ for (const regime of REGIMES) {
       if (control === undefined) {
         throw new Error("The real rebuild control has no box");
       }
-      expect(control.height).toBeGreaterThanOrEqual(await resolvedLength(page, "var(--size-control-sm)", rebuild));
+      expect(control.height).toBeGreaterThanOrEqual(await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`, rebuild));
       expect(calls.count("databank.reindex")).toBe(0);
       await page.screenshot({ path: test.info().outputPath("document-maintenance.png") });
     });
@@ -147,8 +148,8 @@ for (const regime of REGIMES) {
       await expect(region.getByRole("textbox")).toHaveCount(0);
       await expect(region.locator("b")).toHaveCount(0);
       expect(calls.lastInput("databank.get")).toEqual({ id: document.id, includeText: true });
-      const measure = await resolvedLength(page, "var(--reading-measure-prose)", source);
-      const fontFloor = await resolvedLength(page, "var(--text-label)", source);
+      const measure = await resolvedLength(page, `var(${TOKENS["reading.measure-prose"].cssVar})`, source);
+      const fontFloor = await resolvedLength(page, `var(${TOKENS["text.label"].cssVar})`, source);
       const available = await viewport.evaluate((node) => node.clientWidth);
       const facts = await source.evaluate((node) => {
         const style = getComputedStyle(node);

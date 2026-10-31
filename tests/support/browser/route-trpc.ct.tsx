@@ -118,5 +118,5 @@ test("native output capture validates unbatched success and refuses server error
   await page.evaluate(async (id) => {
     await fetch(`/api/trpc/preset.get?input=${encodeURIComponent(JSON.stringify({ id }))}`);
   }, preset.id);
-  await expect(readTrpcOutput(await malformed, "preset.get", presetDetailSchema)).rejects.toThrow();
+  await expect(readTrpcOutput(await malformed, "preset.get", presetDetailSchema)).rejects.toThrow("did not carry a successful result");
 });

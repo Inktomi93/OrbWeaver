@@ -23,7 +23,7 @@ test("an unset DATA_DIR derives every slot under the default root, spelled relat
   const layout = resolveDataLayout({});
   expect(layout.root).toBe(DEFAULT_DATA_DIR);
   for (const slot of pathSlots(layout)) {
-    expect(slot === layout.root || slot.startsWith(`${layout.root}/`), slot).toBe(true);
+    expect(`${slot}/`.startsWith(`${layout.root}/`), slot).toBe(true);
   }
   expect([...layout.explicit]).toEqual([]);
   expect([...layout.skip]).toEqual([]);
@@ -91,11 +91,11 @@ test("DATA_LAYOUT_SKIP is a trimmed set of legacy root entries with blanks dropp
 });
 
 test.for(keyed)("DATA_LAYOUT_SKIP refuses the keyed entry $name, which $keptBy keeps in place", ({ name }) => {
-  expect(() => resolveDataLayout({ [DATA_LAYOUT_SKIP_KEY]: name })).toThrow();
+  expect(() => resolveDataLayout({ [DATA_LAYOUT_SKIP_KEY]: name })).toThrow("which it cannot keep");
 });
 
 test("DATA_LAYOUT_SKIP refuses a name that is no legacy entry", () => {
-  expect(() => resolveDataLayout({ [DATA_LAYOUT_SKIP_KEY]: `${keyless[0]}-typo` })).toThrow();
+  expect(() => resolveDataLayout({ [DATA_LAYOUT_SKIP_KEY]: `${keyless[0]}-typo` })).toThrow("not a legacy entry");
   // Control: the exact name is accepted, so the refusal above is the unknown name and not the key.
   expect(resolveDataLayout({ [DATA_LAYOUT_SKIP_KEY]: keyless[0] ?? "" }).skip.size).toBe(1);
 });

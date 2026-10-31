@@ -7,14 +7,17 @@ import { chatEvents, chats } from "@orb/db";
 import { batchStmt } from "@orb/db/query";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { statementToken } from "@orb/db/wiring-owner";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { createChatBus, createChatPublication } from "@orb/server/domain/chat";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createTestLogger } from "@orb/testkit/node/composed";
 import { seedChatRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
+
+const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 async function hostedRoom(
   harness: ServerTestHarness,
@@ -30,7 +33,7 @@ test("durable append precedes fan, a lost claim converges without fan, and a del
 }): Promise<void> => {
   const { room, host } = await hostedRoom(harness);
   const published: ChatLivePublish[] = [];
-  const bus = createChatBus({ db: databaseHandle(db), logger: createTestLogger(), now: clock.now, newEventId: () => mintTypeId(ID_PREFIX.chatEvent) });
+  const bus = createChatBus({ db: databaseHandle(db), logger: createTestLogger(), now: clock.now, newEventId: () => ids.typeId(ID_PREFIX.chatEvent) });
   const publication = createChatPublication({
     bus,
     publish: (event): void => {
@@ -42,7 +45,7 @@ test("durable append precedes fan, a lost claim converges without fan, and a del
   // The fanned seq is the durable row's: only a committed append can have produced it.
   const logged = (await db.select().from(chatEvents).where(eq(chatEvents.chatId, room.id)).orderBy(chatEvents.seq)).at(-1);
   expect(published).toEqual([{ seq: logged?.seq, event: logged?.payload }]);
-  const missing = mintTypeId(ID_PREFIX.chat);
+  const missing = ids.typeId(ID_PREFIX.chat);
   expect(
     await publication.emitChecked(
       { type: "chatUpdated", chatId: room.id },
@@ -61,7 +64,7 @@ test("quiet entity churn may coalesce but a terminal delete remains live and app
   const publish = vi.fn();
   const quiet = vi.fn(() => true);
   const publication = createChatPublication({
-    bus: createChatBus({ db: databaseHandle(db), logger: createTestLogger(), now: clock.now, newEventId: () => mintTypeId(ID_PREFIX.chatEvent) }),
+    bus: createChatBus({ db: databaseHandle(db), logger: createTestLogger(), now: clock.now, newEventId: () => ids.typeId(ID_PREFIX.chatEvent) }),
     publish,
     silenceRoomEntityFan: quiet,
   });

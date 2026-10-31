@@ -3,15 +3,18 @@
 import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, FORWARD_AUTH_TRUSTED_PROXIES_KEY } from "@orb/contracts/identity";
-import { DomainNotFoundError } from "@orb/kit/errors";
+import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ExternalId, UserId } from "@orb/kit/ids";
-import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { createImportAvatarStore, createImportOwnedAsset } from "@orb/server/domain/assets";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { isAdmin, isOwner } from "@orb/testkit/node/auth";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
+
+const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 test("foreign malformed bytes and absence share the same refusal before import; same-owner bytes retain actor and payload", async (): Promise<void> => {
   await using harness = await createServerHarness({
@@ -54,7 +57,7 @@ test("foreign malformed bytes and absence share the same refusal before import; 
     importBytes,
   });
   await expect(ingest({ installerUserId: own.userId, assetId: stored.assetId, pluginId: null })).rejects.toBeInstanceOf(DomainNotFoundError);
-  await expect(ingest({ installerUserId: own.userId, assetId: mintTypeId(ID_PREFIX.asset), pluginId: null })).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(ingest({ installerUserId: own.userId, assetId: ids.typeId(ID_PREFIX.asset), pluginId: null })).rejects.toBeInstanceOf(DomainNotFoundError);
   expect(importBytes).not.toHaveBeenCalled();
   expect(Array.from(await ingest({ installerUserId: own.userId, assetId: ownStored.assetId, pluginId: null }))).toEqual(Array.from(ownBytes));
   expect(read.mock.calls.every(([actor]) => actor === own)).toBe(true);
@@ -70,7 +73,7 @@ test("avatar policy retains the original Principal and false-magic flag while a 
   const bytes = new TextEncoder().encode("Already parsed avatar bytes");
   const stored = vi.spyOn(services.assets, "store");
   const capped = createImportAvatarStore(actor, (params) => services.assets.store({ ...params, maxBytes: 1 }));
-  await expect(capped({ bytes, mime: "image/png" })).rejects.toThrow();
+  await expect(capped({ bytes, mime: "image/png" })).rejects.toThrow(DomainOperationError);
   expect(stored.mock.calls[0]?.[0]).toMatchObject({ principal: actor, enforceMagic: false, kind: "avatar", maxBytes: 1 });
   expect(await services.assets.listOwned({ principal: actor, limit: ASSET_LIST_LIMIT_MAX })).toEqual([]);
   const store = createImportAvatarStore(actor, (params) => services.assets.store(params));

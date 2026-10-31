@@ -262,7 +262,7 @@ for (const modalId of MODAL_SLOT_IDS) {
     await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId });
     const popup = page.locator(POPUP);
     await expect(popup).toBeVisible();
-    await expect.poll(() => cssValue(popup, "--color-background")).toBe(CUSTOM_DARK.background);
+    await expect.poll(() => cssValue(popup, TOKENS["color.background"].cssVar)).toBe(CUSTOM_DARK.background);
   });
 }
 
@@ -278,7 +278,7 @@ test("a custom light theme carries its palette and light polarity through the sh
   // A custom theme has no seed selector: what the live scope paints is the proof of what won.
   await expect(page.locator("html")).not.toHaveAttribute("data-theme");
   for (const surface of [scope, portal, popup]) {
-    await expect.poll(() => cssValue(surface, "--color-background")).toBe(CUSTOM_LIGHT.background);
+    await expect.poll(() => cssValue(surface, TOKENS["color.background"].cssVar)).toBe(CUSTOM_LIGHT.background);
     await expect.poll(() => cssValue(surface, "color-scheme")).toBe("light");
   }
   await expect(page.locator("style[data-orb-theme-css]")).toHaveCount(1);
@@ -302,13 +302,17 @@ for (const modalId of ["command", "you"] as const satisfies readonly ModalSlotId
     // The scope emits the primary pixel it judged (D336), which is the authored colour only when that pixel is the same;
     // the portal and the popup carry what the shell's scope emitted, whatever the clamp made of the authored accent.
     const scope = page.locator('[data-slot="theme-scope"]:has(.shell-grid)');
-    await expect.poll(() => cssValue(scope, "--color-primary")).not.toBe("");
-    const emittedPrimary = await cssValue(scope, "--color-primary");
-    await expect.poll(() => cssValue(portal, "--color-primary")).toBe(emittedPrimary);
-    await expect.poll(() => cssValue(popup, "--color-primary")).toBe(emittedPrimary);
+    await expect.poll(() => cssValue(scope, TOKENS["color.primary"].cssVar)).not.toBe("");
+    const emittedPrimary = await cssValue(scope, TOKENS["color.primary"].cssVar);
+    await expect.poll(() => cssValue(portal, TOKENS["color.primary"].cssVar)).toBe(emittedPrimary);
+    await expect.poll(() => cssValue(popup, TOKENS["color.primary"].cssVar)).toBe(emittedPrimary);
     await popup.evaluate((element) => element.setAttribute("data-colorization-node", "same-node"));
     const borders = (): Promise<string[]> =>
-      Promise.all([cssValue(grid, "--color-border"), cssValue(portal, "--color-border"), cssValue(popup, "--color-border")]);
+      Promise.all([
+        cssValue(grid, TOKENS["color.border"].cssVar),
+        cssValue(portal, TOKENS["color.border"].cssVar),
+        cssValue(popup, TOKENS["color.border"].cssVar),
+      ]);
 
     // The root effect's own stamp, driven directly so the same popup node is observed in both arms.
     await stampColorization(page, "false");
@@ -317,7 +321,7 @@ for (const modalId of ["command", "you"] as const satisfies readonly ModalSlotId
     const offHeaderOutline = await header.evaluate((element) => getComputedStyle(element).outlineColor);
 
     await stampColorization(page, "true");
-    await expect.poll(() => cssValue(grid, "--color-border")).not.toBe(off[0]);
+    await expect.poll(() => cssValue(grid, TOKENS["color.border"].cssVar)).not.toBe(off[0]);
     const on = await borders();
     expect(on[1]).toBe(on[0]);
     expect(on[2]).toBe(on[0]);
@@ -326,7 +330,7 @@ for (const modalId of ["command", "you"] as const satisfies readonly ModalSlotId
     await expect.poll(() => header.evaluate((element) => getComputedStyle(element).outlineColor)).not.toBe(offHeaderOutline);
 
     await stampColorization(page, "false");
-    await expect.poll(() => cssValue(popup, "--color-border")).toBe(off[0]);
+    await expect.poll(() => cssValue(popup, TOKENS["color.border"].cssVar)).toBe(off[0]);
   });
 }
 
@@ -336,7 +340,7 @@ test("a seed theme keeps one border token across the root, the shell and the por
   await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "command" });
   await expect(page.locator('[data-slot="dialog-popup"]')).toBeVisible();
   const surfaces = [page.locator("html"), page.locator(".shell-grid"), page.locator('[data-slot="portal-root"]'), page.locator('[data-slot="dialog-popup"]')];
-  const borders = (): Promise<string[]> => Promise.all(surfaces.map((surface) => cssValue(surface, "--color-border")));
+  const borders = (): Promise<string[]> => Promise.all(surfaces.map((surface) => cssValue(surface, TOKENS["color.border"].cssVar)));
   await stampColorization(page, "false");
   const off = await borders();
   expect(new Set(off).size).toBe(1);
@@ -345,7 +349,12 @@ test("a seed theme keeps one border token across the root, the shell and the por
   expect(new Set(await borders()).size).toBe(1);
 });
 
-const SPACING_INTENTS = ["--spacing-field", "--spacing-row", "--spacing-block", "--spacing-section"] as const;
+const SPACING_INTENTS = [
+  TOKENS["spacing.field"].cssVar,
+  TOKENS["spacing.row"].cssVar,
+  TOKENS["spacing.block"].cssVar,
+  TOKENS["spacing.section"].cssVar,
+] as const;
 
 function spacingIntents(locator: Locator): Promise<readonly string[]> {
   return locator.evaluate((element, names) => names.map((name) => getComputedStyle(element).getPropertyValue(name).trim()), SPACING_INTENTS);

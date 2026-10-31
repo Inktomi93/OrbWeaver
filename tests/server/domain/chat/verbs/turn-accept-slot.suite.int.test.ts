@@ -4,11 +4,17 @@ import type { ChatBusEvent, MessageView, TurnOutcome } from "@orb/contracts/chat
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import type { LibSqlWrap } from "@orb/db";
 import { closeDb } from "@orb/db";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { DomainNotFoundError } from "@orb/kit/errors";
+import { ID_PREFIX } from "@orb/kit/ids";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot, PeerLease } from "@orb/testkit/node/composed";
 import { freshDb, seedPeerLease } from "@orb/testkit/node/composed";
 import { textRoom } from "../scenario-physical.ts";
+
+const PRESET_READ_FAULT = "physical preset read unavailable";
+
+const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 function presetReadFault(): { readonly wrap: LibSqlWrap; readonly arm: () => void; readonly failures: () => readonly string[] } {
   let armed = false;
@@ -20,7 +26,7 @@ function presetReadFault(): { readonly wrap: LibSqlWrap; readonly arm: () => voi
       if (armed && text.includes('from "presets"')) {
         armed = false;
         failures.push(text);
-        throw new Error("physical preset read unavailable");
+        throw new Error(PRESET_READ_FAULT);
       }
       return typeof statement === "string" ? await execute(statement, args) : await execute(statement);
     };
@@ -91,11 +97,11 @@ const INVOKE: Record<Verb, (f: SlotRoom) => Promise<TurnOutcome>> = {
   },
 };
 const MISSING: Omit<typeof INVOKE, "generate"> = {
-  swipe: async ({ h }: SlotRoom) => await h.root.services.chat.swipe({ principal: h.owner, chatId: h.chatId, messageId: mintTypeId(ID_PREFIX.message) }),
+  swipe: async ({ h }: SlotRoom) => await h.root.services.chat.swipe({ principal: h.owner, chatId: h.chatId, messageId: ids.typeId(ID_PREFIX.message) }),
   continueTurn: async ({ h }: SlotRoom) =>
-    await h.root.services.chat.continueTurn({ principal: h.owner, chatId: h.chatId, messageId: mintTypeId(ID_PREFIX.message) }),
+    await h.root.services.chat.continueTurn({ principal: h.owner, chatId: h.chatId, messageId: ids.typeId(ID_PREFIX.message) }),
   forceCharacterTurn: async ({ h }: SlotRoom) =>
-    await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: mintTypeId(ID_PREFIX.character) }),
+    await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: ids.typeId(ID_PREFIX.character) }),
 };
 const ACCEPTED: Record<Verb, (f: SlotRoom) => Extract<ChatBusEvent, { type: "turnAccepted" }>> = {
   swipe: ({ h, reply }) => ({ type: "turnAccepted", chatId: h.chatId, intent: "swipe", targetMessageId: reply.id, speakerCharacterId: reply.characterId }),
@@ -127,7 +133,7 @@ test("swipe: HAPPY: accepts with the REAL targetMessageId + the slot's speaker, 
 test("swipe: NOT_FOUND target: no slot is opened at all (the load is ordered BEFORE the accept)", async () => {
   const verb = "swipe";
   await using f = await room();
-  await expect(MISSING[verb](f)).rejects.toThrow();
+  await expect(MISSING[verb](f)).rejects.toThrow(DomainNotFoundError);
   expect(f.events).toEqual([]);
 });
 
@@ -135,7 +141,7 @@ test("swipe: resolveTurnBase throws → the accepted slot CLOSES with turnAborte
   const verb = "swipe";
   await using f = await room();
   f.fault.arm();
-  await expect(INVOKE[verb](f)).rejects.toThrow();
+  await expect(INVOKE[verb](f)).rejects.toMatchObject({ cause: { message: PRESET_READ_FAULT } });
   expect(f.fault.failures()).toHaveLength(1);
   expect(f.fault.failures()[0]).toMatch(/from "presets"/u);
   expect(f.events.map(({ type }) => type)).toEqual(["turnAccepted", "turnAborted"]);
@@ -163,7 +169,7 @@ test("continueTurn: HAPPY: accepts with the REAL targetMessageId before turnStar
 test("continueTurn: NOT_FOUND target: no slot is opened at all", async () => {
   const verb = "continueTurn";
   await using f = await room();
-  await expect(MISSING[verb](f)).rejects.toThrow();
+  await expect(MISSING[verb](f)).rejects.toThrow(DomainNotFoundError);
   expect(f.events).toEqual([]);
 });
 
@@ -171,7 +177,7 @@ test("continueTurn: resolveTurnBase throws → the accepted slot CLOSES with tur
   const verb = "continueTurn";
   await using f = await room();
   f.fault.arm();
-  await expect(INVOKE[verb](f)).rejects.toThrow();
+  await expect(INVOKE[verb](f)).rejects.toMatchObject({ cause: { message: PRESET_READ_FAULT } });
   expect(f.fault.failures()).toHaveLength(1);
   expect(f.fault.failures()[0]).toMatch(/from "presets"/u);
   expect(f.events.map(({ type }) => type)).toEqual(["turnAccepted", "turnAborted"]);
@@ -199,8 +205,8 @@ test("generate: HAPPY: accepts a FRESH slot (no ghost target, no speaker yet) be
 test("generate: unknown speaker (post-accept NOT_FOUND) → the accepted slot CLOSES with turnAborted", async () => {
   await using f = await room();
   await expect(
-    f.h.root.services.chat.generate({ principal: f.h.owner, chatId: f.h.chatId, speakerCharacterId: mintTypeId(ID_PREFIX.character) }),
-  ).rejects.toThrow();
+    f.h.root.services.chat.generate({ principal: f.h.owner, chatId: f.h.chatId, speakerCharacterId: ids.typeId(ID_PREFIX.character) }),
+  ).rejects.toThrow(DomainNotFoundError);
   expect(f.events.map(({ type }) => type)).toEqual(["turnAccepted", "turnAborted"]);
   expect(f.events[1]).toMatchObject({ intent: "generate", reason: "error" });
 });
@@ -209,7 +215,7 @@ test("generate: resolveTurnBase throws → the accepted slot CLOSES with turnAbo
   const verb = "generate";
   await using f = await room();
   f.fault.arm();
-  await expect(INVOKE[verb](f)).rejects.toThrow();
+  await expect(INVOKE[verb](f)).rejects.toMatchObject({ cause: { message: PRESET_READ_FAULT } });
   expect(f.fault.failures()).toHaveLength(1);
   expect(f.fault.failures()[0]).toMatch(/from "presets"/u);
   expect(f.events.map(({ type }) => type)).toEqual(["turnAccepted", "turnAborted"]);
@@ -228,7 +234,7 @@ test("forceCharacterTurn: HAPPY: accepts with the FORCED speaker and no ghost ta
 test("forceCharacterTurn: NOT_FOUND target (a character with no present seat): no slot is opened at all", async () => {
   const verb = "forceCharacterTurn";
   await using f = await room();
-  await expect(MISSING[verb](f)).rejects.toThrow();
+  await expect(MISSING[verb](f)).rejects.toThrow(DomainNotFoundError);
   expect(f.events).toEqual([]);
 });
 
@@ -236,7 +242,7 @@ test("forceCharacterTurn: the context build throws → the accepted slot CLOSES 
   const verb = "forceCharacterTurn";
   await using f = await room();
   f.fault.arm();
-  await expect(INVOKE[verb](f)).rejects.toThrow();
+  await expect(INVOKE[verb](f)).rejects.toMatchObject({ cause: { message: PRESET_READ_FAULT } });
   expect(f.fault.failures()).toHaveLength(1);
   expect(f.fault.failures()[0]).toMatch(/from "presets"/u);
   expect(f.events.map(({ type }) => type)).toEqual(["turnAccepted", "turnAborted"]);

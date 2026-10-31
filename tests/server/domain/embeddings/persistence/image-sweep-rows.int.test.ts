@@ -211,7 +211,7 @@ test("a failure that is not a missing file stops the sweep instead of failing ea
   const { root } = await unindexedAvatars(2, lifetime);
   await using fault = await refuseWrites(root.db, { table: imageEmbeddings, event: "INSERT", message: "the vector store refused the write" });
 
-  await expect(root.app.embeddings.embedAssets({ ownerId: null, force: false, signal: signal() })).rejects.toThrow();
+  await expect(root.app.embeddings.embedAssets({ ownerId: null, force: false, signal: signal() })).rejects.toMatchObject({ code: "SQLITE_CONSTRAINT" });
 
   // Positive control: with the fault lifted the same sweep embeds both avatars.
   await fault.lift();

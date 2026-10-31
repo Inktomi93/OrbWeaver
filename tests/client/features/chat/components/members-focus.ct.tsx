@@ -2,6 +2,7 @@ import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeOrbSocket, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -119,6 +120,9 @@ test("the inline flank threshold resolves to its reading floor, sidebar and gap"
   await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id });
   const probe = page.locator('[data-slot="chat-room-flank-row"]').locator("..").locator(':scope > [aria-hidden="true"]');
   await expect(probe).toHaveCount(1);
-  const threshold = await resolvedLength(page, "calc(var(--dimension-content-reading-floor) + var(--width-sidebar-sm) + var(--spacing-block))");
+  const threshold = await resolvedLength(
+    page,
+    `calc(var(${TOKENS["dimension.content-reading-floor"].cssVar}) + var(${TOKENS["width.sidebar-sm"].cssVar}) + var(${TOKENS["spacing.block"].cssVar}))`,
+  );
   await expect.poll(async () => (await probe.boundingBox())?.width).toBeCloseTo(threshold, 1);
 });

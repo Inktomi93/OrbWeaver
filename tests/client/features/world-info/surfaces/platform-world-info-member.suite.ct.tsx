@@ -4,7 +4,7 @@ import { resolvedLength } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { test as corpusTest, expect } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { LENGTH_BASE_PX } from "@orb/ui/tokens";
+import { LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import type { WorldInfoMemberStory } from "./_member-stories.tsx";
 
 const STORY = "tests/client/features/world-info/surfaces/_member-stories/WorldInfoMemberStory";
@@ -118,8 +118,8 @@ for (const device of [
           throw new Error("The entry title must have visible geometry");
         }
         // Control columns use the editor measure; a paragraph's reading measure has a different owner.
-        const threshold = await resolvedLength(page, "var(--container-cq-64)", host);
-        const measure = hostBox.width >= threshold ? "var(--width-content-col-wide)" : "var(--width-content-col)";
+        const threshold = await resolvedLength(page, `var(${TOKENS["container.cq-64"].cssVar})`, host);
+        const measure = hostBox.width >= threshold ? `var(${TOKENS["width.content-col-wide"].cssVar})` : `var(${TOKENS["width.content-col"].cssVar})`;
         expect(box.width).toBeLessThanOrEqual((await resolvedLength(page, measure, editor)) + 1);
         expect(box.x).toBeGreaterThanOrEqual(0);
         expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1);

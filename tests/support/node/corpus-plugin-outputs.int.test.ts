@@ -21,6 +21,7 @@ import {
   pluginUiHostCallResultSchema,
 } from "@orb/server/domain/plugin";
 import { PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES } from "@orb/server/infra/plugin-host";
+import { ZodError } from "zod";
 import {
   CORPUS_PLUGIN_CALLBACK_VALUE,
   CORPUS_PLUGIN_TYPED_VALUES,
@@ -187,5 +188,5 @@ test("native guest publications preserve callback inputs, private storage, draft
 
 test("the browser-safe plugin default refuses non-finite override timestamps at the canonical contract", () => {
   expect(makePluginRow({ status: "disabled", grantedCapabilities: [] }).status).toBe("disabled");
-  expect(() => makePluginRow({ installedAt: Number.NaN })).toThrow();
+  expect(() => makePluginRow({ installedAt: Number.NaN })).toThrow(ZodError);
 });

@@ -27,7 +27,7 @@ async function findings(root: string, rule: string, source: string, path: string
       files: ["**/*.{ts,tsx}"],
       plugins: config.plugins,
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, ecmaFeatures: { jsx: true } } },
-      rules: { [rule]: config.rules[rule] ?? "error" },
+      rules: { [rule]: config.rules[rule] ?? "off" },
     },
     { filename },
   );
@@ -36,6 +36,7 @@ async function findings(root: string, rule: string, source: string, path: string
 }
 
 test.for([
+  ["a tooling suite's literal is its tool's input", `const value = "var(--color-primary)";`, "tests/tooling/floor/probe.test.ts", 0, ""],
   ["a token name", `const value = style.getPropertyValue("--color-primary");`, SPEC, 1, `TOKENS["color.primary"].cssVar`],
   ["a token in a var read", `const style = { color: "var(--color-primary)" };`, SPEC, 1, `TOKENS["color.primary"].cssVar`],
   ["a token read with a fallback", `const style = { color: "var(--color-primary, red)" };`, SPEC, 1, "color.primary"],
@@ -100,6 +101,10 @@ test.for([
   expect(await findings(repoRoot, BARE_THROW, source, NODE_TEST)).toHaveLength(count);
 });
 
+test("a bare refusal is a finding in a tooling suite too", CONFIG_LOAD_TIMEOUT, async ({ repoRoot }) => {
+  expect(await findings(repoRoot, BARE_THROW, "expect(() => run()).toThrow();", "tests/tooling/floor/probe.test.ts")).toHaveLength(1);
+});
+
 test.for([
   ["a one-argument mint", "const id = mintTypeId(ID_PREFIX.chat);", NODE_TEST, 1],
   ["a literal prefix", `const id = mintTypeId("chat");`, NODE_TEST, 1],
@@ -109,6 +114,7 @@ test.for([
   ["an undefined generator", "const id = mintTypeId(ID_PREFIX.chat, undefined);", NODE_TEST, 1],
   ["a story", "const CHAT_ID = mintTypeId(ID_PREFIX.chat);", "tests/client/features/probe/_probe-stories.tsx", 1],
   ["a factory", "const id = mintTypeId(ID_PREFIX.chat);", "tests/support/node/factories/probe.ts", 1],
+  ["a type contract, which runs nothing", "expectTypeOf(mintTypeId(ID_PREFIX.chat)).toEqualTypeOf<ChatId>();", "tests/kit/ids/probe.test-d.ts", 0],
   ["a seeded generator", "const id = mintTypeId(ID_PREFIX.chat, ids.next);", NODE_TEST, 0],
   ["the fixture's typed id", "const id = ids.typeId(ID_PREFIX.chat);", NODE_TEST, 0],
 ] as const)("test derivation wall, unseeded id: %s", CONFIG_LOAD_TIMEOUT, async ([, source, path, count], { repoRoot }) => {
@@ -148,6 +154,11 @@ test.for([
   expect(await findings(repoRoot, SPREAD_CAPTURE, source, NODE_TEST)).toHaveLength(count);
 });
 
+test("the capture custody suite may spread a capture to prove it refused", CONFIG_LOAD_TIMEOUT, async ({ repoRoot }) => {
+  const source = "const capture = wire.reads.quickPicks;\nconst forged = { ...capture };";
+  expect(await findings(repoRoot, SPREAD_CAPTURE, source, "tests/support/node/corpus-read-responder.int.test.ts")).toHaveLength(0);
+});
+
 const caseOf = (body: string): string => `test("probe", async ({ page }) => {\n${body}\n});`;
 
 test.for([
@@ -164,4 +175,10 @@ test.for([
   ["a set of outcomes", caseOf(`expect(["gone", "zombie"]).toContain(kind);`), 0],
 ] as const)("test derivation wall, vacuous or: %s", CONFIG_LOAD_TIMEOUT, async ([, source, count], { repoRoot }) => {
   expect(await findings(repoRoot, ABSENCE, source, SPEC)).toHaveLength(count);
+});
+
+test("outside the CT and e2e layers the rule judges the or alone", CONFIG_LOAD_TIMEOUT, async ({ repoRoot }) => {
+  expect(await findings(repoRoot, ABSENCE, caseOf("expect(a || b).toBe(true);\nexpect(c).toBe(2);"), NODE_TEST)).toHaveLength(1);
+  expect(await findings(repoRoot, ABSENCE, caseOf("expect(lookup()).toBeNull();"), NODE_TEST)).toHaveLength(0);
+  expect(await findings(repoRoot, ABSENCE, caseOf("expect(lookup()).toBeNull();"), SPEC)).toHaveLength(1);
 });

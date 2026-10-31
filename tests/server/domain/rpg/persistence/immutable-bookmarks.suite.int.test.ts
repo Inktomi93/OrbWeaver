@@ -12,7 +12,8 @@ import { closeDb, messages, rpgCheckpoints, rpgSnapshots } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/query";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -29,6 +30,8 @@ import {
 } from "@orb/testkit/node/composed";
 import { captureRpgSnapshot, seedRpgCheckpointRows, seedRpgGameRows } from "@orb/testkit/node/rows";
 import { and, eq, getTableName } from "drizzle-orm";
+
+const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 const INTENT = { maxContextTokens: 32_000, maxOutputTokens: 128 };
 const SAVED_LOCATION = "Bookmarked observatory";
@@ -238,7 +241,7 @@ test("the database refuses a checkpoint that pins a turn or hand row and admits 
   }
   const pin = async (snapshotId: RpgSnapshotId): Promise<void> => {
     await root.db.insert(rpgCheckpoints).values({
-      id: mintTypeId(ID_PREFIX.rpgCheckpoint),
+      id: ids.typeId(ID_PREFIX.rpgCheckpoint),
       gameId: scene.game.id,
       snapshotId,
       label: "Pinned by hand",

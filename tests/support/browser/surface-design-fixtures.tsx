@@ -8,6 +8,7 @@ import { MessageBubble } from "@orb/ui/message-bubble";
 import { RoomIsland } from "@orb/ui/room-island";
 import { ScrollArea } from "@orb/ui/scroll-area";
 import { ThemePreviewPane } from "@orb/ui/theme-swatch";
+import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 import { CtIsolation } from "./ct-isolated-subject.tsx";
 
@@ -85,7 +86,7 @@ export function SurfaceTouchTilingStory(): ReactElement {
       <main>
         <Stack padding="section">
           <h1>Tiled touch controls</h1>
-          <Row style={{ columnGap: "calc(var(--size-touch-target) - var(--size-glyph-lg))" }}>
+          <Row style={{ columnGap: `calc(var(${TOKENS["size.touch-target"].cssVar}) - var(${TOKENS["size.glyph-lg"].cssVar}))` }}>
             {["Left", "Middle", "Right"].map((name) => (
               <GlyphButton key={name} glyph="lg" variant="ghost" aria-label={`Tiled ${name}`}>
                 <Icon icon={Plus} size="sm" />

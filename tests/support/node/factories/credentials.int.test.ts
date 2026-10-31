@@ -147,7 +147,7 @@ test("a foreign credential ID cannot manufacture a resolved secret or widen the 
   expect(await foreignCaller.credentials.list()).toEqual([]);
   expect(await ownerCaller.credentials.list()).toEqual([capture.view]);
   const before = { credentials: await root.db.select().from(userCredentials), audit: await root.db.select().from(auditLogs) };
-  await expect(foreignCaller.credentials.replace({ credentialId: capture.view.id, key: REPLACEMENT_KEY })).rejects.toThrow();
+  await expect(foreignCaller.credentials.replace({ credentialId: capture.view.id, key: REPLACEMENT_KEY })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   expect({ credentials: await root.db.select().from(userCredentials), audit: await root.db.select().from(auditLogs) }).toEqual(before);
 });
 

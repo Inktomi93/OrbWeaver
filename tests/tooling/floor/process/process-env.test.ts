@@ -110,7 +110,7 @@ test("withProcessEnv restores an absent key as actual absence across consecutive
   });
   expect(Object.hasOwn(inheritedProcessEnv(), ABSENT_ENV_KEY)).toBe(false);
   expect(processEnvValue(ABSENT_ENV_KEY)).toBeUndefined();
-  expect(() => readFileSync(join(repoRoot, "undefined"), "utf8")).toThrow();
+  expect(() => readFileSync(join(repoRoot, "undefined"), "utf8")).toThrow(expect.objectContaining({ code: "ENOENT" }));
 });
 
 test("withProcessEnv restores a present key byte-for-byte after a rejected worker window", async () => {

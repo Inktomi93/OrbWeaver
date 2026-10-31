@@ -5,6 +5,7 @@ import { RadioGroup, RadioGroupItem } from "@orb/ui/radio-group";
 import { Switch } from "@orb/ui/switch";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
+import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 
 const HOSTS = ["background", "card", "popover"] as const;
@@ -26,13 +27,13 @@ function Hosts(): ReactElement {
   return (
     <div style={{ display: "grid", gap: "0.5rem" }}>
       {HOSTS.map((host) => (
-        <div key={host} data-host={host} style={{ backgroundColor: `var(--color-${host})`, padding: "1.5rem" }}>
+        <div key={host} data-host={host} style={{ backgroundColor: `var(${TOKENS[`color.${host}`].cssVar})`, padding: "1.5rem" }}>
           <Carriers host={host} />
         </div>
       ))}
       {/* Swatches painted with the two tokens the carriers are judged against: the edge and the focus ring. */}
-      <div data-swatch="edge" style={{ backgroundColor: "var(--color-input-border)", padding: "1rem" }} />
-      <div data-swatch="ring" style={{ backgroundColor: "var(--color-ring)", padding: "1rem" }} />
+      <div data-swatch="edge" style={{ backgroundColor: `var(${TOKENS["color.input-border"].cssVar})`, padding: "1rem" }} />
+      <div data-swatch="ring" style={{ backgroundColor: `var(${TOKENS["color.ring"].cssVar})`, padding: "1rem" }} />
     </div>
   );
 }

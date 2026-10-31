@@ -2033,7 +2033,37 @@ export default [
     plugins: { orb: localPlugin },
     rules: { "orb/no-hand-typed-appearance-channel": "error" },
   },
-  { files: ["tests/**/*.ct.tsx", "tests/e2e/**/*.spec.ts"], plugins: { orb: localPlugin }, rules: { "orb/ct-negative-only-case": "error" } },
+  {
+    files: ["tests/**/*.{ts,tsx}"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/ct-negative-only-case": ["error", { absence: false }], "orb/no-bare-throw-assertion": "error", "orb/no-filtered-case-table": "error" },
+  },
+  {
+    files: ["tests/**/*.ct.tsx", "tests/e2e/**/*.spec.ts"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/ct-negative-only-case": ["error", { absence: true }] },
+  },
+  {
+    // Spine-Testing §9 governs product tests; a tooling suite's literal is its tool's input.
+    files: ["tests/**/*.{ts,tsx}"],
+    ignores: ["tests/tooling/**"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/no-hand-typed-css-token": "error" },
+  },
+  {
+    // A type contract runs nothing, so its one-argument mint draws no id.
+    files: ["tests/**/*.{ts,tsx}"],
+    ignores: ["tests/**/*.test-d.ts"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/no-unseeded-type-id": "error" },
+  },
+  {
+    // This suite's subject is that a spread capture cannot answer playback.
+    files: ["tests/**/*.{ts,tsx}"],
+    ignores: ["tests/support/node/corpus-read-responder.int.test.ts"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/no-spread-corpus-capture": "error" },
+  },
   {
     // These two suites pin the wire spelling itself, so a derived value would make them assert nothing: the first
     // asserts that a code is a member of two vocabularies, the second reads the key spellings of the shipped env files.

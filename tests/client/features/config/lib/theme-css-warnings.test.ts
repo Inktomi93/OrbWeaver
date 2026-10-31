@@ -1,4 +1,5 @@
 import { expect, test } from "@orb/testkit/node";
+import { TOKENS } from "@orb/ui/tokens";
 import { themeCssHookWarnings } from "#client/features/config/lib/theme-css-warnings.ts";
 import { OWNER_CSS_RENAMES } from "#client/owner-css/renames.ts";
 import { OWNER_CSS_APPEARANCE_ATTRIBUTES, OWNER_CSS_SURFACE } from "../../../../../packages/client/owner-css-surface.ts";
@@ -10,8 +11,8 @@ const SURFACE: Surface = [
   { kind: "slot", name: "message-bubble" },
   { kind: "slot", name: "composer" },
   { kind: "shell-class", name: "shell-rail" },
-  { kind: "token", name: "--color-primary" },
-  { kind: "token", name: "--color-border" },
+  { kind: "token", name: TOKENS["color.primary"].cssVar },
+  { kind: "token", name: TOKENS["color.border"].cssVar },
 ];
 
 const RENAMES: Renames = [
@@ -193,5 +194,5 @@ test("a var() of an undeclared name outside the surface warns, with the closest 
   const css = "a { color: var(--color-primry); }";
   const [warning] = themeCssHookWarnings(css, SURFACE, RENAMES);
   expect(css.slice(warning?.from, warning?.to)).toBe("--color-primry");
-  expect(warning?.message).toContain("--color-primary");
+  expect(warning?.message).toContain(TOKENS["color.primary"].cssVar);
 });

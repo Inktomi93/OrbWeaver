@@ -3,16 +3,19 @@
 import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db";
 import type { ChatId, ChatParticipantId, UserId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { repairStaleJoinSeq } from "@orb/server/domain/chat";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { bootGrantFor } from "@orb/testkit/node/helpers";
 import { seedChatRow, seedMessageRow, seedUser } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 
+const ids = createSeededIds(FIXTURE_ID_CURSOR);
+
 // The historic state: an invite seat stamped against another room's canon head, which no current writer produces.
 async function seatMember(db: Db, chatId: ChatId, userId: UserId, joinSeq: number): Promise<ChatParticipantId> {
-  const id = mintTypeId(ID_PREFIX.chatParticipant);
+  const id = ids.typeId(ID_PREFIX.chatParticipant);
   await db.insert(chatParticipants).values({ id, chatId, kind: "human", userId, role: "member", joinedAt: 0, joinSeq });
   return id;
 }

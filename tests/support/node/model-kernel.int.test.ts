@@ -234,7 +234,7 @@ test("root disposal joins a synchronous native kernel after its close deadline b
   expect(await result).toMatchObject({ kind: "server", retryable: true });
   expect(disposed).toBe(true);
   expect(physicallySettled).toBe(true);
-  await expect(first.db.all(sql`select 1`)).rejects.toThrow();
+  await expect(first.db.all(sql`select 1`)).rejects.toMatchObject({ cause: { code: "CLIENT_CLOSED" } });
   await expect(access(first.modelCacheDir)).rejects.toMatchObject({ code: "ENOENT" });
   expect(first.timers.pending()).toBe(0);
   expect((await secondModel.clients.rerank("query", DOCUMENTS)).hits[0]?.score).toBeCloseTo(2.719_510_879, 5);

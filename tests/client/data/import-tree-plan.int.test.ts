@@ -19,7 +19,8 @@ import {
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_DIRECTORIES, PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -27,6 +28,8 @@ import { vi } from "vitest";
 import { planTreeImport } from "#client/data/import-tree-plan.ts";
 import { planServedTreeImport } from "#client/data/import-tree-served.ts";
 import { PERSONA_COLLISION_CHOICES } from "#contracts/import/persona-collision.ts";
+
+const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 const WRAPPER = "backup";
 const WORKLOAD_DEADLINE_MS = 60_000;
@@ -222,7 +225,7 @@ test("a multi-profile root keeps every profile's settings in every upload", asyn
 /** The multipart body bytes each upload of `plan` sends through the production sender. */
 async function sentBodyBytes(plan: TreeImportPlan, choices: PersonaCollisionChoices): Promise<number[]> {
   const bodies: number[] = [];
-  const started = importStartedSchema.parse({ workloadId: mintTypeId(ID_PREFIX.workload) });
+  const started = importStartedSchema.parse({ workloadId: ids.typeId(ID_PREFIX.workload) });
   vi.stubGlobal("fetch", async (_input: string, init?: RequestInit) => {
     bodies.push((await new Response(init?.body).arrayBuffer()).byteLength);
     return Response.json(started, { status: 202 });
@@ -287,7 +290,7 @@ test("a file no framed upload can carry is skipped with its reason instead of se
 test("a served total the upload framing alone fills refuses the plan instead of sending one file per upload", async ({ harness }) => {
   const files = ["a", "b"].map((stem) => nativeFile(harness, "regex", stem, 1));
   const served: TreeImportCaps = { totalBytes: totalHolding([]), fileBytes: UNIT, files: DEFAULT_UPLOAD_CAPS.importTreeFiles };
-  await expect(planServedTreeImport(files, served, [])).rejects.toThrow(Error);
+  await expect(planServedTreeImport(files, served, [])).rejects.toThrow("leaves no room for any file");
 });
 
 /** A single-user root whose loopback requests act as its owner, so the client's own fetches reach it unauthenticated. */

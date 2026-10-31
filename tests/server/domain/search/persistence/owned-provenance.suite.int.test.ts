@@ -6,6 +6,7 @@ import { readFile } from "node:fs/promises";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { CorpusSource } from "@orb/contracts/search";
 import { automationRules, chatDigests, chatSegments, embedGenerations, embedGenerationTargets, embedSpaceState } from "@orb/db";
+import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -59,7 +60,7 @@ test("real global reorders remain owner-local and a room host orders every autho
   await automation.createRule({ ...body, principal: member, name: "Second foreign rule" });
   const before = await harness.db.select().from(automationRules);
   for (const orderedIds of [[a.id, a.id], [a.id], [a.id, foreign.id]]) {
-    await expect(automation.reorderRules({ principal: owner, chatId: null, orderedIds })).rejects.toThrow();
+    await expect(automation.reorderRules({ principal: owner, chatId: null, orderedIds })).rejects.toThrow(DomainOperationError);
     expect(await harness.db.select().from(automationRules)).toEqual(before);
   }
   await automation.reorderRules({ principal: owner, chatId: null, orderedIds: [b.id, a.id] });

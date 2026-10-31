@@ -121,7 +121,7 @@ test("native child release is joined after immediate host invalidation, and the 
     )
     .toBe(false);
   await disposing;
-  expect(() => process.kill(pid, 0)).toThrow();
+  expect(() => process.kill(pid, 0)).toThrow(expect.objectContaining({ code: "ESRCH" }));
   await expect(stat(harness.modelCacheDir)).rejects.toMatchObject({ code: "ENOENT" });
 });
 
@@ -234,6 +234,6 @@ test("a named native interface shares through its real loopback companion and di
   await primary.arrayBuffer();
   expect((await requestWithHost(loopback, "/api/auth/config", { host: new URL(RELAY_URL).hostname })).status).toBe(200);
   await harness[Symbol.asyncDispose]();
-  await expect(fetch(`http://${host}:${address.port}/healthz`)).rejects.toThrow();
-  await expect(fetch(`${loopback}/healthz`)).rejects.toThrow();
+  await expect(fetch(`http://${host}:${address.port}/healthz`)).rejects.toMatchObject({ cause: { code: "ECONNREFUSED" } });
+  await expect(fetch(`${loopback}/healthz`)).rejects.toMatchObject({ cause: { code: "ECONNREFUSED" } });
 });

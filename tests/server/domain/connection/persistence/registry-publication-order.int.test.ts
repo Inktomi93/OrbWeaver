@@ -9,11 +9,14 @@ import { PLUGIN_PROVIDER_ID_PREFIX, providerDefSchema } from "@orb/contracts/inf
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { LibSqlWrap } from "@orb/db";
 import { pluginProviderClaims } from "@orb/db";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, freshDb, makePluginBundle } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
+
+const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 const PLUGIN = "acme-plugin";
 const PLUGIN_PROVIDER = `${PLUGIN_PROVIDER_ID_PREFIX}${PLUGIN}/acme`;
@@ -110,7 +113,7 @@ test("an older store read cannot republish an admin provider after its durable r
 
   // A refresh whose read began while the row existed, parked after its admin-rows select.
   const stale = hold();
-  const refresh = registry.dropPlugin(mintTypeId(ID_PREFIX.plugin));
+  const refresh = registry.dropPlugin(ids.typeId(ID_PREFIX.plugin));
   await stale.reached;
   const drop = registry.drop(admin.id);
   stale.release();
@@ -126,7 +129,7 @@ test("a failed store read does not poison later registry publication", async () 
   const boom = new Error("controlled store read refusal");
 
   failNext(boom);
-  await expect(registry.dropPlugin(mintTypeId(ID_PREFIX.plugin))).rejects.toMatchObject({ cause: boom });
+  await expect(registry.dropPlugin(ids.typeId(ID_PREFIX.plugin))).rejects.toMatchObject({ cause: boom });
 
   const admin = provider("admin-after-failure", "After");
   await registry.register(admin, { admin: root.ownerId });

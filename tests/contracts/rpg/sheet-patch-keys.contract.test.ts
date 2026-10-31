@@ -1,12 +1,14 @@
 import { rpgPatchSheetInputSchema } from "@orb/contracts/rpg";
-import { mintTypeId } from "@orb/kit/ids";
 import { PROTO_KEY } from "@orb/kit/objects";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
+
+const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 // A sheet patch is client JSON, and JSON.parse keeps `__proto__` as an own key. The sheet merge writes each
 // attribute by assignment, so that key must never reach it: the parsed record has to drop it before the verb.
 function patchWith(attributes: string): unknown {
-  return { chatId: mintTypeId("chat"), actorRef: { kind: "npc", npcKey: "mira" }, patch: { attributes: JSON.parse(attributes) } };
+  return { chatId: ids.typeId("chat"), actorRef: { kind: "npc", npcKey: "mira" }, patch: { attributes: JSON.parse(attributes) } };
 }
 
 test("a sheet patch drops a __proto__ attribute at parse and keeps the scores beside it", () => {

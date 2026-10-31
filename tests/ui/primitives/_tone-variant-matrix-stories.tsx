@@ -34,7 +34,14 @@ function roleVar(role: ToneRole): string {
 /** Every primitive in every tone and style, each tone beside a probe per role painted straight from its variable. */
 function Matrix(): ReactElement {
   return (
-    <div style={{ display: "grid", gap: "0.5rem", backgroundColor: "var(--color-background)", color: "var(--color-foreground)" }}>
+    <div
+      style={{
+        display: "grid",
+        gap: "0.5rem",
+        backgroundColor: `var(${TOKENS["color.background"].cssVar})`,
+        color: `var(${TOKENS["color.foreground"].cssVar})`,
+      }}
+    >
       {TONES.map((tone) => (
         <div key={tone} data-matrix-tone={tone} style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center" }}>
           {BUTTON_VARIANTS.map((variant) => (
@@ -77,7 +84,7 @@ function Matrix(): ReactElement {
           {TONE_ROLES.map((role) => (
             <span key={role} data-probe={role} data-tone={tone} style={{ color: roleVar(role) }} />
           ))}
-          <span data-probe="card" style={{ color: "var(--color-card)" }} />
+          <span data-probe="card" style={{ color: `var(${TOKENS["color.card"].cssVar})` }} />
           {/* A surface Card is the host of its own edge, so its edge mixes over the card fill. */}
           <span className={TONE_HOST_UTILITIES.card} data-probe="edge-on-card" data-tone={tone} style={{ color: roleVar("edge") }} />
           {Object.entries(NAMED_PROBES).map(([probe, token]) => (
@@ -106,13 +113,15 @@ export function ToneVariantMatrixStory({
       subject="The D336 tone and variant matrix"
       isolates="Button, GlyphButton, InlineAction, Badge, Card, Toggle, Text, Icon, WebSpinner and WeaveGlyph in every tone and style"
     >
-      <div data-theme={theme} style={{ backgroundColor: "var(--color-background)", padding: "1rem" }}>
+      <div data-theme={theme} style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, padding: "1rem" }}>
         {background === undefined ? (
           <Matrix />
         ) : (
           <ThemeScope
             tokens={{ background }}
-            {...(ambient === undefined ? {} : { ambientBackground: ambient["--color-background"], ambientAccent: ambient["--color-primary"] })}
+            {...(ambient === undefined
+              ? {}
+              : { ambientBackground: ambient[TOKENS["color.background"].cssVar], ambientAccent: ambient[TOKENS["color.primary"].cssVar] })}
           >
             <Matrix />
           </ThemeScope>
