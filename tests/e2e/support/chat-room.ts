@@ -28,6 +28,7 @@ import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
+import { CHAT_TITLE_FIELD_NAME } from "#client/lib/chat-rename-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
 import { streamTapOf, waitForRoomOpened } from "./stream-tap.ts";
@@ -245,7 +246,7 @@ export async function openUtilityMenu(page: Page): Promise<void> {
 export async function renameOpenChat(page: Page, title: string): Promise<void> {
   await openChatOptions(page);
   await page.getByRole("menuitem", { name: ROW_RENAME_NAME }).click();
-  const input = page.getByRole("textbox", { name: "Chat title" });
+  const input = page.getByRole("textbox", { name: CHAT_TITLE_FIELD_NAME });
   await expect(input).toBeVisible();
   await input.fill(title);
   const resp = page.waitForResponse((r) => r.url().includes("/api/trpc/chat.updateTitle") && r.status() < 500);
@@ -262,7 +263,7 @@ export async function renameFirstChatViaRowKebab(page: Page, title: string): Pro
   await kebab.focus();
   await kebab.press("Enter");
   await page.getByRole("menuitem", { name: ROW_RENAME_NAME }).click();
-  const input = page.getByRole("textbox", { name: "Chat title" });
+  const input = page.getByRole("textbox", { name: CHAT_TITLE_FIELD_NAME });
   await expect(input).toBeVisible();
   await input.fill(title);
   const resp = page.waitForResponse((r) => r.url().includes("/api/trpc/chat.updateTitle") && r.status() < 500);

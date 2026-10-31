@@ -575,6 +575,8 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/app-shell/surfaces/app-shell-topbar.ct.tsx": {
     "packages/client/src/features/app-shell/lib/command-shortcut-label.ts":
       "commandShortcutLabel: the platform key hint the command chip's name and description spell",
+    "packages/client/src/lib/chat-rename-names.ts":
+      "renameChatButtonIdentity: the head of the rename button's name, which only this module's own builder uses in production and no door forwards",
   },
   "tests/client/routes/_route-pending-stories.tsx": {
     "packages/client/src/routes/route-pending.tsx": "RoutePending: the router's pending component, which only the router renders and no door forwards",

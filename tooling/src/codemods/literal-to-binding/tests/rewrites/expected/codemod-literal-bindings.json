@@ -8,6 +8,13 @@
       "binding": "channelName",
       "from": "#client/channel.ts",
       "files": ["a.ts"]
+    },
+    {
+      "pattern": "`Rename chat — ${$CAST}, ${$TITLE}`",
+      "expression": "renameChatName($CAST, $TITLE)",
+      "binding": "renameChatName",
+      "from": "#client/rename.ts",
+      "files": ["a.ts"]
     }
   ]
 }

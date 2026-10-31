@@ -2,7 +2,7 @@
 // row's geometry at the narrowest width, the Characters band's doors moving to the trail while the list is the screen,
 // and an open room's identity: its participants, its name, its chips and the context pane's header on the same horizon.
 import { TRAIL_OVERFLOW_LABEL } from "@orb/client/components";
-import { censusTitle, chatRoomTitle, contextToggleLabel } from "@orb/client/lib";
+import { CHAT_NAME_FIELD_NAME, censusTitle, chatRoomTitle, contextToggleLabel, RENAME_CHAT_NAME } from "@orb/client/lib";
 import type { ChatId } from "@orb/kit/ids";
 import { pixel, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import type { TrpcWireOutput } from "@orb/testkit/ct";
@@ -13,6 +13,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { makePluginRow } from "@orb/testkit/node/helpers";
 import type { Locator, Page } from "@playwright/test";
 import { commandShortcutLabel } from "#client/features/app-shell/lib/command-shortcut-label.ts";
+import { renameChatButtonIdentity } from "#client/lib/chat-rename-names.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { AppShellTrailProjectionStory } from "./_trail-projection-stories.tsx";
 import { JUMP_CHIP, namedGroupRoom, routeRoom, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -373,9 +374,9 @@ test.describe("an open named group room", () => {
       const room = await openNamedRoom(page, corpus, await ownerCaller());
       await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: room.id });
       await expectPrimaryRoomHeading(page, room.title);
-      const rename = page.getByRole("button", { name: `Rename chat — ${room.cast}, ${room.title}` });
+      const rename = page.getByRole("button", { name: renameChatButtonIdentity(room.cast, room.title) });
       await rename.click();
-      await expect(page.getByRole("textbox", { name: "Chat name", exact: true })).toBeFocused();
+      await expect(page.getByRole("textbox", { name: CHAT_NAME_FIELD_NAME, exact: true })).toBeFocused();
       await expectPrimaryRoomHeading(page, room.title);
       await page.keyboard.press("Escape");
       await expect(rename).toBeFocused();
@@ -401,14 +402,14 @@ test.describe("an open named group room", () => {
     await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
     const room = await openNamedRoom(page, corpus, await ownerCaller());
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: room.id });
-    const rename = page.getByRole("button", { name: `Rename chat — ${room.cast}, ${room.title}` });
+    const rename = page.getByRole("button", { name: renameChatButtonIdentity(room.cast, room.title) });
     const date = rename.locator(".shell-topbar-date");
     await expect(date).toBeVisible();
     await expect(date).toHaveText(/^· .+/u);
     const stamp = ((await date.textContent()) ?? "").replace(/^· /u, "");
     await expect(rename).toHaveAccessibleName(new RegExp(`, ${stamp}$`, "u"));
     await date.click();
-    const input = page.getByRole("textbox", { name: "Chat name", exact: true });
+    const input = page.getByRole("textbox", { name: CHAT_NAME_FIELD_NAME, exact: true });
     await expect(input).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(rename).toBeFocused();
@@ -447,9 +448,9 @@ test.describe("an open named group room", () => {
     const centre = { x: (box?.x ?? 0) + (box?.width ?? 0) / 2, y: (box?.y ?? 0) + (box?.height ?? 0) / 2 };
     await expect
       .poll(() => page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest("button")?.getAttribute("aria-label") ?? "", centre))
-      .toMatch(/^Rename chat — /u);
+      .toContain(RENAME_CHAT_NAME);
     await page.mouse.click(centre.x, centre.y);
-    const input = page.getByRole("textbox", { name: "Chat name" });
+    const input = page.getByRole("textbox", { name: CHAT_NAME_FIELD_NAME });
     await expect(input).toBeVisible();
     await expect.poll(() => clientWidth(input)).toBeGreaterThanOrEqual(await titleFloor(page));
     await page.keyboard.press("Escape");

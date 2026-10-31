@@ -9,7 +9,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { timeLib } from "#lib";
+import { CHAT_NAME_FIELD_NAME, renameChatButtonName, timeLib } from "#lib";
 import { useUpdateChatTitle } from "../hooks/use-chat-row-mutations.ts";
 
 export interface ChatHeaderTitleProps {
@@ -100,7 +100,7 @@ export function ChatHeaderTitle({ chatId, label, roomName, createdAt, canRename 
         variant="ghost"
         size="sm"
         // The date is visible inside the button, so the name carries it after the stable identity (WCAG 2.5.3).
-        aria-label={`Rename chat — ${label}${roomName === null ? "" : `, ${roomName}`}, ${timeLib.formatDate(createdAt)}`}
+        aria-label={renameChatButtonName(label, roomName, timeLib.formatDate(createdAt))}
         className="shell-topbar-title-group shrink justify-start min-inline-0"
         ref={(node: HTMLButtonElement | null): void => {
           if (node !== null && restoreFocus.current) {
@@ -146,7 +146,7 @@ export function ChatHeaderTitle({ chatId, label, roomName, createdAt, canRename 
     <TitleGroup {...(editWidth === undefined ? {} : { width: editWidth })}>
       <ParticipantsText label={label} />
       <Input
-        aria-label="Chat name"
+        aria-label={CHAT_NAME_FIELD_NAME}
         placeholder="Name this chat"
         className="shell-topbar-rename min-inline-0"
         value={draft}
