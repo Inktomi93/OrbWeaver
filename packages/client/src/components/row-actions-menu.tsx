@@ -19,12 +19,13 @@ import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/m
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { useState } from "react";
+import { ROW_DELETE_NAME } from "#lib";
 import type { ConfirmDialogProps } from "./confirm-dialog.tsx";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
 
 // The optional destructive menu item + its ConfirmDialog (state owned by RowActionsMenu).
 export interface RowDestructiveAction {
-  /** The menu item label. @defaultValue "Delete" */
+  /** The menu item label. @defaultValue `ROW_DELETE_NAME` */
   readonly label?: string;
   /** The menu item glyph. @defaultValue Trash2 */
   readonly icon?: LucideIcon;
@@ -32,7 +33,7 @@ export interface RowDestructiveAction {
   readonly title: ReactNode;
   /** The confirm dialog body — plain text/fragment only (see ConfirmDialog). */
   readonly description: ReactNode;
-  /** The confirm button's label. @defaultValue the item `label` (or "Delete"). */
+  /** The confirm button's label. @defaultValue the item `label` (or `ROW_DELETE_NAME`). */
   readonly confirmLabel?: string;
   /** Fires on confirm — and may return a PROMISE (#1563b). This value is forwarded to
    *  `ConfirmDialog.onConfirm`, which awaits it: the dialog holds open while the work runs, closes itself on
@@ -185,7 +186,7 @@ export function RowActionsMenu({
   triggerRef,
 }: RowActionsMenuProps): ReactElement {
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const destructiveLabel = destructive?.label ?? "Delete";
+  const destructiveLabel = destructive?.label ?? ROW_DELETE_NAME;
   const trigger = actionsTrigger({ icon, label, reveal, shape, ink, size: triggerSize, tabIndex: triggerTabIndex, triggerRef });
 
   return (

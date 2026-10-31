@@ -1,4 +1,4 @@
-import { readBrowserAcceleration } from "@orb/tooling/floor/browser/browser-acceleration";
+import { browserArgsWithAcceleration, readBrowserAcceleration } from "@orb/tooling/floor/browser/browser-acceleration";
 import { timingCapability } from "@orb/tooling/floor/host/timing-capability";
 import { currentRunLease, inheritedRunMarker, runLeaseArg, runMarkerArg } from "@orb/tooling/floor/process/run-marker";
 import { expect, test } from "@playwright/test";
@@ -12,12 +12,14 @@ test("the E2E runner requests acceleration without losing browser ownership", as
     const { commandLine } = await session.send("SystemInfo.getInfo");
     const marker = inheritedRunMarker();
     const lease = currentRunLease();
-    const expectedArguments = ["--enable-gpu", ...(marker === null ? [] : [runMarkerArg(marker)]), ...(lease === null ? [] : [runLeaseArg(lease)])];
-    const argumentsAvailable = commandLine !== "";
-    const argsVerified = argumentsAvailable && expectedArguments.every((argument) => commandLine.includes(argument));
+    const expectedArguments = [
+      ...browserArgsWithAcceleration(),
+      ...(marker === null ? [] : [runMarkerArg(marker)]),
+      ...(lease === null ? [] : [runLeaseArg(lease)]),
+    ];
     const launchArguments = {
-      commandLine: argumentsAvailable ? "available" : "unavailable",
-      argsVerified,
+      commandLine: commandLine === "" ? "unavailable" : "available",
+      argsVerified: commandLine !== "" && expectedArguments.every((argument) => commandLine.includes(argument)),
     };
     await info.attach("e2e-browser-posture", {
       body: JSON.stringify(
@@ -34,8 +36,12 @@ test("the E2E runner requests acceleration without losing browser ownership", as
       ),
       contentType: "application/json",
     });
-    expect(!argumentsAvailable || argsVerified).toBe(true);
-    expect(acceleration.backend.length).toBeGreaterThan(0);
+    // An empty command line proves nothing about the launch, so it fails here rather than passing the argument check.
+    expect(commandLine, "SystemInfo.getInfo reports the browser's command line").not.toBe("");
+    for (const argument of expectedArguments) {
+      expect(commandLine).toContain(argument);
+    }
+    expect(acceleration.backend, "the GPU info names a renderer").not.toBe("unknown");
   } finally {
     await session.detach();
   }

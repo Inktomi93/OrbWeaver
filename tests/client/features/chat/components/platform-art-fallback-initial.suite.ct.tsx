@@ -7,12 +7,11 @@ import type { ChatId } from "@orb/kit/ids";
 import { AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import type { CorpusPlayback } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
 import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 import type { ReadingRoom } from "./chat-style-reading.fixtures.ts";
-import { createReadingRoom, openReadingRoom, READING_ROLES, TAIL_MESSAGES } from "./chat-style-reading.fixtures.ts";
+import { createReadingRoom, openReadingStyle, READING_ROLES, roomStoryProps, TAIL_MESSAGES } from "./chat-style-reading.fixtures.ts";
 
 const ROOM_STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const ROW = '[data-slot="message-row"]';
@@ -56,15 +55,6 @@ test.afterAll(async () => {
   await root[Symbol.asyncDispose]();
 });
 
-async function openStyle(page: Page, corpus: CorpusPlayback, chatStyle: ThemeChatStyle): Promise<void> {
-  await openReadingRoom(page, corpus, root, { chatStyle, art: false });
-  await seedShellState(page, { activeSection: "chats" });
-}
-
-function roomStoryProps(): { readonly chatId: ChatId } {
-  return { chatId: roomId };
-}
-
 /** Each letter's font size over the shorter side of the size container that holds it. */
 async function letterRatios(page: Page, role: (typeof READING_ROLES)[number]): Promise<readonly number[]> {
   const letters = page.locator(`${ROW}[data-role="${role}"] ${LETTER}`);
@@ -85,7 +75,8 @@ for (const viewport of [DESKTOP, PHONE]) {
   for (const chatStyle of ART_STYLES) {
     test(`${chatStyle} at ${viewport.width}px sizes every fallback initial to its art slot`, async ({ corpus, mount, page }) => {
       await page.setViewportSize(viewport);
-      await openStyle(page, corpus, chatStyle);
+      await openReadingStyle(page, corpus, chatStyle);
+      await seedShellState(page, { activeSection: "chats" });
       await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
       for (const role of READING_ROLES) {
         const ratios = await letterRatios(page, role);
@@ -154,7 +145,8 @@ for (const primary of CUSTOM_PRIMARIES) {
   for (const chatStyle of ART_STYLES) {
     test(`${chatStyle} keeps its fallback initial legible over a theme primary of ${primary}`, async ({ corpus, mount, page }) => {
       await page.setViewportSize(DESKTOP);
-      await openStyle(page, corpus, chatStyle);
+      await openReadingStyle(page, corpus, chatStyle);
+      await seedShellState(page, { activeSection: "chats" });
       await selectPrimary(primary, chatStyle);
       await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
       const measured = await letterContrasts(page);

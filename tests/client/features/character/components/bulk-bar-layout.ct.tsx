@@ -1,6 +1,8 @@
+import { ROW_DELETE_NAME } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
-import { seedShellState } from "@orb/testkit/browser/spec";
+import type { LayoutBox } from "@orb/testkit/browser/spec";
+import { boxOf, seedShellState } from "@orb/testkit/browser/spec";
 import { routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -16,23 +18,7 @@ const REGIMES = [
   { name: "phone 390px", viewport: { width: 390, height: 844 }, coarse: true },
 ] as const;
 
-interface Box {
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
-}
-
-async function boxOf(locator: Locator): Promise<Box> {
-  const box = await locator.boundingBox();
-  // The count and actions are asserted visible first; a null box here is a fixture break, not a layout case.
-  if (box === null) {
-    throw new Error("The bulk bar control has no layout box");
-  }
-  return box;
-}
-
-function overlap(a: Box, b: Box): boolean {
+function overlap(a: LayoutBox, b: LayoutBox): boolean {
   return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 }
 
@@ -91,7 +77,7 @@ for (const regime of REGIMES) {
       const verbs = [
         bar.getByRole("button", { name: "Tag", exact: true }),
         bar.getByRole("button", { name: "Archive", exact: true }),
-        bar.getByRole("button", { name: "Delete", exact: true }),
+        bar.getByRole("button", { name: ROW_DELETE_NAME, exact: true }),
       ];
       const parts = [count, ...verbs, bar.getByRole("button", { name: "Clear selection", exact: true })];
       for (const part of parts) {

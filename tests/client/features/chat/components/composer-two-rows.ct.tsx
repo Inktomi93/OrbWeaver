@@ -8,6 +8,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-tab-labels.ts";
+import { COMPOSER_CLEAR_INPUT_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -95,7 +96,7 @@ for (const viewport of VIEWPORTS) {
         await expect(plugins).toBeFocused();
         const tools = upper.getByRole("button", { name: "Message tools", exact: true });
         await tools.press("Enter");
-        await expect(page.getByRole("menuitem", { name: "Clear input", exact: true })).toBeVisible();
+        await expect(page.getByRole("menuitem", { name: COMPOSER_CLEAR_INPUT_NAME, exact: true })).toBeVisible();
         await page.keyboard.press("Escape");
         await expect(input).toHaveValue(draft);
         expect(rpc.count("plugin.invokeUiCommand")).toBe(0);

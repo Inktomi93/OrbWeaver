@@ -9,7 +9,9 @@ import { streamAttachInputSchema } from "@orb/contracts/stream";
 import type { AssetId, CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { controlledPanel, publishSurfaceInventory, settledBox } from "@orb/testkit/browser/spec";
+import type { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
+import type { DisclosureWalkHooks } from "@orb/testkit/browser/spec";
+import { controlledPanel, publishSurfaceInventory, settledBox, usesProgrammaticScroll, walkDisclosures } from "@orb/testkit/browser/spec";
 import type { SurfaceCoverageDisposition, SurfaceCoverageInventory } from "@orb/testkit/iso";
 import { parseSurfaceProviderEvidence } from "@orb/testkit/iso";
 import { attachNativeFile, isTrpcRequestFor, matchesTrpcRequestInput, readTrpcOutput, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
@@ -17,24 +19,33 @@ import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Locator, Response, Route } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
+import { CHAT_DELETE_NAME, CHAT_SELECT_MESSAGES_NAME } from "#client/features/chat/lib/chat-options-names.ts";
+import { COMPOSER_CLEAR_INPUT_NAME, COMPOSER_CORRECTIONS_NAME, COMPOSER_IMAGINE_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
 import {
   MESSAGE_ACTIONS_MENU_NAME,
   MESSAGE_EDIT_NAME,
   MESSAGE_FORK_NAME,
   MESSAGE_REACTION_ADD_NAME,
   MESSAGE_REATTRIBUTE_NAME,
+  MESSAGE_VIEW_WIRE_TRACE_NAME,
 } from "#client/features/chat/lib/message-action-names.ts";
 import { resolveIsGroupChat } from "#client/features/chat/lib/roster.ts";
 import { pluginCommandShownName, sharedPluginNames } from "#client/features/plugin/lib/plugin-command-copy.ts";
 import { PLUGIN_PANELS_SHEET_LABEL } from "#client/features/plugin/lib/plugin-copy.ts";
 import { CHAT_PLUGINS_OPEN_LABEL } from "#client/features/plugin/lib/plugin-panel-copy.ts";
 import { deriveChatTitle } from "#client/lib/chat-title.ts";
+import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { renderMessageForDisplay } from "#client/lib/message-render.ts";
 import { CHAT_PLUGINS_TAB_LABEL } from "#client/lib/registry-contracts.ts";
+import { ROW_DELETE_NAME, ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
 import { gotoChatsList, messageRow, openChatsList, openDetailPanel, waitForAppReady } from "./chat-room.ts";
 import type { SurfaceFlow } from "./surface-flow.ts";
 import { holdTrpcProcedure } from "./trpc.ts";
 
+// The showcase plugins the walks drive; `satisfies` makes a renamed or retired slug a `tsc` error here.
+const ARCADE_SLUG = "pocket-arcade" satisfies ShowcaseSlug;
+const ORACLE_SLUG = "oracle-deck" satisfies ShowcaseSlug;
+const POLISH_SLUG = "draft-polish" satisfies ShowcaseSlug;
 const DRAFT = "A direction retained while inspecting the room controls.";
 const EMPTY_SEARCH = "surface-walk-no-chat-with-this-name-7f4a6d";
 const MENU_DEPTH_LIMIT = 8;
@@ -42,6 +53,8 @@ const DISCLOSURE_LIMIT = 100;
 const WHEEL_STEP_RATIO = 0.65;
 const SCROLL_EPSILON = 2;
 const MAX_READING_POSITION_STEPS = 10_000;
+
+type ShowcaseSlug = (typeof SHOWCASE_PLUGIN_SLUGS)[number];
 
 interface Coverage {
   readonly name: string;
@@ -445,15 +458,31 @@ async function inspectImagineModes(flow: Journey, dialog: Locator, id: string): 
   );
 }
 
+// Every command whose existing dialog or mode the walk opens and dismisses, by the name production prints for it. The
+// commands a menu really offers are enumerated from the page; a name in this set decides how its drill proves itself.
+const SAFE_DRILL_NAMES: ReadonlySet<string> = new Set([
+  ROW_RENAME_NAME,
+  ROW_DELETE_NAME,
+  CHAT_DELETE_NAME,
+  COMPOSER_CORRECTIONS_NAME,
+  COMPOSER_IMAGINE_NAME,
+  MESSAGE_VIEW_WIRE_TRACE_NAME,
+  CHAT_SELECT_MESSAGES_NAME,
+  COMPOSER_CLEAR_INPUT_NAME,
+  MESSAGE_EDIT_NAME,
+  CHAT_PLUGINS_OPEN_LABEL,
+]);
+const DESTRUCTIVE_NAMES: ReadonlySet<string> = new Set([ROW_DELETE_NAME, CHAT_DELETE_NAME]);
+
 function safeDialogWitness(dialog: Locator, label: string): Locator {
   switch (label) {
-    case "Rename":
+    case ROW_RENAME_NAME:
       return dialog.getByRole("textbox", { name: "Chat title", exact: true });
-    case "Corrections…":
+    case COMPOSER_CORRECTIONS_NAME:
       return dialog.getByRole("textbox", { name: "Correction instruction", exact: true });
-    case "Imagine — modes & preview…":
+    case COMPOSER_IMAGINE_NAME:
       return dialog.getByRole("textbox", { name: "Image prompt", exact: true });
-    case "View wire trace…":
+    case MESSAGE_VIEW_WIRE_TRACE_NAME:
       return dialog.getByText(/No prompt was captured|Static prefix|Authored text/u).first();
     default:
       return dialog.getByRole("button", { name: "Cancel", exact: true });
@@ -462,7 +491,7 @@ function safeDialogWitness(dialog: Locator, label: string): Locator {
 
 async function safeDialogDrill(flow: Journey, command: Locator, request: { readonly label: string; readonly id: string }): Promise<void> {
   const { label, id } = request;
-  const destructive = label === "Delete" || label === "Delete chat";
+  const destructive = DESTRUCTIVE_NAMES.has(label);
   const dialog = destructive ? flow.page.getByRole("alertdialog") : flow.page.getByRole("dialog");
   const witness = safeDialogWitness(dialog, label);
   await flow.action(id, {
@@ -476,7 +505,7 @@ async function safeDialogDrill(flow: Journey, command: Locator, request: { reado
     },
   });
   await checkpoint(flow, id, dialog, witness);
-  if (label === "Imagine — modes & preview…") {
+  if (label === COMPOSER_IMAGINE_NAME) {
     await inspectImagineModes(flow, dialog, id);
   }
   const cancel = dialog.getByRole("button", { name: "Cancel", exact: true });
@@ -582,10 +611,10 @@ async function runSafeCommand(
   request: { readonly label: string; readonly id: string; readonly trigger: Locator },
 ): Promise<void> {
   switch (request.label) {
-    case "Select messages…":
+    case CHAT_SELECT_MESSAGES_NAME:
       await safeSelectionDrill(flow, command, request.id);
       return;
-    case "Clear input":
+    case COMPOSER_CLEAR_INPUT_NAME:
       await safeDraftDrill(flow, command, request.id);
       return;
     case MESSAGE_EDIT_NAME:
@@ -600,25 +629,13 @@ async function runSafeCommand(
 }
 
 async function safeMenuDrills(flow: Journey, trigger: Locator, name: string): Promise<void> {
-  const labels = [
-    "Rename",
-    "Delete",
-    "Delete chat",
-    "Corrections…",
-    "Imagine — modes & preview…",
-    "View wire trace…",
-    "Select messages…",
-    "Clear input",
-    MESSAGE_EDIT_NAME,
-    CHAT_PLUGINS_OPEN_LABEL,
-  ] as const;
   await trigger.click();
   const menu = flow.page.getByRole("menu");
   await expect(menu).toBeVisible();
   const available: string[] = [];
-  for (const label of labels) {
-    const command = menu.getByRole("menuitem", { name: label, exact: true });
-    if ((await command.count()) > 0 && !(await command.isDisabled())) {
+  for (const item of await menu.locator('[role="menuitem"]:not([aria-disabled="true"]):not([disabled])').all()) {
+    const label = await messageLeafName(item);
+    if (SAFE_DRILL_NAMES.has(label)) {
       available.push(label);
     }
   }
@@ -708,7 +725,9 @@ async function closeContextOverlay(flow: Journey, name: string): Promise<void> {
   if ((await panel.getAttribute("data-panel-mode")) !== "overlay") {
     return;
   }
-  const close = flow.page.getByRole("button", { name: "Close details", exact: true }).or(flow.page.getByRole("button", { name: "Hide details", exact: true }));
+  const close = flow.page
+    .getByRole("button", { name: "Close details", exact: true })
+    .or(flow.page.getByRole("button", { name: contextToggleLabel(false), exact: true }));
   await flow.action(name, {
     action: async () => {
       await close.click();
@@ -721,89 +740,26 @@ async function closeContextOverlay(flow: Journey, name: string): Promise<void> {
   await flow.topology();
 }
 
-async function disclosures(flow: Journey, region: Locator, name: string): Promise<void> {
-  const opened: Locator[] = [];
-  for (let index = 0; index < DISCLOSURE_LIMIT; index += 1) {
-    const closed = region.locator('[data-slot="collapsible-trigger"][aria-expanded="false"]:not([aria-haspopup]):visible');
-    if ((await closed.count()) === 0) {
-      break;
-    }
-    const rootIndex = await closed.first().evaluate(
-      (node, scope) => {
-        const host = node.closest('[data-slot="collapsible-root"]');
-        if (host === null) {
-          throw new Error("The native disclosure has no semantic host");
-        }
-        return [...scope.querySelectorAll('[data-slot="collapsible-root"]')].indexOf(host);
-      },
-      await region.elementHandle(),
-    );
-    expect(rootIndex).toBeGreaterThanOrEqual(0);
-    const trigger = region.locator('[data-slot="collapsible-root"]').nth(rootIndex).locator('[data-slot="collapsible-trigger"]').first();
-    expectChat(flow, `${name}-disclosure-${String(index)}`, "disclosure");
-    await flow.action(`${name}-disclosure-${String(index)}`, {
-      action: async () => {
-        await trigger.click();
-      },
-      ready: async () => {
-        await expect(trigger).toHaveAttribute("aria-expanded", "true");
-        await expect(trigger).toHaveAttribute("aria-controls", /.+/u);
-        const panel = await controlledPanel(trigger);
-        await expect(panel).toBeVisible();
-        await expect(panel).not.toBeEmpty();
-        await expect(panel.locator('[data-slot="skeleton"]:visible')).toHaveCount(0);
-      },
-    });
-    opened.push(trigger);
-    const panel = await controlledPanel(trigger);
-    await checkpoint(flow, `${name}-disclosure-${String(index)}`, panel, panel);
-    await nativeDetails(flow, panel, `${name}-disclosure-${String(index)}`);
-  }
-  const remaining = await region.locator('[data-slot="collapsible-trigger"][aria-expanded="false"]:visible').count();
-  record(
-    flow,
-    `${name}-disclosures`,
-    remaining > 0 ? "unvisited" : "observed",
-    `${String(opened.length)} nested disclosures opened; ${String(remaining)} remain beyond the traversal bound`,
-  );
-  await attachNativeFile(flow.info, flow.info, `${name}-body`, { body: await region.ariaSnapshot(), contentType: "text/plain" });
-  for (const trigger of opened.toReversed()) {
-    await trigger.click();
-    await expect(trigger).toHaveAttribute("aria-expanded", "false");
-  }
-  await nativeDetails(flow, region, name);
-}
-
-async function nativeDetails(flow: Journey, region: Locator, name: string, depth = 0): Promise<void> {
-  const candidates = region.locator("details");
-  const indices = await candidates.evaluateAll(
-    (nodes, scope) =>
-      nodes.flatMap((node, index) => {
-        const parent = node.parentElement?.closest("details") ?? null;
-        const nested = parent !== null && parent !== scope && scope.contains(parent);
-        return !nested && node.getClientRects().length > 0 ? [index] : [];
-      }),
-    await region.elementHandle(),
-  );
-  if (depth >= MENU_DEPTH_LIMIT && indices.length > 0) {
-    record(flow, `${name}-nested-details`, "unvisited", `${String(indices.length)} native details beyond the explicit traversal bound`);
-    return;
-  }
-  for (const index of indices) {
-    const detail = candidates.nth(index);
-    const id = `${name}-details-${String(index)}`;
-    expectChat(flow, id, "native-details");
-    const wasOpen = await detail.evaluate((node) => node.hasAttribute("open"));
-    if (!wasOpen) {
-      await detail.locator(":scope > summary").click();
-    }
-    await expect(detail).toHaveAttribute("open", /.*/u);
-    await checkpoint(flow, id, detail, detail);
-    await nativeDetails(flow, detail, id, depth + 1);
-    if (!wasOpen) {
-      await detail.locator(":scope > summary").click();
-    }
-  }
+function disclosureHooks(flow: Journey): DisclosureWalkHooks {
+  return {
+    limit: DISCLOSURE_LIMIT,
+    depthLimit: MENU_DEPTH_LIMIT,
+    completed: "observed",
+    id: (path, kind, index) => `${path}-${kind}-${String(index)}`,
+    expect: (id, kind) => expectChat(flow, id, kind),
+    action: async (id, step) => flow.action(id, step),
+    checkpoint: async (id, scope) => checkpoint(flow, id, scope, scope),
+    record: (id, disposition, detail) => record(flow, id, disposition, detail),
+    ready: async (panel): Promise<void> => {
+      await expect(panel).toBeVisible();
+      await expect(panel).not.toBeEmpty();
+      await expect(panel.locator('[data-slot="skeleton"]:visible')).toHaveCount(0);
+    },
+    opened: async (scope, path): Promise<void> => {
+      await attachNativeFile(flow.info, flow.info, `${path}-body`, { body: await scope.ariaSnapshot(), contentType: "text/plain" });
+    },
+    summary: (path) => ({ disclosures: `${path}-disclosures`, nestedDetails: `${path}-nested-details` }),
+  };
 }
 
 async function contextCells(flow: Journey, cells: Locator, name: string): Promise<void> {
@@ -829,7 +785,7 @@ async function contextCells(flow: Journey, cells: Locator, name: string): Promis
     });
     const region = activeContext(flow);
     await checkpoint(flow, `${name}-${String(index)}`, region, region);
-    await disclosures(flow, region, `${name}-${String(index)}`);
+    await walkDisclosures(region, `${name}-${String(index)}`, disclosureHooks(flow));
   }
   record(flow, name, count === 0 ? "not-applicable" : "observed", `${String(count)} actual visible navigation cells; omitted capabilities are not synthesized`);
 }
@@ -1004,7 +960,7 @@ async function wheel(flow: Journey, delta: number): Promise<void> {
 }
 
 async function scrollViewport(flow: Journey, viewport: Locator, delta: number): Promise<void> {
-  if (flow.page.context().browser()?.browserType().name() === "webkit" && flow.info.project.use.isMobile === true) {
+  if (usesProgrammaticScroll(flow.page, flow.info)) {
     await test.step(
       "Programmatic positioning: mobile WebKit; not touch or wheel evidence",
       async () => {
@@ -1569,7 +1525,7 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
       expectChat(flow, id, "menu-operation");
       record(flow, id, "unvisited", "Native available command seeded before execution; only its completed operation can supersede this disposition");
     }
-    await menu.getByRole("menuitem", { name: "Rename", exact: true }).click();
+    await menu.getByRole("menuitem", { name: ROW_RENAME_NAME, exact: true }).click();
     const dialog = flow.page.getByRole("dialog", { name: "Rename chat", exact: true });
     const renamed = `${title} renamed`;
     await dialog.getByRole("textbox", { name: "Chat title", exact: true }).fill(renamed);
@@ -1626,12 +1582,12 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
     record(flow, "commands/lifecycle/Archive", "visited", "Native archive persisted and removed the exact disposable subject from the non-archived list");
     await flow.client.chat.archive.mutate({ chatId: chat.id, archived: false });
     menu = await commandMenu(flow, await commandRoom(flow, chat.id, title));
-    await menu.getByRole("menuitem", { name: "Delete", exact: true }).click();
+    await menu.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
     const confirm = flow.page.getByRole("alertdialog", { name: `Delete "${renamed}"?`, exact: true });
     await expect(confirm).toBeVisible();
     await flow.action("commands/delete-confirm", {
       action: async () => {
-        await confirm.getByRole("button", { name: "Delete", exact: true }).click();
+        await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
       },
       ready: async () => {
         await expect(confirm).toBeHidden();
@@ -1932,12 +1888,12 @@ async function messageCopyAndDelete(flow: Journey, message: MessageView): Promis
   }
   await messageOperationDone(flow, message, "Copy", "Native clipboard write completed with the production success acknowledgement");
   menu = await messageOperationMenu(flow, message);
-  await menu.getByRole("menuitem", { name: "Delete", exact: true }).click();
+  await menu.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
   const confirm = flow.page.getByRole("alertdialog", { name: "Delete this message?", exact: true });
   await expect(confirm).toBeVisible();
   await flow.action("message-operations/delete", {
     action: async () => {
-      await confirm.getByRole("button", { name: "Delete", exact: true }).click();
+      await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
     },
     ready: async () => {
       await expect(confirm).toBeHidden();
@@ -1945,7 +1901,12 @@ async function messageCopyAndDelete(flow: Journey, message: MessageView): Promis
       await expect.poll(async () => (await readCanon(flow, message.chatId)).some(({ id }) => id === message.id)).toBe(false);
     },
   });
-  await messageOperationDone(flow, message, "Delete", "Native destructive confirmation removed the exact disposable message from rendered and persisted canon");
+  await messageOperationDone(
+    flow,
+    message,
+    ROW_DELETE_NAME,
+    "Native destructive confirmation removed the exact disposable message from rendered and persisted canon",
+  );
 }
 
 /** Execute row commands on disposable canon; original reading-menu inventories retain their own dispositions. */
@@ -2022,7 +1983,7 @@ async function runChatMessageOperations(input: SurfaceFlow): Promise<MessageOper
       );
       await menu.press("Escape");
       menu = await messageOperationMenu(flow, assistant);
-      await safeDialogDrill(flow, menu.getByRole("menuitem", { name: "View wire trace…", exact: true }), {
+      await safeDialogDrill(flow, menu.getByRole("menuitem", { name: MESSAGE_VIEW_WIRE_TRACE_NAME, exact: true }), {
         label: "View wire trace…",
         id: "message-operations/wire-trace",
       });
@@ -2241,7 +2202,7 @@ export async function walkChatGeneration(input: SurfaceFlow): Promise<void> {
 export async function walkChatArcade(input: SurfaceFlow): Promise<void> {
   const flow: Journey = { ...input, coverage: [], expected: [{ id: "chat-arcade", kind: "plugin-operation" }] };
   try {
-    const plugin = (await flow.client.plugin.list.query()).find(({ slug, status }) => slug === "pocket-arcade" && status === "enabled");
+    const plugin = (await flow.client.plugin.list.query()).find(({ slug, status }) => slug === ARCADE_SLUG && status === "enabled");
     if (plugin === undefined) {
       record(flow, "chat-arcade", "not-applicable", "This dataset has no enabled Pocket Arcade install; no guest execution is claimed");
       return;
@@ -2323,7 +2284,7 @@ async function runPlacedCommand(flow: Journey, command: PluginCommandView): Prom
 export async function walkChatOracle(input: SurfaceFlow): Promise<void> {
   const flow: Journey = { ...input, coverage: [], expected: [{ id: "chat-oracle", kind: "plugin-operation" }] };
   try {
-    const plugin = (await flow.client.plugin.list.query()).find(({ slug, status }) => slug === "oracle-deck" && status === "enabled");
+    const plugin = (await flow.client.plugin.list.query()).find(({ slug, status }) => slug === ORACLE_SLUG && status === "enabled");
     if (plugin === undefined) {
       record(flow, "chat-oracle", "not-applicable", "This dataset has no enabled Oracle Deck install; no command invocation is claimed");
       return;
@@ -2413,7 +2374,7 @@ export async function walkChatOracle(input: SurfaceFlow): Promise<void> {
 export async function walkChatPolish(input: SurfaceFlow): Promise<void> {
   const flow: Journey = { ...input, coverage: [], expected: [{ id: "chat-polish", kind: "plugin-operation" }] };
   try {
-    const plugin = (await flow.client.plugin.list.query()).find(({ slug, status }) => slug === "draft-polish" && status === "enabled");
+    const plugin = (await flow.client.plugin.list.query()).find(({ slug, status }) => slug === POLISH_SLUG && status === "enabled");
     if (plugin === undefined) {
       record(flow, "chat-polish", "not-applicable", "This dataset has no enabled Draft Polish install; no draft replacement is claimed");
       return;

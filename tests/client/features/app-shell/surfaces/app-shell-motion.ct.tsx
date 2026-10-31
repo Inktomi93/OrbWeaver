@@ -2,6 +2,7 @@
 // frame and keeps inside its corridor, what reduced motion does instead, the phone's cancel, and the scoped section
 // view transition. Every sampler records per animation frame, because the defects it judges are one frame wide.
 import { spawn } from "node:child_process";
+import { contextToggleLabel } from "@orb/client/lib";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
 import { emulateMedia, releaseEmulatedMedia, resolvedLength, seedShellState, shellTracks } from "@orb/testkit/browser/spec";
@@ -594,7 +595,7 @@ test.describe("the doors in an open room", () => {
     await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
     await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "collapsed");
-    for (const leg of ["Show details", "Hide details"]) {
+    for (const leg of [contextToggleLabel(true), contextToggleLabel(false)]) {
       const census = await driveDoor(page, leg, ROOM_BOXES);
       expect(flipFrame(census)).toBeGreaterThan(-1);
       const verdict = doorVerdict(census, CONTEXT_DOOR);
@@ -637,7 +638,7 @@ test.describe("the doors in an open room", () => {
     const grid = page.locator(".shell-grid");
     for (const [leg, boxes] of [
       ["Hide list panel", LIST_DOOR],
-      ["Show details", CONTEXT_DOOR],
+      [contextToggleLabel(true), CONTEXT_DOOR],
     ] as const) {
       const census = await driveDoor(page, leg, ROOM_BOXES);
       const verdict = doorVerdict(
@@ -858,7 +859,7 @@ test.describe("the doors at rem 20", () => {
     await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
     await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
     await expect.poll(() => rootFontPx(page)).toBeCloseTo(UA_ROOT_PX * REM20, 0);
-    for (const leg of ["Show details", "Hide details", "Show details"]) {
+    for (const leg of [contextToggleLabel(true), contextToggleLabel(false), contextToggleLabel(true)]) {
       const verdict = doorVerdict(await driveDoor(page, leg, ROOM_BOXES), CONTEXT_DOOR);
       expect(verdict.cuts).toStrictEqual([]);
       expect(verdict.strays).toStrictEqual([]);
@@ -939,7 +940,7 @@ test("at an overlay width a closing details sheet keeps its box below the topbar
   await routeMotion(page, corpus);
   await mount<typeof AppShellStory>(STORY, {});
   const pane = page.locator(CONTEXT);
-  await page.getByRole("button", { name: "Show details", exact: true }).click();
+  await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
   await expect(pane).toHaveAttribute("data-panel-mode", "overlay");
   await waitForShellIdle(page);
   const openTop = Math.round((await pane.boundingBox())?.y ?? Number.NaN);
@@ -961,7 +962,7 @@ test("at an overlay width a closing details sheet keeps its box below the topbar
     };
     requestAnimationFrame(tick);
   }, SAMPLE_FRAMES);
-  await page.getByRole("button", { name: "Hide details", exact: true }).click();
+  await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).click();
   await expect(pane).toHaveAttribute("data-panel-mode", "collapsed");
   await waitForShellIdle(page);
   const tops = await page.evaluate(() => Reflect.get(globalThis, "__sheetTops") as number[]);

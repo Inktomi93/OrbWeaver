@@ -36,6 +36,7 @@ import { OFFER_CHOICES_ONE_SHOT, REGENERATE_PLAIN_HELPER, SWIPE_NEEDS_REPLY, tes
 import { useRecentSteers } from "#state";
 import type { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import type { UseGuidedActionsResult, useGuidedActions } from "../hooks/use-guided-actions.ts";
+import { COMPOSER_CLEAR_INPUT_NAME, COMPOSER_CORRECTIONS_NAME } from "../lib/composer-menu-names.ts";
 import type { ComposerImageControls } from "./composer-media-group.tsx";
 import { ComposerMediaGroup } from "./composer-media-group.tsx";
 
@@ -218,12 +219,12 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
             detail={canTargetTail ? undefined : SWIPE_NEEDS_REPLY}
             disabled={!canTargetTail}
             icon={Pencil}
-            label="Corrections…"
+            label={COMPOSER_CORRECTIONS_NAME}
             onClick={canTargetTail ? onRewrite : undefined}
           />
           <UtilityActionItem
             icon={Eraser}
-            label="Clear input"
+            label={COMPOSER_CLEAR_INPUT_NAME}
             onAction={onClear}
             enabled={onClear !== undefined}
             disabledReason="The composer is already empty"

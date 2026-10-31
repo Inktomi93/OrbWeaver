@@ -16,6 +16,8 @@ import { CHARACTER_ACTION_SCOPE_IDS, CHARACTER_ACTIONS } from "#client/features/
 import { CHARACTER_CARD_FACETS } from "#client/features/character/lib/character-card-facets.ts";
 import { characterCardFormFromDetail, characterUpdateDiff } from "#client/features/character/lib/character-card-form-model.ts";
 import { CHARACTERS_SECTION_LABEL } from "#client/features/character/lib/characters-section-label.ts";
+import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
+import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
 import { charactersRailButton, waitForAppReady } from "./chat-room.ts";
 import type { SurfaceFlow } from "./surface-flow.ts";
@@ -155,7 +157,7 @@ async function contextTab(flow: CharacterFlow, name: string): Promise<Locator> {
   const { page } = flow;
   const context = page.locator(CONTEXT);
   if ((await context.getAttribute("data-panel-mode")) === "collapsed") {
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
   }
   expectSubject(flow, name, "tab");
   if (flow.area === "source-context") {
@@ -467,18 +469,21 @@ async function greetingGenerationJourney(flow: CharacterFlow, form: Locator, cha
   }
 }
 
-function inspectorWitness(overview: Locator, facetId: string): Locator {
-  if (facetId === "depthPrompt") {
-    return overview.getByRole("combobox", { name: "Role", exact: true });
-  }
-  if (facetId === "provenance") {
-    return overview.getByRole("textbox", { name: "Creator", exact: true });
-  }
-  if (facetId === "regexScripts") {
-    return overview.getByRole("button", { name: "Open your script library", exact: true });
-  }
-  return overview.getByRole("heading", { name: "Details", exact: true });
-}
+// What each facet's inspector shows first. A total Record over the registry's ids, so a new facet fails `tsc` here
+// instead of falling through to the generic heading.
+const detailsHeading = (overview: Locator): Locator => overview.getByRole("heading", { name: "Details", exact: true });
+const INSPECTOR_WITNESS: Record<(typeof CHARACTER_CARD_FACETS)[number]["id"], (overview: Locator) => Locator> = {
+  description: detailsHeading,
+  personality: detailsHeading,
+  scenario: detailsHeading,
+  exampleMessages: detailsHeading,
+  creatorNotes: detailsHeading,
+  systemPrompt: detailsHeading,
+  postHistoryInstructions: detailsHeading,
+  depthPrompt: (overview) => overview.getByRole("combobox", { name: "Role", exact: true }),
+  regexScripts: (overview) => overview.getByRole("button", { name: "Open your script library", exact: true }),
+  provenance: (overview) => overview.getByRole("textbox", { name: "Creator", exact: true }),
+};
 
 async function facetJourney(flow: CharacterFlow, form: Locator): Promise<void> {
   for (const facet of CHARACTER_CARD_FACETS) {
@@ -503,7 +508,7 @@ async function facetJourney(flow: CharacterFlow, form: Locator): Promise<void> {
     await record(flow, `facet-${facet.id}`, form, [back, witness]);
     flow.observations.push({ id: facet.id, kind: "facet", disposition: "visited" });
     const overview = await contextTab(flow, "Overview");
-    const detail = inspectorWitness(overview, facet.id);
+    const detail = INSPECTOR_WITNESS[facet.id](overview);
     await detail.scrollIntoViewIfNeeded();
     await record(flow, `facet-inspector-${facet.id}`, overview, [detail]);
     await closeOverlay(flow.page);
@@ -683,7 +688,7 @@ async function lookFailureJourney(flow: CharacterFlow, characterId: CharacterId)
     await font.click();
     await flow.page.getByRole("option", { name: next, exact: true }).click();
     await expect(font).toHaveText(next);
-    await expect(status).toContainText("Save failed");
+    await expect(status).toContainText(AUTOSAVE_SAVE_FAILED_TEXT);
     const retry = status.getByRole("button", { name: "Retry", exact: true });
     await retry.scrollIntoViewIfNeeded();
     await recordState(flow, "look-failed-save-draft", look, { state: "error", errorSource: "interaction", witnesses: [retry] });
@@ -692,7 +697,7 @@ async function lookFailureJourney(flow: CharacterFlow, characterId: CharacterId)
   }
   await status.getByRole("button", { name: "Retry", exact: true }).press("Enter");
   await expect.poll(async () => (await flow.client.character.get.query({ characterId })).themeOverride?.font).toBe(next);
-  await expect(status).toHaveText("Saved");
+  await expect(status).toHaveText(AUTOSAVE_SAVED_TEXT);
   await record(flow, "look-keyboard-save-recovered", look, [status]);
 }
 
@@ -944,7 +949,7 @@ async function duplicateCommandCharacter(flow: CharacterFlow, parent: SourceChar
     },
     ready: async (): Promise<void> => {
       await expect.poll(async () => (await flow.client.character.get.query({ characterId: copy.id })).name).toBe(name);
-      await expect(form.locator('[data-slot="autosave-status"]')).toHaveText("Saved");
+      await expect(form.locator('[data-slot="autosave-status"]')).toHaveText(AUTOSAVE_SAVED_TEXT);
     },
   });
   expect((await flow.client.character.get.query({ characterId: parent.id })).name).toBe(parent.name);

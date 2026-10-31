@@ -1,5 +1,5 @@
 // The isolated public Heatmap inherits dimensions from the actual Insights Context, never a copied shell.
-import { CORPUS_MODE_LABELS } from "@orb/client/lib";
+import { CORPUS_MODE_LABELS, contextToggleLabel } from "@orb/client/lib";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { controlledPanel, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -46,7 +46,7 @@ for (const regime of [
       const mode = page.getByRole("radiogroup", { name: "Corpus mode", exact: true }).getByRole("radio", { name: CORPUS_MODE_LABELS.insights, exact: true });
       await mode.click();
       await expect(mode).toHaveAttribute("aria-checked", "true");
-      await page.getByRole("button", { name: "Show details", exact: true }).click();
+      await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
       const tab = page.locator('.shell-panel[data-panel-side="context"]').getByRole("tab", { name: "Time", exact: true });
       await tab.click();
       await expect(tab).toHaveAttribute("aria-selected", "true");

@@ -1,4 +1,6 @@
 // The production chat's resolved context tabs remain reachable without scrolling the header strip.
+
+import { contextToggleLabel } from "@orb/client/lib";
 import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -52,7 +54,7 @@ for (const hasTouch of [false, true]) {
       await page.keyboard.press("Enter");
       await expect(strip.getByRole("tab", { selected: true })).not.toHaveText(target);
       await expect(pane.getByRole("tablist")).toHaveCount(1);
-      const close = page.getByRole("button", { name: "Hide details", exact: true });
+      const close = page.getByRole("button", { name: contextToggleLabel(false), exact: true });
       await expect(close).toBeVisible();
       const floor = await resolvedLength(page, "var(--size-touch-target)");
       const box = await choose.boundingBox();

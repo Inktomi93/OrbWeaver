@@ -382,6 +382,11 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/data/import-tree-served.ts": "planServedTreeImport: the served-tree import planner",
   "packages/client/src/features/chat/lib/chat-context-tab-labels.ts":
     "CHAT_CONTEXT_TAB_LABELS and CHAT_CONTEXT_TABLIST_NAME: production context tab names used by navigation assertions",
+  "packages/client/src/features/chat/lib/composer-menu-names.ts": "COMPOSER_CLEAR_INPUT_NAME and its siblings: the composer menu item names",
+  "packages/client/src/features/chat/lib/chat-options-names.ts": "CHAT_DELETE_NAME and its siblings: the room options menu item names",
+  "packages/client/src/lib/context-toggle-label.ts": "contextToggleLabel: the detail toggle's name in both states",
+  "packages/client/src/lib/view-transition-names.ts": "SHELL_SWAP_DEADLINE_PROPERTY: the grid property a swap spec stretches to hold the old frame",
+  "packages/client/src/forms/editor/autosave-status-names.ts": "AUTOSAVE_SAVED_TEXT and its siblings: the words the shared autosave readout prints",
   "packages/client/src/features/config/lib/config-copy.ts": "CONFIG_SECTION_LABEL: the settings section labels",
   "packages/client/src/features/rpg/lib/unset-datum.ts": "UNSET_DATUM: the unset reading's text",
   "packages/client/src/features/plugin/lib/extensions-copy.ts": "EXTENSIONS_GONE_TITLE: the vanished page's title",

@@ -45,6 +45,7 @@ import type { CharacterHandle, ChatId, MessageId, UserConnectionId } from "@orb/
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { COMPOSER_CORRECTIONS_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
 import { MESSAGE_ACTIONS_MENU_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { messageRow, openChatByTitle } from "./support/chat-room.ts";
 import { WAIT_UI_MS } from "./support/timeouts.ts";
@@ -100,7 +101,7 @@ const GUIDED_CONTINUE = "Continue the reply with this direction";
 
 /** The ✨ utility menu and the Rewrite modal's door inside it (both moved off the top row). */
 const UTILITY_MENU = "Message tools";
-const CORRECTIONS_ITEM = "Corrections…";
+const CORRECTIONS_ITEM = COMPOSER_CORRECTIONS_NAME;
 
 function composer(page: Page): ReturnType<Page["getByRole"]> {
   return page.getByRole("textbox", { name: "Message" });

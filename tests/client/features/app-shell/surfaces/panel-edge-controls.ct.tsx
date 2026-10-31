@@ -1,12 +1,13 @@
 // Each side panel is opened and closed from one control at its own edge: it sits in the panel's header, a collapsed panel
 // leaves it in the same screen position, the centre topbar carries neither toggle, and an open sheet keeps one dismiss.
 
-import { APPEARANCE_CHANNEL_ROWS } from "@orb/client/lib";
-import { seedShellState } from "@orb/testkit/browser/spec";
+import { contextToggleLabel } from "@orb/client/lib";
+import { boxOf, seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, routeRoom, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -14,11 +15,11 @@ const STORY = `${SHELL_STORIES}/AppShellStory`;
 const WIDE = { width: 1440, height: 900 } as const;
 const NARROW_DESKTOP = { width: 900, height: 900 } as const;
 const PHONE = { width: 390, height: 844 } as const;
-const FONT_SCALE_PROPERTY = APPEARANCE_CHANNEL_ROWS.find((row) => row.key === "fontScale")?.name ?? "";
+const FONT_SCALE_PROPERTY = channelName("fontScale");
 const EDGE = '[data-slot="panel-edge-control"]';
 const PANELS = [
   { side: "list", control: /^(?:Show|Hide) list panel$/u, hide: "Hide list panel", show: "Show list panel" },
-  { side: "context", control: /^(?:Show|Hide) details$/u, hide: "Hide details", show: "Show details" },
+  { side: "context", control: /^(?:Show|Hide) details$/u, hide: contextToggleLabel(false), show: contextToggleLabel(true) },
 ] as const;
 const SUBPIXEL = 0.5;
 
@@ -40,14 +41,6 @@ test.afterAll(async () => {
 
 function panel(page: Page, side: "list" | "context"): Locator {
   return page.locator(`.shell-panel[data-panel-side="${side}"]`);
-}
-
-async function boxOf(locator: Locator): Promise<{ x: number; y: number; width: number; height: number }> {
-  const box = await locator.boundingBox();
-  if (box === null) {
-    throw new Error("The control has no box");
-  }
-  return box;
 }
 
 /** Chats opens with its context pane collapsed; the edge control is the same node either way. */
@@ -215,7 +208,7 @@ test.describe("at 300% text", () => {
       const style = document.head.appendChild(document.createElement("style"));
       style.textContent = `:root { ${property}: 3 !important; }`;
     }, FONT_SCALE_PROPERTY);
-    const edge = page.getByRole("button", { name: "Show details", exact: true });
+    const edge = page.getByRole("button", { name: contextToggleLabel(true), exact: true });
     await expect(edge).toBeVisible();
     await expect
       .poll(async () => {
@@ -250,7 +243,7 @@ test.describe("on a phone", () => {
     await mount<typeof AppShellStory>(STORY, {});
     await expect(page.locator("[data-panel-edge]")).toHaveCount(0);
     await expect(page.locator(EDGE)).toHaveCount(0);
-    const door = page.locator(".shell-topbar-trail").getByRole("button", { name: "Show details", exact: true });
+    const door = page.locator(".shell-topbar-trail").getByRole("button", { name: contextToggleLabel(true), exact: true });
     await expect(door).toBeVisible();
     await door.tap();
     await expect(panel(page, "context")).toHaveAttribute("data-panel-mode", "overlay");

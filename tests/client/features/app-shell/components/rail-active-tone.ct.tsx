@@ -6,6 +6,7 @@ import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { ToneRole } from "@orb/ui/tokens";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import type { AppShellStory } from "../surfaces/_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "../surfaces/app-shell-ct.ts";
@@ -27,15 +28,15 @@ test.afterAll(async () => {
 
 /** A primary-tone role as the page resolves it: a probe stamped with the primary tone inside the rail. */
 function primaryRole(page: Page, role: ToneRole): Promise<string> {
-  return page.locator(".shell-rail").evaluate((rail, name) => {
+  return page.locator(".shell-rail").evaluate((rail, cssVar) => {
     const probe = document.createElement("span");
     probe.dataset["tone"] = "primary";
-    probe.style.color = `var(--color-tone-${name})`;
+    probe.style.color = `var(${cssVar})`;
     rail.append(probe);
     const value = getComputedStyle(probe).color;
     probe.remove();
     return value;
-  }, role);
+  }, TOKENS[`color.tone-${role}`].cssVar);
 }
 
 function style(locator: Locator, property: string, pseudo?: string): Promise<string> {
