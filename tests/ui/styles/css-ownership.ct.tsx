@@ -62,6 +62,14 @@ test("a speaker tick is a short bar flush to the inline end, sized by the immers
   expect(await tick("background-color")).toBe(await resolved(box, "background-color", "var(--color-speaker)"));
 });
 
+test("art that rests dimmed takes the token's opacity and returns to full under the pointer", async ({ mount }) => {
+  const root = await mount<typeof ArtRecipesStory>(STORY, {});
+  const art = root.locator('[data-case="art-dim"]');
+  expect(await value(art, "opacity")).toBe(await resolved(art, "opacity", `var(${TOKENS["immersive.whisper-band-opacity"].cssVar})`));
+  await art.hover();
+  await expect.poll(() => value(art, "opacity")).toBe("1");
+});
+
 test("a feather toward the left fades the banner from its right edge", async ({ mount }) => {
   const root = await mount<typeof ArtRecipesStory>(STORY, {});
   const down = await value(root.locator('[data-case="band"]'), "background-image");

@@ -76,13 +76,16 @@ function renderRowIdentity(args: {
   readonly message: MessageView;
   readonly showTimestamp: boolean;
   readonly mirrored: boolean;
+  /** The identity chip, when the skin seats it in the header (`RowSkin.chipPlacement`); it leads the cluster. */
+  readonly chip: ReactNode;
 }): ReactNode {
-  const { attribution, message, showTimestamp, mirrored } = args;
+  const { attribution, message, showTimestamp, mirrored, chip } = args;
   if (attribution.name === null && !showTimestamp) {
     return null;
   }
   return (
     <Row gap="field" align="center" className={mirrored ? "flex-row-reverse flex-wrap min-inline-0" : "flex-wrap min-inline-0"}>
+      {chip}
       {attribution.name === null ? null : (
         // BASELINE, like the ghost's copy of this cluster (`renderGhostNameRow`) and like the appearance
         // contract's own declaration for this row (`appearance-invariant-manifest.ts`
@@ -113,13 +116,17 @@ export function renderRowNameRow(args: {
   readonly role: MessageRole;
   /** The row sits mirrored at the trailing edge (`rowMirrored`): its header packs to that edge too. */
   readonly mirrored: boolean;
+  /** The identity chip the skin seats in the header, or null. */
+  readonly chip: ReactNode;
   readonly shape: HeaderShape;
 }): ReactElement {
   const mirrored = args.mirrored;
   return (
     <NameRowFrame
       identity={
-        args.shape.identity ? renderRowIdentity({ attribution: args.attribution, message: args.message, showTimestamp: args.showTimestamp, mirrored }) : null
+        args.shape.identity
+          ? renderRowIdentity({ attribution: args.attribution, message: args.message, showTimestamp: args.showTimestamp, mirrored, chip: args.chip })
+          : null
       }
       actions={args.actions}
       stickyAttribution={args.stickyAttribution}
@@ -160,6 +167,8 @@ export function renderGhostNameRow(args: {
   readonly named: boolean;
   /** The hidden stand-in for the settled row's action cluster (`GhostActionsFootprint`), which sets the card's width. */
   readonly actionsFootprint: ReactNode;
+  /** The identity chip the skin seats in the header, or null. */
+  readonly chip: ReactNode;
 }): ReactElement | null {
   const attribution = args.attribution;
   if (!args.named) {
@@ -183,8 +192,11 @@ export function renderGhostNameRow(args: {
   return (
     <NameRowFrame
       identity={
-        <Row gap="field" align="baseline" className="wrap-break-word min-inline-0" data-slot="message-attribution">
-          {renderAttributionName(attribution)}
+        <Row gap="field" align="center" className="flex-wrap min-inline-0">
+          {args.chip}
+          <Row gap="field" align="baseline" className="wrap-break-word min-inline-0" data-slot="message-attribution">
+            {renderAttributionName(attribution)}
+          </Row>
         </Row>
       }
       actions={args.actionsFootprint}

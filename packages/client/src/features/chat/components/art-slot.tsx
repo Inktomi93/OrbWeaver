@@ -134,19 +134,25 @@ export function WhisperBand({
   const showsImage = url !== undefined && !failed;
   const tappable = view !== null && !failed;
   const style: CSSProperties = { backgroundColor: band.color };
+  // The banner image rests dimmed; one that opens full size brightens under the pointer.
+  const dim = tappable ? "lift" : "rest";
   return (
     <Stack
       aria-hidden={tappable ? undefined : "true"}
       data-slot="message-band"
       data-pigment={AVATAR_PIGMENT}
       cardCorners="top"
-      hoverDim={tappable ? "self" : undefined}
       imageFit="underFeather"
       feather={band.feather}
       featherToward="left"
+      artDim={showsImage ? dim : undefined}
       featherSrc={showsImage ? url : undefined}
-      // Moonlit Echoes: the banner sits at the card's top right, half its width, and dissolves toward the left; a phone widens it to 55%.
-      className="relative ms-auto inline-1/2 max-inline-(--immersive-whisper-banner-inline-cap) @max-cq-28:inline-11/20"
+      // Moonlit Echoes: the banner sits at the card's top right, half its width, and dissolves toward the left; a phone widens
+      // it to 55% and keeps it at least a minimum tall. The image rests dimmed and a tap target brightens under the pointer.
+      className="
+        relative ms-auto inline-1/2 max-inline-(--immersive-whisper-banner-inline-cap)
+        @max-cq-28:inline-11/20 @max-cq-28:min-block-(--immersive-whisper-band-min-height-phone)
+      "
       ref={attach}
       style={style}
     >

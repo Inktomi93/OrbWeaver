@@ -139,9 +139,12 @@ async function expectedBox(
   };
 }
 
-/** The corners of the art the skin draws in its box (echo's tile, whisper's band, ripple's portrait), else null. */
+/** The corners of the art the skin draws in its box (echo's tile, whisper's band, ripple's portrait), else null. The welded
+ *  portrait is the box's own child, which a header chip deeper in the card is not. */
 async function measureArt(box: Locator): Promise<readonly number[] | null> {
-  const art = box.locator('[data-slot="message-echo-art"], [data-slot="message-band"], [data-slot="avatar-root"]').first();
+  const art = box
+    .locator('[data-slot="message-echo-art"], [data-slot="message-band"], :scope > [data-slot="avatar-root"], :scope > button > [data-slot="avatar-root"]')
+    .first();
   return (await art.count()) === 0 ? null : corners(art);
 }
 

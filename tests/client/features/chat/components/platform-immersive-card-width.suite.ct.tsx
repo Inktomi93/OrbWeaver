@@ -22,6 +22,8 @@ const WIDTHS = [
 
 /** Moonlit Echoes' whisper band against its card at 1920 (`194600` in `reports/moonlit-reference/`: 464px of a 932px card), and the rounding a few pixels allow. */
 const MOONLIT_WHISPER_BAND_SHARE = 0.5;
+/** Item 0880's phone band: 55% of the card (the captures do not show it). */
+const MOONLIT_WHISPER_BAND_SHARE_PHONE = 0.55;
 const SHARE_TOLERANCE = 0.03;
 const FEW_PX = 4;
 
@@ -153,3 +155,71 @@ for (const chatStyle of ["hush", "whisper"] as const) {
     expect(tick.top + tick.height).toBeLessThanOrEqual(tick.cardHeight);
   });
 }
+
+// The immersive cards that always carry an identity chip: Moonlit draws it in the card's header line. Ripple welds a portrait
+// instead, and echo and whisper drop the chip for a speaker whose art slot paints the fallback, so the corpus room's
+// imageless speakers show none there.
+const CHIP_STYLES = IMMERSIVE_STYLES.filter((style) => {
+  const skin = MESSAGE_ROW_SKINS[style];
+  const decoration = skin.bubbleDecoration?.({
+    kind: "character",
+    avatarHash: null,
+    name: "Speaker",
+    hueSeed: "speaker",
+    role: "assistant",
+    showInChatAvatars: true,
+  });
+  return skin.avatarTreatment("character") === "icon-left" && decoration?.art === undefined && decoration?.headerBand === undefined;
+});
+
+for (const viewport of [WIDTHS[0], WIDTHS[1]]) {
+  for (const chatStyle of CHIP_STYLES) {
+    test(`${chatStyle} seats the identity chip inside its card, on the header line, at ${viewport.width}px`, async ({ corpus, mount, page }) => {
+      await page.setViewportSize(viewport);
+      await openReadingStyle(page, corpus, chatStyle);
+      await seedShellState(page, { activeSection: "chats" });
+      await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
+      await expect(page.locator(`[data-slot="message-row"] ${BUBBLE}`).first()).toBeVisible();
+      const rows = await page.locator('[data-slot="message-row"]').evaluateAll((nodes) =>
+        nodes.flatMap((row) => {
+          const card = row.querySelector('[data-slot="message-bubble"]')?.getBoundingClientRect();
+          const chip = row.querySelector('[data-slot="avatar-root"]')?.getBoundingClientRect();
+          const name = row.querySelector('[data-slot="message-attribution"]')?.getBoundingClientRect();
+          if (card === undefined || chip === undefined || name === undefined) {
+            return [];
+          }
+          return [
+            {
+              inside: chip.left >= card.left && chip.right <= card.right && chip.top >= card.top && chip.bottom <= card.bottom,
+              offLine: Math.abs(chip.top + chip.height / 2 - (name.top + name.height / 2)),
+            },
+          ];
+        }),
+      );
+      expect(rows.length, "no row carries a chip").toBeGreaterThan(0);
+      for (const row of rows) {
+        expect(row.inside).toBe(true);
+        expect(row.offLine).toBeLessThanOrEqual(FEW_PX);
+      }
+    });
+  }
+}
+
+test("a whisper band on a phone grows to 55% of the card and is at least the minimum tall", async ({ corpus, mount, page }) => {
+  await page.setViewportSize(WIDTHS[0]);
+  await openReadingStyle(page, corpus, "whisper");
+  await seedShellState(page, { activeSection: "chats" });
+  await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
+  const band = page.locator('[data-slot="message-band"]').first();
+  await expect(band).toBeVisible();
+  const box = await band.evaluate((element) => {
+    const card = element.closest('[data-slot="message-bubble"]')?.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    if (card === undefined) {
+      throw new Error("the band has no card");
+    }
+    return { share: rect.width / card.width, height: rect.height };
+  });
+  expect(Math.abs(box.share - MOONLIT_WHISPER_BAND_SHARE_PHONE)).toBeLessThanOrEqual(SHARE_TOLERANCE);
+  expect(box.height).toBeGreaterThanOrEqual(LENGTH_BASE_PX["immersive.whisper-band-min-height-phone"] - 1);
+});

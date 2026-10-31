@@ -31,6 +31,9 @@ export function ArtRecipesStory({ image = false, theme = "mocha" }: { readonly i
         <Card artDecoration="tickEnd" data-case="tick-end">
           Tick
         </Card>
+        <Stack artDim="lift" data-case="art-dim">
+          Dim
+        </Stack>
         <Stack artMask="start" data-case="mask-start">
           Start
         </Stack>

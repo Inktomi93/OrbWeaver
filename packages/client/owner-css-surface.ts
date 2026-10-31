@@ -1077,6 +1077,8 @@ export const OWNER_CSS_TOKEN_VARS = [
   "--immersive-stripe-width",
   "--immersive-tick-length",
   "--immersive-tick-offset",
+  "--immersive-whisper-band-min-height-phone",
+  "--immersive-whisper-band-opacity",
   "--immersive-whisper-banner-cap",
   "--immersive-whisper-banner-inline-cap",
   "--immersive-whisper-banner-viewport-cap",

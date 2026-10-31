@@ -161,6 +161,8 @@ export const stackVariants = tv({
     // The side a feathered band dissolves toward: the foot by default, or the left edge for a band that sits at the
     // right of its card. Physical, like the art masks beside it.
     featherToward: { left: "[--art-feather-toward:to_left]" },
+    // Art that rests dimmed: `lift` is also a tap target, which returns to full under the pointer.
+    artDim: { rest: "opacity-(--immersive-whisper-band-opacity)", lift: "opacity-(--immersive-whisper-band-opacity) hover:opacity-100" },
     // A list item that genuinely arrives eases in from `from` to `settle`; a remounted item takes neither.
     arrival: ARRIVAL,
     focusTarget: FOCUS_TARGET,
