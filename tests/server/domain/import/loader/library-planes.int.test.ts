@@ -255,6 +255,41 @@ test("a campaign's turn-anchored rows land on the restored variant of the turn t
   expect(checkpoint).toMatchObject({ label: CHECKPOINT });
 });
 
+test("deleting the turn a restored checkpoint was exported under succeeds, and the checkpoint still restores its saved state", async () => {
+  await using root = await signedInBox();
+  const owner = await root.principalFor(root.ownerId);
+  await root.services.character.create({ principal: owner, input: createCharacterSchema.parse({ handle: HANDLE, name: "Warden", description: "A warden." }) });
+  const chat = root.app.portability.find((entity) => entity.kind === "chat");
+  if (chat === undefined) {
+    throw new Error("production composition has no chat portability descriptor");
+  }
+  // Every campaign row, the bookmarked snapshot included, is anchored to the first assistant turn (messages[1]).
+  expect(await chat.importFile(root.ownerId, { filename: `${HANDLE}/anchored${CHAT_BUNDLE_EXT}`, bytes: anchoredBundle(1) })).toMatchObject({
+    ok: true,
+    created: true,
+  });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const [room] = (await caller.chat.listChats({ limit: 50 })).items.filter((item) => item.title === ANCHORED_TITLE);
+  if (room === undefined) {
+    throw new Error("the anchored room did not restore");
+  }
+  const params = { principal: owner, chatId: room.id };
+  const [anchor] = (await root.services.chat.listMessages(params)).messages.filter((message) => message.role === "assistant");
+  if (anchor === undefined) {
+    throw new Error("the restored room has no assistant turn");
+  }
+
+  await root.services.chat.deleteMessages({ ...params, messageIds: [anchor.id] });
+
+  expect((await root.services.chat.listMessages(params)).messages.map((message) => message.id)).not.toContain(anchor.id);
+  const [checkpoint] = await root.services.rpg.listCheckpoints(params);
+  if (checkpoint === undefined) {
+    throw new Error("the checkpoint was lost with its turn");
+  }
+  await root.services.rpg.restoreCheckpoint({ ...params, checkpointId: castId(checkpoint.id) });
+  expect((await root.services.rpg.getTrackerView(params)).ambient).toMatchObject({ location: ANCHORED_LOCATION });
+});
+
 test("importing a campaign bundle again after the room lost a later message keeps the game and reports nothing lost", async () => {
   await using root = await signedInBox();
   const owner = await root.principalFor(root.ownerId);

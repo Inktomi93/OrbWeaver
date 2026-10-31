@@ -2,7 +2,7 @@
 import { EMBEDDABLE_ASSET_KINDS } from "@orb/contracts/assets";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { isMissingFile } from "#primitives/errno";
-import { AssetFileMissingError } from "../contract/errors.ts";
+import { AssetFileCorruptError, AssetFileMissingError } from "../contract/errors.ts";
 import type { AvatarAnalysis, StoreResult } from "../contract/results.ts";
 import type { EmbeddingsContext, EmbeddingsService, PinnedGeneration, PinnedImageSpace } from "../contract/service.ts";
 import { readImageAnalysis, saveImageAnalysis } from "../persistence/image-analysis.ts";
@@ -139,6 +139,9 @@ async function loadAdmittedAsset(ctx: EmbeddingsContext, assetId: AssetId, force
     return null;
   }
   const admission = imageBelowFloor(bytes);
+  if (!admission.recognized) {
+    throw new AssetFileCorruptError(assetId);
+  }
   if (!admission.belowFloor) {
     return bytes;
   }

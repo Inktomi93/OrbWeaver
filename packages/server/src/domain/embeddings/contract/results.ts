@@ -28,9 +28,11 @@ export interface ExistingCaptionedRow {
 /** The image ADMISSION-FLOOR verdict (`substrate/image-admission`): whether an asset's header-parsed
  *  dimensions are too small to caption+embed, plus the sniffed dimensions for the skip-record's attribution.
  *  `belowFloor` is `true` ONLY when both edges are known AND the shorter one is under the floor — an
- *  unparseable/unknown-format header is NOT below-floor (the floor is a dimension gate, not a decode gate),
- *  so `width`/`height` are `null` there and the asset embeds as before. */
+ *  unparseable header of a known format is NOT below-floor (the floor is a dimension gate, not a decode gate),
+ *  so `width`/`height` are `null` there and the asset embeds as before. `recognized` is `false` when the bytes
+ *  carry no known image signature at all: the stored file is not an image. */
 export interface ImageAdmissionVerdict {
+  readonly recognized: boolean;
   readonly belowFloor: boolean;
   readonly width: number | null;
   readonly height: number | null;
