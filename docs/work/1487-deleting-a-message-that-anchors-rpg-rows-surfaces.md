@@ -22,4 +22,4 @@ The delete either succeeds with the anchored rows handled by rule, or refuses wi
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The refusal is `rpg_checkpoints.snapshot_id` RESTRICT (`packages/db/src/schema/rpg.ts`): deleting a message cascades its turn snapshot, and a checkpoint pinning that turn row blocks it (SQLITE_CONSTRAINT_TRIGGER). Live checkpoints never pin a turn row (`create-checkpoint.ts` detaches to a hand clone), but the import arm inserted a file's checkpoint on whatever snapshot it named. `portability-write.ts` now pins a hand clone stamped at the turn when the named snapshot is a turn row, the same detach rule a live checkpoint follows. Pinned by `tests/server/domain/import/loader/library-planes.int.test.ts` (import a campaign bundle, `chat.deleteMessages` on the anchoring turn, the checkpoint then restores its saved state; red as the raw FOREIGN KEY failure).

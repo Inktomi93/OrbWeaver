@@ -29,17 +29,18 @@ const MIN_IMAGE_EDGE_PX = 16;
 
 /**
  * Decide whether `bytes` fall below the image admission floor. `belowFloor` is `true` ONLY when the header
- * yields BOTH dimensions and the shorter one is `< MIN_IMAGE_EDGE_PX`. An unknown format or an unparseable
- * header (either dimension `null`) is NOT below-floor — the floor is a dimension gate, not a decode gate, so
+ * yields BOTH dimensions and the shorter one is `< MIN_IMAGE_EDGE_PX`. An unparseable header (either
+ * dimension `null`) is NOT below-floor — the floor is a dimension gate, not a decode gate, so
  * such an asset proceeds to embed exactly as before. The returned `width`/`height` are the sniffed values
  * (or `null`), for the skip-record's attribution.
  */
 export function imageBelowFloor(bytes: Uint8Array): ImageAdmissionVerdict {
   const sniffed = sniffImageBytes(bytes);
+  const recognized = sniffed !== null;
   const width = sniffed?.width ?? null;
   const height = sniffed?.height ?? null;
   if (width === null || height === null) {
-    return { belowFloor: false, width, height };
+    return { recognized, belowFloor: false, width, height };
   }
-  return { belowFloor: Math.min(width, height) < MIN_IMAGE_EDGE_PX, width, height };
+  return { recognized, belowFloor: Math.min(width, height) < MIN_IMAGE_EDGE_PX, width, height };
 }

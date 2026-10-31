@@ -11,6 +11,17 @@ export class AssetFileMissingError extends Error {
   }
 }
 
+/** The stored file of an asset row is not an image: its bytes carry no known image signature (truncated or
+ *  corrupt). The sweep fails that asset alone, like {@link AssetFileMissingError}. */
+export class AssetFileCorruptError extends Error {
+  readonly assetId: AssetId;
+  constructor(assetId: AssetId) {
+    super(`embeddings: the stored file of asset ${assetId} is not a readable image`);
+    this.name = "AssetFileCorruptError";
+    this.assetId = assetId;
+  }
+}
+
 /** A genuine producer failure: the caller decides retry vs skip; store never silently writes a null vector. */
 export class EmbedFailedError extends Error {
   readonly lens: string;
