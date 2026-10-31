@@ -29,7 +29,7 @@ export const HOME_RECENT_CHATS_LIMIT = 8;
  *  chat row's `updatedAt` when it has none — the same value every row DISPLAYS. It was spelled `updatedAt`
  *  while the list sorted on the row stamp; the field is renamed rather than reused because a cursor whose
  *  name no longer describes its column is how the next reader re-derives it from the wrong one. */
-export const chatListCursorSchema = z.object({
+export const chatListCursorSchema = z.strictObject({
   recencyAt: z.int(),
   id: typeIdSchema(ID_PREFIX.chat),
 });

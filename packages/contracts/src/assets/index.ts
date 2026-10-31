@@ -7,6 +7,7 @@ import type { AssetId, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/k
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { Principal } from "#identity";
+import { pageDirectionShape } from "#rpc";
 
 export type { SeedCharacterGallery, StoreSeedCharacterAvatar, StoreSeedPersonaAvatar } from "./seed-art.ts";
 export type { SeededPlateAsset, StoreSeedPlate } from "./seed-plate.ts";
@@ -137,7 +138,7 @@ export const assetListItemSchema = z.strictObject({
 
 /** The keyset position after one owned asset: the previous page's last `(uploadedAt, assetId)`. One object,
  *  because a tRPC infinite query carries exactly one `cursor`. */
-const ownedAssetCursorSchema = z.object({
+const ownedAssetCursorSchema = z.strictObject({
   uploadedAt: z.int(),
   assetId: assetIdSchema,
 });
@@ -145,17 +146,18 @@ export type OwnedAssetCursor = z.infer<typeof ownedAssetCursorSchema>;
 
 /** `listOwned` wire params. `galleryCandidatesFor` narrows to the caller's images not already in that
  *  character's gallery (the add-picker's read); it filters inside the owner scope and never widens it. */
-export const listOwnedParamsSchema = z.object({
+export const listOwnedParamsSchema = z.strictObject({
   kind: assetKindSchema.optional(),
   limit: z.int().min(ASSET_LIST_LIMIT_MIN).max(ASSET_LIST_LIMIT_MAX),
   galleryCandidatesFor: characterIdSchema.optional(),
   cursor: ownedAssetCursorSchema.optional(),
+  ...pageDirectionShape,
 });
 export type ListOwnedParams = z.infer<typeof listOwnedParamsSchema>;
 
 /** `addToGallery` wire params. Owner-only: the asset and — when given — the subject character must
  *  both be owned by the actor; enforced server-side. */
-export const galleryAddParamsSchema = z.object({
+export const galleryAddParamsSchema = z.strictObject({
   assetId: assetIdSchema,
   subjectCharacterId: characterIdSchema.optional(),
 });
@@ -169,7 +171,7 @@ export const DEFAULT_GALLERY_SORT: GallerySort = "newest";
 
 /** The keyset position after one gallery row: the previous page's last `(createdAt, galleryItemId)`. One
  *  object, because a tRPC infinite query carries exactly one `cursor`. */
-const galleryCursorSchema = z.object({
+const galleryCursorSchema = z.strictObject({
   createdAt: z.int(),
   galleryItemId: galleryItemIdSchema,
 });
@@ -178,12 +180,13 @@ export type GalleryCursor = z.infer<typeof galleryCursorSchema>;
 /** `listGallery` wire params. `subjectCharacterId` omitted = the whole gallery. `chatId` narrows to the
  *  pictures generated in that room; it filters inside the owner scope and never widens it. `sort` omitted =
  *  {@link DEFAULT_GALLERY_SORT}; a `cursor` continues the same sort it was read under. */
-export const galleryListParamsSchema = z.object({
+export const galleryListParamsSchema = z.strictObject({
   subjectCharacterId: characterIdSchema.optional(),
   chatId: (typeIdSchema(ID_PREFIX.chat) satisfies z.ZodType<ChatId>).optional(),
   limit: z.int().min(ASSET_LIST_LIMIT_MIN).max(ASSET_LIST_LIMIT_MAX),
   sort: z.enum(GALLERY_SORTS).optional(),
   cursor: galleryCursorSchema.optional(),
+  ...pageDirectionShape,
 });
 export type GalleryListParams = z.infer<typeof galleryListParamsSchema>;
 
@@ -215,7 +218,7 @@ export const galleryItemViewSchema = z.strictObject({
 
 /** `resolveBlobRefs` wire params — the asset ids a rendered message body references. Bounded to avoid
  *  an unbounded `IN (…)`. */
-export const resolveBlobRefsParamsSchema = z.object({
+export const resolveBlobRefsParamsSchema = z.strictObject({
   assetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX),
 });
 
@@ -242,7 +245,7 @@ export const assetBlobRefSchema = assetListItemSchema.pick({ assetId: true, hash
 /** `resolveChatBlobRefs` wire params — the chat-scoped sibling of {@link resolveBlobRefsParamsSchema}
  *  so a co-participant (not just the owner) can render an inline attachment. The server resolves a pair
  *  only when the asset is structurally referenced in that chat AND both parties are present participants. */
-export const resolveChatBlobRefsParamsSchema = z.object({
+export const resolveChatBlobRefsParamsSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
   assetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX),
 });

@@ -8,6 +8,7 @@
 // Sibling module (D15 directory-module law: internals flat, this index re-exports):
 //   • prose.ts — the per-PRESET PROSE-1 slot table; the ONE home for the BYTES of every guided-action
 //     template + format string this file's schema defaults read.
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs take the strict twin via `strictInput` (`@orb/kit/zod-schema`).
 
 import type { ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -3808,9 +3809,9 @@ export const effectivePresetSchema = z.strictObject({
   qualityMapping: qualityMappingSchema.nullable(),
 }) satisfies z.ZodType<EffectivePreset>;
 
-export const presetIdInputSchema = z.object({ id: typeIdSchema(ID_PREFIX.preset) });
+export const presetIdInputSchema = z.strictObject({ id: typeIdSchema(ID_PREFIX.preset) });
 
-export const resolveEffectivePresetInputSchema = z.object({ id: typeIdSchema(ID_PREFIX.preset), target: capabilityTargetSchema.optional() });
+export const resolveEffectivePresetInputSchema = z.strictObject({ id: typeIdSchema(ID_PREFIX.preset), target: capabilityTargetSchema.optional() });
 
 /** A missing or foreign preset is optional; operational failures are not. */
 export type LoadOptionalPreset = (userId: UserId, id: PresetId) => Promise<PresetDetail | null>;

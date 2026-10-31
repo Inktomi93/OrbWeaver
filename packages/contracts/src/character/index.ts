@@ -1,6 +1,7 @@
 // @orb/contracts/character — THE ONE canonical character card.
 // No versions: the card IS the flat `characters` row, edited in place. No `raw` blob — every known field
 // has a typed home, so an app-authored card round-trips identically to an imported one.
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs take the strict twin via `strictInput` (`@orb/kit/zod-schema`).
 
 import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, PluginId, TagId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -10,6 +11,7 @@ import { z } from "zod";
 import { cardFaceFields } from "#card-face";
 import type { Principal } from "#identity";
 import { regexScriptCardSchema, regexScriptCardViewSchema } from "#regex";
+import { pageDirectionShape } from "#rpc";
 import type { TagFolderType, TagView } from "#tag";
 import { tagFolderTypeSchema, tagViewSchema } from "#tag";
 import type { ThemeBackground, ThemeOverride } from "#theme";
@@ -506,35 +508,35 @@ const characterListSortSchema = z.enum(CHARACTER_LIST_SORTS) satisfies z.ZodType
 
 // `sort` is carried in the payload so the server can reject a cursor minted under a different sort.
 const characterListCursorSchema = z.discriminatedUnion("sort", [
-  z.object({
+  z.strictObject({
     sort: z.literal("recent"),
     /** `null` = the boundary row has never been chatted (the NULLS-LAST tail). */
     lastChattedAt: z.int().nullable(),
     createdAt: z.int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
-  z.object({
+  z.strictObject({
     sort: z.literal("alpha"),
     name: z.string(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
-  z.object({
+  z.strictObject({
     sort: z.literal("starred"),
     starred: z.boolean(),
     name: z.string(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
-  z.object({
+  z.strictObject({
     sort: z.literal("newest"),
     createdAt: z.int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
-  z.object({
+  z.strictObject({
     sort: z.literal("oldest"),
     createdAt: z.int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
-  z.object({
+  z.strictObject({
     sort: z.literal("mostChats"),
     /** NOT NULLABLE (#1131): the count is a `COUNT` over the caller's visible rooms seated with this
      *  character, so a never-chatted boundary row is `0`, not absent. `0` is the tail in both directions —
@@ -543,32 +545,32 @@ const characterListCursorSchema = z.discriminatedUnion("sort", [
     chatCount: z.int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
-  z.object({
+  z.strictObject({
     sort: z.literal("fewestChats"),
     /** NOT NULLABLE — see the `mostChats` arm. */
     chatCount: z.int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
-  z.object({
+  z.strictObject({
     sort: z.literal("largestCards"),
     /** The `characters.token_size` denorm — notNull, so never null (no NULLS-LAST handling). */
     tokenSize: z.int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
-  z.object({
+  z.strictObject({
     sort: z.literal("smallestCards"),
     /** The `characters.token_size` denorm — notNull, so never null (no NULLS-LAST handling). */
     tokenSize: z.int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
-  z.object({
+  z.strictObject({
     sort: z.literal("bestScore"),
     /** `null` = the boundary row has no refinery score yet (the NULLS-LAST tail). Not an int: the refinery
      *  rubric is a weighted average (`refineryScorePayloadSchema.overallScore`). */
     score: z.number().nullable(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
-  z.object({
+  z.strictObject({
     sort: z.literal("worstScore"),
     /** `null` = the boundary row has no refinery score yet (the NULLS-LAST tail) — see `bestScore`. */
     score: z.number().nullable(),
@@ -993,7 +995,7 @@ export const snapshotSummarySchema = z.strictObject({
 export const snapshotViewSchema = snapshotSummarySchema.extend({ content: characterCardViewSchema }) satisfies z.ZodType<SnapshotView>;
 
 /** Shared census/page lens; paging and sort coordinates are separate from collection scope. */
-export const characterCensusInputSchema = z.object({
+export const characterCensusInputSchema = z.strictObject({
   search: z.string().optional(),
   starred: z.boolean().optional(),
   archived: z.boolean().optional(),
@@ -1036,6 +1038,7 @@ export const characterListInputSchema = characterCensusInputSchema
     sort: characterListSortSchema.optional(),
     cursor: characterListCursorSchema.optional(),
     limit: z.int().min(1).max(CHARACTER_LIST_MAX_LIMIT).optional(),
+    ...pageDirectionShape,
   })
   .optional();
 

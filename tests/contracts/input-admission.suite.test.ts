@@ -60,11 +60,13 @@ test("paged requests reject fractional and over-ceiling asks without clamping", 
 
 test("message reads retain directional cursor bounds and bounded integer page sizes", ({ ids }) => {
   const chatId = mintTypeId(ID_PREFIX.chat, ids.next);
-  expect(listMessagesInputSchema.parse({ chatId, cursor: { kind: "before", seq: 1 }, limit: CHAT_MESSAGE_LIST_MAX_LIMIT, ownerId: "discard" })).toEqual({
+  expect(listMessagesInputSchema.parse({ chatId, cursor: { kind: "before", seq: 1 }, limit: CHAT_MESSAGE_LIST_MAX_LIMIT })).toEqual({
     chatId,
     cursor: { kind: "before", seq: 1 },
     limit: CHAT_MESSAGE_LIST_MAX_LIMIT,
   });
+  expect(listMessagesInputSchema.safeParse({ chatId, ownerId: "refused" }).success).toBe(false);
+  expect(listMessagesInputSchema.safeParse({ chatId, cursor: { kind: "before", seq: 1, ownerId: "refused" } }).success).toBe(false);
   expect(listMessagesInputSchema.parse({ chatId, cursor: null })).toEqual({ chatId, cursor: null });
   expect(listMessagesInputSchema.parse({ chatId, cursor: { kind: "after", seq: 0 } })).toEqual({ chatId, cursor: { kind: "after", seq: 0 } });
   for (const seq of [-1, 0.5]) {
@@ -74,19 +76,22 @@ test("message reads retain directional cursor bounds and bounded integer page si
   expect(listMessagesInputSchema.safeParse({ chatId, limit: 1.5 }).success).toBe(false);
 });
 
-test("entity reads preserve prefix validation and strip undeclared authority fields", ({ ids }) => {
+test("entity reads preserve prefix validation and refuse undeclared authority fields", ({ ids }) => {
   const personaId = mintTypeId(ID_PREFIX.persona, ids.next);
-  expect(personaIdInputSchema.parse({ personaId, ownerId: "discard" })).toEqual({ personaId });
+  expect(personaIdInputSchema.parse({ personaId })).toEqual({ personaId });
+  expect(personaIdInputSchema.safeParse({ personaId, ownerId: "refused" }).success).toBe(false);
   expect(personaIdInputSchema.safeParse({ personaId: mintTypeId(ID_PREFIX.character, ids.next) }).success).toBe(false);
   expect(presetIdInputSchema.safeParse({ id: personaId }).success).toBe(false);
   expect(worldBookIdInputSchema.safeParse({ bookId: personaId }).success).toBe(false);
   expect(regexScriptIdInputSchema.safeParse({ scriptId: personaId }).success).toBe(false);
 });
 
-test("search keeps the scoped discriminator and nested authority stripping", ({ ids }) => {
+test("search keeps the scoped discriminator and refuses nested authority fields", ({ ids }) => {
   const chatId = mintTypeId(ID_PREFIX.chat, ids.next);
   const request = { query: "needle", topN: SEARCH_TOP_N_MAX, over: "corpus", scope: { kind: "chat", chatId } } as const;
-  expect(unifiedSearchInputSchema.parse({ ...request, ownerId: "discard", scope: { ...request.scope, ownerId: "discard" } })).toEqual(request);
+  expect(unifiedSearchInputSchema.parse(request)).toEqual(request);
+  expect(unifiedSearchInputSchema.safeParse({ ...request, ownerId: "refused" }).success).toBe(false);
+  expect(unifiedSearchInputSchema.safeParse({ ...request, scope: { ...request.scope, ownerId: "refused" } }).success).toBe(false);
   expect(unifiedSearchInputSchema.safeParse({ ...request, topN: SEARCH_TOP_N_MAX + 1 }).success).toBe(false);
   expect(unifiedSearchInputSchema.safeParse({ ...request, over: "invalid" }).success).toBe(false);
   expect(unifiedSearchInputSchema.safeParse({ ...request, scope: { kind: "character", characterId: chatId } }).success).toBe(false);
@@ -94,7 +99,8 @@ test("search keeps the scoped discriminator and nested authority stripping", ({ 
 });
 
 test("latency model scopes require explicit nullable providers and leaderboard sorts stay closed", () => {
-  expect(latencyScopeSchema.parse({ kind: "model", model: "", provider: null, ownerId: "discard" })).toEqual({ kind: "model", model: "", provider: null });
+  expect(latencyScopeSchema.parse({ kind: "model", model: "", provider: null })).toEqual({ kind: "model", model: "", provider: null });
+  expect(latencyScopeSchema.safeParse({ kind: "model", model: "", provider: null, ownerId: "refused" }).success).toBe(false);
   expect(latencyScopeSchema.safeParse({ kind: "model", model: "" }).success).toBe(false);
   expect(latencyScopeSchema.safeParse({ kind: "invalid" }).success).toBe(false);
   expect(statsLeaderboardInputSchema.safeParse({ sort: "invalid" }).success).toBe(false);
