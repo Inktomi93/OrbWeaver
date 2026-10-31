@@ -242,7 +242,7 @@
     "ai-bubble": {
       "$value": {
         "colorSpace": "oklch",
-        "components": [0.97, 0.006, 60]
+        "components": [0.95, 0.006, 60]
       }
     },
     "ai-bubble-foreground": {
