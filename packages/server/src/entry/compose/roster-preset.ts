@@ -17,7 +17,7 @@ import { createOwnedCharacterIds } from "#domain/character";
 import type { ChatService } from "#domain/chat";
 import { loadPresentCharacterSeats, requireWiredHost } from "#domain/chat";
 import { createPersonaOwned } from "#domain/persona";
-import type { RosterPresetContext, RosterPresetService } from "#domain/roster-preset";
+import type { RosterPresetAssemblyContext, RosterPresetService } from "#domain/roster-preset";
 import { createRosterPresetService } from "#domain/roster-preset";
 import type { AuditWiring } from "#foundation/observability";
 import { minter } from "./minter.ts";
@@ -35,7 +35,7 @@ interface RosterPresetComposeInput {
 
 export function buildRosterPreset(input: RosterPresetComposeInput): RosterPresetService {
   const { db, now, audit, emitUserEvent, can, chat, automation } = input;
-  const ctx: RosterPresetContext = {
+  const ctx: RosterPresetAssemblyContext = {
     db,
     now,
     newRosterPresetId: minter(ID_PREFIX.rosterPreset, input.idSource),
