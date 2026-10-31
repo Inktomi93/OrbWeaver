@@ -160,3 +160,14 @@ Kept, with the reader:
 - `TurnBase.terminalTools`, `.respondsToLatestUserTurn`, `.freezeMacroRegistry`: `BuiltTurnContext` requires them at `verbs/turn.ts:2188`, `:2231` and `:2581`.
 
 Ran `pnpm typecheck packages/server/tsconfig.json` (exit 0) and `pnpm test` on `persona-matrix.suite`, `solo-byte-identical.suite`, `continue-revert-row-races.suite` and `prompt-cache-prefix.suite` under `tests/server/domain/chat` (the last failed only with the `folded` deletion, now reverted; the rest pass).
+
+### Group 2: results that would empty a type
+
+Applied: `GeneratedText.text`, `GeneratedText.aborted`. `TurnEngine.generateText` now resolves void and the `GeneratedText` type is gone. `generateTextUnpersisted` keeps its side effects: the pipeline still runs, text still streams to `onText`, an abort still resolves cleanly, a provider or database fault still throws. The only caller (`verbs/turn.ts:2404`) already discarded the value (`await run`).
+
+Kept, with the reader:
+- `DrainReport.ran`, `DrainReport.dropped`: `entry/lifecycle.ts:531` logs the whole report (`log.info(report, "boot: drained deferred turns …")`), so both counts reach the boot log.
+- `ExtractQuietResult.text`, `ExtractQuietResult.costUsd`: `domain/imagery/verbs/extract-prompt.ts:44` destructures `{ text, costUsd }` from imagery's own `extractQuiet` port type, which the scan does not tie to this result.
+- `StoreDigestParams.signal`: gone. The type is not in the tree after the merge of main, and the row is absent from the current scan.
+
+Ran `pnpm typecheck packages/server/tsconfig.json tsconfig.node.json` (exit 0) and `pnpm test` on `turn-lifetimes-draft-stop.int.test.ts` (the impersonate draft path that calls `generateText`), `persona-matrix.suite.int.test.ts` and `turn-target-refusals.suite.int.test.ts` (14 tests, exit 0).
