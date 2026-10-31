@@ -276,6 +276,20 @@ Inks on tints land with it. `SELECTION_RAIL`, the ListRow title, the Tabs rail c
 
 The gradient ring paints its border only. Its gradient covered the padding box, which lightened the active tab and washed the CTA ink, so no ink could clear its floor on the painted fill. `orb-gradient-ring` in `packages/ui/src/styles/primitives.css` is the plain border in the ring colour, and `orb-gradient-ring-masked` masks the gradient to the border. Each carrier (the CTA, the active tab, the rail's active button) applies the masked utility in its own top-level `@supports (mask-clip: padding-box)` block on its full `::after` selector, so the plain border shows only where the clip is unsupported. A `&` nested under a pseudo-element matches nothing, so the masked paint cannot live inside the utility: the unoptimized stylesheet the dev server and the review stage serve painted only the plain border, while the production build (lightningcss) flattens the nested form, so the release was not affected. The CTs build production CSS, so they guard the paint and cannot fail on the nested form. `tests/ui/primitives/button/platform-gradient-ring.suite.ct.tsx` and `tests/client/features/app-shell/surfaces/platform-rail-gradient-ring.suite.ct.tsx` read the computed `::after` of each carrier under each seed.
 
+##### Step 4 rendered coverage
+
+Each surface a rendered review reaches has a CT that reads its computed paint on a production mount.
+
+| Surface | Covering CT |
+| - | - |
+| The divider label on the reading plate over art | `tests/client/features/chat/components/platform-context-divider-plate.suite.ct.tsx` mounts `renderContextBoundaryDivider` over light and dark art and on a plain room under each seed, and holds the label's ink at AA on the painted plate |
+| The room flank's slide and lift | `tests/client/features/chat/components/platform-flank-column-sheet.suite.ct.tsx` mounts `FlankColumn` parked, overlaid and inline under each seed and reads visibility, the translate slide, the pointer and the overlay shadow |
+| The Tabs `cell` layout | `tests/ui/primitives/list-row/selected-ink.ct.tsx` reads the active cell's painted ink on its tint |
+| The theme editor preview panes | `tests/ui/content/theme-swatch/preview-pane.ct.tsx` reads each `ThemePreviewPane` fill, edge and shape under each seed; the editor's own mount is not read |
+| An InlineToken in a preset's macro text | `tests/client/features/preset/components/platform-macro-text-chip.suite.ct.tsx` mounts `MacroText` in both frames under each seed |
+| The message-row current box | `tests/ui/layout/visual-state-boxes.ct.tsx` reads `CurrentStack`; the transcript's own anchor window is not mounted by any CT |
+| Soft badges in a popover and on a raised surface | `tests/ui/content/theme-scope/platform-tone-host.suite.ct.tsx` reads them against each host under each seed and a custom scope |
+
 #### Mapping: Card
 
 | Old value | New |
