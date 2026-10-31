@@ -111,6 +111,13 @@ test("a display utility and a logical size are different axes", () => {
   expect(cn("block", "block-full")).toBe("block block-full");
 });
 
+test("a border width token is a width, so it survives beside a border colour and is overridden by a stock width", () => {
+  expect(cn("border-hairline", "border-solid", "border-tone-edge")).toBe("border-hairline border-solid border-tone-edge");
+  expect(cn("border-hairline", "border-2")).toBe("border-2");
+  expect(cn("border-2", "border-control")).toBe("border-control");
+  expect(cn("border-hairline", "border-s-0")).toBe("border-hairline border-s-0");
+});
+
 test("the receded opacity token and a stock opacity step are one axis", () => {
   expect(cn("opacity-50", "opacity-receded")).toBe("opacity-receded");
   expect(cn("opacity-receded", "opacity-100")).toBe("opacity-100");
