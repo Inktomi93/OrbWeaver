@@ -1,4 +1,6 @@
 // D336 step 4d: the focal section, the aria-current box and the tone-stamped divider paint through their own doors.
+import { AA_NON_TEXT_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { pixelSurface } from "@orb/testkit/browser/spec";
 import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
@@ -43,19 +45,36 @@ for (const { name, ...props } of CASES) {
   }) => {
     const root = await mount<typeof CurrentBoxesStory>(`${STORIES}/CurrentBoxesStory`, props);
     const tint = await style(probeOf(root, "tint"), "background-color");
-    for (const kind of ["stack", "grid"]) {
-      const current = caseOf(root, `${kind}-current`);
-      const rest = caseOf(root, `${kind}-rest`);
-      expect(await style(current, "background-color"), kind).toBe(tint);
-      expect(await style(current, "box-shadow"), kind).not.toBe("none");
-      expect(await style(rest, "background-color"), kind).toBe(await style(probeOf(root, "stack"), "background-color"));
-      expect(await style(rest, "box-shadow"), kind).toBe("none");
-      expect(await style(current, "row-gap"), kind).toBe(await style(rest, "row-gap"));
+    const transparent = await style(probeOf(root, "stack"), "background-color");
+    const stack = caseOf(root, "stack-current");
+    expect(await style(stack, "background-color"), "stack").toBe(tint);
+    expect(await style(stack, "box-shadow"), "stack").not.toBe("none");
+    expect(await style(caseOf(root, "stack-rest"), "box-shadow"), "stack").toBe("none");
+    expect(await style(stack, "row-gap"), "stack").toBe(await style(caseOf(root, "stack-rest"), "row-gap"));
+    // The grid's mark is a layer outset by the tight step, so the box itself paints nothing and stays where it was.
+    const grid = caseOf(root, "grid-current");
+    const gridRest = caseOf(root, "grid-rest");
+    expect(await style(grid, "background-color"), "grid box").toBe(transparent);
+    expect(await style(grid, "box-shadow"), "grid box").toBe("none");
+    expect(await style(grid, "background-color", "::before"), "grid mark fill").toBe(tint);
+    expect(await style(gridRest, "box-shadow", "::before"), "grid rest").toBe("none");
+    expect(await style(grid, "row-gap"), "grid").toBe(await style(gridRest, "row-gap"));
+    const tight = await style(probeOf(root, "tight"), "inline-size");
+    for (const side of ["inset-inline-start", "inset-inline-end", "inset-block-start", "inset-block-end"]) {
+      expect(await style(grid, side, "::before"), side).toBe(`-${tight}`);
     }
+    expect(await style(grid, "box-shadow", "::before"), "grid ring colour").toContain(await style(probeOf(root, "ring"), "background-color"));
     const twin = probeOf(root, "stack");
     for (const property of ["display", "flex-direction", "row-gap"]) {
       expect(await style(caseOf(root, "stack-rest"), property), property).toBe(await style(twin, property));
     }
+  });
+
+  test(`${name}: the grid mark's ring holds the non-text floor against the page`, async ({ mount, page }) => {
+    const root = await mount<typeof CurrentBoxesStory>(`${STORIES}/CurrentBoxesStory`, props);
+    const ring = await pixelSurface(page, probeOf(root, "ring"));
+    const ground = await pixelSurface(page, probeOf(root, "ground"));
+    expect(wcagContrastRatio(ring.rgb, ground.rgb), `${ring.describe} on ${ground.describe}`).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
   });
 
   test(`${name}: a primary and a warning divider paint the stamped tone's solid role, and an unstamped one keeps the border ink`, async ({ mount }) => {
