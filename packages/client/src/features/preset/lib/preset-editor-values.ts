@@ -4,10 +4,10 @@ import type { PromptConfig } from "@orb/contracts/preset";
 import { z } from "zod";
 import { formValuesEqual } from "#forms";
 import type { UserMacrosFormValues } from "../../../components/user-macro-editor-model.ts";
-import { admitUserMacroValues, macroRowIdsMatch, macroRowIdsSchema } from "../../../components/user-macro-editor-model.ts";
+import { admitUserMacroValues, macroRowIdsMatch } from "../../../components/user-macro-editor-model.ts";
 
 const variableRowIdsSchema = z.object({ id: z.uuid(), options: z.array(z.uuid()) });
-const metadataSchema = z.object({ macroRowIds: macroRowIdsSchema.array(), variableRowIds: variableRowIdsSchema.array() });
+const metadataSchema = z.object({ variableRowIds: variableRowIdsSchema.array() });
 
 export interface PresetEditorValues extends PromptConfig {
   readonly macroRowIds: UserMacrosFormValues["macroRowIds"];

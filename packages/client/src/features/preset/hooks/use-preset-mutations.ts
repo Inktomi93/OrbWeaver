@@ -60,11 +60,7 @@ export const useResetPreset = createEntityMutation<inferInput<Trpc["preset"]["re
  *  covers `getUserSettings` (the LIST dropdown + CONTEXT Usage tab both read it), so the echo reconciles the
  *  acting device with no self-invalidate double-refetch (the persona-seed precedent). `null` clears the seed
  *  (the active-preset delete guard nulls it so a stale pointer never survives). */
-export interface DefaultPresetPatchVars {
-  readonly section: "seeds";
-  readonly patch: { readonly defaultPresetId: string | null };
-}
-export const useSetDefaultPreset = createEntityMutation<DefaultPresetPatchVars, unknown>({
+export const useSetDefaultPreset = createEntityMutation<inferInput<Trpc["settings"]["updateUserSettingsSection"]>, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't set the active preset.",
