@@ -59,7 +59,14 @@ ALTER TABLE `__new_rpg_checkpoints` RENAME TO `rpg_checkpoints`;--> statement-br
 PRAGMA foreign_keys=ON;--> statement-breakpoint
 CREATE INDEX `rpg_checkpoints_game_idx` ON `rpg_checkpoints` (`game_id`);--> statement-breakpoint
 CREATE INDEX `rpg_checkpoints_snapshot_idx` ON `rpg_checkpoints` (`snapshot_id`,`snapshot_kind`);--> statement-breakpoint
--- Repair: each checkpoint gets its own committed bookmark copy of the row it pinned, turn or hand, under the
+-- v0.3.x saved a checkpoint as its own committed hand row, stamped at the chat tail and created with the
+-- checkpoint's `now`, and pinned that row (create-checkpoint.ts at v0.3.1). Such a row is the checkpoint's saved
+-- state, so it becomes the bookmark itself and leaves the ladder. A hand row a checkpoint reused (a real hand edit)
+-- was created before its checkpoint, so it stays a beat and gets its own copy below.
+UPDATE `rpg_snapshots` SET `kind` = 'bookmark', `as_of_message_id` = NULL
+WHERE `kind` = 'hand'
+ AND EXISTS (SELECT 1 FROM `rpg_checkpoints` c WHERE c.`snapshot_id` = `rpg_snapshots`.`id` AND c.`created_at` = `rpg_snapshots`.`created_at`);--> statement-breakpoint
+-- Repair: each other checkpoint gets its own committed bookmark copy of the row it pinned, turn or hand, under the
 -- bookmark rule in packages/server/src/domain/rpg/persistence/snapshots.ts: no keys, no as-of stamp, and the
 -- checkpoint's own created_at. The pinned row stays as the beat it was, so the room's state does not move.
 -- The copy's id is the checkpoint's TypeID suffix under the snapshot prefix: valid, unique per checkpoint, and
@@ -72,5 +79,7 @@ SELECT
 	'rpg_snapshot_' || substr(c.`id`, -26), c.`game_id`, NULL, NULL, NULL, s.`clock`, s.`calendar_date`, s.`location`, s.`weather`,
 	s.`present_characters`, s.`recent_events`, s.`actor_state`, s.`tracker_values`, s.`quests`, s.`plot`, s.`field_locks`, 1, c.`created_at`, 'bookmark'
 FROM `rpg_checkpoints` c
-JOIN `rpg_snapshots` s ON s.`id` = c.`snapshot_id`;--> statement-breakpoint
-UPDATE `rpg_checkpoints` SET `snapshot_id` = 'rpg_snapshot_' || substr(`id`, -26);
+JOIN `rpg_snapshots` s ON s.`id` = c.`snapshot_id`
+WHERE s.`kind` <> 'bookmark';--> statement-breakpoint
+UPDATE `rpg_checkpoints` SET `snapshot_id` = 'rpg_snapshot_' || substr(`id`, -26)
+WHERE `snapshot_id` IN (SELECT `id` FROM `rpg_snapshots` WHERE `kind` <> 'bookmark');
