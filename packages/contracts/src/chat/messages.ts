@@ -492,6 +492,9 @@ export interface MessageView {
   id: MessageId;
   chatId: ChatId;
   seq: number;
+  /** This row's 1-based place among the rows the viewer can read. Stamped per viewer on history reads and delivered
+   *  bus events; absent on every other view, so a floorless server read cannot disclose a room-wide count. */
+  position?: number;
   role: MessageRole;
   /** The row's declared PURPOSE (see {@link messageKindSchema}). Member-visible and safe — it is chrome
    *  vocabulary, not content: the client renders narrator tint / speaker splitting / OOC treatment off THIS
@@ -596,6 +599,7 @@ export const messageViewSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.message),
   chatId: typeIdSchema(ID_PREFIX.chat),
   seq: z.number(),
+  position: z.int().min(1).exactOptional(),
   role: messageRoleSchema,
   kind: messageKindSchema,
   authorUserId: brandedId("UserId").nullable(),
