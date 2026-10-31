@@ -22,4 +22,8 @@ The import skips a carried hand snapshot whose createdAt equals the createdAt of
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+`createImportRpgGame` (`packages/server/src/domain/rpg/persistence/portability-write.ts`) no longer inserts a carried hand snapshot when a checkpoint names it with the same `createdAt`, the rule migration 0006 applies in place. The checkpoint writes its bookmark from that state, as it does for every checkpoint. A hand edit a checkpoint reused was made before it, so it stays a beat.
+
+Pinned by `tests/server/domain/import/loader/library-planes.int.test.ts`. A v0.3-shape bundle has no bookmark flag; its copy is a hand row at the turn, and the selected variant was swiped after the checkpoint. After import the room shows the swiped location, and restore brings back the copy's. This case was red before the change: it received the copy's location. The control bundle names a hand edit made a minute before its checkpoint. The room keeps that edit, and restore brings it back.
+
+Floor: `library-planes`, `tests/server/domain/rpg`, `tests/server/domain/import` and the corpus-rpg suites (including `corpus-rpg-provider`), run serially. One case timed out at load 26: `import-bundle.int.test.ts`, "a restored card keeps its import identity through the next export and restore". That file has no rpg or checkpoint code, so the timeout carries no verdict. The rest of the floor is clean: typecheck of `packages/server` and `tsconfig.node.json`, ESLint on the changed files, whole-tree depcruise and `knip:prod`.
