@@ -31,12 +31,17 @@
 // writes at one as-of slot orders by createdAt/id. A hand row survives a swipe of any slot — the same
 // semantics the anchor slot had (an anchor was its own slot, so swiping an earlier slot never rewound it).
 //
+// A BOOKMARK ROW IS NOT ON THE LADDER. A checkpoint's saved state is a third kind: no message, no variant, no
+// as-of stamp. Neither arm and no fallback walk reads it, so making a checkpoint never moves the room's state
+// and never shadows a later swipe. Only restore reads it, by id, and restore writes a hand beat.
+//
 // Reads `messages`/`message_variants` (rpg_snapshots FKs both) for the pointer walk — legitimate state
 // resolution, distinct from the membership auth chokepoint (that rides the injected `chat.getMembership` op,
 // W1b). No `now` ambient clock: every write takes `target.now` injected (determinism, §6.2).
 
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import {
+  RPG_SNAPSHOT_KIND,
   rpgActorEntrySchema,
   rpgClockTimeSchema,
   rpgFieldLocksSchema,
@@ -66,14 +71,18 @@ const UNCOMMITTED = 0;
  *  "State as of before the story started" IS the baseline posture, so that is exactly the right degrade. */
 const NO_SEQ = -1;
 
-/** THE D124 TWO-ARM DISCRIMINANT, READ SIDE — the query twin of the write-side {@link turnArmKeys} /
+/** THE D124 KIND DISCRIMINANT, READ SIDE — the query twin of the write-side {@link turnArmKeys} /
  *  {@link handArmKeys}. A row is a TURN row (a gameplay BEAT) iff it is variant-keyed, i.e. it was produced by
- *  that variant's own turn flush; every other row is a message-less HAND row. Homed here, beside the ladder
- *  order and the write-side keys, so "which arm is this row" has ONE spelling on both sides: a reader that
- *  re-spells the predicate can get the polarity backwards, which is precisely how the reconcile cadence came
- *  to count hand edits as beats. */
+ *  that variant's own turn flush. A HAND row is named by its stored kind, because a bookmark row shares its
+ *  NULL keys and must never be read as a beat. Homed here, beside the ladder order and the write-side keys, so
+ *  "which kind is this row" has ONE spelling on both sides: a reader that re-spells the predicate can get the
+ *  polarity backwards, which is precisely how the reconcile cadence came to count hand edits as beats.
+ *
+ *  The turn predicate stays on `variant_id`: the arm CHECK makes it select exactly the `turn` rows, and it is
+ *  the predicate the partial `rpg_snapshots_variant_unique` index carries, which the turn upsert's conflict
+ *  target must repeat. */
 const TURN_ARM_ROW = isNotNull(rpgSnapshots.variantId);
-const HAND_ARM_ROW = isNull(rpgSnapshots.variantId);
+const HAND_ARM_ROW = eq(rpgSnapshots.kind, RPG_SNAPSHOT_KIND.hand);
 
 // The array/record JSON columns whose element schema `@orb/contracts/rpg` exports singular.
 // The PRESENCE plane is a flat `actorRefKey` list since R2 — the same shape `recentEvents` has, and the reason
@@ -458,16 +467,27 @@ async function insertSnapshot(db: Db, values: NewRpgSnapshot): Promise<RpgSnapsh
   return parseSnapshotRow(row);
 }
 
-/** The row-IDENTITY half of an insert — the D124 two-arm discriminant, spelled in exactly these two helpers
- *  so no writer can hand-assemble a third (illegal) combination past the CHECK. */
-type SnapshotArmKeys = Pick<NewRpgSnapshot, "messageId" | "variantId" | "asOfMessageId">;
+/** The row-IDENTITY half of an insert — the D124 kind and its keys, spelled in exactly these three helpers so
+ *  no writer can hand-assemble an illegal combination past the CHECK. */
+type SnapshotArmKeys = Pick<NewRpgSnapshot, "messageId" | "variantId" | "asOfMessageId" | "kind">;
 
 function turnArmKeys(target: TurnSnapshotTarget): SnapshotArmKeys {
-  return { messageId: target.messageId, variantId: target.variantId, asOfMessageId: null };
+  return { messageId: target.messageId, variantId: target.variantId, asOfMessageId: null, kind: RPG_SNAPSHOT_KIND.turn };
 }
 
 function handArmKeys(asOfMessageId: MessageId | null): SnapshotArmKeys {
-  return { messageId: null, variantId: null, asOfMessageId };
+  return { messageId: null, variantId: null, asOfMessageId, kind: RPG_SNAPSHOT_KIND.hand };
+}
+
+/** A checkpoint's bookmark copy: no keys and no as-of stamp, so it has no place on the ladder (the header).
+ *  Exported for the import, which writes the same row from a portable snapshot. */
+export function bookmarkArmKeys(): {
+  readonly messageId: null;
+  readonly variantId: null;
+  readonly asOfMessageId: null;
+  readonly kind: typeof RPG_SNAPSHOT_KIND.bookmark;
+} {
+  return { messageId: null, variantId: null, asOfMessageId: null, kind: RPG_SNAPSHOT_KIND.bookmark };
 }
 
 /** The chat's TAIL slot — a hand row's as-of order stamp. `null` on a turnless chat (the row then orders
@@ -585,17 +605,15 @@ export async function writeResyncedSnapshot(db: Db, state: RpgSnapshotState, tar
   return { ok: true, row };
 }
 
-/** Detach a bookmark from its mutable variant using the canonical committed hand arm and current tail.
- * The array carries an unexecuted query across the async tail read without assimilating its thenable. */
-export async function buildCheckpointSnapshotStatements(db: Db, base: RpgSnapshotRow, target: HandSnapshotTarget): Promise<readonly BatchStmt[]> {
-  const asOfMessageId = await findTailMessageId(db, target.chatId);
-  return batchMany([
-    batchStmt(
-      db
-        .insert(rpgSnapshots)
-        .values(snapshotInsertFrom(snapshotRowToState(base), { fieldLocks: base.fieldLocks, committed: COMMITTED, arm: handArmKeys(asOfMessageId) }, target)),
-    ),
-  ]);
+/** THE BOOKMARK RULE: a checkpoint saves a committed bookmark copy of the state it labels, turn or hand, created
+ *  at the checkpoint's own time (`target.now`). The live verb, the import, the fork and migration 0006 write the
+ *  same row; a checkpoint never pins a beat. Unexecuted, so it shares the checkpoint's batch. */
+export function buildBookmarkSnapshotStatement(db: Db, source: RpgSnapshotRow, target: Pick<HandSnapshotTarget, "id" | "gameId" | "now">): BatchStmt {
+  return batchStmt(
+    db
+      .insert(rpgSnapshots)
+      .values(snapshotInsertFrom(snapshotRowToState(source), { fieldLocks: source.fieldLocks, committed: COMMITTED, arm: bookmarkArmKeys() }, target)),
+  );
 }
 
 /** Checkpoint restore's UNEXECUTED companion statement: clone a pointed snapshot forward as a HAND row, BORN

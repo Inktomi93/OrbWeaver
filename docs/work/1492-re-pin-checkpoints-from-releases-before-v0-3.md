@@ -18,8 +18,18 @@ Public users on those releases who made checkpoints cannot delete those turns, a
 
 ## Done when
 
-A numbered migration clones each turn-pinned checkpoint target into a committed hand row and re-points the checkpoint. The same migration makes a turn-pinned checkpoint unrepresentable: the checkpoint carries a snapshot kind fixed to hand and a composite foreign key to the snapshot's id and kind, so an insert that pins a turn snapshot fails. Confirm the schema and the old release code before writing it. A migration integration test deletes the turn on a migrated legacy shape and the checkpoint still restores.
+A numbered migration copies each checkpoint target into a committed bookmark row and re-points the checkpoint. A bookmark is not a beat: the state ladder never reads it. The same migration makes a checkpoint on a beat unrepresentable: the checkpoint carries a snapshot kind fixed to bookmark and a composite foreign key to the snapshot's id and kind, so an insert that pins a turn or hand row fails. Confirm the schema and the old release code before writing it. A migration integration test deletes the turn on a migrated legacy shape and the checkpoint still restores.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Confirmed first: `git show v0.2.0:packages/server/src/domain/rpg/verbs/checkpoint/create-checkpoint.ts` inserts `snapshotId: head.id` from `resolveSnapshotForTurn`, whose head can be a turn row; the detach rule arrived in `fa0badf99b`, which only v0.3.0 and v0.3.1 contain; no migration after `0000_baseline` names `rpg_checkpoints`.
+
+Migration `packages/db/src/migrations/0006_bookmark-checkpoint-snapshots.sql` rebuilds `rpg_snapshots` with a stored `kind` (`turn`, `hand`, `bookmark`), a kind CHECK and a unique `(id, kind)` index. It rebuilds `rpg_checkpoints` with `snapshot_kind` (default and CHECK `bookmark`) and a composite RESTRICT foreign key to `(id, kind)`. It then copies every checkpoint's target into a committed bookmark row with the checkpoint's `created_at`, id `rpg_snapshot_` plus the checkpoint's TypeID suffix, and re-points the checkpoint. The pinned turn and hand rows stay as the beats they were.
+
+The ruling is in D124 (`docs/adr/0124-hand-written-rpg-state-stays-off-messages.md`). The state ladder in `packages/server/src/domain/rpg/persistence/snapshots.ts` reads hand rows by kind, so it never reads a bookmark. The live `createCheckpoint`, the import, the fork and the migration all write the bookmark copy. Restore reads it by id and writes a hand beat. The partial `rpg_snapshots_variant_unique` index stays keyed on `variant_id is not null`, because the swipe lookups and the turn walk's join use it only under that predicate.
+
+Pinned by:
+
+- `tests/server/entry/boot/persistence/checkpoint-repin.int.test.ts`. It plants turn-pinned checkpoints on the chain cut before 0006 (`plantTurnPinnedCheckpoint`, a sanctioned historic state). After the migration, a later turn stays current, `chat.deleteMessages` removes the bookmarked turn, and restore brings back the saved location. A pin on a swiped-away variant leaves the selected swipe's state current, and is red on the hand-copy repair.
+- `tests/server/domain/rpg/persistence/immutable-bookmarks.suite.int.test.ts`. A checkpoint on the tail turn leaves the state after a swipe and after the next turn equal to the no-checkpoint control, and is red on the hand-copy verb. The database refuses a checkpoint on a turn or hand row with a foreign-key violation and admits one on a bookmark.
+- `tests/server/domain/import/loader/library-planes.int.test.ts`. An imported checkpoint on a swiped-away variant leaves the selected swipe current and still restores, and is red on the hand-copy import.

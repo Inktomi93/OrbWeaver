@@ -233,7 +233,8 @@ function cloneSheets(cc: CloneCtx, sheets: readonly RpgSheetRow[]): BatchStmt[] 
   return sheets.map((s) => batchStmt(cc.ctx.db.insert(rpgSheets).values(forkSheetValues(cc, s))));
 }
 
-/** rpg_snapshots — the D124 two arms, each with its own horizon rule:
+/** rpg_snapshots — the D124 kinds, each with its own horizon rule (a BOOKMARK row copies like a hand row and
+ *  stays a bookmark, so the fork's checkpoints keep pinning saved state that is off the ladder):
  *  • TURN rows (variant-keyed) copy iff their variant AND message were copied (the fork horizon + D106 floor
  *    are respected BY CONSTRUCTION: the maps only contain copied rows, so a row past the horizon is dropped).
  *  • HAND rows (message-less) ALWAYS copy — they are game state, not story, and the fork inherits the host's
@@ -270,7 +271,7 @@ function cloneSnapshots(cc: CloneCtx, snapshots: readonly RpgSnapshotRow[]): { s
 function forkSnapshotValues(
   cc: CloneCtx,
   snap: RpgSnapshotRow,
-  keys: Pick<RpgSnapshotRow, "messageId" | "variantId" | "asOfMessageId">,
+  keys: Pick<RpgSnapshotRow, "messageId" | "variantId" | "asOfMessageId" | "kind">,
   newSnapshotId: RpgSnapshotId,
 ): Required<typeof rpgSnapshots.$inferInsert> {
   return stripHiddenForForker(
@@ -281,6 +282,7 @@ function forkSnapshotValues(
       messageId: keys.messageId,
       variantId: keys.variantId,
       asOfMessageId: keys.asOfMessageId,
+      kind: keys.kind,
       // ── WINDOWED (the host-plane arm) then hidden-belted with everything else ──────────────────────────
       recentEvents: keepBeatsForForker(snap.recentEvents, cc.recentBeatsKeepLast, cc.readsHidden),
       // ── COPIED ────────────────────────────────────────────────────────────────────────────────────────
@@ -301,18 +303,24 @@ function forkSnapshotValues(
   );
 }
 
-/** The re-keyed ARM columns for one cloned snapshot, or `null` when the row does not survive the fork. The
- *  arm is read off the source row (`variantId === null` ⇒ hand), so the CHECK-pinned shape carries verbatim. */
-function forkSnapshotKeys(cc: CloneCtx, snap: RpgSnapshotRow): Pick<RpgSnapshotRow, "messageId" | "variantId" | "asOfMessageId"> | null {
+/** The re-keyed KIND columns for one cloned snapshot, or `null` when the row does not survive the fork. The
+ *  kind is read off the source row, so the CHECK-pinned shape carries verbatim: a bookmark stays a bookmark
+ *  with no keys, and a hand row keeps its re-keyed as-of stamp. */
+function forkSnapshotKeys(cc: CloneCtx, snap: RpgSnapshotRow): Pick<RpgSnapshotRow, "messageId" | "variantId" | "asOfMessageId" | "kind"> | null {
   if (snap.variantId === null || snap.messageId === null) {
-    return { messageId: null, variantId: null, asOfMessageId: snap.asOfMessageId === null ? null : (cc.slotIdMap.get(snap.asOfMessageId) ?? null) };
+    return {
+      messageId: null,
+      variantId: null,
+      asOfMessageId: snap.asOfMessageId === null ? null : (cc.slotIdMap.get(snap.asOfMessageId) ?? null),
+      kind: snap.kind,
+    };
   }
   const newVariantId = cc.variantIdMap.get(snap.variantId);
   const newMessageId = cc.slotIdMap.get(snap.messageId);
   if (newVariantId === undefined || newMessageId === undefined) {
     return null;
   }
-  return { messageId: newMessageId, variantId: newVariantId, asOfMessageId: null };
+  return { messageId: newMessageId, variantId: newVariantId, asOfMessageId: null, kind: snap.kind };
 }
 
 /** rpg_journal — model entries (variantId ≠ null): copy iff the variant was copied (re-key variantId +
@@ -387,6 +395,7 @@ function forkCheckpointValues(cc: CloneCtx, c: RpgCheckpointRow, newSnapshotId: 
       id: cc.ctx.ids.checkpoint(),
       gameId: cc.newGameId,
       snapshotId: newSnapshotId,
+      snapshotKind: c.snapshotKind,
       label: c.label,
       trigger: c.trigger,
       createdAt: cc.now,

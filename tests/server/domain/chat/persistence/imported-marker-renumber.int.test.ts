@@ -16,29 +16,37 @@ const AFTER_MARKER_REPLY = "The knight's answer after the compacted span.";
 const EXPORT_TO_IMPORT_MS = 60_000;
 
 test("a 0-based bundle import with a carried marker shows the row after the marker once renumbered", async () => {
+  // The bundle comes from a box on the shipped chain: the export reads every table at the current schema, which a
+  // database cut before 0005 does not have once a later migration adds a column.
+  await using source = await textRoom(["First answer.", "Second answer.", SUMMARY, AFTER_MARKER_REPLY]);
+  const sourceChat = source.root.services.chat;
+  await sourceChat.send({ principal: source.owner, chatId: source.chatId, content: OPENING });
+  await sourceChat.send({ principal: source.owner, chatId: source.chatId, content: "A second question." });
+  const compacted = await sourceChat.compact({ principal: source.owner, chatId: source.chatId });
+  await sourceChat.send({ principal: source.owner, chatId: source.chatId, content: AFTER_MARKER });
+  expect(compacted).toMatchObject({ summary: SUMMARY, compactedAtSeq: 4, updated: true });
+  const exporter = source.root.app.portability.find((entity) => entity.kind === "chat");
+  if (exporter === undefined) {
+    throw new Error("the production graph has no chat portability descriptor");
+  }
+  const files: Parameters<typeof exporter.importFile>[1][] = [];
+  for await (const file of exporter.exportAll(source.owner.userId)) {
+    files.push(file);
+  }
+  const bundle = files.find((file) => file.filename.includes(source.chatId));
+  if (bundle === undefined) {
+    throw new Error("the chat export produced no bundle for the room");
+  }
+
   await using previous = await migrationsBefore(MIGRATION);
   const db = await createDb(":memory:");
   try {
     await runMigrations(db, previous.path);
-    await using h = await textRoom(["First answer.", "Second answer.", SUMMARY, AFTER_MARKER_REPLY, "The reply after the renumber."], { server: { db } });
+    await using h = await textRoom(["The reply after the renumber."], { server: { db } });
     const chat = h.root.services.chat;
-    await chat.send({ principal: h.owner, chatId: h.chatId, content: OPENING });
-    await chat.send({ principal: h.owner, chatId: h.chatId, content: "A second question." });
-    const compacted = await chat.compact({ principal: h.owner, chatId: h.chatId });
-    await chat.send({ principal: h.owner, chatId: h.chatId, content: AFTER_MARKER });
-    expect(compacted).toMatchObject({ summary: SUMMARY, compactedAtSeq: 4, updated: true });
-
     const descriptor = h.root.app.portability.find((entity) => entity.kind === "chat");
     if (descriptor === undefined) {
       throw new Error("the production graph has no chat portability descriptor");
-    }
-    const files: Parameters<typeof descriptor.importFile>[1][] = [];
-    for await (const file of descriptor.exportAll(h.owner.userId)) {
-      files.push(file);
-    }
-    const bundle = files.find((file) => file.filename.includes(h.chatId));
-    if (bundle === undefined) {
-      throw new Error("the chat export produced no bundle for the room");
     }
     h.root.clock.advance(EXPORT_TO_IMPORT_MS);
     const outcome = await descriptor.importFile(h.owner.userId, bundle);

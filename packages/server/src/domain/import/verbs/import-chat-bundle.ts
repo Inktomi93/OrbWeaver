@@ -306,6 +306,7 @@ function remapRpg(game: PortableRpgGame, remap: Extract<ImportedChatRemap, { kin
         messageId: variantId === null ? null : messageId,
         variantId: messageId === null ? null : variantId,
         asOfMessageId: messageId === null || variantId === null ? messageAt(snapshot.asOfMessageIndex) : null,
+        bookmark: snapshot.bookmark,
         committed: snapshot.committed,
         createdAt: snapshot.createdAt,
         state: snapshot.state,

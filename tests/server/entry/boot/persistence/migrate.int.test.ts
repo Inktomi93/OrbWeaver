@@ -13,7 +13,7 @@ import { seedMessageRow } from "@orb/testkit/node/rows";
 import { sql } from "drizzle-orm";
 
 const DB_NAME = "orb.db";
-const LAST_MIGRATION = "0005_renumber-imported-canon";
+const LAST_MIGRATION = "0006_bookmark-checkpoint-snapshots";
 const CONTENT = "committed-in-wal";
 
 interface Layout {
