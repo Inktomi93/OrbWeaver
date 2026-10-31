@@ -3,8 +3,9 @@
 // busDriven: a delete may orphan theme.selectedThemeId, so it must also refetch getUserSettings, which
 // themesChanged doesn't cover — it keeps only that uncovered key.
 
-import type { CreateThemeInput, Theme, UpdateThemeInput } from "@orb/contracts/theme";
-import type { ThemeId } from "@orb/kit/ids";
+import type { CreateThemeInput, Theme } from "@orb/contracts/theme";
+import type { inferInput } from "@trpc/tanstack-react-query";
+import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
 export const useCreateTheme = createEntityMutation<CreateThemeInput, Theme>({
@@ -25,41 +26,26 @@ export const useImportThemeFile = createEntityMutation<
   errorToast: "Couldn't import the theme.",
 });
 
-export interface DuplicateThemeVars {
-  readonly id: ThemeId;
-  readonly name?: string;
-}
-export const useDuplicateTheme = createEntityMutation<DuplicateThemeVars, Theme>({
+export const useDuplicateTheme = createEntityMutation<inferInput<Trpc["settings"]["duplicateTheme"]>, Theme>({
   options: (trpc) => trpc.settings.duplicateTheme.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't duplicate the theme.",
 });
 
-export interface UpdateThemeVars {
-  readonly id: ThemeId;
-  readonly input: UpdateThemeInput;
-}
-export const useUpdateTheme = createEntityMutation<UpdateThemeVars, Theme>({
+export const useUpdateTheme = createEntityMutation<inferInput<Trpc["settings"]["updateTheme"]>, Theme>({
   options: (trpc) => trpc.settings.updateTheme.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't save the theme.",
 });
 
-export interface RemoveThemeVars {
-  readonly id: ThemeId;
-}
-export const useRemoveTheme = createEntityMutation<RemoveThemeVars, void>({
+export const useRemoveTheme = createEntityMutation<inferInput<Trpc["settings"]["removeTheme"]>, void>({
   options: (trpc) => trpc.settings.removeTheme.mutationOptions(),
   invalidates: (trpc) => [trpc.settings.getUserSettings.queryFilter()],
   errorToast: "Couldn't delete the theme.",
 });
 
 /** Writes `theme.selectedThemeId`; `null` selects the Hearth default (the anti-brick reset). */
-export interface SelectThemeVars {
-  readonly section: "theme";
-  readonly patch: { readonly selectedThemeId: string | null };
-}
-export const useSelectTheme = createEntityMutation<SelectThemeVars, unknown>({
+export const useSelectTheme = createEntityMutation<inferInput<Trpc["settings"]["updateUserSettingsSection"]>, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't switch the theme.",
