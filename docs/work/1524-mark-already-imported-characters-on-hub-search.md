@@ -13,6 +13,8 @@ plan: unwired-code
 
 CharacterService.findByImportedFrom has no caller. Wire it so hub search results mark characters the user has already imported.
 
+Ruling: no host hub search exists; the Card Atlas guest is the hub search, and its own kv index drifts when a character is deleted in the app. Add a read-only host op under the existing character.card_state grant (no new consent line) that answers which cards are already imported, and make the atlas badge from it instead of its index.
+
 ## Why
 
 Owner ruling: wanted feature, built server-side and never surfaced.

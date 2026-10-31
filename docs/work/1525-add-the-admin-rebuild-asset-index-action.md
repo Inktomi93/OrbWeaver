@@ -13,6 +13,8 @@ plan: unwired-code
 
 AssetsService.rebuildFromTree has no caller. Wire an admin action that rebuilds the asset index from the files on disk.
 
+Ruling: ship it as a workload kind (assets-rebuild-index) with a numbered migration for the workloads kind CHECK, so it gets progress, result feedback and the owner-only maintenance gate like assets-gc and assets-fsck.
+
 ## Why
 
 Owner ruling: wanted maintenance action.
