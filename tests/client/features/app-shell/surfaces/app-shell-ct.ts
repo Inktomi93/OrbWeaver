@@ -1,5 +1,6 @@
 // Node-side helpers the app-shell component specs share: story ids, accessible names and routed procedures.
 // In-page probes live in `@orb/testkit/browser/spec`, where their browser callbacks typecheck.
+import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import type { TrpcRecorder } from "@orb/testkit/ct";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import type { CorpusPlayback } from "@orb/testkit/iso";
@@ -19,6 +20,15 @@ export async function routeShell(page: Page, corpus: CorpusPlayback, caller: Cal
 export async function routeRoom(page: Page, corpus: CorpusPlayback, caller: Caller): Promise<TrpcRecorder> {
   const viewer = await caller.sessions.me();
   return routeTrpc(page, { ...createShellAmbientReads(corpus, viewer.userId), ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES]) });
+}
+
+/** The corpus viewer's first saved wallpaper, as the appearance fields that select it. */
+export function wallpaper(corpus: CorpusPlayback): Partial<AppearanceSettings> {
+  const entry = corpus.reads["settings.getUserSettings"][0]?.output.config.appearance.backgroundLibrary[0];
+  if (entry === undefined) {
+    throw new Error("The corpus viewer has no saved wallpaper");
+  }
+  return { backgroundImageKind: "asset", backgroundAssetId: entry.assetId, backgroundAssetHash: entry.assetHash, backgroundAssetMime: entry.mime };
 }
 
 /** The first room of a `chat.listChats` page the user named, with more than one character seated. */

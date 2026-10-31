@@ -156,6 +156,7 @@
 
   /* Every section but chats is a reading surface over the wallpaper, so it takes the panes' backing. */
   .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main {
+    @apply tone-host-card;
     background: var(--color-card);
     text-shadow: none;
   }
