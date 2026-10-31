@@ -87,7 +87,7 @@ export async function openReadingRoom(
   page: Page,
   corpus: CorpusPlayback,
   root: ReadingRoom["root"],
-  { chatStyle, art }: { readonly chatStyle: ThemeChatStyle; readonly art: boolean },
+  { chatStyle, art, appearance }: { readonly chatStyle: ThemeChatStyle; readonly art: boolean; readonly appearance?: Partial<AppearanceSettings> },
 ): Promise<void> {
   const caller = await root.internalCallerFor(root.ownerId);
   await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
@@ -101,6 +101,7 @@ export async function openReadingRoom(
       showInChatAvatars: true,
       messageActions: "hover",
       ...(art ? wallpaper(corpus) : { backgroundImageKind: "none" }),
+      ...appearance,
     },
   });
   await routeTrpc(page, {
@@ -110,8 +111,8 @@ export async function openReadingRoom(
 }
 
 /** Open the reading room in `chatStyle`, without art; the caller seeds the Chats section from the browser world. */
-export async function openReadingStyle(page: Page, corpus: CorpusPlayback, chatStyle: ThemeChatStyle): Promise<void> {
-  await openReadingRoom(page, corpus, currentRoom().root, { chatStyle, art: false });
+export async function openReadingStyle(page: Page, corpus: CorpusPlayback, chatStyle: ThemeChatStyle, appearance?: Partial<AppearanceSettings>): Promise<void> {
+  await openReadingRoom(page, corpus, currentRoom().root, { chatStyle, art: false, ...(appearance === undefined ? {} : { appearance }) });
 }
 
 /** The props every reading-room shell story takes. */
