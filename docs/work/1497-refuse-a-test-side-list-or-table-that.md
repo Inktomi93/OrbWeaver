@@ -4,7 +4,7 @@ status: open
 updated: 2026-10-31
 priority: P2
 area: tests
-plan: test-foundation
+plan: test-enforcement
 ---
 
 # Refuse a test-side list or table that restates a production union or registry
