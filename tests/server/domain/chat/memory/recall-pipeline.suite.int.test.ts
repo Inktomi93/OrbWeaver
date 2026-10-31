@@ -17,6 +17,7 @@ import {
   createChatRoot,
   createCorpusProviderExecution,
   SUMMARIZE_TRANSCRIPT_MARKER,
+  summaryReply,
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
 
@@ -68,7 +69,7 @@ function lineText(arc: Arc): string {
 }
 
 function digestText(arc: Arc): string {
-  return `Arc ${arc}\narc-${arc}. The ${arc} scene happened here.\nKeywords: ${arc}`;
+  return summaryReply({ anchor: `Arc ${arc}`, facts: `arc-${arc}. The ${arc} scene happened here.`, keywords: [arc] });
 }
 
 const rerankBodySchema = z.object({ model: z.literal(RERANK_MODEL), documents: z.array(z.string()) });
@@ -88,13 +89,13 @@ const CONSOLIDATION_LEAD = resolveProseText("chat.memory.consolidationLead", {})
 
 function generatedText(body: string): string {
   if (body.includes(CONSOLIDATION_LEAD)) {
-    return "Merged arc\nThe scenes merged into one arc.\nKeywords: merged";
+    return summaryReply({ anchor: "Merged arc", facts: "The scenes merged into one arc.", keywords: ["merged"] });
   }
   if (!body.includes(SUMMARIZE_TRANSCRIPT_MARKER)) {
     return "The keeper answers.";
   }
   const arc = ARCS.find((candidate) => body.includes(`line-${candidate}.`));
-  return arc === undefined ? "Filler\nThe caravan rested.\nKeywords: rest" : digestText(arc);
+  return arc === undefined ? summaryReply({ anchor: "Filler", facts: "The caravan rested.", keywords: ["rest"] }) : digestText(arc);
 }
 
 const world: World = {

@@ -7,10 +7,9 @@ import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
 
 // Per-user credential storage (each principal's chat connection) needs a secret-box key.
-const SECRET_BOX_KEY = Buffer.alloc(32, 1);
 const LOCAL_ENV = { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" };
 
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
@@ -72,7 +71,7 @@ function observe(harness: ServerTestHarness, chatId: ChatId): { readonly events:
 }
 
 test("chat.editReasoning and chat.clearReasoning: the author and the host may write, a non-author member is refused, and each emit reaches the bus", async () => {
-  await using harness = await createServerHarness({ env: LOCAL_ENV, secretBoxKey: SECRET_BOX_KEY });
+  await using harness = await createServerHarness({ env: LOCAL_ENV, secretBoxKey: SECRET_BOX_TEST_KEY });
   const { chatId, host: ownerCaller, member, hostLine, memberLine } = await sharedRoom(harness);
   const { events, stop } = observe(harness, chatId);
   try {
@@ -94,14 +93,20 @@ test("chat.editReasoning and chat.clearReasoning: the author and the host may wr
     const refused = (await ownerCaller.chat.listMessages({ chatId })).messages.find((message) => message.id === hostLine);
     expect(refused?.reasoning).toBeNull();
 
-    expect(events.map(({ type }) => type)).toEqual(["reasoningEdited", "reasoningEdited", "reasoningCleared", "reasoningEdited", "reasoningCleared"]);
+    expect(events.map(({ type }) => type)).toEqual<ChatBusEvent["type"][]>([
+      "reasoningEdited",
+      "reasoningEdited",
+      "reasoningCleared",
+      "reasoningEdited",
+      "reasoningCleared",
+    ]);
   } finally {
     stop();
   }
 });
 
 test("chat.moveMessage: the host reorders and the bus carries messagesReordered; a member is refused and the order is unchanged", async () => {
-  await using harness = await createServerHarness({ env: LOCAL_ENV, secretBoxKey: SECRET_BOX_KEY });
+  await using harness = await createServerHarness({ env: LOCAL_ENV, secretBoxKey: SECRET_BOX_TEST_KEY });
   const { chatId, host: ownerCaller, member, hostLine, memberLine, memberSecond } = await sharedRoom(harness);
   const rows = async (): Promise<readonly { readonly id: MessageId; readonly seq: number }[]> =>
     (await ownerCaller.chat.listMessages({ chatId })).messages.toSorted((a, b) => a.seq - b.seq);
@@ -125,7 +130,7 @@ test("chat.moveMessage: the host reorders and the bus carries messagesReordered;
     expect(await order()).toEqual([hostLine, memberSecond, memberLine]);
     await ownerCaller.chat.moveMessage({ chatId, messageId: memberSecond, toSeq: await seqOf(memberLine) });
     expect(await order()).toEqual([hostLine, memberLine, memberSecond]);
-    expect(events.map(({ type }) => type)).toEqual(["messagesReordered", "messagesReordered"]);
+    expect(events.map(({ type }) => type)).toEqual<ChatBusEvent["type"][]>(["messagesReordered", "messagesReordered"]);
   } finally {
     stop();
   }

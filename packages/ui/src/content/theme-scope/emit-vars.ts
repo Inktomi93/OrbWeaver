@@ -124,6 +124,23 @@ export const THEME_SCOPE_EMIT_VARS = [
 ] as const;
 
 /**
+ * The custom property each colour field of a theme override paints, which `clampThemeTokens` reads when it writes
+ * the property. A bubble's `fg` is derived from its `bg`, never picked, so a bubble names both properties.
+ */
+export const THEME_OVERRIDE_COLOR_VARS = {
+  accent: "--color-primary",
+  speaker: "--color-speaker",
+  dialogueColor: "--color-dialogue",
+  narrationColor: "--color-narration",
+  bodyColor: "--color-prose-body",
+  background: "--color-background",
+  borderColor: "--color-border",
+  userBubble: { bg: "--color-user-bubble", fg: "--color-user-bubble-foreground" },
+  aiBubble: { bg: "--color-ai-bubble", fg: "--color-ai-bubble-foreground" },
+  systemBubble: { bg: "--color-system-bubble", fg: "--color-system-bubble-foreground" },
+} as const;
+
+/**
  * ThemeScope-emitted colors whose SEED form stays the canonical static polarity token. Seed themes use
  * the generated light-dark() arms; only a carried custom base needs a per-surface concrete derivation.
  *

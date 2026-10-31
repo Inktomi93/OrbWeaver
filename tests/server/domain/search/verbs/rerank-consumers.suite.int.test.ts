@@ -17,6 +17,7 @@ import {
   createCorpusProviderExecution,
   SUMMARIZE_TRANSCRIPT_MARKER,
   seedCorpusConnections,
+  summaryReply,
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
 
@@ -114,7 +115,9 @@ function generatedText(shape: Shape, body: string): string {
     return "The keeper answers.";
   }
   const arc = ARCS.find((candidate) => body.includes(tagOf("line", candidate)));
-  return arc === undefined ? "Filler\nThe caravan rested.\nKeywords: rest" : `Arc ${arc}\n${itemText(shape, "arc", arc)}\nKeywords: ${arc}`;
+  return arc === undefined
+    ? summaryReply({ anchor: "Filler", facts: "The caravan rested.", keywords: ["rest"] })
+    : summaryReply({ anchor: `Arc ${arc}`, facts: itemText(shape, "arc", arc), keywords: [arc] });
 }
 
 type WorkloadInput = Parameters<ChatRoot["caller"]["workloads"]["start"]>[0]["input"];

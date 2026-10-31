@@ -54,6 +54,29 @@ const OWNED_ROOT_ENTRIES: ReadonlySet<string> = new Set([
 // legacy dir moves, so they are created only when nothing is moving onto them.
 const CONTAINER_DIRS = [DATA_LAYOUT_DIRS.db, DATA_LAYOUT_DIRS.backups, DATA_LAYOUT_DIRS.secrets, DATA_LAYOUT_DIRS.cache, DATA_LAYOUT_DIRS.reports] as const;
 
+const DATA_LAYOUT_REFUSAL_REASONS = [
+  "journal-unreadable",
+  "journal-held",
+  "journal-state",
+  "target-holds-data",
+  "cross-filesystem",
+  "db-held",
+  "move-failed",
+] as const;
+
+/** Why the step refused: a test or an operator tool tells one refusal from another by `reason`, never by its text. */
+type DataLayoutRefusalReason = (typeof DATA_LAYOUT_REFUSAL_REASONS)[number];
+
+/** Every refusal this step raises. The message names the entry and its way out; `reason` names the rule. */
+export class DataLayoutRefusal extends Error {
+  readonly reason: DataLayoutRefusalReason;
+  constructor(reason: DataLayoutRefusalReason, message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "DataLayoutRefusal";
+    this.reason = reason;
+  }
+}
+
 /** One planned rename, both ends relative to the data root. */
 export interface DataLayoutMove {
   readonly from: string;
@@ -145,13 +168,16 @@ function readJournal(path: string): Journal {
   const parsed: unknown = JSON.parse(readFileSync(path, "utf-8"));
   const moves = isPlainObject(parsed) ? parsed["moves"] : undefined;
   if (!(isPlainObject(parsed) && typeof parsed["pid"] === "number" && Array.isArray(moves))) {
-    throw new Error(`boot/data-layout: ${path} is not a layout journal; move it aside and start again`);
+    throw new DataLayoutRefusal("journal-unreadable", `boot/data-layout: ${path} is not a layout journal; move it aside and start again`);
   }
   return {
     pid: parsed["pid"],
     moves: moves.map((entry: unknown, index): DataLayoutMove => {
       if (!(isPlainObject(entry) && typeof entry["from"] === "string" && typeof entry["to"] === "string")) {
-        throw new Error(`boot/data-layout: ${path} entry ${index} is not a { from, to } move; move the journal aside and start again`);
+        throw new DataLayoutRefusal(
+          "journal-unreadable",
+          `boot/data-layout: ${path} entry ${index} is not a { from, to } move; move the journal aside and start again`,
+        );
       }
       return { from: entry["from"], to: entry["to"] };
     }),
@@ -232,7 +258,8 @@ function refuseCrossDevice(root: string, moves: readonly PlannedMove[], deviceOf
     }
   }
   if (reasons.length > 0) {
-    throw new Error(
+    throw new DataLayoutRefusal(
+      "cross-filesystem",
       `boot/data-layout: a rename cannot cross a filesystem or a mount point, so the layout migration refuses before moving anything: ${reasons.join("; ")}`,
     );
   }
@@ -266,7 +293,7 @@ async function claimLegacyDb(root: string, layout: DataLayout, snapshot: boolean
     closeDb(db);
   }
   if (!sole) {
-    throw new Error(`boot/data-layout: another process has ${path} open; stop it, then start again. Nothing was moved.`);
+    throw new DataLayoutRefusal("db-held", `boot/data-layout: another process has ${path} open; stop it, then start again. Nothing was moved.`);
   }
 }
 
@@ -281,7 +308,9 @@ function applyMove(root: string, move: PlannedMove, rename: Rename): void {
     rename(from, to);
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code ?? "unknown error";
-    throw new Error(
+    // biome-ignore lint/style/useErrorCause: the cause is passed as the third argument; the rule only reads the second.
+    throw new DataLayoutRefusal(
+      "move-failed",
       `boot/data-layout: could not move ${from} to ${to} (${code}): ${wayOut(root, move)}, or fix ${to} and start again. ${join(root, LAYOUT_JOURNAL)} keeps the remaining moves for the next boot.`,
       { cause: err },
     );
@@ -310,7 +339,8 @@ function classifyJournal(
     } else if (!fromExists && exists(to)) {
       done.push(move);
     } else {
-      throw new Error(
+      throw new DataLayoutRefusal(
+        "journal-state",
         `boot/data-layout: cannot resume the interrupted layout migration under ${root}: ${from} (${describeEntry(from)}) and ${to} (${describeEntry(to)}) ${fromExists ? "both hold data" : "are both missing"}. Sort the two out by hand, then delete ${join(root, LAYOUT_JOURNAL)} and start again.`,
       );
     }
@@ -395,7 +425,7 @@ function warnStrandedSessionSecret(root: string, deps: Pick<MigrateDataLayoutDep
 /**
  * Move a legacy data dir into the current layout, or do nothing on a tree already in it. Warns on every boot
  * while a legacy session keyfile sits beside a different explicit SESSION_SECRET.
- * @throws Error before any rename when a legacy path and its target both hold data, when either end of a move
+ * @throws DataLayoutRefusal before any rename when a legacy path and its target both hold data, when either end of a move
  * sits on another filesystem, when another process holds the db or the journal, or when a journal entry's
  * state matches neither "done" nor "pending"; and after a rename fails, naming the entry and its way out.
  */
@@ -414,7 +444,8 @@ export async function migrateDataLayout(deps: MigrateDataLayoutDeps): Promise<Da
     const journal = readJournal(journalPath);
     // A container restart hands node the SAME pid it had, so the journal's own pid is never a live holder.
     if (journal.pid !== ownPid && isAlive(journal.pid)) {
-      throw new Error(
+      throw new DataLayoutRefusal(
+        "journal-held",
         `boot/data-layout: ${journalPath} says process ${journal.pid} is migrating the data layout under ${root}, and that pid is alive. Wait for it to finish and start again; if nothing is migrating, delete ${journalPath} and start again.`,
       );
     }
@@ -436,7 +467,8 @@ export async function migrateDataLayout(deps: MigrateDataLayoutDeps): Promise<Da
     const pairs = conflicts
       .map((move) => `${join(root, move.from)} (${describeEntry(join(root, move.from))}) and ${join(root, move.to)} (${describeEntry(join(root, move.to))})`)
       .join("; ");
-    throw new Error(
+    throw new DataLayoutRefusal(
+      "target-holds-data",
       `boot/data-layout: ${root} holds a legacy path and its new location, and both hold data: ${pairs}. Keep the one in use and move or delete the other by hand, then start again. Nothing was moved.`,
     );
   }

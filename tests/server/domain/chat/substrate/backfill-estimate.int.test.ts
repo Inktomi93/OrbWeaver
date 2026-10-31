@@ -7,53 +7,9 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { ImportWindow } from "@orb/contracts/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
-import {
-  CORPUS_EMBED_MODEL,
-  CORPUS_EMBEDDING_VECTOR,
-  CORPUS_STRUCTURED_REPLIES,
-  CORPUS_TEXT_MODEL,
-  createChatRoot,
-  createCorpusProviderExecution,
-  SUMMARIZE_TRANSCRIPT_MARKER,
-  seedTranscript,
-} from "@orb/testkit/node/composed";
+import { createMemoryBackfillRoom, memoryBackfillLines, seedTranscript } from "@orb/testkit/node/composed";
 
-// The memory build's tier-0 prompt: one marker, one summarize call per block.
-const BLOCK_SIZE = 2;
-
-const lines = (count: number, tag: string): { readonly role: "assistant"; readonly content: string }[] =>
-  Array.from({ length: count }, (_, index) => ({ role: "assistant" as const, content: `${tag} scene ${index + 1}: ${"orbital ledger ballast ".repeat(40)}` }));
-
-interface MemoryRoom {
-  readonly h: ChatRoot;
-  readonly summaries: () => number;
-}
-
-async function memoryRoom(options: { readonly transcript?: number; readonly characters?: readonly string[] } = {}): Promise<MemoryRoom & AsyncDisposable> {
-  let summarized = 0;
-  const physical = createCorpusProviderExecution({
-    modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
-    embedding: CORPUS_EMBEDDING_VECTOR,
-    structuredReplies: CORPUS_STRUCTURED_REPLIES,
-    images: [],
-    chatText: (body): string => {
-      if (body.includes(SUMMARIZE_TRANSCRIPT_MARKER)) {
-        summarized += 1;
-        return "An earlier ledger scene\nThe keeper remembers the earlier orbital ledger scene.\nKeywords: ledger";
-      }
-      return "The keeper nods.";
-    },
-  });
-  const h = await createChatRoot({
-    server: { startJobs: false },
-    providerFetch: physical.execute,
-    memoryEnabled: true,
-    memoryDefaults: { mode: "mixC", blockSize: BLOCK_SIZE, verbatimWindow: 0, maxTier: 0 },
-    characters: (options.characters ?? ["iris"]).map((name) => createCharacterSchema.parse({ handle: name, name, description: `${name} keeps the ledger.` })),
-    transcript: lines(options.transcript ?? 8, "Earlier"),
-  });
-  return { h, summaries: () => summarized, [Symbol.asyncDispose]: () => h[Symbol.asyncDispose]() };
-}
+type MemoryRoom = Awaited<ReturnType<typeof createMemoryBackfillRoom>>;
 
 async function estimate(h: ChatRoot, importWindow?: ImportWindow, mode: "singular" | "bulk" = "singular"): Promise<number> {
   const params = importWindow === undefined ? {} : { importWindow };
@@ -85,7 +41,7 @@ async function sweep(room: MemoryRoom, importWindow?: ImportWindow): Promise<num
 }
 
 test("the estimate is the summarize calls the sweep makes, and nothing once the chat is built", async () => {
-  await using room = await memoryRoom();
+  await using room = await createMemoryBackfillRoom();
   const counted = await estimate(room.h);
   // Eight aged-out turns in blocks of two: four tier-0 summaries.
   expect(counted).toBe(4);
@@ -94,7 +50,7 @@ test("the estimate is the summarize calls the sweep makes, and nothing once the 
 });
 
 test("an edit to a built block is counted again, and the sweep rebuilds exactly that block", async () => {
-  await using room = await memoryRoom();
+  await using room = await createMemoryBackfillRoom();
   await sweep(room);
   expect(await estimate(room.h)).toBe(0);
   const first = (await room.h.root.services.chat.listMessages({ principal: room.h.owner, chatId: room.h.chatId })).messages[0];
@@ -109,7 +65,7 @@ test("an edit to a built block is counted again, and the sweep rebuilds exactly 
 });
 
 test("a late-seated character is counted only for the blocks it witnessed, exactly as the sweep builds them", async () => {
-  await using room = await memoryRoom();
+  await using room = await createMemoryBackfillRoom();
   const { h } = room;
   const bryn = await h.root.services.character.create({
     principal: h.owner,
@@ -125,7 +81,7 @@ test("a late-seated character is counted only for the blocks it witnessed, exact
 });
 
 test("a group room counts its unminted shared bucket and mints nothing; a host with memory off costs nothing", async () => {
-  await using room = await memoryRoom({ characters: ["iris", "bryn"], transcript: 4 });
+  await using room = await createMemoryBackfillRoom({ characters: ["iris", "bryn"], transcript: 4 });
   const { h } = room;
   const shared = (): ReturnType<ChatRoot["root"]["services"]["character"]["findSyntheticGroupCharacter"]> =>
     h.root.services.character.findSyntheticGroupCharacter({ ownerId: h.owner.userId, chatId: h.chatId });
@@ -142,7 +98,7 @@ test("a group room counts its unminted shared bucket and mints nothing; a host w
 });
 
 test("an import window counts only the host's chats imported in the span, and the scoped sweep builds exactly those", async () => {
-  await using room = await memoryRoom({ transcript: 4 });
+  await using room = await createMemoryBackfillRoom({ transcript: 4 });
   const { h } = room;
   const handle = h.characters[0]?.handle;
   if (handle === undefined) {
@@ -152,7 +108,7 @@ test("an import window counts only the host's chats imported in the span, and th
   const imported = h.root.clock.now();
   const windowOfFirst: ImportWindow = { from: imported, to: imported };
   h.root.clock.advance(60_000);
-  await seedTranscript(h.root, { ownerId: h.owner.userId, characterHandles: [handle], lines: lines(4, "Second") });
+  await seedTranscript(h.root, { ownerId: h.owner.userId, characterHandles: [handle], lines: memoryBackfillLines(4, "Second") });
 
   const everything = await estimate(h);
   const scoped = await estimate(h, windowOfFirst);

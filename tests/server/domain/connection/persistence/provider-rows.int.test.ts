@@ -5,7 +5,7 @@
 
 import { spawn } from "node:child_process";
 import type { ProviderDef } from "@orb/contracts/inference";
-import { providerDefSchema } from "@orb/contracts/inference";
+import { PLUGIN_PROVIDER_ID_PREFIX, providerDefSchema } from "@orb/contracts/inference";
 import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { pluginProviderClaims, providerRows, users } from "@orb/db";
@@ -19,7 +19,7 @@ import { eq } from "drizzle-orm";
 // Each enable starts the real sandbox child process, which outlasts the default test budget.
 const PLUGIN_LIFECYCLE_TIMEOUT_MS = 30_000;
 const PLUGIN = "acme-plugin";
-const PLUGIN_PROVIDER = `plugin:${PLUGIN}/acme`;
+const PLUGIN_PROVIDER = `${PLUGIN_PROVIDER_ID_PREFIX}${PLUGIN}/acme`;
 
 const provider = (id: string, label: string): ProviderDef =>
   providerDefSchema.parse({
