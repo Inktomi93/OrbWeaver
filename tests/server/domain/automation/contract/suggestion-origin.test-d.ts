@@ -5,7 +5,7 @@ type PendingSuggestion = Parameters<ReturnType<typeof createSuggestionStore>["ra
 type SuggestionSource = PendingSuggestion["source"];
 type SuggestionPayload = NonNullable<PendingSuggestion["payload"]>;
 
-type Common = Pick<PendingSuggestion, "id" | "chatId" | "actorUserId" | "summary" | "expiresAt">;
+type Common = Pick<PendingSuggestion, "id" | "chatId" | "actorUserId" | "expiresAt">;
 type Rule = Extract<SuggestionSource, { kind: "rule" }>;
 type Plugin = Extract<SuggestionSource, { kind: "plugin" }>;
 type Arm = Extract<SuggestionPayload, { via: "arm" }>;
