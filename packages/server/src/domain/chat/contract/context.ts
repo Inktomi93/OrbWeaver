@@ -40,7 +40,7 @@ import type {
   UnregisterPromptTransformOp,
 } from "@orb/contracts/chat";
 import type { ResolveCharacterDistillatesOp } from "@orb/contracts/discovery";
-import type { MemoryEmbedSpace, PruneMemoryBlocksParams } from "@orb/contracts/embeddings";
+import type { EmbeddingsPruneBlocksOp, MemoryEmbedSpace, ResolveMemoryEmbedSpaceOp } from "@orb/contracts/embeddings";
 import type { Can, Principal, ResolveHandleOp, ResolveUserEnabled } from "@orb/contracts/identity";
 import type { GeneratePicturePrompt, SizePresetName } from "@orb/contracts/imagery";
 import type { SendAvailability } from "@orb/contracts/inference";
@@ -512,12 +512,9 @@ export type GeneratePictureOp = (
  *  only to a persona the acting user owns. */
 type VerifyPersonaOwnedOp = (params: { readonly ownerId: UserId; readonly personaId: PersonaId }) => Promise<boolean>;
 
-/** Resolve the host's current concrete embed space for memory planning. NOT exported: its one reader is
- *  `ChatContext.resolveMemoryEmbedSpace` below; callers take the whole bundle, never this member's type. */
-type ResolveMemoryEmbedSpaceOp = (ownerId: UserId) => Promise<MemoryEmbedSpace>;
-
-/** memory's digest vector write — the one write path. */
-export type EmbeddingsStoreOp = (params: StoreDigestParams) => Promise<MemoryEmbedSpace>;
+/** memory's digest vector write — the one write path. Cancellation belongs to the runtime operation, not the shared
+ *  memory payload, and `AbortSignal` is not declared in the contracts program. */
+export type EmbeddingsStoreOp = (params: MemoryDigestInput & { readonly signal?: AbortSignal | undefined }) => Promise<MemoryEmbedSpace>;
 
 /** memory's verbatim-segment write — a BATCH, and the one place the segment phase's embed flood lives (#172,
  * owner batching ruling: derived-data sweeps batch BY PHASE, never per-item interleaved). The corpus sweep
@@ -526,8 +523,6 @@ export type EmbeddingsStoreOp = (params: StoreDigestParams) => Promise<MemoryEmb
  * one chat's chunks. Nothing here decides concurrency — that is the provider surface's. The signature stays here
  * because `AbortSignal` is not declared in the contracts program. */
 export type EmbeddingsStoreSegmentsOp = (params: readonly StoreSegmentParams[], signal?: AbortSignal) => Promise<readonly MemoryEmbedSpace[]>;
-
-type EmbeddingsPruneBlocksOp = (params: PruneMemoryBlocksParams) => Promise<void>;
 
 /** memory's chat-scoped recall. Returns the ranked blocks WITH their retrieval numbers; memory resolves the
  *  identities back to digest text and reports the numbers in its recall trace (#250 — a bare key list left
@@ -800,9 +795,4 @@ export interface ChatServiceDeps {
   readonly lockTtlMs: number;
   /** D259 — the foreign halves of the signup-invite ops (sessions account statement, minter check, audit). */
   readonly signup: SignupInviteDeps;
-}
-
-/** Cancellation belongs to the runtime operation, not the shared memory payload. */
-export interface StoreDigestParams extends MemoryDigestInput {
-  readonly signal?: AbortSignal | undefined;
 }
