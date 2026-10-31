@@ -12,6 +12,7 @@ import {
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { PluginLogView } from "@orb/server/domain/plugin";
 import { PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES } from "@orb/server/infra/plugin-host";
+import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import { seedCorpusAccount } from "./corpus-auth.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import type { CapturedPluginOutputs } from "./factories/plugin.ts";
@@ -221,7 +222,7 @@ export function createCorpusPluginCallbackNetwork(): CorpusPluginCallbackNetwork
     return response.promise;
   };
   return {
-    networkExecution: { fetch: execute, resolver: (): Promise<readonly string[]> => Promise.resolve(["93.184.215.14"]) } satisfies NonNullable<
+    networkExecution: { fetch: execute, resolver: (): Promise<readonly string[]> => Promise.resolve([PUBLIC_PEER_ADDRESS]) } satisfies NonNullable<
       ServerHarnessOptions["networkExecution"]
     >,
     requested: requested.promise,

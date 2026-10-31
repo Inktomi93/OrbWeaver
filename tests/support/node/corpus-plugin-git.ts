@@ -1,9 +1,11 @@
 // A local Git process supplies smart-HTTP bytes only; production still clones, admits and parses the remote.
+
 import { execFile } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { MS_PER_SECOND } from "@orb/kit/time";
+import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import { CORPUS_PLUGIN_MANIFEST } from "./corpus-plugin.ts";
 import type { ServerHarnessOptions } from "./server.ts";
 
@@ -76,7 +78,7 @@ export async function createCorpusPluginGit(directory: string, at: number): Prom
     throw new Error("unscripted Git protocol request");
   };
   return {
-    networkExecution: { fetch: execute, resolver: (): Promise<readonly string[]> => Promise.resolve(["93.184.215.14"]) },
+    networkExecution: { fetch: execute, resolver: (): Promise<readonly string[]> => Promise.resolve([PUBLIC_PEER_ADDRESS]) },
     requests,
     advance: async (): Promise<string> => {
       await writeFile(join(directory, PLUGIN_MAIN_ENTRY), 'orb.host(1).log.info("Next native revision");');

@@ -43,7 +43,7 @@ export { createCorpusRecipe, prepareCorpusSnapFixture, runCorpusSnapConsumer } f
 export type { HeldDb, HeldStatement } from "./db.ts";
 export { freshCountedDb, freshDb, freshHeldDb, migrationsBefore, SHIPPED_MIGRATIONS } from "./db.ts";
 export type { DbFault } from "./db-faults.ts";
-export { refuseWrites, withheldTable } from "./db-faults.ts";
+export { plantTrigger, refuseWrites, withheldTable } from "./db-faults.ts";
 export { createTestEnv } from "./env.ts";
 export { makeAssetBytes, seedAsset } from "./factories/asset.ts";
 export { seedAutomationRule, seedAutomationTestFires } from "./factories/automation.ts";
