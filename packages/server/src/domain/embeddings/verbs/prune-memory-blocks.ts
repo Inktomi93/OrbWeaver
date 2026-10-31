@@ -15,7 +15,6 @@
 // economy is untouched — an ordinary pass deletes nothing and re-embeds nothing.
 
 import type { PruneMemoryBlocksParams } from "../contract/params.ts";
-import type { PruneMemoryBlocksResult } from "../contract/results.ts";
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
 import { dropChatDigestKeys, pruneChatDigests, pruneChatSegments } from "../persistence/clear.ts";
 import { resolveTargetGeneration } from "../substrate/generation.ts";
@@ -25,35 +24,35 @@ function assertNever(value: never): never {
 }
 
 export function createPruneMemoryBlocks(ctx: EmbeddingsContext): EmbeddingsService["pruneMemoryBlocks"] {
-  return async (params: PruneMemoryBlocksParams): Promise<PruneMemoryBlocksResult> => {
+  return async (params: PruneMemoryBlocksParams): Promise<void> => {
     const ownerId = await ctx.loadChatHostUserId(params.chatId);
     const generation = ownerId === null ? null : await resolveTargetGeneration(ctx, ownerId, "embed");
     if (generation === null) {
-      return { rowsDeleted: 0 };
+      return;
     }
     switch (params.lens) {
       case "digest": {
-        const rowsDeleted = await pruneChatDigests(ctx.db, params.chatId, params.scopedCharacterId, {
+        await pruneChatDigests(ctx.db, params.chatId, params.scopedCharacterId, {
           keepPerTier: params.keepPerTier,
           generationId: generation.id,
         });
-        return { rowsDeleted };
+        break;
       }
       // #1395 — the KNOWN-stale reclaim (hash mismatch proved it stale, the re-summarize came back empty).
       case "digest-stale": {
-        const rowsDeleted = await dropChatDigestKeys(ctx.db, params.chatId, params.scopedCharacterId, {
+        await dropChatDigestKeys(ctx.db, params.chatId, params.scopedCharacterId, {
           keys: params.keys,
           generationId: generation.id,
         });
-        return { rowsDeleted };
+        break;
       }
       case "segment": {
-        const rowsDeleted = await pruneChatSegments(ctx.db, params.chatId, {
+        await pruneChatSegments(ctx.db, params.chatId, {
           keepBlockCount: params.keepBlockCount,
           chunkCounts: params.chunkCounts,
           generationId: generation.id,
         });
-        return { rowsDeleted };
+        break;
       }
       default:
         return assertNever(params);

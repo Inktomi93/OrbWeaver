@@ -14,8 +14,7 @@
 //
 // HOST-ONLY: both reads are host/admin debug surfaces server-side (the full prompt reveals merged member
 // cards; the shape trace is `requireHost`-gated, matrix `getShapeTrace: "host"`). The CONTEXT panel only
-// mounts this tab for the host, so a member never reaches the queries (which would refuse). A member-scoped
-// `previewSection` affordance is deferred (task #28 flag).
+// mounts this tab for the host, so a member never reaches the queries (which would refuse).
 
 import type { AssemblyBudgetPart, AssemblyBudgetPreview, AssemblyBudgetSlice, AssemblySource } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";

@@ -37,4 +37,10 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Applied: `AnalysisStateMerge.twistsAdded`, `.twistsRetired`, `.droppedAdds` (the twist appliers no longer count), `RuleStateRead.guidance`, `AutomationImageResult.imageCount` and `AutomationTurnResult.messageCount` (both ops resolve void), `PendingSuggestionBase.summary` (the `suggestionRaised` events keep their own summary).
+
+Reclassed to keep:
+- `twistOpSchema.op`, `twistOpSchema.twist`, `analysisSuggestionsSchema.text`: keys of the model's structured-output schema, projected to the wire by `projectAnalysisWireSchema` (`packages/server/src/domain/automation/contract/analysis.ts:283`). Deleting one changes the inference request shape and breaks the payload type the appliers read (`op.op`, `op.twist`). Needs an owner decision, not a delete.
+- `AnalysisConfirmDeps.serialLanes`: `packages/server/src/domain/automation/substrate/analysis-confirm.ts:38` hands `deps` whole to `applyRuleLoreWrite`, which needs `serialLanes` (`engine/lore-write.ts:42`). Typecheck failed when it was removed. The scan misses the whole-object handoff.
+
+Ran `pnpm test tests/server/domain/automation` (exit 0, 8 files) and `pnpm typecheck packages/server/tsconfig.json` (exit 0). Full typecheck and the rescan run at the end of the lane.

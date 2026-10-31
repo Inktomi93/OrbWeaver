@@ -23,7 +23,6 @@ export interface CardTextStoreParams extends CardTextStoreInput, EmbedAbortParam
 
 /** Embed an avatar image's pure visual signal (no caption influence). Unique key: `(assetId, model, lens)`. */
 export interface ImageRawStoreParams extends EmbedAbortParams {
-  readonly kind: "avatar";
   readonly lens: "image-raw";
   readonly ownerId: UserId;
   readonly assetId: AssetId;
@@ -36,7 +35,6 @@ export interface ImageRawStoreParams extends EmbedAbortParams {
 /** Embed an avatar image jointly with its generated caption (image bytes + caption → one VL vector). The
  *  accepted Utility revision pins its input. Unique key: `(assetId, model, lens)`. */
 export interface ImageCaptionedStoreParams extends EmbedAbortParams {
-  readonly kind: "avatar";
   readonly lens: "image-captioned";
   readonly ownerId: UserId;
   readonly assetId: AssetId;
@@ -64,7 +62,6 @@ export interface ImageCaptionedStoreParams extends EmbedAbortParams {
  *  `store` — a block over the embed window becomes N chunks (#172), and the corpus sweep submits every chat's
  *  chunks as ONE embed flood (owner batching ruling: batch by phase, let vLLM's scheduler own concurrency). */
 export interface SegmentStoreParams {
-  readonly kind: "chat-block";
   readonly lens: "segment";
   readonly ownerId: UserId;
   readonly chatId: ChatId;
@@ -85,7 +82,6 @@ export interface SegmentStoreParams {
  *  stored `chat_digests.text`, and what fills `{{memory}}`. `scopedCharacterId` is always a real
  *  `CharacterId`, never a `''` sentinel. Unique key: `(chatId, scopedCharacterId, tier, blockIdx)`. */
 export interface DigestStoreParams extends EmbedAbortParams {
-  readonly kind: "chat-block";
   readonly lens: "digest";
   readonly ownerId: UserId;
   readonly chatId: ChatId;

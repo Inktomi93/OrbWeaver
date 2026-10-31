@@ -52,8 +52,6 @@ const READ_GATES = {
   getMemberCard: "room-read",
   previewAssembly: "inspector",
   previewActionTemplates: "inspector",
-  previewSection: "inspector",
-  peekPrompt: "inspector",
   getShapeTrace: "inspector",
   getVariantWire: "inspector",
   previewContextFit: "elsewhere",
@@ -157,9 +155,7 @@ test("the assembled-prompt inspectors are host-only, an outsider learns nothing,
   const preset = (await seedPreset(h.root, h.owner.userId, { name: "Inspector preset", kind: "custom" })).view;
   const scope = (principal: Principal): { principal: Principal; chatId: typeof h.chatId } => ({ principal, chatId: h.chatId });
   const inspectors: Record<VerbsGated<"inspector">, (principal: Principal) => Promise<unknown>> = {
-    peekPrompt: (principal: Principal): Promise<unknown> => h.root.services.chat.peekPrompt(scope(principal)),
     previewAssembly: (principal: Principal): Promise<unknown> => h.root.services.chat.previewAssembly(scope(principal)),
-    previewSection: (principal: Principal): Promise<unknown> => h.root.services.chat.previewSection({ ...scope(principal), sectionId: "main" }),
     previewActionTemplates: (principal: Principal): Promise<unknown> =>
       h.root.services.chat.previewActionTemplates({ ...scope(principal), presetId: preset.id }),
     getShapeTrace: (principal: Principal): Promise<unknown> => h.root.services.chat.getShapeTrace(scope(principal)),
@@ -173,9 +169,8 @@ test("the assembled-prompt inspectors are host-only, an outsider learns nothing,
     await expect(inspect(stranger), name).rejects.toThrow(DomainNotFoundError);
   }
 
-  // The section the member is refused really carries the full-only field; that is what the gate protects.
-  const hostSection = await h.root.services.chat.previewSection({ ...scope(h.owner), sectionId: "main" });
-  expect(hostSection.rendered).toContain(SECRET_PROMPT);
+  // The prompt the member is refused really carries the full-only field; that is what the gate protects.
+  expect(JSON.stringify(await h.root.services.chat.previewAssembly(scope(h.owner)))).toContain(SECRET_PROMPT);
 
   const fit = await h.root.services.chat.previewContextFit(scope(member));
   expect("unbound" in fit).toBe(false);

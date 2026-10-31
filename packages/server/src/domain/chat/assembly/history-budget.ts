@@ -26,7 +26,6 @@ interface HistoryTurn {
    *  here either way). Derived, never re-spelled. */
   readonly role: MessageRole;
   readonly content: string;
-  readonly extraTokens?: number;
   readonly name?: string;
   readonly messageId?: MessageId | undefined;
 }

@@ -25,15 +25,7 @@ import type {
   SetEnabledParams,
   SetRoleParams,
 } from "./params.ts";
-import type {
-  CreateUserResult,
-  LinkSsoIdentityResult,
-  ListSessionsResult,
-  ListUsersResult,
-  RevokeUserSessionsResult,
-  SetEnabledResult,
-  SetRoleResult,
-} from "./results.ts";
+import type { CreateUserResult, LinkSsoIdentityResult, ListSessionsResult, ListUsersResult, SetEnabledResult, SetRoleResult } from "./results.ts";
 import type { SessionStatementWiring } from "./session-statements.ts";
 
 /** The session-management slice admin needs — satisfied structurally by the real `SessionsService` at the
@@ -173,7 +165,7 @@ export interface AdminService {
   readonly linkSsoIdentity: (params: LinkSsoIdentityParams) => Promise<LinkSsoIdentityResult>;
   readonly listSessions: (params: ListSessionsParams) => Promise<ListSessionsResult>;
   readonly revokeSession: (params: RevokeSessionParams) => Promise<void>;
-  readonly revokeUserSessions: (params: RevokeUserSessionsParams) => Promise<RevokeUserSessionsResult>;
+  readonly revokeUserSessions: (params: RevokeUserSessionsParams) => Promise<void>;
   readonly embedCharacterCard: (params: EmbedCharacterCardParams) => Promise<void>;
   /** Owner-only: close the app and exit with the restart code. Refuses an unsupervised process and a second call. */
   readonly restart: (params: RestartParams) => Promise<void>;

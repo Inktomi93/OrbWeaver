@@ -1,5 +1,5 @@
 // The `agent-sdk` wire's sealed backend (§8.4): the subscription's bundled Claude runtime, per user, token
-// arm only. Serves chat / agent / summarize / structured + `verifyAuth` + the daemon catalog (`listModels`).
+// arm only. Serves chat / summarize / structured + `verifyAuth` + the daemon catalog (`listModels`).
 // The SDK is this backend's PRIVATE dep — it never leaks upward (D8). Registration of the wire is "the bundled
 // `claude` executable resolves" (`deps.env.claudeExecutable`), decided by the registry, not here.
 
@@ -8,7 +8,6 @@ import type { AgentSdkModel, ModelCatalogEntry, ModelListing } from "@orb/contra
 import type { VerifyAuthResult } from "@orb/contracts/providers";
 import type {
   AgentToolServer,
-  AgentTurnRequest,
   ChatRequest,
   ChatResult,
   DiagnosticRequestCommon,
@@ -26,7 +25,6 @@ import type { NormalizeImageBytes } from "../../contract/wire.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 import { createImageNormalizer, passthroughImageNormalizer } from "../wire/image-normalize.ts";
 import { bareCatalogEntry, failedListing, listingOf } from "../wire/model-listing.ts";
-import { runAgentTurn } from "./agent-runner.ts";
 import { fetchAgentSdkModels, verifyAuth } from "./catalog.ts";
 import { buildClaudeSdkEnv } from "./env.ts";
 import { createAgentSdkExecution } from "./execution.ts";
@@ -95,7 +93,6 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
   const backend: ProviderBackend = {
     wire: "agent-sdk",
     runChatTurn: chatTurn,
-    runAgentTurn: (req: AgentTurnRequest): Promise<ChatResult> => runAgentTurn(req, resolved, logFor(req.connection)),
     summarize: sideGen,
     structured: sideGen,
     verifyAuth: (req: DiagnosticRequestCommon): Promise<VerifyAuthResult> => verifyAuth(req, resolved, logFor(req.connection)),

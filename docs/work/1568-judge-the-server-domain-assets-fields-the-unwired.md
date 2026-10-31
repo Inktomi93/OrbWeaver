@@ -36,4 +36,8 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Applied: `BackfillResult.mismatched` and `.dryRun`, `GcResult.dryRun`, `AssetMetadata.size`. The workloads still take `dryRun` from their own params. `ReapResult` and `RebuildResult` had no field a caller reads, so `reapIfOrphan` and `rebuildFromTree` resolve void and their counters are gone.
+
+Reclassed to keep: `FsckResult.scannedRows` and `scannedBlobs`. `packages/server/src/foundation/observability/debug/routes.ts:545` serializes the whole `fsck()` result on `/api/_debug/db/assets`, so an operator reads them.
+
+Ran `pnpm test tests/server/domain/assets/gc-import-overlap.int.test.ts tests/server/domain/assets/verbs/collect-garbage.int.test.ts` (exit 0) and `pnpm typecheck packages/server/tsconfig.json` (exit 0). The full typecheck and the rescan run once at the end of the lane.

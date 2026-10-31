@@ -30,7 +30,6 @@ interface StoreBlobInput {
 
 interface AssetMetadataRow {
   readonly mime: string;
-  readonly size: number;
 }
 
 type AssetCasRef = Pick<typeof assets.$inferSelect, "kind" | "ownerId" | "hash" | "mime">;
@@ -103,21 +102,21 @@ export async function assetIdForHash(db: Db, ownerId: UserId, hash: string): Pro
   return rows[0]?.id;
 }
 
-/** The `{mime,size}` of the caller's asset with this hash, or undefined (404) when not found / not theirs. */
+/** The `{mime}` of the caller's asset with this hash, or undefined (404) when not found / not theirs. */
 export async function metadataForOwnedHash(db: Db, ownerId: UserId, hash: string): Promise<AssetMetadataRow | undefined> {
   const rows = await db
-    .select({ mime: assets.mime, size: assets.size })
+    .select({ mime: assets.mime })
     .from(assets)
     .where(and(eq(assets.ownerId, ownerId), eq(assets.hash, hash)))
     .limit(LIMIT_ONE);
   return rows[0];
 }
 
-/** The `{mime,size}` of a specific owner's asset with this hash — the roster-avatar path; the verb
+/** The `{mime}` of a specific owner's asset with this hash — the roster-avatar path; the verb
  *  resolves the avatar owner via `loadCoParticipantOwner` before calling this. */
 export async function metadataForOwnerAndHash(db: Db, ownerId: UserId, hash: string): Promise<AssetMetadataRow | undefined> {
   const rows = await db
-    .select({ mime: assets.mime, size: assets.size })
+    .select({ mime: assets.mime })
     .from(assets)
     .where(and(eq(assets.ownerId, ownerId), eq(assets.hash, hash)))
     .limit(LIMIT_ONE);

@@ -32,14 +32,13 @@ export function createLocalLightBackend(deps: LocalLightBackendDeps): LocalLight
       ...config,
       scheduleTimeout: deps.scheduleTimeout,
       log: deps.log,
-      onProgress: (progress) => prefetch.onProgress(progress),
     });
     cache = workerCache;
     close = workerCache.close;
     settle = workerCache.settle;
   }
   cache = createScheduledCache(cache);
-  const prefetch = createLocalLightPrefetch({ cache: () => cache, now: deps.now, log: deps.log, detach });
+  const prefetch = createLocalLightPrefetch({ cache: () => cache, log: deps.log, detach });
   const embedSpace = (modelId: ModelId): string => localLightEmbedSpaceTag(modelId, resolveEmbedDtype(config.embedDtype));
   return {
     backend: {

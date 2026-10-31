@@ -37,4 +37,18 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Applied: `ImageGenerateRequest.model`, `.owner`, `.systemPrompt`, `.capability` and `AvatarReference.references`. The edit belt reads the capability off `connection` (`packages/inference/src/backends/openai-compat/images.ts` `editSources`, `packages/inference/src/backends/google/images.ts` `imageSources`); nothing reads the other three.
+
+Kept, reclassified to a named reader (the whole request is handed to `executor.generateImage`, typed on the wider inference request):
+
+| Row | Reader |
+| - | - |
+| `ImageGenerateRequest.prompt` | `packages/inference/src/backends/openai-compat/images.ts:184`, `packages/inference/src/backends/google/images.ts:46` |
+| `ImageGenerateRequest.n` | `packages/inference/src/backends/openai-compat/images.ts:185`, `packages/inference/src/backends/google/images.ts:39` |
+| `ImageGenerateRequest.negativePrompt` | `packages/inference/src/backends/openai-compat/images.ts:184` |
+| `ImageGenerateRequest.size` | `packages/inference/src/backends/openai-compat/images.ts:186`, `packages/inference/src/backends/google/images.ts:58` |
+| `ImageGenerateRequest.edit` | `packages/inference/src/backends/openai-compat/images.ts:135`, `packages/inference/src/backends/google/images.ts:79` |
+| `GenerateImageResolveParams.task` | `packages/inference/src/resolve/resolve-task.ts:226` through `connection.resolve(params)` |
+
+- Survey: `codegraph_explore` on the imagery request, resolve params and verbs; `ast-grep` over `packages` and `tests` in `ts` and `tsx`.
+- Ran: `pnpm typecheck tsconfig.node.json`; `pnpm test` on both suites under `tests/server/domain/imagery/verbs`.

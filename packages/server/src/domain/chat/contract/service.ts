@@ -13,7 +13,6 @@
 import type {
   ActionTemplatesPreview,
   AddCharacterToChatOp,
-  AssembledPrompt,
   AssemblyPreview,
   ChatInjectionView,
   ChatReactionsView,
@@ -30,7 +29,6 @@ import type {
   NextTurnConnectionView,
   ParticipantData,
   RoomOverrides,
-  SectionPreview,
   SetGroupConfigOp,
   SetSeatKnobsOp,
   ShapeTrace,
@@ -89,12 +87,10 @@ import type {
   ListReactionsParams,
   MoveMessageParams,
   NominateHostHandoffParams,
-  PeekPromptParams,
   PreviewActionTemplatesParams,
   PreviewAssemblyParams,
   PreviewContextFitParams,
   PreviewInviteParams,
-  PreviewSectionParams,
   ReapHuskParams,
   ReapTemporaryChatsParams,
   ReattributeMessagesParams,
@@ -193,16 +189,12 @@ export interface ChatService {
   /** Every ACTION template of ONE preset, resolved against THIS chat (D8 / §7.1 — the preset editor's bound
    *  readout). `presetId` is an OVERRIDE resolved owned-or-system under the host; host-gated, nothing persists. */
   readonly previewActionTemplates: (params: PreviewActionTemplatesParams) => Promise<ActionTemplatesPreview>;
-  /** One section's render preview (the COMPOSER/editor surface). */
-  readonly previewSection: (params: PreviewSectionParams) => Promise<SectionPreview>;
-  /** The assembled prompt for the NEXT real turn (no generation). */
-  readonly peekPrompt: (params: PeekPromptParams) => Promise<AssembledPrompt>;
   /** The content-free SHAPE trace for the next-turn shaping of the current canon (host/admin inspector).
    *  Re-runs SHAPE on demand — no content, nothing persists. */
   readonly getShapeTrace: (params: GetShapeTraceParams) => Promise<ShapeTrace>;
-  /** The per-variant WIRE RECORD — what ONE PAST generation actually sent (`peekPrompt`'s retrospective
+  /** The per-variant WIRE RECORD — what ONE PAST generation actually sent (`previewAssembly`'s retrospective
    *  twin): the persisted `promptSnapshot` + `params` + `macroDraws`. HOST-gated for exactly the reason
-   *  `peekPrompt` is (a stored prompt carries hidden spans, FULL-fidelity roster cards, and the whole
+   *  `previewAssembly` is (a stored prompt carries hidden spans, FULL-fidelity roster cards, and the whole
    *  assembled history). Pure read — nothing re-renders, nothing persists. */
   readonly getVariantWire: (params: GetVariantWireParams) => Promise<VariantWireView>;
   /** The present-tense context-fit budget for the current canon against the host's effective preset +

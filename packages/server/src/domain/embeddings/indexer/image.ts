@@ -86,7 +86,6 @@ async function indexAsset(
     space.via === "embed"
       ? imageNoOp(generation, hash)
       : await deps.store({
-          kind: "avatar",
           lens: "image-raw",
           ownerId,
           assetId,
@@ -106,7 +105,6 @@ async function indexAsset(
     return null;
   }
   const captionedWrite = await deps.store({
-    kind: "avatar",
     lens: "image-captioned",
     ownerId,
     assetId,

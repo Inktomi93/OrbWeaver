@@ -88,10 +88,6 @@ Run new cases red before implementation. Apply each named source intervention on
 
 The standing funding rule lives in [Tier-3b section 7](../../law/Tier-3b-Providers.md#7-the-composition-seam). Keep the caller and proof maps in this plan.
 
-### Left alone
-
-- The executor's `runAgentTurn` has no server caller; by owner ruling it stays as it is.
-
 ## Rejected
 
 Leave the settings table as a shared table any tenant writes directly: it gives up the one-writer rule every other table keeps, and nothing could check a tenant stays inside its prefix.

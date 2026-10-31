@@ -170,7 +170,7 @@ export async function storeSegments(ctx: ChatContext, collected: CollectedSegmen
       }
     }
   }
-  return { written: collected.pending.length, skipped: collected.skipped, skippedOverWindow: collected.skippedOverWindow };
+  return { written: collected.pending.length, skippedOverWindow: collected.skippedOverWindow };
 }
 
 /**

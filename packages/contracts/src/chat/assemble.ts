@@ -551,8 +551,8 @@ type SentPrompt = z.infer<typeof sentPromptSchema>;
 
 /**
  * The per-variant WIRE RECORD — what one generation ACTUALLY sent, read back off
- * `message_variants.promptSnapshot`/`params`/`macroDraws` (D26). The retrospective twin of the `peekPrompt`
- * family: `peekPrompt` renders the NEXT turn, this returns the bytes a PAST turn already sent.
+ * `message_variants.promptSnapshot`/`params`/`macroDraws` (D26). The retrospective twin of
+ * `previewAssembly`: that renders the NEXT turn, this returns the bytes a PAST turn already sent.
  *
  * HOST-ONLY MATERIAL — the payload is deliberately DISJOINT from the member-visible `MessageView` (no
  * content/model/tokens/toolCalls re-served here; a member already has those). Every field below is
@@ -560,8 +560,8 @@ type SentPrompt = z.infer<typeof sentPromptSchema>;
  *  • `prompt` is the assembled prompt, and the wire projection rides hidden spans VERBATIM (the model always
  *    reads them, `domain/chat/substrate/member-visibility` "WHO SEES WHAT"), plus every roster card at FULL
  *    fidelity (bypassing the D22 `memberCardVisibility` clamp), plus the whole assembled history — including
- *    slots below a clamped member's D16 floor. Same rationale that makes `previewAssembly`/`peekPrompt`/
- *    `previewSection` host-gated; the producing verb gates identically (`requireHost`, matrix `host`).
+ *    slots below a clamped member's D16 floor. Same rationale that makes `previewAssembly`
+ *    host-gated; the producing verb gates identically (`requireHost`, matrix `host`).
  *  • `params`/`macroDraws` are the host's own generation knobs + the frozen per-turn random draws.
  *  • `rawContent`/`macroFreezes` are the D129-F freeze provenance — the pre-transform authored text and the
  *    volatile occurrences the commit baked. HOST-PLANE, and THIS view is the only surface that serves them
@@ -743,13 +743,6 @@ export interface AssembleContext {
     activated: { id: WorldEntryId; title: string; keys: string[] }[];
     worldInfoDynamicEntries?: NonNullable<AssembleTrace["worldInfoDynamicEntries"]>;
   };
-}
-
-/** One section's render preview (the COMPOSER/editor surface) — scoped to a single section. */
-export interface SectionPreview {
-  rendered: string;
-  half: "static" | "dynamic";
-  trace: AssembleTrace;
 }
 
 const sentPromptViewSchema = sentPromptSchema.strict().extend({ afterHistory: z.array(sentPromptSchema.shape.afterHistory.element.strict()) });

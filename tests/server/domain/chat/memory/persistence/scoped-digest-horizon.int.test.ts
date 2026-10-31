@@ -5,6 +5,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { chatDigests, chatParticipants, chatSegments, messages } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
+import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -17,7 +18,14 @@ import {
 } from "@orb/testkit/node/composed";
 import { and, eq, max } from "drizzle-orm";
 
-test("the actual scoped digest build excludes complete blocks from before a character joined", async () => {
+/** A scoped room whose second character joined after the opening: the late witness has spoken three settled lines. */
+async function lateJoinerRoom(): Promise<{
+  readonly h: ChatRoot;
+  readonly first: ChatRoot["characters"][number];
+  readonly late: ChatRoot["characters"][number];
+  readonly summaries: string[];
+  readonly [Symbol.asyncDispose]: () => Promise<void>;
+}> {
   const summaries: string[] = [];
   // Replies the late witness speaks after joining; the turn under test takes the keeper's line once they run out.
   const lateReplies = [6, 7, 8].map((seq) => `Joined bridge ${seq}.`);
@@ -36,16 +44,19 @@ test("the actual scoped digest build excludes complete blocks from before a char
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
   });
-  await using h = await createChatRoot({
-    providerFetch: physical.execute,
-    memoryEnabled: true,
-    memoryDefaults: { mode: "mixA", blockSize: 2, verbatimWindow: 0, maxTier: 0 },
-    group: { output: "per-speaker", cardScope: "scoped", policy: "list" },
-    transcript: [
-      ...[1, 2, 3, 4].map((seq) => ({ role: "assistant" as const, content: `Unwitnessed opening ${seq}.` })),
-      { role: "assistant", content: "Joined bridge 5." },
-    ],
-  });
+  await using construction = new AsyncDisposableStack();
+  const h = construction.use(
+    await createChatRoot({
+      providerFetch: physical.execute,
+      memoryEnabled: true,
+      memoryDefaults: { mode: "mixA", blockSize: 2, verbatimWindow: 0, maxTier: 0 },
+      group: { output: "per-speaker", cardScope: "scoped", policy: "list" },
+      transcript: [
+        ...[1, 2, 3, 4].map((seq) => ({ role: "assistant" as const, content: `Unwitnessed opening ${seq}.` })),
+        { role: "assistant", content: "Joined bridge 5." },
+      ],
+    }),
+  );
   const first = h.characters[0];
   if (first === undefined) {
     throw new Error("the actual memory room has no founding character");
@@ -71,6 +82,13 @@ test("the actual scoped digest build excludes complete blocks from before a char
     await h.root.settleBackground();
   }
   expect(lateReplies).toEqual([]);
+  const lifetime = construction.move();
+  return { h, first, late, summaries, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
+}
+
+test("the actual scoped digest build excludes complete blocks from before a character joined", async () => {
+  await using room = await lateJoinerRoom();
+  const { h, first, late, summaries } = room;
   const outer = `controlled-core-memory:${h.chatId}`;
   const beforeTraces = new Set(h.root.observability.traces(100).map((trace) => trace.requestId));
   const outcome = await h.root.observability.inRequestSpan(outer, "controlled public memory turn", () =>
@@ -107,4 +125,34 @@ test("the actual scoped digest build excludes complete blocks from before a char
   expect(traces[0]).toMatchObject({ status: "ok", requestId: expect.stringMatching(/^memory-turn:/u) });
   expect(traces[0]?.requestId).not.toBe(outer);
   expect(traces[0]?.spans.find((span) => span.name === "memory.turnCompleted")?.parentSpanId).toBeUndefined();
+});
+
+test("a digest whose segment span is gone fails closed for a speaker bound by a join horizon", async () => {
+  await using room = await lateJoinerRoom();
+  const { h, late } = room;
+  const verdictsOf = async (): Promise<ReadonlyMap<number, string>> => {
+    const before = h.root.app.recallRecorder.recent({ chatId: h.chatId }).at(-1)?.seq ?? 0;
+    const turn = await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: late.id });
+    expect(turn.aborted).toBe(false);
+    await h.root.settleBackground();
+    const record = h.root.app.recallRecorder
+      .recent({ chatId: h.chatId })
+      .filter((candidate) => candidate.seq > before && candidate.scopedCharacterId === late.id)
+      .at(-1);
+    return new Map(record?.trace.candidates.map((candidate) => [candidate.blockIdx, candidate.verdict]));
+  };
+  const own = (await h.root.db.select().from(chatDigests).where(eq(chatDigests.chatId, h.chatId))).filter((row) => row.scopedCharacterId === late.id);
+  const [lost, kept] = own.map((row) => row.blockIdx).toSorted((a, b) => a - b);
+  if (lost === undefined || kept === undefined) {
+    throw new Error("the late witness holds fewer than two digests");
+  }
+  // The whole history is in the prompt, so a digest with its span clears witnessing and stops at the live window.
+  const whole = await verdictsOf();
+  expect(whole.get(lost)).toBe("live-window");
+  expect(whole.get(kept)).toBe("live-window");
+
+  await h.root.db.delete(chatSegments).where(and(eq(chatSegments.chatId, h.chatId), eq(chatSegments.blockIdx, lost)));
+  const cut = await verdictsOf();
+  expect(cut.get(lost)).toBe("unwitnessed");
+  expect(cut.get(kept)).toBe("live-window");
 });

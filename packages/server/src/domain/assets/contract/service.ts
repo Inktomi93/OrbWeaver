@@ -22,7 +22,7 @@ import type { AssetId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { ImageAdapter } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
-import type { BackfillParams, BackfillResult, FsckOptions, FsckResult, GcOptions, GcResult, ReapResult, RebuildOptions, RebuildResult } from "./maintenance.ts";
+import type { BackfillParams, BackfillResult, FsckOptions, FsckResult, GcOptions, GcResult, RebuildOptions } from "./maintenance.ts";
 import type { GalleryAddParams, GalleryListParams, GetMetadataParams, ListOwnedParams, RemoveFromGalleryParams, ResolveVariantParams } from "./params.ts";
 import type { AssetMetadata } from "./results.ts";
 
@@ -102,11 +102,11 @@ export interface AssetsService {
   /** Mark-sweep GC over the whole per-user CAS against the live reference set, with a grace window on mtime. */
   readonly collectGarbage: (options: GcOptions) => Promise<GcResult>;
   /** Targeted reap of a known id set with no grace — caller must have already deleted these assets' references. */
-  readonly reapIfOrphan: (assetIds: readonly AssetId[]) => Promise<ReapResult>;
+  readonly reapIfOrphan: (assetIds: readonly AssetId[]) => Promise<void>;
   /** Read-only integrity report: dangling rows, corrupt blobs, orphan blobs. Mutates nothing. */
   readonly fsck: (options?: FsckOptions) => Promise<FsckResult>;
   /** Disaster recovery: re-derive index rows for orphan blobs by walking + hashing the per-user tree. */
-  readonly rebuildFromTree: (options: RebuildOptions) => Promise<RebuildResult>;
+  readonly rebuildFromTree: (options: RebuildOptions) => Promise<void>;
 }
 
 /** What the domain's `WorkloadContribution` factory needs from the composition root (the three CAS

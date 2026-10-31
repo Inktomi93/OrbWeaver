@@ -3,7 +3,7 @@
 // them. Each pair is recorded once, from either side; a copy not listed beside its shape stays a `review` target.
 
 /** A shape as the census names it: the file that declares it and its declared or member name. */
-export type ShapeRef = `packages/${string}#${string}`;
+type ShapeRef = `packages/${string}#${string}`;
 
 interface DistinctLookalike {
   readonly shape: ShapeRef;

@@ -30,4 +30,15 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+No row is dead. All four are kept. The write verbs spread each whole value into a table insert, so the scan, which reads by field name, misses the read.
+
+| Row | Reader |
+| - | - |
+| `MemberWrite.position` | `packages/server/src/domain/roster-preset/persistence/queries.ts:140` and `:178` spread `{ ...m, presetId }` into `rosterPresetMembers`, whose `position` column is `notNull` |
+| `MemberWrite.talkativeness` | same spreads, `talkativeness` column in `packages/db/src/schema/roster-preset.ts` |
+| `MemberWrite.disabled` | same spreads, `disabled` column |
+| `CastRuleWrite.position` | `packages/server/src/domain/roster-preset/persistence/queries.ts:143` and `:184` spread `{ ...r, presetId }` into `rosterPresetRules`, whose `position` column is `notNull` |
+
+- Survey: `codegraph_explore` on `MemberWrite` and `CastRuleWrite`; `ast-grep` for `({ ...$M, presetId: $P })` over the domain in `ts` and `tsx`.
+- Reclass: all four rows move from delete to kept. Deleting any field fails the insert type or the column default.
+- Ran: no code change, so no typecheck or suite.

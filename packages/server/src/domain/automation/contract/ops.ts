@@ -151,13 +151,6 @@ interface AutomationImageFields {
 
 export type AutomationImageRequest = AutomationImageFields & GeneratePicturePrompt;
 
-/** The NARROW generation result automation reads — the image count. Never imagery's blocks/provenance:
- *  automation dispatches the generation, it does not post it. (Cost VISIBILITY rides the stats domain off the
- *  imagery write itself; automation no longer accumulates spend — the $/day ceiling was stripped.) */
-export interface AutomationImageResult {
-  readonly imageCount: number;
-}
-
 /** The `trigger_turn` arm's request onto chat's non-human turn seam. `authorUserId` = the rule
  *  author (→ chat's `triggeredBy` for initiation/attribution/abort; the room host is `funderUserId`);
  *  `automationDepth` = the cascade depth (parentDepth + 1), stamped on the reply slot so the guard bounds the
@@ -217,14 +210,6 @@ export type AutomationToolOutcome =
   | { readonly ok: false; readonly reason: "unavailable" }
   | { readonly ok: false; readonly reason: "failed"; readonly error: string };
 
-/** The NARROW turn result automation reads — how many replies committed. Never chat's message views:
- *  automation triggers the turn, it does not render it. (Cost VISIBILITY rides the stats domain off the
- *  turn's own metering; automation no longer accumulates spend — the $/day ceiling was stripped.) */
-export interface AutomationTurnResult {
-  /** How many reply slots committed (0 = the turn produced nothing — e.g. a stale forced speaker / lock yield). */
-  readonly messageCount: number;
-}
-
 /** BG-F — one candidate the `set_chat_background` arm's LLM QUIET-pick chooses among: a human-facing NAME
  *  and the `ThemeBackground` SOURCE it resolves to (an owned-library asset in v1). The arm sends the names
  *  to the model, matches the returned name back to a choice, and writes its `background`. */
@@ -275,7 +260,7 @@ export interface AutomationOps {
      *  Loop-safety belts: the cascade-depth guard inside `requestTurn` + the per-chat turn lock + the dispatch
      *  rate gate above. Any refusal surfaces as an
      *  `arm_error`. */
-    readonly requestTurn: (req: AutomationTurnRequest) => Promise<AutomationTurnResult>;
+    readonly requestTurn: (req: AutomationTurnRequest) => Promise<void>;
   };
   /** The SHARED, hand-edit-safe world-info writer (CC-D; the ONE write path — consumed, never forked).
    *  `authorUserId` resolves to the book owner's Principal at compose. */
@@ -289,7 +274,7 @@ export interface AutomationOps {
   };
   /** The `/imagine` engine for a `generate_image` arm; wired to `imagery.generatePicture`. */
   readonly imagery: {
-    readonly generatePicture: (req: AutomationImageRequest) => Promise<AutomationImageResult>;
+    readonly generatePicture: (req: AutomationImageRequest) => Promise<void>;
   };
   /** D146 — the ONE tool registry, reached by the `run_tool` arm. Wired at compose to `domain/tool-use`. */
   readonly tools: {
@@ -582,7 +567,6 @@ interface PendingSuggestionBase {
    *  whole of the ruled host-handoff wall: an actor who lost host cannot have their pending ask executed by
    *  the new host. Fail-closed, no re-mint, no transfer (owner ruling 2026-08-24). */
   readonly actorUserId: UserId;
-  readonly summary: string;
   readonly expiresAt: number;
 }
 

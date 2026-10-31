@@ -27,12 +27,12 @@ import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
 import { typeMembers } from "./type-members.ts";
 import { isProduction } from "./worlds.ts";
 
-export const PARAM_KINDS = ["unsupplied", "same-literal", "unsupplied-prop"] as const;
+const PARAM_KINDS = ["unsupplied", "same-literal", "unsupplied-prop"] as const;
 /** `unsupplied`: an optional parameter no production call passes. `same-literal`: every production call passes the
  *  same literal. `unsupplied-prop`: an optional property of a parameter's type no production call or JSX element sets. */
-export type ParamKind = (typeof PARAM_KINDS)[number];
+type ParamKind = (typeof PARAM_KINDS)[number];
 
-export interface UnwiredParam {
+interface UnwiredParam {
   readonly key: string;
   readonly file: string;
   readonly line: number;

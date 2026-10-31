@@ -38,7 +38,6 @@ async function resolveGenerateImageOrThrow(ctx: ImageryContext, p: GeneratePictu
 
 /** The B3 gate's resolved reference: the avatar bytes routed onto the plain img2img INIT channel (`image`). */
 interface AvatarReference {
-  readonly references?: readonly Uint8Array[];
   readonly image?: Uint8Array;
 }
 
@@ -79,7 +78,6 @@ function composeEdit(reference: AvatarReference | undefined): ImageGenerateReque
   }
   return {
     ...(reference.image !== undefined ? { image: reference.image } : {}),
-    ...(reference.references !== undefined ? { references: reference.references } : {}),
   };
 }
 
@@ -231,16 +229,11 @@ export function createGeneratePicture(ctx: ImageryContext, deps: { readonly reso
       ctx,
       {
         connection: resolution.connection,
-        model: resolution.connection.model,
-        owner: runAs.userId,
         prompt,
         n: p.n ?? DEFAULT_IMAGE_COUNT,
         negativePrompt,
         size,
         ...(edit !== undefined ? { edit } : {}),
-        // Forward the resolved capability the B3 gate read so the runner's belt sees the SAME model and conditions
-        // on the avatar reference (rather than stripping it + falsely warning on an edit-capable model).
-        capability: resolution.capability,
       },
       {
         owner: runAs,

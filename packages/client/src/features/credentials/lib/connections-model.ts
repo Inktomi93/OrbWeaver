@@ -11,7 +11,7 @@ import { ROLE_ROWS_ORDERED } from "#src/lib/connection-roles.ts";
 import { VECTOR_ROLES } from "#src/lib/embedder-rebuild.ts";
 
 /** The user-facing Model-role labels a connection may serve. Non-routable tasks fold through their
- *  binding (`agent` → Chat, `structured` → Utility model), so schema task names never leak into copy. */
+ *  binding (`structured` → Utility model), so schema task names never leak into copy. */
 export function connectionRoleLabels(tasks: readonly Task[]): readonly string[] {
   const roles = new Set(tasks.map(bindingTaskOf));
   return ROLE_ROWS_ORDERED.filter((row) => roles.has(row.task)).map((row) => row.label);

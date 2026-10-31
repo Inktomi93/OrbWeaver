@@ -27,7 +27,7 @@ import { PluginNotFoundError } from "../contract/errors.ts";
 import type { GetUiBundleParams } from "../contract/params.ts";
 import type { PluginContext, PluginService } from "../contract/service.ts";
 import { getById } from "../persistence/plugins.ts";
-import { parseBundle } from "../substrate/manifest.ts";
+import { parseInstalledBundle } from "../substrate/manifest.ts";
 
 export function createGetUiBundle(ctx: PluginContext): PluginService["getUiBundle"] {
   return async ({ caller, pluginId }: GetUiBundleParams) => {
@@ -37,11 +37,11 @@ export function createGetUiBundle(ctx: PluginContext): PluginService["getUiBundl
     }
     // Cheap pre-check off the PERSISTED manifest: a plugin that declares no `uiEntry` cannot have `ui.js` in its
     // zip (the funnel's biconditional refuses that bundle at install), so there is nothing to unzip. This is an
-    // optimisation, not the gate — `parseBundle` below is still the authority, and it would answer the same.
+    // optimisation, not the gate — `parseInstalledBundle` below is still the authority, and it would answer the same.
     if (existing.manifest.uiEntry === undefined) {
       return null;
     }
     const { bytes } = await ctx.assets.readBytes(caller, existing.bundleAssetId);
-    return parseBundle(bytes).uiJs ?? null;
+    return parseInstalledBundle(bytes).uiJs ?? null;
   };
 }

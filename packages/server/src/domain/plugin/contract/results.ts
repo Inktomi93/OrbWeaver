@@ -34,11 +34,10 @@ export interface PluginFrameAsset {
 
 /** What ONE user's application of the published set did (`applyDistributedPlugins`). Slugs, not views: the
  *  caller is the entry hook, whose only interest is the log line and whether anything happened — the rows
- *  themselves arrive through the ordinary `list`. `skippedSlugs` is the "already held at any version" arm,
+ *  themselves arrive through the ordinary `list`. A slug the caller already holds at any version is skipped,
  *  which is also the whole idempotency story (the latch is belt, this is braces). */
 export interface DistributedPluginApplication {
   readonly installedSlugs: readonly string[];
-  readonly skippedSlugs: readonly string[];
 }
 
 /** `uiHostCall`'s reply: the host function's result as an inert JSON string, never a materialized object. */

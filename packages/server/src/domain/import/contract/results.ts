@@ -1,7 +1,7 @@
 // domain/import/contract/results — the verb result shapes.
 
 import type { CardLorebookRestoreResult } from "@orb/contracts/import";
-import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 
 export interface ImportedCharacterRef {
   readonly characterId: CharacterId;
@@ -21,17 +21,12 @@ export interface ImportOrphanCharacterResult {
  *  written — NOT that nothing was (#1470). That re-import RECONCILES the card's overlay planes against the
  *  existing character (a run that threw after the create leaves them missing, and the dedup key is that same
  *  row), so the counts below report what the reconcile actually landed and are NOT zero by definition on the
- *  dedup arm.
- *  `attachedBooksLinked`/`attachedBooksSkipped` report the carried book-reference re-link — skipped
- *  counts references whose id had no book the importer owns on this install (absent/foreign), reported so a
- *  cross-install import surfaces the books that didn't travel. Both 0 for a card carrying no references. */
+ *  dedup arm. */
 export interface ImportCharacterResult {
   readonly characterId: CharacterId;
   readonly created: boolean;
   readonly importHash: string;
-  readonly attachedBooksLinked: number;
-  readonly attachedBooksSkipped: number;
-  /** The card's regex-script lift (D121-E), the `attachedBooks*` precedent: fresh library rows minted from
+  /** The card's regex-script lift (D121-E): fresh library rows minted from
    *  the by-value payload / candidates attached to existing rows instead of cloned. Both 0 for a script-less
    *  card and for an unwired lift op; on a dedup match they report the reconcile's lift, which content-dedups
    *  against the library and so reads as `reused` once the scripts have landed. */
@@ -55,12 +50,7 @@ export type RestoreCharacterBookResult = CardLorebookRestoreResult;
  *  `unresolvedPinnedPersonas` is the honest half of §5.7: the chats whose ST chat-bound persona pick named
  *  nothing here. Always present (empty ⇒ every pick travelled), never a silent drop. */
 export interface ImportChatsResult {
-  readonly characterId: CharacterId;
   readonly chatsImported: number;
-  readonly chatsSkipped: number;
-  readonly messagesImported: number;
-  readonly variantsImported: number;
-  readonly branchesLinked: number;
   readonly memoryChatIds: readonly ChatId[];
   readonly unresolvedPinnedPersonas: readonly ImportUnresolvedPinnedPersona[];
   /** Already-imported rooms this run back-filled persona attribution onto (the dedup-skip arm's HEAL — the
@@ -119,10 +109,7 @@ export interface ImportGroupsResult {
 
 export interface ImportPersonasResult {
   readonly personasCreated: number;
-  readonly personasSkipped: number;
-  readonly personasMerged: number;
   readonly mergedKeys: readonly string[];
-  readonly defaultPersonaId: PersonaId | null;
 }
 
 /** `importChatFile` — never throws for a malformed/unmatched file; the refusal carries the operator-facing

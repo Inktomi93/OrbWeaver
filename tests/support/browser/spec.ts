@@ -10,7 +10,7 @@ export { boxOf } from "./box-of.ts";
 export { expectCacheProse } from "./cache-prose.ts";
 export { formatDensityFindings } from "./density-census.ts";
 export type { DisclosureWalkHooks } from "./disclosure-walk.ts";
-export { usesProgrammaticScroll, walkDisclosures, walkNativeDetails } from "./disclosure-walk.ts";
+export { usesProgrammaticScroll, walkDisclosures } from "./disclosure-walk.ts";
 export { formatFormIdentityFindings } from "./form-identity.ts";
 export { emulateMedia, releaseEmulatedMedia } from "./media-emulation.ts";
 export { diagnosticTarget } from "./performance-entry.ts";
