@@ -18,26 +18,18 @@
 // go unnoticed, and a third door on this verb IS the drift this pair should red on.
 
 import type { ChatId, MessageId } from "@orb/kit/ids";
+import type { inferInput } from "@trpc/tanstack-react-query";
+import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { turnMutationToast, viewerTimeZone } from "#lib";
 
-interface ContinueTurnVars {
-  readonly chatId: ChatId;
-  readonly messageId: MessageId;
-  readonly timeZone: string;
-}
-interface GenerateVars {
-  readonly chatId: ChatId;
-  readonly timeZone: string;
-}
-
-const useContinueTurnMutation = createEntityMutation<ContinueTurnVars, unknown>({
+const useContinueTurnMutation = createEntityMutation<inferInput<Trpc["chat"]["continueTurn"]>, unknown>({
   options: (trpc) => trpc.chat.continueTurn.mutationOptions(),
   busDriven: true,
   errorToast: (error) => turnMutationToast(error, "Couldn't continue the reply."),
 });
 
-const useGenerateMutation = createEntityMutation<GenerateVars, unknown>({
+const useGenerateMutation = createEntityMutation<inferInput<Trpc["chat"]["generate"]>, unknown>({
   options: (trpc) => trpc.chat.generate.mutationOptions(),
   busDriven: true,
   errorToast: (error) => turnMutationToast(error, "Couldn't generate a reply."),

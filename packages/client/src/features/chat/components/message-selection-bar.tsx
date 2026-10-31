@@ -16,24 +16,21 @@
 // single-message door available at rest with no mode to enter. Collapsing either into the other would make
 // deleting one message require entering a mode, or deleting twenty require twenty confirms.
 
-import type { ChatId, MessageId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { SelectionBar } from "@orb/ui/selection-bar";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog } from "#components";
+import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { exitSelectionMode, readSelectedMessageIds, useSelectedCount, useSelectionActive } from "#state";
-
-interface DeleteVars {
-  readonly chatId: ChatId;
-  readonly messageIds: MessageId[];
-}
 
 // Module-scope factory (§13.1) — BUS-DRIVEN: `deleteMessages` emits messagesDeleted (→ chatReads) on the
 // OPEN chat, delivered by the active subscription → the seam refetches. `busDriven`; the removed
 // keys were a redundant backstop (the mutation-vs-bus rule, invalidation.ts).
-const useDeleteMessages = createEntityMutation<DeleteVars, unknown>({
+const useDeleteMessages = createEntityMutation<inferInput<Trpc["chat"]["deleteMessages"]>, unknown>({
   options: (trpc) => trpc.chat.deleteMessages.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't delete the selected messages.",

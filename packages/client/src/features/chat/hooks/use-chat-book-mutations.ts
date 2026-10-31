@@ -13,22 +13,19 @@
 // Adding `invalidates` beside either would be the double-invalidate storm the factory's XOR exists to
 // make impossible.
 
-import type { ChatId, WorldBookId } from "@orb/kit/ids";
+import type { inferInput } from "@trpc/tanstack-react-query";
+import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
 /** `worldInfo.attachToChat` / `detachFromChat` vars — the book and the room. Host-gated INSIDE the verb. */
-interface ChatBookAttachVars {
-  readonly bookId: WorldBookId;
-  readonly chatId: ChatId;
-}
 
-export const useAttachBookToChat = createEntityMutation<ChatBookAttachVars, unknown>({
+export const useAttachBookToChat = createEntityMutation<inferInput<Trpc["worldInfo"]["attachToChat"]>, unknown>({
   options: (trpc) => trpc.worldInfo.attachToChat.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't attach the world book to this chat.",
 });
 
-export const useDetachBookFromChat = createEntityMutation<ChatBookAttachVars, unknown>({
+export const useDetachBookFromChat = createEntityMutation<inferInput<Trpc["worldInfo"]["detachFromChat"]>, unknown>({
   options: (trpc) => trpc.worldInfo.detachFromChat.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't remove the world book from this chat.",

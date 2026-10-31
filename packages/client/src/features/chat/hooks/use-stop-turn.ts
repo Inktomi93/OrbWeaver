@@ -11,17 +11,15 @@
 // stopping transition; a terminal bus event that already won remains terminal.
 
 import type { ChatId } from "@orb/kit/ids";
+import type { inferInput } from "@trpc/tanstack-react-query";
+import type { Trpc } from "#data";
 import { createEntityMutation, markTurnStopping, recoverTurnAfterStopFailure, useInvalidation, useTRPC } from "#data";
 import type { TurnSlot } from "#state";
 import { useTurnPhase } from "#state";
 
-interface AbortVars {
-  readonly chatId: ChatId;
-}
-
 // Module-scope factory (§13.1 pattern). TData `unknown` — the abort's effect is bus-driven
 // (`turnAborted` closes the slot); nothing here reads the mutation's own resolved value.
-const useAbortMutation = createEntityMutation<AbortVars, unknown>({
+const useAbortMutation = createEntityMutation<inferInput<Trpc["chat"]["abort"]>, unknown>({
   options: (trpc) => trpc.chat.abort.mutationOptions(),
   // BUS-DRIVEN: `abort` emits turnAborted (→ chatReads) on the OPEN chat, delivered by the active
   // subscription → the seam refetches. `busDriven` (mutation-vs-bus rule, invalidation.ts).

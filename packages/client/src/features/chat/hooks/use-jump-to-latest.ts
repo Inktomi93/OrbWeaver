@@ -32,7 +32,6 @@ export interface UseJumpToLatestArgs {
 
 export interface JumpToLatestState {
   readonly scrollContainerRef: (node: HTMLDivElement | null) => void;
-  readonly atTail: boolean;
   readonly count: number;
   readonly visible: boolean;
   readonly onJump: () => void;
@@ -102,5 +101,5 @@ export function useJumpToLatest({ messages, live, pinActive, listHandleRef }: Us
     listHandleRef.current?.scrollToEnd();
   };
 
-  return { scrollContainerRef, atTail, count, visible: !atTail && count > 0, onJump };
+  return { scrollContainerRef, count, visible: !atTail && count > 0, onJump };
 }

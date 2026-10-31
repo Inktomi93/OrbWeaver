@@ -9,12 +9,12 @@
 // TVars reuse the CONTRACT wire types (`RoomOverrides`, `ChatInjectionInput`) so a params reshape breaks
 // here at compile time, never a re-spelled union at the call site (§5.5).
 
-import type { ChatInjectionInput, GroupConfig, RoomOverrides } from "@orb/contracts/chat";
+import type { ChatInjectionInput } from "@orb/contracts/chat";
 import { USER_MACRO_UNKNOWN_PICK_OP_CODE } from "@orb/contracts/chat";
 import type { ChoiceBlockValues, UserMacroValues } from "@orb/contracts/preset";
 import type { ThemeBackground } from "@orb/contracts/theme";
-import type { ChatId, ChatInjectionId } from "@orb/kit/ids";
-import type { inferOutput } from "@trpc/tanstack-react-query";
+import type { ChatId } from "@orb/kit/ids";
+import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 import { trpcErrorReason } from "#lib";
@@ -22,12 +22,8 @@ import { trpcErrorReason } from "#lib";
 type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
 
 /** `chat.setRoomOverrides` vars — the host-only four-field allowlist + the target chat. */
-interface SetRoomOverridesVars {
-  readonly chatId: ChatId;
-  readonly overrides: RoomOverrides;
-}
 
-export const useSetRoomOverrides = createEntityMutation<SetRoomOverridesVars, unknown>({
+export const useSetRoomOverrides = createEntityMutation<inferInput<Trpc["chat"]["setRoomOverrides"]>, unknown>({
   options: (trpc) => trpc.chat.setRoomOverrides.mutationOptions(),
   // `busDriven` on the OPEN chat: the verb emits `chatUpdated` (→ chatReads covers getChat), delivered by
   // the active subscription. Re-invalidating getChat here just double-refetched (the mutation-vs-bus rule).
@@ -37,18 +33,10 @@ export const useSetRoomOverrides = createEntityMutation<SetRoomOverridesVars, un
 
 /** `chat.setToolRecurseLimit` vars (Phase A L3, ⑦) — the host's per-chat tool-call recursion cap (int
  *  1..20, server-re-validated) + the target chat. Host-gated INSIDE the verb (`requireHost`). */
-interface SetToolRecurseLimitVars {
-  readonly chatId: ChatId;
-  readonly limit: number;
-}
 
 /** `chat.setHostDisplayScripts` vars (D121-E) — the host's per-room display-tier broadcast option. */
-interface SetHostDisplayScriptsVars {
-  readonly chatId: ChatId;
-  readonly enabled: boolean;
-}
 
-export const useSetHostDisplayScripts = createEntityMutation<SetHostDisplayScriptsVars, unknown>({
+export const useSetHostDisplayScripts = createEntityMutation<inferInput<Trpc["chat"]["setHostDisplayScripts"]>, unknown>({
   options: (trpc) => trpc.chat.setHostDisplayScripts.mutationOptions(),
   // `busDriven` on the OPEN chat: the verb emits `chatUpdated` (→ chatReads covers getChat, where the flag
   // reads back via `ChatDetail.hostDisplayScripts`) — the setToolRecurseLimit twin.
@@ -57,12 +45,8 @@ export const useSetHostDisplayScripts = createEntityMutation<SetHostDisplayScrip
 });
 
 /** `chat.setOfferChoices` vars (B1) — the host's per-room offer-choices posture. */
-interface SetOfferChoicesVars {
-  readonly chatId: ChatId;
-  readonly enabled: boolean;
-}
 
-export const useSetOfferChoices = createEntityMutation<SetOfferChoicesVars, unknown>({
+export const useSetOfferChoices = createEntityMutation<inferInput<Trpc["chat"]["setOfferChoices"]>, unknown>({
   options: (trpc) => trpc.chat.setOfferChoices.mutationOptions(),
   // `busDriven` on the OPEN chat: the verb emits `chatUpdated` (→ chatReads covers getChat, where the
   // posture reads back via `ChatDetail.offerChoices`) — the setHostDisplayScripts twin.
@@ -71,12 +55,8 @@ export const useSetOfferChoices = createEntityMutation<SetOfferChoicesVars, unkn
 });
 
 /** `chat.setCharactersCanReact` vars (B7) — the host's per-room react-tool attach posture. */
-interface SetCharactersCanReactVars {
-  readonly chatId: ChatId;
-  readonly enabled: boolean;
-}
 
-export const useSetCharactersCanReact = createEntityMutation<SetCharactersCanReactVars, unknown>({
+export const useSetCharactersCanReact = createEntityMutation<inferInput<Trpc["chat"]["setCharactersCanReact"]>, unknown>({
   options: (trpc) => trpc.chat.setCharactersCanReact.mutationOptions(),
   // The setOfferChoices twin: `chatUpdated` → getChat → `ChatDetail.charactersCanReact`.
   busDriven: true,
@@ -84,12 +64,8 @@ export const useSetCharactersCanReact = createEntityMutation<SetCharactersCanRea
 });
 
 /** `chat.setReactionsEnabled` vars (B7) — the host's per-room reaction-plane master posture. */
-interface SetReactionsEnabledVars {
-  readonly chatId: ChatId;
-  readonly enabled: boolean;
-}
 
-export const useSetReactionsEnabled = createEntityMutation<SetReactionsEnabledVars, unknown>({
+export const useSetReactionsEnabled = createEntityMutation<inferInput<Trpc["chat"]["setReactionsEnabled"]>, unknown>({
   options: (trpc) => trpc.chat.setReactionsEnabled.mutationOptions(),
   // `chatUpdated` covers the toggle's own read-back; the pills/doors follow on the next `listReactions`
   // read (chatReads invalidation reaches it via the same bus round).
@@ -98,19 +74,15 @@ export const useSetReactionsEnabled = createEntityMutation<SetReactionsEnabledVa
 });
 
 /** `chat.setMemberPersonaLore` vars — the host's switch for members' persona-attached lore. */
-interface SetMemberPersonaLoreVars {
-  readonly chatId: ChatId;
-  readonly enabled: boolean;
-}
 
-export const useSetMemberPersonaLore = createEntityMutation<SetMemberPersonaLoreVars, unknown>({
+export const useSetMemberPersonaLore = createEntityMutation<inferInput<Trpc["chat"]["setMemberPersonaLore"]>, unknown>({
   options: (trpc) => trpc.chat.setMemberPersonaLore.mutationOptions(),
   // `chatUpdated` → getChat → `ChatDetail.memberPersonaLore`.
   busDriven: true,
   errorToast: "Couldn't change whether members' persona lore joins this chat.",
 });
 
-export const useSetToolRecurseLimit = createEntityMutation<SetToolRecurseLimitVars, unknown>({
+export const useSetToolRecurseLimit = createEntityMutation<inferInput<Trpc["chat"]["setToolRecurseLimit"]>, unknown>({
   options: (trpc) => trpc.chat.setToolRecurseLimit.mutationOptions(),
   // `busDriven` on the OPEN chat: the verb emits `chatUpdated` (→ chatReads covers getChat, where the cap
   // reads back via `ChatDetail.toolRecurseLimit`), delivered by the active subscription (the setRoomOverrides twin).
@@ -202,24 +174,16 @@ export const useSetChatInjection = createEntityMutation<SetChatInjectionVars, un
 });
 
 /** `chat.deleteChatInjection` vars — the host-only drop of one positional injection. */
-interface DeleteChatInjectionVars {
-  readonly chatId: ChatId;
-  readonly injectionId: ChatInjectionId;
-}
 
-export const useDeleteChatInjection = createEntityMutation<DeleteChatInjectionVars, unknown>({
+export const useDeleteChatInjection = createEntityMutation<inferInput<Trpc["chat"]["deleteChatInjection"]>, unknown>({
   options: (trpc) => trpc.chat.deleteChatInjection.mutationOptions(),
   invalidates: (trpc, vars) => [trpc.chat.listChatInjections.queryFilter({ chatId: vars.chatId })],
   errorToast: "Couldn't remove the injection.",
 });
 
 /** `chat.setGroupConfig` vars — the whole rebuilt group config (the DU is a whole-object write) + chat. */
-interface SetGroupConfigVars {
-  readonly chatId: ChatId;
-  readonly config: GroupConfig;
-}
 
-export const useSetGroupConfig = createEntityMutation<SetGroupConfigVars, unknown>({
+export const useSetGroupConfig = createEntityMutation<inferInput<Trpc["chat"]["setGroupConfig"]>, unknown>({
   options: (trpc) => trpc.chat.setGroupConfig.mutationOptions(),
   // KEEP `getGroupConfig`: it is the Group tab's OWN read (the `chats.metadata.group` sub-blob); no bus
   // event covers it (like `listChatInjections`), so the mutation invalidates it directly.

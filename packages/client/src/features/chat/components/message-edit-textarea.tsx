@@ -5,13 +5,14 @@
 // greeting seam, which persists sync to the draft-config store instead).
 
 import type { MessageView } from "@orb/contracts/chat";
-import type { ChatId, MessageId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Check, Icon, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Textarea } from "@orb/ui/textarea";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useLayoutEffect, useRef } from "react";
+import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
 import { cancelEditingMessage, setMessageEditDraft, useMessageEditDraftText } from "#state";
@@ -19,14 +20,7 @@ import { MESSAGE_EDIT_NAME } from "../lib/message-action-names.ts";
 import type { MoveNeighbours } from "../lib/move-neighbours.ts";
 import { MessageMoveArrows } from "./message-move-arrows.tsx";
 
-interface EditMessageVars {
-  readonly chatId: ChatId;
-  readonly messageId: MessageId;
-  readonly content: string;
-  readonly timeZone: string;
-}
-
-const useEditMessageMutation = createEntityMutation<EditMessageVars, unknown>({
+const useEditMessageMutation = createEntityMutation<inferInput<Trpc["chat"]["editMessage"]>, unknown>({
   options: (trpc) => trpc.chat.editMessage.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't save that edit.",
