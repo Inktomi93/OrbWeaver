@@ -74,7 +74,7 @@ Each member in the table is deleted, wired to the named caller, or linked as its
 | `ImportProfileDeps.reconcileStats` | deleted: no import path calls it. The profile and bundle runs reconcile through the workload settle and the drivers' own `reconcileStats` |
 | `EmbeddingsIndexerContext.roleClientsFor` | linked, not deleted: the indexer's task-model read takes it, so the delete fails `pnpm typecheck`. It picks the member from `EmbeddingsContext` |
 
-New production-path tests: `tests/server/domain/sessions/verbs/login-audit.int.test.ts` (a real login's audit row; it fails when the sessions context drops the injected audit writer) and the restore assertion in `tests/server/domain/import/loader/library-planes.int.test.ts` (a restored document's ingest is queued; it fails when the restore writer skips `queueIngest`). Existing ones reach the other links: `tests/server/domain/workloads/persistence/every-owner-authority.int.test.ts` (`isOwner`) and `tests/server/domain/chat/verbs/read-gates.int.test.ts` (`checkSendAvailability`, `getNextTurnConnection`).
+New production-path tests: `tests/server/domain/sessions/persistence/login-audit-row.int.test.ts` (a real login's audit row; it fails when the sessions context drops the injected audit writer) and the restore assertion in `tests/server/domain/import/loader/library-planes.int.test.ts` (a restored document's ingest is queued; it fails when the restore writer skips `queueIngest`). Existing ones reach the other links: `tests/server/domain/workloads/persistence/every-owner-authority.int.test.ts` (`isOwner`) and `tests/server/domain/chat/verbs/read-gates.int.test.ts` (`checkSendAvailability`, `getNextTurnConnection`).
 
 ### Owner calls
 
