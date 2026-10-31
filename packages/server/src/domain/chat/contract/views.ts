@@ -66,6 +66,8 @@ export interface ChatEventAttach extends StreamEventBounds {
    *  that member (reasoning deltas + `reasoningStreamDone` dropped, `view.reasoning` nulled). `false` for a
    *  non-game / non-deception chat — the pre-P3 live behavior (reasoning member-visible). Never client-supplied. */
   readonly reasoningHostOnly: boolean;
+  /** The subscriber's position for the probe's `positionOf` row; absent when the row is outside their history. */
+  readonly messagePosition?: number;
 }
 
 export interface ChatDetailData extends Omit<WireChatDetail, "participants"> {

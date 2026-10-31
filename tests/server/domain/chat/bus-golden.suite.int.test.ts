@@ -41,7 +41,8 @@ test("send publishes user commit then accepted, started, delta, assistant commit
     ]);
     expect(events.at(-1)).toMatchObject({ type: "turnCompleted", intent: "send" });
     const durable = await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId });
-    expect(durable.map(({ event }) => event).filter(({ type }) => type === "messageCommitted")).toEqual(
+    // Delivery stamps the viewer's position; everything the bus published comes back as published.
+    expect(durable.map(({ event }) => event).filter(({ type }) => type === "messageCommitted")).toMatchObject(
       events.filter(({ type }) => type === "messageCommitted"),
     );
   } finally {
