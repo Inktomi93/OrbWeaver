@@ -11,7 +11,7 @@ import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import type { RecordedRequest } from "@orb/testkit/node/helpers";
-import { openAiServer, recordRequest, SLEEP_PROBE_SUFFIX } from "@orb/testkit/node/helpers";
+import { anthropicSse, anthropicTextReply, openAiServer, recordRequest, SLEEP_PROBE_SUFFIX, textMessage } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 import { z } from "zod";
 import { physicalSdkScenario } from "../backends/agent-sdk/regression-edge.fixtures.ts";
@@ -349,45 +349,7 @@ function anthropicServer(recorded: RecordedRequest[]): typeof fetch {
     const captured = await recordRequest(input, init);
     const { body } = captured;
     recorded.push(captured);
-    if (body["stream"] === true) {
-      const text = [
-        {
-          event: "message_start",
-          data: {
-            type: "message_start",
-            message: {
-              id: "msg_side",
-              type: "message",
-              role: "assistant",
-              model: "claude",
-              content: [],
-              ["stop_reason"]: null,
-              usage: { ["input_tokens"]: 5, ["output_tokens"]: 1 },
-            },
-          },
-        },
-        { event: "content_block_start", data: { type: "content_block_start", index: 0, ["content_block"]: { type: "text", text: "" } } },
-        { event: "content_block_delta", data: { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "ok" } } },
-        { event: "content_block_stop", data: { type: "content_block_stop", index: 0 } },
-        { event: "message_delta", data: { type: "message_delta", delta: { ["stop_reason"]: "end_turn" }, usage: { ["output_tokens"]: 3 } } },
-        { event: "message_stop", data: { type: "message_stop" } },
-      ]
-        .map((event) => `event: ${event.event}\ndata: ${JSON.stringify(event.data)}\n\n`)
-        .join("");
-      return Promise.resolve(new Response(text, { status: 200, headers: { "content-type": "text/event-stream" } }));
-    }
-    return Promise.resolve(
-      Response.json({
-        id: "msg_side",
-        type: "message",
-        role: "assistant",
-        model: "claude",
-        content: [{ type: "text", text: "ok" }],
-        ["stop_reason"]: "end_turn",
-        ["stop_sequence"]: null,
-        usage: { ["input_tokens"]: 5, ["output_tokens"]: 3 },
-      }),
-    );
+    return Promise.resolve(body["stream"] === true ? anthropicSse(anthropicTextReply("claude")) : Response.json(textMessage("claude")));
   };
 }
 
