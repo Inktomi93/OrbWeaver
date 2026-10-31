@@ -30,7 +30,7 @@ Current defects:
   - [ ] 4b: the Badge family.
   - [ ] 4c: the Card family.
   - [ ] 4d: the layout boxes.
-  - [ ] 4e: ListRow state.
+  - [x] 4e: ListRow state.
 
 Each step lands alone and leaves the app working.
 
@@ -70,3 +70,9 @@ Step 4a:
 - `tooling/src/codemods/use-specific-extraction` moved the literal call sites by `maps/button-family.json`; its `moves`, `emptied`, `untouched`, `rerun` and `refused-default` fixtures hold the shapes, and it refuses a site whose unnamed style default differs between the two components. The spread and computed sites are hand edits the plan's step 4a record lists.
 - `tests/ui/primitives/button/button-family.ct.tsx` measures each glyph and inline step against its token, the picture box against its picture, and the core's focal, busy and disabled states. `tests/ui/primitives/tone-variant-matrix.ct.tsx` reads the glyph and inline paints in every tone under each seed and a nested custom scope. Both run in the Chromium and WebKit CT projects, and a planted wrong box or style fails them.
 - `tests/ui/primitives/button/box-hit-area.dom.test.ts` holds `BUTTON_BOX_OVERFLOW` against what each door renders; `tests/tooling/eslint-floor-and-fragment.test.ts` holds `orb/no-floorless-control-in-wrap` on the glyph and inline components.
+
+Step 4e:
+
+- ListRow takes `"data-selected"`, `"aria-expanded"` and `"data-disabled"` and derives `aria-current` from `data-selected`; `selected`, `expanded`, `disabled` and `density` are gone. `tests/ui/primitives/list-row/list-row-state.dom.test-d.ts` refuses each, and `tests/ui/primitives/list-row/state-attributes.ct.tsx` reads the three states from the attributes in the Chromium and WebKit CT projects. The literal call sites moved with an ast-grep rewrite over `<ListRow>`; no call site spreads a removed prop.
+- `tests/ui/primitives/list-row/selected-ink.ct.tsx` measures the carried mid-grey selected row and active Tabs cell on painted pixels (the cell read 3.30:1 before the ring fix and clears 4.5:1 after) and holds `text-on-tint` on three seed palettes where it differs from the page ink. `orb-gradient-ring` now paints its border only; its CTA, tab and rail carriers read the fill under them.
+- Before and after captures are under `reports/1421-4e-captures/`: a CTA button and two tab strips under each seed and two custom scopes, and ListRow rows with a selected and an expanded row, a settings-style list and two tab strips under each seed.

@@ -250,7 +250,7 @@ function BugReportFrame({ presentation, open, onOpenChange, children }: BugRepor
   if (presentation === "sheet") {
     return (
       <Stack data-slot="bug-report-sheet" gap="row">
-        <ListRow clickable={true} expanded={open} leading={<Icon icon={Bug} size="sm" />} onClick={(): void => onOpenChange(!open)} title="Report a bug" />
+        <ListRow clickable={true} aria-expanded={open} leading={<Icon icon={Bug} size="sm" />} onClick={(): void => onOpenChange(!open)} title="Report a bug" />
         {open ? children : null}
       </Stack>
     );

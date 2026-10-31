@@ -48,7 +48,7 @@ updated: 2026-10-16
 | cache invalidation | `invalidate(event)` (the seam) | inline `invalidateQueries` |
 | global client state | one gated Zustand store | an exported store handle, a store over the field cap |
 | an editor draft | `createEntityDraftStore` | a bespoke persist store |
-| an entity list row (chats, presets, books, docs) | `@orb/ui/list-row` (leading · title/subtitle · trailing actions · selected) | a `Card interactive` or hand-rolled row |
+| an entity list row (chats, presets, books, docs) | `@orb/ui/list-row` (leading · title/subtitle · trailing actions · `data-selected`) | a `Card interactive` or hand-rolled row |
 | a settings row | `@orb/ui/field` with `orientation="horizontal"` (Base UI field context wires label/description/ids — the old `setting-row` seal died in the 1.7 migration) | hand-rolled label+control Stacks, manual `useId()` label pairing |
 | bulk-select mode chrome | `@orb/ui/selection-bar` | a bespoke count+actions footer |
 | an editor's save/dirty bar | `@orb/ui/save-bar` | a bespoke sticky footer |

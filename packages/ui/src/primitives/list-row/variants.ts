@@ -45,7 +45,10 @@ export const listRowVariants = tv({
     // The two declarations now come from `SELECTION_RAIL` (lib/selection-rail.ts) because the idiom gained a
     // carrier that is NOT a ListRow — the config band, a `Button`, which cannot inherit it by composition
     // (#1823). Three hand-copies of a ratified pair is how a ratified pair drifts.
-    body: ["group group/body flex flex-1 items-center gap-row rounded-control outline-none min-inline-0", `${SELECTION_RAIL} ${DISABLED_STATE}`],
+    body: [
+      "group group/body flex flex-1 items-center gap-row rounded-control px-row py-field outline-none min-block-(--size-control-md) min-inline-0",
+      `${SELECTION_RAIL} ${DISABLED_STATE}`,
+    ],
     leading: "flex shrink-0 items-center justify-center text-muted-foreground",
     // `min-w-(--width-title-floor)` is the title-column floor: name/subtitle never collapse below a readable width, so
     // `actions` yields (shrinks + clips) instead.
@@ -236,10 +239,6 @@ export const listRowVariants = tv({
       default: {},
       promoted: { title: "text-title leading-title font-semibold" },
     },
-    density: {
-      default: { body: "px-row py-field min-block-(--size-control-md)" },
-      compact: { body: "p-field min-block-(--size-control-sm)" },
-    },
     clickable: {
       true: {
         // FOCUS_RING_INSET, not FOCUS_RING: the offset form paints 4px OUTSIDE the row box (2px moat + 2px
@@ -286,7 +285,6 @@ export const listRowVariants = tv({
     },
   ],
   defaultVariants: {
-    density: "default",
     clickable: false,
     float: false,
     stackActions: false,

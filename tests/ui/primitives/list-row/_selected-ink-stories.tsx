@@ -13,7 +13,7 @@ const CARRIED_MID_GREEN = "oklch(0.55 0.12 140)";
 function Marked(): ReactElement {
   return (
     <div style={{ backgroundColor: "var(--color-background)", padding: "1rem", inlineSize: "20rem" }}>
-      <ListRow title="Connections" clickable={true} selected={true} />
+      <ListRow title="Connections" clickable={true} data-selected="" />
       <Tabs defaultValue="active">
         <TabsList>
           <TabsTab layout="cell" value="active">

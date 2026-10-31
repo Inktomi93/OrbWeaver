@@ -243,7 +243,7 @@ export function ChatSummaryRow({
       leading={<RowLeading chatId={chat.id} portraits={portraits} title={title} />}
       bodyRef={bodyRef}
       onClick={(): void => onSelect(chat.id)}
-      selected={selected ? true : marked}
+      data-selected={selected || marked ? "" : undefined}
       subtitle={subtitle}
       // Functional snippet prose owes the label step (#500/tiers.css). Imported titles can share a leading
       // name/date while the snippet distinguishes the conversations. Keep title hierarchy through

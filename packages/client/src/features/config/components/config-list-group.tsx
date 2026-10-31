@@ -313,7 +313,7 @@ function SubcategoryRow({
       {...(!failed && modified !== undefined ? { markers: <ConfigModifiedMark label={modified} slot="config-section-modified" /> } : {})}
       fullTitle={sub.label}
       onClick={(): void => onSelectSub(groupId, sub.id)}
-      selected={active && activeSub === sub.id}
+      data-selected={active && activeSub === sub.id ? "" : undefined}
       title={sub.navLabel ?? sub.label}
     />
   );
