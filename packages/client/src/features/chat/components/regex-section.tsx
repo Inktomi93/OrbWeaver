@@ -34,8 +34,8 @@
 import type { RegexTierGroupView, RegexTierKey } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, RegexScriptId } from "@orb/kit/ids";
-import { Badge } from "@orb/ui/badge";
 import { Icon } from "@orb/ui/icons";
+import { InlineToken } from "@orb/ui/inline-token";
 import { Row, Stack } from "@orb/ui/layout";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
@@ -75,7 +75,7 @@ function RegexKicker({ chip }: { readonly chip: string | null }): ReactNode {
       {chip === null ? null : (
         <>
           {" "}
-          <Badge size="inline">{chip}</Badge>
+          <InlineToken>{chip}</InlineToken>
         </>
       )}
     </>
@@ -269,7 +269,7 @@ function RegexLeverStrip({
               <Text as="span" className="truncate" voice="label">
                 {label}
               </Text>
-              <Badge size="inline">{regexTierLeverCount(rows)}</Badge>
+              <InlineToken>{regexTierLeverCount(rows)}</InlineToken>
             </Row>
             {/* The name carries the SCOPE, because the switch's meaning is exactly what its neighbours'
                 is not: this one is per-room ("— in this chat"), a row's is per-library ("— everywhere").

@@ -15,10 +15,10 @@
 // No data-testid inside the trigger: the bell is addressed by its role + accessible name.
 
 import type { ChatId, PluginId } from "@orb/kit/ids";
-import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Bell, Icon } from "@orb/ui/icons";
+import { IndicatorDot } from "@orb/ui/indicator-dot";
 import { Section, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Separator } from "@orb/ui/separator";
@@ -286,9 +286,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
                       it is in the button's own accessible name (`bellLabel`) and in the popover's rows. So
                       the mark says only "something is here", and the button is its positioning context
                       (`relative`) — one `tight` step off its own top/end corner, clear of the glyph. */}
-                  {showIndicator ? (
-                    <Badge tone="primary" variant="solid" size="dot" aria-hidden={true} className="absolute inset-e-tight inset-bs-tight" />
-                  ) : null}
+                  {showIndicator ? <IndicatorDot tone="primary" variant="solid" aria-hidden={true} className="absolute inset-e-tight inset-bs-tight" /> : null}
                 </Button>
               }
             />

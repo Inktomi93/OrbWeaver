@@ -6,6 +6,8 @@ import type { EmbedTargetRefusal } from "@orb/contracts/inference";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Check, Icon, X } from "@orb/ui/icons";
+import type { IndicatorDotProps } from "@orb/ui/indicator-dot";
+import { IndicatorDot } from "@orb/ui/indicator-dot";
 import { Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
@@ -64,13 +66,12 @@ function readoutForDot(readout: RoleReadout, dotIsStatus: boolean): RoleReadout 
   return !dotIsStatus && readout.kind === "steady" ? { kind: "blocked", cause: REBUILD_FAILED_CAUSE } : readout;
 }
 
-/** The DOT's skin per state. `unset` is a RING — `outline` is the only style with no fill, and the border is
- *  restated on the current ink because the tone edge is too faint to read at 6px. */
+/** The DOT's skin per state. `unset` is a RING: the `outline` dot has no fill. */
 const DOT_SKIN = {
-  running: { tone: "success", variant: "solid", edge: "default" },
-  blocked: { tone: "warning", variant: "solid", edge: "default" },
-  unset: { tone: "neutral", variant: "outline", edge: "ink" },
-} as const satisfies Record<RoleStatus, Pick<ComponentProps<typeof Badge>, "tone" | "variant" | "edge">>;
+  running: { tone: "success", variant: "solid" },
+  blocked: { tone: "warning", variant: "solid" },
+  unset: { tone: "neutral", variant: "outline" },
+} as const satisfies Record<RoleStatus, Pick<IndicatorDotProps, "tone" | "variant">>;
 
 /** Explicit status tones override the explanatory voice without changing its typography; unset keeps the voice's ink. */
 const READOUT_TONE = {
@@ -188,7 +189,7 @@ export function ConnectionRoleSlot({
   return (
     <Row aria-busy={shownCheck !== null} gap="field" align="start" justify="between" className="flex-wrap">
       <Row gap="field" align="start">
-        <Badge aria-label={ROLE_STATUS_LABELS[dot]} edge={DOT_SKIN[dot].edge} role="img" size="dot" tone={DOT_SKIN[dot].tone} variant={DOT_SKIN[dot].variant} />
+        <IndicatorDot aria-label={ROLE_STATUS_LABELS[dot]} role="img" tone={DOT_SKIN[dot].tone} variant={DOT_SKIN[dot].variant} />
         <Stack gap="tight">
           <Text voice="label">{row.heading}</Text>
           <Text prose={true} voice="gloss" className={PROSE_MEASURE}>
