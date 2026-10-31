@@ -456,18 +456,25 @@ describe("D336 tone role controls", () => {
   });
 });
 
-test("a planted recipe under a floor fails the token build", async ({ importStagingDir }) => {
-  const root = join(importStagingDir, "repository");
-  const ui = join(root, "packages/ui");
-  cpSync(join(UI_ROOT, "src/tokens"), join(ui, "src/tokens"), { recursive: true });
-  await expect(generateArtifacts(ui)).resolves.toBeDefined();
-  const tokens = join(ui, "src/tokens/tokens.json");
-  const planted = mutate(readTokenContractTexts(ui, root), "base", (base) => {
-    descend(descend(base, "tone-mix"), "text-on-tint")["$value"] = 100;
+// A text-on-tint mixed to the bare base fails its own floor; a tint mixed most of the way to its base leaves the page inks under theirs.
+for (const { knob, percent, miss } of [
+  { knob: "text-on-tint", percent: 100, miss: /tone-text-on-tint on tone-tint/ },
+  { knob: "tint", percent: 60, miss: /tone-tint on muted-foreground/ },
+] as const) {
+  test(`a planted ${knob} mix under a floor fails the token build`, async ({ importStagingDir }) => {
+    const root = join(importStagingDir, "repository");
+    const ui = join(root, "packages/ui");
+    cpSync(join(UI_ROOT, "src/tokens"), join(ui, "src/tokens"), { recursive: true });
+    await expect(generateArtifacts(ui)).resolves.toBeDefined();
+    const tokens = join(ui, "src/tokens/tokens.json");
+    const planted = mutate(readTokenContractTexts(ui, root), "base", (base) => {
+      descend(descend(base, "tone-mix"), knob)["$value"] = percent;
+    });
+    writeFileSync(tokens, planted.base);
+    await expect(generateArtifacts(ui)).rejects.toThrow(/D336 tone floors missed on a shipped palette/);
+    await expect(generateArtifacts(ui)).rejects.toThrow(miss);
   });
-  writeFileSync(tokens, planted.base);
-  await expect(generateArtifacts(ui)).rejects.toThrow(/D336 tone floors missed on a shipped palette[\s\S]*tone-text-on-tint on tone-tint/);
-});
+}
 
 describe("bounded Resolver controls", () => {
   test("a same-count seed member substitution is refused before generation", () => {

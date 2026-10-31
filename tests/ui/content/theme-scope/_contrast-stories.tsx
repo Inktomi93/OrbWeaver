@@ -2,6 +2,7 @@ import { CtIsolation } from "@orb/testkit/browser";
 import { Card } from "@orb/ui/card";
 import { ListRow } from "@orb/ui/list-row";
 import { TrackBar } from "@orb/ui/meter";
+import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ToneRole } from "@orb/ui/tokens";
 import { SEED_THEME_VALUE_SETS, TOKENS, TONE_ROLE_RECIPES, TONE_ROLES, TONES } from "@orb/ui/tokens";
@@ -24,29 +25,41 @@ const INPUT_HOSTS = ["background", "card", "popover"] as const;
 const GRID_COLUMNS = "repeat(auto-fill, minmax(10rem, 1fr))";
 const SAMPLE_STYLE: CSSProperties = { margin: 0, padding: "1rem", minHeight: "3rem" };
 
-export function SemanticContrastStory({ background }: { readonly background: string }): ReactElement {
+/** Every neutral ink on the hosts it is painted on: under a shipped palette (`theme`, Hearth when absent), or under a custom scope on `background`. */
+export function SemanticContrastStory({
+  background,
+  theme,
+}: {
+  readonly background?: string;
+  readonly theme?: keyof typeof SEED_THEME_VALUE_SETS;
+}): ReactElement {
+  const pairs = <SemanticPairs />;
   return (
     <CtIsolation subject="ThemeScope" isolates="Domain-free emitted theme tokens and browser color composition">
-      <ThemeScope tokens={{ background }}>
-        <div style={{ display: "grid", gridTemplateColumns: GRID_COLUMNS }}>
-          {SEMANTIC_PAIRS.map(([surface, ink]) => (
-            <p key={`${surface}-${ink}`} style={{ ...SAMPLE_STYLE, backgroundColor: `var(--color-${surface})`, color: `var(--color-${ink})` }}>
-              {`${ink} on ${surface}`}
-            </p>
-          ))}
-          {MUTED_HOSTS.map((surface) => (
-            <p key={`muted-${surface}`} style={{ ...SAMPLE_STYLE, backgroundColor: `var(--color-${surface})`, color: "var(--color-muted-foreground)" }}>
-              {`muted on ${surface}`}
-            </p>
-          ))}
-          {INPUT_HOSTS.map((surface) => (
-            <div key={`input-${surface}`} style={{ backgroundColor: `var(--color-${surface})` }}>
-              <p style={{ ...SAMPLE_STYLE, backgroundColor: "var(--color-input)", color: "var(--color-muted-foreground)" }}>{`input on ${surface}`}</p>
-            </div>
-          ))}
-        </div>
-      </ThemeScope>
+      {background === undefined ? <div data-theme={theme}>{pairs}</div> : <ThemeScope tokens={{ background }}>{pairs}</ThemeScope>}
     </CtIsolation>
+  );
+}
+
+function SemanticPairs(): ReactElement {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: GRID_COLUMNS }}>
+      {SEMANTIC_PAIRS.map(([surface, ink]) => (
+        <p key={`${surface}-${ink}`} style={{ ...SAMPLE_STYLE, backgroundColor: `var(--color-${surface})`, color: `var(--color-${ink})` }}>
+          {`${ink} on ${surface}`}
+        </p>
+      ))}
+      {MUTED_HOSTS.map((surface) => (
+        <p key={`muted-${surface}`} style={{ ...SAMPLE_STYLE, backgroundColor: `var(--color-${surface})`, color: "var(--color-muted-foreground)" }}>
+          {`muted on ${surface}`}
+        </p>
+      ))}
+      {INPUT_HOSTS.map((surface) => (
+        <div key={`input-${surface}`} style={{ backgroundColor: `var(--color-${surface})` }}>
+          <p style={{ ...SAMPLE_STYLE, backgroundColor: "var(--color-input)", color: "var(--color-muted-foreground)" }}>{`input on ${surface}`}</p>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -181,6 +194,38 @@ export function NestedSeedStory({ background }: { readonly background: string })
         <section data-nest="carried">
           <SeedRoleSamples />
         </section>
+      </ThemeScope>
+    </CtIsolation>
+  );
+}
+
+/** Every field a carried scope can paint, so the scope emits its whole palette surface over `background`. */
+function fullPaletteTokens(background: string): ThemeScopeTokens {
+  return {
+    background,
+    accent: "oklch(0.62 0.2 300)",
+    userBubble: { bg: "oklch(0.42 0.08 200)" },
+    aiBubble: { bg: "oklch(0.45 0.06 140)" },
+    systemBubble: { bg: "oklch(0.5 0.04 90)" },
+    speaker: "oklch(0.8 0.12 30)",
+    dialogueColor: "oklch(0.82 0.1 210)",
+    narrationColor: "oklch(0.78 0.05 120)",
+    bodyColor: "oklch(0.9 0.02 60)",
+    borderColor: "oklch(0.7 0.1 330)",
+  };
+}
+
+/**
+ * Every seed palette twice, each stamp holding one probe: on the page, and nested inside a custom ThemeScope that paints
+ * every field, as a theme thumbnail sits inside a custom app theme. The nested probe must resolve the seed's own values.
+ */
+export function NestedSeedSurfaceStory({ background }: { readonly background: string }): ReactElement {
+  const probes = SEED_STAMPS.map(({ name, stamp }) => <div key={name} data-seed-probe={name} {...stamp} />);
+  return (
+    <CtIsolation subject="Nested seed palettes" isolates="Seed palette blocks nested inside a ThemeScope that emits its whole palette surface">
+      <section data-nest="page">{probes}</section>
+      <ThemeScope tokens={fullPaletteTokens(background)} ambientBackground={TOKENS["color.background"].value} ambientAccent={TOKENS["color.primary"].value}>
+        <section data-nest="carried">{probes}</section>
       </ThemeScope>
     </CtIsolation>
   );
