@@ -1,17 +1,19 @@
-// D336: what the ThemeScope clamp emits for a carried background clears every tone's floors, primary included, for
-// picked and inherited accents, and keeps each tint off the page and off every tint of a non-adjacent hue. Each case
+// D336: what the ThemeScope clamp emits for a carried background clears every tone's floors on every host, primary
+// included, for picked and inherited accents, and keeps each tint off every host and off every tint of a non-adjacent hue. Each case
 // reads the emitted variables back, knobs and literals, and judges the pixels they spell.
 import { hueDistance } from "@orb/kit/safe-color";
-import type { Oklch } from "@orb/kit/theme-derivation";
+import type { Oklch, ToneHost } from "@orb/kit/theme-derivation";
 import {
   carriedLiteralRoles,
   oklchToSrgb,
   paintedDistance,
   roleFloorMisses,
   srgbToOklch,
+  TONE_HOSTS,
   TONE_HUE_ADJACENT_DEGREES,
   TONE_TINT_SEPARATION,
   toneFloorMisses,
+  tonePaletteOn,
   toneRoleColors,
 } from "@orb/kit/theme-derivation";
 import { ACCEPTED_BASES } from "@orb/testkit/iso";
@@ -127,18 +129,23 @@ function emittedMisses(background: string, tokens: { readonly accent?: string },
   return scopeMisses(emittedScope(background, tokens, ambientAccent), `${background} ${JSON.stringify(tokens)} ${ambientAccent ?? ""}`);
 }
 
+/** The scope's misses over every host a wash sits on: a mix that falls back reads the host, a literal serves them all. */
 function scopeMisses({ scheme, vars, tones }: EmittedScope, label: string): readonly string[] {
+  return TONE_HOSTS.flatMap((host) => hostMisses({ scheme: { ...scheme, palette: tonePaletteOn(scheme.palette, host) }, vars, tones }, label, host));
+}
+
+function hostMisses({ scheme, vars, tones }: EmittedScope, label: string, host: ToneHost): readonly string[] {
   const colored = tones.flatMap((carried) =>
     carried.source === "neutral" ? [] : [{ ...carried, base: carried.source.base, roles: paintedRoles(scheme, vars, carried) }],
   );
   const floors = tones.flatMap((carried) => {
     const roles = paintedRoles(scheme, vars, carried);
-    return roleFloorMisses(scheme, carried.source, (role) => roles[role]).map((miss) => `${label} ${carried.tone} ${JSON.stringify(miss)}`);
+    return roleFloorMisses(scheme, carried.source, (role) => roles[role]).map((miss) => `${label} ${carried.tone} over ${host} ${JSON.stringify(miss)}`);
   });
   const offPage = colored.flatMap(({ tone, roles }) =>
     TINT_ROLES.flatMap((role) => {
-      const distance = paintedDistance(roles[role], scheme.palette.background);
-      return distance >= TONE_TINT_SEPARATION ? [] : [`${label} ${tone} ${role} sits ${distance.toFixed(4)} off the page`];
+      const distance = paintedDistance(roles[role], scheme.palette.host);
+      return distance >= TONE_TINT_SEPARATION ? [] : [`${label} ${tone} ${role} sits ${distance.toFixed(4)} off ${host}`];
     }),
   );
   const pairs = colored.flatMap((a, index) =>

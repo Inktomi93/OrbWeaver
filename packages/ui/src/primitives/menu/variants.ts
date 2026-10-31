@@ -47,7 +47,7 @@ export const menuVariants = tv({
     // the scroller. Overscroll is contained so wheeling past the last item does not scroll the page.
     popup: `
       relative overflow-y-auto overscroll-contain rounded-card border-(length:--border-width-control) border-border bg-popover p-field text-popover-foreground
-      shadow-overlay
+      shadow-overlay tone-host-popover
       ${OVERLAY_MOTION.anchoredPopup}
     `,
     item: `${itemBase} ${LEADING_GUTTER}`,

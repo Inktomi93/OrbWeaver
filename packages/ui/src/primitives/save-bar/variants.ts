@@ -10,7 +10,7 @@ export const saveBarVariants = tv({
   slots: {
     // `flex-wrap` + `@container/save-bar` are what make the `meta` slot's narrow arm possible: the DIAGNOSTIC
     // drops to a line of its own below the identity instead of eating it (see the `meta` slot).
-    root: "@container/save-bar sticky z-(--z-raised) flex flex-wrap items-center justify-between gap-row border-border bg-card px-block py-row",
+    root: "@container/save-bar sticky z-(--z-raised) flex flex-wrap items-center justify-between gap-row border-border bg-card px-block py-row tone-host-card",
     // `flex-1`: the identity CLAIMS the free width rather than merely being allowed to shrink into it.
     label: "flex flex-1 items-baseline gap-field min-inline-0",
     title: "truncate text-body leading-body font-medium text-foreground",

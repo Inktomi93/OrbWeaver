@@ -3,7 +3,7 @@ import { tv } from "#lib";
 // An island that floats in a room's reading column (the composer, the band of controls above it): the card fill and
 // edge at the card radius and the field inset, with no shadow, because the room's art behind it is the lift.
 export const roomIslandVariants = tv({
-  base: "rounded-card border border-tone-edge bg-card p-field text-card-foreground",
+  base: "rounded-card border border-tone-edge bg-card p-field text-card-foreground tone-host-card",
   variants: {
     // A bounded column surface passes its allocated height to shrinkable content.
     layout: { stack: "flex flex-col" },

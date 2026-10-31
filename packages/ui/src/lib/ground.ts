@@ -4,17 +4,17 @@ import { MESSAGE_BUBBLE_GROUND } from "./message-bubble.ts";
 
 export const GROUND = {
   /** The page ground and its ink: a whole page, or a preview of one. */
-  background: "bg-background text-foreground",
+  background: "bg-background tone-host-background text-foreground",
   /** The page ground on a plain room only; over a room's wallpaper the art is the page and the reading plates carry the text. */
   backgroundUnlessArt: "not-in-data-has-bg-image:bg-background",
   /** The card fill and its ink: a sticky band over a scrolling card body. */
-  card: "bg-card text-card-foreground",
+  card: "bg-card tone-host-card text-card-foreground",
   /** A band laid over the card at low strength, so it reads as part of the page it labels. */
   faint: "bg-card/40",
   /** The popover fill: a footer pinned inside a floating surface. */
-  popover: "bg-popover text-popover-foreground",
+  popover: "bg-popover tone-host-popover text-popover-foreground",
   /** The raised step: the rail that holds the current selection. */
-  raised: "bg-surface-raised",
+  raised: "bg-surface-raised tone-host-surface-raised",
   /** The sidebar fill, for a panel that must hide the rail's art behind it. */
   sidebar: "bg-sidebar",
   /** A band inside a message bubble (its pinned header, its foot): the bubble's own fill and paired ink, per role. */

@@ -10,7 +10,7 @@ import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { Toggle } from "@orb/ui/toggle";
 import type { ToneRole } from "@orb/ui/tokens";
-import { SEED_THEME_VALUE_SETS, TOKENS, TONE_ROLES, TONES } from "@orb/ui/tokens";
+import { SEED_THEME_VALUE_SETS, TOKENS, TONE_HOST_UTILITIES, TONE_ROLES, TONES } from "@orb/ui/tokens";
 import { WeaveGlyph } from "@orb/ui/web-weave";
 import type { ReactElement } from "react";
 
@@ -78,6 +78,8 @@ function Matrix(): ReactElement {
             <span key={role} data-probe={role} data-tone={tone} style={{ color: roleVar(role) }} />
           ))}
           <span data-probe="card" style={{ color: "var(--color-card)" }} />
+          {/* A surface Card is the host of its own edge, so its edge mixes over the card fill. */}
+          <span className={TONE_HOST_UTILITIES.card} data-probe="edge-on-card" data-tone={tone} style={{ color: roleVar("edge") }} />
           {Object.entries(NAMED_PROBES).map(([probe, token]) => (
             <span key={probe} data-probe={probe} style={{ color: `var(${TOKENS[token].cssVar})` }} />
           ))}

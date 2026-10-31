@@ -30,7 +30,7 @@ export const cardVariants = tv({
     // box keeps the quiet edge.
     variant: {
       // The card fill with the tone's edge: the default island.
-      surface: "border-tone-edge bg-card",
+      surface: "border-tone-edge bg-card tone-host-card",
       // The tone's tint under its meaning edge, and its on-tint ink for content that sets no ink of its own: a status
       // box, a quoted block that reads as an artifact, a nested box that must lift off a card fill.
       soft: `${MEANING_EDGE} bg-tone-tint text-tone-text-on-tint`,

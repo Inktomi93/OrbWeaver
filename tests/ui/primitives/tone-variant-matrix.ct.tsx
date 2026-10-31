@@ -20,7 +20,7 @@ function meaningEdge(tone: string): ToneRole {
 }
 
 /** What each painted property must equal: a role of the row's tone, a named colour probe, or the row's own (inherited) ink. */
-type Expected = ToneRole | "card" | "host" | "muted" | "selection" | "selection-foreground";
+type Expected = ToneRole | "card" | "edge-on-card" | "host" | "muted" | "selection" | "selection-foreground";
 type Paint = Readonly<Record<string, Expected>>;
 
 /** One painted property of one case, read beside the colour its expectation resolves to in the same row. */
@@ -72,7 +72,7 @@ function paints(tone: string): Readonly<Record<string, Paint>> {
     "badge-solid": { "background-color": "solid", color: "foreground" },
     "badge-soft": { "background-color": "tint", "border-block-start-color": "edge", color: "text-on-tint" },
     "badge-outline": { "border-block-start-color": "edge", color: "text" },
-    "card-surface": { "background-color": "card", "border-block-start-color": "edge" },
+    "card-surface": { "background-color": "card", "border-block-start-color": "edge-on-card" },
     "card-soft": { "background-color": "tint", "border-block-start-color": meaningEdge(tone), color: "text-on-tint" },
     "card-outline": { "border-block-start-color": meaningEdge(tone) },
     "toggle-ghost": { color: toggleInk },

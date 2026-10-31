@@ -531,6 +531,7 @@
     --tone-info-text-on-tint: initial;
     --tone-info-tint: initial;
     --tone-info-tint-active: initial;
+    --tone-host: initial;
   }
 
   [data-theme="mocha"] {
@@ -622,6 +623,7 @@
     --tone-info-text-on-tint: initial;
     --tone-info-tint: initial;
     --tone-info-tint-active: initial;
+    --tone-host: initial;
   }
 
   [data-palette="base"] {
@@ -713,6 +715,7 @@
     --tone-info-text-on-tint: initial;
     --tone-info-tint: initial;
     --tone-info-tint-active: initial;
+    --tone-host: initial;
   }
 
   [data-tone="primary"] {
@@ -721,9 +724,9 @@
     --color-tone-solid-active: color-mix(in oklab, var(--color-primary) var(--tone-mix-primary-active), light-dark(black, white));
     --color-tone-text: var(--tone-primary-text, color-mix(in oklab, var(--color-primary) var(--tone-mix-text), var(--color-foreground)));
     --color-tone-text-on-tint: var(--tone-primary-text-on-tint, color-mix(in oklab, var(--color-primary) var(--tone-mix-text-on-tint), var(--color-foreground)));
-    --color-tone-tint: var(--tone-primary-tint, color-mix(in oklab, var(--color-primary) var(--tone-mix-tint), var(--color-background)));
-    --color-tone-tint-active: var(--tone-primary-tint-active, color-mix(in oklab, var(--color-primary) var(--tone-mix-tint-active), var(--color-background)));
-    --color-tone-edge: color-mix(in oklab, var(--color-primary) var(--tone-mix-edge), var(--color-background));
+    --color-tone-tint: var(--tone-primary-tint, color-mix(in oklab, var(--color-primary) var(--tone-mix-tint), var(--tone-host, var(--color-background))));
+    --color-tone-tint-active: var(--tone-primary-tint-active, color-mix(in oklab, var(--color-primary) var(--tone-mix-tint-active), var(--tone-host, var(--color-background))));
+    --color-tone-edge: color-mix(in oklab, var(--color-primary) var(--tone-mix-edge), var(--tone-host, var(--color-background)));
     --color-tone-foreground: var(--color-primary-foreground);
   }
 
@@ -745,9 +748,9 @@
     --color-tone-solid-active: color-mix(in oklab, var(--color-destructive) var(--tone-mix-destructive-active), light-dark(black, white));
     --color-tone-text: var(--tone-destructive-text, color-mix(in oklab, var(--color-destructive) var(--tone-mix-text), var(--color-foreground)));
     --color-tone-text-on-tint: var(--tone-destructive-text-on-tint, color-mix(in oklab, var(--color-destructive) var(--tone-mix-text-on-tint), var(--color-foreground)));
-    --color-tone-tint: var(--tone-destructive-tint, color-mix(in oklab, var(--color-destructive) var(--tone-mix-tint), var(--color-background)));
-    --color-tone-tint-active: var(--tone-destructive-tint-active, color-mix(in oklab, var(--color-destructive) var(--tone-mix-tint-active), var(--color-background)));
-    --color-tone-edge: color-mix(in oklab, var(--color-destructive) var(--tone-mix-edge), var(--color-background));
+    --color-tone-tint: var(--tone-destructive-tint, color-mix(in oklab, var(--color-destructive) var(--tone-mix-tint), var(--tone-host, var(--color-background))));
+    --color-tone-tint-active: var(--tone-destructive-tint-active, color-mix(in oklab, var(--color-destructive) var(--tone-mix-tint-active), var(--tone-host, var(--color-background))));
+    --color-tone-edge: color-mix(in oklab, var(--color-destructive) var(--tone-mix-edge), var(--tone-host, var(--color-background)));
     --color-tone-foreground: var(--color-destructive-foreground);
   }
 
@@ -757,9 +760,9 @@
     --color-tone-solid-active: color-mix(in oklab, var(--color-warning) var(--tone-mix-warning-active), light-dark(black, white));
     --color-tone-text: var(--tone-warning-text, color-mix(in oklab, var(--color-warning) var(--tone-mix-text), var(--color-foreground)));
     --color-tone-text-on-tint: var(--tone-warning-text-on-tint, color-mix(in oklab, var(--color-warning) var(--tone-mix-text-on-tint), var(--color-foreground)));
-    --color-tone-tint: var(--tone-warning-tint, color-mix(in oklab, var(--color-warning) var(--tone-mix-tint), var(--color-background)));
-    --color-tone-tint-active: var(--tone-warning-tint-active, color-mix(in oklab, var(--color-warning) var(--tone-mix-tint-active), var(--color-background)));
-    --color-tone-edge: color-mix(in oklab, var(--color-warning) var(--tone-mix-edge), var(--color-background));
+    --color-tone-tint: var(--tone-warning-tint, color-mix(in oklab, var(--color-warning) var(--tone-mix-tint), var(--tone-host, var(--color-background))));
+    --color-tone-tint-active: var(--tone-warning-tint-active, color-mix(in oklab, var(--color-warning) var(--tone-mix-tint-active), var(--tone-host, var(--color-background))));
+    --color-tone-edge: color-mix(in oklab, var(--color-warning) var(--tone-mix-edge), var(--tone-host, var(--color-background)));
     --color-tone-foreground: var(--color-warning-foreground);
   }
 
@@ -769,9 +772,9 @@
     --color-tone-solid-active: color-mix(in oklab, var(--color-success) var(--tone-mix-success-active), light-dark(black, white));
     --color-tone-text: var(--tone-success-text, color-mix(in oklab, var(--color-success) var(--tone-mix-text), var(--color-foreground)));
     --color-tone-text-on-tint: var(--tone-success-text-on-tint, color-mix(in oklab, var(--color-success) var(--tone-mix-text-on-tint), var(--color-foreground)));
-    --color-tone-tint: var(--tone-success-tint, color-mix(in oklab, var(--color-success) var(--tone-mix-tint), var(--color-background)));
-    --color-tone-tint-active: var(--tone-success-tint-active, color-mix(in oklab, var(--color-success) var(--tone-mix-tint-active), var(--color-background)));
-    --color-tone-edge: color-mix(in oklab, var(--color-success) var(--tone-mix-edge), var(--color-background));
+    --color-tone-tint: var(--tone-success-tint, color-mix(in oklab, var(--color-success) var(--tone-mix-tint), var(--tone-host, var(--color-background))));
+    --color-tone-tint-active: var(--tone-success-tint-active, color-mix(in oklab, var(--color-success) var(--tone-mix-tint-active), var(--tone-host, var(--color-background))));
+    --color-tone-edge: color-mix(in oklab, var(--color-success) var(--tone-mix-edge), var(--tone-host, var(--color-background)));
     --color-tone-foreground: var(--color-success-foreground);
   }
 
@@ -781,9 +784,9 @@
     --color-tone-solid-active: color-mix(in oklab, var(--color-info) var(--tone-mix-info-active), light-dark(black, white));
     --color-tone-text: var(--tone-info-text, color-mix(in oklab, var(--color-info) var(--tone-mix-text), var(--color-foreground)));
     --color-tone-text-on-tint: var(--tone-info-text-on-tint, color-mix(in oklab, var(--color-info) var(--tone-mix-text-on-tint), var(--color-foreground)));
-    --color-tone-tint: var(--tone-info-tint, color-mix(in oklab, var(--color-info) var(--tone-mix-tint), var(--color-background)));
-    --color-tone-tint-active: var(--tone-info-tint-active, color-mix(in oklab, var(--color-info) var(--tone-mix-tint-active), var(--color-background)));
-    --color-tone-edge: color-mix(in oklab, var(--color-info) var(--tone-mix-edge), var(--color-background));
+    --color-tone-tint: var(--tone-info-tint, color-mix(in oklab, var(--color-info) var(--tone-mix-tint), var(--tone-host, var(--color-background))));
+    --color-tone-tint-active: var(--tone-info-tint-active, color-mix(in oklab, var(--color-info) var(--tone-mix-tint-active), var(--tone-host, var(--color-background))));
+    --color-tone-edge: color-mix(in oklab, var(--color-info) var(--tone-mix-edge), var(--tone-host, var(--color-background)));
     --color-tone-foreground: var(--color-info-foreground);
   }
 
@@ -814,4 +817,20 @@
   [data-pigment="waystone"] {
     --pigment-waystone-flash: color-mix(in oklab, var(--color-highlight) 55%, var(--color-sky-star));
   }
+}
+
+@utility tone-host-background {
+  --tone-host: var(--color-background);
+}
+
+@utility tone-host-surface-raised {
+  --tone-host: var(--color-surface-raised);
+}
+
+@utility tone-host-card {
+  --tone-host: var(--color-card);
+}
+
+@utility tone-host-popover {
+  --tone-host: var(--color-popover);
 }
