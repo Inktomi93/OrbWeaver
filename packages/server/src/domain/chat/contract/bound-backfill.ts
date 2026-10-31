@@ -1,9 +1,10 @@
+import type { IsMemoryEnabledOp } from "@orb/contracts/chat";
 import type { UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import type { backfillGroupCharacters, backfillMemory } from "../substrate/backfill.ts";
 import type { estimateMemoryBackfillCalls } from "../substrate/backfill-estimate.ts";
 export interface ChatBoundBackfillOps {
-  readonly isMemoryEnabled: (hostUserId: UserId) => Promise<boolean>;
+  readonly isMemoryEnabled: IsMemoryEnabledOp;
   readonly emptyMemoryScope: (hostUserId: UserId) => Promise<SQL | null>;
   readonly backfill: {
     readonly memory: (args: Parameters<typeof backfillMemory>[1]) => ReturnType<typeof backfillMemory>;

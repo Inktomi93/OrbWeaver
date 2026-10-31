@@ -160,7 +160,6 @@ export type {
   PluginSurfaceAnchor,
   PluginSurfaceNode,
   PluginSurfaceRegistrationMeta,
-  PluginSurfaceSpec,
   PluginTabsNode,
   PluginTextFieldNode,
   PluginTextNode,

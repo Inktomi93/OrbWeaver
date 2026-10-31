@@ -19,7 +19,7 @@ import type { JSONObject, LanguageModelV4CallOptions, SharedV4Headers, SharedV4P
 import type { GenerationCapability, ReasoningOffMode, ResolvedWarning } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill, acceptsTurnScopedSystem, bindsThinkingToPrefix, cacheMinTokensOf, REASONING_OFF_DEFAULT } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
-import type { Clock } from "@orb/kit/time";
+import type { Clock, ScheduleOp } from "@orb/kit/time";
 import type {
   AnthropicChatRequest,
   ChatEvent,
@@ -29,7 +29,6 @@ import type {
   Resolved,
   ResolvedChatKnobs,
   ResolvedReasoning,
-  ScheduleTimeout,
 } from "#contract";
 import { ProviderError } from "#contract";
 import { resolveCachePolicy, resolveChat } from "#funnel";
@@ -290,7 +289,7 @@ function appliedEffortOf(options: Pick<LanguageModelV4CallOptions, "providerOpti
 }
 
 interface StreamOnceArgs {
-  readonly scheduleTimeout: ScheduleTimeout;
+  readonly scheduleTimeout: ScheduleOp;
   readonly call: AnthropicCall;
   readonly options: LanguageModelV4CallOptions;
   readonly req: AnthropicChatRequest;

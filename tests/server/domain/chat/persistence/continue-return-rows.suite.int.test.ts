@@ -7,25 +7,29 @@ import type { Principal } from "@orb/contracts/identity";
 import { chatEvents, chatParticipants, messageVariants, statsCanonVersions } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { and, eq, gt } from "drizzle-orm";
+import { beforeAll } from "vitest";
 import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 import { IMAGE_TOOL, TOOL_SIGNATURE } from "../engine/inline-image-physical.ts";
-import {
-  ADDITION,
-  ADDITION_REASONING,
-  PRIVATE_BODY,
-  PRIVATE_PREFIX,
-  PRIVATE_REASONING,
-  privateContinuation,
-  VISIBLE_BODY,
-} from "./continue-private-physical.ts";
+import type { PrivateContinuation, PrivateRoom } from "./continue-private-physical.ts";
+import { ADDITION, ADDITION_REASONING, PRIVATE_BODY, PRIVATE_PREFIX, PRIVATE_REASONING, privateRoom, VISIBLE_BODY } from "./continue-private-physical.ts";
+
+// One room per file: the guest host is a spawned process, so a case continues a fresh chat instead of booting its own.
+const shared = Promise.withResolvers<PrivateRoom>();
+beforeAll(async (): Promise<() => Promise<void>> => {
+  const room = await privateRoom();
+  shared.resolve(room);
+  return async (): Promise<void> => {
+    await room[Symbol.asyncDispose]();
+  };
+});
 
 const METHODS = ["undoContinue", "revertContinue"] as const;
 const RETURN_CASES = ["demotion", "membership", "history-floor", "host-floor", "member-floor"] as const;
 
-async function handoff(f: Awaited<ReturnType<typeof privateContinuation>>, from: Principal, to: Principal): Promise<void> {
+async function handoff(f: PrivateContinuation, from: Principal, to: Principal): Promise<void> {
   const { h } = f.image;
-  await h.root.services.chat.nominateHostHandoff({ principal: from, chatId: h.chatId, userId: to.userId });
-  await h.root.services.chat.acceptHostHandoff({ principal: to, chatId: h.chatId });
+  await h.root.services.chat.nominateHostHandoff({ principal: from, chatId: f.chatId, userId: to.userId });
+  await h.root.services.chat.acceptHostHandoff({ principal: to, chatId: f.chatId });
 }
 
 function expectMemberView(view: MessageView, undo: boolean): void {
@@ -88,7 +92,7 @@ function expectNativeB(next: typeof messageVariants.$inferSelect | undefined, be
 
 type ReturnKind = (typeof RETURN_CASES)[number];
 
-type PrivateFixture = Awaited<ReturnType<typeof privateContinuation>>;
+type PrivateFixture = PrivateContinuation;
 
 type ReturnVerifier = (returning: Promise<MessageView>, f: PrivateFixture, undo: boolean) => Promise<void>;
 
@@ -108,17 +112,17 @@ async function prepareReturn(
   expect(f.before.metadata?.continuationTools?.after[1]?.deleted).toBe(true);
   expect(f.before).toMatchObject({ tokensIn: 20, tokensOut: 8, tokenDetails: { input: [{ modality: "text", tokens: 20 }] } });
   for (const actor of [f.early, f.late]) {
-    await h.root.services.chat.setMemberHistoryVisibility({ principal: h.owner, chatId: h.chatId, userId: actor.userId, visibility: "from-join" });
+    await h.root.services.chat.setMemberHistoryVisibility({ principal: h.owner, chatId: f.chatId, userId: actor.userId, visibility: "from-join" });
   }
   const early = await h.root.db
     .select()
     .from(chatParticipants)
-    .where(and(eq(chatParticipants.chatId, h.chatId), eq(chatParticipants.userId, f.early.userId)))
+    .where(and(eq(chatParticipants.chatId, f.chatId), eq(chatParticipants.userId, f.early.userId)))
     .get();
   const late = await h.root.db
     .select()
     .from(chatParticipants)
-    .where(and(eq(chatParticipants.chatId, h.chatId), eq(chatParticipants.userId, f.late.userId)))
+    .where(and(eq(chatParticipants.chatId, f.chatId), eq(chatParticipants.userId, f.late.userId)))
     .get();
   expect(early?.joinSeq).toBe(f.slot.seq);
   expect(late?.joinSeq).toBeGreaterThan(f.slot.seq);
@@ -133,7 +137,7 @@ async function prepareReturn(
     caller = f.early;
   }
   if (method === "revertContinue") {
-    await h.root.services.chat.undoContinue({ principal: caller, chatId: h.chatId, messageId: f.slot.id });
+    await h.root.services.chat.undoContinue({ principal: caller, chatId: f.chatId, messageId: f.slot.id });
   }
   await h.root.settleBackground();
   return { caller, currentHost };
@@ -147,7 +151,7 @@ async function changeAuthority(f: PrivateFixture, kind: ReturnKind, currentHost:
     recipient = f.early;
   }
   if (kind === "membership") {
-    await h.root.services.chat.selfLeave({ principal: h.owner, chatId: h.chatId });
+    await h.root.services.chat.selfLeave({ principal: h.owner, chatId: f.chatId });
   }
   if (kind === "history-floor") {
     await handoff(f, f.late, h.owner);
@@ -190,13 +194,13 @@ const VERIFY_RETURN: Record<ReturnKind, ReturnVerifier> = {
 test.for(METHODS.flatMap((method) => RETURN_CASES.map((kind) => ({ method, kind }))))(
   "current restore return $method / $kind preserves the committed private snapshot under actual authority",
   async ({ method, kind }) => {
-    await using f = await privateContinuation(true);
+    const f = await (await shared.promise).continuation(true);
     const { h } = f.image;
     const { caller, currentHost } = await prepareReturn(f, method, kind);
-    const args = { principal: caller, chatId: h.chatId, messageId: f.slot.id };
+    const args = { principal: caller, chatId: f.chatId, messageId: f.slot.id };
     const versions = await h.root.db.select().from(statsCanonVersions).orderBy(statsCanonVersions.ownerId);
     const oldVersion = versions.find(({ ownerId }) => ownerId === currentHost.userId)?.version ?? 0;
-    const beforeEvents = await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, h.chatId)).orderBy(chatEvents.seq);
+    const beforeEvents = await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, f.chatId)).orderBy(chatEvents.seq);
     const lastEvent = beforeEvents.at(-1)?.seq ?? 0;
     const gate = f.held.hold(/insert into "chat_events"/u);
     const returning = h.root.services.chat[method](args);
@@ -237,7 +241,7 @@ test.for(METHODS.flatMap((method) => RETURN_CASES.map((kind) => ({ method, kind 
         const commits = await h.root.db
           .select()
           .from(chatEvents)
-          .where(and(eq(chatEvents.chatId, h.chatId), gt(chatEvents.seq, lastEvent), eq(chatEvents.type, "messageCommitted")));
+          .where(and(eq(chatEvents.chatId, f.chatId), gt(chatEvents.seq, lastEvent), eq(chatEvents.type, "messageCommitted")));
         expect(commits).toHaveLength(1);
         expect(commits[0]?.payload).toMatchObject({ type: "messageCommitted", view: { content: landed?.content, reasoning: landed?.reasoning } });
       } finally {
@@ -254,9 +258,9 @@ test.for(METHODS.flatMap((method) => RETURN_CASES.map((kind) => ({ method, kind 
 );
 
 test.for(METHODS)("restore-first %s retains paid signed/tool state before the next actual generation replaces it", async (method) => {
-  await using f = await privateContinuation(false);
+  const f = await (await shared.promise).continuation(false);
   const { h } = f.image;
-  const args = { principal: h.owner, chatId: h.chatId, messageId: f.slot.id };
+  const args = { principal: h.owner, chatId: f.chatId, messageId: f.slot.id };
   expect(f.before.metadata?.continuationTools?.before[0]?.hidden).toBe(true);
   expect(f.before.metadata?.continuationTools?.after[1]?.deleted).toBe(true);
   expect(f.before).toMatchObject({ tokensIn: 20, tokensOut: 8, tokenDetails: { input: [{ modality: "text", tokens: 20 }] } });

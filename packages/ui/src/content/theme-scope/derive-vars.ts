@@ -8,6 +8,7 @@
 // solved in node instead: the reading plate's polarity-derived alpha (#217) and the elevation arm (#243).
 import type { CarriedInks, Oklch, RampDeltas, ShadowIngredients } from "@orb/kit/theme-derivation";
 import {
+  bubbleFills,
   carriedInks,
   chartRampForSurface,
   derivedForegroundLightness,
@@ -273,6 +274,17 @@ export function surfaceVarsOn(background: string, carried: CarriedPalette | null
   const { pixel } = carried;
   const opaqueBase: Oklch = { l: pixel.l, c: pixel.c, h: pixel.h };
   const surfaces = carriedSurfaces(opaqueBase, deltas);
+  // A bubble binds the ramp member it names, so only a fill moved apart from the page needs a var of its own.
+  const fills = bubbleFills(opaqueBase);
+  for (const [name, fill, member] of [
+    ["--color-user-bubble", fills.user, deltas.secondary],
+    ["--color-ai-bubble", fills.ai, deltas.card],
+    ["--color-system-bubble", fills.system, deltas.muted],
+  ] as const) {
+    if (fill.delta !== member || fill.neutral) {
+      vars[name] = `oklch(from ${origin} calc(l + ${fill.delta}) ${fill.neutral ? "0" : "c"} h${opaqueSuffix})`;
+    }
+  }
   // The accent ink covers muted too: they are the neutral tone's two tints, and its text-on-tint is this ink (D336).
   vars["--color-accent-foreground"] = foregroundAt(origin, carried.inks.accentForeground);
   vars["--color-foreground"] = foregroundAt(origin, carried.inks.foreground);

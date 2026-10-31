@@ -2,7 +2,7 @@
 // precheck, and on success both humans seated, every avatar FK resolving to an avatar asset, embedded chunks,
 // all four regex tiers and saved rosters. The seeder's output is the database itself, so the rows are the subject.
 
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -28,6 +28,7 @@ import { freshDb } from "@orb/testkit/node/composed";
 import { expect, test } from "@orb/testkit/tooling";
 import { loadDemoSeed } from "@orb/tooling/seed";
 import { and, eq, isNotNull } from "drizzle-orm";
+import { onTestFinished } from "vitest";
 import { runFullSeed } from "../../../../tooling/src/seed/ops/demo.ts";
 
 const FROZEN_NOW = 1_700_000_000_000;
@@ -35,12 +36,18 @@ const SEED_SECRET = "seed-demo-test-session-secret-0000000000";
 
 test("seed:demo fails before mutation when a promised bundled asset is unavailable", async () => {
   const db = await freshDb();
+  const casDir = mkdtempSync(join(tmpdir(), "seed-demo-cas-"));
+  const variantDir = mkdtempSync(join(tmpdir(), "seed-demo-var-"));
+  onTestFinished(() => {
+    rmSync(casDir, { recursive: true, force: true });
+    rmSync(variantDir, { recursive: true, force: true });
+  });
   const deps = {
     db,
     now: () => FROZEN_NOW,
     sessionSecret: SEED_SECRET,
-    casDir: mkdtempSync(join(tmpdir(), "seed-demo-cas-")),
-    variantDir: mkdtempSync(join(tmpdir(), "seed-demo-var-")),
+    casDir,
+    variantDir,
     force: true,
     log: () => undefined,
     validateRequiredAssets: () => Promise.reject(new Error("required bundled avatars missing: planted")),
@@ -53,6 +60,10 @@ test("seed:demo populates the marquee demo shapes against a fresh db", async () 
   const db = await freshDb();
   const casDir = mkdtempSync(join(tmpdir(), "seed-demo-cas-"));
   const variantDir = mkdtempSync(join(tmpdir(), "seed-demo-var-"));
+  onTestFinished(() => {
+    rmSync(casDir, { recursive: true, force: true });
+    rmSync(variantDir, { recursive: true, force: true });
+  });
 
   const result = await runFullSeed({
     db,

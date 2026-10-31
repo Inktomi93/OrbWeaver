@@ -20,9 +20,6 @@ import {
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { throwHttpError } from "./http-error.ts";
 
-/** The `202` accept body: the id of the enqueued import workload to subscribe for progress + the result. */
-export type TreeImportStarted = ImportStarted;
-
 /** `webkitRelativePath` is present on a directory-picked File in a real browser, but it's a non-standard
  *  Chromium extension the DOM lib types as always-`string` — jsdom (and any spec-faithful `File`) doesn't
  *  implement it at all, so it's genuinely `undefined` at runtime despite the type. Read it through
@@ -46,7 +43,7 @@ export async function importTree(
   files: readonly File[],
   personaCollisions: PersonaCollisionChoices = {},
   layout: TreeLayoutDeclaration | null = null,
-): Promise<TreeImportStarted> {
+): Promise<ImportStarted> {
   const form = new FormData();
   for (const file of files) {
     const relPath = relativePathOf(file);

@@ -10,7 +10,7 @@
 // The caller-signal fold lives in `./abort-flatten.ts` (the reason-flattening law's one home) — this file
 // composes it with the idle timer; it does not re-implement it.
 
-import type { ScheduleTimeout } from "#contract";
+import type { ScheduleOp } from "@orb/kit/time";
 import type { IdleAbort } from "../../contract/http.ts";
 import { foldAbortInto } from "./abort-flatten.ts";
 
@@ -49,7 +49,7 @@ export function isIdleTrip(error: unknown): boolean {
  * detaches from the caller's signal). The caller's cancel is folded in — REASON-FLATTENED, never
  * `AbortSignal.any` (`./abort-flatten.ts`) — so the composed signal fires on either cause.
  */
-export function turnAbortSignal(external: AbortSignal | undefined, idleWindowMs: number | undefined, scheduleTimeout: ScheduleTimeout): IdleAbort {
+export function turnAbortSignal(external: AbortSignal | undefined, idleWindowMs: number | undefined, scheduleTimeout: ScheduleOp): IdleAbort {
   const idleMs = idleWindowMs ?? IDLE_TIMEOUT_MS;
   const controller = new AbortController();
   let cancelTimer: (() => void) | undefined;

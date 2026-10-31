@@ -8,6 +8,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { Principal } from "#identity";
 
+export type { SeedCharacterGallery, StoreSeedCharacterAvatar, StoreSeedPersonaAvatar } from "./seed-art.ts";
 export type { SeededPlateAsset, StoreSeedPlate } from "./seed-plate.ts";
 
 /** The kinds of binary we content-address. `card` = a character-card PNG (also the avatar); `avatar` =

@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-description: "Orchestration for orbweaver: role routing, briefs, lane cap, merge trains, the pre-push barrier, worktrees, pushes, session start, the claude-b bridge. A SessionStart hook injects it into every main session."
+description: "Orchestration for orbweaver: role routing, briefs, lane cap, merge trains, the pre-push barrier, worktrees, pushes, session start, the claude-b bridge. The orb-session plugin puts it in every orchestrating session's system prompt."
 ---
 
 # Orchestrator
@@ -225,9 +225,10 @@ Diagnose an instrument failure far enough to identify its effect on the requeste
 
 ## Session start
 
-At startup, resume, compaction, and clear, `.claude/hooks/orchestrator-inject.mjs` injects this skill into a
-main session, and `.claude/hooks/session-onboard.sh` prints your account, the bridge inbox, the claude-b
-registry, and the worktree state. Do not load this skill again. Follow the onboard first actions.
+The orb-session plugin (`.claude/marketplace/plugins/orb-session`) puts this skill in the system prompt of
+every session that can dispatch lanes, read fresh from this file, so compaction never drops it. At startup,
+resume, compaction, and clear, `.claude/hooks/session-onboard.sh` prints your account, the bridge inbox,
+the claude-b registry, and the worktree state. Do not load this skill again. Follow the onboard first actions.
 
 - Set up MCP servers and connectors before work starts. Changing one mid-session drops the prompt cache.
 - Resume live lanes by SendMessage to their agent ids. Never respawn them.
@@ -257,7 +258,7 @@ format, numbering, and message kinds. Read it before you write a note.
 
 For Codex dispatch to Claude primary, use the full brief above: ownership, acceptance, scoped checks, hazards and explicit exclusions. Require source and caller surveys before edits. Main retains integration and shared-host scheduling. Read `~/.claude/bridge/SESSIONS.md` and verify the existing native inbox watcher; do not start a duplicate. Use a process, not a dedicated model lane, for inbox polling. Confirm the current session receives its alerts instead of assuming Claude plugin delivery reaches Codex.
 
-- Write each note in one shot. The bridge plugin delivers a `bridge: new note N` event for every write to your inbox.
-- Send with `claude-bridge send` (the bridge skill). It numbers the note under the lock.
-- Ack a note by moving it into its inbox's `done/`.
+- Write each note in one shot. The bridge mod wakes the session with a `[bridge, not the owner] new note N` turn for every note in your inbox.
+- Send with the bridge mod's `send` tool, answer with `reply` (it acks first), ack with `ack`. Scripts use `claude-bridge send`. Numbering happens under the lock either way.
+- Ack only after acting; the tool moves the note into its inbox's `done/`.
 - Keep lane-state notes in the session scratchpad, not in a bridge inbox.

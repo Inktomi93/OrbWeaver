@@ -289,8 +289,9 @@ export interface CharacterChatsProjectionView {
   readonly onNewChat: () => void;
 }
 
-/** A COMMITTED chat's CONTEXT-panel projection — the `ChatDetail` wire fields the tabs read, plus
- *  `multiHumanCapable` (the deployment-capability flag, resolved via `#data`'s `useAuthConfig`). */
+/** The Chats CONTEXT-panel state projection — the `ChatDetail` wire fields the tabs read, plus
+ *  `multiHumanCapable` (the deployment-capability flag, resolved via `#data`'s `useAuthConfig`). What
+ *  `defineContextTabs<CommittedChatContext>` and every chat-context contributor are typed against. */
 export interface CommittedChatContext {
   readonly phase: "committed";
   readonly chatId: ChatId;
@@ -309,15 +310,6 @@ export interface CommittedChatContext {
   readonly multiHumanCapable: boolean;
   readonly background: ThemeBackground | null;
 }
-
-/** The Chats CONTEXT-panel state projection (O5 strict) — what `defineContextTabs<ChatContextState>` and
- *  every chat-context CONTRIBUTOR (`ContextTabDef<ChatContextState>`) are typed against.
- *  IT IS A SINGLE-ARM UNION ON PURPOSE. `DraftChatContext` (a rowless room carrying founding CHARACTER ids —
- *  its deleted field said `cast` — instead of a roster) was deleted with draft mode (D166), but
- *  the `phase` discriminant STAYS: it is the seam a second projection would re-enter through, every tab body
- *  and contributor already narrows on it, and collapsing it would be a churn across the whole contributor
- *  surface to save one literal. */
-export type ChatContextState = CommittedChatContext;
 
 // Deep links and tab definitions derive their identifiers from the same vocabulary.
 const CHAT_CONTEXT_TAB_IDS = ["members", "settings", "preview", "plugins"] as const;

@@ -9,8 +9,7 @@ import type { InferenceDeps } from "@orb/inference";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 
 /** Common to every ownership-scoped credential verb: the acting principal (`principal.userId` is the
- *  row owner). The runner-internal `markRevoked` is the ONE verb that does NOT extend this — the runner has
- *  only the credentialId (it proved access by holding it). */
+ *  row owner). */
 interface CredentialActorParams {
   readonly principal: Principal;
 }
@@ -50,16 +49,6 @@ export interface ReplaceCredentialParams extends CredentialActorParams {
 
 export interface RemoveCredentialParams extends CredentialActorParams {
   readonly credentialId: UserCredentialId;
-}
-
-/** Runner-internal revoke — no Principal (the runner discovers a 401 and reports the id), but it DOES carry
- *  the `ownerId` the row must belong to: the write is owner-scoped, so "no Principal" now means "no role
- *  check", never "no tenant scope". Public callers use {@link MarkRevokedByUserParams}. `reason` is log-only
- *  free text; the PERSISTED cause is the `CRED_REVOKED_REASONS` member the verb writes. */
-export interface MarkRevokedParams {
-  readonly ownerId: UserId;
-  readonly credentialId: UserCredentialId;
-  readonly reason: string;
 }
 
 export interface MarkRevokedByUserParams extends CredentialActorParams {

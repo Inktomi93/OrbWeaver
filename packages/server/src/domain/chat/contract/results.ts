@@ -4,7 +4,6 @@ import type {
   AssemblySectionRow,
   AssemblySource,
   ChatContentPart,
-  ChatVariables,
   CueRole,
   GroupConfig,
   ParticipantData,
@@ -496,9 +495,6 @@ export type { ImpersonateStreamDelta } from "@orb/contracts/chat";
 export type CompactResult =
   | { readonly summary: string; readonly compactedAtSeq: number; readonly updated: true }
   | { readonly summary: string; readonly compactedAtSeq: number | null; readonly updated: false };
-
-/** `getVariables` — the ChoiceBlock variable map. */
-export type VariablesResult = ChatVariables;
 
 /** The standalone `reactAsCharacter` op (`verbs/reactions.ts::createReactAsCharacter`) — NOT a
  *  `ChatService` member (its one consumer is the composition root's `react` tool definition; see

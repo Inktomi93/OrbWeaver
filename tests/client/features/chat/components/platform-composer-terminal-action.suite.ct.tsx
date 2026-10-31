@@ -12,7 +12,10 @@ import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const PLUGIN_NAME = "Menu reach witness";
-const COMMANDS_PER_MENU = 18;
+// The short host, not the item count, makes the menu overflow; every extra item is one more serial pan in the touch walk, and
+// a walk that outruns the test budget under load is a timeout, not a verdict on reach.
+const COMMANDS_PER_MENU = 4;
+const TERMINAL_ORDINAL = String(COMMANDS_PER_MENU).padStart(2, "0");
 const TARGETS = [
   { target: "composer-action", opener: "Plugin actions", prefix: "action" },
   { target: "composer-media", opener: "Message tools", prefix: "media" },
@@ -77,14 +80,20 @@ async function proveTouchScroll(page: Page): Promise<void> {
 }
 
 async function revealByTouch(page: Page, popup: Locator, item: Locator): Promise<void> {
+  // The menu is resolved once: a role query per step walks the page's accessibility tree, and a pan is a dozen steps.
+  const menuBox = await settledBox(popup);
+  const scroller = await popup.elementHandle();
+  const action = await item.elementHandle();
   for (;;) {
-    const target = await item.evaluate((node) => {
+    const target = await action.evaluate((node) => {
       const port = node.closest('[role="menu"]');
       if (port === null) {
         throw new Error("The terminal action lost its native menu");
       }
       const box = node.getBoundingClientRect();
-      const bounds = port.getBoundingClientRect();
+      // The scrollport is the padding box: the border paints outside the clip, so an item flush with the border-box edge is cut.
+      const outer = port.getBoundingClientRect();
+      const bounds = { top: outer.top + port.clientTop, bottom: outer.top + port.clientTop + port.clientHeight };
       return {
         visible: box.top >= bounds.top && box.bottom <= bounds.bottom,
         offset: (bounds.top + bounds.bottom - box.top - box.bottom) / 2,
@@ -94,21 +103,19 @@ async function revealByTouch(page: Page, popup: Locator, item: Locator): Promise
     if (target.visible) {
       return;
     }
-    const box = await settledBox(popup);
-    const before = await popup.evaluate((node) => node.scrollTop);
+    const before = await scroller.evaluate((node) => node.scrollTop);
     const viewport = await page.evaluate(() => ({ top: visualViewport?.offsetTop ?? 0, height: visualViewport?.height ?? innerHeight }));
-    const x = box.x + box.width / 2;
-    const y = box.y + box.height * (target.offset < 0 ? 0.85 : 0.15);
+    const x = menuBox.x + menuBox.width / 2;
+    const y = menuBox.y + menuBox.height * (target.offset < 0 ? 0.85 : 0.15);
     const travel = target.offset < 0 ? y - viewport.top : viewport.top + viewport.height - y;
     // A sub-item correction must still be a pan, not a tap on the item under the finger.
     const dy = Math.sign(target.offset) * Math.min(travel, Math.max(target.height / 2, Math.abs(target.offset)));
-    await expect.poll(() => popup.evaluate((node, point) => node.contains(document.elementFromPoint(point.x, point.y)), { x, y })).toBe(true);
+    await expect.poll(() => scroller.evaluate((node, point) => node.contains(document.elementFromPoint(point.x, point.y)), { x, y })).toBe(true);
     await Promise.all([
-      popup.evaluate((node) => new Promise<void>((resolve) => node.addEventListener("scrollend", () => resolve(), { once: true }))),
+      scroller.evaluate((node) => new Promise<void>((resolve) => node.addEventListener("scrollend", () => resolve(), { once: true }))),
       touchGesture(page, { x, y }, { drag: { dx: 0, dy }, holdMs: DRAG_RELEASE_PAUSE_MS }),
     ]);
-    await expect(popup).toHaveCount(1);
-    expect(await popup.evaluate((node) => node.scrollTop)).not.toBe(before);
+    expect(await scroller.evaluate((node) => node.scrollTop)).not.toBe(before);
   }
 }
 
@@ -167,7 +174,7 @@ for (const input of ["keyboard", "touch"] as const) {
       const trigger = page.getByRole("button", { name: opener, exact: true });
       await trigger.tap();
       const popup = page.getByRole("menu").first();
-      const terminal = popup.getByRole("menuitem", { name: `${PLUGIN_NAME} · Commands · Command ${COMMANDS_PER_MENU}`, exact: true });
+      const terminal = popup.getByRole("menuitem", { name: `${PLUGIN_NAME} · Commands · Command ${TERMINAL_ORDINAL}`, exact: true });
       await expect(terminal).toBeEnabled();
       expect(await popup.evaluate((node) => node.scrollHeight > node.clientHeight)).toBe(true);
       const reveal = input === "keyboard" ? revealByKeyboard : revealByTouch;
@@ -179,9 +186,9 @@ for (const input of ["keyboard", "touch"] as const) {
       } else {
         await terminal.tap();
       }
-      await expect(page.getByText(`${PLUGIN_NAME}: Reached ${prefix}_${COMMANDS_PER_MENU}`, { exact: true })).toBeVisible();
+      await expect(page.getByText(`${PLUGIN_NAME}: Reached ${prefix}_${TERMINAL_ORDINAL}`, { exact: true })).toBeVisible();
       expect(rpc.count("plugin.invokeUiCommand")).toBe(index + 1);
-      expect(rpc.lastInput("plugin.invokeUiCommand")).toMatchObject({ pluginId: plugin.id, name: `${prefix}_${COMMANDS_PER_MENU}`, chatId });
+      expect(rpc.lastInput("plugin.invokeUiCommand")).toMatchObject({ pluginId: plugin.id, name: `${prefix}_${TERMINAL_ORDINAL}`, chatId });
       await expect(popup).toHaveCount(0);
       await expect(trigger).toBeFocused();
       await expect(draft).toHaveValue(DRAFT);

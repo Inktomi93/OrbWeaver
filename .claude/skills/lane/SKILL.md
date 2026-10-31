@@ -126,7 +126,9 @@ List each command and its result in the report. The whole-tree check is the orch
 ## Long runs
 
 - Run the named test or lint command directly. Read its completed result before reporting.
-- In Claude, use the Bash tool's `run_in_background` for long commands and read its completion notification.
+- In Claude, start a long command with `run_in_background`, then do other work or end your turn; its completion notification wakes you. To wait for a condition, use Monitor with an until-loop that exits, or one background until-loop. Never sleep-poll, re-read a log, or arm a second waiter: the orb-guard mod refuses those and names the right form.
+- Run targeted checks only: `pnpm test <files>`, `pnpm test:ct <files>`, `pnpm typecheck <tsconfig paths>`, `pnpm lint:eslint <paths>`, plus `pnpm depcruise` and `pnpm knip`. Whole-tree runs (bare `pnpm test`, `pnpm typecheck`, tree-wide `lint:eslint`, `pnpm unwired`, `pnpm e2e*`) are the orchestrator's; name the ones you think are owed in your report.
+- Run every tool through its package script (`pnpm test`, `pnpm test:ct`, `pnpm typecheck`, `pnpm lint:eslint` and the rest of `package.json`), never `npx` or `node_modules/.bin`. Redirect a script's output to a file instead of piping it into a filter.
 - In Codex, retain the running command's session identifier and collect its completion through the available shell tool.
 - A running command has no verdict. Read its completed artifact before reporting success or failure.
 - Read completed native runner output and artifacts printed by that run. A report from another run is not current evidence.

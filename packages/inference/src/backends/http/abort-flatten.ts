@@ -24,7 +24,7 @@
 // forget). `domain/rpg/flush-barrier.ts` folds the same way for the same reason and cannot import this
 // (providers is sealed to domain); its header cites this law.
 
-import type { ScheduleTimeout } from "#contract";
+import type { ScheduleOp } from "@orb/kit/time";
 import type { FlattenedAbort } from "../../contract/http.ts";
 
 /**
@@ -55,7 +55,7 @@ export function flattenAbortSignal(external: AbortSignal): FlattenedAbort {
 
 /** A per-request deadline composed with the caller's cancel: fires on either, reason-flattened. `dispose()`
  *  on settle also clears the deadline's timer. */
-export function deadlineSignal(external: AbortSignal | undefined, deadlineMs: number, scheduleTimeout: ScheduleTimeout): FlattenedAbort {
+export function deadlineSignal(external: AbortSignal | undefined, deadlineMs: number, scheduleTimeout: ScheduleOp): FlattenedAbort {
   const controller = new AbortController();
   const detach = foldAbortInto(controller, external);
   const cancelTimer = scheduleTimeout(() => {

@@ -3,7 +3,7 @@
 
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import { USER_BUS_EVENT_TYPES } from "@orb/contracts/user-bus";
-import type { InvalidateFilter } from "./invalidation-reads.ts";
+import type { InvalidateQueryFilters } from "@tanstack/react-query";
 import { corpusRecomputeReads, promptPreviewReads } from "./invalidation-reads.ts";
 import type { Trpc } from "./trpc.ts";
 
@@ -11,7 +11,7 @@ import type { Trpc } from "./trpc.ts";
 // domain read; this is the freshness driver for every surface the chat bus doesn't reach. Coarse by
 // design — each member path-invalidates its whole domain root.
 type UserBusFilterMap = {
-  readonly [K in UserBusEvent["type"]]: (event: Extract<UserBusEvent, { type: K }>, trpc: Trpc) => readonly InvalidateFilter[];
+  readonly [K in UserBusEvent["type"]]: (event: Extract<UserBusEvent, { type: K }>, trpc: Trpc) => readonly InvalidateQueryFilters[];
 };
 
 // Target changes refresh Labels attachment counts, destination names and staged character names.
@@ -191,14 +191,14 @@ export const USER_BUS_FILTERS: UserBusFilterMap = {
  *  three reads are each independently live). TWO callers share this ONE spelling — the `identityChanged`
  *  row above (the cross-device driver; W7b retired this docblock's old "the map has NO identity member"
  *  note) and `invalidateIdentity()` in `invalidation.ts`, the recovery ladder's rung that fires with no event at all. */
-export function identityFilters(trpc: Trpc): readonly InvalidateFilter[] {
+export function identityFilters(trpc: Trpc): readonly InvalidateQueryFilters[] {
   return [trpc.sessions.me.pathFilter(), trpc.settings.getUserSettings.pathFilter(), trpc.persona.list.pathFilter()];
 }
 
 /** Every filter the user map covers — derived so a new member can't drift the gap-heal set. */
-export function allUserRootFilters(trpc: Trpc): readonly InvalidateFilter[] {
+export function allUserRootFilters(trpc: Trpc): readonly InvalidateQueryFilters[] {
   return (Object.keys(USER_BUS_EVENT_TYPES) as UserBusEvent["type"][]).flatMap((type) => {
-    const handler = USER_BUS_FILTERS[type] as (e: UserBusEvent, t: Trpc) => readonly InvalidateFilter[];
+    const handler = USER_BUS_FILTERS[type] as (e: UserBusEvent, t: Trpc) => readonly InvalidateQueryFilters[];
     return handler({ type } as UserBusEvent, trpc);
   });
 }

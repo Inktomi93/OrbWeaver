@@ -13,13 +13,10 @@ import { throwHttpError } from "./http-error.ts";
 
 const ZIP_MIME = "application/zip";
 
-/** The `202` accept body: the id of the enqueued import workload to subscribe for progress + the result. */
-export type BundleImportStarted = ImportStarted;
-
 /** POST a portability zip as the raw request body; resolve the enqueued workload id. Throws on a non-OK
  *  response (409 = an import is already running; 413 = oversize; 400 = a malformed/hostile archive; 401/403
  *  = auth/CSRF) with the server's `{ error }` message. */
-export async function importBundle(file: File): Promise<BundleImportStarted> {
+export async function importBundle(file: File): Promise<ImportStarted> {
   const response = await fetch(PORTABILITY_ROUTES.importBundle, {
     method: "POST",
     body: file,

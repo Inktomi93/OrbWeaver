@@ -2,10 +2,12 @@
 
 import { expect, test } from "@orb/testkit/node";
 import { readRoomCanon } from "@orb/testkit/node/composed";
-import { withCancellationPeer } from "./turn-cancellation-physical.ts";
+import { registerCancellationRoom } from "./turn-cancellation-physical.ts";
+
+const withPeer = registerCancellationRoom();
 
 test("a draft consumer's return closes its actual native request without leaving generation or canon behind", async () => {
-  await withCancellationPeer("stream", async ({ h, peer, events }) => {
+  await withPeer("stream", async ({ h, peer, events }) => {
     const iter = h.root.services.chat.impersonateStream({ principal: h.owner, chatId: h.chatId })[Symbol.asyncIterator]();
     const finish = iter.return?.bind(iter);
     if (finish === undefined) {

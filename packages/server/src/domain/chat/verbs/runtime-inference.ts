@@ -5,7 +5,7 @@ import type { BindingActor, NoConnectionError, Resolved, RoleClientsWithSignal }
 import { carriesStructured, unavailableRefusal } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context.ts";
-import type { ChatInferenceDeps, ChatInferenceOps } from "../contract/runtime-inference.ts";
+import type { ChatConnectionOps, ChatInferenceDeps, ChatInferenceOps } from "../contract/runtime-inference.ts";
 
 /** The two model-window FACTS memory reads off the funder's role clients (§7.5-1b): the summarize model's window
  *  sizes the digest token guard; the embed model's input cap bounds a segment. A task with no window is
@@ -15,7 +15,7 @@ import type { ChatInferenceDeps, ChatInferenceOps } from "../contract/runtime-in
 
 function createTaskWindowReaders(deps: {
   readonly roleClientsFor: (...args: Parameters<ChatInferenceDeps["roleClientsFor"]>) => Promise<Pick<RoleClientsWithSignal, "resolved">>;
-  readonly availability: ChatInferenceDeps["connection"]["availability"];
+  readonly availability: ChatConnectionOps["availability"];
   readonly resolveHostPrincipal: ChatInferenceDeps["resolveHostPrincipal"];
   readonly resolveUtilityPresetParams: ChatInferenceDeps["resolveUtilityPresetParams"];
 }): { readonly summarize: ChatContext["summarizerContextTokens"]; readonly embed: ChatContext["embedContextTokens"] } {

@@ -3,18 +3,14 @@
 
 import { globalRegexScripts } from "@orb/db";
 import { eq } from "drizzle-orm";
-import { RegexNotFoundError } from "#src/domain/regex/contract/errors.ts";
 import type { DetachGlobalParams } from "#src/domain/regex/contract/params.ts";
 import type { RegexContext, RegexService } from "#src/domain/regex/contract/service.ts";
-import { loadOwnedScript } from "#src/domain/regex/persistence/queries.ts";
+import { requireOwnedScript } from "#src/domain/regex/persistence/ownership.ts";
 
 export function createDetachGlobal(ctx: RegexContext): RegexService["detachGlobal"] {
   return async ({ principal, scriptId }: DetachGlobalParams) => {
     const ownerId = principal.userId;
-    const script = await loadOwnedScript(ctx.db, ownerId, scriptId);
-    if (script === undefined) {
-      throw new RegexNotFoundError("regex_script", scriptId);
-    }
+    await requireOwnedScript(ctx.db, ownerId, scriptId);
     const at = ctx.now();
     const result = await ctx.db.delete(globalRegexScripts).where(eq(globalRegexScripts.regexScriptId, scriptId));
     const detached = result.rowsAffected > 0;

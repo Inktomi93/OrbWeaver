@@ -11,23 +11,13 @@
 // A re-imported document is not re-written; its ATTACHMENTS are still (re)asserted, so a bundle whose
 // document already existed still restores the scopes it was attached under.
 
-import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
-import type { Clock } from "@orb/kit/time";
-import type { Logger } from "#foundation/observability";
 import type { DatabankContext } from "./service.ts";
 
 /** The DI bundle every databank portability op closes over (assembled at the entry composition root).
  *  Principal-less by design: the delivery core knows only `ownerId`, so these are standalone factories, not
- *  `DatabankService` verbs. */
-export interface DatabankPortabilityContext {
-  readonly logger: Logger;
-  readonly db: Db;
-  readonly now: Clock;
-  readonly newDocumentId: DatabankContext["newDocumentId"];
-  /** Re-runs the DERIVED layer for a restored document. Nothing derived travels in a bundle (chunks +
-   *  embeddings are re-runnable by construction), so a restored document is retrieval-dead until this runs. */
-  readonly enqueueIngest: DatabankContext["enqueueIngest"];
-}
+ *  `DatabankService` verbs. A restore re-runs the derived layer through `enqueueIngest`: nothing derived travels
+ *  in a bundle, so a restored document is retrieval-dead until its ingest runs. */
+export type DatabankPortabilityContext = Pick<DatabankContext, "logger" | "db" | "now" | "newDocumentId" | "enqueueIngest">;
 
 export type DatabankPortabilityAssemblyContext = DbAssemblyInput<DatabankPortabilityContext>;

@@ -11,7 +11,7 @@ import {
   isTypeReferenceNode,
   SyntaxKind,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
+import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { SignatureKind, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import ts from "typescript";
 import type { Site } from "./classify.ts";
@@ -70,8 +70,16 @@ function formOf(node: Named): Form {
     return "literal";
   }
   const { type } = node;
-  if (isTypeQueryNode(type) || isIndexedAccessTypeNode(type)) {
+  if (isTypeQueryNode(type)) {
     return "inferred";
+  }
+  // `(typeof value)["key"]` reads a value's own shape; `Router["listRules"][number]` reads another named type's.
+  if (isIndexedAccessTypeNode(type)) {
+    let object = type.objectType;
+    while (isIndexedAccessTypeNode(object)) {
+      object = object.objectType;
+    }
+    return isTypeQueryNode(object) ? "inferred" : "derived";
   }
   if (!isTypeReferenceNode(type)) {
     return "derived";
@@ -112,7 +120,10 @@ function declared(world: NativeWorld): readonly Declared[] {
 }
 
 // The declared type of a named object type and its member names, or null for anything that is not a plain object.
-function* shapeOf(checker: Checker, node: Named): APIRequestGenerator<{ readonly type: Type; readonly names: readonly string[] } | null> {
+// Members a library declares do not count toward the minimum: two props types that each wrap a different library
+// component with the same props, plus one member of their own, match by the library's shape, not by one concept.
+function* shapeOf(world: NativeWorld, node: Named): APIRequestGenerator<{ readonly type: Type; readonly names: readonly string[] } | null> {
+  const { checker } = world;
   const symbol = yield* checker.getSymbolAtLocation.gen(node.name);
   if (symbol === undefined) {
     return null;
@@ -121,8 +132,9 @@ function* shapeOf(checker: Checker, node: Named): APIRequestGenerator<{ readonly
   if (!hasFlag(type.flags, TypeFlags.Object) || (yield* checker.getSignaturesOfType.gen(type, SignatureKind.Call)).length > 0) {
     return null;
   }
-  const names = (yield* checker.getPropertiesOfType.gen(type)).map((property) => property.name).sort();
-  return names.length < MIN_MEMBERS ? null : { type, names };
+  const properties = yield* checker.getPropertiesOfType.gen(type);
+  const own = properties.filter((property) => property.declarations.some((handle) => world.fileOf(handle) !== null));
+  return own.length < MIN_MEMBERS ? null : { type, names: properties.map((property) => property.name).sort() };
 }
 
 interface Pair {
@@ -140,7 +152,7 @@ const linked = (a: Declared, b: Declared): boolean =>
 
 function restated(world: NativeWorld, types: readonly Declared[]): readonly Pair[] {
   const homes = types.filter((type) => type.form === "literal" || type.form === "inferred");
-  const shapes = world.batch(homes.map(({ node }) => shapeOf(world.checker, node)));
+  const shapes = world.batch(homes.map(({ node }) => shapeOf(world, node)));
   const groups = new Map<string, { readonly declared: Declared; readonly type: Type }[]>();
   for (const [index, shape] of shapes.entries()) {
     const home = homes[index];

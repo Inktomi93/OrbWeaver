@@ -16,7 +16,7 @@
 // held it and watching the same timer reap — otherwise "it did not reap" would be satisfied by a keeper
 // that had simply died. And the reserved-port arm plants a row on the DEV STACK's own pair to prove the
 // refusal exists at all.
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import type { Socket } from "node:net";
 import { createConnection } from "node:net";
 import { tmpdir } from "node:os";
@@ -33,7 +33,7 @@ import { spawnNiced, spawnNicedChild } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import type { StageRow } from "@orb/tooling/snap";
 import { readBands, readStageReaps, stageKeeperLogPath } from "@orb/tooling/snap";
-import { afterEach, describe, vi } from "vitest";
+import { afterEach, describe, onTestFinished, vi } from "vitest";
 // The table's WRITERS are not front-door members (the door exports the readers a sibling tool needs), so
 // this proof reaches them at their source path — the spelling tests/tooling/snap/ops/stage-marker.int.test.ts
 // already uses for the same modules.
@@ -98,6 +98,7 @@ afterEach(() => {
 
 function scratchHome(label: string): string {
   const home = mkdtempSync(join(tmpdir(), `cbst-keeper-${label}-`));
+  onTestFinished(() => rmSync(home, { recursive: true, force: true }));
   mkdirSync(join(home, ".cache", "snap-stage"), { recursive: true });
   mkdirSync(join(home, "sessions"), { recursive: true });
   return home;

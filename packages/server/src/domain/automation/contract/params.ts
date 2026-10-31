@@ -34,12 +34,6 @@ export interface DeleteGlobalVariableParams extends AutomationActorParams {
   readonly key: string;
 }
 
-/** Parameters for the owner-scoped service projection. `prefix` narrows by key prefix; absent reads all.
- *  The CEL environment and test-rule verb call the shared persistence query directly. */
-export interface ListGlobalVariablesParams extends AutomationActorParams {
-  readonly prefix?: string;
-}
-
 // ── rule-lifecycle verb params ──────────────────────────────────────────────────────────────────
 // Every rule verb gates `can(principal, "host", {kind:"chat", membership})` over the chat's membership
 // (rule authoring IS room authority in v1). The editable field set is shared by create + update (a PUT-style
@@ -109,8 +103,7 @@ export interface ListChatActivityParams extends AutomationActorParams {
 }
 
 /** C5 — the OWNER-GLOBAL lane's rule list (the Automation settings pane's read). Takes no id at all: the
- *  plane is single-owned, so the caller's own `principal.userId` IS the scope (the `listGlobalVariables`
- *  posture). There is no way to ask for someone else's lane, which is what makes the read leak-free by
+ *  plane is single-owned, so the caller's own `principal.userId` IS the scope. There is no way to ask for someone else's lane, which is what makes the read leak-free by
  *  construction rather than by a gate. */
 export type ListOwnerRulesParams = AutomationActorParams;
 

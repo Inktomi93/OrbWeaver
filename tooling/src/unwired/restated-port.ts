@@ -590,7 +590,8 @@ function propertyFlow(checker: ts.TypeChecker, property: ts.PropertyAssignment |
     return NO_FLOWS;
   }
   const value = ts.isPropertyAssignment(property) ? property.initializer : property.name;
-  const found = objectFlow(checker, property, checker.getTypeOfSymbolAtLocation(slot, property), value);
+  // A literal value is met through its own properties and spreads, so a spread inside it reports once.
+  const found = ts.isObjectLiteralExpression(value) ? NO_FLOWS : objectFlow(checker, property, checker.getTypeOfSymbolAtLocation(slot, property), value);
   const source = ts.isPropertyAssignment(property)
     ? (forwardedMember(checker, property.initializer) ?? wrappedMember(checker, property.initializer, name))
     : checker.getShorthandAssignmentValueSymbol(property);
@@ -599,11 +600,44 @@ function propertyFlow(checker: ts.TypeChecker, property: ts.PropertyAssignment |
 
 const isCallback = (node: ts.Node): boolean => ts.isArrowFunction(node) || ts.isFunctionExpression(node) || ts.isObjectLiteralExpression(node);
 
-/** Every flow whose site is `node`. Object literals are met property by property, so a variable, return or argument
- *  that is itself a literal is skipped here and met through its properties. */
+// The names a literal's later properties and spreads write: they replace what an earlier spread wrote under the same
+// name. A spread's optional member may be absent, so it overrides nothing.
+function overriddenAfter(checker: ts.TypeChecker, literal: ts.ObjectLiteralExpression, spread: ts.SpreadAssignment): ReadonlySet<string> {
+  const names = new Set<string>();
+  for (const later of literal.properties.slice(literal.properties.indexOf(spread) + 1)) {
+    if (ts.isSpreadAssignment(later)) {
+      for (const member of checker.getPropertiesOfType(nonNullable(checker, checker.getTypeAtLocation(later.expression)))) {
+        // biome-ignore lint/suspicious/noBitwiseOperators: SymbolFlags is a compiler-owned bitfield.
+        if ((member.flags & ts.SymbolFlags.Optional) === 0) {
+          names.add(member.name);
+        }
+      }
+    } else if (ts.isIdentifier(later.name) || ts.isStringLiteral(later.name)) {
+      names.add(later.name.text);
+    }
+  }
+  return names;
+}
+
+// A `{ ...ops }` spread: each member of the spread value into the literal's same-named slot, unless a later property
+// or spread fills that slot instead. The literal's whole type is not the spread value's type, so only member flows come back.
+function spreadFlow(checker: ts.TypeChecker, node: ts.SpreadAssignment): Flows {
+  if (!ts.isObjectLiteralExpression(node.parent)) {
+    return NO_FLOWS;
+  }
+  const overridden = overriddenAfter(checker, node.parent, node);
+  const { members } = objectFlow(checker, node, checker.getContextualType(node.parent), node.expression);
+  return { members: members.filter((flow) => !overridden.has(flow.slot.name)), types: [] };
+}
+
+/** Every flow whose site is `node`. Object literals are met property by property and spread by spread, so a variable,
+ *  return or argument that is itself a literal is skipped here and met through its properties and spreads. */
 export function flowsAt(checker: ts.TypeChecker, node: ts.Node): Flows {
   if (ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) {
     return propertyFlow(checker, node);
+  }
+  if (ts.isSpreadAssignment(node)) {
+    return spreadFlow(checker, node);
   }
   if (ts.isVariableDeclaration(node) && node.type !== undefined && node.initializer !== undefined && !isCallback(node.initializer)) {
     return objectFlow(checker, node, checker.getTypeFromTypeNode(node.type), node.initializer);
@@ -618,16 +652,6 @@ export function flowsAt(checker: ts.TypeChecker, node: ts.Node): Flows {
     return { members: each.flatMap((flows) => flows.members), types: each.flatMap((flows) => flows.types) };
   }
   return NO_FLOWS;
-}
-
-/** The member flows a `{ ...ops }` spread at `node` makes: each of the spread value's members into the literal's
- *  same-named slot. The restatement matcher does not read them yet; the unwired scan does, so a spread-wired verb
- *  counts as reached. */
-export function spreadFlowsAt(checker: ts.TypeChecker, node: ts.Node): readonly Flow[] {
-  if (!(ts.isSpreadAssignment(node) && ts.isObjectLiteralExpression(node.parent))) {
-    return [];
-  }
-  return objectFlow(checker, node, checker.getContextualType(node.parent), node.expression).members;
 }
 
 /** Every restatement among the member flows of `node`. */

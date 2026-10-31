@@ -11,8 +11,7 @@
 // co-speaker's), `post_history` the postHistoryInstructions, `char_description`/`scenario`/`dialogue_examples`
 // the card text, and the `persona` marker another human's persona description — naming a section is not a
 // cheap way around the two host-gated doors above.
-// The two member-gated reads on this path build NO rendered bytes: `getActivePresetConfig` returns the bare
-// `PromptConfig` (preset templates, no assemble ctx), and `previewContextFit` returns only the boundary id +
+// The member-gated read on this path builds NO rendered bytes: `previewContextFit` returns only the boundary id +
 // budget numbers off a ctx it never serializes.
 //
 // Deps not on `ChatContext`: `loadParticipantViews` resolves the roster read-model; `resolveConnection`
@@ -85,7 +84,6 @@ import type { ChatMetadata } from "../contract/metadata.ts";
 import type {
   ChatEventBoundsParams,
   CountChatsParams,
-  GetActivePresetConfigParams,
   GetChatLineageParams,
   GetChatParams,
   GetMemberCardParams,
@@ -220,7 +218,6 @@ type ReadVerbs = Pick<
   | "getMemberCard"
   | "previewAssembly"
   | "previewActionTemplates"
-  | "getActivePresetConfig"
   | "previewSection"
   | "peekPrompt"
   | "getShapeTrace"
@@ -243,7 +240,7 @@ type ReadVerbs = Pick<
 type ChatRowView = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
 
 /** The resolved preview substrate: the host, the resolved seated characters/personas, the connection `model`, and the
- *  cross-domain assemble inputs. The previews + `getActivePresetConfig` share this resolution. */
+ *  cross-domain assemble inputs. The previews share this resolution. */
 interface PreviewInputs extends RoomInputs {
   /** The room host whose connection the preview resolved under (§8.4-3). */
   readonly funderUserId: UserId;
@@ -464,7 +461,7 @@ async function buildSummaries(ctx: ChatContext, deps: ReadDeps, rows: readonly C
  *
  *  It also runs the turn's GM-PRESET REDIRECT (see the block at the `resolveForeignInputs` call), so every
  *  surface built on these inputs — `previewAssembly`, `peekPrompt`, `getShapeTrace`, `previewContextFit`,
- *  `previewSection`, `previewActionTemplates`, `getActivePresetConfig` — answers about the preset the TURN
+ *  `previewSection`, `previewActionTemplates` — answers about the preset the TURN
  *  assembles on a game chat — the same preset-redirect hop as the turn, so a preview never renders a preset
  *  the turn wouldn't. */
 async function resolvePreviewInputs(ctx: ChatContext, deps: ReadDeps, chatId: ChatId, opts: PreviewInputsOpts): Promise<PreviewInputs> {
@@ -1606,18 +1603,6 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
   };
 }
 
-/** `getActivePresetConfig` — the resolved `PromptConfig` the chat assembles against. No assemble ctx is
- *  built (only the config is needed). */
-function createGetActivePresetConfig(ctx: ChatContext, deps: ReadDeps): ChatService["getActivePresetConfig"] {
-  return async ({ principal, chatId }: GetActivePresetConfigParams): Promise<PromptConfig> => {
-    const membership = await requireParticipant(ctx, principal, chatId);
-    const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
-      anchorPersonaId: membership.chat.anchorPersonaId,
-    });
-    return inputs.foreign.promptConfig;
-  };
-}
-
 /** `previewSection` — render ONE preset section against the live assemble ctx (the COMPOSER/editor preview).
  *  HOST/ADMIN (`requireHost`, matrix `previewSection: "host"`): a rendered section carries the roster's cards
  *  at FULL (`main_prompt` ← systemPrompt, `char_description` ← the card text, `persona` ← another human's
@@ -1821,7 +1806,6 @@ export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
     getNextTurnConnection: createGetNextTurnConnection(ctx, deps),
     getMemberCard: createGetMemberCard(ctx, deps),
     previewAssembly: createPreviewAssembly(ctx, deps),
-    getActivePresetConfig: createGetActivePresetConfig(ctx, deps),
     previewSection: createPreviewSection(ctx, deps),
     previewActionTemplates: createPreviewActionTemplates(ctx, deps),
     peekPrompt: createPeekPrompt(ctx, deps),

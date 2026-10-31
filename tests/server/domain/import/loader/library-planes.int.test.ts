@@ -550,6 +550,8 @@ test("an owner's persona, world book, global databank document and settings valu
   expect(await restore(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
   const first = await landed();
   expect(first).toEqual({ personas: ["Backup Persona"], books: ["Backup World"], documents: ["Field Notes"], globalDocuments: 1, continueOnSend: false });
+  // No chunk travels in a bundle, so the restored document is searchable only once the restore queues its ingest.
+  expect((await targetCaller.workloads.list()).filter((job) => job.kind === "databank-ingest")).toHaveLength(1);
   expect(await restore(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
   expect(await landed()).toEqual(first);
 });
