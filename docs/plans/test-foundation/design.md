@@ -776,7 +776,7 @@ AR identifies the external app-root reference; RP the pending route; RT the rout
 
 Every reference identifier retains its recorded disposition below. Implementation recorded means the earlier source record reports delivery, not current whole-application qualification.
 
-The complete original inputs, assertions, collapse groups, review corrections and native evidence are preserved at `reports/surface-consistency-private/governed-doc-recovery/originals/docs/work/0963-flow-walking-cts-move-to-e2e.md`.
+The complete original inputs, assertions, collapse groups, review corrections and native evidence are preserved in the private originals under `reports/surface-consistency-private/governed-doc-recovery/originals/docs/work/`.
 
 | Reference identifiers | Recorded disposition | Maintained home or proposed target |
 | - | - | - |
