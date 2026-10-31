@@ -3,6 +3,7 @@
 // refusal, rate limit, dropped-thinking alarm). The prefix-bound carry is the wire half of the append-only
 // history ruling.
 // @subject packages/inference/src/backends/anthropic-messages/chat.ts
+import type { WarningCode } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ChatEvent, ChatHistoryMessage, ChatResult, ToolChoice, WireTool } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
@@ -219,13 +220,13 @@ test("a forced tool choice goes out as auto, with the tools kept and a warning, 
       const { turn, sent } = await drive({ model, reply: textReply, tools: [WEATHER], toolChoice });
       expect(sent.body["tool_choice"], `${model} ${toolChoice.mode}`).toMatchObject({ type: "auto" });
       expect(sent.body["tools"], model).toMatchObject([{ name: "get_weather" }]);
-      expect(warningCodes(turn), `${model} ${toolChoice.mode}`).toContain("tool_choice_downgraded");
+      expect(warningCodes(turn), `${model} ${toolChoice.mode}`).toContain<WarningCode>("tool_choice_downgraded");
     }
   }
   for (const model of ["claude-opus-5", "claude-fable-5"]) {
     const required = await drive({ model, reply: textReply, tools: [WEATHER], toolChoice: { mode: "required" } });
     expect(required.sent.body["tool_choice"], model).toMatchObject({ type: "any" });
-    expect(warningCodes(required.turn), model).not.toContain("tool_choice_downgraded");
+    expect(warningCodes(required.turn), model).not.toContain<WarningCode>("tool_choice_downgraded");
     const named = await drive({ model, reply: textReply, tools: [WEATHER], toolChoice: { mode: "tool", name: "get_weather" } });
     expect(named.sent.body["tool_choice"], model).toMatchObject({ type: "tool", name: "get_weather" });
   }
@@ -236,7 +237,7 @@ test("manual extended thinking refuses a forced tool choice: a budget-thinking t
   const thinking = await drive({ model, reply: textReply, tools: [WEATHER], toolChoice: { mode: "required" }, params: { effort: "high" } });
   expect(thinkingOf(thinking.sent)).toMatchObject({ type: "enabled" });
   expect(thinking.sent.body["tool_choice"]).toMatchObject({ type: "auto" });
-  expect(warningCodes(thinking.turn)).toContain("tool_choice_downgraded");
+  expect(warningCodes(thinking.turn)).toContain<WarningCode>("tool_choice_downgraded");
 
   const off = await drive({ model, reply: textReply, tools: [WEATHER], toolChoice: { mode: "required" }, params: { effort: "none" } });
   expect(off.sent.body["tool_choice"]).toMatchObject({ type: "any" });
@@ -247,7 +248,7 @@ test("reasoning off never sends thinking disabled where the model refuses it: Op
   expect(thinkingOf(opus.sent)).toMatchObject({ type: "adaptive" });
   expect(opus.sent.body["output_config"]).toMatchObject({ effort: "low" });
   expect(opus.turn.appliedEffort).toBe("low");
-  expect(warningCodes(opus.turn)).toContain("reasoning_mandatory_clamp");
+  expect(warningCodes(opus.turn)).toContain<WarningCode>("reasoning_mandatory_clamp");
 
   const sonnet = await drive({ model: "claude-sonnet-5-5", reply: textReply, params: { effort: "none", carryReasoning: "conversation" } });
   expect(thinkingOf(sonnet.sent)).toEqual({ type: "between_tools" });

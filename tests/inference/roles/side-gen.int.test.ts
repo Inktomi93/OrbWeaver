@@ -1,6 +1,6 @@
 // @subject packages/inference/src/roles/side-gen.ts
 // @subject packages/inference/src/roles/executor.ts
-import type { Capability } from "@orb/contracts/inference";
+import type { Capability, WarningCode } from "@orb/contracts/inference";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ProviderExecutor, Resolved } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
@@ -86,7 +86,7 @@ test("(2) an extras key the OpenRouter transport cannot take is named on the ite
     effort: "none",
     maxTokens: 128,
   });
-  expect(warnedCodes(warning.mock.calls)).toContain("custom_parameters_ignored");
+  expect(warnedCodes(warning.mock.calls)).toContain<WarningCode>("custom_parameters_ignored");
 });
 
 test("(3) a 429 on one item is retried before anything streamed, and the batch completes", async () => {

@@ -101,6 +101,24 @@ Row numbers are the rows of reports/test-derivation-audit/shard-b.md.
 | 65 | The 200-character cap has no production constant. |
 | 66 (usage) | The usage fields are required and nullable with no schema defaults, so the base lists them. |
 
+### Fixed in the `tests/contracts`, `tests/db`, `tests/inference` and `tests/kit` domains
+
+| Rows | Fix |
+| - | - |
+| 2, 4, 5 | The manifest suite builds its provider row with `makePluginProviderRow`; the actor-ref suite builds its identity and volatile with `makeRpgActorIdentity` and `makeRpgActorVolatile`; the stale prose key is typed as a `ProseSlotId`. |
+| 53 (contracts) | The card-frame contract suite uses `IN_RANGE_CARD_FRAME_STYLE`. |
+| 9 | Warning codes are asserted with `toContain<WarningCode>`, so a renamed code fails `tsc`. |
+| unseeded ids | The sheet-patch suite seeds its chat id; the freeze-provenance suite draws the colliding insert's id from the same source as the seeded row. |
+| 36, 84 | `PUBLIC_PEER_ADDRESS` replaces the literal in `tests/inference`. |
+
+### Ruled to stay (contracts, db, inference, kit)
+
+| Rows | Reason |
+| - | - |
+| 8, 10 | The anthropic beta header names and the `provider.thinking_dropped` event name have no production export; item 1504 owns them. |
+| 13, 14, 15, 16 | The builtin provider ids have no production tuple, the native route spellings are the wire under test, and the probe cap and idle-time message are private to `diagnostics.ts`; each needs a production export from item 1504. |
+| 17 | See the proposal above: kit cannot import ui, so the number needs a kit owner. |
+
 ### Ruled to stay
 
 | Rows | Reason |

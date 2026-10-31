@@ -1,6 +1,7 @@
 // The outbound body of an openai-compat chat turn, read at the provider edge: the user's own body (extras,
 // includeBody, excludeBody) is the last word, and every computed key leaves a key they settled alone.
 // @subject packages/inference/src/backends/openai-compat/body.ts
+import type { WarningCode } from "@orb/contracts/inference";
 import { connectionExtrasSchema, isBeltOwnedBodyKey } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ChatEvent, ChatHistoryMessage } from "@orb/inference";
@@ -175,16 +176,16 @@ test("a delivered prefill sends the continue pair and turns thinking off for the
   expect(pair.body["add_generation_prompt"]).toBe(false);
   expect(pair.body["chat_template_kwargs"]).toMatchObject({ ["enable_thinking"]: false });
   expect(pair.body).not.toHaveProperty("reasoning_effort");
-  expect(warningCodes(pair.events)).toContain("reasoning_dropped_for_prefill");
+  expect(warningCodes(pair.events)).toContain<WarningCode>("reasoning_dropped_for_prefill");
 
   const noPrefillTurn = await send({ providerId: "vllm", capability: prefill }, { params, history: [USER_LINE] });
   expect(noPrefillTurn.body).not.toHaveProperty("continue_final_message");
-  expect(warningCodes(noPrefillTurn.events)).not.toContain("reasoning_dropped_for_prefill");
+  expect(warningCodes(noPrefillTurn.events)).not.toContain<WarningCode>("reasoning_dropped_for_prefill");
 
   const theirDecision = await send({ providerId: "vllm", capability: prefill, transport: { excludeBody: ["continue_final_message"] } }, { params, history });
   expect(theirDecision.body).not.toHaveProperty("continue_final_message");
   expect(theirDecision.body).not.toHaveProperty("add_generation_prompt");
-  expect(warningCodes(theirDecision.events)).not.toContain("reasoning_dropped_for_prefill");
+  expect(warningCodes(theirDecision.events)).not.toContain<WarningCode>("reasoning_dropped_for_prefill");
 });
 
 test("a messages array the user's body sets is theirs whole: the plan's prefill pair and interlock never touch it", async () => {
@@ -201,7 +202,7 @@ test("a messages array the user's body sets is theirs whole: the plan's prefill 
   expect(owned.body).not.toHaveProperty("continue_final_message");
   expect(owned.body).not.toHaveProperty("add_generation_prompt");
   expect(owned.body["reasoning_effort"]).toBe("high");
-  expect(warningCodes(owned.events)).not.toContain("reasoning_dropped_for_prefill");
+  expect(warningCodes(owned.events)).not.toContain<WarningCode>("reasoning_dropped_for_prefill");
 });
 
 test("a reasoning-on turn tells the template to think, but never over an off the user's own body already set", async () => {
@@ -217,7 +218,7 @@ test("an effort the row cannot spell is dropped with a warning, and one the user
   const params = { effort: "high" } satisfies UserIntent;
   const dropped = await send({ capability: EFFORT }, { params });
   expect(dropped.body).not.toHaveProperty("reasoning_effort");
-  expect(warningCodes(dropped.events)).toContain("effort_dropped");
+  expect(warningCodes(dropped.events)).toContain<WarningCode>("effort_dropped");
 
   const theirs = await send({ capability: EFFORT, extras: { ["reasoning_effort"]: "low" } }, { params });
   expect(theirs.body["reasoning_effort"]).toBe("low");

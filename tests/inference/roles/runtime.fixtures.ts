@@ -3,7 +3,7 @@ import { BUILTIN_PROVIDERS, declaredCapabilitySchema } from "@orb/contracts/infe
 import type { Resolved } from "@orb/inference";
 import type { ScheduleOp } from "@orb/kit/time";
 import type { ControlledTimers } from "@orb/testkit/iso";
-import { createControlledTimers, createFrozenClock, makeCapability, makeGenerationCapability } from "@orb/testkit/iso";
+import { createControlledTimers, createFrozenClock, makeCapability, makeGenerationCapability, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
 
@@ -24,7 +24,7 @@ export function createRuntimeRoot(options: ServerHarnessOptions = {}): Promise<S
           return Promise.resolve(["127.0.0.1"]);
         }
         if (BUILTIN_PROVIDERS.some((provider) => provider.baseUrl !== undefined && new URL(provider.baseUrl).hostname === hostname)) {
-          return Promise.resolve(["93.184.215.14"]);
+          return Promise.resolve([PUBLIC_PEER_ADDRESS]);
         }
         throw new Error(`unscripted runtime-fixture DNS lookup: ${hostname}`);
       },
