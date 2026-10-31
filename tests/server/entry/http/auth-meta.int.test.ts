@@ -2,6 +2,7 @@
 // @subject packages/server/src/entry/http/auth-meta.ts
 import process from "node:process";
 import { authConfigSchema } from "@orb/contracts/auth-config";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -22,7 +23,7 @@ async function authConfig(root: Root, headers: Record<string, string> = {}): Pro
 }
 
 function localRoot(options: Parameters<typeof createServerHarness>[0] = {}): Promise<ServerTestHarness> {
-  return createServerHarness({ ...options, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
+  return createServerHarness({ ...options, env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
 }
 
 describe("GET /api/auth/config", () => {

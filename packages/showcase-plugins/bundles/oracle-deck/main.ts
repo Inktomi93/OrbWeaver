@@ -466,7 +466,7 @@ if (host.grants.includes("ui.surface")) {
 // The card above is what a tool call looks like. These are what a PERSON reaches for directly, without asking
 // the model for anything:
 //
-//  * `registerCommand` — the deck, from the composer or the Plugins wand menu. The app routes
+//  * `registerCommand` — the deck, from the composer wand. The app routes
 //    `/plugin oracle-deck draw` and a menu item to this handler; you never claim a top-level slash token, so
 //    two plugins can both have a `draw` and neither shadows the other (or a house command).
 //  * `ui.page` — a FULL-PAGE surface, listed in the app's one "Plugin pages" rail entry. This is the home for a

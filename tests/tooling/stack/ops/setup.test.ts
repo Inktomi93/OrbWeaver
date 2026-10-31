@@ -6,7 +6,9 @@ import { join } from "node:path";
 import process from "node:process";
 import { PassThrough } from "node:stream";
 import { parseEnv } from "node:util";
+import { AUTH_FALLBACK_KEY, AUTH_FALLBACK_TRUSTED_PEERS_KEY } from "@orb/contracts/identity";
 import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
+import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { expect, test } from "@orb/testkit/tooling";
 import { afterEach, vi } from "vitest";
 import type { SetupMachine } from "../../../../tooling/src/stack/index.ts";
@@ -73,13 +75,13 @@ afterEach(() => {
 });
 
 /** The server keys a stray shell export could pin under the vitest worker, where `.env` only fills unset keys. */
-const SERVER_KEYS_UNDER_TEST = ["PORT", "AUTH_MODE", "BIND_HOST", "ALLOW_DEV_PUBLIC_BIND", "AUTH_FALLBACK", "AUTH_FALLBACK_TRUSTED_PEERS"] as const;
+const SERVER_KEYS_UNDER_TEST = ["PORT", AUTH_MODE_KEY, "BIND_HOST", "ALLOW_DEV_PUBLIC_BIND", AUTH_FALLBACK_KEY, AUTH_FALLBACK_TRUSTED_PEERS_KEY] as const;
 
 /** Boot the server's env module against `dir/.env` the way `pnpm start` launches it: cwd = the directory
  *  holding the file, NODE_ENV=production, and no ambient value for any key the assertions read. */
 async function serverEnvIn(dir: string): Promise<typeof import("@orb/server/foundation/env")> {
   // The vitest config sets ORB_ENV_NO_FILE so no test reads a real `.env`; this one must read the file it wrote.
-  vi.stubEnv("ORB_ENV_NO_FILE", undefined);
+  vi.stubEnv(ENV_NO_FILE_KEY, undefined);
   vi.stubEnv("NODE_ENV", "production");
   for (const key of SERVER_KEYS_UNDER_TEST) {
     vi.stubEnv(key, undefined);

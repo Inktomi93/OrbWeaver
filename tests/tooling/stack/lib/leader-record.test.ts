@@ -3,6 +3,7 @@
 // record that does not parse never authorizes a signal.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { expect, test } from "@orb/testkit/tooling";
 import type { DevPinKey, LeaderRecord, PinSource } from "../../../../tooling/src/stack/index.ts";
 import {
@@ -35,7 +36,7 @@ const RECORD: LeaderRecord = {
   children: [4243, 4250],
   pins: {
     values: Object.fromEntries([
-      ["AUTH_MODE", "single-user"],
+      [AUTH_MODE_KEY, "single-user"],
       ["DEV_SEED", "on"],
     ]),
     sources: SOURCES,

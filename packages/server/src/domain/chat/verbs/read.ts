@@ -120,6 +120,7 @@ import type {
 import { gateLineagePerAncestor, requireHost, requireParticipant } from "../guard.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { loadInlineReplyAssetIds } from "../persistence/message-asset-links.ts";
+import { loadMessagePositions, positionCanonPage } from "../persistence/message-positions.ts";
 import { loadPageCursors } from "../persistence/page-cursors.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants, loadPresentVisibilityRows } from "../persistence/participants-read.ts";
@@ -180,6 +181,7 @@ import {
 } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
+import { eventViewMessageId, withViewPosition } from "../substrate/view-position.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
 import { buildWireHistory, convertsToEmptyWireRow, replayToolMessageIds, shapeConvertFit } from "../substrate/wire-history.ts";
 
@@ -1095,7 +1097,8 @@ function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["list
     const chronological = afterSeq === undefined ? page.reverse() : page;
     const readsHidden = viewerReadsHidden(membership);
     const reasoningHostOnly = readsHidden ? false : await resolveReasoningHostOnly(ctx, chatId);
-    const messages = readsHidden ? chronological : chronological.map((v) => projectViewForMember(v, reasoningHostOnly));
+    const projected = readsHidden ? chronological : chronological.map((v) => projectViewForMember(v, reasoningHostOnly));
+    const messages = await positionCanonPage(ctx.db, chatId, membership.historyFloorSeq, projected);
     const participants = await deps.loadParticipantViews(chatId);
     const identities = await loadChatIdentityProducer(ctx.db, { participants, messages, anchorPersonaId: membership.chat.anchorPersonaId });
     const firstSeq = messages[0]?.seq ?? (afterSeq === undefined ? beforeSeq : afterSeq + 1);
@@ -1754,11 +1757,14 @@ function createReplayChatEvents(ctx: ChatContext): ChatService["replayChatEvents
     const floored = rows
       .filter(({ payload }) => !isBelowHistoryFloor(payload, membership.historyFloorSeq))
       .map(({ seq, payload }) => ({ seq, event: payload }));
-    if (readsHidden) {
-      return floored;
-    }
-    const reasoningHostOnly = await resolveReasoningHostOnly(ctx, chatId);
-    return scrubChatEventReplayForMember(floored, membership, reasoningHostOnly);
+    const reasoningHostOnly = readsHidden ? false : await resolveReasoningHostOnly(ctx, chatId);
+    const delivered = readsHidden ? floored : scrubChatEventReplayForMember(floored, membership, reasoningHostOnly);
+    const named = new Set(delivered.flatMap(({ event }) => eventViewMessageId(event) ?? []));
+    const positions = await loadMessagePositions(ctx.db, chatId, membership.historyFloorSeq, [...named]);
+    return delivered.map(({ seq, event }) => {
+      const id = eventViewMessageId(event);
+      return { seq, event: withViewPosition(event, id === undefined ? undefined : positions.get(id)) };
+    });
   };
 }
 
@@ -1774,7 +1780,7 @@ function createReplayChatEvents(ctx: ChatContext): ChatService["replayChatEvents
  *  per-CALLER — the floor is resolved from the SUBSCRIBER's own participant row at the chokepoint, never
  *  from anything the client sends. */
 function createChatEventBounds(ctx: ChatContext): ChatService["chatEventBounds"] {
-  return async ({ principal, chatId }: ChatEventBoundsParams): Promise<ChatEventAttach> => {
+  return async ({ principal, chatId, positionOf }: ChatEventBoundsParams): Promise<ChatEventAttach> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     // `viewerIsHost` piggybacks on the same member-gated probe as the D16 floor (one read per yield): the
     // LIVE fan-out applies the §3.6 member-strip off it, exactly as the durable replay does per caller. P3:
@@ -1788,7 +1794,15 @@ function createChatEventBounds(ctx: ChatContext): ChatService["chatEventBounds"]
     // `ChatDetailData.viewerIsHost` field and the durable replay applies to the rows (D110; the F1 ruling).
     const readsHidden = viewerReadsHidden(membership);
     const reasoningHostOnly = readsHidden ? false : await resolveReasoningHostOnly(ctx, chatId);
-    return { ...(await loadChatEventBounds(ctx.db, chatId)), historyFloorSeq: membership.historyFloorSeq, viewerIsHost: readsHidden, reasoningHostOnly };
+    const messagePosition =
+      positionOf === undefined ? undefined : (await loadMessagePositions(ctx.db, chatId, membership.historyFloorSeq, [positionOf])).get(positionOf);
+    return {
+      ...(await loadChatEventBounds(ctx.db, chatId)),
+      historyFloorSeq: membership.historyFloorSeq,
+      viewerIsHost: readsHidden,
+      reasoningHostOnly,
+      ...(messagePosition === undefined ? {} : { messagePosition }),
+    };
   };
 }
 

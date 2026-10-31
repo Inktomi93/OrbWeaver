@@ -1,9 +1,7 @@
 // @subject packages/inference/src/funnel/resolve-chat.ts
 // @subject packages/inference/src/backends/agent-sdk/translate.ts
 import type { Wire } from "@orb/contracts/inference";
-
-import { WARNING_CODES } from "@orb/contracts/inference";
-
+import { WARNING_CODE } from "@orb/contracts/inference";
 import { expect, test } from "@orb/testkit/node";
 import { wireConnection } from "../roles/runtime.fixtures.ts";
 import type { ChatScript } from "./runtime.fixtures.ts";
@@ -26,15 +24,15 @@ for (const wire of CONFORMANCE_WIRES) {
     });
 
     const codes = warningCodesOf(events);
-    expect(codes, "the drop was announced").toContain("sampling_knob_dropped");
+    expect(codes, "the drop was announced").toContain(WARNING_CODE.samplingKnobDropped);
     for (const code of codes) {
-      expect(WARNING_CODES, "every emitted warning code is inside the closed vocabulary").toContain(code);
+      expect(Object.values(WARNING_CODE), "every emitted warning code is inside the closed vocabulary").toContain(code);
     }
-    const dropped = events.find((event) => event.kind === "warning" && event.code === "sampling_knob_dropped");
+    const dropped = events.find((event) => event.kind === "warning" && event.code === WARNING_CODE.samplingKnobDropped);
     expect(dropped, "the warning names WHICH knob was dropped — a bare code is not a receipt").toMatchObject({ knob: KNOB });
     // The turn's own record must carry the warning too, not only the live callback: the callback is the room,
     // the events array is what a caller with no bus reads.
-    expect(warningCodesOf(turn.events), "the record carries the warning as well as the stream").toContain("sampling_knob_dropped");
+    expect(warningCodesOf(turn.events), "the record carries the warning as well as the stream").toContain(WARNING_CODE.samplingKnobDropped);
 
     // …and it never left. `captured` is every send-boundary body this turn produced.
     expect(captured.length, "the turn reached the send boundary at least once").toBeGreaterThan(0);
@@ -59,7 +57,10 @@ for (const wire of CONFORMANCE_WIRES) {
     // (`sdk_unsupported_setting`, e.g. Anthropic refusing `temperature` while thinking is on, which the
     // default adaptive effort turns on here). Both name the knob, and both keep it out of the applied record.
     const announced = events.some(
-      (event) => event.kind === "warning" && (event.code === "sampling_knob_dropped" || event.code === "sdk_unsupported_setting") && event.knob === KNOB,
+      (event) =>
+        event.kind === "warning" &&
+        (event.code === WARNING_CODE.samplingKnobDropped || event.code === WARNING_CODE.sdkUnsupportedSetting) &&
+        event.knob === KNOB,
     );
     expect(sent || announced, `"${KNOB}" was resolved, reported applied, and then neither sent nor announced as dropped`).toBe(true);
   });
@@ -81,7 +82,7 @@ test("a user-widened sampler axis on the agent-sdk wire is ANNOUNCED, never sile
     capability: chatCapability({ sampling: { temperature: { min: 0, max: 2 }, topP: { min: 0, max: 1 } } }),
     params: { temperature: 0.9, topP: 0.5 },
   });
-  const dropped = events.flatMap((event) => (event.kind === "warning" && event.code === "sampling_knob_dropped" ? [event.knob] : []));
+  const dropped = events.flatMap((event) => (event.kind === "warning" && event.code === WARNING_CODE.samplingKnobDropped ? [event.knob] : []));
   expect(dropped, "both widened knobs were announced by name").toEqual(expect.arrayContaining(["temperature", "topP"]));
   // The other half of the same law: announcing a drop is only honest if the knob really did not go out.
   for (const body of captured) {
@@ -101,12 +102,12 @@ test("a preset's parallelToolCalls is ANNOUNCED as dropped on an agent-sdk turn 
     params: { advanced: { parallelToolCalls: true } },
     terminalTools: [SCENE_TOOL],
   });
-  const dropped = events.flatMap((event) => (event.kind === "warning" && event.code === "sampling_knob_dropped" ? [event.knob] : []));
+  const dropped = events.flatMap((event) => (event.kind === "warning" && event.code === WARNING_CODE.samplingKnobDropped ? [event.knob] : []));
   expect(dropped).toContain("parallelToolCalls");
 });
 
 test("with no tools on the turn, parallelToolCalls is not announced on the agent-sdk wire", async () => {
   const { events } = await driveChat("agent-sdk", { script: scriptFor("agent-sdk"), params: { advanced: { parallelToolCalls: true } } });
-  const dropped = events.flatMap((event) => (event.kind === "warning" && event.code === "sampling_knob_dropped" ? [event.knob] : []));
+  const dropped = events.flatMap((event) => (event.kind === "warning" && event.code === WARNING_CODE.samplingKnobDropped ? [event.knob] : []));
   expect(dropped).not.toContain("parallelToolCalls");
 });

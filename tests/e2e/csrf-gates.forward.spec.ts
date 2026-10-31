@@ -1,13 +1,14 @@
 // E2E (FORWARD-HEADER mode): a signed-JWT trusted-proxy credential is not ambient, so it needs no CSRF header on the
 // tRPC mount or on the byte ingests, and `sessions.me` projects it without its subject or provenance.
 import { randomBytes } from "node:crypto";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { actorViaHeader, importsIdle, rawTrpcCall } from "./support/actors.ts";
 import { E2E_SSO_GROUPS } from "./support/modes.ts";
 
-const INGEST_ROUTES = ["/api/assets/upload", "/api/databank/upload", "/api/import", "/api/import/restore-card-lorebook"] as const;
+const INGEST_ROUTES = ["/api/assets/upload", "/api/databank/upload", PORTABILITY_ROUTES.importCards, PORTABILITY_ROUTES.restoreCardLorebook] as const;
 const MARKER_BYTES = 4;
 
 function marker(label: string): string {

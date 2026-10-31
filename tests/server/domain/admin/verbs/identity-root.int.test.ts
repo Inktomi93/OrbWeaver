@@ -2,7 +2,7 @@
 // @subject packages/server/src/domain/sessions/verbs/validate.ts
 // @subject packages/server/src/domain/admin/verbs/set-enabled.ts
 // @subject packages/server/src/domain/admin/verbs/set-role.ts
-import { authMeSchema } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, authMeSchema } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
@@ -12,7 +12,7 @@ import { createServerHarness } from "@orb/testkit/node/composed";
 const PASSWORD = "identity-root-target-password";
 
 test("an admin role change and disable reach a live cookie session on its next request", async () => {
-  await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
+  await using root = await createServerHarness({ env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
   const owner = await root.principalFor(root.ownerId);
   const handle = castId<Handle>("identity-root-target");
   const target = await root.services.admin.createUser({ principal: owner, handle, password: PASSWORD });

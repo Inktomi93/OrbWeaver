@@ -1,4 +1,11 @@
-import { cachePolicyContextSchema, cachePolicySchema, GENERATION_FLOOR, generationCapabilitySchema, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
+import {
+  cachePolicyContextSchema,
+  cachePolicySchema,
+  GENERATION_FLOOR,
+  generationCapabilitySchema,
+  SHIPPED_PROMPT_CACHE,
+  WARNING_CODE,
+} from "@orb/contracts/inference";
 import { resolveCachePolicy } from "@orb/inference";
 import { expect, test } from "@orb/testkit/node";
 
@@ -52,7 +59,7 @@ test("supported automatic placement replaces saved manual controls and an unsupp
   });
   expect(automatic.warnings).toEqual([
     {
-      code: "cache_control_adjusted",
+      code: WARNING_CODE.cacheControlAdjusted,
       message: "Request-wide automatic prefix caching replaces manual system/history breakpoints; their saved settings are not applied",
     },
   ]);
@@ -68,7 +75,7 @@ test("supported automatic placement replaces saved manual controls and an unsupp
   });
   expect(unsupported.warnings).toEqual([
     {
-      code: "cache_control_adjusted",
+      code: WARNING_CODE.cacheControlAdjusted,
       message: "Request-wide automatic prefix caching is unsupported on this route; no automatic request control was applied",
     },
   ]);
@@ -99,7 +106,7 @@ test("manual placement respects the saved depth floor, absent safe depth and fix
     preservesBlockEnds: true,
   });
   expect(manual.warnings).toEqual([
-    { code: "cache_control_adjusted", message: "This route applies 5m prefix retention; the saved 1h setting was not applied" },
+    { code: WARNING_CODE.cacheControlAdjusted, message: "This route applies 5m prefix retention; the saved 1h setting was not applied" },
   ]);
   const withoutSafeDepth = resolveCachePolicy({ context, generation });
   expect(cachePolicySchema.parse(withoutSafeDepth.plan)).toEqual(withoutSafeDepth.plan);

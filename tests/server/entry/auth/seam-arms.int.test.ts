@@ -1,6 +1,15 @@
 // D40/D135: the seam's cookie, owner-fallback and SSO-header arms over the real HTTP graph and real credentials.
 // @subject packages/server/src/entry/auth/seam.ts
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import {
+  AUTH_FALLBACK_KEY,
+  AUTH_MODE_KEY,
+  CSRF_HEADER,
+  DEFAULT_USER_HANDLE_KEY,
+  FORWARD_AUTH_TRUSTED_PROXIES_KEY,
+  OIDC_ADMIN_GROUPS_KEY,
+  OWNER_HANDLES_KEY,
+} from "@orb/contracts/identity";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
@@ -24,7 +33,7 @@ const FORWARD_USER_HEADER = "x-forwarded-user";
 const FORWARD_GROUPS_HEADER = "x-forwarded-groups";
 const ADMIN_GROUP = "orb-admins";
 const RELAY_HOST = "calm-river-four-birds.trycloudflare.com";
-const BUNDLE_ROUTE = "/api/import/bundle";
+const BUNDLE_ROUTE = PORTABILITY_ROUTES.importBundle;
 const PRUNE_ROUTE = "/api/trpc/tag.pruneUnusedTags";
 const ANONYMOUS = { authenticated: false, handle: null, role: null };
 
@@ -35,13 +44,13 @@ function single(options: Omit<ServerHarnessOptions, "authConfig"> & { readonly d
   return createServerHarness({
     physicalPeer: () => LOOPBACK,
     ...rest,
-    env: { ["AUTH_MODE"]: "single-user", ["AUTH_FALLBACK"]: "owner" },
-    rolePolicyConfig: { ...rolePolicyConfig, ...(defaultHandle === undefined ? {} : { ["DEFAULT_USER_HANDLE"]: defaultHandle }) },
+    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
+    rolePolicyConfig: { ...rolePolicyConfig, ...(defaultHandle === undefined ? {} : { [DEFAULT_USER_HANDLE_KEY]: defaultHandle }) },
   });
 }
 
 function local(peer: () => string = () => LOOPBACK): Promise<ServerTestHarness> {
-  return createServerHarness({ physicalPeer: peer, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
+  return createServerHarness({ physicalPeer: peer, env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
 }
 
 function forward(peer: () => string, rolePolicyConfig: SessionsRolePolicyConfig = createTestEnv()): Promise<ServerTestHarness> {
@@ -49,9 +58,9 @@ function forward(peer: () => string, rolePolicyConfig: SessionsRolePolicyConfig 
     physicalPeer: peer,
     rolePolicyConfig,
     env: {
-      ["FORWARD_AUTH_TRUSTED_PROXIES"]: TRUSTED_PROXIES.join(","),
-      ["AUTH_MODE"]: "forward-header",
-      ["AUTH_FALLBACK"]: "owner",
+      [FORWARD_AUTH_TRUSTED_PROXIES_KEY]: TRUSTED_PROXIES.join(","),
+      [AUTH_MODE_KEY]: "forward-header",
+      [AUTH_FALLBACK_KEY]: "owner",
       ["FORWARD_AUTH_USER_HEADER"]: FORWARD_USER_HEADER,
       ["FORWARD_AUTH_GROUPS_HEADER"]: FORWARD_GROUPS_HEADER,
     },
@@ -84,7 +93,7 @@ test("#298 f2: a NON-loopback peer is DENIED the owner fallback → null (was ow
 });
 
 test("D135: the fallback Principal and the frozen-host Principal AGREE about the same caller", async () => {
-  await using root = await single({ defaultHandle: PLACEHOLDER_HANDLE, rolePolicyConfig: policy({ ["OWNER_HANDLES"]: REAL_OWNER_HANDLE }) });
+  await using root = await single({ defaultHandle: PLACEHOLDER_HANDLE, rolePolicyConfig: policy({ [OWNER_HANDLES_KEY]: REAL_OWNER_HANDLE }) });
   const request = await wireViewer(root);
   expect(request).toEqual(await (await root.internalCallerFor(root.ownerId)).sessions.me());
   expect(request.globalRole).toBe("owner");
@@ -101,7 +110,7 @@ test("D135: the fallback Principal and the frozen-host Principal AGREE about the
 });
 
 test("D135: the fallback lands on the OWNER_HANDLES row and mints NO second-class twin", async () => {
-  await using root = await single({ defaultHandle: PLACEHOLDER_HANDLE, rolePolicyConfig: policy({ ["OWNER_HANDLES"]: REAL_OWNER_HANDLE }) });
+  await using root = await single({ defaultHandle: PLACEHOLDER_HANDLE, rolePolicyConfig: policy({ [OWNER_HANDLES_KEY]: REAL_OWNER_HANDLE }) });
   const ensure = vi.spyOn(root.app.sessions, "ensureUser");
   expect((await authMe(root)).handle).toBe(REAL_OWNER_HANDLE);
   expect(ensure.mock.calls).toEqual([[REAL_OWNER_HANDLE]]);
@@ -109,7 +118,7 @@ test("D135: the fallback lands on the OWNER_HANDLES row and mints NO second-clas
 });
 
 test("D135: an owner row demoted below owner is REPORTED, not overridden (the fallback never grants)", async () => {
-  await using root = await single({ rolePolicyConfig: policy({ ["OWNER_HANDLES"]: REAL_OWNER_HANDLE }) });
+  await using root = await single({ rolePolicyConfig: policy({ [OWNER_HANDLES_KEY]: REAL_OWNER_HANDLE }) });
   await damageOwnerRow(root, { role: "user" });
   expect(await authMe(root)).toEqual({ authenticated: true, handle: REAL_OWNER_HANDLE, role: "user" });
   expect((await wireViewer(root)).globalRole).toBe("user");
@@ -119,7 +128,7 @@ test("the empty-owner-handles guard is LOAD-BEARING: OWNER_HANDLES=',,' still re
   // An unseeded owner id: the fallback's own ensure births the row, so its role is the policy's verdict.
   await using root = await single({
     defaultHandle: PLACEHOLDER_HANDLE,
-    rolePolicyConfig: policy({ ["OWNER_HANDLES"]: ",," }),
+    rolePolicyConfig: policy({ [OWNER_HANDLES_KEY]: ",," }),
     ownerId: castId<UserId>("seam-arms-unseeded-owner"),
   });
   expect(root.app.sessions.rolePolicy.ownerHandles()).toEqual([]);
@@ -187,7 +196,7 @@ test("a stale cookie is IGNORED outside cookie modes (forward-header never calls
 });
 
 test("an SSO header upserts via provisionIdentity and carries the resolved role", async () => {
-  await using root = await forward(() => PROXY_PEER, policy({ ["OIDC_ADMIN_GROUPS"]: ADMIN_GROUP }));
+  await using root = await forward(() => PROXY_PEER, policy({ [OIDC_ADMIN_GROUPS_KEY]: ADMIN_GROUP }));
   const provision = vi.spyOn(root.app.sessions, "provisionIdentity");
   expect(await authMe(root, { [FORWARD_USER_HEADER]: "carol", [FORWARD_GROUPS_HEADER]: ADMIN_GROUP })).toEqual({
     authenticated: true,
@@ -285,14 +294,14 @@ test("debugGateAdmits requires a CREDENTIAL as well as the OWNER role", async ()
 test("debugGateAdmits takes a VERIFIED SSO identity, never a proxy-asserted one", async () => {
   await using root = await createServerHarness({
     physicalPeer: () => LOOPBACK,
-    env: { ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny", ["FORWARD_AUTH_TRUSTED_PROXIES"]: "127.0.0.1/32" },
+    env: { [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny", [FORWARD_AUTH_TRUSTED_PROXIES_KEY]: "127.0.0.1/32" },
   });
   const ownerHandle = (await root.principalFor(root.ownerId)).handle;
   const unsigned = { "remote-user": ownerHandle };
   expect(await authMe(root, unsigned)).toEqual({ authenticated: true, handle: ownerHandle, role: "owner" });
   expect(await debugStatus(root, unsigned)).toBe(404);
 
-  const signed = await signedForwardRoot(policy({ ["OIDC_ADMIN_GROUPS"]: ADMIN_GROUP }));
+  const signed = await signedForwardRoot(policy({ [OIDC_ADMIN_GROUPS_KEY]: ADMIN_GROUP }));
   await using signedRoot = signed.root;
   const owner = await signed.signedHeaders({ [FORWARD_USERNAME_CLAIM]: (await signedRoot.principalFor(signedRoot.ownerId)).handle, sub: "seam-arms-owner" });
   expect((await authMe(signedRoot, owner)).role).toBe("owner");
@@ -320,7 +329,7 @@ test("createHostPrincipalResolver degrades an unknown id to role=user (fail-clos
 });
 
 test("D135: a DISABLED owner row is refused by the fallback arm (parity with cookie + SSO)", async () => {
-  await using root = await single({ rolePolicyConfig: policy({ ["OWNER_HANDLES"]: REAL_OWNER_HANDLE }) });
+  await using root = await single({ rolePolicyConfig: policy({ [OWNER_HANDLES_KEY]: REAL_OWNER_HANDLE }) });
   expect(await debugStatus(root)).toBe(200);
   await damageOwnerRow(root, { enabled: false });
   expect(await authMe(root)).toEqual(ANONYMOUS);
@@ -336,6 +345,6 @@ test("D135: the frozen-host bridge still resolves a DISABLED row (the gate is th
 });
 
 test("D135: an ENABLED fallback caller still deep-equals the frozen-host Principal (the agreement holds)", async () => {
-  await using root = await single({ defaultHandle: PLACEHOLDER_HANDLE, rolePolicyConfig: policy({ ["OWNER_HANDLES"]: REAL_OWNER_HANDLE }) });
+  await using root = await single({ defaultHandle: PLACEHOLDER_HANDLE, rolePolicyConfig: policy({ [OWNER_HANDLES_KEY]: REAL_OWNER_HANDLE }) });
   expect(await wireViewer(root)).toEqual(await (await root.internalCallerFor(root.ownerId)).sessions.me());
 });

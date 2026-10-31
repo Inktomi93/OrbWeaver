@@ -27,7 +27,14 @@ export {
   rethrowPrivateCorpusFailure,
   writePrivateCorpusFixture,
 } from "./corpus.ts";
-export { seedCorpusActors, seedCorpusConnections, seedRecallCorpus, seedRecallRoom } from "./corpus-actors.ts";
+export {
+  CORPUS_ALTERNATE_EMBED_MODEL,
+  seedCorpusActors,
+  seedCorpusConnections,
+  seedEmbeddingConnection,
+  seedRecallCorpus,
+  seedRecallRoom,
+} from "./corpus-actors.ts";
 export { captureCookieAuth, seedCorpusAccount } from "./corpus-auth.ts";
 export { captureCorpusRead } from "./corpus-capture.ts";
 export { createFirstBootHarness } from "./corpus-first-boot.ts";

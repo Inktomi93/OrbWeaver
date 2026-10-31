@@ -40,6 +40,7 @@ export const PLUGIN_AUTHOR_SUPPORT = {
         "character.ingestAsset",
         "character.setCardData",
         "character.getCardData",
+        "character.findCardData",
         "events.on",
         "pubsub.emit",
         "pubsub.on",
@@ -249,7 +250,7 @@ export const PLUGIN_AUTHOR_SUPPORT = {
     {
       capability: "character.card_state",
       functions: {
-        main: ["character.setCardData", "character.getCardData"],
+        main: ["character.setCardData", "character.getCardData", "character.findCardData"],
         ui: [],
         frame: [],
       },

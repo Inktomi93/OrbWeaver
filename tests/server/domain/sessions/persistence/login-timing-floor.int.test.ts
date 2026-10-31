@@ -1,7 +1,7 @@
 // The login constant-time floor over the real login route: an unknown handle and an SSO-only row each run the
 // root's password verifier against its dummy hash, and that hash has the stored format a real row's password_hash column holds.
 // @subject packages/server/src/domain/sessions/verbs/authenticate.ts
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { users } from "@orb/db";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -47,9 +47,11 @@ async function observedLocalRoot(): Promise<ObservedRoot> {
     observed = { verify: vi.spyOn(hasher, "verify"), dummyHash: hasher.dummyHash };
     return hasher;
   });
-  const root = await createServerHarness({ physicalPeer: () => LAN_PEER, env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" }, sessionsCrypto }).finally(
-    () => factory.mockRestore(),
-  );
+  const root = await createServerHarness({
+    physicalPeer: () => LAN_PEER,
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" },
+    sessionsCrypto,
+  }).finally(() => factory.mockRestore());
   if (observed === undefined) {
     await root[Symbol.asyncDispose]();
     throw new Error("the composed root built no sessions password verifier");

@@ -7,6 +7,7 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { makeAssetBytes } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
+import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 import { room } from "../verbs/send-attach.fixtures.ts";
 
 test("an OWNED attachment lands a message_assets row + an asset:<id> body ref on the user turn", async () => {
@@ -50,7 +51,7 @@ test("attaching ANOTHER user's asset is refused attachment_not_owned — no mess
 
   await expect(
     h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "steal this", attachmentAssetIds: [asset.assetId] }),
-  ).rejects.toMatchObject({ code: "attachment_not_owned" });
+  ).rejects.toMatchObject({ code: CHAT_OP_CODES.attachmentNotOwned });
   expect(await h.root.db.select().from(messages).where(eq(messages.chatId, h.chatId))).toHaveLength(0);
   expect(await h.root.db.select({ id: messageAssets.id }).from(messageAssets)).toHaveLength(0);
 });

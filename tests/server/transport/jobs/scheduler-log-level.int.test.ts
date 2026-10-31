@@ -1,6 +1,8 @@
 // @subject packages/server/src/transport/jobs/oidc-gc-scheduler.ts
 // A scheduler builds its component logger once at start and still follows a later change to its root's level,
 // because a pino child reads its level from the root until it is given one of its own.
+
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { LogLevel } from "@orb/contracts/settings";
 import { oidcTransactions } from "@orb/db";
 import { MS_PER_HOUR } from "@orb/kit/time";
@@ -15,7 +17,7 @@ const SWEEP_FAILED = "oidc-gc: sweep failed";
 test("an oidc-gc scheduler started at silent logs its failed tick once the root's level is raised, and stops when it is lowered", async () => {
   await using root = await createServerHarness({
     logLevel: BOOT_LOG_LEVEL,
-    env: { ["AUTH_MODE"]: "oidc", ["AUTH_FALLBACK"]: "deny" },
+    env: { [AUTH_MODE_KEY]: "oidc", [AUTH_FALLBACK_KEY]: "deny" },
     oidc: NATIVE_OIDC_SETTINGS,
   });
   const failures = (): number => root.observability.logLines(LOG_SCAN_LIMIT).filter((line) => line.includes(SWEEP_FAILED)).length;

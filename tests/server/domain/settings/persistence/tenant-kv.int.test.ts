@@ -4,6 +4,7 @@ import { databaseHandle } from "@orb/db/wiring-driver";
 import { createSettingsKvPort } from "@orb/server/domain/settings";
 import { expect, test } from "@orb/testkit/node";
 import { eq } from "drizzle-orm";
+import { SETTINGS_OP_CODES } from "#server/domain/settings/contract/errors.ts";
 
 test("tenant KV preserves stored keys, opaque values and overwrite timestamps", async ({ db, clock }) => {
   const key = `${CATALOG_SETTINGS_PREFIX}openrouter`;
@@ -23,9 +24,9 @@ test("tenant KV refuses foreign reads, writes and prefix deletion without touchi
   const kv = createSettingsKvPort(databaseHandle(db), CATALOG_SETTINGS_PREFIX, () => clock.now());
   await kv.write(`${CATALOG_SETTINGS_PREFIX}kept`, "owned snapshot");
   for (const key of ["application:marker", "", "app", "catalog", "Catalog:other", "catalogue:other"]) {
-    await expect(kv.read(key)).rejects.toMatchObject({ code: "settings_tenant_namespace" });
-    await expect(kv.write(key, "cross-tenant write")).rejects.toMatchObject({ code: "settings_tenant_namespace" });
-    await expect(kv.deletePrefix(key)).rejects.toMatchObject({ code: "settings_tenant_namespace" });
+    await expect(kv.read(key)).rejects.toMatchObject({ code: SETTINGS_OP_CODES.tenantNamespace });
+    await expect(kv.write(key, "cross-tenant write")).rejects.toMatchObject({ code: SETTINGS_OP_CODES.tenantNamespace });
+    await expect(kv.deletePrefix(key)).rejects.toMatchObject({ code: SETTINGS_OP_CODES.tenantNamespace });
   }
   expect(await kv.read(`${CATALOG_SETTINGS_PREFIX}kept`)).toBe("owned snapshot");
   expect((await services.settings.getGlobalSetting("application:marker"))?.value).toEqual({ kept: true });

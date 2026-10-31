@@ -6,6 +6,9 @@ import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useFlankHost, useInlineFlankFits } from "#lib";
 
+// The notice region's slot, owned by the `@orb/ui` toast primitive.
+const NOTICE_REGION = '[data-slot="toast-viewport"]';
+
 export interface FlankPresentation {
   /** The room hosts plugin panels beside the transcript (a touch device holds them in a sheet instead). */
   readonly panelMode: boolean;
@@ -43,8 +46,9 @@ export function useFlankPresentation(columnRef: RefObject<HTMLElement | null>, c
   };
 }
 
-/** The overlay's exits beyond its control: Escape from the overlay or the control hands focus back to the control,
- *  and a press anywhere outside both closes it. */
+/** The overlay's exits beyond its control: Escape with focus in the overlay, on its control or on nothing the user is
+ *  operating (a press on a part that takes no focus lands on the body or the shell's programmatic focus target) hands
+ *  focus back to the control, and a press anywhere outside both closes it. A press in the notice region is not outside: its Undo restores a panel into this overlay. */
 function useOverlayDismiss(open: boolean, column: RefObject<HTMLElement | null>, control: RefObject<HTMLElement | null>, close: () => void): void {
   const latestClose = useRef(close);
   useEffect(() => {
@@ -57,13 +61,14 @@ function useOverlayDismiss(open: boolean, column: RefObject<HTMLElement | null>,
     const within = (node: EventTarget | null): boolean =>
       node instanceof Node && (column.current?.contains(node) === true || control.current?.contains(node) === true);
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === "Escape" && !event.defaultPrevented && within(document.activeElement)) {
+      const focus = document.activeElement;
+      if (event.key === "Escape" && !event.defaultPrevented && (within(focus) || focus === document.body || focus?.getAttribute("tabindex") === "-1")) {
         latestClose.current();
         control.current?.focus();
       }
     };
     const onPointerDown = (event: PointerEvent): void => {
-      if (!within(event.target)) {
+      if (!(within(event.target) || (event.target instanceof Element && event.target.closest(NOTICE_REGION) !== null))) {
         latestClose.current();
       }
     };

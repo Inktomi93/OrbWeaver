@@ -13,6 +13,7 @@ import type { ArtViewer } from "../hooks/art-viewer-context.tsx";
 import type { BubbleDecorationArgs } from "../lib/art-decorations.ts";
 import { artRequestWidth } from "../lib/art-decorations.ts";
 import type { RowAttribution } from "../lib/attribution.ts";
+import { messageNumberLabel } from "../lib/message-readout.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import { avatarSrcProp } from "../lib/message-row-variants.ts";
 import type { ArtView } from "./art-slot.tsx";
@@ -120,14 +121,15 @@ export function placePortraitNumber(args: {
   readonly visibility: MessageMetadataVisibility;
 }): { readonly welded: ReactElement | null; readonly rowVisibility: MessageMetadataVisibility } {
   const { skin, portrait, message, visibility } = args;
-  if (portrait === null || skin.numberPlacement !== "portrait" || !visibility.showMessageId) {
+  const number = messageNumberLabel(message);
+  if (portrait === null || number === null || skin.numberPlacement !== "portrait" || !visibility.showMessageId) {
     return { welded: portrait, rowVisibility: visibility };
   }
   return {
     welded: (
       <Stack align="center" gap="field" className={PORTRAIT_COLUMN}>
         {portrait}
-        <MessageNumber message={message} />
+        <MessageNumber label={number} />
       </Stack>
     ),
     rowVisibility: { ...visibility, showMessageId: false },

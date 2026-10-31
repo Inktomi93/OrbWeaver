@@ -4,9 +4,8 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { blobIconUrl, blobUrl } from "@orb/contracts/assets";
-import { CSRF_HEADER, viewerViewSchema } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER, viewerViewSchema } from "@orb/contracts/identity";
 import { localPath, sessions, users } from "@orb/db";
-
 import { brandedId } from "@orb/kit/ids";
 import { readSessionCookie } from "@orb/server/entry/auth";
 import { createCas } from "@orb/server/infra/storage/cas";
@@ -61,7 +60,7 @@ test("committed media uses native cookie ownership, exact CAS bytes and native v
 });
 
 test("corpus cookie capture provisions and admits the actual member rather than resetting only the owner", async () => {
-  await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
+  await using root = await createServerHarness({ env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
   const member = await root.principalFor((await root.actor()).id);
   const capture = await captureCookieAuth(root, member, PASSWORD);
   expect(capture.auth.signedInMe).toEqual({ authenticated: true, handle: member.handle, role: "user" });
@@ -78,7 +77,7 @@ test("corpus cookie capture provisions and admits the actual member rather than 
 });
 
 test("native cookie identity refuses cross-viewer, anonymous, malformed, disabled, revoked and expired admission", async () => {
-  await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
+  await using root = await createServerHarness({ env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
   const member = await root.principalFor((await root.actor()).id);
   const foreign = await root.principalFor((await root.actor()).id);
   const capture = await captureCookieAuth(root, member, PASSWORD);
@@ -130,7 +129,7 @@ test("native cookie identity refuses cross-viewer, anonymous, malformed, disable
 });
 
 test("native loopback owner fallback cannot stand in for a cookie identity capture", async () => {
-  await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
+  await using root = await createServerHarness({ env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" } });
   const owner = await root.principalFor(root.ownerId);
   const capture = await captureCookieAuth(root, owner, PASSWORD);
   const address = await root.listen();
@@ -142,7 +141,7 @@ test("native loopback owner fallback cannot stand in for a cookie identity captu
 });
 
 test("a frozen wire identity rejects a changed live role instead of normalizing the expected snapshot", async () => {
-  await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" } });
+  await using root = await createServerHarness({ env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
   const member = await root.principalFor((await root.actor()).id);
   const captured = await captureCookieAuth(root, member, PASSWORD);
   expect(captured.identity.viewer.globalRole).toBe("user");
@@ -165,7 +164,7 @@ test("local corpus admission is prepared after the last clone and cannot cross v
   const memberView = viewerViewSchema.parse(member);
   const sourceBytes = await readFile(sourceDatabase);
   const sourceWire = await readFile(join(source.layout.root, "corpus.json"));
-  await using root = await createCorpusHarness(undefined, { env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "owner" } });
+  await using root = await createCorpusHarness(undefined, { env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" } });
   const cloneWire = await readFile(join(root.corpus.layout.root, "corpus.json"));
   const accountIds = [ownerView.userId, memberView.userId];
   expect(root.ownerId).toBe(owner.userId);

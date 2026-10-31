@@ -1,8 +1,18 @@
-import { authMeSchema } from "@orb/contracts/identity";
-
+import {
+  AUTH_FALLBACK_KEY,
+  AUTH_MODE_KEY,
+  authMeSchema,
+  FORWARD_AUTH_TRUSTED_PROXIES_KEY,
+  OIDC_ADMIN_GROUPS_KEY,
+  OIDC_ALLOWED_GROUPS_KEY,
+  OWNER_GROUP_KEY,
+  OWNER_HANDLES_KEY,
+  RE_DERIVE_ROLE_ON_LOGIN_KEY,
+} from "@orb/contracts/identity";
 import { brandedId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, createTestEnv, readAccounts } from "@orb/testkit/node/composed";
+import { ADMIN_OP_CODES } from "#server/domain/admin/contract/errors.ts";
 import { headerIdentity, me, rootForConfig, rootForPolicy } from "./role-policy-config.fixtures.ts";
 
 test("a composed role policy ignores subsequent source-config grants", async () => {
@@ -28,8 +38,8 @@ test("a composed role policy ignores subsequent source-config grants", async () 
 });
 
 test("distinct composed policy snapshots do not share grants or depend on another root's lifetime", async () => {
-  await using first = await rootForPolicy({ ["OIDC_ADMIN_GROUPS"]: "first-admins" });
-  await using second = await rootForPolicy({ ["OIDC_ADMIN_GROUPS"]: "second-admins" });
+  await using first = await rootForPolicy({ [OIDC_ADMIN_GROUPS_KEY]: "first-admins" });
+  await using second = await rootForPolicy({ [OIDC_ADMIN_GROUPS_KEY]: "second-admins" });
   expect(await me(first, headerIdentity("first-admins"))).toMatchObject({ authenticated: true, role: "admin" });
   expect(await me(second, headerIdentity("first-admins"))).toMatchObject({ authenticated: true, role: "user" });
   await first[Symbol.asyncDispose]();
@@ -37,9 +47,9 @@ test("distinct composed policy snapshots do not share grants or depend on anothe
 });
 
 test.each([
-  { key: "OWNER_HANDLES", value: "policy-member" },
-  { key: "OWNER_GROUP", value: "late-owners" },
-  { key: "OIDC_ALLOWED_GROUPS", value: "newly-required" },
+  { key: OWNER_HANDLES_KEY, value: "policy-member" },
+  { key: OWNER_GROUP_KEY, value: "late-owners" },
+  { key: OIDC_ALLOWED_GROUPS_KEY, value: "newly-required" },
 ] as const)("a live graph does not reread '$key' from its source config", async ({ key, value }) => {
   const config = { ...createTestEnv() };
   await using root = await rootForConfig(config);
@@ -70,7 +80,7 @@ test("copied config and exposed owner handles cannot mutate a live graph's autho
   config.OIDC_ALLOWED_GROUPS = undefined;
   await using root = await createServerHarness({
     rolePolicyConfig: config,
-    env: { ["AUTH_MODE"]: "forward-header", ["AUTH_FALLBACK"]: "deny", ["FORWARD_AUTH_TRUSTED_PROXIES"]: "127.0.0.1/32" },
+    env: { [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny", [FORWARD_AUTH_TRUSTED_PROXIES_KEY]: "127.0.0.1/32" },
     physicalPeer: () => "127.0.0.1",
   });
   config.OWNER_HANDLES = "policy-member";
@@ -86,7 +96,7 @@ test("copied config and exposed owner handles cannot mutate a live graph's autho
   expect(owner.handle).toBe("box-owner");
   await expect(
     root.services.admin.createUser({ principal: owner, handle: brandedId("Handle").parse("Box-Owner"), password: "synthetic-policy-password" }),
-  ).rejects.toMatchObject({ code: "invalid_handle" });
+  ).rejects.toMatchObject({ code: ADMIN_OP_CODES.invalidHandle });
 });
 
 test("the legacy rederivation flag is a construction-time input, not a live source-config grant", async () => {
@@ -108,7 +118,7 @@ test("the legacy rederivation flag is a construction-time input, not a live sour
 });
 
 test("fixed group governance still rederives stored roles from every login's current claims", async () => {
-  await using root = await rootForPolicy({ ["OIDC_ADMIN_GROUPS"]: "admins" });
+  await using root = await rootForPolicy({ [OIDC_ADMIN_GROUPS_KEY]: "admins" });
   expect(await me(root, headerIdentity("admins"))).toMatchObject({ role: "admin" });
   expect(await me(root, headerIdentity("ordinary"))).toMatchObject({ role: "user" });
   const row = (await readAccounts(root)).find(({ externalId }) => externalId === brandedId("ExternalId").parse("policy-member-subject"));
@@ -126,7 +136,7 @@ test.each([
   { groups: "outsiders", role: null },
   { groups: "", role: null },
 ])("the configured login gate observes '$groups' without creating refused identities", async ({ groups, role }) => {
-  await using root = await rootForPolicy({ ["OIDC_ALLOWED_GROUPS"]: "friends", ["OIDC_ADMIN_GROUPS"]: "admins" });
+  await using root = await rootForPolicy({ [OIDC_ALLOWED_GROUPS_KEY]: "friends", [OIDC_ADMIN_GROUPS_KEY]: "admins" });
   const headers = headerIdentity(groups);
   expect(await me(root, headers)).toEqual({ authenticated: role !== null, handle: role === null ? null : "policy-member", role });
   const rows = (await readAccounts(root))
@@ -137,7 +147,7 @@ test.each([
 });
 
 test("an IdP rename cannot take the graph's reserved seed key or its comparison-key look-alike", async () => {
-  await using root = await rootForPolicy({ ["OWNER_HANDLES"]: "box-owner" });
+  await using root = await rootForPolicy({ [OWNER_HANDLES_KEY]: "box-owner" });
   expect(await me(root, headerIdentity(""))).toMatchObject({ role: "user" });
   await me(root, headerIdentity("", "Box-Owner"));
   expect(
@@ -167,7 +177,7 @@ test.each([
   { flag: "nope", rederive: false },
   { flag: undefined, rederive: false },
 ])("legacy flag '$flag' retains its accepted rederivation semantics", async ({ flag, rederive }) => {
-  await using root = await rootForPolicy({ ["OIDC_ADMIN_GROUPS"]: undefined, ["OIDC_ALLOWED_GROUPS"]: undefined, ["RE_DERIVE_ROLE_ON_LOGIN"]: flag });
+  await using root = await rootForPolicy({ [OIDC_ADMIN_GROUPS_KEY]: undefined, [OIDC_ALLOWED_GROUPS_KEY]: undefined, [RE_DERIVE_ROLE_ON_LOGIN_KEY]: flag });
   await me(root, headerIdentity(""));
   const row = (await readAccounts(root)).find(({ externalId }) => externalId === brandedId("ExternalId").parse("policy-member-subject"));
   if (row === undefined) {

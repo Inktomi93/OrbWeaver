@@ -7,8 +7,10 @@ import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { execPath } from "node:process";
 import { authConfigSchema } from "@orb/contracts/auth-config";
+import { AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { AgentSdkSpawn } from "@orb/inference";
 import { ID_PREFIX } from "@orb/kit/ids";
+import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
 import { EnvRefusedError } from "@orb/server/foundation/env/refusal";
 import { createCas } from "@orb/server/infra/storage/cas";
 import { CORPUS_SDK_QUERY } from "./corpus-sdk-protocol.ts";
@@ -32,8 +34,8 @@ const MISDIRECTED_REQUEST = 421;
 
 test("a seam row's option is the record key boot binds by: the parse refuses a public bind the hatch does not open", async () => {
   expect(ENV_SEAMS.BIND_HOST).toMatchObject({ kind: "seam", option: "bindHost" });
-  await expect(createServerHarness({ env: { ["AUTH_MODE"]: "local" }, bindHost: EVERY_INTERFACE })).rejects.toBeInstanceOf(EnvRefusedError);
-  await using root = await createServerHarness({ env: { ["AUTH_MODE"]: "local" }, bindHost: EVERY_INTERFACE, allowPublicBind: true });
+  await expect(createServerHarness({ env: { [AUTH_MODE_KEY]: "local" }, bindHost: EVERY_INTERFACE })).rejects.toBeInstanceOf(EnvRefusedError);
+  await using root = await createServerHarness({ env: { [AUTH_MODE_KEY]: "local" }, bindHost: EVERY_INTERFACE, allowPublicBind: true });
   expect(root.env.BIND_HOST).toBe(EVERY_INTERFACE);
   expect((await root.listen()).address).toBe(EVERY_INTERFACE);
 });
@@ -56,7 +58,7 @@ test("a production record binds every interface, which a root refuses unless all
   const clientDistDir = await mkdtemp(join(tmpdir(), "orb-env-seams-dist-"));
   try {
     await writeFile(join(clientDistDir, "index.html"), "<!doctype html><title>env seams</title>");
-    const production = { ["NODE_ENV"]: "production", ["AUTH_MODE"]: "local" } as const;
+    const production = { ["NODE_ENV"]: "production", [AUTH_MODE_KEY]: "local" } as const;
     await expect(createServerHarness({ env: production, clientDistDir, bindHost: EVERY_INTERFACE })).rejects.toThrow(/allowPublicBind: true/u);
     await using root = await createServerHarness({ env: production, clientDistDir, bindHost: EVERY_INTERFACE, allowPublicBind: true });
     expect((await root.listen()).address).toBe(EVERY_INTERFACE);
@@ -118,7 +120,7 @@ test("the sign-in source states whether the record set AUTH_MODE, whatever the p
     await using root = await createServerHarness(env === undefined ? {} : { env });
     return (await (await root.internalCallerFor(root.ownerId)).share.signInMode()).source;
   };
-  expect(await signInSource({ ["AUTH_MODE"]: "local" })).toBe("process-env");
+  expect(await signInSource({ [AUTH_MODE_KEY]: "local" })).toBe("process-env");
   expect(await signInSource()).toBe("default");
 });
 
@@ -127,7 +129,7 @@ test("a deploy-only row has no door: a key forced past the raw env type is refus
   // The cast feeds a key the type refuses, as an untyped script can, to show the reader refuses it.
   await expect(createServerHarness({ env: { ["PORT"]: FORCED_PORT } as RawEnvInput })).rejects.toThrow(/PORT has no raw env door/u);
   // A key with a named option is refused the same way, so the record never lacks a knob its caller set.
-  await expect(createServerHarness({ env: { ["DEBUG_TOKEN"]: FORCED_PORT } as RawEnvInput })).rejects.toThrow(/`debugToken` option/u);
+  await expect(createServerHarness({ env: { [DEBUG_TOKEN_ENV]: FORCED_PORT } as RawEnvInput })).rejects.toThrow(/`debugToken` option/u);
   await using root = await createServerHarness({ env: { ["RATE_LIMIT_LOGIN"]: FORCED_PORT } });
   expect(root.env.RATE_LIMIT_LOGIN).toBe(Number(FORCED_PORT));
   expect(root.env.PORT).toBe(createTestEnv().PORT);
