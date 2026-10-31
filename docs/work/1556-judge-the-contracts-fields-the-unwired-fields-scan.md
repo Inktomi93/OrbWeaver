@@ -138,21 +138,24 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Ran: `pnpm typecheck` on contracts, server, client, tsconfig.node.json and tsconfig.tests-dom.json (exit 0); `pnpm test` on `tests/server/domain/character/persistence/gallery-character-ops.int.test.ts`, `tests/server/domain/assets/verbs/seed-art.int.test.ts` and `tests/server/domain/automation/persistence/plugin-frozen-grants.int.test.ts` (3 files, 10 tests, exit 0). Neither `GalleryItemView` nor `GlobalVariableView` appears in `tests/support/node/corpus-data/corpus.json` (no `galleryItemId`, `uploadedAt` key in it).
+Ran on the first pass: `pnpm typecheck` on contracts, server, client, tsconfig.node.json and tsconfig.tests-dom.json (exit 0); three int suites on the gallery, seed-art and global-variable paths (3 files, 10 tests, exit 0).
+
+Second pass (owner ruling: an unread tRPC output field carries no product intent, so it goes and the corpus is republished in the same commit): the corpus was republished with `pnpm exec node scripts/corpus-fixture.ts publish <dir>` and formatted with Biome. A compiler probe on the 18 character rows found real readers for most of them; those were restored.
 
 All 112 rows resolved:
 
 | Disposition | Rows | Symbols and reader |
 | - | - | - |
-| applied | 2 | `GalleryItemView.mime`, `GlobalVariableView.updatedAt` (server-side projection, not on a router) |
+| applied | 12 | `GalleryItemView.mime`, `GlobalVariableView.updatedAt`, `StoredAsset.size`, `GeneratedGreeting.costUsd`, `SnapshotRef.characterId` and `.createdAt`, `characterBulkTagFailureSchema.id` and `.error.code` (the code constants went with it), `CharacterSummaryFields.forbidExternalMedia`, `.trustHtml` and `.backgroundOverride`, `CharacterDetail.synthetic` |
 | derived from owning type | 1 | `TurnOriginRead.initiator`: `getTurnOrigin` now returns `TurnOrigin` from `contracts/src/chat/bus.ts` |
-| kept: card spec parsed and handed on whole | 36 | `characterCardV3DataSchema`, `characterBookSchema`, `characterBookEntrySchema`, `cardAssetSchema` keys; the card parse at `packages/contracts/src/character/index.ts:648` hands `data` on whole and a key dropped here strips imported card data |
-| kept: CEL surface | 21 | `triggerFactPayloadSchema` (17) and `AutomationCelEnv` (4); the whole env is handed to the evaluator at `packages/server/src/domain/automation/substrate/dry-run.ts:34` and `macro-render.ts:21`, so a user expression may name any field |
-| kept: stored rule JSON | 4 | `automationActionSchema.position`, `speakerCharacterId`, `argsTemplate`, `resultVar`; stored rows must keep reading |
-| kept: tRPC infinite-query cursor and filter | 3 | `listOwnedParamsSchema.kind`, `.cursor`, `galleryListParamsSchema.cursor` (`packages/contracts/src/assets/index.ts:138`) |
+| kept: card spec parsed and handed on whole | 36 | `characterCardV3DataSchema`, `characterBookSchema`, `characterBookEntrySchema`, `cardAssetSchema` keys; the card parse at `packages/contracts/src/character/index.ts:648` hands `data` on whole |
+| kept: CEL surface | 21 | `triggerFactPayloadSchema` (17) and `AutomationCelEnv` (4); the whole env is handed to the evaluator at `packages/server/src/domain/automation/substrate/dry-run.ts:34` and `macro-render.ts:21` |
+| kept: stored rule JSON | 4 | `automationActionSchema.position`, `speakerCharacterId`, `argsTemplate`, `resultVar` |
+| kept: tRPC infinite-query cursor and filter | 3 | `listOwnedParamsSchema.kind`, `.cursor`, `galleryListParamsSchema.cursor`. The client's `getNextPageParam` writes both cursors (`packages/client/src/features/chat/hooks/use-character-gallery.ts:55`); `kind` is written by `tests/support/node/corpus-surface-outputs.ts:150` and `corpus-library-views.ts:572`, which build the corpus. No production client writer supplies `kind` |
 | kept: K-indexed type | 5 | `RulePresetKnobDescriptors` is indexed by `RulePresetKnobKind` at `packages/contracts/src/automation/presets.ts:225` |
 | kept: shared base of derived views | 3 | `ResolvedCardFace` (used by `character/index.ts` and `persona/schemas.ts`) |
-| owner question: wire output, field present in the corpus | 18 | `CharacterSummaryFields` (8, `character.list` is in the corpus), `CharacterDetail` (10, whole value handed to the client) |
-| handed off: only test files read the field | 9 | `AssetListItem.kind`, `AssetListItem.size`, `GalleryItemView.assetId`, `GalleryItemView.subjectCharacterId`, `SnapshotView.content` (`tests/support/node/factories/character-library.int.test.ts:88`), `RuleView.chatId`, `RuleView.updatedAt`, `FireView.ruleId`, `FireView.chatId` |
-| owner question: wire output with no reader found, deletion is a wire change | 10 | `StoredAsset.size` (REST upload response, parsed by `tests/server/entry/http/body-limit-ordering.int.test.ts:193`), `SuggestionCardDetail.kind` (single-arm union seam, no ADR cited), `ConfirmSuggestionResult.ran` and `.outcome` (the result's only fields), `characterBulkTagFailureSchema.id` and `.error.code`, `GeneratedGreeting.costUsd`, `SnapshotRef.characterId` and `.createdAt` (whole-value `toEqual` at `tests/support/node/factories/character-library.int.test.ts:81`), `createCharacterSchema.starred` |
+| kept: named reader (character rows) | 13 | Summary: `themeOverride` (`packages/client/src/features/character/components/character-card.tsx:47`), `chatCount` (`character-library-welcome.tsx:246`), `createdAt` (`character-library-welcome.tsx:117`), `provenance` (`character-library-welcome.tsx:202`). Detail: `archived`, `forbidExternalMedia`, `trustHtml`, `interactiveHtml` (`character-hero-band.tsx:46`), `importedFrom` and `importHash` (`character-facet-inspector.tsx:82`), `provenance` (`character-overview-card.tsx:111`), `contentHash` (`packages/server/src/entry/compose/imagery.ts:79`), `createdAt` (`character-overview-card.tsx:109`) |
+| kept: named writer (input) | 1 | `createCharacterSchema.starred`, written by the card import at `packages/server/src/domain/import/substrate/card.ts:272` |
+| handed off: only test files read the field | 10 | `AssetListItem.kind`, `AssetListItem.size`, `GalleryItemView.assetId`, `GalleryItemView.subjectCharacterId`, `SnapshotView.content`, `RuleView.chatId` and `.updatedAt`, `FireView.ruleId` and `.chatId`, `CharacterSummaryFields.avatarAssetId` (`tests/client/features/chat/components/platform-art-controls.suite.ct.tsx:23`) |
+| owner question | 3 | `ConfirmSuggestionResult.ran` and `.outcome` (deleting both leaves an empty result; needs a void-or-keep call), `SuggestionCardDetail.kind` (a bus event field, not a tRPC output, and the single-arm union seam is documented in the comment only) |
 | total | 112 | |

@@ -168,7 +168,7 @@ export async function storeBlob(db: Db, cas: Cas, input: StoreBlobInput): Promis
   // while THIS call inserts the missing row, and reporting the CAS verdict would silently skip the emit for
   // a recovered asset. The reverse (row present, blob freshly written) is the repair path and is likewise a
   // non-creation. Emission must be total: a recovered row IS a creation.
-  return { assetId, hash: put.hash, size: put.size, created: inserted[0] !== undefined };
+  return { assetId, hash: put.hash, created: inserted[0] !== undefined };
 }
 
 interface ListOwnedInput {
