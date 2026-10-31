@@ -19,7 +19,7 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import { portableImageryCallSchema } from "@orb/contracts/imagery";
 import { importStartedSchema } from "@orb/contracts/import";
 import type { PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
-import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
+import { exportCharacterPath, PORTABILITY_ROUTES, PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { ASSET_SCHEME, assetIdsInContent } from "@orb/kit/content";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, UserId, WorkloadId } from "@orb/kit/ids";
@@ -40,8 +40,8 @@ import {
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
 
-const EXPORT_ROUTE = "/api/export/library";
-const BUNDLE_ROUTE = "/api/import/bundle";
+const EXPORT_ROUTE = PORTABILITY_ROUTES.exportLibrary;
+const BUNDLE_ROUTE = PORTABILITY_ROUTES.importBundle;
 /** Any signed-in request runs the first-login seed; this one reads nothing else. */
 const SIGNED_IN_ROUTE = "/api/trpc/sessions.me";
 const WORKLOAD_DEADLINE_MS = 60_000;
@@ -130,7 +130,7 @@ async function cardCarrying(
     principal: await root.principalFor(root.ownerId),
     input: createCharacterSchema.parse({ handle: input.handle, name: input.name, description: input.description }),
   });
-  const response = await root.http.request(`/api/export/character/${created.id}?format=json`);
+  const response = await root.http.request(`${exportCharacterPath(created.id)}?format=json`);
   expect(response.status).toBe(200);
   const card = characterCardV3Schema.parse(await response.json());
   return new TextEncoder().encode(JSON.stringify({ ...card, data: { ...card.data, [CHARACTER_HANDLE_WIRE_KEY]: carried } }));
@@ -272,7 +272,7 @@ test("a restored chat binds to the existing character its card deduped onto, und
     principal: owner,
     input: createCharacterSchema.parse({ handle: "warden", name: "Warden", description: "The warden counts the gates." }),
   });
-  const card = await source.http.request(`/api/export/character/${created.id}`);
+  const card = await source.http.request(exportCharacterPath(created.id));
   expect(card.status).toBe(200);
   const firstCard = new Uint8Array(await card.arrayBuffer());
   // Renaming the handle is not a content edit, so the next export still dedups onto the first restore.
@@ -362,7 +362,7 @@ test("a seat's card identity resolves only inside the importing account", async 
     principal: await source.principalFor(source.ownerId),
     input: createCharacterSchema.parse({ handle: CHOSEN_HANDLE, name: CHARACTER_NAME, description: "A keeper tends the orbital ledger." }),
   });
-  const card = await source.http.request(`/api/export/character/${made.id}`);
+  const card = await source.http.request(exportCharacterPath(made.id));
   expect(card.status).toBe(200);
   const cardBytes = new Uint8Array(await card.arrayBuffer());
   await seedTranscript(source, { ownerId: source.ownerId, characterHandles: [CHOSEN_HANDLE], lines: [{ role: "user", content: "theirs" }] });
@@ -783,7 +783,7 @@ test("a card's background travels in its export and re-links by content, never o
   });
   const background = themeBackgroundSchema.parse({ kind: "asset", assetId: plate.assetId, assetHash: plate.assetHash, mime: plate.mime });
   await source.services.character.update({ principal: owner, characterId: keeper.id, input: { backgroundOverride: background } });
-  const card = await source.http.request(`/api/export/character/${keeper.id}`);
+  const card = await source.http.request(exportCharacterPath(keeper.id));
   expect(card.status).toBe(200);
   const cardBytes = new Uint8Array(await card.arrayBuffer());
   const bundle = await exportLibrary(source);

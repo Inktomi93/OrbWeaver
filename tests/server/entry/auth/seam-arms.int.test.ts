@@ -1,6 +1,7 @@
 // D40/D135: the seam's cookie, owner-fallback and SSO-header arms over the real HTTP graph and real credentials.
 // @subject packages/server/src/entry/auth/seam.ts
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
@@ -24,7 +25,7 @@ const FORWARD_USER_HEADER = "x-forwarded-user";
 const FORWARD_GROUPS_HEADER = "x-forwarded-groups";
 const ADMIN_GROUP = "orb-admins";
 const RELAY_HOST = "calm-river-four-birds.trycloudflare.com";
-const BUNDLE_ROUTE = "/api/import/bundle";
+const BUNDLE_ROUTE = PORTABILITY_ROUTES.importBundle;
 const PRUNE_ROUTE = "/api/trpc/tag.pruneUnusedTags";
 const ANONYMOUS = { authenticated: false, handle: null, role: null };
 

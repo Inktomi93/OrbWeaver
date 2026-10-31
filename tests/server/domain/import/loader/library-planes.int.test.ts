@@ -12,6 +12,7 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import type { PortableKind } from "@orb/contracts/portability";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { rpgGameConfigSchema, rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import type { CharacterHandle, ChatId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -22,8 +23,8 @@ import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, seedRpgCheckpoint, seedRpgGame, seedTranscript } from "@orb/testkit/node/composed";
 
-const EXPORT_ROUTE = "/api/export/library";
-const BUNDLE_ROUTE = "/api/import/bundle";
+const EXPORT_ROUTE = PORTABILITY_ROUTES.exportLibrary;
+const BUNDLE_ROUTE = PORTABILITY_ROUTES.importBundle;
 /** Any signed-in request runs the first-login seed; this one reads nothing else. */
 const SIGNED_IN_ROUTE = "/api/trpc/sessions.me";
 const WORKLOAD_DEADLINE_MS = 60_000;

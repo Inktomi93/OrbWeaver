@@ -6,6 +6,7 @@
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import type { CharacterHandle, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso";
@@ -14,8 +15,8 @@ import { createQueueScanner, freshHeldDb } from "@orb/testkit/node/composed";
 import type { GcBox, StoredRef } from "./gc-box.ts";
 import { ageOnly, attach, aWeekAgo, dispatch, openBox, openRoom, stampEveryBlob, startGc, store, survives, workloadRow } from "./gc-box.ts";
 
-const EXPORT_ROUTE = "/api/export/library";
-const BUNDLE_ROUTE = "/api/import/bundle";
+const EXPORT_ROUTE = PORTABILITY_ROUTES.exportLibrary;
+const BUNDLE_ROUTE = PORTABILITY_ROUTES.importBundle;
 /** The first statement of the character plane, which the loader reaches only after every blob has landed. */
 const CHARACTER_PLANE = /from "characters"/i;
 /** The sweep's destructive edge: it reaches this only once it has judged a blob garbage. */

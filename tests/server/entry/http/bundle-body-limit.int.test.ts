@@ -2,6 +2,7 @@
 import { readdir, readFile, stat, statfs } from "node:fs/promises";
 import { join } from "node:path";
 import { importStartedSchema } from "@orb/contracts/import";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { IMPORT_BUNDLE_MAX_BYTES, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -127,7 +128,7 @@ test("actual exported ZIP bytes stage unchanged for their owning workload and co
     physicalPeer: () => "127.0.0.1",
   });
   const principal = await root.principalFor(root.ownerId);
-  const download = await root.http.request("/api/export/library?kinds=tag");
+  const download = await root.http.request(`${PORTABILITY_ROUTES.exportLibrary}?kinds=tag`);
   expect(download.status).toBe(200);
   const bytes = new Uint8Array(await download.arrayBuffer());
   expect(bytes.byteLength).toBeGreaterThan(0);
