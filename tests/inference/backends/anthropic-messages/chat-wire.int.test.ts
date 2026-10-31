@@ -8,15 +8,20 @@ import type { ChatEvent, ChatHistoryMessage, ChatResult, ToolChoice, WireTool } 
 import { ProviderError } from "@orb/inference";
 import { isPlainObject } from "@orb/kit/guards";
 import { expect, test } from "@orb/testkit/node";
-import type { RecordedRequest } from "@orb/testkit/node/helpers";
-import { recordRequest } from "@orb/testkit/node/helpers";
+import type { AnthropicStreamEvent, RecordedRequest } from "@orb/testkit/node/helpers";
+import {
+  anthropicSse,
+  anthropicTextReply,
+  messageEnd,
+  messageStart,
+  recordRequest,
+  redactedThinkingBlock,
+  textBlock,
+  thinkingBlock,
+  toolUseBlock,
+} from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 import { createRuntimeRoot, wireConnection } from "../../roles/runtime.fixtures.ts";
-
-interface SseEvent {
-  readonly event: string;
-  readonly data: Record<string, unknown>;
-}
 
 const THINKING = "The signed thought.";
 const SIGNATURE = "signed-by-the-provider";
@@ -24,73 +29,33 @@ const RESET = "2026-09-20T06:04:11Z";
 const WEATHER: WireTool = { name: "get_weather", description: "Weather for a city.", parameters: { type: "object", properties: { city: { type: "string" } } } };
 const ASK: ChatHistoryMessage = { role: "user", content: [{ type: "text", text: "What is the weather in Paris?" }] };
 
-function start(model: string, usage: Record<string, unknown> = { ["input_tokens"]: 10, ["output_tokens"]: 1 }): SseEvent {
-  return {
-    event: "message_start",
-    data: {
-      type: "message_start",
-      message: { id: "msg_wire", type: "message", role: "assistant", model, content: [], ["stop_reason"]: null, usage },
-    },
-  };
+function textReply(model: string, text = "ok", transformations?: readonly Record<string, string>[]): AnthropicStreamEvent[] {
+  return anthropicTextReply(model, text, transformations === undefined ? {} : { inputTransformations: transformations });
 }
 
-function finish(delta: Record<string, unknown>): SseEvent[] {
+function thinkingToolReply(model: string): AnthropicStreamEvent[] {
   return [
-    { event: "message_delta", data: { type: "message_delta", delta, usage: { ["output_tokens"]: 3 } } },
-    { event: "message_stop", data: { type: "message_stop" } },
+    messageStart(model),
+    ...thinkingBlock(0, THINKING, SIGNATURE),
+    ...toolUseBlock(1, { id: "toolu_1", name: "get_weather", inputJson: '{"city":"Paris"}' }),
+    ...messageEnd({ stopReason: "tool_use" }),
   ];
 }
 
-function block(index: number, opening: Record<string, unknown>, delta: Record<string, unknown>): SseEvent[] {
-  return [
-    { event: "content_block_start", data: { type: "content_block_start", index, ["content_block"]: opening } },
-    { event: "content_block_delta", data: { type: "content_block_delta", index, delta } },
-    { event: "content_block_stop", data: { type: "content_block_stop", index } },
-  ];
+function redactedReply(model: string): AnthropicStreamEvent[] {
+  return [messageStart(model), ...redactedThinkingBlock(0, "REDACTED-PAYLOAD"), ...textBlock(1, "ok"), ...messageEnd({ stopReason: "end_turn" })];
 }
 
-function textReply(model: string, text = "ok", transformations?: readonly Record<string, string>[]): SseEvent[] {
-  const events = [start(model), ...block(0, { type: "text", text: "" }, { type: "text_delta", text }), ...finish({ ["stop_reason"]: "end_turn" })];
-  return transformations === undefined
-    ? events
-    : events.map((event) => (event.event === "message_delta" ? { ...event, data: { ...event.data, ["input_transformations"]: transformations } } : event));
-}
-
-function thinkingToolReply(model: string): SseEvent[] {
+function refusalReply(model: string): AnthropicStreamEvent[] {
   return [
-    start(model),
-    { event: "content_block_start", data: { type: "content_block_start", index: 0, ["content_block"]: { type: "thinking", thinking: "" } } },
-    { event: "content_block_delta", data: { type: "content_block_delta", index: 0, delta: { type: "thinking_delta", thinking: THINKING } } },
-    { event: "content_block_delta", data: { type: "content_block_delta", index: 0, delta: { type: "signature_delta", signature: SIGNATURE } } },
-    { event: "content_block_stop", data: { type: "content_block_stop", index: 0 } },
-    ...block(1, { type: "tool_use", id: "toolu_1", name: "get_weather", input: {} }, { type: "input_json_delta", ["partial_json"]: '{"city":"Paris"}' }),
-    ...finish({ ["stop_reason"]: "tool_use" }),
-  ];
-}
-
-function redactedReply(model: string): SseEvent[] {
-  return [
-    start(model),
-    {
-      event: "content_block_start",
-      data: { type: "content_block_start", index: 0, ["content_block"]: { type: "redacted_thinking", data: "REDACTED-PAYLOAD" } },
-    },
-    { event: "content_block_stop", data: { type: "content_block_stop", index: 0 } },
-    ...block(1, { type: "text", text: "" }, { type: "text_delta", text: "ok" }),
-    ...finish({ ["stop_reason"]: "end_turn" }),
-  ];
-}
-
-function refusalReply(model: string): SseEvent[] {
-  return [
-    start(model),
-    ...finish({ ["stop_reason"]: "refusal", ["stop_details"]: { type: "refusal", category: "cyber", explanation: "blocked under the Usage Policy" } }),
+    messageStart(model),
+    ...messageEnd({ stopReason: "refusal", stopDetails: { type: "refusal", category: "cyber", explanation: "blocked under the Usage Policy" } }),
   ];
 }
 
 interface Drive {
   readonly model: string;
-  readonly reply: (model: string) => SseEvent[];
+  readonly reply: (model: string) => AnthropicStreamEvent[];
   readonly params?: UserIntent;
   readonly history?: readonly ChatHistoryMessage[];
   readonly tools?: readonly WireTool[];
@@ -110,13 +75,7 @@ async function drive(options: Drive): Promise<Driven> {
   const recorded: RecordedRequest[] = [];
   const providerFetch: typeof fetch = async (input, init) => {
     recorded.push(await recordRequest(input, init));
-    return new Response(
-      options
-        .reply(options.model)
-        .map((event) => `event: ${event.event}\ndata: ${JSON.stringify(event.data)}\n\n`)
-        .join(""),
-      { headers: { "content-type": "text/event-stream", ...options.headers } },
-    );
+    return anthropicSse(options.reply(options.model), options.headers);
   };
   await using root = await createRuntimeRoot({ providerFetch });
   using errors = vi.spyOn(root.logger, "error");
@@ -208,6 +167,21 @@ test("a prior turn's replayed thinking leads its assistant row, and the same row
   const bare = await drive({ model: "claude-opus-5", reply: textReply, history: [ASK, prose, doubt] });
   expect(assistantContent(bare.sent)).toMatchObject([{ type: "text", text: "The map is genuine." }]);
   expect(JSON.stringify(assistantContent(bare.sent))).not.toContain("thinking");
+});
+
+test("a minimal turn sends exactly one request body, so a provider SDK upgrade that reshapes any field fails here", async () => {
+  const { sent } = await drive({ model: "claude-opus-5", reply: textReply });
+
+  expect(sent.body).toEqual({
+    model: "claude-opus-5",
+    ["max_tokens"]: expect.any(Number),
+    thinking: { type: "adaptive", display: "summarized" },
+    ["output_config"]: { effort: "high" },
+    metadata: { ["user_id"]: expect.any(String) },
+    system: [{ type: "text", text: "You are a helpful assistant.", ["cache_control"]: { type: "ephemeral", ttl: "1h" } }],
+    messages: [{ role: "user", content: [{ type: "text", text: "What is the weather in Paris?" }] }],
+    stream: true,
+  });
 });
 
 test("a delivered trailing assistant row on a model that refuses prefill is a typed refusal and nothing is sent", async () => {

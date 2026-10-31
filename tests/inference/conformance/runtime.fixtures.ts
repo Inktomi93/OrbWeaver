@@ -23,6 +23,8 @@ import { createSeededIds, DEFAULT_EMBED_MODEL } from "@orb/testkit/iso";
 import { test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { seedRecallRoom } from "@orb/testkit/node/composed";
+import type { AnthropicStreamEvent } from "@orb/testkit/node/helpers";
+import { messageEnd, messageStart, textBlock } from "@orb/testkit/node/helpers";
 import { z } from "zod";
 import { physicalSdkScenario } from "../backends/agent-sdk/regression-edge.fixtures.ts";
 import { createRuntimeRoot, generationCapability, wireConnection } from "../roles/runtime.fixtures.ts";
@@ -116,37 +118,9 @@ function openAiCompatScript(script: ChatScript): SseEvent[] {
   return out;
 }
 
-function anthropicScript(script: ChatScript): SseEvent[] {
-  const out: SseEvent[] = [
-    {
-      event: "message_start",
-      data: {
-        type: "message_start",
-        message: {
-          id: "msg_conformance",
-          type: "message",
-          role: "assistant",
-          model: "m",
-          content: [],
-          ["stop_reason"]: null,
-          usage: { ["input_tokens"]: uncachedInput(script), ["cache_read_input_tokens"]: script.cacheRead ?? 0, ["output_tokens"]: 1 },
-        },
-      },
-    },
-    { event: "content_block_start", data: { type: "content_block_start", index: 0, ["content_block"]: { type: "text", text: "" } } },
-    ...script.deltas.map(
-      (text): SseEvent => ({ event: "content_block_delta", data: { type: "content_block_delta", index: 0, delta: { type: "text_delta", text } } }),
-    ),
-    { event: "content_block_stop", data: { type: "content_block_stop", index: 0 } },
-  ];
-  if (script.stop === null) {
-    return out;
-  }
-  out.push(
-    { event: "message_delta", data: { type: "message_delta", delta: { ["stop_reason"]: script.stop }, usage: { ["output_tokens"]: script.tokensOut } } },
-    { event: "message_stop", data: { type: "message_stop" } },
-  );
-  return out;
+function anthropicScript(script: ChatScript): AnthropicStreamEvent[] {
+  const out = [messageStart("m", { input: uncachedInput(script), cacheRead: script.cacheRead ?? 0 }), ...textBlock(0, ...script.deltas)];
+  return script.stop === null ? out : [...out, ...messageEnd({ stopReason: script.stop, outputTokens: script.tokensOut })];
 }
 
 function googleScript(script: ChatScript): SseEvent[] {
@@ -172,7 +146,7 @@ function hostedScript(wire: Wire, script: ChatScript): SseEvent[] {
   if (wire === "google-generative-ai") {
     return googleScript(script);
   }
-  return wire === "anthropic-messages" ? anthropicScript(script) : openAiCompatScript(script);
+  return wire === "anthropic-messages" ? anthropicScript(script).map((event) => ({ event: event.type, data: { ...event } })) : openAiCompatScript(script);
 }
 
 function agentSdkFrames(script: ChatScript, model: string): Record<string, unknown>[] {

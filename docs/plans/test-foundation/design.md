@@ -598,6 +598,9 @@ Home: [body shaping](../../../tests/inference/backends/openai-compat/body-shapin
 | The cap rename and a cap the user's body states | Rebuild | Body shaping, for extras, `includeBody` and `excludeBody`. |
 | Template thinking switch beside the user's kwargs; the user's own switch outranks it; the budget at zero; a user budget key wins | Rebuild | Body shaping on the vLLM row. |
 | Prefill pair, thinking interlock and a user-decided prefill | Rebuild | Body shaping. A mandatory-reasoning model skipping the interlock stays Open. |
+| A messages array the user set takes no prefill pair and no interlock from the plan | Rebuild | Body shaping, with the unextended prefill turn as the control. |
+| A reasoning-on turn tells the template to think, never over an off the user already set | Rebuild | Body shaping. The interlock's own off outranking the switch is asserted by the prefill case. |
+| A messages array the user set keeps its cache marker, takes no name, media or detail stamp, and is not folded | Open | These rules need the assembly's cache plan on an OpenRouter row, or a named-speaker or image history. |
 | `preserve_reasoning`, and kwargs the user set to a non-object | Open | The switch is asserted; the preserve key and the non-object values are not. |
 | An effort the row cannot spell is dropped | Rebuild in part | The row-level drop and the user's effort surviving are asserted. The shaper's own strip is a possible dead guard: the SDK never writes the key on such a row. |
 | Re-attachment of assistant media and participant names; image detail; reply-image modalities | Open | Each needs an image or named-speaker history through the chat assembly. |
@@ -634,7 +637,7 @@ Home: [chat wire](../../../tests/inference/backends/anthropic-messages/chat-wire
 | Every measured older id keeps its wire | Rebuild, narrowed | Chat wire keeps three controls. The full table copies curated rows and is dropped. |
 | A dropped thinking block is counted on the record and raised as an alarm | Rebuild | Chat wire, with a clean-turn control. |
 | Turn-scoped system cue with `clear_at` and its beta; per-turn system half stays in `system[]` | Rebuild | Chat wire. |
-| Full request body byte equality | Drop | The literal copies the owner digest, which has no door. Named-field assertions replace it. |
+| Full request body byte equality | Rebuild | Chat wire: one `toEqual` over the whole body of a minimal turn, with the owner digest matched as a string. Named-field assertions cover the rest. |
 | Turn span events | Open | The root exposes a span seam that no case scripts. |
 
 #### Provider registry (`inference/registry/providers.test.ts`)
@@ -658,6 +661,7 @@ Homes: [library planes](../../../tests/server/domain/import/loader/library-plane
 | Campaign: game, hand journal, checkpoint and its snapshot position | Rebuild | Library planes. The checkpoint restores only when its position resolved. |
 | Turn-anchored snapshot, journal and tool-call rows land on the restored variant of their own turn | Rebuild | Library planes, through a bundle written by the production writer, with the earlier assistant turn as the control. |
 | Second restore writes zero new rows | Rebuild | Library planes, for the room, injections, checkpoints and journal. |
+| A re-import after the room lost a later message keeps the game and reports nothing lost | Rebuild | Library planes. The campaign cannot be re-placed once the slots stop aligning, so only the existing-game check keeps the import from a false loss note. |
 | Avatar blob byte identity; derived runtime variables do not travel; room blob, compact summary and variable picks by value | Open | Not asserted end to end. The serde contract parses them. |
 
 #### Import identity (`server/entry/import/import-identity.suite.int.test.ts`)
@@ -691,7 +695,10 @@ Home: [import identity](../../../tests/server/entry/http/import-identity.int.tes
 | Bulk card tag attaches through the real tag wiring | Keep | [Tag row clocks](../../../tests/server/domain/tag/persistence/row-clocks.int.test.ts). |
 | Seed: manifest content and no rooms; a deleted seeded card stays deleted across a cold graph; an explicit welcome pick is kept; a campaign roster | Keep | [Corpus seed](../../../tests/support/node/corpus-seed.int.test.ts), [seed ledger](../../../tests/server/domain/settings/persistence/seed-ledger-tags.int.test.ts), [default persona seeder](../../../tests/server/domain/persona/seeder/default.int.test.ts) and [roster seed](../../../tests/server/domain/roster-preset/verbs/seed.int.test.ts). |
 | Indexer subscription with a stub store and a copied dispatcher | Drop | A copied assembly. The gate's observable outcome is rebuilt below. |
-| `corpusAutoindex` off writes nothing, saving it on indexes the next write, off again leaves an edit unindexed | Rebuild | [Autoindex gate](../../../tests/server/domain/embeddings/persistence/autoindex-gate.int.test.ts), storage subject. The once-only catch-up queue and the flag-only update stay Open. |
+| `corpusAutoindex` off writes nothing, saving it on indexes the next write, off again leaves an edit unindexed | Rebuild | [Autoindex gate](../../../tests/server/domain/embeddings/persistence/autoindex-gate.int.test.ts), storage subject. The once-only catch-up queue stays Open. |
+| `character.updated` stores the card-text projection; a flag-only update drives zero store work | Rebuild in part | Autoindex gate: a content edit re-embeds under a new content hash, and a star toggle spends no embedding request and keeps the hash. The handler's own skip is a possible dead guard, because the store's content-hash gate alone gives the same output. The stored text itself is not compared, because the scripted embedder returns one vector for every input. |
+| `asset.created` stores both image lenses from the real CAS bytes | Open | The event path needs a joint-encoder connection. The corpus embed connection is text only, and an avatar upload with indexing on writes no image row and sends no request. The sweep path keeps both lenses in [image sweep rows](../../../tests/server/domain/embeddings/persistence/image-sweep-rows.int.test.ts) and [corpus knowledge variants](../../../tests/support/node/corpus-knowledge-variants.int.test.ts). |
+| Fresh seeded content rebuilds text for its recipe while reusing unchanged raw-image seeds | Open | Needs the shipped local-light seed vectors and a scripted local-light cache, which no maintained root composes. Image sweep rows covers a seeded avatar sweep with its own spend, not the shipped raw vectors. |
 | Chat kick lands durably and on the recipient's live bus | Keep in part | [Recipient inbox](../../../tests/server/domain/notifications/verbs/recipient-inbox.int.test.ts) and [corpus notifications](../../../tests/support/node/corpus-notifications.int.test.ts) own the durable half and the live correction. |
 | Persona switch fans `personaSwitched` onto the live room channel | Open | Needs the live room stream through the transport. |
 | Persona remove re-points the current and default pointers, names the new default, and re-seats a worn seat | Rebuild | [Remove re-point](../../../tests/server/domain/persona/verbs/remove-repoint.int.test.ts). A seat its owner already left stays Open. |
@@ -701,7 +708,9 @@ Home: [import identity](../../../tests/server/entry/http/import-identity.int.tes
 
 Defect controls: each rebuilt guard was checked against a planted production defect that made it fail for its stated reason. The planted behaviors are in the shaper the belt drop, the OpenRouter key allowlist, the cap rename over a user cap, the budget and switch deferrals, the prefill pair over a user key, the prefill interlock, the effort deferral and the pollution-safe merge. In the inspector they are the cap, the native route, the extras and the idle bound. On the Anthropic wire they are the carry binding, the off spelling, the prefill belt, the drop alarm, the tool cache marker, the parallel switch, the rate-limit and id capture, the budget-thinking forced choice, the clear-at row, the applied effort, the refusal event and the downgrade. In import they are the text identity, the art re-key, the free-label mint, both world-link rules, the persona reuse, the card tag status, the injections, the tag overlay, the checkpoints, the hand journal, the variant anchor, the chat identity hash, the settings merge and the global attachment. In composition they are the persona fallbacks, the default-move report, the seat re-seat and the autoindex gate in both directions.
 
-Possible dead guards, each a plant that changed no output: the shaper's own effort strip on a row that spells no effort, because the SDK never writes the key there; the inspector's `failure === undefined` term in `ok`, because the catch arm already returns false; and the rpg import's existing-game pre-check, because the unique constraint arm returns the same outcome.
+Further planted behaviors: the whole-body reshape (the adaptive display), the existing-game check on a re-import whose campaign cannot be placed, the prefill pair over a user messages array, the switch over the interlock's off, the switch on a reasoning-on turn, and a character update that never flags its content change.
+
+Possible dead guards, each a plant that changed no output: the shaper's own effort strip on a row that spells no effort, because the SDK never writes the key there; the inspector's `failure === undefined` term in `ok`, because the catch arm already returns false; and the embeddings indexer's `contentChanged` skip, because the store's content-hash gate alone gives the same rows and requests. The rpg existing-game check is live: without it, a re-import whose campaign cannot be placed reports a loss while the room still has its game.
 
 ### Server composition
 

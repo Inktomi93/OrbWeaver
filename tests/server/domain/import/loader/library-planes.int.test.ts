@@ -177,13 +177,10 @@ function line(role: "user" | "assistant", content: string): PortableChat["messag
   };
 }
 
-test("a campaign's turn-anchored rows land on the restored variant of the turn they were exported under, not on another turn's", async () => {
-  await using root = await signedInBox();
-  const owner = await root.principalFor(root.ownerId);
-  await root.services.character.create({ principal: owner, input: createCharacterSchema.parse({ handle: HANDLE, name: "Warden", description: "A warden." }) });
-  // The campaign belongs to the second assistant turn (messages[3]); the first assistant turn (messages[1]) is the control.
-  const anchor = { messageIndex: 3, variantIdx: 0 };
-  const bundle = buildChatBundleFile({
+/** A four-message room whose campaign rows are all anchored to `messages[turn]`'s first variant. */
+function anchoredBundle(turn: number): Uint8Array {
+  const anchor = { messageIndex: turn, variantIdx: 0 };
+  return buildChatBundleFile({
     title: ANCHORED_TITLE,
     createdAt: FROZEN_AT_MS,
     updatedAt: FROZEN_AT_MS,
@@ -215,11 +212,19 @@ test("a campaign's turn-anchored rows land on the restored variant of the turn t
           state: rpgSnapshotStateSchema.parse({ clock: null, calendarDate: null, weather: null, fieldLocks: null, location: ANCHORED_LOCATION }),
         },
       ],
-      journal: [{ type: "event", label: "", title: ANCHORED_JOURNAL, content: "Lost.", ...anchor, sourceMessageIndex: 3, createdAt: FROZEN_AT_MS }],
+      journal: [{ type: "event", label: "", title: ANCHORED_JOURNAL, content: "Lost.", ...anchor, sourceMessageIndex: turn, createdAt: FROZEN_AT_MS }],
       turnToolCalls: [{ ...anchor, calls: [{ name: "update_scene", args: "{}", verdict: "applied", issues: [] }], createdAt: FROZEN_AT_MS }],
       checkpoints: [{ snapshotIndex: 0, label: CHECKPOINT, trigger: "manual", createdAt: FROZEN_AT_MS }],
     },
   });
+}
+
+test("a campaign's turn-anchored rows land on the restored variant of the turn they were exported under, not on another turn's", async () => {
+  await using root = await signedInBox();
+  const owner = await root.principalFor(root.ownerId);
+  await root.services.character.create({ principal: owner, input: createCharacterSchema.parse({ handle: HANDLE, name: "Warden", description: "A warden." }) });
+  // The campaign belongs to the second assistant turn (messages[3]); the first assistant turn (messages[1]) is the control.
+  const bundle = anchoredBundle(3);
   const chat = root.app.portability.find((entity) => entity.kind === "chat");
   if (chat === undefined) {
     throw new Error("production composition has no chat portability descriptor");
@@ -248,6 +253,39 @@ test("a campaign's turn-anchored rows land on the restored variant of the turn t
   expect((await root.services.rpg.listJournal(params)).map((entry) => entry.title)).toEqual([ANCHORED_JOURNAL]);
   const [checkpoint] = await root.services.rpg.listCheckpoints(params);
   expect(checkpoint).toMatchObject({ label: CHECKPOINT });
+});
+
+test("importing a campaign bundle again after the room lost a later message keeps the game and reports nothing lost", async () => {
+  await using root = await signedInBox();
+  const owner = await root.principalFor(root.ownerId);
+  await root.services.character.create({ principal: owner, input: createCharacterSchema.parse({ handle: HANDLE, name: "Warden", description: "A warden." }) });
+  // Every campaign row is anchored to messages[1], so the last message (messages[3]) carries none of them.
+  const bundle = anchoredBundle(1);
+  const chat = root.app.portability.find((entity) => entity.kind === "chat");
+  if (chat === undefined) {
+    throw new Error("production composition has no chat portability descriptor");
+  }
+  const file = { filename: `${HANDLE}/anchored${CHAT_BUNDLE_EXT}`, bytes: bundle };
+  expect(await chat.importFile(root.ownerId, file)).toMatchObject({ ok: true, created: true });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const [room] = (await caller.chat.listChats({ limit: 50 })).items.filter((item) => item.title === ANCHORED_TITLE);
+  if (room === undefined) {
+    throw new Error("the anchored room did not restore");
+  }
+  const params = { principal: owner, chatId: room.id };
+  // The unchanged file lands on its own identity: nothing is created and nothing is noted.
+  expect(await chat.importFile(root.ownerId, file)).toEqual({ ok: true, created: false });
+
+  const last = (await root.services.chat.listMessages(params)).messages.at(-1);
+  if (last === undefined) {
+    throw new Error("the restored room has no messages");
+  }
+  await caller.chat.deleteMessages({ chatId: room.id, messageIds: [last.id] });
+
+  // The slots no longer align with the file, so the campaign cannot be re-placed; the room still holds its game,
+  // so that is not a loss and the import says nothing about one.
+  expect(await chat.importFile(root.ownerId, file)).toEqual({ ok: true, created: false });
+  expect((await root.services.rpg.listJournal(params)).map((entry) => entry.title)).toEqual([ANCHORED_JOURNAL]);
 });
 
 test("an owner's persona, world book, global databank document and settings value restore into a fresh box, and a second restore adds none", async () => {

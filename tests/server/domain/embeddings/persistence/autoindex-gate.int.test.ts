@@ -23,8 +23,8 @@ async function embeddingsOf(root: ServerTestHarness, characterId: CharacterId): 
   return await root.db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId));
 }
 
-test("event indexing follows the saved corpusAutoindex setting live: off writes nothing, on indexes the next write, off again leaves an edit unindexed", async () => {
-  const physical = createCorpusProviderExecution({
+function embeddingEdge(): ReturnType<typeof createCorpusProviderExecution> {
+  return createCorpusProviderExecution({
     modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
     chatText: "",
@@ -34,6 +34,40 @@ test("event indexing follows the saved corpusAutoindex setting live: off writes 
       throw new Error("indexing a card must not request a model reply");
     },
   });
+}
+
+function embeddingCalls(physical: ReturnType<typeof createCorpusProviderExecution>): number {
+  return physical.requests.filter((request) => request.endsWith("/embeddings")).length;
+}
+
+test("a content edit re-embeds the card under a new content hash, and a star toggle spends no embedding request", async () => {
+  const physical = embeddingEdge();
+  await using root = await createServerHarness({ providerFetch: physical.execute });
+  const principal = await root.principalFor(root.ownerId);
+  const caller = await root.internalCallerFor(root.ownerId);
+  await seedCorpusConnections(root, principal);
+  await root.services.settings.updateAppSettings({ principal, partial: { corpusAutoindex: true } });
+  const { id } = await caller.character.create({
+    input: createCharacterSchema.parse({ handle: "edit-hash", name: "Edit hash", description: "Before the edit." }),
+  });
+  const [before] = await embeddingsOf(root, id);
+  const created = embeddingCalls(physical);
+  expect(before?.contentHash).toBeDefined();
+  expect(created).toBeGreaterThan(0);
+
+  await caller.character.update({ characterId: id, input: { starred: true } });
+  const [starred] = await embeddingsOf(root, id);
+  expect(embeddingCalls(physical)).toBe(created);
+  expect(starred?.contentHash).toBe(before?.contentHash);
+
+  await caller.character.update({ characterId: id, input: { description: "After the edit." } });
+  const [edited] = await embeddingsOf(root, id);
+  expect(embeddingCalls(physical)).toBeGreaterThan(created);
+  expect(edited?.contentHash).not.toBe(before?.contentHash);
+});
+
+test("event indexing follows the saved corpusAutoindex setting live: off writes nothing, on indexes the next write, off again leaves an edit unindexed", async () => {
+  const physical = embeddingEdge();
   await using root = await createServerHarness({ providerFetch: physical.execute });
   const principal = await root.principalFor(root.ownerId);
   const caller = await root.internalCallerFor(root.ownerId);

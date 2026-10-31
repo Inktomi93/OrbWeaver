@@ -184,6 +184,35 @@ test("a delivered prefill sends the continue pair and turns thinking off for the
   expect(warningCodes(theirDecision.events)).not.toContain("reasoning_dropped_for_prefill");
 });
 
+test("a messages array the user's body sets is theirs whole: the plan's prefill pair and interlock never touch it", async () => {
+  const prefill = generationCapability({
+    reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"] },
+    turns: { assistantPrefill: true, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "strict", explicitPromptCache: false },
+  });
+  const theirs = [{ role: "user", content: "Their own row." }];
+  const params = { effort: "high" } satisfies UserIntent;
+  const history = [USER_LINE, ASSISTANT_OPENING];
+
+  const control = await send({ providerId: "vllm", capability: prefill }, { params, history });
+  expect(control.body["continue_final_message"]).toBe(true);
+
+  const owned = await send({ providerId: "vllm", capability: prefill, transport: { includeBody: { messages: theirs } } }, { params, history });
+  expect(owned.body["messages"]).toEqual(theirs);
+  expect(owned.body).not.toHaveProperty("continue_final_message");
+  expect(owned.body).not.toHaveProperty("add_generation_prompt");
+  expect(owned.body["reasoning_effort"]).toBe("high");
+  expect(warningCodes(owned.events)).not.toContain("reasoning_dropped_for_prefill");
+});
+
+test("a reasoning-on turn tells the template to think, but never over an off the user's own body already set", async () => {
+  const on = { effort: "high" } satisfies UserIntent;
+  const thinks = await send({ providerId: "vllm", capability: EFFORT }, { params: on });
+  expect(thinks.body["chat_template_kwargs"]).toMatchObject({ ["enable_thinking"]: true });
+
+  const theirOff = await send({ providerId: "vllm", capability: EFFORT, extras: { ["chat_template_kwargs"]: { ["enable_thinking"]: false } } }, { params: on });
+  expect(theirOff.body["chat_template_kwargs"]).toMatchObject({ ["enable_thinking"]: false });
+});
+
 test("an effort the row cannot spell is dropped with a warning, and one the user's body sets stays", async () => {
   const params = { effort: "high" } satisfies UserIntent;
   const dropped = await send({ capability: EFFORT }, { params });
