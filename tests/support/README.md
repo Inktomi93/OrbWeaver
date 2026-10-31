@@ -180,10 +180,17 @@ Two publishes from one tree are byte-identical: every producer draws ids from th
 | A tier suite below the features and a feature suite import no other feature's test files; a shared helper goes through a `tests/support` door | The `tests-client-tiers-no-feature-tests` and `tests-client-features-own-test-helpers` rules in [dependency-cruiser](../../.dependency-cruiser.ts) |
 | A CT or e2e `getByRole` name, `getByLabel`, `getByText` or `toHaveAccessibleName` value, including a local constant, is not a label a production `.ts` module exports; the finding names the module | The `orb/no-hand-copied-label` rule, indexed from the label-named exports of `packages/*/src/**/*.ts`; a constant outranks a table field, and a string several same-rank exports hold is not judged |
 | A CT or e2e case with an absence assertion also holds a positive control: an `expect` that is not an absence, or a call to a helper named `expect*` or `assert*` | The `orb/ct-negative-only-case` rule; an absence is `.not` on a locator matcher, `toBeHidden`, `toBeEmpty`, `toBeNull`, `toBeUndefined`, `toBe(null)`, `toBeFalsy`, or a `0` or `[]` target for `toHaveCount`, `toHaveLength`, `toEqual` and `toStrictEqual`; an assertion in a function the case never references does not count |
+| A test spells no label function result, copy module string, error code, route or env key a production `.ts` module exports | The `orb/no-hand-copied-label` rule at scope `all`, which also indexes label-producing functions, zero-import `*-copy.ts` and `*-names.ts` modules, `*_CODES` objects, `*_ROUTES` objects and `*_ENV` or `*_KEY` constants. The repository config runs it at scope `named` until the label sweep has fixed its sites |
 | Unknown stories and render failures do not become successful empty mounts | [Gallery runtime regressions](browser/gallery.ct.tsx) |
 | Cold failures remain failures | Native runner configuration and first-navigation regression checks; no automatic warm-up navigation or test retries |
 
 Explicit story types do not type-check the story ID string. Unknown IDs fail at runtime. Do not describe syntax checks as complete semantic proof.
+
+## Keep user-facing names in zero-import modules
+
+A name a user reads, and a name a test locates a control by, lives in a zero-import `.ts` module that production renders from. Name the module `<feature>-copy.ts` or `<feature>-names.ts`. A function that builds a name from state (`contextToggleLabel`, `renameChatButtonName`) lives beside the constants it uses and ends in `Label`, `Name` or `Title`. A component module holds no name a test needs, because a Node-side spec and a Playwright config cannot import a `.tsx` file. The same holds for an error code object, a route object and an env key: one zero-import home, read by production and by the test.
+
+A spec imports the name or calls the function; it never types the result. Add the module to `TEST_CONSTANT_HOMES` in [dependency-cruiser](../../.dependency-cruiser.ts) when a suite reads it past its door.
 
 ## Sanctioned historic states
 
