@@ -32,7 +32,6 @@ export interface UseGenerateImageResult {
   readonly generate: (prompt: string, opts?: { readonly onSuccess?: () => void }) => void;
   readonly isPending: boolean;
   readonly error: unknown | null;
-  readonly clearError: () => void;
 }
 
 export function useGenerateImage(chatId: ChatId | null): UseGenerateImageResult {
@@ -58,6 +57,5 @@ export function useGenerateImage(chatId: ChatId | null): UseGenerateImageResult 
     generate,
     isPending: mutation.isPending,
     error: mutation.error,
-    clearError: mutation.clearError,
   };
 }
