@@ -74,6 +74,8 @@
       gap: 0;
       padding-block: 0;
       padding-block-end: env(safe-area-max-inset-bottom, env(safe-area-inset-bottom));
+      /* The label query below reads this bar's own width: its rem tracks the enlarged root, where a media query's does not. */
+      container: shell-rail / inline-size;
     }
     .shell-rail-sections,
     .shell-rail-group,
@@ -105,6 +107,13 @@
     }
     .shell-rail-button-label {
       display: block;
+    }
+    /* Below the narrowest container step the four tabs cannot each seat a whole label at the enlarged root, so the bar
+     * stands down to the desktop column's icon-only form: the button's `aria-label` stays its name (UI-Primitives-and-Reuse.md N1). */
+    @container shell-rail (inline-size < 20rem) {
+      .shell-rail-button-label {
+        display: none;
+      }
     }
     /* Entries curated into the You sheet (`mobile: "sheet"`) leave the bar and the accessibility tree. */
     .shell-rail .shell-rail-button[data-mobile="sheet"],
