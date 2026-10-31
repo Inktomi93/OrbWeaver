@@ -19,6 +19,7 @@ import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
 import { removeActionName } from "#lib";
 import { useBulkAddCardTag, useBulkRemoveCardTag } from "../hooks/use-character-mutations.ts";
+import { CHARACTER_ADD_TAG_NAME, CHARACTER_TAG_DIALOG_TITLE } from "../lib/character-names.ts";
 import { EMPTY_VALUE } from "../lib/empty-vocabulary.ts";
 
 export interface CharacterTagsRowProps {
@@ -74,7 +75,7 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
         </Text>
         <Button disabled={tagWritePending} type="button" size="sm" variant="ghost" onClick={(): void => setOpen(true)}>
           <Icon icon={Plus} size="sm" />
-          Add tag
+          {CHARACTER_ADD_TAG_NAME}
         </Button>
       </Row>
       <Row align="center" className="flex-wrap" gap="field">
@@ -123,7 +124,7 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
         onOpenChange={setOpen}
         onSubmit={applyTag}
         open={open}
-        title="Tag this character"
+        title={CHARACTER_TAG_DIALOG_TITLE}
       />
     </Stack>
   );

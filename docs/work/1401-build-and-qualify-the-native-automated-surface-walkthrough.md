@@ -353,3 +353,9 @@ Classes: (a) navigation the generic walker already covers: delete; (b) outcome a
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+### Phase B step 2: accessible names from production copy (lane cb-walk-names)
+
+- `tests/e2e/support/surface-character.ts`: 27 distinct Character names now import from `packages/client/src/features/character/lib/character-names.ts`, which the components read too (library, filter rail, create and import dialogs, editor form, actions menu, confirm titles, history, tags row, links tab). The count-built bulk titles use `characterBulkTagTitle` and `characterBulkDeleteTitle`. Reach entry in `.dependency-cruiser.ts`.
+- Cases: `Characters independent library` and `Characters independent trust-actions` on `desktop-1440-all-panes-measurement`, both exit 0, `completed=2 unexpected=0`.
+- Remaining in `surface-character.ts`: shared-grammar names (Cancel, Create, Done, Retry, Close, Name, Description, Restore, Accept, Discard, Edit, Studio, Back), names built by shared components (Make new, Expand to edit, Start from a theme…, From a URL…, Background image URL, Font, Corner radius, Hex, Add images, Your images, gallery title), `Select <name>` via `selectActionName`, and the per-facet strings. `surface-sections.ts`, `surface-config.ts` and `surface-chat.ts` untouched.

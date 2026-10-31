@@ -82,6 +82,7 @@ import { useCharacterTagGroups } from "../hooks/use-character-tag-groups.ts";
 import type { LibraryScopeArgs } from "../hooks/use-library-scope.ts";
 import { useLibraryScope } from "../hooks/use-library-scope.ts";
 import { CHARACTER_SEARCH_DEBOUNCE_MS, loadedProgressLabel, resultCountLabel } from "../lib/character-library-lens.ts";
+import { CHARACTER_LIBRARY_NAME, CHARACTER_SEARCH_NAME } from "../lib/character-names.ts";
 
 /** How many favorites the strip reads. Its own bounded page, UNFILTERED by the pane's lenses. */
 const FAVORITES_STRIP_LIMIT = 24;
@@ -129,7 +130,7 @@ export interface CharacterLibrarySurfaceProps {
 }
 
 /** The character library: header + favorites + filters + the flat/categorized paged list + bulk mode. */
-export function CharacterLibrarySurface({ ariaLabel = "Character library" }: CharacterLibrarySurfaceProps = {}): ReactElement {
+export function CharacterLibrarySurface({ ariaLabel = CHARACTER_LIBRARY_NAME }: CharacterLibrarySurfaceProps = {}): ReactElement {
   const trpc = useTRPC();
   const surfaceRef = useRef<HTMLDivElement>(null);
   const { startChat } = useStartChat();
@@ -284,7 +285,7 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library" }: Cha
       ref={surfaceRef}
       search={
         <Input
-          aria-label="Search characters"
+          aria-label={CHARACTER_SEARCH_NAME}
           className="flex-1 min-inline-(--width-field-floor)"
           onValueChange={setCharacterSearch}
           placeholder="Search characters…"
