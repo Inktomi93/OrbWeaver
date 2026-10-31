@@ -77,10 +77,18 @@ interface RecallWorld extends AsyncDisposable {
   readonly h: ChatRoot;
   /** The arc the scripted cross-encoder scores highest. */
   readonly rerankPrefers: (arc: Arc) => void;
+  /** Run one production sweep to completion, as the sweeps that built this room did. */
+  readonly sweep: (input: WorkloadInput) => Promise<void>;
 }
 
+type WorkloadInput = Parameters<ChatRoot["caller"]["workloads"]["start"]>[0]["input"];
+
 interface World {
-  readonly build: (config: { readonly mode: "off" | "mixA" | "mixB" | "mixC" | "tiered"; readonly maxTier: number }) => Promise<RecallWorld>;
+  readonly build: (config: {
+    readonly mode: "off" | "mixA" | "mixB" | "mixC" | "tiered";
+    readonly maxTier: number;
+    readonly scout?: boolean;
+  }) => Promise<RecallWorld>;
 }
 
 // The consolidation prompt leads with this slot; its default text is the one production sends when the host sets no override.
@@ -121,7 +129,11 @@ const world: World = {
         },
         memoryEnabled: true,
         memoryDefaults: { mode: "mixB", blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: config.maxTier },
-        characters: [createCharacterSchema.parse({ handle: "keeper", name: "Keeper", description: "The keeper of the caravan ledger." })],
+        characters: [
+          createCharacterSchema.parse({ handle: "keeper", name: "Keeper", description: "The keeper of the caravan ledger." }),
+          ...(config.scout === true ? [createCharacterSchema.parse({ handle: "scout", name: "Scout", description: "The scout who rides ahead." })] : []),
+        ],
+        ...(config.scout === true ? { group: { output: "per-speaker" as const, policy: "list" as const, cardScope: "scoped" as const } } : {}),
         transcript: [
           ...ARCS.flatMap((arc) => [0, 1].map(() => ({ role: "assistant" as const, content: `${lineText(arc)} ${FILLER}` }))),
           ...Array.from({ length: FILLER_LINES }, (_, index) => ({ role: "assistant" as const, content: `Filler ${index}: ${FILLER}` })),
@@ -159,13 +171,16 @@ const world: World = {
     if (runAdmittedWorkload === undefined) {
       throw new Error("the recall world has no admitted-workload driver");
     }
+    const sweep = async (input: WorkloadInput): Promise<void> => {
+      const job = await h.caller.workloads.start({ input, mode: "singular" });
+      await runAdmittedWorkload(job.id, lifetime.signal);
+    };
     for (const input of [
       { kind: "index", params: { source: "text" } },
       { kind: "memory-backfill", params: {} },
       { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } },
-    ] as const) {
-      const job = await h.caller.workloads.start({ input, mode: "singular" });
-      await runAdmittedWorkload(job.id, lifetime.signal);
+    ] as const satisfies WorkloadInput[]) {
+      await sweep(input);
     }
     // The build runs under mixB: a room with memory off has nothing to back fill. The case's own mode applies after it.
     await h.caller.settings.updateAppSettings({ partial: { memoryDefaults: { mode: config.mode } } });
@@ -175,6 +190,7 @@ const world: World = {
       rerankPrefers: (arc): void => {
         preferred = arc;
       },
+      sweep,
       [Symbol.asyncDispose]: () => kept.disposeAsync(),
     };
   },
@@ -374,4 +390,70 @@ test("tiered reports the tier-0 blocks a surfaced consolidation covers, and mixA
   expect(mixA.trace.candidates.filter((candidate) => candidate.verdict === "admitted").every((candidate) => candidate.tier === 0)).toBe(true);
   expect(verdicts(mixA.trace, "mode-excluded").length).toBeGreaterThan(0);
   expect(verdicts(mixA.trace, "mode-excluded").every((candidate) => candidate.tier === 1)).toBe(true);
+});
+
+test("hiding a trailing span reclaims its digest, so the room no longer holds it", async () => {
+  await using w = await world.build({ mode: "mixA", maxTier: 0 });
+  const { h } = w;
+  /** Every digest block the room holds, read through the omnibox digest search. */
+  const heldBlocks = async (): Promise<readonly number[]> => {
+    const result = await h.caller.search.search({
+      query: ask("bath"),
+      over: "digests",
+      scope: { kind: "chat", chatId: h.chatId },
+      topN: 100,
+      rerank: false,
+    });
+    return result.over === "digests" ? result.hits.map((hit) => hit.blockKey.blockIdx).toSorted((a, b) => a - b) : [];
+  };
+  const before = await heldBlocks();
+  const messages = (await h.root.services.chat.listMessages({ principal: h.owner, chatId: h.chatId })).messages;
+  for (const { id } of messages.slice(-2)) {
+    await h.root.services.chat.setMessageHidden({ principal: h.owner, chatId: h.chatId, messageId: id, hidden: true });
+  }
+  await w.sweep({ kind: "memory-backfill", params: {} });
+  const after = await heldBlocks();
+  expect(before.length).toBeGreaterThan(0);
+  expect(after).toEqual(before.slice(0, -1));
+});
+
+test("a scoped speaker recalls the shared era and its own era, never another speaker's, and a merged speaker recalls only the shared era", async () => {
+  await using w = await world.build({ mode: "mixA", maxTier: 0, scout: true });
+  const { h } = w;
+  const [keeper, scout] = h.characters;
+  if (keeper === undefined || scout === undefined) {
+    throw new Error("the room seats two characters");
+  }
+  /** The digest buckets each recall of one turn read, by the bucket the recall was scoped to. */
+  const bucketsRead = async (characterId: typeof keeper.id): Promise<ReadonlyMap<string, ReadonlySet<string>>> => {
+    const before = h.root.app.recallRecorder.recent({ chatId: h.chatId }).at(-1)?.seq ?? 0;
+    const turn = await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId, intent: TURN_INTENT });
+    expect(turn.aborted).toBe(false);
+    const read = new Map<string, Set<string>>();
+    for (const record of h.root.app.recallRecorder.recent({ chatId: h.chatId }).filter((candidate) => candidate.seq > before)) {
+      read.set(record.scopedCharacterId, new Set(record.trace.candidates.map((candidate) => candidate.scopedCharacterId)));
+    }
+    return read;
+  };
+  const seated = new Set<string>([keeper.id, scout.id]);
+  const sharedOf = (read: ReadonlyMap<string, ReadonlySet<string>>): string => {
+    const shared = [...read.keys()].find((bucket) => !seated.has(bucket));
+    if (shared === undefined) {
+      throw new Error("no recall was scoped to the shared bucket");
+    }
+    return shared;
+  };
+
+  const asKeeper = await bucketsRead(keeper.id);
+  const shared = sharedOf(asKeeper);
+  expect(asKeeper.get(keeper.id)).toEqual(new Set([shared, keeper.id]));
+
+  const asScout = await bucketsRead(scout.id);
+  expect(asScout.get(scout.id)).toEqual(new Set([shared, scout.id]));
+  expect([...asScout.values()].every((buckets) => !buckets.has(keeper.id))).toBe(true);
+
+  await h.caller.chat.setGroupConfig({ chatId: h.chatId, config: { output: "per-speaker", policy: "list", cardScope: "merged" } });
+  const merged = await bucketsRead(keeper.id);
+  expect([...merged.keys()]).toEqual([shared]);
+  expect(merged.get(shared)).toEqual(new Set([shared]));
 });
