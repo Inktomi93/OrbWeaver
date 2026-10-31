@@ -600,6 +600,12 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/chat/components/platform-appearance-chat-style-picker.suite.ct.tsx": {
     "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the production identity policy the picker diagram must represent",
   },
+  "tests/client/features/chat/components/appearance-message-style-section.ct.tsx": {
+    "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the skin rows each chat style's diagram anatomy must represent",
+    "packages/client/src/features/chat/lib/appearance-select-items.ts": "CHAT_STYLE_ITEMS: the label and gloss each picker cell prints",
+    "packages/client/src/features/chat/lib/appearance-message-style-model.ts":
+      "APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: the section heading and the labels of its two switches",
+  },
   "tests/client/features/workloads/components/platform-schedule-dialog-dismissal.suite.ct.tsx": {
     "packages/client/src/features/workloads/lib/workloads-schedule-model.ts":
       "SCHEDULE_CADENCE_LABELS: the production cadence names used to edit and reopen schedules",
