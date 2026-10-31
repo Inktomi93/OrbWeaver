@@ -80,6 +80,7 @@ export default defineConfig<CtCorpusOptions>({
         "**/content/theme-scope/fallback-delivery.ct.tsx",
         "**/primitives/tone-variant-matrix.ct.tsx",
         "**/primitives/button/button-family.ct.tsx",
+        "**/primitives/badge/badge-family.ct.tsx",
       ],
       use: { ...devices["iPhone 15"], launchOptions: nativeBrowserLaunchOptions("webkit") },
     },

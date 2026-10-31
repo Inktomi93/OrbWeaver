@@ -210,6 +210,17 @@ The button family keeps one render in `packages/ui/src/primitives/button/core.ts
 | `packages/client/src/components/row-actions-menu.tsx`, `packages/ui/src/primitives/hint-trigger/hint-trigger.tsx` | The trigger box is a prop value, so each value renders its own component. |
 | `PictureButton` style | No style draws nothing, which replaces `bare`; `variant="ghost"` keeps the ghost tint for a captioned picture tile. |
 
+##### Step 4b record
+
+`InlineToken` and `IndicatorDot` each own a skin in their own `variants.ts` behind their own door. They share no core: Badge holds no behavior beyond `variantProps`, so a shared render would only wrap one `span`. Both keep `data-slot="badge"`, so owner CSS and the generated slot list keep their hook.
+
+| Site | Choice |
+| - | - |
+| `InlineToken` | Takes `tone` and draws the soft roles only. The token draws no border, so `outline` has nothing to paint, and no site wants a filled word. |
+| `IndicatorDot` | Takes `tone` and `variant` `solid` or `outline`. The ring is `outline` on the tone's `text` role, which replaces Badge `edge="ink"`: the tone edge is too faint at the dot's diameter. |
+| `packages/client/src/components/connection-role-slot.tsx` | `DOT_SKIN` is computed, so the move was a hand edit: it drops `edge` and types its rows from `IndicatorDotProps`. |
+| `badge-family.json` | Badge draws `soft` when no style is named and `IndicatorDot` draws `solid`, so a dot that names no style is refused. No site left it unnamed. |
+
 #### Mapping: Card
 
 | Old value | New |

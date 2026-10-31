@@ -31,6 +31,7 @@ import { formatBytes } from "@orb/kit/strings";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Eye, EyeOff, Icon, Unlink } from "@orb/ui/icons";
+import { InlineToken } from "@orb/ui/inline-token";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
@@ -315,16 +316,14 @@ function ActiveDocumentRow({ document, isHost, onSetHidden, onDetach }: ActiveDo
               is switched off should not have to read an icon's pressed state to find it. */}
           {visible ? null : (
             <>
-              <Badge className="me-field" tone="warning" size="inline">
+              <InlineToken className="me-field" tone="warning">
                 Hidden
-              </Badge>{" "}
+              </InlineToken>{" "}
             </>
           )}
           {chips.map((chip) => (
             <Fragment key={chip}>
-              <Badge className="me-field" size="inline">
-                {chip}
-              </Badge>{" "}
+              <InlineToken className="me-field">{chip}</InlineToken>{" "}
             </Fragment>
           ))}
         </>
