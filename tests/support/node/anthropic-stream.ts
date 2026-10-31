@@ -15,7 +15,7 @@ import type {
 
 /** A `message_delta` as a scripted server may send it: any stop word (an unrecognised one is a real provider
  *  behaviour), and the API's `input_transformations` list, which the SDK's event type does not carry. */
-export interface ScriptedMessageDelta extends Omit<RawMessageDeltaEvent, "delta"> {
+interface ScriptedMessageDelta extends Omit<RawMessageDeltaEvent, "delta"> {
   readonly delta: Omit<RawMessageDeltaEvent["delta"], "stop_reason"> & { readonly ["stop_reason"]: string | null };
   readonly ["input_transformations"]?: readonly Readonly<Record<string, string>>[];
 }

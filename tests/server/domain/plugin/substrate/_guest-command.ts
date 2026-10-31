@@ -19,7 +19,7 @@ const outcomeSchema = z.discriminatedUnion("ok", [
   z.strictObject({ ok: z.literal(true), value: jsonValueSchema }),
   z.strictObject({ ok: z.literal(false), name: z.string() }),
 ]);
-export type GuestOutcome = z.infer<typeof outcomeSchema>;
+type GuestOutcome = z.infer<typeof outcomeSchema>;
 
 function guestSource(ops: GuestOps): string {
   const table = Object.entries(ops)

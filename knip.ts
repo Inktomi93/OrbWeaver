@@ -76,8 +76,6 @@ export const config = {
         "{iso,node,browser}/**/*.{test,int.test,suite.int.test,test-d,dom.test-d,ct}.{ts,tsx}",
       ],
       project: ["{iso,node,browser}/**/*.{ts,tsx}!"],
-      // Peer pin for @anthropic-ai/claude-agent-sdk (pnpm-workspace.yaml); never imported.
-      ignoreDependencies: ["@anthropic-ai/sdk"],
     },
     // @orb/tooling: every tool's cli.ts + index.ts are entries; floor modules are entries too
     // Shared floor modules are exported package entry points.
