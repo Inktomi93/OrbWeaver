@@ -1,4 +1,4 @@
-// Labeled immutable snapshot bookmarks; an optional detached snapshot shares the checkpoint's write batch.
+// Labeled checkpoints; each one's bookmark snapshot shares its write batch, and the composite FK admits only it.
 // Restore owns its narrator/state batch in the verb; the snapshot FK remains RESTRICT.
 
 import type { Db } from "@orb/db";
@@ -9,9 +9,9 @@ import type { RpgCheckpointId, RpgGameId } from "@orb/kit/ids";
 import { desc, eq } from "drizzle-orm";
 import type { NewRpgCheckpoint, RpgCheckpointRow } from "../contract/service.ts";
 
-/** Commit the bookmark and its optional detached snapshot together, without a durable half on failure. */
-export async function insertCheckpoint(db: Db, values: NewRpgCheckpoint, snapshotStatements: readonly BatchStmt[] = []): Promise<RpgCheckpointRow> {
-  await db.batch(batchMany([...snapshotStatements, batchStmt(db.insert(rpgCheckpoints).values(values))]));
+/** Commit the checkpoint and its bookmark snapshot together, without a durable half on failure. */
+export async function insertCheckpoint(db: Db, values: NewRpgCheckpoint, bookmark: BatchStmt): Promise<RpgCheckpointRow> {
+  await db.batch(batchMany([bookmark, batchStmt(db.insert(rpgCheckpoints).values(values))]));
   const row = await findCheckpoint(db, values.id);
   if (!row) {
     throw new Error("insertCheckpoint: no row returned");

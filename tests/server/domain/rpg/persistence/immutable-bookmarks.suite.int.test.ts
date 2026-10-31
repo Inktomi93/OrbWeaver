@@ -7,10 +7,12 @@
 // @subject packages/server/src/domain/rpg/snapshot-edit.ts
 
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
-import { RPG_LITE_TOOL_NAMES, RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
+import { RPG_CHECKPOINT_TRIGGERS, RPG_LITE_TOOL_NAMES, RPG_NO_CHANGES_TOOL, RPG_SNAPSHOT_KIND } from "@orb/contracts/rpg";
 import { closeDb, messages, rpgCheckpoints, rpgSnapshots } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/query";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
-import type { ChatId, RpgGameId } from "@orb/kit/ids";
+import type { ChatId, RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -26,7 +28,7 @@ import {
   seedRecallRoom,
 } from "@orb/testkit/node/composed";
 import { captureRpgSnapshot, seedRpgCheckpointRows, seedRpgGameRows } from "@orb/testkit/node/rows";
-import { eq, getTableName } from "drizzle-orm";
+import { and, eq, getTableName } from "drizzle-orm";
 
 const INTENT = { maxContextTokens: 32_000, maxOutputTokens: 128 };
 const SAVED_LOCATION = "Bookmarked observatory";
@@ -132,7 +134,14 @@ test("a checkpoint freezes a real folded draft across host edits and continuatio
   expect(await root.services.rpg.patchActor({ ...params, targetRef, ops: [{ op: "addItem", item: { name: "Later observatory key" } }] })).toEqual({ ok: true });
   expect(await root.services.rpg.editSnapshot({ ...params, patch: { location: EDITED_LOCATION } })).toEqual({ ok: true });
   expect(await captureRpgSnapshot(root.db, checkpoint.snapshotId)).toEqual(bookmarked);
-  expect(bookmarked).toMatchObject({ gameId: scene.game.id, messageId: null, variantId: null, asOfMessageId: scene.assistant.id, committed: 1 });
+  expect(bookmarked).toMatchObject({
+    gameId: scene.game.id,
+    messageId: null,
+    variantId: null,
+    asOfMessageId: null,
+    committed: 1,
+    kind: RPG_SNAPSHOT_KIND.bookmark,
+  });
   expect(bookmarked.id).not.toBe(scene.snapshot.id);
 
   const continued = await root.services.chat.continueTurn({ ...params, messageId: scene.assistant.id, intent: INTENT });
@@ -146,16 +155,20 @@ test("a checkpoint freezes a real folded draft across host edits and continuatio
   expect((await root.services.rpg.getTrackerView(params)).ambient).toMatchObject({ location: EDITED_LOCATION, weather: { type: "rain" } });
   expect(await captureRpgSnapshot(root.db, checkpoint.snapshotId)).toEqual(bookmarked);
   await root.services.rpg.restoreCheckpoint({ ...params, checkpointId: checkpoint.id });
-  const restoredCheckpoint = await seedRpgCheckpointRows(root, { ...params, label: "Restored observatory" });
-  const restored = await captureRpgSnapshot(root.db, restoredCheckpoint.snapshotId);
-  const canon = await root.services.chat.listMessages(params);
-  expect(restored).toEqual({ ...bookmarked, id: restored.id, asOfMessageId: canon.messages.at(-1)?.id, createdAt: root.clock.now() });
-  expect(restored.id).not.toBe(bookmarked.id);
+  // Restore writes the saved state back as a real hand beat at the restore marker.
+  const marker = (await root.services.chat.listMessages(params)).messages.at(-1);
+  if (marker === undefined) {
+    throw new Error("the restore posted no marker");
+  }
+  const [restored, ...others] = await root.db.select().from(rpgSnapshots).where(eq(rpgSnapshots.asOfMessageId, marker.id));
+  expect(others).toEqual([]);
+  expect(restored).toEqual({ ...bookmarked, id: restored?.id, asOfMessageId: marker.id, createdAt: root.clock.now(), kind: RPG_SNAPSHOT_KIND.hand });
+  expect(restored?.id).not.toBe(bookmarked.id);
   expect((await root.services.rpg.getTrackerView(params)).ambient).toMatchObject({ location: SAVED_LOCATION, weather: { type: "clear" } });
   expect(wire.requests.filter((request) => request === "POST /v1/chat/completions")).toHaveLength(2);
 });
 
-test("an already immutable hand bookmark reuses its real target without adding another snapshot or canon row", async () => {
+test("a checkpoint on a hand head saves a bookmark copy and leaves the hand row and canon untouched", async () => {
   await using root = await createServerHarness();
   const principal = await root.principalFor(root.ownerId);
   const caller = await root.internalCallerFor(root.ownerId);
@@ -164,15 +177,20 @@ test("an already immutable hand bookmark reuses its real target without adding a
   const game = await seedRpgGameRows(root, { ...params, mode: "lite" });
   expect(await root.services.rpg.editSnapshot({ ...params, patch: { location: SAVED_LOCATION } })).toEqual({ ok: true });
   const before = await capturedRows(root, game.id, chat.id);
+  const [hand] = before.snapshots;
+  if (hand === undefined) {
+    throw new Error("the hand edit left no hand row");
+  }
   const checkpoint = await seedRpgCheckpointRows(root, { ...params, label: "Existing hand state" });
-  expect(checkpoint.snapshotId).toBe(before.snapshots[0]?.id);
-  expect(await captureRpgSnapshot(root.db, checkpoint.snapshotId)).toMatchObject({ variantId: null, messageId: null, committed: 1, location: SAVED_LOCATION });
+  const bookmark = await captureRpgSnapshot(root.db, checkpoint.snapshotId);
+  expect(bookmark).toEqual({ ...hand, id: checkpoint.snapshotId, asOfMessageId: null, kind: RPG_SNAPSHOT_KIND.bookmark, createdAt: checkpoint.createdAt });
   const after = await capturedRows(root, game.id, chat.id);
-  expect(after.snapshots).toEqual(before.snapshots);
+  expect(after.snapshots.filter((row) => row.id !== checkpoint.snapshotId)).toEqual(before.snapshots);
   expect(after.canon).toEqual(before.canon);
+  expect((await root.services.rpg.getTrackerView(params)).ambient?.location).toBe(SAVED_LOCATION);
 });
 
-test("a real user-committed turn still detaches its bookmark and preserves the source variant and actual later tail", async () => {
+test("a real user-committed turn saves a bookmark copy off the ladder and preserves the source variant", async () => {
   const wire = physicalScene(true);
   await using root = await createServerHarness({ providerFetch: wire.execute });
   const scene = await foldedScene(root);
@@ -188,14 +206,59 @@ test("a real user-committed turn still detaches its bookmark and preserves the s
   expect(source.committed).toBe(1);
   const checkpoint = await seedRpgCheckpointRows(root, { ...params, label: "Committed turn" });
   const bookmark = await captureRpgSnapshot(root.db, checkpoint.snapshotId);
-  expect(bookmark).toEqual({ ...source, id: bookmark.id, messageId: null, variantId: null, asOfMessageId: tail.id, committed: 1, createdAt: root.clock.now() });
+  expect(bookmark).toEqual({
+    ...source,
+    id: bookmark.id,
+    messageId: null,
+    variantId: null,
+    asOfMessageId: null,
+    committed: 1,
+    kind: RPG_SNAPSHOT_KIND.bookmark,
+    createdAt: checkpoint.createdAt,
+  });
   expect(bookmark.id).not.toBe(source.id);
+  expect(tail.id).not.toBe(scene.assistant.id);
   expect(await captureRpgSnapshot(root.db, source.id)).toEqual(source);
   expect(await root.db.select().from(rpgSnapshots).where(eq(rpgSnapshots.variantId, scene.assistant.selectedVariantId))).toEqual([source]);
 });
 
+test("the database refuses a checkpoint that pins a turn or hand row and admits the same insert on a bookmark", async () => {
+  const wire = physicalScene();
+  await using root = await createServerHarness({ providerFetch: wire.execute });
+  const scene = await foldedScene(root);
+  const bookmark = await seedRpgCheckpointRows(root, { principal: scene.owner, chatId: scene.chatId, label: "Saved copy" });
+  // A restore writes the saved state back as a hand row.
+  await root.services.rpg.restoreCheckpoint({ principal: scene.owner, chatId: scene.chatId, checkpointId: bookmark.id });
+  const [hand] = await root.db
+    .select()
+    .from(rpgSnapshots)
+    .where(and(eq(rpgSnapshots.gameId, scene.game.id), eq(rpgSnapshots.kind, RPG_SNAPSHOT_KIND.hand)));
+  if (hand === undefined) {
+    throw new Error("the restore left no hand row");
+  }
+  const pin = async (snapshotId: RpgSnapshotId): Promise<void> => {
+    await root.db.insert(rpgCheckpoints).values({
+      id: mintTypeId(ID_PREFIX.rpgCheckpoint),
+      gameId: scene.game.id,
+      snapshotId,
+      label: "Pinned by hand",
+      trigger: RPG_CHECKPOINT_TRIGGERS[0],
+      createdAt: root.clock.now(),
+    });
+  };
+  for (const beat of [scene.snapshot.id, hand.id]) {
+    const refusal = await pin(beat).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    expect(isConstraintViolation(refusal)?.kind).toBe("foreign-key");
+  }
+  await pin(bookmark.snapshotId);
+  expect(await root.db.select().from(rpgCheckpoints).where(eq(rpgCheckpoints.snapshotId, bookmark.snapshotId))).toHaveLength(2);
+});
+
 for (const table of [rpgSnapshots, rpgCheckpoints]) {
-  test(`failed native ${getTableName(table)} insertion leaves neither detached bookmark nor checkpoint and releases the owner`, async () => {
+  test(`failed native ${getTableName(table)} insertion leaves neither bookmark snapshot nor checkpoint and releases the owner`, async () => {
     const wire = physicalScene();
     await using root = await createServerHarness({ providerFetch: wire.execute });
     const scene = await foldedScene(root);
@@ -309,7 +372,7 @@ test("a real continuation overlaps the held bookmark without replacing its saved
     }
     const bookmark = await captureRpgSnapshot(root.db, checkpoint.snapshotId);
     expect(bookmark.weather).toEqual(scene.snapshot.weather);
-    expect(bookmark).toMatchObject({ committed: 1, variantId: null, messageId: null, asOfMessageId: scene.assistant.id });
+    expect(bookmark).toMatchObject({ committed: 1, variantId: null, messageId: null, asOfMessageId: null, kind: RPG_SNAPSHOT_KIND.bookmark });
     const originals = await root.db.select().from(rpgSnapshots).where(eq(rpgSnapshots.variantId, scene.assistant.selectedVariantId));
     expect(originals).toHaveLength(1);
     expect(originals[0]).toMatchObject({
@@ -386,4 +449,60 @@ test("a native restore snapshot failure keeps both the narrator and saved state 
   const after = await capturedRows(root, scene.game.id, scene.chatId);
   expect(after.snapshots).toHaveLength(before.snapshots.length + 1);
   expect(after.canon).toHaveLength(before.canon.length + 1);
+});
+
+// The tail turn writes the model location, its swipe writes nothing, and the next turn changes only the weather.
+function tailSwipeScene(): ReturnType<typeof createCorpusProviderExecution> {
+  const scene = (weather: string): { readonly name: string; readonly argumentsJson: string } => ({
+    name: RPG_LITE_TOOL_NAMES[2],
+    argumentsJson: JSON.stringify({ location: "Model observatory", weather: { type: weather }, recentEvent: "The traveller entered." }),
+  });
+  const replies = [
+    [scene("clear")],
+    [{ name: RPG_NO_CHANGES_TOOL, argumentsJson: "{}" }],
+    [{ name: RPG_LITE_TOOL_NAMES[2], argumentsJson: JSON.stringify({ weather: { type: "rain" } }) }],
+  ];
+  let calls = 0;
+  return createCorpusProviderExecution({
+    modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
+    embedding: CORPUS_EMBEDDING_VECTOR,
+    chatText: "The traveller preserves the observatory ledger.",
+    structuredReplies: CORPUS_STRUCTURED_REPLIES,
+    images: [],
+    completion: () => {
+      const toolCalls = replies[calls];
+      calls += 1;
+      if (toolCalls === undefined) {
+        throw new Error("the tail swipe script has no additional model reply");
+      }
+      return { text: "The traveller studies the observatory.", toolCalls };
+    },
+  });
+}
+
+type Ambient = Awaited<ReturnType<ServerTestHarness["services"]["rpg"]["getTrackerView"]>>["ambient"];
+
+async function tailSwipeStates(checkpoint: boolean): Promise<{ readonly head: Ambient; readonly swiped: Ambient; readonly next: Ambient }> {
+  await using root = await createServerHarness({ providerFetch: tailSwipeScene().execute });
+  const scene = await foldedScene(root);
+  const params = { principal: scene.owner, chatId: scene.chatId };
+  const ambient = async (): Promise<Ambient> => (await root.services.rpg.getTrackerView(params)).ambient;
+  const head = await ambient();
+  if (checkpoint) {
+    await seedRpgCheckpointRows(root, { ...params, label: "Tail bookmark" });
+  }
+  expect((await root.services.chat.swipe({ ...params, messageId: scene.assistant.id, intent: INTENT })).aborted).toBe(false);
+  await root.settleBackground();
+  const swiped = await ambient();
+  expect((await root.services.chat.send({ ...params, content: "Wait for the weather.", intent: INTENT })).aborted).toBe(false);
+  await root.settleBackground();
+  return { head, swiped, next: await ambient() };
+}
+
+test("a checkpoint on the tail turn does not hold the room's state against a swipe or the next turn", async () => {
+  const control = await tailSwipeStates(false);
+  const bookmarked = await tailSwipeStates(true);
+  expect(control.head).toMatchObject({ location: "Model observatory" });
+  expect(control.swiped).not.toEqual(control.head);
+  expect(bookmarked).toEqual(control);
 });

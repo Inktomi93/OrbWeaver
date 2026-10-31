@@ -262,6 +262,7 @@ function toPortableRpg(args: {
         messageIndex: at === null ? null : at.messageIndex,
         variantIdx: at === null ? null : at.variantIdx,
         asOfMessageIndex: messageIndex(snapshot.asOfMessageId),
+        bookmark: snapshot.bookmark,
         committed: snapshot.committed,
         createdAt: snapshot.createdAt,
         state: snapshot.state,

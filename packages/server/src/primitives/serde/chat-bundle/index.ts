@@ -125,11 +125,13 @@ export interface PortableRpgSheet {
 }
 
 /** One `rpg_snapshots` row. A TURN row carries `{messageIndex, variantIdx}`; a HAND row carries neither and
- *  may carry `asOfMessageIndex` (its order stamp) — the two-arm CHECK, expressed positionally. */
+ *  may carry `asOfMessageIndex` (its order stamp) — the kind CHECK, expressed positionally. `bookmark` marks a
+ *  checkpoint's saved copy; a file written before bookmarks existed reads as `false`. */
 export interface PortableRpgSnapshot {
   readonly messageIndex: number | null;
   readonly variantIdx: number | null;
   readonly asOfMessageIndex: number | null;
+  readonly bookmark: boolean;
   readonly committed: boolean;
   readonly createdAt: number;
   readonly state: RpgSnapshotState;
@@ -291,6 +293,7 @@ const wireRpgSchema = z.object({
       messageIndex: nullableIndex,
       variantIdx: nullableIndex,
       asOfMessageIndex: nullableIndex,
+      bookmark: z.boolean().catch(false),
       committed: z.boolean().catch(false),
       createdAt: z.int(),
       state: rpgSnapshotStateSchema,
@@ -480,6 +483,7 @@ function rpgToWire(rpg: PortableRpgGame): NonNullable<WireChat["rpg"]> {
       messageIndex: s.messageIndex,
       variantIdx: s.variantIdx,
       asOfMessageIndex: s.asOfMessageIndex,
+      bookmark: s.bookmark,
       committed: s.committed,
       createdAt: s.createdAt,
       state: s.state,
@@ -517,6 +521,7 @@ function rpgFromWire(rpg: NonNullable<WireChat["rpg"]>): PortableRpgGame {
         messageIndex: s.messageIndex ?? null,
         variantIdx: s.variantIdx ?? null,
         asOfMessageIndex: s.asOfMessageIndex ?? null,
+        bookmark: s.bookmark,
         committed: s.committed,
         createdAt: s.createdAt,
         state: s.state,

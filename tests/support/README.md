@@ -193,6 +193,7 @@ The row-write lint judges call sites, so a state the product can no longer produ
 | - | - | - |
 | `damageOwnerRow` | an owner row below `owner`, or disabled | D135 and D218 rule that every Principal path reads it and fails closed |
 | `plantLegacyZeroCanon` | imported canon numbered from seq 0 | launched databases held it until migration `0005_renumber-imported-canon` |
+| `plantLegacyCheckpoint` | a checkpoint pinned to a turn snapshot, or to a hand copy stamped at the tail | v0.1.0 to v0.2.0 shipped the first and v0.3.x the second; launched databases held both until migration `0006_bookmark-checkpoint-snapshots` |
 | `plantForeignRoomBackground`, `plantForeignCardBackground`, `plantForeignSettingsValue`, `plantForeignSettingsBytes` | a stored reference another build wrote | a database shared across versions holds kinds and encodings this build never writes |
 
 ## What review must establish

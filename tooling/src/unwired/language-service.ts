@@ -1,75 +1,16 @@
-// Engine one: the TypeScript language service's findReferences for every function-typed member of every interface
-// and object type alias in production source, one world at a time.
-import { relative } from "node:path";
+// Engine two: the TypeScript 6 language service, one world at a time, asked only about what engine one reports. A
+// second compiler, so one engine's resolution gap cannot report a wired symbol.
+import { join, relative } from "node:path";
 import ts from "typescript";
-import type { ReferenceKind } from "./classify.ts";
-import { classifyReference } from "./classify.ts";
+import type { Site } from "./classify.ts";
+import { siteKey } from "./classify.ts";
 import type { PortMember } from "./restated-port.ts";
 import { effectiveMember, flowMembers, flowsAt, spreadFlowsAt } from "./restated-port.ts";
-import { isProduction, loadWorld, realpath } from "./worlds.ts";
+import { isProduction, loadScanWorld, realpath } from "./worlds.ts";
 
-/** One member and what each engine found pointing at it. Lines are 1-based. */
-export interface MemberReferences {
-  readonly key: string;
-  readonly file: string;
-  readonly line: number;
-  readonly character: number;
-  readonly home: string;
-  readonly member: string;
-  readonly counts: Readonly<Record<ReferenceKind, number>>;
-  /** Up to a few production use sites, `file:line`. */
-  readonly uses: readonly string[];
-}
-
-const SAMPLE_USES = 3;
-
-function createService(root: string, config: string): ts.LanguageService {
-  const parsed = loadWorld(root, config);
-  const host: ts.LanguageServiceHost = {
-    getScriptFileNames: () => parsed.fileNames,
-    getScriptVersion: () => "0",
-    getScriptSnapshot: (file) => {
-      const text = ts.sys.readFile(file);
-      return text === undefined ? undefined : ts.ScriptSnapshot.fromString(text);
-    },
-    getCurrentDirectory: () => root,
-    getCompilationSettings: () => parsed.options,
-    getDefaultLibFileName: (options) => ts.getDefaultLibFilePath(options),
-    fileExists: ts.sys.fileExists,
-    readFile: ts.sys.readFile,
-    readDirectory: ts.sys.readDirectory,
-    directoryExists: ts.sys.directoryExists,
-    getDirectories: ts.sys.getDirectories,
-    // Without it a workspace package loads through its node_modules link and every cross-package use is lost.
-    realpath,
-  };
-  return ts.createLanguageService(host, ts.createDocumentRegistry());
-}
-
-function membersOf(node: ts.Node): ts.NodeArray<ts.TypeElement> | null {
-  if (ts.isInterfaceDeclaration(node)) {
-    return node.members;
-  }
-  return ts.isTypeAliasDeclaration(node) && ts.isTypeLiteralNode(node.type) ? node.type.members : null;
-}
-
-function isFunctionTyped(
-  checker: ts.TypeChecker,
-  member: ts.TypeElement,
-): member is (ts.MethodSignature | ts.PropertySignature) & { readonly name: ts.Identifier } {
-  if (!((ts.isMethodSignature(member) || ts.isPropertySignature(member)) && ts.isIdentifier(member.name))) {
-    return false;
-  }
-  return ts.isMethodSignature(member) || checker.getNonNullableType(checker.getTypeAtLocation(member)).getCallSignatures().length > 0;
-}
-
-/** One world's scanned members, and the production flows that hand one member's value into another member's slot. */
-export interface WorldScan {
-  readonly members: readonly MemberReferences[];
-  /** A member's key to the keys of the slots production code hands it into, such as a composition root wiring an
-   *  owner's verb into a consumer's port across domains, where no reference links the two declarations. */
-  readonly flows: ReadonlyMap<string, ReadonlySet<string>>;
-}
+/** A member's scan key to the keys of the slots production code hands its value into, such as a composition root
+ *  wiring an owner's verb into a consumer's port across domains, where no reference links the two declarations. */
+export type MemberFlows = ReadonlyMap<string, ReadonlySet<string>>;
 
 // The scan key of a member declared directly in an interface or an object type alias; null for any other member.
 function memberKey(root: string, member: PortMember): string | null {
@@ -97,74 +38,116 @@ function recordFlows(root: string, checker: ts.TypeChecker, node: ts.Node, flows
   }
 }
 
-/** Every scanned member of one world with its classified references, and its production member flows. */
-export function scanWorldAndFlows(root: string, config: string): WorldScan {
-  const service = createService(root, config);
-  const program = service.getProgram();
-  if (program === undefined) {
-    throw new Error(`${config}: the language service built no program`);
-  }
-  const checker = program.getTypeChecker();
-  const found: MemberReferences[] = [];
-  const flows = new Map<string, Set<string>>();
-  for (const source of program.getSourceFiles()) {
-    const file = relative(root, source.fileName);
-    if (source.isDeclarationFile || !isProduction(file)) {
-      continue;
+/** One world's program behind a TypeScript 6 language service. */
+export class ServiceWorld {
+  readonly config: string;
+  readonly program: ts.Program;
+  readonly checker: ts.TypeChecker;
+  readonly #root: string;
+  readonly #service: ts.LanguageService;
+
+  private constructor(root: string, config: string) {
+    this.config = config;
+    this.#root = root;
+    const parsed = loadScanWorld(root, config);
+    const host: ts.LanguageServiceHost = {
+      getScriptFileNames: () => parsed.fileNames,
+      getScriptVersion: () => "0",
+      getScriptSnapshot: (file) => {
+        const text = ts.sys.readFile(file);
+        return text === undefined ? undefined : ts.ScriptSnapshot.fromString(text);
+      },
+      getCurrentDirectory: () => root,
+      getCompilationSettings: () => parsed.options,
+      getDefaultLibFileName: (options) => ts.getDefaultLibFilePath(options),
+      fileExists: ts.sys.fileExists,
+      readFile: ts.sys.readFile,
+      readDirectory: ts.sys.readDirectory,
+      directoryExists: ts.sys.directoryExists,
+      getDirectories: ts.sys.getDirectories,
+      // Without it a workspace package loads through its node_modules link and every cross-package use is lost.
+      realpath,
+    };
+    this.#service = ts.createLanguageService(host, ts.createDocumentRegistry());
+    const program = this.#service.getProgram();
+    if (program === undefined) {
+      throw new Error(`${config}: the language service built no program`);
     }
-    const visit = (node: ts.Node): void => {
-      const members = membersOf(node);
-      const home = ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node) ? node.name.text : "";
-      for (const member of members ?? []) {
-        if (isFunctionTyped(checker, member)) {
-          found.push(referencesOf(root, service, program, { source, file, home, member }));
+    this.program = program;
+    this.checker = program.getTypeChecker();
+  }
+
+  static open(root: string, config: string): ServiceWorld {
+    return new ServiceWorld(root, config);
+  }
+
+  /** The program's parse of a repository-relative file, if the world holds it. */
+  source(file: string): ts.SourceFile | undefined {
+    return this.program.getSourceFile(join(this.#root, file));
+  }
+
+  /** Every reference find-references reports for the name at `site`, the site itself and library files excluded. */
+  references(site: Site): readonly Site[] {
+    const found: Site[] = [];
+    for (const group of this.#service.findReferences(join(this.#root, site.file), site.position) ?? []) {
+      for (const reference of group.references) {
+        const file = relative(this.#root, reference.fileName);
+        const at = { file, position: reference.textSpan.start };
+        if (!(file.includes("node_modules") || siteKey(at) === siteKey(site))) {
+          found.push(at);
         }
       }
-      recordFlows(root, checker, node, flows);
+    }
+    return found;
+  }
+
+  /** The member flows of the world's production files. */
+  flows(): Map<string, Set<string>> {
+    const flows = new Map<string, Set<string>>();
+    const visit = (node: ts.Node): void => {
+      recordFlows(this.#root, this.checker, node, flows);
       ts.forEachChild(node, visit);
     };
-    visit(source);
-  }
-  return { members: found, flows };
-}
-
-/** Every scanned member of one world with its classified references. */
-export const scanWorld = (root: string, config: string): readonly MemberReferences[] => scanWorldAndFlows(root, config).members;
-
-interface Site {
-  readonly source: ts.SourceFile;
-  readonly file: string;
-  readonly home: string;
-  readonly member: ts.TypeElement & { readonly name: ts.Identifier };
-}
-
-function referencesOf(root: string, service: ts.LanguageService, program: ts.Program, site: Site): MemberReferences {
-  const at = site.member.name.getStart(site.source);
-  const counts: Record<ReferenceKind, number> = { use: 0, builder: 0, plumbing: 0, test: 0, external: 0 };
-  const uses: string[] = [];
-  for (const group of service.findReferences(site.source.fileName, at) ?? []) {
-    for (const reference of group.references) {
-      if (reference.fileName === site.source.fileName && reference.textSpan.start === at) {
-        continue;
-      }
-      const source = program.getSourceFile(reference.fileName);
-      const file = relative(root, reference.fileName);
-      const kind = source === undefined ? "external" : classifyReference(source, reference.textSpan.start, file);
-      counts[kind]++;
-      if (kind === "use" && source !== undefined && uses.length < SAMPLE_USES) {
-        uses.push(`${file}:${source.getLineAndCharacterOfPosition(reference.textSpan.start).line + 1}`);
+    for (const source of this.program.getSourceFiles()) {
+      if (!source.isDeclarationFile && isProduction(this.siteOf(source).file)) {
+        visit(source);
       }
     }
+    return flows;
   }
-  const position = site.source.getLineAndCharacterOfPosition(at);
-  return {
-    key: `${site.file}:${site.home}.${site.member.name.text}`,
-    file: site.file,
-    line: position.line + 1,
-    character: position.character,
-    home: site.home,
-    member: site.member.name.text,
-    counts,
-    uses,
-  };
+
+  /** The repository-relative site of a node in this program. */
+  siteOf(node: ts.Node): Site {
+    const source = node.getSourceFile();
+    return { file: relative(this.#root, source.fileName), position: node.getStart(source) };
+  }
+}
+
+/** Ask every world for the references of each site and merge them, so a site counts once however many worlds hold
+ *  it. Worlds load one at a time; a site whose file a world lacks is not asked there. `visit` reads each loaded
+ *  world before the next replaces it. */
+export function serviceReferences(
+  root: string,
+  worlds: readonly string[],
+  sites: readonly Site[],
+  hooks: { readonly log: (line: string) => void; readonly visit?: (world: ServiceWorld) => void },
+): ReadonlyMap<string, readonly Site[]> {
+  const merged = new Map<string, Map<string, Site>>(sites.map((site) => [siteKey(site), new Map()]));
+  for (const config of worlds) {
+    const world = ServiceWorld.open(root, config);
+    let asked = 0;
+    for (const site of sites) {
+      if (world.source(site.file) === undefined) {
+        continue;
+      }
+      asked++;
+      const into = merged.get(siteKey(site));
+      for (const reference of world.references(site)) {
+        into?.set(siteKey(reference), reference);
+      }
+    }
+    hooks.visit?.(world);
+    hooks.log(`${config}: engine two asked about ${asked} sites`);
+  }
+  return new Map([...merged].map(([key, found]) => [key, [...found.values()]]));
 }

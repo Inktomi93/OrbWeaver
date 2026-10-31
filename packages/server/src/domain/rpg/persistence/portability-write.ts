@@ -25,7 +25,7 @@ import type {
   RpgPortableSnapshot,
   RpgPortableTurnToolCalls,
 } from "@orb/contracts/rpg";
-import { rpgGameConfigSchema, rpgRecordedToolCallSchema, rpgSheetSchema, rpgSnapshotStateSchema } from "@orb/contracts/rpg";
+import { RPG_SNAPSHOT_KIND, rpgGameConfigSchema, rpgRecordedToolCallSchema, rpgSheetSchema, rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import { rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, rpgTurnToolCalls } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, isConstraintViolation } from "@orb/db/query";
@@ -34,6 +34,7 @@ import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
 import { asc, eq, inArray } from "drizzle-orm";
 import type { RpgPortabilityContext } from "../contract/portability.ts";
+import { bookmarkArmKeys } from "./snapshots.ts";
 
 const LIMIT_ONE = 1;
 
@@ -93,6 +94,7 @@ export function createExportRpgGame(input: DbAssemblyInput<Pick<RpgPortabilityCo
           messageId: row.messageId,
           variantId: row.variantId,
           asOfMessageId: row.asOfMessageId,
+          bookmark: row.kind === RPG_SNAPSHOT_KIND.bookmark,
           committed: row.committed !== 0,
           createdAt: row.createdAt,
           state: composeState(row),
@@ -127,10 +129,23 @@ export function createExportRpgGame(input: DbAssemblyInput<Pick<RpgPortabilityCo
   };
 }
 
-type SnapshotArm = Pick<RpgPortableSnapshot, "messageId" | "variantId" | "asOfMessageId" | "committed">;
+type SnapshotArm = Pick<typeof rpgSnapshots.$inferInsert, "messageId" | "variantId" | "asOfMessageId" | "kind"> &
+  Pick<RpgPortableSnapshot, "committed" | "createdAt">;
 
-/** One snapshot INSERT from a portable snapshot's state under the given row identity, so a hand clone of a turn
- *  row shares the column mapping with the row it copies. */
+/** A carried beat keeps its keys; its kind follows them, as the arm CHECK requires. */
+function beatArm(snapshot: RpgPortableSnapshot): SnapshotArm {
+  return {
+    messageId: snapshot.messageId,
+    variantId: snapshot.variantId,
+    asOfMessageId: snapshot.asOfMessageId,
+    kind: snapshot.variantId === null ? RPG_SNAPSHOT_KIND.hand : RPG_SNAPSHOT_KIND.turn,
+    committed: snapshot.committed,
+    createdAt: snapshot.createdAt,
+  };
+}
+
+/** One snapshot INSERT from a portable snapshot's state under the given row identity and kind, so a bookmark
+ *  copy shares the column mapping with the row it copies. */
 function snapshotValues(source: RpgPortableSnapshot, id: RpgSnapshotId, gameId: RpgGameId, arm: SnapshotArm): typeof rpgSnapshots.$inferInsert {
   return {
     id,
@@ -138,6 +153,7 @@ function snapshotValues(source: RpgPortableSnapshot, id: RpgSnapshotId, gameId: 
     messageId: arm.messageId,
     variantId: arm.variantId,
     asOfMessageId: arm.asOfMessageId,
+    kind: arm.kind,
     clock: source.state.clock,
     calendarDate: source.state.calendarDate,
     location: source.state.location,
@@ -150,7 +166,7 @@ function snapshotValues(source: RpgPortableSnapshot, id: RpgSnapshotId, gameId: 
     plot: source.state.plot,
     fieldLocks: source.state.fieldLocks,
     committed: arm.committed ? 1 : 0,
-    createdAt: source.createdAt,
+    createdAt: arm.createdAt,
   };
 }
 
@@ -193,8 +209,13 @@ export function createImportRpgGame(input: DbAssemblyInput<RpgPortabilityContext
           updatedAt: at,
         }),
       ),
-      ...game.snapshots.map((snapshot, i) =>
-        ctx.db.insert(rpgSnapshots).values(snapshotValues(snapshot, snapshotIds[i] ?? ctx.ids.snapshot(), gameId, snapshot)),
+      // A carried bookmark is not inserted as itself: it is state a checkpoint saved, and each checkpoint below
+      // writes its own bookmark copy. Inserting it would need the row's kind to survive, and a file written
+      // before bookmarks existed cannot say which rows were saved state.
+      ...game.snapshots.flatMap((snapshot, i) =>
+        snapshot.bookmark
+          ? []
+          : [ctx.db.insert(rpgSnapshots).values(snapshotValues(snapshot, snapshotIds[i] ?? ctx.ids.snapshot(), gameId, beatArm(snapshot)))],
       ),
       ...game.journal.map((entry) =>
         ctx.db.insert(rpgJournal).values({
@@ -221,26 +242,19 @@ export function createImportRpgGame(input: DbAssemblyInput<RpgPortabilityContext
       ),
       ...game.checkpoints.flatMap((checkpoint) => {
         const target = game.snapshots[checkpoint.snapshotIndex];
-        const snapshotId = snapshotIds[checkpoint.snapshotIndex];
-        // Pruned by the serde already; belt kept because RESTRICT makes the db failure abort the WHOLE batch,
+        // Pruned by the serde already; kept because RESTRICT makes the db failure abort the WHOLE batch,
         // taking the restored campaign with it.
-        if (target === undefined || snapshotId === undefined) {
+        if (target === undefined) {
           return [];
         }
-        // A bookmark pins an immutable hand row, never a turn row: deleting the turn's message cascades its
-        // snapshot, and the checkpoint's RESTRICT refuses that delete. A file whose checkpoint names a turn
-        // row gets a hand clone to pin instead, stamped at the turn the way a live checkpoint detaches.
-        const pinned = target.variantId === null ? snapshotId : ctx.ids.snapshot();
-        const detached =
-          target.variantId === null
-            ? []
-            : [
-                ctx.db
-                  .insert(rpgSnapshots)
-                  .values(snapshotValues(target, pinned, gameId, { messageId: null, variantId: null, asOfMessageId: target.messageId, committed: true })),
-              ];
+        // The bookmark rule (`persistence/snapshots.ts`): every checkpoint pins its own bookmark copy of the
+        // state it names, turn, hand or bookmark, created at the checkpoint's time. The foreign key refuses
+        // anything else, and the copy stays off the state ladder.
+        const pinned = ctx.ids.snapshot();
         return [
-          ...detached,
+          ctx.db
+            .insert(rpgSnapshots)
+            .values(snapshotValues(target, pinned, gameId, { ...bookmarkArmKeys(), committed: true, createdAt: checkpoint.createdAt })),
           ctx.db.insert(rpgCheckpoints).values({
             id: ctx.ids.checkpoint(),
             gameId,

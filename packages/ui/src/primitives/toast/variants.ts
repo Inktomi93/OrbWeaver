@@ -12,7 +12,10 @@ export const toastVariants = tv({
     root: [
       // `flex` + `gap-row`: the type GLYPH is a sibling of the content column (see `icon`), so meaning is
       // never carried by the border colour alone.
-      "pointer-events-auto relative flex gap-row rounded-card border border-border bg-popover p-block text-popover-foreground shadow-overlay inline-full",
+      `
+        pointer-events-auto relative flex gap-row rounded-card border border-border bg-popover p-block text-popover-foreground shadow-overlay inline-full
+        tone-host-popover
+      `,
       // The transition NAMES ITS THREE PROPERTIES — `transition-all` was a bug, not a shorthand.
       // `outline-*` is interpolable, so `all` faded the focus ring in over `--motion-base`: a keyboard
       // user moving at speed saw a desaturated half-ring at every stop, and the ring is the one thing on

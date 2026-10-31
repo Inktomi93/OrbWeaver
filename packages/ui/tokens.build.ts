@@ -13,7 +13,16 @@ import { assertTokenContract, REQUIRED_SEED_VALUE_SET_PATHS, TOKEN_ARTIFACT_PATH
 import { assertNoNearDuplicateColors } from "./tokens.near-duplicate.ts";
 import { renderPigmentBlocks, renderPigmentTs } from "./tokens.pigments.ts";
 import type { ToneModel } from "./tokens.tones.ts";
-import { assertShippedToneFloors, renderToneBlocks, renderToneTs, toneModel, toneReferenceValues, toneRootDefaults, toneSeedResets } from "./tokens.tones.ts";
+import {
+  assertShippedToneFloors,
+  renderToneBlocks,
+  renderToneHostUtilities,
+  renderToneTs,
+  toneModel,
+  toneReferenceValues,
+  toneRootDefaults,
+  toneSeedResets,
+} from "./tokens.tones.ts";
 
 export type { GeneratedCssValue } from "./token-contract.ts";
 
@@ -434,7 +443,7 @@ function renderTokensTs({ tokens, polarityArms, lengths, conditions, tones, pigm
   return [
     `/** ${HEADER} */`,
     "",
-    'import type { CarriedToneHost, ToneRoleRecipes } from "@orb/kit/theme-derivation";',
+    'import type { CarriedToneHost, ToneHost, ToneRoleRecipes } from "@orb/kit/theme-derivation";',
     "",
     "/** Token → `{ cssVar, value }`: `cssVar` for CSS (theme-overridable); `value` is the static literal, for consumers that can't resolve `var()` (canvas chart libs, `parseFloat`). */",
     "export const TOKENS = {",
@@ -666,16 +675,17 @@ export async function generateArtifacts(uiRoot = HERE): Promise<{ themeCss: stri
   const seedThemes = loadSeedThemes(contract);
   const seedResets = [...staticSeedResets(portableByPath), ...toneSeedResets(tones)];
   return {
-    themeCss: renderGeneratedCss(
-      flat,
-      conditions,
-      renderPointerFineBlock(fine, conditions[POINTER_FINE_CONDITION]) +
-        renderSeedThemesBlock(seedThemes, seedResets) +
-        renderBasePaletteBlock(seedThemes, portableByPath, seedResets) +
-        renderToneBlocks(tones) +
-        renderPigmentBlocks(contract.pigments),
-      toneRootDefaults(tones),
-    ),
+    themeCss:
+      renderGeneratedCss(
+        flat,
+        conditions,
+        renderPointerFineBlock(fine, conditions[POINTER_FINE_CONDITION]) +
+          renderSeedThemesBlock(seedThemes, seedResets) +
+          renderBasePaletteBlock(seedThemes, portableByPath, seedResets) +
+          renderToneBlocks(tones) +
+          renderPigmentBlocks(contract.pigments),
+        toneRootDefaults(tones),
+      ) + renderToneHostUtilities(),
     tokensTs: renderTokensTs({ tokens: flat, polarityArms, lengths, conditions, tones, pigments: contract.pigments }),
     themesTs: renderSeedThemesTs(seedThemes),
   };

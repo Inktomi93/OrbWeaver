@@ -43,6 +43,13 @@
       "when": 1792783380323,
       "tag": "0005_renumber-imported-canon",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793416222552,
+      "tag": "0006_bookmark-checkpoint-snapshots",
+      "breakpoints": true
     }
   ]
 }

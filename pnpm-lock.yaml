@@ -1355,6 +1355,9 @@ importers:
       '@playwright/test':
         specifier: 'catalog:'
         version: 1.64.1
+      '@typescript/native':
+        specifier: 'catalog:'
+        version: typescript@7.1.0-beta
       chrome-devtools-mcp:
         specifier: 'catalog:'
         version: 1.11.0(patch_hash=f3f1f09662e22c856422d3be627d1ad300eff7badc4a4f90ad03f62849a8bc97)

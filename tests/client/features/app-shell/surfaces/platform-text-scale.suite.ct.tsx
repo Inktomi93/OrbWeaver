@@ -19,6 +19,7 @@ import { routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const PROBE_STORIES = "tests/client/features/app-shell/surfaces/_text-scale-probe-stories";
 const PHONE = { name: "phone", touch: true, size: { width: 390, height: 844 } } as const;
+const NARROW = { name: "narrow phone", touch: true, size: { width: 320, height: 568 } } as const;
 const DESKTOP = { name: "desktop", touch: false, size: { width: 1440, height: 900 } } as const;
 const TEXT_200 = { name: "200% text", factor: 2 } as const;
 const LAYOUT_300 = { name: "300% layout", factor: 3 } as const;
@@ -28,7 +29,7 @@ const SUBPIXEL = 1;
 const REACHABLE =
   'button, a[href], input, textarea, select, [role="button"], [role="tab"], [role="menuitem"], [role="switch"], [role="checkbox"], [role="radio"], [role="combobox"], [role="textbox"]';
 
-type Viewport = typeof PHONE | typeof DESKTOP;
+type Viewport = typeof PHONE | typeof NARROW | typeof DESKTOP;
 type Scale = typeof TEXT_200 | typeof LAYOUT_300;
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
@@ -40,10 +41,19 @@ const QUALIFIED = {
   ],
   contextHeader: [[DESKTOP, TEXT_200]],
   charactersBand: [[PHONE, TEXT_200]],
-  room: [[DESKTOP, TEXT_200]],
+  room: [
+    [DESKTOP, TEXT_200],
+    [PHONE, TEXT_200],
+  ],
   jumpToLatest: [
     [PHONE, LAYOUT_300],
     [DESKTOP, LAYOUT_300],
+  ],
+  phoneTabs: [
+    [PHONE, TEXT_200],
+    [PHONE, LAYOUT_300],
+    [NARROW, TEXT_200],
+    [NARROW, LAYOUT_300],
   ],
   presetsWelcome: [
     [PHONE, LAYOUT_300],
@@ -186,12 +196,10 @@ async function firstCharacterId(): Promise<CharacterId> {
   return character.id;
 }
 
-type Mount = (story: string, props: Record<string, never>) => Promise<unknown>;
-
-/** Opens the corpus' first chat room on the production shell and returns its message field. */
-async function openFirstRoom(mount: Mount, page: Page): Promise<Locator> {
+/** Opens the corpus' first chat room on the production shell and returns its message field; `mountShell` mounts the shell story. */
+async function openFirstRoom(mountShell: () => Promise<unknown>, page: Page): Promise<Locator> {
   await seedShellState(page, { activeSection: "chats" });
-  await mount(STORY, {});
+  await mountShell();
   await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS["chats"], exact: true }).click();
   await page.getByRole("list", { name: "Chats list", exact: true }).getByRole("button").first().click();
   const input = page.getByRole("textbox", { name: "Message", exact: true });
@@ -255,7 +263,7 @@ for (const [viewport, scale] of QUALIFIED.room) {
     test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
 
     test("keeps the transcript, the message field and Send reachable", async ({ mount, page }) => {
-      const input = await openFirstRoom(mount, page);
+      const input = await openFirstRoom(() => mount<typeof AppShellStory>(STORY, {}), page);
       await scaleRoot(page, scale.factor);
       await expect(page.getByRole("button", { name: "Send message", exact: true })).toBeVisible();
       for (const control of [input, page.getByRole("button", { name: "Send message", exact: true })]) {
@@ -274,7 +282,7 @@ for (const [viewport, scale] of QUALIFIED.jumpToLatest) {
     // The pill is mounted while hidden and takes its width from the same label it shows, so its box is the one a
     // pending arrival would paint; the flank row clips on x, so a pill wider than the row loses its ends.
     test("stays inside the flank row it overlays", async ({ mount, page }) => {
-      await openFirstRoom(mount, page);
+      await openFirstRoom(() => mount<typeof AppShellStory>(STORY, {}), page);
       await scaleRoot(page, scale.factor);
       const row = page.locator('[data-slot="chat-room-flank-row"]');
       const pill = page.locator('[data-slot="jump-to-latest"] button');
@@ -284,6 +292,52 @@ for (const [viewport, scale] of QUALIFIED.jumpToLatest) {
           return within !== null && button !== null && button.x >= within.x - SUBPIXEL && button.x + button.width <= within.x + within.width + SUBPIXEL;
         })
         .toBe(true);
+    });
+  });
+}
+
+/** The painted text extent of every tab-bar label that is displayed, left to right, with its own tab's box. */
+function tabLabelExtents(bar: Element): { readonly name: string; readonly text: DOMRect; readonly tab: DOMRect }[] {
+  return [...bar.querySelectorAll(".shell-rail-button")]
+    .filter((tab) => tab.checkVisibility({ visibilityProperty: true }))
+    .flatMap((tab) => {
+      const label = tab.querySelector(".shell-rail-button-label");
+      if (label === null || getComputedStyle(label).display === "none") {
+        return [];
+      }
+      const range = document.createRange();
+      range.selectNodeContents(label);
+      return [{ name: tab.getAttribute("aria-label") ?? "", text: range.getBoundingClientRect(), tab: tab.getBoundingClientRect() }];
+    })
+    .toSorted((a, b) => a.tab.left - b.tab.left);
+}
+
+for (const [viewport, scale] of QUALIFIED.phoneTabs) {
+  test.describe(`phone tab bar at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    test("shows each label whole inside its own tab or none of them, and keeps every tab named and reachable", async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: "characters" });
+      await mount<typeof AppShellStory>(STORY, {});
+      const bar = page.locator(".shell-rail");
+      await expect(bar).toBeVisible();
+      await scaleRoot(page, scale.factor);
+      for (const tab of await bar.locator(".shell-rail-button:visible").all()) {
+        await expect(tab).not.toHaveAccessibleName("");
+      }
+      await expect
+        .poll(async () => {
+          const labels = await bar.evaluate(tabLabelExtents);
+          return labels.every(
+            (label, index) =>
+              label.text.left >= label.tab.left - SUBPIXEL &&
+              label.text.right <= label.tab.right + SUBPIXEL &&
+              (index === 0 || (labels[index - 1]?.text.right ?? 0) <= label.text.left + SUBPIXEL),
+          );
+        })
+        .toBe(true);
+      await expect.poll(() => findings(bar)).toEqual([]);
+      expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
     });
   });
 }

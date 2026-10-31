@@ -4,7 +4,7 @@
 // widening the member type). The panel is swipe-consistent BY CONSTRUCTION — every tab reads the SAME
 // resolved-current snapshot, so a swipe re-resolves everything at once (the owner's ratification demand).
 
-import type { ChatId, MessageId, MessageVariantId, PresetId, RpgGameId, UserConnectionId } from "@orb/kit/ids";
+import type { ChatId, MessageId, MessageVariantId, PresetId, RpgCheckpointId, RpgGameId, RpgSnapshotId, UserConnectionId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { MAX_USER_MACROS, userMacroViewSchema } from "#preset";
@@ -14,7 +14,7 @@ import type { RpgClockTime, RpgWeather } from "./ambient.ts";
 import { rpgClockTimeSchema, rpgWeatherSchema } from "./ambient.ts";
 import type { RpgDeliveryPath, RpgFoldFallbackReason, RpgGameConfig } from "./config.ts";
 import { RPG_DELIVERY_PATHS, RPG_FOLD_FALLBACK_REASONS, rpgGameConfigSchema, rpgGameFeaturesSchema } from "./config.ts";
-import type { RpgGameMode, RpgGameStatus } from "./enums.ts";
+import type { RpgCheckpointTrigger, RpgGameMode, RpgGameStatus } from "./enums.ts";
 import { rpgCheckpointTriggerSchema, rpgGameModeSchema, rpgGameStatusSchema } from "./enums.ts";
 import type { RpgToolCallVerdict } from "./extraction.ts";
 import { rpgRecordedToolCallSchema } from "./extraction.ts";
@@ -528,6 +528,15 @@ export const rpgRevealViewSchema = z.strictObject({
   messages: z.array(rpgRevealedMessageSchema).readonly(),
   standingLies: z.array(z.strictObject({ character: z.string(), lies: z.array(rpgStandingLieSchema).readonly() })).readonly(),
 }) satisfies z.ZodType<RpgRevealView>;
+/** A labeled bookmark as members read it. */
+export interface RpgCheckpointView {
+  readonly id: RpgCheckpointId;
+  readonly gameId: RpgGameId;
+  readonly snapshotId: RpgSnapshotId;
+  readonly label: string;
+  readonly trigger: RpgCheckpointTrigger;
+  readonly createdAt: number;
+}
 export const rpgCheckpointViewSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.rpgCheckpoint),
   gameId: typeIdSchema(ID_PREFIX.rpgGame),
@@ -535,4 +544,4 @@ export const rpgCheckpointViewSchema = z.strictObject({
   label: z.string(),
   trigger: rpgCheckpointTriggerSchema,
   createdAt: z.number(),
-});
+}) satisfies z.ZodType<RpgCheckpointView>;

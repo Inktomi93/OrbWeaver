@@ -119,6 +119,8 @@ export const THEME_SCOPE_EMIT_VARS = [
   "--tone-info-text-on-tint",
   "--tone-info-tint",
   "--tone-info-tint-active",
+  // The surface the tone washes mix over (`TONE_HOST_VAR`), reset so a scope's washes mix over its own page, not an outer card.
+  "--tone-host",
   "--font-sans",
   "--radius-card",
 ] as const;

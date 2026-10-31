@@ -1,7 +1,7 @@
 // THEME_SCOPE_EMIT_VARS is a claim about the clamp: it lists exactly the custom properties a ThemeScope writes, each
 // one a served token or a generated tone variable, and it never splits a surface from its paired ink or edge.
 import { expect, test } from "@orb/testkit/node";
-import { TOKENS, TONE_MIX_KNOBS, TONE_ROLES, TONES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
+import { TOKENS, TONE_HOST_VAR, TONE_MIX_KNOBS, TONE_ROLES, TONES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { THEME_SCOPE_EMIT_VARS } from "../../../../packages/ui/src/content/theme-scope/emit-vars.ts";
 
@@ -25,11 +25,12 @@ const FULL_OVERRIDE = {
   density: "compact",
 } as const;
 
-/** The custom properties the generated token surface names: every served token and every per-tone knob and literal. */
+/** The custom properties the generated token surface names: every served token, every per-tone knob and literal, and the tone host. */
 function generatedVars(): ReadonlySet<string> {
   const colored = TONES.filter((tone) => tone !== "neutral");
   return new Set([
     ...Object.values(TOKENS).map((token) => token.cssVar),
+    TONE_HOST_VAR,
     ...colored.flatMap((tone) => TONE_MIX_KNOBS.map((knob) => toneKnobVar(tone, knob))),
     ...colored.flatMap((tone) => TONE_ROLES.map((role) => toneLiteralVar(tone, role))),
   ]);

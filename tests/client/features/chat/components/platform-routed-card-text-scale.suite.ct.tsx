@@ -20,7 +20,12 @@ const VIEWER_PASSWORD = "routed-card-scale-viewer-password";
 const { min: MIN_SCALE, max: MAX_SCALE } = FONT_SCALE;
 // A scale no stored setting can hold, written straight onto the root: the frame must stop at the bound.
 const PLANTED_SCALE = MAX_SCALE + 1;
-const CARD = ':::card title="Scale"\n<p id="rem" style="font-size:1rem;margin:0">rem text</p><p id="px" style="font-size:16px;margin:0">px text</p>\n:::';
+const FIXED_BOX_PX = 800;
+const CARD = `:::card title="Scale"\n<p id="rem" style="font-size:1rem;margin:0">rem text</p><p id="px" style="font-size:16px;margin:0">px text</p><div id="box" style="width:${String(FIXED_BOX_PX)}px;height:20px"></div>\n:::`;
+const VIEWPORTS = [
+  { name: "the default viewport", size: undefined },
+  { name: "a 320px viewport", size: { width: 320, height: 640 } },
+] as const;
 const TRANSCRIPT_READS = [...ROOM_PROCEDURES, "sessions.me", "settings.getUserSettings", "plugin.list", "plugin.listSurfaces", "regex.listScripts"] as const;
 
 interface CardRoom {
@@ -85,25 +90,41 @@ async function frameText(page: Page, selector: string): Promise<{ readonly deliv
   return { delivery, px };
 }
 
-test("a routed chat card's rem text follows the appearance font scale and stops at the clamp's bounds", async ({ corpus, mount, page }) => {
-  const room = await openCardRoom();
-  await using root = room.root;
-  const { chatId } = room;
-  const caller = await root.internalCallerFor(root.ownerId);
-  await page.route("**/api/auth/config", (route) => route.fulfill({ json: corpus.auth.signedInConfig }));
-  await routeTrpc(page, serveCorpusProcedures(caller, TRANSCRIPT_READS));
-  await routeCardFrames(page, root);
-  const story = await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId, fontScale: 1 });
-  await expect.poll(() => frameText(page, "#px")).toMatchObject({ delivery: "routed" });
-  const fixed = (await frameText(page, "#px")).px;
-  await expect.poll(() => frameText(page, "#rem")).toEqual({ delivery: "routed", px: fixed });
-  for (const [fontScale, served] of [
-    [MAX_SCALE, MAX_SCALE],
-    [MIN_SCALE, MIN_SCALE],
-    [PLANTED_SCALE, MAX_SCALE],
-  ] as const) {
-    await story.update({ chatId, fontScale });
-    await expect.poll(() => frameText(page, "#rem"), `scale ${fontScale}`).toEqual({ delivery: "routed", px: fixed * served });
-    expect(await frameText(page, "#px")).toEqual({ delivery: "routed", px: fixed });
-  }
-});
+for (const viewport of VIEWPORTS) {
+  test.describe(`in ${viewport.name}`, () => {
+    test.use(viewport.size === undefined ? {} : { viewport: viewport.size });
+
+    test("a routed chat card's rem text follows the appearance font scale and stops at the clamp's bounds; fixed-size content keeps its size inside the host", async ({
+      corpus,
+      mount,
+      page,
+    }) => {
+      const room = await openCardRoom();
+      await using root = room.root;
+      const { chatId } = room;
+      const caller = await root.internalCallerFor(root.ownerId);
+      await page.route("**/api/auth/config", (route) => route.fulfill({ json: corpus.auth.signedInConfig }));
+      await routeTrpc(page, serveCorpusProcedures(caller, TRANSCRIPT_READS));
+      await routeCardFrames(page, root);
+      const story = await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId, fontScale: 1 });
+      await expect.poll(() => frameText(page, "#px")).toMatchObject({ delivery: "routed" });
+      const fixed = (await frameText(page, "#px")).px;
+      await expect.poll(() => frameText(page, "#rem")).toEqual({ delivery: "routed", px: fixed });
+      for (const [fontScale, served] of [
+        [MAX_SCALE, MAX_SCALE],
+        [MIN_SCALE, MIN_SCALE],
+        [PLANTED_SCALE, MAX_SCALE],
+      ] as const) {
+        await story.update({ chatId, fontScale });
+        await expect.poll(() => frameText(page, "#rem"), `scale ${fontScale}`).toEqual({ delivery: "routed", px: fixed * served });
+        expect(await frameText(page, "#px")).toEqual({ delivery: "routed", px: fixed });
+        const box = await page
+          .frameLocator(FRAME)
+          .locator("#box")
+          .evaluate((node) => node.getBoundingClientRect().width);
+        expect(box).toBe(FIXED_BOX_PX);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+      }
+    });
+  });
+}
