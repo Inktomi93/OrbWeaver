@@ -40,10 +40,6 @@ export interface AssetsContext {
   readonly now: Clock;
   readonly newAssetId: () => AssetId;
   readonly newGalleryItemId: () => GalleryItemId;
-
-  /** Decode an image to its dims/format (the sealed sharp adapter's `probe`) — the BYO pose import computes a
-   *  skeleton's orientation from its dimensions (C6c). Rejects non-image bytes (sharp throws). */
-  readonly imageProbe: ImageAdapter["probe"];
   /** Roster-avatar reference-check (NOT a hash→any-owner oracle): returns the asset's owner only if the
    *  hash is an avatar/attachment the caller may render in a shared chat; `undefined` otherwise. Optional. */
   readonly loadCoParticipantOwner?: LoadCoParticipantOwnerOp;

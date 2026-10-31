@@ -183,8 +183,9 @@ export interface ChatScopedParams {
   readonly chatId: ChatId;
 }
 
-/** One present character seat the accepted offer considered: the participant row and the card it seats. */
-export interface OfferedSeat {
+/** One present character seat of a room (`kind='character'`, not departed): the participant row and the card it
+ *  seats. A roster preset classifies and re-stamps seats by it; a host handoff offers a subset of them. */
+export interface PresentCharacterSeat {
   readonly participantId: ChatParticipantId;
   readonly characterId: CharacterId;
 }

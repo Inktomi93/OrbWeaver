@@ -46,6 +46,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useGatedQuery, useTRPC } from "#data";
 import { IMPERSONATE_IN_FLIGHT, IMPERSONATE_WAIT_FOR_TURN, STEER_CUE_CONTINUE, STEER_CUE_SWIPE, SWIPE_NEEDS_REPLY } from "#lib";
+import type { ComposerDraftWrite } from "#state";
 import { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import { useGuidedActions } from "../hooks/use-guided-actions.ts";
 import type { SendRefusal } from "../hooks/use-send-availability.ts";
@@ -59,7 +60,7 @@ import { useRewriteModal } from "./use-rewrite-modal.ts";
 export interface ComposerGuidedClusterProps {
   readonly chatId: ChatId;
   readonly value: string;
-  readonly onChange: (text: string) => void;
+  readonly onChange: ComposerDraftWrite;
   /** True while the composer's own Send is in flight — the whole cluster idles (one action at a time). */
   readonly busy?: boolean | undefined;
   /** The tail canon row's role is assistant — gates Swipe/Continue and drives the Response `afterAssistant`

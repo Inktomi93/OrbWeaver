@@ -43,7 +43,7 @@ export async function memberAutoBeats(): Promise<MemberAutoBeats> {
   construction.defer(() => completed.mockRestore());
   const outcome = await h.root.services.chat.send({ principal: member, chatId: h.chatId, content: "go" });
   await h.root.settleBackground();
-  const triggeredBy = completed.mock.calls.map((call) => call[4].triggeredBy);
+  const triggeredBy = completed.mock.calls.map(([params]) => params.turn.triggeredBy);
   const lifetime = construction.move();
   return { room, member, memberBefore, outcome, triggeredBy, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }

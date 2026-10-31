@@ -472,10 +472,7 @@ export interface FirstRunRouteDeps {
 }
 
 /** Local password verification, supplied from `sessions.authenticate` by the composition root in local mode. */
-export interface LocalAuthenticator {
-  // biome-ignore lint/style/useShorthandFunctionType: the shorthand `export type X = (...) => ...` alias trips the no-inline-types rule's broad `export type` arm (entry/ is not a contract type home), so keep the call-signature interface and suppress the biome INFO instead.
-  (handle: Handle, password: string): Promise<UserId | null>;
-}
+type LocalAuthenticator = SessionsService["authenticate"];
 
 /** The OIDC transaction store the route needs — mint (authorize) + consume (callback). Wider than
  *  infra/auth's consume-only store because the authorize-redirect route also mints. */

@@ -7,6 +7,7 @@
 // the verb writes them via `participant.insertParticipants`). Name/handle/avatar resolution is the VERB's (no
 // `users` join here — the `no-direct-users-read` chokepoint); this captures only the stored role while preserving every row field.
 
+import type { PresentCharacterSeat } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
@@ -92,12 +93,9 @@ export async function loadPresentHumanUserIds(db: Db, chatId: ChatId): Promise<U
   return rows.flatMap((row) => (row.userId === null ? [] : [row.userId]));
 }
 
-/** A room's PRESENT character seats (`kind='character'`, `leftSeq IS NULL`) as `{ characterId, participantId }`
- *  pairs; a departed seat is absent, so a re-add lands fresh. */
-export async function loadPresentCharacterSeats(
-  db: Db,
-  chatId: ChatId,
-): Promise<{ readonly characterId: CharacterId; readonly participantId: ChatParticipantId }[]> {
+/** A room's PRESENT character seats (`kind='character'`, `leftSeq IS NULL`); a departed seat is absent, so a re-add
+ *  lands fresh. */
+export async function loadPresentCharacterSeats(db: Db, chatId: ChatId): Promise<PresentCharacterSeat[]> {
   const rows = await db
     .select({ characterId: chatParticipants.characterId, participantId: chatParticipants.id })
     .from(chatParticipants)

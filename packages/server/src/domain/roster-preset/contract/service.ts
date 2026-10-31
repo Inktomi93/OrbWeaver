@@ -14,13 +14,13 @@ import type {
   RulePresetKnobValues,
   SetRuleEnabledOp,
 } from "@orb/contracts/automation";
-import type { AddCharacterToChatOp, SetGroupConfigOp, SetSeatKnobsOp } from "@orb/contracts/chat";
+import type { AddCharacterToChatOp, PresentCharacterSeat, SetGroupConfigOp, SetSeatKnobsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ApplyRosterPresetResult, RosterPresetMemberView, RosterPresetSummary, RosterPresetView } from "@orb/contracts/roster-preset";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
-import type { CharacterId, ChatId, ChatParticipantId, PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AuditWiring } from "#foundation/observability";
 import type {
@@ -32,13 +32,6 @@ import type {
   RemoveRosterPresetParams,
   UpdateRosterPresetParams,
 } from "./params.ts";
-
-/** One PRESENT character seat of the target chat — the applyToChat classification pre-read's row
- *  (added vs alreadyPresent), and the participantId `setSeatKnobs` re-stamps an existing seat through. */
-export interface PresentCharacterSeat {
-  readonly characterId: CharacterId;
-  readonly participantId: ChatParticipantId;
-}
 
 /** A normalized seat as the write verbs stamp it — wire positions sorted then re-stamped dense 0..n-1
  *  (`substrate/members.ts`). Homed here, not persistence (the automation `RuleRow` posture: an exported

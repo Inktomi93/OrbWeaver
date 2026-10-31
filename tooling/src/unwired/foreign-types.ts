@@ -59,8 +59,11 @@ export function foreignTypes(checker: ts.TypeChecker, node: ts.Node): ForeignTyp
     if (ts.isTypeParameterDeclaration(declaration)) {
       return;
     }
-    // A rename (`type SideGenSampling = RolePresetParams`) is classified at the type it names.
-    if (ts.isTypeAliasDeclaration(declaration) && ts.isTypeReferenceNode(declaration.type)) {
+    // A rename (`type SideGenSampling = RolePresetParams`) is classified at the type it names, and an op alias
+    // (`type CopyHandoffBooksOp = (args: …) => …`) at the types its signature names: an op's name is no data.
+    const followsThrough = (alias: ts.TypeAliasDeclaration): boolean =>
+      ts.isTypeReferenceNode(alias.type) || (ts.isFunctionTypeNode(alias.type) && alias.typeParameters === undefined);
+    if (ts.isTypeAliasDeclaration(declaration) && followsThrough(declaration)) {
       if (!followed.has(declaration)) {
         followed.add(declaration);
         visit(declaration.type);

@@ -76,6 +76,8 @@ const DB = "^packages/db/src/";
 const CLIENT = "^packages/client/src/";
 const UI = "^packages/ui/src/";
 const SRV = "^packages/server/src/";
+// D117: the one cross-domain import, the workloads door every contributing domain types its WorkloadContribution from.
+const D117_WORKLOADS_DOOR = `${SRV}domain/workloads/index\\.ts$`;
 const CLIENT_TRPC = `${CLIENT}data/trpc\\.ts$`;
 const SERVER_ROOT = "^packages/server/dist/router-types/packages/server/src/index\\.d\\.ts$";
 const INFERENCE = "^packages/inference/src/";
@@ -307,8 +309,7 @@ const ROWS_IMPORTERS = [
 
 // A server suite's directory names its subject: tests/server/<tier>/<name>/ tests that module, and a file directly
 // under tests/server/<tier>/ (every entry suite included) tests that tier. Its runtime reach to any other module goes
-// through the composed root; a type-only import of another door stays legal, as domain-no-cross-feature allows in
-// production. Primitives are the server's pure floor, the Node twin of @orb/kit, so every suite may call them.
+// through the composed root; a type-only import of another door stays legal for a suite. Primitives are the server's pure floor, the Node twin of @orb/kit, so every suite may call them.
 const SERVER_TEST_TIERS = "(?:entry|transport|domain|infra|foundation|primitives)";
 const SERVER_TEST_OWN_MODULE = `^tests/server/((?!entry/)${SERVER_TEST_TIERS})/([^/]+)/`;
 const SERVER_TEST_OWN_TIER = `^tests/server/(entry(?=/)|${SERVER_TEST_TIERS}(?=/[^/]+$))/`;
@@ -1263,13 +1264,20 @@ const SERVER_AUTHORITY = [
 const DOMAIN_AUTHORITY = [
   {
     name: "domain-no-cross-feature",
+    comment: "No domain imports another (Core-0 §4); a cross-domain shape lives in packages/contracts or the consumer's contract/.",
     severity: "error",
     from: { path: `${SRV}domain/([^/]+)/` },
     to: {
       path: `${SRV}domain/([^/]+)/`,
-      pathNot: `${SRV}domain/$1/`,
-      dependencyTypesNot: ["type-only"],
+      pathNot: [`${SRV}domain/$1/`, D117_WORKLOADS_DOOR],
     },
+  },
+  {
+    name: "domain-workloads-door-types-only",
+    comment: "D117: a domain imports the workloads door only for the WorkloadContribution type it registers through.",
+    severity: "error",
+    from: { path: `${SRV}domain/([^/]+)/`, pathNot: `${SRV}domain/workloads/` },
+    to: { path: D117_WORKLOADS_DOOR, dependencyTypesNot: ["type-only"] },
   },
   {
     name: "domain-feature-front-door",

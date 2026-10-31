@@ -9,7 +9,7 @@ import { foreignTypes } from "./foreign-types.ts";
 import type { Indexed, Pair, PlannedTarget, PortTarget, TargetExport, TargetImport, TargetKind } from "./port-targets.ts";
 import { conceptOf, crossDomainKind, crossDomainNote, legOf, lineOf, placementOfKey } from "./port-targets.ts";
 import type { PortMember } from "./restated-port.ts";
-import { aliasOf, effectiveMember, homeFileOf, isHandTyped, memberLabel, placementOf, RELATION, rootAlias, tierRank } from "./restated-port.ts";
+import { aliasOf, effectiveMember, homeFileOf, isHandTyped, memberLabel, placementOf, RELATION, rootAlias, rulingKeysOf, tierRank } from "./restated-port.ts";
 
 export interface PlanContext {
   readonly world: LoadedWorld;
@@ -174,10 +174,12 @@ function planDerive(context: PlanContext, { port, site, paramsOnly }: Restating,
   return "kind" in through ? through : derived(through.alias, [{ name: through.alias, from: door.specifier }], through.exports);
 }
 
-function planCrossDomain(context: PlanContext, owner: PortMember): Plan {
-  const foreign = foreignTypes(context.checker, owner);
-  const kind = crossDomainKind(foreign, [memberLabel(owner)]);
-  return plain(kind, crossDomainNote(kind, foreign, [memberLabel(owner)]));
+// `members` are the owner's member then any restating one; `domains` are the domains the shape crosses between.
+function planCrossDomain(context: PlanContext, members: readonly [PortMember, ...PortMember[]], domains: readonly (string | null)[]): Plan {
+  const foreign = foreignTypes(context.checker, members[0]);
+  const keys = { names: members.flatMap((member) => rulingKeysOf(context.checker, member)), domains };
+  const kind = crossDomainKind(foreign, keys);
+  return plain(kind, crossDomainNote(kind, foreign, keys));
 }
 
 const domainOf = (fileName: string): string | null => placementOf(fileName)?.domain ?? null;
@@ -209,7 +211,7 @@ function planRestating(context: PlanContext, restating: Restating, ownerKey: str
   const siteFile = restating.site.getSourceFile().fileName;
   const [from, to] = [domainOf(siteFile), domainOf(ownerFile)];
   if (from !== null && to !== null && from !== to) {
-    return { ...planCrossDomain(context, owner), ...owned };
+    return { ...planCrossDomain(context, [owner, restating.port], [from, to]), ...owned };
   }
   if (rankOfFile(ownerFile) > rankOfFile(siteFile)) {
     const lower = lowerHome(relative(context.world.root, siteFile), relative(context.world.root, ownerFile));
@@ -270,7 +272,7 @@ export function planMember(context: PlanContext, node: Indexed): PlannedTarget |
     const domains = new Set(chain.map((key) => placementOfKey(key)?.domain ?? null));
     const crossDomain = domains.size > 1 && !domains.has(null);
     const ownerAt = ownerKey.slice(0, ownerKey.lastIndexOf(":"));
-    return crossDomain && !named ? { ...base, ...planCrossDomain(context, member), owner: memberLabel(member), ownerAt } : null;
+    return crossDomain && !named ? { ...base, ...planCrossDomain(context, [member], [...domains]), owner: memberLabel(member), ownerAt } : null;
   }
   if (named) {
     return aliasTarget(context, node, ownerKey);

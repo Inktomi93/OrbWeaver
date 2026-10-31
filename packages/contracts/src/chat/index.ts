@@ -135,7 +135,7 @@ export { contentSpansToBlocks, messageContentBlockSchema } from "./content-block
 
 export type { AnchorState, ChatDetail, RedeemInviteResult } from "./detail.ts";
 export { chatDetailSchema, redeemInviteResultSchema, viewerGalleryCharacter } from "./detail.ts";
-export type { GenerationObservationParent } from "./generation-observation.ts";
+export type { BeginGenerationObservationOp, GenerationObservationParent } from "./generation-observation.ts";
 export type { HandoffCardCopy, HandoffCardPair, HandoffHealArgs } from "./handoff-context.ts";
 export type { ImpersonateStreamDelta } from "./impersonation.ts";
 export { chatIdInputSchema, chatListInputSchema, listMessagesInputSchema } from "./inputs.ts";
@@ -230,7 +230,7 @@ export type {
   ChatLivePublish,
   ChatScopedParams,
   MemoryDigestInput,
-  OfferedSeat,
+  PresentCharacterSeat,
   PublishChatChangedOp,
   ReadChatUserMacrosOp,
   RegisterPromptTransformOp,
@@ -397,22 +397,34 @@ export {
 } from "./roster.ts";
 export type {
   ChatRpgGameBirthPlan,
-  ChatRpgGatherData,
   ClaimChatOp,
   ForkGameArgs,
   ForkGameOp,
   ForkGameResult,
+  GameBirthCommittedOp,
   GatherTurnContextArgs,
+  GatherTurnContextOp,
   GetMembership,
+  HandoffHealStatementsOp,
+  HandoffRekeyActorsOp,
+  HandoffWouldCopyGmPresetOp,
+  MarkDicePreRollEligibleOp,
   PlanGameBirthOp,
   ResolveCanonWindow,
   ResolveChatProseOp,
   ResolveGmSeatHolderKindOp,
+  ResolvePresetOverrideOp,
+  ResolveReasoningHostOnlyOp,
   ResolveRpgCardCorpus,
   ResolveRpgParticipants,
   RpgCardCorpus,
-  RpgTurnFacts,
+  RpgGatherWithTools,
+  RpgTurnAbortedOp,
+  RpgTurnCompletedOp,
+  RpgTurnCompletedParams,
+  RpgTurnRuntime,
   RpgTurnTranscriptMessage,
+  RpgUserCommitOp,
   SetRpgPointer,
   TurnKind,
 } from "./rpg-ops.ts";
@@ -427,7 +439,7 @@ export type {
 } from "./seat-ops.ts";
 export type { StartChatInput } from "./start.ts";
 export { startChatSchema } from "./start.ts";
-export type { TeachingCollection, TeachingContext, TeachingIdentity, TeachingKnobs } from "./teaching.ts";
+export type { TeachingCollection, TeachingContext, TeachingContribution, TeachingIdentity, TeachingKnobs } from "./teaching.ts";
 export type { TokenProvenance } from "./token-provenance.ts";
 export { combineTokenProvenance, TOKEN_PROVENANCES, tokenProvenanceSchema } from "./token-provenance.ts";
 export type {
