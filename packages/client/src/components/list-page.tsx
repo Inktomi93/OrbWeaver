@@ -72,7 +72,12 @@ export function ListPage({
           <Row align="center" className="flex-1 min-inline-(--width-field-floor)">
             <ListSearch>{search}</ListSearch>
           </Row>
-          {searchAside}
+          {/* The aside wraps as one cluster at the row's end, so the search keeps its floor and a control never strands alone. */}
+          {searchAside === undefined ? null : (
+            <Row align="center" className="ms-auto shrink-0" gap="field">
+              {searchAside}
+            </Row>
+          )}
         </Row>
         {filters}
         {body === "pane" ? children : null}
