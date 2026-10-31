@@ -19,6 +19,7 @@ import { notify, rowQualifiers, timeLib } from "#lib";
 import { selectPersonaEditor, usePersonaEditorId } from "#state";
 import { useCreatePersona, useImportPersonaFile, useRemovePersona } from "../hooks/use-persona-mutations.ts";
 import { useDefaultPersona } from "../hooks/use-playing-persona.ts";
+import { nowDefaultNotice } from "../lib/persona-copy.ts";
 import { PersonaFromCharacterDialog } from "./persona-from-character-dialog.tsx";
 import { PersonaPanelRow } from "./persona-panel-row.tsx";
 
@@ -87,8 +88,8 @@ export function PersonaList(): ReactElement {
       setExpandedId(null);
     }
     const crowned = personas.find((persona) => persona.id === newDefaultPersonaId);
-    if (crowned !== undefined) {
-      notify.info(`${crowned.name} is now your default.`);
+    if (crowned !== undefined && settings.config.persona.showNotifications) {
+      notify.info(nowDefaultNotice(crowned.name));
     }
   };
 

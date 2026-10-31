@@ -55,6 +55,12 @@ function ownedLine(state: Record<string, unknown>): string {
   return typeof detail === "object" && detail !== null && "owned" in detail ? String(detail.owned) : "";
 }
 
+test("activation sweeps the retired owned index and leaves the rest of the guest's kv", async () => {
+  const drive = await bootAtlas({ kv: { "owned:wyvern:w1": CHARACTER_ID, "owned:chub:a/b": CHARACTER_ID, "other:key": "kept" } });
+
+  expect([...drive.kv.keys()]).toEqual(["other:key"]);
+});
+
 describe("the add path states what just happened", () => {
   test("a FIRST-EVER import says it was ADDED — never 'already in your library'", async () => {
     const drive = await driveAdd({ ingest: () => ({ characterId: CHARACTER_ID, created: true }) });
@@ -89,8 +95,8 @@ describe("the add path states what just happened", () => {
   });
 });
 
-describe("the guest's provenance and index requests do not hang off the notice", () => {
-  test("a refused toast still requests provenance and owned-index writes", async () => {
+describe("the guest's provenance request does not hang off the notice", () => {
+  test("a refused toast still requests the provenance stamp", async () => {
     const drive = await driveAdd({
       ingest: () => ({ characterId: CHARACTER_ID, created: true }),
       onToast: (): never => {
@@ -98,22 +104,22 @@ describe("the guest's provenance and index requests do not hang off the notice",
       },
     });
 
-    expect(drive.cardData.get(CHARACTER_ID)).toMatchObject({ source: "Wyvern", ref: "w1" });
+    expect(drive.cardData.get(CHARACTER_ID)).toMatchObject({ source: "Wyvern", ref: "w1", keys: ["wyvern:w1"] });
 
     expect(drive.toasts.map(({ level }) => level)).toContain("success");
-    expect(drive.kv.get("owned:wyvern:w1")).toBe(CHARACTER_ID);
+    expect(drive.kv.has("owned:wyvern:w1")).toBe(false);
     expect(drive.ingests).toEqual([CHARACTER_ID]);
     expect(ownedLine(lastAtlasState(drive))).toBe("Added to your library.");
     expect(drive.logs.some((line) => line.includes("toast refused"))).toBe(true);
   });
 
-  test("a successful toast leaves the same provenance and owned-index requests", async () => {
+  test("a successful toast leaves the same provenance request", async () => {
     const drive = await driveAdd({ ingest: () => ({ characterId: CHARACTER_ID, created: true }) });
 
     expect(drive.toasts.map(({ level }) => level)).toContain("success");
     expect(drive.logs.some((line) => line.includes("toast refused"))).toBe(false);
-    expect(drive.cardData.get(CHARACTER_ID)).toMatchObject({ source: "Wyvern", ref: "w1" });
-    expect(drive.kv.get("owned:wyvern:w1")).toBe(CHARACTER_ID);
+    expect(drive.cardData.get(CHARACTER_ID)).toMatchObject({ source: "Wyvern", ref: "w1", keys: ["wyvern:w1"] });
+    expect(drive.kv.has("owned:wyvern:w1")).toBe(false);
     expect(drive.ingests).toEqual([CHARACTER_ID]);
     expect(ownedLine(lastAtlasState(drive))).toBe("Added to your library.");
   });

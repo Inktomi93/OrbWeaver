@@ -9,9 +9,18 @@
 // crash-mirror would duplicate synced truth for a field set this light).
 
 import { createAutosaveEntityForm } from "#forms/editor";
+import { PERSONA_NAME_REQUIRED } from "../lib/persona-copy.ts";
 import type { PersonaFormValues } from "../lib/persona-editor-model.ts";
 import { DEFAULT_PERSONA_FORM } from "../lib/persona-editor-model.ts";
 
 export const PersonaForm = createAutosaveEntityForm<PersonaFormValues>({
   defaultValues: DEFAULT_PERSONA_FORM,
+  // A blank name refuses the write (the driver holds an invalid form) and says why on the field, instead of saving
+  // the rest and leaving the field blank over the stored name. `onDynamic` is the slot `revalidateLogic()` drives.
+  options: {
+    validators: {
+      onDynamic: ({ value }: { value: PersonaFormValues }): { fields: Record<string, string> } | undefined =>
+        value.name.trim() === "" ? { fields: { name: PERSONA_NAME_REQUIRED } } : undefined,
+    },
+  },
 });

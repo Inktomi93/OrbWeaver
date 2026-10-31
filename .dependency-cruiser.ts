@@ -401,7 +401,9 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/rpg/lib/unset-datum.ts": "UNSET_DATUM: the unset reading's text",
   "packages/client/src/features/plugin/lib/extensions-copy.ts": "EXTENSIONS_GONE_TITLE: the vanished page's title",
   "packages/client/src/features/plugin/lib/plugin-copy.ts":
-    "approveLabel and CHAT_PANEL_HIDE_LABEL: production action names required by the no-copied-label contract",
+    "approveLabel, CHAT_PANEL_HIDE_LABEL and CHAT_PANEL_UNDO_LABEL: production action names required by the no-copied-label contract",
+  "packages/client/src/features/persona/lib/persona-copy.ts":
+    "PERSONA_NAME_REQUIRED and nowDefaultNotice: the blank-name error and the crown-moved notice the persona suites assert",
   "packages/client/src/features/plugin/lib/plugin-model-copy.ts":
     "PLUGIN_MODEL_HEADING: the production model disclosure name used by plugin presentation assertions",
   "packages/client/src/features/plugin/lib/plugin-panel-copy.ts":
@@ -409,7 +411,10 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/stats/lib/leaderboard-row-attr.ts":
     "LEADERBOARD_ROW_ATTR: the attribute a leaderboard row wears, which the corpus workbench e2e addresses rows by",
   "packages/client/src/features/tag/lib/tag-list-name.ts": "TAG_LIST_NAME: the Labels finder's tag list name",
+  "packages/client/src/lib/app-ready-attribute.ts": "APP_READY_ATTR: the readiness attribute the boot veil exits on",
   "packages/client/src/state/create-persisted-store.ts": "createPersistedStore: the persisted-store factory a type contract reads",
+  "packages/client/src/state/durable-local-keys.ts":
+    "APPEARANCE_BOOT_HINT_NAME and APPEARANCE_BOOT_HINT_VERSION: the key and version the boot hint persists under",
   "packages/client/src/compose/contributors.ts": "chromeWidgets: the shipped chrome widget registry",
   "packages/client/src/compose/home-tiles.ts": "homeTiles: the shipped home tile registry",
 } as const satisfies Readonly<Record<string, string>>;

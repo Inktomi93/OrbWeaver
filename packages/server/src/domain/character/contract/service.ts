@@ -40,7 +40,6 @@ import type {
   BulkArchiveParams,
   BulkRemoveCardTagParams,
   BulkRemoveParams,
-  FindByImportedFromParams,
   FindByNameParams,
   GenerateGreetingParams,
   GetSnapshotParams,
@@ -53,7 +52,7 @@ import type {
   RewriteGreetingParams,
   StampImportIdentityParams,
 } from "./params.ts";
-import type { GeneratedGreeting, ImportedFromMatch, ListCharactersResult, ListCharacterTagGroupsResult, SnapshotSummary, SnapshotView } from "./results.ts";
+import type { GeneratedGreeting, ListCharactersResult, ListCharacterTagGroupsResult, SnapshotSummary, SnapshotView } from "./results.ts";
 
 /** The editable greeting-studio prompt material resolved from the CALLER's preset (audit §3): the
  *  `greeting_rewrite`/`greeting_new` `guidedActions` template PLUS that preset's `prose` overrides. Wired at
@@ -154,9 +153,6 @@ export interface CharacterService {
   /** Give a seeded card the import identity its own export carries, so restoring that export onto a box that
    *  seeded the same card dedups. True when written; false when the row already carries an identity. */
   readonly stampImportIdentity: (params: StampImportIdentityParams) => Promise<boolean>;
-  /** Batched provenance oracle (hub-injected): the owner's characters carrying any of `values` in
-   *  `importedFrom` — backs the hub search page's already-imported markers (doc 03 §2.1). */
-  readonly findByImportedFrom: (params: FindByImportedFromParams) => Promise<ImportedFromMatch[]>;
   readonly findByHandle: FindCharacterByHandleOp;
   /** Every owner character carrying the display name, oldest first: empty, one, or an ambiguity for the caller. */
   readonly findByName: (params: FindByNameParams) => Promise<readonly CharacterRef[]>;
