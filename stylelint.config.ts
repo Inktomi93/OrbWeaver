@@ -66,6 +66,8 @@ const SHELL_SLOTS = [
   // The room's carriers that the centred counter and the flank motion move with the content track.
   "chat-room-surface",
   "chat-room-flank-row",
+  // The room's plugin column, whose slide and lift ride the shell's motion tokens in the panel sheet.
+  "chat-thread-flank",
 ];
 const SHELL_CLASSES = ["orb-chat-track", "orb-composer-track"];
 
@@ -202,6 +204,12 @@ const config: Config = {
       // OS variant over the root guard, beside the root attribute's on arm (motion-floor.css).
       files: ["packages/ui/src/styles/**/*.css"],
       rules: { "orb/appearance-name-in-manifest": [true, { ...appearance, osGuard: true }] },
+    },
+    {
+      // A `@utility` is Tailwind's scoping root, so the `&` that guards a declaration block inside its `@supports` is the only
+      // spelling the utility admits; stylelint reads the at-rule as a plain container and calls the `&` redundant and unscoped.
+      files: ["packages/ui/src/styles/primitives.css"],
+      rules: { "block-no-redundant-nested-style-rules": null, "nesting-selector-no-missing-scoping-root": null },
     },
     {
       // Generated from the appearance manifest: a preference variant's body is Tailwind's `&` + `@slot` form, and its

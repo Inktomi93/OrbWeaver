@@ -6,8 +6,8 @@
 
 import type { NotificationEvent, NotificationType } from "@orb/contracts/notifications";
 import type { ChatId, PluginId } from "@orb/kit/ids";
-import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
+import { IndicatorDot } from "@orb/ui/indicator-dot";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -179,10 +179,10 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
     <Stack gap="tight" data-slot="inbox-row" {...(item.actionable ? { "data-pending": "" } : {})}>
       <Row gap="field" align="start">
         {/* THE SAME MARK THE BELL WEARS. A row that is still waiting on you gets the dot the trigger got
-            (#1798's `size="dot"` arm), so "there is a dot" means one thing in this feature rather than two —
+            (the `IndicatorDot`), so "there is a dot" means one thing in this feature rather than two —
             you open the bell because of a dot and find the dot that put it there. `aria-hidden`: the row's
             own actions are what say it is decidable; the mark is the sighted shorthand. */}
-        {item.actionable ? <Badge tone="primary" variant="solid" size="dot" aria-hidden={true} className="mbs-field" /> : null}
+        {item.actionable ? <IndicatorDot tone="primary" variant="solid" aria-hidden={true} className="mbs-field" /> : null}
         <Text as="span" voice={item.readAt === null || item.actionable ? "label" : "gloss"} prose={true}>
           {rowCopy(item.payload, disabledPluginName)}
         </Text>

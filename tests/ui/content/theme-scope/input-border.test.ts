@@ -139,6 +139,50 @@ test(
   SWEEP_TIMEOUT_MS,
 );
 
+/** A dark accent, a saturated one past the gamut, and a pale one: rings that land below, near and above a carried edge. */
+const NESTED_ACCENTS = ["oklch(0.3 0.1 260)", "oklch(0.55 0.37 300)", "oklch(0.9 0.12 95)"] as const;
+
+interface NestedRing {
+  readonly edgeOnCard: number;
+  readonly ringOnCard: number;
+  readonly raised: boolean;
+  readonly reported: boolean;
+}
+
+/** An accent-only scope nested in a carried palette on `background`, as the cascade resolves it: the outer edge, and the ring the nested scope leaves in force. */
+function nestedRing(background: string, accent: string): NestedRing {
+  const base = parsed(background);
+  const outer = clampThemeTokens({ background }, undefined, HEARTH_ACCENT);
+  const nested = clampThemeTokens({ accent }, outer.resolvedBackground, outer.accentSource, "carried");
+  const vars = { ...outer.vars, ...nested.vars };
+  const card = pixel(rampSurface(base, rampDeltas(base).card));
+  return {
+    edgeOnCard: wcagContrastRatio(pixel(emittedGrey(vars[EDGE], base.h).color), card),
+    ringOnCard: wcagContrastRatio(pixel(parsed(vars["--color-ring"] ?? "")), card),
+    raised: vars["--color-ring"] !== vars["--color-primary"],
+    reported: nested.inputBorderFallback !== undefined,
+  };
+}
+
+test(
+  "an accent-only scope inside a carried palette holds its ring above the outer edge, or reports that no ring on its hue can",
+  () => {
+    const cases = ACCEPTED_BASES.map((base) => serializeOpaqueOklch(base)).flatMap((background) =>
+      NESTED_ACCENTS.map((accent) => ({ label: `${background} nested ${accent}`, ...nestedRing(background, accent) })),
+    );
+    expect(cases.filter(({ edgeOnCard, ringOnCard, reported }) => !(reported || ringOnCard > edgeOnCard)).map(({ label }) => label)).toEqual([]);
+    // The solve is doing the work: some nested rings are raised off the accent fill, which itself stays as painted.
+    expect(cases.some(({ raised }) => raised)).toBe(true);
+  },
+  SWEEP_TIMEOUT_MS,
+);
+
+test("an accent-only scope over a seed palette leaves the ring to its fill", () => {
+  const { vars, inputBorderFallback } = clampThemeTokens({ accent: NESTED_ACCENTS[0] }, MID_GREY, HEARTH_ACCENT);
+  expect(vars["--color-ring"]).toBe(vars["--color-primary"]);
+  expect(inputBorderFallback).toBeUndefined();
+});
+
 /** The highest ratio on the card any lightness of the scope's accent hue reaches, on a 0.01 grid. */
 function bestRingOnCard(background: string): number {
   const base = parsed(background);

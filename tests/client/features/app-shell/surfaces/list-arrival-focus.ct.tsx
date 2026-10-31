@@ -11,7 +11,8 @@ import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const LIST = '.shell-panel[data-panel-side="list"]';
 const BAND = `${LIST} .shell-panel-header`;
-const MAX_BAND_STOPS = 6;
+// The most forward Tabs from arrival to a row: the Chats band, its filter chips and the search sit ahead of its rows.
+const MAX_TAB_STOPS = 14;
 const SECTIONS = [
   { id: "chats", label: SECTION_LABELS.chats },
   { id: "characters", label: SECTION_LABELS.characters },
@@ -53,8 +54,29 @@ function focusRegion(page: Page): Promise<"band" | "body" | "elsewhere"> {
   );
 }
 
+const STOP_KINDS = ["band-action", "new", "search", "row", "other"] as const;
+type StopKind = (typeof STOP_KINDS)[number];
+
+/** What the focused control is in the list pane's tab order: a band action (New apart), the search field, a row's control, or anything else. */
+function stopKind(page: Page): Promise<StopKind> {
+  return page.evaluate(() => {
+    const active = document.activeElement;
+    if (active === null) {
+      return "other";
+    }
+    if (active.closest('[data-slot="list-pane-action"]') !== null) {
+      const label = active.getAttribute("aria-label") ?? active.textContent.trim();
+      return /^New\b/u.test(label) ? "new" : "band-action";
+    }
+    if (active.closest('[data-slot="list-search"]') !== null) {
+      return "search";
+    }
+    return active.getAttribute("data-slot") === "list-row-body" ? "row" : "other";
+  });
+}
+
 for (const section of SECTIONS) {
-  test(`arriving in ${section.id} from the rail lands focus on the band's control, and the next Tab leaves the band into the pane body`, async ({
+  test(`arriving in ${section.id} from the rail lands focus on the band's action, and a forward Tab runs New, then the search field, then the rows`, async ({
     mount,
     page,
   }) => {
@@ -65,13 +87,17 @@ for (const section of SECTIONS) {
     await entry.press("Enter");
     await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", section.id);
     await expect.poll(() => focusRegion(page)).toBe("band");
-    // The band may hold several controls; the walk leaves it straight into the pane's own body, never past the pane.
-    let region = await focusRegion(page);
-    for (let step = 0; step < MAX_BAND_STOPS && region === "band"; step += 1) {
+    const stops: StopKind[] = [await stopKind(page)];
+    for (let step = 0; step < MAX_TAB_STOPS && !stops.includes("row"); step += 1) {
       await page.keyboard.press("Tab");
-      region = await focusRegion(page);
+      stops.push(await stopKind(page));
     }
-    expect(region).toBe("body");
+    // Arrival is the band's own control, never the surface root a Tab would start past the band from.
+    expect(["band-action", "new"]).toContain(stops[0]);
+    // Every kind is reached, so the order below is a comparison of real stops and not of missing ones.
+    expect([stops.indexOf("new"), stops.indexOf("search"), stops.indexOf("row")]).not.toContain(-1);
+    expect(stops.indexOf("new")).toBeLessThan(stops.indexOf("search"));
+    expect(stops.indexOf("search")).toBeLessThan(stops.indexOf("row"));
   });
 }
 

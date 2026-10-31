@@ -238,7 +238,7 @@ export function LayoutFinishStory(): ReactElement {
           two
         </Stack>
       </Stack>
-      <Row data-case="rule" divider="start" dividerTone="primary" dividerWeight="rule">
+      <Row data-case="rule" divider="start" tone="primary" dividerWeight="rule">
         rule
       </Row>
       <Stack data-case="dashed" divider="start" dividerStyle="dashed">
@@ -272,25 +272,13 @@ export function LayoutFinishStory(): ReactElement {
       <Row data-case="plate-plain" plate="band">
         band without art
       </Row>
-      <Stack data-case="highlight" highlight={true}>
-        anchor
-      </Stack>
-      <Stack data-case="slide-parked" slide="parked">
-        parked
-      </Stack>
-      <Stack data-case="slide-shown" slide="shown">
-        shown
-      </Stack>
-      <Stack data-case="lifted" lifted={true}>
-        lifted
-      </Stack>
       <Stack data-case="fade" fade="start" fadeFrom="sidebar">
         fade
       </Stack>
       <Stack data-case="ink" ink="foreground">
         ink
       </Stack>
-      <Stack data-case="opacity-motion" opacityMotion={true}>
+      <Stack data-case="receded-motion" receded={true}>
         eases
       </Stack>
       <Stack data-case="focus-target" focusTarget={true} tabIndex={-1}>
@@ -304,12 +292,6 @@ export function LayoutFinishStory(): ReactElement {
           act
         </Row>
       </div>
-      <Row data-case="state-expanded" data-expanded="" stateFill="expanded">
-        expanded
-      </Row>
-      <Row data-case="state-selected" data-selected="" stateFill="selected">
-        selected
-      </Row>
       <span data-case="away">elsewhere</span>
       <Probe name="primary" style={{ borderColor: "var(--color-primary)" }} />
       {GROUNDS.map((ground) => (
@@ -318,8 +300,6 @@ export function LayoutFinishStory(): ReactElement {
       <Probe name="ground-faint" style={{ backgroundColor: mix("--color-card", 40) }} />
       <Probe name="reading-plate" style={{ backgroundColor: "var(--color-reading-plate)" }} />
       <Probe name="card" style={{ backgroundColor: "var(--color-card)" }} />
-      <Probe name="muted" style={{ backgroundColor: "var(--color-muted)" }} />
-      <Probe name="accent" style={{ backgroundColor: "var(--color-accent)" }} />
       <Probe name="foreground" style={{ color: "var(--color-foreground)" }} />
       <Probe name="transparent" style={{ backgroundColor: "transparent" }} />
     </CtIsolation>

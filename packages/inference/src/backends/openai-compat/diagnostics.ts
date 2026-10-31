@@ -244,16 +244,16 @@ export async function inspectOpenAiCompatEndpoint(req: InspectRequest, deps: Ins
       maxOutputTokens: PING_MAX_TOKENS,
       abortSignal: idle.signal,
     });
-    return await inspectionOf(observed, secrets, undefined);
+    return await inspectionOf(observed, secrets);
   } catch (err) {
-    return { ...(await inspectionOf(observed, secrets, err)), ok: false, error: sanitizeApiError(redactSecretsFromText(errorMessage(err), secrets)) };
+    return { ...(await inspectionOf(observed, secrets)), ok: false, error: sanitizeApiError(redactSecretsFromText(errorMessage(err), secrets)) };
   } finally {
     idle.dispose();
   }
 }
 
-/** The inspection of the send `observed` saw; `failure` is what the chat call threw, if it threw. */
-async function inspectionOf(observed: Observed, secrets: ProviderScrubSet, failure: unknown): Promise<EndpointInspection> {
+/** The inspection of the send `observed` saw. `ok` is the reply's own status; a chat call that threw overrides it to false at the caller. */
+async function inspectionOf(observed: Observed, secrets: ProviderScrubSet): Promise<EndpointInspection> {
   const sent = observed.request ?? { url: "", headers: {}, body: "" };
   const request = inspectionRequest(sent.url, sent.headers, sent.body, secrets);
   const reply = observed.reply;
@@ -263,7 +263,7 @@ async function inspectionOf(observed: Observed, secrets: ProviderScrubSet, failu
   // a preview read failure degrades to an explicit empty preview while status and headers remain inspectable. Precedent: the retired probe's mustPass fixture proved the same degraded inspection result. Ends if preview bytes become authoritative.
   const text = await readBodyPreview(reply, secretScrubOverhang(secrets)).catch((): string => "");
   return {
-    ok: failure === undefined && reply.ok,
+    ok: reply.ok,
     request,
     response: {
       status: reply.status,

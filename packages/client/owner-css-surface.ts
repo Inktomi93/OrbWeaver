@@ -507,8 +507,6 @@ export const OWNER_CSS_SLOTS = [
   "persona-crown",
   "persona-editor-footer",
   "persona-editor-identity",
-  "persona-row-expand",
-  "persona-row-name",
   "persona-who-description",
   "persona-who-head",
   "picker-cell",

@@ -16,6 +16,7 @@ import type { ChatIdentity, MessageKind } from "@orb/contracts/chat";
 import { buildIdentityAvatarMaps, buildIdentityNameContext, identityKey } from "@orb/contracts/chat";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
+import { CurrentStack } from "@orb/ui/current";
 import { Stack } from "@orb/ui/layout";
 import type { MessageListHandle } from "@orb/ui/message-list";
 import { MessageList } from "@orb/ui/message-list";
@@ -407,9 +408,9 @@ function ChatThread({
             const highlighted =
               item.kind === "message" && window !== null && window.endSeq !== null && item.view.seq >= window.anchorSeq && item.view.seq <= window.endSeq;
             return (
-              <Stack data-corpus-anchor={highlighted ? "" : undefined} highlight={highlighted}>
+              <CurrentStack aria-current={highlighted ? "true" : undefined} data-corpus-anchor={highlighted ? "" : undefined}>
                 {renderItem(item)}
-              </Stack>
+              </CurrentStack>
             );
           }}
           rowNavigation="roving"

@@ -21,9 +21,11 @@ import type { Tone } from "#tokens";
 // element wearing this fragment owes a matching selector in `SELECTION_RAIL_SEL`, or the audit reports the
 // idiom as a generated-UI tell on that element alone — a false positive against an owner ruling.
 //
-// THE RAIL PAINTS D336 ROLES: the primary solid as the rail and the primary tint as the fill, so every carrier
-// stamps `SELECTION_RAIL_TONE` on the element that wears the fragment.
-export const SELECTION_RAIL = "border-s-2 border-s-transparent data-selected:border-s-tone-solid data-selected:bg-tone-tint";
+// THE RAIL PAINTS D336 ROLES: the primary solid as the rail, the primary tint as the fill and the tone's text-on-tint
+// as the ink, so every carrier stamps `SELECTION_RAIL_TONE` on the element that wears the fragment while selected.
+// The page ink has no floor on a tint; text-on-tint does.
+export const SELECTION_RAIL =
+  "border-s-2 border-s-transparent data-selected:border-s-tone-solid data-selected:bg-tone-tint data-selected:text-tone-text-on-tint";
 
 /** The D336 tone a selection-rail carrier stamps. */
 export const SELECTION_RAIL_TONE = "primary" satisfies Tone;

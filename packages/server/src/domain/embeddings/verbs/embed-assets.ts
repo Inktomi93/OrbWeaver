@@ -3,7 +3,7 @@
 import type { EmbedPassResult } from "@orb/contracts/embeddings";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
-import { AssetFileMissingError } from "../contract/errors.ts";
+import { AssetFileCorruptError, AssetFileMissingError } from "../contract/errors.ts";
 import type { EmbedPassParams } from "../contract/params.ts";
 import type { StoreResult } from "../contract/results.ts";
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
@@ -18,14 +18,14 @@ interface Sweep {
   readonly receipts: Map<UserId, StoreResult>;
 }
 
-// A stored file gone while its asset row remains fails that asset alone; every other error still stops the sweep.
+// A stored file gone or not an image while its asset row remains fails that asset alone; every other error still stops the sweep.
 async function indexOne(sweep: Sweep, assetId: AssetId, options: Pick<EmbedPassParams, "force" | "signal" | "embedderChanged">): Promise<AssetOutcome> {
   try {
     const result = await sweep.deps.indexAsset(assetId, options);
     await recordReceipt(sweep.ctx, assetId, result, sweep.receipts);
     return result?.outcome === "written" ? "written" : "skipped";
   } catch (error) {
-    if (!(error instanceof AssetFileMissingError)) {
+    if (!(error instanceof AssetFileMissingError || error instanceof AssetFileCorruptError)) {
       throw error;
     }
     return "failed";

@@ -254,10 +254,10 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
       aria-label={`What ${plugin.name} asks for beyond what you've allowed`}
       className="ps-block"
       divider="start"
-      dividerTone="warning"
       dividerWeight="rule"
       gap="block"
       role="alert"
+      tone="warning"
     >
       <Text className="max-inline-(--reading-measure-prose)" voice="promoted">
         {firstAsk ? firstConsentLine(plugin.name, plugin.declaredCapabilities.length) : reConsentLine(ungranted, plugin.widenedNetHosts)}

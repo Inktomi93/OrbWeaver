@@ -8,16 +8,24 @@
   pointer-events: none;
 }
 
-/* The gradient border ring (the CTA, the active tab, the active rail button): a `::after` overlay whose transparent
- * padding-box fill composes over the element's own fill while the border-box gradient paints the ring, a primary
- * head over the polarity-fixed sheen foot. The head is the generated `gradient-ring` pigment, so the host stamps
- * `data-pigment` and sets its `--ring-head` weight on itself, where the pigment resolves; `--ring-foot` too. */
+/* The gradient border ring (the CTA, the active tab, the active rail button): a `::after` overlay whose gradient is
+ * masked to the border box minus the padding box, so only the border paints and the element's own fill and ink keep
+ * their contrast. The gradient is a primary head over the polarity-fixed sheen foot. A browser without the padding-box
+ * mask clip keeps a plain border in the head colour, never a fill. The head is the generated `gradient-ring` pigment, so
+ * the host stamps `data-pigment` and sets its `--ring-head` weight on itself, where the pigment resolves; `--ring-foot`
+ * too. */
 @utility orb-gradient-ring {
   @apply orb-paint-carrier;
-  border: var(--border-width-control) solid transparent;
-  background:
-    linear-gradient(transparent, transparent) padding-box,
-    linear-gradient(180deg, var(--pigment-gradient-ring-head), oklch(from var(--color-sheen) l c h / var(--ring-foot, 0.04))) border-box;
+  border: var(--border-width-control) solid var(--pigment-gradient-ring-head);
+  @supports (mask-clip: padding-box) {
+    & {
+      border-color: transparent;
+      background: linear-gradient(180deg, var(--pigment-gradient-ring-head), oklch(from var(--color-sheen) l c h / var(--ring-foot, 0.04))) border-box;
+      mask-image: linear-gradient(black 0 0), linear-gradient(black 0 0);
+      mask-clip: padding-box, border-box;
+      mask-composite: exclude;
+    }
+  }
 }
 
 /* Two reserved lines (`Text lines={2}`): `line-clamp-2` caps a run, it never reserves the second line, so captions in

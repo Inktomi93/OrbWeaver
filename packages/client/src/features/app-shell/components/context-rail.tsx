@@ -16,6 +16,7 @@
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { ChevronLeft, ChevronRight, Crown, Icon, Lock, MoreHorizontal } from "@orb/ui/icons";
+import { IndicatorDot } from "@orb/ui/indicator-dot";
 import { Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuTrigger } from "@orb/ui/menu";
 import { Tabs, TabsIndicator, TabsList, TabsTab } from "@orb/ui/tabs";
@@ -302,7 +303,7 @@ function ContextTabBadge({ count, dot }: { readonly count: number; readonly dot:
       </Badge>
     );
   }
-  return dot ? <Badge tone="primary" variant="solid" size="dot" aria-hidden={true} /> : null;
+  return dot ? <IndicatorDot tone="primary" variant="solid" aria-hidden={true} /> : null;
 }
 
 /** One cell: glyph + caption, ALWAYS both — `layout="stacked"`, the primitive's OWN arm for a cell
@@ -389,7 +390,5 @@ function ContextCellBadge({ count, dot }: { readonly count: number; readonly dot
       </Badge>
     );
   }
-  // The childless dot is Badge's `size="dot"` arm — why this call site and why that size is at that arm's own
-  // header, `@orb/ui/badge/variants.ts`, one home.
-  return dot ? <Badge tone="primary" variant="solid" size="dot" aria-hidden={true} className="absolute inset-e-field inset-bs-field" /> : null;
+  return dot ? <IndicatorDot tone="primary" variant="solid" aria-hidden={true} className="absolute inset-e-field inset-bs-field" /> : null;
 }

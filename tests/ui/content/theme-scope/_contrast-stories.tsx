@@ -237,7 +237,7 @@ export function SelectedRowStory({ background }: { readonly background: string }
     <CtIsolation subject="Selected ListRow" isolates="The selection rail's tint under a custom ThemeScope">
       <ThemeScope tokens={{ background }} ambientBackground={TOKENS["color.background"].value} ambientAccent={TOKENS["color.primary"].value}>
         <div style={{ backgroundColor: "var(--color-background)", padding: "1rem", inlineSize: "20rem" }}>
-          <ListRow title="Connections" clickable={true} selected={true} />
+          <ListRow title="Connections" clickable={true} data-selected="" />
         </div>
       </ThemeScope>
     </CtIsolation>

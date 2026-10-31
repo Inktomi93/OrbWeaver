@@ -4,8 +4,8 @@
 import { contentSpanRaw, tokenizeContent } from "@orb/kit/content";
 import type { ComponentProps, ReactElement } from "react";
 import type { StreamdownProps } from "streamdown";
-import { Badge } from "../primitives/badge/index.ts";
 import { Dices, Icon } from "../primitives/icons/index.ts";
+import { InlineToken } from "../primitives/inline-token/index.ts";
 
 interface MarkdownNode {
   type: string;
@@ -159,10 +159,10 @@ function DiceSpan({ node, children, ...rest }: DiceSpanProps): ReactElement {
   return dice === undefined ? (
     <span {...rest}>{children}</span>
   ) : (
-    <Badge size="inline" data-slot="message-dice-chip">
+    <InlineToken data-slot="message-dice-chip">
       <Icon icon={Dices} size="xs" />
       {dice.label} → {dice.total}
-    </Badge>
+    </InlineToken>
   );
 }
 

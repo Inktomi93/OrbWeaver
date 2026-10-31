@@ -27,15 +27,14 @@
 // hue-text grammar the rack's glyph discs already wear, so the surface speaks ONE muted-info dialect. The
 // PALETTE is untouched by design (owner ruling): `--color-info` stays blue; only the pill's weight moves.
 //
-// THE CHIP IS `size="inline"` (side-eye F-6): a run of prose is a LINE BOX, and an `inline-flex` chip with
-// vertical padding and its own line-height builds a 28px box inside a 20px line — every line carrying a
-// macro shoved its neighbours apart, and the chip's side padding detached the following punctuation
-// (`{{user}} 's voice`). The inline arm inherits the run's type metrics and prints no padding, so the
-// rhythm of a paragraph is arithmetically identical with and without macros in it.
+// THE CHIP IS AN `InlineToken`: a run of prose is a LINE BOX, and an `inline-flex` chip with vertical padding and its
+// own line-height builds a box taller than its line — every line carrying a macro shoved its neighbours apart, and the
+// chip's side padding detached the following punctuation (`{{user}} 's voice`). `InlineToken` inherits the run's type
+// metrics and prints no padding, so the rhythm of a paragraph is arithmetically identical with and without macros in it.
 
 import type { MacroRun } from "@orb/kit/macro";
-import { Badge } from "@orb/ui/badge";
 import { Card } from "@orb/ui/card";
+import { InlineToken } from "@orb/ui/inline-token";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 
@@ -64,9 +63,9 @@ export function MacroText({ tokens, frame = "quoted" }: MacroTextProps): ReactEl
           token.kind === "macro" ? (
             // A text token stays a bare string child — strings in a `ReactNode[]` need no key, only
             // elements do. The key is index+value because the run is render-stable per template.
-            <Badge tone="info" key={`${String(i)}-${token.value}`} size="inline">
+            <InlineToken tone="info" key={`${String(i)}-${token.value}`}>
               {`{{${token.value}}}`}
-            </Badge>
+            </InlineToken>
           ) : (
             token.value
           ),

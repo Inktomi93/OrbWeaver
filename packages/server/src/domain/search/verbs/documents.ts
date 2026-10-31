@@ -8,6 +8,7 @@
 // embed calls, so a chat with no attached documents does zero databank work per turn, forever.
 
 import type { DocumentSearchParams } from "@orb/contracts/search";
+import { applyRerank } from "@orb/kit/rerank";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
 import type { DocumentChunkHit } from "../contract/results.ts";
 import type { SearchContext, SearchService } from "../contract/service.ts";
@@ -16,7 +17,6 @@ import { DEFAULT_DOCUMENT_K, DEFAULT_DOCUMENT_MIN_SCORE, OWNER_OVERFETCH, SCOPED
 import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
 import { collapseByContentHash } from "../substrate/dedupe.ts";
 import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
-import { applyRerank } from "../substrate/rerank.ts";
 import { withActiveQuerySpace } from "../substrate/space.ts";
 
 interface DocumentCandidate {

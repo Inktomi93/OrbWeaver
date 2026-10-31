@@ -191,6 +191,22 @@ test("an avatar whose stored file is gone fails alone: the rest embed and the ru
   ]);
 });
 
+test("an avatar whose stored bytes are not a decodable image fails alone like a missing file, and the rest embed", async () => {
+  await using lifetime = new AsyncDisposableStack();
+  const { root, owner, assetIds } = await unindexedAvatars(1, lifetime);
+  const [kept] = assetIds;
+  if (kept === undefined) {
+    throw new Error("the case stores one good avatar");
+  }
+  const corrupt = (await root.app.assets.store({ principal: owner, bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d]), mime: "image/png", kind: "avatar" }))
+    .assetId;
+
+  const result = await root.app.embeddings.embedAssets({ ownerId: null, force: false, signal: signal() });
+
+  expect(result).toEqual({ embedded: 1, skipped: 0, failedAssets: [corrupt] });
+  expect(new Set((await root.db.select().from(imageEmbeddings)).map((row) => row.assetId))).toEqual(new Set([kept]));
+});
+
 test("a failure that is not a missing file stops the sweep instead of failing each asset", async () => {
   await using lifetime = new AsyncDisposableStack();
   const { root } = await unindexedAvatars(2, lifetime);

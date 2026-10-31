@@ -15,20 +15,15 @@ export interface BadgeProps extends ComponentProps<"span">, VariantProps<typeof 
  * ink) for chips that must stay quieter than the surface's focal element no matter how many of them render. A status
  * pill whose tone is computed takes its style from `STATUS_PILL_VARIANT`.
  *
- * `size="inline"` is the IN-FLOW arm — a chip rendered inside a run of prose (a `{{macro}}` token in a
- * preview), which must not perturb the line box it lives in. See the variant's own note.
- *
- * `size="dot"` is the INDICATOR arm — a CHILDLESS 6px circle meaning "something is here", with no number
- * in it. Render it with no children and `aria-hidden`; the fact it marks belongs in the host
- * control's accessible name, and its POSITION belongs to the call site. See the variant's own note.
+ * A chip inside a run of prose is an `InlineToken`; a childless "something is here" circle is an `IndicatorDot`.
  */
-export function Badge({ className, variant, tone, edge, size, touchFloor, face, sentenceCase, ...props }: BadgeProps): ReactElement {
+export function Badge({ className, variant, tone, size, touchFloor, face, sentenceCase, ...props }: BadgeProps): ReactElement {
   // The className, the axis stamp and the D336 tone scope, from ONE selection object.
   return (
     <span
       data-slot="badge"
       {...props}
-      {...variantProps(badgeVariants, { variant, tone, edge, size, touchFloor, face, sentenceCase }, className, tone ?? "neutral")}
+      {...variantProps(badgeVariants, { variant, tone, size, touchFloor, face, sentenceCase }, className, tone ?? "neutral")}
     />
   );
 }
