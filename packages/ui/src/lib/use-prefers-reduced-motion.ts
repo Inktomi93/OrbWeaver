@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { MEDIA_QUERIES } from "#tokens";
+import type { MatchMediaListView } from "./match-media-list.ts";
 import type { ReducedMotionRoot } from "./reduced-motion-now.ts";
 import { APP_REDUCED_MOTION_ATTRIBUTE, resolveReducedMotion } from "./reduced-motion-now.ts";
 
@@ -8,11 +9,6 @@ import { APP_REDUCED_MOTION_ATTRIBUTE, resolveReducedMotion } from "./reduced-mo
 // unlayered reduced-motion floor can't reach.
 //
 // `lib/` compiles without the DOM lib, so matchMedia is accessed through a minimal structural type.
-interface ReducedMotionQuery {
-  readonly matches: boolean;
-  readonly addEventListener: (type: "change", listener: () => void) => void;
-  readonly removeEventListener: (type: "change", listener: () => void) => void;
-}
 interface ReducedMotionDocument {
   readonly documentElement?: ReducedMotionRoot;
 }
@@ -23,13 +19,13 @@ interface ReducedMotionObserver {
 interface ReducedMotionObserverConstructor {
   new (listener: () => void): ReducedMotionObserver;
 }
-const matchMediaFn = (globalThis as { matchMedia?: (query: string) => ReducedMotionQuery }).matchMedia;
+const matchMediaFn = (globalThis as { matchMedia?: (query: string) => MatchMediaListView }).matchMedia;
 const reducedMotionDocument = (globalThis as { document?: ReducedMotionDocument }).document;
 const ReducedMotionObserver = Reflect.get(globalThis, "MutationObserver") as unknown as ReducedMotionObserverConstructor | undefined;
 
 // Read once at module load and cached — the query's `.matches` stays live. `null` where matchMedia
 // doesn't exist (SSR / non-browser test runners); every consumer below degrades to `false`.
-const reducedMotionQuery: ReducedMotionQuery | null = typeof matchMediaFn === "function" ? matchMediaFn(MEDIA_QUERIES["motion-reduce"]) : null;
+const reducedMotionQuery: MatchMediaListView | null = typeof matchMediaFn === "function" ? matchMediaFn(MEDIA_QUERIES["motion-reduce"]) : null;
 
 function subscribeReducedMotion(onChange: () => void): () => void {
   reducedMotionQuery?.addEventListener("change", onChange);

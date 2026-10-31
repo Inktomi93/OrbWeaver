@@ -13,7 +13,7 @@
 import { Button } from "@orb/ui/button";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import type { LucideIcon } from "@orb/ui/icons";
-import { Icon, MoreHorizontal, Trash2 } from "@orb/ui/icons";
+import { Ellipsis, Icon, Trash } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
 import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
@@ -174,7 +174,7 @@ function actionsTrigger({
 export function RowActionsMenu({
   label,
   children,
-  icon = MoreHorizontal,
+  icon = Ellipsis,
   align = "end",
   triggerSize = "icon",
   shape = "control",
@@ -207,7 +207,7 @@ export function RowActionsMenu({
             <>
               {destructive.separator === false ? null : <MenuSeparator />}
               <MenuItem onClick={(): void => setConfirmOpen(true)}>
-                <Icon icon={destructive.icon ?? Trash2} size="sm" />
+                <Icon icon={destructive.icon ?? Trash} size="sm" />
                 {destructiveLabel}
               </MenuItem>
             </>

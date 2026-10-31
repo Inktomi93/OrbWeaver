@@ -22,7 +22,7 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
-import { AlertTriangle, ArrowLeft, Icon } from "@orb/ui/icons";
+import { ArrowLeft, Icon, TriangleAlert } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import { MacroTextarea } from "@orb/ui/macro-textarea";
@@ -396,7 +396,7 @@ function TokenVocabulary({ form, row, capability }: CapabilityProps): ReactEleme
               // belongs to the four-voice grammar (§2).
               <Card tone="warning" variant="soft">
                 <Row align="center" gap="field">
-                  <Icon icon={AlertTriangle} size="sm" tone="warning" />
+                  <Icon icon={TriangleAlert} size="sm" tone="warning" />
                   <Text voice="label">
                     No {GUIDED_INPUT_TOKEN} — what you type when you fire {def.label} will not land anywhere.
                   </Text>

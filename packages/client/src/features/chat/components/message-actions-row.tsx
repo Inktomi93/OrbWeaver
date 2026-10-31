@@ -31,7 +31,7 @@
 
 import type { ForkResult, MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
-import { Code, Copy, Eye, EyeOff, GitFork, Icon, Pencil, Redo2, SmilePlus, Undo2 } from "@orb/ui/icons";
+import { Code, Copy, Eye, EyeOff, FaceSlightlySmilingPlus, GitFork, Icon, Pencil, Redo2, Undo2 } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
 import type { ComponentProps, ReactElement, RefObject } from "react";
@@ -300,7 +300,7 @@ export function MessageActionsRow({
             when the room's reactions posture resolves OFF — applicability, mirroring the inline door. */}
             {reactionsEnabled ? (
               <MenuItem onClick={(): void => setPickerOpen(true)}>
-                <Icon icon={SmilePlus} size="sm" />
+                <Icon icon={FaceSlightlySmilingPlus} size="sm" />
                 Add a reaction
               </MenuItem>
             ) : null}

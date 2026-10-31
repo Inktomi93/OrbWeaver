@@ -2,7 +2,7 @@ import { QUICK_REPLY_MAX_CHOICES, QUICK_REPLY_MODES } from "@orb/contracts/autom
 import type { ChatId } from "@orb/kit/ids";
 import { ENTRY_POSITIONS } from "@orb/kit/world-info";
 import { Button } from "@orb/ui/button";
-import { Icon, Trash2 } from "@orb/ui/icons";
+import { Icon, Trash } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
 import { SortableList } from "@orb/ui/sortable";
@@ -165,7 +165,7 @@ function ReplyList({ form, index, action, ids }: ReplyFieldsProps & { readonly i
                   );
                 }}
               >
-                <Icon icon={Trash2} size="sm" />
+                <Icon icon={Trash} size="sm" />
               </Button>
             </Row>
             <form.AppField name={`actions[${index}].choices[${choice}].label`}>

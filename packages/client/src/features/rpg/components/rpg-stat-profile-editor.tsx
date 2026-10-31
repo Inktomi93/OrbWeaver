@@ -14,7 +14,7 @@ import { Badge } from "@orb/ui/badge";
 import { Card } from "@orb/ui/card";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import { HintTrigger } from "@orb/ui/hint-trigger";
-import { Icon, Plus, Trash2 } from "@orb/ui/icons";
+import { Icon, Plus, Trash } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
@@ -77,7 +77,7 @@ function AttributeRow({
         />
         <Tip text={`Remove ${attr.label} from the vocabulary`}>
           <GlyphButton aria-label={`Remove ${attr.label} from the vocabulary`} variant="ghost" glyph="md" onClick={onRemove}>
-            <Icon icon={Trash2} size="xs" />
+            <Icon icon={Trash} size="xs" />
           </GlyphButton>
         </Tip>
       </Row>

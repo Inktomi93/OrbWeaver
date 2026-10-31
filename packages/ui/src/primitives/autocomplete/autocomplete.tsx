@@ -4,6 +4,7 @@ import type { ReactElement, ReactNode } from "react";
 import type { VariantProps } from "tailwind-variants";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_INPUT, cn, formatSuggestionCount, usePortalContainer, variantAttrs } from "#lib";
+import type { ComboboxGroup } from "#primitives/combobox";
 import { useFieldIdentity } from "#primitives/field";
 import { Icon, X } from "#primitives/icons";
 import { autocompleteVariants } from "./variants.ts";
@@ -17,14 +18,6 @@ const slots = autocompleteVariants();
  *  seal can never drift from it. Optional at our seam: the inline-select shortcut synthesizes a change
  *  with no originating Base UI event. */
 type AutocompleteChangeDetails = Parameters<NonNullable<BaseRootProps<string>["onValueChange"]>>[1];
-
-/** A category of suggestions rendered under a `GroupLabel` header. Values stay plain strings. */
-export interface AutocompleteGroup {
-  /** The category header text. */
-  label: string;
-  /** The suggestions in this category (the display strings themselves). */
-  items: readonly string[];
-}
 
 type AutocompleteSize = VariantProps<typeof autocompleteVariants>["size"];
 
@@ -52,7 +45,7 @@ export interface AutocompleteProps extends AutocompletePassthrough {
    * still plain strings, not object-items/multi-select (that's the Combobox seal's job). Takes
    * precedence over `items` when set.
    */
-  groups?: readonly AutocompleteGroup[];
+  groups?: readonly ComboboxGroup[];
   /**
    * List/inline behaviour, forwarded to Base UI Root: `list` (default, filters items) · `both`
    * (filter + inline autocompletion) · `inline` (static + inline) · `none` (static, no filter).
@@ -262,7 +255,7 @@ export function Autocomplete({
             {item}
           </BaseAutocomplete.Item>
         )
-      : (group: AutocompleteGroup): ReactNode => (
+      : (group: ComboboxGroup): ReactNode => (
           <BaseAutocomplete.Group className={slots.group()} data-slot="autocomplete-group" items={group.items} key={group.label}>
             <BaseAutocomplete.GroupLabel className={slots.groupLabel()} data-slot="autocomplete-group-label">
               {group.label}

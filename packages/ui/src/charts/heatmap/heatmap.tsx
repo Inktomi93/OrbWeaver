@@ -11,8 +11,6 @@ import { LabeledChartFrame } from "../labeled-chart-frame/index.ts";
 import type { HeatmapMatrix } from "./option.ts";
 import { buildHeatmapOption } from "./option.ts";
 
-export type { HeatmapMatrix } from "./option.ts";
-
 export interface HeatmapProps {
   readonly matrix: HeatmapMatrix;
   /** The chart's accessible name AND its visible heading. */

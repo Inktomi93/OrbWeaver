@@ -14,8 +14,6 @@ import type { ScatterSeries } from "./option.ts";
 import { buildScatterOption, pointId } from "./option.ts";
 import { scatterLegendVariants } from "./variants.ts";
 
-export type { ScatterPoint, ScatterSeries } from "./option.ts";
-
 export interface ScatterProps {
   /** Points pre-grouped into categories — each takes a `useChartTheme().palette` stop by index. */
   readonly series: readonly ScatterSeries[];

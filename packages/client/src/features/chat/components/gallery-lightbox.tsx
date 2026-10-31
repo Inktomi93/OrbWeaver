@@ -7,7 +7,7 @@ import { blobUrl } from "@orb/contracts/assets";
 import { Button } from "@orb/ui/button";
 import { CrossfadeImage } from "@orb/ui/crossfade-image";
 import { DialogClose } from "@orb/ui/dialog";
-import { Icon, Trash2 } from "@orb/ui/icons";
+import { Icon, Trash } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement, RefObject } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -124,7 +124,7 @@ export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled
           {removal === undefined ? null : (
             <Row justify="start" align="center" className="shrink-0">
               <Button tone="destructive" onClick={(): void => setConfirmOpen(true)}>
-                <Icon icon={Trash2} size="sm" />
+                <Icon icon={Trash} size="sm" />
                 Remove from gallery
               </Button>
             </Row>

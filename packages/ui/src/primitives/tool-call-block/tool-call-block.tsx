@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { cn } from "#lib";
 import { Badge } from "#primitives/badge";
-import { AlertTriangle, Check, Icon } from "#primitives/icons";
+import { Check, Icon, TriangleAlert } from "#primitives/icons";
 import { toolCallBlockVariants } from "./variants.ts";
 
 // ui-local structural mirror of @orb/contracts/chat's ToolCallRecord — ui never imports contracts.
@@ -68,7 +68,7 @@ export function ToolCallBlock({ record, defaultOpen, className }: ToolCallBlockP
         <span aria-live="polite" className={slots.status()} data-slot="tool-call-block-status">
           {state === "error" ? (
             <Badge tone="destructive" variant="solid">
-              <Icon icon={AlertTriangle} size="xs" /> Error
+              <Icon icon={TriangleAlert} size="xs" /> Error
             </Badge>
           ) : null}
           {state === "unexecuted" ? <Badge>Requested, not run</Badge> : null}
