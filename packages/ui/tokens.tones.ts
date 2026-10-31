@@ -96,10 +96,14 @@ export function toneModel(contract: TokenContractResult): ToneModel {
     if (token.derived === null || typeof token.value !== "string") {
       return [];
     }
-    const { colored, neutral, floor, pageInks } = token.derived;
+    const { colored, neutral, floor, pageInks, neutralPageInks } = token.derived;
     const recipe: Recipe = {
       colored: typeof colored === "string" ? colored : stepOf(colored),
-      neutral: neutral === undefined ? { bind: hostOf(token.value) } : { bind: hostOf(token.value), step: stepOf(neutral) },
+      neutral: {
+        bind: hostOf(token.value),
+        ...(neutral === undefined ? {} : { step: stepOf(neutral) }),
+        pageInks: (neutralPageInks ?? []).map(hostOf),
+      },
       floor: (floor ?? []).map(floorSurface),
       pageInks: (pageInks ?? []).map(hostOf),
     };

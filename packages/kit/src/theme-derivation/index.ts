@@ -726,7 +726,8 @@ export function rampDeltas(base: Oklch): RampDeltas {
     surfaceRaised: contrastSafeRampDelta(base, arm.surfaceRaised, polarity),
     card: contrastSafeRampDelta(base, arm.card, polarity),
     popover: contrastSafeRampDelta(base, arm.popover, polarity),
-    accent: accentFamilyDelta(base, arm.accent, muted),
+    // The strongest tint a page ink can still sit on: the family retraction first, then the same bound the other members take.
+    accent: contrastSafeRampDelta(base, accentFamilyDelta(base, arm.accent, muted), polarity),
     sidebarAccent: arm.sidebarAccent,
     secondary: contrastSafeRampDelta(base, arm.secondary, polarity),
     muted,
@@ -1012,7 +1013,7 @@ export type ToneFloorSurface<Role extends string, Host extends string> = { reado
 export interface ToneRoleRecipe<Role extends string, Knob extends string, Host extends string> {
   readonly colored: ColoredToneOrigin | ToneMixStep<Knob>;
   /** The neutral tone binds the derived ramp (D202 keeps its inks solved); a step mixes that host further. */
-  readonly neutral: { readonly bind: Host; readonly step?: ToneMixStep<Knob> };
+  readonly neutral: { readonly bind: Host; readonly step?: ToneMixStep<Knob>; readonly pageInks: readonly Host[] };
   readonly floor: readonly ToneFloorSurface<Role, Host>[];
   /**
    * Page-family host inks a colored tone's role carries at the text floor: a selected row, an active tab or a compare panel
@@ -1030,9 +1031,11 @@ function roleFloors<Role extends string, Knob extends string, Host extends strin
   tone: ToneSource,
   palette: TonePalette<Host>,
 ): readonly ToneFloorSurface<Role, Host>[] {
-  return tone === "neutral" || palette.carriesPageInks === false
-    ? recipe.floor
-    : [...recipe.floor, ...recipe.pageInks.map((host) => ({ host: palette.hostInks?.[host] ?? host }))];
+  if (palette.carriesPageInks === false) {
+    return recipe.floor;
+  }
+  const inks = tone === "neutral" ? recipe.neutral.pageInks : recipe.pageInks;
+  return [...recipe.floor, ...inks.map((host) => ({ host: palette.hostInks?.[host] ?? host }))];
 }
 
 export type ToneRoleRecipes<Role extends string, Knob extends string, Host extends string> = Readonly<Record<Role, ToneRoleRecipe<Role, Knob, Host>>>;
@@ -1111,7 +1114,15 @@ function carriedMutedForegroundPair(base: Oklch): MutedForegroundPair {
   const deltas = rampDeltas(base);
   const card = rampSurface(base, deltas.card);
   const popover = rampSurface(base, deltas.popover);
-  const hosts = [base, card, popover, rampSurface(base, deltas.sidebar), rampSurface(base, deltas.secondary), rampSurface(base, deltas.muted)];
+  const hosts = [
+    base,
+    card,
+    popover,
+    rampSurface(base, deltas.sidebar),
+    rampSurface(base, deltas.secondary),
+    rampSurface(base, deltas.muted),
+    rampSurface(base, deltas.accent),
+  ];
   return derivedMutedForegroundPair(base, hosts, [base, card, popover]);
 }
 
