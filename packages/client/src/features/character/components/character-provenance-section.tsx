@@ -1,6 +1,6 @@
 // The read-only tail of the Advanced tab — none of this is a form field. Provenance (import metadata)
 // renders muted rows only when non-null; unrecognized data (extensions/residualData) is a collapsed
-// read-only JSON viewer; refinery `{score, analysis}` is a derived stat-figure readout.
+// read-only JSON viewer; refinery `{score}` is a derived stat-figure readout.
 
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -8,10 +8,9 @@ import { StatFigure } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 
-/** The derived refinery signals (a numeric quality score + an opaque analysis blob), or null. */
+/** The derived refinery signal the readout shows (a numeric quality score), or null. */
 interface CharacterRefinery {
   readonly score: number | null;
-  readonly analysis: Record<string, unknown> | null;
 }
 
 export interface CharacterProvenanceSectionProps {

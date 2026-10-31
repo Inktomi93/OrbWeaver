@@ -36,7 +36,6 @@ const NO_FRAMING: TreeUploadFraming = { perUpload: 0, perFile: () => 0 };
 
 /** One picked file the plan will not send, with the reason the preflight and the summary print. */
 export interface SkippedTreeFile {
-  readonly path: string;
   readonly reason: string;
 }
 
@@ -44,9 +43,8 @@ export interface TreeImportPlan {
   /** The uploads, in send order. Each is a complete import on its own. */
   readonly batches: readonly (readonly File[])[];
   readonly skipped: readonly SkippedTreeFile[];
-  /** Files and bytes the batches carry (a file repeated across uploads counts once). */
+  /** Files the batches carry (a file repeated across uploads counts once). */
   readonly files: number;
-  readonly bytes: number;
   /** The layout every upload declares, or null when each upload is recognized on its own. */
   readonly layout: TreeLayoutDeclaration | null;
 }
@@ -147,19 +145,12 @@ function packerFor(caps: TreeImportCaps, framing: TreeUploadFraming, always: rea
   );
 }
 
-/** The finished uploads, with each rejected file joining `skipped` and the files and bytes the uploads carry
+/** The finished uploads, with each rejected file joining `skipped` and the files the uploads carry
  *  counted once each (shared files repeat across uploads). */
 function finishPlan(packer: UploadPacker<PlannedFile>, skipped: SkippedTreeFile[]): Omit<TreeImportPlan, "layout"> {
   const { batches, rejected } = packer.finish();
-  for (const f of rejected) {
-    skipped.push({ path: f.path, reason: OVER_UPLOAD_CAP_REASON });
-  }
-  const sent = new Set(batches.flat());
-  let bytes = 0;
-  for (const file of sent) {
-    bytes += file.size;
-  }
-  return { batches, skipped, files: sent.size, bytes };
+  skipped.push(...rejected.map(() => ({ reason: OVER_UPLOAD_CAP_REASON })));
+  return { batches, skipped, files: new Set(batches.flat()).size };
 }
 
 /** A greedy split in the given order; an over-cap file joins `skipped`. */
@@ -172,7 +163,7 @@ function packGeneric(
   const packer = packerFor(caps, framing, []);
   for (const f of planned) {
     if (f.file.size > caps.fileBytes) {
-      skipped.push({ path: f.path, reason: OVER_FILE_CAP_REASON });
+      skipped.push({ reason: OVER_FILE_CAP_REASON });
       continue;
     }
     packer.add([], [f]);
@@ -199,7 +190,7 @@ function planGeneric(picked: readonly PlannedFile[], caps: TreeImportCaps, frami
     return { ...whole, layout: null };
   }
   const nativeEntry = (f: PlannedFile): boolean => admitTreeBatch([f.path], "orb").kind === "orb";
-  const outside = planned.filter((f) => !nativeEntry(f)).map((f) => ({ path: f.path, reason: UNHANDLED_FALLBACK }));
+  const outside = planned.filter((f) => !nativeEntry(f)).map(() => ({ reason: UNHANDLED_FALLBACK }));
   return { ...packGeneric(planned.filter(nativeEntry), caps, framing, outside), layout: "orb" };
 }
 
@@ -283,7 +274,7 @@ function classifySt(planned: readonly PlannedFile[], caps: TreeImportCaps): StCl
     const role = roleOf(f, caps);
     switch (role.kind) {
       case "skip":
-        out.skipped.push({ path: f.path, reason: role.reason });
+        out.skipped.push({ reason: role.reason });
         break;
       case "shared":
         out.shared.push(f);

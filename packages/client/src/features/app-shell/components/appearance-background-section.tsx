@@ -19,8 +19,10 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import type { MediaGridItem } from "@orb/ui/media-grid";
 import { MediaGrid } from "@orb/ui/media-grid";
 import { Text } from "@orb/ui/text";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#components";
+import type { Trpc } from "#data";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
@@ -33,11 +35,7 @@ import { ExternalBackgroundField } from "./external-background-field.tsx";
 
 type BackgroundForm = Pick<AppearanceSettings, (typeof APPEARANCE_BACKGROUND_KEYS)[number]>;
 
-interface UpdateBackgroundVars {
-  readonly section: "appearance";
-  readonly patch: BackgroundForm;
-}
-const useUpdateBackground = createEntityMutation<UpdateBackgroundVars, unknown>({
+const useUpdateBackground = createEntityMutation<inferInput<Trpc["settings"]["updateUserSettingsSection"]>, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
   errorToast: "Couldn't save your background settings.",

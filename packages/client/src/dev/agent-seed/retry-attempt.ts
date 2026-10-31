@@ -1,10 +1,9 @@
 import type { ChatId } from "@orb/kit/ids";
-import type { SeedProfile } from "../../lib/agent-bridge.ts";
+import type { OrbSeedHandle, SeedProfile } from "../../lib/agent-bridge.ts";
 
 type SeedStep = () => Promise<void>;
-interface GameSeedResult {
-  readonly chatId: ChatId;
-}
+// What `__orb.seed.game` resolves with: the handle's own result, which snap and browser agents read.
+type GameSeedResult = Awaited<ReturnType<OrbSeedHandle["game"]>>;
 
 function assertSeedMatches(expectedProfile: SeedProfile, expectedTitle: string, profile: SeedProfile, title: string): void {
   if (expectedProfile !== profile || expectedTitle !== title) {

@@ -25,8 +25,10 @@ import { Card } from "@orb/ui/card";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import { Text } from "@orb/ui/text";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
+import type { Trpc } from "#data";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { CAPPED_FIELD_MAX_ROWS } from "#forms";
 import type { AutosaveSession } from "#forms/editor";
@@ -43,13 +45,8 @@ import {
 /** The form bag + the patch shape as LOCAL aliases off the model's own return types (D120: an exported
  *  patch/form alias is `no-inline-types` RED — the shape has ONE home, the function that builds it). */
 type ProseForm = ReturnType<typeof projectProseForm>;
-type ProsePatch = ReturnType<typeof toProsePatch>;
 
-interface UpdateProseVars {
-  readonly section: "prose";
-  readonly patch: ProsePatch;
-}
-const useUpdateProse = createEntityMutation<UpdateProseVars, unknown>({
+const useUpdateProse = createEntityMutation<inferInput<Trpc["settings"]["updateUserSettingsSection"]>, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
   errorToast: "Couldn't save your prose overrides.",

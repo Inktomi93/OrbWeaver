@@ -1,5 +1,6 @@
 // What lies above and below one transcript row, for the host's Move up / Move down arrows.
 
+import type { TranscriptEdges } from "../components/transcript-window.tsx";
 import { MESSAGE_MOVE_DOWN_UNAVAILABLE, MESSAGE_MOVE_GENERATING, MESSAGE_MOVE_LOADING, MESSAGE_MOVE_UP_UNAVAILABLE } from "./message-action-names.ts";
 
 /** A seq is the loaded neighbour's; `beyond*` says canon continues past the loaded rows (the paging query's own
@@ -16,11 +17,7 @@ export interface MoveNeighbours {
 export const NO_MOVE_NEIGHBOURS: MoveNeighbours = { previousSeq: null, nextSeq: null, beyondAbove: false, beyondBelow: false, settling: false };
 
 /** The neighbours of `at` in the loaded, seq-ordered rows. Only the first and last loaded rows can have canon beyond them. */
-export function moveNeighboursAt(
-  rows: readonly { readonly seq: number }[],
-  at: number,
-  edges: { readonly earlier: boolean; readonly later: boolean; readonly settling: boolean },
-): MoveNeighbours {
+export function moveNeighboursAt(rows: readonly { readonly seq: number }[], at: number, edges: TranscriptEdges): MoveNeighbours {
   if (at < 0) {
     return NO_MOVE_NEIGHBOURS;
   }

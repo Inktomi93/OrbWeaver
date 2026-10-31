@@ -62,7 +62,6 @@ const AMBIENT_STUBS = `
 
 export interface GuestState {
   readonly ctx: QuickJSContext;
-  readonly log: LogRing;
   /** The realm's PRISTINE `JSON.parse`, captured before any guest code ran — the inbound host-result channel. */
   readonly jsonParse: QuickJSHandle;
   /** The guest's `onEvent` handler, if it registered one. Owned for the worker's lifetime. */

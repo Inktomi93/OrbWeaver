@@ -12,8 +12,10 @@
 // owns containment + focus).
 
 import { Row, Section, Stack } from "@orb/ui/layout";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
+import type { Trpc } from "#data";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
@@ -31,11 +33,7 @@ import {
 } from "../lib/databank-settings-model.ts";
 import { DATABANK_SETTINGS_SUBCATEGORY } from "../lib/databank-settings-section-nav.ts";
 
-interface UpdateDatabankVars {
-  readonly section: "databank";
-  readonly patch: Record<string, unknown>;
-}
-const useUpdateDatabank = createEntityMutation<UpdateDatabankVars, unknown>({
+const useUpdateDatabank = createEntityMutation<inferInput<Trpc["settings"]["updateUserSettingsSection"]>, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
   errorToast: "Couldn't save your databank settings.",
