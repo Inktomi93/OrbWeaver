@@ -15,7 +15,7 @@ const STORY = "tests/client/features/plugin/components/_consent-layout-stories/P
 const FRAME_TITLE = "Scale witness — Frame preferences";
 const { min: MIN_SCALE, max: MAX_SCALE } = FONT_SCALE;
 // A scale no stored setting can hold, written straight onto the root: the frame must stop at the bound.
-const PLANTED_SCALE = 3;
+const PLANTED_SCALE = MAX_SCALE + 1;
 const FIXED_BOX_PX = 800;
 const FRAME_HTML = `<p id="rem" style="font-size:1rem;margin:0">rem text</p><p id="px" style="font-size:16px;margin:0">px text</p><div id="box" style="width:${String(FIXED_BOX_PX)}px;height:20px"></div>`;
 const PLUGIN_READS = [

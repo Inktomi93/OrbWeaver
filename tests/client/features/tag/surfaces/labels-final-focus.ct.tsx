@@ -1,4 +1,6 @@
 // A Labels prune or delete removes the control that opened its confirm, so the close must land on the finder root.
+
+import { ROW_DELETE_NAME } from "@orb/client/lib";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -56,9 +58,9 @@ for (const pointer of POINTERS) {
     await showUnused(page);
 
     await press(page.getByRole("button", { name: `Actions for ${UNUSED}`, exact: true }), pointer);
-    await press(page.getByRole("menuitem", { name: "Delete" }), pointer);
+    await press(page.getByRole("menuitem", { name: ROW_DELETE_NAME }), pointer);
     const confirm = page.getByRole("alertdialog");
-    await press(confirm.getByRole("button", { name: "Delete", exact: true }), pointer);
+    await press(confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }), pointer);
     await expect(confirm).toHaveCount(0);
     await expect(page.locator('[data-slot="labels-finder"]')).toBeFocused();
   });

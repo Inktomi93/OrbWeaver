@@ -1,15 +1,17 @@
 // The topbar, the room and the character Import dialog on the production shell at enlarged text: 200% (WCAG 1.4.4 text
 // resize) and 300% layout, at the phone and desktop viewports, on Chromium and the opt-in WebKit project. The appearance
-// setting stops at 1.5, so these scales are the root multiplier the writer carries; `:root { font-size }` multiplies it the
+// setting is bounded by `FONT_SCALE`, so these scales are the root multiplier the writer carries; `:root { font-size }` multiplies it the
 // same way, but a `rem` inside a media query stays at the platform default, so a browser whose own default is 200% would
 // also flip the shell regime. Only the combinations that hold are listed in QUALIFIED; the rest are open defects on the board.
-import { APPEARANCE_CHANNEL_ROWS } from "@orb/client/lib";
+
+import { contextToggleLabel } from "@orb/client/lib";
 import type { CharacterId } from "@orb/kit/ids";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { AppShellCharacterStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { PlantedControlsStory } from "./_text-scale-probe-stories.tsx";
 import { routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -21,7 +23,7 @@ const NARROW = { name: "narrow phone", touch: true, size: { width: 320, height: 
 const DESKTOP = { name: "desktop", touch: false, size: { width: 1440, height: 900 } } as const;
 const TEXT_200 = { name: "200% text", factor: 2 } as const;
 const LAYOUT_300 = { name: "300% layout", factor: 3 } as const;
-const FONT_SCALE_PROPERTY = APPEARANCE_CHANNEL_ROWS.find((row) => row.key === "fontScale")?.name ?? "";
+const FONT_SCALE_PROPERTY = channelName("fontScale");
 // Layout rounding can read a box a fraction past its container with nothing clipped; a one-pixel box is a screen-reader span.
 const SUBPIXEL = 1;
 const REACHABLE =
@@ -230,7 +232,7 @@ for (const [viewport, scale] of QUALIFIED.contextHeader) {
       await mount<typeof AppShellCharacterStory>(`${SHELL_STORIES}/AppShellCharacterStory`, { characterId: await firstCharacterId() });
       await scaleRoot(page, scale.factor);
       const toggle = page.getByRole("button", { name: /^(?:Show|Hide) details$/u });
-      if ((await toggle.getAttribute("aria-label")) === "Show details") {
+      if ((await toggle.getAttribute("aria-label")) === contextToggleLabel(true)) {
         await toggle.click();
       }
       await expect(page.locator(".shell-panel[data-panel-side='context'] [data-slot='context-bracket-header']")).toBeVisible();

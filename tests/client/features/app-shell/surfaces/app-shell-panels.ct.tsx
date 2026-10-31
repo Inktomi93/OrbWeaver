@@ -1,6 +1,8 @@
 // The shell's LIST and CONTEXT panes on the production section registry: each section's pane capability, the
 // width regimes and the content-primacy crossover, the overlay sheets and their dismissals, the landmarks and the
 // skip, focus around the panes, and the both-docked squeeze, all read off the rendered grid.
+
+import { contextToggleLabel } from "@orb/client/lib";
 import { persistedOverrides, resolvedLength, seedShellState, shellTracks } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -203,7 +205,7 @@ test.describe("on a wide desktop", () => {
         }
       }).observe(aside, { attributes: true, attributeFilter: ["data-panel-mode"], childList: true, subtree: true });
     }, CONTEXT);
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     await expect(context.locator(".shell-panel-body")).not.toBeEmpty();
     await expect
       .poll(() =>
@@ -226,12 +228,12 @@ test.describe("on a wide desktop", () => {
     await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
     await expect(context.locator(".shell-panel-body")).toBeEmpty();
     await forceConstrained(page);
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     // At CONTENT's floor the first click already yields the transient sheet, never a dock that then vanishes.
     await expect(context).toHaveAttribute("data-panel-mode", "overlay");
     await expect(context.locator(".shell-panel-body")).not.toBeEmpty();
     const chatsBody = await context.locator(".shell-panel-body").innerHTML();
-    await page.getByRole("button", { name: "Hide details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).click();
     await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
     await openSection(page, "Presets", "presets");
     await expect(context.locator(".shell-panel-body")).not.toBeEmpty();
@@ -358,7 +360,7 @@ test.describe("on a wide desktop", () => {
     await expect(band.getByRole("button", { name: "Import a character card", exact: true })).toHaveCount(1);
     await expect(band.locator('[data-slot="list-pane-title"]')).toContainText(/\d/u);
     const squeezed = await read();
-    await page.getByRole("button", { name: "Hide details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).click();
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "collapsed");
     await expect.poll(async () => (await read()).width).toBeGreaterThan(squeezed.width);
     const single = await read();
@@ -395,7 +397,7 @@ test.describe("on a wide desktop", () => {
     expect(wideContent).toBeGreaterThan(await resolvedLength(page, "var(--dimension-content-reading-floor)"));
 
     await page.setViewportSize({ width: 1360, height: 900 });
-    await page.getByRole("button", { name: "Hide details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).click();
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "collapsed");
     const [, list = 0, , context = 0] = await shellTracks(page);
     expect(list).toBeCloseTo(await resolvedLength(page, "var(--panel-w)"), 0);
@@ -516,7 +518,7 @@ test.describe("across the width regimes", () => {
       await page.setViewportSize({ width: crossover.constrained, height: 900 });
       await expect(list).toHaveAttribute("data-panel-mode", "docked");
       await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
-      await page.getByRole("button", { name: "Show details", exact: true }).click();
+      await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
       await expect(context).toHaveAttribute("data-panel-mode", "overlay");
       await page.keyboard.press("Escape");
       await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
@@ -587,9 +589,9 @@ test.describe("across the width regimes", () => {
     await expect(list).toHaveAttribute("data-panel-mode", "collapsed");
     await expect(scrim).toHaveAttribute("data-visible", "false");
     // A collapsed-default pane opens on the first click too, not after a dead one.
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "overlay");
-    await page.getByRole("button", { name: "Hide details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).click();
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "collapsed");
     expect(await persistedOverrides(page)).toEqual(before);
   });
@@ -602,11 +604,11 @@ test.describe("across the width regimes", () => {
     await page.locator(".shell-scrim").click();
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "collapsed");
     await expect(page.getByRole("button", { name: "Show list panel", exact: true })).toBeFocused();
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "overlay");
     await page.locator(".shell-scrim").click();
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "collapsed");
-    await expect(page.getByRole("button", { name: "Show details", exact: true })).toBeFocused();
+    await expect(page.getByRole("button", { name: contextToggleLabel(true), exact: true })).toBeFocused();
   });
 
   test("Escape closes the list sheet and the context sheet, from the toggle or from inside the sheet, writing no override", async ({ mount, page }) => {
@@ -619,11 +621,11 @@ test.describe("across the width regimes", () => {
     await page.keyboard.press("Escape");
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "collapsed");
     const context = page.locator(CONTEXT);
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     await expect(context).toHaveAttribute("data-panel-mode", "overlay");
     await page.keyboard.press("Escape");
     await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     await expect(context).toHaveAttribute("data-panel-mode", "overlay");
     await context.focus();
     await page.keyboard.press("Escape");
@@ -634,7 +636,7 @@ test.describe("across the width regimes", () => {
   test("the scrim is never a Tab stop while a sheet is up", async ({ mount, page }) => {
     await page.setViewportSize(NARROW_DESKTOP);
     await mount<typeof AppShellStory>(STORY, {});
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     const scrim = page.locator(".shell-scrim");
     await expect(scrim).toHaveAttribute("data-visible", "true");
     // The positive control: the walk does reach the sheet's dismiss, so the scrim had every chance to be a stop.
@@ -671,11 +673,11 @@ test.describe("across the width regimes", () => {
     const context = page.locator(CONTEXT);
     const band = context.locator(".shell-panel-header");
     const edges = async (): Promise<{ ember: boolean; rule: boolean }> => insetEdges(await band.evaluate((element) => getComputedStyle(element).boxShadow));
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     await expect(context).toHaveAttribute("data-panel-mode", "docked");
     await expect.poll(async () => (await edges()).ember).toBe(true);
     await page.setViewportSize(NARROW_DESKTOP);
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     await expect(context).toHaveAttribute("data-panel-mode", "overlay");
     await expect.poll(async () => (await edges()).ember).toBe(false);
     expect((await edges()).rule).toBe(true);
@@ -685,28 +687,28 @@ test.describe("across the width regimes", () => {
     await page.setViewportSize(NARROW_DESKTOP);
     await mount<typeof AppShellStory>(STORY, {});
     const context = page.locator(CONTEXT);
-    const toggle = page.getByRole("button", { name: "Show details", exact: true });
+    const toggle = page.getByRole("button", { name: contextToggleLabel(true), exact: true });
     await toggle.focus();
     await toggle.press("Enter");
     await expect(context).toHaveAttribute("data-panel-mode", "overlay");
     await expect(context).toBeFocused();
     await expect.poll(() => context.evaluate((element) => element.matches(":focus-visible"))).toBe(true);
     await expect(context).toHaveCSS("outline-style", "none");
-    await page.getByRole("button", { name: "Hide details", exact: true }).press("Enter");
+    await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).press("Enter");
     await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
-    await expect(page.getByRole("button", { name: "Show details", exact: true })).toBeFocused();
+    await expect(page.getByRole("button", { name: contextToggleLabel(true), exact: true })).toBeFocused();
   });
 
   test("a docked context pane has no close of its own: its edge control closes it and keeps focus, never the page body", async ({ mount, page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await mount<typeof AppShellStory>(STORY, {});
     const context = page.locator(CONTEXT);
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     await expect(context).toHaveAttribute("data-panel-mode", "docked");
     await expect(context.getByRole("button", { name: CONTEXT_SHEET_CLOSE })).toHaveCount(0);
-    await page.getByRole("button", { name: "Hide details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).click();
     await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
-    await expect(page.getByRole("button", { name: "Show details", exact: true })).toBeFocused();
+    await expect(page.getByRole("button", { name: contextToggleLabel(true), exact: true })).toBeFocused();
   });
 });
 
@@ -744,7 +746,7 @@ test.describe("the context carry across a list flip", () => {
     await forceConstrained(page);
     await contextToggle.click();
     await expect(context).toHaveAttribute("data-panel-mode", "overlay");
-    await page.getByRole("button", { name: "Hide details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).click();
     await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
     await listToggle.click();
     await expect(list).toHaveAttribute("data-panel-mode", "collapsed");
@@ -770,7 +772,7 @@ test.describe("the context carry across a list flip", () => {
     await listToggle.click();
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
     await expect(context).toHaveAttribute("data-panel-mode", "overlay");
-    await page.getByRole("button", { name: "Hide details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).click();
     await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
     await listToggle.click();
     await expect(list).toHaveAttribute("data-panel-mode", "collapsed");

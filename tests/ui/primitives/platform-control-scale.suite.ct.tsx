@@ -79,6 +79,19 @@ for (const coarse of [false, true]) {
   });
 }
 
+test("a square Button stamps its box beside its step, apart from a text Button of that step", async ({ mount }) => {
+  const component = await mount<typeof ControlScaleStory>(STORY, {});
+  for (const step of CONTROL_SIZES) {
+    const row = component.locator(`[data-step="${step}"]`);
+    const square = row.getByRole("button", { name: `Add ${step}`, exact: true });
+    const text = row.getByRole("button", { name: "Save", exact: true });
+    await expect(square).toHaveAttribute("data-size", step);
+    await expect(text).toHaveAttribute("data-size", step);
+    await expect(square).toHaveAttribute("data-square", "true");
+    await expect(text).toHaveAttribute("data-square", "false");
+  }
+});
+
 test("a control planted at a foreign step reads as a second height", async ({ mount }) => {
   const component = await mount<typeof PlantedStepStory>(PLANTED, { odd: "md" });
   const { distinct, token } = await readRow(component.locator('[data-step="sm"]'), TOKENS[STEP_TOKEN.sm].cssVar);

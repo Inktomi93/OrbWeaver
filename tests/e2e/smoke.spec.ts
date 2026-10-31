@@ -18,6 +18,7 @@ import { START_TEMP_CHAT_NAME } from "@orb/client/lib";
 import { chatDetailSchema } from "@orb/contracts/chat";
 import { documentDetailViewSchema } from "@orb/contracts/databank";
 import { corpusReadInput } from "@orb/testkit/iso";
+import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_CORPUS_FIXTURE, SINGLE_USER } from "./support/modes.ts";
 import { WAIT_SETTLE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
@@ -30,7 +31,7 @@ const HEALTHZ_URL = `${SINGLE_USER.backendUrl}/healthz`;
 const LOGIN_FIELD = /password|handle|username/u;
 // The app's one URL — what a section deep link must LAND on (#181).
 const APP_URL = /\/$/u;
-const APP_READY = "html[data-app-ready]";
+const APP_READY = `html[${APP_READY_ATTR}]`;
 // The not-found boundary's FAILURE-SURFACE DECLARE (`lib/app-failure-surface.tsx`) — what design-audit
 // reads to refuse a route that resolved to nothing (#1081).
 const NOT_FOUND_DECLARE = '[data-app-failure="not-found"]';

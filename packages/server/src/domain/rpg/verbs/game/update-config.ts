@@ -10,6 +10,7 @@ import type { RpgGameConfig, RpgGameFeatures, RpgStatProfile, RpgTrackerDef } fr
 import { applyRulesetVocabulary, RPG_CONFIG_MAX_TRACKERS, RPG_EXTRACTION_MODES, rpgGameConfigSchema } from "@orb/contracts/rpg";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { RpgGameId } from "@orb/kit/ids";
+import { RPG_OP_CODES } from "#src/domain/rpg/contract/op-codes.ts";
 import type { UpdateConfigParams } from "#src/domain/rpg/contract/params.ts";
 import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
 import { resolveHost } from "#src/domain/rpg/guard.ts";
@@ -44,19 +45,19 @@ function assertProfileCoherent(next: RpgStatProfile): void {
   const seen = new Set<string>();
   for (const attr of next.attributes) {
     if (seen.has(attr.key)) {
-      throw new DomainOperationError("rpg_profile_duplicate_attribute", `attribute key "${attr.key}" is declared twice`);
+      throw new DomainOperationError(RPG_OP_CODES.profileDuplicateAttribute, `attribute key "${attr.key}" is declared twice`);
     }
     seen.add(attr.key);
   }
   if (next.range.min > next.range.max) {
-    throw new DomainOperationError("rpg_profile_inverted_range", `range min ${next.range.min} exceeds max ${next.range.max}`);
+    throw new DomainOperationError(RPG_OP_CODES.profileInvertedRange, `range min ${next.range.min} exceeds max ${next.range.max}`);
   }
   for (const [field, key] of [
     ["defaultAttribute", next.defaultAttribute],
     ["perceptionAttribute", next.perceptionAttribute],
   ] as const) {
     if (key !== "" && !seen.has(key)) {
-      throw new DomainOperationError("rpg_profile_dangling_attribute", `${field} names undeclared attribute "${key}"`);
+      throw new DomainOperationError(RPG_OP_CODES.profileDanglingAttribute, `${field} names undeclared attribute "${key}"`);
     }
   }
 }
@@ -67,12 +68,12 @@ function assertProfileCoherent(next: RpgStatProfile): void {
  *  {@link assertProfileCoherent} — a write-door refusal, never a parse-on-read bound. */
 function assertTrackersCoherent(trackers: readonly RpgTrackerDef[]): void {
   if (trackers.length > RPG_CONFIG_MAX_TRACKERS) {
-    throw new DomainOperationError("rpg_too_many_trackers", `${trackers.length} trackers exceeds the cap of ${RPG_CONFIG_MAX_TRACKERS}`);
+    throw new DomainOperationError(RPG_OP_CODES.tooManyTrackers, `${trackers.length} trackers exceeds the cap of ${RPG_CONFIG_MAX_TRACKERS}`);
   }
   const seen = new Set<string>();
   for (const def of trackers) {
     if (seen.has(def.key)) {
-      throw new DomainOperationError("rpg_duplicate_tracker_key", `tracker key "${def.key}" is defined twice`);
+      throw new DomainOperationError(RPG_OP_CODES.duplicateTrackerKey, `tracker key "${def.key}" is defined twice`);
     }
     seen.add(def.key);
   }
@@ -87,14 +88,14 @@ async function assertProfileMutable(ctx: RpgContext, gameId: RpgGameId, next: Rp
   // A skill governing a now-removed attribute is a self-reference dangling — refuse it.
   for (const [skill, attr] of Object.entries(next.skillGoverning)) {
     if (!nextKeys.has(attr)) {
-      throw new DomainOperationError("rpg_profile_dangling_skill", `skill "${skill}" governs removed attribute "${attr}"`);
+      throw new DomainOperationError(RPG_OP_CODES.profileDanglingSkill, `skill "${skill}" governs removed attribute "${attr}"`);
     }
   }
   const sheets = await listSheets(ctx.db, gameId);
   for (const sheet of sheets) {
     for (const key of Object.keys(sheet.sheet.attributes)) {
       if (!nextKeys.has(key)) {
-        throw new DomainOperationError("rpg_profile_referenced_remove", `attribute "${key}" is still referenced by a sheet`);
+        throw new DomainOperationError(RPG_OP_CODES.profileReferencedRemove, `attribute "${key}" is still referenced by a sheet`);
       }
     }
   }
@@ -192,7 +193,7 @@ export function createUpdateConfig(ctx: RpgContext): Pick<RpgService, "updateCon
     await ctx.claimChat(params.chatId);
 
     if (params.extractionMode !== undefined && !(RPG_EXTRACTION_MODES as readonly string[]).includes(params.extractionMode)) {
-      throw new DomainOperationError("rpg_invalid_extraction_mode", `unknown extractionMode "${params.extractionMode}"`);
+      throw new DomainOperationError(RPG_OP_CODES.invalidExtractionMode, `unknown extractionMode "${params.extractionMode}"`);
     }
 
     const nextProfile = params.patch?.statProfile;

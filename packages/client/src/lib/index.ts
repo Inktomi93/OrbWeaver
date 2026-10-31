@@ -5,6 +5,7 @@
 // grammar homes at the lowest package that spells it and rides this barrel for client callers + tests.
 export { cn, removeActionName, selectActionName } from "@orb/ui/lib";
 export { AppFailureSurface } from "./app-failure-surface.tsx";
+export { APP_READY_ATTR } from "./app-ready-attribute.ts";
 export {
   APPEARANCE_ATTRIBUTE_PREFIX,
   APPEARANCE_CHANNEL_ROWS,
@@ -53,6 +54,7 @@ export {
   utilityReadsImages,
 } from "./connection-roles.ts";
 export { CONSOLE_STYLES } from "./console-styles.ts";
+export { contextToggleLabel } from "./context-toggle-label.ts";
 export type {
   CharacterDetailContribution,
   CharacterDetailState,
@@ -213,6 +215,7 @@ export { RenderProfiler } from "./render-profiler.tsx";
 export type { RowRenderPolicy } from "./render-trust.ts";
 export { DEPLOYMENT_FLOOR, resolveRowRenderPolicy } from "./render-trust.ts";
 export { dataThemeOf, isSeedThemeName, resolveThemeScopeTokens, type SeedThemeName } from "./resolve-theme-scope-tokens.ts";
+export { ROW_DELETE_NAME, ROW_RENAME_NAME } from "./row-menu-names.ts";
 export {
   chatWithActionName,
   duplicateActionName,

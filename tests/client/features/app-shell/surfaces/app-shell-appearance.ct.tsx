@@ -2,6 +2,7 @@
 // panes, the dials it stamps on the root, the remembered boot hint, and what survives a handover to the pending mark.
 
 import { crc32, deflateSync } from "node:zlib";
+import { contextToggleLabel } from "@orb/client/lib";
 import type { StoredAsset } from "@orb/contracts/assets";
 import { BLOB_ROUTE } from "@orb/contracts/assets";
 import { CSRF_HEADER } from "@orb/contracts/identity";
@@ -481,7 +482,7 @@ test.describe("glass and elevation", () => {
     await expect.poll(() => carrierBlur(page.locator(LIST))).toContain("blur(");
     await expect.poll(() => carrierBlur(page.locator(CONTEXT))).toContain("saturate(");
 
-    await page.getByRole("button", { name: "Hide details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).click();
     await page.getByRole("button", { name: "Hide list panel", exact: true }).click();
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "collapsed");
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "collapsed");

@@ -111,16 +111,9 @@ test("the sidebar focus ring offsets into the sidebar fill, and the rail marks o
   expect(await style(resting, "border-inline-start-color")).toBe(await probe(root, "transparent", "color"));
 });
 
-test("the float, inset, plate, pill and bubble shapes keep their radius and inset in and out of a tier", async ({ mount }) => {
+test("the bubble shape keeps its radius and inset in and out of a tier", async ({ mount }) => {
   const root = await mount<typeof CardFinishStory>(`${STORIES}/CardFinishStory`, {});
   const radius = "border-start-start-radius";
-  for (const name of ["float", "tier-float"]) {
-    expect(await style(kase(root, name), radius), name).toBe(await probe(root, "radius-card", radius));
-    expect(await style(kase(root, name), "padding-block-start"), name).toBe(await probe(root, "radius-card", "padding-block-start"));
-  }
-  expect(await style(kase(root, "inset"), radius)).toBe(await probe(root, "radius-inset", radius));
-  expect(await style(kase(root, "plate"), "border-block-start-width")).toBe("0px");
-  expect(await style(kase(root, "pill"), radius)).toBe(await probe(root, "radius-full", radius));
   for (const name of ["bubble", "tier-bubble"]) {
     expect(await style(kase(root, name), radius), name).toBe(await probe(root, "radius-card", radius));
     expect(await style(kase(root, name), "padding-inline-start"), name).toBe(await probe(root, "bubble", "padding-inline-start"));
@@ -129,35 +122,19 @@ test("the float, inset, plate, pill and bubble shapes keep their radius and inse
   expect(await style(kase(root, "bubble"), "background-color")).toBe(await probe(root, "bubble", "background-color"));
 });
 
-test("each step-four Card surface paints its fill or edge from its token", async ({ mount }) => {
-  const root = await mount<typeof CardFinishStory>(`${STORIES}/CardFinishStory`, {});
-  await park(root);
-  expect(await style(kase(root, "sidebarEdge"), "border-block-start-color")).toBe(await probe(root, "sidebarEdge", "border-block-start-color"));
-  expect(await style(kase(root, "popover"), "background-color")).toBe(await probe(root, "popover", "background-color"));
-  expect(await style(kase(root, "popover"), "color")).toBe(await probe(root, "popover", "color"));
-});
-
-test("rail, presence, the field and drop states, focusable and ownSlot take their properties", async ({ mount }) => {
+test("rail, focusable and ownSlot take their properties", async ({ mount }) => {
   const root = await mount<typeof CardFinishStory>(`${STORIES}/CardFinishStory`, {});
   await park(root);
   expect(await style(kase(root, "rail"), "border-inline-start-width")).toBe("2px");
   expect(await style(kase(root, "rail"), "border-inline-start-color")).toBe(await probe(root, "primary", "border-block-start-color"));
-  expect(await style(kase(root, "presence-hidden"), "opacity")).toBe("0");
-  expect(await style(kase(root, "presence-hidden"), "pointer-events")).toBe("none");
-  expect(await style(kase(root, "presence-shown"), "opacity")).toBe("1");
-  expect(await style(kase(root, "drop-armed"), "border-block-start-color")).toBe(await probe(root, "primary", "border-block-start-color"));
-  await kase(root, "holds-field").hover();
-  await expect.poll(() => style(kase(root, "holds-field"), "background-color")).toBe(await probe(root, "muted", "background-color"));
   await expect(kase(root, "own-slot")).toHaveAttribute("data-slot", "named-hook");
-  await expect(kase(root, "float")).toHaveAttribute("data-slot", "card-root");
   const focusable = kase(root, "focusable");
   await focusable.focus();
   await expect.poll(() => style(focusable, "outline-style")).toBe("none");
 });
 
-test("an overlay card always lifts, an interactive card takes the glow elevation, and a static card takes none", async ({ mount }) => {
+test("an interactive card takes the glow elevation, and a static card takes none", async ({ mount }) => {
   const root = await mount<typeof CardFinishStory>(`${STORIES}/CardFinishStory`, {});
-  expect(await style(kase(root, "overlay"), "box-shadow")).not.toBe("none");
   expect(await style(kase(root, "glow-follow"), "box-shadow")).not.toBe("none");
   expect(await style(kase(root, "glow-none"), "box-shadow")).toBe("none");
 });

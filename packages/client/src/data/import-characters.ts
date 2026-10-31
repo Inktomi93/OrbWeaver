@@ -7,9 +7,9 @@
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { CardImportResult } from "@orb/contracts/import";
 import { cardImportResultSchema } from "@orb/contracts/import";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { throwHttpError } from "./http-error.ts";
 
-const IMPORT_URL = "/api/import";
 const IMPORT_FIELD = "file";
 
 export type { CardImportResult } from "@orb/contracts/import";
@@ -22,7 +22,7 @@ export async function importCharacters(files: readonly File[]): Promise<CardImpo
   for (const file of files) {
     form.append(IMPORT_FIELD, file);
   }
-  const response = await fetch(IMPORT_URL, {
+  const response = await fetch(PORTABILITY_ROUTES.importCards, {
     method: "POST",
     body: form,
     headers: { [CSRF_HEADER]: "1" },

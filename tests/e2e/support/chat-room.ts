@@ -27,6 +27,9 @@ import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
+import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
+import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
+import { ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
 import { streamTapOf, waitForRoomOpened } from "./stream-tap.ts";
 import { WAIT_SETTLE_MS, WAIT_SHORT_MS, WAIT_STREAM_MS, WAIT_SURFACE_MS } from "./timeouts.ts";
 
@@ -37,8 +40,7 @@ import { WAIT_SETTLE_MS, WAIT_SHORT_MS, WAIT_STREAM_MS, WAIT_SURFACE_MS } from "
 // (start-chat-with-character.spec.ts, commit b79cf0a871). The stale kebab→"Chat" menuitem flow is dead — this
 // client's row kebab ("Actions for <name>") carries only Archive/Duplicate/Delete, NO "Chat" item.
 const CHARACTER_ROW_CHAT_CTA = /^Chat with /u;
-const APP_READY_ATTRIBUTE = "data-app-ready";
-const APP_READY = `html[${APP_READY_ATTRIBUTE}]`;
+const APP_READY = `html[${APP_READY_ATTR}]`;
 const BOOTSTRAP_MESSAGE = "Hi";
 // Wait for the lazy Chats surface without replaying the navigation action.
 const CHAT_SURFACE_TIMEOUT = budget(45_000);
@@ -61,7 +63,7 @@ export function assistantRows(page: Page): ReturnType<Page["locator"]> {
 /** Wait for the app shell + its initial reads to settle (the app-ready idle signal). */
 export async function waitForAppReady(page: Page, timeout = 30_000): Promise<void> {
   try {
-    await expect(page.locator(APP_READY)).toHaveAttribute(APP_READY_ATTRIBUTE, "", { timeout });
+    await expect(page.locator(APP_READY)).toHaveAttribute(APP_READY_ATTR, "", { timeout });
   } catch (cause) {
     let diagnostic: string;
     try {
@@ -74,7 +76,7 @@ export async function waitForAppReady(page: Page, timeout = 30_000): Promise<voi
             [".plugin", ".message-body", ".file"].map((selector) => overlay.shadowRoot?.querySelector(selector)?.textContent ?? "").join(" "),
           ),
         }),
-        APP_READY_ATTRIBUTE,
+        APP_READY_ATTR,
       );
       diagnostic = JSON.stringify(state);
     } catch (captureFailure) {
@@ -242,7 +244,7 @@ export async function openUtilityMenu(page: Page): Promise<void> {
  *  round-trip so a subsequent reload reads DB truth, not an in-flight write. */
 export async function renameOpenChat(page: Page, title: string): Promise<void> {
   await openChatOptions(page);
-  await page.getByRole("menuitem", { name: "Rename" }).click();
+  await page.getByRole("menuitem", { name: ROW_RENAME_NAME }).click();
   const input = page.getByRole("textbox", { name: "Chat title" });
   await expect(input).toBeVisible();
   await input.fill(title);
@@ -259,7 +261,7 @@ export async function renameFirstChatViaRowKebab(page: Page, title: string): Pro
   await expect(kebab).toBeVisible({ timeout: WAIT_SURFACE_MS });
   await kebab.focus();
   await kebab.press("Enter");
-  await page.getByRole("menuitem", { name: "Rename" }).click();
+  await page.getByRole("menuitem", { name: ROW_RENAME_NAME }).click();
   const input = page.getByRole("textbox", { name: "Chat title" });
   await expect(input).toBeVisible();
   await input.fill(title);
@@ -298,7 +300,7 @@ export async function openChatByTitle(page: Page, title: string): Promise<void> 
  *  edge control (`PanelEdges`) on a desktop and the topbar `ContextToggle` on a phone, whose label states the
  *  action it performs. Idempotent. */
 export async function openDetailPanel(page: Page): Promise<void> {
-  const show = page.getByRole("button", { name: "Show details" });
+  const show = page.getByRole("button", { name: contextToggleLabel(true) });
   if ((await show.count()) > 0) {
     await show.first().click();
   }

@@ -1,7 +1,7 @@
 import type { ComponentProps, KeyboardEvent, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn, variantAttrs } from "#lib";
-import { cardTone, cardVariants } from "./variants.ts";
+import { cardVariants } from "./variants.ts";
 
 /** The card's own axes, shared by both element arms below. */
 type CardOwnProps = VariantProps<typeof cardVariants> & {
@@ -45,28 +45,8 @@ function activateOnKey(event: KeyboardEvent<HTMLDivElement>): void {
 // island delegates its inset to its own content. `data-elevated`, `data-nested` and `data-padding` are the
 // attributes the tiers.css rules key on; the variant's utility alone would lose to the tier rule inside a Surface.
 export function Card(props: CardProps): ReactElement {
-  const {
-    className,
-    layout,
-    shape,
-    elevated,
-    interactive,
-    nested,
-    padding,
-    tone,
-    variant,
-    dashed,
-    glow,
-    rail,
-    artDecoration,
-    shadow,
-    holdsField,
-    dropTarget,
-    presence,
-    receded,
-    focusable,
-    ownSlot,
-  } = props;
+  const { className, layout, shape, elevated, interactive, nested, padding, tone, variant, dashed, glow, rail, artDecoration, receded, focusable, ownSlot } =
+    props;
   const skin = cn(
     cardVariants({
       layout,
@@ -81,10 +61,6 @@ export function Card(props: CardProps): ReactElement {
       glow,
       rail,
       artDecoration,
-      shadow,
-      holdsField,
-      dropTarget,
-      presence,
       receded,
       focusable,
     }),
@@ -99,7 +75,7 @@ export function Card(props: CardProps): ReactElement {
     "data-nested": nested === true ? "" : undefined,
     "data-padding": padding === "none" ? "none" : undefined,
     "data-shape": shape === undefined || shape === "island" ? undefined : shape,
-    ...variantAttrs(cardVariants, { tone, variant }, cardTone(tone)),
+    ...variantAttrs(cardVariants, { tone, variant }, tone ?? "neutral"),
   } as const;
   if (props.as === "button") {
     const {
@@ -117,10 +93,6 @@ export function Card(props: CardProps): ReactElement {
       glow: _glow,
       rail: _rail,
       artDecoration: _artDecoration,
-      shadow: _shadow,
-      holdsField: _holdsField,
-      dropTarget: _dropTarget,
-      presence: _presence,
       receded: _receded,
       focusable: _focusable,
       ownSlot: _ownSlot,
@@ -151,10 +123,6 @@ export function Card(props: CardProps): ReactElement {
     glow: _glow,
     rail: _rail,
     artDecoration: _artDecoration,
-    shadow: _shadow,
-    holdsField: _holdsField,
-    dropTarget: _dropTarget,
-    presence: _presence,
     receded: _receded,
     focusable: _focusable,
     ownSlot: _ownSlot,

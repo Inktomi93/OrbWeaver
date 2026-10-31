@@ -8,6 +8,7 @@ import { RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
 import { assertReferentialIntegrity } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import { CHAT_OP_CODES } from "../../../packages/server/src/domain/chat/contract/errors.ts";
+import { RPG_OP_CODES } from "../../../packages/server/src/domain/rpg/contract/op-codes.ts";
 import { createFrozenClock } from "../iso/clock.ts";
 import { createControlledTimers } from "../iso/timers.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
@@ -116,8 +117,8 @@ test("native member and host game lifecycle preserves scoped sheets, projections
   expect(result.sheetRefusal).toBeInstanceOf(DomainForbiddenError);
   expect(result.resyncRefusal).toBeInstanceOf(DomainForbiddenError);
   expect(result.forkRefusal).toMatchObject({ code: CHAT_OP_CODES.notHost });
-  expect(result.fullRefusal).toMatchObject({ code: "rpg_mode_unbuilt" });
-  expect(result.detachRefusal).toMatchObject({ code: "rpg_pointer_not_dangling" });
+  expect(result.fullRefusal).toMatchObject({ code: RPG_OP_CODES.modeUnbuilt });
+  expect(result.detachRefusal).toMatchObject({ code: RPG_OP_CODES.pointerNotDangling });
   expect(result.forkGame.id).not.toBe(recursion.game.id);
   expect(result.forkGame.chatId).toBe(result.fork.chat.id);
   expect(result.forkRows.snapshots).toHaveLength(result.beforeFork.snapshots.length);

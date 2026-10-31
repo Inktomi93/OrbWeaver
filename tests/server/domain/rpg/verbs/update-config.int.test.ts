@@ -10,6 +10,7 @@ import { chats } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { refuseWrites, seedRecallRoom, seedRpgGame } from "@orb/testkit/node/composed";
+import { RPG_OP_CODES } from "#server/domain/rpg/contract/op-codes.ts";
 
 type Patch = NonNullable<Parameters<ServerTestHarness["services"]["rpg"]["updateConfig"]>[0]["patch"]>;
 
@@ -140,11 +141,11 @@ test("an incoherent vocabulary is refused and leaves the stored config unchanged
   }
   const many = (count: number): ReturnType<typeof rpgTrackerDefSchema.parse>[] => Array.from({ length: count }, (_, index) => tracker(`t${String(index)}`));
   const refusals: readonly { readonly code: string; readonly patch: Patch }[] = [
-    { code: "rpg_profile_duplicate_attribute", patch: { statProfile: { ...RPG_PROFILE_D20, attributes: [...RPG_PROFILE_D20.attributes, first] } } },
-    { code: "rpg_profile_inverted_range", patch: { statProfile: { ...RPG_PROFILE_D20, range: { min: 20, max: 1 } } } },
-    { code: "rpg_profile_dangling_attribute", patch: { statProfile: { ...RPG_PROFILE_D20, defaultAttribute: "undeclared" } } },
-    { code: "rpg_duplicate_tracker_key", patch: { trackers: [tracker("grit"), tracker("grit")] } },
-    { code: "rpg_too_many_trackers", patch: { trackers: many(RPG_CONFIG_MAX_TRACKERS + 1) } },
+    { code: RPG_OP_CODES.profileDuplicateAttribute, patch: { statProfile: { ...RPG_PROFILE_D20, attributes: [...RPG_PROFILE_D20.attributes, first] } } },
+    { code: RPG_OP_CODES.profileInvertedRange, patch: { statProfile: { ...RPG_PROFILE_D20, range: { min: 20, max: 1 } } } },
+    { code: RPG_OP_CODES.profileDanglingAttribute, patch: { statProfile: { ...RPG_PROFILE_D20, defaultAttribute: "undeclared" } } },
+    { code: RPG_OP_CODES.duplicateTrackerKey, patch: { trackers: [tracker("grit"), tracker("grit")] } },
+    { code: RPG_OP_CODES.tooManyTrackers, patch: { trackers: many(RPG_CONFIG_MAX_TRACKERS + 1) } },
   ];
   for (const refusal of refusals) {
     await expect(game.update(refusal.patch)).rejects.toMatchObject({ code: refusal.code });
@@ -166,7 +167,7 @@ test("removing an attribute a sheet still carries is refused, adding one is not"
     actorRef: { kind: "user", userId: game.host.userId },
     patch: { attributes: { [RPG_PROFILE_D20.attributes[0]?.key ?? ""]: 12 } },
   });
-  await expect(game.update({ statProfile: RPG_RULESET_PROFILE.freeform })).rejects.toMatchObject({ code: "rpg_profile_referenced_remove" });
+  await expect(game.update({ statProfile: RPG_RULESET_PROFILE.freeform })).rejects.toMatchObject({ code: RPG_OP_CODES.profileReferencedRemove });
   expect((await game.config()).statProfile.attributes).toHaveLength(RPG_PROFILE_D20.attributes.length);
   await game.update({ statProfile: { ...RPG_PROFILE_D20, attributes: [...RPG_PROFILE_D20.attributes, { key: "luck", label: "Luck", hint: "" }] } });
   expect((await game.config()).statProfile.attributes).toHaveLength(RPG_PROFILE_D20.attributes.length + 1);
@@ -176,7 +177,7 @@ test("an unknown extraction mode is refused", async ({ harness }) => {
   const game = await liteGame(harness);
   const before = await game.config();
   await expect(harness.services.rpg.updateConfig({ principal: game.host, chatId: game.chatId, extractionMode: "sloppy" })).rejects.toMatchObject({
-    code: "rpg_invalid_extraction_mode",
+    code: RPG_OP_CODES.invalidExtractionMode,
   });
   expect(await game.config()).toEqual(before);
   await harness.services.rpg.updateConfig({ principal: game.host, chatId: game.chatId, extractionMode: before.extractionMode });

@@ -4,10 +4,10 @@
 
 import { PanelRightClose, PanelRightOpen } from "@orb/ui/icons";
 import type { OverflowMenuForm } from "#lib";
+import { contextToggleLabel } from "#lib";
 import type { ChromeEntry } from "#state";
 import { ContextToggle } from "../components/context-toggle.tsx";
 import { useShellLayout } from "../hooks/use-shell-layout.ts";
-import { contextToggleLabel } from "./context-toggle-label.ts";
 
 export const contextToggleChrome: ChromeEntry = {
   id: "context-toggle",

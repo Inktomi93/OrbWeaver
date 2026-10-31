@@ -18,7 +18,7 @@ Ports derive from their owners so references follow the composition root. The un
 
 | Step | Work | Items |
 | - | - | - |
-| 1 | Derive every port from its owner; rule cross-domain handle passing | [1439](../../work/1439-derive-every-injected-port-from-its-owning-contract.md), [1446](../../work/1446-rule-or-remove-the-cross-domain-database-handle.md) |
+| 1 | Derive every port from its owner; rule cross-domain handle passing | the spread-flow ports, [1503](../../work/1503-teach-the-port-census-and-the-derived-port.md) |
 | 2 | Judge every member the member scan reports | the unwired-member items the 1439 report boards, [0501](../../work/0501-wire-or-delete-the-unused-prompt-preview-verbs.md), and the possibly dead guards the restoration lanes found |
 | 3 | Build the TS 7.1 engine and the dead-inside-live scans | [1447](../../work/1447-extend-pnpm-unwired-ts-7-1-engine-and.md) |
 | 4 | Judge the first full run of each new scan; delete synonym aliases from the shapes scan | the items 1447 boards, [1445](../../work/1445-delete-synonym-type-aliases-keep-per-verb-params.md) |

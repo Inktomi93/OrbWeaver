@@ -5,12 +5,13 @@
 // `createGame(mode:"full")` throws (its verb lands in W1b, but the error class homes here with its siblings).
 
 import { DomainOperationError } from "@orb/kit/errors";
+import { RPG_OP_CODES } from "#src/domain/rpg/contract/op-codes.ts";
 
 /** A persisted rpg JSON column failed re-validation through its `@orb/contracts/rpg` schema on read. Never a
  *  silent default — a corrupt tracker row is a loud typed error the caller surfaces (D58). */
 export class RpgStateCorruptError extends DomainOperationError {
   constructor(table: string, id: string, detail: string) {
-    super("rpg_state_corrupt", `${table} ${id}: ${detail}`);
+    super(RPG_OP_CODES.stateCorrupt, `${table} ${id}: ${detail}`);
   }
 }
 
@@ -18,6 +19,6 @@ export class RpgStateCorruptError extends DomainOperationError {
  *  refusal NAMES the graft, never pretends full doesn't exist. */
 export class RpgModeUnbuiltError extends DomainOperationError {
   constructor() {
-    super("rpg_mode_unbuilt", "Full mode is not built yet — lite is the shipped mode. Full grafts as a later wave.");
+    super(RPG_OP_CODES.modeUnbuilt, "Full mode is not built yet — lite is the shipped mode. Full grafts as a later wave.");
   }
 }

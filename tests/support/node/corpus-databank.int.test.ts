@@ -1,7 +1,9 @@
 // @subject tests/support/node/corpus-databank.ts
 // @subject tests/support/node/factories/databank.ts
+
 import { documents, workloads } from "@orb/db";
 import { eq } from "drizzle-orm";
+import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import { seedCorpusConnections } from "./corpus-actors.ts";
 import { seedCorpusDatabank } from "./corpus-databank.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
@@ -98,7 +100,7 @@ test("native upload and scraper envelopes use the same retained SQL metadata as 
   const fetched: string[] = [];
   await using root = await createServerHarness({
     networkExecution: {
-      resolver: () => Promise.resolve(["93.184.215.14"]),
+      resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]),
       fetch: async (input, init) => {
         const request = new Request(input, init);
         const body = replies.get(request.url);

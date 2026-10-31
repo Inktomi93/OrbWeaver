@@ -19,7 +19,7 @@ const FRAME = '[data-slot="sandbox-frame"]';
 const VIEWER_PASSWORD = "routed-card-scale-viewer-password";
 const { min: MIN_SCALE, max: MAX_SCALE } = FONT_SCALE;
 // A scale no stored setting can hold, written straight onto the root: the frame must stop at the bound.
-const PLANTED_SCALE = 3;
+const PLANTED_SCALE = MAX_SCALE + 1;
 const FIXED_BOX_PX = 800;
 const CARD = `:::card title="Scale"\n<p id="rem" style="font-size:1rem;margin:0">rem text</p><p id="px" style="font-size:16px;margin:0">px text</p><div id="box" style="width:${String(FIXED_BOX_PX)}px;height:20px"></div>\n:::`;
 const VIEWPORTS = [

@@ -1,5 +1,7 @@
 // The shell at phone widths on the production registry: the You sheet and its handoffs, the one-shell screens and
 // their landmarks, the phone drawers and sheets, and the reading order of the tab bar.
+
+import { contextToggleLabel } from "@orb/client/lib";
 import { dispatchCommandKey, seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -118,7 +120,7 @@ test.describe("the You sheet", () => {
     await mount<typeof AppShellStory>(STORY, {});
     await youTab(page).tap();
     await expect(sheet(page)).toBeVisible();
-    await page.locator('.shell-rail [data-mobile="tab"][aria-label="Chats"]').tap();
+    await page.locator(`.shell-rail [data-mobile="tab"][aria-label=${JSON.stringify(SECTION_LABELS.chats)}]`).tap();
     await expect(sheet(page)).toHaveCount(0);
     await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "chats");
     await expect
@@ -289,7 +291,7 @@ test.describe("one shell at the narrowest phone", () => {
     const context = page.locator(CONTEXT);
     const content = page.locator(".shell-content");
     await expect(context.getByRole("button", { name: /^Close /u })).toHaveCount(0);
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     await expect(context).toHaveAttribute("data-panel-mode", "overlay");
     await expect.poll(() => context.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe("none");
     await expect(content).toHaveAttribute("inert", "");
@@ -307,7 +309,7 @@ test.describe("one shell at the narrowest phone", () => {
     await openFirstCharacter(page);
     const context = page.locator(CONTEXT);
     await expect(page.locator(".shell-grid")).toHaveCSS("isolation", "isolate");
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     await expect(context).toHaveAttribute("data-panel-mode", "overlay");
     const ownerAt = (x: number, y: number): Promise<string> =>
       page.evaluate(

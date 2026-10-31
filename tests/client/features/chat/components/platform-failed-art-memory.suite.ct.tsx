@@ -2,13 +2,14 @@
 // windowed) paints its fallback from its first frame and never asks for the same broken image again, until the network
 // returns or the app is brought back to the foreground.
 
+import { BLOB_ROUTE, variantKindSchema } from "@orb/contracts/assets";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 import { createReadingRoom, openReadingRoom } from "./chat-style-reading.fixtures.ts";
 
 const ROOM_STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
-const PORTRAIT_REQUEST = /\/api\/blob\/[^?]+\?v=portrait/;
+const PORTRAIT_REQUEST = new RegExp(`${RegExp.escape(BLOB_ROUTE)}/[^?]+\\?v=${variantKindSchema.enum.portrait}`);
 const LETTER = '[data-slot="text"][data-voice="monogram"]';
 const TAIL = 10;
 

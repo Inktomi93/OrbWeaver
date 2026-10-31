@@ -25,6 +25,7 @@
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterSummary } from "@orb/contracts/character";
+import { exportCharacterPath } from "@orb/contracts/portability";
 import type { TagView } from "@orb/contracts/tag";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
@@ -39,7 +40,7 @@ import type { ReactElement, ReactNode } from "react";
 import { RowActionsMenu, RowToggleAction } from "#components";
 import { chatWithActionName, rowActionSubject, rowActionsName, selectActionName } from "#lib";
 import type { CHARACTER_ACTION_SCOPE_IDS } from "../lib/character-actions.ts";
-import { CHARACTER_ACTIONS, characterActionItemsForScope, characterActionLabel, EXPORT_CHARACTER_PATH } from "../lib/character-actions.ts";
+import { CHARACTER_ACTIONS, characterActionItemsForScope, characterActionLabel } from "../lib/character-actions.ts";
 
 export type CharacterCardItem = Pick<
   CharacterSummary,
@@ -316,7 +317,7 @@ function NormalRowActions({
                 </MenuSubmenuTrigger>
                 <MenuPopup>
                   {action.formats.map((format) => (
-                    <MenuLinkItem download={true} href={`${EXPORT_CHARACTER_PATH}${character.id}${format.query}`} key={format.query}>
+                    <MenuLinkItem download={true} href={`${exportCharacterPath(character.id)}${format.query}`} key={format.query}>
                       {format.label}
                     </MenuLinkItem>
                   ))}

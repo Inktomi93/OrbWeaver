@@ -121,6 +121,7 @@ const MOUNT_SUPPORT_FILES = {
 const MOUNT_HELPER_FILES = {
   "^tests/client/features/app-shell/surfaces/trail-projection\\.ts$": "values the trail projection story and its spec share",
   "^tests/client/features/auth/components/pending-join-fixtures\\.ts$": "the pending-join story's parsed fixtures",
+  "^tests/ui/primitives/_seed-scope\\.tsx$": "the seed palette and nested custom scope every ui primitive story mounts its cases in",
 } as const satisfies Readonly<Record<string, string>>;
 // The only files of a browser package outside `src/` that its `src/` imports; each is judged by a reachable rule.
 const BROWSER_PACKAGE_ROOT_FILES = {
@@ -337,6 +338,9 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/entry/boot/migrate-data-layout.ts": "DataLayoutRefusal: the refusal class and reason the layout migration suite asserts",
   "packages/server/src/domain/plugin/contract/errors.ts": "PluginNotFoundError: the refusal class plugin seed cases assert",
   "packages/server/src/domain/plugin/substrate/plugin-macros.ts": "pluginMacroName: the token rule for a plugin's registered macro",
+  "packages/server/src/domain/chat/reaction-note.ts": "reactionNote: the attribution note a reaction writes, which a frame override must collide with",
+  "packages/server/src/domain/discovery/themes/name-prompt.ts": "THEME_NAME_KEYWORDS_LEAD: the lead the scripted provider recognises a naming request by",
+  "packages/server/src/domain/rpg/contract/op-codes.ts": "RPG_OP_CODES: the refusal codes rpg suites assert",
   "packages/server/src/domain/preset/constants.ts":
     "SYSTEM_DEFAULT_PRESET_ID, SYSTEM_DEFAULT_PRESET_KIND and SYSTEM_DEFAULT_PRESET_NAME: the system preset's identity",
   "packages/server/src/domain/settings/constants.ts": "RETIRED_SEED_THEME_IDS, THEME_HEARTH_ID and THEME_MOCHA_ID: the seeded theme ids",
@@ -378,6 +382,11 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/data/import-tree-served.ts": "planServedTreeImport: the served-tree import planner",
   "packages/client/src/features/chat/lib/chat-context-tab-labels.ts":
     "CHAT_CONTEXT_TAB_LABELS and CHAT_CONTEXT_TABLIST_NAME: production context tab names used by navigation assertions",
+  "packages/client/src/features/chat/lib/composer-menu-names.ts": "COMPOSER_CLEAR_INPUT_NAME and its siblings: the composer menu item names",
+  "packages/client/src/features/chat/lib/chat-options-names.ts": "CHAT_DELETE_NAME and its siblings: the room options menu item names",
+  "packages/client/src/lib/context-toggle-label.ts": "contextToggleLabel: the detail toggle's name in both states",
+  "packages/client/src/lib/view-transition-names.ts": "SHELL_SWAP_DEADLINE_PROPERTY: the grid property a swap spec stretches to hold the old frame",
+  "packages/client/src/forms/editor/autosave-status-names.ts": "AUTOSAVE_SAVED_TEXT and its siblings: the words the shared autosave readout prints",
   "packages/client/src/features/config/lib/config-copy.ts": "CONFIG_SECTION_LABEL: the settings section labels",
   "packages/client/src/features/rpg/lib/unset-datum.ts": "UNSET_DATUM: the unset reading's text",
   "packages/client/src/features/plugin/lib/extensions-copy.ts": "EXTENSIONS_GONE_TITLE: the vanished page's title",

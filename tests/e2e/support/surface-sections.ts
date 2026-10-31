@@ -10,7 +10,8 @@ import { applyAsCopyResultSchema, applyFieldsResultSchema, REFINERY_STAGE_PAYLOA
 import { applyRosterPresetInputSchema, HOME_ROSTER_PREVIEW_LIMIT } from "@orb/contracts/roster-preset";
 import { streamAttachInputSchema } from "@orb/contracts/stream";
 import type { CharacterId, ChatId, RefinerySessionId, RosterPresetId } from "@orb/kit/ids";
-import { controlledPanel, publishSurfaceInventory } from "@orb/testkit/browser/spec";
+import type { DisclosureWalkHooks } from "@orb/testkit/browser/spec";
+import { controlledPanel, publishSurfaceInventory, usesProgrammaticScroll, walkDisclosures } from "@orb/testkit/browser/spec";
 import type { SurfaceCoverageDisposition, SurfaceCoverageInventory, SurfaceProviderEvidence } from "@orb/testkit/iso";
 import { parseSurfaceProviderEvidence } from "@orb/testkit/iso";
 import { CORPUS_STRUCTURED_REPLIES } from "@orb/testkit/node/composed";
@@ -34,7 +35,9 @@ import { ANALYTICS_DEFAULT_SORT, ANALYTICS_SORT_OPTIONS } from "#client/features
 import { LEADERBOARD_ROW_ATTR } from "#client/features/stats/lib/leaderboard-row-attr.ts";
 import { BLANK_CHAT_NAME, START_TEMP_CHAT_NAME } from "#client/lib/chat-launch-names.ts";
 import { deriveChatTitle } from "#client/lib/chat-title.ts";
+import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { CORPUS_MODE_LABELS, CORPUS_MODES } from "#client/lib/corpus-modes.ts";
+import { ROW_DELETE_NAME, ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
 import type { SectionId } from "#client/state/section-ids.ts";
 import { SECTION_IDS } from "#client/state/section-ids.ts";
@@ -74,10 +77,6 @@ interface ScrollGeometry {
   readonly snap: string;
   readonly terminal: { readonly start: number; readonly end: number; readonly position: string | null } | null;
   readonly port: { readonly start: number; readonly end: number };
-}
-
-function usesProgrammaticScroll(journey: Journey): boolean {
-  return journey.flow.page.context().browser()?.browserType().name() === "webkit" && journey.flow.info.project.use.isMobile === true;
 }
 
 function expectSubject(journey: Journey, id: string, kind: string): void {
@@ -181,7 +180,7 @@ async function reveal(journey: Journey, side: "list" | "context"): Promise<boole
     if (side === "list") {
       await switchListScreen(journey);
     } else {
-      await journey.flow.page.getByRole("button", { name: "Show details", exact: true }).click();
+      await journey.flow.page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     }
     observe(
       journey,
@@ -240,88 +239,19 @@ async function tabBodies(journey: Journey, scope: Locator, prefix: string, depth
   }
 }
 
-async function disclosures(journey: Journey, scope: Locator, prefix: string): Promise<void> {
-  const opened: Locator[] = [];
-  for (let index = 0; index < MAX_DISCLOSURES; index += 1) {
-    const closed = scope.locator('[data-slot="collapsible-trigger"][aria-expanded="false"]:not([aria-haspopup]):visible');
-    if ((await closed.count()) === 0) {
-      break;
-    }
-    const rootIndex = await closed.first().evaluate(
-      (node, container) => {
-        const host = node.closest('[data-slot="collapsible-root"]');
-        if (host === null) {
-          throw new Error("The production disclosure has no semantic host");
-        }
-        return [...container.querySelectorAll('[data-slot="collapsible-root"]')].indexOf(host);
-      },
-      await scope.elementHandle(),
-    );
-    expect(rootIndex).toBeGreaterThanOrEqual(0);
-    const host = scope.locator('[data-slot="collapsible-root"]').nth(rootIndex);
-    const remembered = host.locator('[data-slot="collapsible-trigger"]').first();
-    const id = `${prefix}/disclosure-${String(index)}`;
-    expectSubject(journey, id, "disclosure");
-    await journey.flow.action(`${prefix}/disclosure-${String(index)}`, {
-      action: async () => {
-        await remembered.click();
-      },
-      ready: async () => {
-        await expect(remembered).toHaveAttribute("aria-expanded", "true");
-        await expect(remembered).toHaveAttribute("aria-controls", /.+/u);
-        const body = await controlledPanel(remembered);
-        await ready(body);
-      },
-    });
-    opened.push(remembered);
-    const body = await controlledPanel(remembered);
-    await checkpoint(journey, `${prefix}/disclosure-${String(index)}`, body);
-    await nativeDetails(journey, body, `${prefix}/disclosure-${String(index)}`);
-  }
-  const remaining = await scope.locator('[data-slot="collapsible-trigger"][aria-expanded="false"]:not([aria-haspopup]):visible').count();
-  observe(
-    journey,
-    `${prefix}/disclosures`,
-    remaining === 0 ? "visited" : "unvisited",
-    `${String(opened.length)} nested disclosures opened; ${String(remaining)} remain beyond the safety bound`,
-  );
-  for (const trigger of opened.toReversed()) {
-    await trigger.click();
-    await expect(trigger).toHaveAttribute("aria-expanded", "false");
-  }
-  await nativeDetails(journey, scope, prefix);
-}
-
-async function nativeDetails(journey: Journey, scope: Locator, prefix: string, depth = 0): Promise<void> {
-  const candidates = scope.locator("details");
-  const indices = await candidates.evaluateAll(
-    (nodes, container) =>
-      nodes.flatMap((node, index) => {
-        const parent = node.parentElement?.closest("details") ?? null;
-        const nested = parent !== null && parent !== container && container.contains(parent);
-        return !nested && node.getClientRects().length > 0 ? [index] : [];
-      }),
-    await scope.elementHandle(),
-  );
-  if (depth >= MAX_DEPTH && indices.length > 0) {
-    observe(journey, `${prefix}/nested-details`, "unvisited", `${String(indices.length)} native details exceed the traversal bound`);
-    return;
-  }
-  for (const index of indices) {
-    const detail = candidates.nth(index);
-    const id = `${prefix}/details-${String(index)}`;
-    expectSubject(journey, id, "native-details");
-    const wasOpen = await detail.evaluate((node) => node.hasAttribute("open"));
-    if (!wasOpen) {
-      await detail.locator(":scope > summary").click();
-    }
-    await expect(detail).toHaveAttribute("open", /.*/u);
-    await checkpoint(journey, id, detail);
-    await nativeDetails(journey, detail, id, depth + 1);
-    if (!wasOpen) {
-      await detail.locator(":scope > summary").click();
-    }
-  }
+function disclosureHooks(journey: Journey): DisclosureWalkHooks {
+  return {
+    limit: MAX_DISCLOSURES,
+    depthLimit: MAX_DEPTH,
+    completed: "visited",
+    id: (path, kind, index) => `${path}/${kind}-${String(index)}`,
+    expect: (id, kind) => expectSubject(journey, id, kind),
+    action: async (id, step) => journey.flow.action(id, step),
+    checkpoint: async (id, scope) => checkpoint(journey, id, scope),
+    record: (id, status, reason) => observe(journey, id, status, reason),
+    ready,
+    summary: (path) => ({ disclosures: `${path}/disclosures`, nestedDetails: `${path}/nested-details` }),
+  };
 }
 
 async function menuBody(journey: Journey, menu: Locator, prefix: string, depth: number): Promise<void> {
@@ -541,14 +471,14 @@ async function disposableLabelDelete(journey: Journey, scope: Locator, prefix: s
     await row.hover();
     await row.locator('button[aria-haspopup="menu"]').click();
     const menu = journey.flow.page.getByRole("menu");
-    await expect(menu.getByRole("menuitem")).toHaveText(["Delete"]);
-    await menu.getByRole("menuitem", { name: "Delete", exact: true }).click();
+    await expect(menu.getByRole("menuitem")).toHaveText([ROW_DELETE_NAME]);
+    await menu.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
     const confirm = journey.flow.page.getByRole("alertdialog", { name: `Delete "${tag.name}"?`, exact: true });
     await expect(confirm).toBeVisible();
     await checkpoint(journey, `${prefix}/disposable/Delete/confirm`, confirm);
     await journey.flow.action(`${prefix}/disposable/${tag.id}/Delete`, {
       action: async () => {
-        await confirm.getByRole("button", { name: "Delete", exact: true }).click();
+        await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
       },
       ready: async () => {
         await expect(confirm).toBeHidden();
@@ -593,7 +523,7 @@ async function loadNativePages(
     journey,
     id,
     "visited",
-    `${String(loaded)} actual rows loaded through ${usesProgrammaticScroll(journey) ? "CSSOM positioning, not wheel or touch proof" : "native scrolling"} against the exact production query census`,
+    `${String(loaded)} actual rows loaded through ${usesProgrammaticScroll(journey.flow.page, journey.flow.info) ? "CSSOM positioning, not wheel or touch proof" : "native scrolling"} against the exact production query census`,
   );
 }
 
@@ -726,7 +656,7 @@ async function scrollWindow(
         before,
         after: await scrollGeometry(viewport, axis),
         deliveries,
-        input: usesProgrammaticScroll(journey) ? "programmatic-positioning; not wheel or touch proof" : "native-wheel",
+        input: usesProgrammaticScroll(journey.flow.page, journey.flow.info) ? "programmatic-positioning; not wheel or touch proof" : "native-wheel",
         subject: await viewport.evaluate((node) => ({
           tag: node.tagName,
           slot: node.getAttribute("data-slot"),
@@ -773,7 +703,7 @@ async function nativeWheel(
   axis: string,
   delta: number,
 ): Promise<{ target: string; defaultPrevented: boolean; reached: boolean } | null> {
-  if (usesProgrammaticScroll(journey)) {
+  if (usesProgrammaticScroll(journey.flow.page, journey.flow.info)) {
     await test.step("Programmatic positioning (mobile WebKit; not wheel or touch evidence)", async () => {
       await viewport.evaluate((node, input) => node.scrollBy(input.axis === "x" ? input.delta : 0, input.axis === "y" ? input.delta : 0), { axis, delta });
       await viewport.evaluate(async () => await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
@@ -857,7 +787,7 @@ function windowReached(state: ScrollGeometry, ratio: number): boolean {
 
 async function inspect(journey: Journey, scope: Locator, id: string): Promise<void> {
   await checkpoint(journey, id, scope);
-  await disclosures(journey, scope, id);
+  await walkDisclosures(scope, id, disclosureHooks(journey));
   await menus(journey, scope, id);
   await scrollWindows(journey, scope, id);
 }
@@ -1287,7 +1217,7 @@ async function homeSavedRosters(journey: Journey, trigger: Locator, id: string):
       ready: async () => {
         await expect(confirm).toBeVisible();
         await expect(confirm).toContainText(roster.name);
-        await expect(confirm.getByRole("button", { name: "Delete", exact: true })).toBeEnabled();
+        await expect(confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true })).toBeEnabled();
       },
     });
     await checkpoint(journey, operation, confirm);
@@ -2030,12 +1960,12 @@ async function duplicateAndDeleteSection(run: PresetCommandRun, drill: Locator, 
   expect(copyFields).toEqual(originalFields);
   rememberPresetCommand(run, "Section actions/Duplicate", `${presetId}/${sectionId}: native Duplicate persisted ${copyId} with the same section fields`);
   await drill.getByRole("button", { name: "Section actions", exact: true }).click();
-  await journey.flow.page.getByRole("menu").getByRole("menuitem", { name: "Delete", exact: true }).click();
+  await journey.flow.page.getByRole("menu").getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
   const confirm = journey.flow.page.getByRole("alertdialog", { name: "Delete this section?", exact: true });
   await checkpoint(journey, `presets/commands/${sectionId}/Delete/confirm`, confirm);
   await journey.flow.action(`presets/commands/${sectionId}/Delete`, {
     action: async () => {
-      await confirm.getByRole("button", { name: "Delete", exact: true }).click();
+      await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
     },
     ready: async () => {
       await expect(confirm).toBeHidden();
@@ -2081,12 +2011,12 @@ async function deleteDisposablePreset(run: PresetCommandRun, name: string): Prom
   const { journey, presetId } = run;
   expect(journey.flow.run.subjects.presets.some(({ id }) => id === presetId)).toBe(false);
   const menu = await openPresetRowMenu(journey, name);
-  await menu.getByRole("menuitem", { name: "Delete", exact: true }).click();
+  await menu.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
   const confirm = journey.flow.page.getByRole("alertdialog", { name: `Delete "${name}"?`, exact: true });
   await checkpoint(journey, `presets/commands/${presetId}/Delete/confirm`, confirm);
   await journey.flow.action(`presets/commands/${presetId}/Delete`, {
     action: async () => {
-      await confirm.getByRole("button", { name: "Delete", exact: true }).click();
+      await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
     },
     ready: async () => {
       await expect(confirm).toBeHidden();
@@ -2268,7 +2198,7 @@ async function databankDisposable(journey: Journey): Promise<void> {
     await journey.flow.page.getByRole("menuitem", { name: "Feed every chat", exact: true }).click();
     await expect.poll(async () => (await journey.flow.client.databank.listGlobal.query()).includes(document.id)).toBe(true);
     await actions().click();
-    await journey.flow.page.getByRole("menuitem", { name: "Rename", exact: true }).click();
+    await journey.flow.page.getByRole("menuitem", { name: ROW_RENAME_NAME, exact: true }).click();
     const rename = journey.flow.page.getByRole("dialog", { name: "Rename document", exact: true });
     await rename.getByRole("textbox", { name: "Document name", exact: true }).fill(renamed);
     await rename.getByRole("button", { name: "Save", exact: true }).click();
@@ -2293,10 +2223,10 @@ async function databankDisposable(journey: Journey): Promise<void> {
     await pane(journey, "list")
       .getByRole("button", { name: rowActionsName(renamed), exact: true })
       .click();
-    await journey.flow.page.getByRole("menuitem", { name: "Delete", exact: true }).click();
+    await journey.flow.page.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
     const confirm = journey.flow.page.getByRole("alertdialog", { name: `Delete "${renamed}"?`, exact: true });
     await checkpoint(journey, "databank/disposable/delete-confirm", confirm);
-    await confirm.getByRole("button", { name: "Delete", exact: true }).click();
+    await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
     await expect(confirm).toBeHidden();
     await expect.poll(async () => (await journey.flow.client.databank.list.query({ search: renamed })).items.some(({ id }) => id === document.id)).toBe(false);
     await expect(pane(journey, "list").getByText("No matches", { exact: true })).toBeVisible();

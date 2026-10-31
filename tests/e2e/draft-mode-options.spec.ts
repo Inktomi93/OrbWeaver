@@ -8,6 +8,8 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { CHAT_DELETE_NAME, CHAT_SELECT_MESSAGES_NAME } from "#client/features/chat/lib/chat-options-names.ts";
+import { ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
 import {
   charactersRailButton,
   gotoChatsList,
@@ -45,9 +47,9 @@ test("committed room: the ⋯ options menu is present with its actions enabled",
 
   // The ⋯ menu is present; its canon actions are enabled on a committed chat.
   await openChatOptions(page);
-  await expect(page.getByRole("menuitem", { name: "Rename" })).toBeEnabled();
-  await expect(page.getByRole("menuitem", { name: "Select messages…" })).toBeEnabled();
-  await expect(page.getByRole("menuitem", { name: "Delete chat" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: ROW_RENAME_NAME })).toBeEnabled();
+  await expect(page.getByRole("menuitem", { name: CHAT_SELECT_MESSAGES_NAME })).toBeEnabled();
+  await expect(page.getByRole("menuitem", { name: CHAT_DELETE_NAME })).toBeVisible();
   await page.keyboard.press("Escape");
 
   // Regenerate's home is the ✨ utility menu (#41/D111) — present on a committed room. Enabled-ness depends
@@ -68,9 +70,9 @@ test("start click mounts the real room surface and the first row write claims th
     await expect(page.locator('[data-slot="message-row"]').first()).toContainText(DRAFT_GREETING, { timeout: WAIT_SURFACE_MS });
     await expect(page.locator('[data-testid="composer-send"]')).toBeVisible();
     await openChatOptions(page);
-    await expect(page.getByRole("menuitem", { name: "Rename" })).toBeEnabled();
-    await expect(page.getByRole("menuitem", { name: "Select messages…" })).toBeEnabled();
-    await expect(page.getByRole("menuitem", { name: "Delete chat" })).toBeEnabled();
+    await expect(page.getByRole("menuitem", { name: ROW_RENAME_NAME })).toBeEnabled();
+    await expect(page.getByRole("menuitem", { name: CHAT_SELECT_MESSAGES_NAME })).toBeEnabled();
+    await expect(page.getByRole("menuitem", { name: CHAT_DELETE_NAME })).toBeEnabled();
     await page.keyboard.press("Escape");
 
     // Rename is explicit activity: it claims the husk, after which ordinary library navigation must reveal it.

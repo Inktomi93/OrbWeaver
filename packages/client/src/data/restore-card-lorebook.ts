@@ -12,9 +12,9 @@
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { CardLorebookRestoreResult } from "@orb/contracts/import";
 import { cardLorebookRestoreResultSchema } from "@orb/contracts/import";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { throwHttpError } from "./http-error.ts";
 
-const RESTORE_URL = "/api/import/restore-card-lorebook";
 const RESTORE_FIELD = "file";
 const BAD_REQUEST = 400;
 
@@ -30,7 +30,7 @@ export type RestoreCardLorebookResult = CardLorebookRestoreResult;
 export async function restoreCardLorebook(file: File): Promise<RestoreCardLorebookResult> {
   const form = new FormData();
   form.append(RESTORE_FIELD, file);
-  const response = await fetch(RESTORE_URL, {
+  const response = await fetch(PORTABILITY_ROUTES.restoreCardLorebook, {
     method: "POST",
     body: form,
     headers: { [CSRF_HEADER]: "1" },

@@ -74,6 +74,12 @@ export function applyEnvEdits(text: string | null, edits: readonly EnvEdit[], ne
  *  process environment. */
 export const ENV_FROM_FILE_KEY = "ORB_ENV_FROM_FILE";
 
+/** The switch that skips the `.env` file entirely; a sidecar or a test run sets it so the operator's file cannot leak in. */
+export const ENV_NO_FILE_KEY = "ORB_ENV_NO_FILE";
+
+/** The switch that keeps the `.env` load but stops the file overriding the process env. */
+export const ENV_NO_OVERRIDE_KEY = "ORB_ENV_NO_OVERRIDE";
+
 /** The keys an {@link ENV_FROM_FILE_KEY} value lists; an absent or empty value lists none. */
 export function envFromFileKeys(raw: string | undefined): ReadonlySet<string> {
   return new Set((raw ?? "").split(",").filter((key) => key.length > 0));

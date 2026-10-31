@@ -268,7 +268,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
   },
 };
 
-/** A role's bubble fill by the name `@orb/ui` gives it: a bubble `Card`'s `tone`, and the `ground` of a band inside one. */
+/** A role's bubble fill by the name `@orb/ui` gives it: the `ground` of a band inside a bubble. */
 export const ROLE_FILL = { user: "userBubble", assistant: "bubble", system: "systemBubble" } as const satisfies Record<MessageRole, string>;
 
 // The avatar-chip src props live beside the other per-skin asset-URL shaping (Echo portrait, Whisper

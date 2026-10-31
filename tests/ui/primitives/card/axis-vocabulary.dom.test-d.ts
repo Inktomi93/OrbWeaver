@@ -27,11 +27,9 @@ test("the old tone values and axes do not compile", () => {
   createElement(Card, { shape: "well" }, "x");
   // @ts-expect-error `outline` is a style now; the dashed edge is `dashed`
   createElement(Card, { outline: "dashed" }, "x");
-  // @ts-expect-error a static card takes no shadow
-  createElement(Card, { shadow: "none" }, "x");
-  // @ts-expect-error an interactive card follows the elevation on its own
-  createElement(Card, { shadow: "follow" }, "x");
-  expectTypeOf<NonNullable<Parameters<typeof Card>[0]["shadow"]>>().toEqualTypeOf<"overlay">();
+  // @ts-expect-error a card takes no shadow axis: a static card takes none and the overlay shadow is the elevated one
+  createElement(Card, { shadow: "overlay" }, "x");
+  expectTypeOf<Parameters<typeof Card>[0]>().not.toHaveProperty("shadow");
 });
 
 test("every tone works with every style", () => {

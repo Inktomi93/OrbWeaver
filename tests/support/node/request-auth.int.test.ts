@@ -3,6 +3,7 @@ import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { vi } from "vitest";
+import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
@@ -11,7 +12,7 @@ const HANDLE = castId<Handle>("local-member");
 
 test.each([
   { peer: "127.0.0.1", firstRun: true, scope: "loopback" },
-  { peer: "93.184.215.14", firstRun: false, scope: "public" },
+  { peer: PUBLIC_PEER_ADDRESS, firstRun: false, scope: "public" },
   { peer: undefined, firstRun: false, scope: "public" },
 ])("actual HTTP bootstrap preserves physical peer $peer independently of forged forwarding headers", async ({ peer, firstRun, scope }) => {
   const readPeer = vi.fn(() => peer);

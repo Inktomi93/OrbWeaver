@@ -32,6 +32,7 @@ import { GlyphButton } from "@orb/ui/glyph-button";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Icon, Pencil, Play, Send, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { RoomIsland } from "@orb/ui/room-island";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, useId, useState } from "react";
@@ -92,9 +93,9 @@ const CHIP_INLINE_CAP = 4;
  *  both halves of one contract and an unstyled child lands on the proven pair. */
 function BandReadingSurface({ children }: { readonly children: ReactNode }): ReactElement {
   return (
-    <Card ownSlot="chat-controls" shape="float">
+    <RoomIsland ownSlot="chat-controls">
       <Stack gap="row">{children}</Stack>
-    </Card>
+    </RoomIsland>
   );
 }
 

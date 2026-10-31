@@ -6,9 +6,10 @@
 import { createHash } from "node:crypto";
 import { basename, dirname, join } from "node:path";
 import { parseEnv } from "node:util";
+import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { stageBandForPort } from "../../floor/host/ports.ts";
-import { ENV_NO_FILE, PORT_ENV, STACK_CLI_REL, VITE_API_TARGET_ENV, VITE_PORT_ENV } from "../../stack/index.ts";
+import { PORT_ENV, STACK_CLI_REL, VITE_API_TARGET_ENV, VITE_PORT_ENV } from "../../stack/index.ts";
 import type { BandAccess, StageAuthMode, StageBandClaim, StageLauncher, StageLauncherSpawn, StagePaths, StagePorts, StageRow } from "../contract/stage.ts";
 import { LOCAL_STAGE_DIR_SUFFIX, rowOwner, stageRowAuth } from "../contract/stage.ts";
 
@@ -226,7 +227,7 @@ export function stageBandEnv(ports: StagePorts): Readonly<Record<string, string>
     [VITE_PORT_ENV]: String(ports.vite),
     [VITE_API_TARGET_ENV]: `http://127.0.0.1:${String(ports.server)}`,
     // A staged worktree has no `.env`; skipping it also keeps a stray one from overriding the band.
-    [ENV_NO_FILE]: "1",
+    [ENV_NO_FILE_KEY]: "1",
   };
 }
 

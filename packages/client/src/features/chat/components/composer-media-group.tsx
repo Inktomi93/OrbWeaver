@@ -15,6 +15,7 @@ import { IMAGE_GEN_SPENDS_NOW, IMAGINE_DOOR_HELPER, ROOM_PICTURES_NOTE, testId }
 // The picker's file-type filter is DERIVED from the shared attach vocabulary — the drop and paste
 // gestures gate on the same tuple, so the dialog filter and the runtime gate cannot drift.
 import { ATTACH_MEDIA_ACCEPT } from "../lib/attach-media.ts";
+import { COMPOSER_IMAGINE_NAME } from "../lib/composer-menu-names.ts";
 
 /** The image controls the ✨ menu's Media group renders — attach, immediate generation and the modes/preview
  *  door. Owned by the composer (upload caps, the generate hook, the F-P1 clear-on-success); the wand only renders
@@ -65,7 +66,7 @@ export function ComposerMediaGroup({ image }: { readonly image: ComposerImageCon
         data-testid={testId("composerOpenImagine")}
         detail={IMAGINE_DOOR_HELPER}
         icon={Images}
-        label="Imagine — modes & preview…"
+        label={COMPOSER_IMAGINE_NAME}
         onClick={image.onOpenImagine}
       />
     </MenuGroup>

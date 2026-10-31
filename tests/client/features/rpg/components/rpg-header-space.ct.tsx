@@ -1,4 +1,4 @@
-import { CHAT_PLUGINS_TAB_LABEL } from "@orb/client/lib";
+import { CHAT_PLUGINS_TAB_LABEL, contextToggleLabel } from "@orb/client/lib";
 import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ChatId } from "@orb/kit/ids";
@@ -62,7 +62,7 @@ for (const populated of [false, true]) {
       ]),
     });
     await mount<typeof RpgRoomStory>(STORY, { chatId });
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     const header = page.locator('[data-slot="rpg-takeover-header"]');
     const stone = header.locator('[data-slot="waystone"]');
     await expect(header).toBeVisible();
