@@ -137,13 +137,11 @@ test("each step-four Card surface paints its fill or edge from its token", async
   expect(await style(kase(root, "popover"), "color")).toBe(await probe(root, "popover", "color"));
 });
 
-test("rail, spoiler, presence, the field and drop states, focusable and ownSlot take their properties", async ({ mount }) => {
+test("rail, presence, the field and drop states, focusable and ownSlot take their properties", async ({ mount }) => {
   const root = await mount<typeof CardFinishStory>(`${STORIES}/CardFinishStory`, {});
   await park(root);
   expect(await style(kase(root, "rail"), "border-inline-start-width")).toBe("2px");
   expect(await style(kase(root, "rail"), "border-inline-start-color")).toBe(await probe(root, "primary", "border-block-start-color"));
-  expect(await style(kase(root, "spoiler"), "filter")).toContain("blur");
-  expect(await style(kase(root, "spoiler"), "user-select")).toBe("none");
   expect(await style(kase(root, "presence-hidden"), "opacity")).toBe("0");
   expect(await style(kase(root, "presence-hidden"), "pointer-events")).toBe("none");
   expect(await style(kase(root, "presence-shown"), "opacity")).toBe("1");
@@ -191,11 +189,10 @@ test("the wallpaper plates paint only over art", async ({ mount }) => {
   expect(await style(kase(root, "plate-plain"), "background-color")).toBe(await probe(root, "transparent", "background-color"));
 });
 
-test("highlight, spoiler, slide, lifted, fade, ink, opacityMotion, focusTarget and scrollFade take their properties", async ({ mount }) => {
+test("highlight, slide, lifted, fade, ink, opacityMotion, focusTarget and scrollFade take their properties", async ({ mount }) => {
   const root = await mount<typeof LayoutFinishStory>(`${STORIES}/LayoutFinishStory`, {});
   expect(await style(kase(root, "highlight"), "background-color")).toBe(await probe(root, "muted", "background-color"));
   expect(await style(kase(root, "highlight"), "box-shadow")).not.toBe("none");
-  expect(await style(kase(root, "spoiler"), "filter")).toContain("blur");
   expect(await style(kase(root, "slide-parked"), "visibility")).toBe("hidden");
   expect(await style(kase(root, "slide-parked"), "translate")).not.toBe("none");
   expect(await style(kase(root, "slide-shown"), "visibility")).toBe("visible");

@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-24
+updated: 2026-10-31
 priority: P2
 area: auth
+plan: test-foundation
 ---
 
 # The OIDC pending-join e2e case lands on the root instead of the login page

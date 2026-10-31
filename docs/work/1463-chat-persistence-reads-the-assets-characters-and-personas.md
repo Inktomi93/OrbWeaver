@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-10-30
+updated: 2026-10-31
 priority: P2
 area: chat
+plan: unwired-code
 ---
 
 # Chat persistence reads the assets, characters and personas tables

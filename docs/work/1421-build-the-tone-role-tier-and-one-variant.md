@@ -29,6 +29,9 @@ Current defects:
   - [x] 4a: the extraction codemod and the button family.
   - [ ] 4b: the Badge family.
   - [ ] 4c: the Card family.
+    - [x] 4c-1: `Spoiler` and the ink fixes.
+    - [ ] 4c-2: `MessageBubble` and the plate.
+    - [ ] 4c-3: the preview parts, `FloatingChip`, `RoomIsland` and the map.
   - [ ] 4d: the layout boxes.
   - [x] 4e: ListRow state.
 
@@ -70,6 +73,11 @@ Step 4a:
 - `tooling/src/codemods/use-specific-extraction` moved the literal call sites by `maps/button-family.json`; its `moves`, `emptied`, `untouched`, `rerun` and `refused-default` fixtures hold the shapes, and it refuses a site whose unnamed style default differs between the two components. The spread and computed sites are hand edits the plan's step 4a record lists.
 - `tests/ui/primitives/button/button-family.ct.tsx` measures each glyph and inline step against its token, the picture box against its picture, and the core's focal, busy and disabled states. `tests/ui/primitives/tone-variant-matrix.ct.tsx` reads the glyph and inline paints in every tone under each seed and a nested custom scope. Both run in the Chromium and WebKit CT projects, and a planted wrong box or style fails them.
 - `tests/ui/primitives/button/box-hit-area.dom.test.ts` holds `BUTTON_BOX_OVERFLOW` against what each door renders; `tests/tooling/eslint-floor-and-fragment.test.ts` holds `orb/no-floorless-control-in-wrap` on the glyph and inline components.
+
+Step 4c-1:
+
+- `Spoiler` renders Stack behind its own door, `@orb/ui/spoiler`, and Card and Stack refuse `spoiler`; `tests/ui/primitives/spoiler/extracted-spoiler.dom.test-d.ts` pins both. `tests/ui/primitives/spoiler/spoiler.ct.tsx` reads the blur, the selection and the forwarded layout under each seed and a nested custom scope, and inside a Card of every tone, in the Chromium and WebKit CT projects. A planted skin without the selection rule fails it.
+- `tests/ui/primitives/card/card-interactive.ct.tsx` reads the hovered and pressed Card ink against the tone roles and the hover pixels against AA, over a nested mid-grey scope and each seed. The hover test skips on a device that does not hover, so WebKit checks the pressed paint. Removing the new ink classes fails it.
 
 Step 4e:
 

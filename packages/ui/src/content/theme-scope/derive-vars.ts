@@ -6,13 +6,11 @@
 // and any legal base format works — the numbers are `@orb/kit/theme-derivation`'s (the ONE home; the ST
 // theme importer predicts the same math in node). Two values cannot be spelled for the browser and are
 // solved in node instead: the reading plate's polarity-derived alpha (#217) and the elevation arm (#243).
-import type { MutedForegroundPair, Oklch, RampDeltas, ShadowIngredients } from "@orb/kit/theme-derivation";
+import type { CarriedInks, Oklch, RampDeltas, ShadowIngredients } from "@orb/kit/theme-derivation";
 import {
-  carriedAccentInkLightness,
-  carriedForegroundLightness,
+  carriedInks,
   chartRampForSurface,
   derivedForegroundLightness,
-  derivedMutedForegroundPair,
   READING_BAND_ALPHA,
   rampDeltas,
   rampSurface,
@@ -25,6 +23,19 @@ import {
 } from "@orb/kit/theme-derivation";
 import type { ParsedOklch } from "./color-parse.ts";
 import { serializeOpaqueOklch } from "./color-parse.ts";
+
+/** A carried background's resolved pixel and its neutral inks, solved once and read by every derivation over it. */
+export interface CarriedPalette {
+  readonly pixel: ParsedOklch;
+  readonly inks: CarriedInks;
+}
+
+/** The carried palette of a resolved base pixel, `null` when no pixel resolved. */
+export function carriedPaletteOf(pixel: ParsedOklch): CarriedPalette;
+export function carriedPaletteOf(pixel: ParsedOklch | null): CarriedPalette | null;
+export function carriedPaletteOf(pixel: ParsedOklch | null): CarriedPalette | null {
+  return pixel === null ? null : { pixel, inks: carriedInks({ l: pixel.l, c: pixel.c, h: pixel.h }) };
+}
 
 // The neutral surface ramp: each `--color-*` paired with the RampDeltas member that names its L shift,
 // applied via CSS relative-color-syntax so any base color format works and only L shifts (hue + chroma
@@ -156,14 +167,6 @@ function carriedSurfaces(
   };
 }
 
-function carriedMutedPair(opaqueBase: Oklch, surfaces: ReturnType<typeof carriedSurfaces>): MutedForegroundPair {
-  return derivedMutedForegroundPair(
-    opaqueBase,
-    [opaqueBase, surfaces.card, surfaces.popover, surfaces.sidebar, surfaces.secondary, surfaces.muted],
-    [opaqueBase, surfaces.card, surfaces.popover],
-  );
-}
-
 /** What a scope reports when its form-control edge could not hold both bounds (D159): the edge it paints, and whether the 3:1 floor itself held. */
 export interface InputBorderFallback {
   readonly edge: string;
@@ -182,16 +185,16 @@ export interface InputBorderEmission {
  * `--color-ring` along its hue toward a margin above the edge (`solveFocusRing`); only a hue with no ring above the edge
  * leaves a reported fallback.
  */
-export function inputBorderOn(origin: string, base: ParsedOklch, ring: Oklch | null): InputBorderEmission {
+export function inputBorderOn(origin: string, { pixel: base, inks }: CarriedPalette, ring: Oklch | null): InputBorderEmission {
   const opaqueBase: Oklch = { l: base.l, c: base.c, h: base.h };
   const surfaces = carriedSurfaces(opaqueBase, rampDeltas(opaqueBase));
   const solve = solveInputBorder({
     base: opaqueBase,
-    inkLightness: carriedForegroundLightness(opaqueBase),
+    inkLightness: inks.foreground,
     grounds: {
       panels: [opaqueBase, ...Object.values(surfaces)],
       fillInk: { l: derivedForegroundLightness(opaqueBase), c: 0, h: base.h },
-      fillAlpha: carriedMutedPair(opaqueBase, surfaces).inputAlpha,
+      fillAlpha: inks.muted.inputAlpha,
     },
   });
   const edge = foregroundAt(origin, solve.edge.l);
@@ -210,10 +213,11 @@ export function inputBorderOn(origin: string, base: ParsedOklch, ring: Oklch | n
  * foreground, the border/input fills, and the elevation ingredients. One cascade, one entry point, so the
  * clamp itself stays a field-by-field pass over the override.
  *
- * `base` is the carried background's resolved opaque pixel (`null` only with no readable value/ambient):
+ * `carried` is the carried background's resolved palette (`null` only with no readable value/ambient):
  * the plate falls back to opaque and elevation ingredients are skipped only in that provider-less arm.
  */
-export function surfaceVarsOn(background: string, base: ParsedOklch | null, derivedOrigin = background): Readonly<Record<string, string>> {
+export function surfaceVarsOn(background: string, carried: CarriedPalette | null, derivedOrigin = background): Readonly<Record<string, string>> {
+  const base = carried?.pixel ?? null;
   // The ramp's POLARITY ARM (#682). An unjudgeable base keeps the DARK arm rather than emitting nothing:
   // unlike the plate's alpha and the elevation ingredients, the ramp IS the chrome — a scope that carried
   // a background but no surfaces would paint the app theme's panels inside a custom room. Failing open to
@@ -231,25 +235,26 @@ export function surfaceVarsOn(background: string, base: ParsedOklch | null, deri
   }
   vars["--color-reading-plate"] = readingPlateOn(origin, base);
   vars["--color-reading-band"] = readingBandOn(origin);
-  if (base === null) {
+  if (carried === null) {
     return vars;
   }
 
-  const opaqueBase: Oklch = { l: base.l, c: base.c, h: base.h };
+  const { pixel } = carried;
+  const opaqueBase: Oklch = { l: pixel.l, c: pixel.c, h: pixel.h };
   const surfaces = carriedSurfaces(opaqueBase, deltas);
   // The accent ink covers muted too: they are the neutral tone's two tints, and its text-on-tint is this ink (D336).
-  vars["--color-accent-foreground"] = foregroundAt(origin, carriedAccentInkLightness(opaqueBase));
-  vars["--color-foreground"] = foregroundAt(origin, carriedForegroundLightness(opaqueBase));
+  vars["--color-accent-foreground"] = foregroundAt(origin, carried.inks.accentForeground);
+  vars["--color-foreground"] = foregroundAt(origin, carried.inks.foreground);
   vars["--color-card-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.card));
   vars["--color-popover-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.popover));
   vars["--color-sidebar-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.sidebar));
   vars["--color-sidebar-accent-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.sidebarAccent));
   vars["--color-secondary-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.secondary));
-  const mutedPair = carriedMutedPair(opaqueBase, surfaces);
+  const mutedPair = carried.inks.muted;
   vars["--color-muted-foreground"] = foregroundAt(origin, mutedPair.lightness);
   vars["--color-reading-plate-foreground"] = foregroundAt(origin, readingPlateForeground(opaqueBase).l);
   vars["--color-border"] = borderOn(origin, opaqueBase);
   vars["--color-sidebar-border"] = borderOn(origin, opaqueBase);
   vars["--color-input"] = inputSurfaceOn(origin, opaqueBase, mutedPair.inputAlpha);
-  return { ...vars, ...shadowVarsOn(origin, base), ...chartVarsOn(base) };
+  return { ...vars, ...shadowVarsOn(origin, pixel), ...chartVarsOn(pixel) };
 }

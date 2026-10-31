@@ -989,6 +989,19 @@ export interface ToneRoleRecipe<Role extends string, Knob extends string, Host e
   /** The neutral tone binds the derived ramp (D202 keeps its inks solved); a step mixes that host further. */
   readonly neutral: { readonly bind: Host; readonly step?: ToneMixStep<Knob> };
   readonly floor: readonly ToneFloorSurface<Role, Host>[];
+  /**
+   * Page-family host inks a colored tone's role carries at the text floor: a selected row, an active tab or a compare panel
+   * keeps its page inks on a tint. The neutral tone binds the ramp, whose inks D202 solves, so it is not judged here.
+   */
+  readonly pageInks: readonly Host[];
+}
+
+/** Every surface a role pairs with at the text floor for one tone: its floor, and its page inks when the tone is colored. */
+function roleFloors<Role extends string, Knob extends string, Host extends string>(
+  recipe: ToneRoleRecipe<Role, Knob, Host>,
+  tone: ToneSource,
+): readonly ToneFloorSurface<Role, Host>[] {
+  return tone === "neutral" ? recipe.floor : [...recipe.floor, ...recipe.pageInks.map((host) => ({ host }))];
 }
 
 export type ToneRoleRecipes<Role extends string, Knob extends string, Host extends string> = Readonly<Record<Role, ToneRoleRecipe<Role, Knob, Host>>>;
@@ -1002,21 +1015,40 @@ export interface TonePalette<Host extends string> {
 }
 
 /** The ramp hosts a carried palette derives and a tone recipe may bind or floor over. */
-export const CARRIED_TONE_HOSTS = ["background", "foreground", "surface-raised", "card", "muted", "accent", "accent-foreground", "border"] as const;
+export const CARRIED_TONE_HOSTS = [
+  "background",
+  "foreground",
+  "surface-raised",
+  "card",
+  "muted",
+  "muted-foreground",
+  "accent",
+  "accent-foreground",
+  "border",
+] as const;
 export type CarriedToneHost = (typeof CARRIED_TONE_HOSTS)[number];
+
+/** A carried palette's low-emphasis ink and the input-fill alpha it clears, judged over the hosts that ink is painted on. */
+function carriedMutedForegroundPair(base: Oklch): MutedForegroundPair {
+  const deltas = rampDeltas(base);
+  const card = rampSurface(base, deltas.card);
+  const popover = rampSurface(base, deltas.popover);
+  const hosts = [base, card, popover, rampSurface(base, deltas.sidebar), rampSurface(base, deltas.secondary), rampSurface(base, deltas.muted)];
+  return derivedMutedForegroundPair(base, hosts, [base, card, popover]);
+}
 
 function opaquePixel(color: Oklch): Oklch {
   return srgbToOklch(oklchToSrgb(color));
 }
 
 /** The shared ink of the background, raised and card host family. */
-export function carriedForegroundLightness(base: Oklch): number {
+function carriedForegroundLightness(base: Oklch): number {
   const deltas = rampDeltas(base);
   return derivedForegroundLightnessForSurfaces([base, rampSurface(base, deltas.surfaceRaised), rampSurface(base, deltas.card)]);
 }
 
 /** The accent ink covers the accent and muted host family: it is the neutral tone's text on both of its tints (D336). */
-export function carriedAccentInkLightness(base: Oklch): number {
+function carriedAccentInkLightness(base: Oklch): number {
   const deltas = rampDeltas(base);
   const lightness = familyForegroundLightness([rampSurface(base, deltas.accent), rampSurface(base, deltas.muted)]);
   if (lightness === null) {
@@ -1049,12 +1081,25 @@ export function familyForegroundLightness(family: readonly Oklch[]): number | nu
   return null;
 }
 
-/** The painted pixels of a carried base's ramp hosts, the palette its tone roles resolve against. */
-export function carriedTonePalette(base: Oklch): TonePalette<CarriedToneHost> {
+/** The neutral inks a carried base solves: each is a search, so a caller solves them once and hands them to every derivation. */
+export interface CarriedInks {
+  /** The page ink over the background, raised and card family. */
+  readonly foreground: number;
+  /** The ink of the accent and muted family, the neutral tone's text on its tints. */
+  readonly accentForeground: number;
+  readonly muted: MutedForegroundPair;
+}
+
+export function carriedInks(base: Oklch): CarriedInks {
+  return { foreground: carriedForegroundLightness(base), accentForeground: carriedAccentInkLightness(base), muted: carriedMutedForegroundPair(base) };
+}
+
+/** The painted pixels of a carried base's ramp hosts, the palette its tone roles resolve against; `inks` are {@link carriedInks} of the base. */
+export function carriedTonePalette(base: Oklch, { foreground: foregroundLightness, accentForeground, muted }: CarriedInks): TonePalette<CarriedToneHost> {
   const deltas = rampDeltas(base);
   const polarity = surfacePolarity(base);
   const background = opaquePixel(base);
-  const foreground = opaquePixel({ l: carriedForegroundLightness(base), c: 0, h: base.h });
+  const foreground = opaquePixel({ l: foregroundLightness, c: 0, h: base.h });
   const borderInk = oklchToSrgb({ l: derivedForegroundLightness(base), c: 0, h: base.h });
   return {
     polarity,
@@ -1066,8 +1111,9 @@ export function carriedTonePalette(base: Oklch): TonePalette<CarriedToneHost> {
       "surface-raised": opaquePixel(rampSurface(base, deltas.surfaceRaised)),
       card: opaquePixel(rampSurface(base, deltas.card)),
       muted: opaquePixel(rampSurface(base, deltas.muted)),
+      "muted-foreground": opaquePixel({ l: muted.lightness, c: 0, h: base.h }),
       accent: opaquePixel(rampSurface(base, deltas.accent)),
-      "accent-foreground": opaquePixel({ l: carriedAccentInkLightness(base), c: 0, h: base.h }),
+      "accent-foreground": opaquePixel({ l: accentForeground, c: 0, h: base.h }),
       border: srgbToOklch(compositeSrgb(borderInk, THEME_DERIVATION.borderAlpha, oklchToSrgb(base))),
     },
   };
@@ -1300,9 +1346,13 @@ function floorKnobs<Role extends string, Knob extends string, Host extends strin
   return [stepKnob(recipes[role], tone), surfaceKnob].filter((knob): knob is Knob => knob !== undefined);
 }
 
-/** Narrows a floor check: `knobs` keeps the floors whose pair reads one of them; `ratio` replaces the legal floor. */
+/**
+ * Narrows a floor check: `knobs` keeps the floors whose pair reads one of them, `ignoring` then drops the floors whose
+ * pair reads one of its knobs, and `ratio` replaces the legal floor.
+ */
 export interface ToneFloorFilter<Knob extends string> {
   readonly knobs?: ReadonlySet<Knob>;
+  readonly ignoring?: ReadonlySet<Knob>;
   readonly ratio?: number;
 }
 
@@ -1314,30 +1364,60 @@ export function toneFloorMisses<Role extends string, Knob extends string, Host e
   scheme: ToneScheme<Role, Knob, Host>,
   tone: ToneSource,
   mix: Readonly<Record<Knob, number>>,
-  { knobs, ratio = AA_NORMAL_RATIO }: ToneFloorFilter<Knob> = {},
+  { knobs, ignoring, ratio = AA_NORMAL_RATIO }: ToneFloorFilter<Knob> = {},
 ): readonly ToneFloorMiss<Role, Host>[] {
-  const readsKnob = (role: Role, over: ToneFloorSurface<Role, Host>): boolean =>
-    knobs === undefined || floorKnobs(scheme.recipes, role, over, tone).some((knob) => knobs.has(knob));
-  return roleFloorMisses(scheme, toneRoleColors(scheme, tone, mix), ratio, readsKnob);
+  const judged = (role: Role, over: ToneFloorSurface<Role, Host>): boolean => {
+    const read = floorKnobs(scheme.recipes, role, over, tone);
+    return (knobs === undefined || read.some((knob) => knobs.has(knob))) && !(ignoring !== undefined && read.some((knob) => ignoring.has(knob)));
+  };
+  // A knob search judges a few pairs per candidate, so each role resolves only when a judged pair reads it.
+  const resolved = new Map<Role, Oklch>();
+  const colorOf = (role: Role): Oklch => {
+    const known = resolved.get(role);
+    if (known !== undefined) {
+      return known;
+    }
+    const color = roleColor(scheme, scheme.recipes[role], tone, mix);
+    resolved.set(role, color);
+    return color;
+  };
+  return roleFloorMisses(scheme, tone, colorOf, { ratio, judged });
+}
+
+/** Narrows a {@link roleFloorMisses} judge: `ratio` replaces the legal floor, `judged` keeps a subset of the pairs. */
+export interface RoleFloorJudge<Role extends string, Host extends string> {
+  readonly ratio?: number;
+  readonly judged?: (role: Role, over: ToneFloorSurface<Role, Host>) => boolean;
 }
 
 /**
- * Every D336 floor a resolved set of role colours misses, at `ratio`: the judge for colours a scope paints, whether
- * its mixes spelled them or it emitted them as literals ({@link solveCarriedToneRoles}).
+ * Every D336 floor one tone's resolved role colours miss: the judge for colours a scope paints, whether its mixes
+ * spelled them or it emitted them as literals ({@link solveCarriedToneRoles}). A colored tone's page inks count as floors.
  */
 export function roleFloorMisses<Role extends string, Knob extends string, Host extends string>(
   scheme: ToneScheme<Role, Knob, Host>,
-  colors: Readonly<Record<Role, Oklch>>,
-  ratio: number = AA_NORMAL_RATIO,
-  judged: (role: Role, over: ToneFloorSurface<Role, Host>) => boolean = () => true,
+  tone: ToneSource,
+  colorOf: (role: Role) => Oklch,
+  { ratio = AA_NORMAL_RATIO, judged = (): boolean => true }: RoleFloorJudge<Role, Host> = {},
 ): readonly ToneFloorMiss<Role, Host>[] {
   const misses: ToneFloorMiss<Role, Host>[] = [];
+  // The knob solves call this per candidate, and a role pairs with several grounds: convert each colour once.
+  const pixels = new Map<Oklch, Rgb>();
+  const pixel = (color: Oklch): Rgb => {
+    const known = pixels.get(color);
+    if (known !== undefined) {
+      return known;
+    }
+    const converted = oklchToSrgb(color);
+    pixels.set(color, converted);
+    return converted;
+  };
   for (const role of Object.keys(scheme.recipes) as Role[]) {
-    for (const over of scheme.recipes[role].floor) {
+    for (const over of roleFloors(scheme.recipes[role], tone)) {
       if (!judged(role, over)) {
         continue;
       }
-      const measured = toneContrast(colors[role], "role" in over ? colors[over.role] : scheme.palette.hosts[over.host]);
+      const measured = worstTextContrast(pixel(colorOf(role)), [pixel("role" in over ? colorOf(over.role) : scheme.palette.hosts[over.host])]);
       if (measured < ratio) {
         misses.push({ role, over, ratio: measured });
       }
@@ -1373,9 +1453,9 @@ interface GroupSearch<Role extends string, Knob extends string, Host extends str
 function groupClears<Role extends string, Knob extends string, Host extends string>(
   search: GroupSearch<Role, Knob, Host>,
   mix: Readonly<Record<Knob, number>>,
-  knobs: ReadonlySet<Knob>,
+  filter: Pick<ToneFloorFilter<Knob>, "knobs" | "ignoring">,
 ): boolean {
-  return search.tones.every((tone) => toneFloorMisses(search.scheme, tone, mix, { knobs, ratio: search.ratio }).length === 0);
+  return search.tones.every((tone) => toneFloorMisses(search.scheme, tone, mix, { ...filter, ratio: search.ratio }).length === 0);
 }
 
 function raiseGroup<Role extends string, Knob extends string, Host extends string>(
@@ -1386,7 +1466,7 @@ function raiseGroup<Role extends string, Knob extends string, Host extends strin
   const knobs = new Set<Knob>([inner]);
   for (let percent = solved[inner]; percent <= PERCENT; percent += 1) {
     solved[inner] = percent;
-    if (groupClears(search, solved, knobs)) {
+    if (groupClears(search, solved, { knobs })) {
       return true;
     }
   }
@@ -1399,15 +1479,20 @@ function lowerGroup<Role extends string, Knob extends string, Host extends strin
   solved: Record<Knob, number>,
 ): boolean {
   const knobs = new Set<Knob>([...scaled, inner]);
+  // The pairs that read only the scaled knobs, such as a page ink on a tint: no inner percent rescues a scale they miss.
+  const scaledOnly = { knobs: new Set<Knob>(scaled), ignoring: new Set<Knob>([inner]) };
   const defaults = { ...solved };
   const [lead] = scaled;
   for (let leadPercent = lead === undefined ? 0 : defaults[lead]; leadPercent >= 0; leadPercent -= 1) {
     for (const knob of scaled) {
       solved[knob] = lead === undefined ? defaults[knob] : Math.round((defaults[knob] * leadPercent) / defaults[lead]);
     }
+    if (!groupClears(search, solved, scaledOnly)) {
+      continue;
+    }
     for (let percent = defaults[inner]; percent >= 0; percent -= 1) {
       solved[inner] = percent;
-      if (groupClears(search, solved, knobs)) {
+      if (groupClears(search, solved, { knobs })) {
         return true;
       }
     }
@@ -1571,25 +1656,39 @@ export function carriedLiteralRoles<Role extends string, Knob extends string, Ho
   return [...literalSurfaces(recipes, defaults), ...literalInks(recipes)].map(({ role }) => role);
 }
 
+interface TintSpec {
+  readonly percent: number;
+  readonly weakestPercent: number;
+  /** The inks the tone's tint carries, each of which must clear the text floor on it. */
+  readonly inks: readonly Oklch[];
+}
+
 /**
  * A tint on the tone's hue: the default mix's lightness and the tone's share of chroma, raised to the tint's least
  * chroma (scaled by its step over the weakest tint, so a stronger tint stays stronger). The nearest lightness, away
- * from the page ink first, that keeps that chroma, sits {@link TONE_TINT_SEPARATION} off the page and lets the page ink
- * itself clear the text floor wins; where the gamut holds no such chroma, the nearest that keeps the rest.
+ * from the page ink first, that keeps that chroma, sits {@link TONE_TINT_SEPARATION} off the page and lets each ink of
+ * its floor clear the text floor wins; where the gamut holds no such chroma, the nearest that keeps the rest.
  *
- * The page ink is judged, not only the tone's `text-on-tint`, because a selected row, an active tab and a compare panel
- * keep the page ink on a tint (D336). Its aim is the page's own pair, capped at the derivation ratio and never below the
- * floor; the page ink's end point clears whatever the page ink clears, so `text-on-tint` always has a solution too.
+ * The inks are the page-family inks a selected row, an active tab or a compare panel keep on a tint (D336). Each aims at
+ * its own pair with the page, capped at the derivation ratio and never below the floor; the page ink's end point clears
+ * whatever those inks clear, so `text-on-tint` always has a solution too.
  */
-function solveTint<Host extends string>(palette: TonePalette<Host>, base: Oklch, percent: number, weakestPercent: number): Oklch {
+function solveTint<Host extends string>(palette: TonePalette<Host>, base: Oklch, { percent, weakestPercent, inks }: TintSpec): Oklch {
   const { background, foreground } = palette;
   const floorChroma = Math.min(base.c, (TONE_TINT_MIN_CHROMA * percent) / weakestPercent);
   const chroma = Math.max((base.c * percent) / PERCENT, floorChroma);
-  const pageInkAim = Math.max(AA_NORMAL_RATIO, Math.min(AA_NORMAL_DERIVATION_RATIO, toneContrast(foreground, background)));
+  const aims = inks.map((ink) => ({
+    ink: oklchToSrgb(ink),
+    aim: Math.max(AA_NORMAL_RATIO, Math.min(AA_NORMAL_DERIVATION_RATIO, toneContrast(ink, background))),
+  }));
   let nearest: Oklch | undefined;
   for (const l of lightnessWalk(mixOklab(base, percent, background).l, foreground.l < background.l ? 1 : -1)) {
     const candidate = onHue(l, chroma, base.h);
-    if (paintedDistance(candidate, background) < TONE_TINT_SEPARATION || toneContrast(foreground, candidate) < pageInkAim) {
+    if (paintedDistance(candidate, background) < TONE_TINT_SEPARATION) {
+      continue;
+    }
+    const candidatePixel = oklchToSrgb(candidate);
+    if (aims.some(({ ink, aim }) => worstTextContrast(ink, [candidatePixel]) < aim)) {
       continue;
     }
     if (candidate.c >= floorChroma - CHROMA_TOLERANCE) {
@@ -1613,7 +1712,8 @@ function solveTint<Host extends string>(palette: TonePalette<Host>, base: Oklch,
 function solveInk<Host extends string>(palette: TonePalette<Host>, base: Oklch, percent: number, grounds: readonly Oklch[]): Oklch {
   const direction = palette.foreground.l < palette.background.l ? -1 : 1;
   const chroma = (base.c * percent) / PERCENT;
-  const worst = (l: number): number => Math.min(...grounds.map((ground) => toneContrast(onHue(l, chroma, base.h), ground)));
+  const groundPixels = grounds.map((ground) => oklchToSrgb(ground));
+  const worst = (l: number): number => worstTextContrast(oklchToSrgb(onHue(l, chroma, base.h)), groundPixels);
   const target = Math.max(AA_NORMAL_RATIO, Math.min(AA_NORMAL_DERIVATION_RATIO, worst(direction > 0 ? 1 : 0)));
   const lightness = nearestClearingLightness(mixOklab(base, percent, palette.foreground).l, direction, (candidate) => worst(candidate) >= target);
   if (lightness === null) {
@@ -1661,7 +1761,9 @@ export function solveCarriedToneRoles<Role extends string, Knob extends string, 
   const surfaces = literalSurfaces(recipes, defaults);
   const [weakest] = surfaces;
   for (const { role, step } of surfaces) {
-    const tint = solveTint(palette, tone.base, defaults[step.mix], weakest === undefined ? defaults[step.mix] : defaults[weakest.step.mix]);
+    const inks = roleFloors(recipes[role], tone).map((over) => ("role" in over ? colors[over.role] : palette.hosts[over.host]));
+    const weakestPercent = weakest === undefined ? defaults[step.mix] : defaults[weakest.step.mix];
+    const tint = solveTint(palette, tone.base, { percent: defaults[step.mix], weakestPercent, inks });
     colors[role] = tint;
     literals[role] = tint;
   }
