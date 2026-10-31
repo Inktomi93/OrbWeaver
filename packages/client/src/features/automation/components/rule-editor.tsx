@@ -91,10 +91,16 @@ export function RuleEditor({
               </Button>
             </Row>
             <RuleEditorSaveStatus session={session} error={failure} uncreated={confirmed === null} />
-            <Text voice="gloss">Edits save automatically when complete. New rules start off; enable the rule separately when you are ready.</Text>
-            <Text voice="gloss">{ruleClockLine({ stored: confirmed?.timeZone, viewerZone: viewerTimeZone(), unknownZone })}</Text>
+            <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
+              Edits save automatically when complete. New rules start off; enable the rule separately when you are ready.
+            </Text>
+            <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
+              {ruleClockLine({ stored: confirmed?.timeZone, viewerZone: viewerTimeZone(), unknownZone })}
+            </Text>
             {rule === null || rule.rulePresetId === null ? null : (
-              <Text voice="gloss">Editing makes this a custom rule and removes its rule-preset lineage.</Text>
+              <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
+                Editing makes this a custom rule and removes its rule-preset lineage.
+              </Text>
             )}
             <RuleEditorSettings form={session.form} chatId={chatId} />
             <RuleEditorActions form={session.form} chatId={chatId} />

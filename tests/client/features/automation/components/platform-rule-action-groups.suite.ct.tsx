@@ -110,3 +110,88 @@ for (const regime of REGIMES) {
     });
   });
 }
+
+test.describe("rule editor field rows", () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  test("the trigger label and the automation switch follow the form's own field grammar", async ({ mount, page }) => {
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    const appearance = appearanceSettingsSchema.parse({});
+    await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });
+    await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
+    const captured = (await caller.automation.listOwnerRules())[0];
+    if (captured === undefined) {
+      throw new Error("The corpus must contain an owned library rule");
+    }
+    await routeTrpc(page, serveCorpusProcedures(caller, READS));
+    await mount<typeof RuleActionGroupsStory>(STORY, { width: 960, appearance });
+    await page
+      .getByRole("button")
+      .filter({ has: page.getByText(captured.name, { exact: true }) })
+      .click();
+    await page.getByRole("button", { name: `Edit ${captured.name}`, exact: true }).click();
+    const editor = page.getByRole("region", { name: "Rule editor", exact: true });
+    const typeOf = (label: string): Promise<string> =>
+      editor.getByText(label, { exact: true }).evaluate((node) => {
+        const style = getComputedStyle(node);
+        return `${style.fontSize}/${style.fontWeight}`;
+      });
+    expect(await typeOf("When")).toBe(await typeOf("Rule name"));
+    const automationSwitch = editor.getByRole("switch", { name: "Include events caused by automation", exact: true });
+    await expect(automationSwitch.locator("xpath=ancestor::*[@data-orientation][1]")).toHaveAttribute("data-orientation", "horizontal");
+  });
+
+  test("a held save is stated at the editor's body size, not under it", async ({ mount, page }) => {
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    const appearance = appearanceSettingsSchema.parse({});
+    await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });
+    await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
+    const captured = (await caller.automation.listOwnerRules())[0];
+    if (captured === undefined) {
+      throw new Error("The corpus must contain an owned library rule");
+    }
+    await routeTrpc(page, serveCorpusProcedures(caller, READS));
+    await mount<typeof RuleActionGroupsStory>(STORY, { width: 960, appearance });
+    await page
+      .getByRole("button")
+      .filter({ has: page.getByText(captured.name, { exact: true }) })
+      .click();
+    await page.getByRole("button", { name: `Edit ${captured.name}`, exact: true }).click();
+    const editor = page.getByRole("region", { name: "Rule editor", exact: true });
+    await editor.getByRole("textbox", { name: "Rule name", exact: true }).fill("");
+    const held = editor.getByRole("status").filter({ hasText: "Not saved" });
+    await expect(held).toBeVisible();
+    const sizeOf = (node: Pick<typeof held, "evaluate">): Promise<number> => node.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
+    const sentence = await sizeOf(held.locator("p").last());
+    const body = await sizeOf(editor.getByText("Actions run in this order", { exact: true }));
+    expect(sentence).toBeGreaterThanOrEqual(body);
+  });
+
+  test("the editor's explanatory lines keep the reading measure inside a wide pane", async ({ mount, page }) => {
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    const appearance = appearanceSettingsSchema.parse({});
+    await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });
+    await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
+    const captured = (await caller.automation.listOwnerRules())[0];
+    if (captured === undefined) {
+      throw new Error("The corpus must contain an owned library rule");
+    }
+    await routeTrpc(page, serveCorpusProcedures(caller, READS));
+    await mount<typeof RuleActionGroupsStory>(STORY, { width: 960, appearance });
+    await page
+      .getByRole("button")
+      .filter({ has: page.getByText(captured.name, { exact: true }) })
+      .click();
+    await page.getByRole("button", { name: `Edit ${captured.name}`, exact: true }).click();
+    const editor = page.getByRole("region", { name: "Rule editor", exact: true });
+    const line = editor.getByText(/^Edits save automatically when complete/u);
+    const box = await line.boundingBox();
+    if (box === null) {
+      throw new Error("The explanatory line must render");
+    }
+    expect(box.width).toBeLessThanOrEqual((await resolvedLength(page, "var(--reading-measure-prose)", line)) + 1);
+  });
+});
