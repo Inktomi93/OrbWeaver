@@ -144,10 +144,10 @@ function itemsOf(node: unknown): JsonSchemaNode | undefined {
   return items !== null && typeof items === "object" ? (items as JsonSchemaNode) : undefined;
 }
 
-// Constrain `<arrayField>.items.<refProp>` to the given enum, when both the array + its item property exist.
-function constrainArrayItemRef(root: JsonSchemaNode, arrayField: string, refProp: string, values: readonly string[]): void {
-  const item = itemsOf(propsOf(root)?.[arrayField]);
-  const refNode = item !== undefined ? propsOf(item)?.[refProp] : undefined;
+// Constrain `inventory.items.targetRef` to the given enum, when both the array + its item property exist.
+function constrainInventoryTargetRef(root: JsonSchemaNode, values: readonly string[]): void {
+  const item = itemsOf(propsOf(root)?.["inventory"]);
+  const refNode = item !== undefined ? propsOf(item)?.["targetRef"] : undefined;
   constrainStringProperty(refNode, values);
 }
 
@@ -285,7 +285,7 @@ export function constrainExtractionSchema<S extends Record<string, unknown>>(sch
   const clone = cloneNode(schema as JsonSchemaNode);
   constrainPartyPlane(clone, refs);
   constrainGameTrackerPlane(clone, refs);
-  constrainArrayItemRef(clone, "inventory", "targetRef", refs.actorRefs);
+  constrainInventoryTargetRef(clone, refs.actorRefs);
   // scene.presentRemove is an ARRAY of ref strings (not an object array): constrain the array's item enum.
   const sceneProps = propsOf(propsOf(clone)?.["scene"]);
   constrainStringProperty(sceneProps?.["presentRemove"] !== undefined ? itemsOf(sceneProps["presentRemove"]) : undefined, refs.actorRefs);
@@ -768,7 +768,7 @@ export function salvagePopulate(value: unknown): RpgPopulateSalvage {
  */
 export function constrainPopulateSchema<S extends Record<string, unknown>>(schema: S, targetRef: string): S {
   const clone = cloneNode(schema as JsonSchemaNode);
-  constrainArrayItemRef(clone, "inventory", "targetRef", [targetRef]);
+  constrainInventoryTargetRef(clone, [targetRef]);
   const sheetNode = propsOf(clone)?.["sheet"];
   requireField(clone, "sheet");
   requireField(sheetNode, "title");
