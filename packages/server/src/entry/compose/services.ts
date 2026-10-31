@@ -114,13 +114,13 @@ import { createExportRpgGame, createRpgEventBus, createRpgTraceRecorder } from "
 import { createFieldIndexCache, withRetrievalDegrade } from "#domain/search";
 import type { SessionsContext, SessionsRolePolicy, SessionsService } from "#domain/sessions";
 import { createResolveUserEnabled, createSessionsRolePolicy, createSessionsService } from "#domain/sessions";
-import type { DefaultBackgroundSeeder, SettingsContext, SettingsServiceDeps } from "#domain/settings";
+import type { DefaultBackgroundSeeder, SettingsAssemblyContext, SettingsServiceDeps } from "#domain/settings";
 import {
   createEffectiveConfigCache,
   createJoinerSettingsStatement,
   createReadSeededKeys,
+  createSettingsAssemblyContext,
   createSettingsComposedOps,
-  createSettingsContext,
   createSettingsKvPort,
   createSettingsService,
   recordSeededItemKeys,
@@ -631,7 +631,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // late-bound thunk, dereferenced per verb call after the registry has been assembled.
   const workloadBinding = createBinding<WorkloadContributions>("compose: workload contributions derefed before the registry was assembled");
   const getWorkloadContributions = workloadBinding.read;
-  const settingsCtx: SettingsContext = createSettingsContext(settingsDeps);
+  const settingsCtx: SettingsAssemblyContext = createSettingsAssemblyContext(settingsDeps);
   const settings = createSettingsService(settingsCtx);
   const rateLimit = createRateLimitGate({
     logger: deps.logger,

@@ -22,7 +22,7 @@ import { createPortableImports } from "#domain/import";
 import type { PersonaService } from "#domain/persona";
 import type { PresetAssemblyContext } from "#domain/preset";
 import { createExportPresets, createImportPresets } from "#domain/preset";
-import type { SettingsContext } from "#domain/settings";
+import type { SettingsAssemblyContext } from "#domain/settings";
 import { createExportTheme, createExportUserSettings, createImportTheme, createImportUserSettings } from "#domain/settings";
 import type { TagContext } from "#domain/tag";
 import { createImportedCardTag, createTagLibraryExport, createTagLibraryImport } from "#domain/tag";
@@ -35,7 +35,7 @@ import type { LifecycleDoors, NonPortableCanon, PortabilityTableName } from "../
 export interface PortabilityDeps {
   readonly now: Clock;
   readonly tagCtx: TagContext;
-  readonly settingsCtx: SettingsContext;
+  readonly settingsCtx: SettingsAssemblyContext;
   readonly presetCtx: PresetAssemblyContext;
   readonly worldInfoExportCtx: WorldInfoExportContext;
   readonly importStandaloneLorebook: ImportStandaloneLorebook;

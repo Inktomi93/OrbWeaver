@@ -28,7 +28,7 @@ import type { PersonaService } from "#domain/persona";
 import { createFindOwnedPersonaByName } from "#domain/persona";
 import type { PresetAssemblyContext } from "#domain/preset";
 import { createImportPresets } from "#domain/preset";
-import type { SettingsContext } from "#domain/settings";
+import type { SettingsAssemblyContext } from "#domain/settings";
 import { createApplyImportedAppearance, createImportTheme } from "#domain/settings";
 import { createStatsBatchWiring, reconcileStats } from "#domain/stats";
 import type { TagContext, TagService } from "#domain/tag";
@@ -53,7 +53,7 @@ export interface PortabilityRunnerComposeDeps {
   readonly db: DatabaseHandle;
   readonly now: Clock;
   readonly tagCtx: TagContext;
-  readonly settingsCtx: SettingsContext;
+  readonly settingsCtx: SettingsAssemblyContext;
   readonly presetCtx: PresetAssemblyContext;
   readonly worldInfoExportCtx: WorldInfoExportContext;
   readonly importStandaloneLorebook: ImportStandaloneLorebook;
