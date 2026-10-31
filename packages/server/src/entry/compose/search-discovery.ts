@@ -55,7 +55,7 @@ import {
   createRepointSeedsAfterPersonaDelete,
   createResolvePersonasForParticipants,
 } from "#domain/persona";
-import type { PresetContext, PresetService } from "#domain/preset";
+import type { PresetAssemblyContext, PresetService } from "#domain/preset";
 import { createPresetService, createResolvePresetUsage } from "#domain/preset";
 import { listGmPresetChatIds } from "#domain/rpg";
 import type { FieldIndexCache, SearchService } from "#domain/search";
@@ -110,7 +110,7 @@ export interface SearchDiscoveryComposeDeps {
   /** preset's ONE cross-feature op: the caller's chat-role capability, for `preset.resolveEffective`'s
    *  projection of the generation funnel. `connection` composes BEFORE this seam at the keystone, so it is a
    *  plain dep, not a forward-ref. */
-  readonly resolveChatCapability: PresetContext["resolveChatCapability"];
+  readonly resolveChatCapability: PresetAssemblyContext["resolveChatCapability"];
   /** The LATE-BOUND workload contribution registry (assembled after chat, at the keystone) — the workloads
    *  verbs deref it per call as their per-kind params validator. */
   readonly getContributions: WorkloadServiceContext["getContributions"];
@@ -131,7 +131,7 @@ export interface SearchDiscoveryComposeResult {
   readonly resolvePersonasForParticipants: ResolvePersonasForParticipants;
   /** D259 — the sign-up joiner's persona statement chat's signup batch runs. Built from the same `PersonaContext`. */
   readonly joinerPersonaStatement: SignupInviteDeps["signupPersonaStatement"];
-  readonly presetCtx: PresetContext;
+  readonly presetCtx: PresetAssemblyContext;
   readonly preset: PresetService;
   readonly stats: StatsService;
   readonly search: SearchService;
@@ -256,7 +256,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   const persona = createPersonaService(personaCtx);
   const resolvePersonasForParticipants = createResolvePersonasForParticipants(personaCtx);
   const joinerPersonaStatement = createJoinerPersonaStatement(personaCtx);
-  const presetCtx: PresetContext = {
+  const presetCtx: PresetAssemblyContext = {
     logger: deps.logger,
     db,
     now,

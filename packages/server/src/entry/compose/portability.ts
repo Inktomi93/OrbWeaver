@@ -20,7 +20,7 @@ import type { ImageryPortabilityService } from "#domain/imagery";
 import type { ImportProfileDeps } from "#domain/import";
 import { createPortableImports } from "#domain/import";
 import type { PersonaService } from "#domain/persona";
-import type { PresetContext } from "#domain/preset";
+import type { PresetAssemblyContext } from "#domain/preset";
 import { createExportPresets, createImportPresets } from "#domain/preset";
 import type { SettingsContext } from "#domain/settings";
 import { createExportTheme, createExportUserSettings, createImportTheme, createImportUserSettings } from "#domain/settings";
@@ -36,7 +36,7 @@ export interface PortabilityDeps {
   readonly now: Clock;
   readonly tagCtx: TagContext;
   readonly settingsCtx: SettingsContext;
-  readonly presetCtx: PresetContext;
+  readonly presetCtx: PresetAssemblyContext;
   readonly worldInfoExportCtx: WorldInfoExportContext;
   readonly importStandaloneLorebook: ImportStandaloneLorebook;
   readonly assetsCtx: AssetsContext;

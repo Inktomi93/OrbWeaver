@@ -26,7 +26,7 @@ import {
 } from "#domain/import";
 import type { PersonaService } from "#domain/persona";
 import { createFindOwnedPersonaByName } from "#domain/persona";
-import type { PresetContext } from "#domain/preset";
+import type { PresetAssemblyContext } from "#domain/preset";
 import { createImportPresets } from "#domain/preset";
 import type { SettingsContext } from "#domain/settings";
 import { createApplyImportedAppearance, createImportTheme } from "#domain/settings";
@@ -54,7 +54,7 @@ export interface PortabilityRunnerComposeDeps {
   readonly now: Clock;
   readonly tagCtx: TagContext;
   readonly settingsCtx: SettingsContext;
-  readonly presetCtx: PresetContext;
+  readonly presetCtx: PresetAssemblyContext;
   readonly worldInfoExportCtx: WorldInfoExportContext;
   readonly importStandaloneLorebook: ImportStandaloneLorebook;
   /** The gallery-extended assets ctx (the two character-handle resolvers the gallery export/import verbs need). */
