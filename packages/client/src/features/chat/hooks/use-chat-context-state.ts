@@ -1,5 +1,5 @@
 // The Chats CONTEXT-panel projection hook (client-architecture-lockdown.md §6b) — resolves the active chat
-// handle into the `ChatContextState` the section's tabs consume. All reads are unconditional
+// handle into the `CommittedChatContext` the section's tabs consume. All reads are unconditional
 // (rules-of-hooks); the `getChat` read uses the `useSuspenseQueries` dynamic-array idiom so it suspends ONLY
 // when a room is open — a null-on-pending would flash the placeholder (a lying state).
 //
@@ -9,10 +9,10 @@
 // means exactly "nothing is open".
 
 import { useMultiHumanCapable, useSuspenseQueries, useTRPC } from "#data";
-import type { ChatContextState } from "#lib";
+import type { CommittedChatContext } from "#lib";
 import { useActiveChatId } from "#state";
 
-export function useChatContextState(): ChatContextState | null {
+export function useChatContextState(): CommittedChatContext | null {
   const chatId = useActiveChatId();
   // #476's ONE read of this capability, hint-backed: a device that has been told answers in its FIRST
   // frame instead of rendering the single-human arm for the whole flight of `/api/auth/config` (#1627 —

@@ -1,19 +1,17 @@
 // Immutable encoder generations and the authoritative per-owner migration target.
 
-import type { VectorScope } from "@orb/contracts/embeddings";
+import type { EmbeddingTask, VectorScope } from "@orb/contracts/embeddings";
 import { embedDimsOf, embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
 import { embedGenerations, embedGenerationTargets } from "@orb/db";
 import type { VectorWidthMismatch } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
-
 import type { EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import { and, eq } from "drizzle-orm";
-
 import { connectionFingerprint, generationIdOf, vectorSpaceFingerprint } from "#primitives/embedding-generation";
 import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
-import type { GenerationReceipt, GenerationTask } from "../contract/generation.ts";
+import type { GenerationReceipt } from "../contract/generation.ts";
 import type { EmbeddingConnectionSnapshot, EmbeddingsContext, PinnedGeneration, PinnedImageSpace } from "../contract/service.ts";
 import { markGenerationComplete, switchTargetGeneration } from "../persistence/space-state.ts";
 import { resolveImageSpace } from "./task-model.ts";
@@ -35,8 +33,8 @@ export async function completeGenerationScope(
 export async function resolveTargetGeneration(
   ctx: TargetResolveCtx & Pick<EmbeddingsContext, "withStableEmbeddingBinding">,
   ownerId: UserId,
-  task: GenerationTask,
-  via: GenerationTask = task,
+  task: EmbeddingTask,
+  via: EmbeddingTask = task,
 ): Promise<PinnedGeneration | null> {
   return await ctx.withStableEmbeddingBinding(ownerId, () => resolveTargetGenerationAttempt({ ctx, ownerId, task, via, proven: undefined, attempt: 0 }));
 }
@@ -59,7 +57,7 @@ export async function resolveImageTargetGeneration(ctx: EmbeddingsContext, owner
 export async function landProvenTarget(
   ctx: TargetResolveCtx,
   ownerId: UserId,
-  target: { readonly task: GenerationTask; readonly via: GenerationTask },
+  target: { readonly task: EmbeddingTask; readonly via: EmbeddingTask },
   proven: EmbedGenerationId,
 ): Promise<PinnedGeneration | null> {
   return await resolveTargetGenerationAttempt({ ctx, ownerId, ...target, proven, attempt: 0 });
@@ -69,7 +67,7 @@ export async function landProvenTarget(
 const WIDTH_PROBE_TEXT = "width check";
 
 /** Prove the new space's width within the runtime's route-specific bound before publishing or purging a generation. */
-export async function probeWidth(connection: EmbeddingConnectionSnapshot, via: GenerationTask, dims: number, scheduleTimeout: ScheduleOp): Promise<void> {
+export async function probeWidth(connection: EmbeddingConnectionSnapshot, via: EmbeddingTask, dims: number, scheduleTimeout: ScheduleOp): Promise<void> {
   const bound = new AbortController();
   const cancelTimer = scheduleTimeout(() => bound.abort(), connection.execution.widthProbeTimeoutMs);
   const opts = { signal: bound.signal };
@@ -101,7 +99,7 @@ interface Candidate {
 }
 
 /** The generation a resolved connection would write into. */
-function candidateOf(ownerId: UserId, task: GenerationTask, via: GenerationTask, connection: EmbeddingConnectionSnapshot): Candidate {
+function candidateOf(ownerId: UserId, task: EmbeddingTask, via: EmbeddingTask, connection: EmbeddingConnectionSnapshot): Candidate {
   const dims = embedDimsOf(connection.capability);
   if (dims === undefined) {
     throw new Error(`the ${via} connection for an embedding generation resolved to a ${connection.capability.kind} model`);
@@ -113,7 +111,7 @@ function candidateOf(ownerId: UserId, task: GenerationTask, via: GenerationTask,
 async function readTarget(
   ctx: Pick<TargetResolveCtx, "db">,
   ownerId: UserId,
-  task: GenerationTask,
+  task: EmbeddingTask,
 ): Promise<{ readonly generationId: EmbedGenerationId; readonly epoch: number } | undefined> {
   const rows = await ctx.db
     .select({ generationId: embedGenerationTargets.generationId, epoch: embedGenerationTargets.epoch })
@@ -145,8 +143,8 @@ export async function pendingTargetMove(
   ctx: Pick<TargetResolveCtx, "db" | "resolveEmbeddingConnection">,
   args: {
     readonly ownerId: UserId;
-    readonly task: GenerationTask;
-    readonly via: GenerationTask;
+    readonly task: EmbeddingTask;
+    readonly via: EmbeddingTask;
     readonly connectionId?: UserConnectionId | undefined;
     readonly cachedFacts?: boolean | undefined;
   },
@@ -163,15 +161,15 @@ export async function pendingTargetMove(
 interface ResolveAttempt {
   readonly ctx: TargetResolveCtx;
   readonly ownerId: UserId;
-  readonly task: GenerationTask;
-  readonly via: GenerationTask;
+  readonly task: EmbeddingTask;
+  readonly via: EmbeddingTask;
   readonly proven: EmbedGenerationId | undefined;
   readonly attempt: number;
 }
 
 /** What `via` resolves to now. Resolution can span provider/catalog work, so it is read twice and the later answer
  *  wins: an older slow resolver cannot land after a newer binding and reset the target backwards. */
-async function resolveCurrentConnection(ctx: TargetResolveCtx, ownerId: UserId, via: GenerationTask): Promise<EmbeddingConnectionSnapshot | null> {
+async function resolveCurrentConnection(ctx: TargetResolveCtx, ownerId: UserId, via: EmbeddingTask): Promise<EmbeddingConnectionSnapshot | null> {
   const first = await ctx.resolveEmbeddingConnection(ownerId, via);
   if (first === null) {
     return null;

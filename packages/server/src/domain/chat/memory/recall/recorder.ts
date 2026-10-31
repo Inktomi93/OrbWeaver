@@ -17,7 +17,8 @@
 // stamps `seq` (a monotonic counter) + `at` (via the injected clock), so recall stays clock-free for them.
 
 import type { Clock } from "@orb/kit/time";
-import type { MemoryRecallFilter, MemoryRecallRecord, MemoryRecallRecorder } from "../types.ts";
+import type { RecorderFilter } from "#foundation/observability";
+import type { MemoryRecallRecord, MemoryRecallRecorder } from "../types.ts";
 
 /** The default ring depth — a long session's worth of recalls (one or two per turn); the oldest drops past it. */
 const DEFAULT_LIMIT = 256;
@@ -36,7 +37,7 @@ export function createMemoryRecallRecorder(deps: { readonly now: Clock; readonly
         ring.shift();
       }
     },
-    recent: (filter?: MemoryRecallFilter): readonly MemoryRecallRecord[] => {
+    recent: (filter?: RecorderFilter): readonly MemoryRecallRecord[] => {
       const matched = filter?.chatId === undefined ? ring : ring.filter((r) => r.chatId === filter.chatId);
       const cap = filter?.limit ?? limit;
       return cap >= matched.length ? [...matched] : matched.slice(matched.length - cap);

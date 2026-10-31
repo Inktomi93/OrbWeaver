@@ -2,7 +2,7 @@ import type { SessionKey, SessionStore, SessionStoreEntry } from "@anthropic-ai/
 import type { AgentSdkModel } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import type { ChatId, ModelId } from "@orb/kit/ids";
-import type { Clock } from "@orb/kit/time";
+import type { Clock, ScheduleOp } from "@orb/kit/time";
 import type { ZodRawShape } from "zod";
 import type {
   AgentSdkExecution,
@@ -15,7 +15,6 @@ import type {
   ProviderBackend,
   ProviderError,
   ProviderScrubSet,
-  ScheduleTimeout,
   SessionEntryWriter,
   SpawnIdentity,
   WireCaptureSink,
@@ -142,8 +141,8 @@ export interface AgentSdkDeps {
   /** The shared outbound-image seam (MA-10): a summarize item's images ride the SDK streaming-input prompt. */
   readonly normalizeImageBytes: NormalizeImageBytes;
   /** The TIMER seam every bound in this backend arms through — injected so a test trips a bound by hand. */
-  readonly scheduleTimeout: ScheduleTimeout;
-  readonly scheduleIdleTimeout: ScheduleTimeout;
+  readonly scheduleTimeout: ScheduleOp;
+  readonly scheduleIdleTimeout: ScheduleOp;
   readonly captureWire?: WireCaptureSink | undefined;
   /** Opt-in subprocess stderr at debug level. */
   readonly debug: boolean;

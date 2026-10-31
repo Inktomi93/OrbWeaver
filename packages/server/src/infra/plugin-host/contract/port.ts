@@ -77,7 +77,7 @@ export interface ProcessPluginHost extends AsyncDisposable {
     readonly grants: readonly PluginCapability[];
     readonly bridge: PluginBridge;
     readonly chat: InvocationChat;
-  }) => Promise<SnippetRunOut>;
+  }) => Promise<SnippetResult>;
   readonly readLog: (instance: PluginInstance) => readonly PluginLogView[];
   readonly dispose: (instance: PluginInstance) => void;
 }
@@ -85,5 +85,3 @@ export interface ProcessPluginHost extends AsyncDisposable {
 export type CreateInstanceOutcomeOut =
   | { readonly ok: true; readonly instance: PluginInstance }
   | { readonly ok: false; readonly error: string; readonly log: readonly PluginLogView[] };
-
-export type SnippetRunOut = SnippetResult;

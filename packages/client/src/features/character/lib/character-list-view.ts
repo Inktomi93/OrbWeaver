@@ -27,8 +27,6 @@ export type RowTag = Pick<TagView, "id" | "name" | "isHiddenOnCard" | "folderTyp
 
 export type FilterableRow = { readonly [K in keyof Pick<CharacterSummary, "tags">]: readonly RowTag[] };
 
-export type TagGroupCensus = ListCharacterTagGroupsResult;
-
 /** A categorized bucket: a visible tag (or the null "Uncategorized" catch-all), the members this pane has
  *  PAGED IN, and how big the bucket is in the library. */
 export interface TagGroup<T> {
@@ -61,7 +59,7 @@ function visibleTagIds(item: FilterableRow): readonly TagId[] {
  * exactly as this function always did, ordered by name, with `total: null` — a page-shaped answer that says
  * it does not know the library's numbers, rather than one that quietly claims them.
  */
-export function groupByTag<T extends FilterableRow>(items: readonly T[], census: TagGroupCensus | null): readonly TagGroup<T>[] {
+export function groupByTag<T extends FilterableRow>(items: readonly T[], census: ListCharacterTagGroupsResult | null): readonly TagGroup<T>[] {
   const membersByTag = new Map<TagId, T[]>();
   const uncategorized: T[] = [];
   for (const item of items) {

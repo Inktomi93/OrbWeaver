@@ -8,7 +8,7 @@ import { assets, characters, chatParticipants, digestThemeAssignments, themeClus
 import type { UserId } from "@orb/kit/ids";
 import { and, asc, desc, eq, isNotNull, notExists, sql } from "drizzle-orm";
 import type { ThemeLevel } from "../contract/params.ts";
-import type { ThemeDriftBucket, ThemeDriftTheme, UnusedCharacter } from "../contract/results.ts";
+import type { ArchetypeMember, ThemeDriftBucket, ThemeDriftTheme } from "../contract/results.ts";
 import type { DiscoveryContext, DiscoveryService } from "../contract/service.ts";
 import { storyTimeBucketStart } from "../persistence/embed-store-reads.ts";
 
@@ -50,7 +50,7 @@ async function themeDrift(db: Db, ownerId: UserId, level: ThemeLevel = "scene"):
   return [...byBucket.entries()].map(([bucketStart, themes]) => ({ bucketStart, themes }));
 }
 
-async function unusedCharacters(db: Db, ownerId: UserId): Promise<UnusedCharacter[]> {
+async function unusedCharacters(db: Db, ownerId: UserId): Promise<ArchetypeMember[]> {
   const rows = await db
     .select({
       characterId: characters.id,

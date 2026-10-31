@@ -4,7 +4,6 @@
 
 import type { RolePresetParams, UserIntent } from "@orb/contracts/preset";
 import { rolePresetParamsOf } from "@orb/contracts/preset";
-import type { SideGenSampling } from "../contract/side-gen.ts";
 
 /** Fold `presetParams` (the role's preset params, absent under task defaults) over `posture`
  *  (`SIDE_GEN_POSTURES`): a knob the preset sets wins, the posture fills only the knobs it leaves unset, and a
@@ -14,7 +13,7 @@ import type { SideGenSampling } from "../contract/side-gen.ts";
 export function resolveSideGenSampling(
   posture: UserIntent,
   presetParams?: (UserIntent & Pick<RolePresetParams, "reasoningTags">) | undefined,
-): SideGenSampling {
+): RolePresetParams {
   const preset = rolePresetParamsOf(presetParams ?? {});
   const { effort, ...rest } = rolePresetParamsOf(posture);
   const presetReasons = preset.effort !== undefined || preset.thinkingBudgetTokens !== undefined;

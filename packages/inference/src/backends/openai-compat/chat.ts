@@ -12,9 +12,9 @@ import { acceptsAssistantPrefill, cacheMinTokensOf, DEFAULT_ATTACHMENT_QUALITY, 
 import type { EffortLevel } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
 import type { JsonValue } from "@orb/kit/json";
-import type { Clock } from "@orb/kit/time";
+import type { Clock, ScheduleOp } from "@orb/kit/time";
 import { z } from "zod";
-import type { ChatHistoryMessage, ChatResult, OpenAiCompatChatRequest, RateLimitSnapshot, Resolved, ResolvedChatKnobs, ScheduleTimeout } from "#contract";
+import type { ChatHistoryMessage, ChatResult, OpenAiCompatChatRequest, RateLimitSnapshot, Resolved, ResolvedChatKnobs } from "#contract";
 import { ProviderError } from "#contract";
 import { resolveCachePolicy, resolveChat, templateThinkingFor } from "#funnel";
 import { requireStructuredPlan, structuredChatResult } from "#structured";
@@ -493,7 +493,7 @@ function appliedEffortOf(shape: TurnShape | undefined, dialect: Dialect, nativeB
 // ── the stream ────────────────────────────────────────────────────────────────────────────────────────────
 
 interface StreamOnceArgs {
-  readonly scheduleTimeout: ScheduleTimeout;
+  readonly scheduleTimeout: ScheduleOp;
   readonly call: ModelCall;
   readonly options: LanguageModelV4CallOptions;
   readonly req: OpenAiCompatChatRequest;

@@ -85,8 +85,9 @@ export interface ChatSettingsSectionState {
   readonly chatId: ChatId;
 }
 
-/** The `host-controls` arm — a section inside the "This chat" tab's host-only band. */
-interface ChatSettingsHostControlsContribution {
+/** A "This chat" SECTION contribution (§6c): a section inside the tab's host-only band (`host-controls`). The
+ *  `anchor` literal narrows `when`/`body` to their own state at every call site with zero casts. */
+export interface ChatSettingsSectionContribution {
   readonly id: string;
   readonly anchor: Extract<ChatSettingsSectionAnchor, "host-controls">;
   /** The section's NAME, rendered by the host as its `<Section kicker>` (a real `<h3>` in the pane's
@@ -97,11 +98,6 @@ interface ChatSettingsHostControlsContribution {
   readonly when?: (state: ChatSettingsSectionState) => boolean;
   readonly body: (state: ChatSettingsSectionState) => ReactNode;
 }
-
-/** A "This chat" SECTION contribution (§6c) — a discriminated union BY ANCHOR (the
- *  {@link ChatSurfaceContribution} shape). One arm today; the `anchor` literal narrows `when`/`body` to
- *  their own state at every call site with zero casts. */
-export type ChatSettingsSectionContribution = ChatSettingsHostControlsContribution;
 
 // ── S1: the in-chat CONTROL seam ────────────────────────────────
 // ONE registry + behavior contract for TRANSIENT interactive controls near the transcript/composer — the
@@ -204,26 +200,21 @@ type CharacterDetailAnchor = (typeof CHARACTER_DETAIL_ANCHORS)[number];
 /** The character-detail surface projection — what the editor body can actually supply a contributor: the
  *  id of the character being edited (the same drill subject the CONTEXT tabs read — a distinct POSITION,
  *  so its own named projection, mirroring how M8's surface anchors got projections distinct from the
- *  CONTEXT-tab `ChatContextState`). */
+ *  CONTEXT-tab `CommittedChatContext`). */
 export interface CharacterDetailState {
   readonly characterId: CharacterId;
 }
 
-/** The `editor-sections` arm of the character-detail contribution union — the review-cards region in the
- *  editor body. No current second consumer (`characterDetailContributors` ships empty); the anchor stands
- *  on its own contract shape, not a promise of future crew integration (crew is dead by owner ruling). */
-interface CharacterDetailSectionsContribution {
+/** A character-detail contribution (§6c): the `editor-sections` anchor, the review-cards region in the editor
+ *  body. No current second consumer (`characterDetailContributors` ships empty); the anchor stands on its own
+ *  contract shape, not a promise of future crew integration (crew is dead by owner ruling). A new anchor is one
+ *  `CHARACTER_DETAIL_ANCHORS` entry and a union over this shape. */
+export interface CharacterDetailContribution {
   readonly id: string;
   readonly anchor: Extract<CharacterDetailAnchor, "editor-sections">;
   readonly when?: (state: CharacterDetailState) => boolean;
   readonly body: (state: CharacterDetailState) => ReactNode;
 }
-
-/** A character-detail contribution (§6c) — a discriminated union BY ANCHOR (the M8 `ChatSurfaceContribution`
- *  shape). One arm today; a new anchor is one `CHARACTER_DETAIL_ANCHORS` entry + one named arm added to
- *  this union, and the `anchor` literal narrows `when`/`body` to its own state at every call site with
- *  zero casts. */
-export type CharacterDetailContribution = CharacterDetailSectionsContribution;
 
 // Exact claims outrank namespace claims; the renderer contract owns both match modes.
 const TOOL_RENDERER_MATCHES = ["name", "prefix"] as const;

@@ -1,7 +1,7 @@
-import type { ScheduleTimeout } from "#src/contract/runtime.ts";
+import type { ScheduleOp } from "@orb/kit/time";
 
 /** Wait in the same timer scope as the request; cancellation removes both the timer and signal listener. */
-export function waitForTimeout(ms: number, signal: AbortSignal, scheduleTimeout: ScheduleTimeout): Promise<void> {
+export function waitForTimeout(ms: number, signal: AbortSignal, scheduleTimeout: ScheduleOp): Promise<void> {
   if (signal.aborted) {
     return Promise.reject(signal.reason);
   }

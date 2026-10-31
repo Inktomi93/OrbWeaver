@@ -72,4 +72,16 @@ No exported pure-rename alias remains outside `domain/*/contract/params.ts` and 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Removed (every use points at the target, the alias is gone, `ast-grep` finds no identifier of the name in `packages`, `tooling` and `tests` for `-l ts` and `-l tsx`): all table rows except the kept ones below.
+
+- Where the target was a non-exported interface (`ChatSettingsHostControlsContribution`, `CharacterDetailSectionsContribution`, `RewriteCardDetail`, `DiagnosticRequestCommon`), the interface took the name its consumers used, or was exported under its own name, so one name remains.
+- `PluginVariableOp`, `PluginVariablePrecondition`, `PluginVariableWriteResult` and the `PluginSurfaceSpec` of `packages/contracts/src/plugin/ui.ts` are removed. No guest reaches them: they were file-local or host-side, guests type against `packages/plugin-sdk/shared.d.ts`, and `tests/contracts/plugin/sdk-conformance.test-d.ts` compares structure, never alias names.
+
+Kept:
+
+- `PluginSurfaceSpec` in `packages/plugin-sdk/shared.d.ts`: published guest surface, used by `packages/showcase-plugins/bundles/affinity-tracker/main.ts`.
+- `Logger` in `packages/server/src/foundation/observability/contract/logging.ts`: no ADR or law line rules it. It is the one name across the server, and a few files spell `pino.Logger`. Deleting it makes every server file import `pino`. Owner call: keep, or replace those files' `pino.Logger` with `Logger`.
+
+Ran green: `pnpm typecheck` (every program), `pnpm depcruise`, `pnpm knip:prod`, `pnpm lint:eslint packages tooling tests`, `pnpm test` on the client, contracts, inference, kit, ui, showcase-plugins and server suites. Two timeouts under load passed on rerun; `tests/server/layout.suite.test.ts` fails on the tracked `packages/server/src/domain/chat/reaction-note.ts`, which this change does not touch.
+
+Not done: `pnpm unwired shapes` (another unwired scan held the machine), and the check that refuses a new pure-rename alias. `pnpm unwired shapes` already reports `synonym`; whether a lint rule is also wanted is a design call.
