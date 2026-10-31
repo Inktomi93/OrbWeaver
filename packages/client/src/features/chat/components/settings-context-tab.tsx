@@ -56,6 +56,7 @@ import { CHAT_CONTEXT_SECTION_IDS } from "../lib/chat-context-section-ids.ts";
 import { ChatBooksSection } from "./chat-books-section.tsx";
 import { DisclosureSection } from "./chat-context-disclosure-section.tsx";
 import { ChatDocumentsSection } from "./chat-documents-section.tsx";
+import { ChatForksSection } from "./chat-forks-section.tsx";
 import { CommittedGroupConfigTab } from "./group-config-form.tsx";
 import { InjectionsManager, InjectionsSkeleton } from "./injections-manager.tsx";
 import { MacroPicksSection } from "./macro-picks-section.tsx";
@@ -196,6 +197,13 @@ function LorebooksHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
   return <HeadingWithCount count={data?.length ?? 0} label="World books" />;
 }
 
+// The Forks count, on the same non-suspending shared-cache idiom as Documents above.
+function ForksHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
+  const trpc = useTRPC();
+  const { data } = useQuery(trpc.chat.listForks.queryOptions({ chatId }));
+  return <HeadingWithCount count={data?.length ?? 0} label="Forks" />;
+}
+
 export interface CommittedSettingsTabProps {
   readonly chatId: ChatId;
   readonly roomOverrides: RoomOverrides;
@@ -293,6 +301,17 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
           reserveKey="chat.context.macroPicks"
         >
           <MacroPicksSection chatId={chatId} />
+        </QueryBoundary>
+      </DisclosureSection>
+      {/* Forks — the branches of this room the viewer can open. Member-READABLE like Documents: `listForks` is
+          member-gated and each child is gated on the viewer's own seat in it. */}
+      <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker={<ForksHeading chatId={chatId} />} sectionId="forks">
+        <QueryBoundary
+          fallback={<SkeletonRows count={2} shape="line" />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's forks" onRetry={retry} />}
+          reserveKey="chat.context.forks"
+        >
+          <ChatForksSection chatId={chatId} />
         </QueryBoundary>
       </DisclosureSection>
       {/* THE HOST-OPS GROUP (D-1). Rendered only for a host, so the group's own name is never an empty

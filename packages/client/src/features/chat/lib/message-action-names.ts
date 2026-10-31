@@ -26,6 +26,9 @@ export const MESSAGE_EDIT_NAME = "Edit message";
 /** The row's fork door — branches the conversation at this message. */
 export const MESSAGE_FORK_NAME = "Fork chat here";
 
+/** The row's overflow-menu door that copies the message to a new slot at the end of the chat. */
+export const MESSAGE_DUPLICATE_NAME = "Duplicate message";
+
 /** The viewer's own user row's restamp door: their lines from this one onward take their current persona. */
 export const MESSAGE_REATTRIBUTE_NAME = "Reattribute from here";
 

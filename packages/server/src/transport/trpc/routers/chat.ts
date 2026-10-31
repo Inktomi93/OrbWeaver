@@ -213,6 +213,12 @@ const setSeededGreetingSchema = z.object({
   greetingIndex: z.int().min(0),
 });
 
+// `duplicateMessage` copies one slot and its selected variant to a new tail slot (author-or-host INSIDE the verb).
+const duplicateMessageSchema = z.strictObject({
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  messageId: typeIdSchema(ID_PREFIX.message),
+});
+
 const setMessageHiddenSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
   messageId: typeIdSchema(ID_PREFIX.message),
@@ -558,6 +564,11 @@ export const chatRouter = t.router({
     .output(chatDetailSchema)
     .input(chatIdInputSchema)
     .query(({ ctx, input }) => ctx.services.chat.getChat({ principal: ctx.auth, chatId: input.chatId })),
+  // The fork children of a chat the caller belongs to, each child gated on the caller's own membership in it.
+  listForks: authedProcedure
+    .output(chatLineageViewSchema.shape.chain)
+    .input(chatIdInputSchema)
+    .query(({ ctx, input }) => ctx.services.chat.listForks({ principal: ctx.auth, chatId: input.chatId })),
   // The fork ancestry, gated per ancestor inside the verb (D27): an ancestor the caller is not a present member
   // of is omitted, never named, so the room menu's "Back to parent chat" offers only a parent this caller can open.
   getChatLineage: authedProcedure
@@ -666,6 +677,10 @@ export const chatRouter = t.router({
     .output(messageViewSchema)
     .input(editMessageSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.editMessage({ principal: ctx.auth, ...input })),
+  duplicateMessage: authedProcedure
+    .output(messageViewSchema)
+    .input(duplicateMessageSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.duplicateMessage({ principal: ctx.auth, ...input })),
   setSeededGreeting: authedProcedure
     .output(messageViewSchema)
     .input(setSeededGreetingSchema)
