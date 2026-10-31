@@ -9,7 +9,6 @@ export type { OwnedAssetBytes } from "@orb/contracts/assets";
 /** The blob-serve gate answer. undefined (not this shape) signals "not found / not yours". */
 export interface AssetMetadata {
   readonly mime: string;
-  readonly size: number;
   /** The actual CAS owner; present only on roster-avatar exceptions (asset owned by a co-participant). */
   readonly ownerId?: UserId;
 }
