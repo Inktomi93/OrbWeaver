@@ -1,6 +1,5 @@
 /**
- * `@orb/ui/stat-figure` — big-number + optional sparkline over the ECharts seal (ui-package-design
- * §9 v1 corpus-viz set). See stat-figure.tsx for the API.
+ * `@orb/ui/stat-figure` — a label over a big number. See stat-figure.tsx for the API.
  */
 
 export { StatFigure } from "./stat-figure.tsx";
