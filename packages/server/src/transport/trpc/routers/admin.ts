@@ -16,12 +16,12 @@ export const adminRouter = t.router({
   listUsers: adminProcedure.output(z.array(adminUserViewSchema).readonly()).query(({ ctx }) => ctx.services.admin.listUsers({ principal: ctx.auth })),
 
   setRole: adminProcedure
-    .input(z.object({ userId: brandedId("UserId"), role: userRoleSchema }))
+    .input(z.strictObject({ userId: brandedId("UserId"), role: userRoleSchema }))
     .output(adminUserViewSchema)
     .mutation(({ ctx, input }) => ctx.services.admin.setRole({ principal: ctx.auth, userId: input.userId, role: input.role })),
 
   setEnabled: adminProcedure
-    .input(z.object({ userId: brandedId("UserId"), enabled: z.boolean() }))
+    .input(z.strictObject({ userId: brandedId("UserId"), enabled: z.boolean() }))
     .output(adminUserViewSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.admin.setEnabled({
@@ -33,7 +33,7 @@ export const adminRouter = t.router({
 
   createUser: adminProcedure
     .input(
-      z.object({
+      z.strictObject({
         handle: brandedId("Handle").refine(withinHandleLength, { message: "handle is too long" }),
         password: z.string().min(1),
         role: userRoleSchema.optional(),
@@ -49,7 +49,7 @@ export const adminRouter = t.router({
       }),
     ),
 
-  resetPassword: adminProcedure.input(z.object({ userId: brandedId("UserId"), password: z.string().min(1) })).mutation(async ({ ctx, input }) => {
+  resetPassword: adminProcedure.input(z.strictObject({ userId: brandedId("UserId"), password: z.string().min(1) })).mutation(async ({ ctx, input }) => {
     await ctx.services.admin.resetPassword({
       principal: ctx.auth,
       userId: input.userId,
@@ -62,35 +62,35 @@ export const adminRouter = t.router({
   // migration). `externalId` is the IdP-stable id (never an email); the verb refuses owner/agent targets and
   // a subject already bound elsewhere (bind-once, spine U1).
   linkSsoIdentity: adminProcedure
-    .input(z.object({ userId: brandedId("UserId"), externalId: brandedId("ExternalId") }))
+    .input(z.strictObject({ userId: brandedId("UserId"), externalId: brandedId("ExternalId") }))
     .output(adminUserViewSchema)
     .mutation(({ ctx, input }) => ctx.services.admin.linkSsoIdentity({ principal: ctx.auth, userId: input.userId, externalId: input.externalId })),
 
   listSessions: adminProcedure
-    .input(z.object({ userId: brandedId("UserId") }))
+    .input(z.strictObject({ userId: brandedId("UserId") }))
     .output(z.array(sessionAdminViewSchema).readonly())
     .query(({ ctx, input }) => ctx.services.admin.listSessions({ principal: ctx.auth, userId: input.userId })),
 
-  revokeSession: adminProcedure.input(z.object({ sessionId: typeIdSchema(ID_PREFIX.session) })).mutation(async ({ ctx, input }) => {
+  revokeSession: adminProcedure.input(z.strictObject({ sessionId: typeIdSchema(ID_PREFIX.session) })).mutation(async ({ ctx, input }) => {
     await ctx.services.admin.revokeSession({ principal: ctx.auth, sessionId: input.sessionId });
     return { ok: true } as const;
   }),
 
   // Owner-only at the verb; the confirm is the input, so a call without `confirm: true` never reaches it. The
   // restart bucket in `entry/rate-limit-gate.ts` is durable, so it still counts after the process it ended.
-  restart: adminProcedure.input(z.object({ confirm: z.literal(true), expectedServerInstanceId: z.uuid() })).mutation(async ({ ctx, input }) => {
+  restart: adminProcedure.input(z.strictObject({ confirm: z.literal(true), expectedServerInstanceId: z.uuid() })).mutation(async ({ ctx, input }) => {
     await ctx.services.admin.restart({ principal: ctx.auth, expectedServerInstanceId: input.expectedServerInstanceId });
     return { restarting: true } as const;
   }),
 
   revokeUserSessions: adminProcedure
-    .input(z.object({ userId: brandedId("UserId") }))
+    .input(z.strictObject({ userId: brandedId("UserId") }))
     .mutation(({ ctx, input }) => ctx.services.admin.revokeUserSessions({ principal: ctx.auth, userId: input.userId })),
 
   // The inline single-card embed (adminProcedure, Tier-4 esoteric #10: only admins drive the GPU
   // embed engine inline; the bulk path is the admin-only index workload). The producer-ownership
   // check + the embeddings write live behind the AdminService verb (the composed EmbedProducerPort).
-  embedCharacterCard: adminProcedure.input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) })).mutation(async ({ ctx, input }) => {
+  embedCharacterCard: adminProcedure.input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character) })).mutation(async ({ ctx, input }) => {
     await ctx.services.admin.embedCharacterCard({
       principal: ctx.auth,
       characterId: input.characterId,

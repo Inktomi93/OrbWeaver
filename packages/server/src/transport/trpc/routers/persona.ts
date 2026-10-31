@@ -27,7 +27,7 @@ const DEC = new TextDecoder();
 export const personaRouter = t.router({
   create: authedProcedure
     .output(personaDetailSchema)
-    .input(z.object({ input: createPersonaSchema }))
+    .input(z.strictObject({ input: createPersonaSchema }))
     .mutation(({ ctx, input }) => ctx.services.persona.create({ principal: ctx.auth, input: input.input })),
 
   list: authedProcedure.output(z.array(personaDetailSchema)).query(({ ctx }) => ctx.services.persona.list({ principal: ctx.auth })),
@@ -39,7 +39,7 @@ export const personaRouter = t.router({
 
   update: authedProcedure
     .output(personaDetailSchema)
-    .input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona), input: updatePersonaSchema }))
+    .input(z.strictObject({ personaId: typeIdSchema(ID_PREFIX.persona), input: updatePersonaSchema }))
     .mutation(({ ctx, input }) =>
       ctx.services.persona.update({
         principal: ctx.auth,
@@ -59,7 +59,7 @@ export const personaRouter = t.router({
   // someone else passes it explicitly.
   setActivePersona: authedProcedure
     .input(
-      z.object({
+      z.strictObject({
         chatId: typeIdSchema(ID_PREFIX.chat),
         targetUserId: brandedId("UserId").optional(),
         personaId: typeIdSchema(ID_PREFIX.persona).nullable(),
@@ -76,7 +76,7 @@ export const personaRouter = t.router({
 
   createFromCharacter: authedProcedure
     .output(personaDetailSchema)
-    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), swapMacros: z.boolean() }))
+    .input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character), swapMacros: z.boolean() }))
     .mutation(({ ctx, input }) =>
       ctx.services.persona.createFromCharacter({
         principal: ctx.auth,
@@ -86,7 +86,7 @@ export const personaRouter = t.router({
     ),
 
   connectToCharacter: authedProcedure
-    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), personaId: typeIdSchema(ID_PREFIX.persona) }))
+    .input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character), personaId: typeIdSchema(ID_PREFIX.persona) }))
     .mutation(({ ctx, input }) =>
       ctx.services.persona.connectToCharacter({
         principal: ctx.auth,
@@ -97,7 +97,7 @@ export const personaRouter = t.router({
 
   disconnectFromCharacter: authedProcedure
     .output(disconnectResultSchema)
-    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), personaId: typeIdSchema(ID_PREFIX.persona) }))
+    .input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character), personaId: typeIdSchema(ID_PREFIX.persona) }))
     .mutation(({ ctx, input }) =>
       ctx.services.persona.disconnectFromCharacter({
         principal: ctx.auth,
@@ -146,7 +146,7 @@ export const personaRouter = t.router({
 
   import: authedProcedure
     .output(personaDetailSchema)
-    .input(z.object({ fileText: z.string().max(MAX_PERSONA_FILE_CHARS) }))
+    .input(z.strictObject({ fileText: z.string().max(MAX_PERSONA_FILE_CHARS) }))
     .mutation(async ({ ctx, input }) => {
       const outcome = await ctx.services.persona.import({ principal: ctx.auth, bytes: ENC.encode(input.fileText) });
       if (!outcome.ok) {

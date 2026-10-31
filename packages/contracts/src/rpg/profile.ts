@@ -1,6 +1,7 @@
 // Game-owned stat vocabulary and modifier normalization; identity scores remain human-authored.
 // Human-requested ability rolls use the modifier. Resolution, skills and perception remain full-engine contracts.
 // D281: Freeform and D20 defaults preserve saved custom profiles and additive ruleset application.
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs take the strict twin via `strictInput` (`@orb/kit/zod-schema`).
 
 import { z } from "zod";
 import type { RpgTrackerDef, RpgTrackerValue } from "./tracker.ts";

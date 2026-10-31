@@ -143,7 +143,7 @@ export const CHAT_INJECTION_POSITIONS = ["before_prompt", "in_static", "in_promp
  *  (present ⇒ update; absent ⇒ create). `chatId`/`principal` are added at the transport edge (the router
  *  extends this), never here. The domain `SetChatInjectionParams` derives from {@link ChatInjectionInput}, so a
  *  field change here reaches the verb's params by construction. */
-export const chatInjectionInputSchema = z.object({
+export const chatInjectionInputSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.chatInjection).optional(),
   position: z.enum(CHAT_INJECTION_POSITIONS),
   depth: z.int(),

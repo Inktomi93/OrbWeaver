@@ -30,13 +30,13 @@ const WORLD_INFO_SCOPES = ["always", "keyword"] as const;
 const worldInfoScopeSchema = z.enum(WORLD_INFO_SCOPES);
 export type WorldInfoScope = z.infer<typeof worldInfoScopeSchema>;
 
-export const createBookSchema = z.object({
+export const createBookSchema = z.strictObject({
   name: z.string().min(1).max(WORLD_INFO_NAME_MAX),
   description: z.string().max(DESCRIPTION_MAX).optional(),
 });
 export type CreateBookInput = z.infer<typeof createBookSchema>;
 
-export const updateBookSchema = z.object({
+export const updateBookSchema = z.strictObject({
   name: z.string().min(1).max(WORLD_INFO_NAME_MAX).optional(),
   description: z.string().max(DESCRIPTION_MAX).optional(),
 });
@@ -93,7 +93,7 @@ const entryMetadataWriteSchema = z.record(z.string(), z.unknown()).superRefine((
   }
 }) satisfies z.ZodType<Record<string, unknown>>;
 
-export const createEntrySchema = z.object({
+export const createEntrySchema = z.strictObject({
   title: z.string().min(1).max(WORLD_INFO_NAME_MAX),
   /** Author-facing memo (= ST's `comment`). Optional; rendered in the entry list. NEVER prompt. */
   description: z.string().max(DESCRIPTION_MAX).nullable().optional(),
@@ -109,7 +109,7 @@ export const createEntrySchema = z.object({
 });
 export type CreateEntryInput = z.infer<typeof createEntrySchema>;
 
-export const updateEntrySchema = z.object({
+export const updateEntrySchema = z.strictObject({
   title: z.string().min(1).max(WORLD_INFO_NAME_MAX).optional(),
   description: z.string().max(DESCRIPTION_MAX).nullable().optional(),
   content: z.string().min(1).max(CONTENT_MAX).optional(),
@@ -343,12 +343,12 @@ export type WiBusEvent =
       scope: WorldInfoScope;
     };
 
-export const worldBookIdInputSchema = z.object({ bookId: typeIdSchema(ID_PREFIX.worldBook) });
+export const worldBookIdInputSchema = z.strictObject({ bookId: typeIdSchema(ID_PREFIX.worldBook) });
 
-export const worldEntryIdInputSchema = z.object({ entryId: typeIdSchema(ID_PREFIX.worldEntry) });
+export const worldEntryIdInputSchema = z.strictObject({ entryId: typeIdSchema(ID_PREFIX.worldEntry) });
 
-export const worldInfoCharacterInputSchema = z.object({ characterId: typeIdSchema(ID_PREFIX.character) });
+export const worldInfoCharacterInputSchema = z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character) });
 
-export const worldInfoPersonaInputSchema = z.object({ personaId: typeIdSchema(ID_PREFIX.persona) });
+export const worldInfoPersonaInputSchema = z.strictObject({ personaId: typeIdSchema(ID_PREFIX.persona) });
 
-export const worldInfoChatInputSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat), includeInherited: z.boolean().optional() });
+export const worldInfoChatInputSchema = z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat), includeInherited: z.boolean().optional() });

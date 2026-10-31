@@ -236,11 +236,14 @@ export {
   pluginViewSchema,
 } from "./view.ts";
 
-export const pluginIdInputSchema = z.object({ pluginId: typeIdSchema(ID_PREFIX.plugin) });
+export const pluginIdInputSchema = z.strictObject({ pluginId: typeIdSchema(ID_PREFIX.plugin) });
 
-export const pluginLogInputSchema = z.object({ pluginId: typeIdSchema(ID_PREFIX.plugin), limit: z.int().positive().max(PLUGIN_LOG_LIST_MAX_LIMIT).optional() });
+export const pluginLogInputSchema = z.strictObject({
+  pluginId: typeIdSchema(ID_PREFIX.plugin),
+  limit: z.int().positive().max(PLUGIN_LOG_LIST_MAX_LIMIT).optional(),
+});
 
-export const pluginSurfaceStateInputSchema = z.object({
+export const pluginSurfaceStateInputSchema = z.strictObject({
   pluginId: typeIdSchema(ID_PREFIX.plugin),
   surfaceId: pluginSurfaceIdSchema,
   chatId: typeIdSchema(ID_PREFIX.chat).optional(),

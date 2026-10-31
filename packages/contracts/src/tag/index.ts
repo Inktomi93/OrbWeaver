@@ -52,14 +52,14 @@ export function isInternalSeedTagName(name: string): boolean {
   return INTERNAL_SEED_TAG_KEYS.has(tagMatchKey(name));
 }
 
-export const createTagSchema = z.object({
+export const createTagSchema = z.strictObject({
   name: z.string().min(NAME_MIN_LENGTH).max(NAME_MAX_LENGTH),
   color: z.string().optional(),
   source: tagSourceSchema.optional(),
 });
 export type CreateTagInput = z.infer<typeof createTagSchema>;
 
-export const updateTagSchema = z.object({
+export const updateTagSchema = z.strictObject({
   name: z.string().min(NAME_MIN_LENGTH).max(NAME_MAX_LENGTH).optional(),
   /** `null` clears back to the theme default (ST's link-to-theme reset); `undefined` leaves it untouched. */
   color: z.string().nullable().optional(),
@@ -130,11 +130,11 @@ export interface TagFilterVocabularyEntry {
   characters: number;
 }
 
-const characterTagTargetSchema = z.object({ targetType: z.literal("character"), targetId: typeIdSchema(ID_PREFIX.character) });
-const chatTagTargetSchema = z.object({ targetType: z.literal("chat"), targetId: typeIdSchema(ID_PREFIX.chat) });
-const worldBookTagTargetSchema = z.object({ targetType: z.literal("worldBook"), targetId: typeIdSchema(ID_PREFIX.worldBook) });
-const personaTagTargetSchema = z.object({ targetType: z.literal("persona"), targetId: typeIdSchema(ID_PREFIX.persona) });
-const presetTagTargetSchema = z.object({ targetType: z.literal("preset"), targetId: typeIdSchema(ID_PREFIX.preset) });
+const characterTagTargetSchema = z.strictObject({ targetType: z.literal("character"), targetId: typeIdSchema(ID_PREFIX.character) });
+const chatTagTargetSchema = z.strictObject({ targetType: z.literal("chat"), targetId: typeIdSchema(ID_PREFIX.chat) });
+const worldBookTagTargetSchema = z.strictObject({ targetType: z.literal("worldBook"), targetId: typeIdSchema(ID_PREFIX.worldBook) });
+const personaTagTargetSchema = z.strictObject({ targetType: z.literal("persona"), targetId: typeIdSchema(ID_PREFIX.persona) });
+const presetTagTargetSchema = z.strictObject({ targetType: z.literal("preset"), targetId: typeIdSchema(ID_PREFIX.preset) });
 
 // The target kind selects the only entity-id prefix admitted at the wire boundary.
 const tagTargetRefSchema = z.discriminatedUnion("targetType", [
@@ -150,8 +150,8 @@ export type TagTargetRef = Readonly<z.infer<typeof tagTargetRefSchema>>;
 
 export type TagAttachedEntity = TagTargetRef & { readonly name: string };
 
-export const attachTagInputSchema = tagTargetRefSchema.and(z.object({ tagId: typeIdSchema(ID_PREFIX.tag), status: tagStatusSchema.optional() }));
-export const detachTagInputSchema = tagTargetRefSchema.and(z.object({ tagId: typeIdSchema(ID_PREFIX.tag) }));
+export const attachTagInputSchema = tagTargetRefSchema.and(z.strictObject({ tagId: typeIdSchema(ID_PREFIX.tag), status: tagStatusSchema.optional() }));
+export const detachTagInputSchema = tagTargetRefSchema.and(z.strictObject({ tagId: typeIdSchema(ID_PREFIX.tag) }));
 
 /** Reach is a bounded preview; totals remain in the adopted usage rollup. */
 export const TAG_REACH_PREVIEW_LIMIT = 20;
@@ -215,9 +215,9 @@ export interface PruneUnusedResult {
 }
 export const pruneUnusedResultSchema = z.strictObject({ removed: z.number() }) satisfies z.ZodType<PruneUnusedResult>;
 
-export const tagReachInputSchema = z.object({ tagId: typeIdSchema(ID_PREFIX.tag), targetType: tagTargetTypeSchema });
+export const tagReachInputSchema = z.strictObject({ tagId: typeIdSchema(ID_PREFIX.tag), targetType: tagTargetTypeSchema });
 
-export const pendingTagSuggestionsInputSchema = z.object({ characterId: typeIdSchema(ID_PREFIX.character).optional() }).optional();
+export const pendingTagSuggestionsInputSchema = z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character).optional() }).optional();
 
 /** The internal resolve-or-create-by-name card-tag attach. Deliberately not an acting-principal shape: it
  *  carries the already-resolved `ownerId` directly, because the caller has already owner-verified the
