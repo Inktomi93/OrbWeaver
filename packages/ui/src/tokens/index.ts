@@ -608,15 +608,15 @@ export const TONE_HOST_UTILITIES = {"background":"tone-host-background","surface
 
 /** Each role's recipe as data, for the numeric twin in `@orb/kit/theme-derivation`. */
 export const TONE_ROLE_RECIPES = {
-  "solid": {"colored":"base","neutral":{"bind":"foreground"},"floor":[],"pageInks":[]},
-  "solid-hover": {"colored":{"mix":"hover","toward":"away"},"neutral":{"bind":"foreground","step":{"mix":"neutral-hover","toward":"background"}},"floor":[],"pageInks":[]},
-  "solid-active": {"colored":{"mix":"active","toward":"away"},"neutral":{"bind":"foreground","step":{"mix":"neutral-active","toward":"background"}},"floor":[],"pageInks":[]},
-  "text": {"colored":{"mix":"text","toward":"foreground"},"neutral":{"bind":"foreground"},"floor":[{"host":"background"},{"host":"surface-raised"},{"host":"card"}],"pageInks":[]},
-  "text-on-tint": {"colored":{"mix":"text-on-tint","toward":"foreground"},"neutral":{"bind":"accent-foreground"},"floor":[{"role":"tint"},{"role":"tint-active"}],"pageInks":[]},
-  "tint": {"colored":{"mix":"tint","toward":"host"},"neutral":{"bind":"muted"},"floor":[],"pageInks":["foreground","muted-foreground"]},
-  "tint-active": {"colored":{"mix":"tint-active","toward":"host"},"neutral":{"bind":"accent"},"floor":[],"pageInks":["foreground","muted-foreground"]},
-  "edge": {"colored":{"mix":"edge","toward":"host"},"neutral":{"bind":"border"},"floor":[],"pageInks":[]},
-  "foreground": {"colored":"base-foreground","neutral":{"bind":"background"},"floor":[{"role":"solid"},{"role":"solid-hover"},{"role":"solid-active"}],"pageInks":[]},
+  "solid": {"colored":"base","neutral":{"bind":"foreground","pageInks":[]},"floor":[],"pageInks":[]},
+  "solid-hover": {"colored":{"mix":"hover","toward":"away"},"neutral":{"bind":"foreground","step":{"mix":"neutral-hover","toward":"background"},"pageInks":[]},"floor":[],"pageInks":[]},
+  "solid-active": {"colored":{"mix":"active","toward":"away"},"neutral":{"bind":"foreground","step":{"mix":"neutral-active","toward":"background"},"pageInks":[]},"floor":[],"pageInks":[]},
+  "text": {"colored":{"mix":"text","toward":"foreground"},"neutral":{"bind":"foreground","pageInks":[]},"floor":[{"host":"background"},{"host":"surface-raised"},{"host":"card"}],"pageInks":[]},
+  "text-on-tint": {"colored":{"mix":"text-on-tint","toward":"foreground"},"neutral":{"bind":"accent-foreground","pageInks":[]},"floor":[{"role":"tint"},{"role":"tint-active"}],"pageInks":[]},
+  "tint": {"colored":{"mix":"tint","toward":"host"},"neutral":{"bind":"muted","pageInks":["muted-foreground"]},"floor":[],"pageInks":["foreground","muted-foreground"]},
+  "tint-active": {"colored":{"mix":"tint-active","toward":"host"},"neutral":{"bind":"accent","pageInks":["muted-foreground"]},"floor":[],"pageInks":["foreground","muted-foreground"]},
+  "edge": {"colored":{"mix":"edge","toward":"host"},"neutral":{"bind":"border","pageInks":[]},"floor":[],"pageInks":[]},
+  "foreground": {"colored":"base-foreground","neutral":{"bind":"background","pageInks":[]},"floor":[{"role":"solid"},{"role":"solid-hover"},{"role":"solid-active"}],"pageInks":[]},
 } as const satisfies ToneRoleRecipes<ToneRole, ToneMixKnob, CarriedToneHost>;
 
 /** The D336 art pigments: each `[data-pigment]` scope's custom property names. Stamp the scope on the art's element. */

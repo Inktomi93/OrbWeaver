@@ -1,6 +1,8 @@
+import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { CtIsolation } from "@orb/testkit/browser";
 import { Card } from "@orb/ui/card";
 import { ListRow } from "@orb/ui/list-row";
+import { MessageBubble } from "@orb/ui/message-bubble";
 import { TrackBar } from "@orb/ui/meter";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
@@ -260,6 +262,31 @@ export function ToneMarkStory({ theme }: { readonly theme?: keyof typeof SEED_TH
           </Card>
         ))}
       </div>
+    </CtIsolation>
+  );
+}
+
+/** The page ground beside a bubble per message role, under a shipped palette (`theme`, Hearth when absent) or a custom scope on `background`. */
+export function BubbleSeparationStory({
+  background,
+  theme,
+}: {
+  readonly background?: string;
+  readonly theme?: keyof typeof SEED_THEME_VALUE_SETS;
+}): ReactElement {
+  const content = (
+    <div style={{ backgroundColor: "var(--color-background)", padding: "1rem" }}>
+      <div data-sample="page" style={{ minHeight: "2rem" }} />
+      {MESSAGE_ROLES.map((role) => (
+        <MessageBubble key={role} messageRole={role} data-bubble={role}>
+          {role}
+        </MessageBubble>
+      ))}
+    </div>
+  );
+  return (
+    <CtIsolation subject="ThemeScope" isolates="Message bubble fills against the page under shipped palettes and custom scopes">
+      {background === undefined ? <div data-theme={theme}>{content}</div> : <ThemeScope tokens={{ background }}>{content}</ThemeScope>}
     </CtIsolation>
   );
 }
