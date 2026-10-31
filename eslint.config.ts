@@ -13,7 +13,7 @@ import {
   shellOwnedSlots,
 } from "@orb/tooling/eslint";
 import { BUTTON_BOX_OVERFLOW } from "@orb/ui/button/box-hit-area";
-import { TOKENS, TONES } from "@orb/ui/tokens";
+import { MEDIA_QUERIES, TOKENS, TONES } from "@orb/ui/tokens";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 import pluginRouter from "@tanstack/eslint-plugin-router";
 import vitest from "@vitest/eslint-plugin";
@@ -1321,6 +1321,10 @@ const localPlugin = createOrbPlugin({
   customProperties: customPropertyUses(ROOT),
   classifyClass: classClassifier((classes) => designSystem.candidatesToCss(classes)),
   intentColors: INTENT_COLORS,
+  cssVocabulary: {
+    tokens: new Map(Object.entries(TOKENS).map(([key, { cssVar }]) => [cssVar, key])),
+    media: new Map(Object.entries(MEDIA_QUERIES).map(([key, condition]) => [condition, key])),
+  },
 });
 const APPEARANCE_LITERAL_FIXTURES = [
   "tests/tooling/eslint-appearance-name.test.ts",
