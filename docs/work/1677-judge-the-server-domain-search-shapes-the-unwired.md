@@ -27,4 +27,6 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 1 row = 1 kept with reason. 0 applied, 0 handed off, 0 owner questions.
+
+- `ChatDisplayRow` / `UpdateTitleVars`: kept. `ChatDisplayRow` (`domain/search/persistence/display.ts`) is the server read of a room's title for a search hit; `UpdateTitleVars` is the client mutation input `{ chatId, title }` in `packages/client/src/features/chat/hooks/use-chat-row-mutations.ts`. They share two field names and nothing else: one is a read result with a null-normalised title, the other a write argument. The client cannot import a server type (`docs/law/Core-0-Architecture-and-Structure.md` section 1, principle 1: a package cannot import what is not in its declared deps), and a shared contract type for them would invent a concept. A merge would couple a search read to a rename mutation.
