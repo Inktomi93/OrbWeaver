@@ -85,7 +85,7 @@ import {
   loadPresentHostUserId,
   requireWiredParticipant,
 } from "#domain/chat";
-import type { ConnectionContext } from "#domain/connection";
+import type { ConnectionAssemblyContext } from "#domain/connection";
 import { createConnectionPorts, createConnectionService, createSessionEntryWriter } from "#domain/connection";
 import { createCredentialHealthThrottle, createCredentialOwned, createCredentialsService } from "#domain/credentials";
 import type { DatabankIngest } from "#domain/databank";
@@ -596,7 +596,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const isMemoryEnabledBinding = createBinding<{ readonly isMemoryEnabled: IsMemoryEnabledOp }>("compose: isMemoryEnabled invoked before chat wiring");
   let emptyMemoryScope: ChatComposeResult["emptyMemoryScope"] = () => Promise.reject(new Error("compose: emptyMemoryScope invoked before chat wiring"));
   // The connection pane's embedder-change preview counts the embeddings domain's rows, which compose after it.
-  let countOwnedVectors: ConnectionContext["countOwnedVectors"] = () =>
+  let countOwnedVectors: ConnectionAssemblyContext["countOwnedVectors"] = () =>
     Promise.reject(new Error("compose: countOwnedVectors invoked before search-discovery wiring"));
   // materializeBackground (side-eye F-P0-2): built after `assets` + `effectiveConfig` exist (the assets-character
   // seam), but settings/character/chat compose BEFORE `assets`, so they deref this late-bound holder at request
@@ -768,7 +768,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // admission reads it needs are wired here rather than derived inside the domain: a credential row is the
   // credentials domain's, a rule row automation's, a plugin row plugin's, and the allowlist verdict lives on
   // the egress guard. Owner-scoped reads by construction (the id AND the owner are the predicate).
-  const connectionCtx: ConnectionContext = {
+  const connectionCtx: ConnectionAssemblyContext = {
     db,
     now,
     newConnectionId: minter(ID_PREFIX.userConnection, idSource),
