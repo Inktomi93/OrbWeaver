@@ -23,4 +23,4 @@ Each ramp-elevation panel sets its host through the tone-host utility; tests/ui/
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Landed: the ramp list and context panes wear `tone-host-surface-raised` and `.shell-main` and `.shell-topbar` wear `tone-host-card` in `grid.css`. `tests/client/features/app-shell/surfaces/platform-ramp-tone-host.suite.ct.tsx` mounts the production shell under ramp elevation in each seed and reads that a probe painting `var(--tone-host)` inside each surface resolves to the surface fill; red on the old stylesheet (transparent against the pane fill) in the WebKit project, green in WebKit and Chromium. The wallpaper arm of `.shell-main` (card under any elevation) is not covered.
