@@ -15,7 +15,9 @@ import { freshHeldDb } from "@orb/testkit/node/composed";
 import { seedPeerLeaseRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
-import { withCancellationPeer } from "../verbs/turn-cancellation-physical.ts";
+import { registerCancellationRoom } from "../verbs/turn-cancellation-physical.ts";
+
+const withPeer = registerCancellationRoom();
 
 test("a real competing user commit wins the held seq and send retries without losing either writer", async () => {
   await using construction = new AsyncDisposableStack();
@@ -156,7 +158,7 @@ test("the actual first-user greeting freeze fences one canon-version transition 
 });
 
 test("public Stop returns only the already committed user and never an assistant or completed lifecycle", async () => {
-  await withCancellationPeer("stream", async (f) => {
+  await withPeer("stream", async (f) => {
     const pending = f.start();
     await f.peer.arrived;
     await expect.poll(() => f.events.some(({ type }) => type === "delta")).toBe(true);

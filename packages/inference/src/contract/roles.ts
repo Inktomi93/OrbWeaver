@@ -15,7 +15,6 @@ import type {
   RoleClients,
   RoleClientTask,
   SummarizeInput,
-  SummarizeOptions,
 } from "@orb/contracts/role-clients";
 import type { ModelId, UserId } from "@orb/kit/ids";
 import type { GenerationObservationCallback } from "./chat.ts";
@@ -128,7 +127,7 @@ export interface ImageGenerateResult {
 
 /** The `RoleClients.summarize` call options as the SERVER sees them: the isomorphic vocabulary plus the
  *  caller's `AbortSignal`. */
-export interface SummarizeCallOptions extends SummarizeOptions {
+export interface SummarizeCallOptions extends RolePresetParams {
   readonly onObservedResult?: GenerationObservationCallback | undefined;
   readonly signal?: AbortSignal | undefined;
 }

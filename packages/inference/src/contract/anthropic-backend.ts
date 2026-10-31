@@ -1,11 +1,11 @@
 import type { ChatId } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
-import type { Clock } from "@orb/kit/time";
-import type { AddSpanEvent, Resolved, ScheduleTimeout, WireCaptureSink } from "#contract";
+import type { Clock, ScheduleOp } from "@orb/kit/time";
+import type { AddSpanEvent, Resolved, WireCaptureSink } from "#contract";
 import type { InferenceDeps, InferenceLog } from "./runtime.ts";
 
 export interface AnthropicChatDeps {
-  readonly scheduleTimeout: ScheduleTimeout;
+  readonly scheduleTimeout: ScheduleOp;
   readonly now: Clock;
   readonly random: RandomSource;
   readonly log: InferenceLog;

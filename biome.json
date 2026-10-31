@@ -2628,16 +2628,6 @@
       }
     },
     {
-      "includes": [".claude/hooks/orchestrator-inject.mjs"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noMagicNumbers": "off"
-          }
-        }
-      }
-    },
-    {
       "includes": ["tooling/src/eslint/**"],
       "linter": {
         "rules": {

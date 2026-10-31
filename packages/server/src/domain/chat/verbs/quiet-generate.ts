@@ -11,9 +11,9 @@
 // stream throws) — the caller owns failure-honesty, never a per-backend branch here.
 
 import type { AssembledPrompt } from "@orb/contracts/chat";
-import type { UserIntent } from "@orb/contracts/preset";
+import type { RolePresetParams, UserIntent } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
-import type { ChatHistoryMessage, SideGenSampling } from "@orb/inference";
+import type { ChatHistoryMessage } from "@orb/inference";
 import { resolveSideGenSampling, withPresetWindow } from "@orb/inference";
 import type { QuietGenerate, QuietGenerateDeps, QuietGenerateParams } from "../contract/context.ts";
 
@@ -66,7 +66,7 @@ function quietHistory(userText: string): readonly ChatHistoryMessage[] {
  *  `SIDE_GEN_POSTURES.compaction`) merged over the preset params. That merge is an INTERNAL per-pass intent,
  *  never a user-facing override. The resolved sampling is spread OVER the caller's intent so its other fields
  *  (e.g. `compaction`) survive. */
-function quietIntent(intent: UserIntent | undefined, chatParams: SideGenSampling): UserIntent {
+function quietIntent(intent: UserIntent | undefined, chatParams: RolePresetParams): UserIntent {
   const merged: UserIntent = { ...chatParams, ...intent };
   // Only these knobs cross from the host's preset: a marker pass must not inherit the host's reasoning effort or
   // thinking budget (a budget above this pass's output cap) or its sampler chain. D299's role allowlist governs

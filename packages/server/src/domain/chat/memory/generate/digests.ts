@@ -12,8 +12,9 @@
 // mechanism, so a proven-stale digest (its hash mismatch is what queued the rebuild) stayed live in recall
 // for as long as the summarizer kept returning nothing — see `storeTier0`/`storeConsolidationTier`.
 
+import type { RolePresetParams } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
-import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
+import type { SummarizeInput } from "@orb/contracts/role-clients";
 import { ProviderError, resolveSideGenSampling } from "@orb/inference";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
@@ -53,7 +54,7 @@ interface GenerateDigestsArgs {
 /** The summarize call options for the FUNDER's memory build: their Utility-role preset params folded over the
  *  `memory_digest` posture (D299). The posture always carries an output cap, which hard-caps a looping model and
  *  is the SAME value `outputReserve` fits the input against. Read per call, so a changed choice applies next. */
-async function summarizerOpts(ctx: ChatContext, funderUserId: UserId): Promise<SummarizeOptions> {
+async function summarizerOpts(ctx: ChatContext, funderUserId: UserId): Promise<RolePresetParams> {
   const resolved = resolveSideGenSampling(SIDE_GEN_POSTURES.memory_digest, await ctx.resolveUtilityPresetParams(funderUserId));
   const requested = resolved.maxOutputTokens ?? DEFAULT_OUTPUT_RESERVE_TOKENS;
   return { ...resolved, maxOutputTokens: clampOutputReserve(requested, await ctx.summarizerContextTokens(funderUserId)) };
@@ -105,7 +106,7 @@ async function summarizeBatchIsolated(
 /** One item's isolated summarize after its batch failed; `null` when it fails alone too. */
 async function summarizeAlone(
   ctx: ChatContext,
-  call: { readonly funderUserId: UserId; readonly opts: SummarizeOptions },
+  call: { readonly funderUserId: UserId; readonly opts: RolePresetParams },
   input: SummarizeInput,
   onError: (err: unknown) => void,
 ): Promise<string | null> {

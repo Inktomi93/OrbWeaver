@@ -18,7 +18,7 @@ import type {
 } from "@orb/contracts/providers";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { ChatRequest, ChatResult } from "./chat.ts";
-import type { AccountCreditsRequest, GenerationCostRequest, InspectRequest, ListModelsRequest, ProbeRequest, VerifyAuthRequest } from "./diagnostics.ts";
+import type { DiagnosticRequestCommon, GenerationCostRequest, ListModelsRequest } from "./diagnostics.ts";
 import type {
   EmbedRequest,
   ImageEmbedRequest,
@@ -41,11 +41,11 @@ export interface ProviderBackend {
   /** Returns the SAME `SummarizeResult` — each item's `text` is the schema-conforming JSON. */
   readonly structured?: ((req: StructuredRequest) => Promise<SummarizeResult>) | undefined;
   readonly generateImage?: ((req: ImageGenerateRequest) => Promise<ImageGenerateResult>) | undefined;
-  readonly probe?: ((req: ProbeRequest) => Promise<CredentialHealth>) | undefined;
-  readonly accountCredits?: ((req: AccountCreditsRequest) => Promise<AccountCredits>) | undefined;
+  readonly probe?: ((req: DiagnosticRequestCommon) => Promise<CredentialHealth>) | undefined;
+  readonly accountCredits?: ((req: DiagnosticRequestCommon) => Promise<AccountCredits>) | undefined;
   readonly generationCost?: ((req: GenerationCostRequest) => Promise<GenerationCost>) | undefined;
-  readonly inspect?: ((req: InspectRequest) => Promise<EndpointInspection>) | undefined;
-  readonly verifyAuth?: ((req: VerifyAuthRequest) => Promise<VerifyAuthResult>) | undefined;
+  readonly inspect?: ((req: DiagnosticRequestCommon) => Promise<EndpointInspection>) | undefined;
+  readonly verifyAuth?: ((req: DiagnosticRequestCommon) => Promise<VerifyAuthResult>) | undefined;
   readonly listModels?: ((req: ListModelsRequest) => Promise<ModelListing>) | undefined;
 }
 

@@ -26,6 +26,7 @@ import {
   seedInstalledPlugin,
   seedInvitedChatParticipant,
 } from "@orb/testkit/node/composed";
+import { beforeEach, describe } from "vitest";
 import type { GcBox, StoredRef } from "../gc-box.ts";
 import {
   ageOnly,
@@ -242,22 +243,31 @@ function allTrue(refs: Readonly<Record<string, StoredRef>>): Record<string, bool
   return Object.fromEntries(Object.keys(refs).map((name) => [name, true]));
 }
 
-test("the scheduled sweep keeps every referenced blob and reclaims only the truly unreferenced one", async () => {
-  const box = await openBox();
-  const refs = await plantEveryReference(box);
-  const orphan = await store(box, "attachment");
-  const inFlight = await store(box, "attachment");
-  await stampEveryBlob(box, aWeekAgo(box));
-  await stampBlob(box, inFlight, box.root.clock.now());
+describe("the scheduled sweep over every reference kind", () => {
+  // Planting one reference of every kind is the case's whole setup, a long run of production writes whose wall time
+  // grows with box load. It runs in the hook so the case measures the sweep and its verdict, not the planting.
+  const planted = Promise.withResolvers<{ readonly box: GcBox; readonly refs: Record<string, StoredRef> }>();
+  beforeEach(async () => {
+    const box = await openBox();
+    planted.resolve({ box, refs: await plantEveryReference(box) });
+  });
 
-  const run = await runScheduledGc(box);
+  test("the scheduled sweep keeps every referenced blob and reclaims only the truly unreferenced one", async () => {
+    const { box, refs } = await planted.promise;
+    const orphan = await store(box, "attachment");
+    const inFlight = await store(box, "attachment");
+    await stampEveryBlob(box, aWeekAgo(box));
+    await stampBlob(box, inFlight, box.root.clock.now());
 
-  expect(run.status).toBe("succeeded");
-  expect(await survival(box, refs)).toEqual(allTrue(refs));
-  // The put→link gap: an unreferenced blob stored within the grace window is not yet garbage.
-  expect(await survives(box, inFlight)).toBe(true);
-  // Positive control: the sweep really ran and really deletes; without it every survival above is vacuous.
-  expect(await survives(box, orphan)).toBe(false);
+    const run = await runScheduledGc(box);
+
+    expect(run.status).toBe("succeeded");
+    expect(await survival(box, refs)).toEqual(allTrue(refs));
+    // The put→link gap: an unreferenced blob stored within the grace window is not yet garbage.
+    expect(await survives(box, inFlight)).toBe(true);
+    // Positive control: the sweep really ran and really deletes; without it every survival above is vacuous.
+    expect(await survives(box, orphan)).toBe(false);
+  });
 });
 
 test("a body quoting another owner's asset retains nothing, while the owner's own quote in their own room does", async () => {

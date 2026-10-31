@@ -1,18 +1,5 @@
 -- Strip the retired `agent` task (RETIRED_TASKS in packages/contracts/src/inference/tasks.ts) from stored provider rows and plugin manifests.
--- A plugin definition's hash covers its serves list and SQL cannot recompute it, so that definition and its claims go; the stripped manifest re-claims the id on its next activation.
-DELETE FROM plugin_provider_claims
-WHERE EXISTS (
- SELECT 1 FROM provider_rows
- WHERE provider_rows.id = plugin_provider_claims.provider_id
-  AND provider_rows.definition_hash = plugin_provider_claims.definition_hash
-  AND provider_rows.origin_kind = 'plugin'
-  AND EXISTS (SELECT 1 FROM json_each(provider_rows.serves) WHERE value = 'agent')
-);
---> statement-breakpoint
-DELETE FROM provider_rows
-WHERE origin_kind = 'plugin' AND EXISTS (SELECT 1 FROM json_each(provider_rows.serves) WHERE value = 'agent');
---> statement-breakpoint
--- An admin row is keyed by id alone, so its stored hash is provenance and stays.
+-- A plugin row's definition_hash still covers the old list; the boot step in packages/server/src/entry/boot/rehash-plugin-provider-definitions.ts rewrites it and its claims.
 UPDATE provider_rows SET serves = (
  SELECT json_group_array(entry.value) FROM (SELECT value FROM json_each(provider_rows.serves) WHERE value <> 'agent' ORDER BY key) AS entry
 )

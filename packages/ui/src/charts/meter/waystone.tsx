@@ -41,6 +41,8 @@
 // `weather: null` (an unresolvable free string) ⇒ the clear recipe; the band text still names it.
 //
 // Homed in charts/meter (the magnitude-display family; inline data-viz svg is legal only in charts/**, §13.7).
+
+import type { WeatherType } from "@orb/kit/weather";
 import type { ReactElement } from "react";
 import { useId, useState, useSyncExternalStore } from "react";
 import { cn } from "#lib";
@@ -74,7 +76,6 @@ import {
   WAYSTONE_PIGMENT,
 } from "./waystone-geometry.ts";
 import { BandLayer, DialArcs, DialCardinals, SkyLayers } from "./waystone-layers.tsx";
-import type { WaystoneWeather } from "./waystone-treatment.ts";
 import { resolveWaystoneTreatment, waystonePhaseAtHour } from "./waystone-treatment.ts";
 
 /** The ambient clock as the stone reads it. The HOUR is the whole time axis: it drives the dial angle, the
@@ -90,7 +91,7 @@ export interface WaystoneProps {
   /** The ambient clock; `null` = unset: neutral ring, no marker, plain dim sky (§12.2.1). */
   clock: WaystoneClock | null;
   /** The resolved weather; `null` = unresolvable/unset ⇒ the clear recipe. @defaultValue null */
-  weather?: WaystoneWeather | null;
+  weather?: WeatherType | null;
   className?: string;
 }
 

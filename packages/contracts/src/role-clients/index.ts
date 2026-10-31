@@ -5,7 +5,7 @@
 // Mostly type-only: a bundle of functions isn't wire-serializable. The ONE exception is
 // `responseFormatSchema`/`ResponseFormat` (D79) — the structured-output request vocabulary, minted
 // zod-first HERE (not infra) because the summarize role's domain-facing options carry it and `contracts`
-// cannot import infra (the package cake); the infra wire arms + `SummarizeOptions`
+// cannot import infra (the package cake); the infra wire arms + `RolePresetParams`
 // import it DOWN. Call-argument shapes (`RerankQuery`/`ImageEmbedInput`/`SummarizeInput`) live here rather
 // than `contracts/providers` because that node holds only result shapes; the infra request shapes stay
 // infra-internal.
@@ -88,15 +88,10 @@ export interface SummarizeInput {
   images?: ImageInput[] | undefined;
 }
 
-/** Per-call sampling for `summarize` and `structured`, applied to every input: the generation params a
- *  non-chat role takes from its preset (D299), already folded over the task's posture. A runner drops a knob
- *  the resolved model does not state, with a warning. */
-export type SummarizeOptions = RolePresetParams;
-
-/** The options a `structured` call takes: the summarize sampling plus the required schema (D79), carried however the
+/** The options a `structured` call takes: the role's preset sampling (`RolePresetParams`) plus the required schema (D79), carried however the
  *  structured plan picks for the bound model. Structured generation is a distinct task from prose summarization:
  *  the caller names it, nothing sniffs it. */
-export interface StructuredOptions extends SummarizeOptions {
+export interface StructuredOptions extends RolePresetParams {
   responseFormat: ResponseFormat;
 }
 
@@ -126,7 +121,7 @@ export interface RoleClients {
    *  per-task `<Instruct>` for instruction-aware rerankers; text-only families ignore it. */
   rerank: (query: RerankQuery, documents: RerankDocument[], opts?: { instruction?: string }) => Promise<RerankResult>;
   /** Batched PROSE summarization. Returns one item per input; pass non-empty user prompts only. */
-  summarize: (inputs: readonly SummarizeInput[], opts?: SummarizeOptions) => Promise<SummarizeResult>;
+  summarize: (inputs: readonly SummarizeInput[], opts?: RolePresetParams) => Promise<SummarizeResult>;
   /** Batched SCHEMA-CONSTRAINED generation — the one-shot structured primitive; `responseFormat` REQUIRED. */
   structured: (inputs: readonly SummarizeInput[], opts: StructuredOptions) => Promise<SummarizeResult>;
   /** What `task` resolves to for this bundle's funder right now, or `null` (`no-connection`). */

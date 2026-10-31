@@ -11,8 +11,6 @@ import { trpcErrorDetailFlag, trpcErrorDetailNumber, trpcErrorReason } from "./t
 /** The roles whose binding defines the owner's vector space; re-pointing the user's own one can rebuild the index. */
 export const VECTOR_ROLES: readonly RoutableTask[] = ["embed", "imageEmbed"];
 
-export type ReindexPreview = EmbedSpaceChangePreview;
-
 /** The embedder-change confirm's fixed words. */
 export const REINDEX_CONFIRM_COPY = {
   title: "Rebuild your search index?",
@@ -33,16 +31,16 @@ const REINDEX_SCOPE_NOUNS = {
   memory: "chat memory entries",
   documents: "databank passages",
   images: "pictures",
-} as const satisfies Record<keyof ReindexPreview["stored"], string>;
+} as const satisfies Record<keyof EmbedSpaceChangePreview["stored"], string>;
 
 /** Ask first only when the change moves to a new embedding generation AND that index holds something:
  *  rebuilding an empty index costs nothing the user could want to weigh. */
-export function reindexNeedsConfirm(preview: ReindexPreview): boolean {
+export function reindexNeedsConfirm(preview: EmbedSpaceChangePreview): boolean {
   return preview.reindex && preview.embedCalls > 0;
 }
 
 /** What pauses, named from the scopes the rebuild actually covers: text search, picture search alone, memory. */
-function pauseSentences(stored: ReindexPreview["stored"]): readonly string[] {
+function pauseSentences(stored: EmbedSpaceChangePreview["stored"]): readonly string[] {
   const sentences: string[] = [];
   if (stored.cards > 0 || stored.documents > 0) {
     sentences.push(REINDEX_CONFIRM_COPY.pause.search);
@@ -57,11 +55,11 @@ function pauseSentences(stored: ReindexPreview["stored"]): readonly string[] {
 
 /** The confirm's consequence. `null` = the preview could not be read, so the counts are unknown and the
  *  description says only what the change does. */
-export function reindexConfirmDescription(preview: ReindexPreview | null): string {
+export function reindexConfirmDescription(preview: EmbedSpaceChangePreview | null): string {
   if (preview === null) {
     return `${REINDEX_CONFIRM_COPY.unknown} ${REINDEX_CONFIRM_COPY.pause.search}`;
   }
-  const parts = (Object.keys(REINDEX_SCOPE_NOUNS) as (keyof ReindexPreview["stored"])[])
+  const parts = (Object.keys(REINDEX_SCOPE_NOUNS) as (keyof EmbedSpaceChangePreview["stored"])[])
     .filter((scope) => preview.stored[scope] > 0)
     .map((scope) => `${groupThousands(preview.stored[scope])} ${REINDEX_SCOPE_NOUNS[scope]}`);
   const memory = preview.stored.memory > 0 ? [preview.utilityModelSet ? REINDEX_CONFIRM_COPY.resummarize : REINDEX_CONFIRM_COPY.noUtility] : [];

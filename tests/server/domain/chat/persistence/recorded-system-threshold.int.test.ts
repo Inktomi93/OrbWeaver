@@ -30,7 +30,7 @@ test("a production-recorded heavy system prompt makes pre-turn and post-turn thr
   const observe = (exchanges: number): void => {
     samples.push(exchanges);
   };
-  // The two searches share no room, so they run side by side; each probe still runs strictly in order.
+  // The two searches share no room, so they run side by side; each search narrows its range one round of probes at a time.
   const [postRows, preRows] = await Promise.all([
     firstCompactingRows({ foregroundFails: false, heavy: true, observe }),
     firstCompactingRows({ foregroundFails: true, heavy: true, record: recordSystemPrompt, observe }),

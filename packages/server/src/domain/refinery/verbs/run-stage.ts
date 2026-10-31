@@ -43,11 +43,11 @@
 // the knob) as a typed BAD_REQUEST the client quotes. Preflight is unchanged and still only WARNS — it is a
 // readout, and a readout that refused would be a readout nobody could read.
 
+import type { RolePresetParams } from "@orb/contracts/preset";
 import type { RefineryRun, RefinerySessionView, RefineryStage } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS, refineryRewriteParseSchema } from "@orb/contracts/refinery";
 import type { ResponseFormat, RoleClients, StructuredOptions } from "@orb/contracts/role-clients";
 import { refineryRuns, refinerySessions } from "@orb/db";
-import type { SideGenSampling } from "@orb/inference";
 import { runStructuredTurn, StructuredOutputError } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ModelId, RefineryRunId } from "@orb/kit/ids";
@@ -98,7 +98,7 @@ interface StagePass {
   readonly responseFormat: ResponseFormat;
   /** The owner's Utility-role preset params, carried unresolved: the output budget can only be sized once the arm has
    *  assembled its prompt, so the fold happens at the call ({@link sampleOptsFor}), not here. */
-  readonly presetParams: SideGenSampling | undefined;
+  readonly presetParams: RolePresetParams | undefined;
   /** WHAT this pass will ask the model to produce (card + selection + the rewrite mode) — derived ONCE per
    *  pass so the refusal verdict and the wire's cap provably measure the same payload. */
   readonly subject: StageEstimateSubject;

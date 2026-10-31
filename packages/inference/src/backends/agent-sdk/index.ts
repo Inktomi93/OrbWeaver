@@ -10,13 +10,13 @@ import type {
   AgentToolServer,
   ChatRequest,
   ChatResult,
+  DiagnosticRequestCommon,
   ListModelsRequest,
   ProviderBackend,
   Resolved,
   SpawnIdentity,
   StructuredRequest,
   SummarizeRequest,
-  VerifyAuthRequest,
 } from "#contract";
 import { ProviderError } from "#contract";
 import { runSideGen } from "#roles";
@@ -95,7 +95,7 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
     runChatTurn: chatTurn,
     summarize: sideGen,
     structured: sideGen,
-    verifyAuth: (req: VerifyAuthRequest): Promise<VerifyAuthResult> => verifyAuth(req, resolved, logFor(req.connection)),
+    verifyAuth: (req: DiagnosticRequestCommon): Promise<VerifyAuthResult> => verifyAuth(req, resolved, logFor(req.connection)),
     listModels: async (req: ListModelsRequest): Promise<ModelListing> => {
       try {
         const models = await fetchAgentSdkModels(req.connection, resolved, logFor(req.connection));

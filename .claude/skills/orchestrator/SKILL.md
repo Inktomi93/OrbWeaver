@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-description: "Orchestration for orbweaver: role routing, briefs, lane cap, merge trains, the pre-push barrier, worktrees, pushes, session start, the claude-b bridge. A SessionStart hook injects it into every main session."
+description: "Orchestration for orbweaver: role routing, briefs, lane cap, merge trains, the pre-push barrier, worktrees, pushes, session start, the claude-b bridge. The orb-session plugin puts it in every orchestrating session's system prompt."
 ---
 
 # Orchestrator
@@ -225,9 +225,10 @@ Diagnose an instrument failure far enough to identify its effect on the requeste
 
 ## Session start
 
-At startup, resume, compaction, and clear, `.claude/hooks/orchestrator-inject.mjs` injects this skill into a
-main session, and `.claude/hooks/session-onboard.sh` prints your account, the bridge inbox, the claude-b
-registry, and the worktree state. Do not load this skill again. Follow the onboard first actions.
+The orb-session plugin (`.claude/marketplace/plugins/orb-session`) puts this skill in the system prompt of
+every session that can dispatch lanes, read fresh from this file, so compaction never drops it. At startup,
+resume, compaction, and clear, `.claude/hooks/session-onboard.sh` prints your account, the bridge inbox,
+the claude-b registry, and the worktree state. Do not load this skill again. Follow the onboard first actions.
 
 - Set up MCP servers and connectors before work starts. Changing one mid-session drops the prompt cache.
 - Resume live lanes by SendMessage to their agent ids. Never respawn them.

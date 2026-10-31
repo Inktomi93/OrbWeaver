@@ -10,9 +10,9 @@ import type {
   AnthropicChatRequest,
   ChatRequest,
   ChatResult,
+  DiagnosticRequestCommon,
   ListModelsRequest,
   ModelsDial,
-  ProbeRequest,
   ProviderBackend,
   StructuredRequest,
   SummarizeRequest,
@@ -80,7 +80,7 @@ export async function listAnthropicModels(dial: ModelsDial, fetchImpl: typeof fe
   }
 }
 
-async function probe(req: ProbeRequest, fetchImpl: typeof fetch, now: () => number): Promise<CredentialHealth> {
+async function probe(req: DiagnosticRequestCommon, fetchImpl: typeof fetch, now: () => number): Promise<CredentialHealth> {
   const checkedAt = now();
   try {
     await fetchAnthropicModels(dialOf(req), fetchImpl);
