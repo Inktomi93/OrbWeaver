@@ -5,7 +5,7 @@
 //
 // WHY THE OWNERSHIP RE-CHECK CAME OUT. A chat-tier row belongs to the ROOM (D18 — chats carry no ownerId, so
 // authority is the membership chain) while the library row belongs to its author, and a handoff moves only
-// the first. With `loadOwnedScript` in front of the delete, the incoming host held a transform they could
+// the first. With `requireOwnedScript` in front of the delete, the incoming host held a transform they could
 // neither detach here nor switch off (`updateScript`/`bulkSetScriptsEnabled` are owner-gated by construction,
 // and must stay that way — the departed host's library is still theirs), while it kept running on every turn
 // of their room. `chat_books`' `detachFromChat` never had that hole and says so in its own header; this

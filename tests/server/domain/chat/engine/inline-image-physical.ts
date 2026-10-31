@@ -1,13 +1,14 @@
 // A controlled image/tool endpoint speaks native Google bytes; plugin execution and asset retention stay real.
 
 import { spawn } from "node:child_process";
+import type { GroupConfigInput } from "@orb/contracts/chat";
 import { providerDefSchema } from "@orb/contracts/inference";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginToolWireName } from "@orb/contracts/plugin";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { createSeededIds } from "@orb/testkit/iso";
-import type { ServerHarnessOptions } from "@orb/testkit/node/composed";
+import type { ChatRoot, ServerHarnessOptions } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -70,24 +71,32 @@ function nativeResponse(parts: readonly JsonValue[], usageMetadata: NativeImageU
   return new Response(frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join(""), { headers: { "content-type": "text/event-stream" } });
 }
 
+type ImageScript = readonly (readonly JsonValue[])[];
+type Generate = () => ReturnType<ChatRoot["root"]["services"]["chat"]["generate"]>;
+const IMAGE_ROOM_GROUP = { output: "per-speaker", policy: "list", allowSelfResponses: true } as const satisfies GroupConfigInput;
+
 interface ImagePhysicalOptions extends Pick<ServerHarnessOptions, "db"> {
   readonly cachedContentTokenCount?: number;
   readonly usageMetadata?: ReadonlyMap<number, NativeImageUsage>;
 }
 
 export async function imageRoom(
-  script: readonly (readonly JsonValue[])[],
+  initialScript: ImageScript,
   tools = false,
   physicalOptions: ImagePhysicalOptions = {},
 ): Promise<
   AsyncDisposable & {
-    readonly h: Awaited<ReturnType<typeof createChatRoot>>;
-    readonly turn: () => ReturnType<Awaited<ReturnType<typeof createChatRoot>>["root"]["services"]["chat"]["generate"]>;
+    readonly h: ChatRoot;
+    readonly turn: Generate;
     readonly inputs: () => Promise<JsonValue[][]>;
-    readonly canon: () => ReturnType<Awaited<ReturnType<typeof createChatRoot>>["caller"]["chat"]["listMessages"]>;
+    readonly canon: () => ReturnType<ChatRoot["caller"]["chat"]["listMessages"]>;
+    /** Start another chat in this root under the room's group posture. Its script replaces the current one, so the
+     *  provider serves only the newest chat; the booted root and its enabled guest are reused. */
+    readonly openChat: (script: ImageScript) => Promise<{ readonly chatId: ChatRoot["chatId"]; readonly turn: Generate }>;
   }
 > {
   await using construction = new AsyncDisposableStack();
+  let script = initialScript;
   let next = 0;
   const physical = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
@@ -108,7 +117,7 @@ export async function imageRoom(
   const h = construction.use(
     await createChatRoot({
       memoryEnabled: false,
-      group: { output: "per-speaker", policy: "list", allowSelfResponses: true },
+      group: IMAGE_ROOM_GROUP,
       server: { secretBoxKey: Buffer.alloc(32, 1), pluginSpawn: spawn, ...(physicalOptions.db === undefined ? {} : { db: physicalOptions.db }) },
       providerFetch: async (input, init) => {
         const request = new Request(input, init);
@@ -195,13 +204,25 @@ host.tools.register({name:"draw",description:"Draw the moon.",replayHistory:true
           return body["contents"];
         }),
     );
+  const generateIn =
+    (chatId: ChatRoot["chatId"]): Generate =>
+    async (): ReturnType<Generate> =>
+      await h.root.services.chat.generate({ principal: h.owner, chatId, intent: { replyMedia: "text+image", carryReasoning: "conversation" } });
+  const openChat = async (nextScript: ImageScript): Promise<{ readonly chatId: ChatRoot["chatId"]; readonly turn: Generate }> => {
+    const { chat } = await h.caller.chat.startChat({ characterIds: h.characters.map(({ id }) => id), opening: "none" });
+    await h.caller.chat.setGroupConfig({ chatId: chat.id, config: IMAGE_ROOM_GROUP });
+    await h.root.settleBackground();
+    script = nextScript;
+    next = 0;
+    return { chatId: chat.id, turn: generateIn(chat.id) };
+  };
   const lifetime = construction.move();
   return {
     h,
     inputs,
-    turn: async () =>
-      await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId, intent: { replyMedia: "text+image", carryReasoning: "conversation" } }),
+    turn: generateIn(h.chatId),
     canon: async () => await h.caller.chat.listMessages({ chatId: h.chatId }),
+    openChat,
     [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
   };
 }

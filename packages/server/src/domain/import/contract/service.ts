@@ -35,7 +35,6 @@ import type {
   ImportThemesResult,
   RestoreCharacterBookResult,
 } from "./results.ts";
-import type { ImportWorkloadDeps } from "./workloads.ts";
 
 export type CreateImportedCharacter = (args: {
   readonly ownerId: UserId;
@@ -80,9 +79,6 @@ type AttachImportedArt = (args: {
  *  behind the model-run confirm, so an import spends nothing paid without a yes. */
 type EnqueueImportIndex = (args: { readonly ownerId: UserId }) => Promise<void>;
 
-/** Inline post-import stats rollup rebuild. */
-type ReconcileImportStats = ImportWorkloadDeps["reconcileImportStats"];
-
 /** Persona-owned by-NAME lookup (R6). `personaByUserName` below is the PROFILE run's in-memory map, built by
  *  the persona wave in the same process; a BUNDLE gets one fresh `ImportContext` per file, so a chat that
  *  imports after the personas entity needs a durable read instead. `(ownerId, name)` is the persona domain's
@@ -110,7 +106,6 @@ export interface ImportProfileDeps {
   readonly bulkImportChats: BulkImportChatsOp;
   readonly bulkImportPersonas: BulkImportPersonas;
   readonly enqueueImportIndex: EnqueueImportIndex;
-  readonly reconcileStats: ReconcileImportStats;
   // ── R6: the orb-native chat bundle's three cross-domain re-links. All OPTIONAL, on the
   // `importLorebook`/`importCardScripts` precedent: absent ⇒ that plane simply does not restore, which keeps
   // the ST-only profile-import wiring (which has no use for any of them) honest instead of forcing it to

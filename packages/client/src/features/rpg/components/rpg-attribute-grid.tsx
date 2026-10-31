@@ -44,6 +44,7 @@ export function AttributeGrid({
             <StatCell
               key={def.key}
               label={def.label}
+              range={profile.range}
               value={readOwnKey(actor.sheet.attributes, def.key) ?? null}
               {...(def.hint === "" ? {} : { hint: def.hint })}
               {...(onEditAttribute === undefined

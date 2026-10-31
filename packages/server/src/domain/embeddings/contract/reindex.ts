@@ -1,3 +1,4 @@
+import type { IsMemoryEnabledOp } from "@orb/contracts/chat";
 import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { GetEffectiveConfigOp } from "@orb/contracts/settings";
 import type { StartWorkloadOp } from "@orb/contracts/workloads";
@@ -32,7 +33,7 @@ export interface EmbeddingReindexTriggers {
 }
 
 export interface VacuousMemoryReceiptDeps {
-  readonly isMemoryEnabled: (ownerId: UserId) => Promise<boolean>;
+  readonly isMemoryEnabled: IsMemoryEnabledOp;
   readonly emptyMemoryScope: (ownerId: UserId) => Promise<SQL | null>;
   readonly embeddings: Pick<EmbeddingsService, "resolveGeneration">;
 }

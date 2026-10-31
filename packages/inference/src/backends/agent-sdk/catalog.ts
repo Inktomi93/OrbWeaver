@@ -9,7 +9,7 @@ import type { AgentSdkModel } from "@orb/contracts/inference";
 import { agentSdkModelSchema } from "@orb/contracts/inference";
 import type { VerifyAuthAccount, VerifyAuthResult } from "@orb/contracts/providers";
 import { verifyAuthAccountSchema } from "@orb/contracts/providers";
-import type { AgentSdkQueryLease, ProviderScrubSet, SpawnIdentity, VerifyAuthRequest } from "#contract";
+import type { AgentSdkQueryLease, DiagnosticRequestCommon, ProviderScrubSet, SpawnIdentity } from "#contract";
 import { ProviderError } from "#contract";
 import type { AgentSdkDeps, AgentSdkLog } from "../../contract/agent-sdk-backend.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
@@ -133,7 +133,7 @@ async function probeAccountInfo(query: Query, deps: AgentSdkDeps): Promise<Verif
 }
 
 /** The subscription auth verify: `maxTurns: 1`, no resume, no tools (the firewall base). */
-export async function verifyAuth(req: VerifyAuthRequest, deps: AgentSdkDeps, log: AgentSdkLog): Promise<VerifyAuthResult> {
+export async function verifyAuth(req: DiagnosticRequestCommon, deps: AgentSdkDeps, log: AgentSdkLog): Promise<VerifyAuthResult> {
   const { connection } = req;
   await using lease = deps.execution.open(
     connection,

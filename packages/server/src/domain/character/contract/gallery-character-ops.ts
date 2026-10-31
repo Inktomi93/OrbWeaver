@@ -1,7 +1,6 @@
-import type { FindByHandleParams } from "@orb/contracts/character";
-import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
+import type { FindGalleryCharacterByHandleOp, ResolveGalleryCharacterHandleOp } from "@orb/contracts/character";
 
 export interface GalleryCharacterOps {
-  readonly resolveCharacterHandle: (ownerId: UserId, characterId: CharacterId) => Promise<CharacterHandle | null>;
-  readonly findCharacterByHandle: (params: FindByHandleParams) => Promise<CharacterId | null>;
+  readonly resolveCharacterHandle: ResolveGalleryCharacterHandleOp;
+  readonly findCharacterByHandle: FindGalleryCharacterByHandleOp;
 }

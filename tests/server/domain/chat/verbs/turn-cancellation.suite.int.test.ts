@@ -4,14 +4,16 @@ import type { MessageView } from "@orb/contracts/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { readRoomCanon } from "@orb/testkit/node/composed";
-import { withCancellationPeer } from "./turn-cancellation-physical.ts";
+import { registerCancellationRoom } from "./turn-cancellation-physical.ts";
+
+const withPeer = registerCancellationRoom();
 
 async function roles(h: ChatRoot): Promise<MessageView["role"][]> {
   return (await readRoomCanon(h.root, h.owner, h.chatId)).map(({ role }) => role);
 }
 
 test("completed wire tool calls execute and launch the RPG completion hook in the same fixture", async () => {
-  await withCancellationPeer("complete", async (f) => {
+  await withPeer("complete", async (f) => {
     const outcome = await f.start();
     expect(outcome.aborted).toBe(false);
     await f.h.root.settleBackground();
@@ -25,7 +27,7 @@ test("completed wire tool calls execute and launch the RPG completion hook in th
 });
 
 test("Stop while resolving word bias closes the actual tokenize request before generation", async () => {
-  await withCancellationPeer(
+  await withPeer(
     "headers",
     async (f) => {
       const pending = f.start();
@@ -43,7 +45,7 @@ test("Stop while resolving word bias closes the actual tokenize request before g
 
 for (const phase of ["stream", "headers"] as const) {
   test(`Stop during ${phase} cancels actual OpenRouter HTTP work without retry or chained generation`, async () => {
-    await withCancellationPeer(phase, async (f) => {
+    await withPeer(phase, async (f) => {
       const pending = f.start();
       await f.peer.arrived;
       await expect.poll(() => phase === "headers" || f.events.some(({ type }) => type === "delta")).toBe(true);
@@ -67,7 +69,7 @@ for (const phase of ["stream", "headers"] as const) {
 }
 
 test("Stop during an actual HTTP 503 backoff prevents the queued retry and chained generation", async () => {
-  await withCancellationPeer("retry", async (f) => {
+  await withPeer("retry", async (f) => {
     const pending = f.start();
     const delay = await f.retryScheduled;
     expect(delay).toBeGreaterThan(0);
@@ -86,7 +88,7 @@ test("Stop during an actual HTTP 503 backoff prevents the queued retry and chain
 });
 
 test("an already-cancelled public impersonation subscription dispatches no native OpenRouter HTTP work", async () => {
-  await withCancellationPeer("stream", async (f) => {
+  await withPeer("stream", async (f) => {
     const controller = new AbortController();
     controller.abort();
     const deltas: string[] = [];

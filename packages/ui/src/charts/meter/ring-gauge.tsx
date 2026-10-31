@@ -10,9 +10,6 @@ import { cn, isSafeColor } from "#lib";
 import type { TrackColor } from "./track-bar.tsx";
 import { RING_STROKE, ringGaugeVariants } from "./variants.ts";
 
-/** RingGauge shares the track-ramp step vocabulary with TrackBar. */
-export type RingColor = TrackColor;
-
 const FULL_PERCENT = 100;
 
 // SVG geometry (viewBox units — named per biome noMagicNumbers; mirrors the mockup orb).
@@ -29,7 +26,7 @@ export interface RingGaugeProps {
   /** Domain max — the full-ring value. @defaultValue 100 */
   max?: number;
   /** Which `--color-track-N` strokes the arc. @defaultValue 1 */
-  color?: RingColor;
+  color?: TrackColor;
   /** Accessible name — the pool/meter label ("Health"). Rendered as the visually-hidden datum + the
    *  optional visible caption. */
   label: string;

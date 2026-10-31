@@ -87,6 +87,9 @@ for (const section of SECTIONS) {
     await entry.press("Enter");
     await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", section.id);
     await expect.poll(() => focusRegion(page)).toBe("band");
+    // The search field sits above the library's query boundary, so it exists before the rows do; a Tab walk that starts
+    // while the list query is pending leaves the pane instead of reaching a row.
+    await expect(page.locator(`${LIST} [data-slot="list-row-body"]`).first()).toBeVisible();
     const stops: StopKind[] = [await stopKind(page)];
     for (let step = 0; step < MAX_TAB_STOPS && !stops.includes("row"); step += 1) {
       await page.keyboard.press("Tab");

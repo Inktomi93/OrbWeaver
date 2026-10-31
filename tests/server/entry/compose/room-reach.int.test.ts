@@ -9,11 +9,10 @@ import { onTestFinished, vi } from "vitest";
 import { test } from "./room-reach.fixtures.ts";
 
 test("bulk regex capture fans only confirmed owned scripts, once per room, and never a host-only library tier", async ({
-  services,
   app,
+  ids,
   ownerCaller,
   otherCaller,
-  harness,
 }): Promise<void> => {
   const input = createRegexScriptSchema.parse({ name: "owned", findRegex: "x", replaceString: "y", placement: [] });
   const first = await ownerCaller.regex.createScript({ input });
@@ -34,12 +33,10 @@ test("bulk regex capture fans only confirmed owned scripts, once per room, and n
       }
     }),
   );
-  expect(await ownerCaller.regex.bulkRemove({ scriptIds: [first.id, second.id, global.id, foreign.id, harness.ids.typeId(ID_PREFIX.regexScript)] })).toEqual({
+  expect(await ownerCaller.regex.bulkRemove({ scriptIds: [first.id, second.id, global.id, foreign.id, ids.typeId(ID_PREFIX.regexScript)] })).toEqual({
     affected: 3,
   });
-  expect((await services.regex.getScript({ principal: await harness.principalFor((await otherCaller.sessions.me()).userId), scriptId: foreign.id })).id).toBe(
-    foreign.id,
-  );
+  expect((await otherCaller.regex.listScripts()).map(({ id }) => id)).toContain(foreign.id);
   expect(frames).toEqual([{ seq: null, event: { type: "roomEntityChanged", chatId: ownedRoom.id, entity: "regex" } }]);
 });
 

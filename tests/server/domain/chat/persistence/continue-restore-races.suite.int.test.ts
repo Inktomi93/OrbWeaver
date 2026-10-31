@@ -15,28 +15,28 @@ test("a newer signed tool continuation fences a stale undo without changing its 
   expect(f.before.metadata?.continuationTools?.after).toHaveLength(2);
   expect(JSON.stringify(f.before.metadata)).toContain(TOOL_SIGNATURE);
   const gate = f.held.hold(/update "message_variants" set[\s\S]*case when json_type\([\s\S]*continuationTools/u);
-  const restoring = h.root.services.chat.undoContinue({ principal: h.owner, chatId: h.chatId, messageId: f.slot.id });
+  const restoring = h.root.services.chat.undoContinue({ principal: h.owner, chatId: f.chatId, messageId: f.slot.id });
   const refused = expect(restoring).rejects.toBeInstanceOf(ChatOperationError);
   try {
     await gate.reached;
     gate.disarm();
     await h.root.services.chat.continueTurn({
       principal: h.owner,
-      chatId: h.chatId,
+      chatId: f.chatId,
       messageId: f.slot.id,
       intent: { replyMedia: "text+image", carryReasoning: "conversation" },
     });
     await h.root.settleBackground();
     const variants = await h.root.db.select().from(messageVariants).orderBy(messageVariants.idx);
     const versions = await h.root.db.select().from(statsCanonVersions);
-    const events = await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, h.chatId)).orderBy(chatEvents.seq);
+    const events = await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, f.chatId)).orderBy(chatEvents.seq);
     expect(variants[0]?.content).toBe("Base.A.B.");
     expect(variants[0]?.metadata?.continuationTools?.after).toHaveLength(3);
     gate.release();
     await refused;
     expect(await h.root.db.select().from(messageVariants).orderBy(messageVariants.idx)).toEqual(variants);
     expect(await h.root.db.select().from(statsCanonVersions)).toEqual(versions);
-    expect(await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, h.chatId)).orderBy(chatEvents.seq)).toEqual(events);
+    expect(await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, f.chatId)).orderBy(chatEvents.seq)).toEqual(events);
   } finally {
     gate.release();
     await Promise.allSettled([restoring, refused]);
@@ -46,7 +46,7 @@ test("a newer signed tool continuation fences a stale undo without changing its 
 test("native undo and revert retain exact signed parts and tool phases while public views withhold signatures", async () => {
   await using f = await signedContinuation();
   const { h } = f.image;
-  const args = { principal: h.owner, chatId: h.chatId, messageId: f.slot.id };
+  const args = { principal: h.owner, chatId: f.chatId, messageId: f.slot.id };
   const undone = await h.root.services.chat.undoContinue(args);
   expect(undone.content).toBe("Base.");
   const storedUndo = await h.root.db.select().from(messageVariants).where(eq(messageVariants.id, f.slot.selectedVariantId)).get();

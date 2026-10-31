@@ -8,14 +8,14 @@
 
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { ChatId } from "@orb/kit/ids";
-import type { InvalidateFilter } from "./invalidation-reads.ts";
+import type { InvalidateQueryFilters } from "@tanstack/react-query";
 import type { Trpc } from "./trpc.ts";
 
 type AutomationBusFilterMap = {
-  readonly [K in AutomationBusEvent["type"]]: (event: Extract<AutomationBusEvent, { type: K }>, trpc: Trpc) => readonly InvalidateFilter[];
+  readonly [K in AutomationBusEvent["type"]]: (event: Extract<AutomationBusEvent, { type: K }>, trpc: Trpc) => readonly InvalidateQueryFilters[];
 };
 
-const nothing = (): readonly InvalidateFilter[] => [];
+const nothing = (): readonly InvalidateQueryFilters[] => [];
 
 const AUTOMATION_BUS_FILTERS: AutomationBusFilterMap = {
   quickReplySurfaced: nothing,
@@ -44,12 +44,12 @@ const AUTOMATION_BUS_FILTERS: AutomationBusFilterMap = {
 };
 
 /** Resolve one automation-room event through the total map. */
-export function automationEventFilters(event: AutomationBusEvent, trpc: Trpc): readonly InvalidateFilter[] {
-  const handler = AUTOMATION_BUS_FILTERS[event.type] as (value: AutomationBusEvent, proxy: Trpc) => readonly InvalidateFilter[];
+export function automationEventFilters(event: AutomationBusEvent, trpc: Trpc): readonly InvalidateQueryFilters[] {
+  const handler = AUTOMATION_BUS_FILTERS[event.type] as (value: AutomationBusEvent, proxy: Trpc) => readonly InvalidateQueryFilters[];
   return handler(event, trpc);
 }
 
 /** Every durable read the live-only automation room can move, for reconnect gap-heal. */
-export function allAutomationRoomFilters(chatId: ChatId, trpc: Trpc): readonly InvalidateFilter[] {
+export function allAutomationRoomFilters(chatId: ChatId, trpc: Trpc): readonly InvalidateQueryFilters[] {
   return [trpc.automation.listRules.queryFilter({ chatId }), trpc.automation.listFires.pathFilter(), trpc.automation.listChatActivity.queryFilter({ chatId })];
 }

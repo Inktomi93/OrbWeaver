@@ -41,10 +41,7 @@ function toChatWarningCode(imageryCode: string): ImageryChatWarningCode | null {
   return IMAGERY_WARNING_CODES.find((code) => code === imageryCode) ?? null;
 }
 
-/** The collaborators not on `ChatContext` (the chat bus emit — chat's own collaborator, wired at the root). */
-type GenerateImageDeps = PostNarratorMessageDeps;
-
-export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): Pick<ChatService, "generateImage"> {
+export function createGenerateImage(ctx: ChatContext, deps: PostNarratorMessageDeps): Pick<ChatService, "generateImage"> {
   return {
     generateImage: async ({ principal, gallery, ...pictureParams }: GenerateImageParams): Promise<MessageView> => {
       const { chatId, prompt } = pictureParams;

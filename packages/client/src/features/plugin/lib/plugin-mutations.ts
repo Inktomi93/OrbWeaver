@@ -115,7 +115,7 @@ export const useUpgradePlugin = createEntityMutation<inferInput<Trpc["plugin"]["
 /**
  * U8 2b — the AUTO UPDATE-CHECK (the thing ST's loader does). A BATCH mutation (not a query) because the server
  * verb triggers EGRESS to each url-origin plugin's remembered source, and a GET-shaped door onto egress is
- * cacheable + outside the CSRF belt — the same reason `upgradeFromUrl`/`installFromUrl` are mutations. Takes no
+ * cacheable + outside the CSRF belt — the same reason `installFromUrl` is a mutation. Takes no
  * input (it walks the caller's OWN plugins) and reconciles NOTHING — a check writes nothing; the caller reads the
  * per-plugin verdicts through `mutateAsync` and renders the "Update to X" / "up to date" / "couldn't reach" line.
  */

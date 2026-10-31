@@ -67,20 +67,20 @@ IDENT_SRC="transcript"; [ -n "$TRANSCRIPT" ] || IDENT_SRC="env fallback (no tran
 if [ -n "$TRANSCRIPT" ] && [ "${CFG_DIR%/}" != "$ENV_CFG" ]; then
   echo "!!! ACCOUNT MISMATCH: the transcript says ${WHO} (${CFG_DIR}) but CLAUDE_CONFIG_DIR says $(account_for "$ENV_CFG") (${ENV_CFG}). The TRANSCRIPT wins below; this is a config fault to report to the owner, not a signal."
 fi
-echo "!!! IDENTITY: you are ${WHO} (by ${IDENT_SRC}; config dir ${CFG_DIR}). YOUR inbox is ~/.claude/bridge/${INBOX}/ — read it, ack by MOVE into its done/; the bridge plugin watches it; you WRITE notes with \`claude-bridge send\`. claude-b prefixes lanes cb-, never delegates cross-account, and only PRIMARY commits on main's checkout. MESSAGE FORM is ~/.claude/bridge/PROTOCOL.md — read it before writing a note: claude-bridge send numbers it under the lock, at: in ISO 8601 UTC, kind in re: (plain | QUESTION with stated default | BLOCKED | ANSWER to NNN | ACK of NNN); a QUESTION stays unacked until answered."
+echo "!!! IDENTITY: you are ${WHO} (by ${IDENT_SRC}; config dir ${CFG_DIR}). YOUR inbox is ~/.claude/bridge/${INBOX}/ — the bridge mod delivers its notes; use the mod's send, reply, ack and inbox tools (\`claude-bridge\` from Bash for scripts). claude-b prefixes lanes cb-, never delegates cross-account, and only PRIMARY commits on main's checkout. MESSAGE FORM is ~/.claude/bridge/PROTOCOL.md — read it before writing a note: send numbers it under the lock and stamps at:, kind in re: (plain | QUESTION with stated default | BLOCKED | ANSWER to NNN | ACK of NNN); a QUESTION stays unacked until answered."
 
 # FIRST ACTIONS sit directly under identity so a truncated output still delivers them. The hook cannot
 # call tools; these are orders for the session.
 if [ -x "$HOME/.claude/skills/bridge/bin/claude-bridge" ]; then
-  # The bridge plugin's own SessionStart hook prints this account's newest SELF note in full and lists the
-  # other unacked notes, so this hook does not repeat them.
-  echo "!!! FIRST ACTIONS, in order: (1) BRIDGE: the 'bridge:' block from the bridge plugin holds your own note from your last session and your unacked notes. Act on them, then claude-bridge ack N. New notes arrive as 'bridge: new note N' events; do not start an inotifywait Monitor."
+  # The bridge mod adds this account's newest SELF note in full and the unacked list to the first prompt and
+  # after every compaction, so this hook does not repeat them.
+  echo "!!! FIRST ACTIONS, in order: (1) BRIDGE: the '[bridge, not the owner]' block holds your own note from your last session and your unacked notes. Act on them, then ack with the bridge ack tool (reply to answer a QUESTION). New notes arrive as '[bridge, not the owner] new note N' turns; never arm a watcher."
 else
   echo "!!! FIRST ACTIONS, in order: (1) BRIDGE PLUGIN MISSING (~/.claude/skills/bridge): nothing watches the inbox; tell the owner; read the inbox at every merge window."
 fi
 # Hook registration binds at session launch, but this script is read fresh on each run: a session launched
 # before orchestrator-inject.mjs was registered gets this line with no injection, hence the fallback.
-echo "    (2) The orchestrator skill is INJECTED into this context by a SessionStart hook, in blocks that start 'Orchestrator skill, part N of M'; do not load it again. If any part is missing, load it with the Skill tool. Follow it before any lane, merge, bridge note or worktree action. A compaction summary's digest of it fails on command detail."
+echo "    (2) The orchestrator skill is in your system prompt (section 'Orchestrator skill', from the orb-session plugin); do not load it again. If it is missing, load it with the Skill tool. Follow it before any lane, merge, bridge note or worktree action."
 echo "    (3) READ IN FULL (cat): ~/.claude/bridge/SESSIONS.md, each unacked note the bridge block lists, and the scratch dispatch map if the line below found it."
 echo "    (4) Honor every MERGE HOLD / sequencing line in the notes; resume live lanes by SendMessage to their agentIds, NEVER respawn."
 if [ "$WHO" = "claude-b" ]; then
@@ -120,7 +120,7 @@ if timeout 15 git fetch -q origin main 2>/dev/null; then
 else
   echo "--- origin fetch failed — main's sync with origin is unverified"
 fi
-echo "--- standing posture and procedure: the injected orchestrator skill (FIRST ACTION 2 above). claude-b registry: ~/.claude/bridge/SESSIONS.md (resume, never re-mint)."
+echo "--- standing posture and procedure: the orchestrator skill in your system prompt (FIRST ACTION 2 above). claude-b registry: ~/.claude/bridge/SESSIONS.md (resume, never re-mint)."
 
 # MEMORY.md GUARD. The harness injects the orchestrator's MEMORY.md and truncates it silently past 200
 # lines or its byte cap, whichever binds first. The index sits beside the transcript:

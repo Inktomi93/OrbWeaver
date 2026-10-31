@@ -1,5 +1,5 @@
-// The IP certificate controller (D275): off → obtaining → active, or failed back to plain http. Every enable or stop
-// takes a new generation; a late issuance, bind or timer from an older one is dropped, so a stop is never undone.
+// The IP certificate controller (D275): off → obtaining → active, or failed back to plain http. Every enable, disable or shutdown
+// takes a new generation; a late issuance, bind or timer from an older one is dropped, so a halt is never undone.
 // A failed renewal keeps the live certificate serving until the schedule gives up; expiry closes https, never serves on.
 // SECURITY: keys and certificates never reach a log line or a status; only codes and the authority's sentence do.
 
@@ -286,7 +286,7 @@ export function createCertificateController(deps: CertificateControllerDeps): Ow
   }
 
   // A save that finished after a disable, or after a switch to another address, wrote files nothing serves: delete them.
-  // A stop keeps its setting, so a save racing a shutdown keeps its valid certificate for the next boot.
+  // A shutdown keeps its setting, so a save racing it keeps its valid certificate for the next boot.
   async function discardStale(saved: IpCertificateSetting): Promise<void> {
     if (setting === null || setting.address !== saved.address) {
       await deps.store.removeCertificate();
@@ -349,11 +349,6 @@ export function createCertificateController(deps: CertificateControllerDeps): Ow
         if (wasOn) {
           log.info({ share: true }, "share: the IP certificate is off and deleted; this server answers over plain http only");
         }
-      }),
-    stop: (): Promise<void> =>
-      track(async () => {
-        status = { state: "off" };
-        await halt();
       }),
     status: (): IpCertificateStatus => status,
     settle,

@@ -38,7 +38,6 @@ import {
   createCount,
   createCreate,
   createDuplicate,
-  createGet,
   createList,
   createRemove,
   createUpdate,
@@ -56,7 +55,6 @@ export function createRegexService(input: DbAssemblyInput<RegexContext>): RegexS
   return {
     countScripts: createCount(ctx),
     listScripts: createList(ctx),
-    getScript: createGet(ctx),
     createScript: createCreate(ctx),
     updateScript: createUpdate(ctx),
     removeScript: createRemove(ctx),

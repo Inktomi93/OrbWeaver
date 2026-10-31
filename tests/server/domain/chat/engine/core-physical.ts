@@ -1,4 +1,5 @@
 // Finite raw HTTP replies feed the production graph; no fixture builds engine contexts or outcomes.
+import type { GroupConfigInput } from "@orb/contracts/chat";
 import type { JsonValue } from "@orb/kit/json";
 import { createSeededIds } from "@orb/testkit/iso";
 import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
@@ -14,6 +15,8 @@ import { terminalSseLine } from "@orb/testkit/node/helpers";
 
 export type CoreWireReply = (request: Request) => Response | Promise<Response>;
 const coreIds = createSeededIds();
+/** The group posture every core room opens under; a chat started later in the same room takes it from here. */
+export const CORE_ROOM_GROUP = { output: "per-speaker", policy: "list", allowSelfResponses: true } as const satisfies GroupConfigInput;
 
 /** Each physical foreground request consumes one reply; discovery and vector bytes retain the canonical supplier. */
 export async function coreHttpRoom(replies: readonly CoreWireReply[], options: Omit<ChatRootOptions, "providerFetch"> = {}): Promise<ChatRoot> {
@@ -27,7 +30,7 @@ export async function coreHttpRoom(replies: readonly CoreWireReply[], options: O
   });
   return await createChatRoot({
     memoryEnabled: false,
-    group: { output: "per-speaker", policy: "list", allowSelfResponses: true },
+    group: CORE_ROOM_GROUP,
     ...options,
     server: { ids: coreIds, ...options.server },
     providerFetch: async (input, init) => {

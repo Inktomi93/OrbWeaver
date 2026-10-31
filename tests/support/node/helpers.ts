@@ -86,6 +86,7 @@ export {
   surfaceNativeTimeout,
   surfaceRunConfigSchema,
 } from "./surface-run.ts";
+export { ownedTempDir } from "./temp-dir.ts";
 export type { TlsAnswer } from "./tls-hop.ts";
 export { tlsRequest } from "./tls-hop.ts";
 export { webVitalsSource } from "./web-vitals-source.ts";

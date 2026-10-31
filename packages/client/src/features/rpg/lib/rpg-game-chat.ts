@@ -15,7 +15,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { peekQueryData } from "#data";
-import type { ChatContextState, CommittedChatContext } from "#lib";
+import type { CommittedChatContext } from "#lib";
 
 type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
 
@@ -34,9 +34,9 @@ export function peekChatDetail(deps: RpgContextTabsDeps, s: CommittedChatContext
  *  CACHED `getChat` carries an ENGAGED rpg pointer (`undefined` while uncached ⇒ false, re-evaluated when
  *  the query settles). A DISENGAGED game (pointer `engaged:false`) reads exactly like a non-game chat: the
  *  claim drops, the game tabs go, and the host-only Game tab stays as the re-enable door. */
-export function makeIsGameChat(deps: RpgContextTabsDeps): (s: ChatContextState) => s is CommittedChatContext {
+export function makeIsGameChat(deps: RpgContextTabsDeps): (s: CommittedChatContext) => s is CommittedChatContext {
   // Single-arm union today (see rpg-context-section's twin note) — phase narrowing returns with arm 2.
-  return (s: ChatContextState): s is CommittedChatContext => {
+  return (s: CommittedChatContext): s is CommittedChatContext => {
     const detail = peekChatDetail(deps, s);
     return detail !== undefined && isRpgEngaged(detail.rpg ?? null);
   };

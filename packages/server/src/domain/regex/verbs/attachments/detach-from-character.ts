@@ -4,19 +4,15 @@
 
 import { characterRegexScripts } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import { RegexNotFoundError } from "#src/domain/regex/contract/errors.ts";
 import type { DetachFromCharacterParams } from "#src/domain/regex/contract/params.ts";
 import type { RegexContext, RegexService } from "#src/domain/regex/contract/service.ts";
-import { ensureCharacterOwned } from "#src/domain/regex/persistence/ownership.ts";
-import { loadOwnedScript } from "#src/domain/regex/persistence/queries.ts";
+import { ensureCharacterOwned, requireOwnedScript } from "#src/domain/regex/persistence/ownership.ts";
 
 export function createDetachFromCharacter(ctx: RegexContext): RegexService["detachFromCharacter"] {
   return async ({ principal, characterId, scriptId }: DetachFromCharacterParams) => {
     const ownerId = principal.userId;
-    const [, script] = await Promise.all([ensureCharacterOwned(ctx.db, ownerId, characterId), loadOwnedScript(ctx.db, ownerId, scriptId)]);
-    if (script === undefined) {
-      throw new RegexNotFoundError("regex_script", scriptId);
-    }
+    await ensureCharacterOwned(ctx.db, ownerId, characterId);
+    await requireOwnedScript(ctx.db, ownerId, scriptId);
     const at = ctx.now();
     const result = await ctx.db
       .delete(characterRegexScripts)

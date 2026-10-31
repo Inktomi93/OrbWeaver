@@ -48,6 +48,7 @@ export const derivedPortMemberRule: OrbRule = {
     };
     return {
       Property: judge,
+      SpreadElement: judge,
       VariableDeclarator: judge,
       ReturnStatement: judge,
       CallExpression: judge,

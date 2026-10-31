@@ -115,9 +115,6 @@ export interface PreviewAssemblyParams extends ChatScopedParams, ViewerClockPara
   readonly presetOverride?: PresetId | undefined;
 }
 
-/** `getActivePresetConfig` — the resolved PromptConfig the chat assembles against. */
-export type GetActivePresetConfigParams = ChatScopedParams;
-
 /** `previewActionTemplates` — every ACTION template of ONE preset,
  *  resolved against THIS chat. `presetId` is the editor's OVERRIDE: assemble this room as if that preset were
  *  active, so the preset editor can show a real resolution for a preset the chat has not adopted. It rides the
@@ -189,8 +186,10 @@ export interface ReplayChatEventsParams extends ChatScopedParams {
   readonly afterSeq?: number | undefined;
 }
 
-/** `chatEventBounds` — the durable chat-bus log's cursor bounds. */
-export type ChatEventBoundsParams = ChatScopedParams;
+/** `chatEventBounds` — the durable chat-bus log's cursor bounds. `positionOf` names the row a live view carries. */
+export interface ChatEventBoundsParams extends ChatScopedParams {
+  readonly positionOf?: MessageId | undefined;
+}
 
 /** `send` — persist a user message then run the AI turn. */
 export interface SendParams extends ChatScopedParams, ViewerClockParams {
@@ -385,9 +384,6 @@ export interface DeleteChatInjectionParams extends ChatScopedParams {
   readonly injectionId: ChatInjectionId;
 }
 
-/** `getVariables` — the effective ChoiceBlock variables computed for the next turn. */
-export type GetVariablesParams = ChatScopedParams;
-
 /** `getRuntimeVariables` — the room's RUNTIME variable fold (S5 §4's vars read, priced with `setVariable`;
  *  the needle's meter and B9's clock widget both consume it). Member-gated: the vars plane is
  *  member-visible BY DESIGN — which is exactly why analysis arcs/twists/guidance never write into it. */
@@ -460,8 +456,6 @@ export interface SetUserMacroValuesParams extends ChatScopedParams {
 /** `getUserMacroPicks` (#24) — the picks pane's ONE read: the chat's pickable user-macro declarations +
  *  the persisted picks `setUserMacroValues` writes. */
 export type GetUserMacroPicksParams = ChatScopedParams;
-
-export type ClearVariablesParams = ChatScopedParams;
 
 /** `delete` — deletes the chat (host-only; cascades messages/roster/invites/etc.). */
 export type DeleteChatParams = ChatScopedParams;

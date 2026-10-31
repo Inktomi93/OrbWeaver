@@ -38,9 +38,9 @@
 
 import { imageBreakdownSchema } from "@orb/contracts/embeddings";
 import { acceptsImageInput } from "@orb/contracts/inference";
+import type { RolePresetParams } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { ResolvedTaskView, ResponseFormat, RoleClients } from "@orb/contracts/role-clients";
-import type { SideGenSampling } from "@orb/inference";
 import { ProviderError, resolveSideGenSampling, runStructuredTurn } from "@orb/inference";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { Logger } from "#foundation/observability";
@@ -64,7 +64,7 @@ const ANALYSIS_RESPONSE_FORMAT: ResponseFormat = { name: "image_breakdown", sche
 /** The side-gen posture FLOOR for avatar analysis (#1816): near-deterministic because this is a
  *  classification, and a warm sampler on a closed vocabulary only adds jitter between two equally-allowed
  *  labels. The floor defers to the owner's preset params through `resolveSideGenSampling` when available. */
-const ANALYSIS_FLOOR: SideGenSampling = SIDE_GEN_POSTURES.caption;
+const ANALYSIS_FLOOR: RolePresetParams = SIDE_GEN_POSTURES.caption;
 
 const skipped = (model: string): AvatarAnalysis => ({ caption: "", captionMeta: { model } });
 
@@ -99,7 +99,7 @@ export async function avatarAnalysisCallsModel(roleClients: RoleClients, availab
 export async function analyzeAvatarImage(
   roleClients: RoleClients,
   bytes: Uint8Array,
-  presetParams: SideGenSampling | undefined,
+  presetParams: RolePresetParams | undefined,
   sinks: { readonly logger: Logger; readonly availability: AvatarAnalysisAvailability },
 ): Promise<AvatarAnalysis> {
   const { logger, availability } = sinks;

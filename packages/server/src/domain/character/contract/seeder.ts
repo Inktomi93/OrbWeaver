@@ -2,12 +2,13 @@
 // createDefaultCharacterSeeder over these. Wired by entry over the character front door; the seed ledger that
 // decides WHICH cards an account receives lives in settings (D263), so this seeder seeds one card at a time.
 
+import type { SeedCharacterGallery, StoreSeedCharacterAvatar } from "@orb/contracts/assets";
 import type { CharacterCard, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import type { MarkWelcomeAssistant, ResolveSeededPlateOp } from "@orb/contracts/settings";
 import type { AttachSeedCardTag } from "@orb/contracts/tag";
 import type { BulkImportLorebook, BulkImportLorebookInput, HasPrimaryBook } from "@orb/contracts/world-info";
-import type { AssetId, CharacterHandle, CharacterId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
 import type { CharacterService } from "./service.ts";
 
@@ -67,9 +68,9 @@ export interface DefaultCharacterSeederDeps {
   /** Attach one of a seeded card's native tags as a card/pending suggestion. Idempotent + never downgrades. */
   readonly attachCardTag: AttachSeedCardTag;
   /** Store this handle's bundled avatar art, or null when the pack ships none / the store fails. */
-  readonly storeAvatar?: (principal: Principal, handle: CharacterHandle) => Promise<AssetId | null>;
+  readonly storeAvatar?: StoreSeedCharacterAvatar;
   /** Seed this character's starter gallery so a fresh library isn't an empty grid. Failures swallowed by the caller. */
-  readonly seedGallery?: (principal: Principal, characterId: CharacterId, handle: CharacterHandle) => Promise<void>;
+  readonly seedGallery?: SeedCharacterGallery;
   /** Resolve a card's `backgroundSlug` to THIS user's own plate asset (`kind:"asset"`), lifting the shipped
    *  bytes into their CAS on first ask. `null` ⇒ no plate lands, and the card is dressed theme-only. Wired
    *  at the composition root off `domain/settings`' scene-plate seeder — character never imports settings,

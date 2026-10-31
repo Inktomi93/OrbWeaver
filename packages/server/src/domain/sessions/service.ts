@@ -6,11 +6,9 @@
 
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { IdSource, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { AuditWiring, Logger } from "#foundation/observability";
 import { createSessionsContext } from "./context.ts";
-import type { SessionsRolePolicy } from "./contract/role-policy.ts";
 import type { SessionsContext, SessionsCryptoOps, SessionsService } from "./contract/service.ts";
 import { selectOwnerUserId } from "./persistence/users.ts";
 import { createAuthenticate } from "./verbs/authenticate.ts";
@@ -29,21 +27,15 @@ import { createSignup } from "./verbs/signup.ts";
 import { createValidate } from "./verbs/validate.ts";
 
 /** What the composition root needs: the db handle, the injected clock, and the raw `SESSION_SECRET` pepper
- *  (read DOWN from `foundation/env` at `entry/`; bound into the token hasher here). */
-interface SessionsServiceDeps {
-  readonly rolePolicy: SessionsRolePolicy;
-  readonly logger: Logger;
-  readonly audit: AuditWiring["log"];
+ *  (read DOWN from `foundation/env` at `entry/`; bound into the token hasher here). The per-user local-light
+ *  seed is required on purpose: a composition root that forgets it mints accounts with no vector floor,
+ *  silently. Build it with `createLocalLightUserSeed` at `entry/boot/seed-local-light.ts`. */
+interface SessionsServiceDeps extends Pick<SessionsContext, "rolePolicy" | "logger" | "audit" | "idSource" | "seedUserConnections"> {
   db: DatabaseHandle;
   now: Clock;
-  readonly idSource: IdSource;
   sessionSecret: string | null;
   /** The password hasher and cipher constructors the root wires from `infra/`. */
   readonly crypto: SessionsCryptoOps;
-  /** #2481 — the injected per-user local-light seed (`SessionsContext.seedUserConnections`). Required on
-   *  purpose: a composition root that forgets it mints accounts with no vector floor, silently, which is the
-   *  defect this closes. Build it with `createLocalLightUserSeed` at `entry/boot/seed-local-light.ts`. */
-  seedUserConnections: SessionsContext["seedUserConnections"];
 }
 
 export function createSessionsService(deps: SessionsServiceDeps): SessionsService {

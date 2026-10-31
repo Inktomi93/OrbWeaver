@@ -35,18 +35,34 @@ async function markerAt(count: number, search: ThresholdSearch): Promise<{ reado
   return { compacted: (await fixture.marker()).compactSummary === ENGINE_SDK_MARKER, nativeExchanges: fixture.receipts.length };
 }
 
-/** The smallest canon length whose turn lands a marker, by bisection over real rooms. */
+// Each round probes this many canon lengths side by side, so the search needs a few rounds of one room's wall time
+// instead of one round per halving. A probe is a spawned process and a booted room, which is what a loaded box slows.
+const PROBES_PER_ROUND = 3;
+
+// Strictly inside [low, high): the answer is known to be at most `high`, so `high` itself is never probed.
+function probeCounts(low: number, high: number): readonly number[] {
+  const span = high - low;
+  return [...new Set(Array.from({ length: PROBES_PER_ROUND }, (_, slot) => low + Math.floor(((slot + 1) * span) / (PROBES_PER_ROUND + 1))))];
+}
+
+/** The smallest canon length whose turn lands a marker, by a multi-way search over real rooms. */
 export async function firstCompactingRows(search: ThresholdSearch): Promise<number> {
   let low = 9;
   let high = 160;
   while (low < high) {
-    const count = Math.floor((low + high) / 2);
-    const sample = await markerAt(count, search);
-    search.observe?.(sample.nativeExchanges);
-    if (sample.compacted) {
-      high = count;
-    } else {
-      low = count + 1;
+    const counts = probeCounts(low, high);
+    const samples = await Promise.all(counts.map(async (count) => await markerAt(count, search)));
+    for (const sample of samples) {
+      search.observe?.(sample.nativeExchanges);
+    }
+    // Compaction is monotone in the canon length: the answer sits above the last short probe and at or below the first hit.
+    const firstHit = samples.findIndex(({ compacted }) => compacted);
+    const lastShort = firstHit === -1 ? counts.length - 1 : firstHit - 1;
+    if (firstHit !== -1) {
+      high = counts[firstHit] ?? high;
+    }
+    if (lastShort >= 0) {
+      low = (counts[lastShort] ?? low) + 1;
     }
   }
   expect(low).toBeLessThan(160);

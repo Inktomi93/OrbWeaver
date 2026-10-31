@@ -17,7 +17,7 @@ import { createExportDocument, createImportDocument, createListOwnedDocumentIds 
 import type { ExportService, PortableExportDeps } from "#domain/export";
 import { createPortableExports } from "#domain/export";
 import type { ImageryPortabilityService } from "#domain/imagery";
-import type { ImportProfileDeps, ProfileDirImportDeps } from "#domain/import";
+import type { ImportProfileDeps } from "#domain/import";
 import { createPortableImports } from "#domain/import";
 import type { PersonaService } from "#domain/persona";
 import type { PresetContext } from "#domain/preset";
@@ -66,7 +66,6 @@ export interface PortabilityDeps {
   readonly importRpgGame: NonNullable<ImportProfileDeps["importRpgGame"]>;
   readonly findOwnedAssetIdsByHash: NonNullable<ImportProfileDeps["findOwnedAssetIdsByHash"]>;
   readonly enqueueImportIndex: ImportProfileDeps["enqueueImportIndex"];
-  readonly reconcileImportStats: ProfileDirImportDeps["reconcileImportStats"];
   readonly resolveOwnerPrincipal: PortableExportDeps["resolveOwnerPrincipal"];
 }
 
@@ -109,7 +108,6 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
       bulkImportChats: deps.bulkImportChats,
       bulkImportPersonas: deps.bulkImportPersonas,
       enqueueImportIndex: deps.enqueueImportIndex,
-      reconcileStats: deps.reconcileImportStats,
       findPersonaByName: deps.findPersonaByName,
       attachChatTagByName: deps.attachChatTagByName,
       importRpgGame: deps.importRpgGame,

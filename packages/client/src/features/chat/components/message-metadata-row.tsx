@@ -10,7 +10,7 @@ import type { ReactElement } from "react";
 import { Fragment } from "react";
 import { timeLib } from "#lib";
 import { durationLabel, genDurationLabel } from "../lib/gen-duration.ts";
-import { cacheTokensLabel, canRevealGenerationCost } from "../lib/message-readout.ts";
+import { cacheTokensLabel, canRevealGenerationCost, messageNumberLabel } from "../lib/message-readout.ts";
 import { MessageCostReadout } from "./message-cost-readout.tsx";
 
 export type MessageMetadataVisibility = Pick<
@@ -37,12 +37,12 @@ export function MessageTimestamp({ message, show }: { readonly message: MessageV
   );
 }
 
-/** The message number: the row's id as a quiet metadata datum. It sits in the metadata row, or under a welded portrait
- *  when the skin says so (`RowSkin.numberPlacement`). Null when `showMessageId` is off. */
-export function MessageNumber({ message }: { readonly message: MessageView }): ReactElement {
+/** The message number as a quiet metadata datum. It sits in the metadata row, or under a welded portrait when the skin
+ *  says so (`RowSkin.numberPlacement`). */
+export function MessageNumber({ label }: { readonly label: string }): ReactElement {
   return (
     <Text as="span" ink="muted" voice="code" data-slot="message-metadata-id" className="text-center wrap-anywhere inline-full">
-      {message.id}
+      {label}
     </Text>
   );
 }
@@ -62,6 +62,11 @@ function metadatum(slot: string, text: string): ReactElement {
       {text}
     </Text>
   );
+}
+
+function numberDatum(message: MessageView, shown: boolean): readonly ReactElement[] {
+  const number = shown ? messageNumberLabel(message) : null;
+  return number === null ? [] : [<Fragment key="id">{metadatum("message-metadata-id", number)}</Fragment>];
 }
 
 /** The opt-in per-message metadata row. Renders nothing when every gated datum is absent (a draft
@@ -93,9 +98,7 @@ export function MessageMetadataRow({ message, visibility }: MessageMetadataRowPr
   if (cacheLabel !== null) {
     items.push(<Fragment key="cache">{metadatum("message-metadata-cache", cacheLabel)}</Fragment>);
   }
-  if (visibility.showMessageId) {
-    items.push(<Fragment key="id">{metadatum("message-metadata-id", message.id)}</Fragment>);
-  }
+  items.push(...numberDatum(message, visibility.showMessageId));
   const genLabel = visibility.showGenerationTimer ? genDurationLabel(message.genStartedAt, message.genFinishedAt) : null;
   if (genLabel !== null) {
     items.push(<Fragment key="gen-duration">{metadatum("message-metadata-gen-duration", genLabel)}</Fragment>);

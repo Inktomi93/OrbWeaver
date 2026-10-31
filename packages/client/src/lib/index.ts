@@ -99,7 +99,6 @@ export { IS_DEV } from "./dev-flag.ts";
 export { downloadJson, downloadTextFile, downloadUrl, slugifyFilename } from "./download-json.ts";
 export type { EditSession } from "./edit-session.ts";
 export { resolveCommit } from "./edit-session.ts";
-export type { ReindexPreview } from "./embedder-rebuild.ts";
 export {
   EMBED_REFUSAL_SLOTS,
   EMBED_REFUSAL_TOAST_TITLE,
@@ -193,7 +192,6 @@ export { createContributorRegistry, createRegistry } from "./registry.ts";
 export type {
   CharacterChatsProjectionView,
   CharacterContextState,
-  ChatContextState,
   ChatContextTabId,
   CommittedChatContext,
   ConfigContextState,

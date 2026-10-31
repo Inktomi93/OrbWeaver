@@ -31,9 +31,9 @@ export interface DefaultBackgroundSeederDeps {
   readonly newEntryId: IdSource["uuid"];
   /** The caller's own settings — the latch, the pack stamp and the current library. */
   readonly readOnboarding: (principal: Principal) => Promise<{ readonly seeded: boolean }>;
-  readonly readLibrary: (principal: Principal) => Promise<readonly SeededLibraryEntry[]>;
+  readonly readLibrary: (principal: Principal) => Promise<readonly BackgroundLibraryEntry[]>;
   /** Replace `appearance.backgroundLibrary` (the section merge REPLACES arrays — read-modify-write). */
-  readonly writeLibrary: (principal: Principal, library: readonly SeededLibraryEntry[]) => Promise<void>;
+  readonly writeLibrary: (principal: Principal, library: readonly BackgroundLibraryEntry[]) => Promise<void>;
   /** Land the once-per-user latch, LAST (the `createPersonaSeedLatch` order law: an interruption must leave
    *  the latch false so the next touch re-enters). */
   readonly markSeeded: (principal: Principal) => Promise<void>;
@@ -45,9 +45,6 @@ export interface DefaultBackgroundSeederDeps {
 
 /** slug → the caller's owned plate ref, or `null` when this pack ships no such plate. */
 export type SeededSlugResolver = (slug: string) => Promise<ThemeBackground | null>;
-
-/** The canonical `appearance.backgroundLibrary` row this seeder reads and writes. */
-export type SeededLibraryEntry = BackgroundLibraryEntry;
 
 export interface DefaultBackgroundSeeder {
   /** Idempotent per-user seed: the ten plates land as owned assets + library entries, then every stored
