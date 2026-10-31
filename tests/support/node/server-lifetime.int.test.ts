@@ -6,6 +6,7 @@ import { closeDb } from "@orb/db";
 import { sql } from "drizzle-orm";
 import { vi } from "vitest";
 import { createFrozenClock } from "../iso/clock.ts";
+import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import { createControlledTimers } from "../iso/timers.ts";
 import { freshDb, freshHeldDb } from "./db.ts";
 import { expect, test } from "./fixtures.ts";
@@ -37,7 +38,7 @@ test("a rejected timer clear cannot strand supervised physical fetch cancellatio
     clock,
     timers,
     networkExecution: {
-      resolver: () => Promise.resolve(["93.184.215.14"]),
+      resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]),
       fetch: (_input, init) => {
         const signal = init?.signal;
         if (signal === null || signal === undefined) {

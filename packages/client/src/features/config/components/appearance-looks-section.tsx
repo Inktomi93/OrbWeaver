@@ -39,11 +39,11 @@
 import type { Theme } from "@orb/contracts/theme";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Card } from "@orb/ui/card";
 import { FileTrigger } from "@orb/ui/file-trigger";
 import { Icon, Plus, Upload } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { RadioGroupPicker, RadioGroupPickerItem } from "@orb/ui/radio-group";
+import { ThemePreviewPane } from "@orb/ui/theme-swatch";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, Tip, useFirstBootBox } from "#components";
@@ -230,7 +230,7 @@ function LooksBody(): ReactElement {
                         {...(isActive(theme) ? { meta: "current" } : {})}
                         value={theme.id}
                       />
-                      <Card className="absolute inset-s-tight inset-bs-tight flex" padding="none" tone="translucent" shape="row">
+                      <ThemePreviewPane className="absolute inset-s-tight inset-bs-tight flex" padding="none" fill="translucent" shape="row">
                         <ThemeRowMenu
                           onApply={(): void => apply(theme)}
                           onDelete={(): void => removeTheme.mutate({ id: theme.id })}
@@ -241,7 +241,7 @@ function LooksBody(): ReactElement {
                           onExport={(): void => exportTheme(theme)}
                           theme={theme}
                         />
-                      </Card>
+                      </ThemePreviewPane>
                     </Row>
                   ))}
                 </RadioGroupPicker>

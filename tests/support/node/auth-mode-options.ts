@@ -1,7 +1,9 @@
 // Auth capabilities and external issuer wiring are runner-neutral; Vitest and native browser consumers share this owner.
+
 import type { AuthMode } from "@orb/contracts/identity";
 import { AUTH_MODE_DEFAULT_FALLBACK } from "@orb/server/foundation/env/record";
 import { z } from "zod";
+import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import { CLIENT_ID, ISSUER, NATIVE_OIDC_SETTINGS } from "./oidc-issuer.ts";
 import type { AuthModeEnv, ServerHarnessOptions } from "./server.ts";
 import type { NativeIssuer } from "./sign-in.ts";
@@ -26,7 +28,6 @@ type ModeHarnessOptions<Mode extends AuthMode> = Required<Pick<ServerHarnessOpti
   Pick<ServerHarnessOptions, "oidc" | "networkExecution"> & { readonly env: AuthModeEnv<Mode> };
 
 const LOOPBACK_PEER = "127.0.0.1";
-const PUBLIC_PEER = "93.184.215.14";
 const ISSUER_HOST = new URL(ISSUER).hostname;
 
 function atPeer(address: string): PhysicalPeer {
@@ -36,7 +37,7 @@ function atPeer(address: string): PhysicalPeer {
 function issuerNetwork(issuer: NativeIssuer): NonNullable<ServerHarnessOptions["networkExecution"]> {
   return {
     resolver: (hostname) =>
-      hostname === ISSUER_HOST ? Promise.resolve([PUBLIC_PEER]) : Promise.reject(new Error(`unscripted address resolution: ${hostname}`)),
+      hostname === ISSUER_HOST ? Promise.resolve([PUBLIC_PEER_ADDRESS]) : Promise.reject(new Error(`unscripted address resolution: ${hostname}`)),
     fetch: (input, init) => issuer.fetch(input, init),
   };
 }
@@ -47,8 +48,13 @@ function postureOf<Mode extends AuthMode>(mode: Mode): AuthModeEnv<Mode> {
 
 const MODE_HARNESS: { readonly [Mode in AuthMode]: (issuer: NativeIssuer) => ModeHarnessOptions<Mode> } = {
   "single-user": () => ({ env: postureOf("single-user"), physicalPeer: atPeer(LOOPBACK_PEER) }),
-  local: () => ({ env: postureOf("local"), physicalPeer: atPeer(PUBLIC_PEER) }),
-  oidc: (issuer) => ({ env: postureOf("oidc"), physicalPeer: atPeer(PUBLIC_PEER), oidc: NATIVE_OIDC_SETTINGS, networkExecution: issuerNetwork(issuer) }),
+  local: () => ({ env: postureOf("local"), physicalPeer: atPeer(PUBLIC_PEER_ADDRESS) }),
+  oidc: (issuer) => ({
+    env: postureOf("oidc"),
+    physicalPeer: atPeer(PUBLIC_PEER_ADDRESS),
+    oidc: NATIVE_OIDC_SETTINGS,
+    networkExecution: issuerNetwork(issuer),
+  }),
   "forward-header": (issuer) => ({
     env: {
       ...postureOf("forward-header"),
@@ -57,7 +63,7 @@ const MODE_HARNESS: { readonly [Mode in AuthMode]: (issuer: NativeIssuer) => Mod
       ["FORWARD_AUTH_JWT_ISSUER"]: ISSUER,
       ["FORWARD_AUTH_JWT_AUDIENCE"]: CLIENT_ID,
     },
-    physicalPeer: atPeer(PUBLIC_PEER),
+    physicalPeer: atPeer(PUBLIC_PEER_ADDRESS),
     networkExecution: issuerNetwork(issuer),
   }),
 };

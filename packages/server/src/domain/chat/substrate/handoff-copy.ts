@@ -19,7 +19,7 @@
 // world-info's, the room's regex scripts are the regex domain's. Chat composes the plan and owns only the
 // room-side statements.
 
-import type { HandoffOffer, HandoffOfferContents, OfferedSeat } from "@orb/contracts/chat";
+import type { HandoffOffer, HandoffOfferContents, PresentCharacterSeat } from "@orb/contracts/chat";
 import { NO_HANDOFF_OFFER_CONTENTS } from "@orb/contracts/chat";
 import { statementForOwner } from "@orb/db/wiring-owner";
 import type { ChatId, UserId } from "@orb/kit/ids";
@@ -34,12 +34,12 @@ import { classifyParticipant } from "../persistence/participant.ts";
  *  nominee already owns is a live seat, not a gift — copying it would mint a pointless second library row and
  *  orphan the original's history). A seat that satisfies neither is left to `resolveDroppedCharacterSeatIds`.
  *  Nothing here reads a card the old host does not own: the roster's `characterId` is not a license. */
-async function resolveOfferedSeats(
+async function resolvePresentCharacterSeats(
   ctx: ChatContext,
   oldHostUserId: UserId,
   newOwnerUserId: UserId,
   participants: readonly ParticipantRow[],
-): Promise<OfferedSeat[]> {
+): Promise<PresentCharacterSeat[]> {
   const seats = participants.flatMap((p) => {
     const actor = classifyParticipant(p);
     return actor?.kind === "character" && p.leftSeq === null ? [{ participantId: p.id, characterId: actor.characterId }] : [];
@@ -75,7 +75,7 @@ const EMPTY_COPY_PLAN: HandoffCopyPlan = { seats: [], cardCopies: [], bookRepoin
 async function executeHandoffCopy(
   ctx: ChatContext,
   params: { readonly chatId: ChatId; readonly oldHostUserId: UserId; readonly nomineeUserId: UserId },
-  seats: readonly OfferedSeat[],
+  seats: readonly PresentCharacterSeat[],
 ): Promise<HandoffCopyPlan> {
   const { chatId, oldHostUserId, nomineeUserId } = params;
   // THE REGEX ARM RUNS BEFORE (AND INDEPENDENTLY OF) THE SEAT CHECK — #1739. A room's chat-tier scripts are
@@ -125,7 +125,7 @@ async function executeHandoffCopy(
  *  their text (the room's regex scripts, #1739).
  *
  *  IT IS THE COPY'S OWN RESOLUTION, ASKED WITHOUT WRITING, and every branch below is the accept's branch:
- *  the same `copyCharacters` gate, the same {@link resolveOfferedSeats} (both ownership axes — theirs to
+ *  the same `copyCharacters` gate, the same {@link resolvePresentCharacterSeats} (both ownership axes — theirs to
  *  give, not already the nominee's), the owning domains' own count ops over their own copy plans, and rpg's
  *  own knob/ownership gate. Nothing here re-derives a rule, because a disclosure derived separately is a
  *  number that can disagree with the rows that arrive.
@@ -155,7 +155,7 @@ export async function previewHandoffCopyPlan(
   if (!offer.copyCharacters) {
     return { ...NO_HANDOFF_OFFER_CONTENTS, gmPreset };
   }
-  const seats = await resolveOfferedSeats(ctx, oldHostUserId, nomineeUserId, participants);
+  const seats = await resolvePresentCharacterSeats(ctx, oldHostUserId, nomineeUserId, participants);
   const [worldBooks, regexScripts] = await Promise.all([
     ctx.countHandoffBooks({ fromOwnerId: oldHostUserId, toOwnerId: nomineeUserId, chatId, characterIds: seats.map((seat) => seat.characterId) }),
     ctx.countHandoffRegexScripts({ fromOwnerId: oldHostUserId, toOwnerId: nomineeUserId, chatId }),
@@ -184,6 +184,6 @@ export async function resolveHandoffCopyPlan(
   if (!offer.copyCharacters || oldHostUserId === null || oldHostUserId === nomineeUserId) {
     return EMPTY_COPY_PLAN;
   }
-  const seats = await resolveOfferedSeats(ctx, oldHostUserId, nomineeUserId, participants);
+  const seats = await resolvePresentCharacterSeats(ctx, oldHostUserId, nomineeUserId, participants);
   return executeHandoffCopy(ctx, { chatId, oldHostUserId, nomineeUserId }, seats);
 }

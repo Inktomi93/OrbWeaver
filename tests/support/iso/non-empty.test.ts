@@ -1,0 +1,13 @@
+// @subject tests/support/iso/non-empty.ts
+import { expect, test } from "vitest";
+import { forEachNonEmpty } from "./non-empty.ts";
+
+test("every row is registered in order, and an empty table throws before any case is registered", () => {
+  const seen: number[] = [];
+  forEachNonEmpty([1, 2, 3], "numbers", (row) => seen.push(row));
+  expect(seen).toEqual([1, 2, 3]);
+
+  const registered: string[] = [];
+  expect(() => forEachNonEmpty([], "renamed entries", (row) => registered.push(String(row)))).toThrow("renamed entries");
+  expect(registered).toEqual([]);
+});

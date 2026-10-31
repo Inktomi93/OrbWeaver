@@ -11,7 +11,4 @@ export interface ReconcileInFlight {
   /** Run `task` unless this owner already has one in flight — a second call is REFUSED with a
    *  `DomainConflictError` (CONFLICT) instead of queueing or racing. The slot releases on settle, both arms. */
   readonly run: <T>(ownerId: UserId, task: () => Promise<T>) => Promise<T>;
-  /** Whether this owner currently holds the slot (the release-proof / observability hook — `countActive`
-   *  precedent). */
-  readonly isRunning: (ownerId: UserId) => boolean;
 }

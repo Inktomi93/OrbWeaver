@@ -15,7 +15,7 @@ function messageFor(found: Restatement): string {
     return `${restating} hand-restates ${owner}: derive it from the owner (\`Owner["member"]\`, or \`Pick<Owner, …>\` for a whole port) so the reference stays linked.`;
   }
   if (passesDbHandle(found.foreign)) {
-    return `${restating} passes a db handle (${found.foreign.db.join(", ")}) across domains from ${owner}: a ledger-ruled joint batch assembles at the composition root; an unruled one is a defect to redesign.`;
+    return `${restating} passes a db handle (${found.foreign.db.join(", ")}) across domains from ${owner} with no ledger row ruling the joint batch: rule it (tooling/src/unwired/ruled-ops.ts follows the ledger) or redesign it into an op that returns data.`;
   }
   if (runtimeTypes(found.foreign).length > 0) {
     return `${restating} restates ${owner} across domains with domain data (${found.foreign.server.join(", ")}): move that data to packages/contracts; the runtime types stay with their owners and the signature stays in this domain's contract.`;
@@ -25,7 +25,8 @@ function messageFor(found: Restatement): string {
 
 /** Refuses a port member whose hand-written function type is identical to the member flowing into it.
  *  The restating member is the higher-tier one. A cross-domain pair has no legal derive: its data moves to contracts,
- *  and a signature left naming only contracts data and runtime types is the consumer's own contract. */
+ *  and a consumer signature left naming only contracts data and runtime types, or a ledger-ruled db handle, is the
+ *  consumer's own contract. */
 export const derivedPortMemberRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
@@ -38,7 +39,8 @@ export const derivedPortMemberRule: OrbRule = {
     const checker = program.getTypeChecker();
     const judge = (node: TSESTree.Node): void => {
       for (const found of restatementsAt(checker, toTsMap.get(node) as ts.Node)) {
-        if (found.relation === RELATION.narrowed) {
+        // A ledger-ruled joint batch keeps its handle by ruling: the consumer's signature is its own contract.
+        if (found.relation === RELATION.narrowed || found.ruling !== null) {
           continue;
         }
         context.report({ node, message: messageFor(found) });

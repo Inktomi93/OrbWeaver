@@ -1,4 +1,4 @@
-import type { GenerationObservationParent, MessageView } from "@orb/contracts/chat";
+import type { BeginGenerationObservationOp, GenerationObservationParent, MessageView } from "@orb/contracts/chat";
 import type { GenerationUsageLeg } from "@orb/contracts/inference";
 import type { ApplyStatsDelta, StatsDelta } from "@orb/contracts/stats";
 import type { Db, messages, messageVariants } from "@orb/db";
@@ -46,7 +46,7 @@ export interface GenerationObservationSession {
 }
 
 /** Entry-composed private sink; the caller already admitted the retained source operation. */
-export type BeginGenerationObservation = (parent: GenerationObservationParent) => GenerationObservationCallback;
+export type BeginGenerationObservation = BeginGenerationObservationOp<GenerationObservationCallback>;
 
 /** The canon identity and bytes already captured before deriving a retained mutation's deltas. */
 export type RetainedCanonSource = Pick<MessageView, "id" | "chatId" | "characterId" | "role" | "selectedVariantId" | "content" | "reasoning" | "variantCount">;

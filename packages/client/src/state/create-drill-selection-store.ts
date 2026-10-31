@@ -54,8 +54,6 @@ export interface DrillSelectionStore<P, S extends string> extends PrimaryDrillSt
   readonly selectSecondary: (id: S) => void;
   /** Clear the sub-drill (CONTEXT collapses to its EmptyState). */
   readonly clearSecondary: () => void;
-  /** `clearSecondary()` AND close any open CONTEXT slide-over (viewport-unaware; no-op when docked). */
-  readonly dismissSecondary: () => void;
 }
 
 export function createDrillSelectionStore<P>(name: string): PrimaryDrillStore<P>;
@@ -91,10 +89,6 @@ export function createDrillSelectionStore<P, S extends string>(name: string, _op
     useSecondaryId: (): S | null => useSelectionStore((s) => s.secondaryId),
     selectSecondary: (id: S): void => useSelectionStore.setState({ secondaryId: id }, false, `${name}/select-secondary`),
     clearSecondary: (): void => useSelectionStore.setState({ secondaryId: null }, false, `${name}/clear-secondary`),
-    dismissSecondary: (): void => {
-      useSelectionStore.setState({ secondaryId: null }, false, `${name}/clear-secondary`);
-      setOpenOverlayPanel(null);
-    },
     selection: {
       subscribe: (onStoreChange: () => void): (() => void) => useSelectionStore.subscribe(onStoreChange),
       hasSelection: (): boolean => useSelectionStore.getState().primaryId !== null,

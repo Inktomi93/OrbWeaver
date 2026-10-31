@@ -1,5 +1,4 @@
 import type { Tone } from "#tokens";
-import { TONES } from "#tokens";
 
 // Text colour on the primitives that carry an ink (Text, Icon, WeaveGlyph, WebSpinner and the fill-less Button
 // variants), in two maps under D336. A `tone` is colour by meaning: it paints the tone's `text` role, which resolves on
@@ -9,11 +8,6 @@ import { TONES } from "#tokens";
 /** The `tone` axis of a primitive whose variant paints the roles: the colour is the `data-tone` stamp alone, so the arms
  *  carry no class and exist to type and stamp the axis. */
 export const TONE_ARMS = { primary: "", neutral: "", destructive: "", warning: "", success: "", info: "" } as const satisfies Record<Tone, "">;
-
-/** True when an axis value is a D336 tone rather than a primitive's own use-specific value. */
-export function isTone(value: string): value is Tone {
-  return (TONES as readonly string[]).includes(value);
-}
 
 /** The tone map: every tone paints its `text` role; the stamp picks the colour. */
 export const TONE_TEXT = {

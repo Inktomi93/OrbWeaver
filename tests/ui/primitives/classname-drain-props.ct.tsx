@@ -5,7 +5,6 @@ import { expect, test } from "@playwright/test";
 import type {
   ButtonToneStory,
   CardShapeStory,
-  CardToneStory,
   DividerStory,
   InputStory,
   LinkStory,
@@ -143,7 +142,6 @@ test("the row shape takes the control radius in and out of a tier, and the neutr
   expect(await style(card("island"), "border-start-start-radius")).not.toBe(control);
   expect(await style(card("row"), "border-block-start-width")).toBe("1px");
   expect(await style(card("well"), "background-color")).toBe(await style(component.locator('[data-probe="muted"]'), "background-color"));
-  expect(await style(card("accent-well"), "background-color")).toBe(await style(component.locator('[data-probe="accent"]'), "background-color"));
   expect(await style(card("clear"), "background-color")).toBe(await style(component.locator('[data-probe="clear"]'), "background-color"));
   expect(await style(card("clear"), "border-block-start-width")).toBe("1px");
 });
@@ -208,14 +206,4 @@ test("receded dims each primitive to the token's opacity", async ({ mount }) => 
     expect(await style(element, "opacity")).toBe(step);
   }
   expect(await style(component.getByText("plain text", { exact: true }), "opacity")).toBe("1");
-});
-
-test("the sidebar, translucent and backdrop surfaces paint their fills", async ({ mount }) => {
-  const component = await mount<typeof CardToneStory>(`${STORIES}/CardToneStory`, {});
-  const probe = (name: string): Locator => component.locator(`[data-probe="${name}"]`);
-  const card = (name: string): Locator => component.locator(`[data-case="${name}"]`);
-  for (const tone of ["sidebar", "translucent", "backdrop"] as const) {
-    expect(await style(card(tone), "background-color"), tone).toBe(await style(probe(tone), "background-color"));
-  }
-  expect(await style(card("sidebar"), "border-block-start-color")).toBe(await style(probe("sidebar"), "border-block-start-color"));
 });

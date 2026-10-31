@@ -3,7 +3,7 @@
 // connection table; every such fact arrives through one of these.
 
 import type { CreateCharacterOp, FindCharacterByHandleOp, FindCharacterByImportHashOp } from "@orb/contracts/character";
-import type { AddCharacterToChatOp, ResolveCanonWindow, ResolveRpgParticipants } from "@orb/contracts/chat";
+import type { AddCharacterToChatOp, BeginGenerationObservationOp, ResolveCanonWindow, ResolveRpgParticipants } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ResolveTaskParams } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
@@ -12,11 +12,10 @@ import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ExtractionRefs, RpgGameConfig, RpgStateRoundTool, RpgStructuredRoundShape } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
-import type { ProviderExecutor, Resolved, ResolveOutcome } from "@orb/inference";
+import type { GenerationObservationCallback, ProviderExecutor, Resolved, ResolveOutcome } from "@orb/inference";
 import type { ChatId, IdSource, UserId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
 import type { Logger } from "#foundation/observability";
-import type { BeginGenerationObservation } from "./chat-turn.ts";
 import type { OwnedRpgFlushBarrier, RpgContext } from "./service.ts";
 import type { RpgTraceSink } from "./trace.ts";
 
@@ -30,7 +29,7 @@ export type RpgRoundObservers = Pick<
 /** The principal-free chat ops the rounds read: the roster projection, the canon window, the room's preset prose and
  *  params, the present host, and the generation-observation session a host-door call records into. */
 export interface RpgRoundsChatOps {
-  readonly beginGenerationObservation: BeginGenerationObservation;
+  readonly beginGenerationObservation: BeginGenerationObservationOp<GenerationObservationCallback>;
   readonly resolveRpgParticipants: ResolveRpgParticipants;
   readonly resolveCanonWindow: ResolveCanonWindow;
   readonly resolveChatPresetProse: (chatId: ChatId) => Promise<ProseOverrides>;

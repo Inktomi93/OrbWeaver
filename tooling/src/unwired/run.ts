@@ -8,7 +8,7 @@ import { UsageError } from "../floor/cli/run-tool.ts";
 import { DELIBERATE } from "./deliberate.ts";
 import { portCensus } from "./port-census.ts";
 import type { ClusterGroup, Leg, PortTarget, TargetKind } from "./port-targets.ts";
-import { CLUSTER_GROUPS, LEGS } from "./port-targets.ts";
+import { CLUSTER_GROUPS, INFORMATIONAL_KINDS, LEGS } from "./port-targets.ts";
 import { scanUnwired } from "./scan.ts";
 import { TEST_WORLDS } from "./worlds.ts";
 
@@ -137,7 +137,8 @@ export async function runUnwired(argv: readonly string[]): Promise<number> {
     for (const [key, count] of [...counts].sort(([a], [b]) => a.localeCompare(b))) {
       log(`${key}: ${count}`);
     }
-    log(`targets=${targets.length} written to ${path}`);
+    const open = targets.filter((target) => !INFORMATIONAL_KINDS.has(target.kind)).length;
+    log(`targets=${open} informational=${targets.length - open} written to ${path}`);
     return EXIT.clean;
   }
   const report = await scanUnwired({
@@ -152,7 +153,7 @@ export async function runUnwired(argv: readonly string[]): Promise<number> {
 `);
   }
   log(
-    `scanned=${report.scanned} unwired=${report.unwired.length} deliberate=${report.deliberate.length} disagreements=${report.disagreements.length} written to ${path}`,
+    `scanned=${report.scanned} unwired=${report.unwired.length} deliberate=${report.deliberate.length} disagreements=${report.disagreements.length} reachedByFlow=${report.reachedByFlow.length} written to ${path}`,
   );
   return EXIT.clean;
 }

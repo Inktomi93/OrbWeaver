@@ -167,7 +167,7 @@ export const WALKER_CENSUS_TIER = `  // ── density tier resolution: does the
     }
     var tcStyle = getComputedStyle(tcEl);
     var tcShape = tcEl.getAttribute("data-shape");
-    var tcPadding = tcShape === "float" ? "--spacing-field" : "--orb-tier-island-pad";
+    var tcPadding = "--orb-tier-island-pad";
     var tcBlockPadding = tcShape === "bubble" ? "--spacing-row" : tcPadding;
     var tcInlinePadding = tcShape === "bubble" ? "--spacing-block" : tcPadding;
     if (tcEl.getAttribute("data-padding") === "none") {
@@ -182,10 +182,7 @@ export const WALKER_CENSUS_TIER = `  // ── density tier resolution: does the
     if (tcEl.hasAttribute("data-elevated")) tcRadius = "--radius-card";
     if (tcEl.hasAttribute("data-nested")) tcRadius = "--radius-inset";
     if (tcShape !== null) tcRadius = "--radius-control";
-    if (tcShape === "float" || tcShape === "bubble") tcRadius = "--radius-card";
-    if (tcShape === "inset") tcRadius = "--radius-inset";
-    if (tcShape === "plate") tcRadius = "--orb-tier-island-radius";
-    if (tcShape === "pill") tcRadius = "--radius-full";
+    if (tcShape === "bubble") tcRadius = "--radius-card";
     judgeTierLength(tcEl, tcTier, "card-root", "border-radius", tcRadius, tcStyle.borderRadius);
   }
 

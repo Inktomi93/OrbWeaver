@@ -1,6 +1,8 @@
 // @subject tests/support/node/corpus-oidc.ts
 // @subject tests/support/node/factories/sessions.ts
+
 import { oidcPendingSignups, oidcTransactions, users } from "@orb/db";
+import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import { seedOidcCorpus } from "./corpus-seed.ts";
 import { expect, test } from "./fixtures.ts";
 import { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } from "./oidc-issuer.ts";
@@ -18,7 +20,9 @@ function oidcRoot(
     networkExecution: {
       fetch: issuer.fetch,
       resolver: (hostname) =>
-        hostname === new URL(ISSUER).hostname ? Promise.resolve(["93.184.215.14"]) : Promise.reject(new Error("unscripted corpus issuer address resolution")),
+        hostname === new URL(ISSUER).hostname
+          ? Promise.resolve([PUBLIC_PEER_ADDRESS])
+          : Promise.reject(new Error("unscripted corpus issuer address resolution")),
     },
   });
 }

@@ -22,11 +22,11 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
-import { Card } from "@orb/ui/card";
 import { EmptyState } from "@orb/ui/empty-state";
 import { BookOpen, Drama, EyeOff, Icon, Lock, ScrollText, SlidersHorizontal, Sparkles, Tag } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
+import { MessageBubble } from "@orb/ui/message-bubble";
 import { Separator } from "@orb/ui/separator";
 import { Heading, Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
@@ -348,8 +348,8 @@ function SectionShell({ icon, title, children }: { readonly icon: typeof ScrollT
 
 function Bubble({ children }: { readonly children: ReactNode }): ReactElement {
   return (
-    <Card tone="bubble">
+    <MessageBubble messageRole="assistant">
       <Stack gap="row">{children}</Stack>
-    </Card>
+    </MessageBubble>
   );
 }

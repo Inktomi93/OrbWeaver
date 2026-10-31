@@ -14,8 +14,13 @@ test("the owned peer serves only the maintained refinery schemas and refuses oth
     expect(response.status).toBe(200);
     expect(await response.text()).toContain(JSON.stringify(CORPUS_STRUCTURED_REPLIES.get(name)));
   }
+  // A schema the corpus scripts a reply for but the surface peer does not serve.
+  const unserved = [...CORPUS_STRUCTURED_REPLIES.keys()].find((name) => !(CORPUS_REFINERY_REPLY_NAMES as readonly string[]).includes(name));
+  if (unserved === undefined) {
+    throw new Error("the corpus scripts no structured reply outside the refinery schemas");
+  }
   for (const body of [
-    { model: CORPUS_TEXT_MODEL, stream: true, ["response_format"]: { type: "json_schema", ["json_schema"]: { name: "card_answer" } } },
+    { model: CORPUS_TEXT_MODEL, stream: true, ["response_format"]: { type: "json_schema", ["json_schema"]: { name: unserved } } },
     { model: CORPUS_TEXT_MODEL, stream: true, ["response_format"]: { type: "json_object" } },
     { model: "foreign-model", stream: false, ["response_format"]: { type: "json_schema", ["json_schema"]: { name: CORPUS_REFINERY_REPLY_NAMES[0] } } },
   ]) {

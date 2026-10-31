@@ -3,6 +3,7 @@ import { AUTH_MODES } from "@orb/contracts/identity";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { resolveBindPosture } from "@orb/server/foundation/env";
 import { z } from "zod";
+import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import type { AuthModeRoot, SignedIn } from "./auth.ts";
 import {
   AUTH_MODE_CAPABILITIES,
@@ -17,7 +18,6 @@ import {
 } from "./auth.ts";
 import { expect, test } from "./fixtures.ts";
 
-const OFF_BOX_PEER = "93.184.215.14";
 const UNAUTHORIZED = 401;
 const NOT_FOUND = 404;
 const REFUSED = "SignInRefusal";
@@ -90,7 +90,7 @@ test.for(AUTH_MODES)("an un-credentialed loopback request is the owner only in a
 // D255: a relayed request is never the operator, so a relay tell refuses the fallback and leaves a credential alone.
 forEachAuthMode("a forwarding header refuses the owner fallback and leaves a credentialed owner signed in", async ({ root, capability }) => {
   const owner = await signIn(root, await ownerSubject(root));
-  const relayed = await root.http.request(VIEWER_ROUTE, { headers: { ...owner.headers, [RELAY_TELL]: OFF_BOX_PEER } });
+  const relayed = await root.http.request(VIEWER_ROUTE, { headers: { ...owner.headers, [RELAY_TELL]: PUBLIC_PEER_ADDRESS } });
   await relayed.arrayBuffer();
   expect(relayed.status).toBe(capability.members ? OK : UNAUTHORIZED);
 });
@@ -98,7 +98,7 @@ forEachAuthMode("a forwarding header refuses the owner fallback and leaves a cre
 test.for(MEMBERLESS_MODES)("a mode without members refuses the owner from an off-box peer with the product's 401 [%s]", async (mode) => {
   await using onBox = await createAuthModeRoot(mode);
   expect((await signIn(onBox, await ownerSubject(onBox))).viewer.globalRole).toBe("owner");
-  await using offBox = await createAuthModeRoot(mode, { physicalPeer: () => OFF_BOX_PEER });
+  await using offBox = await createAuthModeRoot(mode, { physicalPeer: () => PUBLIC_PEER_ADDRESS });
   await expect(signIn(offBox, await ownerSubject(offBox))).rejects.toMatchObject({ name: REFUSED, status: UNAUTHORIZED });
 });
 

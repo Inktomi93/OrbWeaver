@@ -3,13 +3,12 @@
 // density tier map.
 
 import type { MessageRole } from "@orb/kit/message-role";
-import { Card } from "@orb/ui/card";
 import type { StackProps } from "@orb/ui/layout";
 import { Stack } from "@orb/ui/layout";
+import { MessageBubble } from "@orb/ui/message-bubble";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
 import type { RowSkin } from "../lib/message-row-variants.ts";
-import { ROLE_FILL } from "../lib/message-row-variants.ts";
 
 const MESSAGE_BUBBLE_SLOT = "message-bubble";
 
@@ -57,11 +56,10 @@ function BubbleCard({ role, shape, phoneCap, editing, receded, positioned, artDe
   // reply and a long one; an editor spans it too.
   const spansColumn = editing || positioned || shape !== "stack" || artDecoration !== undefined;
   return (
-    <Card
-      data-slot={MESSAGE_BUBBLE_SLOT}
+    <MessageBubble
       ownSlot={MESSAGE_BUBBLE_SLOT}
       shape="bubble"
-      tone={ROLE_FILL[role]}
+      messageRole={role}
       padding={inset ? undefined : "none"}
       receded={receded}
       artDecoration={artDecoration}
@@ -75,7 +73,7 @@ function BubbleCard({ role, shape, phoneCap, editing, receded, positioned, artDe
       )}
     >
       {children}
-    </Card>
+    </MessageBubble>
   );
 }
 

@@ -175,7 +175,6 @@ export interface Lifecycle {
   /** The production root's logger; the process entry reports a failed boot or shutdown through it. */
   readonly logger: Logger;
   readonly boot: () => Promise<void>;
-  readonly listeningAddress: () => Readonly<AddressInfo> | null;
   readonly shutdown: (options?: { readonly drainMs?: number }) => Promise<void>;
 }
 
@@ -734,5 +733,5 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     }
   }
 
-  return { logger: log, boot, listeningAddress: (): Readonly<AddressInfo> | null => listenerAddress, shutdown };
+  return { logger: log, boot, shutdown };
 }

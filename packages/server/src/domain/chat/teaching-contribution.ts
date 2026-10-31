@@ -11,7 +11,7 @@
 // `ChatRpgGatherResult` chat already owns), and the gather's NON-injection outputs — macros, celBindings,
 // cardKeepLastX, terminalTools — are untouched by this seam and still ride `buildTurnContext` directly.
 
-import type { ChatInjection, ReactionEmoji, TeachingCollection, TeachingContext } from "@orb/contracts/chat";
+import type { ChatInjection, ReactionEmoji, TeachingCollection, TeachingContext, TeachingContribution } from "@orb/contracts/chat";
 import {
   CHAT_REACT_TOOL_NAME,
   isNarratorVoiced,
@@ -28,7 +28,7 @@ import { databaseForOwner } from "@orb/db/wiring-owner";
 import { createNamesOnlyRegistry, processMacros } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { resolveSegmentAnchor, segmentSnippet } from "@orb/kit/speaker-label";
-import type { ChatTeachingRegistry, TeachingContribution } from "./contract/context.ts";
+import type { ChatTeachingRegistry } from "./contract/context.ts";
 import { listAttributionReactions, loadPresentCharacterNames } from "./persistence/reactions.ts";
 import { REACTION_ANONYMOUS_REACTOR, REACTION_WHOLE_MESSAGE_TARGET, reactionNote } from "./reaction-note.ts";
 import { NO_HISTORY_FLOOR } from "./substrate/auth/index.ts";
