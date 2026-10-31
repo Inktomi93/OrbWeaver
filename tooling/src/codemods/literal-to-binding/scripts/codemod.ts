@@ -14,7 +14,7 @@ interface LiteralRewrite {
   readonly literal?: string;
   /** An ast-grep pattern for a hand-built expression the binding replaces. */
   readonly pattern?: string;
-  /** What replaces the match: the binding, or a call on it. */
+  /** What replaces the match: the binding, or a call on it. A `pattern` rewrite may name its captures, as `label($ROOM)`. */
   readonly expression: string;
   /** The name the expression needs in scope. */
   readonly binding: string;
@@ -76,6 +76,12 @@ function isPropertyKey(node: SgNode<TS>): boolean {
   return parent !== null && parent.kind() === "pair" && parent.field("key")?.range().start.index === node.range().start.index;
 }
 
+// A label-producing call takes the pieces the hand-built string interpolated: `$NAME` in the expression is the text the
+// pattern captured under that name.
+function withCaptures(expression: string, matched: SgNode<TS>): string {
+  return expression.replace(/\$([A-Z][A-Z0-9_]*)/gu, (token, name: string) => matched.getMatch(name)?.text() ?? token);
+}
+
 function importsBinding(statements: readonly SgNode<TS>[], binding: string): boolean {
   return statements.some((statement) =>
     statement.findAll({ rule: { kind: "import_specifier" } }).some((specifier) => specifier.field("name")?.text() === binding),
@@ -105,7 +111,7 @@ const codemod: Codemod<TS> = (root, options) => {
       continue;
     }
     for (const node of rootNode.findAll({ rule: { pattern: rewrite.pattern } })) {
-      edits.push(node.replace(rewrite.expression));
+      edits.push(node.replace(withCaptures(rewrite.expression, node)));
       needed.set(rewrite.binding, rewrite);
     }
   }
