@@ -273,7 +273,7 @@ export function scanParams(options: ScanOptions): ParamsReport {
     options.root,
     [...worlds, ...testWorlds],
     judged.map(({ callable }) => callable.site),
-    { log: options.log },
+    { log: options.log, crossCheck: options.crossCheck },
   );
   const findings: UnwiredParam[] = [];
   const disagreements: string[] = [];

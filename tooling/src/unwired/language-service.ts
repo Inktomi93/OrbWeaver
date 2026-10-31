@@ -1,9 +1,11 @@
-// Engine two: the TypeScript 6 language service, one world at a time, asked only about what engine one reports. A
-// second compiler, so one engine's resolution gap cannot report a wired symbol.
+// Engine two: TypeScript 7.1 find-references, batched, one world at a time, asked only about what engine one reports.
+// A second algorithm over the same compiler, so one index's resolution gap cannot report a wired symbol. The
+// TypeScript 6 language service answers instead under `crossCheck`, and serves the scans' checker walks.
 import { join, relative } from "node:path";
 import ts from "typescript";
 import type { Site } from "./classify.ts";
 import { siteKey } from "./classify.ts";
+import { NativeWorld } from "./native.ts";
 import type { PortMember } from "./restated-port.ts";
 import { effectiveMember, flowMembers, flowsAt } from "./restated-port.ts";
 import { isProduction, loadScanWorld, realpath } from "./worlds.ts";
@@ -123,31 +125,54 @@ export class ServiceWorld {
   }
 }
 
+// TypeScript 7.1 find-references for the sites a world holds, in one batched pass; returns how many it asked.
+function nativeReferences(root: string, config: string, sites: readonly Site[], merge: (site: Site, references: readonly Site[]) => void): number {
+  using world = NativeWorld.open(root, config);
+  const held = sites.filter((site) => world.has(site.file));
+  for (const [at, found] of world.referencesAt(held).entries()) {
+    merge(held[at] as Site, found);
+  }
+  return held.length;
+}
+
+// A site's own name and library files are not uses of it.
+function keepReferences(into: Map<string, Site> | undefined, site: Site, references: readonly Site[]): void {
+  for (const reference of references) {
+    if (!(reference.file.includes("node_modules") || siteKey(reference) === siteKey(site))) {
+      into?.set(siteKey(reference), reference);
+    }
+  }
+}
+
 /** Ask every world for the references of each site and merge them, so a site counts once however many worlds hold
- *  it. Worlds load one at a time; a site whose file a world lacks is not asked there. `visit` reads each loaded
- *  world before the next replaces it. */
+ *  it. Worlds load one at a time; a site whose file a world lacks is not asked there. TypeScript 7.1 answers in
+ *  batches; `crossCheck` asks the TypeScript 6 language service one site at a time instead, an audit of the 7.1
+ *  answers. `visit` reads a TypeScript 6 program of each world before the next replaces it. */
 export function serviceReferences(
   root: string,
   worlds: readonly string[],
   sites: readonly Site[],
-  hooks: { readonly log: (line: string) => void; readonly visit?: (world: ServiceWorld) => void },
+  hooks: {
+    readonly log: (line: string) => void;
+    readonly visit?: (world: ServiceWorld) => void;
+    readonly crossCheck?: boolean | undefined;
+  },
 ): ReadonlyMap<string, readonly Site[]> {
   const merged = new Map<string, Map<string, Site>>(sites.map((site) => [siteKey(site), new Map()]));
+  const merge = (site: Site, references: readonly Site[]): void => keepReferences(merged.get(siteKey(site)), site, references);
   for (const config of worlds) {
-    const world = ServiceWorld.open(root, config);
-    let asked = 0;
-    for (const site of sites) {
-      if (world.source(site.file) === undefined) {
-        continue;
+    const asked = hooks.crossCheck === true ? 0 : nativeReferences(root, config, sites, merge);
+    if (hooks.crossCheck === true || hooks.visit !== undefined) {
+      const world = ServiceWorld.open(root, config);
+      const held = hooks.crossCheck === true ? sites.filter((site) => world.source(site.file) !== undefined) : [];
+      for (const site of held) {
+        merge(site, world.references(site));
       }
-      asked++;
-      const into = merged.get(siteKey(site));
-      for (const reference of world.references(site)) {
-        into?.set(siteKey(reference), reference);
-      }
+      hooks.visit?.(world);
+      hooks.log(`${config}: engine two asked about ${asked + held.length} sites`);
+    } else {
+      hooks.log(`${config}: engine two asked about ${asked} sites`);
     }
-    hooks.visit?.(world);
-    hooks.log(`${config}: engine two asked about ${asked} sites`);
   }
   return new Map([...merged].map(([key, found]) => [key, [...found.values()]]));
 }

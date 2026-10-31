@@ -23,4 +23,12 @@ A full pnpm unwired fields run with engine two on 7.1 reports the same findings 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Built and run on the planted fixtures:
+
+- `getReferencedSymbolsForNode` and `getSignatureUsage` are methods of `LanguageService` (`project.languageService`), not of `Checker`, in `node_modules/@typescript/native/dist/api/sync/api.d.ts` (class at line 490, methods at lines 504 and 508). Engine two calls the first; `getSignatureUsage` is not needed, because the scans read each reference node.
+- `pnpm test:tools tests/tooling/unwired`: 10 files, 27 tests green with engine two on 7.1. The redeclared-member case was red first (two disagreements, `BaseCfg.title` and `MidCfg.title`) and green after the link; `Stranger.title` is the control that stays a finding.
+- `--cross-check` runs the TypeScript 6 language service and reaches the same uses (`tests/tooling/unwired/scan.int.test.ts`).
+- Scans that still load a TypeScript 6 program per world for their checker walks (reflected reads, member flows, built literals, shape hops): the bare, fields, unions and shapes verbs. Porting those walks to 7.1 is not part of this item.
+- Not resolved by either engine, so a false finding remains: a member read only through a structurally identical twin type, and a member handed whole to a function typed on a wider deps bag. A `ReturnType<...>` hop, a whole value serialized by `JSON.stringify` and a whole value spread into a row are credited.
+
+Owed: the full `pnpm unwired fields` run on this commit against the TypeScript 6 run (`--cross-check`), with wall time and peak memory.
