@@ -20,19 +20,19 @@ Complete journeys need the real application wires. Controlled component states, 
 
 No CT uses a fabricated backend to walk a complete route or app-shell journey. Each selected case names its retained coverage, replacement or reason for removal. Cross-layer cases identify distinct failures; they do not repeat the same permutation matrix.
 
-Keep every unfinished case and qualification limit below until its owning work supplies current evidence. Source delivery alone does not change restoration status.
+Source delivery alone does not change restoration status. The table below holds each qualified case with the run that qualifies it and its limit.
 
-## Unfinished cases and ownership
+## Qualified cases and limits
 
-| Reference scope | Required behavior | Owner and boundary |
+| Reference scope | Required behavior | Maintained home and limit |
 | - | - | - |
-| AR13, AR14; G34 | A phone's empty Explore finder opens the understanding overview, moves focus into Content and closes the appropriate sheets. | [Empty Explore subject](1342-corpus-empty-explore-subject.md) must supply a production-backed viewer or capture with characters and no digests. Rebuild one controlled-empty CT over the actual Corpus section. |
-| AR8, AR12 and AR16 | Preserve bare, filtered and empty census meanings, including a filtered zero. | The [phone topbar CT](../../tests/client/features/app-shell/surfaces/app-shell-topbar.ct.tsx) owns the plugin pages title behavior. Pure composer evidence and list-band evidence do not automatically qualify phone-shell wiring. |
-| AR18 | Labels prune/delete returns focus to the exact finder target under the real user-bus/refetch race. | [Labels focus](1311-a-labels-prune-on-a-phone-lands-focus-on.md) requires the phone-shell E2E reproduction. Finder-only and socket-stubbed CTs do not reproduce that race. |
-| AS43 | Arrival focus puts New before search and rows in forward Tab order. | [List arrival focus](../../tests/client/features/app-shell/surfaces/list-arrival-focus.ct.tsx). A case that only keeps focus out of main does not establish the first Tab stop. |
-| AS66–AS69 | A closed Context sheet remains closed after open, list hide/show, sheet close and another list hide. | [Context carry](../../tests/client/features/app-shell/surfaces/app-shell-panels.ct.tsx). Preserve visibility transfer without changing stored preference semantics. Shorter carry sequences do not cover this sequence. |
-| AS93, AS96, AS97, AS99 | Real-room message rows and composer stay in their corridors from the first painted frame, including scaled docking and Context changes. | [Room carriers](1341-centred-room-carriers-jump-on-pane-doors.md). Keep current main acceptance separate from earlier shell-box-only evidence and held-out carriers. |
-| Production-served corpus boot | The document and its module graph reach the application without aborted lazy-module/CSS startup. | Harness stacks no longer watch sources (`tooling/src/dev/lib/plan.ts`), the cause the 1310 work reproduced. Keep a cold failure distinct from warm-server and fresh-browser evidence. |
+| AR13, AR14 | A phone's empty Explore finder opens the understanding overview, moves focus into Content and closes the sheets. | [Empty Explore CT](../../tests/client/features/discovery/lib/corpus-explore-empty.ct.tsx) mounts the production shell over a production root. The empty finder exists only for a library with no characters: Explore lists a character with no digest as Not distilled. The same CT drives the Archetypes door in the open CONTEXT sheet over a library with characters and no digests. The sheets close; the focus handoff to Content has a second path (the shell's rescue of focus that fell to the body), so a missing handoff request alone does not fail the CT. |
+| AR8, AR12 and AR16 | Preserve bare, filtered and empty census meanings, including a filtered zero. | The [phone topbar CT](../../tests/client/features/app-shell/surfaces/app-shell-topbar.ct.tsx) owns the plugin pages title behavior, including a filtered zero. The [census title unit test](../../tests/client/lib/census-title.dom.test.ts) owns the composer. |
+| AR18 | Labels prune/delete returns focus to the exact finder target under the real user-bus/refetch race. | [Corpus workbench](../../tests/e2e/corpus-workbench.spec.ts) runs the prune and the row delete on the phone project and expects the finder root itself to hold focus. Finder-only CTs do not reproduce the race. |
+| AS43 | Arrival focus puts New before search and rows in forward Tab order. | [List arrival focus](../../tests/client/features/app-shell/surfaces/list-arrival-focus.ct.tsx) lands on the band's action, then walks the Tab stops of Chats, Characters and Presets and expects New, then the search field, then a row. |
+| AS66–AS69 | A closed Context sheet remains closed after open, list hide/show, sheet close and another list hide. | [Context carry](../../tests/client/features/app-shell/surfaces/app-shell-panels.ct.tsx) runs that sequence with the constrained shell. |
+| AS93, AS96, AS97, AS99 | Real-room message rows and composer stay in their corridors from the first painted frame, including scaled docking and Context changes. | [Shell motion CT](../../tests/client/features/app-shell/surfaces/app-shell-motion.ct.tsx) holds the row and composer on the Context door, the both-docked List door and the scaled dock. A room with a mounted flank column narrows the row's parent; the carriers are not held there. |
+| Production-served corpus boot | The document and its module graph reach the application without aborted lazy-module/CSS startup. | A cold production-served stack loaded the document, its scripts, stylesheets and fonts with no failed or refused request. No maintained case asserts it, so a cold failure stays a finding of the run that sees it. Harness stacks do not watch sources (`tooling/src/dev/lib/plan.ts`). |
 
 Case names in this document identify existing or proposed specs. The disposition index below does not assert a new runtime result.
 
@@ -90,7 +90,7 @@ The complete original inputs, assertions, collapse groups, review corrections an
 | AR2, AR3, AR4, AR6, AR7, AR8, AR9, AR23, AR24, AR25, SS1, SS2, AS45, AS47, AS48, AS51, AS179, AS180, AS181, AS182, AS183, AS186, AS187, AS188, AS221 | E2E implementation recorded | `corpus-shell.spec.ts` |
 | AR5 | CT implementation recorded | `first-run-persona-dialog.ct.tsx` |
 | AR10, AR11, AR12, AR15, AR17, AR18 | E2E implementation recorded | `corpus-workbench.spec.ts` |
-| AR13, AR14 | Open controlled-state CT | `corpus-explore-empty.ct.tsx` |
+| AR13, AR14 | CT implementation recorded | `corpus-explore-empty.ct.tsx` |
 | AR16 | Unit implementation recorded | `census-title.dom.test.ts` |
 | AR19, AS55, AS56, AS57, AS58, AS59, AS60, AS61, AS163, AS191, AS192, AS193, AS194, AS196, AS197, AS211, AS212, AS213, AS214, AS215, AS222 | CT implementation recorded | `app-shell-topbar.ct.tsx` |
 | AR20 | CT implementation recorded | `section-roster-census.ct.tsx` |
@@ -108,7 +108,7 @@ The complete original inputs, assertions, collapse groups, review corrections an
 | AS38 | CT implementation; fabricated seed-density case dropped | `app-shell-modals.ct.tsx` |
 | AS70 | Unit implementation recorded | `panel-resolve.test.ts` |
 | AS83, AS84, AS85, AS86, AS87, AS88, AS89, AS90, AS91, AS92, AS94, AS95, AS100, AS102, AS104, AS105, AS106, AS107, AS112, AS184, AS185 | CT implementation recorded | `app-shell-motion.ct.tsx` |
-| AS93, AS96, AS97, AS99 | CT partial: real-room carrier qualification remains separate | `app-shell-motion.ct.tsx` |
+| AS93, AS96, AS97, AS99 | CT implementation recorded | `app-shell-motion.ct.tsx` |
 | AS123 | CT implementation; no system-message subject | `app-shell-appearance.ct.tsx` |
 | AS161, AS162, AS200, AS201, AS202 | Move (done) | `corpus-shell.spec.ts` |
 | AS164, AS165 | Unit implementation recorded | `command-shortcut-label.test.ts` |
@@ -139,9 +139,8 @@ The complete original inputs, assertions, collapse groups, review corrections an
 - AS125 does not separately carry the phone bubble scenario. The shared breakpoint case does not invent a missing room observation.
 - AS40's same-section member projection is not established by its section-change case.
 - AS42 does not retain a next-Tab assertion against the reference story's invented content control.
-- AS93/AS96/AS97/AS99 retain their real-room carrier limitation until current evidence qualifies the named boxes and widths.
+- AS93/AS96/AS97/AS99 hold the row and composer in a room without a flank column. A mounted flank column is not a subject of the carrier cases.
 - G9's boot replay asserts the motion, font-scale and theme stamps on `<html>` before React mounts. Density has no root channel and renders only on the shell's theme scope, so the e2e cases do not assert it.
-- G34 remains unfinished as listed above. Do not infer its completion from other boot or Corpus cases.
 
 ## Harness and execution
 

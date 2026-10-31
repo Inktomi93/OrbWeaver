@@ -16,7 +16,7 @@ import type { Invalidation, Trpc } from "#data";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { COLLECTION_LARGE_GROUP, pruneConfirmLabel, sortTagsBy, tagUsageLabel, unusedTagsLabel, usageBreakdown } from "#lib";
 import { labelDeleted, setLabelFilter, setTagPruneConfirmOpen, useTagPruneConfirmOpen, useTagSortMode } from "#state";
-import { finderRoot, focusFinderSearch, labelRowOpener, libraryOrFinder } from "../lib/labels-focus-targets.ts";
+import { finderRoot, focusAfterConfirmCloses, focusFinderSearch, labelRowOpener, libraryOrFinder } from "../lib/labels-focus-targets.ts";
 import { TAG_LIST_NAME } from "../lib/tag-list-name.ts";
 
 const ESTIMATED_ROW_PX = 52;
@@ -150,9 +150,7 @@ function LabelsPruneConfirm({
     if (!pruneDecision.completed) {
       return true;
     }
-    const target = libraryOrFinder();
-    target?.focus();
-    return document.activeElement !== target;
+    return focusAfterConfirmCloses(libraryOrFinder());
   };
   return (
     <ConfirmDialog
@@ -223,8 +221,7 @@ function useLabelDelete(
     } else if (!decision.completed && decision.opener?.isConnected === true) {
       target = decision.opener;
     }
-    target?.focus();
-    return document.activeElement !== target;
+    return focusAfterConfirmCloses(target);
   };
   return {
     requestDelete,

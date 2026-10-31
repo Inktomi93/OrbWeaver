@@ -224,9 +224,31 @@ test.describe("committed corpus workbench", () => {
       .getByRole("button", { name: pruneConfirmLabel(unused.length), exact: true })
       .click();
     await expect(page.getByRole("alertdialog")).toHaveCount(0);
-    // The finder keeps focus; the library CONTENT behind it is inert, and <body> is never the landing.
+    // The finder root itself takes focus: the library CONTENT behind it is inert, and neither <body> nor the overflow
+    // trigger that opened the confirm (a descendant of the finder, so containment cannot tell them apart) is the landing.
     const finder = list.locator('[data-slot="labels-finder"]');
-    await expect.poll(() => finder.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+    await expect(finder).toBeFocused();
     expect(await unusedTags()).toEqual([]);
+  });
+
+  test("phone Labels: a row delete lands focus on the finder, never <body>", { tag: "@smoke" }, async ({ page, baseURL, isMobile }, info) => {
+    test.skip(!isMobile, "On a phone the library CONTENT is inert behind the finder");
+    const host = ownerActor(baseURL ?? "");
+    const name = `e2e delete ${info.project.name}`;
+    const created = await host.trpc.tag.createTag.mutate({ input: { name } });
+    const tagIds = async (): Promise<readonly string[]> => (await host.trpc.tag.listTagsWithUsage.query()).map((tag) => tag.id);
+    expect(await tagIds()).toContain(created.id);
+    await openCorpusOnPhone(page);
+    const list = page.locator(CORPUS_LIST);
+    await list.getByRole("radio", { name: CORPUS_MODE_LABELS.labels }).click();
+    // The finder windows a large library, so its own filter brings this cell's row into the tree.
+    await list.getByRole("textbox", { name: "Filter tags", exact: true }).fill(name);
+    await list.getByRole("button", { name: `Actions for ${name}`, exact: true }).click();
+    await page.getByRole("menuitem", { name: "Delete" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Delete", exact: true }).click();
+    await expect(page.getByRole("alertdialog")).toHaveCount(0);
+    // The row that opened the confirm is gone with its tag, so the finder root is the landing.
+    await expect(list.locator('[data-slot="labels-finder"]')).toBeFocused();
+    expect(await tagIds()).not.toContain(created.id);
   });
 });
