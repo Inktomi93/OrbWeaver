@@ -1176,7 +1176,7 @@ export const TEMPLATE_DEFS = [
     caps: STEER_CAPS,
     defaultSlot: "preset.guided.rewrite",
   },
-  { id: "opening", kind: "steer", label: "Opening", fires: "A new chat's first message", caps: STEER_CAPS, defaultSlot: "preset.guided.opening" },
+  { id: "opening", kind: "steer", label: "Greeting", fires: "A new chat's first message", caps: STEER_CAPS, defaultSlot: "preset.guided.opening" },
   // ── THE REWRITE MODAL'S ONE-CLICK STEER VOCABULARY (the templating fork, ARM B — owner 2026-08-09) ────
   // The seven toggle sentences the Rewrite modal joins into the correction steer. `steer` kind, and they sit
   // under the Rewrite row they compose into: their bytes reach the model INSIDE that steer, by exactly the
@@ -2123,8 +2123,8 @@ export const TEMPLATE_DEFS = [
   {
     id: "rpg.populate.openingBlock",
     kind: "extract",
-    label: "Opening block",
-    fires: "Born-state round — the room has posted an opening",
+    label: "Greeting block",
+    fires: "Born-state round — the room has posted a greeting",
     caps: [{ kind: "tokens", tokens: ["{{opening}}"] }],
     defaultSlot: "rpg.populate.openingBlock",
     cluster: "round",
