@@ -142,7 +142,9 @@ function MarkerDeliveryPath({ sections }: { readonly sections: readonly PromptSe
     <Section kicker="Delivery path">
       <Row align="center" gap="field">
         <Button variant="ghost" onClick={(): void => openSectionInPrompt(marker.id)} size="sm" type="button">
-          <Text voice="label">Guided instruction</Text>
+          <Text ink="inherit" voice="label">
+            Guided instruction
+          </Text>
         </Button>
         <Badge tone={marker.enabled ? "success" : "warning"} variant="solid" size="sm">
           {marker.enabled ? "on" : "off"}
