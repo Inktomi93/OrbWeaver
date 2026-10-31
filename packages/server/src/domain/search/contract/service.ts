@@ -66,7 +66,7 @@ export interface QueryEmbedConnection extends EmbeddingConnectionFacts {
     input: string | readonly string[],
     opts?: { inputType?: "query" | "document"; instruction?: string; signal?: AbortSignal | undefined },
   ) => Promise<EmbedResult>;
-  readonly imageEmbed: (input: ImageEmbedInput, opts?: { signal?: AbortSignal | undefined }) => Promise<ImageEmbedResult>;
+  readonly imageEmbed: (input: ImageEmbedInput) => Promise<ImageEmbedResult>;
 }
 
 export type ResolveQueryConnection = ResolveEmbeddingConnectionOp<QueryEmbedConnection>;
