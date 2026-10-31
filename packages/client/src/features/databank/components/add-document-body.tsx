@@ -141,7 +141,7 @@ export function AddDocumentBody(): ReactElement {
           >
             {DOCUMENT_SCOPE_SOURCES.map((kind) => (
               <Toggle variant="outline" key={kind} size="sm" value={kind}>
-                {({ global: "Every chat", character: "This character", chat: "This chat" } satisfies Record<DocumentScopeSource, string>)[kind]}
+                {({ global: "Everywhere", character: "This character", chat: "This chat" } satisfies Record<DocumentScopeSource, string>)[kind]}
               </Toggle>
             ))}
           </ToggleGroup>
