@@ -11,7 +11,10 @@
 //              The group renders from `composer-media-group.tsx`; galleries live only in Options.
 //   • Input  — Recover input (recall the last FIRED steer — the D57 ring, owner-clarified) · Corrections (the
 //              rewrite/OOC dialog) · Clear input
-//   • Reply  — Regenerate (a PLAIN reroll of the tail assistant, distinct RefreshCw glyph + helper — the
+//   • Reply  — when the composer's button row is wider than its room, the row's actions lead this group in a fixed
+//              order: Try another reply and Continue the reply first, then the Draft your line submenu
+//              (`hooks/use-reply-row-overflow.ts`); Generate reply and this menu's own door never move
+//              · Regenerate (a PLAIN reroll of the tail assistant, distinct RefreshCw glyph + helper — the
 //              steer-aware reroll stays the ⟳ Swipe icon, §2.3e dual-home) · Simple send (post without
 //              generating) · Offer choices (the ONE-SHOT ask for the next reply; not game-gated, because the
 //              standing sibling and the fence renderer are both general)
@@ -20,12 +23,14 @@
 // Each item is the omit-doctrine's disabled-affordance law: rendered enabled, or disabled with its reason as a
 // visible detail line, never hidden. Permission-filtered gallery doors live in Chat options.
 
+import type { GuidedImpersonatePerson } from "@orb/contracts/preset";
 import type { GuidedGameSteerKind } from "@orb/kit/guided";
 import { RPG_PLOT_STEER_KINDS, RPG_PLOT_STEERS } from "@orb/kit/guided";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import type { LucideIcon } from "@orb/ui/icons";
 import {
   Compass,
+  Drama,
   Eraser,
   FastForward,
   History,
@@ -51,6 +56,7 @@ import { useRecentSteers } from "#state";
 import type { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import type { UseGuidedActionsResult, useGuidedActions } from "../hooks/use-guided-actions.ts";
 import { COMPOSER_CLEAR_INPUT_NAME, COMPOSER_CORRECTIONS_NAME } from "../lib/composer-menu-names.ts";
+import { ImpersonatePersonItems } from "./composer-guided-buttons.tsx";
 import type { ComposerImageControls } from "./composer-media-group.tsx";
 import { ComposerMediaGroup } from "./composer-media-group.tsx";
 
@@ -92,10 +98,40 @@ export interface ComposerReplyAction {
   readonly disabledReason: string;
 }
 
-/** The reply buttons the cluster has moved into this menu; `undefined` while they fit beside the others. */
+/** Draft your line, spelled as a submenu of the three persons while the button row cannot seat it. */
+export interface ComposerDraftAction {
+  readonly onPick: (person: GuidedImpersonatePerson) => void;
+  readonly enabled: boolean;
+  readonly disabledReason: string;
+}
+
+/** The row's actions the cluster has moved into this menu; `undefined` while they fit beside the others. `draft` is
+ *  present only once the two secondary replies have moved and the row still does not fit. */
 export interface ComposerMovedReplyActions {
   readonly swipe: ComposerReplyAction;
   readonly continuation: ComposerReplyAction;
+  readonly draft: ComposerDraftAction | undefined;
+}
+
+function MovedDraftSubmenu({ draft }: { readonly draft: ComposerDraftAction }): ReactElement {
+  return (
+    <MenuSubmenuRoot>
+      <MenuSubmenuTrigger disabled={!draft.enabled}>
+        <Icon icon={Drama} size="sm" />
+        {draft.enabled ? (
+          "Draft your line"
+        ) : (
+          <Stack gap="tight">
+            <span>Draft your line</span>
+            <Text voice="gloss">{draft.disabledReason}</Text>
+          </Stack>
+        )}
+      </MenuSubmenuTrigger>
+      <MenuPopup>
+        <ImpersonatePersonItems onPick={draft.onPick} />
+      </MenuPopup>
+    </MenuSubmenuRoot>
+  );
 }
 
 interface ComposerGuidedUtilityMenuProps {
@@ -288,6 +324,7 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
                 enabled={moved.continuation.enabled}
                 disabledReason={moved.continuation.disabledReason}
               />
+              {moved.draft === undefined ? null : <MovedDraftSubmenu draft={moved.draft} />}
             </>
           )}
           <UtilityActionItem

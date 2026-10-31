@@ -4,7 +4,7 @@
 // same way, but a `rem` inside a media query stays at the platform default, so a browser whose own default is 200% would
 // also flip the shell regime. Only the combinations that hold are listed in QUALIFIED; the rest are open defects on the board.
 
-import { contextToggleLabel } from "@orb/client/lib";
+import { contextToggleLabel, testId } from "@orb/client/lib";
 import type { CharacterId } from "@orb/kit/ids";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS } from "@orb/testkit/ct";
@@ -44,6 +44,7 @@ const QUALIFIED = {
   room: [
     [DESKTOP, TEXT_200],
     [PHONE, TEXT_200],
+    [DESKTOP, LAYOUT_300],
   ],
   jumpToLatest: [
     [PHONE, LAYOUT_300],
@@ -66,6 +67,13 @@ const QUALIFIED = {
     [DESKTOP, LAYOUT_300],
   ],
 } as const satisfies Record<string, readonly (readonly [Viewport, Scale])[]>;
+
+// How many of the composer row's movable actions sit in the Message tools menu in each room case, as measured.
+const COMPOSER_MOVED_COUNT: Record<string, number> = {
+  [`${DESKTOP.name} ${TEXT_200.name}`]: 0,
+  [`${PHONE.name} ${TEXT_200.name}`]: 2,
+  [`${DESKTOP.name} ${LAYOUT_300.name}`]: 3,
+};
 
 let root: Root;
 
@@ -254,6 +262,9 @@ for (const [viewport, scale] of QUALIFIED.charactersBand) {
       await scaleRoot(page, scale.factor);
       await expect.poll(() => findings(page.locator(".shell-grid"))).toEqual([]);
       expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
+      // The list is the band's reason to exist: a character row must be on screen, not only the band's controls.
+      const list = page.locator(".shell-panel[data-panel-side='list']");
+      await expect(list.getByRole("listitem").first()).toBeInViewport();
     });
   });
 }
@@ -271,6 +282,35 @@ for (const [viewport, scale] of QUALIFIED.room) {
       }
       await expect.poll(() => findings(page.locator(".shell-content"))).toEqual([]);
       expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
+    });
+
+    // Each action the row may hand over is in exactly one place: its row button, or the Reply group of the menu.
+    test("keeps every secondary action in the row or in the Message tools menu, never both", async ({ mount, page }) => {
+      await openFirstRoom(() => mount<typeof AppShellStory>(STORY, {}), page);
+      // At the default scale every action sits in the row, so the names production gives them are read off the buttons.
+      const nameOf = async (id: Parameters<typeof testId>[0]): Promise<string> => {
+        const name = await page.getByTestId(testId(id)).getAttribute("aria-label");
+        if (name === null) {
+          throw new Error(`The composer's ${id} control carries no accessible name`);
+        }
+        return name;
+      };
+      const rowActions = await Promise.all([nameOf("composerGuidedSwipe"), nameOf("composerGuidedContinue"), nameOf("composerGuidedImpersonate")]);
+      const generateName = await nameOf("composerGuidedResponse");
+      const menuName = await nameOf("composerUtility");
+      await scaleRoot(page, scale.factor);
+      const movedActions = async (): Promise<string[]> =>
+        (await Promise.all(rowActions.map(async (name) => ((await page.getByRole("button", { name, exact: true }).count()) > 0 ? [] : [name])))).flat();
+      // The overflow order: Try another reply, Continue the reply, then Draft your line; the count is what the room measures.
+      const moved = rowActions.slice(0, COMPOSER_MOVED_COUNT[`${viewport.name} ${scale.name}`]);
+      await expect.poll(movedActions).toEqual(moved);
+      await expect(page.getByRole("button", { name: generateName, exact: true })).toBeVisible();
+      await page.getByRole("button", { name: menuName, exact: true }).click();
+      const menu = page.getByRole("menu");
+      for (const name of rowActions) {
+        await expect(menu.getByRole("menuitem", { name })).toHaveCount(moved.includes(name) ? 1 : 0);
+      }
+      await expect(menu.getByRole("menuitem", { name: generateName })).toHaveCount(0);
     });
   });
 }
