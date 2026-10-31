@@ -117,6 +117,7 @@ function SequenceChips({ form, name, legend, hint, noun, unsetWhenEmpty }: Seque
                     {shown}
                     <Button
                       aria-label={`Remove ${noun} ${shown}`}
+                      size="chip"
                       variant="ghost"
                       onClick={(): void => write(sequences.filter((s) => s !== sequence))}
                       square={true}
