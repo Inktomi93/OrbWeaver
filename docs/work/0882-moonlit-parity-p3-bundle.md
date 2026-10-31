@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-10-11
+updated: 2026-10-31
 priority: P3
 area: chat
+plan: cross-surface-consistency
 ---
 
 # Moonlit parity P3 bundle
