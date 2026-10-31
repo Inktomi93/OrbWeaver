@@ -60,6 +60,8 @@ for (const regime of REGIMES) {
       });
       const editor = page.getByRole("region", { name: "Preset editor", exact: true });
       const title = editor.getByRole("heading", { name: preset.name, exact: true });
+      // The heading stays in the outline; the identity that has to fit the row is its painted twin.
+      const paintedName = editor.getByText(preset.name, { exact: true }).and(editor.locator('[aria-hidden="true"]'));
       const rename = editor.getByRole("button", { name: "Rename preset", exact: true });
       const activate = editor.getByRole("button", { name: "Activate — use this preset for generation", exact: true });
       const reset = editor.getByRole("button", { name: "Reset to starter arrangement", exact: true });
@@ -81,7 +83,7 @@ for (const regime of REGIMES) {
       for (const control of geometry.controls) {
         expect(control.height).toBeGreaterThanOrEqual(floor);
       }
-      const boxes = await Promise.all([title, rename, activate, status, reset].map((part) => part.boundingBox()));
+      const boxes = await Promise.all([paintedName, rename, activate, status, reset].map((part) => part.boundingBox()));
       if (boxes.some((box) => box === null)) {
         throw new Error("Every identity, action and save-state part must render");
       }

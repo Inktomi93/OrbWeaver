@@ -30,6 +30,58 @@ Judge a surface only after every planned change to it has landed. Steps 2 to 6 r
 | 7a | Open findings and small builds in a family land, or close with the capture that shows them gone, before acceptance scores that family | [0550](../../work/0550-rule-editor-polish-from-the-automation-lane-review.md), [0839](../../work/0839-phone-pass-p3-bundle.md), [0910](../../work/0910-persona-model-follow-ups-from-the-885-lane.md), [0911](../../work/0911-plugin-column-follow-ups-escape-reach-undo-focus.md), [0621](../../work/0621-corpus-readiness-rows-say-why-a-pass-did.md), [0679](../../work/0679-attribute-tiles-are-number-inputs-with-a-range.md), [0725](../../work/0725-pocket-arcade-fits-its-flank-and-its-grant.md), [0927](../../work/0927-third-party-topbar-extensions-render-their-own-button.md), [0341](../../work/0341-resolve-rpg-rest-position-and-target-audit-findings.md) |
 | 8 | Integrated verification | [1396](../../work/1396-complete-integrated-consistency-verification.md) |
 
+## Page templates
+
+Step 5 gives each recurring page shape one composite in `packages/client/src/components/`. A template declares its tier, composes `@orb/ui` layout primitives and the step-4 named components, and overrides no primitive skin. Features pass content into its slots. [Item 1489](../../work/1489-build-the-page-template-tier-and-move-features.md) tracks the work.
+
+### Survey
+
+The survey ran `ast-grep` in both the `ts` and `tsx` languages over `packages/client/src` (815 `ts` files, 838 `tsx` files scanned), plus a literal `rg` for class tokens. Each shape's signature is the structure the template will own.
+
+| Shape | Signature | Existing composite | Feature sites that rebuild it |
+| - | - | - | - |
+| List page | a focus-target `Stack` root with a `ListSearch` search row and a scroll body, in the instrument tier | `LibraryListFrame`, `LibraryListLayout`, `LibraryListRows`, `LibrarySurfaceShell` in `packages/client/src/components/library-surface.tsx` | `packages/client/src/features/tag/surfaces/labels-list-surface.tsx`, `packages/client/src/features/stats/surfaces/analytics-list-surface.tsx`, `packages/client/src/features/chat/surfaces/chat-list-surface.tsx`, `packages/client/src/features/character/surfaces/character-library-surface.tsx` with `character-library-toolbar.tsx`, `packages/client/src/features/discovery/surfaces/corpus-list-surface.tsx`, `packages/client/src/features/config/surfaces/config-list-surface.tsx` with `config-search-input.tsx`; the frame consumers `refinery-list-surface.tsx`, `databank-library-surface.tsx`, `preset-library-surface.tsx`, `extensions-switcher-surface.tsx` each still hand-build the focus root |
+| Detail header | a content-pane name marked `data-shell-identity="defer"`, its state marks and its own verbs | `MemberDrillHeader` in `packages/client/src/components/member-drill-header.tsx`, for drilled collection members | `packages/client/src/features/databank/surfaces/databank-detail-surface.tsx`, `packages/client/src/features/stats/surfaces/analytics-character-surface.tsx`, `packages/client/src/features/refinery/components/session-masthead.tsx`, `packages/client/src/features/preset/components/preset-editor-header.tsx` |
+| Settings pane | the config CONTENT arm that stacks a group's sections under its pane title | `SettingRowGroup`, `SettingRow`, `SettingSwitchRow`, `SettingTrackRow` own the rows inside a section | `packages/client/src/features/config/surfaces/config-content-surface.tsx` `GroupBody` |
+| Editor | the centered content column `mx-auto inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)` | none | `packages/client/src/components/tag-editor-body.tsx`, `regex-member-surface.tsx`, `roster-member-surface.tsx`, `databank-detail-surface.tsx`, `packages/client/src/features/world-info/components/entry-editor.tsx`, `preset-editor-surface.tsx`, `preset-editor-header.tsx`; the fixed instrument cap in `params-deck.tsx`; the start-aligned caps in `labels-library-surface.tsx` and `packages/client/src/features/automation/components/rule-editor.tsx` |
+| Collection grid | a `Grid` with `role="list"` whose cells are `listitem`s | none | `packages/client/src/features/character/components/character-shelf.tsx`, `packages/client/src/features/discovery/components/corpus-gem-tiles.tsx`, `packages/client/src/features/discovery/components/corpus-family-map.tsx`, `packages/client/src/features/roster-preset/components/home-rosters-tile-body.tsx` |
+
+Out of the survey: CONTEXT panel bodies, the chat room, the home and corpus dashboards and dialogs. Their shapes are not one of the five, and the item names no template for them.
+
+### Template API
+
+| Template | Tier | Slots and props | Replaces |
+| - | - | - | - |
+| `ListPage` | instrument | `ref` (the focus target), `label` (names the root as a region), `skipTo` (the skip link's label), `lead` (above the search row), `search` (the search control), `searchAside` (controls on the search row), `filters` (below the search row), `body` (`scroll`: the body scrolls; `bounded`: the body is a bounded column whose content scrolls itself; `pane`: the whole pane scrolls), children | `LibraryListFrame` and `LibraryListLayout`; `LibraryListRows` keeps the rows and their radiogroup contract, `LibrarySurfaceShell` keeps the boundary |
+| `DetailHeader` | inherits its host's tier | `title`, `step` (`title` for a member or document name, `masthead` for a workbench's one opening statement), `kicker`, `meta` (state marks beside the name), `actions` (the subject's own verbs), `deferToShell` (the narrow topbar carries the visible name; the heading stays in the outline), children (lines under the name) | the hand-built identity rows |
+| `SettingsPane` | form | `title` (the pane's heading node), children (the sections) | the sections arm of `GroupBody` |
+| `EditorPage` | `form` or `instrument`, from `kind` | `kind` (`form`: the column breathes past `@cq-64`; `instrument`: a control-track instrument holds the narrow cap), `inset` (`none`, `block`, `section`), and the `Stack` props except `className` | the hand-spelled centered column |
+| `CollectionGrid` | inherits its host's tier | `label` (the list's name), `cols` (`auto`, `cellShelf`, `pairWide`), `gap` (`tight`, `row`), `items`, `itemKey`, `renderItem`; each cell is a `listitem` wrapper | the hand-built list grids |
+
+`DetailHeader` and `CollectionGrid` render no `Surface`: they sit inside a page that already declares a tier, and a same-tier nested `Surface` is refused by the surface census. Every LIST pane takes the one pane gap, `row`.
+
+### Lint
+
+`orb/page-template-shapes` refuses, in `packages/client/src/features/**`, a `ListSearch` element, the `data-shell-identity` attribute, a class string or template quasi with `mx-auto` beside `max-inline-(--width-content-col)`, and a `Grid` with `role="list"`. Each signature is owned by exactly one template. A start-aligned cap without `mx-auto` is a measure, not the editor column, and passes. A column split across template quasis escapes the rule. The settings pane has no precise signature: its sections are legitimate feature code and its host exists once, so that shape has no rule.
+
+### Judgment sites
+
+| Site | Choice |
+| - | - |
+| `databank-library-surface.tsx` | The search moved above the boundary with its state, so it shows while the read is in flight, as on Presets. The re-extract banner and the phase chip ride `lead` in their old order. |
+| `labels-list-surface.tsx`, `character-library-toolbar.tsx` | The search row keeps the search at `--width-field-floor` and wraps its aside, the Characters rule. Labels let the search shrink before. |
+| `character-library-toolbar.tsx` | The toolbar split into `CharacterSortSelect` on the search row and `CharacterViewGroup` in `filters`. |
+| `chat-list-surface.tsx` | The clear glyph moved inside the search slot, so `ListSearch` now also marks it. |
+| `config-list-surface.tsx`, `config-search-input.tsx` | The cmdk search and its in-place results are one control, so the whole command is the `search` slot. The shelves keep their section gap inside the body. |
+| `corpus-list-surface.tsx` | The target select is `lead`. The pane root is now a programmatic focus target; arrival focus still lands on the omnibox. |
+| `session-masthead.tsx` | The workbench masthead keeps the display step through `step="masthead"`. The state chips and the credit ride `meta`; the two doors are `actions`. |
+| `preset-editor-header.tsx` | Every header verb is `actions`. A detail header truncates its name on one line, the Presets band budget; the Databank and Insights names, which wrapped, now truncate. |
+| `analytics-character-surface.tsx` | The pane gains its `h2`; the painted name was a bare `Text`. |
+| `params-deck.tsx` | The ratified instrument cap is `EditorPage kind="instrument"`, which now owns the deck's instrument `Surface`. |
+| `labels-library-surface.tsx`, `packages/client/src/features/automation/components/rule-editor.tsx` | A start-aligned cap, not the editor column; unchanged. |
+| `corpus-family-map.tsx`, `character-shelf-face.tsx` | The `listitem` role moved from the plate and the face to the grid's wrapper. |
+| `home-rosters-tile-body.tsx` | The list gained the name `Saved rosters`; it had none. |
+
 ## Rejected
 
 Do not substitute board closure, isolated screenshot scores, overflow-only checks, or unexplained screenshot baselines for comparative acceptance. Do not introduce page-specific appearance knobs or a second design system.

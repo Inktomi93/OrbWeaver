@@ -22,14 +22,14 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { FileText, Icon, Pencil, RefreshCw } from "@orb/ui/icons";
-import { Grid, Row, Section, Stack, Surface } from "@orb/ui/layout";
+import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import { ScrollArea } from "@orb/ui/scroll-area";
-import { Heading, Text } from "@orb/ui/text";
+import { Text } from "@orb/ui/text";
 import { useToastManager } from "@orb/ui/toast";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { QueryBoundary, Tip } from "#components";
+import { DetailHeader, EditorPage, QueryBoundary, Tip } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { renameActionName, timeLib, useFocusOnMount } from "#lib";
 import { LIST_OFF_SCREEN_HINT, useSectionListMode, useSelectedDocumentId } from "#state";
@@ -174,48 +174,14 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
   };
 
   return (
-    <Surface tier="form">
-      {/* THE CAP every sibling member editor keeps (tag / regex / roster member surfaces). Without it a
-          `justify="between"` label/value row spends the whole CONTENT pane, a hand-span of nothing between a
-          label and its own value.
-          IT IS `--width-content-col`. This block holds controls, and the prose measure's own contract
-          forbids a reading `ch` cap on one (it resolves in the wrapper's font, not the paragraph's). The
-          editor content-column token is the one that names this job.
-
-          AND THE TOKEN'S CONSUMPTION IS THREE CLASSES, NOT ONE: its `$description` says the column is
-          CENTERED and BREATHES to `--width-content-col-wide` once its container clears `@5xl`, so the bare
-          cap alone would left-pin the column beside a dead void on a wide pane. The query container here is the SHELL'S `content`
-          region (`RegionAnchor`), not a box this surface owns: `<Surface>` is `display: contents`, so it
-          adds none. `w-full` rides with `mx-auto` because that region is a flex column. */}
-      <Stack
-        className="mx-auto py-section inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)"
-        data-slot="databank-detail-editor"
-        gap="section"
-      >
-        <Row align="start" gap="field" justify="between">
-          <Stack className="min-inline-0" gap="tight">
-            {/* The shell owns narrow identity paint; the document heading remains in the accessible outline. */}
-            <Heading className="sr-only" level={2}>
-              {doc.name}
-            </Heading>
-            <Text aria-hidden="true" as="span" data-shell-identity="defer" voice="promoted">
-              {doc.name}
-            </Text>
-            {/* THE EMPTY PHASE'S REMEDY. It rides HERE, under the scent, and not
-                in Maintenance beside the stall hint: Reindex is that hint's repair and it is the wrong
-                advice for this state — re-running extraction over the same image-only bytes returns the
-                same nothing. It sits directly under the chip that names the state, which is where a reader
-                who just opened the row to ask "why is this Empty?" is looking. */}
-            {emptyHint === null ? null : <Text voice="gloss">{emptyHint}</Text>}
-          </Stack>
-          <Row align="center" gap="field">
-            {/* The DETAIL keeps its `Ready` chip — §6.1's ruling deletes the chip from the LIST ROW, where
-                it was chrome on six rows in seven; here it is the answer to the question the user asked by
-                opening the document. */}
+    // The document's editor column: the cap every sibling member editor keeps, centered and breathing.
+    <EditorPage data-slot="databank-detail-editor" gap="section" inset="section">
+      <DetailHeader
+        actions={
+          <>
+            {/* The detail keeps its phase chip: here it answers the question the reader asked by opening the
+                  document. The act-now glyph rides it too, one chip anatomy in both panes. */}
             <Badge tone={badge.tone} size="sm">
-              {/* The act-now glyph rides here too — one chip anatomy, both panes (databank-model's
-                  INGEST_BADGES note): a document that reads `Empty` on the list must not read as an
-                  ordinary amber wait-state the moment it is opened. */}
               {badge.glyph === null ? null : <Icon icon={badge.glyph} size="xs" />}
               {badge.label}
             </Badge>
@@ -224,37 +190,43 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
                 <Icon icon={Pencil} size="sm" />
               </Button>
             </Tip>
-          </Row>
-        </Row>
+          </>
+        }
+        title={doc.name}
+      >
+        {/* The empty phase's remedy sits under the name, where a reader asking "why is this Empty?" looks:
+              Reindex is the wrong advice for this state, so it is not in Maintenance. */}
+        {emptyHint === null ? null : <Text voice="gloss">{emptyHint}</Text>}
+      </DetailHeader>
 
-        {/* `kicker`, not `heading` — CD1 (section.tsx's own doc): a read-only GROUPING gets the micro-caps
+      {/* `kicker`, not `heading` — CD1 (section.tsx's own doc): a read-only GROUPING gets the micro-caps
             name plus a hairline to the edge, which is what 20+ sibling features spell and what the mock
             draws. `heading` is the settings-pane form contract, and this pane is a readout. */}
-        <Section kicker="Details">
-          {/* ONE grid, not a stack of rows: the label track is `max-content` (as wide as the widest label,
+      <Section kicker="Details">
+        {/* ONE grid, not a stack of rows: the label track is `max-content` (as wide as the widest label,
               no wider) and every value still starts at ONE x, which a per-row measurement cannot promise.
               See `cols="readout"`'s own note for why the knob-row token stopped being right here. */}
-          <Grid className="items-baseline" cols="readout" gap="row">
-            <DetailRow label="Origin" value={originLabel(doc.origin)} />
-            <DetailRow label="Type" value={documentTypeLabel(doc.mime)} />
-            <DetailRow label="Size" value={formatBytes(doc.byteSize)} />
-            {/* THE LABEL CARRIES THE UNIT: the values are bare numbers, grouped
+        <Grid className="items-baseline" cols="readout" gap="row">
+          <DetailRow label="Origin" value={originLabel(doc.origin)} />
+          <DetailRow label="Type" value={documentTypeLabel(doc.mime)} />
+          <DetailRow label="Size" value={formatBytes(doc.byteSize)} />
+          {/* THE LABEL CARRIES THE UNIT: the values are bare numbers, grouped
                 by the feature's one number convention — "Passages 12", never "Passages 12 passages". The
                 row SUBTITLE keeps the noun, because a scent line has no label to carry it. */}
-            <DetailRow label="Characters" value={characterCount(doc)} />
-            {/* PASSAGES, not "Chunks" — the list row and this readout print one fact and used to print it
+          <DetailRow label="Characters" value={characterCount(doc)} />
+          {/* PASSAGES, not "Chunks" — the list row and this readout print one fact and used to print it
                 in two vocabularies ("12 passages" there, "Chunks 12 / 12 embedded" here). One home:
                 `passageTally` / `passageCount` (databank-model). */}
-            <DetailRow label="Passages" value={passageTally(doc)} />
-            <DetailRow label="Added" value={timeLib.formatDate(doc.createdAt)} />
-            <DetailRow label="Updated" value={timeLib.formatDate(doc.updatedAt)} />
-            {doc.sourceUrl === null ? null : <DetailRow label="Source" value={doc.sourceUrl} />}
-          </Grid>
-        </Section>
+          <DetailRow label="Passages" value={passageTally(doc)} />
+          <DetailRow label="Added" value={timeLib.formatDate(doc.createdAt)} />
+          <DetailRow label="Updated" value={timeLib.formatDate(doc.updatedAt)} />
+          {doc.sourceUrl === null ? null : <DetailRow label="Source" value={doc.sourceUrl} />}
+        </Grid>
+      </Section>
 
-        <Section kicker="Maintenance">
-          <Stack gap="row">
-            {/* THE PARAGRAPH TAKES THE READING MEASURE, THE BLOCK ABOVE KEEPS THE CONTROL ONE: "a block
+      <Section kicker="Maintenance">
+        <Stack gap="row">
+          {/* THE PARAGRAPH TAKES THE READING MEASURE, THE BLOCK ABOVE KEEPS THE CONTROL ONE: "a block
                 holding controls keeps the wider measure while the paragraph inside it takes this one". The
                 content column alone would run this sentence well past the design law's characters-per-line
                 band. `--reading-measure-prose` resolves in this paragraph's own gloss font — a `ch` on the
@@ -262,48 +234,40 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
                 AND `justify="start"`, NOT `between` — a cap alone would pay for the measure with a hand-span
                 between the sentence and the button that acts on it ("a measure caps the worst case; it does
                 not tie the pair"). The button rides its own sentence. */}
-            <Row align="center" className="flex-wrap" gap="row" justify="start">
-              <Text className="flex-1 basis-(--width-field-floor) max-inline-(--reading-measure-prose) min-inline-0" voice="gloss">
-                Use this after a settings change, or if search misses this document.
-              </Text>
-              <Button
-                className="shrink-0 wrap-anywhere max-inline-full"
-                disabled={reindex.isPending}
-                variant="outline"
-                onClick={onReindex}
-                size="sm"
-                wrap={true}
-              >
-                <Icon icon={RefreshCw} size="sm" />
-                Rebuild search index for this document
-              </Button>
-            </Row>
-            {/* A stuck-ingest signal: a doc parked in Queued/Indexing well past its last update likely
+          <Row align="center" className="flex-wrap" gap="row" justify="start">
+            <Text className="flex-1 basis-(--width-field-floor) max-inline-(--reading-measure-prose) min-inline-0" voice="gloss">
+              Use this after a settings change, or if search misses this document.
+            </Text>
+            <Button className="shrink-0 wrap-anywhere max-inline-full" disabled={reindex.isPending} variant="outline" onClick={onReindex} size="sm" wrap={true}>
+              <Icon icon={RefreshCw} size="sm" />
+              Rebuild search index for this document
+            </Button>
+          </Row>
+          {/* A stuck-ingest signal: a doc parked in Queued/Indexing well past its last update likely
                 wedged — point the user at Reindex (derived from `updatedAt`; there is no status column). */}
-            {stallHint === null ? null : <Text voice="gloss">{stallHint}</Text>}
-          </Stack>
-        </Section>
+          {stallHint === null ? null : <Text voice="gloss">{stallHint}</Text>}
+        </Stack>
+      </Section>
 
-        <Section kicker="Source text">
-          <Stack gap="row">
-            <Row justify="start">
-              <Button variant="ghost" onClick={(): void => setShowSource((prev) => !prev)} size="sm">
-                <Icon icon={FileText} size="sm" />
-                {showSource ? "Hide source text" : "View source text"}
-              </Button>
-            </Row>
-            {showSource ? <SourceText documentId={documentId} /> : null}
-          </Stack>
-        </Section>
+      <Section kicker="Source text">
+        <Stack gap="row">
+          <Row justify="start">
+            <Button variant="ghost" onClick={(): void => setShowSource((prev) => !prev)} size="sm">
+              <Icon icon={FileText} size="sm" />
+              {showSource ? "Hide source text" : "View source text"}
+            </Button>
+          </Row>
+          {showSource ? <SourceText documentId={documentId} /> : null}
+        </Stack>
+      </Section>
 
-        <DatabankRenameDialog
-          currentName={doc.name}
-          onOpenChange={setRenameOpen}
-          onRename={(name): void => rename.mutate({ id: documentId, name })}
-          open={renameOpen}
-        />
-      </Stack>
-    </Surface>
+      <DatabankRenameDialog
+        currentName={doc.name}
+        onOpenChange={setRenameOpen}
+        onRename={(name): void => rename.mutate({ id: documentId, name })}
+        open={renameOpen}
+      />
+    </EditorPage>
   );
 }
 

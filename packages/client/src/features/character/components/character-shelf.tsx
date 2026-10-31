@@ -9,10 +9,11 @@
 // row beside it was duplicating, so the shelf declares which door its faces are and the cell obeys.
 
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { Grid, Row, Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
+import { CollectionGrid } from "#components";
 import { resumeChat } from "#state";
 import type { ShelfFaceResume } from "./character-shelf-face.tsx";
 import { CharacterShelfFace } from "./character-shelf-face.tsx";
@@ -53,22 +54,26 @@ export function CharacterShelf({
           </Text>
         )}
       </Row>
-      <Grid aria-label={label} cols="cellShelf" gap="row" role="list">
-        {faces.map((face) => (
+      <CollectionGrid
+        cols="cellShelf"
+        gap="row"
+        itemKey={(face): string => face.id}
+        items={faces}
+        label={label}
+        renderItem={(face): ReactElement => (
           <CharacterShelfFace
             avatarHash={face.avatarHash}
             caption={face.caption}
             captionId={`${captionScope}${face.id}`}
             id={face.id}
-            key={face.id}
             name={face.name}
             onOpen={onOpen}
             resume={resumeFor(door, face)}
             stamp={face.stamp}
             starred={face.starred}
           />
-        ))}
-      </Grid>
+        )}
+      />
     </Stack>
   );
 }

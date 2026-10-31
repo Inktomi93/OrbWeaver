@@ -81,9 +81,7 @@ function faceActionName(name: string, stamp: string | null, starred: boolean, re
 
 export function CharacterShelfFace({ id, name, avatarHash, starred, stamp, caption, captionId, resume, onOpen }: CharacterShelfFaceProps): ReactElement {
   return (
-    // `role="listitem"` rides a layout-primitive WRAPPER, never the Button — an interactive element assigned
-    // a non-interactive role is a lie to AT (and eslint's `no-interactive-element-to-noninteractive-role`).
-    <Stack role="listitem">
+    <Stack>
       <PictureButton
         // STARRED IS PART OF THE NAME, not a silent decoration (the `invisible-is-the-finding` rule): the
         // mark is the only thing on the cell that says it, and on Recently chatted — where the shelf's own

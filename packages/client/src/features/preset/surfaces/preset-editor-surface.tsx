@@ -47,7 +47,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { QueryBoundary, StoredConfigUnreadableNotice } from "#components";
+import { EditorPage, QueryBoundary, StoredConfigUnreadableNotice } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { SaveUnwritableContext } from "#forms";
 import type { AppFormInstance, AutosaveSession } from "#forms/editor";
@@ -367,31 +367,21 @@ function PresetEditorBody({
             library's Import, which the copy names; for a from-a-newer-version blob the copy deliberately
             does NOT lead with Reset, because that blob is intact data this build merely cannot read. */}
         {configUnreadable === null ? null : (
-          <Stack className="mx-auto py-block inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)">
+          <EditorPage inset="block">
             <StoredConfigUnreadableNotice copy={PRESET_UNREADABLE_COPY[unreadableConfigCause(configUnreadable)]} />
-          </Stack>
+          </EditorPage>
         )}
 
         {isSystemDefault ? (
-          <Stack className="mx-auto py-block inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)">
+          <EditorPage inset="block">
             <BuiltInCopyOnWriteNotice active={active} />
-          </Stack>
+          </EditorPage>
         ) : null}
 
         {PRESET_EDITOR_VIEWS.map((entry) => (
           <TabsPanel key={entry.id} value={entry.id}>
-            {/* THE CONTENT COLUMN IS CAPPED AND CENTERED (side-eye F-16 as amended by the owner's rendered
-                read, 2026-08-02), once, for all five views. The cap is why: a wide pane stretched rack rows
-                to ~840px with a ~60% dead gutter and ran drill-in glosses to ~130ch against the 65-75ch
-                reading measure. What the first build got wrong is the RULING: a 720px cap LEFT-PINNED inside
-                a 958px pane parks 240px of void on one side, and with both collapsed ~800px ("looks okay when both
-                panels are out, but when you close them it looks awful"). So the column CENTERS — the house
-                convention for a wide content-pane editor (character-editor-surface.tsx uses the same
-                `mx-auto w-full max-w-…`) — and BREATHES to `--width-content-col-wide` once the pane itself
-                clears @cq-64, which is exactly the panels-collapsed regime. The @cq-64 query measures the shell's
-                content region (the pane's own width), which is why the cap and the container are two
-                elements and not one. It lives HERE and not per view so no body can opt out. */}
-            <Stack className="mx-auto py-block inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)" gap="block">
+            {/* One column for all five views, here and not per view, so no body can opt out. */}
+            <EditorPage inset="block" gap="block">
               {entry.id === "params" ? (
                 <Stack gap="field" data-slot="preset-editor-connection">
                   <Text voice="label">Editing for Chat role{editorConnection === undefined ? "" : ` · ${editorConnection}`}</Text>
@@ -401,7 +391,7 @@ function PresetEditorBody({
                 </Stack>
               ) : null}
               {viewContent(entry.id, viewProps)}
-            </Stack>
+            </EditorPage>
           </TabsPanel>
         ))}
       </Tabs>

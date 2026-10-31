@@ -7,10 +7,11 @@ import { HOME_ROSTER_PREVIEW_LIMIT } from "@orb/contracts/roster-preset";
 import { AvatarStack, avatarStackInlineSize } from "@orb/ui/avatar-stack";
 import { Button } from "@orb/ui/button";
 import { Icon, MessagesSquare, Swords } from "@orb/ui/icons";
-import { Grid, Row, Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { CollectionGrid } from "#components";
 import { useSuspenseQueries, useTRPC } from "#data";
 import { useStartRoster } from "../hooks/use-start-roster.ts";
 import { rosterCountsSuffix } from "../lib/roster-copy.ts";
@@ -82,13 +83,14 @@ export function HomeRostersTileBody(): ReactElement {
           {rosters.length} of {count} rosters
         </Text>
       ) : null}
-      <Grid cols="pairWide" gap="tight" role="list">
-        {rosters.map((roster) => (
-          <Stack key={roster.id} role="listitem">
-            <RosterStartRow busy={start.isPending} leadingSlots={leadingSlots} onStart={start.startRoster} roster={roster} />
-          </Stack>
-        ))}
-      </Grid>
+      <CollectionGrid
+        cols="pairWide"
+        gap="tight"
+        itemKey={(roster): string => roster.id}
+        items={rosters}
+        label="Saved rosters"
+        renderItem={(roster): ReactElement => <RosterStartRow busy={start.isPending} leadingSlots={leadingSlots} onStart={start.startRoster} roster={roster} />}
+      />
     </Stack>
   );
 }

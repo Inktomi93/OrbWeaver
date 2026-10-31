@@ -22,10 +22,9 @@ import { Icon, Pencil, RotateCcw, Zap } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { useScrollFadeX } from "@orb/ui/scroll-area";
 import { TabsIndicator, TabsList, TabsTab } from "@orb/ui/tabs";
-import { Heading } from "@orb/ui/text";
 import type { ComponentProps, ReactElement } from "react";
 import { useRef, useState } from "react";
-import { ConfirmDialog, Tip } from "#components";
+import { ConfirmDialog, DetailHeader, EditorPage, Tip } from "#components";
 import { AutosaveStatus } from "#forms/editor";
 import { PRESET_EDITOR_VIEWS } from "../lib/preset-nav.ts";
 import { PresetRenameDialog } from "./preset-rename-dialog.tsx";
@@ -87,106 +86,93 @@ export function PresetEditorHeader({
           to the panel column; the deck's cap is argued at its own site. */}
       <Stack gap="block" className="sticky inset-bs-0 z-(--z-raised) py-block" ground="card">
         <Container className="inline-full">
-          <Stack className="mx-auto inline-full max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)" gap="block">
-            <Row align="center" className="flex-wrap min-inline-0" gap="field">
-              {/* The artifact's NAME is an h2 (side-eye F-28 / ARIA rec 8): it was a <p>, with the view's
-                    kickers as h3s under no h2 at all, so heading navigation could not find the thing being
-                    edited. It now RENDERS like the title it is (crunch-list 13): `voice="label"` held it at
-                    the deck's 13px/500 label step, so the one thing the whole pane is about read as just
-                    another field name beside its own chips. The h2's default `title` size + semibold is the
-                    step the mock draws. */}
-              {/* IT DEFERS TO THE TOPBAR AT THE SHELL'S NARROW BUDGET. On a phone the shell's topbar
-                    already prints the open preset's name (the section's `useSelectionTitle`), so the name
-                    would stand twice in the one regime with the least room for it. `data-shell-identity="defer"` is the SHELL's own opt-in marker and
-                    the rule lives with the query that decides it (`shell.css`, the same
-                    `@container shell-main (max-width: 30rem)` block that swaps the topbar's identity arms)
-                    — a feature must not re-spell that threshold, and `useMobileViewport()` is a DIFFERENT
-                    question (a viewport media query, not the content container's width): between 30rem and
-                    the mobile breakpoint the topbar renders its WIDE arm, which for Presets is nothing at
-                    all while the list is docked, so hiding on that signal would lose the name outright. */}
-              <Heading className="flex-1 basis-(--width-title-floor) truncate min-inline-0" data-shell-identity="defer" level={2}>
-                {presetName}
-              </Heading>
-              {/* THE NAME HAS A DOOR HERE. `New` mints a preset called "New preset" and opens THIS editor,
-                    so the name must be editable where its effect shows (§13) — on mobile the LIST is a closed
-                    sheet.
+          <EditorPage gap="block">
+            <DetailHeader
+              actions={
+                <>
+                  {/* THE NAME HAS A DOOR HERE. `New` mints a preset called "New preset" and opens THIS editor,
+                      so the name must be editable where its effect shows (§13) — on mobile the LIST is a closed
+                      sheet.
 
-                    RENAME SINGLE-HOMES IN THE EDITOR (the ruling world-info, tags and regex share). It does
-                    not contradict the owner's lifecycle ruling ("ONE home — the list-row kebab, matching the
-                    characters/chats precedent that lifecycle lives list-side"): Export produces a FILE
-                    (lifecycle, list-side); renaming EDITS the artifact you have open.
-                    Why the editor is the home, on the band's OWN recorded grammar: the Activate affordance
-                    three elements up survives here for exactly this reason — "a status naming an actionable
-                    state must be able to act" when "on mobile the LIST is a closed sheet". The NAME is that
-                    band's other stated truth (the h2 is the one thing the pane is about), and it was the one
-                    the editor could not act on.
-                    Why an icon door and NOT the title itself: heading navigation must find the thing being
-                    edited, so the heading's accessible name says what it IS, and a control's name would have
-                    to say what it DOES; making one element carry both means one of them lies. The icon-door
-                    anatomy (`aria-label` and the tooltip from ONE string, so the two cannot drift) is what the
-                    Reset door beside it already speaks. */}
-              {isSystemDefault ? null : (
-                <Tip text={RENAME_LABEL}>
-                  <Button aria-label={RENAME_LABEL} variant="ghost" onClick={(): void => setRenameOpen(true)} square={true} type="button">
-                    <Icon icon={Pencil} size="sm" />
-                  </Button>
-                </Tip>
-              )}
-              {/* G7 — the two truths that change UNDER the editor. The ACTIVE chip is the LIST row's marker
-                    verbatim (one state, one reading); its not-active twin is an AFFORDANCE, because a status
-                    that only ever says "not active" is a dead end when the LIST is a closed sheet.
-                    the `soft` style (rider 1 / side-eye F-06): a SOLID ember chip carried the same fill as the
-                    pane's one primary CTA, so a status read as a second call to action. */}
-              {active ? (
-                <Badge tone="primary" size="sm">
-                  Active
-                </Badge>
-              ) : (
-                // ITS NAME IS DISTINCT FROM THE LIST RADIO'S. One name in two ROLES (a one-of-N `radio` in
-                // the list's radiogroup, a `button` here) would attach one name to two contracts. The ROLE
-                // split is correct: the list is where the pick LIVES (one-of-N, roving tabindex), and this
-                // is a one-shot COMMAND on the thing you are editing. So the command names itself as one, in
-                // the editor's own deictic voice ("this preset" — the header is already about a named preset,
-                // which the h2 two elements away states). One act, one writer, two honestly-different names.
-                // THE NAME LEADS WITH THE VISIBLE WORD (WCAG 2.5.3 label-in-name): a control reading
-                // "Activate" whose name lacks that word is unaddressable by speech. Visible word first, then the editor-voice gloss that keeps it distinct
-                // from the list's radio.
-                <Button aria-label="Activate — use this preset for generation" variant="ghost" onClick={onActivate} size="sm" type="button">
-                  <Icon icon={Zap} size="sm" />
-                  Activate
-                </Button>
-              )}
-              {/* NO MODEL CHIP. A `resolved for <model>` chip beside the name is paid in the NAME: it is a
-                    strict PREFIX of a line the CONTEXT panel renders in full, and the preset's own name — the
-                    one thing the whole pane is about — truncates to pay for it. The READOUT is the one home for
-                    resolution truth (`resolvedForLabel` spells it, once, for that panel), including the case
-                    where the panel is away — not a permanent tax on every header in every regime. */}
-              {/* Autosave everywhere (§7): the live status takes the action slot, with no Save/Discard. */}
-              <AutosaveStatus state={saveState} onRetry={onRetrySave} />
-              {/* The BUILT-IN's menu would hold NOTHING — "Reset to starter" is a no-op wearing a
-                    destructive confirm, because the built-in IS the starter arrangement (side-eye F-25). An
-                    empty menu renders no ⋯ at all rather than a trigger that opens nothing (the section
-                    drill-in's own rule); items are OMITTED, never disabled.
+                      RENAME SINGLE-HOMES IN THE EDITOR (the ruling world-info, tags and regex share). It does
+                      not contradict the owner's lifecycle ruling ("ONE home — the list-row kebab, matching the
+                      characters/chats precedent that lifecycle lives list-side"): Export produces a FILE
+                      (lifecycle, list-side); renaming EDITS the artifact you have open.
+                      Why the editor is the home, on the band's OWN recorded grammar: the Activate affordance
+                      three elements up survives here for exactly this reason — "a status naming an actionable
+                      state must be able to act" when "on mobile the LIST is a closed sheet". The NAME is that
+                      band's other stated truth (the h2 is the one thing the pane is about), and it was the one
+                      the editor could not act on.
+                      Why an icon door and NOT the title itself: heading navigation must find the thing being
+                      edited, so the heading's accessible name says what it IS, and a control's name would have
+                      to say what it DOES; making one element carry both means one of them lies. The icon-door
+                      anatomy (`aria-label` and the tooltip from ONE string, so the two cannot drift) is what the
+                      Reset door beside it already speaks. */}
+                  {isSystemDefault ? null : (
+                    <Tip text={RENAME_LABEL}>
+                      <Button aria-label={RENAME_LABEL} variant="ghost" onClick={(): void => setRenameOpen(true)} square={true} type="button">
+                        <Icon icon={Pencil} size="sm" />
+                      </Button>
+                    </Tip>
+                  )}
+                  {/* G7 — the two truths that change UNDER the editor. The ACTIVE chip is the LIST row's marker
+                      verbatim (one state, one reading); its not-active twin is an AFFORDANCE, because a status
+                      that only ever says "not active" is a dead end when the LIST is a closed sheet.
+                      the `soft` style (rider 1 / side-eye F-06): a SOLID ember chip carried the same fill as the
+                      pane's one primary CTA, so a status read as a second call to action. */}
+                  {active ? (
+                    <Badge tone="primary" size="sm">
+                      Active
+                    </Badge>
+                  ) : (
+                    // ITS NAME IS DISTINCT FROM THE LIST RADIO'S. One name in two ROLES (a one-of-N `radio` in
+                    // the list's radiogroup, a `button` here) would attach one name to two contracts. The ROLE
+                    // split is correct: the list is where the pick LIVES (one-of-N, roving tabindex), and this
+                    // is a one-shot COMMAND on the thing you are editing. So the command names itself as one, in
+                    // the editor's own deictic voice ("this preset" — the header is already about a named preset,
+                    // which the h2 two elements away states). One act, one writer, two honestly-different names.
+                    // THE NAME LEADS WITH THE VISIBLE WORD (WCAG 2.5.3 label-in-name): a control reading
+                    // "Activate" whose name lacks that word is unaddressable by speech. Visible word first, then the editor-voice gloss that keeps it distinct
+                    // from the list's radio.
+                    <Button aria-label="Activate — use this preset for generation" variant="ghost" onClick={onActivate} size="sm" type="button">
+                      <Icon icon={Zap} size="sm" />
+                      Activate
+                    </Button>
+                  )}
+                  {/* NO MODEL CHIP. A `resolved for <model>` chip beside the name is paid in the NAME: it is a
+                      strict PREFIX of a line the CONTEXT panel renders in full, and the preset's own name — the
+                      one thing the whole pane is about — truncates to pay for it. The READOUT is the one home for
+                      resolution truth (`resolvedForLabel` spells it, once, for that panel), including the case
+                      where the panel is away — not a permanent tax on every header in every regime. */}
+                  {/* Autosave everywhere (§7): the live status takes the action slot, with no Save/Discard. */}
+                  <AutosaveStatus state={saveState} onRetry={onRetrySave} />
+                  {/* The BUILT-IN's menu would hold NOTHING — "Reset to starter" is a no-op wearing a
+                      destructive confirm, because the built-in IS the starter arrangement (side-eye F-25). An
+                      empty menu renders no ⋯ at all rather than a trigger that opens nothing (the section
+                      drill-in's own rule); items are OMITTED, never disabled.
 
-                    EXPORT IS NOT HERE (crunch-list O-16★, owner ruling): it lived in BOTH this kebab and the
-                    LIST row's, and the fix-all's §16 rows 7+27 sanction of that echo is OVERRULED. ONE home —
-                    the list-row kebab, matching the characters/chats precedent that lifecycle lives
-                    list-side. */}
-              {/* NO ⋯ OVER A SINGLE COMMAND (side-eye F-18). The overflow held exactly one item, so it
-                    bought nothing and cost discoverability twice over: `⋯` signals "there is more here" (there
-                    isn't) and signals nothing about WHAT, so the only way to learn the surface offers a reset
-                    was to open a menu on the chance. The command is now its own control, wearing its own
-                    glyph, with the O-3 icon-door anatomy this feature already speaks — `aria-label` and the
-                    native `title` from ONE string, so the tooltip and the accessible name cannot drift. If a
-                    second header command ever lands, the kebab comes back with two items in it. */}
-              {isSystemDefault ? null : (
-                <Tip text={RESET_LABEL}>
-                  <Button aria-label={RESET_LABEL} variant="ghost" onClick={(): void => setResetOpen(true)} square={true} type="button">
-                    <Icon icon={RotateCcw} size="sm" />
-                  </Button>
-                </Tip>
-              )}
-            </Row>
+                      EXPORT IS NOT HERE (crunch-list O-16★, owner ruling): it lived in BOTH this kebab and the
+                      LIST row's, and the fix-all's §16 rows 7+27 sanction of that echo is OVERRULED. ONE home —
+                      the list-row kebab, matching the characters/chats precedent that lifecycle lives
+                      list-side. */}
+                  {/* NO ⋯ OVER A SINGLE COMMAND (side-eye F-18). The overflow held exactly one item, so it
+                      bought nothing and cost discoverability twice over: `⋯` signals "there is more here" (there
+                      isn't) and signals nothing about WHAT, so the only way to learn the surface offers a reset
+                      was to open a menu on the chance. The command is now its own control, wearing its own
+                      glyph, with the O-3 icon-door anatomy this feature already speaks — `aria-label` and the
+                      native `title` from ONE string, so the tooltip and the accessible name cannot drift. If a
+                      second header command ever lands, the kebab comes back with two items in it. */}
+                  {isSystemDefault ? null : (
+                    <Tip text={RESET_LABEL}>
+                      <Button aria-label={RESET_LABEL} variant="ghost" onClick={(): void => setResetOpen(true)} square={true} type="button">
+                        <Icon icon={RotateCcw} size="sm" />
+                      </Button>
+                    </Tip>
+                  )}
+                </>
+              }
+              title={presetName}
+            />
             {/* THE STRIP DEGRADES TO A SCROLL, which is the house rule for a strip that outgrows its box —
                 `shell.css` states it for the context tabs verbatim: "degrade to a SCROLL, never into an
                 ellipsis". Otherwise a narrow content pane paints the last tab UNDER the CONTEXT panel.
@@ -209,7 +195,7 @@ export function PresetEditorHeader({
                 <TabsIndicator />
               </TabsList>
             </Row>
-          </Stack>
+          </EditorPage>
         </Container>
       </Stack>
 

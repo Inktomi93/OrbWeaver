@@ -19,11 +19,12 @@
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Blocks, Icon } from "@orb/ui/icons";
+import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { LibraryListFrame, LibrarySurfaceShell } from "#components";
+import { LibrarySurfaceShell, ListPage } from "#components";
 import { SkeletonRows } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import { openConfigTo, selectPluginPageFromList, setExtensionsSearchQuery, useExtensionsSearchQuery, usePluginPageKey } from "#state";
@@ -110,26 +111,15 @@ export function ExtensionsSwitcherSurface(): ReactElement {
   return (
     // The arrival target names the pane it moved focus into. A child row's name cannot name this node for
     // assistive technology; the Presets list uses the same named-region convention for the same hook.
-    <Stack
-      aria-label={EXTENSIONS_SECTION_LABEL}
-      className="block-full min-block-0"
-      focusTarget={true}
+    <ListPage
       data-testid={testId("extensionsSwitcher")}
+      label={EXTENSIONS_SECTION_LABEL}
       ref={surfaceRef}
-      role="region"
-      tabIndex={-1}
+      search={<Input aria-label="Search plugin pages" onValueChange={setExtensionsSearchQuery} placeholder="Search plugin pages" value={search} />}
     >
-      <LibraryListFrame
-        searchValue={search}
-        onSearchChange={setExtensionsSearchQuery}
-        searchLabel="Search plugin pages"
-        searchPlaceholder="Search plugin pages"
-        scroll={true}
-      >
-        <LibrarySurfaceShell errorLabel="your plugin pages" loadingLabel="Loading plugin pages…">
-          <ExtensionsPageList />
-        </LibrarySurfaceShell>
-      </LibraryListFrame>
-    </Stack>
+      <LibrarySurfaceShell errorLabel="your plugin pages" loadingLabel="Loading plugin pages…">
+        <ExtensionsPageList />
+      </LibrarySurfaceShell>
+    </ListPage>
   );
 }

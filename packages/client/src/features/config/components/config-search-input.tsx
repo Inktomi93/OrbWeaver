@@ -20,7 +20,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { ListSearch, Tip } from "#components";
+import { Tip } from "#components";
 import { useSettingsViewerView, useTRPC } from "#data";
 import type { ConfigQueryToken, ParsedConfigQuery } from "#lib";
 import { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken, partialValueToken } from "#lib";
@@ -209,20 +209,12 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
   const rowGroups = groups.list().filter((group) => group.useSearchRows !== undefined && visible.has(group.id));
 
   return (
-    <Stack aria-label="Settings search" role="search">
+    <Stack aria-label="Settings search" className="flex-1 min-inline-0" role="search">
       <Command label="Search settings" shouldFilter={false}>
         <Row align="center" gap="tight">
           <Stack className="flex-1 min-inline-0">
             {/* The arrival focus lands on the active group's BAND, not on this box. */}
-            <ListSearch>
-              <CommandInput
-                aria-label="Search settings"
-                expanded={expanded}
-                onValueChange={setConfigSearchQuery}
-                placeholder="Search settings…"
-                value={query}
-              />
-            </ListSearch>
+            <CommandInput aria-label="Search settings" expanded={expanded} onValueChange={setConfigSearchQuery} placeholder="Search settings…" value={query} />
           </Stack>
           {/* The FUNNEL — inserts `@` and the token menu opens, so the grammar teaches itself (§3.3). */}
           <Tip text="Add a search filter">

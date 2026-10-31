@@ -1486,6 +1486,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       rules: { "orb/no-effect-on-shared-selection": "error" },
     },
     { files: ["packages/client/src/features/**/*.tsx"], rules: { "orb/dialog-via-composite": "error" } },
+    { files: ["packages/client/src/features/**/*.{ts,tsx}"], rules: { "orb/page-template-shapes": "error" } },
     {
       files: ["packages/client/src/features/**/*.tsx"],
       ignores: ["packages/client/src/features/app-shell/surfaces/app-shell.tsx"],

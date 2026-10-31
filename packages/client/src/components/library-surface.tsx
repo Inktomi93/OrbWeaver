@@ -1,46 +1,15 @@
-// The library-surface scaffold (clone-audit item 2): the search-input + row-list + empty-state shell shared
-// by preset-library-surface ↔ world-info-library-surface. TWO layout composites (not one rigid component —
-// the surfaces diverge on their query hooks): `LibrarySurfaceShell` (focus-on-mount + QueryBoundary +
-// load/error copy) wraps the querying list; `LibraryListLayout` (search + empty-or-rows body) is the body.
-//
-// THE LAYOUT IS SPLIT IN TWO, AND THAT SPLIT IS LOAD-BEARING (#1748, the #1133 hoist). `LibraryListFrame`
-// is the pane CHROME — the instrument Surface and the pinned search input; `LibraryListRows` is the
-// DATA-dependent body — empty-or-rows plus the radiogroup keyboard contract. They are separate because a
-// `QueryBoundary` with a `reserveKey` wraps its settled child in an auto-height measuring Stack: any scroll
-// box UNDER the boundary resolves its `h-full`/`flex-1` against an indefinite parent, stops scrolling, and
-// strands everything past the fold. A consumer that needs a boundary in the middle therefore mounts the frame
-// ABOVE it — search chrome and all, which is also why the input stays on screen while the read is in flight.
-//
-// THE SCROLL BOX IS ONE ELEMENT, and `scroll` names WHICH: on the frame when a boundary splits the two, on
-// the rows otherwise (the default, and the original DOM). It is not a stylistic knob — a body whose own
-// height chain must survive, like the databank pane's `<VirtualList className="h-full">`, only works with the
-// rows arm, and a keyed boundary only works with the frame arm.
-//
-// WHY THE TWO COMPOSITES CANNOT SIMPLY MERGE: `LibraryListLayout` has FOUR consumers but only TWO of them
-// (preset, databank) nest it inside `LibrarySurfaceShell`'s boundary — `refinery-list-surface` composes the
-// layout with no shell at all, and Extensions uses the split frame so its search remains outside the loading boundary.
-// One merged component would force a boundary on the first and a layout on the second. `LibraryListLayout`
-// survives as exactly `LibraryListFrame` + `LibraryListRows` for the two consumers that need no boundary
-// between them, so there is one definition of each piece and nothing to re-merge.
-//
-// The `beforeSearch` slot is GONE with its one consumer: presets' pane-level "Active for generation" Select
-// died when activation became the row's own toggle (redesign §9/D1). A pane-scoped block above the search is
-// exactly the chrome a mixed-kind config list can't keep, so the slot goes with it rather than waiting.
-//
-// The in-pane micro-caps TITLE + actions row this used to carry is GONE (L4): both
-// consumers now supply a `useListHeader` and their title/create live in the `.shell-panel-header` band, like
-// every other section's (D66 A1/A2). The A1/N2 migration this file once deferred to "a separate lane" IS
-// that lane.
+// The library LIST body: the QueryBoundary shell with shared load and error copy, and the rows with their
+// radiogroup keyboard contract. The pane chrome, its search and its scroll box are `ListPage`'s; a rows container
+// owns the scroll box only when its `ListPage` body is `bounded`.
 //
 // OWNER RULING: lives client-shared (NOT @orb/ui — it wires #data/#lib client seams; the ConfirmDialog
 // homing precedent).
 
-import { Input } from "@orb/ui/input";
-import { Stack, Surface } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
 import { QueryErrorState, SkeletonRows } from "#data";
-import { ListSearch } from "./list-search.tsx";
+import { ListScrollBox } from "./list-page.tsx";
 import { QueryBoundary } from "./query-boundary.tsx";
 import { useRovingRadioGroup } from "./use-roving-radio-group.ts";
 
@@ -62,9 +31,8 @@ export interface LibrarySurfaceShellProps {
   readonly children: ReactNode;
 }
 
-/** The library-surface QueryBoundary shell: shared load + error/retry copy. The caller owns the outer
- *  focus-on-mount container (the surface-purity `A11y focus restoration` gate scans the surface file) AND,
- *  since #1748, the `LibraryListFrame` that carries the pane's scroll box above this boundary. */
+/** The library-surface QueryBoundary shell: shared load and error/retry copy. Its `ListPage` sits above it and
+ *  owns the focus root and, with a `scroll` body, the scroll box the boundary must not sever. */
 export function LibrarySurfaceShell({ loadingLabel, errorLabel, reserveKey, children }: LibrarySurfaceShellProps): ReactElement {
   return (
     <QueryBoundary
@@ -81,64 +49,12 @@ export function LibrarySurfaceShell({ loadingLabel, errorLabel, reserveKey, chil
   );
 }
 
-/** The one class string the pane's scroll box wears, whichever of the two elements owns it. */
-const LIBRARY_SCROLL_BOX = "relative min-block-0 flex-1 overflow-y-auto overscroll-contain";
-
-export interface LibraryListFrameProps {
-  readonly searchValue: string;
-  readonly onSearchChange: (value: string) => void;
-  readonly searchPlaceholder: string;
-  readonly searchLabel: string;
-  /**
-   * THE FRAME OWNS THE PANE'S SCROLL BOX. Exactly one of `LibraryListFrame.scroll` and
-   * `LibraryListRows.scroll` is true — the scroller is one element, and WHICH element it is depends on
-   * whether a `QueryBoundary` sits between them (#1748): with a boundary in the middle the box must be up
-   * here, because the reservation's auto-height measuring Stack severs any `flex-1` below it. Default false
-   * = the rows own it, which is the un-split `LibraryListLayout` shape.
-   */
-  readonly scroll?: boolean;
-  /** The frame's body — a `LibraryListRows`, or the `QueryBoundary` that renders one. */
-  readonly children: ReactNode;
-}
-
-/** The library list CHROME: the instrument-tier surface and the pinned search input, plus the pane's scroll
- *  box when `scroll` says this is where it lives. Mounts ABOVE any `QueryBoundary` (#1748) — see the header. */
-export function LibraryListFrame({
-  searchValue,
-  onSearchChange,
-  searchPlaceholder,
-  searchLabel,
-  scroll = false,
-  children,
-}: LibraryListFrameProps): ReactElement {
-  return (
-    // INSTRUMENT tier (UI-Density-Law.md §3.1 LIST panes) — presets and world-info books are scanned
-    // lists, not forms. Declared once here, so both consuming surfaces get identical density by
-    // construction instead of each picking steps by taste.
-    <Surface tier="instrument">
-      <Stack className="block-full" gap="row">
-        <ListSearch>
-          <Input aria-label={searchLabel} onValueChange={onSearchChange} placeholder={searchPlaceholder} value={searchValue} />
-        </ListSearch>
-
-        {scroll ? (
-          <Stack className={LIBRARY_SCROLL_BOX} data-slot="library-list-scroll">
-            {children}
-          </Stack>
-        ) : (
-          children
-        )}
-      </Stack>
-    </Surface>
-  );
-}
-
 export interface LibraryListRowsProps {
   /** True → render `empty` instead of the rows. */
   readonly isEmpty: boolean;
   /** The empty/no-match state (an `EmptyState`). */
   readonly empty?: ReactNode;
-  /** The rows (rendered in the frame's scroll area when not empty). */
+  /** The rows, rendered when not empty. */
   readonly children: ReactNode;
   /**
    * Names the ROWS container as a `role="radiogroup"` — for a list whose rows carry a ONE-OF-N state
@@ -147,18 +63,14 @@ export interface LibraryListRowsProps {
    * this is additive and changes nothing for a caller that does not pass it.
    */
   readonly rowsRadiogroupLabel?: string;
-  /**
-   * THE ROWS OWN THE PANE'S SCROLL BOX — the un-split default, and the twin of `LibraryListFrame.scroll`
-   * (exactly one is true; that prop's doc is the one home for why). A consumer with a `QueryBoundary`
-   * between the frame and these rows passes `false`: the box lives on the frame instead, because the
-   * reservation's auto-height measuring Stack cannot carry a `flex-1` through (#1748/#1133).
-   */
-  readonly scroll?: boolean;
+  /** The rows own the pane's scroll box. True under a `bounded` `ListPage` body, false under a `scroll` one,
+   *  which already is the box. */
+  readonly scroll: boolean;
 }
 
 /** The library list BODY: empty-or-rows, plus the radiogroup keyboard contract. Everything here depends on
  *  the read, so this is the half that lives INSIDE the boundary. */
-export function LibraryListRows({ isEmpty, empty, children, rowsRadiogroupLabel, scroll = true }: LibraryListRowsProps): ReactElement {
+export function LibraryListRows({ isEmpty, empty, children, rowsRadiogroupLabel, scroll }: LibraryListRowsProps): ReactElement {
   const rowsGroup = rowsRadiogroupLabel === undefined ? {} : { role: "radiogroup", "aria-label": rowsRadiogroupLabel };
   // The radiogroup's keyboard contract (side-eye F-5) — roving tabindex + Arrow/Home/End moving FOCUS ONLY,
   // with Space/Enter as the commit (#481: arrows used to activate, and this list's activation is a persisted
@@ -169,34 +81,13 @@ export function LibraryListRows({ isEmpty, empty, children, rowsRadiogroupLabel,
   if (isEmpty) {
     return <>{empty}</>;
   }
-  return (
-    <Stack {...rowsGroup} {...(scroll ? { className: LIBRARY_SCROLL_BOX, "data-slot": "library-list-scroll" } : {})} gap="tight" ref={rowsRef}>
+  return scroll ? (
+    <ListScrollBox {...rowsGroup} gap="tight" ref={rowsRef}>
+      {children}
+    </ListScrollBox>
+  ) : (
+    <Stack {...rowsGroup} gap="tight" ref={rowsRef}>
       {children}
     </Stack>
-  );
-}
-
-export interface LibraryListLayoutProps extends Omit<LibraryListFrameProps, "scroll">, Omit<LibraryListRowsProps, "scroll"> {}
-
-/** Frame + rows with NOTHING between them, and therefore the original single-scroller DOM: the rows container
- *  IS the pane's scroll box. For consumers whose read has already settled by the time the list renders
- *  (`refinery-list-surface`, the databank pane, the CT harness), where nothing severs the height chain — the
- *  databank body's own `<VirtualList className="h-full">` needs that chain intact and is what proves it. */
-export function LibraryListLayout({
-  searchValue,
-  onSearchChange,
-  searchPlaceholder,
-  searchLabel,
-  isEmpty,
-  empty,
-  children,
-  rowsRadiogroupLabel,
-}: LibraryListLayoutProps): ReactElement {
-  return (
-    <LibraryListFrame onSearchChange={onSearchChange} searchLabel={searchLabel} searchPlaceholder={searchPlaceholder} searchValue={searchValue}>
-      <LibraryListRows isEmpty={isEmpty} {...(empty === undefined ? {} : { empty })} {...(rowsRadiogroupLabel === undefined ? {} : { rowsRadiogroupLabel })}>
-        {children}
-      </LibraryListRows>
-    </LibraryListFrame>
   );
 }
