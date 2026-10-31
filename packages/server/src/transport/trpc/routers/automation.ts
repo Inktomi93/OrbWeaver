@@ -7,9 +7,8 @@
 //     lane is visible to exactly one person and FORBIDDEN would make a rule id an existence oracle.
 // Thin: validate the wire schema → `principal: ctx.auth` → the acting verb.
 // The preset VOCABULARY is NOT re-spelled here — the wire wrappers reference `@orb/contracts/automation`'s
-// preset id + knob schemas (one home per shape — `no-inline-union-redecl`). testRule's optional `sampleEvent`
-// (a `TriggerFact`) has no wire schema home — the pane's dry-run synthesizes from the rule's
-// trigger, so the wire omits it (the verb's `sampleEvent?` absent path). The per-user global-variable verbs
+// preset id + knob schemas (one home per shape — `no-inline-union-redecl`). testRule's dry-run
+// synthesizes its fact from the rule's trigger, so the wire takes no sample event. The per-user global-variable verbs
 // are NOT exposed here (this pane is rule-scoped; globals are a later settings surface). Result shapes flow
 // to the client via tRPC `inferOutput` — no domain result type (RuleView/FireView/TestRunResult) duplicated.
 // THE LIVE FEED IS NOT HERE: the per-chat automation bus folded onto the multiplexed socket at SSE-1 S4 and
@@ -114,7 +113,7 @@ export const automationRouter = t.router({
     ),
 
   // The dry-run: evaluate the predicate + render every arm's templates, executing NOTHING (the editor's
-  // diagnostics surface). The optional sampleEvent is synthesized in the verb from the rule's trigger.
+  // diagnostics surface). The fact is synthesized in the verb from the rule's trigger.
   testRule: authedProcedure
     .output(testRunResultSchema)
     .input(z.object({ ruleId: typeIdSchema(ID_PREFIX.automationRule) }))
