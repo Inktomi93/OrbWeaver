@@ -32,10 +32,9 @@ export type WeavePluckMap = ReadonlyMap<WeaveStrand, readonly WeavePluck[]> | nu
  */
 export type WeaveSway = ({ readonly kind: "field" | "offset"; readonly now: number } & WeaveWeather) | null;
 
-/** The two dials that scale the ambient breath (weave-lab §1): the `wind` prop, and the decaying
- *  web-wide `shiver` a pluck raises. Both zero = the sway the web shipped with, to the bit. */
+/** The dial that scales the ambient breath (weave-lab §1): the decaying web-wide `shiver` a pluck
+ *  raises. Zero = the sway the web shipped with, to the bit. */
 export interface WeaveWeather {
-  readonly wind: number;
   readonly shiver: number;
 }
 
@@ -50,7 +49,7 @@ export function swayPt(p: WeavePoint, sway: WeaveSway): WeavePoint {
     const { dx, dy } = weaveSwayOffset(sway);
     return { x: p.x + dx, y: p.y + dy };
   }
-  const gain = swayGain({ now: sway.now, x: p.x, wind: sway.wind, shiver: sway.shiver });
+  const gain = swayGain({ shiver: sway.shiver });
   return {
     x: p.x + Math.sin(sway.now * SWAY_X_HZ + p.y * SWAY_X_WAVELENGTH) * SWAY_X_PX * gain,
     y: p.y + Math.cos(sway.now * SWAY_Y_HZ + p.x * SWAY_Y_WAVELENGTH) * SWAY_Y_PX * gain,

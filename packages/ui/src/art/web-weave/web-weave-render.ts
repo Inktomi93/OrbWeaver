@@ -45,10 +45,9 @@ export interface WeaveFrameInput {
   readonly dim: number;
   /** Static frame (reduced motion): no sway, dew at rest alpha, no glint, no float. */
   readonly still: boolean;
-  readonly spider: boolean;
   /** The A9 handoff line + its start wall-clock time; null unless state === "strand-out". */
   readonly strandOut: { readonly pts: readonly WeavePoint[]; readonly t0: number } | null;
-  /** The weather dials (weave-lab §1). `{ wind: 0, shiver: 0 }` is the shipped ambient sway exactly. */
+  /** The weather dials (weave-lab §1). `{ shiver: 0 }` is the shipped ambient sway exactly. */
   readonly weather: WeaveWeather;
   /** Frame delta (ms) — the prey machine moves her in px/ms, not px/frame. */
   readonly dt: number;
@@ -305,9 +304,6 @@ function drawStrandOut(ctx: CanvasRenderingContext2D, input: WeaveFrameInput, sw
 /** The weaver, painted at her pose moved onto the swaying silk (the pose itself stays in web space —
  *  the tracker's heading must not be perturbed by the ambient breath). */
 function paintSpider(ctx: CanvasRenderingContext2D, input: WeaveFrameInput, tracker: SpiderTracker, sway: WeaveSway): void {
-  if (!input.spider) {
-    return;
-  }
   const pose = spiderPose(input, tracker);
   if (pose === null) {
     return;
