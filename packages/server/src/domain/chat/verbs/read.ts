@@ -63,7 +63,6 @@ import {
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { composeProse, isPresetProseSlotId, resolveProseText } from "@orb/contracts/prose";
 import { isRpgEngaged } from "@orb/contracts/rpg";
-import type { Resolved } from "@orb/inference";
 import { generationOf, preservesCacheBlockEnds, resolveCarryReasoning } from "@orb/inference";
 import { projectBodyForPreview } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -250,9 +249,6 @@ interface PreviewInputs extends RoomInputs {
   readonly capability: GenerationCapability | undefined;
   /** The admitted prefix action and effective role floor require stored block ends to survive SHAPE. */
   readonly explicitCacheMarkers: boolean;
-  /** The resolved protocol axis — previewContextFit source-modes the divider boundary on it (agent-sdk → the
-   *  marker coverage point; stateless → the fit boundary). */
-  readonly api: Resolved<"chat">["api"];
 }
 
 /** The room-derived half of {@link PreviewInputs}: everything a read that never calls a model needs. It owns no
@@ -479,7 +475,6 @@ async function resolvePreviewInputs(ctx: ChatContext, deps: ReadDeps, chatId: Ch
     // The window the next turn sends and fits: the preset's, on a route whose request sets it.
     capability: windowForPreset(generationOf(connection), room.foreign.promptConfig.params.maxContextTokens),
     explicitCacheMarkers: preservesCacheBlockEnds(connection, generationOf(connection), room.foreign.promptConfig.params),
-    api: connection.api,
   };
 }
 

@@ -132,4 +132,18 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Partial landing: 10 rows applied, 14 reclassed to keep, the rest not yet judged. The item stays open.
+
+Applied: `DigestRow.isGroup`, `.topicAnchor`, `.keywords`; `MemoryPassCounts.skipped` (the digest and segment pass returns drop it); `AutoModeResult.turns` and `.stopReason` (`runAutoMode` returns the messages only; the step-level `done` reason still drives the loop); `CommitMessageParams.blocks`; `ReactionRow.messageId`; `HistoryTurn.extraTokens`; `PreviewInputs.api` (and its write in `resolvePreviewInputs`).
+
+Reclassed to keep, each found by deleting the field and reading the typecheck or the reader:
+- `MatchedKey.key`, `.matchedLatestUserMessage`: the activation trace carries `matchedKeys` into the host preview (`assembly/assemble.ts:728`), and `tests/server/domain/chat/assembly/world-info-watchdog-child.ts:75` asserts it.
+- `SendRegexResult.sendUserText`, `.sendMacroFreezes`, `SendRegexSink.sendUserText`, `.sendMacroFreezes`, `.memoryRecall`: `verbs/turn.ts:1674`, `:1684` and `:808` read them through the verb's own restated sink type (`verbs/turn.ts:125`), which the scan does not follow.
+- `RoomEntityIdOf.character`, `.persona`, `.regex`, `.databank`: `contract/room-reach.ts` indexes the type by `K`, and `persistence/room-reach.ts:41` and `entry/compose/room-reach.ts:23` need the typed ids.
+- `ChatRow.temporary`, `.forkedAt`, `.pendingHostUserId`: `ChatDetailRow` (the detail wire row) requires them at `verbs/fork.ts:832`, `verbs/invites.ts:286`, `:348`, `verbs/read.ts:840` and `verbs/start-chat.ts:274`.
+- `HumanSeat.kind`, `.userId`, `.characterId`: `ParticipantRowShape` requires them at `substrate/participants-humans.ts:45` and `:110`.
+- `InjectionCandidate.worldEntry.keys`: its doc comment says the activation trace and host preview list the keys; not deleted.
+
+Not judged here: the `ShapeOutput.stages`, `MemoryRecallRecord`, `MemoryBuildTrace`, `TurnPipelineResult`, `ChatEmitted` and `ChatStreamReplayEvent` rows (they feed traces, recorders or events), the `…Data` view rows, `chatMetadataSchema.*`, the results rows that would empty a type (`GeneratedText`, `DrainReport`, `ExtractQuietResult`, `StoreDigestParams.signal`), the persisted-JSON keys (`actorRekeysSchema`), the model-schema key `responders`, `NamedRow`, `CanonRow.folded`, `ShapeInput.speakers`, `SquashMode.canonApart`, `SlotTarget`, `PreviewInputs`-adjacent `TurnBase.*`. `SendParams.blocks` is the owner call and is left alone.
+
+Ran `pnpm typecheck packages/server/tsconfig.json tsconfig.node.json tsconfig.tests-dom.json tsconfig.tests-iso.json` (exit 0). Suites (all exit 0): `core-modes`, `read-preview-honesty`, `react-tool-rows`, `commit-fence-races` (19 tests); `memory-build-lifecycle.suite`, `memory-build-rows`, `joined-speaker-label` (5); `chain-stop-untouched`, `stored-narrator-smart-chain`, `bus-golden.suite` (12), all under `tests/server/domain/chat`.
