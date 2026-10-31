@@ -5,7 +5,7 @@ import ts from "typescript";
 import type { Site } from "./classify.ts";
 import { siteKey } from "./classify.ts";
 import type { PortMember } from "./restated-port.ts";
-import { effectiveMember, flowMembers, flowsAt, spreadFlowsAt } from "./restated-port.ts";
+import { effectiveMember, flowMembers, flowsAt } from "./restated-port.ts";
 import { isProduction, loadScanWorld, realpath } from "./worlds.ts";
 
 /** A member's scan key to the keys of the slots production code hands its value into, such as a composition root
@@ -29,7 +29,7 @@ function addFlow(flows: Map<string, Set<string>>, value: string | null, slot: st
 // A value handed into a slot, and a member derived from another (`readonly m: Owner["m"]`): a use of the slot or of
 // the derived member is a use of the member it comes from.
 function recordFlows(root: string, checker: ts.TypeChecker, node: ts.Node, flows: Map<string, Set<string>>): void {
-  for (const flow of [...flowsAt(checker, node).members, ...spreadFlowsAt(checker, node)]) {
+  for (const flow of flowsAt(checker, node).members) {
     const joined = flowMembers(checker, flow);
     addFlow(flows, joined === null ? null : memberKey(root, joined.owner), joined === null ? null : memberKey(root, joined.port));
   }
