@@ -1,8 +1,10 @@
 // @subject tests/support/node/corpus-surface-outputs.ts
 // @subject tests/support/node/corpus-surface-wire.ts
+
 import { assertReferentialIntegrity } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { UNKNOWN_COMMIT } from "@orb/kit/version-identity";
+import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import {
   SURFACE_GLOBAL_KEY,
@@ -27,7 +29,7 @@ test("native surface suppliers preserve app override provenance, owner-only glob
   const wire = createSurfaceOutputWire(provider.execute);
   await using root = await createServerHarness({
     providerFetch: provider.execute,
-    networkExecution: { fetch: wire.execute, resolver: () => Promise.resolve(["93.184.215.14"]) },
+    networkExecution: { fetch: wire.execute, resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]) },
   });
   const output = await seedCorpusSurfaceOutputs(root, wire);
   const { settings, characters, assets } = output;

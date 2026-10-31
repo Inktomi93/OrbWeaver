@@ -44,14 +44,14 @@
 // `orb/persistence-boundary`'s allowlist (`RAW_STORAGE_HOMES` in eslint.config.ts). Nothing else here touches browser storage directly.
 
 import type { UserId, VerifiedUserId } from "@orb/kit/ids";
-import { ACTIVE_USER_KEY, durableLocalStorageKey } from "../lib/boot-names.ts";
+import { ACTIVE_USER_KEY, durableLocalStorageKey } from "./durable-local-keys.ts";
 
 /** A first-user legacy move may span failures, identity switches, and reloads; keep its owner durable. */
 const PENDING_ADOPTION_KEY = "orb:pending-legacy-adoption";
 
 /** The un-namespaced era's key shape, kept only to be adopted away from. */
 function legacyKey(prefix: string, name: string): string {
-  return durableLocalStorageKey(prefix, null, name);
+  return `${prefix}${name}`;
 }
 
 /** The persist-middleware surface this module drives. Structural: both doors hand over a zustand store api,

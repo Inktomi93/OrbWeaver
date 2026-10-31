@@ -9,8 +9,8 @@ import { isPlainObject } from "@orb/kit/guards";
 import { pickKeys } from "@orb/kit/objects";
 import type { SeedThemeName } from "#lib";
 import { isSeedThemeName } from "#lib";
-import { APPEARANCE_BOOT_HINT_NAME, APPEARANCE_BOOT_HINT_VERSION } from "../lib/boot-names.ts";
 import { createPersistedStore } from "./create-persisted-store.ts";
+import { APPEARANCE_BOOT_HINT_NAME, APPEARANCE_BOOT_HINT_VERSION } from "./durable-local-keys.ts";
 
 /** The root attribute the generated `[data-theme="…"]` palette blocks in the ui package's theme.css select on. */
 export const DATA_THEME_ATTR = "data-theme";

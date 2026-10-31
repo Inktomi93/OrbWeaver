@@ -12,16 +12,16 @@ import { pickKeys } from "@orb/kit/objects";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { Locator, Page } from "@playwright/test";
 import { z } from "zod";
-import {
-  ACTIVE_USER_KEY,
-  APP_READY_ATTR,
-  APPEARANCE_BOOT_HINT_NAME,
-  APPEARANCE_BOOT_HINT_VERSION,
-  DURABLE_LOCAL_PREFIX,
-  durableLocalStorageKey,
-} from "#client/lib/boot-names.ts";
+import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import type { AppearanceBootHintState } from "#client/state/appearance-boot-hint.ts";
+import {
+  ACTIVE_USER_KEY,
+  APPEARANCE_BOOT_HINT_NAME,
+  APPEARANCE_BOOT_HINT_VERSION,
+  durableLocalStorageKey,
+  PERSISTED_STORE_PREFIX,
+} from "#client/state/durable-local-keys.ts";
 import { channelName } from "../client/lib/appearance-channel-names.ts";
 import type { ActorClient } from "./support/actors.ts";
 import { ownerActor } from "./support/actors.ts";
@@ -127,7 +127,7 @@ async function recordBoot(page: Page, hint: AppearanceBootHintState | null): Pro
     rootId: ROOT_ID,
     trailName: BOOT_TRAIL,
     activeUserKey: ACTIVE_USER_KEY,
-    prefix: DURABLE_LOCAL_PREFIX,
+    prefix: PERSISTED_STORE_PREFIX,
   };
   await page.addInitScript({ content: `(${install.toString()})(${JSON.stringify(args)}, ${durableLocalStorageKey.toString()});` });
 }

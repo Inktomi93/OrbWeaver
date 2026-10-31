@@ -66,7 +66,7 @@ import type { WeavePhase } from "@orb/ui/web-weave";
 import { WeaveGlyph, WeaveVeil, WebWeave } from "@orb/ui/web-weave";
 import type { ReactElement } from "react";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { APP_READY_ATTR } from "../../../lib/boot-names.ts";
+import { APP_READY_ATTR } from "#lib";
 
 function subscribeReady(onChange: () => void): () => void {
   const observer = new MutationObserver(onChange);

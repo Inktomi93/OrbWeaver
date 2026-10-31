@@ -2,11 +2,11 @@
 import { create } from "zustand";
 import type { PersistOptions, StateStorage } from "zustand/middleware";
 import { createJSONStorage, devtools, persist, subscribeWithSelector } from "zustand/middleware";
-import { DURABLE_LOCAL_PREFIX } from "../lib/boot-names.ts";
 import type { GatedSet, GatedStoreHook } from "./create-gated-store.ts";
 import { STORE_DEVTOOLS_ENABLED } from "./create-gated-store.ts";
 import type { DurableLocalPersistApi } from "./durable-local.ts";
 import { durableLocalKey, durableLocalWritesAllowed, registerDurableLocalStore } from "./durable-local.ts";
+import { PERSISTED_STORE_PREFIX } from "./durable-local-keys.ts";
 
 const registeredNames = new Set<string>();
 
@@ -45,7 +45,7 @@ export function createPersistedStore<T, TPersisted = T>(
   }
   registeredNames.add(name);
 
-  const storageKey = durableLocalKey(DURABLE_LOCAL_PREFIX, name);
+  const storageKey = durableLocalKey(PERSISTED_STORE_PREFIX, name);
 
   const hook = create<T>()(
     devtools(
@@ -84,7 +84,7 @@ export function createPersistedStore<T, TPersisted = T>(
   // Enrolment, not a second registry: `durable-local.ts` owns the key scheme, so the rebind at identity
   // resolution reaches every mint without any store knowing an identity exists.
   registerDurableLocalStore({
-    prefix: DURABLE_LOCAL_PREFIX,
+    prefix: PERSISTED_STORE_PREFIX,
     name,
     api: hook as unknown as DurableLocalPersistApi,
     reset: (): void => {

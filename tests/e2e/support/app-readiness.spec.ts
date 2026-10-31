@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { APP_READY_ATTR } from "#client/lib/boot-names.ts";
+import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { waitForAppReady } from "./chat-room.ts";
 
 test("readiness requires settled reads, not the degraded fallback marker", async ({ page }) => {

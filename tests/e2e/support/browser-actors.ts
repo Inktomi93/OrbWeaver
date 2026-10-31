@@ -23,7 +23,7 @@ import { CSRF_HEADER, viewerViewSchema } from "@orb/contracts/identity";
 import type { Handle, UserId } from "@orb/kit/ids";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { z } from "zod";
-import { APP_READY_ATTR } from "#client/lib/boot-names.ts";
+import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { SESSION_COOKIE } from "./actors.ts";
 import { openChatByTitle } from "./chat-room.ts";
 

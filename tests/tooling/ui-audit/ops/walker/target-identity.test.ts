@@ -59,6 +59,18 @@ test("PLANTED CONTROL: the parser reports EMPTY when the declaration is renamed,
   expect(walkerVariantAttrs(WALKER_TARGET_IDENTITY.replace("TARGET_VARIANT_ATTRS", "TARGET_VARIANT_ATTRS_RENAMED"))).toStrictEqual([]);
 });
 
+test("the walker's identity vocabulary carries no axis that no recipe declares", () => {
+  // A dead axis widens the identity key with an attribute nothing emits, so a hand-written fixture can split a
+  // population that production never splits.
+  expect(walkerVariantAttrs(WALKER_TARGET_IDENTITY)).not.toContain("data-intent");
+  expect(STAMPED_VARIANT_AXES).not.toContain("intent");
+});
+
+test("the walker reads the square box as its own authored decision", () => {
+  expect(STAMPED_VARIANT_AXES).toContain("square");
+  expect(walkerVariantAttrs(WALKER_TARGET_IDENTITY)).toContain("data-square");
+});
+
 test("the identity CLAIM reads the vocabulary through that one array", () => {
   // A member added to the array but never read would be inert: the claim builder is the only consumer, and
   // it must loop the list rather than naming attributes inline.

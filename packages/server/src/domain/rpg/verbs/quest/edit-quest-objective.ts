@@ -3,6 +3,7 @@
 // so a stale panel cannot re-assert every sibling objective it happened to render.
 
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
+import { RPG_OP_CODES } from "#src/domain/rpg/contract/op-codes.ts";
 import type { EditQuestObjectiveParams } from "#src/domain/rpg/contract/params.ts";
 import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
 import { resolveHost } from "#src/domain/rpg/guard.ts";
@@ -43,7 +44,7 @@ export function createEditQuestObjective(ctx: RpgContext): Pick<RpgService, "edi
       if (written.reason === "quest objective not found" && op.kind !== "add") {
         throw new DomainNotFoundError("quest objective", op.objectiveId);
       }
-      throw new DomainOperationError("rpg_snapshot_state_invalid", written.reason);
+      throw new DomainOperationError(RPG_OP_CODES.snapshotStateInvalid, written.reason);
     }
     ctx.emitBus({ type: "snapshotPatched", chatId: params.chatId, snapshotId: written.snapshotId });
     ctx.emitBus({ type: "questChanged", chatId: params.chatId });

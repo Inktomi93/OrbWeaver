@@ -10,6 +10,7 @@
 import { Card } from "@orb/ui/card";
 import { Icon, ImagePlus } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { RoomIsland } from "@orb/ui/room-island";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import type { ComposerMediaDrop } from "../hooks/use-composer-media-drop.ts";
@@ -27,7 +28,7 @@ export interface ComposerDropTargetProps {
 export function ComposerDropTarget({ dragActive, dropTargetProps, children }: ComposerDropTargetProps): ReactElement {
   return (
     <Track
-      of={Card}
+      of={RoomIsland}
       track="composer"
       className="relative isolate flex-auto min-block-0"
       layout="stack"
@@ -39,7 +40,6 @@ export function ComposerDropTarget({ dragActive, dropTargetProps, children }: Co
       // state is louder than focus: an armed target has to announce itself while a file hovers over it.
       dropTarget={true}
       holdsField={true}
-      shape="float"
     >
       <Stack className="flex-auto min-block-0 min-inline-0" data-slot="composer-content" gap="field">
         {/* The drop AFFORDANCE — a designed state, not an afterthought: a drag over the composer is an empty

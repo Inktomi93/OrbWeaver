@@ -9,6 +9,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, seedCorpusActors, seedRecallRoom, seedRpgGame } from "@orb/testkit/node/composed";
+import { RPG_OP_CODES } from "#server/domain/rpg/contract/op-codes.ts";
 
 /** A digit run far past what `Number` can hold: parsed loosely it becomes `Infinity`. */
 const OVERFLOWING_DIGITS = "9".repeat(400);
@@ -40,14 +41,14 @@ async function openTable(): Promise<Table> {
 }
 
 const REFUSED = [
-  { notation: `1d6+${OVERFLOWING_DIGITS}`, code: "rpg_bad_dice_notation" },
-  { notation: `1d6-${OVERFLOWING_DIGITS}`, code: "rpg_bad_dice_notation" },
-  { notation: `${OVERFLOWING_DIGITS}d6`, code: "rpg_bad_dice_notation" },
-  { notation: "1d6+1001", code: "rpg_dice_out_of_bounds" },
-  { notation: "1d6-1001", code: "rpg_dice_out_of_bounds" },
-  { notation: "101d6", code: "rpg_dice_out_of_bounds" },
-  { notation: "1d1001", code: "rpg_dice_out_of_bounds" },
-  { notation: "1d1", code: "rpg_dice_out_of_bounds" },
+  { notation: `1d6+${OVERFLOWING_DIGITS}`, code: RPG_OP_CODES.badDiceNotation },
+  { notation: `1d6-${OVERFLOWING_DIGITS}`, code: RPG_OP_CODES.badDiceNotation },
+  { notation: `${OVERFLOWING_DIGITS}d6`, code: RPG_OP_CODES.badDiceNotation },
+  { notation: "1d6+1001", code: RPG_OP_CODES.diceOutOfBounds },
+  { notation: "1d6-1001", code: RPG_OP_CODES.diceOutOfBounds },
+  { notation: "101d6", code: RPG_OP_CODES.diceOutOfBounds },
+  { notation: "1d1001", code: RPG_OP_CODES.diceOutOfBounds },
+  { notation: "1d1", code: RPG_OP_CODES.diceOutOfBounds },
 ] as const;
 
 test("overflowing and out-of-range notation is refused before any random draw on the service and the route", async () => {
@@ -85,8 +86,8 @@ test("an ability check still rolls a bare d20 with the sheet's modifier and refu
   }
   const params = { principal: table.owner, chatId: table.chatId, ability: ability.key };
   const before = table.draws();
-  await expect(table.root.services.rpg.rollDice({ ...params, notation: "d20" })).rejects.toMatchObject({ code: "rpg_unset_ability" });
-  await expect(table.root.services.rpg.rollDice({ ...params, notation: "d20+5" })).rejects.toMatchObject({ code: "rpg_bad_ability_dice" });
+  await expect(table.root.services.rpg.rollDice({ ...params, notation: "d20" })).rejects.toMatchObject({ code: RPG_OP_CODES.unsetAbility });
+  await expect(table.root.services.rpg.rollDice({ ...params, notation: "d20+5" })).rejects.toMatchObject({ code: RPG_OP_CODES.badAbilityDice });
   expect(table.draws()).toBe(before);
 
   const score = 16;

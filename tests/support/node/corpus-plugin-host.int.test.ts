@@ -1,5 +1,6 @@
 // @subject tests/support/node/corpus-plugin-host.ts
 // @subject tests/support/node/factories/plugin.ts
+
 import { spawn } from "node:child_process";
 import { triggerFactSchema } from "@orb/contracts/automation";
 import { assets, characters, documents, imageryGenerations } from "@orb/db";
@@ -8,6 +9,7 @@ import { jsonValueSchema } from "@orb/kit/json";
 import { estimateTokens } from "@orb/kit/tokens";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import {
   CORPUS_PLUGIN_HOST_DRAFT,
@@ -70,7 +72,7 @@ test("the native resident guest captures admitted host returns and real prompt/e
       fetch: network,
       resolver: (host) => {
         if (host === new URL(CORPUS_PLUGIN_HOST_URL).hostname) {
-          return Promise.resolve(["93.184.215.14"]);
+          return Promise.resolve([PUBLIC_PEER_ADDRESS]);
         }
         if (host === new URL(CORPUS_PROVIDER_ENDPOINT).hostname) {
           return Promise.resolve(["127.0.0.1"]);

@@ -25,6 +25,8 @@ interface Extraction {
   readonly toDoor: string;
   /** The attributes written where the first matched attribute stood; a value in braces is a JSX expression. */
   readonly attributes: readonly (readonly [string, string])[];
+  /** Axes the target paints over entirely, so the source's unnamed default for them draws nothing the move could change. */
+  readonly overrides: readonly string[];
 }
 
 function isPair(value: unknown): value is readonly [string, string] {
@@ -57,8 +59,12 @@ function readExtraction(entry: unknown, label: string): Extraction {
   }
   const fields = Object.fromEntries(STRING_FIELDS.map((field) => [field, field in entry ? (entry as Record<string, unknown>)[field] : undefined]));
   const attributes = "attributes" in entry ? entry.attributes : undefined;
+  const overrides = "overrides" in entry ? entry.overrides : [];
   if (!(STRING_FIELDS.every((field) => typeof fields[field] === "string") && Array.isArray(attributes) && attributes.every(isPair))) {
     throw new Error(`${label} needs element, door, to, toDoor as strings and attributes as [name, value] pairs`);
+  }
+  if (!(Array.isArray(overrides) && overrides.every((axis) => typeof axis === "string"))) {
+    throw new Error(`${label} needs overrides as an array of axis names`);
   }
   return {
     element: String(fields["element"]),
@@ -67,6 +73,7 @@ function readExtraction(entry: unknown, label: string): Extraction {
     to: String(fields["to"]),
     toDoor: String(fields["toDoor"]),
     attributes,
+    overrides,
   };
 }
 
@@ -174,7 +181,12 @@ const attributeName = (attribute: SgNode<TSX>): string => attribute.child(0)?.te
 function changedDefaults(attributes: readonly SgNode<TSX>[], extraction: Extraction, defaults: Defaults): string[] {
   const source = defaults.get(extraction.element) ?? {};
   const target = defaults.get(extraction.to) ?? {};
-  const named = new Set([...attributes.map(attributeName), ...Object.keys(extraction.match), ...extraction.attributes.map(([name]) => name)]);
+  const named = new Set([
+    ...attributes.map(attributeName),
+    ...Object.keys(extraction.match),
+    ...extraction.attributes.map(([name]) => name),
+    ...extraction.overrides,
+  ]);
   return [...new Set([...Object.keys(source), ...Object.keys(target)])].filter((axis) => !named.has(axis) && (source[axis] ?? "") !== (target[axis] ?? ""));
 }
 

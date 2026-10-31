@@ -18,7 +18,7 @@ import { START_TEMP_CHAT_NAME } from "@orb/client/lib";
 import { chatDetailSchema } from "@orb/contracts/chat";
 import { documentDetailViewSchema } from "@orb/contracts/databank";
 import { corpusReadInput } from "@orb/testkit/iso";
-import { APP_READY_ATTR } from "#client/lib/boot-names.ts";
+import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_CORPUS_FIXTURE, SINGLE_USER } from "./support/modes.ts";
 import { WAIT_SETTLE_MS, WAIT_UI_MS } from "./support/timeouts.ts";

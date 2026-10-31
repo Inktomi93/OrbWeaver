@@ -5,6 +5,7 @@
 // grammar homes at the lowest package that spells it and rides this barrel for client callers + tests.
 export { cn, removeActionName, selectActionName } from "@orb/ui/lib";
 export { AppFailureSurface } from "./app-failure-surface.tsx";
+export { APP_READY_ATTR } from "./app-ready-attribute.ts";
 export {
   APPEARANCE_ATTRIBUTE_PREFIX,
   APPEARANCE_CHANNEL_ROWS,

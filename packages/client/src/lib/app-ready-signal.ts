@@ -3,7 +3,7 @@
 // This module must not import development instrumentation.
 
 import type { QueryClient } from "@tanstack/react-query";
-import { APP_READY_ATTR } from "./boot-names.ts";
+import { APP_READY_ATTR } from "./app-ready-attribute.ts";
 import { bootReads } from "./boot-reads.ts";
 import { perfMeasureFromLoad } from "./perf-marks.ts";
 

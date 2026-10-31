@@ -1,6 +1,7 @@
 // Ambient launcher environment and tooling/test protocols are separate from subprocess creation in proc.ts.
 // Product configuration belongs to the server's environment boundary, never this launcher adapter.
 import process from "node:process";
+import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 
 /** Ambient process environment plus explicit child overrides. Tool launchers use this instead of each
  *  growing its own process.env suppression; app configuration is not read here. */
@@ -98,7 +99,7 @@ export function testProcessEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.Proces
       inherited[key] = value;
     }
   }
-  const environment: NodeJS.ProcessEnv = { ...inherited, ["ORB_ENV_NO_FILE"]: "1", ...overrides };
+  const environment: NodeJS.ProcessEnv = { ...inherited, [ENV_NO_FILE_KEY]: "1", ...overrides };
   const nodeOptions = environment["NODE_OPTIONS"];
   if (nodeOptions?.trimEnd().split(/\s+/u).at(-1) !== TEST_NODE_WEB_STORAGE_OPTION) {
     environment["NODE_OPTIONS"] = [nodeOptions, TEST_NODE_WEB_STORAGE_OPTION].filter(Boolean).join(" ");

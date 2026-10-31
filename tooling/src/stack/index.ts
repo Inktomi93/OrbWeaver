@@ -93,7 +93,6 @@ export { STACK_SPAWNERS, spawnerForPort } from "./lib/spawners.ts";
 export {
   cmdlineNamesCheckout,
   devStackPins,
-  ENV_NO_FILE,
   healthzUrl,
   PINNED_KEYS_ENV,
   PORT_ENV,

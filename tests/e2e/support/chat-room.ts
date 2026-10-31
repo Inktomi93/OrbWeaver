@@ -27,7 +27,7 @@ import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
-import { APP_READY_ATTR } from "#client/lib/boot-names.ts";
+import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
 import { streamTapOf, waitForRoomOpened } from "./stream-tap.ts";

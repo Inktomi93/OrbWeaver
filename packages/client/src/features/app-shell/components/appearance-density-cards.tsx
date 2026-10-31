@@ -14,10 +14,10 @@
 // does. Ornament, so the whole picture is `aria-hidden` inside the cell's art aperture.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
-import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
 import { RadioGroupPicker, RadioGroupPickerItem } from "@orb/ui/radio-group";
 import { Text } from "@orb/ui/text";
+import { ThemePreviewPane } from "@orb/ui/theme-swatch";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import { DENSITY_ITEMS } from "#lib";
@@ -32,13 +32,13 @@ function DensityDiagram({ tier }: { readonly tier: Density }): ReactElement {
   return (
     <Stack className="justify-center p-tight block-full inline-full" data-density={tier} data-slot="density-preview" gap="row">
       {["The first row", "A second row", "And a third"].map((line) => (
-        <Card key={line} tone="accent" shape="row" padding="none" className="min-inline-0">
+        <ThemePreviewPane key={line} fill="accent" shape="row" padding="none" className="min-inline-0">
           <Row align="center" className="p-field min-inline-0" gap="field">
             <Text as="span" className="truncate" voice="gloss">
               {line}
             </Text>
           </Row>
-        </Card>
+        </ThemePreviewPane>
       ))}
     </Stack>
   );
