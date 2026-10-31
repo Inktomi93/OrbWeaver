@@ -194,7 +194,7 @@ test("a stored admin row that names a retired task loads and serves the remainin
     values (${id}, 'Legacy SDK', 'agent-sdk', 'oauthToken', '["agent-sdk"]', ${JSON.stringify(RETIRED_SERVES)}, 'url', 0, 'stored-hash', 'admin')`);
 
   await using root = await createServerHarness({ db, startJobs: false });
-  const row = root.services.connection.registry.get(id, root.ownerId);
+  const row = root.app.runtime.providers.registry.get(id, root.ownerId);
   expect(row?.serves).toEqual(SDK_SERVES_AFTER);
   expect(row === undefined ? [] : providerTasks(row)).toEqual(SDK_SERVES_AFTER);
 });

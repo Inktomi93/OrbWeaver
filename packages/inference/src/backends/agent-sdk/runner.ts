@@ -62,7 +62,7 @@ import { assertSdkMessageRead } from "./wire-read.ts";
 /** The SDK query options for a turn's structured request: the planned schema as `outputFormat`, refused before
  *  the spawn when it does not fit, and nothing for a turn that asks for none. The agent-sdk carries only the native
  *  format, so the plan's vehicle is always `response-format`. */
-export function sdkOutputFormatOf(
+function sdkOutputFormatOf(
   connection: Resolved,
   format: ResponseFormat | undefined,
   label: string,
@@ -437,7 +437,7 @@ async function probeContextUsage(query: Query, scheduleTimeout: AgentSdkDeps["sc
 
 /** Reduce an SDK message stream into a `ChatResult`; throws `ProviderError` on any failure result. A stream
  *  that ends without a `result` frame is a TRUNCATED turn and a retryable provider fault (#1400). */
-export async function consumeTurnStream(stream: AsyncIterable<SDKMessage>, ctx: TurnStreamContext, log: AgentSdkLog): Promise<ChatResult> {
+async function consumeTurnStream(stream: AsyncIterable<SDKMessage>, ctx: TurnStreamContext, log: AgentSdkLog): Promise<ChatResult> {
   const acc = new TurnAccumulator(ctx, log);
   let streamFailure: unknown;
   // the stream failure is held in `streamFailure` and returned through finishTurnWithError at runner.ts:474 (typed Promise<never>) once the observed result is captured. Ends if capture stops preceding that refusal.

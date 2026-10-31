@@ -72,5 +72,5 @@ test("a new upload that names a retired task is refused, and an installed bundle
 
   const outcome = await root.services.plugin.setGrant({ caller, pluginId: installed.id, grant: ["storage.kv"], acknowledgedNetHosts: [], enable: true });
   expect(outcome.status).toBe("enabled");
-  expect(root.services.connection.registry.get(PROVIDER, root.ownerId)?.serves).toEqual(SERVES);
+  expect(root.app.runtime.providers.registry.get(PROVIDER, root.ownerId)?.serves).toEqual(SERVES);
 });
