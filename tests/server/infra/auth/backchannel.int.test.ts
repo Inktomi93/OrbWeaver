@@ -1,5 +1,6 @@
 // Native logout verification is assembled by the real OIDC composition owner, not a private infra import.
 // @subject packages/server/src/infra/auth/backchannel.ts
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { test as base, expect } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { configureOidc, createServerHarness } from "@orb/testkit/node/composed";
@@ -22,7 +23,7 @@ const test = base.extend<{ issuer: Issuer; root: ServerTestHarness; verifier: Ve
     await using root = await createServerHarness({
       networkExecution: {
         resolver: (hostname) =>
-          hostname === new URL(ISSUER).hostname ? Promise.resolve(["93.184.215.14"]) : Promise.reject(new Error("unscripted OIDC address resolution")),
+          hostname === new URL(ISSUER).hostname ? Promise.resolve([PUBLIC_PEER_ADDRESS]) : Promise.reject(new Error("unscripted OIDC address resolution")),
         fetch: issuer.fetch,
       },
     });

@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { setImmediate } from "node:timers/promises";
 import { queryObjects } from "node:v8";
 import { ANY_HOST, createScopedEgress, systemConnector, systemFetch, systemResolver } from "@orb/server/infra/network";
-import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
+import { createControlledTimers, createFrozenClock, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createTestLogger } from "@orb/testkit/node/composed";
 import { createTestEnv } from "@orb/testkit/node/helpers";
@@ -33,7 +33,7 @@ test("unresolved write-time endpoint admission remains public without attempting
 });
 
 test.each([
-  { address: "93.184.215.14", verdict: "public", allowlist: [] },
+  { address: PUBLIC_PEER_ADDRESS, verdict: "public", allowlist: [] },
   { address: "10.0.0.7", verdict: "refused", allowlist: [] },
   { address: "169.254.169.254", verdict: "refused", allowlist: ["0.0.0.0/0"] },
 ] as const)("write-time admission preserves $address as $verdict", async ({ address, verdict, allowlist }) => {

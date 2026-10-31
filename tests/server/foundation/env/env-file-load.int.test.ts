@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { ENV_NO_FILE_KEY, ENV_NO_OVERRIDE_KEY } from "@orb/kit/env-file";
 import { AUTH_MODE_DEFAULT_FALLBACK } from "@orb/server/foundation/env";
 import { expect, test } from "@orb/testkit/node";
 import { z } from "zod";
@@ -63,7 +64,7 @@ test("a launch's .env beats an already-set shell export, and fills keys the shel
   expect(env.ownerGroup).toBe("admins");
 });
 
-test.for([{ ["VITEST"]: "1" }, { ["ORB_ENV_NO_OVERRIDE"]: "1" }])(
+test.for([{ ["VITEST"]: "1" }, { [ENV_NO_OVERRIDE_KEY]: "1" }])(
   "with the override escape hatch %j the shell wins and the file still fills unset keys",
   (hatch, { importStagingDir }) => {
     const env = load(importStagingDir, "hatch", FILE, { ...SHELL, ...hatch });
@@ -75,7 +76,7 @@ test.for([{ ["VITEST"]: "1" }, { ["ORB_ENV_NO_OVERRIDE"]: "1" }])(
 
 test("ORB_ENV_NO_FILE skips the file entirely, so the file's values never reach the record", ({ importStagingDir }) => {
   const baseline = load(importStagingDir, "baseline", undefined);
-  const skipped = load(importStagingDir, "skipped", FILE, { ["ORB_ENV_NO_FILE"]: "1" });
+  const skipped = load(importStagingDir, "skipped", FILE, { [ENV_NO_FILE_KEY]: "1" });
   expect(skipped).toEqual(baseline);
   // Control: without the flag the same file changes the record.
   expect(load(importStagingDir, "loaded", FILE)).not.toEqual(baseline);

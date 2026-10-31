@@ -56,6 +56,17 @@ export async function migrationsBefore(tag: string): Promise<AsyncDisposable & {
   }
 }
 
+/** {@link migrationsBefore} the newest shipped migration: the chain a database holds just before the latest one runs. */
+export async function migrationsBeforeLatest(): Promise<AsyncDisposable & { readonly path: string }> {
+  const journal = jsonValueSchema.parse(JSON.parse(await readFile(join(SHIPPED_MIGRATIONS, "meta", "_journal.json"), "utf8")));
+  const entries = journal !== null && typeof journal === "object" && !Array.isArray(journal) && Array.isArray(journal["entries"]) ? journal["entries"] : [];
+  const latest = entries.at(-1);
+  if (latest === null || typeof latest !== "object" || Array.isArray(latest) || typeof latest["tag"] !== "string") {
+    throw new Error("shipped migration journal has no newest entry");
+  }
+  return await migrationsBefore(latest["tag"]);
+}
+
 /** A fresh in-memory db with the full schema applied (FK enforcement ON, via createDb). */
 export function freshDb(wrap?: LibSqlWrap): Promise<Db> {
   return prepareFreshDb(wrap);

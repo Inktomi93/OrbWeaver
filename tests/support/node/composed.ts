@@ -43,7 +43,7 @@ export {
 } from "./corpus-provider.ts";
 export { createCorpusRecipe, prepareCorpusSnapFixture, runCorpusSnapConsumer } from "./corpus-recipe.ts";
 export type { HeldDb, HeldStatement } from "./db.ts";
-export { freshCountedDb, freshDb, freshHeldDb, migrationsBefore, SHIPPED_MIGRATIONS } from "./db.ts";
+export { freshCountedDb, freshDb, freshHeldDb, migrationsBefore, migrationsBeforeLatest, SHIPPED_MIGRATIONS } from "./db.ts";
 export type { DbFault } from "./db-faults.ts";
 export { plantTrigger, refuseWrites, withheldTable } from "./db-faults.ts";
 export { createTestEnv } from "./env.ts";

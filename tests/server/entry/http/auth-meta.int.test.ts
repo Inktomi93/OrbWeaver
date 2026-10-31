@@ -1,10 +1,12 @@
 // The public bootstrap routes over the request principal the seam resolved from a real credential.
 // @subject packages/server/src/entry/http/auth-meta.ts
+
 import process from "node:process";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { claimShareOwner, createServerHarness, readRelayStarts, relayExecutable, relayProgram } from "@orb/testkit/node/composed";
@@ -98,7 +100,7 @@ describe("GET /api/auth/config share fields", () => {
     const { bytes, pin } = relayProgram(RELAY_URL);
     await using root = await localRoot({
       share: { relay: { pin } },
-      networkExecution: { resolver: () => Promise.resolve(["93.184.215.14"]), fetch: () => Promise.resolve(new Response(bytes)) },
+      networkExecution: { resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]), fetch: () => Promise.resolve(new Response(bytes)) },
     });
     const cookie = await claimShareOwner(root);
     const caller = await root.internalCallerFor(root.ownerId);
@@ -113,7 +115,7 @@ describe("GET /api/auth/config share fields", () => {
     const { bytes, pin } = relayProgram(RELAY_URL);
     await using root = await localRoot({
       share: { relay: { pin } },
-      networkExecution: { resolver: () => Promise.resolve(["93.184.215.14"]), fetch: () => Promise.resolve(new Response(bytes)) },
+      networkExecution: { resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]), fetch: () => Promise.resolve(new Response(bytes)) },
     });
     const cookie = await claimShareOwner(root);
     expect((await authConfig(root, { cookie })).share).toEqual({ state: "off", url: null });

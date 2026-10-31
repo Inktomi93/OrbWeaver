@@ -5,7 +5,7 @@ import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db";
 import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { databaseHandle } from "@orb/db/wiring-driver";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { migratePluginToolWireNames as migrateAutomationArms } from "@orb/server/domain/automation";
 import { backfillPluginProvenance } from "@orb/server/domain/character";
 import {
@@ -87,7 +87,7 @@ async function rootWithStaleSeat(): Promise<ServerHarness> {
   const root = await createServerHarness();
   const chat = await seedChatRow(root.db);
   await root.db.insert(chatParticipants).values({
-    id: mintTypeId(ID_PREFIX.chatParticipant),
+    id: root.ids.typeId(ID_PREFIX.chatParticipant),
     chatId: chat.id,
     kind: "human",
     userId: (await seedUser(root.db)).id,

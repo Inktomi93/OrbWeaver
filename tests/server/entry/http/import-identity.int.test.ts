@@ -14,6 +14,7 @@ import {
   ST_SETTINGS_FILE,
   TREE_FILE_FIELD,
 } from "@orb/contracts/import";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import type { CharacterId, WorkloadId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
@@ -22,8 +23,8 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makeAssetBytes } from "@orb/testkit/node/composed";
 import { CSRF_HEADERS } from "./_body-limit-inputs.ts";
 
-const DIALOG_ROUTE = "/api/import";
-const TREE_ROUTE = "/api/import/tree";
+const DIALOG_ROUTE = PORTABILITY_ROUTES.importCards;
+const TREE_ROUTE = PORTABILITY_ROUTES.importTree;
 const DIALOG_FIELD = "file";
 const WRAPPER = "default-user";
 const WORKLOAD_DEADLINE_MS = 60_000;

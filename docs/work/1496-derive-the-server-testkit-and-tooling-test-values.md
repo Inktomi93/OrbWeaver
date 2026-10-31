@@ -77,6 +77,30 @@ Row numbers are the rows of reports/test-derivation-audit/shard-b.md.
 | 35 | The floors throw a plain `Error`; a class is production work. |
 | 40 | The host's call must pass the gate; the verbs return a view, an id or nothing, so the gate case asserts that it is not refused. |
 
+### Fixed in the `tests/server` entry, foundation, infra, primitives and transport domains
+
+| Rows | Fix |
+| - | - |
+| 46 | `BOOT_DISCLAIMER_TOPICS` gives the block's order; the file is listed in `TEST_CONSTANT_HOMES`. |
+| 47, 49 | `migrationsBeforeLatest` (`tests/support/node/db.ts`, composed door) cuts the chain before the newest journal entry, and the blocked-backup refusal asserts its `ENOTDIR` code. A planted backup name must satisfy `isBackupFileName`. |
+| 50 and the silent case tables | `forEachNonEmpty` registers the `LEGACY_ENTRIES` tables in `migrate-data-layout.int.test.ts` and `data-layout/index.test.ts`, so an empty table fails at collection. |
+| 53, 55 (slice) | `IN_RANGE_CARD_FRAME_STYLE` replaces the slice in the card and plugin frame suites. |
+| 56, 30 | `PORTABILITY_ROUTES` and `exportCharacterPath` replace the route and export path literals in every `tests/server` suite that spelled them. |
+| 60 | `ENV_NO_FILE_KEY` and `ENV_NO_OVERRIDE_KEY` replace the hatch names; `VITEST` is vitest's own name. |
+| 63, 64, 66 | The card-serde script id is seeded; the chat-bundle serde suite builds its rooms on `makePortableChat` and its siblings, types its refusal names as `PortableParseFailure` and reads the databank kind from `DATABANK_SCHEMA_KIND`. |
+| 36, 84 | `PUBLIC_PEER_ADDRESS` replaces the literal in `tests/server/entry`, `foundation`, `infra` and `primitives`. |
+
+### Ruled to stay (entry, foundation, infra, primitives, transport)
+
+| Rows | Reason |
+| - | - |
+| 54 | The served style block's `${family}, sans-serif` spelling is the bytes under test over the real HTTP entry. |
+| 55 (root block) | The kit's root-block builder is module-private; an export only a test imports is refused. It needs a production home from item 1504. |
+| 57 | The numbered-twin suffix formatter has no production export; item 1504 owns it. |
+| 58, 62 | The data-layout skip refusal and the worker-permission refusal throw a plain `Error` with a message; a code is production work. |
+| 65 | The 200-character cap has no production constant. |
+| 66 (usage) | The usage fields are required and nullable with no schema defaults, so the base lists them. |
+
 ### Ruled to stay
 
 | Rows | Reason |

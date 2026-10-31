@@ -1,7 +1,7 @@
 import type { LookupFunction } from "node:net";
 import type { ScopedEgressOptions } from "@orb/server/infra/network";
 import { createScopedEgress, systemFetch } from "@orb/server/infra/network";
-import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
+import { createControlledTimers, createFrozenClock, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createTestLogger } from "@orb/testkit/node/composed";
 import { createTestEnv } from "@orb/testkit/node/helpers";
@@ -33,17 +33,16 @@ const scriptedConnector: ScopedEgressOptions["buildConnector"] = (options) => {
 
 type EgressResolver = NonNullable<ScopedEgressOptions["resolver"]>;
 
-const PUBLIC_ADDRESS = "93.184.215.14";
 const LOOPBACK_ADDRESS = "127.0.0.1";
 
-const resolveByHost: EgressResolver = (hostname) => Promise.resolve([hostname === "public.example" ? PUBLIC_ADDRESS : LOOPBACK_ADDRESS]);
+const resolveByHost: EgressResolver = (hostname) => Promise.resolve([hostname === "public.example" ? PUBLIC_PEER_ADDRESS : LOOPBACK_ADDRESS]);
 
 // The write-time pin resolves first and admits the public answer; the connector's own lookup then sees the
 // rebound loopback answer, so the connector is the gate that decides.
 function rebindingResolver(): EgressResolver {
   let answered = false;
   return () => {
-    const address = answered ? LOOPBACK_ADDRESS : PUBLIC_ADDRESS;
+    const address = answered ? LOOPBACK_ADDRESS : PUBLIC_PEER_ADDRESS;
     answered = true;
     return Promise.resolve([address]);
   };

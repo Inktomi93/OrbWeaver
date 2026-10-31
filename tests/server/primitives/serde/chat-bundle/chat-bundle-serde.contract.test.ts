@@ -3,16 +3,23 @@
 
 import type { PendingGenerationObservationInput } from "@orb/contracts/chat";
 import { generationUsageLegSchema, generationUsageSchema } from "@orb/contracts/inference";
-import type { PortableParse } from "@orb/contracts/portability";
-import { rpgGameConfigSchema, rpgSheetSchema, rpgSnapshotStateSchema } from "@orb/contracts/rpg";
+import type { PortableParse, PortableParseFailure } from "@orb/contracts/portability";
+import { rpgSheetSchema } from "@orb/contracts/rpg";
 import type { PortableChat, PortableChatMessage, PortableRpgGame } from "@orb/server/primitives/serde/chat-bundle";
 import { buildChatBundleFile, CHAT_BUNDLE_SCHEMA_KIND, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
+import { FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
+import { makePortableChat, makePortableGame, makePortableMessage, makePortableTurnSnapshot } from "@orb/testkit/node/helpers";
 import { describe } from "vitest";
+import { DATABANK_SCHEMA_KIND } from "#server/primitives/serde/databank/index.ts";
 
+// Typed literals: a failure name the contract renames fails `tsc` here.
+const FOREIGN_KIND: PortableParseFailure = "foreign-kind";
+const NOT_JSON: PortableParseFailure = "not-json";
+const NEWER_VERSION: PortableParseFailure = "newer-version";
 const ENC = new TextEncoder();
 const DEC = new TextDecoder();
-const AT = 1_700_000_000_000;
+const AT = FROZEN_AT_MS;
 
 interface Wire {
   messages: { variants: Record<string, unknown>[] }[];
@@ -27,7 +34,7 @@ function must<T>(result: PortableParse<T>): T {
   return result.value;
 }
 
-function refusalOf<T>(result: PortableParse<T>): string {
+function refusalOf<T>(result: PortableParse<T>): PortableParseFailure {
   if (result.ok) {
     throw new Error("expected the file to be refused, but it parsed");
   }
@@ -75,48 +82,29 @@ function observation(over: Partial<PendingGenerationObservationInput> = {}): Pen
 }
 
 function message(over: Partial<PortableChatMessage> = {}): PortableChatMessage {
-  return {
-    role: "assistant",
-    kind: "standard",
-    speakerHandle: "hero",
-    personaName: null,
-    createdAt: AT,
-    selectedIdx: 0,
-    variants: [
-      {
-        idx: 0,
-        content: "The bridge gave way.",
-        model: "gpt-4",
-        provider: "openai",
-        tokensIn: 120,
-        tokensOut: 42,
-        tokenProvenance: "measured",
-        reasoning: null,
-        ttftMs: 310,
-        genStartedAt: AT,
-        genFinishedAt: AT + 1000,
-        variableDelta: [{ op: "set", key: "mood", value: "grim" }],
-        metadata: null,
-      },
-    ],
-    ...over,
-  };
+  const variant = {
+    idx: 0,
+    content: "The bridge gave way.",
+    model: "gpt-4",
+    provider: "openai",
+    tokensIn: 120,
+    tokensOut: 42,
+    tokenProvenance: "measured",
+    reasoning: null,
+    ttftMs: 310,
+    genStartedAt: AT,
+    genFinishedAt: AT + 1000,
+    variableDelta: [{ op: "set", key: "mood", value: "grim" }],
+    metadata: null,
+  } as const;
+  return makePortableMessage("assistant", variant.content, { speakerHandle: "hero", variants: [variant], ...over });
 }
 
-const snapshotState = (location: string): PortableRpgGame["snapshots"][number]["state"] =>
-  rpgSnapshotStateSchema.parse({ location, clock: null, calendarDate: null, weather: null, fieldLocks: null });
-
 function game(over: Partial<PortableRpgGame> = {}): PortableRpgGame {
-  return {
-    mode: "lite",
-    status: "active",
+  return makePortableGame({
     sessionNumber: 3,
-    config: rpgGameConfigSchema.parse({}),
-    createdAt: AT,
     sheets: [{ characterHandle: "hero", sheet: rpgSheetSchema.parse({ className: "Wanderer", level: 4 }) }],
-    snapshots: [
-      { messageIndex: 0, variantIdx: 0, asOfMessageIndex: null, bookmark: false, committed: true, createdAt: AT, state: snapshotState("the broken bridge") },
-    ],
+    snapshots: [{ ...makePortableTurnSnapshot(0, 0, "the broken bridge"), createdAt: AT }],
     journal: [
       {
         type: "event",
@@ -139,16 +127,15 @@ function game(over: Partial<PortableRpgGame> = {}): PortableRpgGame {
     ],
     checkpoints: [{ snapshotIndex: 0, label: "before the bridge", trigger: "manual", createdAt: AT }],
     ...over,
-  };
+  });
 }
 
 function chat(over: Partial<PortableChat> = {}): PortableChat {
-  return {
+  return makePortableChat({
     title: "P8 Chat",
     createdAt: AT - 1000,
     updatedAt: AT + 1000,
     starred: true,
-    archived: false,
     compactSummary: "Everything before the bridge collapse, in brief.",
     compactedAtSeq: 1,
     metadata: { roomOverrides: { scenario: "a rain-soaked frontier town" } },
@@ -161,7 +148,7 @@ function chat(over: Partial<PortableChat> = {}): PortableChat {
     messages: [message()],
     rpg: game(),
     ...over,
-  };
+  });
 }
 
 /** The built file as a mutable wire object, for a case that edits what a real file could carry. */
@@ -194,16 +181,16 @@ describe("the envelope", () => {
 
   test("the envelope discriminates, not the extension: foreign kinds and non-JSON refuse by name", () => {
     // An ST chat `.jsonl` header line is valid JSON with no envelope; a sibling orb family's file has the wrong kind.
-    expect(refusalOf(parseChatBundleFile(ENC.encode('{"user_name":"Alex","character_name":"Hero"}')))).toBe("foreign-kind");
-    expect(refusalOf(parseChatBundleFile(bytesOf({ schemaKind: "orb.databank.document", schemaVersion: 1 })))).toBe("foreign-kind");
-    expect(refusalOf(parseChatBundleFile(ENC.encode("not json at all")))).toBe("not-json");
+    expect(refusalOf(parseChatBundleFile(ENC.encode('{"user_name":"Alex","character_name":"Hero"}')))).toBe(FOREIGN_KIND);
+    expect(refusalOf(parseChatBundleFile(bytesOf({ schemaKind: DATABANK_SCHEMA_KIND, schemaVersion: 1 })))).toBe(FOREIGN_KIND);
+    expect(refusalOf(parseChatBundleFile(ENC.encode("not json at all")))).toBe(NOT_JSON);
   });
 
   test("a file from a newer build refuses by name, and the current version parses", () => {
     const wire = wireOf();
     expect(must(parseChatBundleFile(bytesOf(wire))).title).toBe("P8 Chat");
     wire["schemaVersion"] = Number(wire["schemaVersion"]) + 1;
-    expect(refusalOf(parseChatBundleFile(bytesOf(wire)))).toBe("newer-version");
+    expect(refusalOf(parseChatBundleFile(bytesOf(wire)))).toBe(NEWER_VERSION);
   });
 });
 
@@ -310,7 +297,7 @@ describe("the rpg plane", () => {
             bookmark: true,
             committed: true,
             createdAt: AT,
-            state: snapshotState("the saved bridge"),
+            state: makePortableTurnSnapshot(0, 0, "the saved bridge").state,
           },
         ],
       }),
@@ -341,7 +328,17 @@ describe("the rpg plane", () => {
   test("a reference past the end of the transcript is pruned per its plane, and a hand-authored plane survives", () => {
     const dangling = chat({
       rpg: game({
-        snapshots: [{ messageIndex: 9, variantIdx: 0, asOfMessageIndex: 9, bookmark: false, committed: true, createdAt: AT, state: snapshotState("nowhere") }],
+        snapshots: [
+          {
+            messageIndex: 9,
+            variantIdx: 0,
+            asOfMessageIndex: 9,
+            bookmark: false,
+            committed: true,
+            createdAt: AT,
+            state: makePortableTurnSnapshot(0, 0, "nowhere").state,
+          },
+        ],
         journal: [{ type: "event", label: "", title: "orphan", content: "…", messageIndex: 9, variantIdx: 0, sourceMessageIndex: 9, createdAt: AT }],
         turnToolCalls: [{ messageIndex: 9, variantIdx: 0, calls: [], createdAt: AT }],
         checkpoints: [{ snapshotIndex: 7, label: "orphan", trigger: "manual", createdAt: AT }],

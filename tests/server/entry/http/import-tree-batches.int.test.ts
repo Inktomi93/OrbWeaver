@@ -1,4 +1,5 @@
 // @subject packages/server/src/entry/http/import-tree.ts
+
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join, relative } from "node:path";
@@ -6,7 +7,7 @@ import { storedAssetSchema } from "@orb/contracts/assets";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { importStartedSchema, ST_SECRETS_FILE, ST_SETTINGS_FILE, TREE_FILE_FIELD, TREE_LAYOUT_FIELD } from "@orb/contracts/import";
 import type { PortableKind } from "@orb/contracts/portability";
-import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
+import { PORTABILITY_ROUTES, PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { createThemeInputSchema } from "@orb/contracts/theme";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -15,8 +16,8 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makeAssetBytes, prepareBackupFolder } from "@orb/testkit/node/composed";
 import { CSRF_HEADERS } from "./_body-limit-inputs.ts";
 
-const TREE_ROUTE = "/api/import/tree";
-const EXPORT_ROUTE = "/api/export/library";
+const TREE_ROUTE = PORTABILITY_ROUTES.importTree;
+const EXPORT_ROUTE = PORTABILITY_ROUTES.exportLibrary;
 const ASSET_UPLOAD_ROUTE = "/api/assets/upload";
 const ASSET_FILE_FIELD = "file";
 const WRAPPER = "backup";

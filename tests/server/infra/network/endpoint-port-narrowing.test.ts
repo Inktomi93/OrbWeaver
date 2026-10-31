@@ -1,6 +1,6 @@
 import type { ScopedEgressOptions } from "@orb/server/infra/network";
 import { createScopedEgress, systemConnector } from "@orb/server/infra/network";
-import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
+import { createControlledTimers, createFrozenClock, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createTestLogger } from "@orb/testkit/node/composed";
 import { createTestEnv } from "@orb/testkit/node/helpers";
@@ -56,7 +56,7 @@ test("a public resolved address is not turned into a private-endpoint port restr
     timers: quietTimers(),
     fetch: unscriptedFetch,
     buildConnector: systemConnector,
-    resolver: () => Promise.resolve(["93.184.215.14"]),
+    resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]),
   });
   egress.publishPrivateEndpointAllowlist(["public.example:11434", "127.0.0.0/8"]);
   await expect(egress.resolvedEndpointAdmission("http://public.example:22")).resolves.toBe("public");

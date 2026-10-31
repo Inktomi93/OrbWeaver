@@ -1,12 +1,14 @@
 // @subject packages/server/src/entry/http/upload.ts
 // @subject packages/server/src/entry/http/auth-routes.ts
 // @subject packages/server/src/entry/http/card-frame.ts
+
 import { request as nativeRequest } from "node:http";
 import { storedAssetSchema } from "@orb/contracts/assets";
 import { CARD_FRAME_ROUTE, cardFrameMintRequestSchema, cardFrameMintResponseSchema } from "@orb/contracts/chat";
 import { authMeSchema } from "@orb/contracts/identity";
 import type { ExternalId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, makeAssetBytes } from "@orb/testkit/node/composed";
 import { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/helpers";
@@ -125,7 +127,7 @@ test("frame caps precede handler authentication, while local and pending CSRF pr
 test("first-run cap remains before its in-handler origin gate", async () => {
   await using root = await createServerHarness({
     env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
-    physicalPeer: () => "93.184.215.14",
+    physicalPeer: () => PUBLIC_PEER_ADDRESS,
   });
   using input = observedBody(0);
   const response = await bodyRequest(root, "/api/auth/first-run", input.body, { ...CSRF_HEADERS, "content-length": String(BACKCHANNEL_ROUTE.bytes) });
@@ -210,7 +212,7 @@ test("native signed backchannel bytes revoke a real session only after valid aut
     env: { ["AUTH_MODE"]: "oidc", ["AUTH_FALLBACK"]: "deny" },
     oidc: NATIVE_OIDC_SETTINGS,
     networkExecution: {
-      resolver: (hostname) => (hostname === new URL(ISSUER).hostname ? Promise.resolve(["93.184.215.14"]) : Promise.reject(new Error("unscripted issuer"))),
+      resolver: (hostname) => (hostname === new URL(ISSUER).hostname ? Promise.resolve([PUBLIC_PEER_ADDRESS]) : Promise.reject(new Error("unscripted issuer"))),
       fetch: issuer.fetch,
     },
   });
