@@ -204,6 +204,36 @@ test.for([
     findings: [],
   },
   {
+    name: "a member a later property overrides after the spread",
+    file: SITE,
+    source: `${IMPORTS}\ninterface Port { readonly revoke: (token: string) => Promise<void>; }\ndeclare const other: (token: string) => Promise<void>;\nexport const port: Port = { ...sessions, revoke: other };`,
+    findings: [],
+  },
+  {
+    name: "a spread whose other member no later property overrides",
+    file: SITE,
+    source: `${IMPORTS}\ninterface Port { readonly revoke: (token: string) => Promise<void>; readonly create: (userId: string) => Promise<{ token: string; expiresAt: number }>; }\ndeclare const other: (userId: string) => Promise<{ token: string; expiresAt: number }>;\nexport const port: Port = { ...sessions, create: other };`,
+    findings: ["Port.revoke hand-restates SessionsService.revoke"],
+  },
+  {
+    name: "a spread nested in a literal property",
+    file: SITE,
+    source: `${IMPORTS}\ninterface Port { readonly revoke: (token: string) => Promise<void>; }\ninterface Outer { readonly inner: Port; }\nexport const outer: Outer = { inner: { ...sessions } };`,
+    findings: ["Port.revoke hand-restates SessionsService.revoke"],
+  },
+  {
+    name: "two spreads of one owner",
+    file: SITE,
+    source: `${IMPORTS}\ninterface Port { readonly revoke: (token: string) => Promise<void>; }\nexport const port: Port = { ...sessions, ...sessions };`,
+    findings: ["Port.revoke hand-restates SessionsService.revoke"],
+  },
+  {
+    name: "a member a let hop carries to the port",
+    file: SITE,
+    source: `${IMPORTS}\ninterface Port { readonly revoke: (token: string) => Promise<void>; }\nlet hop: SessionsService["revoke"] = sessions.revoke;\nexport const port: Port = { revoke: (token) => hop(token) };`,
+    findings: [],
+  },
+  {
     name: "a port whose own op is passed into a wider slot",
     file: SITE,
     source: `${IMPORTS}\ninterface Limits { readonly points: number | (() => number); }\ninterface Port { readonly limit: () => number; }\nexport declare const port: Port;\nexport const limits: Limits = { points: () => port.limit() };`,

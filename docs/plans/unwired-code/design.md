@@ -57,6 +57,8 @@ Each item step 2 lists gives every finding of one scan in one domain a class (wi
 | shapes | `renamed-reexport` | delete | use the home name |
 | shapes | `synonym` | delete; deliberate for a per-verb name | [1445](../../work/1445-delete-synonym-type-aliases-keep-per-verb-params.md) |
 
+The port census and the `orb/derived-port-member` rule follow a value only through a member, a forwarding lambda, a spread and a destructured member. They do not follow a value through a local binding: a `let` is rebound, so no single member stands behind its name. A port member fed through a `let` hop is invisible to both, so judge it by hand and type the member by its owner. The case `a member a let hop carries to the port` in `tests/tooling/eslint-derived-port-member.test.ts` holds the limit.
+
 A finding in `packages/contracts/src/plugin/` or `packages/plugin-sdk/` sits under each item's Plugin API heading: guests reach that surface from outside the tree, so keep it unless no guest can reach it. A row that looks like a half-built feature sits under Owner calls.
 
 ### Judgement items
