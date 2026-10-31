@@ -28,4 +28,11 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Two rows: none applied, one kept, one handed off, no owner questions.
+
+| Row | Result |
+| - | - |
+| `createClientRuntime.generate` | kept: the testkit supplies it at `tests/support/browser/ct-runtime.ts:25` (a seeded id source for every CT mount), and the 0989 ruling counts `tests/support` as a consumer |
+| `createClientRuntime.url` | handed off: only test files pass it, readers `tests/client/data/invalidation-initial-read.dom.test.ts:18`, `tests/client/compose/authed-composition.dom.test.ts:15`, `tests/client/state/registry-definitions.dom.test.ts:14`, `tests/client/state/assemble-chrome.dom.test.ts:22`. The testkit passes `undefined` for it (`tests/support/browser/ct-runtime.ts:25`), so it is not the isolated-mount door. Deleting it means rewriting those four tests; left for a test-owner lane |
+
+Survey: `codegraph_explore` on `createClientRuntime client-runtime.ts url generate`; `ast-grep -p 'createClientRuntime($$$A)'` with `-l ts` (5929 files) and `-l tsx` (1524 files) found no call outside the files above; literal `rg` agrees.
