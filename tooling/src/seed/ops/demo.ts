@@ -368,8 +368,9 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
   });
 
   for (const boundOwner of ownersBoundBeforeCompose) {
-    await built.enqueueEmbedReindex(boundOwner);
+    built.detachEmbedReindex(boundOwner);
   }
+  await built.settleBackground();
 
   // The idempotent boot seeds (owner cards + avatars, default persona, preset, themes) — safe to re-run.
   await seedDefaultPreset({ logger: seams.logger, db: wiringDb, now });

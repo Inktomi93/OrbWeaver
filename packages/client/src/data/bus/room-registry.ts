@@ -376,7 +376,6 @@ function createRoomRegistry(): RoomRegistry {
         subscriber.onError?.(message);
       }
     },
-    joined: (): readonly string[] => [...rooms.keys()],
     liveEpoch: (ref): number => liveEdgesByRoom.get(roomKey(ref)) ?? 0,
   };
 }

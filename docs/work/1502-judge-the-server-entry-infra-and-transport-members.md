@@ -44,4 +44,26 @@ Each member in the table is deleted or linked as its decision says, and each tes
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Ran: `pnpm typecheck` for every program, `pnpm lint:eslint packages tooling tests`, `pnpm depcruise`, `pnpm knip:prod`, `pnpm unwired`, `pnpm test` on the suites that read a changed door (`tests/server/infra/network/response-body.test.ts`, the assets GC suites, `tests/server/domain/embeddings/**` funding and sweep suites, `tests/server/domain/connection/**`, `tests/server/domain/plugin/activation/provider-contributions.suite.int.test.ts`, `tests/server/domain/workloads/persistence/funded-tenant-rows.int.test.ts`, `tests/support/node/model-kernel.int.test.ts`, `tests/support/node/identity-output.int.test.ts`), and `tests/client/features/workloads/components/failed-assets.ct.tsx`. All green except `tests/server/domain/connection/local-light-cold-cache.suite.int.test.ts`, which skips itself.
+
+| Member | Result |
+| - | - |
+| `OwnedResponseBody.cancel`, `Cas.blobPath`, `SocketRegistry.reap`, `FrameQueue.size`, `ScopedEgress.endpointAdmission`, `ServicesResult.roleClientsFor`, `ServicesResult.enqueueEmbedReindex` | deleted with their implementations |
+| `OidcTransactionStore.consume` | wired: `DomainOidcStore` extends `Pick<OidcTransactionStore, "consume">`, and `OidcMintStore` picks from it |
+| `PasswordHasher.verify` | wired, not deleted: `SessionsPasswordVerifier` is `Pick<PasswordHasher, "verify" | "dummyHash">`, and `sessions/context.ts` reads it for login |
+| `Context.bugReportDiagnostics` | wired: the `bugReportDiagnostics` handler types its context through `Pick<Context, ...>` |
+| `ImageryComposeDeps.resolveChatHostUserId`, `isCharacterSeated`, `loadUserSettings` | wired: `ImageryComposeDeps` extends `Pick<ImageryRoomAccessDeps, ...>` and `ImageryInstructionDeps` |
+
+Premise corrections:
+- `ScopedEgress.endpointAdmission` was deleted, not linked. The connection ctx slot reads `resolvedEndpointAdmission`, and nothing calls the synchronous form.
+- Deleting `ServicesResult.enqueueEmbedReindex` left `SearchDiscoveryComposeResult.enqueueEmbedReindex` and `EmbeddingReindexTriggers.enqueueEmbedReindex` with no reader, so both are deleted. The seed ops and `scripts/generate-seed-vectors.ts` use `detachEmbedReindex` with `settleBackground`, and `built.runtime.roleClientsFor`.
+
+Test doors replaced by production reads: the harness gains `roleClientsFor`, built from `app.runtime.roleClientsFor` and `principalFor`. Blob removal reads `cas.remove`. Blob aging in `tests/server/domain/assets/gc-box.ts` re-puts the bytes at the chosen time through `cas.putBytes`, the mtime bump a dedup hit does in production.
+
+### Owner calls
+
+- `BootOwnerSeed.hashPassword` stays. `lifecycle.ts:168` builds it and the seed spreads it into `seedOwner`, which reads `deps.hashPassword` to set the first-boot password. Deleting it compiles and silently drops `LOCAL_INITIAL_PASSWORD`. The member scan does not follow the spread.
+- `UserRuntimeDirs.remove` stays. Its doc says the credentials domain calls it when a connection row is deleted, and no caller exists, so a deleted credential leaves its per-user runtime directory. That is a missing cleanup, not a dead method.
+- `ServicesResult.audit` stays. The test harness builds the workload runner with `audit: app.audit` (`tests/support/node/server.ts`), and two workload suites and the root-isolation suite write audit rows through it. No production door returns the root's audit writer.
+- `ServicesResult.storePluginFetchedAsset` stays. `tests/server/domain/assets/verbs/collect-garbage.int.test.ts` seeds a fetched plugin asset through it. The only production door is a guest's `net.fetchAsset`, which needs a running plugin guest.
+

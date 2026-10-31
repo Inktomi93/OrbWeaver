@@ -2,7 +2,7 @@
 // automation, rpg) receive an injected `generatePicture` op at the composition root, never a
 // sideways runtime import of this domain's internals.
 
-export type { CaptionImageDeps } from "./contract/generation-ops.ts";
+export type { CaptionImageDeps, ImageryInstructionDeps } from "./contract/generation-ops.ts";
 export type { ImageryPortabilityService } from "./contract/portability.ts";
 export type { ImageryService } from "./contract/service.ts";
 export { createImageryPortability, createImageryService } from "./service.ts";

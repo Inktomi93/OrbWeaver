@@ -3,10 +3,12 @@
 // hence the one sanctioned no-inline-types exception below.
 
 import { bugReportDiagnosticsSchema, clientErrorReportSchema } from "@orb/contracts/diagnostics";
+import type { Principal } from "@orb/contracts/identity";
 import type * as TRPCCore from "@trpc/server/unstable-core-do-not-import";
 import { z } from "zod";
 import { isOwner } from "#domain/admin";
 import { recordClientError } from "#foundation/observability";
+import type { Context } from "./context.ts";
 import { adminRouter } from "./routers/admin.ts";
 import { assetsRouter } from "./routers/assets.ts";
 import { automationRouter } from "./routers/automation.ts";
@@ -58,7 +60,10 @@ export const appRouter = t.router({
   // posture). No input, no db read. Never the dev capture, which stays behind `/api/_debug`.
   bugReportDiagnostics: authedProcedure
     .output(bugReportDiagnosticsSchema)
-    .query(({ ctx }) => ctx.bugReportDiagnostics({ includeServerErrors: isOwner(ctx.auth) })),
+    // The context is typed through `Context`, so a call lands on the request context's own member.
+    .query(({ ctx }: { readonly ctx: Pick<Context, "bugReportDiagnostics"> & { readonly auth: Principal } }) =>
+      ctx.bugReportDiagnostics({ includeServerErrors: isOwner(ctx.auth) }),
+    ),
 
   admin: adminRouter,
   assets: assetsRouter,

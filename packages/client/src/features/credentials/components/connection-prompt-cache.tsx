@@ -52,7 +52,7 @@ export function ConnectionPromptCache({ connectionId, stored, save, defaultEnabl
   );
 }
 
-interface PromptCacheBodyProps {
+interface PromptCacheBodyProps extends Pick<ConnectionPromptCacheProps, "onReset"> {
   readonly generation: GenerationCapability | null;
   readonly policy: CachePolicy;
   readonly warnings: readonly string[];
@@ -62,7 +62,6 @@ interface PromptCacheBodyProps {
   readonly busy: boolean;
   readonly fixedTtl?: PromptCacheTtl | undefined;
   readonly defaultEnabled?: boolean | undefined;
-  readonly onReset: () => void;
 }
 
 function PromptCacheBody(props: PromptCacheBodyProps): ReactElement {

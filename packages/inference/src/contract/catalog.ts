@@ -62,7 +62,6 @@ export interface Mirror<T> {
   /** The first half of a warm and nothing more: a cold mirror loads the persisted snapshot, and nothing is dialed. A read
    *  that must not wait on a host still sees what the next warm would read first. `null` when nothing is held. */
   readonly hydrate: () => Promise<T | null>;
-  readonly seed: (value: T, at: number) => void;
   /** Rewrite the held value in place, in memory and in the snapshot, keeping its fetch time: facts learned about it
    *  after the fetch (one model's own probes). A cold mirror, or one invalidated meanwhile, keeps nothing. */
   readonly amend: (update: (value: T) => T) => Promise<void>;

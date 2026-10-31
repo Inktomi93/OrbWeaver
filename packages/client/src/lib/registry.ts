@@ -8,7 +8,6 @@ export interface Registry<Id extends string, Def> {
   readonly name: string;
   readonly get: (id: Id) => Def;
   readonly list: () => readonly Def[];
-  readonly has: (id: Id) => boolean;
 }
 
 /** Open-ended contributor view — no fixed vocabulary, ids arrive with the contributions themselves. */
@@ -37,9 +36,6 @@ export function createRegistry<Id extends string, Def>(name: string, ids: readon
     },
     list(): readonly Def[] {
       return ids.map((id) => definitions[id]);
-    },
-    has(id): boolean {
-      return map.has(id);
     },
   };
 }

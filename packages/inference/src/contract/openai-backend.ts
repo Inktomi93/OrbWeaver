@@ -175,7 +175,6 @@ export interface ReachabilityProber {
   /** POST the row's wake path, then poll the sleep read until awake or the wake window closes. A `signal` abort
    *  rejects at once with an `aborted` error. */
   readonly wake: (target: SleepTarget, signal: AbortSignal | undefined) => Promise<boolean>;
-  readonly invalidate: (baseUrl: string) => void;
 }
 
 export interface RerankDeps {
