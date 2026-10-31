@@ -401,7 +401,9 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/rpg/lib/unset-datum.ts": "UNSET_DATUM: the unset reading's text",
   "packages/client/src/features/plugin/lib/extensions-copy.ts": "EXTENSIONS_GONE_TITLE: the vanished page's title",
   "packages/client/src/features/plugin/lib/plugin-copy.ts":
-    "approveLabel and CHAT_PANEL_HIDE_LABEL: production action names required by the no-copied-label contract",
+    "approveLabel, CHAT_PANEL_HIDE_LABEL and CHAT_PANEL_UNDO_LABEL: production action names required by the no-copied-label contract",
+  "packages/client/src/features/persona/lib/persona-copy.ts":
+    "PERSONA_NAME_REQUIRED and nowDefaultNotice: the blank-name error and the crown-moved notice the persona suites assert",
   "packages/client/src/features/plugin/lib/plugin-model-copy.ts":
     "PLUGIN_MODEL_HEADING: the production model disclosure name used by plugin presentation assertions",
   "packages/client/src/features/plugin/lib/plugin-panel-copy.ts":
