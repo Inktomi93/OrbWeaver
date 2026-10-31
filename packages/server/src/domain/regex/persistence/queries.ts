@@ -193,7 +193,7 @@ export async function listPresetScripts(db: Db, ownerId: UserId, presetId: Prese
 // The mirror image of the four reads above — same junctions, read from the SCRIPT side. Ordered by carrier
 // NAME, not junction `position`: position is per-CARRIER execution order and says nothing across carriers,
 // where a roster is scanned by eye for a name. Both sides stay owner-filtered (the script's own gate is the
-// verb's `loadOwnedScript`; the carrier's is the join predicate here), so neither half can name a row the
+// verb's `requireOwnedScript`; the carrier's is the join predicate here), so neither half can name a row the
 // caller does not own. The ROOM roster is deliberately absent from this file — rooms carry no ownerId, so
 // their visibility is chat's to answer (the injected `resolveVisibleRooms`); all this file knows is which
 // chat ids the junction holds.

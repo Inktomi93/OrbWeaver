@@ -5,19 +5,16 @@
 // their own scripts.
 
 import { chatRegexScripts } from "@orb/db";
-import { RegexNotFoundError } from "#src/domain/regex/contract/errors.ts";
 import type { AttachToChatParams } from "#src/domain/regex/contract/params.ts";
 import type { RegexContext, RegexService } from "#src/domain/regex/contract/service.ts";
-import { listChatScripts, loadOwnedScript } from "#src/domain/regex/persistence/queries.ts";
+import { requireOwnedScript } from "#src/domain/regex/persistence/ownership.ts";
+import { listChatScripts } from "#src/domain/regex/persistence/queries.ts";
 
 export function createAttachToChat(ctx: RegexContext): RegexService["attachToChat"] {
   return async ({ principal, chatId, scriptId }: AttachToChatParams) => {
     const ownerId = principal.userId;
     await ctx.requireChatHost(principal, chatId);
-    const script = await loadOwnedScript(ctx.db, ownerId, scriptId);
-    if (script === undefined) {
-      throw new RegexNotFoundError("regex_script", scriptId);
-    }
+    await requireOwnedScript(ctx.db, ownerId, scriptId);
     const at = ctx.now();
     const position = (await listChatScripts(ctx.db, chatId)).length;
     await ctx.db.insert(chatRegexScripts).values({ chatId, regexScriptId: scriptId, position, createdAt: at }).onConflictDoNothing();

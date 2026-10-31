@@ -1,14 +1,14 @@
 // A stage hold's soundness: every ensureStage caller holds what it bound, a reused pid never pins a stage,
 // dead entries never pile up, a normal exit lets go, and the first beat is written before the run proceeds.
 import { spawn, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
-import { vi } from "vitest";
+import { onTestFinished, vi } from "vitest";
 import { processStartTicks } from "../../../../tooling/src/floor/host/platform.ts";
 import { stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { EnsureStageOps, StageHolder, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
@@ -31,6 +31,7 @@ const DAYS_AGO = new Date(FROZEN_AT_MS - 3 * 24 * 60 * MINUTE).toISOString();
 
 function scratchHome(label: string): string {
   const home = mkdtempSync(join(tmpdir(), `cbsn-holders-${label}-`));
+  onTestFinished(() => rmSync(home, { recursive: true, force: true }));
   mkdirSync(join(home, STAGE_ROOT_REL), { recursive: true });
   return home;
 }

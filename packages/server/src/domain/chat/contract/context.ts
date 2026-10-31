@@ -7,7 +7,6 @@ import type {
   GameBirthCommittedOp,
   GatherTurnContextArgs,
   GatherTurnContextOp,
-  GroupConfig,
   HandoffCardPair,
   HandoffHealStatementsOp,
   HandoffRekeyActorsOp,
@@ -19,7 +18,6 @@ import type {
   NextTurnConnectionView,
   ParticipantData,
   PlanGameBirthOp,
-  PromptTransform,
   ReadChatUserMacrosOp,
   RegisterPromptTransformOp,
   ResolveCharacterTagsOp,
@@ -30,7 +28,6 @@ import type {
   ResolveRegexSources,
   ResolveSeatDecoOp,
   ResolveSeatDecosOp,
-  RoomOverrides,
   RpgGatherWithTools,
   RpgUserCommitOp,
   StoreSegmentParams,
@@ -40,7 +37,7 @@ import type {
   UnregisterPromptTransformOp,
 } from "@orb/contracts/chat";
 import type { ResolveCharacterDistillatesOp } from "@orb/contracts/discovery";
-import type { MemoryEmbedSpace, PruneMemoryBlocksParams } from "@orb/contracts/embeddings";
+import type { EmbeddingsPruneBlocksOp, MemoryEmbedSpace, ResolveMemoryEmbedSpaceOp } from "@orb/contracts/embeddings";
 import type { Can, Principal, ResolveHandleOp, ResolveUserEnabled } from "@orb/contracts/identity";
 import type { GeneratePicturePrompt, SizePresetName } from "@orb/contracts/imagery";
 import type { SendAvailability } from "@orb/contracts/inference";
@@ -49,7 +46,7 @@ import type { ResolveConnectedPersonaOp, ResolveCurrentPersonaOp, ResolveDefault
 import type { ChoiceBlockSpec, ResolveUtilityPresetParams, UserIntent } from "@orb/contracts/preset";
 import type { CopyHandoffRegexScriptsArgs, CountHandoffRegexScripts } from "@orb/contracts/regex";
 import type { CancelStateRoundsOp } from "@orb/contracts/rpg";
-import type { BlockKey, MemoryQueryOptions, ResolveCorpusSourceState, ScoredBlock } from "@orb/contracts/search";
+import type { MemoryQueryOptions, ResolveCorpusSourceState, ScoredBlock } from "@orb/contracts/search";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { CopyHandoffBooksArgs, CountHandoffBooks } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
@@ -327,8 +324,6 @@ export interface PromptTransformRegistry {
   readonly register: RegisterPromptTransformOp;
   /** Deregister by id (an automation rule disable / a plugin teardown). A no-op for an unknown id. */
   readonly unregister: UnregisterPromptTransformOp;
-  /** The currently registered transforms (compose/debug read). */
-  readonly list: () => readonly PromptTransform[];
 }
 
 /** The generic name→value macro map + reminder injection(s) + tool names a game turn's GATHER contributes
@@ -385,8 +380,8 @@ export interface ChatRpgOps extends RpgTurnOps {
    *
    *    1. the engine commits the reply, then fires the rpg round FIRE-AND-FORGET from inside the turn body
    *       (`fireRpgTurnCompleted`, after `commitGeneration`);
-   *    2. `executeTurn` returns microseconds later and `runRegistered`'s `finally` calls `handle.release()`;
-   *    3. `release()` DELETES the entry from the `activeTurns` registry (`active-turns.ts`), so from that
+   *    2. `executeTurn` returns microseconds later and the verb's `using` scope disposes the registration;
+   *    3. disposal DELETES the entry from the `activeTurns` registry (`active-turns.ts`), so from that
    *       instant `abort(chatId, user)` iterates a set the turn is no longer in and signals NOBODY;
    *    4. the round then runs its model call for 0.8-2.9s (the measured window `flush-barrier.ts` documents)
    *       with a controller nothing can reach.
@@ -512,12 +507,9 @@ export type GeneratePictureOp = (
  *  only to a persona the acting user owns. */
 type VerifyPersonaOwnedOp = (params: { readonly ownerId: UserId; readonly personaId: PersonaId }) => Promise<boolean>;
 
-/** Resolve the host's current concrete embed space for memory planning. NOT exported: its one reader is
- *  `ChatContext.resolveMemoryEmbedSpace` below; callers take the whole bundle, never this member's type. */
-type ResolveMemoryEmbedSpaceOp = (ownerId: UserId) => Promise<MemoryEmbedSpace>;
-
-/** memory's digest vector write — the one write path. */
-export type EmbeddingsStoreOp = (params: StoreDigestParams) => Promise<MemoryEmbedSpace>;
+/** memory's digest vector write — the one write path. Cancellation belongs to the runtime operation, not the shared
+ *  memory payload, and `AbortSignal` is not declared in the contracts program. */
+export type EmbeddingsStoreOp = (params: MemoryDigestInput & { readonly signal?: AbortSignal | undefined }) => Promise<MemoryEmbedSpace>;
 
 /** memory's verbatim-segment write — a BATCH, and the one place the segment phase's embed flood lives (#172,
  * owner batching ruling: derived-data sweeps batch BY PHASE, never per-item interleaved). The corpus sweep
@@ -526,8 +518,6 @@ export type EmbeddingsStoreOp = (params: StoreDigestParams) => Promise<MemoryEmb
  * one chat's chunks. Nothing here decides concurrency — that is the provider surface's. The signature stays here
  * because `AbortSignal` is not declared in the contracts program. */
 export type EmbeddingsStoreSegmentsOp = (params: readonly StoreSegmentParams[], signal?: AbortSignal) => Promise<readonly MemoryEmbedSpace[]>;
-
-type EmbeddingsPruneBlocksOp = (params: PruneMemoryBlocksParams) => Promise<void>;
 
 /** memory's chat-scoped recall. Returns the ranked blocks WITH their retrieval numbers; memory resolves the
  *  identities back to digest text and reports the numbers in its recall trace (#250 — a bare key list left
@@ -543,9 +533,6 @@ type SearchDigestsOp = (query: Omit<MemoryQueryOptions, "ownerId">, events?: Tur
  *  resolve empty rather than throw. The owner's vector space being mid-move or unbound is an ordinary state,
  *  and a turn's retrieval is an ENHANCEMENT to the turn — so that one class degrades here while every other
  *  search failure still propagates and still faults the turn (a `strikeOutOnTurnFault` premise, `engine.ts`). */
-
-/** The cross-chat corpus/digest+segment scan; host-only scope is enforced by the caller. */
-type SearchCorpusOp = (query: Omit<MemoryQueryOptions, "ownerId">) => Promise<readonly BlockKey[]>;
 
 /** The databank `{{databank}}`-slot GATHER op. OPTIONAL: absent ⇒ GATHER skips
  *  the branch entirely and the slot resolves empty, byte-identical to a non-databank deploy (the null-op pin).
@@ -573,11 +560,6 @@ type GatherDatabankOp = (
 /** The chat's active preset's declared ChoiceBlock variables, resolved under the host's settings. Empty
  *  means no declared variables (or a hostless/stale room). */
 type ResolvePromptVariablesOp = (chatId: ChatId) => Promise<readonly ChoiceBlockSpec[]>;
-
-/** Parses a chat's raw metadata blob → its effective {@link GroupConfig} (default-applied). */
-type GetGroupConfigOp = (rawMetadata: unknown) => GroupConfig;
-/** Parses a chat's raw metadata blob → its effective {@link RoomOverrides} (default-applied). */
-type GetRoomOverridesOp = (rawMetadata: unknown) => RoomOverrides;
 
 /** The S2 MODEL-TEACHING seam (`ChatContext.teaching`): every domain's contributions in ONE array, assembled at
  *  `entry/compose`. Chat's OWN contribution is the rpg-gather projection at order 0
@@ -725,7 +707,6 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly embeddingsPruneBlocks: EmbeddingsPruneBlocksOp;
   readonly resolveCorpusSourceState: ResolveCorpusSourceState;
   readonly searchDigests: SearchDigestsOp;
-  readonly searchCorpus: SearchCorpusOp;
   /** The databank slot GATHER op (DB6) — OPTIONAL; absent = the null-op byte-identical no-op. */
   readonly gatherDatabank?: GatherDatabankOp;
   /** The structured memory observability sink. */
@@ -738,8 +719,6 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
    *  OPTIONAL: absent (a hand-built ctx, a unit test) ⇒ nothing emits and recall is byte-identical. Wired at
    *  compose to the LIVE-ONLY `memoryRecall` bus member. */
   readonly emitRecallPhase?: MemoryRecallPhaseEmitter;
-  readonly getGroupConfig: GetGroupConfigOp;
-  readonly getRoomOverrides: GetRoomOverridesOp;
   readonly resolvePromptVariables: ResolvePromptVariablesOp;
   /** The chat's active preset's authored user macros (#24), resolved under the host's settings — the picks pane's declaration half. Empty means no authored macros (or a hostless/stale room). */
   readonly resolvePromptUserMacros: ReadChatUserMacrosOp;
@@ -800,9 +779,4 @@ export interface ChatServiceDeps {
   readonly lockTtlMs: number;
   /** D259 — the foreign halves of the signup-invite ops (sessions account statement, minter check, audit). */
   readonly signup: SignupInviteDeps;
-}
-
-/** Cancellation belongs to the runtime operation, not the shared memory payload. */
-export interface StoreDigestParams extends MemoryDigestInput {
-  readonly signal?: AbortSignal | undefined;
 }

@@ -127,7 +127,7 @@ test("real structured analysis produces private state, strips the unauthored sco
       settledThroughSeq: null,
     },
   });
-  expect(await root.services.chat.getVariables({ principal, chatId: chat.id })).not.toHaveProperty("score");
+  expect(await root.services.chat.getRuntimeVariables({ principal, chatId: chat.id })).not.toHaveProperty("score");
   replies.set("run_analysis", JSON.stringify({ arcStatus: "active", updatedArc: 17, successorArc: null, twistOps: [], guidance: "Do not persist this." }));
   const refused = await seedAutomationRunRows(root, params);
   expect(refused.result.outcome).toBe("action_error");

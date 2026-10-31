@@ -1,10 +1,11 @@
 // A session call is refused (exit 2) before it measures when the band no longer carries the stage the session
 // bound at boot: the identity it persisted on its row is compared against the live band table.
-import { mkdirSync, mkdtempSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/tooling";
+import { onTestFinished } from "vitest";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import { stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { SessionEvent, SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
@@ -23,6 +24,7 @@ const BOUND: StageBoundIdentity = { sha: "a".repeat(40), dir: `${CHECKOUT}/.cach
 
 function stageHome(): string {
   const home = mkdtempSync(join(tmpdir(), "orb-session-drift-"));
+  onTestFinished(() => rmSync(home, { recursive: true, force: true }));
   mkdirSync(join(home, STAGE_ROOT_REL), { recursive: true });
   return home;
 }

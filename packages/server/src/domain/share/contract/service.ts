@@ -59,8 +59,6 @@ export interface CertificateController {
   readonly enable: (setting: IpCertificateSetting) => Promise<IpCertificateStatus>;
   /** Stops serving, cancels every timer and deletes the certificate files; the account key stays. */
   readonly disable: () => Promise<void>;
-  /** Stops serving and cancels every timer for a shutdown; the files stay for the next boot. */
-  readonly stop: () => Promise<void>;
   readonly status: () => IpCertificateStatus;
 }
 

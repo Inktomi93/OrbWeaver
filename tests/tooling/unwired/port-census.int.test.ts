@@ -105,6 +105,28 @@ test("the port census plans derive, concept, cross-domain and import targets", {
   );
 });
 
+const SPREAD_TREE = {
+  ...TREE,
+  [`${SERVER}/entry/http/routes.ts`]: [
+    'import { sessions } from "#domain/sessions";',
+    'import type { SessionsService } from "#domain/sessions";',
+    'import type { AdminSessionOps } from "#domain/admin";',
+    "export interface RoutePort {",
+    '  readonly lookup: SessionsService["lookup"];',
+    "}",
+    "export const port: RoutePort = { ...sessions };",
+    "export const admin: AdminSessionOps = { ...sessions };",
+  ].join("\n"),
+};
+
+test("a spread of the owner's ops reports the port that restates one and not the port that derives one", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(SPREAD_TREE);
+  const { targets } = portCensus(root, () => undefined);
+  const members = targets.filter(({ form }) => form === "member").map(({ kind, file, members: names }) => ({ kind, file, members: names }));
+  expect(members).toContainEqual({ kind: "move-to-contracts", file: `${SERVER}/domain/admin/contract/ops.ts`, members: ["revoke"] });
+  expect(members.filter(({ file }) => file === `${SERVER}/entry/http/routes.ts`)).toEqual([]);
+});
+
 // Contracts reaches only kit and zod, so a copy whose signature carries an @orb/db handle can never move there.
 const FORGOTTEN_HANDLE_TREE = {
   "packages/server/tsconfig.json": plantedTsconfig({ paths: { "#*": ["./src/*/index.ts"] } }),

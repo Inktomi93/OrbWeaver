@@ -1,27 +1,17 @@
-// verbs: providersAvailable · registerProvider · dropProvider — the registry door (§5.9-1). `available` is what
-// the picker may OFFER the caller (a row on an unbuilt wire is listed disabled with its cause, never hidden; a
-// plugin row is listed only to the owner of an enabled install contributing it, D147); `register`
-// refuses a built-in id inside the runtime (a plugin row can never shadow one) and persists through the
-// `provider_rows` port; `drop` is plugin deactivation / admin removal — connections on it read `no-connection`.
+// verbs: providersAvailable · registerPluginProviders · dropPluginProviders — the registry door (§5.9-1).
+// `available` is what the picker may OFFER the caller (a row on an unbuilt wire is listed disabled with its cause,
+// never hidden; a plugin row is listed only to the owner of an enabled install contributing it, D147); a plugin
+// registration refuses a built-in id inside the runtime (a plugin row can never shadow one) and persists through
+// the `provider_rows` port; the drop is plugin deactivation — connections on it read `no-connection`.
 
 import type { ProviderAvailability } from "@orb/contracts/inference";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
 
 /** The provider-registry slice of `ConnectionService` this grouped file owns. */
-type ProviderVerbs = Pick<ConnectionService, "providersAvailable" | "registerProvider" | "dropProvider" | "registerPluginProviders" | "dropPluginProviders">;
+type ProviderVerbs = Pick<ConnectionService, "providersAvailable" | "registerPluginProviders" | "dropPluginProviders">;
 
 function createProvidersAvailable(ctx: ConnectionContext): ConnectionService["providersAvailable"] {
   return (params): Promise<readonly ProviderAvailability[]> => Promise.resolve(ctx.runtime.providers.available(params.principal));
-}
-
-function createRegisterProvider(ctx: ConnectionContext): ConnectionService["registerProvider"] {
-  return async (params): Promise<void> => {
-    await ctx.runtime.providers.register(params.row, params.origin);
-  };
-}
-
-function createDropProvider(ctx: ConnectionContext): ConnectionService["dropProvider"] {
-  return (params): Promise<void> => ctx.runtime.providers.drop(params.providerId);
 }
 
 function createRegisterPluginProviders(ctx: ConnectionContext): ConnectionService["registerPluginProviders"] {
@@ -38,8 +28,6 @@ function createDropPluginProviders(ctx: ConnectionContext): ConnectionService["d
 export function createProviders(ctx: ConnectionContext): ProviderVerbs {
   return {
     providersAvailable: createProvidersAvailable(ctx),
-    registerProvider: createRegisterProvider(ctx),
-    dropProvider: createDropProvider(ctx),
     registerPluginProviders: createRegisterPluginProviders(ctx),
     dropPluginProviders: createDropPluginProviders(ctx),
   };

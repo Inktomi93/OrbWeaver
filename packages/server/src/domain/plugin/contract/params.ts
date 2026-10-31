@@ -86,19 +86,6 @@ export interface InstallFromUrlParams {
   readonly grant: readonly PluginCapability[];
 }
 
-/** `upgradeFromUrl` — fetch a NEW bundle at a caller-supplied URL through the egress guard, then upgrade the
- *  owned plugin through the EXISTING `upgrade` verb, so #615's re-consent wall applies UNCHANGED: an upgrade
- *  that WIDENS reach (a new capability / a new `netHosts` entry) lands the row DISABLED pending re-consent, and
- *  a narrowing carries forward silently. NEVER a silent auto-update. Owner-scoped: the plugin's OWN row is
- *  loaded (foreign/missing pluginId ⇒ leak-free NOT_FOUND) BEFORE any fetch — a stranger never causes the
- *  server to fetch on their behalf, and the cross-tenant sweep probes exactly that ordering. */
-export interface UpgradeFromUrlParams {
-  readonly caller: Principal;
-  readonly pluginId: PluginId;
-  readonly url: string;
-  readonly expectedBundleHash: PluginBundleHash;
-}
-
 /** `checkForUpdates` — the auto update-check (U8 2b). BATCH + SELF-scoped: no id, like
  *  `list`/`listSurfaces` — it walks the caller's OWN plugins. URL rows re-fetch their manifest through the same
  *  egress guard, Git rows ask the guarded remote for HEAD without cloning, and shipped showcase rows compare
@@ -111,7 +98,7 @@ export interface CheckForUpdatesParams {
  *  plugin was installed from (`plugins.source_url`) and run it through the EXISTING `upgrade` verb, so #615's
  *  reach-widening→disabled re-consent wall applies UNCHANGED — never a silent auto-update. Owner-scoped: the
  *  plugin's OWN row is loaded (foreign/missing ⇒ leak-free NOT_FOUND) BEFORE any fetch, exactly like
- *  {@link UpgradeFromUrlParams}; the difference is the URL is the REMEMBERED one, not a caller echo, so the
+ *  {@link InstallFromUrlParams}; the difference is the URL is the REMEMBERED one, not a caller echo, so the
  *  affordance needs no re-paste. A file-install row (no `sourceUrl`) is a typed `PluginNoSourceUrlError`. */
 export interface UpgradeFromStoredUrlParams {
   readonly caller: Principal;

@@ -99,7 +99,7 @@ test("the budget partitions the next turn by source, prices each seated card by 
   expect(pivot?.tokens).toBe(history?.tokens);
   // One send is one user turn and its reply, so the fit keeps two rows.
   expect(pivot?.rows).toHaveLength(2);
-  const rack = (await h.root.services.chat.getActivePresetConfig({ principal: h.owner, chatId: h.chatId })).sections.map(({ id }) => id);
+  const rack = DEFAULT_PROMPT_CONFIG.sections.map(({ id }) => id);
   const priced = budget.sections.map(({ sectionId }) => sectionId);
   expect(priced.every((id) => rack.includes(id))).toBe(true);
   expect(priced).toEqual(priced.toSorted((a, b) => rack.indexOf(a) - rack.indexOf(b)));
@@ -192,7 +192,6 @@ test("a game room previews the GM preset its turn sends, and an explicit overrid
 
   const previewed = await previewText(h);
   expect(previewed).toContain("THE GM PRESET SPEAKS");
-  expect((await h.root.services.chat.getActivePresetConfig({ principal: h.owner, chatId: h.chatId })).sections.map(({ id }) => id)).toContain("gm-row");
   expect(previewed).not.toContain("THE HOST DEFAULT SPEAKS");
   await send(h);
   expect(await newestWire(h)).toContain("THE GM PRESET SPEAKS");

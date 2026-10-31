@@ -5,13 +5,14 @@
 // The leak-free rule (doctrine): a caller who may NOT see a row is told the SAME thing whether it is missing
 // or simply not theirs — the verb collapses both to `DomainNotFoundError` (never a FORBIDDEN existence oracle).
 
-import type { IsAdmin, IsOwner, RequireOwner } from "@orb/contracts/admin";
+import type { IsAdmin, RequireOwner } from "@orb/contracts/admin";
 import type { Principal } from "@orb/contracts/identity";
 import type { WorkloadKind, WorkloadMode } from "@orb/contracts/workloads";
 import { WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import type { StartWorkloadParams } from "../contract/params.ts";
+import type { WorkloadServiceContext } from "../contract/service.ts";
 import type { WorkloadReadAccess } from "../contract/workload-row.ts";
 
 /**
@@ -76,7 +77,7 @@ export function isVisibleToCaller(isAdmin: IsAdmin, caller: Principal | null, ow
  * who cannot see the row, so the refusal is no oracle for whether a bulk row exists.
  * A deleted owner leaves an audit-only row; cloning must never turn it into system work.
  */
-export function canCloneRow(seams: { readonly isAdmin: IsAdmin; readonly isOwner: IsOwner }, caller: Principal | null, row: WorkloadReadAccess): boolean {
+export function canCloneRow(seams: Pick<WorkloadServiceContext, "isAdmin" | "isOwner">, caller: Principal | null, row: WorkloadReadAccess): boolean {
   return (
     !(row.ownerId === null && !row.admissionSystem) &&
     isVisibleToCaller(seams.isAdmin, caller, row.ownerId) &&

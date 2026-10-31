@@ -1,5 +1,6 @@
 // `pnpm unwired shapes` reports a shape restated in a second file, a synonym alias, a re-export of a re-export and a
-// renamed re-export. Different members, a derived Pick and same names with different types are controls.
+// renamed re-export. Different members, a derived Pick, a type indexed out of another, same names with different types
+// and props that match only by their library base are controls.
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { scanShapes } from "../../../tooling/src/unwired/index.ts";
 import { LIB, WORLD } from "./_planted.ts";
@@ -18,11 +19,21 @@ const TREE = {
     "  email: string;",
     "}",
     'export type Picked = Pick<Account, "id" | "name">;',
+    "export interface Box {",
+    "  item: { id: string; name: string };",
+    "}",
+    'export type Item = Box["item"];',
     "export interface Labeled {",
     "  id: string;",
     "  name: number;",
     "}",
   ].join("\n"),
+  // Two library components with the same props, each wrapped with one prop of its own: a match by the library's shape.
+  "packages/a/src/library.d.ts": ["interface DialogTitleBase { id: string; label: string }", "interface PopoverTitleBase { id: string; label: string }"].join(
+    "\n",
+  ),
+  "packages/a/src/dialog.ts": "export interface DialogTitleProps extends DialogTitleBase {\n  className?: string;\n}",
+  "packages/a/src/popover.ts": "export interface PopoverTitleProps extends PopoverTitleBase {\n  className?: string;\n}",
   "packages/a/src/index.ts": 'export { User } from "./user.ts";',
   "packages/a/src/door.ts": 'export { User } from "./index.ts";\nexport { User as Member } from "./user.ts";',
 };

@@ -310,7 +310,6 @@ export const NO_SHARE_RELAY: ShareComposeDeps = {
   certificate: {
     enable: () => Promise.reject(new Error("compose: this composition serves no https listener")),
     disable: () => Promise.resolve(),
-    stop: () => Promise.resolve(),
     status: () => ({ state: "off" }),
   },
   localSetupUrl: (): string => {

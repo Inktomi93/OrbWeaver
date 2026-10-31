@@ -5,6 +5,7 @@
 
 import type { GeneratedAssetStore, ImageryGalleryAdd, ReadOwnedAssetBytes } from "@orb/contracts/assets";
 import type { CharacterCard, CharacterOwnedOp } from "@orb/contracts/character";
+import type { CallerInChatOp, ResolveRoomRunAsOp } from "@orb/contracts/chat";
 import type { Principal, ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { GeneratePicture, PromptTemplateMode } from "@orb/contracts/imagery";
 import type { GenerationCapability, GenerationUsage } from "@orb/contracts/inference";
@@ -126,10 +127,10 @@ export interface ImageryContext {
   /** The principal a chat-scoped preview runs as: the room host (D298). Refuses a caller the room does
    *  not admit, and a subject that is not a present character seat of the room, with the leak-free
    *  not-found BEFORE any host read, card read or spend. */
-  readonly resolveRoomRunAs: (caller: Principal, chatId: ChatId, subjectCharacterId: CharacterId | undefined) => Promise<Principal>;
+  readonly resolveRoomRunAs: ResolveRoomRunAsOp;
   /** Is the caller a present participant of the chat? An edit records the chat it was made in only when they are,
    *  so a caller-named chat id never reaches provenance on the caller's word alone. */
-  readonly callerInChat: (caller: Principal, chatId: ChatId) => Promise<boolean>;
+  readonly callerInChat: CallerInChatOp;
   /** The sealed `infra/providers` generateImage executor role (bound at compose). */
   readonly generateImage: (req: ImageGenerateRequest) => Promise<ImageGenerateResult>;
   /** Download a provider-returned generated-image URL to bytes through the SSRF-safe egress wrapper. `null`

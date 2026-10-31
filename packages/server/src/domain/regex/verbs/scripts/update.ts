@@ -1,4 +1,4 @@
-// verb: updateScript — patch an owned script. Owner-gated by `loadOwnedScript` (a foreign/absent id is one
+// verb: updateScript — patch an owned script. Owner-gated by `requireOwnedScript` (a foreign/absent id is one
 // answer: RegexNotFoundError). The BEHAVIOR blob is rewritten as a whole from the stored body ⊕ the patch,
 // so a partial patch never drops the fields it did not name; `name`/`enabled` are promoted columns and
 // patch independently. Omitted ⇒ unchanged (never "clear") — the library has no nullable authored field.
@@ -6,18 +6,15 @@
 import { regexScriptBehaviorSchema } from "@orb/contracts/regex";
 import { regexScripts } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import { RegexNotFoundError } from "#src/domain/regex/contract/errors.ts";
 import type { UpdateScriptParams } from "#src/domain/regex/contract/params.ts";
 import type { RegexContext, RegexService } from "#src/domain/regex/contract/service.ts";
-import { loadOwnedScript, toRow } from "#src/domain/regex/persistence/queries.ts";
+import { requireOwnedScript } from "#src/domain/regex/persistence/ownership.ts";
+import { toRow } from "#src/domain/regex/persistence/queries.ts";
 
 export function createUpdate(ctx: RegexContext): RegexService["updateScript"] {
   return async ({ principal, scriptId, input }: UpdateScriptParams) => {
     const ownerId = principal.userId;
-    const record = await loadOwnedScript(ctx.db, ownerId, scriptId);
-    if (record === undefined) {
-      throw new RegexNotFoundError("regex_script", scriptId);
-    }
+    const record = await requireOwnedScript(ctx.db, ownerId, scriptId);
 
     const { name: patchName, enabled: patchEnabled, ...behaviorPatch } = input;
     const { id: _id, name: _name, enabled: _enabled, updatedAt: _updatedAt, ...currentBehavior } = toRow(record);
