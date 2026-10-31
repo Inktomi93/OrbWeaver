@@ -38,8 +38,7 @@ const FILLER_LINES = 10;
 const RECALL_STREAM_PASSWORD = "recall-phase-stream-password";
 const BLOCK_SIZE = 2;
 const FAN_OUT = 2;
-const STRADDLE_SCAN_STEP = 300;
-const STRADDLE_SCAN_FLOOR = 1200;
+const STRADDLE_SCAN_WINDOWS = [0, 1, 2, 3, 4, 5, 6, 7, 8].map((step) => TURN_INTENT.maxContextTokens - step * 300);
 const FILLER = "The caravan creaked on through the grey morning while the drivers argued about the weather and the oxen. ".repeat(18);
 const VECTOR_WIDTH = CORPUS_EMBEDDING_VECTOR.length;
 const EARLIER_PROBE_WEIGHT = 0.4;
@@ -545,7 +544,7 @@ async function cutoffPosition(h: ChatRoot): Promise<number> {
 test("a cutoff inside a tier-1 digest drops it, and a cutoff inside a tier-0 block keeps that block", async () => {
   await using w = await world.build({ mode: "tiered", maxTier: 1 });
   // The cutoff is a token fit boundary, so the window is walked down until a turn's boundary lands inside a block.
-  for (let window = TURN_INTENT.maxContextTokens; window > STRADDLE_SCAN_FLOOR; window -= STRADDLE_SCAN_STEP) {
+  for (const window of STRADDLE_SCAN_WINDOWS) {
     const cut = await cutoffPosition(w.h);
     const run = await recallTurn(w.h, ask("bath"), { maxContextTokens: window, maxOutputTokens: 64 });
     const inTier0 = Math.floor(cut / BLOCK_SIZE);
