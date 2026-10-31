@@ -28,4 +28,9 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+2 rows: applied 2, kept 0, handed off 0, owner question 0. Scan: ast-grep inline rule (identifier, type_identifier, property_identifier), `-l ts` and `-l tsx`, `packages tests` (5200 ts and 1450 tsx files), plus the per-statement import scanner (7437 files): the door's two renamed names had 4 importers, all under `packages/server/src/entry/compose/`.
+
+- `AssetsContext` / `AssetsAssemblyContext`: `packages/server/src/domain/assets/index.ts` exported the assembly type `AssetsAssemblyContext` (`DbAssemblyInput<AssetsContext>`, whose `db` is a `DatabaseHandle`) under the name `AssetsContext`, which is a different type: the verbs' own DI bundle with the live `Db`. The door now exports it as `AssetsAssemblyContext`, so each name means one type.
+- `AssetsWorkloadDeps` / `AssetsWorkloadAssemblyDeps`: same defect; the door now exports `AssetsWorkloadAssemblyDeps`.
+- The 4 importers (`assets-character.ts`, `portability.ts`, `portability-runner.ts`, `workload-contributions.ts`) use the new names, renamed in place with `move-import-names` (`from` and `to` the same module; dry run listed exactly the 4 files).
+- `pnpm typecheck packages/server/tsconfig.json tsconfig.node.json tsconfig.tests-iso.json` exit 0; `pnpm lint:eslint` on the touched paths exit 0; `pnpm depcruise` exit 0.
