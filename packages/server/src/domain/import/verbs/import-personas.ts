@@ -43,10 +43,7 @@ export function createImportPersonas(ctx: ImportContext): ImportService["importP
 
     return {
       personasCreated: result.personasCreated,
-      personasSkipped: result.personasSkipped,
-      personasMerged: result.personasMerged,
       mergedKeys: result.mergedKeys,
-      defaultPersonaId: result.defaultPersonaId,
     };
   };
 }

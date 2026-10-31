@@ -13,13 +13,12 @@ import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import type { DataType, DeviceType, Tensor } from "@huggingface/transformers";
 import type { LocalTextEncoding, RerankOnnx } from "@orb/contracts/inference";
-import { embedSpaceOf, LOCAL_TEXT_ENCODING, modelIdSchema } from "@orb/contracts/inference";
+import { embedSpaceOf, LOCAL_TEXT_ENCODING } from "@orb/contracts/inference";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
 import { l2Normalize } from "@orb/kit/vector-math";
 import { ProviderError } from "#src/contract/errors.ts";
 import type { LocalLightKernelModule } from "#src/contract/local-light-kernel.ts";
-import type { LocalLightLoadProgress } from "#src/contract/local-light-worker.ts";
 import type { LocalLightModelSlot } from "#src/contract/runtime.ts";
 import type { InferenceLog } from "#src/deps.ts";
 import type { LocalLightModelCache, ModelCacheConfig, PairTokenizer, StHead, TransformersModule } from "../../contract/local-light.ts";
@@ -86,22 +85,6 @@ export function resolveEmbedDtype(configured: string | undefined): DataType {
  *  survives only to narrow `DataType` onto the derivation's `string | undefined`. */
 export function localLightEmbedSpaceTag(modelId: ModelId, dtype: DataType): string {
   return embedSpaceOf(modelId, dtype);
-}
-
-interface TransformersProgressInfo {
-  readonly status: string;
-  readonly name?: string | undefined;
-  readonly loaded?: number | undefined;
-  readonly total?: number | undefined;
-}
-
-function toLoadProgress(info: TransformersProgressInfo): LocalLightLoadProgress | null {
-  if (info.status !== "progress_total" || info.name === undefined) {
-    return null;
-  }
-  const loaded = Number.isFinite(info.loaded) ? Math.max(0, info.loaded ?? 0) : 0;
-  const total = Number.isFinite(info.total) ? Math.max(0, info.total ?? 0) : 0;
-  return { modelId: modelIdSchema.parse(info.name), loaded, total };
 }
 
 export function normalizeVector(v: Float32Array): Float32Array<ArrayBuffer> {
@@ -561,24 +544,13 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
     });
     return configured;
   };
-  const { onProgress, log } = config;
-  const loadOpts =
-    onProgress === undefined
-      ? {}
-      : {
-          progress_callback: (info: TransformersProgressInfo): void => {
-            const progress = toLoadProgress(info);
-            if (progress !== null) {
-              onProgress(progress);
-            }
-          },
-        };
+  const { log } = config;
 
   const jinaEmbedder = createMemo(
     async (id) => {
       const { AutoModel } = await transformers();
       return await loadWithCpuFallback(device, log, (dev) =>
-        AutoModel.from_pretrained(id, { device: dev, dtype: embedDtype, session_options: sessionOptions, ...loadOpts }),
+        AutoModel.from_pretrained(id, { device: dev, dtype: embedDtype, session_options: sessionOptions }),
       );
     },
     async (m) => {
@@ -607,7 +579,7 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
       const { modelId: id, onnx } = servingFor(key);
       const files = rerankFileOptions(id, onnx);
       const mod = await transformers();
-      const opts = { ...files, session_options: sessionOptions, ...loadOpts };
+      const opts = { ...files, session_options: sessionOptions };
       if (onnx.head === "sequence-classification") {
         const model = await loadWithCpuFallback(device, log, (dev) => mod.AutoModelForSequenceClassification.from_pretrained(id, { ...opts, device: dev }));
         return { head: onnx.head, model };
@@ -633,7 +605,7 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
     async (key) => {
       const { modelId, onnx } = servingFor(key);
       const { AutoTokenizer } = await transformers();
-      return await AutoTokenizer.from_pretrained(modelId, { ...loadOpts, ...(onnx.revision === undefined ? {} : { revision: onnx.revision }) });
+      return await AutoTokenizer.from_pretrained(modelId, onnx.revision === undefined ? {} : { revision: onnx.revision });
     },
     () => Promise.resolve(),
     config.detach,
@@ -642,7 +614,7 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
   const processor = createMemo(
     async (id) => {
       const { AutoProcessor } = await transformers();
-      return await AutoProcessor.from_pretrained(id, loadOpts);
+      return await AutoProcessor.from_pretrained(id);
     },
     () => Promise.resolve(),
     config.detach,

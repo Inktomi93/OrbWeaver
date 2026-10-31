@@ -15,7 +15,7 @@ import { EMPTY_ANALYSIS_STATE, parseAnalysisState } from "../contract/analysis.t
 const LIMIT_ONE = 1;
 
 /** The absent-row read — a first pass is a cold start, not an error. */
-const EMPTY_RULE_STATE: RuleStateRead = { state: EMPTY_ANALYSIS_STATE, guidance: "" };
+const EMPTY_RULE_STATE: RuleStateRead = { state: EMPTY_ANALYSIS_STATE };
 
 export async function selectRuleState(db: Db, ruleId: AutomationRuleId): Promise<RuleStateRead> {
   const rows = await db.select().from(automationRuleState).where(eq(automationRuleState.ruleId, ruleId)).limit(LIMIT_ONE);
@@ -23,7 +23,7 @@ export async function selectRuleState(db: Db, ruleId: AutomationRuleId): Promise
   if (row === undefined) {
     return EMPTY_RULE_STATE;
   }
-  return { state: parseAnalysisState(row.state), guidance: row.guidance };
+  return { state: parseAnalysisState(row.state) };
 }
 
 /** Upsert a rule's state row. `guidance` is SLICED here — the ONE write boundary the cap names, so the

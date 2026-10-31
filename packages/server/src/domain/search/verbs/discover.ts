@@ -23,7 +23,6 @@ interface DiscoverCandidate {
   readonly blockIdx: number;
   readonly sourceText: string;
   readonly distance: number;
-  readonly hubScore: number | null;
   readonly score: number;
 }
 

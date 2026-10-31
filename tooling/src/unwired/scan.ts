@@ -12,11 +12,11 @@ import type { TypeMember } from "./type-members.ts";
 import { typeMembers } from "./type-members.ts";
 import { packageWorlds, TEST_WORLDS } from "./worlds.ts";
 
-export const UNWIRED_KINDS = ["builder-only", "test-only", "unreferenced"] as const;
+const UNWIRED_KINDS = ["builder-only", "test-only", "unreferenced"] as const;
 /** `builder-only`: something supplies it and nothing calls it. `test-only`: only tests call it. */
-export type UnwiredKind = (typeof UNWIRED_KINDS)[number];
+type UnwiredKind = (typeof UNWIRED_KINDS)[number];
 
-export interface UnwiredMember {
+interface UnwiredMember {
   readonly key: string;
   readonly file: string;
   readonly line: number;

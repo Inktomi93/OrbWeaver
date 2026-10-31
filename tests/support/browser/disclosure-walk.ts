@@ -83,7 +83,7 @@ export async function walkDisclosures(scope: Locator, path: string, hooks: Discl
 }
 
 /** Open every visible `<details>` under `scope` that is not nested in another, recurse into each, then restore it. */
-export async function walkNativeDetails(scope: Locator, path: string, hooks: DisclosureWalkHooks, depth = 0): Promise<void> {
+async function walkNativeDetails(scope: Locator, path: string, hooks: DisclosureWalkHooks, depth = 0): Promise<void> {
   const candidates = scope.locator("details");
   const indices = await candidates.evaluateAll(
     (nodes, container) =>

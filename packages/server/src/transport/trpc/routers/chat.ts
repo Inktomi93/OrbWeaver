@@ -284,9 +284,7 @@ const forkChatSchema = z.object({
 // call site referenced any). Thin pass-throughs; authz lives INSIDE each verb (the sibling-cluster shape).
 // The wire input schemas are DERIVED from contracts (`roomOverridesSchema`, `chatInjectionInputSchema`) —
 // no re-spelled union at the transport edge (§5.5). `previewAssembly` is a host-only READ (the assembled
-// prompt + trace is a debug surface); `peekPrompt`/`previewSection` stay
-// unexposed for now (the room read rides `getChat`'s `ChatDetail.roomOverrides`; the member preview
-// affordance is deferred — task #28 flag).
+// prompt + trace is a debug surface; the room read rides `getChat`'s `ChatDetail.roomOverrides`).
 const setRoomOverridesSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
   overrides: roomOverridesSchema,
@@ -385,7 +383,7 @@ const previewActionTemplatesSchema = z.object({
 });
 
 // `getShapeTrace` — the content-free SHAPE trace for the next-turn shaping of the current canon.
-// `speakerCharacterId` picks the primary speaker the peek shapes for (mirrors `peekPrompt`); host-gated
+// `speakerCharacterId` picks the primary speaker the peek shapes for (mirrors `previewAssembly`); host-gated
 // (`requireHost`) INSIDE the verb.
 const getShapeTraceSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),

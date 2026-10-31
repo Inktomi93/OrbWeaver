@@ -40,7 +40,7 @@ export type CopyCharacterBooks = (args: {
 
 /** linked/skipped counts for the import report; `skipped` counts references whose id has no book the importer
  *  owns on this install (absent or foreign). */
-export interface LinkCarriedBooksResult {
+interface LinkCarriedBooksResult {
   readonly linked: number;
   readonly skipped: number;
 }

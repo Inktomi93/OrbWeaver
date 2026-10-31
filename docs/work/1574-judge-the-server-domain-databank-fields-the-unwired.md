@@ -34,4 +34,11 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Applied: `DatabankGatherResult.hits` and `.tokensEstimated`, with `KeptRef` (all three fields) and the kept-chunk list in `fitAndRender`; the verb now returns `{ text }` and treats an empty render as "nothing seated".
+
+Reclassed to keep:
+- `DatabankPortabilityContext.logger`: `substrate/queue-ingest.ts:21` types its ctx as `Pick<DatabankContext, "enqueueIngest" | "logger">` and reads `ctx.logger` at the catch (`:34`); the portability write passes this context to it (`persistence/portability-write.ts:209`).
+- `QueuedIngest.workloadId`: `substrate/scrape-canon.ts:88` spreads the whole `queued` value into the audit row metadata, so the id is persisted.
+- `DatabankGatherResult.text`: chat reads `result.text` at `packages/server/src/domain/chat/substrate/assemble-gather.ts:112` through `ChatContext["gatherDatabank"]`, which derives its type from `ReturnType<DatabankService["gatherRetrieval"]>`; the scan misses the `ReturnType` hop.
+
+Ran `pnpm test tests/server/domain/databank` (exit 0, 10 tests) and `pnpm typecheck packages/server/tsconfig.json` (exit 0). No test covers the gather verb (`rg` over `tests/` finds none); the `{ text }` return is exercised by no suite, so the render path is covered only by typecheck.

@@ -108,7 +108,7 @@ test("admin registry capture retains the actual normalized provider definition a
   expect(row.originKind).toBe("admin");
   expect(row.originUserId).toBe(root.ownerId);
   expect(row.definitionHash).not.toBe("");
-  expect(root.services.connection.registry.get(definition.id, root.ownerId)).toEqual(definition);
+  expect(root.app.runtime.providers.registry.get(definition.id, root.ownerId)).toEqual(definition);
 });
 
 test("real distribution leaves each owner disabled and ungranted until their own activation, and repeat publication reports actual skips", async () => {

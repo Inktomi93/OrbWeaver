@@ -56,6 +56,7 @@ import {
   PLUGIN_UI_ENTRY,
   pluginBundleHashSchema,
   pluginManifestSchema,
+  storedPluginManifestSchema,
 } from "@orb/contracts/plugin";
 import { sniffMime } from "@orb/kit/image-sniff";
 import { compareSemver } from "@orb/kit/semver";
@@ -262,6 +263,16 @@ function unzipHardened(bundle: Uint8Array): {
  *  (source-agnostic). Structural faults throw `ManifestInvalidError`; a well-formed major absent from the
  *  contract-owned served tuple throws `HostVersionUnservedError`. */
 export function parseBundle(bundle: Uint8Array): PluginBundle {
+  return parseBundleWith(bundle, pluginManifestSchema);
+}
+
+/** {@link parseBundle} for the stored bundle of an installed plugin, which may name a task retired since
+ *  its install: the read-back manifest parse drops it rather than failing the activation. */
+export function parseInstalledBundle(bundle: Uint8Array): PluginBundle {
+  return parseBundleWith(bundle, storedPluginManifestSchema);
+}
+
+function parseBundleWith(bundle: Uint8Array, manifestSchema: typeof pluginManifestSchema | typeof storedPluginManifestSchema): PluginBundle {
   const { manifestBytes, mainBytes, uiBytes, uiAssets } = unzipHardened(bundle);
 
   const decoder = new TextDecoder("utf-8", { fatal: true });
@@ -283,7 +294,7 @@ export function parseBundle(bundle: Uint8Array): PluginBundle {
     throw new ManifestInvalidError("manifest.json is not valid JSON", { cause: err });
   }
 
-  const parsed = pluginManifestSchema.safeParse(manifestJson);
+  const parsed = manifestSchema.safeParse(manifestJson);
   if (!parsed.success) {
     // `z.prettifyError` over a hand `issues.map(i => i.message)`: the hand-flatten dropped the PATH, so a
     // bundle refused for `net.hosts[2]` read as a bare "Invalid input" naming no field — and this refusal is

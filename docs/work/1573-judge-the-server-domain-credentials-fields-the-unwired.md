@@ -27,4 +27,6 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Applied: `CredentialExecutionStrike.id` deleted, and the `id` column dropped from the `returning` of `strikeCredentialExecution`. The caller reads only the row count and `applied`.
+
+Ran `pnpm test tests/server/domain/credentials/persistence/strike-policy-audits.suite.int.test.ts` (exit 0, 13 tests) and `pnpm typecheck packages/server/tsconfig.json` (exit 0).

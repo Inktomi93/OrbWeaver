@@ -5,8 +5,8 @@ import type { Principal } from "@orb/contracts/identity";
 import type { Task, UnavailableCause } from "@orb/contracts/inference";
 import { canFund } from "@orb/contracts/inference";
 import { rolePresetParamsOf } from "@orb/contracts/preset";
-import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
-import type { ImageEmbedInput, RerankDocument, RerankQuery, RoleClientTask, SummarizeInput } from "@orb/contracts/role-clients";
+import type { EmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
+import type { RerankDocument, RerankQuery, RoleClientTask, SummarizeInput } from "@orb/contracts/role-clients";
 import type { ProviderExecutor } from "../contract/backend.ts";
 import { ProviderError } from "../contract/errors.ts";
 import type { ResolvedEmbedKnobs } from "../contract/resolve.ts";
@@ -80,10 +80,6 @@ export function createRoleClientsFor(args: { readonly ctx: ResolverContext; read
       rerank: async (query: RerankQuery, documents: RerankDocument[], opts?: { instruction?: string }): Promise<RerankResult> => {
         const conn = await live("rerank");
         return executor.rerank({ connection: conn, query, documents, ...(opts?.instruction !== undefined ? { instruction: opts.instruction } : {}) });
-      },
-      imageEmbed: async (req: ImageEmbedInput): Promise<ImageEmbedResult> => {
-        const conn = await live("imageEmbed");
-        return executor.imageEmbed({ connection: conn, input: req });
       },
       summarize: async (inputs: readonly SummarizeInput[], opts?: SummarizeCallOptions): Promise<SummarizeResult> => {
         const conn = await live("summarize");

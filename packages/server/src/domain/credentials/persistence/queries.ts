@@ -151,7 +151,7 @@ export function strikeCredentialExecution(db: Db, captured: CapturedCredentialEx
       updatedAt: sql`case when ${sameMaterial} then ${revokedAt} else ${userCredentials.updatedAt} end`,
     })
     .where(and(eq(userCredentials.id, captured.credentialId), eq(userCredentials.ownerId, captured.ownerId)))
-    .returning({ id: userCredentials.id, applied: sql`case when ${sameMaterial} then 1 else 0 end`.mapWith(Boolean) });
+    .returning({ applied: sql`case when ${sameMaterial} then 1 else 0 end`.mapWith(Boolean) });
 }
 
 /** Clear a revocation (owner-scoped) — the user knows the key is good again. */

@@ -34,4 +34,18 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Applied: `RegisteredPlaneDiff.plane`, `RevealBodyRow.seq` (the query still orders by `seq`) and `RpgStateRoundInput.gameId`.
+
+Derived: `SnapshotWriteBase.id`, `.gameId` and `.now` flow into `snapshotInsertFrom` in `packages/server/src/domain/rpg/persistence/snapshots.ts`, which read them through an inline twin of the type. The parameter is now typed `SnapshotWriteBase`, exported from `packages/server/src/domain/rpg/contract/params.ts`.
+
+Kept, reclassified to a named writer (the scan misses the router spread `...input`):
+
+| Row | Writer and reader |
+| - | - |
+| `UpsertQuestBaseParams.status` | `packages/server/src/transport/trpc/routers/rpg.ts:101` spreads the wire input, whose `status` is in `rpgUpsertQuestInputSchema` (`packages/contracts/src/rpg/inputs.ts`); `upsert-quest.ts` reads it |
+| `UpsertQuestBaseParams.description` | same spread; the client writes it at `packages/client/src/features/rpg/components/rpg-quests-tab.tsx:256` |
+
+Follow-up for the next scan: `PlaneDiffRenderer.plane` in `packages/server/src/domain/rpg/contract/delta.ts` is now read nowhere.
+
+- Survey: `codegraph_explore` on the five types; `rg` and `ast-grep` over `packages` and `tests`.
+- Ran: `pnpm typecheck tsconfig.node.json`; `pnpm test tests/server/domain/rpg`.

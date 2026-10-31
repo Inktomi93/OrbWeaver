@@ -36,4 +36,15 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+No row is dead. All ten are kept. Each value is handed whole to drizzle, which reads every key as a column.
+
+| Rows | Reader |
+| - | - |
+| `ThemeInsert.ownerId`, `.name`, `.override`, `.css`, `.createdAt`, `.updatedAt` | `insertTheme` (`.values(row)`) and `insertThemes` (`.values([...rows])`) in `packages/server/src/domain/settings/persistence/theme-queries.ts` write them into the `themes` table |
+| `ThemePatch.name`, `.override`, `.css`, `.updatedAt` | `updateOwnedTheme` (`.set(patch)`) in the same file; `buildThemePatch` in `packages/server/src/domain/settings/verbs/update-theme.ts` builds the patch |
+
+Left as is: `ThemeInsert` and `ThemePatch` are hand-written subsets of `typeof themes.$inferInsert`. Deriving them would loosen the required keys, so they stay as the typed write guard.
+
+- Survey: `codegraph_explore` on `ThemeInsert`, `ThemePatch` and the theme verbs; `rg` over `packages`.
+- Reclass: all ten rows move from unknown to kept.
+- Ran: no code change, so no typecheck or suite.

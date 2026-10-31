@@ -75,9 +75,10 @@ export {
   PLUGIN_ZIP_MTIME_SECONDS_RANGE,
   seedDistributedPlugin,
   seedInstalledPlugin,
-  seedPluginFetchedAsset,
   seedPluginGrant,
 } from "./factories/plugin.ts";
+export type { GuestOps, GuestRun } from "./factories/plugin-guest.ts";
+export { guestRunner, installGuest } from "./factories/plugin-guest.ts";
 export { seedPreset } from "./factories/preset.ts";
 export { seedAdminProvider } from "./factories/provider.ts";
 export { seedGlobalRegexScript, seedRegexScript } from "./factories/regex.ts";

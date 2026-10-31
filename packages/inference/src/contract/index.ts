@@ -4,11 +4,10 @@
 export type { ResolvedWarning } from "@orb/contracts/inference";
 
 export type { SummarizeResult } from "@orb/contracts/providers";
-export type { AgentMcpServerSpec, AgentSdkSessionTotals, AgentToolServer, AgentTurnRequest, SessionEntryWriter } from "./agent.ts";
+export type { AgentSdkSessionTotals, AgentToolServer, SessionEntryWriter } from "./agent.ts";
 export type { AgentSdkExecution, AgentSdkExecutionDeps, AgentSdkLifetime, AgentSdkQueryLease } from "./agent-sdk-execution.ts";
 export type { ProviderBackend, ProviderExecutor, WireCaptureSink } from "./backend.ts";
 export type {
-  AgentMcpServerHealth,
   AgentSdkChatRequest,
   AgentSeedBlock,
   AgentSeedTurn,
@@ -50,7 +49,6 @@ export type { GoogleBackend, GoogleBackendDeps, GoogleCall } from "./google.ts";
 export type { AgentSdkSessionId } from "./identity.ts";
 export { agentSdkSessionIdSchema } from "./identity.ts";
 
-export type { LocalLightLoadProgress } from "./local-light-worker.ts";
 export type { ResolvedChatKnobs, ResolvedReasoning, ResolvedSampling } from "./resolve.ts";
 export type { ConnectionTransport, Resolved, ResponseMap } from "./resolved.ts";
 export { generationOf, withPresetWindow } from "./resolved.ts";

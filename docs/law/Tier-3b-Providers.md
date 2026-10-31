@@ -23,7 +23,7 @@ The closed backend-key tuple, the deriveRunner (api, source) matrix, the provide
 | **kind** | what the model IS (`generation` · `embedding` · `rerank`) | closed tuple | `packages/contracts/src/inference/kinds.ts` |
 | **modality** | `text` · `image` · `video` · `audio` · `file` · `vector` | closed tuple | `packages/contracts/src/inference/modalities.ts` |
 
-**The tuples are the truth, not this prose.** Read `WIRES` for the sealed backends. Tasks today: `chat` · `agent` · `summarize` · `structured` · `generateImage` · `embed` · `imageEmbed` · `rerank`. Read the tuple, never a list in a doc.
+**The tuples are the truth, not this prose.** Read `WIRES` for the sealed backends. Tasks today: `chat` · `summarize` · `structured` · `generateImage` · `embed` · `imageEmbed` · `rerank`. Read the tuple, never a list in a doc.
 
 **`vllm` is a PROVIDER ROW, not a module** (D7): an `auth: endpoint` row on the `openai-compat` wire whose `features` carry the prefill/sleep/rerank knobs. The only surviving runtime slice is `packages/inference/src/backends/openai-compat/reachability.ts`, keyed on the folded `features.sleep` and never on a provider id. LM Studio, Ollama and the BYO row are the same shape — a server's quirks are `features`, never a code path (`packages/contracts/src/inference/features.ts`). D310 narrows this for one route: a row's `features.nativeChat` sends its chat calls to the server's own chat API through one translator, and the row stays on the `openai-compat` wire.
 
@@ -100,7 +100,7 @@ packages/inference/src/
 | `EmbedResult` / `RerankResult` / `ImageEmbedResult` / `SummarizeResult` / `AccountCredits` / `EndpointInspection` | `@orb/contracts/providers` |
 | `ResolvedSecret` / `CredentialHealth` | `@orb/contracts/credentials` |
 | `RoleClients` (the pre-bound derive bundle, no credential in any signature) | `@orb/contracts/role-clients` |
-| `Resolved<Task>` (carries the SECRET), `ChatRequest`, `AgentTurnRequest`, `ChatEvent`, `ProviderError`, composition/runtime port shapes | `packages/inference/src/contract/` — the package's sanctioned type home, behind the single entry |
+| `Resolved<Task>` (carries the SECRET), `ChatRequest`, `ChatEvent`, `ProviderError`, composition/runtime port shapes | `packages/inference/src/contract/` — the package's sanctioned type home, behind the single entry |
 | `ResolvedConnectionView` (the credential-FREE projection a client or a bus may see) | `packages/contracts/src/inference/resolved.ts` |
 
 This split matters: `ResolvedConnectionView` must stay importable by a bus contract, and the secret-bearing half must not (D16 confines secret-bearing shapes to `#credentials`).

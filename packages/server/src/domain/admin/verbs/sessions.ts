@@ -42,7 +42,6 @@ export function createSessions(ctx: AdminContext): SessionVerbs {
       },
       ctx.now(),
     );
-    return { revoked };
   };
 
   return { listSessions, revokeSession, revokeUserSessions };

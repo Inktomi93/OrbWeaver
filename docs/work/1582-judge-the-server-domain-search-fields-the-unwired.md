@@ -37,4 +37,19 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Applied: `ActiveGenerationRow.task`, `NearestImage.hubScore` (and its select column) and `DiscoverCandidate.hubScore` (the ranking reads the inline mapped literal, not the interface).
+
+Derived: `FindCharactersParams` is now an alias of `KnnParams`. `findCharacters` hands its whole params to `knn`, which reads `query`, `topN` and `rerank` (`packages/server/src/domain/search/verbs/knn.ts`).
+
+Kept, reclassified to a named reader. The candidates are handed whole to generic helpers that read the field through a type constraint:
+
+| Row | Reader |
+| - | - |
+| `CorpusCandidate.id` | `applyRerank` at `packages/server/src/domain/search/verbs/corpus.ts:123` (`T extends { id; sourceText }` in `packages/kit/src/rerank/index.ts`) |
+| `CorpusCandidate.contentHash` | `collapseByContentHash` at `packages/server/src/domain/search/verbs/corpus.ts:146` |
+| `DiscoverCandidate.id` | `applyRerank` at `packages/server/src/domain/search/verbs/discover.ts:223` |
+| `DocumentCandidate.id` | `applyRerank` at `packages/server/src/domain/search/verbs/documents.ts:143` |
+| `DocumentCandidate.sourceText` | same `applyRerank` call |
+
+- Survey: `codegraph_explore` on the six types; `rg` over `packages` and `tests`.
+- Ran: `pnpm typecheck tsconfig.node.json`; `pnpm test tests/server/domain/search`.

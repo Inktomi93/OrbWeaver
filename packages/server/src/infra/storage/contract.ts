@@ -1,6 +1,7 @@
 // Storage adapter contracts are server-only injected capabilities, never application wire shapes.
 import type { FileHandle } from "node:fs/promises";
 import type { VariantKind } from "@orb/contracts/assets";
+import type { Wire } from "@orb/contracts/inference";
 import type { InferenceDeps } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 
@@ -9,10 +10,15 @@ import type { UserId } from "@orb/kit/ids";
 const RUNTIME_TOOLS = ["claude"] as const;
 export type RuntimeTool = (typeof RUNTIME_TOOLS)[number];
 
+/** The wire whose backend spawns each tool: the agent-sdk backend's `claude` CLI. A wire absent here keeps no
+ *  per-user runtime directory. */
+export const RUNTIME_TOOL_OF_WIRE: Readonly<Partial<Record<Wire, RuntimeTool>>> = { "agent-sdk": "claude" };
+
 export interface UserRuntimeDirs {
   /** The path — created on first read (0700), so a spawn never races a missing directory. */
   readonly dirFor: InferenceDeps["userRuntimeDir"];
-  /** Remove the user's whole tool dir — the credentials domain calls it when the row is deleted. */
+  /** Remove the user's whole tool dir — the credentials domain calls it when the owner's last key on the tool's
+   *  wire is deleted. */
   readonly remove: (ownerId: UserId, tool: RuntimeTool) => void;
 }
 

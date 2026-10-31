@@ -201,7 +201,6 @@ export function createPluginSuggestionRaiser(deps: {
       // and it is their host authority the confirm re-check re-runs. The confirmer authorizes, never
       // substitutes.
       actorUserId: installerUserId,
-      summary,
       expiresAt,
       payload: { via: "plugin-act", act },
     });
