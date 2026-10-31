@@ -36,7 +36,6 @@ export interface HostSeams {
 // The guest log levels ARE the contract's `PluginLogLevel` set (`@orb/contracts/plugin` — the ONE home the
 // domain's `PluginLogView.level` + this ring share; no re-spelled tuple).
 const LOG_LEVELS = PLUGIN_LOG_LEVELS;
-type LogLevel = PluginLogLevel;
 
 /** A per-line mirror the host may attach to a ring (a structural-injection port, the `AssetInspector` shape):
  *  `mirror` is called for every ACCEPTED (post-cap, post-clamp) line at PUSH time — the moment the guest writes
@@ -44,7 +43,7 @@ type LogLevel = PluginLogLevel;
  *  log + the `/api/_debug/logs` ring) with no read in the path, including lines a floated continuation writes
  *  between invocations (#806). Never throws back into the guest: the port's impl is a plain call on the root's logger. */
 export interface LogMirror {
-  readonly mirror: (level: LogLevel, message: string) => void;
+  readonly mirror: (level: PluginLogLevel, message: string) => void;
 }
 
 /** The per-DRAIN log ring — bounded by line count AND volume; overflow drops silently (the guest cannot DoS
@@ -69,7 +68,7 @@ export class LogRing {
     this.mirror = mirror;
   }
 
-  push(level: LogLevel, message: string): void {
+  push(level: PluginLogLevel, message: string): void {
     if (this.lines.length >= PLUGIN_LOG_LINES_MAX || this.bytes >= PLUGIN_LOG_CHARS_MAX) {
       return;
     }

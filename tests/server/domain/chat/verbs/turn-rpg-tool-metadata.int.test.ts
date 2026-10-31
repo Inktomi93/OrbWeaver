@@ -3,8 +3,10 @@
 import { spawn } from "node:child_process";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginToolWireName } from "@orb/contracts/plugin";
 import { expect, test } from "@orb/testkit/node";
+import type { ChatRoot } from "@orb/testkit/node/composed";
 import { makePluginBundle, readRoomCanon, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
+import { beforeAll } from "vitest";
 import { coreFrame, coreSse } from "../engine/core-physical.ts";
 import { turnToolsRoom, turnWireBody } from "./turn-rpg-physical.ts";
 
@@ -24,43 +26,50 @@ const DECLARATIONS = [
 ] as const;
 const GUEST = `const host = orb.host(1);\n${DECLARATIONS.map((tool) => `host.tools.register({ ...${JSON.stringify({ ...tool, parameters: { type: "object", properties: {}, additionalProperties: false } })}, handler: async () => ${JSON.stringify(`${tool.name} ran`)} });`).join("\n")}`;
 
-test("a native installed guest preserves supplied display and true or false replay metadata through actual execution and persistence", async () => {
-  const wires: string[] = [];
-  await using h = await turnToolsRoom(
-    [
-      async (request): Promise<Response> => {
-        const body = await turnWireBody(request);
-        wires.push(JSON.stringify(body));
-        for (const tool of DECLARATIONS) {
-          expect(JSON.stringify(body["tools"])).toContain(pluginToolWireName(MANIFEST.id, tool.name));
-        }
-        return coreSse([
-          coreFrame({
-            choices: [
-              {
-                delta: {
-                  ["tool_calls"]: DECLARATIONS.map((tool, index) => ({
-                    index,
-                    id: `native-metadata-${index}`,
-                    type: "function",
-                    function: { name: pluginToolWireName(MANIFEST.id, tool.name), arguments: "{}" },
-                  })),
+const wires: string[] = [];
+const shared = Promise.withResolvers<ChatRoot>();
+
+// The guest host is a spawned process whose first activation dominates the case's wall time under load, so the
+// room and the enabled guest are built once in the hook and the case spends its budget on the turn itself.
+beforeAll(async (): Promise<() => Promise<void>> => {
+  await using construction = new AsyncDisposableStack();
+  const h = construction.use(
+    await turnToolsRoom(
+      [
+        async (request): Promise<Response> => {
+          const body = await turnWireBody(request);
+          wires.push(JSON.stringify(body));
+          for (const tool of DECLARATIONS) {
+            expect(JSON.stringify(body["tools"])).toContain(pluginToolWireName(MANIFEST.id, tool.name));
+          }
+          return coreSse([
+            coreFrame({
+              choices: [
+                {
+                  delta: {
+                    ["tool_calls"]: DECLARATIONS.map((tool, index) => ({
+                      index,
+                      id: `native-metadata-${index}`,
+                      type: "function",
+                      function: { name: pluginToolWireName(MANIFEST.id, tool.name), arguments: "{}" },
+                    })),
+                  },
                 },
-              },
-            ],
-          }),
-          terminalSseLine({ finishReason: "tool_calls", usage: { promptTokens: 12, completionTokens: 8 } }),
-        ]);
-      },
-      async (request): Promise<Response> => {
-        wires.push(JSON.stringify(await turnWireBody(request)));
-        return coreSse([
-          coreFrame({ choices: [{ delta: { content: "All three native guest handlers returned." } }] }),
-          terminalSseLine({ usage: { promptTokens: 16, completionTokens: 8 } }),
-        ]);
-      },
-    ],
-    { server: { pluginSpawn: spawn } },
+              ],
+            }),
+            terminalSseLine({ finishReason: "tool_calls", usage: { promptTokens: 12, completionTokens: 8 } }),
+          ]);
+        },
+        async (request): Promise<Response> => {
+          wires.push(JSON.stringify(await turnWireBody(request)));
+          return coreSse([
+            coreFrame({ choices: [{ delta: { content: "All three native guest handlers returned." } }] }),
+            terminalSseLine({ usage: { promptTokens: 16, completionTokens: 8 } }),
+          ]);
+        },
+      ],
+      { server: { pluginSpawn: spawn } },
+    ),
   );
   const installed = await seedInstalledPlugin(h.root, {
     caller: h.owner,
@@ -75,6 +84,13 @@ test("a native installed guest preserves supplied display and true or false repl
     enable: true,
   });
   expect(enabled.outcome.status).toBe("enabled");
+  shared.resolve(h);
+  const lifetime = construction.move();
+  return () => lifetime.disposeAsync();
+});
+
+test("a native installed guest preserves supplied display and true or false replay metadata through actual execution and persistence", async () => {
+  const h = await shared.promise;
   const sent = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Execute each of the three offered reports." });
   expect(sent.aborted).toBe(false);
   const assistant = sent.messages.find((message) => message.role === "assistant");

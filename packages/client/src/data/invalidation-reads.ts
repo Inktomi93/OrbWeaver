@@ -14,7 +14,7 @@ import type { Trpc } from "./trpc.ts";
  *  keep their lexical index cache, deliberately outside this vector-source fan. A finished pass also leaves less for
  *  the next run to call a model for, so the paid-run estimate refreshes too (every confirm re-reads it fresh anyway).
  *  A target promotion announces itself through this member as well, so whether search is paused refreshes with it. */
-export function corpusRecomputeReads(trpc: Trpc): readonly InvalidateFilter[] {
+export function corpusRecomputeReads(trpc: Trpc): readonly InvalidateQueryFilters[] {
   return [
     trpc.discovery.pathFilter(),
     trpc.search.similarArt.pathFilter(),
@@ -30,17 +30,14 @@ export function corpusRecomputeReads(trpc: Trpc): readonly InvalidateFilter[] {
  *  that changes the owner's embed space pauses search and enqueues a rebuild the vector role rows only start polling
  *  once they see it. The rebuild is queued detached, so `workloadsChanged` is what reliably lands it; this read is the
  *  same-tab try. */
-export function connectionWriteReads(trpc: Trpc): readonly InvalidateFilter[] {
+export function connectionWriteReads(trpc: Trpc): readonly InvalidateQueryFilters[] {
   return [trpc.connection.pathFilter(), trpc.workloads.list.pathFilter(), trpc.search.spaceStatus.pathFilter()];
 }
 
 /** A room persona change rewrites the seat/card identity, inherited lore and next-turn prompt previews. */
-export function personaWriteReads(trpc: Trpc, chatId: ChatId): readonly InvalidateFilter[] {
+export function personaWriteReads(trpc: Trpc, chatId: ChatId): readonly InvalidateQueryFilters[] {
   return [trpc.chat.getChat.queryFilter({ chatId }), trpc.worldInfo.listForChat.pathFilter(), ...promptPreviewReads(trpc)];
 }
-
-/** What the proxy's `.queryFilter()`/`.pathFilter()` return — accepted by `invalidateQueries`. */
-export type InvalidateFilter = InvalidateQueryFilters;
 
 // The open chat's CANON reads (no chat list, no `getChat`) — message list, the swipe strip's step-target
 // resolver, and the transcript divider's present-tense fit budget (previewContextFit — the boundary moves
@@ -57,7 +54,7 @@ export type InvalidateFilter = InvalidateQueryFilters;
 // two more on commit+complete. `invalidateQueries` does NOT dedupe against an in-flight fetch (it cancels and
 // restarts), so every redundant row here is a real round-trip.
 //
-export function chatCanonReads(trpc: Trpc): readonly InvalidateFilter[] {
+export function chatCanonReads(trpc: Trpc): readonly InvalidateQueryFilters[] {
   return [
     trpc.chat.listMessages.pathFilter(),
     trpc.chat.getMessageWindow.pathFilter(),
@@ -81,7 +78,7 @@ export function chatCanonReads(trpc: Trpc): readonly InvalidateFilter[] {
 // generated image, the opening greeting), and the swipe/edit/delete family carries it through `chatReads`,
 // so nothing the host can see goes stale. Costs nothing on a non-RPG chat or for a member: `invalidateQueries`
 // is a no-op for a key with no cache entry, and the read only mounts for the host of a game.
-export function hiddenRevealRead(trpc: Trpc): readonly InvalidateFilter[] {
+export function hiddenRevealRead(trpc: Trpc): readonly InvalidateQueryFilters[] {
   return [trpc.rpg.revealHidden.pathFilter()];
 }
 
@@ -99,7 +96,7 @@ export function hiddenRevealRead(trpc: Trpc): readonly InvalidateFilter[] {
 // `{{user}}`/`{{char}}` resolve TO), and every canon terminal (the macros read `{{lastMessage}}` &c). The
 // binding's OTHER freshness axis — the bind target moving to a different chat — needs no row at all: `chatId`
 // is in the query key, so a switch is a cold fetch of a new key by construction (§4.4's binding rows).
-export function promptPreviewReads(trpc: Trpc): readonly InvalidateFilter[] {
+export function promptPreviewReads(trpc: Trpc): readonly InvalidateQueryFilters[] {
   return [trpc.chat.previewAssembly.pathFilter(), trpc.chat.getShapeTrace.pathFilter(), trpc.chat.previewActionTemplates.pathFilter()];
 }
 
@@ -116,7 +113,7 @@ export function promptPreviewReads(trpc: Trpc): readonly InvalidateFilter[] {
 // after the commit event has already fanned — so a score written by a fire this event triggered lands after
 // the refetch it triggered, and the meter shows it from the next terminal. A tighter driver would cost a new
 // member-visible bus member with its full belt/coverage/CHECK price, which the needle's row does not buy.
-export function runtimeVariablesRead(trpc: Trpc): readonly InvalidateFilter[] {
+export function runtimeVariablesRead(trpc: Trpc): readonly InvalidateQueryFilters[] {
   return [trpc.chat.getRuntimeVariables.pathFilter()];
 }
 
@@ -144,14 +141,14 @@ export function roomWasDark(chatId: ChatId): boolean {
  *  Exactly one query moves, because reactions are deliberately NOT part of `MessageView` — folding them in
  *  would have put a per-variant join on every canon read and every bus view carrier, for an ornament most
  *  rows never carry. */
-export function reactionsRead(trpc: Trpc): readonly InvalidateFilter[] {
+export function reactionsRead(trpc: Trpc): readonly InvalidateQueryFilters[] {
   return [trpc.chat.listReactions.pathFilter()];
 }
 
 // Canon reads plus the chat list, for non-terminal canon events the server fires no chatsChanged for. Every
 // event on this set moves (or can move) a stored body — an edit, a swipe, a hide, a delete/reorder — so the
 // host-reveal derivation rides with it.
-export function chatReads(trpc: Trpc): readonly InvalidateFilter[] {
+export function chatReads(trpc: Trpc): readonly InvalidateQueryFilters[] {
   return [
     ...chatCanonReads(trpc),
     ...hiddenRevealRead(trpc),
@@ -164,7 +161,7 @@ export function chatReads(trpc: Trpc): readonly InvalidateFilter[] {
 /** Per-entity-kind filters for `roomEntityChanged`. Total over `RoomEntityKind` (the mapped type is the
  *  belt). Every row is free when its surface is closed — `invalidateQueries` is a no-op for a key with no
  *  cache entry. */
-export const ROOM_ENTITY_FILTERS: { readonly [K in RoomEntityKind]: (chatId: ChatId, trpc: Trpc) => readonly InvalidateFilter[] } = {
+export const ROOM_ENTITY_FILTERS: { readonly [K in RoomEntityKind]: (chatId: ChatId, trpc: Trpc) => readonly InvalidateQueryFilters[] } = {
   // The D22 member-card dialog (`getMemberCard`) is THE row the owner's symptom was missing: a card edit
   // fanned to the room repainted `getChat` and nothing else, because `getMemberCard` rode only the
   // editor-local user-bus `charactersChanged` row. Plus the seat's name/avatar in the roster (`getChat`) and
@@ -211,7 +208,7 @@ export const ROOM_ENTITY_FILTERS: { readonly [K in RoomEntityKind]: (chatId: Cha
 };
 
 // Heal member-readable entity data after a missed live-only fan; owner-plane reads and replay-driven previews heal elsewhere.
-const ROOM_ENTITY_HEAL_FILTERS: { readonly [K in RoomEntityKind]: (chatId: ChatId, trpc: Trpc) => readonly InvalidateFilter[] } = {
+const ROOM_ENTITY_HEAL_FILTERS: { readonly [K in RoomEntityKind]: (chatId: ChatId, trpc: Trpc) => readonly InvalidateQueryFilters[] } = {
   // The D22 member-card dialog — the read this heal was born for, and the one it covered alone until today.
   // Free when the dialog is shut (`enabled: open` ⇒ no cache entry ⇒ `invalidateQueries` is a no-op).
   character: (_chatId, trpc) => [trpc.chat.getMemberCard.pathFilter(), trpc.worldInfo.listForChat.pathFilter()],
@@ -232,7 +229,7 @@ const ROOM_ENTITY_HEAL_FILTERS: { readonly [K in RoomEntityKind]: (chatId: ChatI
 
 /** Every read the live-only lane's heal covers, DERIVED over `ROOM_ENTITY_KINDS` — so the attach synthesis's
  *  row can never fall behind the kind tuple again (see {@link ROOM_ENTITY_HEAL_FILTERS}). */
-export function roomEntityHealReads(chatId: ChatId, trpc: Trpc): readonly InvalidateFilter[] {
+export function roomEntityHealReads(chatId: ChatId, trpc: Trpc): readonly InvalidateQueryFilters[] {
   return ROOM_ENTITY_KINDS.flatMap((kind) => ROOM_ENTITY_HEAL_FILTERS[kind](chatId, trpc));
 }
 
@@ -255,7 +252,7 @@ export function roomEntityHealReads(chatId: ChatId, trpc: Trpc): readonly Invali
 // (the map's SHAPE is the belt `bus-consumer-belt` checks; the real `trpc.rpg.*` filters wire in W2 alongside the stream hook).
 // The per-member notes name the read each will invalidate.
 type RpgBusFilterMap = {
-  readonly [K in RpgBusEvent["type"]]: (event: Extract<RpgBusEvent, { type: K }>, trpc: Trpc) => readonly InvalidateFilter[];
+  readonly [K in RpgBusEvent["type"]]: (event: Extract<RpgBusEvent, { type: K }>, trpc: Trpc) => readonly InvalidateQueryFilters[];
 };
 
 export const RPG_BUS_FILTERS: RpgBusFilterMap = {
@@ -293,7 +290,7 @@ export const RPG_BUS_FILTERS: RpgBusFilterMap = {
 /** Every rpg filter, for the (re)connect gap-heal (the `use-rpg-bus.ts` blanket invalidate) — the game +
  *  tracker + config + journal + host-reveal reads for one open game, derived so a new read can't drift the
  *  heal set. */
-export function allRpgGameFilters(trpc: Trpc, chatId: ChatId): readonly InvalidateFilter[] {
+export function allRpgGameFilters(trpc: Trpc, chatId: ChatId): readonly InvalidateQueryFilters[] {
   return [
     trpc.rpg.getGame.queryFilter({ chatId }),
     trpc.rpg.getTrackerView.queryFilter({ chatId }),

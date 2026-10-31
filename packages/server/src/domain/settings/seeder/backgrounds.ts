@@ -31,12 +31,13 @@
 // raw-JSON rewrites all arrive as injected closures the composition root builds.
 
 import type { Principal } from "@orb/contracts/identity";
+import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource } from "@orb/contracts/theme";
 import { errorMessage } from "@orb/kit/error-message";
 import type { UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { DefaultBackgroundSeeder, DefaultBackgroundSeederDeps, SeededLibraryEntry, SeededPlateAsset } from "../contract/seeder.ts";
+import type { DefaultBackgroundSeeder, DefaultBackgroundSeederDeps, SeededPlateAsset } from "../contract/seeder.ts";
 
 /** One stored plate as a carried background SOURCE. Built through the canonicalizer every other carried
  *  background write path runs, so the seeded refs are byte-identical in shape to a hand-picked one. */
@@ -75,7 +76,7 @@ export function createDefaultBackgroundSeeder(deps: DefaultBackgroundSeederDeps)
 
   /** The library with every shipped plate this user does not already carry appended, in pack order. A plate
    *  the pack ships no bytes for is SKIPPED, never a hole: one missing file costs one plate. */
-  async function appendMissingPlates(principal: Principal, current: readonly SeededLibraryEntry[]): Promise<readonly SeededLibraryEntry[]> {
+  async function appendMissingPlates(principal: Principal, current: readonly BackgroundLibraryEntry[]): Promise<readonly BackgroundLibraryEntry[]> {
     const known = new Set(current.map((entry) => entry.assetHash));
     const next = [...current];
     for (const plate of deps.plates) {

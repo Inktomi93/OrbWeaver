@@ -10,12 +10,13 @@
 // below that can move a book's name, its entry count, or its attachment total names `listRead`.
 
 import type { EntryView } from "@orb/contracts/world-info";
+import type { InvalidateQueryFilters } from "@tanstack/react-query";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
-import type { InvalidateFilter, Trpc } from "#data";
+import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
 /** The Configuration list's read (book row = name · entry count · attachment scent). */
-function listRead(trpc: Trpc): InvalidateFilter {
+function listRead(trpc: Trpc): InvalidateQueryFilters {
   return trpc.worldInfo.listBooksWithUsage.pathFilter();
 }
 

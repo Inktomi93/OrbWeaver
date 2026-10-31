@@ -53,7 +53,7 @@ export { importTree, relativePathOf } from "./import-tree.ts";
 export type { TreeImportCaps, TreeImportPlan } from "./import-tree-plan.ts";
 export { skippedByReason } from "./import-tree-plan.ts";
 export { planServedFolderImport } from "./import-tree-served.ts";
-export type { InvalidateFilter, Invalidation } from "./invalidation.ts";
+export type { Invalidation } from "./invalidation.ts";
 export {} from "./invalidation.ts";
 export {} from "./invalidation-carrier.ts";
 export { connectionWriteReads, personaWriteReads } from "./invalidation-reads.ts";

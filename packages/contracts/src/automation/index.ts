@@ -906,13 +906,12 @@ export type AutomationEmitSource = { kind: "rule"; ruleId: AutomationRuleId } | 
 //
 //  DISCRIMINATED FROM ONE MEMBER: `kind` is spelled today so the second detail is a union arm rather than a
 //  re-type of every consumer (the single-arm-union seam shape).
-interface RewriteCardDetail {
+export interface SuggestionCardDetail {
   readonly kind: "rewrite";
   /** The audited variant's bytes AS THEY WERE at the ask — the diff's left side and the host's "before". */
   readonly before: string;
   readonly after: string;
 }
-export type SuggestionCardDetail = RewriteCardDetail;
 
 export type AutomationBusEvent =
   | { type: "quickReplySurfaced"; chatId: ChatId; source: AutomationEmitSource; choices: readonly { label: string; sendText: string; mode: QuickReplyMode }[] }

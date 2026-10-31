@@ -36,6 +36,7 @@ import type {
   PluginInvokeArgs,
   PluginLogLevel,
   PluginLogView,
+  SnippetResult,
 } from "@orb/contracts/plugin";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { Logger } from "#src/foundation/observability/contract/logging.ts";
@@ -51,7 +52,7 @@ import {
   PLUGIN_SNIPPET_RUNTIME_MAX,
   SNIPPET_WALL_MS,
 } from "./budgets.ts";
-import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, LocalPluginHostSeams, PluginHostSeamDeps, SnippetRunOut } from "./contract/port.ts";
+import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, LocalPluginHostSeams, PluginHostSeamDeps } from "./contract/port.ts";
 import { getPluginQuickJS } from "./module.ts";
 import type { HostSeams, LogMirror } from "./realm.ts";
 import { Sandbox } from "./sandbox.ts";
@@ -209,7 +210,7 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
     readonly grants: readonly PluginCapability[];
     readonly bridge: PluginBridge;
     readonly chat: InvocationChat;
-  }) => Promise<SnippetRunOut>;
+  }) => Promise<SnippetResult>;
   readonly readLog: (instance: PluginInstance) => readonly PluginLogView[];
   readonly dispose: (instance: PluginInstance) => void;
 } {
@@ -329,7 +330,7 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
       return await run;
     },
 
-    runSnippet: async (input): Promise<SnippetRunOut> => {
+    runSnippet: async (input): Promise<SnippetResult> => {
       // A transient one-shot: fresh instance, the 5 s snippet wall, run once as the caller, dispose —
       // NEVER resident (no registry entry, no `invoke` reachable after). `events`/`tools`/`transforms`
       // registration is refused by the SAME capability gate (the snippet profile omits those grants).
@@ -339,7 +340,7 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
       // ceiling `createInstance` holds. Its own pool, never the residents' — see `PLUGIN_SNIPPET_RUNTIME_MAX`.
       const releaseAdmission = acquireSnippetAdmission();
       if (releaseAdmission === null) {
-        // A THROW, not a `SnippetRunOut`: the run never started, and every field of that shape (`logLines`,
+        // A THROW, not a `SnippetResult`: the run never started, and every field of that shape (`logLines`,
         // `errorKind: parse|runtime`) is a statement about a run that DID. `DomainConflictError` maps to
         // CONFLICT at the transport ladder — the same retryable-the-moment-a-slot-frees class the domain's
         // per-user `PluginSnippetBusyError` already uses, so the console surfaces it through the path it

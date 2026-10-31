@@ -2,13 +2,13 @@
 // at once and rebuilds it, so the pane asks the server what the change would rebuild before writing it, and asks
 // the user only when something stored would be rebuilt. Cancel writes nothing.
 
+import type { EmbedSpaceChangePreview } from "@orb/contracts/inference";
 import { useQueryClient } from "@tanstack/react-query";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
 import { readFresh } from "#data";
-import type { ReindexPreview } from "#lib";
 import { REINDEX_CONFIRM_COPY, reindexConfirmDescription, reindexNeedsConfirm } from "#lib";
 import type { ConfirmDialogProps } from "./confirm-dialog.tsx";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
@@ -21,7 +21,7 @@ type GuardedWrite = (checksEmbedder: boolean) => void;
 
 interface PendingWrite {
   /** `null` when the preview could not be read: the confirm still asks, without counts. */
-  readonly preview: ReindexPreview | null;
+  readonly preview: EmbedSpaceChangePreview | null;
   readonly write: GuardedWrite;
 }
 

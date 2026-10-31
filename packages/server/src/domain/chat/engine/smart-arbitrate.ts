@@ -5,9 +5,10 @@
 
 import type { AssembleContext, SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
+import type { RolePresetParams } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
-import type { ResponseFormat, SummarizeOptions } from "@orb/contracts/role-clients";
+import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { RPG_SCENE_LINE_LABEL } from "@orb/contracts/rpg";
 import { GenerationObservationPersistenceError, runStructuredTurn } from "@orb/inference";
 import type { CharacterId } from "@orb/kit/ids";
@@ -61,7 +62,7 @@ interface SmartArbitrateParams {
   /** The ROOM HOST's prose overrides (`chat.arbiter.system`). Empty ⇒ the shipped arbiter prompt. */
   readonly prose: ProseOverrides;
   /** The resolved side-gen sampling options (the `arbiter` posture ← the host's preset params), as-is. */
-  readonly sampling: SummarizeOptions;
+  readonly sampling: RolePresetParams;
   /** The TURN's abort signal, threaded into the call so a box that never answers can be cut loose. No deadline
    *  rides alongside it ON PURPOSE: a slow local arbiter can legitimately take tens of seconds. */
   readonly signal?: AbortSignal | undefined;

@@ -5,7 +5,7 @@
 //
 // WHY IT LIVES ON THE MESSAGE ROW, NOT IN THE PREVIEW TAB (the graft receipt): the Preview tab
 // (`chats-section.tsx` → `AssemblyPreviewPanel`) is the chat's host-only diagnostic home, but its plane is
-// CHAT-level and PROSPECTIVE, and `ChatContextState` carries no message/variant selection — it structurally
+// CHAT-level and PROSPECTIVE, and `CommittedChatContext` carries no message/variant selection — it structurally
 // cannot scope a per-VARIANT read. The per-variant diagnostic home that DOES exist is the message metadata
 // row (`MessageMetadataRow`: the shown swipe's model/tokens/gen-window/cost), whose `MessageCostReadout` is
 // exactly this pattern — a quiet click-to-reveal trigger whose query fires only on the click. This is an arm

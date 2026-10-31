@@ -6,7 +6,6 @@ export type {
   MemoryConfig,
   MemoryEmbedSpace,
   MemoryPassCounts,
-  MemoryRecallFilter,
   MemoryRecallRecord,
   MemoryRecallRecorder,
   MemoryRecallResult,

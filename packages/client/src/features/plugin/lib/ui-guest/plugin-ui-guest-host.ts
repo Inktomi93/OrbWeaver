@@ -17,7 +17,7 @@
 // LIFECYCLE: one host per (plugin × worker), created lazily by the mount when one of its scripted surfaces is
 // on screen and disposed on unmount/disable. `dispose()` is idempotent and safe to call from a React cleanup.
 
-import type { PluginLogLevel, PluginSurfaceSpec } from "@orb/contracts/plugin";
+import type { PluginLogLevel, PluginSurfaceNode } from "@orb/contracts/plugin";
 import { pluginSurfaceSpecSchema } from "@orb/contracts/plugin";
 import type { UiGuestInbound, UiGuestOutbound, UiGuestReadyMessage, UiGuestSettledMessage, UiGuestUnavailableMessage } from "#lib";
 import { timeLib, UI_GUEST_BOOT_WALL_MS, UI_GUEST_WALL_MS } from "#lib";
@@ -29,7 +29,7 @@ interface PluginUiGuestEvents {
   readonly onReady: () => void;
   /** A VALIDATED tree for one surface. Already through `pluginSurfaceSpecSchema` and already past the
    *  publish guard, so a caller may set state with it unconditionally. */
-  readonly onTree: (surfaceId: string, tree: PluginSurfaceSpec) => void;
+  readonly onTree: (surfaceId: string, tree: PluginSurfaceNode) => void;
   /** The guest died: hung past its wall, threw at boot, or published something the schema refused. The surface
    *  collapses to null and the caller reports the crash. `reason` is operator-facing. */
   readonly onCrash: (reason: string) => void;

@@ -3,6 +3,7 @@ import type {
   CountDocumentChunksByOwnerOp,
   CountDocumentChunksOp,
   EmbeddingConnectionFacts,
+  EmbeddingTask,
   EmbedPassResult,
   ListCharacterIds,
   ListImageAssetIds,
@@ -27,7 +28,7 @@ import type { AssetId, CharacterEmbeddingId, CharacterId, ChatDigestId, ChatId, 
 import type { Clock, ScheduleOp } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import type { Logger } from "#foundation/observability";
-import type { GenerationReceipt, GenerationTask } from "./generation.ts";
+import type { GenerationReceipt } from "./generation.ts";
 import type { EmbedPassParams, PruneMemoryBlocksParams, SegmentStoreParams, StoreParams } from "./params.ts";
 import type { ImageSpace, ImageSpaceDegrade, PruneMemoryBlocksResult, PurgeDocumentVectorsResult, PurgeMemoryVectorsResult, StoreResult } from "./results.ts";
 
@@ -140,7 +141,7 @@ export interface EmbeddingsService {
     assetId: AssetId,
     options?: { readonly force?: boolean; readonly embedderChanged?: boolean | undefined; readonly signal?: AbortSignal | undefined },
   ) => Promise<StoreResult | null>;
-  readonly resolveGeneration: (ownerId: UserId, task: GenerationTask, via?: GenerationTask) => Promise<PinnedGeneration | null>;
+  readonly resolveGeneration: (ownerId: UserId, task: EmbeddingTask, via?: EmbeddingTask) => Promise<PinnedGeneration | null>;
   /** Bring the owner's stored targets in line with what their vector bindings resolve to now, moving any that
    *  differ (which queues the rebuild through {@link EmbeddingsContext.onTargetGenerationMoved}). A binding that
    *  cannot resolve yet moves nothing and does not throw: its first write after it can resolve moves it. Every move

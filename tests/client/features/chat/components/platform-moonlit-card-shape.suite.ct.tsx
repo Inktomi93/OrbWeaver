@@ -2,6 +2,7 @@
 // asymmetric corners and 80% cap, Tide's 18px pills and 70% (90% on a phone) column, the timestamp under the name on a phone
 // outside echo, and Ripple's rule under its header and its portrait fading into the card.
 
+import { CHAT_MESSAGE_LIST_MAX_LIMIT } from "@orb/contracts/chat";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -169,7 +170,9 @@ test.describe("desktop", () => {
 test.describe("message number", () => {
   test.use({ viewport: DESKTOP, hasTouch: true });
 
-  async function numberFacts(page: Page): Promise<{ readonly place: "metadata" | "portrait" | "absent"; readonly gap: number; readonly offCentre: number }> {
+  async function numberFacts(
+    page: Page,
+  ): Promise<{ readonly place: "metadata" | "portrait" | "absent"; readonly gap: number; readonly offCentre: number; readonly text: string | null }> {
     // The last reply is fully in view; a row above it may sit under the transcript's top edge.
     const row = page.locator(ROW).last();
     await expect(row).toBeVisible();
@@ -177,15 +180,24 @@ test.describe("message number", () => {
       const number = element.querySelector('[data-slot="message-metadata-id"]');
       const portrait = element.querySelector('[data-slot="avatar-root"]')?.getBoundingClientRect();
       if (number === null) {
-        return { place: "absent" as const, gap: Number.NaN, offCentre: Number.NaN };
+        return { place: "absent" as const, gap: Number.NaN, offCentre: Number.NaN, text: null };
       }
       const box = number.getBoundingClientRect();
       return {
         place: number.closest('[data-slot="message-metadata-row"]') === null ? ("portrait" as const) : ("metadata" as const),
         gap: portrait === undefined ? Number.NaN : box.top - portrait.bottom,
         offCentre: portrait === undefined ? Number.NaN : Math.abs(box.left + box.width / 2 - (portrait.left + portrait.width / 2)),
+        text: number.textContent,
       };
     });
+  }
+
+  /** The whole room read as the viewer: the last row's number is how many rows the room holds. */
+  async function lastRowNumber(): Promise<string> {
+    const caller = await root.internalCallerFor(root.ownerId);
+    const { messages, previousCursor } = await caller.chat.listMessages({ ...roomStoryProps(), limit: CHAT_MESSAGE_LIST_MAX_LIMIT });
+    expect(previousCursor).toBeNull();
+    return `#${messages.length}`;
   }
 
   test("ripple seats the message number under its portrait, centred on it", async ({ corpus, mount, page }) => {
@@ -194,6 +206,7 @@ test.describe("message number", () => {
     await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
     const facts = await numberFacts(page);
     expect(facts.place).toBe("portrait");
+    expect(facts.text).toBe(await lastRowNumber());
     // Capture 194745 puts it a field step (about 6px) under the portrait, centred on it.
     expect(facts.offCentre).toBeLessThanOrEqual(1);
     expect(Math.abs(facts.gap - LENGTH_BASE_PX["spacing.field"])).toBeLessThanOrEqual(1);
@@ -203,7 +216,9 @@ test.describe("message number", () => {
     await openReadingStyle(page, corpus, "bubble", { showMessageId: true });
     await seedShellState(page, { activeSection: "chats" });
     await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
-    expect((await numberFacts(page)).place).toBe("metadata");
+    const facts = await numberFacts(page);
+    expect(facts.place).toBe("metadata");
+    expect(facts.text).toBe(await lastRowNumber());
   });
 });
 

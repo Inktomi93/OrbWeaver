@@ -55,11 +55,6 @@ import { hasMultipleCharacters } from "./speaker-stamp.ts";
  *  system — `toShapeCanon` drops them). */
 type WireRole = Exclude<MessageRole, "system">;
 
-/** The DELIVERED wire-row role axis: canon roles plus the `system` row an injection keeps where
- *  {@link deliverSystemRows} lets it. An injection is the ONLY producer of a delivered `system` row: a CANON row
- *  never takes one (owner ruling 2026-08-18 — see {@link shape}'s narrator note). */
-type DeliveredRole = MessageRole;
-
 /** One loaded canon row SHAPE consumes (from `persistence/queries.loadCanonHistory`, already sanitized).
  *  `authorName` = the stored authoring name (persona on user rows, character on assistant rows);
  *  `characterId` = the authoring character (identity attribution — drives the distinct-speaker gate);
@@ -83,7 +78,7 @@ interface CanonRow {
 
 /** A name-stamped wire row (the SHAPE output row). */
 interface WireRow {
-  role: DeliveredRole;
+  role: MessageRole;
   content: string;
   name?: string;
   messageId?: MessageId | undefined;
@@ -172,8 +167,8 @@ interface ShapeOutput {
     /** PRE-SPLICE, and therefore never `system`: canon rows are `user|assistant` on both the canon and the
      *  delivered plane (`toShapeCanon` drops system-role rows; no canon row is re-roled at delivery). */
     withTail: CanonRow[];
-    injected: (CanonRow | { role: DeliveredRole; content: string })[];
-    squashed: (CanonRow | { role: DeliveredRole; content: string })[];
+    injected: (CanonRow | { role: MessageRole; content: string })[];
+    squashed: (CanonRow | { role: MessageRole; content: string })[];
     named: WireRow[];
     /** The FINAL stage's content-free projection: `history` as order + role + voice + provenance + size.
      *  The only stage snapshot that is already wire-shaped, because it is the one a host READS
@@ -256,7 +251,7 @@ function foldEntry(entry: DeliveryEntry, reason: ShapeFoldReason, prose: ProseOv
 
 /** The role of the nearest non-system row in `entries` (walked in the order given) that reaches the wire, or
  *  undefined. A row that converts to nothing is dropped after SHAPE, so it is never the neighbour. */
-function nearestRole(entries: readonly DeliveryEntry[], convertsToEmpty: (content: string) => boolean): DeliveredRole | undefined {
+function nearestRole(entries: readonly DeliveryEntry[], convertsToEmpty: (content: string) => boolean): MessageRole | undefined {
   return entries.find((entry) => isLive(entry) && entry.row.role !== "system" && !convertsToEmpty(entry.row.content))?.row.role;
 }
 
@@ -264,8 +259,8 @@ function nearestRole(entries: readonly DeliveryEntry[], convertsToEmpty: (conten
  *  row before is a user row and the row after is an assistant row. */
 function midArrayFold(
   placement: SystemRowPlacement,
-  beforeRole: DeliveredRole | undefined,
-  afterRole: DeliveredRole | undefined,
+  beforeRole: MessageRole | undefined,
+  afterRole: MessageRole | undefined,
   historySystemRows: boolean,
 ): ShapeFoldReason | null {
   if (placement === "fold") {
@@ -369,7 +364,7 @@ function leadTarget(entries: readonly DeliveryEntry[], from: number, joins: bool
 /** Why the TRAILING run folds, or undefined when it stays. SHAPE's user tail goes before a kept run, so under
  *  `slotted` the run is out of its slot only when no user row can precede it (a prefill turn ending on the
  *  model's own reply). */
-function trailingFold(lastRole: DeliveredRole | undefined, opts: DeliveryOptions): ShapeFoldReason | undefined {
+function trailingFold(lastRole: MessageRole | undefined, opts: DeliveryOptions): ShapeFoldReason | undefined {
   const placement = SYSTEM_ROW_PLACEMENT[opts.level];
   if (placement === "fold") {
     return "level";
@@ -388,7 +383,7 @@ function lastDeliveredIndex(entries: readonly DeliveryEntry[]): number {
 
 /** The role this turn may give a cue: turn-scoped after a user row where the turn can send one (OR-10 S2), else a
  *  user row. S2b measured a system cue right after a reply as a 400. */
-function cueRoleAt(before: DeliveredRole | undefined, systemCue: boolean): CueRole {
+function cueRoleAt(before: MessageRole | undefined, systemCue: boolean): CueRole {
   return systemCue && before === "user" ? "turn-scoped-system" : "user";
 }
 
@@ -451,7 +446,7 @@ function deliverSystemRows(rows: readonly WireRow[], opts: DeliveryOptions): Del
 function stableRows(
   withTail: readonly CanonRow[],
   stableCount: number,
-  injected: readonly ({ readonly role: DeliveredRole; readonly content: string } | { readonly anchored?: true })[],
+  injected: readonly ({ readonly role: MessageRole; readonly content: string } | { readonly anchored?: true })[],
 ): boolean[] {
   const committed = new Set<object>(withTail.slice(0, stableCount).filter((row) => row.depthVolatile !== true));
   return injected.map((row) => committed.has(row) || "anchored" in row);
@@ -470,10 +465,7 @@ function stableRows(
  * `delivered` is the final delivered history with each row's stability (a merged row is stable only when every
  * row in it is).
  */
-function computeHistoryBreakpoint(
-  delivered: readonly { readonly role: DeliveredRole; readonly stable: boolean }[],
-  hasStablePrefix: boolean,
-): BreakpointOutcome {
+function computeHistoryBreakpoint(delivered: readonly { readonly role: MessageRole; readonly stable: boolean }[], hasStablePrefix: boolean): BreakpointOutcome {
   if (!hasStablePrefix) {
     return NO_STABLE_PREFIX;
   }
@@ -523,7 +515,7 @@ function collapseSources(parts: readonly RowFacts[]): ShapeRowSource {
  *  discriminator `resolveFullCards` reads); VOICE off the PRE-name row's `authorName`, because the name-stamp
  *  inlines the speaker into content on every mode but `completion`, so the delivered row usually has no `name`
  *  left to read. */
-function preSquashRowFacts(namedInput: readonly WireRow[], injected: readonly (CanonRow | { role: DeliveredRole; content: string })[]): RowFacts[] {
+function preSquashRowFacts(namedInput: readonly WireRow[], injected: readonly (CanonRow | { role: MessageRole; content: string })[]): RowFacts[] {
   return namedInput.map((row, index): RowFacts => {
     const origin = injected[index];
     const authorName = origin !== undefined && "authorName" in origin ? (origin.authorName ?? undefined) : undefined;
@@ -552,7 +544,7 @@ interface SquashMode {
  *  "which inputs became this row" to report a merged row's provenance. ONE rule, two readers
  *  (`role-squash::squashRuns` is what `squashSameRole` is built on), so the trace cannot drift from the wire.
  *  `merges === false` is the pass-through arm: empties drop, nothing groups. */
-function squashRunsFor<T extends { role: DeliveredRole; content: string; name?: string; messageId?: MessageId | undefined }>(
+function squashRunsFor<T extends { role: MessageRole; content: string; name?: string; messageId?: MessageId | undefined }>(
   rows: readonly T[],
   mode: SquashMode,
 ): readonly (readonly number[])[] {
@@ -568,7 +560,7 @@ function squashRunsFor<T extends { role: DeliveredRole; content: string; name?: 
  *  delivery list, as index runs, so each delivered row's facts are the union of the rows that actually became
  *  it — which is what makes a `merged` verdict and a fold reason provable rather than guessed. */
 function traceDeliveredRows(args: {
-  readonly injected: readonly (CanonRow | { role: DeliveredRole; content: string })[];
+  readonly injected: readonly (CanonRow | { role: MessageRole; content: string })[];
   readonly namedInput: readonly WireRow[];
   readonly delivery: Delivery;
   readonly history: readonly WireRow[];
@@ -648,7 +640,7 @@ export function shape(input: ShapeInput): ShapeOutput {
   // turn's own row (the last row of `withTail`).
   const prefixBoundaryLen = withTail.length > 1 ? withTail.length - 1 : undefined;
 
-  const runSquash = <T extends { role: DeliveredRole; content: string; name?: string; messageId?: MessageId | undefined }>(rows: readonly T[]): T[] =>
+  const runSquash = <T extends { role: MessageRole; content: string; name?: string; messageId?: MessageId | undefined }>(rows: readonly T[]): T[] =>
     merges
       ? squashSameRole(rows, squash)
       : rows.filter((r) => r.content.trim().length > 0 || (r.messageId !== undefined && input.replayToolMessageIds?.has(r.messageId) === true));

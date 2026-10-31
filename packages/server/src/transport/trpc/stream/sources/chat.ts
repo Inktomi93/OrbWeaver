@@ -68,9 +68,9 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { StreamDataFrame } from "@orb/contracts/stream";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { ChatService } from "#domain/chat";
-import { isBelowHistoryFloor, scrubDeltaEventForMember, stripChatEventForMember } from "#domain/chat";
+import { eventViewMessageId, isBelowHistoryFloor, scrubDeltaEventForMember, stripChatEventForMember, withViewPosition } from "#domain/chat";
 import type { LiveBuses } from "../../contract/live-buses.ts";
 import type { RoomSourceDef } from "../room-source.ts";
 
@@ -186,12 +186,14 @@ async function resolveLiveYield(args: {
   if (event.type === "chatDeleted") {
     return { event: authorizedOnce ? event : null, authorized: authorizedOnce };
   }
-  const gate = await memberBounds(service, principal, chatId);
+  const gate = await memberBounds(service, principal, chatId, eventViewMessageId(event));
   if (gate === null || isBelowHistoryFloor(event, gate.historyFloorSeq)) {
     return { event: null, authorized: gate !== null };
   }
+  // A durable view holds no position: it is this subscriber's, resolved at their floor by the probe above.
+  const positioned = withViewPosition(event, gate.messagePosition);
   if (gate.viewerIsHost) {
-    return { event, authorized: true };
+    return { event: positioned, authorized: true };
   }
   // Member: a `delta` forwards only its stamped member bytes (unstamped ⇒ withheld, fail-closed); any other
   // event at-commit-strips its `view`. P3 (§3.6): `gate.reasoningHostOnly` (the deception-active verdict
@@ -200,7 +202,7 @@ async function resolveLiveYield(args: {
   if (event.type === "delta") {
     return { event: scrubDeltaEventForMember(event, gate.reasoningHostOnly), authorized: true };
   }
-  return { event: stripChatEventForMember(event, gate.reasoningHostOnly), authorized: true };
+  return { event: stripChatEventForMember(positioned, gate.reasoningHostOnly), authorized: true };
 }
 
 /** The attach-time syntheses + reconnect replay (member already admitted). `chatOpened` fires once at
@@ -258,9 +260,9 @@ async function* attachSynthesesAndReplay(args: {
 // propagates (→ this room's `roomFailed`). The returned `{minSeq, maxSeq}` backs the `historyTruncated`
 // predicate (no second read for the truncation check); `historyFloorSeq` backs the per-yield join-history
 // clamp; `viewerIsHost`/`reasoningHostOnly` back the §3.6 member projection.
-async function memberBounds(service: ChatService, principal: Principal, chatId: ChatId): Promise<ChatEventAttach | null> {
+async function memberBounds(service: ChatService, principal: Principal, chatId: ChatId, positionOf?: MessageId): Promise<ChatEventAttach | null> {
   try {
-    return await service.chatEventBounds({ principal, chatId });
+    return await service.chatEventBounds({ principal, chatId, positionOf });
   } catch (err) {
     if (err instanceof DomainNotFoundError) {
       return null;

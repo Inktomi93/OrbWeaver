@@ -15,9 +15,10 @@
 // unreadable from a trace: a succeed-on-attempt-3 turn looks merely slow, and the thrown error cannot
 // distinguish "a delta had already streamed" from "attempts exhausted".
 
+import type { ScheduleOp } from "@orb/kit/time";
 /** The span-event seam — the package never imports the tracer; the composition root hands the request span's
  *  `addSpanEvent` in through the backend deps, and a test that passes none gets a silent no-op. */
-import type { AddSpanEvent, ScheduleTimeout } from "#contract";
+import type { AddSpanEvent } from "#contract";
 import { ProviderError } from "#contract";
 import type { RetryOptions } from "../../contract/http.ts";
 
@@ -53,7 +54,7 @@ function computeBackoffMs(attempt: number, err: ProviderError, opts: RetryOption
 /** Sleep that resolves on whichever fires first: the timer or the abort signal. Throws a
  *  `ProviderError(kind:"aborted")` when the signal interrupts, so the retry loop surfaces it as the turn
  *  error rather than silently waiting out the full backoff. */
-function abortableSleep(ms: number, signal: AbortSignal | undefined, scheduleTimeout: ScheduleTimeout): Promise<void> {
+function abortableSleep(ms: number, signal: AbortSignal | undefined, scheduleTimeout: ScheduleOp): Promise<void> {
   if (ms <= 0) {
     return Promise.resolve();
   }

@@ -15,11 +15,11 @@ import { History } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 import { QueryBoundary } from "#components";
 import { SkeletonRows } from "#data";
-import type { ChatContextState, ContextTabDef } from "#lib";
+import type { CommittedChatContext, ContextTabDef } from "#lib";
 import { RoomActivityLog } from "../components/room-activity-log.tsx";
 
 /** The room Activity tab — a host-only CONTEXT-strip sibling of Members/"This chat"/Preview (B11). */
-export const automationActivityTab: ContextTabDef<ChatContextState> = {
+export const automationActivityTab: ContextTabDef<CommittedChatContext> = {
   id: "automation.activity",
   label: "Activity",
   icon: History,

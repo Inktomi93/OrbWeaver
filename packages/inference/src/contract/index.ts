@@ -41,15 +41,7 @@ export {
   GenerationObservationPersistenceError,
   normalizeFinishReason,
 } from "./chat.ts";
-export type {
-  AccountCreditsRequest,
-  GenerationCostRequest,
-  InspectRequest,
-  ListModelsRequest,
-  ModelsDial,
-  ProbeRequest,
-  VerifyAuthRequest,
-} from "./diagnostics.ts";
+export type { DiagnosticRequestCommon, GenerationCostRequest, ListModelsRequest, ModelsDial } from "./diagnostics.ts";
 export type { ProviderErrorKind, ProviderScrubSet, VectorWidthMismatch } from "./errors.ts";
 export { ProviderError, SCHEMA_REJECTED_DETAIL } from "./errors.ts";
 export type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events.ts";
@@ -84,12 +76,11 @@ export type {
   LocalLightModelSlot,
   ModelFamily,
   Reachability,
-  ScheduleTimeout,
   SpawnIdentity,
   StoredConnectionRead,
 } from "./runtime.ts";
 export { ANTH_IMAGE_MEDIA_TYPES, LOCAL_LIGHT_MODEL_SLOTS } from "./runtime.ts";
-export type { ChatPosture, SideGenSampling } from "./side-gen.ts";
+export type { ChatPosture } from "./side-gen.ts";
 export { postureOfTask } from "./side-gen.ts";
 export type { StructuredRetrySummary } from "./structured-turn.ts";
 export { StructuredOutputError } from "./structured-turn.ts";
