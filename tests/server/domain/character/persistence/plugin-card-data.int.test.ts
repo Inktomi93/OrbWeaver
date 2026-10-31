@@ -59,14 +59,14 @@ test("a plugin's blob round-trips under its reserved plugin key and never change
   expect(after.contentHash).toBe(born.contentHash);
 });
 
-test("a foreign card writes nothing and reads exactly like an absent one", async ({ harness }) => {
+test("a foreign card writes nothing and reads exactly like an absent one", async ({ harness, ids }) => {
   const { owner, id } = await card(harness, { [pluginCardStateKey(ALPHA)]: { secret: "owner's" } });
   const stranger = await harness.principalFor((await harness.actor()).id);
   const handle = databaseHandle(harness.db);
 
   expect(await writePluginCardData(handle, { characterId: id, ownerId: stranger.userId, slug: ALPHA }, { hax: true })).toBe(false);
   expect(await readPluginCardData(handle, { characterId: id, ownerId: stranger.userId, slug: ALPHA })).toEqual({ found: false });
-  expect(await readPluginCardData(handle, { characterId: mintTypeId("character"), ownerId: owner.userId, slug: ALPHA })).toEqual({ found: false });
+  expect(await readPluginCardData(handle, { characterId: mintTypeId("character", ids.next), ownerId: owner.userId, slug: ALPHA })).toEqual({ found: false });
   expect((await stored(harness, id)).extensions).toEqual({ [pluginCardStateKey(ALPHA)]: { secret: "owner's" } });
 
   // Control: the owner reads the same card, so the refusals above were the owner scope and not a missing row.

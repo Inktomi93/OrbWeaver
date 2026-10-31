@@ -1,26 +1,15 @@
 // The census plans each concept once, from its real owner: a derived form is derived, a shape-only match goes to
 // review, a consumer plans only the ops it calls, a member typed by a contracts alias owns its chain, and every target
 // lands in the cluster of the concept it is about.
-import { expect, test } from "@orb/testkit/tooling";
+import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import type { PortTarget } from "../../../tooling/src/unwired/index.ts";
 import { portCensus } from "../../../tooling/src/unwired/index.ts";
 
 const S = "packages/server/src";
 
 const TREE = {
-  "packages/server/tsconfig.json": JSON.stringify({
-    compilerOptions: {
-      strict: true,
-      target: "ESNext",
-      lib: ["ESNext", "DOM"],
-      module: "ESNext",
-      moduleResolution: "bundler",
-      allowImportingTsExtensions: true,
-      noEmit: true,
-      types: [],
-      paths: { "#*": ["./src/*/index.ts"], "@orb/contracts/*": ["../contracts/src/*/index.ts"], "@orb/kit/regex": ["../kit/src/regex/index.ts"] },
-    },
-    include: ["src"],
+  "packages/server/tsconfig.json": plantedTsconfig({
+    paths: { "#*": ["./src/*/index.ts"], "@orb/contracts/*": ["../contracts/src/*/index.ts"], "@orb/kit/regex": ["../kit/src/regex/index.ts"] },
   }),
   "packages/contracts/package.json": JSON.stringify({
     name: "@orb/contracts",

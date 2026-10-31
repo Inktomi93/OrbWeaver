@@ -33,6 +33,7 @@ import { createListSnapshots } from "./verbs/list-snapshots.ts";
 import { createListTagGroups } from "./verbs/list-tag-groups.ts";
 import { createLoadCardText } from "./verbs/load-card-text.ts";
 import { createMintSyntheticGroupCharacter } from "./verbs/mint-synthetic-group-character.ts";
+import { createNamesByAvatarAssets } from "./verbs/names-by-avatar-assets.ts";
 import { createRemove } from "./verbs/remove.ts";
 import { createRestore } from "./verbs/restore.ts";
 import { createRewriteGreeting } from "./verbs/rewrite-greeting.ts";
@@ -51,6 +52,7 @@ export function createCharacterService(input: CharacterAssemblyInput): Character
     get: createGet(ctx),
     list: createList(ctx),
     count: createCount(ctx),
+    namesByAvatarAssets: createNamesByAvatarAssets(ctx),
     listTagGroups: createListTagGroups(ctx),
     update: createUpdate(ctx),
     remove: createRemove(ctx),

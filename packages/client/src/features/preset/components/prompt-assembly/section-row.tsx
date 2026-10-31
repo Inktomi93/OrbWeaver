@@ -194,7 +194,7 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
       markers={<SectionCues section={section} />}
       onClick={(): void => onSelect(section.id)}
       receded={!section.enabled}
-      selected={selected}
+      data-selected={selected ? "" : undefined}
       // THE EXPLAINER RIDES THE HOVER, NOT THE LINE (crunch-list O-7★, owner ruling: the inline "your core
       // system instruction" descriptions are lame — this OVERRIDES the mock's inline-desc drawing). It
       // lands on `fullTitle`, which shows in a tooltip on the title, is announced as the row's description

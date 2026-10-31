@@ -106,7 +106,7 @@ export function DigestHitRow({ hit, rank, grouped = false }: { readonly hit: Dig
   const selected = useSelectedCorpusDestination();
   return (
     <ListRow
-      selected={selected?.kind === "digest" && selected.hit.source.rowId === hit.source.rowId}
+      data-selected={selected?.kind === "digest" && selected.hit.source.rowId === hit.source.rowId ? "" : undefined}
       clickable={true}
       onClick={(): void => selectCorpusArtifact({ kind: "digest", hit, rank })}
       leading={<Icon icon={MessagesSquare} size="sm" />}
@@ -122,7 +122,7 @@ export function ImageHitRow({ hit, rank }: { readonly hit: ImageHit; readonly ra
   const selected = useSelectedCorpusDestination();
   return (
     <ListRow
-      selected={selected?.kind === "image" && selected.hit.assetId === hit.assetId}
+      data-selected={selected?.kind === "image" && selected.hit.assetId === hit.assetId ? "" : undefined}
       clickable={true}
       onClick={(): void => selectCorpusArtifact({ kind: "image", hit })}
       leading={

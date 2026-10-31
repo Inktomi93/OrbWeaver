@@ -1,0 +1,22 @@
+{
+  "defaults": {
+    "Section": {
+      "focal": ""
+    },
+    "FocalSection": {
+      "focal": "focal"
+    }
+  },
+  "extractions": [
+    {
+      "element": "Section",
+      "door": "layout",
+      "match": {
+        "focal": true
+      },
+      "to": "FocalSection",
+      "toDoor": "focal-section",
+      "attributes": []
+    }
+  ]
+}

@@ -7,20 +7,9 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { WORKLOAD_NOT_ADMISSIBLE } from "@orb/contracts/workloads";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
-import type { WorkloadId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
-import type { ChatRoot } from "@orb/testkit/node/composed";
-import {
-  CORPUS_EMBED_MODEL,
-  CORPUS_EMBEDDING_VECTOR,
-  CORPUS_STRUCTURED_REPLIES,
-  CORPUS_TEXT_MODEL,
-  createChatRoot,
-  createCorpusProviderExecution,
-  createServerHarness,
-  seedCorpusConnections,
-} from "@orb/testkit/node/composed";
+import { createMemoryBackfillRoom, createServerHarness, seedCorpusConnections } from "@orb/testkit/node/composed";
 
 const DISTILL = { kind: "distill-characters", params: {} } satisfies StartWorkloadInput;
 const STATS = { kind: "reconcile-stats", params: {} } satisfies StartWorkloadInput;
@@ -49,14 +38,14 @@ test("a mode the kind does not run is refused, the same kind's supported mode is
   expect(await root.services.workloads.estimateModelCalls({ caller: owner, mode: "bulk", input: CATALOG })).toEqual({ calls: null });
 });
 
-test("a retry estimate answers a stranger and a missing id with the same not-found, and the row's owner with its answer", async () => {
+test("a retry estimate answers a stranger and a missing id with the same not-found, and the row's owner with its answer", async ({ ids }) => {
   await using root = await createServerHarness({ startJobs: false });
   const owner = await root.principalFor(root.ownerId);
   const stranger = await root.principalFor((await root.actor()).id);
   const row = await root.services.workloads.start({ caller: owner, ownerId: owner.userId, mode: "singular", input: STATS });
 
   expect(await root.services.workloads.estimateRetryModelCalls({ caller: owner, id: row.id })).toEqual({ calls: null });
-  const missing = castId<WorkloadId>("workload_00000000000000000000000000");
+  const missing = mintTypeId(ID_PREFIX.workload, ids.next);
   for (const id of [row.id, missing]) {
     await expect(root.services.workloads.estimateRetryModelCalls({ caller: stranger, id })).rejects.toBeInstanceOf(DomainNotFoundError);
   }
@@ -64,31 +53,10 @@ test("a retry estimate answers a stranger and a missing id with the same not-fou
 });
 
 // The memory sweep is the one kind whose owning domain refuses a run (memory turned off); the chat suite owns its counts.
-const MEMORY_LINES = Array.from({ length: 8 }, (_, index) => ({
-  role: "assistant" as const,
-  content: `Earlier scene ${index + 1}: ${"orbital ledger ballast ".repeat(40)}`,
-}));
-
-async function memoryRoom(): Promise<ChatRoot> {
-  const physical = createCorpusProviderExecution({
-    modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
-    embedding: CORPUS_EMBEDDING_VECTOR,
-    structuredReplies: CORPUS_STRUCTURED_REPLIES,
-    images: [],
-    chatText: "The keeper nods.",
-  });
-  return await createChatRoot({
-    server: { startJobs: false },
-    providerFetch: physical.execute,
-    memoryEnabled: true,
-    memoryDefaults: { mode: "mixC", blockSize: 2, verbatimWindow: 0, maxTier: 0 },
-    characters: [createCharacterSchema.parse({ handle: "iris", name: "iris", description: "iris keeps the ledger." })],
-    transcript: MEMORY_LINES,
-  });
-}
 
 test("a run the owning domain would refuse counts zero unless the confirm asks to be counted as admitted", async () => {
-  await using room = await memoryRoom();
+  await using memory = await createMemoryBackfillRoom();
+  const room = memory.h;
   const ask = async (assumeAdmitted?: boolean): Promise<unknown> =>
     await room.caller.workloads.estimateModelCalls({ input: MEMORY, mode: "singular", ...(assumeAdmitted === undefined ? {} : { assumeAdmitted }) });
   const admitted = await ask();
@@ -102,7 +70,8 @@ test("a run the owning domain would refuse counts zero unless the confirm asks t
 });
 
 test("a retry estimate agrees with the retry itself: a row the owning domain would now refuse counts zero and is refused", async () => {
-  await using room = await memoryRoom();
+  await using memory = await createMemoryBackfillRoom();
+  const room = memory.h;
   const queued = await room.caller.workloads.start({ input: MEMORY, mode: "singular" });
   const before = await room.caller.workloads.estimateRetryModelCalls({ id: queued.id });
   expect(before.calls).toBeGreaterThan(0);

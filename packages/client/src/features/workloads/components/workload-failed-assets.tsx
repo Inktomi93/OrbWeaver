@@ -1,7 +1,7 @@
 // Names the images an index run could not read, so the owner knows which pictures to re-upload. An asset resolves to the
-// character whose avatar it is through the library read; one the viewer's library does not hold shows by its id.
+// character whose avatar it is through the by-ids name read; one the viewer's library does not hold shows by its id.
 
-import { CHARACTER_LIST_MAX_LIMIT } from "@orb/contracts/character";
+import { CHARACTER_AVATAR_NAMES_MAX_IDS } from "@orb/contracts/character";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
@@ -10,19 +10,19 @@ import { useGatedQuery, useTRPC } from "#data";
 
 type WorkloadItem = inferOutput<Trpc["workloads"]["list"]>[number];
 
-const LIBRARY_KEY = "failed-asset-library";
-
 export function WorkloadFailedAssets({ workload }: { readonly workload: WorkloadItem }): ReactElement | null {
   const trpc = useTRPC();
   const failed = !workload.poison && workload.kind === "index" && workload.status === "succeeded" ? (workload.result?.failedAssets ?? []) : [];
-  const library = useGatedQuery(failed.length === 0 ? null : LIBRARY_KEY, () => trpc.character.list.queryOptions({ limit: CHARACTER_LIST_MAX_LIMIT }));
+  const avatarNames = useGatedQuery(failed.length === 0 ? null : failed.slice(0, CHARACTER_AVATAR_NAMES_MAX_IDS), (assetIds) =>
+    trpc.character.namesByAvatarAssets.queryOptions({ assetIds }),
+  );
   if (failed.length === 0) {
     return null;
   }
   const characterByAvatar = new Map<string, string>();
-  for (const item of library.data?.items ?? []) {
-    if (item.avatarAssetId !== null) {
-      characterByAvatar.set(item.avatarAssetId, item.name);
+  for (const { assetId, name } of avatarNames.data ?? []) {
+    if (!characterByAvatar.has(assetId)) {
+      characterByAvatar.set(assetId, name);
     }
   }
   const names = failed.map((assetId) => {
@@ -31,7 +31,7 @@ export function WorkloadFailedAssets({ workload }: { readonly workload: Workload
   });
   return (
     <Text tone="warning" voice="gloss">
-      Stored file missing for {names.join(", ")}. Upload the picture again to index it.
+      Stored file missing or unreadable for {names.join(", ")}. Upload the picture again to index it.
     </Text>
   );
 }

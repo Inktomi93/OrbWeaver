@@ -1,24 +1,13 @@
 // `pnpm unwired` reports a member only when neither the language service nor the TS 7 language server finds a
 // production use. A planted two-package tree holds one member of each shape the scan must tell apart.
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/tooling";
+import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { scanUnwired, scanWorld, serverReferences } from "../../../tooling/src/unwired/index.ts";
 
-const COMPILER = {
-  compilerOptions: {
-    strict: true,
-    target: "ESNext",
-    lib: ["ESNext"],
-    module: "ESNext",
-    moduleResolution: "bundler",
-    allowImportingTsExtensions: true,
-    noEmit: true,
-    types: [],
-  },
-};
+const LIB = ["ESNext"];
 
 const TREE = {
-  "packages/a/tsconfig.json": JSON.stringify({ ...COMPILER, include: ["src"] }),
+  "packages/a/tsconfig.json": plantedTsconfig({ lib: LIB }),
   "packages/a/src/service.ts": [
     "export interface Service {",
     "  wired: () => number;",
@@ -52,19 +41,11 @@ const TREE = {
     "export const consumer: Consumer = service;",
     "export const spreader: Spreader = { ...service };",
   ].join("\n"),
-  "packages/b/tsconfig.json": JSON.stringify({
-    ...COMPILER,
-    compilerOptions: { ...COMPILER.compilerOptions, paths: { "@fx/a": ["../a/src/service.ts"] } },
-    include: ["src"],
-  }),
+  "packages/b/tsconfig.json": plantedTsconfig({ lib: LIB, paths: { "@fx/a": ["../a/src/service.ts"] } }),
   "packages/b/src/port.ts":
     'import type { Service } from "@fx/a";\nexport type Port = Pick<Service, "viaPort">;\nexport interface IndexedPort { readonly viaIndex: Service["viaIndex"]; }\nexport const run = (port: Port, indexed: IndexedPort): number => port.viaPort() + indexed.viaIndex();',
   "packages/b/src/use.ts": 'import { createService } from "@fx/a";\nexport const reached = createService().acrossPackages();',
-  "tsconfig.json": JSON.stringify({
-    ...COMPILER,
-    compilerOptions: { ...COMPILER.compilerOptions, paths: { "@fx/a": ["./packages/a/src/service.ts"] } },
-    include: ["packages/*/src", "tests"],
-  }),
+  "tsconfig.json": plantedTsconfig({ lib: LIB, paths: { "@fx/a": ["./packages/a/src/service.ts"] }, include: ["packages/*/src", "tests"] }),
   "tests/a.test.ts": 'import { createService } from "@fx/a";\nexport const probed = createService().testOnly();',
 };
 

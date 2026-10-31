@@ -43,26 +43,77 @@ async function grid(root: ServerTestHarness, withGame = true): Promise<Grid> {
 
 const NPC = { kind: "npc", npcKey: "mira" } as const;
 
-// Every host-gated verb, each called as a caller and returning what the verb returns.
-const HOST_VERBS: readonly { readonly name: string; readonly call: (g: Grid, who: Principal) => Promise<unknown> }[] = [
-  { name: "updateConfig", call: (g, who) => g.rpg.updateConfig({ principal: who, chatId: g.chatId, patch: { steeringNote: "x" } }) },
-  { name: "getConfigView", call: (g, who) => g.rpg.getConfigView({ principal: who, chatId: g.chatId }) },
-  { name: "upsertQuest", call: (g, who) => g.rpg.upsertQuest({ principal: who, chatId: g.chatId, name: "Q" }) },
-  { name: "addJournalEntry", call: (g, who) => g.rpg.addJournalEntry({ principal: who, chatId: g.chatId, type: "note", title: "t", content: "c" }) },
-  { name: "createCheckpoint", call: (g, who) => g.rpg.createCheckpoint({ principal: who, chatId: g.chatId, label: "L" }) },
-  { name: "editSnapshot", call: (g, who) => g.rpg.editSnapshot({ principal: who, chatId: g.chatId, patch: { location: "x" } }) },
-  { name: "patchActor", call: (g, who) => g.rpg.patchActor({ principal: who, chatId: g.chatId, targetRef: NPC, ops: [{ op: "setStatus", status: "x" }] }) },
-  { name: "dismissActor", call: (g, who) => g.rpg.dismissActor({ principal: who, chatId: g.chatId, targetRef: NPC }) },
-  { name: "promoteActor", call: (g, who) => g.rpg.promoteActor({ principal: who, chatId: g.chatId, targetRef: NPC }) },
-  { name: "revealHidden", call: (g, who) => g.rpg.revealHidden({ principal: who, chatId: g.chatId }) },
-];
+type Call = (g: Grid, who: Principal) => Promise<unknown>;
+// Every service verb has one row, so a verb the service gains fails `tsc` until it is classified. `own-case` names a
+// verb whose gate has a case of its own below, because its setup or its refusal differs from the grid.
+// `hostRefusedWith` is the verb's own refusal code for a host whose call passes the gate but has no subject to act on.
+type Gate = { readonly gate: "host" | "member"; readonly call: Call; readonly hostRefusedWith?: string } | { readonly gate: "own-case" };
 
-for (const verb of HOST_VERBS) {
+const questFor = (g: Grid): Promise<Awaited<ReturnType<RpgService["upsertQuest"]>>> => g.rpg.upsertQuest({ principal: g.host, chatId: g.chatId, name: "Q" });
+const checkpointFor = (g: Grid): Promise<Awaited<ReturnType<RpgService["createCheckpoint"]>>> =>
+  g.rpg.createCheckpoint({ principal: g.host, chatId: g.chatId, label: "L" });
+
+const GATES: Readonly<Record<keyof RpgService, Gate>> = {
+  createGame: { gate: "own-case" },
+  detachDanglingPointer: { gate: "own-case" },
+  patchSheet: { gate: "own-case" },
+  editJournalEntry: { gate: "own-case" },
+  deleteJournalEntry: { gate: "own-case" },
+  updateConfig: { gate: "host", call: (g, who) => g.rpg.updateConfig({ principal: who, chatId: g.chatId, patch: { steeringNote: "x" } }) },
+  getConfigView: { gate: "host", call: (g, who) => g.rpg.getConfigView({ principal: who, chatId: g.chatId }) },
+  upsertQuest: { gate: "host", call: (g, who) => g.rpg.upsertQuest({ principal: who, chatId: g.chatId, name: "Q" }) },
+  editQuestObjective: {
+    gate: "host",
+    call: async (g, who) => g.rpg.editQuestObjective({ principal: who, chatId: g.chatId, questId: await questFor(g), op: { kind: "add", text: "o" } }),
+  },
+  deleteQuest: { gate: "host", call: async (g, who) => g.rpg.deleteQuest({ principal: who, chatId: g.chatId, questId: await questFor(g) }) },
+  addJournalEntry: { gate: "host", call: (g, who) => g.rpg.addJournalEntry({ principal: who, chatId: g.chatId, type: "note", title: "t", content: "c" }) },
+  createCheckpoint: { gate: "host", call: (g, who) => g.rpg.createCheckpoint({ principal: who, chatId: g.chatId, label: "L" }) },
+  restoreCheckpoint: {
+    gate: "host",
+    call: async (g, who) => g.rpg.restoreCheckpoint({ principal: who, chatId: g.chatId, checkpointId: await checkpointFor(g) }),
+  },
+  editSnapshot: { gate: "host", call: (g, who) => g.rpg.editSnapshot({ principal: who, chatId: g.chatId, patch: { location: "x" } }) },
+  patchActor: {
+    gate: "host",
+    call: (g, who) => g.rpg.patchActor({ principal: who, chatId: g.chatId, targetRef: NPC, ops: [{ op: "setStatus", status: "x" }] }),
+  },
+  dismissActor: { gate: "host", call: (g, who) => g.rpg.dismissActor({ principal: who, chatId: g.chatId, targetRef: NPC }) },
+  promoteActor: { gate: "host", call: (g, who) => g.rpg.promoteActor({ principal: who, chatId: g.chatId, targetRef: NPC }) },
+  revealHidden: { gate: "host", call: (g, who) => g.rpg.revealHidden({ principal: who, chatId: g.chatId }) },
+  resyncFromStory: { gate: "host", call: (g, who) => g.rpg.resyncFromStory({ principal: who, chatId: g.chatId }) },
+  populateFromCharacter: {
+    gate: "host",
+    call: (g, who) => g.rpg.populateFromCharacter({ principal: who, chatId: g.chatId, actorRef: NPC }),
+    hostRefusedWith: "rpg_actor_has_no_card",
+  },
+  getGame: { gate: "member", call: (g, who) => g.rpg.getGame({ principal: who, chatId: g.chatId }) },
+  getTrackerView: { gate: "member", call: (g, who) => g.rpg.getTrackerView({ principal: who, chatId: g.chatId }) },
+  listJournal: { gate: "member", call: (g, who) => g.rpg.listJournal({ principal: who, chatId: g.chatId }) },
+  listTurnToolCalls: { gate: "member", call: (g, who) => g.rpg.listTurnToolCalls({ principal: who, chatId: g.chatId }) },
+  listCheckpoints: { gate: "member", call: (g, who) => g.rpg.listCheckpoints({ principal: who, chatId: g.chatId }) },
+  rollDice: { gate: "member", call: (g, who) => g.rpg.rollDice({ principal: who, chatId: g.chatId, notation: "1d20" }) },
+};
+
+function gated(gate: "host" | "member"): readonly { readonly name: string; readonly call: Call; readonly hostRefusedWith?: string }[] {
+  return Object.entries(GATES).flatMap(([name, row]) =>
+    row.gate !== "own-case" && row.gate === gate
+      ? [{ name, call: row.call, ...(row.hostRefusedWith === undefined ? {} : { hostRefusedWith: row.hostRefusedWith }) }]
+      : [],
+  );
+}
+
+for (const verb of gated("host")) {
   test(`${verb.name} is host-gated: a member is forbidden, a non-member gets not-found, the host is admitted`, async ({ harness }) => {
     const g = await grid(harness);
     await expect(verb.call(g, g.member)).rejects.toThrow(DomainForbiddenError);
     await expect(verb.call(g, g.ghost)).rejects.toThrow(DomainNotFoundError);
-    await expect(verb.call(g, g.host)).resolves.not.toThrow();
+    // The host passes the gate: the call resolves, or it reaches the verb's own refusal and says which.
+    const host = await verb.call(g, g.host).then(
+      () => "resolved",
+      (error: unknown) => (error instanceof Error && "code" in error ? error.code : error),
+    );
+    expect(host).toBe(verb.hostRefusedWith ?? "resolved");
   });
 }
 
@@ -93,17 +144,9 @@ test("a refused member write leaves every plane untouched and promotion mints no
 
 test("member-gated reads and dice admit a member and refuse a non-member as not-found", async ({ harness }) => {
   const g = await grid(harness);
-  const reads: readonly ((who: Principal) => Promise<unknown>)[] = [
-    (who): Promise<unknown> => g.rpg.getGame({ principal: who, chatId: g.chatId }),
-    (who): Promise<unknown> => g.rpg.getTrackerView({ principal: who, chatId: g.chatId }),
-    (who): Promise<unknown> => g.rpg.listJournal({ principal: who, chatId: g.chatId }),
-    (who): Promise<unknown> => g.rpg.listTurnToolCalls({ principal: who, chatId: g.chatId }),
-    (who): Promise<unknown> => g.rpg.listCheckpoints({ principal: who, chatId: g.chatId }),
-    (who): Promise<unknown> => g.rpg.rollDice({ principal: who, chatId: g.chatId, notation: "1d20" }),
-  ];
-  for (const read of reads) {
-    await expect(read(g.member)).resolves.toBeDefined();
-    await expect(read(g.ghost)).rejects.toThrow(DomainNotFoundError);
+  for (const read of gated("member")) {
+    await expect(read.call(g, g.member), read.name).resolves.toBeDefined();
+    await expect(read.call(g, g.ghost), read.name).rejects.toThrow(DomainNotFoundError);
   }
 });
 

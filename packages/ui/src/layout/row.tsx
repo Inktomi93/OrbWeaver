@@ -23,9 +23,9 @@ export function Row({
   dividerWeight,
   dividerTone,
   dividerStyle,
+  tone,
   receded,
   inertUntilHover,
-  stateFill,
   focusTarget,
   scrollFade,
   ground,
@@ -36,6 +36,7 @@ export function Row({
 }: RowProps): ReactElement {
   return (
     <div
+      data-tone={tone}
       {...props}
       className={rowVariants({
         gap,
@@ -50,9 +51,9 @@ export function Row({
         dividerWeight,
         dividerTone,
         dividerStyle,
+        tone,
         receded,
         inertUntilHover,
-        stateFill,
         focusTarget,
         scrollFade,
         ground,

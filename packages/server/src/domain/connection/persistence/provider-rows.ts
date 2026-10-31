@@ -141,9 +141,10 @@ async function ownerClaims(
 
 /** Link one plugin install's complete provider set to its owner's claims, in one batch. A claim is permanent
  *  for its owner: a changed definition of an id the owner already claimed is refused, because a retained
- *  connection or credential names only the ProviderId and would follow it to the new baseUrl. The claim upsert
- *  re-links only a claim with the same definition, so a claim a concurrent writer bound differently is left
- *  untouched; the re-read after the batch reports it as the conflict and unlinks this install. */
+ *  connection or credential names only the ProviderId and would follow it to the new baseUrl. The check runs before
+ *  any write. A plugin claims only ids under its own slug, an owner holds one install per slug, and the plugin
+ *  lifecycle lane runs one install's activations one at a time, so no second writer races this owner's claim of
+ *  an id (D265). The claim upsert still re-links only a claim with the same definition. */
 export async function replacePluginProviderRows(
   db: Db,
   rows: readonly ProviderDef[],
@@ -182,11 +183,6 @@ export async function replacePluginProviderRows(
       : and(eq(pluginProviderClaims.pluginId, pluginId), notInArray(pluginProviderClaims.providerId, [...ids]));
   writes.push(db.update(pluginProviderClaims).set({ pluginId: null }).where(staleClaim));
   await db.batch(batchMany(writes));
-  const raced = conflictingProviderDefinition(desired, await ownerClaims(db, ownerId, ids));
-  if (raced !== undefined) {
-    await releasePluginProviderClaims(db, pluginId);
-    return { ok: false, conflictingId: raced };
-  }
   return { ok: true };
 }
 

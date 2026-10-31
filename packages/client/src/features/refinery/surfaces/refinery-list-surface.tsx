@@ -241,7 +241,7 @@ export function RefineryListSurface(): ReactElement {
               </Avatar>
             }
             onClick={(): void => selectRefinerySessionFromList(row.id)}
-            selected={selectedId === row.rawId}
+            data-selected={selectedId === row.rawId ? "" : undefined}
             subtitle={readoutSubtitleOf(row)}
             subtitleLead={verdictChipOf(row)}
             title={row.characterName}

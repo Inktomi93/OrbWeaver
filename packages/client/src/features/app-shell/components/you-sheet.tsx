@@ -53,7 +53,7 @@ function SheetChromeEntry({ entry, active, mobile }: { readonly entry: ChromeEnt
           setActiveSection(behavior.sectionId);
           closeModal();
         }}
-        selected={active}
+        data-selected={active ? "" : undefined}
         title={entry.label}
       />
     );
@@ -129,7 +129,7 @@ export function YouSheet(): ReactElement {
                 setActiveSection(behavior.sectionId);
                 closeModal();
               }}
-              selected={behavior.sectionId === activeSection}
+              data-selected={behavior.sectionId === activeSection ? "" : undefined}
               title={label}
             />
           ))}

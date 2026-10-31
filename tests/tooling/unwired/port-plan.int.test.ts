@@ -1,31 +1,17 @@
 // The census plans each restating member against its owner: never a target a typecheck would refuse (a wider owner,
 // a renamed member, an optional owner raw, a cycle, a missing door), and a named kind for each shape a leg handles first.
-import { expect, test } from "@orb/testkit/tooling";
+import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import type { PortTarget } from "../../../tooling/src/unwired/index.ts";
 import { portCensus } from "../../../tooling/src/unwired/index.ts";
 
-const COMPILER = {
-  strict: true,
-  target: "ESNext",
-  lib: ["ESNext", "DOM"],
-  module: "ESNext",
-  moduleResolution: "bundler",
-  allowImportingTsExtensions: true,
-  noEmit: true,
-  types: [],
-};
 const SERVER = "packages/server/src";
 
 const TREE = {
-  "packages/server/tsconfig.json": JSON.stringify({
-    compilerOptions: {
-      ...COMPILER,
-      paths: { "#*": ["./src/*/index.ts"], "@orb/inference": ["../inference/src/index.ts"], "@orb/contracts/preset": ["../contracts/src/preset/index.ts"] },
-    },
-    include: ["src"],
+  "packages/server/tsconfig.json": plantedTsconfig({
+    paths: { "#*": ["./src/*/index.ts"], "@orb/inference": ["../inference/src/index.ts"], "@orb/contracts/preset": ["../contracts/src/preset/index.ts"] },
   }),
   "packages/inference/package.json": JSON.stringify({ name: "@orb/inference", exports: { ".": "./src/index.ts" } }),
-  "packages/inference/tsconfig.json": JSON.stringify({ compilerOptions: COMPILER, include: ["src"] }),
+  "packages/inference/tsconfig.json": plantedTsconfig(),
   "packages/inference/src/index.ts":
     'export type { ProviderExecutor } from "./contract/backend.ts";\nexport type { SideGenSampling } from "./contract/side-gen.ts";',
   "packages/inference/src/contract/backend.ts": "export interface ProviderExecutor {\n  run: (prompt: string) => Promise<string>;\n}",

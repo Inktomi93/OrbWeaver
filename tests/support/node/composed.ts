@@ -56,6 +56,8 @@ export { damageOwnerRow } from "./factories/damaged-owner.ts";
 export { seedCharacterDistillations } from "./factories/discovery.ts";
 export { plantForeignCardBackground, plantForeignRoomBackground, plantForeignSettingsBytes, plantForeignSettingsValue } from "./factories/foreign-build.ts";
 export { plantLegacyZeroCanon } from "./factories/legacy-canon.ts";
+// The memory-backfill room whose provider answers each summarize call, shared by the estimate suites.
+export { createMemoryBackfillRoom, MEMORY_BACKFILL_BLOCK_SIZE, memoryBackfillLines } from "./factories/memory-backfill-room.ts";
 export { seedMessage } from "./factories/message.ts";
 export type { PeerLease } from "./factories/peer-replica.ts";
 export { seedPeerLease } from "./factories/peer-replica.ts";
@@ -73,6 +75,8 @@ export { seedAdminProvider } from "./factories/provider.ts";
 export { seedGlobalRegexScript, seedRegexScript } from "./factories/regex.ts";
 export { seedRpgCheckpoint, seedRpgGame } from "./factories/rpg.ts";
 export { seedUserSettings } from "./factories/settings.ts";
+// The summarizer reply a scripted provider answers a summarize call with.
+export { summaryReply } from "./factories/summary-reply.ts";
 export { seedCreatedTag } from "./factories/tag.ts";
 export { createQueueScanner, seedWorkloadSchedule } from "./factories/workload.ts";
 export type { PhysicalPeer, PhysicalPeerFetch } from "./physical-peer.ts";
@@ -85,7 +89,7 @@ export type {
   ServerTestHarness,
   UnclaimedServerTestHarness,
 } from "./server.ts";
-export { configureOidc, createServerHarness } from "./server.ts";
+export { configureOidc, createServerHarness, SECRET_BOX_TEST_KEY } from "./server.ts";
 export { claimShareOwner, readRelayStarts, relayExecutable, relayProgram, SHARE_OWNER_PASSWORD } from "./share.ts";
 export { requireShowcaseBundle, requireShowcaseManifest } from "./showcase-bundle.ts";
 export { bootShowcase } from "./showcase-guest.ts";

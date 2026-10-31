@@ -15,6 +15,7 @@ import {
 } from "./factories/rows/discovery.ts";
 import { captureChatMemoryRows } from "./factories/rows/embedding-generation.ts";
 import type { SeededRecallCorpusRows } from "./factories/rows/recall.ts";
+import { summaryReply } from "./factories/summary-reply.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type CorpusCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
@@ -26,8 +27,8 @@ export function corpusKnowledgeText(requestBody: string): string {
   }
   if (requestBody.includes(SUMMARIZE_TRANSCRIPT_MARKER)) {
     return requestBody.includes("Funding memory scene 0:")
-      ? "The orbital loom\nThe keeper preserves the ledger beside the loom.\nKeywords: loom, orbit"
-      : "The harbor witness\nThe keeper finds the missing tool beside the harbor.\nKeywords: harbor, tool";
+      ? summaryReply({ anchor: "The orbital loom", facts: "The keeper preserves the ledger beside the loom.", keywords: ["loom", "orbit"] })
+      : summaryReply({ anchor: "The harbor witness", facts: "The keeper finds the missing tool beside the harbor.", keywords: ["harbor", "tool"] });
   }
   return "The keeper preserves the ledger and remembers its witnesses.";
 }

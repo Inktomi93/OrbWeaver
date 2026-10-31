@@ -9,10 +9,12 @@ import type { MessageId, MessageVariantId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { seedCorpusConnections, seedPreset } from "@orb/testkit/node/composed";
+import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 import { invitePerson, personaRoom } from "../persona-cache-physical.ts";
 import { textRoom } from "../scenario-physical.ts";
 
 type Principal = ChatRoot["owner"];
+type ChatService = ChatRoot["root"]["services"]["chat"];
 
 const SECRET_PROMPT = "SECRET-SYSPROMPT never reveal the assassin";
 const SECRET_DESCRIPTION = "SECRET-DESC a knife under the silk";
@@ -34,6 +36,113 @@ async function seqsFor(h: ChatRoot, principal: Principal): Promise<readonly numb
   return (await h.root.services.chat.listMessages({ principal, chatId: h.chatId })).messages.map(({ seq }) => seq);
 }
 
+// Every chat service verb has one row, so a verb the service gains fails `tsc` until it is classified. `inspector` and
+// `room-read` are driven below; `elsewhere` is a verb whose gate another case owns or that this file does not gate.
+const READ_GATE_KINDS = ["inspector", "room-read", "elsewhere"] as const;
+type ReadGate = (typeof READ_GATE_KINDS)[number];
+const READ_GATES = {
+  startChat: "elsewhere",
+  countChats: "elsewhere",
+  listChats: "elsewhere",
+  listForks: "room-read",
+  getChatLineage: "room-read",
+  getChat: "room-read",
+  checkSendAvailability: "room-read",
+  getNextTurnConnection: "room-read",
+  getMemberCard: "room-read",
+  previewAssembly: "inspector",
+  getActivePresetConfig: "elsewhere",
+  previewActionTemplates: "inspector",
+  previewSection: "inspector",
+  peekPrompt: "inspector",
+  getShapeTrace: "inspector",
+  getVariantWire: "inspector",
+  previewContextFit: "elsewhere",
+  listMessages: "room-read",
+  getMessageWindow: "elsewhere",
+  listMessageVariants: "room-read",
+  listParticipants: "room-read",
+  replayStreamEvents: "elsewhere",
+  streamEventBounds: "room-read",
+  replayChatEvents: "room-read",
+  chatEventBounds: "room-read",
+  send: "elsewhere",
+  commitMessage: "elsewhere",
+  swipe: "elsewhere",
+  impersonateStream: "elsewhere",
+  generate: "elsewhere",
+  continueTurn: "elsewhere",
+  undoContinue: "elsewhere",
+  revertContinue: "elsewhere",
+  forceCharacterTurn: "elsewhere",
+  compact: "elsewhere",
+  abort: "elsewhere",
+  drainDeferredTurns: "elsewhere",
+  generateImage: "elsewhere",
+  selectVariant: "elsewhere",
+  editMessage: "elsewhere",
+  setSeededGreeting: "elsewhere",
+  applyProseRewrite: "elsewhere",
+  setMessageHidden: "elsewhere",
+  editToolCall: "elsewhere",
+  deleteMessages: "elsewhere",
+  editReasoning: "elsewhere",
+  clearReasoning: "elsewhere",
+  moveMessage: "elsewhere",
+  duplicateMessage: "elsewhere",
+  forkChat: "elsewhere",
+  setChatInjection: "elsewhere",
+  listChatInjections: "elsewhere",
+  deleteChatInjection: "elsewhere",
+  getVariables: "elsewhere",
+  setVariables: "elsewhere",
+  clearVariables: "elsewhere",
+  setUserMacroValues: "elsewhere",
+  getUserMacroPicks: "elsewhere",
+  getVariablePicks: "elsewhere",
+  getRuntimeVariables: "elsewhere",
+  toggleReaction: "elsewhere",
+  listReactions: "elsewhere",
+  delete: "elsewhere",
+  reapTemporaryChats: "elsewhere",
+  reapHusk: "elsewhere",
+  updateTitle: "elsewhere",
+  star: "elsewhere",
+  archive: "elsewhere",
+  setChatAnchorPersona: "elsewhere",
+  reattributeMessages: "elsewhere",
+  reattributePersona: "elsewhere",
+  setGroupConfig: "elsewhere",
+  addCharacterToChat: "elsewhere",
+  removeCharacterFromChat: "elsewhere",
+  setRoomOverrides: "elsewhere",
+  setChatDocumentVisibility: "elsewhere",
+  setChatBackground: "elsewhere",
+  setHostDisplayScripts: "elsewhere",
+  setRegexAllow: "elsewhere",
+  listEffectiveRegex: "elsewhere",
+  setOfferChoices: "elsewhere",
+  setCharactersCanReact: "elsewhere",
+  setReactionsEnabled: "elsewhere",
+  setMemberPersonaLore: "elsewhere",
+  setToolRecurseLimit: "elsewhere",
+  getGroupConfigForChat: "elsewhere",
+  setSeatKnobs: "elsewhere",
+  createInvite: "elsewhere",
+  previewInvite: "elsewhere",
+  redeemInvite: "elsewhere",
+  acceptInvite: "elsewhere",
+  revokeInvite: "elsewhere",
+  listInvites: "elsewhere",
+  declineInvite: "elsewhere",
+  kick: "elsewhere",
+  setMemberHistoryVisibility: "elsewhere",
+  selfLeave: "elsewhere",
+  nominateHostHandoff: "elsewhere",
+  acceptHostHandoff: "elsewhere",
+} as const satisfies Record<keyof ChatService, ReadGate>;
+type VerbsGated<G extends ReadGate> = { [K in keyof typeof READ_GATES]: (typeof READ_GATES)[K] extends G ? K : never }[keyof typeof READ_GATES];
+
 async function codeOf(attempt: Promise<unknown>): Promise<unknown> {
   return await attempt.then(
     () => "resolved",
@@ -50,7 +159,7 @@ test("the assembled-prompt inspectors are host-only, an outsider learns nothing,
   const line = await commit(h, h.owner, "hello");
   const preset = (await seedPreset(h.root, h.owner.userId, { name: "Inspector preset", kind: "custom" })).view;
   const scope = (principal: Principal): { principal: Principal; chatId: typeof h.chatId } => ({ principal, chatId: h.chatId });
-  const inspectors = {
+  const inspectors: Record<VerbsGated<"inspector">, (principal: Principal) => Promise<unknown>> = {
     peekPrompt: (principal: Principal): Promise<unknown> => h.root.services.chat.peekPrompt(scope(principal)),
     previewAssembly: (principal: Principal): Promise<unknown> => h.root.services.chat.previewAssembly(scope(principal)),
     previewSection: (principal: Principal): Promise<unknown> => h.root.services.chat.previewSection({ ...scope(principal), sectionId: "main" }),
@@ -63,7 +172,7 @@ test("the assembled-prompt inspectors are host-only, an outsider learns nothing,
   for (const [name, inspect] of Object.entries(inspectors)) {
     // Positive control first: the same call by the host answers, so the refusals below are the gate and not a broken call.
     expect(await codeOf(inspect(h.owner)), name).toBe("resolved");
-    expect(await codeOf(inspect(member)), name).toBe("not_host");
+    expect(await codeOf(inspect(member)), name).toBe(CHAT_OP_CODES.notHost);
     await expect(inspect(stranger), name).rejects.toThrow(DomainNotFoundError);
   }
 
@@ -116,7 +225,7 @@ test("a non-participant gets a leak-free not-found on every room read, while the
   if (characterId === undefined) {
     throw new Error("the room seated no character");
   }
-  const reads = {
+  const reads: Record<VerbsGated<"room-read">, (principal: Principal) => Promise<unknown>> = {
     getChat: (principal: Principal): Promise<unknown> => h.root.services.chat.getChat({ principal, chatId: h.chatId }),
     listMessages: (principal: Principal): Promise<unknown> => h.root.services.chat.listMessages({ principal, chatId: h.chatId }),
     listMessageVariants: (principal: Principal): Promise<unknown> =>

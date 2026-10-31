@@ -1,26 +1,13 @@
 // `pnpm unwired ports` plans each restating member: derive through the owner's door, a kit type for a concept,
 // a contracts move across domains, a hand note where a derive would close an import cycle.
-import { expect, test } from "@orb/testkit/tooling";
+import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import type { PortTarget } from "../../../tooling/src/unwired/index.ts";
 import { portCensus } from "../../../tooling/src/unwired/index.ts";
 
 const SERVER = "packages/server/src";
 
 const TREE = {
-  "packages/server/tsconfig.json": JSON.stringify({
-    compilerOptions: {
-      strict: true,
-      target: "ESNext",
-      lib: ["ESNext", "DOM"],
-      module: "ESNext",
-      moduleResolution: "bundler",
-      allowImportingTsExtensions: true,
-      noEmit: true,
-      types: [],
-      paths: { "#*": ["./src/*/index.ts"] },
-    },
-    include: ["src"],
-  }),
+  "packages/server/tsconfig.json": plantedTsconfig({ paths: { "#*": ["./src/*/index.ts"] } }),
   [`${SERVER}/domain/sessions/contract/service.ts`]: [
     "export interface SessionsService {",
     "  revoke: (token: string) => Promise<void>;",
@@ -120,20 +107,7 @@ test("the port census plans derive, concept, cross-domain and import targets", {
 
 // Contracts reaches only kit and zod, so a copy whose signature carries an @orb/db handle can never move there.
 const FORGOTTEN_HANDLE_TREE = {
-  "packages/server/tsconfig.json": JSON.stringify({
-    compilerOptions: {
-      strict: true,
-      target: "ESNext",
-      lib: ["ESNext", "DOM"],
-      module: "ESNext",
-      moduleResolution: "bundler",
-      allowImportingTsExtensions: true,
-      noEmit: true,
-      types: [],
-      paths: { "#*": ["./src/*/index.ts"] },
-    },
-    include: ["src"],
-  }),
+  "packages/server/tsconfig.json": plantedTsconfig({ paths: { "#*": ["./src/*/index.ts"] } }),
   "packages/db/src/wiring.ts": "export interface StatementToken { readonly sql: string; }",
   [`${SERVER}/domain/embeddings/contract/ops.ts`]: [
     'import type { StatementToken } from "../../../../../db/src/wiring.ts";',

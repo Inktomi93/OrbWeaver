@@ -334,6 +334,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/chat/persistence/participants-read.ts": "loadPresentRole: the production role read the authority suite compares against",
   "packages/server/src/domain/import/substrate/appearance.ts":
     "stAppearancePatch and ST_POWER_USER_KEY: the pure ST power_user mapping and the settings.json key it reads",
+  "packages/server/src/entry/boot/migrate-data-layout.ts": "DataLayoutRefusal: the refusal class and reason the layout migration suite asserts",
   "packages/server/src/domain/plugin/contract/errors.ts": "PluginNotFoundError: the refusal class plugin seed cases assert",
   "packages/server/src/domain/plugin/substrate/plugin-macros.ts": "pluginMacroName: the token rule for a plugin's registered macro",
   "packages/server/src/domain/preset/constants.ts":
@@ -422,7 +423,8 @@ const SERVER_TEST_REACHES = {
       "resolveBindPosture, resolveOwnerFallbackPeers and the posture inputs: no testkit door resolves a bind or owner-peer posture, and the block takes those resolved values",
   },
   "tests/server/entry/boot/persistence/migrate-data-layout.int.test.ts": {
-    "foundation/data-layout": "LEGACY_ENTRIES and DB_FILE_NAME: the legacy names and their targets exist only in this table, and no testkit door supplies them",
+    "foundation/data-layout":
+      "DATA_LAYOUT_DIRS, LEGACY_ENTRIES and DB_FILE_NAME: the legacy names, their targets and the layout directories exist only in this module, and no testkit door supplies them",
   },
   "tests/server/foundation/env/record/floor-defaults.test.ts": {
     "foundation/data-layout":
@@ -600,6 +602,12 @@ const PACKAGE_TEST_REACHES = {
   },
   "tests/client/features/chat/components/platform-appearance-chat-style-picker.suite.ct.tsx": {
     "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the production identity policy the picker diagram must represent",
+  },
+  "tests/client/features/chat/components/appearance-message-style-section.ct.tsx": {
+    "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the skin rows each chat style's diagram anatomy must represent",
+    "packages/client/src/features/chat/lib/appearance-select-items.ts": "CHAT_STYLE_ITEMS: the label and gloss each picker cell prints",
+    "packages/client/src/features/chat/lib/appearance-message-style-model.ts":
+      "APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: the section heading and the labels of its two switches",
   },
   "tests/client/features/workloads/components/platform-schedule-dialog-dismissal.suite.ct.tsx": {
     "packages/client/src/features/workloads/lib/workloads-schedule-model.ts":

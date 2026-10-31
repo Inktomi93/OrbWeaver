@@ -30,6 +30,7 @@
 // Client tier 2 (NOT @orb/ui — it reads `#state`, the character-picker precedent) because contributions
 // across many features mount it and features may not import each other.
 
+import { CurrentGrid } from "@orb/ui/current";
 import { FieldLayout } from "@orb/ui/field";
 import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Grid, Row, Stack } from "@orb/ui/layout";
@@ -121,7 +122,7 @@ function ModifiedMark({ modified }: { readonly modified: boolean }): ReactElemen
       <Row
         divider="start"
         dividerWeight="rule"
-        dividerTone="primary"
+        tone="primary"
         receded={true}
         aria-hidden={true}
         className="absolute inset-y-tight -inset-s-row"
@@ -260,9 +261,9 @@ export function SettingRow({ settingId, span = false, details, children }: Setti
     // `relative` for the modified rail, which is ABSOLUTE (out of flow — the rest row is byte-identical
     // whether or not a rail exists; the owner's zero-shift bar). `col-span-full grid grid-cols-subgrid` is
     // the middle link of the section's subgrid chain.
-    <Grid
+    <CurrentGrid
       className="group/setting relative col-span-full grid-cols-subgrid items-start gap-x-block"
-      highlight={isMatch}
+      aria-current={isMatch ? "true" : undefined}
       data-modified={modified ? "" : undefined}
       data-search-match={isMatch ? "" : undefined}
       data-setting={settingId}
@@ -282,6 +283,6 @@ export function SettingRow({ settingId, span = false, details, children }: Setti
           {children}
         </FieldRowBody>
       )}
-    </Grid>
+    </CurrentGrid>
   );
 }

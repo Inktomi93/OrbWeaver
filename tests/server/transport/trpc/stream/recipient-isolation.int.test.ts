@@ -5,13 +5,13 @@ import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
 import { signInWithPassword } from "@orb/testkit/node/auth";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 
 test("actual authenticated multiplexing enforces socket ownership and withholds foreign and pre-join replay/live bytes", async () => {
   await using harness = await createServerHarness({
     env: { ["AUTH_MODE"]: "local", ["AUTH_FALLBACK"]: "deny" },
-    secretBoxKey: Buffer.alloc(32, 1),
+    secretBoxKey: SECRET_BOX_TEST_KEY,
   });
   const initialOwner = await harness.internalCallerFor(harness.ownerId);
   const handle = castId<Handle>("recipient-proof");

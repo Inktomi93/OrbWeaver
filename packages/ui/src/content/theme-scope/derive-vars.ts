@@ -23,6 +23,7 @@ import {
 } from "@orb/kit/theme-derivation";
 import type { ParsedOklch } from "./color-parse.ts";
 import { serializeOpaqueOklch } from "./color-parse.ts";
+import { THEME_OVERRIDE_COLOR_VARS } from "./emit-vars.ts";
 
 /** A carried background's resolved pixel and its neutral inks, solved once and read by every derivation over it. */
 export interface CarriedPalette {
@@ -185,7 +186,33 @@ export interface InputBorderEmission {
  * `--color-ring` along its hue toward a margin above the edge (`solveFocusRing`); only a hue with no ring above the edge
  * leaves a reported fallback.
  */
-export function inputBorderOn(origin: string, { pixel: base, inks }: CarriedPalette, ring: Oklch | null): InputBorderEmission {
+export function inputBorderOn(origin: string, carried: CarriedPalette, ring: Oklch | null): InputBorderEmission {
+  const solve = carriedEdgeOn(carried);
+  const edge = foregroundAt(origin, solve.edge.l);
+  const held = heldRingOn(solve, ring);
+  return { vars: { "--color-input-border": edge, ...held.vars }, fallback: solve.floorMet && held.held ? undefined : { edge, floorMet: solve.floorMet } };
+}
+
+/**
+ * The focus ring of a scope that paints its own accent and no background over a carried scope (D159): held above the edge
+ * the outer scope solved, which this scope inherits and never re-emits. It reports that edge only when no ring on the
+ * accent's hue sits above it.
+ */
+export function nestedRingOn(carried: CarriedPalette, ring: Oklch): InputBorderEmission {
+  const solve = carriedEdgeOn(carried);
+  const held = heldRingOn(solve, ring);
+  return { vars: held.vars, fallback: held.held ? undefined : { edge: serializeOpaqueOklch(solve.edge), floorMet: solve.floorMet } };
+}
+
+interface CarriedEdge {
+  readonly edge: Oklch;
+  readonly floorMet: boolean;
+  /** The card both the edge and the ring are judged on. */
+  readonly card: Oklch;
+}
+
+/** The form-control edge a carried palette solves over its own panels and the `bg-input` fill on each (`solveInputBorder` states the bounds). */
+function carriedEdgeOn({ pixel: base, inks }: CarriedPalette): CarriedEdge {
   const opaqueBase: Oklch = { l: base.l, c: base.c, h: base.h };
   const surfaces = carriedSurfaces(opaqueBase, rampDeltas(opaqueBase));
   const solve = solveInputBorder({
@@ -197,15 +224,19 @@ export function inputBorderOn(origin: string, { pixel: base, inks }: CarriedPale
       fillAlpha: inks.muted.inputAlpha,
     },
   });
-  const edge = foregroundAt(origin, solve.edge.l);
-  const vars: Record<string, string> = { "--color-input-border": edge };
-  // Focus must out-shout rest: hold the ring above the edge along its own hue, leaving the accent fill (`--color-primary`) alone.
-  const held = ring === null ? null : solveFocusRing({ ring, edge: solve.edge, card: surfaces.card });
-  if (ring !== null && held !== null && held !== ring) {
-    vars["--color-ring"] = serializeOpaqueOklch(held);
+  return { ...solve, card: surfaces.card };
+}
+
+/**
+ * Focus must out-shout rest: the ring held above the edge along its own hue, leaving the accent fill (`--color-primary`)
+ * alone. `held` is false only when no ring on the hue sits above the edge; a `null` ring has nothing to judge.
+ */
+function heldRingOn({ edge, card }: CarriedEdge, ring: Oklch | null): { readonly vars: Readonly<Record<string, string>>; readonly held: boolean } {
+  if (ring === null) {
+    return { vars: {}, held: true };
   }
-  const ringHeld = ring === null || held !== null;
-  return { vars, fallback: solve.floorMet && ringHeld ? undefined : { edge, floorMet: solve.floorMet } };
+  const held = solveFocusRing({ ring, edge, card });
+  return { vars: held === null || held === ring ? {} : { "--color-ring": serializeOpaqueOklch(held) }, held: held !== null };
 }
 
 /**
@@ -229,7 +260,7 @@ export function surfaceVarsOn(background: string, carried: CarriedPalette | null
   // family uses this normalized origin, so transparent custom themes inherit coherent Hearth/seed chrome.
   const origin = derivedOrigin;
   const opaqueSuffix = origin === background ? "" : " / 1";
-  const vars: Record<string, string> = { "--color-background": background };
+  const vars: Record<string, string> = { [THEME_OVERRIDE_COLOR_VARS.background]: background };
   for (const [name, role] of SURFACE_RAMP_VARS) {
     vars[name] = `oklch(from ${origin} calc(l + ${deltas[role]}) c h${opaqueSuffix})`;
   }

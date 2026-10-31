@@ -7,6 +7,8 @@ import {
   readSurfaceOutputRoot,
   readSurfaceRunConfig,
   SURFACE_CLIENT_BUILD_MODE,
+  SURFACE_OUTPUT_ROOT_ENV,
+  SURFACE_RUN_CONFIG_ENV,
   surfaceArtifactModes,
   surfaceCaseDelayMs,
   surfaceClientBuildEnvironment,
@@ -17,7 +19,7 @@ import {
 
 for (const flag of ["CI", "GITHUB_ACTIONS"] as const) {
   test(`direct native configuration refuses ${flag} before reading paths or private config`, async () => {
-    const environment = { [flag]: "1", ["ORB_SURFACE_OUTPUT_ROOT"]: "/not-an-admitted-run", ["ORB_SURFACE_RUN_CONFIG"]: "/private-owner-config" };
+    const environment = { [flag]: "1", [SURFACE_OUTPUT_ROOT_ENV]: "/not-an-admitted-run", [SURFACE_RUN_CONFIG_ENV]: "/private-owner-config" };
     await expect(readSurfaceOutputRoot(environment)).rejects.toThrow("local-only");
     await expect(readSurfaceRunConfig(environment)).rejects.toThrow("local-only");
   });
