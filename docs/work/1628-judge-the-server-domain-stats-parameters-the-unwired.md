@@ -27,4 +27,8 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+1 row: applied 0, kept 1, handed off 0, owner questions 0.
+
+Kept: `reconcileStats.options.signal` (`packages/server/src/domain/stats/write/wiring.ts:22`). The options type is the shared `ReconcileOpts`; the persistence `reconcileStats` it forwards to is called with `signal` by the stats workload (`domain/stats/workload-contributions.ts:28-32`) and reads it between owners (`persistence/rebuild-from-canon.ts:70,108`). The wiring wrapper's own callers (`entry/compose/portability-runner.ts:111`) omit it, but narrowing the wrapper alone needs a second options type, which is a design call.
+
+Survey: codegraph_explore on reconcileStats and ReconcileOpts; literal `rg` for reconcileStats across packages, tests, tooling, scripts: the workload supplies `signal`.
