@@ -123,6 +123,22 @@ export interface CorpusConnections {
   readonly text: CorpusConnectionView;
 }
 
+/** The model id of the second embedding encoder {@link seedAlternateEmbedder} adds beside the corpus encoder. */
+export const CORPUS_ALTERNATE_EMBED_MODEL = `${CORPUS_EMBED_MODEL}-alternate`;
+
+/** A second embedding connection on the corpus endpoint, unbound: a different encoder identity, so binding it moves the owner's embedding space. */
+export function seedAlternateEmbedder(root: ServerHarness, principal: Principal): Promise<CorpusConnectionView> {
+  return root.services.connection.create({
+    principal,
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: CORPUS_PROVIDER_ENDPOINT,
+    model: CORPUS_ALTERNATE_EMBED_MODEL,
+    allowBackground: true,
+    declared: { kind: "embedding", embedding: { dims: CORPUS_EMBEDDING_VECTOR.length, maxInputTokens: 8192 }, features: { detectServer: false } },
+  });
+}
+
 /** Configure explicit physical corpus models through real owner admission; no runtime/role resolver is replaced. */
 export async function seedCorpusConnections(root: ServerHarness, principal: Principal): Promise<CorpusConnections> {
   const embed = await root.services.connection.create({

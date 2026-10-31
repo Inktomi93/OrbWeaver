@@ -13,6 +13,8 @@ const WEAVE_CANVAS = '[data-slot="web-weave-canvas"]';
 const FRAMES_AFTER_READY = 5;
 // An absence asserted once, not retried: a veil that mounted and left after its beat would pass a retrying count.
 const ONE_CHECK_MS = 1;
+// The veil's own stamp while it dissolves.
+const ENDING_ATTR = "data-ending";
 
 const stamp = (page: Page, value: string): Promise<void> =>
   page.evaluate(([attr, to]) => document.documentElement.setAttribute(attr, to), [APP_READY_ATTR, value] as const);
@@ -50,10 +52,10 @@ test("the veil stays up and weaving until the app is ready, then dissolves and u
 
 test("a boot that is ready at once still holds the veil for its minimum beat before it dissolves", async ({ mount, page }) => {
   await mount<typeof BootVeilStory>(STORY, {});
-  await expect(page.locator(VEIL)).toBeVisible();
   await stamp(page, "");
   await waitFrames(page, FRAMES_AFTER_READY);
-  await expect(page.locator(VEIL)).toHaveCount(1);
+  // Still held, not yet leaving: the beat the veil owes a quick boot has not played out.
+  await expect(page.locator(`${VEIL}:not([${ENDING_ATTR}])`)).toHaveCount(1, { timeout: ONE_CHECK_MS });
   await expect(page.locator(VEIL)).toHaveCount(0);
 });
 

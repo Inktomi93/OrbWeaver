@@ -1,0 +1,179 @@
+// Moving the owner's embedding space queues the owner's forced rebuild and nothing else. Two real embedding
+// connections on one scripted endpoint are two spaces; the queue is read through the workloads verb the owner
+// reads their own jobs with, and one enqueue is refused at the native libSQL client the root's database hands over.
+// @subject packages/server/src/domain/connection/verbs/bindings.ts
+// @subject packages/server/src/domain/embeddings/verbs/embedding-reindex-triggers.ts
+
+import type { Principal } from "@orb/contracts/identity";
+import type { LibSqlWrap } from "@orb/db";
+import type { UserConnectionId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import {
+  CORPUS_ALTERNATE_EMBED_MODEL,
+  CORPUS_EMBED_MODEL,
+  CORPUS_EMBEDDING_VECTOR,
+  CORPUS_TEXT_MODEL,
+  createCorpusProviderExecution,
+  createServerHarness,
+  freshDb,
+  seedAlternateEmbedder,
+  seedCorpusConnections,
+} from "@orb/testkit/node/composed";
+import { vi } from "vitest";
+
+const REBUILD_KINDS = ["index", "databank-reindex", "memory-backfill"] as const;
+const WORKLOAD_DEADLINE_MS = 60_000;
+const WORKLOAD_INSERT = 'insert into "workloads"';
+const REINDEX_SPAN = "embeddings.modelChangeReindex";
+
+type NativeDriver = Parameters<LibSqlWrap>[0];
+type BatchStatement = Parameters<NativeDriver["batch"]>[0][number];
+
+function sqlOf(statement: BatchStatement): string {
+  if (typeof statement === "string") {
+    return statement;
+  }
+  return Array.isArray(statement) ? statement[0] : statement.sql;
+}
+
+interface Box {
+  readonly root: ServerTestHarness;
+  readonly principal: Principal;
+  readonly first: UserConnectionId;
+  readonly second: UserConnectionId;
+  /** Refuse the next workload insert at the native client. */
+  readonly refuseNextEnqueue: () => void;
+}
+
+/** A root whose owner has one embedding connection bound and pinned, and a second encoder on the same endpoint. */
+async function twoEncoders(stack: AsyncDisposableStack): Promise<Box> {
+  const physical = createCorpusProviderExecution({
+    modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL, CORPUS_ALTERNATE_EMBED_MODEL],
+    embedding: CORPUS_EMBEDDING_VECTOR,
+    chatText: "",
+    structuredReplies: new Map(),
+    images: [],
+    completion: () => {
+      throw new Error("an embedding move must not request a model reply");
+    },
+  });
+  let client: NativeDriver | undefined;
+  const db = await freshDb((opened) => {
+    client = opened;
+    return opened;
+  });
+  const root = stack.use(await createServerHarness({ providerFetch: physical.execute, startJobs: false, db, logLevel: "error" }));
+  if (client === undefined) {
+    throw new Error("the root's database never handed over its native client");
+  }
+  const driver = client;
+  let refusals = 0;
+  const execute = driver.execute.bind(driver);
+  const batch = driver.batch.bind(driver);
+  const refuses = (sql: string): boolean => {
+    if (refusals > 0 && sql.includes(WORKLOAD_INSERT)) {
+      refusals -= 1;
+      return true;
+    }
+    return false;
+  };
+  vi.spyOn(driver, "execute").mockImplementation((statement, args) =>
+    refuses(sqlOf(statement)) ? Promise.reject(new Error("controlled workload insert refusal")) : execute(statement, args),
+  );
+  vi.spyOn(driver, "batch").mockImplementation((statements, mode) => {
+    const refused = statements.some((statement) => refuses(sqlOf(statement)));
+    return refused ? Promise.reject(new Error("controlled workload insert refusal")) : batch(statements, mode);
+  });
+  // The property resolves to the overload set whose last signature is the deprecated zero-argument form; every call below passes its mode.
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
+  const transaction: (mode: "write") => ReturnType<NativeDriver["transaction"]> = driver.transaction.bind(driver);
+  vi.spyOn(driver, "transaction").mockImplementation(async () => {
+    const open = await transaction("write");
+    const inner = open.execute.bind(open);
+    vi.spyOn(open, "execute").mockImplementation((statement) =>
+      refuses(sqlOf(statement)) ? Promise.reject(new Error("controlled workload insert refusal")) : inner(statement),
+    );
+    return open;
+  });
+  const principal = await root.principalFor(root.ownerId);
+  const seeded = await seedCorpusConnections(root, principal);
+  const second = await seedAlternateEmbedder(root, principal);
+  // The stored target names the first encoder before the case begins, so a later bind is judged against it.
+  await root.app.embeddings.resolveGeneration(root.ownerId, "embed");
+  await root.settleBackground();
+  return {
+    root,
+    principal,
+    first: seeded.embed.id,
+    second: second.id,
+    refuseNextEnqueue: (): void => {
+      refusals = 1;
+    },
+  };
+}
+
+async function rebuilds(box: Box): Promise<Awaited<ReturnType<ServerTestHarness["services"]["workloads"]["list"]>>> {
+  const rows = await box.root.services.workloads.list({ caller: box.principal });
+  return rows.filter((row) => REBUILD_KINDS.some((kind) => kind === row.kind));
+}
+
+const bind = (box: Box, connectionId: UserConnectionId | null): Promise<unknown> =>
+  box.root.services.connection.setBinding({ principal: box.principal, task: "embed", connectionId });
+
+const reindexErrors = (box: Box): readonly string[] => box.root.observability.logLines().filter((line) => line.includes(REINDEX_SPAN));
+
+test("unbinding the encoder queues nothing, and binding the encoder the stored target already names queues nothing", async () => {
+  await using stack = new AsyncDisposableStack();
+  const box = await twoEncoders(stack);
+  const before = await rebuilds(box);
+
+  await bind(box, null);
+  await box.root.settleBackground();
+  expect(await rebuilds(box)).toEqual(before);
+
+  await bind(box, box.first);
+  await box.root.settleBackground();
+  expect(await rebuilds(box)).toEqual(before);
+  expect(reindexErrors(box)).toEqual([]);
+});
+
+test("binding a second encoder queues the owner's own forced rebuild, readable by the owner and runnable to the end", async () => {
+  await using stack = new AsyncDisposableStack();
+  const box = await twoEncoders(stack);
+  const before = await rebuilds(box);
+
+  await bind(box, box.second);
+  await box.root.settleBackground();
+  const queued = (await rebuilds(box)).filter((row) => !before.some((old) => old.id === row.id));
+
+  expect(queued.find((row) => row.kind === "index")).toMatchObject({
+    ownerId: box.root.ownerId,
+    mode: "singular",
+    params: { source: "all", force: true, embedderChanged: true },
+  });
+  expect(queued.find((row) => row.kind === "databank-reindex")).toMatchObject({ ownerId: box.root.ownerId, params: { embedderChanged: true } });
+  expect(queued.every((row) => row.mode === "singular")).toBe(true);
+
+  const run = box.root.runAdmittedWorkload;
+  if (run === undefined) {
+    throw new Error("the harness owns workload execution only with startJobs: false");
+  }
+  for (const row of queued) {
+    await run(row.id, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
+    expect(await box.root.services.workloads.get({ caller: box.principal, id: row.id })).toMatchObject({ status: "succeeded" });
+  }
+});
+
+test("a refused enqueue is logged under the reindex span and does not fail the binding write", async () => {
+  await using stack = new AsyncDisposableStack();
+  const box = await twoEncoders(stack);
+  const before = await rebuilds(box);
+
+  box.refuseNextEnqueue();
+  await bind(box, box.second);
+  await box.root.settleBackground();
+
+  expect(reindexErrors(box).length).toBeGreaterThan(0);
+  expect((await rebuilds(box)).length).toBeLessThan(before.length + REBUILD_KINDS.length);
+});
