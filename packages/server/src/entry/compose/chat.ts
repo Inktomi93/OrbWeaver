@@ -77,8 +77,6 @@ import {
   createGeneratePictureOp as domainCreateGeneratePictureOp,
   createRunChatTurnBridge as domainCreateRunChatTurnBridge,
   createTurnPersonaResolver as domainCreateTurnPersonaResolver,
-  getGroupConfig,
-  getRoomOverrides,
   loadPresentHostUserId,
 } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
@@ -374,7 +372,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   const memorySearch = createChatMemorySearchOps({
     resolveHostUserId: resolveChatHostUserId,
     digests: input.search.digests,
-    corpus: input.search.corpus,
     withRetrievalDegrade,
   });
   const promptTransformRegistry = createPromptTransformRegistry(
@@ -533,8 +530,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // (ephemeral per-turn state, never persisted). The room-public payload carries only the count — the digest
     // detail stays host-only (the popover reads the assembly preview for it).
     emitRecallPhase: input.emitChatEventLive,
-    getGroupConfig: (rawMetadata) => getGroupConfig(rawMetadata),
-    getRoomOverrides: (rawMetadata) => getRoomOverrides(rawMetadata),
     resolveTempChatTtlHours: roomInputs.resolveTempChatTtlHours,
     resolveWelcomeAssistantId: roomInputs.resolveWelcomeAssistantId,
     readReactionDefaults: roomInputs.readReactionDefaults,

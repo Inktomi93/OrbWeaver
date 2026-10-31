@@ -21,7 +21,7 @@ import type { Locator, Page } from "@playwright/test";
 import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { AppShellModalStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { ShellToPendingStory } from "./_shell-handover-stories.tsx";
-import { PHONE, SHELL_STORIES } from "./app-shell-ct.ts";
+import { PHONE, SHELL_STORIES, wallpaper } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const MODAL_STORY = `${SHELL_STORIES}/AppShellModalStory`;
@@ -160,15 +160,6 @@ async function roomReady(page: Page): Promise<void> {
 
 function bubble(page: Page, role: (typeof ROOM_ROLES)[number]): Locator {
   return page.locator(`[data-role="${role}"] [data-slot="message-bubble"]`).first();
-}
-
-/** The corpus viewer's first saved wallpaper, as the appearance fields that select it. */
-function wallpaper(corpus: CorpusPlayback): Partial<AppearanceSettings> {
-  const entry = corpus.reads["settings.getUserSettings"][0]?.output.config.appearance.backgroundLibrary[0];
-  if (entry === undefined) {
-    throw new Error("The corpus viewer has no saved wallpaper");
-  }
-  return { backgroundImageKind: "asset", backgroundAssetId: entry.assetId, backgroundAssetHash: entry.assetHash, backgroundAssetMime: entry.mime };
 }
 
 /** The luminance spread of a page region, decoded in the page: grain is paint, so only the pixels say how many films landed. */

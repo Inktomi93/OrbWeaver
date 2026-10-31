@@ -213,13 +213,12 @@ export interface EmbeddingsService {
 }
 
 /** The DI bundle the indexer handlers close over (assembled at `entry/`). */
-export interface EmbeddingsIndexerContext {
+export interface EmbeddingsIndexerContext extends Pick<EmbeddingsContext, "roleClientsFor"> {
   readonly logger: Logger;
   readonly indexAsset: EmbeddingsService["indexAsset"];
   readonly store: EmbeddingsService["store"];
   readonly loadCardText: LoadCardText;
   readonly loadCharacterOwner: (characterId: CharacterId) => Promise<UserId | null>;
-  readonly roleClientsFor: RoleClientsFor;
 }
 
 /** The event subscription shape `entry/` binds onto the bus: `character.updated` re-embeds the card,

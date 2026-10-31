@@ -251,7 +251,7 @@ function forkVariantValues(args: {
     generationId: variant.generationId,
     // `toolCalls` is on `MessageView` (the client's only tool read surface — members render the chips), so it
     // is member-plane by construction. `variableDelta` is the runtime-variable op-log whose folded state a
-    // member already reads UNCLAMPED (`getVariables` is member-gated; the D79 ruling #8 baseline below leans on
+    // member already reads UNCLAMPED (`getRuntimeVariables` is member-gated; the D79 ruling #8 baseline below leans on
     // exactly that), and the fork's own fold depends on it. Metadata keeps economics and import residue;
     // its embedded continuation prose/offsets project with the copied canon and private signatures drop.
     toolCalls:
@@ -511,7 +511,7 @@ async function resolveOwnedCharacterSeats(ctx: ChatContext, forkerUserId: UserId
  *  contribute as today. Consequences, all three of the ruling's invariants: the fork's fold is byte-equal to the
  *  source's real state at the fork point; no pre-floor batch CONTENT survives (superseded values are folded
  *  away — what remains is the room state as the member walked in at their `joinSeq`, which their unclamped
- *  `getVariables` already reads); no pre-floor seq stamp survives.
+ *  `getRuntimeVariables` already reads); no pre-floor seq stamp survives.
  *
  *  BOUNDARY = the floor INCLUSIVE (deltas at `seq <= floor` fold into the baseline). Two reasons, one shape:
  *  ruling #1's interval algebra makes the row AT `joinSeq` the member's entry context, and the fold's stable

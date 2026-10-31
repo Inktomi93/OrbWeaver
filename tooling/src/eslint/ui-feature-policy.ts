@@ -157,6 +157,11 @@ export const UI_FEATURE_RESTRICTIONS = [
         message:
           "A feature builds its own list grid: a grid of tiles is a `#components` `CollectionGrid`, which names the list and wraps every cell as a listitem.",
       },
+      {
+        selector: "JSXOpeningElement[name.name='FieldLayout']:has(> JSXAttribute[name.name='orientation'][value.value='horizontal'])",
+        message:
+          "A feature builds its own horizontal settings row: a label, a control and a hint in the settings track is a `#components` `SettingRowGroup` holding a `SettingTrackRow` per row, which owns the track geometry.",
+      },
     ],
   },
   {

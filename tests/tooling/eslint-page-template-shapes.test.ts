@@ -41,6 +41,7 @@ test.for([
   ["the editor column", `export const A = () => <Stack className="${EDITOR_COLUMN}" />;`],
   ["the editor column in a template string", `export const A = () => <Stack className={\`${EDITOR_COLUMN} \${pad}\`} />;`],
   ["a list grid", 'export const A = () => <Grid cols="auto" role="list" />;'],
+  ["a hand-built horizontal field row", 'export const A = () => <FieldLayout orientation="horizontal"><Field label="A"><Input /></Field></FieldLayout>;'],
 ] as const)("%s in a feature is a finding", async ([, source]) => {
   expect(await findings(source, FEATURE)).toHaveLength(1);
 });
@@ -52,5 +53,11 @@ test("a start-aligned measure, a plain grid and a template's own file pass", asy
       FEATURE,
     ),
   ).toEqual([]);
-  expect(await findings('export const A = () => <><ListSearch /><Grid role="list" /><Text data-shell-identity="defer" /></>;', TEMPLATE)).toEqual([]);
+  expect(await findings('export const A = () => <FieldLayout orientation="inline" />;', FEATURE)).toEqual([]);
+  expect(
+    await findings(
+      'export const A = () => <><ListSearch /><Grid role="list" /><Text data-shell-identity="defer" /><FieldLayout orientation="horizontal" /></>;',
+      TEMPLATE,
+    ),
+  ).toEqual([]);
 });

@@ -13,7 +13,6 @@ import type { Clock } from "@orb/kit/time";
 import type { ImportContextWiring } from "./build-context.ts";
 import type { CollectResult } from "./collection.ts";
 import type { ImportReport } from "./results.ts";
-import type { ImportWorkloadDeps } from "./workloads.ts";
 
 /** The settings-owned `appearance` landing op (`createApplyImportedAppearance`). */
 type ApplyImportedAppearance = (ownerId: UserId, imported: ImportedAppearance) => Promise<ImportedAppearanceOutcome>;
@@ -69,7 +68,6 @@ export interface ProfileDirImportDeps {
   readonly bulkImportChats: BulkImportChatsOp;
   readonly bulkImportPersonas: BulkImportPersonas;
   readonly enqueueImportIndex: (args: { readonly ownerId: UserId }) => Promise<void>;
-  readonly reconcileImportStats: ImportWorkloadDeps["reconcileImportStats"];
   readonly now: Clock;
   /** The zone the staged ST snapshot's wall-clock dates were written in. Omitted uses the importing host's zone — a
    *  profile snapshot is imported on the box that produced it in the ordinary case, and ST built those

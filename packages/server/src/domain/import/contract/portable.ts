@@ -18,7 +18,6 @@ export interface OwnerImportDeps {
     | "bulkImportChats"
     | "bulkImportPersonas"
     | "enqueueImportIndex"
-    | "reconcileStats"
     | "findPersonaByName"
     | "attachChatTagByName"
     | "importRpgGame"

@@ -5,7 +5,7 @@ import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ConnectionPorts, ConnectionPortsDeps } from "../contract/service.ts";
 import { lookupBinding } from "./bindings.ts";
 import { createSnapshotStore } from "./catalog-snapshot.ts";
-import { fetchConnectionById, listOwnedConnections } from "./connections.ts";
+import { fetchConnectionById } from "./connections.ts";
 import { deleteAdminProviderRow, listProviderRows, putAdminProviderRow, releasePluginProviderClaims, replacePluginProviderRows } from "./provider-rows.ts";
 
 export function createConnectionPorts(input: DbAssemblyInput<ConnectionPortsDeps>): ConnectionPorts {
@@ -14,7 +14,6 @@ export function createConnectionPorts(input: DbAssemblyInput<ConnectionPortsDeps
   return {
     connections: {
       get: (id) => fetchConnectionById(db, id),
-      listForOwner: (ownerId) => listOwnedConnections(db, ownerId),
     },
     bindings: {
       lookup: ({ actorKind, actorId, task }) => lookupBinding(db, { actorKind, actorId }, task),

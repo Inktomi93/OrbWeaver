@@ -2,7 +2,7 @@
 // Shared by the assets suites whose verdict is what the one reference collector keeps: the sweep, its
 // unreadable-reference persistence suite, the portability export and the sweep's overlap with an import.
 
-import { mkdtemp, rm, utimes } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCharacterSchema } from "@orb/contracts/character";
@@ -25,7 +25,6 @@ import {
 import { onTestFinished } from "vitest";
 
 export const PNG = "image/png";
-const MS_PER_SECOND = 1000;
 const WORKLOAD_DEADLINE_MS = 30_000;
 export const GC_IMAGE_MODEL = "gc-image-v1";
 
@@ -104,17 +103,15 @@ export function aWeekAgo(box: GcBox): number {
 
 /** Stamp every blob as last put at `atMs` (the lever `putBytes` pulls on every write and dedup hit). */
 export async function stampEveryBlob(box: GcBox, atMs: number): Promise<void> {
-  const seconds = atMs / MS_PER_SECOND;
   for await (const owner of box.cas.listOwners()) {
     for await (const hash of box.cas.listHashes(castId<UserId>(owner))) {
-      await utimes(box.cas.blobPath(castId<UserId>(owner), hash), seconds, seconds);
+      await box.cas.putBytes(castId<UserId>(owner), await box.cas.read(castId<UserId>(owner), hash), atMs);
     }
   }
 }
 
 export async function stampBlob(box: GcBox, ref: StoredRef, atMs: number): Promise<void> {
-  const seconds = atMs / MS_PER_SECOND;
-  await utimes(box.cas.blobPath(box.root.ownerId, ref.hash), seconds, seconds);
+  await box.cas.putBytes(box.root.ownerId, await box.cas.read(box.root.ownerId, ref.hash), atMs);
 }
 
 /** Only `refs` are past grace, so they are the only blobs the sweep can reach a destructive edge for. */

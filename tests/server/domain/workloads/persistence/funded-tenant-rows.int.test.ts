@@ -208,7 +208,8 @@ test("bulk memory uses admitted Utility funding but each room host's encoder win
   expect(quote.calls).toBeGreaterThan(0);
   expect(await root.services.workloads.estimateRetryModelCalls({ caller: firstRoom.host, id: owned.id })).toEqual(quote);
   const beforeAutomatic = wire.funders.length;
-  await root.app.enqueueEmbedReindex(null);
+  root.app.detachEmbedReindex(null);
+  await root.settleBackground();
   const automatic = (await root.services.workloads.list({ caller: owner, kind: "memory-backfill" }))[0];
   if (automatic === undefined) {
     throw new Error("automatic reindex admitted no memory work");

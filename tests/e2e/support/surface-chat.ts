@@ -33,6 +33,7 @@ import { resolveIsGroupChat } from "#client/features/chat/lib/roster.ts";
 import { pluginCommandShownName, sharedPluginNames } from "#client/features/plugin/lib/plugin-command-copy.ts";
 import { PLUGIN_PANELS_SHEET_LABEL } from "#client/features/plugin/lib/plugin-copy.ts";
 import { CHAT_PLUGINS_OPEN_LABEL } from "#client/features/plugin/lib/plugin-panel-copy.ts";
+import { CHAT_TITLE_FIELD_NAME, RENAME_CHAT_NAME } from "#client/lib/chat-rename-names.ts";
 import { deriveChatTitle } from "#client/lib/chat-title.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { renderMessageForDisplay } from "#client/lib/message-render.ts";
@@ -477,7 +478,7 @@ const DESTRUCTIVE_NAMES: ReadonlySet<string> = new Set([ROW_DELETE_NAME, CHAT_DE
 function safeDialogWitness(dialog: Locator, label: string): Locator {
   switch (label) {
     case ROW_RENAME_NAME:
-      return dialog.getByRole("textbox", { name: "Chat title", exact: true });
+      return dialog.getByRole("textbox", { name: CHAT_TITLE_FIELD_NAME, exact: true });
     case COMPOSER_CORRECTIONS_NAME:
       return dialog.getByRole("textbox", { name: "Correction instruction", exact: true });
     case COMPOSER_IMAGINE_NAME:
@@ -1526,9 +1527,9 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
       record(flow, id, "unvisited", "Native available command seeded before execution; only its completed operation can supersede this disposition");
     }
     await menu.getByRole("menuitem", { name: ROW_RENAME_NAME, exact: true }).click();
-    const dialog = flow.page.getByRole("dialog", { name: "Rename chat", exact: true });
+    const dialog = flow.page.getByRole("dialog", { name: RENAME_CHAT_NAME, exact: true });
     const renamed = `${title} renamed`;
-    await dialog.getByRole("textbox", { name: "Chat title", exact: true }).fill(renamed);
+    await dialog.getByRole("textbox", { name: CHAT_TITLE_FIELD_NAME, exact: true }).fill(renamed);
     await flow.action("commands/rename-save", {
       action: async () => {
         await dialog.getByRole("button", { name: "Save", exact: true }).click();

@@ -118,7 +118,7 @@ export interface SearchDiscoveryComposeDeps {
   readonly emptyMemoryScope: ChatBoundBackfillOps["emptyMemoryScope"];
 }
 
-/** The cluster compose product. `enqueueEmbedReindex` is returned so the keystone can bind it onto its
+/** The cluster compose product. `detachEmbedReindex` is returned so the keystone can bind it onto its
  *  late-bound embed-space-change holder (the trigger). */
 export interface SearchDiscoveryComposeResult {
   readonly refreshAutoindex: () => void;
@@ -137,11 +137,7 @@ export interface SearchDiscoveryComposeResult {
   readonly discovery: DiscoveryService;
   readonly notifications: NotificationsService;
   readonly workloads: WorkloadService;
-  /** Enqueue the embed-space sweeps: `null` for every owner, a `UserId` for that owner (a seed). Settles once
-   *  every enqueue has; never rejects, because a failed enqueue is logged in its own span. */
-  readonly enqueueEmbedReindex: EmbeddingReindexTriggers["enqueueEmbedReindex"];
-  /** {@link SearchDiscoveryComposeResult.enqueueEmbedReindex} for a trigger that must not wait on it: the same
-   *  sweeps, started detached. */
+  /** Start the embed-space sweeps detached: `null` for every owner, a `UserId` for that owner (a seed). */
   readonly detachEmbedReindex: EmbeddingReindexTriggers["detachEmbedReindex"];
   /** Boot's catch-up: the same sweeps for every owner whose stored generation is no longer the one their
    *  binding resolves to, started detached. No user action raised the trigger, so autoindex does not gate it. */
@@ -375,7 +371,6 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     discovery,
     notifications,
     workloads,
-    enqueueEmbedReindex: reindex.enqueueEmbedReindex,
     detachEmbedReindex: reindex.detachEmbedReindex,
     detachStaleSpaceReindex: reindex.detachStaleSpaceReindex,
     vacuousMemoryReceipt,

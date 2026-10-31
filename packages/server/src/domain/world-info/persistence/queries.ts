@@ -10,21 +10,11 @@
 // primary key's own intent — `DESC` under a newest-first `createdAt`, and `ASC` inside a `priority` band so
 // a newly created entry appends to the END of its band instead of jumping the queue.
 
-import type {
-  BookAttachmentTargets,
-  BookAttachmentView,
-  BookUsage,
-  BookView,
-  BookWithUsage,
-  EntryView,
-  LoreConstantCanonRow,
-  WorldBookRole,
-} from "@orb/contracts/world-info";
+import type { BookAttachmentTargets, BookAttachmentView, BookUsage, BookView, BookWithUsage, EntryView, WorldBookRole } from "@orb/contracts/world-info";
 import { entryMetadataSchema } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, characters, chatBooks, globalBooks, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
-import { resolveEntryScope } from "@orb/kit/world-info";
 import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 
@@ -200,29 +190,6 @@ export async function listChatBooks(db: Db, chatId: ChatId): Promise<BookAttachm
     .where(eq(chatBooks.chatId, chatId))
     .orderBy(desc(worldBooks.createdAt), desc(worldBooks.id));
   return rows.map((r) => toAttachmentView(r.book, null));
-}
-
-/** A chat's CONSTANT ("always"-scope) lorebook canon — the entries a pre-play producer treats as world truth
- *  (D58). Joins the chat's attached books → their enabled entries, resolves each entry's scope
- *  (explicit `metadata.scopeMode`, else the keys-presence heuristic), and keeps the always-on ones. Not
- *  owner-filtered — a chat's attached books are room-public prompt content (membership is the caller gate,
- *  mirroring listChatBooks). */
-export async function listChatConstantCanon(db: Db, chatId: ChatId): Promise<LoreConstantCanonRow[]> {
-  const rows = await db
-    .select({
-      title: worldEntries.title,
-      content: worldEntries.content,
-      keys: worldEntries.keys,
-      metadata: worldEntries.metadata,
-      enabled: worldEntries.enabled,
-    })
-    .from(chatBooks)
-    .innerJoin(worldEntries, eq(worldEntries.worldBookId, chatBooks.worldBookId))
-    .where(eq(chatBooks.chatId, chatId))
-    .orderBy(desc(worldEntries.priority), asc(worldEntries.id));
-  return rows
-    .filter((r) => r.enabled && resolveEntryScope(r.metadata, (r.keys ?? []).length > 0) === "always")
-    .map((r) => ({ title: r.title, content: r.content }));
 }
 
 /** Reverse of listChatBooks. A book attached to zero chats returns []. */

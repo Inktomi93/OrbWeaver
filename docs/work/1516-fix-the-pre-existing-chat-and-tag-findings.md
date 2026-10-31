@@ -28,4 +28,10 @@ Each finding is fixed at its shared owner with a CT or a measurement, or ruled w
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Fixed: the tag pill height. The Remove button in `character-tags-row.tsx` takes the `chip` step, the label button's own step, so a pill is one chip tall at a fine and a coarse pointer. `tests/client/features/character/components/platform-tag-pill-height.suite.ct.tsx` mounts the production row and reads the label and Remove heights and the pill against its own padding and edge; red on the old row (Remove 36 against 28 at a fine pointer, 48 against 44 at a coarse one), green in Chromium and WebKit. The sequence chips (`sequence-chips.tsx`) wear the same Badge-plus-default-square pattern and are not covered.
+
+Not fixed, each a design call:
+
+- The 105 px edge offset at 1920: the transcript track is the width dial and the composer track is capped by the reading measure (`orb-composer-track` in `packages/client/src/styles/globals.css`), so a start-aligned bubble and a centred composer differ by half the remainder. Aligning them moves either the composer or the row placement of every chat style; the side-eye report already assigns it to the chat column measure in cross-surface step 4.
+- The Light and custom assistant bubble: Light binds `ai-bubble` at L 0.97 against a 0.98 page, and no kit gate floors a bubble's separation from the page. The fix is a bubble-to-page separation constant in `@orb/kit/theme-derivation`, asserted by the token build for the seeds and solved by the carried clamp, with the Light value re-tuned under D71.
+- The refinery focal lane: `focalSectionVariants` draws the speaker-ink inline-start border on a `--radius-base` box, which the ui-audit `side-tab` and `border-accent-on-rounded` rules judge; no exemption covers it (`tooling/src/ui-audit/lib/checks-decor.ts`). Replacing the stripe with an edge ring that keeps the glow ends both findings and changes the CD3 focal shape.

@@ -97,7 +97,6 @@ export interface ScopedEgressOptions {
 export interface ScopedEgress extends AsyncDisposable {
   readonly cancel: () => void;
   readonly publishPrivateEndpointAllowlist: (entries: readonly string[]) => void;
-  readonly endpointAdmission: (baseUrl: string) => (typeof ENDPOINT_ADMISSIONS)[number];
   readonly resolvedEndpointAdmission: (baseUrl: string) => Promise<(typeof ENDPOINT_ADMISSIONS)[number]>;
   readonly safeFetch: (url: string | URL, options: SafeFetchOptions) => Promise<SafeFetchResult>;
   readonly fetchImageBytes: (url: string, maxBytes?: number, signal?: AbortSignal) => Promise<Uint8Array | null>;

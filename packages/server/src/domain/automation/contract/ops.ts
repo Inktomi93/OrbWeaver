@@ -237,12 +237,8 @@ export interface BackgroundChoice {
  *  write ops (the fact resolver + CEL-env builder stay chat-blind — the D26 selected-variant join, the delta
  *  fold). Every op is wired at `entry/compose` (one-directional flow); the domain declares only the TYPE. */
 export interface AutomationOps {
-  readonly chat: {
-    /** The triggering message projected to the CEL fact (the SELECTED variant's content, D26). `null` when
-     *  the id names no live slot (a raced delete). */
-    readonly getMessageFact: ChatAutomationReads["getMessageFact"];
-    /** The cascade-guard depth read off a committed reply slot. `null` = no such slot / a human turn. */
-    readonly getTurnOrigin: ChatAutomationReads["getTurnOrigin"];
+  // The four reads are chat's own members, picked so a call through this slot resolves to `ChatAutomationReads`.
+  readonly chat: Pick<ChatAutomationReads, "getMessageFact" | "getTurnOrigin" | "readVariables" | "readChoicePicks"> & {
     /** THE cross-domain viewer-visibility op (chat's `resolveViewerVisibility`, compose-wired) — the ONLY way
      *  this domain may answer "may this human see that chat's CONTENT". It hands back membership AND the D16
      *  history floor as one value (`null` = not a present member), so the plugin fan-out's delivery gate
@@ -251,10 +247,6 @@ export interface AutomationOps {
      *  cross-domain import — the sanctioned injected-op shape declaration), so a change to the verdict shape
      *  fails tsc here instead of drifting. */
     readonly resolveViewerVisibility: ResolveViewerVisibility;
-    /** The chat's CURRENT runtime variables — the materialized delta-fold cache (CEL `vars`). */
-    readonly readVariables: ChatAutomationReads["readVariables"];
-    /** The chat's config-plane ChoiceBlock picks (CEL `choice`). */
-    readonly readChoicePicks: ChatAutomationReads["readChoicePicks"];
     /** The standalone (out-of-turn) runtime-variable write a `set_variable` chat-scope arm dispatches
      *  through; wired to chat's `applyStandaloneVariableOps` at compose. Principal-free — the
      *  author's host authority was re-verified at the dispatch gate.

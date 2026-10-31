@@ -27,9 +27,6 @@ export interface ReplayBuffer<K, E> {
   readonly record: (key: K, event: E) => void;
   /** The still-live events for `key`, in emit order (pruned to the TTL window). */
   readonly snapshot: (key: K) => E[];
-  /** Number of keys currently retained — the leak-observability metric the sweep is judged by
-   *  (tests + diagnostics; not consulted on any hot path). */
-  readonly size: () => number;
 }
 
 const DEFAULT_REPLAY_TTL_MS = 5000;
@@ -123,9 +120,6 @@ export function createReplayBuffer<K, E>(ttlMs: number = DEFAULT_REPLAY_TTL_MS, 
     },
     snapshot(key: K): E[] {
       return prune(key, now()).map((e) => e.event);
-    },
-    size(): number {
-      return rings.size;
     },
   };
 }

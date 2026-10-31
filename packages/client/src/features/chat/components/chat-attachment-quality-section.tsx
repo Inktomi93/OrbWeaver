@@ -1,9 +1,8 @@
 import type { AttachmentQuality } from "@orb/contracts/inference";
 import { DEFAULT_ATTACHMENT_QUALITY } from "@orb/contracts/inference";
-import { FieldLayout } from "@orb/ui/field";
-import { Grid, Row, Section } from "@orb/ui/layout";
+import { Row, Section } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#components";
+import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, SettingTrackRow } from "#components";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
@@ -61,20 +60,18 @@ function QualityFields({
       <ConfigTeachScope value={{ group: "chat-behavior", sub: ATTACHMENT_QUALITY_SUBCATEGORY }}>
         <SettingRowGroup>
           <SettingRow settingId="attachment-quality" span={true}>
-            <FieldLayout align="track" orientation="horizontal">
-              <Grid cols="settingTrack" className="gap-x-block gap-y-field">
-                <Grid className="col-span-full grid-cols-subgrid gap-x-block min-inline-0">
-                  <form.AppField name="imageDetail">
-                    {(field): ReactElement => <field.SelectField label={ATTACHMENT_QUALITY_LABELS.imageDetail} items={IMAGE_DETAIL_ITEMS} />}
-                  </form.AppField>
-                </Grid>
-                <Grid className="col-span-full grid-cols-subgrid gap-x-block min-inline-0">
-                  <form.AppField name="videoMaxResolution">
-                    {(field): ReactElement => <field.SelectField label={ATTACHMENT_QUALITY_LABELS.videoMaxResolution} items={VIDEO_RESOLUTION_ITEMS} />}
-                  </form.AppField>
-                </Grid>
-              </Grid>
-            </FieldLayout>
+            <SettingRowGroup>
+              <SettingTrackRow>
+                <form.AppField name="imageDetail">
+                  {(field): ReactElement => <field.SelectField label={ATTACHMENT_QUALITY_LABELS.imageDetail} items={IMAGE_DETAIL_ITEMS} />}
+                </form.AppField>
+              </SettingTrackRow>
+              <SettingTrackRow>
+                <form.AppField name="videoMaxResolution">
+                  {(field): ReactElement => <field.SelectField label={ATTACHMENT_QUALITY_LABELS.videoMaxResolution} items={VIDEO_RESOLUTION_ITEMS} />}
+                </form.AppField>
+              </SettingTrackRow>
+            </SettingRowGroup>
           </SettingRow>
         </SettingRowGroup>
       </ConfigTeachScope>

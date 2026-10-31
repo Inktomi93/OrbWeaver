@@ -69,7 +69,7 @@ import { darkVariantRule, noStaticStylePropRule, offTokenInlineStyleRule, themeO
 export { authorClassIgnores } from "./css-classes.ts";
 export { baseUiDoors } from "./motion.ts";
 export { shellOwnedSlots } from "./shell-slots.ts";
-export { exportedLabels } from "./test-labels.ts";
+export { exportedLabels, exportedProductionValues } from "./test-labels.ts";
 export { domLookupRule } from "./ui-dom.ts";
 export { classClassifier } from "./ui-feature-classname.ts";
 
@@ -111,6 +111,8 @@ export function createOrbPlugin(options: {
   shellClasses: ReadonlySet<string>;
   shellSlots: ReadonlySet<string>;
   exportedLabels: ReadonlyMap<string, ExportedLabel>;
+  /** The strings `exportedLabels` leaves out; `no-hand-copied-label` reads them under scope `all`. */
+  exportedProductionValues: ReadonlyMap<string, ExportedLabel>;
   appearanceVocabulary: AppearanceVocabulary;
   /** Compat keys some browser floor lacks (`unsupportedAtFloor`). */
   browserUnsupported: ReadonlyMap<string, readonly string[]>;
@@ -179,7 +181,7 @@ export function createOrbPlugin(options: {
       "ct-poll-intervals-shared": ctPollIntervalsSharedRule,
       "ct-responder-reads-input": ctResponderReadsInputRule,
       "ct-negative-only-case": ctNegativeOnlyCaseRule,
-      "no-hand-copied-label": handCopiedLabelRule(options.exportedLabels),
+      "no-hand-copied-label": handCopiedLabelRule(options.exportedLabels, options.exportedProductionValues),
       "no-floorless-control-in-wrap": floorlessControlRule(options.floorlessControls),
       "evaluate-no-scope-capture": evaluateNoScopeCaptureRule,
       "assumes-single-replica": assumesSingleReplicaRule,

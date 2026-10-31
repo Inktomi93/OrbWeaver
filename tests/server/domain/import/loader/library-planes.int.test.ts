@@ -8,6 +8,7 @@
 // @subject packages/server/src/domain/rpg/persistence/portability-write.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
+import type { Principal } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
 import { createPersonaSchema } from "@orb/contracts/persona";
@@ -149,6 +150,9 @@ const ANCHORED_TITLE = "The anchored campaign";
 const ANCHORED_LOCATION = "the ferry landing";
 const ANCHORED_JOURNAL = "The ferry was lost";
 const SWIPED_LOCATION = "the bridge that held";
+const HAND_EDIT_LOCATION = "the toll house";
+// A real hand edit that v0.3.x reused as the checkpoint target, made a minute before the checkpoint.
+const EDIT_BEFORE_CHECKPOINT_MS = 60_000;
 
 function line(role: "user" | "assistant", content: string): PortableChat["messages"][number] {
   return {
@@ -229,9 +233,14 @@ function anchoredBundle(turn: number): Uint8Array {
   );
 }
 
-/** A two-message room whose assistant turn was swiped: the checkpoint names the first variant's snapshot, and
- *  the second variant is the selected one. */
-function swipedPinBundle(): Uint8Array {
+/** A committed hand snapshot stamped at `messages[asOfMessageIndex]`, as a file written before bookmarks carries it. */
+function handSnapshot(asOfMessageIndex: number, location: string, createdAt: number): PortableGame["snapshots"][number] {
+  return { ...turnSnapshot(asOfMessageIndex, 0, location), messageIndex: null, variantIdx: null, asOfMessageIndex, createdAt };
+}
+
+/** A two-message room whose assistant turn was swiped: the first variant recorded the saved location, the second
+ *  (selected) one the swiped location, plus any `extra` rows; the checkpoint, made at `FROZEN_AT_MS`, names `pinned`. */
+function swipedRoomBundle(extra: PortableGame["snapshots"], pinned: number): Uint8Array {
   const first = line("assistant", "The bridge groans.");
   const [variant] = first.variants;
   if (variant === undefined) {
@@ -239,11 +248,57 @@ function swipedPinBundle(): Uint8Array {
   }
   const swiped = { ...first, selectedIdx: 1, variants: [variant, { ...variant, idx: 1, content: "The bridge holds." }] };
   return roomBundle([line("user", "Do we cross?"), swiped], {
-    snapshots: [turnSnapshot(1, 0, ANCHORED_LOCATION), turnSnapshot(1, 1, SWIPED_LOCATION)],
+    snapshots: [turnSnapshot(1, 0, ANCHORED_LOCATION), turnSnapshot(1, 1, SWIPED_LOCATION), ...extra],
     journal: [],
     turnToolCalls: [],
-    checkpoints: [{ snapshotIndex: 0, label: CHECKPOINT, trigger: "manual", createdAt: FROZEN_AT_MS }],
+    checkpoints: [{ snapshotIndex: pinned, label: CHECKPOINT, trigger: "manual", createdAt: FROZEN_AT_MS }],
   });
+}
+
+/** The checkpoint names the first variant's turn snapshot. */
+function swipedPinBundle(): Uint8Array {
+  return swipedRoomBundle([], 0);
+}
+
+/** A v0.3.x file: the checkpoint names its saved copy, a hand row at the turn created with the checkpoint. */
+function v03CopyBundle(): Uint8Array {
+  return swipedRoomBundle([handSnapshot(1, ANCHORED_LOCATION, FROZEN_AT_MS)], 2);
+}
+
+/** The control: the checkpoint names a real hand edit made before it. */
+function earlierHandEditBundle(): Uint8Array {
+  return swipedRoomBundle([handSnapshot(1, HAND_EDIT_LOCATION, FROZEN_AT_MS - EDIT_BEFORE_CHECKPOINT_MS)], 2);
+}
+
+/** Import `bytes` as the owner's only anchored room and return the room's read params. */
+async function importAnchoredRoom(root: ServerTestHarness, bytes: Uint8Array): Promise<{ readonly principal: Principal; readonly chatId: ChatId }> {
+  const principal = await root.principalFor(root.ownerId);
+  await root.services.character.create({ principal, input: createCharacterSchema.parse({ handle: HANDLE, name: "Warden", description: "A warden." }) });
+  const chat = root.app.portability.find((entity) => entity.kind === "chat");
+  if (chat === undefined) {
+    throw new Error("production composition has no chat portability descriptor");
+  }
+  expect(await chat.importFile(root.ownerId, { filename: `${HANDLE}/legacy${CHAT_BUNDLE_EXT}`, bytes })).toMatchObject({ ok: true, created: true });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const [room] = (await caller.chat.listChats({ limit: 50 })).items.filter((item) => item.title === ANCHORED_TITLE);
+  if (room === undefined) {
+    throw new Error("the anchored room did not restore");
+  }
+  return { principal, chatId: room.id };
+}
+
+/** The location the room shows now, then after restoring its only checkpoint. */
+async function locationsAroundRestore(
+  root: ServerTestHarness,
+  params: { readonly principal: Principal; readonly chatId: ChatId },
+): Promise<readonly (string | undefined)[]> {
+  const current = (await root.services.rpg.getTrackerView(params)).ambient?.location;
+  const [checkpoint] = await root.services.rpg.listCheckpoints(params);
+  if (checkpoint === undefined) {
+    throw new Error("the checkpoint did not restore");
+  }
+  await root.services.rpg.restoreCheckpoint({ ...params, checkpointId: castId(checkpoint.id) });
+  return [current, (await root.services.rpg.getTrackerView(params)).ambient?.location];
 }
 
 test("a campaign's turn-anchored rows land on the restored variant of the turn they were exported under, not on another turn's", async () => {
@@ -345,6 +400,18 @@ test("a restored checkpoint pinned to a swiped-away variant leaves the selected 
   expect((await root.services.rpg.getTrackerView(params)).ambient).toMatchObject({ location: ANCHORED_LOCATION });
 });
 
+test("a v0.3.x bundle's checkpoint copy imports as the bookmark, so the later swipe shows and restore brings the copy back", async () => {
+  await using root = await signedInBox();
+  const params = await importAnchoredRoom(root, v03CopyBundle());
+  expect(await locationsAroundRestore(root, params)).toEqual([SWIPED_LOCATION, ANCHORED_LOCATION]);
+});
+
+test("a v0.3.x bundle's checkpoint on an earlier hand edit keeps that edit as the room's state", async () => {
+  await using root = await signedInBox();
+  const params = await importAnchoredRoom(root, earlierHandEditBundle());
+  expect(await locationsAroundRestore(root, params)).toEqual([HAND_EDIT_LOCATION, HAND_EDIT_LOCATION]);
+});
+
 test("importing a campaign bundle again after the room lost a later message keeps the game and reports nothing lost", async () => {
   await using root = await signedInBox();
   const owner = await root.principalFor(root.ownerId);
@@ -408,6 +475,8 @@ test("an owner's persona, world book, global databank document and settings valu
   expect(await restore(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
   const first = await landed();
   expect(first).toEqual({ personas: ["Backup Persona"], books: ["Backup World"], documents: ["Field Notes"], globalDocuments: 1, continueOnSend: false });
+  // No chunk travels in a bundle, so the restored document is searchable only once the restore queues its ingest.
+  expect((await targetCaller.workloads.list()).filter((job) => job.kind === "databank-ingest")).toHaveLength(1);
   expect(await restore(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
   expect(await landed()).toEqual(first);
 });

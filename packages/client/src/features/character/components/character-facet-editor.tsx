@@ -6,7 +6,6 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
-import { FieldLayout } from "@orb/ui/field";
 import { ChevronLeft, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { MacroSuggestion } from "@orb/ui/macro-textarea";
@@ -16,6 +15,7 @@ import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
+import { SettingRowGroup, SettingTrackRow } from "#components";
 import { useColorQuotedSpeech, usePromptMacroSuggestions } from "#data";
 import type { AppFormInstance } from "#forms/editor";
 import { ASSISTANT_PREFILL_WARNING } from "#lib";
@@ -245,10 +245,14 @@ function ProvenanceFacet({ form, readOnly }: { readonly form: CardForm; readonly
   return (
     <Stack gap="section">
       <Section heading="Provenance">
-        <FieldLayout orientation="horizontal">
-          <form.AppField name="creator">{(field): ReactElement => <field.TextField label="Creator" placeholder="Optional" />}</form.AppField>
-          <form.AppField name="cardVersion">{(field): ReactElement => <field.TextField label="Card version" placeholder="e.g. 1.2" />}</form.AppField>
-        </FieldLayout>
+        <SettingRowGroup>
+          <SettingTrackRow>
+            <form.AppField name="creator">{(field): ReactElement => <field.TextField label="Creator" placeholder="Optional" />}</form.AppField>
+          </SettingTrackRow>
+          <SettingTrackRow>
+            <form.AppField name="cardVersion">{(field): ReactElement => <field.TextField label="Card version" placeholder="e.g. 1.2" />}</form.AppField>
+          </SettingTrackRow>
+        </SettingRowGroup>
       </Section>
       <CharacterProvenanceSection {...readOnly} />
       {/* #1709 — the #1598 restore door has no home until now. Gated on `importedFrom`: a hand-authored

@@ -6,9 +6,8 @@
 import type { GlobalVariableView } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { globalVariables } from "@orb/db";
-import { escapeLikeTerm } from "@orb/db/query";
 import type { UserId } from "@orb/kit/ids";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 const LIMIT_ONE = 1;
 
@@ -42,12 +41,8 @@ export async function deleteGlobalVariable(db: Db, ownerId: UserId, key: string)
   await db.delete(globalVariables).where(and(eq(globalVariables.ownerId, ownerId), eq(globalVariables.key, key)));
 }
 
-/** List the owner's globals (key-sorted), optionally narrowed to a key prefix. The prefix's LIKE
- *  metacharacters (`\`, `%`, `_`) are escaped under an explicit `ESCAPE` clause so a literal `%`/`_` in
- *  the filter never acts as a wildcard. */
-export async function listGlobalVariables(db: Db, ownerId: UserId, prefix?: string): Promise<GlobalVariableView[]> {
-  const owned = eq(globalVariables.ownerId, ownerId);
-  const where = prefix !== undefined && prefix !== "" ? and(owned, sql`${globalVariables.key} LIKE ${`${escapeLikeTerm(prefix)}%`} ESCAPE '\\'`) : owned;
-  const rows = await db.select().from(globalVariables).where(where).orderBy(asc(globalVariables.key));
+/** List the owner's globals, key-sorted. */
+export async function listGlobalVariables(db: Db, ownerId: UserId): Promise<GlobalVariableView[]> {
+  const rows = await db.select().from(globalVariables).where(eq(globalVariables.ownerId, ownerId)).orderBy(asc(globalVariables.key));
   return rows.map(toView);
 }

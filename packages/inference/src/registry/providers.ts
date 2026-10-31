@@ -172,7 +172,6 @@ export async function createProviderRegistry(store: ProviderStore): Promise<Prov
       await store.removePlugin(pluginId);
       await refresh();
     },
-    refresh,
   };
 }
 

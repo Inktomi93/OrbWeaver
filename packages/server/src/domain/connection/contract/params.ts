@@ -7,14 +7,13 @@ import type {
   DeclaredCapability,
   ModelCheck,
   PromptCacheSettings,
-  ProviderDef,
   ResolveTaskParams as ResolveAuthority,
   ResolveChatCapabilityParams,
   RoutableTask,
 } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import type { ResolveArgs } from "@orb/inference";
-import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
+import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserCredentialId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 
 export type ResolveTaskParams = ResolveAuthority & Pick<ResolveArgs, "signal">;
@@ -143,11 +142,6 @@ export interface GenerationCostParams extends ConnectionDiagnosticParams {
 
 export interface ProvidersAvailableParams extends ActorParams {}
 
-export interface RegisterProviderParams {
-  readonly row: unknown;
-  readonly origin: { readonly plugin: PluginId; readonly pluginName: string } | { readonly admin: UserId };
-}
-
 export interface RegisterPluginProvidersParams {
   readonly rows: readonly unknown[];
   readonly pluginId: PluginId;
@@ -156,10 +150,6 @@ export interface RegisterPluginProvidersParams {
 
 export interface DropPluginProvidersParams {
   readonly pluginId: PluginId;
-}
-
-export interface DropProviderParams {
-  readonly providerId: ProviderDef["id"];
 }
 
 /** The local-light convenience seed's deps (inference program §7.2) — the db + clock + the two id minters. */

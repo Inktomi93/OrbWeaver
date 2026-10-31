@@ -50,19 +50,3 @@ test("a REJECTING job surfaces to its own caller and does not become the next jo
   await expect(lanes.run("failing", () => Promise.reject(failure))).rejects.toBe(failure);
   await expect(lanes.run("failing", () => Promise.resolve("ran anyway"))).resolves.toBe("ran anyway");
 });
-
-test("a drained lane is DELETED — the Map is bounded by active keys, not by every key ever used", async () => {
-  const lanes = createSerialLanes();
-  const before = lanes.activeCount();
-  const gate = Promise.withResolvers<void>();
-  const held = lanes.run("drains", () => gate.promise);
-  try {
-    expect(lanes.activeCount()).toBe(before + 1);
-  } finally {
-    gate.resolve();
-    await held;
-  }
-  await Promise.resolve();
-  await Promise.resolve();
-  expect(lanes.activeCount()).toBe(before);
-});

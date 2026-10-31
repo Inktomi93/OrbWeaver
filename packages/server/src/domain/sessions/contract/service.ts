@@ -17,6 +17,7 @@ import type { ExternalId, Handle, IdSource, SessionId, SessionToken, UserId } fr
 import type { Clock } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import type { AuditWiring, Logger } from "#foundation/observability";
+import type { PasswordHasher } from "#infra/auth";
 import type { Sealed, SecretBox } from "#infra/crypto";
 import type { CreateSessionParams, ProvisionIdentityOptions } from "./params.ts";
 import type { CreateSessionResult, PendingSignupPlan, ProvisionResult, RevokedSession, RevokedSessionsSummary, ValidatedSession } from "./results.ts";
@@ -24,10 +25,7 @@ import type { SessionsRolePolicy } from "./role-policy.ts";
 
 /** The peppered password verifier the root's hasher supplies. `dummyHash` is a well-formed hash in the
  *  hasher's own format that no password matches, so a missing row still burns the KDF time. */
-export interface SessionsPasswordVerifier {
-  readonly verify: (plain: string, stored: string | null | undefined) => Promise<boolean>;
-  readonly dummyHash: string;
-}
+export type SessionsPasswordVerifier = Pick<PasswordHasher, "verify" | "dummyHash">;
 
 /** The crypto adapter constructors the composition root injects. Sessions decides which key each purpose
  *  gets (`tokens/`); the adapters own the algorithms, so the domain never constructs one itself. */

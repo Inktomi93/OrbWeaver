@@ -1420,7 +1420,6 @@ export function createScopedEgress(options: ScopedEgressOptions): ScopedEgress {
   return {
     cancel,
     publishPrivateEndpointAllowlist: (entries) => publishPrivateEndpointAllowlistFor(context, entries),
-    endpointAdmission: (baseUrl) => endpointAdmissionFor(context, baseUrl),
     resolvedEndpointAdmission: (baseUrl) => resolvedEndpointAdmissionFor(context, baseUrl),
     safeFetch: (url, fetchOptions) => safeFetchFor(context, url, fetchOptions),
     fetchImageBytes: (url, maxBytes, signal) => fetchImageBytesFor(context, url, maxBytes, signal),

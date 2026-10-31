@@ -324,14 +324,6 @@ export interface LoreEntryIndexRow {
   readonly keys: readonly string[];
 }
 
-/** One CONSTANT ("always"-scope) lorebook entry attached to a chat — the lean title+content a producer reads
- *  as pre-play canon (only constant entries exist pre-play). Room-public prompt content
- *  (membership is the caller's gate, mirroring `listChatBooks`), so no owner/economics fields. */
-export interface LoreConstantCanonRow {
-  readonly title: string;
-  readonly content: string;
-}
-
 export type WiBusEvent =
   | { type: "wiBookAttached"; chatId: ChatId; surface: "chat"; bookId: WorldBookId }
   | { type: "wiBookDetached"; chatId: ChatId; surface: "chat"; bookId: WorldBookId }
