@@ -403,7 +403,10 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/stats/lib/leaderboard-row-attr.ts":
     "LEADERBOARD_ROW_ATTR: the attribute a leaderboard row wears, which the corpus workbench e2e addresses rows by",
   "packages/client/src/features/tag/lib/tag-list-name.ts": "TAG_LIST_NAME: the Labels finder's tag list name",
+  "packages/client/src/lib/app-ready-attribute.ts": "APP_READY_ATTR: the readiness attribute the boot veil exits on",
   "packages/client/src/state/create-persisted-store.ts": "createPersistedStore: the persisted-store factory a type contract reads",
+  "packages/client/src/state/durable-local-keys.ts":
+    "APPEARANCE_BOOT_HINT_NAME and APPEARANCE_BOOT_HINT_VERSION: the key and version the boot hint persists under",
   "packages/client/src/compose/contributors.ts": "chromeWidgets: the shipped chrome widget registry",
   "packages/client/src/compose/home-tiles.ts": "homeTiles: the shipped home tile registry",
 } as const satisfies Readonly<Record<string, string>>;

@@ -598,14 +598,14 @@ Home: [body shaping](../../../tests/inference/backends/openai-compat/body-shapin
 | `includeBody` replaces a modelled field and an extra whole; `excludeBody` wins | Rebuild | Body shaping. |
 | The cap rename and a cap the user's body states | Rebuild | Body shaping, for extras, `includeBody` and `excludeBody`. |
 | Template thinking switch beside the user's kwargs; the user's own switch outranks it; the budget at zero; a user budget key wins | Rebuild | Body shaping on the vLLM row. |
-| Prefill pair, thinking interlock and a user-decided prefill | Rebuild | Body shaping. A mandatory-reasoning model skipping the interlock stays Open. |
+| Prefill pair, thinking interlock and a user-decided prefill | Rebuild | Body shaping, including a mandatory-reasoning model skipping the interlock. |
 | A messages array the user set takes no prefill pair and no interlock from the plan | Rebuild | Body shaping, with the unextended prefill turn as the control. |
 | A reasoning-on turn tells the template to think, never over an off the user already set | Rebuild | Body shaping. The interlock's own off outranking the switch is asserted by the prefill case. |
-| A messages array the user set keeps its cache marker, takes no name, media or detail stamp, and is not folded | Open | These rules need the assembly's cache plan on an OpenRouter row, or a named-speaker or image history. |
-| `preserve_reasoning`, and kwargs the user set to a non-object | Open | The switch is asserted; the preserve key and the non-object values are not. |
+| A messages array the user set keeps its cache marker, takes no name, media or detail stamp, and is not folded | Rebuild | Body shaping. `runChatTurn` takes the assembled history rows, so a named-speaker, image or marked history needs no chat assembly. |
+| `preserve_reasoning`, and kwargs the user set to a non-object | Rebuild | Body shaping: the carry-off key beside the user's kwargs, the user's own key, an excluded kwargs and a non-object value all stand. |
 | An effort the row cannot spell is dropped | Rebuild in part | The row-level drop and the user's effort surviving are asserted. The shaper carries no strip of its own: the SDK never writes the key on such a row. |
-| Re-attachment of assistant media and participant names; image detail; reply-image modalities | Open | Each needs an image or named-speaker history through the chat assembly. |
-| Cache-marker move onto the nearest text part; same-role fold | Open | Both need the assembly's cache plan on an OpenRouter row with a tool-call history. |
+| Re-attachment of assistant media and participant names; image detail; reply-image modalities | Rebuild | Body shaping, over named and image history rows and the reply-media knob. |
+| Cache-marker move onto the nearest text part; same-role fold | Rebuild | Body shaping, on an Anthropic model through OpenRouter, with a plain row and the non-OpenRouter row as controls. |
 
 #### Endpoint diagnostics (`inference/backends/openai-compat/diagnostics.test.ts`)
 
@@ -639,7 +639,7 @@ Home: [chat wire](../../../tests/inference/backends/anthropic-messages/chat-wire
 | A dropped thinking block is counted on the record and raised as an alarm | Rebuild | Chat wire, with a clean-turn control. |
 | Turn-scoped system cue with `clear_at` and its beta; per-turn system half stays in `system[]` | Rebuild | Chat wire. |
 | Full request body byte equality | Rebuild | Chat wire: one `toEqual` over the whole body of a minimal turn, with the owner digest matched as a string. Named-field assertions cover the rest. |
-| Turn span events | Open | The root exposes a span seam that no case scripts. |
+| Turn span events | Rebuild | [Provider turn span events](../../../tests/server/foundation/observability/provider-turn-span-events.int.test.ts) runs the turn under a request span on the composed root and reads the events from the trace ring. |
 
 #### Provider registry (`inference/registry/providers.test.ts`)
 
@@ -647,7 +647,7 @@ Home: [chat wire](../../../tests/inference/backends/anthropic-messages/chat-wire
 | - | - | - |
 | A plugin row answers only its owners; admin and built-in rows answer everyone; widen and narrow on install and drop | Keep | [Provider rows](../../../tests/server/domain/connection/persistence/provider-rows.int.test.ts) and [provider contributions](../../../tests/server/domain/plugin/activation/provider-contributions.suite.int.test.ts). |
 | Two owners' definitions of one id; a changed definition refused | Keep | The same two suites. |
-| An older refresh cannot republish after a removal; failed activation compensation; a failed refresh does not poison later publication | Open | The cases hold a store read or fail one. The root's store is the real database and no door holds a read, so the publication-order guard is reached only by a synthetic store. |
+| An older refresh cannot republish after a removal; failed activation compensation; a failed refresh does not poison later publication | Rebuild | [Registry publication order](../../../tests/server/domain/connection/persistence/registry-publication-order.int.test.ts) holds or refuses the real store's served-claims read at the native libSQL client the root's database hands over. A removal during a parked read, a refused read before a later write, and a replacement whose publish fails (both claims released) are asserted. The install-removal variant and the two-activation ordering variant are dropped: they run the same publication lane and rollback refresh the first and third cases plant. |
 
 #### Library backup round trip (`server/entry/import/bundle-round-trip.suite.int.test.ts`)
 
@@ -663,7 +663,7 @@ Homes: [library planes](../../../tests/server/domain/import/loader/library-plane
 | Turn-anchored snapshot, journal and tool-call rows land on the restored variant of their own turn | Rebuild | Library planes, through a bundle written by the production writer, with the earlier assistant turn as the control. |
 | Second restore writes zero new rows | Rebuild | Library planes, for the room, injections, checkpoints and journal. |
 | A re-import after the room lost a later message keeps the game and reports nothing lost | Rebuild | Library planes. The campaign cannot be re-placed once the slots stop aligning, so only the existing-game check keeps the import from a false loss note. |
-| Avatar blob byte identity; derived runtime variables do not travel; room blob, compact summary and variable picks by value | Open | Not asserted end to end. The serde contract parses them. |
+| Avatar blob byte identity; derived runtime variables do not travel; room blob, compact summary and variable picks by value | Rebuild in part | Library planes: a bundle from the production writer carries the marker, a room override and a variable pick, and the restored room exports them back; the restored card exports the source's bytes. The derived runtime variables are dropped: the portable chat has no field for them, so the type closes the case. |
 
 #### Import identity (`server/entry/import/import-identity.suite.int.test.ts`)
 
@@ -672,12 +672,12 @@ Home: [import identity](../../../tests/server/entry/http/import-identity.int.tes
 | Reference case | Decision | Maintained home or reason |
 | - | - | - |
 | Card tags apply at once through both doors; a model suggestion stays pending across a re-import | Rebuild | Import identity. |
-| A split folder mints each persona once, with its avatar, and every upload's chats attribute to it | Rebuild | Import identity, with uploads shaped as the identity ruling states. The client planner that splits the folder has no maintained test and is Open as a client unit case. |
+| A split folder mints each persona once, with its avatar, and every upload's chats attribute to it | Rebuild | Import identity, with uploads shaped as the identity ruling states. The client planner that splits the folder is rebuilt in [tree import plan](../../../tests/client/data/import-tree-plan.int.test.ts): settings, persona avatars and world books ride every upload, a card keeps its chats, a group takes its members and transcript, and a secrets file is never sent. |
 | JSON card, its PNG and the JSON again are one character; the same text under other art is a second | Rebuild | Import identity. The alternate art is a PNG with one extra ancillary chunk, because the fixture builder varies only the card chunk, which is not art. |
 | Two different embedded books under one name land as the name and its numbered twin | Rebuild | Import identity, with each card's own link. |
 | A world name-link binds the book its own import landed, including a renamed book | Rebuild | Import identity. |
 | Keep-both on a persona collision never copies an equal persona | Rebuild | Import identity. Not a reference case. The merge default hides the equal-content guard. |
-| Two profiles in one upload bind a repeated world name to the first profile's book | Open | The tree route's layout admission for two profile roots is not exercised. |
+| Two profiles in one upload bind a repeated world name to the first profile's book | Rebuild | Import identity, through the tree route with two profile roots. |
 
 #### Compose databank (`server/entry/compose/databank.int.test.ts`)
 
@@ -711,6 +711,8 @@ Defect controls: each rebuilt guard was checked against a planted production def
 
 Further planted behaviors: the whole-body reshape (the adaptive display), the existing-game check on a re-import whose campaign cannot be placed, the prefill pair over a user messages array, the switch over the interlock's off, the switch on a reasoning-on turn, and a character update that never flags its content change.
 
+Further planted behaviors in this leg: the carry-off key over a user key, the non-object kwargs merge, the mandatory-reasoning interlock, the image detail, the participant-name and reply-image re-attachment, the reply modalities, the cache-marker move, the same-role fold and the user messages array; the turn span cache event and stop word; the publication lane, the failure-surviving lane tail and the claim rollback; the persona-avatar and world-book shared role, group member seating and the secrets arm in the folder plan; the first-profile world binding; and the compact summary, variable values, room metadata and avatar bytes on a library restore.
+
 Guards adjudicated by planting their removal. The shaper has no effort strip of its own, because the SDK never writes the key on a row that spells no effort. The inspector's `ok` is the reply's status, because the catch arm already returns false. The embeddings indexer's `contentChanged` skip is live: with it removed, a star toggle on a card written unindexed embeds it, and the autoindex gate case fails. The plugin claim write has one pre-batch check, which the changed-definition case needs, and no post-write re-read. The rpg existing-game check is live: without it, a re-import whose campaign cannot be placed reports a loss while the room still has its game.
 
 ### Selected case map: flow-walking CTs
@@ -727,7 +729,7 @@ This case map classifies the flow-walking CT cases of the app-root, pending rout
 | AS43 | Arrival focus puts New before search and rows in forward Tab order. | [List arrival focus](../../../tests/client/features/app-shell/surfaces/list-arrival-focus.ct.tsx) lands on the band's action, then walks the Tab stops of Chats, Characters and Presets and expects New, then the search field, then a row. |
 | AS66–AS69 | A closed Context sheet remains closed after open, list hide/show, sheet close and another list hide. | [Context carry](../../../tests/client/features/app-shell/surfaces/app-shell-panels.ct.tsx) runs that sequence with the constrained shell. |
 | AS93, AS96, AS97, AS99 | Real-room message rows and composer stay in their corridors from the first painted frame, including scaled docking and Context changes. | [Shell motion CT](../../../tests/client/features/app-shell/surfaces/app-shell-motion.ct.tsx) holds the row and composer on the Context door, the both-docked List door and the scaled dock. A room with a mounted flank column narrows the row's parent; the carriers are not held there. |
-| Production-served corpus boot | The document and its module graph reach the application without aborted lazy-module/CSS startup. | A cold production-served stack loaded the document, its scripts, stylesheets and fonts with no failed or refused request. No maintained case asserts it, so a cold failure stays a finding of the run that sees it. Harness stacks do not watch sources (`tooling/src/dev/lib/plan.ts`). |
+| Production-served corpus boot | The document and its module graph reach the application without aborted lazy-module/CSS startup. | [Cold boot](../../../tests/e2e/corpus-cold-boot.spec.ts) asserts that the first navigation finishes with no failed or refused request, and its control aborts one stylesheet and expects the same watch to name it. Harness stacks do not watch sources (`tooling/src/dev/lib/plan.ts`). |
 
 Case names in this case map identify existing or proposed specs. The disposition index below does not assert a new runtime result.
 
@@ -836,6 +838,19 @@ The complete original inputs, assertions, collapse groups, review corrections an
 - AS42 does not retain a next-Tab assertion against the reference story's invented content control.
 - AS93/AS96/AS97/AS99 hold the row and composer in a room without a flank column. A mounted flank column is not a subject of the carrier cases.
 - G9's boot replay asserts the motion, font-scale and theme stamps on `<html>` before React mounts. Density has no root channel and renders only on the shell's theme scope, so the e2e cases do not assert it.
+
+##### Shell chrome, boot hint and chrome assembly
+
+| Reference case | Decision | Maintained home or reason |
+| - | - | - |
+| Boot veil: hold and dissolve on ready, the minimum display floor, no veil over a ready app, the degraded ready, reduced motion | Rebuild | [Boot veil CT](../../../tests/client/features/app-shell/components/boot-veil.ct.tsx), over the production veil under `CtClientProviders`. The caption text is dropped as copy. |
+| Mobile bar: the waiting-count badge, the label ramp step, label fit at the narrowest phone, the current-section tab | Rebuild | [Mobile bar CT](../../../tests/client/features/app-shell/surfaces/mobile-bar.ct.tsx), over the production shell. The inbox is the real list with its read state set per case. |
+| Rail: the single Home affordance | Rebuild | Mobile bar CT, at a desktop and a phone width. |
+| `rail.end` widget sheet lens and the sheet's modal row | Keep | [Responsive](../../../tests/client/features/app-shell/surfaces/app-shell-responsive.ct.tsx): the persona row is the widget lens and the Jump row is the modal row. No modal ships on `rail.end`. |
+| Boot hint: the server answer replayed on the next boot, a corrupt hint healing to the floors, seed palette names only, the pre-paint read keeping the other axes | Rebuild | [Boot hint CT](../../../tests/client/state/appearance-boot-hint.ct.tsx), which remounts over the real stored blob. The pre-paint read is the store's `getState`, which the hook shares. The stamps on `<html>` stay in corpus shell. |
+| Chrome assembly: rail entries, `rail.end`, the `topbar.trail` modal entry, unmapped placements, order and curation, widget identity, `(order, id)` | Rebuild | [Assembly test](../../../tests/client/state/assemble-chrome.dom.test.ts), derived from the shipped sections, modals and widgets. No modal ships on `rail.end`, so that placement has no shipped subject. |
+
+Defect controls: the veil floor, the latch and the degraded value, the boot hint's seed guard, theme replace and axes write, the badge, the label voice and the displaced-tab swap, and in assembly the section order, trigger order, widget copy, an extra mapped placement, the tie break and the section zone.
 
 #### Harness and execution
 

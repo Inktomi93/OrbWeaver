@@ -1,9 +1,10 @@
 // The outbound body of an openai-compat chat turn, read at the provider edge: the user's own body (extras,
 // includeBody, excludeBody) is the last word, and every computed key leaves a key they settled alone.
 // @subject packages/inference/src/backends/openai-compat/body.ts
-import { connectionExtrasSchema, isBeltOwnedBodyKey } from "@orb/contracts/inference";
+import { connectionExtrasSchema, DEFAULT_ATTACHMENT_QUALITY, isBeltOwnedBodyKey } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ChatEvent, ChatHistoryMessage } from "@orb/inference";
+import { isPlainObject } from "@orb/kit/guards";
 import { expect, test } from "@orb/testkit/node";
 import type { RecordedRequest } from "@orb/testkit/node/helpers";
 import { openAiServer } from "@orb/testkit/node/helpers";
@@ -21,12 +22,12 @@ interface Sent {
 
 /** One chat turn against a scripted openai-compatible endpoint; what the endpoint received and what the turn reported. */
 async function send(
-  row: Omit<Connection, "task" | "model" | "providerId"> & { readonly providerId?: string },
+  row: Omit<Connection, "task" | "model" | "providerId"> & { readonly providerId?: string; readonly model?: string },
   options: { readonly params?: UserIntent; readonly history?: readonly ChatHistoryMessage[] } = {},
 ): Promise<Sent> {
   const recorded: RecordedRequest[] = [];
   await using root = await createRuntimeRoot({ providerFetch: openAiServer(recorded, () => ({})) });
-  const connection = await wireConnection(root, { ...row, task: "chat", providerId: row.providerId ?? "custom-openai", model: "shaping-model" });
+  const connection = await wireConnection(root, { ...row, task: "chat", providerId: row.providerId ?? "custom-openai", model: row.model ?? "shaping-model" });
   const turn = await root.app.runtime.executor.runChatTurn({
     api: "chat-completions",
     connection,
@@ -224,4 +225,167 @@ test("an effort the row cannot spell is dropped with a warning, and one the user
 
   const spelled = await send({ providerId: "vllm", capability: EFFORT }, { params });
   expect(spelled.body["reasoning_effort"]).toBe("high");
+});
+
+test("a turn whose reasoning carry is off tells the template not to replay thinking, beside the user's kwargs and never over their decision", async () => {
+  const params = { effort: "high", carryReasoning: "off" } satisfies UserIntent;
+  const replaying = generationCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"], replay: "text" } });
+  const control = await send({ providerId: "vllm", capability: replaying }, { params: { effort: "high", carryReasoning: "conversation" } });
+  expect(control.body["chat_template_kwargs"]).not.toHaveProperty("preserve_reasoning");
+
+  const carried = await send({ providerId: "vllm", capability: EFFORT }, { params });
+  expect(carried.body["chat_template_kwargs"]).toMatchObject({ ["enable_thinking"]: true, ["preserve_reasoning"]: false });
+
+  const theirKwargs = await send({ providerId: "vllm", capability: EFFORT, extras: { ["chat_template_kwargs"]: { ["custom_flag"]: "x" } } }, { params });
+  expect(theirKwargs.body["chat_template_kwargs"]).toMatchObject({ ["custom_flag"]: "x", ["preserve_reasoning"]: false });
+
+  const theirKey = await send({ providerId: "vllm", capability: EFFORT, extras: { ["chat_template_kwargs"]: { ["preserve_reasoning"]: true } } }, { params });
+  expect(theirKey.body["chat_template_kwargs"]).toMatchObject({ ["preserve_reasoning"]: true });
+
+  const excluded = await send({ providerId: "vllm", capability: EFFORT, transport: { excludeBody: ["chat_template_kwargs"] } }, { params });
+  expect(excluded.body).not.toHaveProperty("chat_template_kwargs");
+});
+
+test("template kwargs the user set to a non-object are theirs whole: no thinking switch, budget or preserve key merges into them", async () => {
+  const off = { effort: "none", carryReasoning: "off" } satisfies UserIntent;
+  const control = await send({ providerId: "vllm", capability: EFFORT }, { params: off });
+  expect(control.body["chat_template_kwargs"]).toMatchObject({ ["enable_thinking"]: false, ["preserve_reasoning"]: false });
+  expect(control.body["thinking_token_budget"]).toBe(0);
+
+  const theirs = await send({ providerId: "vllm", capability: EFFORT, extras: { ["chat_template_kwargs"]: "raw" } }, { params: off });
+  expect(theirs.body["chat_template_kwargs"]).toBe("raw");
+  expect(theirs.body).not.toHaveProperty("thinking_token_budget");
+});
+
+const SEES_IMAGES = generationCapability({
+  imageDetail: true,
+  input: ["text", "image"],
+  output: { maxTokens: { min: 1, max: 8192 }, structured: true, modalities: ["text", "image"] },
+});
+
+function wireRows(body: RecordedRequest["body"]): readonly Record<string, unknown>[] {
+  const rows = body["messages"];
+  if (!Array.isArray(rows)) {
+    throw new Error("the endpoint received no messages array");
+  }
+  return rows.flatMap((row) => (isPlainObject(row) ? [row] : []));
+}
+
+test("participant names, a prior reply's image and the image detail ride the wire rows, and a messages array the user set takes none of them", async () => {
+  const picture = "data:image/png;base64,AAAA";
+  const history: ChatHistoryMessage[] = [
+    {
+      role: "user",
+      name: "Mira",
+      content: [
+        { type: "text", text: "Look." },
+        { type: "image", url: picture },
+      ],
+    },
+    {
+      role: "assistant",
+      name: "Aria",
+      content: [
+        { type: "text", text: "Seen." },
+        { type: "image", url: picture },
+      ],
+    },
+    { role: "user", content: [{ type: "text", text: "Again." }] },
+  ];
+  const sent = await send({ capability: SEES_IMAGES }, { history });
+  const [, first, second] = wireRows(sent.body);
+  expect(first?.["name"]).toBe("Mira");
+  expect(second?.["name"]).toBe("Aria");
+  const imageParts = wireRows(sent.body)
+    .flatMap((row) => (Array.isArray(row["content"]) ? row["content"] : []))
+    .filter((part) => typeof part === "object" && part !== null && "image_url" in part);
+  expect(imageParts).toHaveLength(2);
+  for (const part of imageParts) {
+    expect(part).toMatchObject({ ["image_url"]: { url: picture, detail: DEFAULT_ATTACHMENT_QUALITY.imageDetail } });
+  }
+
+  const theirs = [{ role: "user", content: "Their own row." }];
+  const owned = await send({ capability: SEES_IMAGES, transport: { includeBody: { messages: theirs } } }, { history });
+  expect(owned.body["messages"]).toEqual(theirs);
+});
+
+const CACHEABLE = generationCapability({
+  turns: { assistantPrefill: false, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "strict", explicitPromptCache: true },
+});
+const ANTHROPIC_ON_OPENROUTER = { providerId: "openrouter", model: "anthropic/claude-sonnet-4.5", capability: CACHEABLE } as const;
+const MARKED = { cacheBreakpoint: true } as const;
+
+function contentOf(body: RecordedRequest["body"], index: number): unknown {
+  return wireRows(body)[index]?.["content"];
+}
+
+test("an OpenRouter cache marker rides its row's last text part, and a row with no text hands it to the nearest earlier row with text", async () => {
+  const withText: ChatHistoryMessage[] = [
+    { role: "user", content: [{ type: "text", text: "One." }] },
+    { role: "assistant", wireMeta: MARKED, content: [{ type: "text", text: "Two." }] },
+    { role: "user", content: [{ type: "text", text: "Three." }] },
+  ];
+  const own = await send(ANTHROPIC_ON_OPENROUTER, { history: withText });
+  expect(contentOf(own.body, 2)).toEqual([expect.objectContaining({ text: "Two.", ["cache_control"]: expect.anything() })]);
+  expect(contentOf(own.body, 1)).toBe("One.");
+
+  const toolCallOnly: ChatHistoryMessage[] = [
+    { role: "user", content: [{ type: "text", text: "One." }] },
+    { role: "assistant", wireMeta: MARKED, content: [{ type: "tool-call", toolCallId: "c1", name: "look", arguments: "{}" }] },
+    { role: "tool", content: [{ type: "tool-result", toolCallId: "c1", content: "{}" }] },
+    { role: "user", content: [{ type: "text", text: "Three." }] },
+  ];
+  const moved = await send(ANTHROPIC_ON_OPENROUTER, { history: toolCallOnly });
+  expect(contentOf(moved.body, 1)).toEqual([expect.objectContaining({ text: "One.", ["cache_control"]: expect.anything() })]);
+  expect(wireRows(moved.body)[2]).not.toHaveProperty("cache_control");
+  expect(wireRows(moved.body)[2]?.["content"]).toBeNull();
+});
+
+test("same-role rows fold into one message of parts on a block-end-preserving prefix, each marker on its own part, and stay separate elsewhere", async () => {
+  const history: ChatHistoryMessage[] = [
+    { role: "user", content: [{ type: "text", text: "One." }] },
+    { role: "user", wireMeta: MARKED, content: [{ type: "text", text: "Uno." }] },
+    { role: "assistant", content: [{ type: "text", text: "Two." }] },
+    { role: "user", content: [{ type: "text", text: "Three." }] },
+  ];
+  const folded = await send(ANTHROPIC_ON_OPENROUTER, { history });
+  expect(contentOf(folded.body, 1)).toEqual([{ type: "text", text: "One." }, expect.objectContaining({ text: "Uno.", ["cache_control"]: expect.anything() })]);
+  expect(wireRows(folded.body)).toHaveLength(4);
+
+  const plain = await send({ capability: CACHEABLE }, { history });
+  expect(wireRows(plain.body)).toHaveLength(5);
+});
+
+test("a messages array the user set keeps its own cache marker where they put it", async () => {
+  const theirs = [{ role: "user", content: [{ type: "text", text: "Their row." }], ["cache_control"]: { type: "ephemeral" } }];
+  const history: ChatHistoryMessage[] = [{ role: "user", wireMeta: MARKED, content: [{ type: "text", text: "Ours." }] }];
+  const sent = await send({ ...ANTHROPIC_ON_OPENROUTER, transport: { includeBody: { messages: theirs } } }, { history });
+  expect(sent.body["messages"]).toEqual(theirs);
+});
+
+test("a reply that may carry an image asks for both modalities, and the user's own modalities stand", async () => {
+  const wants = { replyMedia: "text+image" } satisfies UserIntent;
+  const control = await send({ capability: SEES_IMAGES }, { params: {} });
+  expect(control.body).not.toHaveProperty("modalities");
+
+  const asked = await send({ capability: SEES_IMAGES }, { params: wants });
+  expect(asked.body["modalities"]).toEqual(["text", "image"]);
+
+  const theirs = await send({ capability: SEES_IMAGES, extras: { modalities: ["text"] } }, { params: wants });
+  expect(theirs.body["modalities"]).toEqual(["text"]);
+});
+
+test("a mandatory-reasoning model keeps its thinking and its effort through a delivered prefill", async () => {
+  const mandatory = generationCapability({
+    reasoning: { mode: "effort", enabled: true, mandatory: true, effortLevels: ["low", "medium", "high"] },
+    turns: { assistantPrefill: true, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "strict", explicitPromptCache: false },
+  });
+  const params = { effort: "high" } satisfies UserIntent;
+  const history = [USER_LINE, ASSISTANT_OPENING];
+
+  const sent = await send({ providerId: "vllm", capability: mandatory }, { params, history });
+  expect(sent.body["continue_final_message"]).toBe(true);
+  expect(sent.body["chat_template_kwargs"]).toMatchObject({ ["enable_thinking"]: true });
+  expect(sent.body["reasoning_effort"]).toBe("high");
+  expect(warningCodes(sent.events)).not.toContain("reasoning_dropped_for_prefill");
 });

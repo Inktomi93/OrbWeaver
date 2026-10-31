@@ -5,8 +5,16 @@
 import type { TreeImportCaps, TreeImportPlan } from "@orb/client/data";
 import { importTree, planServedFolderImport, relativePathOf } from "@orb/client/data";
 import { createCharacterSchema } from "@orb/contracts/character";
-import type { PersonaCollisionChoices } from "@orb/contracts/import";
-import { admitTreeBatch, importStartedSchema, treeUploadFixedFramingBytes, treeUploadPartFramingBytes } from "@orb/contracts/import";
+import type { PersonaCollisionChoices, StProfileHandledEntry } from "@orb/contracts/import";
+import {
+  admitTreeBatch,
+  importStartedSchema,
+  ST_SECRETS_FILE,
+  ST_SETTINGS_FILE,
+  stProfileEntryDisposition,
+  treeUploadFixedFramingBytes,
+  treeUploadPartFramingBytes,
+} from "@orb/contracts/import";
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_DIRECTORIES, PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
@@ -109,6 +117,105 @@ test("a split native backup sends its planes in import dependency order, whateve
   const plan = await planTreeImport(dependentsFirst, { ...SPLIT_CAPS, files: 1 });
   const dirOrder = PORTABLE_IMPORT_ORDER.map((kind) => PORTABLE_DIRECTORIES[kind].slice(0, -1));
   expect(uploadedPaths(plan.batches).map((paths) => paths.map((path) => path.split("/")[0]))).toEqual(dirOrder.map((dir) => [dir]));
+});
+
+const PROFILE_DIR = "default-user";
+const PROFILE = `data/${PROFILE_DIR}`;
+const CHARACTERS = "characters" satisfies StProfileHandledEntry;
+const CHATS = "chats" satisfies StProfileHandledEntry;
+const WORLDS = "worlds" satisfies StProfileHandledEntry;
+const AVATARS = "User Avatars" satisfies StProfileHandledEntry;
+const GROUPS = "groups" satisfies StProfileHandledEntry;
+const GROUP_CHATS = "group chats" satisfies StProfileHandledEntry;
+const FOREIGN_PLANE = "vectors";
+
+const profileFile = (path: string, bytes: string | Uint8Array<ArrayBuffer> = "x"): File => pickedFile(`${PROFILE}/${path}`, bytes);
+const pathsOf = (batch: readonly File[]): string[] => batch.map((file) => relativePathOf(file).slice(PROFILE.length + 1));
+
+test("a split SillyTavern profile repeats settings, persona avatars and world books in every upload and keeps each card with its chats", async () => {
+  const files = [
+    profileFile(ST_SETTINGS_FILE, "{}"),
+    profileFile(`${AVATARS}/bob.png`),
+    profileFile(`${WORLDS}/Harbor.json`, "{}"),
+    profileFile(`${CHARACTERS}/Aria.png`, "x".repeat(UNIT)),
+    profileFile(`${CHARACTERS}/Bram.png`, "x".repeat(UNIT)),
+    profileFile(`${CHATS}/Aria/one.jsonl`, "x".repeat(UNIT / 2)),
+    profileFile(`${CHATS}/Bram/two.jsonl`, "x".repeat(UNIT / 2)),
+  ];
+  const whole = await planTreeImport(files, { ...SPLIT_CAPS, totalBytes: UNIT * 20 });
+  expect(whole.batches).toHaveLength(1);
+
+  const split = await planTreeImport(files, { ...SPLIT_CAPS, totalBytes: UNIT * 2 + files.slice(0, 3).reduce((sum, file) => sum + file.size, 0) });
+  const batches = split.batches.map(pathsOf);
+  expect(batches.length).toBeGreaterThan(1);
+  for (const batch of batches) {
+    expect(batch).toEqual(expect.arrayContaining([ST_SETTINGS_FILE, `${AVATARS}/bob.png`, `${WORLDS}/Harbor.json`]));
+  }
+  for (const [card, chat] of [
+    [`${CHARACTERS}/Aria.png`, `${CHATS}/Aria/one.jsonl`],
+    [`${CHARACTERS}/Bram.png`, `${CHATS}/Bram/two.jsonl`],
+  ] as const) {
+    expect(batches.find((batch) => batch.includes(chat))).toContain(card);
+  }
+  expect(new Set(batches.flat()).size).toBe(split.files);
+});
+
+test("a split profile seats a group with its member cards and transcript, and sends a chat folder with no card beside the base files", async () => {
+  const files = [
+    profileFile(ST_SETTINGS_FILE, "{}"),
+    profileFile(`${CHARACTERS}/Aria.png`, "x".repeat(UNIT)),
+    profileFile(`${CHARACTERS}/Bram.png`, "x".repeat(UNIT)),
+    profileFile(`${CHARACTERS}/Cora.png`, "x".repeat(UNIT)),
+    profileFile(`${GROUPS}/g1.json`, JSON.stringify({ members: ["Aria.png", "Bram.png"], chats: ["party"] })),
+    profileFile(`${GROUP_CHATS}/party.jsonl`, "x".repeat(UNIT / 2)),
+    profileFile(`${CHATS}/Nobody/orphan.jsonl`, "x".repeat(UNIT / 2)),
+  ];
+  const plan = await planTreeImport(files, { ...SPLIT_CAPS, totalBytes: UNIT * 4 });
+  const batches = plan.batches.map(pathsOf);
+  expect(batches.length).toBeGreaterThan(1);
+  expect(batches.find((batch) => batch.includes(`${GROUPS}/g1.json`))).toEqual(
+    expect.arrayContaining([`${CHARACTERS}/Aria.png`, `${CHARACTERS}/Bram.png`, `${GROUP_CHATS}/party.jsonl`]),
+  );
+  expect(batches.flat()).toContain(`${CHATS}/Nobody/orphan.jsonl`);
+  expect(plan.skipped).toEqual([]);
+});
+
+test("the plan never sends a secrets.json at any depth, and reports foreign planes with the contract's reasons", async () => {
+  const foreign = stProfileEntryDisposition(FOREIGN_PLANE, true);
+  const secrets = stProfileEntryDisposition(ST_SECRETS_FILE, false);
+  if (foreign.handled || secrets.handled) {
+    throw new Error("the contract handles a plane this case reads as reported");
+  }
+  const nestedSecrets = `${CHATS}/Aria/${ST_SECRETS_FILE}`;
+  const files = [
+    profileFile(ST_SETTINGS_FILE, "{}"),
+    profileFile(ST_SECRETS_FILE, "{}"),
+    profileFile(nestedSecrets, "{}"),
+    profileFile(`${CHARACTERS}/Aria.png`),
+    profileFile(`${FOREIGN_PLANE}/index.bin`),
+  ];
+  const plan = await planTreeImport(files, SPLIT_CAPS);
+  const skipped = new Map(plan.skipped.map((entry) => [entry.path, entry.reason]));
+  expect(skipped.get(`${PROFILE_DIR}/${FOREIGN_PLANE}/index.bin`)).toBe(foreign.reason);
+  expect(skipped.get(`${PROFILE_DIR}/${ST_SECRETS_FILE}`)).toBe(secrets.reason);
+  expect(skipped.get(`${PROFILE_DIR}/${nestedSecrets}`)).toBe(secrets.reason);
+  expect(pathsOf(plan.batches.flat())).toEqual([ST_SETTINGS_FILE, `${CHARACTERS}/Aria.png`]);
+});
+
+test("a multi-profile root keeps every profile's settings in every upload", async () => {
+  const files = [
+    pickedFile("data/alice/settings.json", "{}"),
+    pickedFile("data/alice/characters/A.png", "x".repeat(UNIT)),
+    pickedFile("data/bob/settings.json", "{}"),
+    pickedFile("data/bob/characters/B.png", "x".repeat(UNIT)),
+  ];
+  const plan = await planTreeImport(files, { ...SPLIT_CAPS, totalBytes: UNIT + 8 });
+  expect(plan.skipped).toEqual([]);
+  expect(plan.batches).toHaveLength(2);
+  for (const batch of plan.batches) {
+    const paths = batch.map(relativePathOf);
+    expect(paths).toEqual(expect.arrayContaining([`data/alice/${ST_SETTINGS_FILE}`, `data/bob/${ST_SETTINGS_FILE}`]));
+  }
 });
 
 /** The multipart body bytes each upload of `plan` sends through the production sender. */

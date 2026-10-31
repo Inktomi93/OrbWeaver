@@ -227,6 +227,31 @@ test("keep-both lands a numbered persona only for different content: an equal pe
   expect(await names()).toEqual(["Bob", "Bob 2"]);
 });
 
+test("a two-profile upload binds a repeated world name to the first profile's book", async () => {
+  await using root = await harness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const world = (profile: string, content: string): Record<string, Bytes> => ({ [`${profile}/worlds/Eldoria.json`]: stWorld(content) });
+  const linked = (profile: string, name: string): Record<string, Bytes> => ({
+    [`${profile}/characters/${name}.png`]: writeCardChunk(art(root), card(name, { world: "Eldoria" })),
+  });
+
+  await uploadTree(root, {
+    [`alice/${ST_SETTINGS_FILE}`]: "{}",
+    [`bob/${ST_SETTINGS_FILE}`]: "{}",
+    ...world("alice", "A forest."),
+    ...world("bob", "A desert."),
+    ...linked("alice", "Aria"),
+    ...linked("bob", "Bram"),
+  });
+
+  const byName = new Map((await caller.worldInfo.listBooks()).map((b) => [b.name, b.id]));
+  expect([...byName.keys()].toSorted()).toEqual(["Eldoria", "Eldoria (2)"]);
+  for (const name of ["Aria", "Bram"]) {
+    const links = await caller.worldInfo.listForCharacter({ characterId: await characterNamed(root, name) });
+    expect(links.map((b) => b.id)).toEqual([byName.get("Eldoria")]);
+  }
+});
+
 test("a card's world name-link binds the book its own import landed, whatever name the book carries", async () => {
   await using root = await harness();
   const caller = await root.internalCallerFor(root.ownerId);
