@@ -356,6 +356,69 @@ test("same-role rows fold into one message of parts on a block-end-preserving pr
   expect(wireRows(plain.body)).toHaveLength(5);
 });
 
+test("a named row, a tool-call row and a replayed-reasoning row keep their own message when same-role rows fold", async () => {
+  const replaying = generationCapability({
+    reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"], replay: "text" },
+    turns: { assistantPrefill: false, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "strict", explicitPromptCache: true },
+  });
+  const history: ChatHistoryMessage[] = [
+    { role: "user", content: [{ type: "text", text: "One." }] },
+    { role: "user", name: "Mira", content: [{ type: "text", text: "Two." }] },
+    { role: "assistant", content: [{ type: "text", text: "Three." }] },
+    { role: "assistant", content: [{ type: "tool-call", toolCallId: "c1", name: "look", arguments: "{}" }] },
+    { role: "tool", content: [{ type: "tool-result", toolCallId: "c1", content: "{}" }] },
+    { role: "assistant", content: [{ type: "text", text: "Four." }] },
+    {
+      role: "assistant",
+      content: [
+        { type: "reasoning", text: "A thought.", meta: { openrouter: { reasoningDetails: [{ type: "reasoning.text", text: "A thought." }] } } },
+        { type: "text", text: "Five." },
+      ],
+    },
+    { role: "user", content: [{ type: "text", text: "Six." }] },
+  ];
+  const sent = await send({ ...ANTHROPIC_ON_OPENROUTER, capability: replaying }, { history, params: { effort: "high", carryReasoning: "conversation" } });
+  const rows = wireRows(sent.body);
+  // Nothing folded: every history row is still its own wire message, in order, after the system row.
+  expect(rows.map((row) => row["role"])).toEqual(["system", "user", "user", "assistant", "assistant", "tool", "assistant", "assistant", "user"]);
+  expect(rows[2]?.["name"]).toBe("Mira");
+  expect(rows[4]).toHaveProperty("tool_calls");
+});
+
+test("a plain same-role pair folds beside the rows that keep their own message", async () => {
+  const history: ChatHistoryMessage[] = [
+    { role: "user", content: [{ type: "text", text: "One." }] },
+    { role: "user", content: [{ type: "text", text: "Two." }] },
+    { role: "user", name: "Mira", content: [{ type: "text", text: "Three." }] },
+  ];
+  const sent = await send(ANTHROPIC_ON_OPENROUTER, { history });
+  expect(wireRows(sent.body).map((row) => row["role"])).toEqual(["system", "user", "user"]);
+});
+
+test("an image detail is stamped only where the capability admits one", async () => {
+  const picture = "data:image/png;base64,AAAA";
+  const history: ChatHistoryMessage[] = [
+    {
+      role: "user",
+      content: [
+        { type: "text", text: "Look." },
+        { type: "image", url: picture },
+      ],
+    },
+  ];
+  const without = generationCapability({ input: ["text", "image"] });
+  const sent = await send({ capability: without }, { history });
+  const images = wireRows(sent.body)
+    .flatMap((row) => (Array.isArray(row["content"]) ? row["content"] : []))
+    .filter((part) => typeof part === "object" && part !== null && "image_url" in part);
+  expect(images).toHaveLength(1);
+  expect(images[0]).toMatchObject({ ["image_url"]: { url: picture } });
+  expect(images[0]).not.toHaveProperty("image_url.detail");
+
+  const admits = await send({ capability: SEES_IMAGES }, { history });
+  expect(JSON.stringify(admits.body["messages"])).toContain(DEFAULT_ATTACHMENT_QUALITY.imageDetail);
+});
+
 test("a messages array the user set keeps its own cache marker where they put it", async () => {
   const theirs = [{ role: "user", content: [{ type: "text", text: "Their row." }], ["cache_control"]: { type: "ephemeral" } }];
   const history: ChatHistoryMessage[] = [{ role: "user", wireMeta: MARKED, content: [{ type: "text", text: "Ours." }] }];

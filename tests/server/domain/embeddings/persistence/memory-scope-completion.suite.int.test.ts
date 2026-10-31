@@ -6,7 +6,8 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
-import { chatDigests, chatSegments } from "@orb/db";
+import { chatDigests, chatSegments, embedGenerationTargets, embedSpaceState } from "@orb/db";
+import type { WorkloadId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -17,12 +18,12 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
   createServerHarness,
-  seedAlternateEmbedder,
   seedCorpusConnections,
+  seedEmbeddingConnection,
 } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
-import { executeAdmitted } from "../../workloads/funding.fixtures.ts";
+import { and, eq } from "drizzle-orm";
 
+const WORKLOAD_DEADLINE_MS = 60_000;
 const AGED_MESSAGES = DEFAULT_MEMORY_DEFAULTS.blockSize + DEFAULT_MEMORY_DEFAULTS.verbatimWindow + 1;
 
 interface Owner {
@@ -61,11 +62,20 @@ async function ownerWithAgedRoom(stack: AsyncDisposableStack): Promise<Owner> {
   return { root, principal, caller, cardId: card.id, chatId: chat.id };
 }
 
+/** Run one admitted workload to its end on the root, and read it back as succeeded. */
+async function runToSuccess(owner: Owner, id: WorkloadId): Promise<void> {
+  const run = owner.root.runAdmittedWorkload;
+  if (run === undefined) {
+    throw new Error("the harness owns workload execution only with startJobs: false");
+  }
+  await run(id, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
+  expect(await owner.caller.workloads.get({ id })).toMatchObject({ status: "succeeded" });
+}
+
 async function runSweeps(owner: Owner, inputs: readonly Parameters<Owner["caller"]["workloads"]["start"]>[0]["input"][]): Promise<void> {
   for (const input of inputs) {
     const job = await owner.caller.workloads.start({ input, mode: "singular" });
-    await executeAdmitted(owner.root, job.id);
-    await expect.poll(async () => (await owner.caller.workloads.get({ id: job.id })).status).toBe("succeeded");
+    await runToSuccess(owner, job.id);
   }
   await owner.root.settleBackground();
 }
@@ -104,17 +114,28 @@ test("memory off after an encoder move drops the old-model segments, completes t
   expect((await owner.root.db.select().from(chatSegments).where(eq(chatSegments.chatId, owner.chatId))).length).toBeGreaterThan(0);
 
   await owner.caller.settings.updateUserSettingsSection({ section: "memory", patch: { enabled: false } });
-  const other = await seedAlternateEmbedder(owner.root, owner.principal);
+  const other = await seedEmbeddingConnection(owner.root, owner.principal, { model: CORPUS_ALTERNATE_EMBED_MODEL });
   await owner.root.services.connection.setBinding({ principal: owner.principal, task: "embed", connectionId: other.id });
   await owner.root.settleBackground();
   const queued = (await owner.caller.workloads.list({})).filter((row) => row.status === "queued");
   expect(queued.length).toBeGreaterThan(0);
+  // Memory is off, so the memory scope completes by the vacuous receipt and no memory run is queued for it.
+  expect(queued.map((row) => row.kind)).not.toContain("memory-backfill");
   for (const row of queued) {
-    await executeAdmitted(owner.root, row.id);
+    await runToSuccess(owner, row.id);
   }
   await owner.root.settleBackground();
 
   expect(await owner.root.db.select().from(chatSegments).where(eq(chatSegments.chatId, owner.chatId))).toEqual([]);
+  // The move left the memory scope with no active generation; only the receipt promotes it to the new target.
+  const target = await owner.root.db
+    .select()
+    .from(embedGenerationTargets)
+    .where(and(eq(embedGenerationTargets.ownerId, owner.principal.userId), eq(embedGenerationTargets.task, "embed")))
+    .get();
+  const states = await owner.root.db.select().from(embedSpaceState).where(eq(embedSpaceState.ownerId, owner.principal.userId));
+  expect(target).toBeDefined();
+  expect(states.find(({ scope }) => scope === "memory")?.activeGenerationId).toBe(target?.generationId);
   expect(await owner.caller.search.spaceStatus()).toEqual({ paused: false, embed: false, imageEmbed: false });
   expect(await searchHits(owner)).toContain(owner.cardId);
 });

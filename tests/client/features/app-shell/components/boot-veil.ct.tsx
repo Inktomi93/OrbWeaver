@@ -81,14 +81,22 @@ test("a degraded ready opens the gate like any other value: presence means stop 
   await expect(page.locator(VEIL)).toHaveCount(0);
 });
 
-test("under reduced motion the weave is one still frame while waiting and the veil leaves at once on ready", async ({ mount, page }) => {
+test("under reduced motion the weave is one still frame while the app is not ready", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await mount<typeof BootVeilStory>(STORY, {});
   const canvas = page.locator(WEAVE_CANVAS);
   await expect(canvas).toHaveAttribute("data-orb-weave-frames", "1");
   await waitFrames(page, 30);
   await expect(canvas).toHaveAttribute("data-orb-weave-frames", "1");
+  await expect(page.locator(VEIL)).toHaveCount(1);
+});
 
+test("under reduced motion the veil leaves on ready with no minimum beat", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await mount<typeof BootVeilStory>(STORY, {});
+  // Ready lands straight after mount, well inside the beat a full-motion veil would hold.
   await stamp(page, "");
-  await expect(page.locator(VEIL)).toHaveCount(0);
+  await expect(page.locator("html")).toHaveAttribute(APP_READY_ATTR, "");
+  await waitFrames(page, FRAMES_AFTER_READY);
+  await expect(page.locator(VEIL)).toHaveCount(0, { timeout: ONE_CHECK_MS });
 });

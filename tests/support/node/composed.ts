@@ -29,9 +29,9 @@ export {
 } from "./corpus.ts";
 export {
   CORPUS_ALTERNATE_EMBED_MODEL,
-  seedAlternateEmbedder,
   seedCorpusActors,
   seedCorpusConnections,
+  seedEmbeddingConnection,
   seedRecallCorpus,
   seedRecallRoom,
 } from "./corpus-actors.ts";

@@ -5,6 +5,7 @@
 // @subject packages/server/src/domain/embeddings/verbs/embedding-reindex-triggers.ts
 
 import type { Principal } from "@orb/contracts/identity";
+import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { LibSqlWrap } from "@orb/db";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
@@ -17,8 +18,8 @@ import {
   createCorpusProviderExecution,
   createServerHarness,
   freshDb,
-  seedAlternateEmbedder,
   seedCorpusConnections,
+  seedEmbeddingConnection,
 } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 
@@ -26,9 +27,13 @@ const REBUILD_KINDS = ["index", "databank-reindex", "memory-backfill"] as const;
 const WORKLOAD_DEADLINE_MS = 60_000;
 const WORKLOAD_INSERT = 'insert into "workloads"';
 const REINDEX_SPAN = "embeddings.modelChangeReindex";
+const WORKLOADS_CHANGED = "workloadsChanged" satisfies UserBusEvent["type"];
+// Published after the move settles, so a missing announcement ends the read instead of hanging it.
+const END: UserBusEvent = { type: "charactersChanged" };
 
 type NativeDriver = Parameters<LibSqlWrap>[0];
 type BatchStatement = Parameters<NativeDriver["batch"]>[0][number];
+type TransactionMode = NonNullable<Parameters<NativeDriver["batch"]>[1]>;
 
 function sqlOf(statement: BatchStatement): string {
   if (typeof statement === "string") {
@@ -87,9 +92,12 @@ async function twoEncoders(stack: AsyncDisposableStack): Promise<Box> {
   });
   // The property resolves to the overload set whose last signature is the deprecated zero-argument form; every call below passes its mode.
   // eslint-disable-next-line @typescript-eslint/no-deprecated
-  const transaction: (mode: "write") => ReturnType<NativeDriver["transaction"]> = driver.transaction.bind(driver);
-  vi.spyOn(driver, "transaction").mockImplementation(async () => {
-    const open = await transaction("write");
+  const transaction: (mode: TransactionMode) => ReturnType<NativeDriver["transaction"]> = driver.transaction.bind(driver);
+  vi.spyOn(driver, "transaction").mockImplementation(async (mode?: TransactionMode) => {
+    if (mode === undefined) {
+      throw new Error("a transaction was opened without a mode");
+    }
+    const open = await transaction(mode);
     const inner = open.execute.bind(open);
     vi.spyOn(open, "execute").mockImplementation((statement) =>
       refuses(sqlOf(statement)) ? Promise.reject(new Error("controlled workload insert refusal")) : inner(statement),
@@ -98,7 +106,7 @@ async function twoEncoders(stack: AsyncDisposableStack): Promise<Box> {
   });
   const principal = await root.principalFor(root.ownerId);
   const seeded = await seedCorpusConnections(root, principal);
-  const second = await seedAlternateEmbedder(root, principal);
+  const second = await seedEmbeddingConnection(root, principal, { model: CORPUS_ALTERNATE_EMBED_MODEL });
   // The stored target names the first encoder before the case begins, so a later bind is judged against it.
   await root.app.embeddings.resolveGeneration(root.ownerId, "embed");
   await root.settleBackground();
@@ -162,6 +170,27 @@ test("binding a second encoder queues the owner's own forced rebuild, readable b
   for (const row of queued) {
     await run(row.id, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
     expect(await box.root.services.workloads.get({ caller: box.principal, id: row.id })).toMatchObject({ status: "succeeded" });
+  }
+});
+
+test("the owner's live channel hears that the rebuild was queued", async () => {
+  await using stack = new AsyncDisposableStack();
+  const box = await twoEncoders(stack);
+  const before = await rebuilds(box);
+  const stop = new AbortController();
+  const events = box.root.app.liveBuses.user.subscribeUserEvents(box.root.ownerId, stop.signal)[Symbol.asyncIterator]();
+  try {
+    await bind(box, box.second);
+    await box.root.settleBackground();
+    box.root.app.liveBuses.user.publishUserEvent(box.root.ownerId, END);
+    const heard: UserBusEvent[] = [];
+    for (let next = await events.next(); !next.done && next.value !== END; next = await events.next()) {
+      heard.push(next.value);
+    }
+    expect((await rebuilds(box)).length).toBeGreaterThan(before.length);
+    expect(heard).toContainEqual({ type: WORKLOADS_CHANGED });
+  } finally {
+    stop.abort();
   }
 });
 

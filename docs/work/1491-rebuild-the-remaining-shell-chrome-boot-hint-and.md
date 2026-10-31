@@ -33,7 +33,7 @@ Decisions are in the [shell chrome case map](../plans/test-foundation/design.md#
 
 | Case | Test | Planted defect that failed it |
 | - | - | - |
-| Boot veil | `tests/client/features/app-shell/components/boot-veil.ct.tsx` | the floor set to zero; the ready latch forced off; the ready test narrowed to an empty value; the reduced-motion exemption removed |
+| Boot veil | `tests/client/features/app-shell/components/boot-veil.ct.tsx` | the floor set to zero (fails the minimum-beat case, which reads the veil's own ending stamp once after five frames); the ready latch forced off; the ready test narrowed to an empty value; the reduced-motion exemption in `floorHeld` removed (fails the reduced-motion case, which stamps ready straight after mount and checks the absence once after five frames). Removing only the effect guard changes nothing, because `floorHeld` already exempts reduced motion |
 | Boot hint | `tests/client/state/appearance-boot-hint.ct.tsx` | the seed guard cast away; the theme write made a replace; the axes write removed; the stored shape parsed unchecked |
 | Mobile bar and Home | `tests/client/features/app-shell/surfaces/mobile-bar.ct.tsx` | the label voice set to micro; the label tripled; the displaced-tab swap removed; the badge removed; the section zone ignored |
 | Chrome assembly | `tests/client/state/assemble-chrome.dom.test.ts` | the section order zeroed; trigger order ignored; widgets copied; an extra placement mapped; the id tie break removed |

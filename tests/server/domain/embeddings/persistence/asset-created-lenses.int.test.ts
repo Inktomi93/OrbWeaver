@@ -11,12 +11,12 @@ import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
-  CORPUS_PROVIDER_ENDPOINT,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
   createServerHarness,
   seedCorpusConnections,
+  seedEmbeddingConnection,
 } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 
@@ -52,19 +52,7 @@ test("storing an avatar with indexing on leaves the captioned lens from a text e
   expect(textOnly).toHaveLength(1);
   expect(IMAGE_LENSES).toContain(textOnly[0]);
 
-  const joint = await root.services.connection.create({
-    principal,
-    providerId: "custom-openai",
-    credentialId: null,
-    baseUrl: CORPUS_PROVIDER_ENDPOINT,
-    model: CORPUS_EMBED_MODEL,
-    allowBackground: true,
-    declared: {
-      kind: "embedding",
-      embedding: { dims: CORPUS_EMBEDDING_VECTOR.length, maxInputTokens: 8192, input: ["text", "image"] },
-      features: { detectServer: false },
-    },
-  });
+  const joint = await seedEmbeddingConnection(root, principal, { model: CORPUS_EMBED_MODEL, input: ["text", "image"] });
   await root.services.connection.setBinding({ principal, task: "imageEmbed", connectionId: joint.id });
   await root.settleBackground();
 
