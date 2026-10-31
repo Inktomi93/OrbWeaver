@@ -1,11 +1,11 @@
-// The ThemeScope clamp emits the D336 tone knobs and literals a carried palette needs.
-import type { Oklch } from "@orb/kit/theme-derivation";
 import { carriedLiteralRoles } from "@orb/kit/theme-derivation";
 import { expect, test } from "@orb/testkit/node";
 import type { ToneMixKnob } from "@orb/ui/tokens";
 import { TOKENS, TONE_MIX_DEFAULTS, TONE_MIX_KNOBS, TONE_ROLE_RECIPES, TONES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
+import type { ParsedOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import { toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
+import { carriedPaletteOf } from "../../../../packages/ui/src/content/theme-scope/derive-vars.ts";
 import { carriedToneScheme, carriedToneSources, solveCarriedToneMix } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
 
 const DARK_BASE = "oklch(0.158 0.006 60)";
@@ -15,7 +15,7 @@ const HEARTH_ACCENT = TOKENS["color.primary"].value;
 const LITERAL_ROLES = carriedLiteralRoles(TONE_ROLE_RECIPES, TONE_MIX_DEFAULTS);
 const LITERAL_VARS: readonly string[] = TONES.flatMap((tone) => (tone === "neutral" ? [] : LITERAL_ROLES.map((role) => toneLiteralVar(tone, role))));
 
-function parsed(color: string): Oklch {
+function parsed(color: string): ParsedOklch {
   const value = toOklch(color);
   if (value === null) {
     throw new Error(`${color} does not parse`);
@@ -42,7 +42,7 @@ test("a dark carried base emits every solved knob at its default", () => {
 test("a mid-tone carried base emits the solved knobs, and the roles they spell clear every floor", () => {
   const { vars } = clampThemeTokens({ background: MID_BASE }, undefined, HEARTH_ACCENT);
   const knobs = emittedKnobs(vars);
-  const scheme = carriedToneScheme(parsed(MID_BASE));
+  const scheme = carriedToneScheme(carriedPaletteOf(parsed(MID_BASE)));
   const sources = carriedToneSources(scheme, parsed(vars["--color-primary"] ?? ""));
   expect(knobs).toEqual(
     Object.fromEntries(Object.keys(knobs).map((knob) => [knob, solveCarriedToneMix(scheme, sources).scope[knob as keyof typeof TONE_MIX_DEFAULTS]])),

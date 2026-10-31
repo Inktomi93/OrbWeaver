@@ -18,6 +18,7 @@ import type { Tone, ToneMixKnob, ToneRole } from "#tokens";
 import { TOKEN_POLARITY_ARMS, TOKENS, TONE_MIX_DEFAULTS, TONE_ROLE_RECIPES, TONES, toneKnobVar, toneLiteralVar } from "#tokens";
 import type { ParsedOklch } from "./color-parse.ts";
 import { serializeOpaqueOklch, toOklch } from "./color-parse.ts";
+import type { CarriedPalette } from "./derive-vars.ts";
 
 /**
  * The scope knobs a carried palette re-solves (D336), judged over every tone it paints: text and the tint pair lower
@@ -61,7 +62,7 @@ export interface AccentPaint {
   readonly authored: boolean;
 }
 
-function intentColor(path: keyof typeof TOKEN_POLARITY_ARMS, polarity: TonePalette<CarriedToneHost>["polarity"]): Oklch {
+function intentColor(path: keyof typeof TOKEN_POLARITY_ARMS, polarity: Polarity): Oklch {
   const parsed = toOklch(TOKEN_POLARITY_ARMS[path][polarity]);
   if (parsed === null) {
     throw new Error(`generated polarity arm ${path} is not a parseable color`);
@@ -69,8 +70,20 @@ function intentColor(path: keyof typeof TOKEN_POLARITY_ARMS, polarity: TonePalet
   return parsed;
 }
 
-function intentTone(tone: IntentTone, polarity: TonePalette<CarriedToneHost>["polarity"]): ToneColors {
-  return { base: intentColor(`color.${tone}`, polarity), foreground: intentColor(`color.${tone}-foreground`, polarity) };
+type Polarity = TonePalette<CarriedToneHost>["polarity"];
+
+function intentTonesAt(polarity: Polarity): Readonly<Record<IntentTone, ToneColors>> {
+  const intents = COLORED_TONES.filter((tone): tone is IntentTone => tone !== "primary");
+  return Object.fromEntries(
+    intents.map((tone) => [tone, { base: intentColor(`color.${tone}`, polarity), foreground: intentColor(`color.${tone}-foreground`, polarity) }]),
+  ) as Record<IntentTone, ToneColors>;
+}
+
+/** Each intent tone's colours at each polarity, parsed once: every carried scope reads them, and they are generated constants. */
+const INTENT_TONES: Readonly<Record<Polarity, Readonly<Record<IntentTone, ToneColors>>>> = { light: intentTonesAt("light"), dark: intentTonesAt("dark") };
+
+function intentTone(tone: IntentTone, polarity: Polarity): ToneColors {
+  return INTENT_TONES[polarity][tone];
 }
 
 /** The hover and active steps a solid takes under this scheme at the default knobs. */
@@ -79,9 +92,9 @@ function solidSteps(scheme: CarriedToneScheme, fill: Oklch): readonly Oklch[] {
   return [roles["solid-hover"], roles["solid-active"]];
 }
 
-/** The scheme a carried base resolves its tone roles against. */
-export function carriedToneScheme(base: Oklch): CarriedToneScheme {
-  return { recipes: TONE_ROLE_RECIPES, palette: carriedTonePalette(base) };
+/** The scheme a carried palette resolves its tone roles against. */
+export function carriedToneScheme({ pixel, inks }: CarriedPalette): CarriedToneScheme {
+  return { recipes: TONE_ROLE_RECIPES, palette: carriedTonePalette(pixel, inks) };
 }
 
 /**

@@ -50,10 +50,13 @@ const notice = (page: Page): Locator => page.locator('[data-slot="theme-fallback
 
 test("a theme whose accent shares no ink with its solid steps names the relaxed bound, and a fix clears it", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Background", exact: true })).toBeVisible();
-  await expect(notice(page)).toHaveCount(0);
+  // A live region announces only what is added after it mounts, so the empty region is already there.
+  await expect(notice(page)).toHaveAttribute("role", "status");
+  await expect(notice(page).locator("[data-fallback]")).toHaveCount(0);
   await pickColor(page, "Background", TONE_FALLBACK_SCOPE.toneBackground);
   await pickColor(page, "Accent", TONE_FALLBACK_SCOPE.toneAccent);
   await expect(notice(page).locator('[data-fallback="tone"]')).toHaveCount(1);
   await pickColor(page, "Background", "oklch(0.98 0.004 75)");
-  await expect(notice(page)).toHaveCount(0);
+  await expect(notice(page).locator("[data-fallback]")).toHaveCount(0);
+  await expect(notice(page)).toHaveAttribute("role", "status");
 });

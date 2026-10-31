@@ -124,8 +124,13 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
           <boundForm.AppField name="borderColor">
             {(field): ReactElement => <field.ColorField label="Border" description="Leave as-is to derive a subtle border from the surface." />}
           </boundForm.AppField>
-          <boundForm.Subscribe selector={(state): ThemeFormValues => state.values}>
-            {(values): ReactElement => <ThemeFallbackNotice tokens={themeOverrideFromForm(values)} />}
+          {/* Each selector returns one string, which the form compares by identity: a name or CSS keystroke re-judges nothing. */}
+          <boundForm.Subscribe selector={(state): string | undefined => themeOverrideFromForm(state.values).background}>
+            {(background): ReactElement => (
+              <boundForm.Subscribe selector={(state): string | undefined => themeOverrideFromForm(state.values).accent}>
+                {(accent): ReactElement => <ThemeFallbackNotice accent={accent} background={background} />}
+              </boundForm.Subscribe>
+            )}
           </boundForm.Subscribe>
         </Section>
 
