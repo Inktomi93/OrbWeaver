@@ -16,7 +16,7 @@ Compare related production surfaces at matching appearance settings and effectiv
 
 ### Order
 
-Judge a surface only after every planned change to it has landed. Each step lands before the next starts, except the walkthrough, which runs beside steps 2 to 6.
+Judge a surface only after every planned change to it has landed. Steps 2 to 6 run beside each other where their files do not overlap; a step that changes a surface another step is still building waits for it. Acceptance starts only when steps 1 to 6 have landed.
 
 | Step | Work | Items |
 | - | - | - |
