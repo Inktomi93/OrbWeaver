@@ -22,4 +22,8 @@ A gate that cannot see a flow reports a restated port as clean, which is the def
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- `flowsAt` in `tooling/src/unwired/restated-port.ts` returns spread member flows. `spreadFlowsAt` is gone, and `tooling/src/unwired/language-service.ts` reads `flowsAt` alone. `orb/derived-port-member` visits `SpreadElement`.
+- Red then green: three spread cases in `tests/tooling/eslint-derived-port-member.test.ts` failed on the old source and passed after the change, with two spread controls (a `Pick` port and an `Owner["m"]` member) green on both. The spread case in `tests/tooling/unwired/port-census.int.test.ts` failed with the spread branch disabled and passed with it.
+- `pnpm unwired ports` reported `targets=29` with spreads read, and `targets=0` after the fixes.
+- Each restated member now derives from its owner through a named op type in `packages/contracts` by owner area: `assets/seed-art.ts`, `character`, `chat` and `settings` index files, `embeddings/owner-ops.ts`. `SeedOwnerContext.hashPassword` derives from `PasswordHasher["hash"]`. `EmbeddingsStoreOp` keeps its `AbortSignal` in the chat contract and drops `StoreDigestParams`.
+- Floor: `pnpm test:tools tests/tooling/unwired`, the rule test, `pnpm typecheck` across all worlds, `pnpm lint:eslint packages tooling tests`, `pnpm depcruise`, `pnpm knip:prod` and the server suites for assets, character, embeddings, persona, settings, sessions, imagery, databank and chat all passed.

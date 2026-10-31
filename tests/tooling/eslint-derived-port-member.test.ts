@@ -173,6 +173,37 @@ test.for([
     findings: [],
   },
   {
+    name: "a whole port restated by hand and wired by a spread",
+    file: SITE,
+    source: `${IMPORTS}\ninterface Port { readonly revoke: (token: string) => Promise<void>; }\nexport const port: Port = { ...sessions };`,
+    findings: ["Port.revoke hand-restates SessionsService.revoke"],
+  },
+  {
+    name: "a spread into an argument literal",
+    file: SITE,
+    source: `${IMPORTS}\ninterface Port { readonly revoke: (token: string) => Promise<void>; }\ndeclare function wire(port: Port): void;\nwire({ ...sessions });`,
+    findings: ["Port.revoke hand-restates SessionsService.revoke"],
+  },
+  {
+    name: "a cross-domain port restated behind a spread",
+    file: CROSS,
+    source:
+      'import { sessions } from "../../sessions/contract/service.ts";\ninterface Port { readonly revoke: (token: string) => Promise<void>; }\nexport const port: Port = { ...sessions };',
+    findings: ["move the shape to packages/contracts"],
+  },
+  {
+    name: "a spread into a port derived from its owner",
+    file: SITE,
+    source: `${IMPORTS}\ntype Port = Pick<SessionsService, "create" | "revoke">;\nexport const port: Port = { ...sessions };`,
+    findings: [],
+  },
+  {
+    name: "a spread into a port whose member is derived by index",
+    file: SITE,
+    source: `${IMPORTS}\ninterface Port { readonly revoke: SessionsService["revoke"]; }\nexport const port: Port = { ...sessions };`,
+    findings: [],
+  },
+  {
     name: "a port whose own op is passed into a wider slot",
     file: SITE,
     source: `${IMPORTS}\ninterface Limits { readonly points: number | (() => number); }\ninterface Port { readonly limit: () => number; }\nexport declare const port: Port;\nexport const limits: Limits = { points: () => port.limit() };`,

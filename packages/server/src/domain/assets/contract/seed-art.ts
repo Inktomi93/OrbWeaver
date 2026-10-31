@@ -1,8 +1,7 @@
 // Shipped readers are injected; this consumer derives the bytes/mime it actually passes to the asset store.
 
-import type { StoreParams } from "@orb/contracts/assets";
-import type { Principal } from "@orb/contracts/identity";
-import type { AssetId, CharacterHandle, CharacterId } from "@orb/kit/ids";
+import type { SeedCharacterGallery, StoreParams, StoreSeedCharacterAvatar, StoreSeedPersonaAvatar } from "@orb/contracts/assets";
+import type { CharacterHandle } from "@orb/kit/ids";
 import type { AssetsService } from "./service.ts";
 
 export interface SeedArtDeps {
@@ -12,11 +11,11 @@ export interface SeedArtDeps {
 }
 export interface SeedAvatarOps {
   readonly character: {
-    readonly storeAvatar: (principal: Principal, handle: CharacterHandle) => Promise<AssetId | null>;
-    readonly seedGallery: (principal: Principal, characterId: CharacterId, handle: CharacterHandle) => Promise<void>;
+    readonly storeAvatar: StoreSeedCharacterAvatar;
+    readonly seedGallery: SeedCharacterGallery;
   };
   readonly persona: {
-    readonly storeAvatar: (principal: Principal) => Promise<AssetId | null>;
+    readonly storeAvatar: StoreSeedPersonaAvatar;
   };
 }
 export interface SeedPlateStoreDeps {

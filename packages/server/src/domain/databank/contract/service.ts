@@ -28,12 +28,13 @@ import type {
   ReindexScope,
 } from "@orb/contracts/databank";
 import type {
+  BeginDocumentVectorSweepOp,
   CountDocumentChunksByOwnerOp,
   CountDocumentChunksOp,
   DocumentChunkStoreInput,
-  DocumentVectorSweepReceipt,
   MemoryEmbedSpace,
   PruneDocumentChunksOp,
+  PurgeDocumentVectorsOp,
   StoreResult,
 } from "@orb/contracts/embeddings";
 import type { ExtractTextOp } from "@orb/contracts/extraction";
@@ -41,7 +42,7 @@ import type { Can, Principal } from "@orb/contracts/identity";
 import type { SearchDocumentsOp } from "@orb/contracts/search";
 import type { GetDatabankSettingsOp } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
-import type { TargetSnapshotOp, WorkloadRunScope } from "@orb/contracts/workloads";
+import type { TargetSnapshotOp } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { CharacterId, ChatId, DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
@@ -292,8 +293,8 @@ export interface DatabankWorkloadDeps {
   /** Pin the target generation of every owner the pass is about to cover, BEFORE it re-embeds anything.
    *  The ENUMERATION SCOPE is the argument (#2517): `null` = every corpus owner (the bulk arm), a `UserId` =
    *  exactly that owner — which is what keeps a per-owner catch-up's completion off a neighbour's space. */
-  readonly beginDocumentVectorSweep: (enumerationScope: WorkloadRunScope) => Promise<readonly DocumentVectorSweepReceipt[]>;
-  readonly purgeDocumentVectors: (receipts: readonly DocumentVectorSweepReceipt[]) => Promise<void>;
+  readonly beginDocumentVectorSweep: BeginDocumentVectorSweepOp;
+  readonly purgeDocumentVectors: PurgeDocumentVectorsOp;
   /** Every stored embedding target in the enumeration scope, as one comparable string (embeddings' `targetSnapshot`). */
   readonly targetSnapshot: TargetSnapshotOp;
 }

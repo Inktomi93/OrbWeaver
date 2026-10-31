@@ -2,6 +2,7 @@ import type { Db } from "@orb/db";
 import type { BootDatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
 import type { Clock } from "@orb/kit/time";
 import type { Logger } from "#foundation/observability";
+import type { PasswordHasher } from "#infra/auth";
 import type { BootSecretResolution } from "#infra/crypto";
 import type { SessionsService } from "./service.ts";
 
@@ -15,7 +16,7 @@ export interface SeedOwnerContext {
   /** AUTH_MODE=local only: the cleartext first-boot owner password. Never logged. */
   readonly initialPassword?: string;
   /** Present iff `initialPassword` is. Injected, not constructed here — infra/auth is the sole hashing home. */
-  readonly hashPassword?: (plain: string) => Promise<string>;
+  readonly hashPassword?: PasswordHasher["hash"];
 }
 
 /** The boot caller holds only the inert handle; sessions opens its own query context. */

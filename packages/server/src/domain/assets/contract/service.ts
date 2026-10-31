@@ -13,12 +13,12 @@ import type {
   ReadOwnedAssetBytes,
   StoreAsset,
 } from "@orb/contracts/assets";
-import type { CharacterOwnedOp, LinkCharacterAvatars } from "@orb/contracts/character";
+import type { CharacterOwnedOp, FindGalleryCharacterByHandleOp, LinkCharacterAvatars, ResolveGalleryCharacterHandleOp } from "@orb/contracts/character";
 import type { ListImageAssetIds } from "@orb/contracts/embeddings";
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
-import type { AssetId, CharacterHandle, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
+import type { AssetId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { ImageAdapter } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
@@ -49,9 +49,9 @@ export interface AssetsContext {
   /** Gallery owner-only posture: does `ownerId` own `characterId`? Optional — absent skips the subject check. */
   readonly assertCharacterOwned?: CharacterOwnedOp;
   /** Gallery export re-link: an owned character's portable handle, or null if missing or foreign. Optional. */
-  readonly resolveCharacterHandle?: (ownerId: UserId, characterId: CharacterId) => Promise<CharacterHandle | null>;
+  readonly resolveCharacterHandle?: ResolveGalleryCharacterHandleOp;
   /** Gallery import re-link: the owner's own character id carrying `handle`, or null if none exists. Optional. */
-  readonly findCharacterByHandle?: (args: { readonly ownerId: UserId; readonly handle: CharacterHandle }) => Promise<CharacterId | null>;
+  readonly findCharacterByHandle?: FindGalleryCharacterByHandleOp;
   /** The character-owned avatar-pointer WRITE `backfillAvatars` delegates to (`characters.avatarAssetId` is
    *  CHARACTER's column — a cross-domain write routes through the owning domain, Constitution.md §2 / Tier-1-DB.md
    *  §"Cross-tier composition"). REQUIRED, not optional: an absent op would silently turn the relink into a
