@@ -23,7 +23,7 @@ Judge a surface only after every planned change to it has landed. Steps 2 to 6 r
 | 1 | Use-specific extraction and the tone-ink floors | [1470](../../work/1470-floor-the-remaining-page-family-inks-on-tone.md), then a rendered review of step 4 on the owner-data clone |
 | 3 | Enlarged text | with the push barrier, [1299](../../work/1299-build-the-css-system-ramps-conditions-locked-tsx.md) |
 | 4 | Chat styles match the Moonlit reference | [0913](../../work/0913-chat-art-polish-broken-image-chip-flash-initial.md) |
-| 5 | Page templates | [1519](../../work/1519-move-hand-built-horizontal-form-rows-onto-the.md) |
+| 5 | Page templates | the page-template tier |
 | 6 | Visible labels and accessible names | [1426](../../work/1426-import-ct-and-e2e-accessible-name-labels-from.md) |
 | Beside 2 to 6 | The automated walkthrough | [1401](../../work/1401-build-and-qualify-the-native-automated-surface-walkthrough.md) phase B |
 | 7 | Comparative acceptance | [1392](../../work/1392-complete-cross-surface-composition-acceptance.md), then [1397](../../work/1397-complete-characters-and-chat-comparative-acceptance.md); the persona and plugin reviews [0908](../../work/0908-side-eye-the-persona-switcher-room-block-and.md) and [0909](../../work/0909-side-eye-the-plugin-column-overlay-and-phone.md) run inside them |
