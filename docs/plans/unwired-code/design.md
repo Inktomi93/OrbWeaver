@@ -35,6 +35,10 @@ docs/adr/0337-owner-built-statements-join-another-domains-batch.md; docs/law/Cor
 
 Each scan ships fixtures for a found case and a false-positive control. Each deletion keeps the affected suites green; each wiring adds a production-path test.
 
+## Deleted keys
+
+A deleted tRPC input key strips silently under `z.object`. [deleted-key-sweep.md](deleted-key-sweep.md) holds the sweep of every landed deletion and its result.
+
 ## Judging a finding
 
 Each item step 2 lists gives every finding of one scan in one domain a class (wire, delete, deliberate with a cited ruling, or unknown) and a decision. A class marked `(read)` was judged from the cited code. The others follow these rules:
