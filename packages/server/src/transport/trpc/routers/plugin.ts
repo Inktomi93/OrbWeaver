@@ -33,6 +33,7 @@
 // make "this is not script" a property of the response rather than of the caller's discipline).
 
 import {
+  distributedPluginViewSchema,
   NET_HOSTS_MAX,
   PLUGIN_CAPABILITIES,
   PLUGIN_COMMAND_ARG_NAME_RE,
@@ -42,33 +43,32 @@ import {
   PLUGIN_SURFACE_ID_RE,
   PLUGIN_TEXT_MAX_CHARS,
   PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES,
+  pluginBundleAssetViewSchema,
   pluginBundleHashSchema,
+  pluginCommandViewSchema,
   pluginComposerDraftSchema,
+  pluginDisplayTransformViewSchema,
+  pluginFanoutResultSchema,
   pluginIdInputSchema,
   pluginLogInputSchema,
+  pluginLogViewSchema,
   pluginNetHostSchema,
   pluginSlugSchema,
   pluginSurfaceStateInputSchema,
+  pluginSurfaceStateSchema,
+  pluginSurfaceViewSchema,
   pluginUiOutcomeSchema,
+  pluginViewSchema,
+  snippetResultSchema,
 } from "@orb/contracts/plugin";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import {
-  distributedPluginViewSchema,
-  pluginBundleAssetViewSchema,
-  pluginCommandViewSchema,
   pluginDisplayTransformResultSchema,
-  pluginDisplayTransformViewSchema,
-  pluginFanoutResultSchema,
   pluginGitPreviewSchema,
-  pluginLogViewSchema,
-  pluginSurfaceStateSchema,
-  pluginSurfaceViewSchema,
   pluginUiHostCallResultSchema,
   pluginUpdateCheckSchema,
   pluginUrlPreviewSchema,
-  pluginViewSchema,
-  snippetResultSchema,
 } from "#domain/plugin";
 import { adminProcedure, authedProcedure, t } from "../trpc.ts";
 
