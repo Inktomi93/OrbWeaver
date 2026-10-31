@@ -2,6 +2,7 @@
 
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { spawn } from "node:child_process";
+import { tmpdir } from "node:os";
 import process from "node:process";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
@@ -34,7 +35,8 @@ export function createSdkProcessSpawner(scriptModule: URL, args: readonly string
   return (options) => {
     const child = spawn(process.execPath, [script, ...args, ...options.args], {
       ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
-      env: options.env,
+      // The runtime scrubs host env, but the resume directory it made lives under this process's temp folder; the stand-in must resolve the same one.
+      env: { ...options.env, ["TMPDIR"]: tmpdir() },
       signal: options.signal,
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,

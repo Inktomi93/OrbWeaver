@@ -48,6 +48,8 @@ const SEMANTIC_CORPUS_GROUP_ORDER = 2;
 // tree before its own first test and re-checks it at close: a suite that writes the real tree (repo law
 // forbids it) reds naming the file instead of passing unseen.
 const WORKING_TREE_GUARD = "@orb/tooling/floor/testing/working-tree-guard";
+// Every project also runs inside a run-owned OS temp folder, removed at close and swept when its owner died.
+const RUN_TEMP_ROOT = "@orb/tooling/floor/testing/run-temp-root-setup";
 
 // Vitest's fs module cache keys a file on its own content, but the transform bakes in the file each import
 // resolved to. Retargeting a workspace `exports` entry would leave an unchanged test on the old target, so
@@ -79,7 +81,7 @@ export function vitestConfig(): ViteUserConfig {
   return defineConfig({
     plugins: [MANIFESTS_CACHE_KEY],
     test: {
-      globalSetup: [WORKING_TREE_GUARD],
+      globalSetup: [RUN_TEMP_ROOT, WORKING_TREE_GUARD],
       testTimeout: budget(5000),
       hookTimeout: budget(10_000),
       // Keep fixtures independent of the operator's .env and avoid loading live embedding providers.

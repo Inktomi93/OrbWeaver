@@ -372,25 +372,28 @@ function runWrapper(
   readonly capture: WrapperCapture | null;
 } {
   const dir = mkdtempSync(join(tmpdir(), "orb-cap-wrapper-"));
-  const preload = join(dir, "capture.cjs");
-  const captureFile = join(dir, "capture.json");
-  writeFileSync(preload, CAPTURE_PRELOAD);
-  const env = inheritedProcessEnv(Object.fromEntries([["ORB_WRAPPER_CAPTURE", captureFile]]));
-  env["ORB_WRAPPER_OUTCOME"] = extra.outcome ?? "0";
-  Object.assign(env, extra.env);
-  if (box === undefined) {
-    delete env[DEDICATED_BOX_ENV];
-  } else {
-    env[DEDICATED_BOX_ENV] = box;
+  try {
+    const preload = join(dir, "capture.cjs");
+    const captureFile = join(dir, "capture.json");
+    writeFileSync(preload, CAPTURE_PRELOAD);
+    const env = inheritedProcessEnv(Object.fromEntries([["ORB_WRAPPER_CAPTURE", captureFile]]));
+    env["ORB_WRAPPER_OUTCOME"] = extra.outcome ?? "0";
+    Object.assign(env, extra.env);
+    if (box === undefined) {
+      delete env[DEDICATED_BOX_ENV];
+    } else {
+      env[DEDICATED_BOX_ENV] = box;
+    }
+    const result = spawnSync(process.execPath, ["--require", preload, join(process.cwd(), "scripts", script), ...args], {
+      cwd: process.cwd(),
+      env,
+      encoding: "utf8",
+    });
+    const capture = existsSync(captureFile) ? (JSON.parse(readFileSync(captureFile, "utf8")) as WrapperCapture) : null;
+    return { status: result.status, stderr: result.stderr, capture };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
-  const result = spawnSync(process.execPath, ["--require", preload, join(process.cwd(), "scripts", script), ...args], {
-    cwd: process.cwd(),
-    env,
-    encoding: "utf8",
-  });
-  const capture = existsSync(captureFile) ? (JSON.parse(readFileSync(captureFile, "utf8")) as WrapperCapture) : null;
-  rmSync(dir, { recursive: true, force: true });
-  return { status: result.status, stderr: result.stderr, capture };
 }
 
 function optionValue(args: readonly string[] | undefined, option: string): string | undefined {

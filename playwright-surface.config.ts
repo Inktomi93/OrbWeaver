@@ -68,7 +68,7 @@ export default defineConfig<SurfaceWalkOptions>({
   testDir: "tests/e2e",
   testMatch: ["**/corpus-surface-walk.spec.ts"],
   testIgnore: [],
-  globalSetup: "./tooling/src/floor/testing/working-tree-guard.ts",
+  globalSetup: ["./tooling/src/floor/testing/run-temp-root-setup.ts", "./tooling/src/floor/testing/working-tree-guard.ts"],
   outputDir: join(run.runRoot, "walk-results"),
   preserveOutput: "always",
   fullyParallel: false,
