@@ -1,11 +1,12 @@
 // Plugin seeds run the production verbs and return their outcomes; rows-tier twins in `rows/plugin.ts` read the rows.
 
-import type { PluginManifest } from "@orb/contracts/plugin";
+import type { pluginManifestSchema } from "@orb/contracts/plugin";
 import { PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY } from "@orb/contracts/plugin";
 import type { adminDistributedPlugins } from "@orb/db";
 import { MS_PER_SECOND } from "@orb/kit/time";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { strToU8, zipSync } from "fflate";
+import type { z } from "zod";
 import type { ServerProducerRoot } from "../server.ts";
 
 export type PluginService = ServicesResult["services"]["plugin"];
@@ -54,10 +55,16 @@ const ZIP_UTC_MTIME_PRESENT = 1;
 export const PLUGIN_ZIP_MTIME_SECONDS_RANGE = [-2_147_483_648, 2_147_483_647] as const;
 
 /** Pack raw install inputs with whole-second UTC mtime, limited to the standard signed32 Unix range.
- *  Milliseconds are not retained; the native install funnel still owns admission.
+ *  Milliseconds are not retained; the native install funnel still owns admission, so the manifest is the
+ *  schema's authored input shape.
  *  @throws RangeError when the supplied epoch cannot be represented by the standard UTC extra field.
  */
-export function makePluginBundle(manifest: PluginManifest, source: string, mtime: number, assets: Readonly<Record<string, Uint8Array>> = {}): Uint8Array {
+export function makePluginBundle(
+  manifest: z.input<typeof pluginManifestSchema>,
+  source: string,
+  mtime: number,
+  assets: Readonly<Record<string, Uint8Array>> = {},
+): Uint8Array {
   const seconds = Math.floor(mtime / MS_PER_SECOND);
   const [min, max] = PLUGIN_ZIP_MTIME_SECONDS_RANGE;
   if (!Number.isInteger(seconds) || seconds < min || seconds > max) {

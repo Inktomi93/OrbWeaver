@@ -8,7 +8,7 @@ import { CHAT_APIS } from "./apis.ts";
 import { endpointFeaturesSchema } from "./features.ts";
 import { pluginNameOfProviderId, providerIdSchema } from "./provider-id.ts";
 import type { Task } from "./tasks.ts";
-import { TASKS } from "./tasks.ts";
+import { servedTasksSchema } from "./tasks.ts";
 import type { Wire } from "./wires.ts";
 import { WIRE_DEFS, WIRES } from "./wires.ts";
 
@@ -102,7 +102,7 @@ export const providerDefSchema = z
     apis: z.array(z.enum(CHAT_APIS)),
     /** ⊆ `WIRE_DEFS[wire].serves`; ABSENT ⇒ the whole wire set. Hosted rows NARROW it (OpenAI has no
      *  `/rerank`). Never widens the wire — pinned. */
-    serves: z.array(z.enum(TASKS)).optional(),
+    serves: servedTasksSchema.optional(),
     catalog: z.enum(CATALOG_STRATEGIES),
     metered: z.boolean(),
     docsUrl: z.url().optional(),

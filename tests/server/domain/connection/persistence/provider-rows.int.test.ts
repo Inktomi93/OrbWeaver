@@ -5,16 +5,16 @@
 
 import { spawn } from "node:child_process";
 import type { ProviderDef } from "@orb/contracts/inference";
-import { PLUGIN_PROVIDER_ID_PREFIX, providerDefSchema } from "@orb/contracts/inference";
+import { PLUGIN_PROVIDER_ID_PREFIX, providerDefSchema, providerTasks, RETIRED_TASKS } from "@orb/contracts/inference";
 import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
-import { pluginProviderClaims, providerRows, users } from "@orb/db";
+import { closeDb, pluginProviderClaims, plugins, providerRows, users } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, makePluginBundle } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
+import { createServerHarness, freshDb, makePluginBundle } from "@orb/testkit/node/composed";
+import { eq, sql } from "drizzle-orm";
 
 // Each enable starts the real sandbox child process, which outlasts the default test budget.
 const PLUGIN_LIFECYCLE_TIMEOUT_MS = 30_000;
@@ -179,4 +179,60 @@ test("a definition row outlives a deleted owner only while another owner's claim
   await root.db.delete(users).where(eq(users.id, second));
   await root.services.connection.registry.dropPlugin(secondPlugin);
   expect(await definitionRows()).toBe(0);
+});
+
+// A row stored before its wire stopped serving a task still names that task; the registry loads it without it.
+const RETIRED_SERVES = ["chat", ...RETIRED_TASKS, "summarize"] as const;
+const SDK_SERVES_AFTER = ["chat", "summarize"];
+
+test("a stored admin row that names a retired task loads and serves the remaining tasks", async () => {
+  await using lifetime = new AsyncDisposableStack();
+  const db = await freshDb();
+  lifetime.defer(() => closeDb(db));
+  const id = "legacy-sdk";
+  await db.run(sql`insert into provider_rows (id, label, wire, auth, apis, serves, catalog, metered, definition_hash, origin_kind)
+    values (${id}, 'Legacy SDK', 'agent-sdk', 'oauthToken', '["agent-sdk"]', ${JSON.stringify(RETIRED_SERVES)}, 'url', 0, 'stored-hash', 'admin')`);
+
+  await using root = await createServerHarness({ db, startJobs: false });
+  const row = root.services.connection.registry.get(id, root.ownerId);
+  expect(row?.serves).toEqual(SDK_SERVES_AFTER);
+  expect(row === undefined ? [] : providerTasks(row)).toEqual(SDK_SERVES_AFTER);
+});
+
+test("a manifest that names a retired task installs, and its provider serves the remaining tasks", { timeout: PLUGIN_LIFECYCLE_TIMEOUT_MS }, async () => {
+  await using root = await newRoot();
+  const caller = await root.principalFor(root.ownerId);
+  const bundle = makePluginBundle(
+    {
+      id: PLUGIN,
+      name: "Acme",
+      version: "1.0.0",
+      hostVersion: PLUGIN_HOST_VERSIONS[0],
+      entry: PLUGIN_MAIN_ENTRY,
+      description: "Serves one subscription provider.",
+      capabilities: ["storage.kv"],
+      providers: [
+        {
+          id: PLUGIN_PROVIDER,
+          label: "Acme SDK",
+          wire: "agent-sdk",
+          auth: "oauthToken",
+          apis: ["agent-sdk"],
+          serves: [...RETIRED_SERVES],
+          catalog: "url",
+          metered: false,
+        },
+      ],
+    },
+    "orb.host(1);",
+    root.clock.now(),
+  );
+  const installed = await root.services.plugin.install({ caller, bundle, grant: [] });
+  const outcome = await root.services.plugin.setGrant({ caller, pluginId: installed.id, grant: ["storage.kv"], acknowledgedNetHosts: [], enable: true });
+
+  expect(outcome.status).toBe("enabled");
+  expect(root.services.connection.registry.get(PLUGIN_PROVIDER, root.ownerId)?.serves).toEqual(SDK_SERVES_AFTER);
+  expect((await root.db.select({ serves: providerRows.serves }).from(providerRows)).map(({ serves }) => serves)).toEqual([SDK_SERVES_AFTER]);
+  const storedManifests = await root.db.select({ manifest: plugins.manifest }).from(plugins);
+  expect(storedManifests.map(({ manifest }) => manifest.providers?.map(({ serves }) => serves))).toEqual([[SDK_SERVES_AFTER]]);
 });

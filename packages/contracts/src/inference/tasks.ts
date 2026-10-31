@@ -16,6 +16,17 @@ export const TASKS = ["chat", "summarize", "structured", "generateImage", "embed
 export type Task = (typeof TASKS)[number];
 export const taskSchema = z.enum(TASKS) satisfies z.ZodType<Task>;
 
+/** Tasks no wire serves any more. A stored provider row or an installed manifest may still name one, so
+ *  {@link servedTasksSchema} admits and drops them; a migration strips them at rest. */
+export const RETIRED_TASKS = ["agent"] as const;
+type RetiredTask = (typeof RETIRED_TASKS)[number];
+const RETIRED: ReadonlySet<string> = new Set(RETIRED_TASKS);
+
+/** A provider row's `serves` list as stored or authored: live tasks pass, retired tasks are admitted and dropped. */
+export const servedTasksSchema = z
+  .array(z.enum([...TASKS, ...RETIRED_TASKS]))
+  .transform((tasks): Task[] => tasks.filter((task: Task | RetiredTask): task is Task => !RETIRED.has(task)));
+
 /** What a task DEMANDS of the connection it resolves to, spelled in capability vocabulary. Checked by
  *  `requirementMet` at resolve (a `{ ok: false, missing }` result, never a throw) and by the picker. */
 export interface CapabilityRequirement {
