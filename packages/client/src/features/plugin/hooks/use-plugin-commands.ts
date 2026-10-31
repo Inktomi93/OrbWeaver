@@ -18,8 +18,6 @@ import { sharedPluginNames } from "../lib/plugin-command-copy.ts";
 import { useInvokeUiCommand } from "../lib/plugin-mutations.ts";
 import { applyPluginUiOutcome } from "../lib/plugin-ui-outcome.ts";
 
-export type { PluginCommandView } from "@orb/contracts/plugin";
-
 interface PluginCommandRunner {
   readonly isPending: boolean;
   readonly run: (
