@@ -120,7 +120,6 @@ export async function computeDuplicatePairs(db: Db, deps: ComputeDuplicatesDeps,
 
   await replaceAllPairs(db, inserts, opts.ownerId);
   return {
-    ownersProcessed: owners.size,
     charactersScanned: rows.length,
     pairsWritten: inserts.length,
   };
@@ -313,7 +312,6 @@ export async function computeChatDuplicatePairs(
 
   await replaceAllChatPairs(db, inserts, opts.ownerId);
   return {
-    ownersProcessed: hashByOwner.size,
     chatsScanned: chatIds.size,
     pairsWritten: inserts.length,
   };

@@ -2,7 +2,6 @@
 
 /** The `computeDuplicatePairs` recompute summary (a workload-runner log line). */
 export interface DuplicateComputeStats {
-  readonly ownersProcessed: number;
   /** Card VECTORS read — the pass's input-plane census, written by the index pass. Zero on BOTH arms is the
    *  `find-duplicates` refusal signal; zero pairs off a non-zero scan is a real answer (issue #561). */
   readonly charactersScanned: number;
@@ -11,7 +10,6 @@ export interface DuplicateComputeStats {
 
 /** The `computeChatDuplicatePairs` recompute summary. */
 export interface DuplicateChatComputeStats {
-  readonly ownersProcessed: number;
   /** Chats with segment content-hashes — this arm's input-plane census, also written by the index pass. The
    *  other half of the `find-duplicates` refusal signal (issue #561). */
   readonly chatsScanned: number;
@@ -22,7 +20,6 @@ export interface DuplicateChatComputeStats {
 
 /** The `computeThemes` recompute summary. */
 export interface ThemeComputeStats {
-  readonly ownersProcessed: number;
   readonly clustersWritten: number;
   readonly digestsAssigned: number;
   /** Memory digests the pass READ, group rooms included. `0` is the pass's refusal signal — the caller turns
@@ -49,7 +46,6 @@ export interface CharacterDistillation {
 
 /** The `computeCooccurrence` recompute summary. */
 export interface CooccurrenceStats {
-  readonly ownersProcessed: number;
   /** Tier-0 memory digests the pass READ, group rooms included — its input plane, and the same one
    *  `compute-themes` reads. `0` is the refusal signal the caller turns into a stated "no digests" result
    *  instead of a 0-written success (issue #558; the honest-accounting family of #166). */
@@ -61,12 +57,6 @@ export interface CooccurrenceStats {
   readonly soloDigestsRead: number;
   readonly pairsWritten: number;
   readonly charKeywordsWritten: number;
-  readonly hubTokensDropped: number;
-}
-
-/** The `backfillDigestStoryTime` summary — how many tier-0 assignment rows got a `msgMidAt` stamp. */
-export interface StoryTimeBackfillStats {
-  readonly stamped: number;
 }
 
 // ── hubness ─────────────────────────────────────────────────────────────────

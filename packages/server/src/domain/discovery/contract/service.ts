@@ -73,7 +73,6 @@ import type {
   PortraitAlignmentReport,
   SimilarChat,
   SimilarityGraph,
-  StoryTimeBackfillStats,
   SwipeHotspot,
   ThemeComputeStats,
   ThemeDetail,
@@ -260,7 +259,7 @@ export interface DiscoveryService {
   /** The cluster-naming model calls a {@link computeThemes} over the same scope and `k` would make. Reads only. */
   readonly countThemeNameCalls: (opts: ThemeNameEstimateOptions) => Promise<number>;
   /** Idempotently stamp `digest_theme_assignments.msgMidAt` for the owner, or every owner when omitted. */
-  readonly backfillDigestStoryTime: (scope: WorkloadRunScope) => Promise<StoryTimeBackfillStats>;
+  readonly backfillDigestStoryTime: (scope: WorkloadRunScope) => Promise<void>;
 
   // ── insights (pure-semantics half; owner-scoped reads) ──────────────────────
   /** How the owner's themes shift over STORY time — per-month prevalence (drift), `level` default `scene`. */
