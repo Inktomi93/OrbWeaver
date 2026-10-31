@@ -52,8 +52,6 @@ export interface BackgroundSourceFieldProps {
   readonly value: ThemeBackground | null;
   /** Fired with the FULL rebuilt source on any pick/clear — the caller mutates with the whole object. */
   readonly onChange: (value: ThemeBackground) => void;
-  /** Non-host / read-only viewers get the picker rendered inert (chat Control A's member branch). */
-  readonly readOnly?: boolean;
   /**
    * The OWNER's surface-box id (#885/#1748). A shared composite can never mint its own — one literal here is
    * one remembered box for both owners, the duplicate-key defect by a route the gate's literal census cannot
@@ -73,7 +71,7 @@ function currentTileId(current: ThemeBackground): string | null {
   return null; // external — materializing server-side; no tile until the server rewrites it to `asset`.
 }
 
-export function BackgroundSourceField({ value, onChange, readOnly = false, reserveKey }: BackgroundSourceFieldProps): ReactElement {
+export function BackgroundSourceField({ value, onChange, reserveKey }: BackgroundSourceFieldProps): ReactElement {
   const current = value ?? EMPTY_BACKGROUND;
   const commit = (patch: Partial<ThemeBackground>): void => onChange({ ...EMPTY_BACKGROUND, ...patch });
 
@@ -102,10 +100,10 @@ export function BackgroundSourceField({ value, onChange, readOnly = false, reser
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your background library" onRetry={retry} />}
         {...(reserveKey === undefined ? {} : { reserveKey })}
       >
-        <BackgroundTileGrid current={current} onPick={readOnly ? null : commit} />
+        <BackgroundTileGrid current={current} onPick={commit} />
       </QueryBoundary>
       {/* Two FLAT arms (no nested ternary): the doors row at rest, the URL entry while drafting. */}
-      {readOnly || inExternalMode ? null : (
+      {inExternalMode ? null : (
         <Row align="center" gap="field" className="justify-between">
           <Button variant="ghost" onClick={(): void => setExternalDraft("")} size="sm" type="button">
             From a URL…
@@ -116,7 +114,7 @@ export function BackgroundSourceField({ value, onChange, readOnly = false, reser
           </Button>
         </Row>
       )}
-      {!readOnly && inExternalMode ? (
+      {inExternalMode ? (
         <Row align="end" gap="field">
           <Input aria-label="Background image URL" className="flex-1" onValueChange={setExternalDraft} placeholder="https://…" value={draftValue} />
           <Button disabled={draftValue.trim().length === 0} variant="outline" onClick={applyExternal} type="button">
@@ -130,8 +128,7 @@ export function BackgroundSourceField({ value, onChange, readOnly = false, reser
 
 interface BackgroundTileGridProps {
   readonly current: ThemeBackground;
-  /** `null` = read-only (the grid still shows which tile is in use, but a tap does nothing). */
-  readonly onPick: ((patch: Partial<ThemeBackground>) => void) | null;
+  readonly onPick: (patch: Partial<ThemeBackground>) => void;
 }
 
 /** The ONE tile population: None · the viewer's own library (BG-D), which now carries the seeded plates. */
@@ -164,9 +161,6 @@ function BackgroundTileGrid({ current, onPick }: BackgroundTileGridProps): React
       selection={{
         selectedIds: new Set(selectedId === null ? [] : [selectedId]),
         onToggle: (id): void => {
-          if (onPick === null) {
-            return;
-          }
           const tile = tiles.find((candidate) => candidate.id === id);
           if (tile !== undefined) {
             onPick(tile.pick);
