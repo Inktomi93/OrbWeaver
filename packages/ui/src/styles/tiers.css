@@ -139,10 +139,6 @@
     border-radius: var(--radius-inset);
   }
 
-  [data-surface-tier] [data-slot="card-root"][data-shape="plate"] {
-    border-radius: var(--orb-tier-island-radius);
-  }
-
   [data-surface-tier] [data-slot="card-root"][data-shape="pill"] {
     border-radius: var(--radius-full);
   }

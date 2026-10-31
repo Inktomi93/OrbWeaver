@@ -184,7 +184,6 @@ export const WALKER_CENSUS_TIER = `  // ── density tier resolution: does the
     if (tcShape !== null) tcRadius = "--radius-control";
     if (tcShape === "float" || tcShape === "bubble") tcRadius = "--radius-card";
     if (tcShape === "inset") tcRadius = "--radius-inset";
-    if (tcShape === "plate") tcRadius = "--orb-tier-island-radius";
     if (tcShape === "pill") tcRadius = "--radius-full";
     judgeTierLength(tcEl, tcTier, "card-root", "border-radius", tcRadius, tcStyle.borderRadius);
   }

@@ -64,6 +64,7 @@
     "./media-grid": "./src/primitives/media-grid/index.ts",
     "./media-tile-grid": "./src/primitives/media-tile-grid/index.ts",
     "./menu": "./src/primitives/menu/index.ts",
+    "./message-bubble": "./src/primitives/message-bubble/index.ts",
     "./message-list": "./src/primitives/message-list/index.ts",
     "./message-media": "./src/content/message-media/index.ts",
     "./meter": "./src/charts/meter/index.ts",

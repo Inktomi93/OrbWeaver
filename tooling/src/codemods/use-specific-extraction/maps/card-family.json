@@ -1,0 +1,80 @@
+{
+  "defaults": {
+    "Card": {
+      "tone": "neutral",
+      "variant": "surface"
+    },
+    "MessageBubble": {}
+  },
+  "extractions": [
+    {
+      "element": "Card",
+      "door": "card",
+      "match": {
+        "tone": "bubble",
+        "shape": "bubble"
+      },
+      "to": "MessageBubble",
+      "toDoor": "message-bubble",
+      "attributes": [["messageRole", "assistant"], ["shape", "bubble"]],
+      "overrides": ["variant"]
+    },
+    {
+      "element": "Card",
+      "door": "card",
+      "match": {
+        "tone": "bubble"
+      },
+      "to": "MessageBubble",
+      "toDoor": "message-bubble",
+      "attributes": [["messageRole", "assistant"]],
+      "overrides": ["variant"]
+    },
+    {
+      "element": "Card",
+      "door": "card",
+      "match": {
+        "tone": "userBubble",
+        "shape": "bubble"
+      },
+      "to": "MessageBubble",
+      "toDoor": "message-bubble",
+      "attributes": [["messageRole", "user"], ["shape", "bubble"]],
+      "overrides": ["variant"]
+    },
+    {
+      "element": "Card",
+      "door": "card",
+      "match": {
+        "tone": "userBubble"
+      },
+      "to": "MessageBubble",
+      "toDoor": "message-bubble",
+      "attributes": [["messageRole", "user"]],
+      "overrides": ["variant"]
+    },
+    {
+      "element": "Card",
+      "door": "card",
+      "match": {
+        "tone": "systemBubble",
+        "shape": "bubble"
+      },
+      "to": "MessageBubble",
+      "toDoor": "message-bubble",
+      "attributes": [["messageRole", "system"], ["shape", "bubble"]],
+      "overrides": ["variant"]
+    },
+    {
+      "element": "Card",
+      "door": "card",
+      "match": {
+        "tone": "systemBubble"
+      },
+      "to": "MessageBubble",
+      "toDoor": "message-bubble",
+      "attributes": [["messageRole", "system"]],
+      "overrides": ["variant"]
+    }
+  ]
+}

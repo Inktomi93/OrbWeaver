@@ -1,4 +1,4 @@
-import { FOCUS_RING, isTone, MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL, RECEDED, TONE_ARMS, tv } from "#lib";
+import { FOCUS_RING, isTone, RECEDED, TONE_ARMS, tv } from "#lib";
 import type { Tone } from "#tokens";
 import { ART_DECORATION } from "../../lib/art-decoration.ts";
 
@@ -12,9 +12,8 @@ import { ART_DECORATION } from "../../lib/art-decoration.ts";
 
 /**
  * The use-specific surfaces that step 4 of the css-system plan moves to named components
- * (`docs/work/1421-build-the-tone-role-tier-and-one-variant.md`): the message bubbles, the theme preview parts, the
- * floating chip's popover fill and the transcript plate. They stay on `tone`, stamp the neutral scope and paint their
- * own fill over the variant's.
+ * (`docs/work/1421-build-the-tone-role-tier-and-one-variant.md`): the theme preview parts and the floating chip's
+ * popover fill. They stay on `tone`, stamp the neutral scope and paint their own fill over the variant's.
  */
 const STEP_FOUR_SURFACES = {
   background: "bg-background",
@@ -23,12 +22,8 @@ const STEP_FOUR_SURFACES = {
   sidebar: "border-sidebar-border bg-sidebar text-sidebar-foreground",
   // The card fill with the rail's edge: a pane in a preview of the shell.
   sidebarEdge: "border-sidebar-border",
-  // A card fill that lets a wallpaper or art read through it, and its page-ground twin under a transcript plate.
+  // A card fill that lets a wallpaper or art read through it.
   translucent: "bg-card/80",
-  backdrop: "bg-background/80",
-  bubble: MESSAGE_BUBBLE_FILL.assistant,
-  userBubble: MESSAGE_BUBBLE_FILL.user,
-  systemBubble: MESSAGE_BUBBLE_FILL.system,
   // The popover fill and its ink, for a chip that floats over the transcript.
   popover: "bg-popover text-popover-foreground",
 } as const;
@@ -52,12 +47,8 @@ export const cardVariants = tv({
       float: "rounded-card p-field",
       // A sub-control mark drawn as a box: a pane in a small preview of the shell.
       inset: "rounded-inset",
-      // A plate under a line that crosses art (a transcript boundary's label): the fill alone, with no edge.
-      plate: "border-0",
       // A floating chip (jump to latest): the pill radius.
       pill: "rounded-full",
-      // A message bubble outside the transcript (a theme preview): the transcript's own bubble box. Pair it with a bubble tone.
-      bubble: MESSAGE_BUBBLE_BOX,
     },
     // THE FILL STYLE (D336), painted only with the roles of the stamped tone, so every tone works with every style.
     // A soft or outline box in a colour tone is a status box: its border carries the meaning, so it paints `solid` and

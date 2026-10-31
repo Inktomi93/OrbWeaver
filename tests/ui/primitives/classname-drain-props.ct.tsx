@@ -210,11 +210,11 @@ test("receded dims each primitive to the token's opacity", async ({ mount }) => 
   expect(await style(component.getByText("plain text", { exact: true }), "opacity")).toBe("1");
 });
 
-test("the sidebar, translucent and backdrop surfaces paint their fills", async ({ mount }) => {
+test("the sidebar and translucent surfaces paint their fills", async ({ mount }) => {
   const component = await mount<typeof CardToneStory>(`${STORIES}/CardToneStory`, {});
   const probe = (name: string): Locator => component.locator(`[data-probe="${name}"]`);
   const card = (name: string): Locator => component.locator(`[data-case="${name}"]`);
-  for (const tone of ["sidebar", "translucent", "backdrop"] as const) {
+  for (const tone of ["sidebar", "translucent"] as const) {
     expect(await style(card(tone), "background-color"), tone).toBe(await style(probe(tone), "background-color"));
   }
   expect(await style(card("sidebar"), "border-block-start-color")).toBe(await style(probe("sidebar"), "border-block-start-color"));

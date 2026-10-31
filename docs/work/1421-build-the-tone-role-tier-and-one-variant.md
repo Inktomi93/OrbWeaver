@@ -78,3 +78,8 @@ Step 4c-1:
 
 - `Spoiler` renders Stack behind its own door, `@orb/ui/spoiler`, and Card and Stack refuse `spoiler`; `tests/ui/primitives/spoiler/extracted-spoiler.dom.test-d.ts` pins both. `tests/ui/primitives/spoiler/spoiler.ct.tsx` reads the blur, the selection and the forwarded layout under each seed and a nested custom scope, and inside a Card of every tone, in the Chromium and WebKit CT projects. A planted skin without the selection rule fails it.
 - `tests/ui/primitives/card/card-interactive.ct.tsx` reads the hovered and pressed Card ink against the tone roles and the hover pixels against AA, over a nested mid-grey scope and each seed. The hover test skips on a device that does not hover, so WebKit checks the pressed paint. Removing the new ink classes fails it.
+
+Step 4c-2:
+
+- `MessageBubble` takes `messageRole` and `shape` behind `@orb/ui/message-bubble`; Card refuses the bubble tones, the bubble and plate shapes and the backdrop tone, and `tests/ui/primitives/message-bubble/extracted-bubble.dom.test-d.ts` pins both. `tests/ui/primitives/message-bubble/message-bubble.ct.tsx` reads each role's fill and ink, the bubble box, and the island inset and radius in and out of an instrument tier, under each seed and a nested custom scope, in the Chromium and WebKit CT projects.
+- `tooling/src/codemods/use-specific-extraction/maps/card-family.json` moved the literal bubble sites; its `overrides` fixture holds the shape and the default guard it adds. The computed site in `message-box.tsx` is a hand edit. The transcript divider label sits on the layout reading plate under D144(b).

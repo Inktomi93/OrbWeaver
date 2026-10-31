@@ -111,7 +111,7 @@ test("the sidebar focus ring offsets into the sidebar fill, and the rail marks o
   expect(await style(resting, "border-inline-start-color")).toBe(await probe(root, "transparent", "color"));
 });
 
-test("the float, inset, plate, pill and bubble shapes keep their radius and inset in and out of a tier", async ({ mount }) => {
+test("the float, inset, pill and bubble shapes keep their radius and inset in and out of a tier", async ({ mount }) => {
   const root = await mount<typeof CardFinishStory>(`${STORIES}/CardFinishStory`, {});
   const radius = "border-start-start-radius";
   for (const name of ["float", "tier-float"]) {
@@ -119,7 +119,6 @@ test("the float, inset, plate, pill and bubble shapes keep their radius and inse
     expect(await style(kase(root, name), "padding-block-start"), name).toBe(await probe(root, "radius-card", "padding-block-start"));
   }
   expect(await style(kase(root, "inset"), radius)).toBe(await probe(root, "radius-inset", radius));
-  expect(await style(kase(root, "plate"), "border-block-start-width")).toBe("0px");
   expect(await style(kase(root, "pill"), radius)).toBe(await probe(root, "radius-full", radius));
   for (const name of ["bubble", "tier-bubble"]) {
     expect(await style(kase(root, name), radius), name).toBe(await probe(root, "radius-card", radius));

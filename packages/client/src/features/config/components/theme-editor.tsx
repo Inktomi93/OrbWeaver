@@ -21,6 +21,7 @@ import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
+import { MessageBubble } from "@orb/ui/message-bubble";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { THEME_SCOPE_EMIT_VARS, ThemeScope } from "@orb/ui/theme-scope";
@@ -215,7 +216,7 @@ function ThemePreview({ values }: { readonly values: ThemeFormValues }): ReactEl
             <Text voice="label" ink="speaker">
               Aria
             </Text>
-            <Card tone="bubble" shape="bubble">
+            <MessageBubble messageRole="assistant" shape="bubble">
               <Stack gap="field">
                 <Text as="span" ink="dialogue">
                   “Welcome to the archive,” she said.
@@ -227,12 +228,12 @@ function ThemePreview({ values }: { readonly values: ThemeFormValues }): ReactEl
                   Everything here has a story.
                 </Text>
               </Stack>
-            </Card>
-            <Card className="self-end" tone="userBubble" shape="bubble">
+            </MessageBubble>
+            <MessageBubble className="self-end" messageRole="user" shape="bubble">
               <Stack gap="field">
                 <Text as="span">Show me the oldest one.</Text>
               </Stack>
-            </Card>
+            </MessageBubble>
           </Stack>
         </Card>
       </ThemeScope>

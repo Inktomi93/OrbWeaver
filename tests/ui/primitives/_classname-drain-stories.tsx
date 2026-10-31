@@ -270,12 +270,12 @@ export function RecededStory(): ReactElement {
   );
 }
 
-const CARD_FILL_TONES = ["sidebar", "translucent", "backdrop"] as const;
+const CARD_FILL_TONES = ["sidebar", "translucent"] as const;
 
 /** The fill tones and the input-edge tone, beside probes. */
 export function CardToneStory(): ReactElement {
   return (
-    <CtIsolation subject="Card step-four surfaces" isolates="The sidebar, translucent and backdrop fills">
+    <CtIsolation subject="Card step-four surfaces" isolates="The sidebar and translucent fills">
       {CARD_FILL_TONES.map((tone) => (
         <Card key={tone} tone={tone} data-case={tone}>
           {tone}
@@ -284,7 +284,6 @@ export function CardToneStory(): ReactElement {
 
       <span data-probe="sidebar" style={{ backgroundColor: "var(--color-sidebar)", borderColor: "var(--color-sidebar-border)", display: "block" }} />
       <span data-probe="translucent" style={{ backgroundColor: "color-mix(in oklab, var(--color-card) 80%, transparent)", display: "block" }} />
-      <span data-probe="backdrop" style={{ backgroundColor: "color-mix(in oklab, var(--color-background) 80%, transparent)", display: "block" }} />
     </CtIsolation>
   );
 }

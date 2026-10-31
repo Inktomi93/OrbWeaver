@@ -29,6 +29,7 @@ import { FieldLayout } from "@orb/ui/field";
 import { ChevronDown, Icon } from "@orb/ui/icons";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
+import { MessageBubble } from "@orb/ui/message-bubble";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
@@ -360,7 +361,7 @@ function ThemePreview({ override }: { readonly override: ReturnType<typeof overr
           <Text voice="label" ink="speaker">
             Aria
           </Text>
-          <Card tone="bubble">
+          <MessageBubble messageRole="assistant">
             <Stack gap="field">
               <Text as="span" ink="dialogue">
                 “Welcome to the archive,” she said.
@@ -369,7 +370,7 @@ function ThemePreview({ override }: { readonly override: ReturnType<typeof overr
                 The lamplight flickered against the shelves.
               </Text>
             </Stack>
-          </Card>
+          </MessageBubble>
         </Stack>
       </Card>
     </ThemeScope>

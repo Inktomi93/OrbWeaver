@@ -4,6 +4,7 @@ import { GlyphButton } from "@orb/ui/glyph-button";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Container, Row, Stack, Surface } from "@orb/ui/layout";
+import { MessageBubble } from "@orb/ui/message-bubble";
 import { ScrollArea } from "@orb/ui/scroll-area";
 import type { ReactElement } from "react";
 import { CtIsolation } from "./ct-isolated-subject.tsx";
@@ -22,9 +23,9 @@ export function SurfaceDesignStory({ width }: { readonly width: number }): React
                 <Card shape="float" aria-label="Floating island">
                   Floating island
                 </Card>
-                <Card shape="bubble" aria-label="Message bubble">
+                <MessageBubble messageRole="assistant" shape="bubble" aria-label="Message bubble">
                   Message bubble
-                </Card>
+                </MessageBubble>
                 <Card shape="pill" aria-label="Pill island">
                   Pill island
                 </Card>

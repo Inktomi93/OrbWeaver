@@ -10,6 +10,7 @@ import { InlineAction } from "@orb/ui/inline-action";
 import { Input } from "@orb/ui/input";
 import { Container, Row, Stack, Surface } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
+import { MessageBubble } from "@orb/ui/message-bubble";
 import { PictureButton } from "@orb/ui/picture-button";
 import { Select } from "@orb/ui/select";
 import { Separator } from "@orb/ui/separator";
@@ -153,22 +154,19 @@ export function CardFinishStory(): ReactElement {
       <Card data-case="inset" shape="inset">
         inset
       </Card>
-      <Card data-case="plate" shape="plate">
-        plate
-      </Card>
       <Card data-case="pill" shape="pill">
         pill
       </Card>
-      <Card data-case="bubble" tone="userBubble" shape="bubble">
+      <MessageBubble data-case="bubble" messageRole="user" shape="bubble">
         bubble
-      </Card>
+      </MessageBubble>
       <Surface tier="instrument">
         <Card data-case="tier-float" shape="float">
           float in a tier
         </Card>
-        <Card data-case="tier-bubble" tone="bubble" shape="bubble">
+        <MessageBubble data-case="tier-bubble" messageRole="assistant" shape="bubble">
           bubble in a tier
-        </Card>
+        </MessageBubble>
       </Surface>
       <Card data-case="sidebarEdge" tone="sidebarEdge">
         sidebar edge

@@ -194,7 +194,7 @@ Each family map holds `defaults` and a list of `{ element, door, match, to, toDo
 | - | - |
 | `button-family.json` (4a) | Button `size` `glyph-xs`..`glyph-lg` → `GlyphButton glyph`; `size="inline"` → `InlineAction step="label"`; `size="inline-body"` → `InlineAction step="body"`; `size="media"` and `variant="bare"` → `PictureButton` |
 | `badge-family.json` (4b) | Badge `size="inline"` → `InlineToken`; Badge `size="dot"` → `IndicatorDot` |
-| `card-family.json` (4c) | Card `tone` and `shape` per the Card table → `MessageBubble role`, the preview parts, `FloatingChip`, `RoomIsland`; Card and Stack `spoiler={true}` → `Spoiler` |
+| `card-family.json` (4c) | Card `tone` and `shape` per the Card table → `MessageBubble messageRole`, the preview parts, `FloatingChip`, `RoomIsland`; Card and Stack `spoiler={true}` → `Spoiler` |
 | `layout-family.json` (4d) | Section `focal={true}` → `FocalSection` |
 
 ##### Step 4a record
@@ -221,6 +221,14 @@ Step 4c lands as three commits in order: `Spoiler` with the ink fixes, `MessageB
 | `packages/client/src/features/character/components/character-facet-editor.tsx` | Both computed sites became `Spoiler gap="field"` with `concealed` from the eye toggle. |
 | `packages/client/src/features/character/components/character-greeting-preview.tsx` | The Card keeps its bubble tone; its inner Stack became `Spoiler gap="row"`. |
 
+`MessageBubble` lives in `packages/ui/src/primitives/message-bubble/` behind its own door. It takes `messageRole`, not `role`: a JSX `role` attribute is an ARIA role to Biome's `useValidAriaRole`, and `role="user"` fails it. Its `shape` is `bubble`, the transcript's box, or `island`, the default, which is the grouped-content box `tiers.css` resolves from the surface's tier. Four of the seven bubble sites filled an island with a bubble tone and no bubble shape, so the island shape keeps them as drawn. The default slot is `card-root`, so `tiers.css` still resolves those islands and the bubble shape; the transcript row names `message-bubble`, which keeps its box out of the tier map. `packages/client/src/features/chat/components/message-box.tsx` computes `messageRole` from the row's role by hand. `ROLE_FILL` stays for the band `ground` inside a bubble.
+
+| Site | Choice |
+| - | - |
+| `packages/client/src/features/chat/components/message-row-divider.tsx` | The label's `shape="plate" tone="backdrop"` was a translucent page ground with no D144(b) plate under it, so the label's ink was floored against nothing. D144(b) makes the over-art plate a layout concern: `WALLPAPER_PLATE` in `packages/ui/src/lib/ground.ts` is the plate. The label is a `Row plate="island"`, which paints the derived reading plate over art only and nothing on a plain room. No transcript component and no primitive for one site. |
+
+The map `card-family.json` carries `overrides` on each bubble row: an axis the target paints over entirely, here Card's unnamed `variant`, whose fill the bubble tone replaces. Without it the guard refuses every site.
+
 Ink fixes: Card `interactive` hover and press paint `text-tone-text-on-tint`; the compare-blocks side panels paint `text-tone-text-on-tint`; the tool-call-block `pre` and the immersive-card body paint `text-accent-foreground` on the neutral tint.
 
 #### Mapping: Card
@@ -235,11 +243,11 @@ Ink fixes: Card `interactive` hover and press paint `text-tone-text-on-tint`; th
 | `tone="successTint"`, `"warningTint"`, `"destructiveTint"`, `"infoTint"` | that tone, `variant="soft"` |
 | `tone="primaryEdge"` | `tone="primary"`, `variant="surface"` |
 | `tone="primaryOutline"`, `tone="input"`, `tone="highlight"` | flagged |
-| `tone="bubble"`, `"userBubble"`, `"systemBubble"`, `shape="bubble"` | `MessageBubble` with a role prop |
+| `tone="bubble"`, `"userBubble"`, `"systemBubble"`, `shape="bubble"` | `MessageBubble` with a `messageRole` prop |
 | `tone="background"`, `"accent"`, `"sidebar"`, `"sidebarEdge"`, `"translucent"`, `shape="inset"` | theme preview parts in `packages/ui/src/content/theme-swatch/` |
 | `shape="pill"`, `tone="popover"`, `presence` | `FloatingChip` |
 | `shape="float"` | `RoomIsland`: the card radius and field inset in a room's column |
-| `shape="plate"`, `tone="backdrop"` | flagged |
+| `shape="plate"`, `tone="backdrop"` | the layout `plate` on a Row: D144(b) owns the over-art plate |
 | `spoiler` | `Spoiler`, shared with Stack |
 | `outline="dashed"` | `dashed`, because `outline` is now a variant |
 | `shadow` | removed: `elevated` takes the overlay shadow, `interactive` follows the user's elevation, a static card takes none; `shadow="overlay"` stays for `FloatingChip` and the preview parts until they land |
