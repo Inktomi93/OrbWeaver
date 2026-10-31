@@ -5,7 +5,7 @@ import type { Principal } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, FORWARD_AUTH_TRUSTED_PROXIES_KEY } from "@orb/contracts/identity";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ExternalId, UserId } from "@orb/kit/ids";
-import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { createImportAvatarStore, createImportOwnedAsset } from "@orb/server/domain/assets";
 import { expect, test } from "@orb/testkit/node";
 import { isAdmin, isOwner } from "@orb/testkit/node/auth";
@@ -54,7 +54,9 @@ test("foreign malformed bytes and absence share the same refusal before import; 
     importBytes,
   });
   await expect(ingest({ installerUserId: own.userId, assetId: stored.assetId, pluginId: null })).rejects.toBeInstanceOf(DomainNotFoundError);
-  await expect(ingest({ installerUserId: own.userId, assetId: mintTypeId(ID_PREFIX.asset), pluginId: null })).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(ingest({ installerUserId: own.userId, assetId: harness.ids.typeId(ID_PREFIX.asset), pluginId: null })).rejects.toBeInstanceOf(
+    DomainNotFoundError,
+  );
   expect(importBytes).not.toHaveBeenCalled();
   expect(Array.from(await ingest({ installerUserId: own.userId, assetId: ownStored.assetId, pluginId: null }))).toEqual(Array.from(ownBytes));
   expect(read.mock.calls.every(([actor]) => actor === own)).toBe(true);

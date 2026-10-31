@@ -2,6 +2,7 @@
 // Product configuration belongs to the server's environment boundary, never this launcher adapter.
 import process from "node:process";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
+import { E2E_PORT_OFFSET_ENV } from "../host/ports.ts";
 
 /** Ambient process environment plus explicit child overrides. Tool launchers use this instead of each
  *  growing its own process.env suppression; app configuration is not read here. */
@@ -74,7 +75,7 @@ const TEST_INHERITED_ENV_KEYS = [
   "CT_CORPUS_FIXTURE",
   "CT_PORT",
   "E2E_LIVE",
-  "E2E_PORT_OFFSET",
+  E2E_PORT_OFFSET_ENV,
   "E2E_ALLOW_DEV_TARGET",
   "E2E_CORPUS_FIXTURE",
   "E2E_CORPUS_LOCAL_FIXTURE",

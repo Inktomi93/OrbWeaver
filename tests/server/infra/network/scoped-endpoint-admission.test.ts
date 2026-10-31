@@ -2,16 +2,11 @@ import { createServer } from "node:http";
 import { setImmediate } from "node:timers/promises";
 import { queryObjects } from "node:v8";
 import { ANY_HOST, createScopedEgress, systemConnector, systemFetch, systemResolver } from "@orb/server/infra/network";
-import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
+import { createQuietTimers, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createTestLogger } from "@orb/testkit/node/composed";
 import { createTestEnv } from "@orb/testkit/node/helpers";
 import { budget } from "@orb/tooling/floor/host/load-budget";
-
-// A fresh scheduler per egress: these cases never wait on a deadline, so nothing advances it.
-function quietTimers(): ReturnType<typeof createControlledTimers> {
-  return createControlledTimers(createFrozenClock());
-}
 
 test("unresolved write-time endpoint admission remains public without attempting a physical request", async () => {
   const failure = new Error("controlled NXDOMAIN");
@@ -20,7 +15,7 @@ test("unresolved write-time endpoint admission remains public without attempting
     traces: null,
     log: createTestLogger(),
     env: createTestEnv(),
-    timers: quietTimers(),
+    timers: createQuietTimers(),
     buildConnector: systemConnector,
     resolver: () => Promise.reject(failure),
     fetch: () => {
@@ -33,7 +28,7 @@ test("unresolved write-time endpoint admission remains public without attempting
 });
 
 test.each([
-  { address: "93.184.215.14", verdict: "public", allowlist: [] },
+  { address: PUBLIC_PEER_ADDRESS, verdict: "public", allowlist: [] },
   { address: "10.0.0.7", verdict: "refused", allowlist: [] },
   { address: "169.254.169.254", verdict: "refused", allowlist: ["0.0.0.0/0"] },
 ] as const)("write-time admission preserves $address as $verdict", async ({ address, verdict, allowlist }) => {
@@ -41,7 +36,7 @@ test.each([
     traces: null,
     log: createTestLogger(),
     env: createTestEnv(),
-    timers: quietTimers(),
+    timers: createQuietTimers(),
     buildConnector: systemConnector,
     resolver: () => Promise.resolve([address]),
     fetch: () => Promise.reject(new Error("write admission attempted raw HTTP")),
@@ -57,7 +52,7 @@ test("configured and arbitrary URL execution still reject DNS failure before the
     traces: null,
     log: createTestLogger(),
     env: createTestEnv(),
-    timers: quietTimers(),
+    timers: createQuietTimers(),
     buildConnector: systemConnector,
     resolver: () => Promise.reject(failure),
     fetch: () => {
@@ -116,7 +111,7 @@ test.each([false, true])(
       traces: null,
       log: createTestLogger(),
       env: createTestEnv(),
-      timers: quietTimers(),
+      timers: createQuietTimers(),
       buildConnector: systemConnector,
       fetch: (input, init) => {
         if (!(input instanceof Request)) {
@@ -207,7 +202,7 @@ test.each(["EOF", "error", "cancel"] as const)(
       traces: null,
       log: createTestLogger(),
       env: createTestEnv(),
-      timers: quietTimers(),
+      timers: createQuietTimers(),
       buildConnector: systemConnector,
       resolver: systemResolver,
       fetch: (input, init) => {

@@ -1,4 +1,4 @@
-import { routeTrpc } from "@orb/testkit/ct";
+import { routeAuthConfig, routeTrpc } from "@orb/testkit/ct";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
@@ -45,7 +45,7 @@ async function captureSession(page: Page, root: Awaited<ReturnType<typeof create
     refuseNext = false;
     await route.fulfill({ status: refusedResponse.status, contentType: "application/json", body: refused });
   });
-  await page.route("**/api/auth/config", (route) => route.fulfill({ contentType: "application/json", body: config }));
+  await routeAuthConfig(page, config);
   await page.route("**/api/auth/me", async (route) => {
     reads += 1;
     if (unreachable) {

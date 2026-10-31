@@ -117,7 +117,7 @@ export function TrackerChip({ label, value, subject, guide = false, onEditValue 
         {label} —{" "}
       </Text>
       {onEditValue === undefined ? (
-        <Text as="span" voice="label">
+        <Text ink="inherit" as="span" voice="label">
           {value}
         </Text>
       ) : (

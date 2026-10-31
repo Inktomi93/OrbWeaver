@@ -3,7 +3,7 @@
 // @subject packages/contracts/src/credentials/index.ts
 import { credentialStorageStatusSchema } from "@orb/contracts/credentials";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 import { CREDENTIALS_OP_CODES } from "#server/domain/credentials/contract/errors.ts";
@@ -11,7 +11,7 @@ import { CREDENTIALS_OP_CODES } from "#server/domain/credentials/contract/errors
 const KEY = "storage-status-private-key";
 
 test.for([true, false])("storage capability matches the real box and remains authenticated and strict (enabled=%j)", async (enabled) => {
-  await using root = await createServerHarness({ secretBoxKey: enabled ? Buffer.alloc(32, 1) : null });
+  await using root = await createServerHarness({ secretBoxKey: enabled ? SECRET_BOX_TEST_KEY : null });
   const actor = await root.actor();
   const caller = await root.internalCallerFor(actor.id);
   const anonymous = await root.internalCallerFor(null);

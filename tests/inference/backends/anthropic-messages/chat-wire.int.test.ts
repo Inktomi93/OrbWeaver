@@ -6,7 +6,7 @@
 
 import { WARNING_CODE } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
-import type { ChatEvent, ChatHistoryMessage, ChatResult, ToolChoice, WireTool } from "@orb/inference";
+import type { ChatHistoryMessage, ChatResult, ToolChoice, WireTool } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
 import { isPlainObject } from "@orb/kit/guards";
 import { expect, test } from "@orb/testkit/node";
@@ -21,6 +21,7 @@ import {
   textBlock,
   thinkingBlock,
   toolUseBlock,
+  warningCodes,
 } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 import { createRuntimeRoot, wireConnection } from "../../roles/runtime.fixtures.ts";
@@ -100,10 +101,6 @@ async function drive(options: Drive): Promise<Driven> {
     sent,
     errorLog: errors.mock.calls.flatMap(([first]) => (typeof first === "object" && first !== null ? [Object.fromEntries(Object.entries(first))] : [])),
   };
-}
-
-function warningCodes(turn: ChatResult): string[] {
-  return turn.events.flatMap((event: ChatEvent) => (event.kind === "warning" ? [event.code] : []));
 }
 
 function thinkingOf(sent: RecordedRequest): unknown {
@@ -221,13 +218,13 @@ test("a forced tool choice goes out as auto, with the tools kept and a warning, 
       const { turn, sent } = await drive({ model, reply: textReply, tools: [WEATHER], toolChoice });
       expect(sent.body["tool_choice"], `${model} ${toolChoice.mode}`).toMatchObject({ type: "auto" });
       expect(sent.body["tools"], model).toMatchObject([{ name: "get_weather" }]);
-      expect(warningCodes(turn), `${model} ${toolChoice.mode}`).toContain(WARNING_CODE.toolChoiceDowngraded);
+      expect(warningCodes(turn.events), `${model} ${toolChoice.mode}`).toContain(WARNING_CODE.toolChoiceDowngraded);
     }
   }
   for (const model of ["claude-opus-5", "claude-fable-5"]) {
     const required = await drive({ model, reply: textReply, tools: [WEATHER], toolChoice: { mode: "required" } });
     expect(required.sent.body["tool_choice"], model).toMatchObject({ type: "any" });
-    expect(warningCodes(required.turn), model).not.toContain(WARNING_CODE.toolChoiceDowngraded);
+    expect(warningCodes(required.turn.events), model).not.toContain(WARNING_CODE.toolChoiceDowngraded);
     const named = await drive({ model, reply: textReply, tools: [WEATHER], toolChoice: { mode: "tool", name: "get_weather" } });
     expect(named.sent.body["tool_choice"], model).toMatchObject({ type: "tool", name: "get_weather" });
   }
@@ -238,7 +235,7 @@ test("manual extended thinking refuses a forced tool choice: a budget-thinking t
   const thinking = await drive({ model, reply: textReply, tools: [WEATHER], toolChoice: { mode: "required" }, params: { effort: "high" } });
   expect(thinkingOf(thinking.sent)).toMatchObject({ type: "enabled" });
   expect(thinking.sent.body["tool_choice"]).toMatchObject({ type: "auto" });
-  expect(warningCodes(thinking.turn)).toContain(WARNING_CODE.toolChoiceDowngraded);
+  expect(warningCodes(thinking.turn.events)).toContain(WARNING_CODE.toolChoiceDowngraded);
 
   const off = await drive({ model, reply: textReply, tools: [WEATHER], toolChoice: { mode: "required" }, params: { effort: "none" } });
   expect(off.sent.body["tool_choice"]).toMatchObject({ type: "any" });
@@ -249,12 +246,12 @@ test("reasoning off never sends thinking disabled where the model refuses it: Op
   expect(thinkingOf(opus.sent)).toMatchObject({ type: "adaptive" });
   expect(opus.sent.body["output_config"]).toMatchObject({ effort: "low" });
   expect(opus.turn.appliedEffort).toBe("low");
-  expect(warningCodes(opus.turn)).toContain(WARNING_CODE.reasoningMandatoryClamp);
+  expect(warningCodes(opus.turn.events)).toContain(WARNING_CODE.reasoningMandatoryClamp);
 
   const sonnet = await drive({ model: "claude-sonnet-5-5", reply: textReply, params: { effort: "none", carryReasoning: "conversation" } });
   expect(thinkingOf(sonnet.sent)).toEqual({ type: "between_tools" });
   // The SDK rewrites a `disabled` on this id itself and announces it, so its silence shows the wire spelled the request first.
-  expect(warningCodes(sonnet.turn)).not.toContain(WARNING_CODE.sdkUnsupportedSetting);
+  expect(warningCodes(sonnet.turn.events)).not.toContain(WARNING_CODE.sdkUnsupportedSetting);
   expect(sonnet.sent.body["output_config"]).toBeUndefined();
   expect(sonnet.turn.appliedEffort).toBe("none");
 

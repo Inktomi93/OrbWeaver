@@ -9,9 +9,8 @@ import { PLUGIN_CARD_DATA_FIND_MAX, pluginCardStateKey } from "@orb/contracts/pl
 import type { CharacterId, PluginId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, requireShowcaseBundle, seedCorpusActors } from "@orb/testkit/node/composed";
+import { createServerHarness, guestRunner, installGuest, requireShowcaseBundle, seedCorpusActors } from "@orb/testkit/node/composed";
 import { z } from "zod";
-import { guestRunner, installGuest } from "./_guest-command.ts";
 
 const ATLAS = "card-atlas";
 const HUB_ADDRESS = "93.184.215.14";

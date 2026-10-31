@@ -1,8 +1,8 @@
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { TONE_FALLBACK_SCOPE } from "@orb/testkit/iso";
 import { createFirstBootHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { TONE_FALLBACK_SCOPE } from "../../../../ui/content/theme-scope/fallback-cases.ts";
 import type { FirstBootStory } from "./_first-boot-stories.tsx";
 
 // The theme editor names the contrast bound its theme's own colours made the app relax, reached the way an author edits

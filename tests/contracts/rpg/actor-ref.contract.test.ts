@@ -2,6 +2,7 @@
 // that still spells it cannot be read back as a different actor.
 import { actorRefKey, rpgActorEntrySchema, rpgActorRefSchema } from "@orb/contracts/rpg";
 import { brandedId, mintTypeId } from "@orb/kit/ids";
+import { makeRpgActorIdentity, makeRpgActorVolatile } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 
 const SLUG = "sister-vesna";
@@ -22,8 +23,8 @@ test("the retired cast arm is refused while every live arm parses and projects i
 });
 
 test("an actor row stored under the retired cast spelling is refused whole, not defaulted into another actor", () => {
-  const identity = { name: "Sister Vesna", emoji: "", mood: "", appearance: "", outfit: "", thoughts: "", relationship: { kind: "neutral", label: "" } };
-  const volatile = { trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "wary" };
+  const identity = makeRpgActorIdentity("Sister Vesna");
+  const volatile = makeRpgActorVolatile({ status: "wary" });
   expect(rpgActorEntrySchema.safeParse({ actorRef: { kind: "cast", castKey: SLUG }, identity, volatile }).success).toBe(false);
   expect(rpgActorEntrySchema.safeParse({ actorRef: { kind: "npc", npcKey: SLUG }, identity, volatile }).success).toBe(true);
 });

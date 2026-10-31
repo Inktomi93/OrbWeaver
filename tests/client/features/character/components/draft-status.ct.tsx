@@ -2,7 +2,7 @@
 // The shared autosave session's display status, read through the production character editor: a fresh load reads
 // Saved, and a draft restored over a refused save reads as unsaved with the way to resume.
 import { characterDetailSchema } from "@orb/contracts/character";
-import { routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { routeAuthConfig, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { AUTOSAVE_RESTORED_LEAD, AUTOSAVE_RESUME_NAME, AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
@@ -30,7 +30,7 @@ test("a restored draft reads as unsaved with a way to resume, and a fresh load r
   const stored = (await caller.character.get({ characterId })).name;
   const edited = `${stored} edited`;
   let failSaves = true;
-  await page.route("**/api/auth/config", (route) => route.fulfill({ json: corpus.auth.signedInConfig }));
+  await routeAuthConfig(page, corpus.auth.signedInConfig);
   await routeTrpc(page, {
     ...serveCorpusProcedures(caller, EDITOR_READS),
     ...serveCorpusProcedures(caller, ["character.update"], () => (failSaves ? trpcError() : undefined)),

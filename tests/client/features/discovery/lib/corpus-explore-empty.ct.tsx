@@ -7,7 +7,7 @@ import { contextToggleLabel } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
-import { routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { createFirstBootHarness, seedCharacter } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
 
@@ -17,20 +17,6 @@ const CONTEXT = '.shell-panel[data-panel-side="context"]';
 const PHONE = { width: 390, height: 844 } as const;
 const UNDERSTANDING_RUN = '[data-slot="understanding-pass-run"]';
 const CHARACTER_HANDLES = ["ash", "birch", "cedar"] as const;
-
-type ServedPath = Parameters<typeof serveCorpusProcedures>[1][number];
-
-// What the shell asks for on mount beyond the section set; each is answered by the same root, never by a capture.
-const SHELL_MOUNT = [
-  "persona.list",
-  "chat.getChat",
-  "chat.reapTemporaryChats",
-  "rosterPreset.count",
-  "databank.bankHealth",
-  "notifications.list",
-  "plugin.listCommands",
-  "automation.listRulePresets",
-] as const satisfies readonly ServedPath[];
 
 test.use({ hasTouch: true, viewport: PHONE });
 
@@ -48,7 +34,7 @@ async function routeUndistilledLibrary(
   // The subject's own claim, read through the production verb: the library holds exactly these characters and none is distilled.
   const catalog = await caller.discovery.catalog();
   expect([catalog.totalCharacters, catalog.totalDistilled]).toEqual([handles.length, 0]);
-  await routeTrpc(page, serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...SHELL_MOUNT]));
+  await routeTrpc(page, serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...SHELL_MOUNT_PROCEDURES]));
   await seedShellState(page, { activeSection: "corpus" });
 }
 

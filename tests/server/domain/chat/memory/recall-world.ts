@@ -21,8 +21,8 @@ import {
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
 
-export const RERANK_MODEL = "corpus-rerank";
-export const RERANK_WINDOW_TOKENS = 2048;
+const RERANK_MODEL = "corpus-rerank";
+const RERANK_WINDOW_TOKENS = 2048;
 export const TURN_INTENT = { maxContextTokens: 4096, maxOutputTokens: 64 } as const;
 /** A window no history can fill: the whole transcript stays verbatim in the prompt. */
 export const WHOLE_HISTORY_INTENT = { maxContextTokens: 400_000, maxOutputTokens: 64 } as const;
@@ -30,27 +30,27 @@ export const WHOLE_HISTORY_INTENT = { maxContextTokens: 400_000, maxOutputTokens
 export const ARCS = ["bath", "market", "duel", "shrine", "storm", "farewell"] as const;
 export type Arc = (typeof ARCS)[number];
 export const OFF_CORPUS = "elsewhere";
-export const FILLER_LINES = 10;
+const FILLER_LINES = 10;
 export const RECALL_STREAM_PASSWORD = "recall-phase-stream-password";
 export const BLOCK_SIZE = 2;
 export const FAN_OUT = 2;
 export const STRADDLE_SCAN_WINDOWS = [0, 1, 2, 3, 4].map((step) => TURN_INTENT.maxContextTokens - step * 300);
-export const FILLER = "The caravan creaked on through the grey morning while the drivers argued about the weather and the oxen. ".repeat(18);
-export const VECTOR_WIDTH = CORPUS_EMBEDDING_VECTOR.length;
-export const EARLIER_PROBE_WEIGHT = 0.4;
-export const FILLER_AXIS = ARCS.length + 1;
-export const OFF_CORPUS_AXIS = ARCS.length;
+const FILLER = "The caravan creaked on through the grey morning while the drivers argued about the weather and the oxen. ".repeat(18);
+const VECTOR_WIDTH = CORPUS_EMBEDDING_VECTOR.length;
+const EARLIER_PROBE_WEIGHT = 0.4;
+const FILLER_AXIS = ARCS.length + 1;
+const OFF_CORPUS_AXIS = ARCS.length;
 
 export function probe(arc: Arc | typeof OFF_CORPUS): string {
   return `probe-${arc}.`;
 }
 
-export function axisOf(name: string): number {
+function axisOf(name: string): number {
   const arc = ARCS.find((candidate) => candidate === name);
   return arc === undefined ? OFF_CORPUS_AXIS : ARCS.indexOf(arc);
 }
 
-export function unit(axis: number, weight = 1): number[] {
+function unit(axis: number, weight = 1): number[] {
   return Array.from({ length: VECTOR_WIDTH }, (_, index) => (index === axis ? weight : 0));
 }
 
@@ -68,17 +68,17 @@ export function embeddingFor(input: string): number[] {
   return unit(arc === undefined ? FILLER_AXIS : ARCS.indexOf(arc));
 }
 
-export function lineText(arc: Arc): string {
+function lineText(arc: Arc): string {
   return `line-${arc}. They went on about the ${arc}.`;
 }
 
-export function digestText(arc: Arc): string {
+function digestText(arc: Arc): string {
   return summaryReply({ anchor: `Arc ${arc}`, facts: `arc-${arc}. The ${arc} scene happened here.`, keywords: [arc] });
 }
 
-export const rerankBodySchema = z.object({ model: z.literal(RERANK_MODEL), documents: z.array(z.string()) });
+const rerankBodySchema = z.object({ model: z.literal(RERANK_MODEL), documents: z.array(z.string()) });
 
-export interface RecallWorld extends AsyncDisposable {
+interface RecallWorld extends AsyncDisposable {
   readonly h: ChatRoot;
   /** The arc the scripted cross-encoder scores highest. */
   readonly rerankPrefers: (arc: Arc) => void;
@@ -86,7 +86,7 @@ export interface RecallWorld extends AsyncDisposable {
   readonly sweep: (input: WorkloadInput) => Promise<void>;
 }
 
-export type WorkloadInput = Parameters<ChatRoot["caller"]["workloads"]["start"]>[0]["input"];
+type WorkloadInput = Parameters<ChatRoot["caller"]["workloads"]["start"]>[0]["input"];
 
 export interface World {
   readonly build: (config: {
@@ -99,7 +99,7 @@ export interface World {
 }
 
 // The consolidation prompt leads with this slot; its default text is the one production sends when the host sets no override.
-export const CONSOLIDATION_LEAD = resolveProseText("chat.memory.consolidationLead", {});
+const CONSOLIDATION_LEAD = resolveProseText("chat.memory.consolidationLead", {});
 
 export function generatedText(body: string): string {
   if (body.includes(CONSOLIDATION_LEAD)) {
