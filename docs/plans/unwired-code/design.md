@@ -19,7 +19,7 @@ Ports derive from their owners so references follow the composition root. The un
 | Step | Work | Items |
 | - | - | - |
 | 1 | Judge every member the member scan reports | the unwired-member items the 1439 report boards, [0501](../../work/0501-wire-or-delete-the-unused-prompt-preview-verbs.md), and the possibly dead guards the restoration lanes found |
-| 2 | Judge the first full run of each new scan; delete synonym aliases from the shapes scan | the [judgement items](#judgement-items), [1445](../../work/1445-delete-synonym-type-aliases-keep-per-verb-params.md) |
+| 2 | Judge the first full run of each new scan | the [judgement items](#judgement-items) |
 | 3 | Adjudicate unused exports through the package doors | [0989](../../work/0989-adjudicate-unused-production-exports-behind-explicit-package-doors.md) |
 | 4 | Hold the domain template with dependency rules | [1443](../../work/1443-enforce-domain-contract-purity-with-a-dependency-cruiser.md), [1423](../../work/1423-move-i-o-out-of-domain-substrate-folders.md), [1463](../../work/1463-chat-persistence-reads-the-assets-characters-and-personas.md) |
 
@@ -55,7 +55,7 @@ Each item step 2 lists gives every finding of one scan in one domain a class (wi
 | shapes | `restated` | unknown | judge by concept; keep one home only when both name one concept |
 | shapes | `reexport-chain` | delete | export from the home |
 | shapes | `renamed-reexport` | delete | use the home name |
-| shapes | `synonym` | delete; deliberate for a per-verb name | [1445](../../work/1445-delete-synonym-type-aliases-keep-per-verb-params.md) |
+| shapes | `synonym` | delete; deliberate for a per-verb name or the observability `Logger` | the scan's synonym rows |
 
 The port census and the `orb/derived-port-member` rule follow a value only through a member, a forwarding lambda, a spread and a destructured member. They do not follow a value through a local binding: a `let` is rebound, so no single member stands behind its name. A port member fed through a `let` hop is invisible to both, so judge it by hand and type the member by its owner. The case `a member a let hop carries to the port` in `tests/tooling/eslint-derived-port-member.test.ts` holds the limit.
 
