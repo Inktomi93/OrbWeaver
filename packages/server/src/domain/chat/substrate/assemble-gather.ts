@@ -17,18 +17,17 @@ import type { AssembleContext, ChatInjection, MacroFreezeRecord, MemoryRecallSli
 import type { GenerationType } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RandomSource } from "@orb/kit/macro";
+import { LIVE_WINDOW_FULL_HISTORY_CUTOFF } from "@orb/kit/recall";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { humanizeDuration, UTC_TIME_ZONE } from "@orb/kit/time";
 import { buildAssembleContext } from "../assembly/context.ts";
 import type { ChoicePickMode } from "../contract/assembly-macros.ts";
 import type { ChatContext } from "../contract/context.ts";
-
 import type { ForeignInputs } from "../contract/foreign.ts";
 import type { MemoryRecallInputs, MsgRow, TurnRetrievalWarningEpisode } from "../contract/memory.ts";
 import type { GuidedSteer } from "../contract/params.ts";
 import { loadTranscriptNames } from "../memory/persistence/queries.ts";
 import { recallMemory } from "../memory/recall/recall.ts";
-import { LIVE_WINDOW_FULL_HISTORY_CUTOFF } from "../memory/recall/window.ts";
 import { loadCanonHistory, loadChatInjections, loadChatRow, loadStoredVariables, loadVariableDeltas } from "../persistence/queries.ts";
 import { regexAllowOf, resolveHostTierRegexScripts } from "./regex-tier.ts";
 import { foldChain } from "./runtime-variables.ts";

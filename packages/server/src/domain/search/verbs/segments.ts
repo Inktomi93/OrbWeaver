@@ -13,6 +13,8 @@
 // best-scoring chunk (`collapseSegmentChunks`) before hits are formed — the chunk that matched is the one
 // that scored, and one scene never returns twice under the same id.
 
+import { blockKeyStr } from "@orb/kit/recall";
+import { applyRerank } from "@orb/kit/rerank";
 import { SEARCH_EMPTY_QUERY, SEARCH_SCOPE_REQUIRED, SearchError } from "../contract/errors.ts";
 import type { SegmentsParams } from "../contract/params.ts";
 import type { SegmentSearchHit } from "../contract/results.ts";
@@ -20,9 +22,8 @@ import type { SearchContext, SearchService } from "../contract/service.ts";
 import { nearestSegments } from "../persistence/digest-rows.ts";
 import { SCOPED_POOL_K } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
-import { blockKeyStr, collapseSegmentChunks } from "../substrate/dedupe.ts";
+import { collapseSegmentChunks } from "../substrate/dedupe.ts";
 import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
-import { applyRerank } from "../substrate/rerank.ts";
 import { withActiveQuerySpace } from "../substrate/space.ts";
 
 export function createSegments(ctx: SearchContext): SearchService["segments"] {

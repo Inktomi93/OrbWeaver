@@ -48,8 +48,8 @@ New maintained homes:
 | Seed upgrade: unslotted row under the earlier label | Seed upgrade: adopted and relabelled. | Rebuild |
 | The user's own earlier-model row | Seed upgrade: from a pre-slot state it is never adopted or moved and stays bound. | Rebuild |
 | User choice, then reboot | Seed upgrade: a later pick of the earlier model on the seeded row survives the next seed run, for a fresh and an upgraded account. | Rebuild |
-| Cold start with an empty model cache | Needs an opt-in `local-model-cache` case that downloads weights. | Deferred to [item 1304](1304-an-opt-in-cold-cache-reranker-case-downloads.md) |
-| Live sanity pair ("Which planet is known as the Red Planet?") | A served-model correctness check that needs real weights. | Deferred to item 1304, as the served-model check of the cold case |
+| Cold start with an empty model cache | [Cold cache](../../tests/server/domain/connection/local-light-cold-cache.suite.int.test.ts): a root with an empty model cache runs the boot seed, then the first rerank downloads the seeded model through the shipped loader. It runs only under the `local-model-cache` tag. | Rebuild, opt-in ([item 1304](1304-an-opt-in-cold-cache-reranker-case-downloads.md)) |
+| Live sanity pair ("Which planet is known as the Red Planet?") | The cold cache case ranks the answering document first after the download. | Rebuild, opt-in: the served-model check of the cold case |
 | Per-call latency, first-call time and RSS | Device measurements; no product assertion. | Drop |
 
 ### Recall references
@@ -60,16 +60,17 @@ New maintained homes:
 | `recall.int.test.ts`: mixC delegates to search, rerank-unavailable episode warning | [Core retrieval](../../tests/server/domain/chat/engine/core-retrieval.int.test.ts) and rerank consumers. | Keep |
 | `recall.int.test.ts`: chronological injection after rank order | Rerank consumers. | Rebuild |
 | `recall.int.test.ts`: the full distilled text body reaches `{{memory}}`, not only the anchor and keywords | Rerank consumers: the fact sits in the digest body, below its anchor line, and reaches the prompt. | Keep |
-| `recall.int.test.ts`: mixA pure assembly without a search call, the mode-switch union of the shared and own eras, no retroactive omniscience for the group character | No maintained composed case. | Rebuild, deferred to [item 1302](1302-rebuild-the-remaining-recall-pipeline-cases-through-the.md) |
-| `recall.int.test.ts` and `memory-recall-trace.suite.int.test.ts`: mode off, empty pool without embed, `maxTier`, tiered bridge, `bridge-covered` and `mode-excluded` verdicts, live-window boundary and straddle, fail-closed missing spans, shrink reclaim, recall phase events, surfaced counts | No maintained composed case. | Rebuild, deferred to item 1302 |
-| `memory-recall-eval.suite.int.test.ts`: recall at k, stable order, minScore floor, off-corpus query, knob controls (`queryWindow`, `retrieveK`, `rerankTo`), live window over relevance | mixB versus mixC divergence and the live window are in rerank consumers; the knob and floor controls are not. | Rebuild, deferred to item 1302 |
+| `recall.int.test.ts`: mixA pure assembly without a search call, the mode-switch union of the shared and own eras, no retroactive omniscience for the group character | [Recall pipeline](../../tests/server/domain/chat/memory/recall-pipeline.suite.int.test.ts): mixA lists every tier-0 block in chronological order, embeds no query and marks the higher tiers mode-excluded. The union and the omniscience guard need a group room that switches between shared and scoped builds, and are not built. | Rebuild for mixA. Open for the union and omniscience cases: [item 1302](1302-rebuild-the-remaining-recall-pipeline-cases-through-the.md) |
+| `recall.int.test.ts` and `memory-recall-trace.suite.int.test.ts`: mode off, empty pool without embed, `maxTier`, tiered bridge, `bridge-covered` and `mode-excluded` verdicts, live-window boundary and straddle, fail-closed missing spans, shrink reclaim, recall phase events, surfaced counts | [Recall pipeline](../../tests/server/domain/chat/memory/recall-pipeline.suite.int.test.ts) reads each turn's trace from the recall recorder. Mode off and the empty pool embed no query. The `maxTier` ceiling, the tiered bridge, the two verdicts and the surfaced count are asserted on the trace. The live window outranks relevance: a turn after a whole-history turn drops every scene. The exact boundary is `inLiveWindow` in [kit](../../tests/kit/recall/format-and-window.test.ts). A tier-1 straddle needs the fit to land its cutoff inside a block, which the token fit does not let a test place. Fail-closed missing spans need a late-joined speaker whose horizon the segments do not cover. Shrink reclaim needs a hidden span and a rebuild. Phase events are live bus events read only from a stream subscription. None of these four is built. | Rebuild for mode off, empty pool, `maxTier`, tiered bridge, both verdicts, the live window and surfaced counts. Open for the straddle, missing spans, shrink reclaim and phase events: [item 1302](1302-rebuild-the-remaining-recall-pipeline-cases-through-the.md) |
+| `memory-recall-eval.suite.int.test.ts`: recall at k, stable order, minScore floor, off-corpus query, knob controls (`queryWindow`, `retrieveK`, `rerankTo`), live window over relevance | mixB versus mixC divergence and the live window are in rerank consumers. [Recall pipeline](../../tests/server/domain/chat/memory/recall-pipeline.suite.int.test.ts): the graded `minScore` floor with the keyword fold as its control, the off-corpus query with every candidate below the floor, `queryWindow`, `retrieveK` and `rerankTo` each flipping the admitted set. Recall at k over a labelled set restates the cosine the search suites own and is dropped. | Rebuild; drop recall at k |
 | `memory-recall-trace.suite.int.test.ts`: trace reaches the log and the recorder | The recorder sink is read by core retrieval and recall audits. | Keep |
 | `recall/recorder.test.ts` | Recall recorder. | Rebuild |
-| `recall/bridge.test.ts`, `format.test.ts`, `query.test.ts`, `window.test.ts` | Pure functions with no server door export. | Move to unit, deferred to [item 1303](1303-pure-recall-and-rerank-rules-live-in-orb.md): a test-only door is rejected by the plan. |
+| `recall/bridge.test.ts`, `format.test.ts`, `window.test.ts` | [Bridge](../../tests/kit/recall/bridge.test.ts) and [format and window](../../tests/kit/recall/format-and-window.test.ts) call `@orb/kit/recall`: coverage walk, per-bucket grids, tier ranges, blank and missing bodies, the live-window boundary and the whole-history cutoff. | Move ([item 1303](1303-pure-recall-and-rerank-rules-live-in-orb.md)) |
+| `recall/query.test.ts` | `buildRecallQuery` renders its text through the chat transcript renderer, which throws a chat error and hashes with `node:crypto`. Kit cannot hold it. | Open: [item 1303](1303-pure-recall-and-rerank-rules-live-in-orb.md) |
 | `engine/rerank-pick.test.ts`: score scales, unbound and failing roles, a named character winning, a muted mention | Smart picker owns negative logits, unbound degrade, mentions and muted seats; rerank consumers owns the ranked pick. | Keep |
-| `engine/rerank-pick.test.ts`: the last-speaker ban and its lift after a human line, rank order across several addressed characters, a name a human player shares, ambiguous titles, common-word names, blank names, the window clip and abort | No maintained case on the rerank path. | Move to unit, deferred to item 1303 |
+| `engine/rerank-pick.test.ts`: the last-speaker ban and its lift after a human line, rank order across several addressed characters, a name a human player shares, ambiguous titles, common-word names, blank names, the window clip and abort | No maintained case on the rerank path. | Open: item 1303. The name and ambiguity rules live in the shared mention reader of `engine/select-speakers.ts`, which `isArbiterEligible` couples to the participant persistence. |
 | `search/substrate/rerank.test.ts`: reorder by hit order, omitted hits after the scored ones in vector order, rejection propagation | Rerank consumers: every consumer's order; a reply naming only the fact's documents leaves the rest in their vector order; a 500 from the engine fails the omnibox search. | Rebuild |
-| `search/substrate/rerank.test.ts`: unscorable candidates placed last | A production row with blank source text is not reachable through a write path. | Move to unit, deferred to item 1303 |
+| `search/substrate/rerank.test.ts`: unscorable candidates placed last | A production row with blank source text is not reachable through a write path. [Apply rerank](../../tests/kit/rerank/apply-rerank.test.ts) calls `applyRerank` from `@orb/kit/rerank`, with the omitted-hit order and the rejection as controls. | Move |
 | `inference/backends/openai-compat/rerank.test.ts` | Rerank consumers: the window clamp, and a reranker bound at the minimum window refused with no request sent. | Rebuild |
 | `contracts/inference/capability/rerank.contract.test.ts` | Capability contracts: positive whole window, closed modalities. The floor's `windowEstimated` value only restates a constant, and a measured window parsing with the flag false only restates an optional boolean field. | Rebuild the refusals; drop the two flag checks. |
 
@@ -86,10 +87,22 @@ Each scratch production change failed the named cases and was reverted.
 | openai-compat document budget cut to a quarter | Every `needle` case and the late-closing case; `text` cases pass |
 | The room junction ignores its chat id | Databank cut, both shapes |
 | `rerankOrKeep` skips the mixC rerank | Memory recall, both shapes |
+| `recallMemory` skips its mode-off return | Recall pipeline: mode off |
+| `recallMemory` skips its empty-pool return | Recall pipeline: empty pool |
+| The surfaced count is one too high | Five recall pipeline cases and the mode and empty-pool cases |
+| The `maxTier` ceiling filter is dropped | Recall pipeline: the ceiling |
+| The live-window drop is skipped | Recall pipeline: the live window and the tiered bridge |
+| The bridge or mode verdict is mislabelled | Recall pipeline: tiered and mixA verdicts |
+| `buildRecallQuery` ignores `minScore`, `queryWindow`, `retrieveK` or `rerankTo`, or forces `keywordMatch` on | The matching recall pipeline knob case |
 | The seed move ignores `seed_model` | User choice, then reboot |
 | Adoption ignores the seed's labels | The user's own earlier-model row |
 | `maxInputTokens` accepts any number | Capability contracts |
 | The recorder ignores its chat filter | Recall recorder |
+| The bridge walk advances one position instead of one span | Four bridge unit cases |
+| The bridge merges buckets under one owner | The two per-bucket bridge unit cases |
+| The live window compares with `>` | The boundary unit case |
+| The format keeps a blank body | The blank-body unit case |
+| `applyRerank` places unscorable candidates first, or reverses the omitted hits | The unscorable and omitted-hit unit cases |
 | `applyRerank` swallows a failed rerank call | The failed-rerank case: the search resolves in vector order |
 | `applyRerank` reverses the hits the reranker left unscored | The unscored-order case |
 | openai-compat sends a pair whose query clamps to nothing | The minimum-window case: the search resolves instead of refusing |

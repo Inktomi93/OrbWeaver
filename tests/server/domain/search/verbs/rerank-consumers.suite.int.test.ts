@@ -1,6 +1,6 @@
 // Every consumer that reranks follows the bound cross-encoder over production-built rows. Scripted vectors put the
 // wanted item last in vector order, so a first place is the reranker's work; the rerank wire is answered physically.
-// @subject packages/server/src/domain/search/substrate/rerank.ts
+// @subject packages/kit/src/rerank/index.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { RERANK_MIN_WINDOW_TOKENS } from "@orb/contracts/inference";
