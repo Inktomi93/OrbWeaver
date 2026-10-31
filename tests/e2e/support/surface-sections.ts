@@ -10,7 +10,8 @@ import { applyAsCopyResultSchema, applyFieldsResultSchema, REFINERY_STAGE_PAYLOA
 import { applyRosterPresetInputSchema, HOME_ROSTER_PREVIEW_LIMIT } from "@orb/contracts/roster-preset";
 import { streamAttachInputSchema } from "@orb/contracts/stream";
 import type { CharacterId, ChatId, RefinerySessionId, RosterPresetId } from "@orb/kit/ids";
-import { controlledPanel, publishSurfaceInventory } from "@orb/testkit/browser/spec";
+import type { DisclosureWalkHooks } from "@orb/testkit/browser/spec";
+import { controlledPanel, publishSurfaceInventory, usesProgrammaticScroll, walkDisclosures } from "@orb/testkit/browser/spec";
 import type { SurfaceCoverageDisposition, SurfaceCoverageInventory, SurfaceProviderEvidence } from "@orb/testkit/iso";
 import { parseSurfaceProviderEvidence } from "@orb/testkit/iso";
 import { CORPUS_STRUCTURED_REPLIES } from "@orb/testkit/node/composed";
@@ -18,6 +19,7 @@ import { attachNativeFile, isTrpcRequestFor, matchesTrpcRequestInput, readTrpcOu
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Locator, Request, Response } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import { CHARACTERS_SECTION_LABEL } from "#client/features/character/lib/characters-section-label.ts";
 import { CHATS_SECTION_LABEL } from "#client/features/chat/lib/chats-section-label.ts";
 import { homeAlsoOpenVisible } from "#client/features/chat/lib/home-also-open-visibility.ts";
@@ -74,10 +76,6 @@ interface ScrollGeometry {
   readonly snap: string;
   readonly terminal: { readonly start: number; readonly end: number; readonly position: string | null } | null;
   readonly port: { readonly start: number; readonly end: number };
-}
-
-function usesProgrammaticScroll(journey: Journey): boolean {
-  return journey.flow.page.context().browser()?.browserType().name() === "webkit" && journey.flow.info.project.use.isMobile === true;
 }
 
 function expectSubject(journey: Journey, id: string, kind: string): void {
@@ -181,7 +179,7 @@ async function reveal(journey: Journey, side: "list" | "context"): Promise<boole
     if (side === "list") {
       await switchListScreen(journey);
     } else {
-      await journey.flow.page.getByRole("button", { name: "Show details", exact: true }).click();
+      await journey.flow.page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     }
     observe(
       journey,
@@ -240,88 +238,19 @@ async function tabBodies(journey: Journey, scope: Locator, prefix: string, depth
   }
 }
 
-async function disclosures(journey: Journey, scope: Locator, prefix: string): Promise<void> {
-  const opened: Locator[] = [];
-  for (let index = 0; index < MAX_DISCLOSURES; index += 1) {
-    const closed = scope.locator('[data-slot="collapsible-trigger"][aria-expanded="false"]:not([aria-haspopup]):visible');
-    if ((await closed.count()) === 0) {
-      break;
-    }
-    const rootIndex = await closed.first().evaluate(
-      (node, container) => {
-        const host = node.closest('[data-slot="collapsible-root"]');
-        if (host === null) {
-          throw new Error("The production disclosure has no semantic host");
-        }
-        return [...container.querySelectorAll('[data-slot="collapsible-root"]')].indexOf(host);
-      },
-      await scope.elementHandle(),
-    );
-    expect(rootIndex).toBeGreaterThanOrEqual(0);
-    const host = scope.locator('[data-slot="collapsible-root"]').nth(rootIndex);
-    const remembered = host.locator('[data-slot="collapsible-trigger"]').first();
-    const id = `${prefix}/disclosure-${String(index)}`;
-    expectSubject(journey, id, "disclosure");
-    await journey.flow.action(`${prefix}/disclosure-${String(index)}`, {
-      action: async () => {
-        await remembered.click();
-      },
-      ready: async () => {
-        await expect(remembered).toHaveAttribute("aria-expanded", "true");
-        await expect(remembered).toHaveAttribute("aria-controls", /.+/u);
-        const body = await controlledPanel(remembered);
-        await ready(body);
-      },
-    });
-    opened.push(remembered);
-    const body = await controlledPanel(remembered);
-    await checkpoint(journey, `${prefix}/disclosure-${String(index)}`, body);
-    await nativeDetails(journey, body, `${prefix}/disclosure-${String(index)}`);
-  }
-  const remaining = await scope.locator('[data-slot="collapsible-trigger"][aria-expanded="false"]:not([aria-haspopup]):visible').count();
-  observe(
-    journey,
-    `${prefix}/disclosures`,
-    remaining === 0 ? "visited" : "unvisited",
-    `${String(opened.length)} nested disclosures opened; ${String(remaining)} remain beyond the safety bound`,
-  );
-  for (const trigger of opened.toReversed()) {
-    await trigger.click();
-    await expect(trigger).toHaveAttribute("aria-expanded", "false");
-  }
-  await nativeDetails(journey, scope, prefix);
-}
-
-async function nativeDetails(journey: Journey, scope: Locator, prefix: string, depth = 0): Promise<void> {
-  const candidates = scope.locator("details");
-  const indices = await candidates.evaluateAll(
-    (nodes, container) =>
-      nodes.flatMap((node, index) => {
-        const parent = node.parentElement?.closest("details") ?? null;
-        const nested = parent !== null && parent !== container && container.contains(parent);
-        return !nested && node.getClientRects().length > 0 ? [index] : [];
-      }),
-    await scope.elementHandle(),
-  );
-  if (depth >= MAX_DEPTH && indices.length > 0) {
-    observe(journey, `${prefix}/nested-details`, "unvisited", `${String(indices.length)} native details exceed the traversal bound`);
-    return;
-  }
-  for (const index of indices) {
-    const detail = candidates.nth(index);
-    const id = `${prefix}/details-${String(index)}`;
-    expectSubject(journey, id, "native-details");
-    const wasOpen = await detail.evaluate((node) => node.hasAttribute("open"));
-    if (!wasOpen) {
-      await detail.locator(":scope > summary").click();
-    }
-    await expect(detail).toHaveAttribute("open", /.*/u);
-    await checkpoint(journey, id, detail);
-    await nativeDetails(journey, detail, id, depth + 1);
-    if (!wasOpen) {
-      await detail.locator(":scope > summary").click();
-    }
-  }
+function disclosureHooks(journey: Journey): DisclosureWalkHooks {
+  return {
+    limit: MAX_DISCLOSURES,
+    depthLimit: MAX_DEPTH,
+    completed: "visited",
+    id: (path, kind, index) => `${path}/${kind}-${String(index)}`,
+    expect: (id, kind) => expectSubject(journey, id, kind),
+    action: async (id, step) => journey.flow.action(id, step),
+    checkpoint: async (id, scope) => checkpoint(journey, id, scope),
+    record: (id, status, reason) => observe(journey, id, status, reason),
+    ready,
+    summary: (path) => ({ disclosures: `${path}/disclosures`, nestedDetails: `${path}/nested-details` }),
+  };
 }
 
 async function menuBody(journey: Journey, menu: Locator, prefix: string, depth: number): Promise<void> {
@@ -593,7 +522,7 @@ async function loadNativePages(
     journey,
     id,
     "visited",
-    `${String(loaded)} actual rows loaded through ${usesProgrammaticScroll(journey) ? "CSSOM positioning, not wheel or touch proof" : "native scrolling"} against the exact production query census`,
+    `${String(loaded)} actual rows loaded through ${usesProgrammaticScroll(journey.flow.page, journey.flow.info) ? "CSSOM positioning, not wheel or touch proof" : "native scrolling"} against the exact production query census`,
   );
 }
 
@@ -726,7 +655,7 @@ async function scrollWindow(
         before,
         after: await scrollGeometry(viewport, axis),
         deliveries,
-        input: usesProgrammaticScroll(journey) ? "programmatic-positioning; not wheel or touch proof" : "native-wheel",
+        input: usesProgrammaticScroll(journey.flow.page, journey.flow.info) ? "programmatic-positioning; not wheel or touch proof" : "native-wheel",
         subject: await viewport.evaluate((node) => ({
           tag: node.tagName,
           slot: node.getAttribute("data-slot"),
@@ -773,7 +702,7 @@ async function nativeWheel(
   axis: string,
   delta: number,
 ): Promise<{ target: string; defaultPrevented: boolean; reached: boolean } | null> {
-  if (usesProgrammaticScroll(journey)) {
+  if (usesProgrammaticScroll(journey.flow.page, journey.flow.info)) {
     await test.step("Programmatic positioning (mobile WebKit; not wheel or touch evidence)", async () => {
       await viewport.evaluate((node, input) => node.scrollBy(input.axis === "x" ? input.delta : 0, input.axis === "y" ? input.delta : 0), { axis, delta });
       await viewport.evaluate(async () => await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
@@ -857,7 +786,7 @@ function windowReached(state: ScrollGeometry, ratio: number): boolean {
 
 async function inspect(journey: Journey, scope: Locator, id: string): Promise<void> {
   await checkpoint(journey, id, scope);
-  await disclosures(journey, scope, id);
+  await walkDisclosures(scope, id, disclosureHooks(journey));
   await menus(journey, scope, id);
   await scrollWindows(journey, scope, id);
 }

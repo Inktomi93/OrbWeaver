@@ -4,6 +4,7 @@
 import { CORPUS_MODE_LABELS, CORPUS_WHOLE_LABEL, pruneConfirmLabel, testId } from "@orb/client/lib";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
+import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import { LEADERBOARD_ROW_ATTR } from "#client/features/stats/lib/leaderboard-row-attr.ts";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
@@ -97,7 +98,7 @@ test.describe("committed corpus workbench", () => {
     const main = page.locator(MAIN);
     const context = page.locator(CORPUS_CONTEXT);
     await expect(modes.getByRole("radio", { name: CORPUS_MODE_LABELS.explore })).toHaveAttribute("aria-checked", "true");
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     await expect(context.getByText(CORPUS_WHOLE_LABEL, { exact: true })).toBeVisible();
     await expect(context.getByRole("tab", { name: "Archetypes", exact: true })).toBeVisible();
 
@@ -198,7 +199,7 @@ test.describe("committed corpus workbench", () => {
     await openCorpusOnPhone(page);
     const list = page.locator(CORPUS_LIST);
     await expect.poll(() => list.evaluate((node) => node.contains(document.activeElement))).toBe(true);
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     const context = page.locator(CORPUS_CONTEXT);
     await expect(context).toHaveAttribute("data-panel-mode", "overlay");
     await expect.poll(() => context.evaluate((node) => node.contains(document.activeElement))).toBe(true);

@@ -5,6 +5,7 @@ import { characterDetailSchema } from "@orb/contracts/character";
 import { routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { AUTOSAVE_RESTORED_LEAD, AUTOSAVE_RESUME_NAME, AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import type { CharacterDraftStatusStory } from "./_draft-status-stories.tsx";
 
 const STORY = "tests/client/features/character/components/_draft-status-stories/CharacterDraftStatusStory";
@@ -39,18 +40,18 @@ test("a restored draft reads as unsaved with a way to resume, and a fresh load r
   const status = form.locator('[data-slot="autosave-status"]');
   const name = form.getByRole("textbox", { name: "Name", exact: true });
   await expect(name).toHaveValue(stored);
-  await expect(status).toHaveText("Saved");
+  await expect(status).toHaveText(AUTOSAVE_SAVED_TEXT);
 
   await name.fill(edited);
-  await expect(status).toContainText("Save failed");
+  await expect(status).toContainText(AUTOSAVE_SAVE_FAILED_TEXT);
 
   await component.update({ characterId, mounted: false });
   await component.update({ characterId });
   await expect(name).toHaveValue(edited);
-  await expect(status).toContainText("Restored draft");
-  await expect(status).not.toHaveText("Saved");
+  await expect(status).toContainText(AUTOSAVE_RESTORED_LEAD);
+  await expect(status).not.toHaveText(AUTOSAVE_SAVED_TEXT);
   failSaves = false;
-  await status.getByRole("button", { name: "Resume saving", exact: true }).click();
-  await expect(status).toHaveText("Saved");
+  await status.getByRole("button", { name: AUTOSAVE_RESUME_NAME, exact: true }).click();
+  await expect(status).toHaveText(AUTOSAVE_SAVED_TEXT);
   expect((await caller.character.get({ characterId })).name).toBe(edited);
 });

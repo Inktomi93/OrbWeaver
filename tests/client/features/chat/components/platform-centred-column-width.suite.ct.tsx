@@ -1,17 +1,13 @@
-// A centred chat style keeps one column width and one chip position whether a reply holds prose or a code block,
-// at a desktop container wide enough for the reading measure.
-import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import type { CorpusPlayback } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
 import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 import type { ReadingRoom } from "./chat-style-reading.fixtures.ts";
-import { createReadingRoom, openReadingRoom, TAIL_MESSAGES } from "./chat-style-reading.fixtures.ts";
+import { createReadingRoom, openReadingStyle, roomStoryProps, TAIL_MESSAGES } from "./chat-style-reading.fixtures.ts";
 
 const ROOM_STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const ROW = '[data-slot="message-row"]';
@@ -65,15 +61,6 @@ async function placementOf(page: Page, id: MessageId): Promise<Placement> {
   return { columnWidth: column.width, columnX: column.x, chipX: chipBox === null ? null : chipBox.x };
 }
 
-function roomStoryProps(): { readonly chatId: ChatId } {
-  return { chatId: roomId };
-}
-
-async function openStyle(page: Page, corpus: CorpusPlayback, chatStyle: ThemeChatStyle): Promise<void> {
-  await openReadingRoom(page, corpus, root, { chatStyle, art: false });
-  await seedShellState(page, { activeSection: "chats" });
-}
-
 /** The prose reply's placement and the code reply's, once both rows are on screen. */
 async function placements(page: Page): Promise<{ readonly prose: Placement; readonly code: Placement }> {
   await expect(page.locator(`${ROW}[data-message-id="${codeId}"] pre`)).toBeVisible();
@@ -83,7 +70,8 @@ async function placements(page: Page): Promise<{ readonly prose: Placement; read
 
 for (const chatStyle of CENTRED_STYLES) {
   test(`${chatStyle} keeps one column width and chip position for a prose row and a code row`, async ({ corpus, mount, page }) => {
-    await openStyle(page, corpus, chatStyle);
+    await openReadingStyle(page, corpus, chatStyle);
+    await seedShellState(page, { activeSection: "chats" });
     await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
     const { prose, code } = await placements(page);
     expect(code).toEqual(prose);

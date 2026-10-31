@@ -34,6 +34,7 @@ import { browserSessionDocumentHost } from "./compose/client-runtime.ts";
 import { stampAppearanceBootHint } from "./compose/stamp-appearance-boot-hint.ts";
 import { requireQueryBoundary } from "./data/suspense-reads.ts";
 import { installAppReadySignal } from "./lib/app-ready-signal.ts";
+import { APP_ROOT_ID } from "./lib/boot-names.ts";
 import { bindRouteCrashReporter, routeResolution, router } from "./routes/router.tsx";
 import "./styles/index.ts";
 
@@ -131,7 +132,7 @@ bindRouteCrashReporter(reportClientError);
 // always wins, and an axis this device has never been told stamps nothing (`#state` appearance-boot-hint).
 stampAppearanceBootHint();
 
-const rootEl = document.getElementById("root");
+const rootEl = document.getElementById(APP_ROOT_ID);
 if (rootEl === null) {
   throw new Error("orbweaver: #root mount node missing from index.html");
 }

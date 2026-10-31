@@ -23,6 +23,7 @@ import { CSRF_HEADER, viewerViewSchema } from "@orb/contracts/identity";
 import type { Handle, UserId } from "@orb/kit/ids";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { z } from "zod";
+import { APP_READY_ATTR } from "#client/lib/boot-names.ts";
 import { SESSION_COOKIE } from "./actors.ts";
 import { openChatByTitle } from "./chat-room.ts";
 
@@ -41,10 +42,12 @@ export interface BrowserActorCredentials {
   readonly expectedUserId?: UserId;
 }
 
-const APP_READY = "html[data-app-ready]";
+const APP_READY = `html[${APP_READY_ATTR}]`;
 const COOKIE_ACTOR_HEADERS = { [CSRF_HEADER]: "1", forwarded: "for=192.0.2.1" } as const;
 // The login route requires the CSRF header (blocks login-CSRF), so this actor sends it exactly as the real client does.
 const READY_TIMEOUT_MS = 30_000;
+/** What a refused browser-actor login says, so a spec that expects the refusal asserts the same words. */
+export const LOGIN_FAILED = "login failed";
 /** The chat header's roster entry, by its ACCESSIBLE NAME prefix (`Members — <count>`) — the count varies
  *  with the room, so the prefix is the stable half. */
 const MEMBERS_ENTRY = '[aria-label^="Members "]';
@@ -88,7 +91,7 @@ export async function authenticateBrowserContext(context: BrowserContext, baseUr
   const { handle, password } = account;
   const res = await context.request.post(`${baseUrl}/api/auth/login`, { form: { handle, password }, headers: { [CSRF_HEADER]: "1" } });
   if (!res.ok()) {
-    throw new Error(`Browser actor login failed (HTTP ${res.status()})`);
+    throw new Error(`Browser actor ${LOGIN_FAILED} (HTTP ${res.status()})`);
   }
   // A relay tell disables ambient owner fallback, so this read proves the cookie admitted the requested human.
   const response = await context.request.get(`${baseUrl}/api/trpc/sessions.me`, { headers: await browserActorRequestHeaders(context, baseUrl) });

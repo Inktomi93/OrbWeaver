@@ -8,6 +8,7 @@ import { seedShellState } from "@orb/testkit/browser/spec";
 import { routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { createFirstBootHarness, seedCharacter } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
+import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const LIST = '.shell-panel[data-panel-side="list"]';
@@ -78,7 +79,7 @@ test("the Archetypes door inside the open CONTEXT sheet closes it, reveals the o
   await routeUndistilledLibrary(page, root, CHARACTER_HANDLES);
   await mount<typeof ShellAmbientStory>(STORY, {});
   const context = page.locator(CONTEXT);
-  await page.getByRole("button", { name: "Show details", exact: true }).click();
+  await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
   await expect(context).toHaveAttribute("data-panel-mode", "overlay");
   await context.getByRole("tab", { name: "Archetypes", exact: true }).click();
   const door = context.getByRole("button", { name: "Show Explore overview", exact: true });

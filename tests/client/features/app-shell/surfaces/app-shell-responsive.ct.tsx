@@ -6,6 +6,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeRoom, SHELL_STORIES, touchDrag } from "./app-shell-ct.ts";
 
@@ -118,7 +119,7 @@ test.describe("the You sheet", () => {
     await mount<typeof AppShellStory>(STORY, {});
     await youTab(page).tap();
     await expect(sheet(page)).toBeVisible();
-    await page.locator('.shell-rail [data-mobile="tab"][aria-label="Chats"]').tap();
+    await page.locator(`.shell-rail [data-mobile="tab"][aria-label=${JSON.stringify(SECTION_LABELS.chats)}]`).tap();
     await expect(sheet(page)).toHaveCount(0);
     await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "chats");
     await expect
@@ -289,7 +290,7 @@ test.describe("one shell at the narrowest phone", () => {
     const context = page.locator(CONTEXT);
     const content = page.locator(".shell-content");
     await expect(context.getByRole("button", { name: /^Close /u })).toHaveCount(0);
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     await expect(context).toHaveAttribute("data-panel-mode", "overlay");
     await expect.poll(() => context.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe("none");
     await expect(content).toHaveAttribute("inert", "");
@@ -307,7 +308,7 @@ test.describe("one shell at the narrowest phone", () => {
     await openFirstCharacter(page);
     const context = page.locator(CONTEXT);
     await expect(page.locator(".shell-grid")).toHaveCSS("isolation", "isolate");
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     await expect(context).toHaveAttribute("data-panel-mode", "overlay");
     const ownerAt = (x: number, y: number): Promise<string> =>
       page.evaluate(

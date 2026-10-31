@@ -43,6 +43,7 @@ import { castId } from "@orb/kit/ids";
 import { pageArray } from "@orb/tooling/floor/browser/page-validate";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import { openContextTab, openNewestChat, typeAndSend } from "./support/chat-room.ts";
 import { hasRpgFlush, rpgTurnSettled } from "./support/rpg-settle.ts";
 import { WAIT_LIVE_TURN_MS, WAIT_RPG_ROUND_MS, WAIT_SETTLE_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
@@ -105,7 +106,7 @@ const ACTOR_TRACKER_DEFS: readonly TrackerDefInput[] = [
  *  TOOLBAR, not a tablist (#112 — two rails off one Tabs root cannot both be honest tab groups).
  *  Idempotent. */
 async function openGamePanel(page: Page): Promise<void> {
-  const show = page.getByRole("button", { name: "Show details" });
+  const show = page.getByRole("button", { name: contextToggleLabel(true) });
   if ((await show.count()) > 0) {
     await show.first().click();
   }

@@ -13,6 +13,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { makePluginRow } from "@orb/testkit/node/helpers";
 import type { Locator, Page } from "@playwright/test";
 import { commandShortcutLabel } from "#client/features/app-shell/lib/command-shortcut-label.ts";
+import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { AppShellTrailProjectionStory } from "./_trail-projection-stories.tsx";
 import { JUMP_CHIP, namedGroupRoom, routeRoom, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -121,7 +122,7 @@ test.describe("on a phone", () => {
   test("the Plugin pages screen name carries the registered page count beside the section noun", async ({ corpus, mount, page }) => {
     await routePluginPages(page, corpus, 2);
     await mount<typeof AppShellStory>(STORY, {});
-    await expect(page.locator(NARROW_TITLE)).toHaveText(`${SECTION_LABELS.extensions} · 2`);
+    await expect(page.locator(NARROW_TITLE)).toHaveText(censusTitle(SECTION_LABELS.extensions, 2) ?? SECTION_LABELS.extensions);
   });
 
   test("with no plugin page registered the screen name is the bare section noun", async ({ corpus, mount, page }) => {
@@ -134,9 +135,9 @@ test.describe("on a phone", () => {
     await routePluginPages(page, corpus, 3);
     await mount<typeof AppShellStory>(STORY, {});
     const title = page.locator(NARROW_TITLE);
-    await expect(title).toHaveText(`${SECTION_LABELS.extensions} · 3`);
+    await expect(title).toHaveText(censusTitle(SECTION_LABELS.extensions, 3) ?? SECTION_LABELS.extensions);
     await page.getByLabel("Search plugin pages").fill("no page has this name");
-    await expect(title).toHaveText(`${SECTION_LABELS.extensions} · 0 of 3`);
+    await expect(title).toHaveText(censusTitle(SECTION_LABELS.extensions, "0 of 3") ?? SECTION_LABELS.extensions);
   });
 
   for (const width of PHONE_WIDTHS) {
@@ -442,7 +443,7 @@ test.describe("an open named group room", () => {
     await expect.poll(() => clientWidth(input)).toBeGreaterThanOrEqual(await titleFloor(page));
     await page.keyboard.press("Escape");
 
-    await page.getByRole("button", { name: "Hide details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).click();
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "collapsed");
     await expect(page.locator(".shell-topbar-title:visible")).toHaveText(room.cast);
     await expect(page.locator(MEMBERS_CHIP)).toBeVisible();
@@ -491,7 +492,7 @@ test.describe("an open named group room", () => {
       const grid = page.locator(".shell-grid");
       await expect(grid).toHaveAttribute("data-context-mode", "collapsed");
       await expect.poll(() => visibleTitles(page)).toBe(1);
-      await page.getByRole("button", { name: "Show details", exact: true }).click();
+      await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
       await expect(grid).not.toHaveAttribute("data-context-mode", "collapsed");
       await expect(page.locator('[data-slot="context-bracket-header"]')).toBeVisible();
       await expect(page.locator('[data-slot="context-bracket-band"] :is(h1, h2, h3)')).toHaveCount(0);
@@ -507,7 +508,7 @@ test.describe("an open named group room", () => {
     await library(page).getByRole("button").first().click();
     await expect(page.getByRole("button", { name: "Back to Characters", exact: true })).toBeVisible();
     await expect.poll(() => visibleTitles(page)).toBe(1);
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     await expect(page.locator('[data-slot="context-bracket-band"] h2')).toBeVisible();
     await expect.poll(() => visibleTitles(page)).toBe(0);
     await page.keyboard.press("Escape");

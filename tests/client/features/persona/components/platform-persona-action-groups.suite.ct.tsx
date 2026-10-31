@@ -5,6 +5,7 @@ import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import type { PersonaActionGroupsStory } from "./_persona-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/persona/components/_persona-action-groups-stories/PersonaActionGroupsStory";
@@ -187,7 +188,7 @@ for (const regime of REGIMES) {
         firstSave.fail();
       }
       await expect(status).toHaveAttribute("role", "alert");
-      await expect(status).toContainText("Save failed");
+      await expect(status).toContainText(AUTOSAVE_SAVE_FAILED_TEXT);
       await expect(title).toHaveValue(nextTitle);
       const retry = status.getByRole("button", { name: "Retry", exact: true });
       const geometry = await actionGroupGeometry(status, [retry]);
@@ -196,7 +197,7 @@ for (const regime of REGIMES) {
       await retry.focus();
       await page.keyboard.press("Enter");
       await expect(status).toHaveAttribute("role", "status");
-      await expect(status).toHaveText("Saved");
+      await expect(status).toHaveText(AUTOSAVE_SAVED_TEXT);
       await expect.poll(async () => (await caller.persona.get({ personaId: persona.id })).title).toBe(nextTitle);
       expect(calls.count("persona.update")).toBe(2);
       await expect(title).toHaveValue(nextTitle);

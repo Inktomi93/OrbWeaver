@@ -6,6 +6,7 @@ import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProc
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { z } from "zod";
+import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { SectionShellStory } from "../_surface-stories.tsx";
 import type { HeatmapLayoutStory } from "./_heatmap-layout-stories.tsx";
@@ -46,7 +47,7 @@ for (const regime of [
       const mode = page.getByRole("radiogroup", { name: "Corpus mode", exact: true }).getByRole("radio", { name: CORPUS_MODE_LABELS.insights, exact: true });
       await mode.click();
       await expect(mode).toHaveAttribute("aria-checked", "true");
-      await page.getByRole("button", { name: "Show details", exact: true }).click();
+      await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
       const tab = page.locator('.shell-panel[data-panel-side="context"]').getByRole("tab", { name: "Time", exact: true });
       await tab.click();
       await expect(tab).toHaveAttribute("aria-selected", "true");

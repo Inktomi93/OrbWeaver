@@ -9,6 +9,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
+import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import type { RefineryCompositionShellStory } from "./_refinery-composition-stories.tsx";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -170,7 +171,7 @@ for (const regime of REGIMES) {
       expect(scrolled.top).toBeGreaterThan(0);
       expect(scrolled.top).toBe(scrolled.maximum);
       await expect(owner).not.toBeInViewport();
-      await page.getByRole("button", { name: "Show details", exact: true }).click();
+      await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
       const context = page.locator(CONTEXT);
       await expect(context.getByRole("tab", { name: "Runs", exact: true })).toHaveAttribute("aria-selected", "true");
       await expect(context.getByText("No runs yet", { exact: true })).toBeVisible();
@@ -201,7 +202,7 @@ for (const regime of REGIMES) {
       await seedShellState(page, { activeSection: "refinery", panelOverrides: { refinery: { list: "collapsed", context: "collapsed" } } });
       await mount<typeof RefineryCompositionShellStory>(STORY, { sessionId: session.id });
       await expect(page.getByTestId(testId("refineryMasthead"))).toBeVisible();
-      await page.getByRole("button", { name: "Show details", exact: true }).click();
+      await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
       const context = page.locator(CONTEXT);
       await context.getByRole("tab", { name: "Setup", exact: true }).click();
       const view = context.getByRole("button", { name: "View Original card", exact: true });

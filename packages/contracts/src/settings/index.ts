@@ -551,9 +551,9 @@ export type ChatSettings = z.infer<typeof chatSchema>;
 // the collection-surface CONSUMER reads it and passes `limit` into the query (never a factory-internal read,
 // tier direction). Default 30 = the former client `PAGE_LIMIT` const (byte-identical); the ceiling mirrors
 // the server list verb's MAX_LIMIT=100 (a larger request is server-clamped anyway).
-const LIBRARY_PAGE_SIZE_MIN = 10;
+export const LIBRARY_PAGE_SIZE_MIN = 10;
 const LIBRARY_PAGE_SIZE_MAX = 100;
-const LIBRARY_PAGE_SIZE_DEFAULT = 30;
+export const LIBRARY_PAGE_SIZE_DEFAULT = 30;
 const librarySchema = z
   .object({
     pageSize: z.int().min(LIBRARY_PAGE_SIZE_MIN).max(LIBRARY_PAGE_SIZE_MAX).catch(LIBRARY_PAGE_SIZE_DEFAULT).default(LIBRARY_PAGE_SIZE_DEFAULT),

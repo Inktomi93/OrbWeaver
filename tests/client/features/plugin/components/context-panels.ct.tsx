@@ -7,6 +7,7 @@ import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SE
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import { CHAT_PANEL_HIDE_LABEL, PLUGIN_PANELS_SHEET_LABEL, showInChatLabel } from "#client/features/plugin/lib/plugin-copy.ts";
 import {
   CHAT_PLUGINS_EMPTY_TITLE,
@@ -193,7 +194,7 @@ test.describe("touch placement", () => {
     await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
     const { room } = await preparePanels(root, page, corpus);
     await mount<typeof PluginHideFocusStory>("tests/client/features/plugin/components/_hide-focus-stories/PluginHideFocusStory", { chatId: room.id });
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     await page.getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true }).click();
     const context = page.getByRole("region", { name: CHAT_PLUGINS_TAB_LABEL, exact: true });
     await expect(context.getByText("First panel content", { exact: true })).toBeVisible();

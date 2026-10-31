@@ -6,6 +6,7 @@ import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
+import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import type { RpgRoomStory } from "./_own-key-panels-stories.tsx";
 
 test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
@@ -62,7 +63,7 @@ for (const populated of [false, true]) {
       ]),
     });
     await mount<typeof RpgRoomStory>(STORY, { chatId });
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     const header = page.locator('[data-slot="rpg-takeover-header"]');
     const stone = header.locator('[data-slot="waystone"]');
     await expect(header).toBeVisible();

@@ -5,6 +5,7 @@ import { dropOn, seedShellState, settledBox } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import type { AppShellModalStory, AppShellNoticeStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -171,11 +172,11 @@ test.describe("with an open sheet and keyboard", () => {
     // retried by scrolling the page, which moves every box this test then measures.
     await expect(page.getByRole("button", { name: "Back to Characters", exact: true })).toBeVisible();
     await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== "running"));
-    await page.getByRole("button", { name: "Show details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     const context = page.locator('.shell-panel[data-panel-side="context"]');
     await expect(context).toHaveAttribute("data-panel-mode", "overlay");
     await page.setViewportSize({ width: 844, height: 390 });
-    await expect(page.getByRole("button", { name: "Hide details", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: contextToggleLabel(false), exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Raise a notice", exact: true }).click();
     const notice = page.getByRole("status", { name: "Imported with notes", exact: true });
     await expect(notice).toBeVisible();

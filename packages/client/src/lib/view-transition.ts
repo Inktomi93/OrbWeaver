@@ -23,6 +23,7 @@
 // simply carried locally.
 
 import { prefersReducedMotionNow } from "@orb/ui/lib";
+import { SHELL_SWAP_DEADLINE_PROPERTY } from "./view-transition-names.ts";
 import { isDocumentHidden, observeViewTransition } from "./view-transition-settlement.ts";
 
 type VtUpdate = () => void | Promise<void>;
@@ -134,7 +135,7 @@ interface VtComputedStyle {
 function destinationDeadline(g: VtGlobals): number {
   const grid = g.document?.querySelector?.(".shell-grid");
   const readStyle = Reflect.get(globalThis, "getComputedStyle") as ((element: unknown) => VtComputedStyle) | undefined;
-  const raw = grid === null || grid === undefined || readStyle === undefined ? "" : readStyle(grid).getPropertyValue("--shell-swap-deadline").trim();
+  const raw = grid === null || grid === undefined || readStyle === undefined ? "" : readStyle(grid).getPropertyValue(SHELL_SWAP_DEADLINE_PROPERTY).trim();
   const value = Number.parseFloat(raw);
   if (Number.isNaN(value)) {
     return DESTINATION_DEADLINE_MS;

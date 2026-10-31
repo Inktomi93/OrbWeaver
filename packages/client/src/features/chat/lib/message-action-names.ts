@@ -29,6 +29,9 @@ export const MESSAGE_FORK_NAME = "Fork chat here";
 /** The viewer's own user row's restamp door: their lines from this one onward take their current persona. */
 export const MESSAGE_REATTRIBUTE_NAME = "Reattribute from here";
 
+/** The host-only door to the prompt a reply was generated from, in the row's overflow menu. */
+export const MESSAGE_VIEW_WIRE_TRACE_NAME = "View wire trace…";
+
 /** The row's reaction door (`message-actions-row.tsx`, ordered AFTER Edit/Fork by the #786 owner ruling). */
 export const MESSAGE_REACTION_ADD_NAME = "Add a reaction";
 

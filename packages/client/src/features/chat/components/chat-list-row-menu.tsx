@@ -24,6 +24,7 @@ import { MenuItem, MenuLinkItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger 
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { RowActionsMenu } from "#components";
+import { ROW_RENAME_NAME } from "../../../lib/row-menu-names.ts";
 import type { ChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
 import { RenameChatDialog } from "./rename-chat-dialog.tsx";
 
@@ -82,7 +83,7 @@ export function ChatListRowMenu({ actions, chatId, title, displayTitle, rowName,
       >
         <MenuItem onClick={openRename}>
           <Icon icon={Pencil} size="sm" />
-          Rename
+          {ROW_RENAME_NAME}
         </MenuItem>
         <MenuItem onClick={(): void => actions.star({ chatId, starred: !starred })}>
           <Icon icon={Star} size="sm" />

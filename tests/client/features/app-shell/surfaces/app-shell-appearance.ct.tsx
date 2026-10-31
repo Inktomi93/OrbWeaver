@@ -17,6 +17,7 @@ import type { CorpusPlayback } from "@orb/testkit/iso";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { contextToggleLabel } from "#client/features/app-shell/lib/context-toggle-label.ts";
 import { channelName } from "../../../lib/appearance-channel-names.ts";
 import type { AppShellModalStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { ShellToPendingStory } from "./_shell-handover-stories.tsx";
@@ -481,7 +482,7 @@ test.describe("glass and elevation", () => {
     await expect.poll(() => carrierBlur(page.locator(LIST))).toContain("blur(");
     await expect.poll(() => carrierBlur(page.locator(CONTEXT))).toContain("saturate(");
 
-    await page.getByRole("button", { name: "Hide details", exact: true }).click();
+    await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).click();
     await page.getByRole("button", { name: "Hide list panel", exact: true }).click();
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "collapsed");
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "collapsed");

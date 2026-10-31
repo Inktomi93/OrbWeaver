@@ -1,0 +1,13 @@
+{
+  "rewrites": [
+    { "literal": "Show details", "expression": "contextToggleLabel(true)", "binding": "contextToggleLabel", "from": "#client/toggle.ts", "files": ["a.ts"] },
+    { "literal": "Hide details", "expression": "contextToggleLabel(false)", "binding": "contextToggleLabel", "from": "#client/toggle.ts", "files": ["a.ts"] },
+    {
+      "pattern": "$ROWS.find(($ROW) => $ROW.key === \"fontScale\")?.name ?? \"\"",
+      "expression": "channelName(\"fontScale\")",
+      "binding": "channelName",
+      "from": "#client/channel.ts",
+      "files": ["a.ts"]
+    }
+  ]
+}
