@@ -29,4 +29,10 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+3 rows: 3 applied, 0 kept, 0 owner questions.
+
+`UtilityPresetPatchVars.section`, `.patch`, `.patch.summarizePreset`: the type is replaced by `inferInput<Trpc["settings"]["updateUserSettingsSection"]>` in `packages/client/src/features/credentials/hooks/use-connections-mutations.ts`.
+
+Ran: `pnpm typecheck packages/client/tsconfig.json tsconfig.tests-dom.json` (exit 0).
+
+Reclass list: none.
