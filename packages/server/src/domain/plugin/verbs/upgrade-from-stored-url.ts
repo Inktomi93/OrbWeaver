@@ -5,10 +5,10 @@
 // confirmed, OR a `netHosts` entry the prior manifest never declared), and carries a strict NARROWING forward
 // silently. There is NO silent auto-update: the fetch is re-paste-free (the URL is remembered, not re-typed),
 // but the ACT is still an explicit one-click upgrade, and a widening one comes back disabled for the owner to
-// answer. The ONLY thing this adds over `upgradeFromUrl` is that the URL is the STORED one, not a caller echo.
+// answer. The URL is the STORED one, never a caller echo.
 //
-// OWNER-SCOPED PRE-CHECK BEFORE ANY FETCH — the security ordering the cross-tenant sweep probes, identical to
-// `upgradeFromUrl`. The owned row is loaded first (`getById(ctx.db, caller.userId, pluginId)`); a foreign/missing
+// OWNER-SCOPED PRE-CHECK BEFORE ANY FETCH — the security ordering the cross-tenant sweep probes, the
+// ordering of every URL verb. The owned row is loaded first (`getById(ctx.db, caller.userId, pluginId)`); a foreign/missing
 // id is a leak-free `PluginNotFoundError` (NOT_FOUND) thrown BEFORE `ctx.fetchBundle` ever runs, so a stranger
 // holding another user's real pluginId can never make the server fetch that user's remembered URL on their
 // behalf. A file (`upload`) install has NO remembered source: that is a typed `PluginNoSourceUrlError`

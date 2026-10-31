@@ -4,18 +4,14 @@
 
 import { regexScripts } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import { RegexNotFoundError } from "#src/domain/regex/contract/errors.ts";
 import type { RemoveScriptParams } from "#src/domain/regex/contract/params.ts";
 import type { RegexContext, RegexService } from "#src/domain/regex/contract/service.ts";
-import { loadOwnedScript } from "#src/domain/regex/persistence/queries.ts";
+import { requireOwnedScript } from "#src/domain/regex/persistence/ownership.ts";
 
 export function createRemove(ctx: RegexContext): RegexService["removeScript"] {
   return async ({ principal, scriptId }: RemoveScriptParams) => {
     const ownerId = principal.userId;
-    const record = await loadOwnedScript(ctx.db, ownerId, scriptId);
-    if (record === undefined) {
-      throw new RegexNotFoundError("regex_script", scriptId);
-    }
+    const record = await requireOwnedScript(ctx.db, ownerId, scriptId);
     // PRE-WRITE reach capture (#1746, the entity→room bridge §3.6 residual the world-info book delete
     // established): the CASCADE below tears `chat_regex_scripts` down with the row, so a post-write reach
     // resolves ∅ and every other member of a room that attached this script keeps reading a rack that still

@@ -3,18 +3,15 @@
 // `position` orders the global TIER against itself (the executor applies its input list in order).
 
 import { globalRegexScripts } from "@orb/db";
-import { RegexNotFoundError } from "#src/domain/regex/contract/errors.ts";
 import type { AttachGlobalParams } from "#src/domain/regex/contract/params.ts";
 import type { RegexContext, RegexService } from "#src/domain/regex/contract/service.ts";
-import { listGlobalScripts, loadOwnedScript } from "#src/domain/regex/persistence/queries.ts";
+import { requireOwnedScript } from "#src/domain/regex/persistence/ownership.ts";
+import { listGlobalScripts } from "#src/domain/regex/persistence/queries.ts";
 
 export function createAttachGlobal(ctx: RegexContext): RegexService["attachGlobal"] {
   return async ({ principal, scriptId }: AttachGlobalParams) => {
     const ownerId = principal.userId;
-    const script = await loadOwnedScript(ctx.db, ownerId, scriptId);
-    if (script === undefined) {
-      throw new RegexNotFoundError("regex_script", scriptId);
-    }
+    await requireOwnedScript(ctx.db, ownerId, scriptId);
     const at = ctx.now();
     // Append at the end of the owner's current global tier — a new attachment never silently reorders one.
     const position = (await listGlobalScripts(ctx.db, ownerId)).length;
