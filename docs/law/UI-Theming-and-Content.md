@@ -153,7 +153,7 @@ The **provider-send model** — what is transmitted *to the model as input* — 
 | `renderPolicy` resolution (HTML-trust step · `forbidExternalMedia`) · per-row card tier | `resolveRenderPolicy` (`@orb/contracts/chat`) via `packages/server/src/domain/character/verbs/room-projections.ts` · `packages/client/src/lib/render-trust.ts` |
 | composer image attach · multimodal send | chat domain (extends D21) |
 
-**One-home note (deliberate, recorded):** the `ThemeOverride` Zod clamp exists twice by design — the WIRE schema in `@orb/contracts/theme` (`override.ts`) and the ui-local RENDER clamp in `<ThemeScope>` (`clamp.ts`; `@orb/ui` cannot import contracts — the cake). The structural pairing is asserted by the theme pairing suite, a restoration-register entry (identical field-key sets + enums; the packages never import each other).
+**One-home note (deliberate, recorded):** the `ThemeOverride` Zod clamp exists twice by design — the WIRE schema in `@orb/contracts/theme` (`override.ts`) and the ui-local RENDER clamp in `<ThemeScope>` (`clamp.ts`; `@orb/ui` cannot import contracts — the cake). The structural pairing is asserted by the theme pairing suite, a restoration-register entry (identical field-key sets + enums; the packages never import each other). Both schemas share the `@orb/kit/safe-color` predicates and differ in one: the wire schema asks `isRenderableColor`, the render clamp asks `isSafeColor`. Every value the wire schema keeps, the render clamp keeps (`tests/ui/content/theme-scope/wire-subset-of-render.test.ts`).
 
 ### 12.6 Current checks
 

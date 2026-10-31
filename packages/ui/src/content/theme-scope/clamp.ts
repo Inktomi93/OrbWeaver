@@ -66,6 +66,9 @@ const THEME_SCOPE_RADII = ["base", "control", "card", "full"] as const;
 const DENSITIES = THEME_SCOPE_DENSITIES;
 const RADII = THEME_SCOPE_RADII;
 
+// Asks only `isSafeColor`; the wire twin (`@orb/contracts/theme`) also asks `isRenderableColor`. Every value the wire keeps
+// is kept here (pinned by tests/ui/content/theme-scope/wire-subset-of-render.test.ts). Do not add the parse: this runs
+// on every ThemeScope render and a junk word is unreachable from a wire-parsed override.
 const colorToken = z.string().refine(isSafeColor).optional().catch(undefined);
 const deterministicColorToken = z.string().refine(isDeterministicColor).optional().catch(undefined);
 // The bg is a FILL with a foreground derived from it; .fg remains in the paired wire shape but is not
