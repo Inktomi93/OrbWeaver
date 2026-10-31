@@ -20,14 +20,14 @@
 // guarantee. And because that precondition is minted inline, the per-chat isolation catch below is NOT a
 // silent-skip engine: an isolated chat is COUNTED (`failed`) and logged at `error` level — see there.
 
-import type { ImportWindow } from "@orb/contracts/chat";
+import type { BackfillPassResult, ImportWindow } from "@orb/contracts/chat";
 import type { SummarizeInput } from "@orb/contracts/role-clients";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import { isAborted } from "#primitives/abort";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
 import type { ChatContext } from "../contract/context.ts";
-import type { BackfillPassCounts, MemoryBackfillSweepCounts, MemoryEmbedSpace, MemoryScope, ResolveBackfillMemoryConfig } from "../contract/memory.ts";
+import type { MemoryBackfillSweepCounts, MemoryEmbedSpace, MemoryScope, ResolveBackfillMemoryConfig } from "../contract/memory.ts";
 import type { MemorySweepArgs } from "../contract/workloads.ts";
 import {
   collectConsolidationTier,
@@ -608,7 +608,7 @@ function inputLen(input: SummarizeInput | undefined): number {
 export async function backfillGroupCharacters(
   ctx: ChatContext,
   args: { readonly signal: AbortSignal; readonly ownerId?: UserId | null },
-): Promise<BackfillPassCounts> {
+): Promise<BackfillPassResult> {
   const counts = { scanned: 0, changed: 0 };
   for (const chatId of await loadAllChatIds(ctx, args.ownerId)) {
     if (args.signal.aborted) {

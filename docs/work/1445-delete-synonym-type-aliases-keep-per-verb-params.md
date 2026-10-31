@@ -72,4 +72,16 @@ No exported pure-rename alias remains outside `domain/*/contract/params.ts` and 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Removed (every use points at the target, the alias is gone, `ast-grep` finds no identifier of the name in `packages`, `tooling` and `tests` for `-l ts` and `-l tsx`): all table rows except the kept ones below.
+
+- Where the target was a non-exported interface (`ChatSettingsHostControlsContribution`, `CharacterDetailSectionsContribution`, `RewriteCardDetail`, `DiagnosticRequestCommon`), the interface took the name its consumers used, or was exported under its own name, so one name remains.
+- `PluginVariableOp`, `PluginVariablePrecondition`, `PluginVariableWriteResult` and the `PluginSurfaceSpec` of `packages/contracts/src/plugin/ui.ts` are removed. No guest reaches them: they were file-local or host-side, guests type against `packages/plugin-sdk/shared.d.ts`, and `tests/contracts/plugin/sdk-conformance.test-d.ts` compares structure, never alias names.
+
+Kept:
+
+- `PluginSurfaceSpec` in `packages/plugin-sdk/shared.d.ts`: published guest surface, used by `packages/showcase-plugins/bundles/affinity-tracker/main.ts`.
+- `Logger` in `packages/server/src/foundation/observability/contract/logging.ts`: owner ruling, one home for the logger type at the observability boundary. The scan's `synonym` report for it is accepted. `packages/server/src/infra/network/contract/egress.ts` and `packages/server/src/infra/plugin-host/contract/port.ts` import `Logger` from that contract file. `packages/server/src/transport/trpc/subscriptions.ts` and `packages/server/src/transport/trpc/stream/socket.ts` keep `pino.Logger`: the `package-subpath-crossing` rule refuses the contract file, and importing the observability barrel makes `tests/server/transport/trpc/router-declaration.repo.int.test.ts` fail, because the router declaration would then resolve server source.
+
+Ran green: `pnpm typecheck` (every program), `pnpm depcruise`, `pnpm knip:prod`, `pnpm lint:eslint packages tooling tests`, `pnpm test` on the client, contracts, inference, kit, ui, showcase-plugins and server suites. Timeouts under load passed on rerun.
+
+`pnpm unwired shapes` after the change lists `synonym` only for `Logger` (accepted above) and for per-verb names in `domain/*/contract/params.ts` and `results.ts`. No separate check refuses a new pure-rename alias: that scan is the home, and a lint rule would be a second one.

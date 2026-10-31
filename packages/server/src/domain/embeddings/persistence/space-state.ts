@@ -1,6 +1,6 @@
 // Durable candidate receipts and atomic generation promotion.
 
-import type { VectorScope } from "@orb/contracts/embeddings";
+import type { EmbeddingTask, VectorScope } from "@orb/contracts/embeddings";
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 import {
@@ -18,9 +18,9 @@ import { batchMany, batchStmt } from "@orb/db/query";
 import type { UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
-import type { GenerationReceipt, GenerationTask } from "../contract/generation.ts";
+import type { GenerationReceipt } from "../contract/generation.ts";
 
-function taskOf(scope: VectorScope): GenerationTask {
+function taskOf(scope: VectorScope): EmbeddingTask {
   return scope === "images" ? "imageEmbed" : "embed";
 }
 
@@ -42,7 +42,7 @@ function guard(ownerId: UserId, generation: GenerationReceipt): ReturnType<typeo
 /** Deletes for every vector of the owner's `task` scopes that is not in generation `keep`, each behind `onlyIf`. */
 interface RetireScope {
   readonly ownerId: UserId;
-  readonly task: GenerationTask;
+  readonly task: EmbeddingTask;
   readonly keep: GenerationReceipt["id"];
   readonly onlyIf: ReturnType<typeof sql>;
 }
@@ -70,8 +70,8 @@ function retiredVectorStatements(db: Db, { ownerId, task, keep, onlyIf }: Retire
 export async function readGenerationTargets(db: Db): Promise<
   {
     readonly ownerId: UserId;
-    readonly task: GenerationTask;
-    readonly via: GenerationTask;
+    readonly task: EmbeddingTask;
+    readonly via: EmbeddingTask;
     readonly generationId: GenerationReceipt["id"];
     readonly promoted: boolean;
   }[]
@@ -124,7 +124,7 @@ export async function switchTargetGeneration(
   db: Db,
   input: {
     readonly ownerId: UserId;
-    readonly task: GenerationTask;
+    readonly task: EmbeddingTask;
     readonly from: { readonly generationId: GenerationReceipt["id"]; readonly epoch: number };
     readonly to: GenerationReceipt["id"];
   },

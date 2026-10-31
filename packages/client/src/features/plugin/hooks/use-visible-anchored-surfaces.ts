@@ -1,7 +1,7 @@
 // Resolve caller-owned registrations for one selected host before reading published state.
 // Context and sidecar therefore never mount or read the same registration simultaneously.
 
-import type { PluginCapability, PluginSurfaceAnchor, PluginSurfaceSpec } from "@orb/contracts/plugin";
+import type { PluginCapability, PluginSurfaceAnchor, PluginSurfaceNode } from "@orb/contracts/plugin";
 import type { ChatId, PluginId } from "@orb/kit/ids";
 import { useCoarsePointer } from "@orb/ui/lib";
 import { useQueries, useQuery } from "@tanstack/react-query";
@@ -31,7 +31,7 @@ export type RenderableSurface =
       readonly pluginName: string;
       readonly surfaceId: string;
       readonly title: string;
-      readonly spec: PluginSurfaceSpec;
+      readonly spec: PluginSurfaceNode;
     }
   | {
       readonly tier: "scripted";

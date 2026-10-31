@@ -23,10 +23,9 @@
 // explicitly capped `maxOutputTokens` under its own payload. That arm is narrow on purpose — it fires only on
 // the user's OWN cap, never on the payload-aware floor this file resolves for everyone else.
 
-import type { SideGenPosture } from "@orb/contracts/preset";
+import type { RolePresetParams, SideGenPosture } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { RefineryRewriteMode, RefinerySessionView, RefineryStage } from "@orb/contracts/refinery";
-import type { SideGenSampling } from "@orb/inference";
 import { resolveSideGenSampling } from "@orb/inference";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { StageBudgetFitArgs, StageBudgetMisfit, StageEstimateSubject, StageOutputBudgetArgs, StageSamplingArgs } from "../contract/prompts.ts";
@@ -167,7 +166,7 @@ function resolveStageOutputBudget(args: StageOutputBudgetArgs): number {
  * expressions that happen to agree today. (They did not agree, and the disagreement was the 503 — see this
  * file's header.)
  */
-export function resolveStageSampling(args: StageSamplingArgs): SideGenSampling {
+export function resolveStageSampling(args: StageSamplingArgs): RolePresetParams {
   const { subject, presetParams, contextTokens, inputEstimate } = args;
   const posture: SideGenPosture = SIDE_GEN_POSTURES[REFINERY_POSTURE_BY_STAGE[subject.stage]];
   const floor = resolveStageOutputBudget({

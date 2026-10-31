@@ -11,7 +11,7 @@ import type { AccountCredits, EndpointInspection, GenerationCost } from "@orb/co
 import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
 import { fetchEndpointModels, fetchOpenRouterCatalog } from "#catalog";
-import type { AccountCreditsRequest, GenerationCostRequest, InspectRequest, ListModelsRequest, ProbeRequest, ProviderScrubSet, Resolved } from "#contract";
+import type { DiagnosticRequestCommon, GenerationCostRequest, ListModelsRequest, ProviderScrubSet, Resolved } from "#contract";
 import { ProviderError } from "#contract";
 import type { DiagnosticsDeps, InspectDeps } from "../../contract/openai-backend.ts";
 import { authHeaders, fetchJson, openAiPath } from "../http/fetch-json.ts";
@@ -78,7 +78,7 @@ async function authenticatedRead(deps: DiagnosticsDeps, args: ReadArgs): Promise
  *  elsewhere. Success → `ok`; a typed HTTP 401/403 → `revoked`; anything else → `unreachable`, carrying the
  *  status when the server answered. Upstream
  *  prose is never classification evidence: a 5xx body may mention another request's invalid API key. */
-export async function probeOpenAiCompat(req: ProbeRequest, deps: DiagnosticsDeps): Promise<CredentialHealth> {
+export async function probeOpenAiCompat(req: DiagnosticRequestCommon, deps: DiagnosticsDeps): Promise<CredentialHealth> {
   const checkedAt = deps.now();
   const { connection } = req;
   const path = connection.provider.dialect === "openrouter" ? CREDITS_PATH : "/models";
@@ -97,7 +97,7 @@ export async function probeOpenAiCompat(req: ProbeRequest, deps: DiagnosticsDeps
   }
 }
 
-export async function openRouterCredits(req: AccountCreditsRequest, deps: DiagnosticsDeps): Promise<AccountCredits> {
+export async function openRouterCredits(req: DiagnosticRequestCommon, deps: DiagnosticsDeps): Promise<AccountCredits> {
   requireOpenRouter(req.connection, "openrouter credits");
   const parsed = creditsSchema.parse(
     await authenticatedRead(deps, { connection: req.connection, path: CREDITS_PATH, label: "openrouter credits", signal: req.signal }),
@@ -218,7 +218,7 @@ function observingFetch(inner: typeof fetch, observed: Observed): typeof fetch {
  * tools, structured output, cache markers). `ok` means the call came back as a reply the chat path reads. The
  * request is shown as sent, and the response as the server sent it, scrubbed before it is display-eligible.
  */
-export async function inspectOpenAiCompatEndpoint(req: InspectRequest, deps: InspectDeps): Promise<EndpointInspection> {
+export async function inspectOpenAiCompatEndpoint(req: DiagnosticRequestCommon, deps: InspectDeps): Promise<EndpointInspection> {
   const { connection } = req;
   requireBaseUrl(connection, INSPECT_LABEL);
   const secrets = resolvedScrubSet(connection);

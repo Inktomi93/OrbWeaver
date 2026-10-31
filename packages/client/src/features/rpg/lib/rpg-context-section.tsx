@@ -25,7 +25,7 @@ import { Surface } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary } from "#components";
 import { SkeletonRows } from "#data";
-import type { ChatContextState, CommittedChatContext, ContextTabDef } from "#lib";
+import type { CommittedChatContext, ContextTabDef } from "#lib";
 import { RpgErrorState } from "../components/rpg-error-state.tsx";
 import { RpgGameDoor } from "../components/rpg-game-door.tsx";
 import { RpgGameTab } from "../components/rpg-game-tab.tsx";
@@ -41,7 +41,7 @@ import type { RpgContextTabsDeps } from "./rpg-game-chat.ts";
 import { makeIsGameChat, peekChatDetail } from "./rpg-game-chat.ts";
 
 /** Build the lite game-tab contributions, bound to the door's cross-domain read channel. */
-export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTabDef<ChatContextState>[] {
+export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTabDef<CommittedChatContext>[] {
   // THE game-ness gate — the SAME predicate the whole-pane HUD claim reads (`rpg-game-chat.ts`), so the
   // tabs and the claim can never disagree about whether this chat is a game.
   const isGameChat = makeIsGameChat(deps);
@@ -49,17 +49,17 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
   /** Is this a game chat the viewer HOSTS? The crown GM-console gate ("Game" — host-only). Reads the
    *  same cached `getChat` for `viewerIsHost`; a member never sees the tab (PERMISSION-omit) and the
    *  server verb is a second host gate. */
-  const isHostGameChat = (s: ChatContextState): boolean => isGameChat(s) && peekChatDetail(deps, s)?.viewerIsHost === true;
+  const isHostGameChat = (s: CommittedChatContext): boolean => isGameChat(s) && peekChatDetail(deps, s)?.viewerIsHost === true;
 
   /** The Game meta tab's #40 gate: EVERY committed chat the viewer hosts (game or not) — the tab is the
    *  FRONT DOOR (start a game / resume a paused one / the GM console). PERMISSION-omit for members. */
-  // ChatContextState is single-arm today (R1 deleted the draft arm; the union stays as the re-entry
+  // CommittedChatContext is single-arm today (R1 deleted the draft arm; the union stays as the re-entry
   // seam) — no phase check needed until a second arm exists, at which point tsc re-demands one here.
-  const isHostCommitted = (s: ChatContextState): s is CommittedChatContext => peekChatDetail(deps, s)?.viewerIsHost === true;
+  const isHostCommitted = (s: CommittedChatContext): s is CommittedChatContext => peekChatDetail(deps, s)?.viewerIsHost === true;
 
   const gameTab =
     (label: string, render: (state: RpgPanelState) => ReactNode) =>
-    (s: ChatContextState): ReactNode =>
+    (s: CommittedChatContext): ReactNode =>
       isGameChat(s) ? (
         <Surface tier="instrument">
           {/* RESERVED (#1098) — the key is DERIVED FROM THE TAB, never a literal: this is a FACTORY that

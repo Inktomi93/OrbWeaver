@@ -18,13 +18,13 @@
 // every other time read is injected (the test-determinism gate's whole point) and would hold a process handle
 // open for a map that is allowed to be empty.
 
-import type { AutomationAction, EmitAutomationEvent, SuggestibleAction, SuggestibleArmType } from "@orb/contracts/automation";
+import type { AutomationAction, AutomationEmitSource, EmitAutomationEvent, SuggestibleAction, SuggestibleArmType } from "@orb/contracts/automation";
 import { AUTOMATION_SUGGESTION_SUMMARY_MAX, SPEND_ARM_TYPES } from "@orb/contracts/automation";
 import type { PluginSuggestedAct } from "@orb/contracts/plugin";
 import { summarizePluginAct } from "@orb/contracts/plugin";
 import type { AutomationSuggestionId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { PendingSuggestion, SuggestionSource, SuggestionStore } from "../contract/ops.ts";
+import type { PendingSuggestion, SuggestionStore } from "../contract/ops.ts";
 import type { NewSuggestionId } from "../contract/suggestion-id.ts";
 
 /** How long a pending ask lives before it is swept. A host who has not answered in half an hour is not
@@ -35,7 +35,7 @@ export const AUTOMATION_SUGGESTION_TTL_MS = 1_800_000; // 30 minutes
  *  RULE keeps one live ask per rule and a PLUGIN keeps one live ask per plugin — the same attention budget,
  *  extended to the origin that has no rule id. The `kind:` prefix keeps the two id namespaces from ever
  *  colliding on a shared string. */
-function slotKey(chatId: ChatId, source: SuggestionSource): string {
+function slotKey(chatId: ChatId, source: AutomationEmitSource): string {
   return source.kind === "rule" ? `${chatId}|rule|${source.ruleId}` : `${chatId}|plugin|${source.pluginId}`;
 }
 

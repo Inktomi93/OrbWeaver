@@ -23,7 +23,7 @@
 // `empty:hidden` (`message-row.tsx`), and `:empty` counts ELEMENT children regardless of paint — an empty
 // `<Row>` here would give every plugin-less row a footer gap.
 
-import type { PluginSurfaceSpec } from "@orb/contracts/plugin";
+import type { PluginSurfaceNode } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { Row } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
@@ -39,7 +39,7 @@ interface FooterSurface {
   readonly pluginName: string;
   readonly surfaceId: string;
   readonly title: string;
-  readonly spec: PluginSurfaceSpec;
+  readonly spec: PluginSurfaceNode;
 }
 
 /** Every `message-footer` surface the caller's enabled plugins registered, as one attribution-labelled strip.
