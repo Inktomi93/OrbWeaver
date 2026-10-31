@@ -18,7 +18,7 @@ Public users on those releases who made checkpoints cannot delete those turns, a
 
 ## Done when
 
-A numbered migration clones each turn-pinned checkpoint target into a committed hand row and re-points the checkpoint. The same migration makes a turn-pinned checkpoint unrepresentable: the checkpoint carries a snapshot kind fixed to hand and a composite foreign key to the snapshot's id and kind, so an insert that pins a turn snapshot fails. Confirm the schema and the old release code before writing it. a migration integration test deletes the turn on a migrated legacy shape and the checkpoint still restores.
+A numbered migration clones each turn-pinned checkpoint target into a committed hand row and re-points the checkpoint. The same migration makes a turn-pinned checkpoint unrepresentable: the checkpoint carries a snapshot kind fixed to hand and a composite foreign key to the snapshot's id and kind, so an insert that pins a turn snapshot fails. Confirm the schema and the old release code before writing it. A migration integration test deletes the turn on a migrated legacy shape and the checkpoint still restores.
 
 ## Evidence
 
