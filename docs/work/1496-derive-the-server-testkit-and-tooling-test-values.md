@@ -119,6 +119,25 @@ Row numbers are the rows of reports/test-derivation-audit/shard-b.md.
 | 13, 14, 15, 16 | The builtin provider ids have no production tuple, the native route spellings are the wire under test, and the probe cap and idle-time message are private to `diagnostics.ts`; each needs a production export from item 1504. |
 | 17 | See the proposal above: kit cannot import ui, so the number needs a kit owner. |
 
+### Fixed in the `tests/tooling` domain
+
+| Rows | Fix |
+| - | - |
+| 90 | `GPU_LAUNCH_SWITCH` replaces the `--enable-gpu` literal. |
+| 92 | The containment suite maps its `@orb/ui` doors from the ui package's own exports map. |
+| 93 | A case reads the production `eslint.config.ts` and proves the rule is registered under its name at `error`; with the config set to `off` it fails. |
+| 94 | `plantedTsconfig` serves the four unwired suites. |
+| 95 | The ports suite builds its refusal text from `E2E_PORT_OFFSET_STRIDE` and the band-0 port from `stageBandPorts`. |
+
+### Ruled to stay (tests/tooling)
+
+| Rows | Reason |
+| - | - |
+| 90 (`loginctl`) | The command name is a private literal in `tooling/src/floor/host/platform.ts`; an export only a test imports is refused. |
+| 91 | `OWNED_RULES` declares which rules this suite owns, and each planted row names its rule, so a removed rule fails; the config has no tuple of reach rules to derive from. |
+| 96 | The ui-audit message strings and populations are hand-counted from the walker; a structured finding field is the fix, and it belongs to the ui-audit tool. |
+| the other `tests/tooling` files changed since the 30th | Spine-Testing section 9 governs product tests and says tests for retained application-development tools belong in their tool mirrors; these suites plant their own trees and read tooling, so section 9 does not bind them beyond the rows above. |
+
 ### Ruled to stay
 
 | Rows | Reason |
