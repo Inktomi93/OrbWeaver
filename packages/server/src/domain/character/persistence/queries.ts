@@ -36,7 +36,7 @@ import { z } from "zod";
 import { addSpanEvent } from "#foundation/observability";
 import { AssetNotFoundError } from "../contract/errors.ts";
 import type { CharacterListFilter, StampImportIdentityParams } from "../contract/params.ts";
-import type { ImportedFromMatch, SnapshotSummary } from "../contract/results.ts";
+import type { SnapshotSummary } from "../contract/results.ts";
 
 const LIMIT_ONE = 1;
 
@@ -759,6 +759,11 @@ export async function stampImportHashIfUnset(db: Db, { ownerId, characterId, imp
     .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId), isNull(characters.importHash)))
     .returning({ id: characters.id });
   return rows.length > 0;
+}
+
+interface ImportedFromMatch {
+  readonly importedFrom: string;
+  readonly characterId: CharacterId;
 }
 
 /** Batched provenance oracle: the owner's characters whose `importedFrom` is any of `values` (an `IN` read
