@@ -25,7 +25,7 @@ import {
   setParticipantActivePersona,
 } from "#domain/chat";
 import { resolveActiveDocumentIds, resolveActiveDocumentScope } from "#domain/databank";
-import type { DiscoveryContext, DiscoveryService, DiscoveryWorkloadDeps } from "#domain/discovery";
+import type { DiscoveryAssemblyContext, DiscoveryService, DiscoveryWorkloadDeps } from "#domain/discovery";
 import { createDiscoveryService, createDossierNeighbors, distinctCorpusOwners } from "#domain/discovery";
 import type {
   EmbeddingReindexTriggers,
@@ -94,7 +94,7 @@ export interface SearchDiscoveryComposeDeps {
   readonly eventBus: PubSub<DomainEvent>;
   readonly attachCardTagByName: TagService["attachCardTagByName"];
   /** The card owner's Utility-role preset params (D299) — distill + analyze. */
-  readonly resolveUtilityPresetParams: DiscoveryContext["resolveUtilityPresetParams"];
+  readonly resolveUtilityPresetParams: DiscoveryAssemblyContext["resolveUtilityPresetParams"];
   readonly character: Pick<CharacterService, "listEmbeddableCharacterIds" | "loadCardText">;
   readonly assets: Pick<AssetsService, "listImageAssetIds" | "loadAssetBytes" | "assetCasRefById">;
   readonly settings: Pick<SettingsService, "loadUserSettings" | "updateUserSettingsSection">;

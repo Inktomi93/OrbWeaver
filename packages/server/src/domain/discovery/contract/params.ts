@@ -5,8 +5,6 @@ import type { ImageFacetMetaKey } from "@orb/contracts/embeddings";
 import type { WorkloadEstimateScope, WorkloadRunScope } from "@orb/contracts/workloads";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 
-export type { ThemeLevel } from "@orb/contracts/discovery";
-
 // ── compute-pass option bags (workload-driven; required authority, optional tunables) ────────────
 /** Options for the `computeDuplicatePairs` recompute. `threshold` is the raw-cosine floor a pair must clear. */
 export type ComputeDuplicatesOptions = WorkloadRunScope & {

@@ -41,13 +41,14 @@ import {
   similarChatSchema,
   similarityGraphSchema,
   swipeHotspotSchema,
+  THEME_LEVELS,
   themeDetailSchema,
   themeDriftBucketSchema,
   visualArchetypeSchema,
 } from "@orb/contracts/discovery";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import { IMAGE_FACET_KEYS, THEME_LEVELS } from "#domain/discovery";
+import { IMAGE_FACET_KEYS } from "#domain/discovery";
 import { authedProcedure, t } from "../trpc.ts";
 
 export const discoveryRouter = t.router({
