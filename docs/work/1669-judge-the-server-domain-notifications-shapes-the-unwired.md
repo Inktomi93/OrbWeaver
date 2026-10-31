@@ -27,4 +27,6 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 1 row = 1 applied. 0 kept, 0 handed off, 0 owner questions.
+
+- `PluginNotificationDelivery` reexport-chain: applied. The `contract/plugin-delivery.ts` re-export of the `@orb/contracts/plugin` type is deleted; its one importer (`verbs/plugin-delivery.ts`) imports it from `@orb/contracts/plugin` (ast-grep ts 5949 / tsx 1525 tracked files). `packages/contracts/src/plugin/` is not touched.
