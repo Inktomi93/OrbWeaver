@@ -138,4 +138,21 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Ran: `pnpm typecheck` on contracts, server, client, tsconfig.node.json and tsconfig.tests-dom.json (exit 0); `pnpm test` on `tests/server/domain/character/persistence/gallery-character-ops.int.test.ts`, `tests/server/domain/assets/verbs/seed-art.int.test.ts` and `tests/server/domain/automation/persistence/plugin-frozen-grants.int.test.ts` (3 files, 10 tests, exit 0). Neither `GalleryItemView` nor `GlobalVariableView` appears in `tests/support/node/corpus-data/corpus.json` (no `galleryItemId`, `uploadedAt` key in it).
+
+All 112 rows resolved:
+
+| Disposition | Rows | Symbols and reader |
+| - | - | - |
+| applied | 2 | `GalleryItemView.mime`, `GlobalVariableView.updatedAt` (server-side projection, not on a router) |
+| derived from owning type | 1 | `TurnOriginRead.initiator`: `getTurnOrigin` now returns `TurnOrigin` from `contracts/src/chat/bus.ts` |
+| kept: card spec parsed and handed on whole | 36 | `characterCardV3DataSchema`, `characterBookSchema`, `characterBookEntrySchema`, `cardAssetSchema` keys; the card parse at `packages/contracts/src/character/index.ts:648` hands `data` on whole and a key dropped here strips imported card data |
+| kept: CEL surface | 21 | `triggerFactPayloadSchema` (17) and `AutomationCelEnv` (4); the whole env is handed to the evaluator at `packages/server/src/domain/automation/substrate/dry-run.ts:34` and `macro-render.ts:21`, so a user expression may name any field |
+| kept: stored rule JSON | 4 | `automationActionSchema.position`, `speakerCharacterId`, `argsTemplate`, `resultVar`; stored rows must keep reading |
+| kept: tRPC infinite-query cursor and filter | 3 | `listOwnedParamsSchema.kind`, `.cursor`, `galleryListParamsSchema.cursor` (`packages/contracts/src/assets/index.ts:138`) |
+| kept: K-indexed type | 5 | `RulePresetKnobDescriptors` is indexed by `RulePresetKnobKind` at `packages/contracts/src/automation/presets.ts:225` |
+| kept: shared base of derived views | 3 | `ResolvedCardFace` (used by `character/index.ts` and `persona/schemas.ts`) |
+| owner question: wire output, field present in the corpus | 18 | `CharacterSummaryFields` (8, `character.list` is in the corpus), `CharacterDetail` (10, whole value handed to the client) |
+| handed off: only test files read the field | 9 | `AssetListItem.kind`, `AssetListItem.size`, `GalleryItemView.assetId`, `GalleryItemView.subjectCharacterId`, `SnapshotView.content` (`tests/support/node/factories/character-library.int.test.ts:88`), `RuleView.chatId`, `RuleView.updatedAt`, `FireView.ruleId`, `FireView.chatId` |
+| owner question: wire output with no reader found, deletion is a wire change | 10 | `StoredAsset.size` (REST upload response, parsed by `tests/server/entry/http/body-limit-ordering.int.test.ts:193`), `SuggestionCardDetail.kind` (single-arm union seam, no ADR cited), `ConfirmSuggestionResult.ran` and `.outcome` (the result's only fields), `characterBulkTagFailureSchema.id` and `.error.code`, `GeneratedGreeting.costUsd`, `SnapshotRef.characterId` and `.createdAt` (whole-value `toEqual` at `tests/support/node/factories/character-library.int.test.ts:81`), `createCharacterSchema.starred` |
+| total | 112 | |

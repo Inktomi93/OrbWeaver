@@ -187,14 +187,13 @@ export const galleryListParamsSchema = z.object({
 });
 export type GalleryListParams = z.infer<typeof galleryListParamsSchema>;
 
-/** One curated gallery item. `hash`/`mime`/`animated` are joined from the `assets` row (owner derives
+/** One curated gallery item. `hash`/`animated` are joined from the `assets` row (owner derives
  *  through that FK — no stamped owner column).
  */
 export interface GalleryItemView {
   readonly galleryItemId: GalleryItemId;
   readonly assetId: AssetId;
   readonly hash: string;
-  readonly mime: string;
   readonly animated: boolean;
   readonly subjectCharacterId: CharacterId | null;
   readonly createdAt: number;
@@ -204,7 +203,6 @@ export const galleryItemViewSchema = z.strictObject({
   galleryItemId: galleryItemIdSchema,
   assetId: assetIdSchema,
   hash: z.string(),
-  mime: z.string(),
   animated: z.boolean(),
   subjectCharacterId: characterIdSchema.nullable(),
   createdAt: z.number(),
