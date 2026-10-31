@@ -17,7 +17,7 @@ function egressReason(err: unknown): Exclude<BackgroundMaterializeFailure, "not-
 }
 
 /** Map the image guard's rejection onto a user-facing reason: a real-but-oversized image is `too-large`; a
- *  non-image / disallowed-mime / unparseable buffer is `not-image` (the honest "that wasn't a usable image"). */
+ *  non-image or unparseable buffer is `not-image` (the honest "that wasn't a usable image"). */
 function imageReason(err: unknown): Exclude<BackgroundMaterializeFailure, "unreachable"> {
   if (err instanceof ImageRejectedError && (err.reason === "too-large" || err.reason === "dimensions-exceeded")) {
     return "too-large";
@@ -50,8 +50,8 @@ export function createMaterializeBackground(deps: MaterializeBackgroundDeps): Ma
 
     let mime: string;
     try {
-      // No mime restriction needed beyond the sniff: the sniffer only recognizes the 5 non-executable
-      // raster signatures, so the guard already refuses SVG/HTML/text. The caps bound the decompression bomb.
+      // The sniffer recognizes only non-executable raster signatures, so the guard refuses SVG, HTML and
+      // text. The caps bound the decompression bomb.
       mime = isAllowedImageBuffer(bytes, { maxBytes }).mime;
     } catch (err) {
       return { ok: false, reason: imageReason(err) };

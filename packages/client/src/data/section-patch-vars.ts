@@ -5,7 +5,12 @@ import type { UserSettings, UserSettingsSection } from "@orb/contracts/settings"
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "./trpc.ts";
 
-type DeepPartial<T> = T extends readonly unknown[] ? T : T extends object ? { readonly [K in keyof T]?: DeepPartial<T[K]> } : T;
+// `null` is the only clear the verb's deep merge can express, so an optional leaf also takes it.
+type DeepPartial<T> = T extends readonly unknown[]
+  ? T
+  : T extends object
+    ? { readonly [K in keyof T]?: DeepPartial<T[K]> | (undefined extends T[K] ? null : never) }
+    : T;
 
 type SectionWrite = inferInput<Trpc["settings"]["updateUserSettingsSection"]>;
 

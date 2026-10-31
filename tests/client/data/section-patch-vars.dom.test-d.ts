@@ -6,6 +6,21 @@ import type { SectionPatchVars } from "@orb/client/data";
 export const validLeaf = { section: "memory", patch: { enabled: true } } satisfies SectionPatchVars<"memory">;
 export const validNestedLeaf = { section: "chat", patch: { attachmentQuality: { imageDetail: "high" } } } satisfies SectionPatchVars<"chat">;
 
+// `null` is the merge's only clear: an optional leaf takes it, a required one does not.
+export const clearedSlot = { section: "prose", patch: { "chat.arbiter.system": null } } satisfies SectionPatchVars<"prose">;
+
+export const clearedRequired = {
+  section: "memory",
+  // @ts-expect-error a required leaf has no cleared state
+  patch: { enabled: null },
+} satisfies SectionPatchVars<"memory">;
+
+export const wrongSlot = {
+  section: "prose",
+  // @ts-expect-error a typo'd slot id is dropped by the merge's reparse
+  patch: { "chat.arbiter.systems": null },
+} satisfies SectionPatchVars<"prose">;
+
 export const wrongKey = {
   section: "memory",
   // @ts-expect-error a key the section does not have must not compile

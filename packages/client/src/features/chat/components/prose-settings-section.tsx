@@ -33,10 +33,10 @@ import { CAPPED_FIELD_MAX_ROWS } from "#forms";
 import type { AutosaveSession } from "#forms/editor";
 import { CappedFieldCounter, createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
 import {
+  keepProsePatch,
   PROSE_SETTINGS_SUBCATEGORY,
   projectProseForm,
   proseFieldName,
-  proseSlotPatch,
   toProsePatch,
   validateProseLengths,
 } from "../lib/prose-settings-model.ts";
@@ -110,7 +110,7 @@ function ProseFormBody({ anchorId, sectionId }: { readonly anchorId: string; rea
   // autosave driver has nothing to fire; re-stamping `baseVersion` to the current slot version is what
   // dismisses the stale chip, and it must not touch any other slot's stored override.
   const keepMine = (id: ProseSlotId, text: string): void => {
-    update.mutate({ section: "prose", patch: { [id]: proseSlotPatch(id, text) } });
+    update.mutate({ section: "prose", patch: keepProsePatch(id, text) });
   };
 
   return (

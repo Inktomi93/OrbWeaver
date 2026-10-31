@@ -17,10 +17,9 @@ import { Card } from "@orb/ui/card";
 import { Grid, Section, Stack } from "@orb/ui/layout";
 import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import { Text } from "@orb/ui/text";
-import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import type { Trpc } from "#data";
+import type { SectionPatchVars } from "#data";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, usePromptMacroSuggestions, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
@@ -29,7 +28,7 @@ import type { ImageryTemplatesForm } from "../lib/imagery-templates-model.ts";
 import { projectImageryTemplatesForm, toImageryTemplatesPatch } from "../lib/imagery-templates-model.ts";
 import { IMAGERY_TEMPLATES_SUBCATEGORY } from "../lib/imagery-templates-section-nav.ts";
 
-const useUpdateImagery = createEntityMutation<inferInput<Trpc["settings"]["updateUserSettingsSection"]>, unknown>({
+const useUpdateImagery = createEntityMutation<SectionPatchVars<"imagery">, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
   errorToast: "Couldn't save your image-prompt templates.",

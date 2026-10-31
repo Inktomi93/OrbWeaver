@@ -38,19 +38,32 @@ export function projectProseForm(prose: ProseOverrides): Record<string, string> 
   return Object.fromEntries(USER_PROSE_SLOT_IDS.map((id) => [proseFieldName(id), prose[id]?.text ?? ""]));
 }
 
+type ProseSlotsPatch = { [Id in ProseSlotId]?: ProseOverride | null };
+
 /** The patch value for ONE slot: a trimmed non-empty field is an override stamped with the CURRENT slot
  *  version (§4.4 — any save re-stamps, which is what "keep mine" means); a blank field is the leaf `null`
  *  sentinel, because the server's section merge treats `undefined` as "don't touch" and a cleared override
  *  must actually clear (`imagery-templates-model` carries the same contract). */
-export function proseSlotPatch(id: ProseSlotId, value: string): ProseOverride | null {
+function proseSlotPatch(id: ProseSlotId, value: string): ProseOverride | null {
   const trimmed = value.trim();
   return trimmed.length > 0 ? { text: trimmed, baseVersion: PROSE_SLOTS[id].version } : null;
 }
 
 /** Build the `prose` section patch from the form bag — every editable slot spelled, so clearing a field
  *  resets it to the shipped default instead of silently keeping the stored override. */
-export function toProsePatch(values: Record<string, string>): Record<string, ProseOverride | null> {
-  return Object.fromEntries(USER_PROSE_SLOT_IDS.map((id) => [id, proseSlotPatch(id, values[proseFieldName(id)] ?? "")]));
+export function toProsePatch(values: Record<string, string>): ProseSlotsPatch {
+  const patch: ProseSlotsPatch = {};
+  for (const id of USER_PROSE_SLOT_IDS) {
+    patch[id] = proseSlotPatch(id, values[proseFieldName(id)] ?? "");
+  }
+  return patch;
+}
+
+/** "Keep mine": one slot's patch, leaving every other stored override alone. */
+export function keepProsePatch(id: ProseSlotId, text: string): ProseSlotsPatch {
+  const patch: ProseSlotsPatch = {};
+  patch[id] = proseSlotPatch(id, text);
+  return patch;
 }
 
 /**

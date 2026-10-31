@@ -6,6 +6,7 @@
 // as "using the default". Pure projection + patch helpers (no I/O).
 
 import type { UserSettings } from "@orb/contracts/settings";
+import type { SectionPatchVars } from "#data";
 
 /** The flat form shape — one field per non-free mode (4 extraction + 2 caption). Blank ⇒ no override. */
 export interface ImageryTemplatesForm {
@@ -42,7 +43,7 @@ function fieldPatch(value: string): string | null {
 /** Build the `imagery` section patch from the form. Every mode is spelled (a blank ⇒ `null` = leaf-clear, so
  *  removing an override actually resets to the shipped default). The nested `templates`/`captions` objects
  *  deep-merge server-side. */
-export function toImageryTemplatesPatch(values: ImageryTemplatesForm): Record<string, unknown> {
+export function toImageryTemplatesPatch(values: ImageryTemplatesForm): SectionPatchVars<"imagery">["patch"] {
   return {
     templates: {
       character: fieldPatch(values.character),
