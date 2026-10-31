@@ -16,7 +16,7 @@ test("the old intent axis and its values do not compile", () => {
   createElement(Button, { variant: "ghost", tone: "muted" }, "x");
   // @ts-expect-error `default` is the unset tone
   createElement(Button, { variant: "ghost", tone: "default" }, "x");
-  expectTypeOf<NonNullable<ButtonProps["variant"]>>().toEqualTypeOf<"solid" | "outline" | "ghost" | "link" | "bare">();
+  expectTypeOf<NonNullable<ButtonProps["variant"]>>().toEqualTypeOf<"solid" | "outline" | "ghost" | "link">();
   expectTypeOf<NonNullable<ButtonProps["tone"]>>().toEqualTypeOf<Tone>();
 });
 

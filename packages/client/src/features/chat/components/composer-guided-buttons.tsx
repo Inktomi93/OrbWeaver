@@ -26,7 +26,7 @@
 
 import type { GuidedImpersonatePerson } from "@orb/contracts/preset";
 import type { CharacterId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import type { FillableIcon, LucideIcon } from "@orb/ui/icons";
 import { Drama, Icon, Play, Square } from "@orb/ui/icons";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
@@ -85,10 +85,10 @@ export function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
       <TooltipTrigger
         {...description.triggerProps}
         render={
-          <Button
+          <GlyphButton
             type="button"
             variant="ghost"
-            size="glyph-lg"
+            glyph="lg"
             disabled={disabled}
             focusableWhenDisabled={true}
             aria-label={label}
@@ -99,7 +99,7 @@ export function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
             {...(hasText && !disabled ? ({ tone: "primary" } as const) : ({ ink: "muted" } as const))}
           >
             <SteerGlyph icon={icon} steering={hasText && !disabled} />
-          </Button>
+          </GlyphButton>
         }
       />
       <TooltipPopup side="top">{title}</TooltipPopup>
@@ -174,10 +174,10 @@ export function ImpersonateStopButton({ onStop }: { readonly onStop: () => void 
     <Tooltip>
       <TooltipTrigger
         render={
-          <Button
+          <GlyphButton
             type="button"
             variant="outline"
-            size="glyph-lg"
+            glyph="lg"
             aria-label={IMPERSONATE_STOP_LABEL}
             data-testid={testId("composerGuidedStopImpersonate")}
             onClick={onStop}
@@ -185,7 +185,7 @@ export function ImpersonateStopButton({ onStop }: { readonly onStop: () => void 
             className="shrink-0"
           >
             <Icon icon={Square} size="sm" />
-          </Button>
+          </GlyphButton>
         }
       />
       <TooltipPopup side="top">Stop drafting your line</TooltipPopup>
@@ -230,18 +230,18 @@ export function ImpersonateGuidedButton({
               render={
                 // The name rides the BUTTON, not the trigger (#1021): the trigger renders this element, so it
                 // is one DOM node and one string — and an icon-only Button now states its own name.
-                <Button
+                <GlyphButton
                   aria-label={name}
                   type="button"
                   variant="ghost"
-                  size="glyph-lg"
+                  glyph="lg"
                   focusableWhenDisabled={true}
                   shape="pill"
                   className={ICON_CONTROL_CLASS}
                   {...(hasText && !disabled ? ({ tone: "primary" } as const) : ({ ink: "muted" } as const))}
                 >
                   <SteerGlyph icon={DRAMA} steering={hasText && !disabled} />
-                </Button>
+                </GlyphButton>
               }
             />
           }
@@ -291,10 +291,10 @@ export function ResponseGuidedButton({
         <TooltipTrigger
           {...description.triggerProps}
           render={
-            <Button
+            <GlyphButton
               type="button"
               variant="ghost"
-              size="glyph-lg"
+              glyph="lg"
               disabled={!idle}
               focusableWhenDisabled={disabledReason !== undefined}
               aria-label={name}
@@ -305,7 +305,7 @@ export function ResponseGuidedButton({
               {...(hasText ? ({ tone: "primary" } as const) : ({ ink: "muted" } as const))}
             >
               <SteerGlyph icon={PLAY} steering={hasText} />
-            </Button>
+            </GlyphButton>
           }
         />
         <TooltipPopup side="top">{title}</TooltipPopup>
@@ -326,18 +326,18 @@ export function ResponseGuidedButton({
               data-testid={testId("composerGuidedResponse")}
               render={
                 // The name rides the BUTTON, not the trigger (#1021) — same node, same string.
-                <Button
+                <GlyphButton
                   aria-label={name}
                   type="button"
                   variant="ghost"
-                  size="glyph-lg"
+                  glyph="lg"
                   focusableWhenDisabled={disabledReason !== undefined}
                   shape="pill"
                   className={ICON_CONTROL_CLASS}
                   {...(hasText ? ({ tone: "primary" } as const) : ({ ink: "muted" } as const))}
                 >
                   <SteerGlyph icon={PLAY} steering={hasText} />
-                </Button>
+                </GlyphButton>
               }
             />
           }

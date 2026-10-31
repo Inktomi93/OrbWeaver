@@ -13,6 +13,7 @@ import { fetchOwned, parseRecord, parseStringArray, parseStringArrayColumn } fro
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import { and, eq } from "drizzle-orm";
+import { isMissingFile } from "#primitives/errno";
 import type { ExportWorldEntry } from "#primitives/serde/card";
 import { buildCardV3 } from "#primitives/serde/card";
 import type { ExportCharacterParams } from "../contract/params.ts";
@@ -26,7 +27,6 @@ const PNG_MIME = "image/png";
 const ACCEPTED_STATUS = tagStatusSchema.enum.accepted;
 // `cas.read` rejects with a Node ENOENT when the blob is absent — that one error falls through to the
 // placeholder; any other I/O error propagates (corrupt ≠ absent).
-const ENOENT = "ENOENT";
 const JSON_INDENT = 2;
 
 // Parse the typed `depth_prompt` JSON column through the canonical schema — a malformed/legacy value
@@ -37,11 +37,6 @@ function parseDepthPrompt(raw: unknown): CardDepthPrompt | null {
   }
   const parsed = cardDepthPromptSchema.safeParse(raw);
   return parsed.success ? parsed.data : null;
-}
-
-// True when a rejected `cas.read` is the benign "blob absent" case (→ placeholder, not a throw).
-function isMissingBlob(err: unknown): boolean {
-  return typeof err === "object" && err !== null && (err as { code?: string }).code === ENOENT;
 }
 
 export function createExportCharacter(ctx: ExportContext): ExportService["exportCharacter"] {
@@ -59,7 +54,7 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
       const raw = await ctx.cas.read(ownerId, asset.hash);
       return asset.mime === PNG_MIME ? raw : await ctx.imageTransform(raw, { format: "png" });
     } catch (err) {
-      if (isMissingBlob(err)) {
+      if (isMissingFile(err)) {
         return PLACEHOLDER_PNG;
       }
       throw err;

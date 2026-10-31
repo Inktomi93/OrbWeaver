@@ -1,6 +1,8 @@
 // Avatar preparation is shared by event delivery and sweeps, before any caption or vector inference.
 import { EMBEDDABLE_ASSET_KINDS } from "@orb/contracts/assets";
 import type { AssetId, UserId } from "@orb/kit/ids";
+import { isMissingFile } from "#primitives/errno";
+import { AssetFileMissingError } from "../contract/errors.ts";
 import type { AvatarAnalysis, StoreResult } from "../contract/results.ts";
 import type { EmbeddingsContext, EmbeddingsService, PinnedGeneration, PinnedImageSpace } from "../contract/service.ts";
 import { readImageAnalysis, saveImageAnalysis } from "../persistence/image-analysis.ts";
@@ -119,11 +121,20 @@ async function indexAsset(
   return raw.outcome === "written" ? raw : captionedWrite;
 }
 
+// The one place a missing file means "this asset's blob is gone": any ENOENT raised later while indexing is another fault.
+async function loadStoredBytes(ctx: EmbeddingsContext, assetId: AssetId): Promise<Uint8Array | undefined> {
+  try {
+    return await ctx.loadAssetBytes(assetId);
+  } catch (error) {
+    throw isMissingFile(error) ? new AssetFileMissingError(assetId, { cause: error }) : error;
+  }
+}
+
 async function loadAdmittedAsset(ctx: EmbeddingsContext, assetId: AssetId, force: boolean): Promise<Uint8Array | null> {
   if (!force && (await existingImageSkip(ctx.db, assetId))) {
     return null;
   }
-  const bytes = await ctx.loadAssetBytes(assetId);
+  const bytes = await loadStoredBytes(ctx, assetId);
   if (bytes === undefined) {
     return null;
   }

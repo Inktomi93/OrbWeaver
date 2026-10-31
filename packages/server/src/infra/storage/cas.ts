@@ -31,6 +31,7 @@ import { MS_PER_SECOND } from "@orb/kit/time";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import { sha256Hex } from "#primitives/content-hash";
+import { hasErrnoCode, isMissingFile } from "#primitives/errno";
 import type { Cas, PutResult } from "./contract.ts";
 
 export type { Cas } from "./contract.ts";
@@ -42,10 +43,6 @@ const SHARD_B_END = 4;
 const OWNER_SEGMENT = /^[A-Za-z0-9_-]+$/;
 const TMP_DIRNAME = ".tmp";
 const TMP_SUFFIX_BYTES = 16;
-
-function errnoIs(error: unknown, code: string): boolean {
-  return typeof error === "object" && error !== null && "code" in error && error.code === code;
-}
 
 function sha256(bytes: Uint8Array): string {
   return sha256Hex(bytes);
@@ -62,7 +59,7 @@ async function safeReaddir(dir: string): Promise<Dirent[]> {
   try {
     return await readdir(dir, { withFileTypes: true });
   } catch (error) {
-    if (errnoIs(error, "ENOENT")) {
+    if (isMissingFile(error)) {
       return [];
     }
     throw error;
@@ -108,7 +105,7 @@ async function* walkOwners(rootDir: string): AsyncGenerator<string> {
 // open or the sync, and ONLY Windows, so those two stay platform-fenced (elsewhere they are a real
 // permission fault, which must still reject the put).
 function isDirSyncUnsupported(error: unknown): boolean {
-  return errnoIs(error, "ENOTSUP") || (process.platform === "win32" && (errnoIs(error, "EISDIR") || errnoIs(error, "EPERM")));
+  return hasErrnoCode(error, "ENOTSUP") || (process.platform === "win32" && (hasErrnoCode(error, "EISDIR") || hasErrnoCode(error, "EPERM")));
 }
 
 // ASSUMES(single-replica): a once-per-root latch, keyed by the root's logger, so each root's log says the
@@ -159,7 +156,7 @@ export function createCas(rootDir: string, log: Logger): Cas {
       await stat(blobPath(ownerId, hash));
       return true;
     } catch (error) {
-      if (errnoIs(error, "ENOENT")) {
+      if (isMissingFile(error)) {
         return false;
       }
       throw error;
@@ -170,7 +167,7 @@ export function createCas(rootDir: string, log: Logger): Cas {
     try {
       return (await stat(blobPath(ownerId, hash))).mtimeMs;
     } catch (error) {
-      if (errnoIs(error, "ENOENT")) {
+      if (isMissingFile(error)) {
         return;
       }
       throw error;
@@ -217,7 +214,7 @@ export function createCas(rootDir: string, log: Logger): Cas {
           await utimes(dest, seconds, seconds);
           return { hash, size, created: false };
         } catch (err) {
-          if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+          if (!isMissingFile(err)) {
             throw err;
           }
         }
@@ -231,7 +228,7 @@ export function createCas(rootDir: string, log: Logger): Cas {
         return sha256(await read(ownerId, hash)) === hash;
       } catch (err) {
         // Only "missing" is honestly false — permission/I/O/corruption errors must surface.
-        if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+        if (isMissingFile(err)) {
           return false;
         }
         throw err;

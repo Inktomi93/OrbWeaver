@@ -14,11 +14,11 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  SUMMARIZE_TRANSCRIPT_MARKER,
   seedTranscript,
 } from "@orb/testkit/node/composed";
 
 // The memory build's tier-0 prompt: one marker, one summarize call per block.
-const SUMMARIZE_MARKER = "Transcript block:";
 const BLOCK_SIZE = 2;
 
 const lines = (count: number, tag: string): { readonly role: "assistant"; readonly content: string }[] =>
@@ -37,7 +37,7 @@ async function memoryRoom(options: { readonly transcript?: number; readonly char
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
     chatText: (body): string => {
-      if (body.includes(SUMMARIZE_MARKER)) {
+      if (body.includes(SUMMARIZE_TRANSCRIPT_MARKER)) {
         summarized += 1;
         return "An earlier ledger scene\nThe keeper remembers the earlier orbital ledger scene.\nKeywords: ledger";
       }

@@ -4,7 +4,7 @@
 // WHY IT EXISTS. `@orb/ui` expresses its variant axes as CLASS STRINGS only, so nothing in the rendered
 // DOM says which ARM an element is. The ui-audit walker's authored-target identity
 // (`tooling/src/ui-audit/ops/walker/target-identity.ts`, `TARGET_VARIANT_ATTRS`) reads exactly these four
-// attributes to tell two authored decisions apart — with zero emitters, a `size="glyph-xs"` button beside a
+// attributes to tell two authored decisions apart — with zero emitters, a `glyph="xs"` glyph button beside a
 // `size="lg"` button in one toolbar folded into ONE "authored target-size decision" (one repair row where
 // two decisions exist, with a muddled min–max range) — audit finding F8, 2026-09-02.
 //
@@ -24,7 +24,7 @@
 // declares": `orientation`, `side`, `align`, `disabled`, `selected`, `highlighted` and friends are Base UI's
 // RUNTIME state vocabulary (282 files emit `data-disabled`, 110 emit `data-orientation` in
 // @base-ui/react@1.7.0 — swept 2026-09-02), and a variant axis shadowing one of those would make an
-// authored choice indistinguishable from a live state. None of the four members below appears anywhere in
+// authored choice indistinguishable from a live state. No member below appears anywhere in
 // that package.
 //
 // THE DOM COST IS ATTRIBUTES ONLY, WITH ONE PAINT CHANNEL. `data-tone` is also the D336 paint scope: the generated
@@ -40,11 +40,11 @@ import type { Tone } from "#tokens";
 import { cn } from "./class-merge.ts";
 
 /** The axis names the ui primitives stamp. Closed on purpose — see the header's Base UI collision note. */
-export const STAMPED_VARIANT_AXES = ["variant", "size", "intent", "tone"] as const;
+export const STAMPED_VARIANT_AXES = ["variant", "size", "intent", "tone", "glyph", "step"] as const;
 
 export type StampedVariantAxis = (typeof STAMPED_VARIANT_AXES)[number];
 
-/** The emitted half: `data-size="glyph-xs"` and friends, absent when the axis is not declared/resolved. */
+/** The emitted half: `data-size="md"`, `data-glyph="xs"` and friends, absent when the axis is not declared/resolved. */
 export type VariantAxisAttrs = Partial<Record<`data-${StampedVariantAxis}`, string>>;
 
 /** A `tv()` recipe read for its METADATA only — the shape both doors need, and the only shape they need.

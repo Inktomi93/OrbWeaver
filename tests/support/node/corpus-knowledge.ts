@@ -1,7 +1,9 @@
 // Public jobs produce knowledge; only owner-admitted bulk cooccurrence spans owners.
+
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { SUMMARIZE_TRANSCRIPT_MARKER } from "@orb/server/domain/chat";
 import { seedCorpusRefinery } from "./corpus-refinery.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import {
@@ -22,7 +24,7 @@ export function corpusKnowledgeText(requestBody: string): string {
   if (requestBody.includes("Shared keywords:")) {
     return "Orbital ledger";
   }
-  if (requestBody.includes("Transcript block:")) {
+  if (requestBody.includes(SUMMARIZE_TRANSCRIPT_MARKER)) {
     return requestBody.includes("Funding memory scene 0:")
       ? "The orbital loom\nThe keeper preserves the ledger beside the loom.\nKeywords: loom, orbit"
       : "The harbor witness\nThe keeper finds the missing tool beside the harbor.\nKeywords: harbor, tool";

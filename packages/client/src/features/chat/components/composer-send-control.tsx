@@ -15,7 +15,7 @@
 // the same string as visible copy under the guided cluster, which renders it once for the whole band. When the
 // next-turn line states the refusal, Send is described by that line instead and carries no copy of its own.
 
-import { Button } from "@orb/ui/button";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import { Icon, Send, Square } from "@orb/ui/icons";
 import { WebSpinner } from "@orb/ui/spinner";
 import { Text } from "@orb/ui/text";
@@ -53,10 +53,10 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
       <Tooltip>
         <TooltipTrigger
           render={
-            <Button
+            <GlyphButton
               type="button"
               variant="outline"
-              size="glyph-lg"
+              glyph="lg"
               loading={props.stopping}
               disabled={props.stopping}
               aria-label={props.stopping ? "Stopping…" : "Stop generating"}
@@ -64,7 +64,7 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
               shape="pill"
             >
               {props.stopping ? <WebSpinner size="sm" label="Stopping…" /> : <Icon icon={Square} size="sm" />}
-            </Button>
+            </GlyphButton>
           }
         />
         <TooltipPopup side="top">{props.stopping ? "Stopping generation" : "Stop generating"}</TooltipPopup>
@@ -82,10 +82,10 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
       <TooltipTrigger
         {...(describedBy === undefined ? {} : { "aria-describedby": describedBy })}
         render={
-          <Button
+          <GlyphButton
             type="button"
             {...sendLook(props.hasDraft && !props.sendDisabled)}
-            size="glyph-lg"
+            glyph="lg"
             data-testid={testId("composerSend")}
             disabled={props.sendDisabled}
             focusableWhenDisabled={props.availability.unavailable}
@@ -96,7 +96,7 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
             className="data-disabled:pointer-events-auto"
           >
             <Icon icon={Send} size="sm" />
-          </Button>
+          </GlyphButton>
         }
       />
       <TooltipPopup side="top">{props.availability.reason ?? "Send message"}</TooltipPopup>

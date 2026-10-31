@@ -41,6 +41,7 @@ import {
 } from "../lib/workloads-model.ts";
 import { workloadResultSummary } from "../lib/workloads-result-copy.ts";
 import { dependencyWaitLabel, isDeferredWorkload, isDependencyFailure, isWaitingOnDependencies } from "../lib/workloads-run-model.ts";
+import { WorkloadFailedAssets } from "./workload-failed-assets.tsx";
 
 type WorkloadItem = inferOutput<Trpc["workloads"]["list"]>[number];
 
@@ -137,6 +138,7 @@ function WorkloadRowBody({
       <WorkloadWaitDetail workload={workload} deferred={deferred} waiting={waiting} />
       <WorkloadPoisonDetail workload={workload} />
       <WorkloadFailureDetail workload={workload} />
+      <WorkloadFailedAssets workload={workload} />
 
       <ConfirmDialog
         cancelLabel="Keep running"

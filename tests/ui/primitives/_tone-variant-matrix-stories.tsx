@@ -2,7 +2,9 @@ import { CtIsolation } from "@orb/testkit/browser";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import { Circle, Icon } from "@orb/ui/icons";
+import { InlineAction } from "@orb/ui/inline-action";
 import { WebSpinner } from "@orb/ui/spinner";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
@@ -16,6 +18,8 @@ const BUTTON_VARIANTS = ["solid", "outline", "ghost", "link"] as const;
 const BADGE_VARIANTS = ["solid", "soft", "outline"] as const;
 const CARD_VARIANTS = ["surface", "soft", "outline"] as const;
 const TOGGLE_VARIANTS = ["ghost", "outline"] as const;
+const GLYPH_VARIANTS = ["solid", "outline", "ghost"] as const;
+const INLINE_VARIANTS = ["ghost", "link"] as const;
 // The named colours a case reads that are not a tone role: the neutral toggle's resting ink and the selected fill.
 const NAMED_PROBES = {
   muted: "color.muted-foreground",
@@ -53,6 +57,16 @@ function Matrix(): ReactElement {
               {`${tone} ${variant}`}
             </Toggle>
           ))}
+          {GLYPH_VARIANTS.map((variant) => (
+            <GlyphButton key={variant} aria-label={`${tone} glyph ${variant}`} data-case={`glyph-${variant}`} glyph="lg" tone={tone} variant={variant}>
+              <Icon icon={Circle} size="xs" />
+            </GlyphButton>
+          ))}
+          {INLINE_VARIANTS.map((variant) => (
+            <InlineAction key={variant} data-case={`inline-${variant}`} step="label" tone={tone} variant={variant}>
+              {`${tone} inline ${variant}`}
+            </InlineAction>
+          ))}
           <Toggle data-case="toggle-pressed" defaultPressed={true} tone={tone} variant="outline">
             {`${tone} pressed`}
           </Toggle>
@@ -88,7 +102,7 @@ export function ToneVariantMatrixStory({
   return (
     <CtIsolation
       subject="The D336 tone and variant matrix"
-      isolates="Button, Badge, Card, Toggle, Text, Icon, WebSpinner and WeaveGlyph in every tone and style"
+      isolates="Button, GlyphButton, InlineAction, Badge, Card, Toggle, Text, Icon, WebSpinner and WeaveGlyph in every tone and style"
     >
       <div data-theme={theme} style={{ backgroundColor: "var(--color-background)", padding: "1rem" }}>
         {background === undefined ? (

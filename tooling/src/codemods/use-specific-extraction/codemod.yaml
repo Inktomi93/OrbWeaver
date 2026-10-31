@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "use-specific-extraction"
+version: "0.1.0"
+description: "Move a primitive element carrying a use-specific attribute value to its named component and door, by an exact map read from the target directory."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["tsx"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

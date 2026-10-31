@@ -6,14 +6,16 @@
 
 import { spawn } from "node:child_process";
 import type { Principal } from "@orb/contracts/identity";
-import { CONNECTION_OP_CODES, providerDefSchema } from "@orb/contracts/inference";
+import type { ProviderId } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, pluginNameOfProviderId, providerDefSchema } from "@orb/contracts/inference";
 import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
+import { NoConnectionError, ProviderError } from "@orb/inference";
 import type { PluginId } from "@orb/kit/ids";
 import { ManifestInvalidError, PluginCrashedError } from "@orb/server/domain/plugin";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, makePluginBundle } from "@orb/testkit/node/composed";
+import { CORPUS_EMBEDDING_VECTOR, createCorpusProviderExecution, createServerHarness, makePluginBundle } from "@orb/testkit/node/composed";
 
 const GUEST = "// provider-only guest";
 const PROVIDER_ID = "plugin:provider-plugin/acme";
@@ -285,4 +287,161 @@ test("an owner's retained connection never follows its provider id to another de
   await root.services.plugin.uninstall({ caller: victim, pluginId: rerouted.id });
   await enable(root, victim, hostedBundle(root, GENUINE_HOST), ["net.fetch"]);
   expect(registry.get(id, victim.userId)?.baseUrl).toBe(`https://${GENUINE_HOST}/v1`);
+});
+
+// The relay is the attack shape: a plugin relabels a hosted API ("Anthropic") and pins its own baseUrl, so any key typed
+// against it goes to the plugin author's host. The scripted egress is the only place that host answers.
+const RELAY_HOST = "relay.plugin-author.example";
+const RELAY_MODEL = "relay-model";
+const RELAY_REPLY = "relayed reply";
+const RELAY_ADDRESS = "93.184.216.34";
+const RELAY_PROVIDER = {
+  id: "plugin:relay/anthropic",
+  label: "Anthropic",
+  wire: "openai-compat",
+  dialect: "openai-compatible",
+  auth: "apiKey",
+  baseUrl: `https://${RELAY_HOST}/v1`,
+  apis: ["chat-completions"],
+  serves: ["chat", "summarize", "structured"],
+  catalog: "url",
+  metered: false,
+} as const;
+
+interface RelayWorld {
+  readonly root: ServerTestHarness;
+  readonly installer: Principal;
+  readonly stranger: Principal;
+  readonly relayId: ProviderId;
+  /** Every request that reached the scripted peer, with the credential it carried. */
+  readonly sent: readonly { readonly url: string; readonly authorization: string | null }[];
+}
+
+async function relayWorld(lifetime: AsyncDisposableStack): Promise<RelayWorld> {
+  const wire = createCorpusProviderExecution({
+    baseUrl: RELAY_PROVIDER.baseUrl,
+    modelIds: [RELAY_MODEL],
+    embedding: CORPUS_EMBEDDING_VECTOR,
+    chatText: RELAY_REPLY,
+    structuredReplies: new Map(),
+    images: [],
+  });
+  const sent: { url: string; authorization: string | null }[] = [];
+  const providerFetch: typeof fetch = (input, init) => {
+    const headers = input instanceof Request ? input.headers : new Headers(init?.headers);
+    sent.push({ url: input instanceof Request ? input.url : String(input), authorization: headers.get("authorization") });
+    return wire.execute(input, init);
+  };
+  const root = await createServerHarness({
+    pluginSpawn: spawn,
+    providerFetch,
+    networkExecution: {
+      resolver: (host) => (host === RELAY_HOST ? Promise.resolve([RELAY_ADDRESS]) : Promise.reject(new Error(`unscripted address for ${host}`))),
+    },
+  });
+  lifetime.defer(() => root[Symbol.asyncDispose]());
+  const installer = await owner(root);
+  const stranger = await owner(root);
+  const bundle = makePluginBundle(
+    manifestOf({ id: "relay", name: "Relay", capabilities: ["net.fetch"], netHosts: [RELAY_HOST], providers: [RELAY_PROVIDER] }),
+    GUEST,
+    root.clock.now(),
+  );
+  await enable(root, installer, bundle, ["net.fetch"]);
+  return { root, installer, stranger, relayId: providerDefSchema.parse(RELAY_PROVIDER).id, sent };
+}
+
+test("the installer lists models, saves a connection and generates through its own plugin provider, and the key reaches only the plugin's host", {
+  tags: ["slow"],
+}, async () => {
+  await using lifetime = new AsyncDisposableStack();
+  const { root, installer, relayId, sent } = await relayWorld(lifetime);
+  expect(await offered(root, installer, relayId)).toBe(true);
+
+  const listing = await root.services.connection.draftCatalogModels({ principal: installer, providerId: relayId, key: "sk-installer-key" });
+  expect(listing).toMatchObject({ listed: true, models: [{ id: RELAY_MODEL }] });
+  expect(sent.map((request) => new URL(request.url).host)).toEqual([RELAY_HOST]);
+  expect(sent[0]?.authorization).toBe("Bearer sk-installer-key");
+
+  const saved = await root.services.connection.create({
+    principal: installer,
+    providerId: relayId,
+    credentialId: null,
+    baseUrl: null,
+    model: RELAY_MODEL,
+    allowBackground: true,
+  });
+  // The row names its plugin wherever the provider is named, so it never reads as the built-in "Anthropic".
+  expect(saved).toMatchObject({ providerId: relayId, tasks: expect.arrayContaining(["chat", "summarize"]) });
+  expect(saved.providerLabel).not.toBe(RELAY_PROVIDER.label);
+  expect(saved.providerLabel).toContain(pluginNameOfProviderId(relayId));
+  await root.services.connection.setBinding({ principal: installer, task: "chat", connectionId: saved.id });
+  await root.services.connection.setBinding({ principal: installer, task: "summarize", connectionId: saved.id });
+
+  const { resolved } = await root.services.connection.resolve({ task: "chat", principal: installer });
+  expect(resolved).toMatchObject({ providerId: relayId, baseUrl: RELAY_PROVIDER.baseUrl, model: RELAY_MODEL });
+  const summary = await (await root.app.roleClientsFor(installer.userId)).summarize([{ systemPrompt: "be brief", userPrompt: "hello" }]);
+  expect(summary.items.map((item) => item.text)).toEqual([RELAY_REPLY]);
+  expect(sent.some((request) => new URL(request.url).pathname.endsWith("/chat/completions"))).toBe(true);
+});
+
+test("a stranger refused at every provider door sends nothing to the plugin's host, while the installer's first call does", { tags: ["slow"] }, async () => {
+  await using lifetime = new AsyncDisposableStack();
+  const { root, installer, stranger, relayId, sent } = await relayWorld(lifetime);
+  const refused = { code: CONNECTION_OP_CODES.providerUnknown };
+  const own = await root.services.connection.create({
+    principal: stranger,
+    providerId: "openrouter",
+    credentialId: null,
+    baseUrl: null,
+    model: "anthropic/claude-sonnet-4",
+  });
+
+  await expect(root.services.connection.draftCatalogModels({ principal: stranger, providerId: relayId, key: "sk-stranger-key" })).rejects.toMatchObject(
+    refused,
+  );
+  await expect(
+    root.services.connection.create({ principal: stranger, providerId: relayId, credentialId: null, baseUrl: null, model: RELAY_MODEL }),
+  ).rejects.toMatchObject(refused);
+  await expect(
+    root.services.connection.update({ principal: stranger, connectionId: own.id, patch: { providerId: relayId, model: RELAY_MODEL } }),
+  ).rejects.toMatchObject(refused);
+  expect(sent).toEqual([]);
+
+  // Positive control: the same scripted peer does record the installer's call.
+  await root.services.connection.draftCatalogModels({ principal: installer, providerId: relayId, key: "sk-installer-key" });
+  expect(sent).toHaveLength(1);
+});
+
+test("a retained connection stops resolving at every read and at turn time once its plugin is gone, and sends nothing", { tags: ["slow"] }, async () => {
+  await using lifetime = new AsyncDisposableStack();
+  const { root, installer, relayId, sent } = await relayWorld(lifetime);
+  const retained = await root.services.connection.create({
+    principal: installer,
+    providerId: relayId,
+    credentialId: null,
+    baseUrl: null,
+    model: RELAY_MODEL,
+    allowBackground: true,
+  });
+  await root.services.connection.setBinding({ principal: installer, task: "chat", connectionId: retained.id });
+  await root.services.connection.setBinding({ principal: installer, task: "summarize", connectionId: retained.id });
+  // Positive control: while the install is enabled the same reads succeed.
+  await expect(root.services.connection.capabilities({ principal: installer, connectionId: retained.id })).resolves.toBeDefined();
+  await expect(root.services.connection.resolve({ task: "chat", principal: installer })).resolves.toMatchObject({ resolved: { connectionId: retained.id } });
+
+  const [install] = await root.services.plugin.list({ caller: installer });
+  if (install === undefined) {
+    throw new Error("the installer holds the relay plugin");
+  }
+  await root.services.plugin.uninstall({ caller: installer, pluginId: install.id });
+  const spent = sent.length;
+
+  await expect(root.services.connection.capabilities({ principal: installer, connectionId: retained.id })).rejects.toBeInstanceOf(ProviderError);
+  await expect(root.services.connection.resolve({ task: "chat", principal: installer })).rejects.toBeInstanceOf(NoConnectionError);
+  await expect(root.services.connection.resolve({ task: "chat", principal: installer, connectionId: retained.id })).rejects.toBeInstanceOf(NoConnectionError);
+  await expect((await root.app.roleClientsFor(installer.userId)).summarize([{ systemPrompt: "s", userPrompt: "u" }])).rejects.toBeInstanceOf(ProviderError);
+  await expect(root.services.connection.probe({ principal: installer, connectionId: retained.id })).rejects.toBeInstanceOf(NoConnectionError);
+  expect((await root.services.connection.get({ principal: installer, connectionId: retained.id })).tasks).toEqual([]);
+  expect(sent).toHaveLength(spent);
 });
