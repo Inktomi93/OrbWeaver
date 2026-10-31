@@ -15,6 +15,7 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  SUMMARIZE_TRANSCRIPT_MARKER,
   seedCorpusConnections,
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
@@ -109,7 +110,7 @@ interface RerankWorld extends AsyncDisposable {
 }
 
 function generatedText(shape: Shape, body: string): string {
-  if (!body.includes("Transcript block:")) {
+  if (!body.includes(SUMMARIZE_TRANSCRIPT_MARKER)) {
     return "The keeper answers.";
   }
   const arc = ARCS.find((candidate) => body.includes(tagOf("line", candidate)));
@@ -243,7 +244,7 @@ async function chatPrompts(h: ChatRoot): Promise<string[]> {
       .filter((request) => request.method === "POST" && new URL(request.url).pathname === "/v1/chat/completions")
       .map((request) => request.clone().text()),
   );
-  return bodies.filter((body) => !body.includes("Transcript block:"));
+  return bodies.filter((body) => !body.includes(SUMMARIZE_TRANSCRIPT_MARKER));
 }
 
 /** The block index production stored an arc's digest under, read back through the omnibox. */

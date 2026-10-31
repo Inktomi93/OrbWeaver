@@ -5,11 +5,8 @@
 // markdown list therefore painted as flat, unmarked, unindented text: a chat reply's bullets and its
 // prose were the same rendering, on a surface whose whole voice system is typographic.
 //
-// WHY OWNING THE ELEMENT HERE, when the blockquote and the inline-code halves of the same family
-// (#238/#490) were paid as descendant variants off the seal root instead: the reason those stayed the
-// vendor's was that taking the code element over meant re-implementing its whole fenced-code branch
-// (highlighter dispatch, diagrams, the control cluster) to own one inline span. A list element has NO
-// vendor branch — it is one `jsx` call with a class string — so owning it is cheap AND total: our
+// WHY OWNING THE ELEMENT HERE rather than paying it as a descendant variant off the seal root: a list element
+// has NO vendor branch — it is one `jsx` call with a class string — so owning it is cheap AND total: our
 // classes are the only ones on the element, which is the difference between a rule that merely
 // out-paints the vendor's residue and one that leaves NO uncompiled class in the DOM for the dead-class
 // flagger (and the reader) to trip over. Nothing here reaches for the vendor dist as a Tailwind source;

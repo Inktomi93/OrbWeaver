@@ -22,4 +22,7 @@ The Jobs action is fully visible on a 390px phone with a CT pinning it, the dead
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- Jobs run action: `packages/client/src/features/workloads/components/workloads-jobs-section.tsx` wraps the tabs row. `tests/client/features/workloads/components/platform-action-groups.suite.ct.tsx` asserts the action stays inside the host at four regimes, including the 390px phone with enlarged text. Red with horizontal overflow at the phone and narrow regimes; green after.
+- Dead classes: they came from Streamdown's inline code element, not the character view. `packages/ui/src/markdown/inline-code-component.tsx` owns that element through the `inlineCode` slot. `tests/ui/markdown/inline-code.ct.tsx` checks every class on it has a rule: red on `px-1.5`, `py-0.5` and `text-sm`, green after.
+- Bulk bar overlap: fixed by the bulk bar wrap that landed with item 1450; `tests/client/features/character/components/bulk-bar-layout.ct.tsx` passes at five regimes on current main.
+- Typecheck of `packages/client` and `tsconfig.tests-dom.json`, `pnpm lint:css` and whole-tree depcruise pass.

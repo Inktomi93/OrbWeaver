@@ -22,4 +22,8 @@ The marker is a named constant in its production home, used by the prompt builde
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+- `SUMMARIZE_TRANSCRIPT_MARKER` in `packages/server/src/domain/chat/memory/generate/substrate/prompts.ts`, used by `digestUserPrompt`, exported from the chat door and re-exported by `@orb/testkit/node/composed`.
+- Eight suites and the testkit files `tests/support/node/corpus-knowledge.ts` and `tests/support/node/corpus-knowledge-wire.ts` import it; no file under `tests` or `packages` spells the literal.
+- Red: with the marker reworded in production, the old copy-based `backfill-estimate.int.test.ts` fails four cases and the importing suites pass.
+- The consolidation lead in the same testkit file now reads the production slot default through `resolveProseText`.
+- Whole-tree depcruise passes.
