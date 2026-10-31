@@ -112,6 +112,9 @@ test("actual authenticated multiplexing enforces socket ownership and withholds 
     expect(bytes).toContain(replayMessage.id);
     expect(bytes).toContain("owned-replay-canon");
     expect(bytes).toContain("post-join-visible-live");
+    // The floored subscriber counts the boundary row and this one; the host's number for this row is 3.
+    const visibleFrame = bytes.split("\n").find((line) => line.includes("post-join-visible-live"));
+    expect(visibleFrame).toContain('"position":2');
     expect(bytes).not.toContain(hiddenMessage.id);
     expect(bytes).not.toContain(privateMessage.id);
     expect(bytes).not.toContain(privateLiveMessage.id);
