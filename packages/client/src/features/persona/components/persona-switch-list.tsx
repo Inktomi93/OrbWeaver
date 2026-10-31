@@ -146,16 +146,7 @@ function SwitchRow({
   const tabProps = tabIndex === undefined ? {} : { tabIndex };
   const isPlaying = room !== null && persona.id === room.seatId;
   return (
-    <Row
-      align="center"
-      onFocus={onFocusRow}
-      className={ROW_BOX}
-      // In a room the row switches the seat, so it takes the hover and selected fill; on the panel it is a static row.
-      stateFill={room === null ? undefined : "selected"}
-      data-selected={isPlaying ? "" : undefined}
-      gap="row"
-      padding="field"
-    >
+    <Row align="center" onFocus={onFocusRow} className={ROW_BOX} data-selected={isPlaying ? "" : undefined} gap="row" padding="field">
       {room === null ? null : <SwitchButton isPlaying={isPlaying} onSwitch={(): void => room.onSwitch(persona)} subject={subject} tabIndex={tabIndex} />}
       {/* Ornament over the stretched button (`relative` paints it above the button's hover fill). */}
       <Avatar className="pointer-events-none relative shrink-0" fallbackDelay={0} hueSeed={persona.id} size="sm" {...avatarSrc}>
@@ -202,7 +193,11 @@ function SwitchButton({
       aria-current={isPlaying ? "true" : undefined}
       aria-label={isPlaying ? `${subject} — current persona` : `Switch to ${subject}`}
       className="absolute inset-0"
+      data-selected={isPlaying ? "" : undefined}
       data-switch-row-button=""
+      // In a room the stretched button is the row's body, so it wears the selection rail and the hover tint; the
+      // panel renders no button, so its rows stay static.
+      selection="rail"
       variant="ghost"
       onClick={onSwitch}
       {...(tabIndex === undefined ? {} : { tabIndex })}

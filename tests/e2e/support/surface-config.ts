@@ -476,7 +476,7 @@ async function personas(flow: SurfaceFlow, visits: Visit[]): Promise<void> {
     });
     return;
   }
-  const expanders = content.locator('[data-slot="persona-row-expand"]');
+  const expanders = content.locator('[data-slot="list-row-body"]');
   await expect(expanders).toHaveCount(rows.length);
   const expand = expanders.nth(index);
   if ((await expand.getAttribute("aria-expanded")) !== "true") {
@@ -511,7 +511,7 @@ async function remainingDisclosures({ name, scope, visits, seen }: ControlCensus
   for (const button of await scope.locator('button[aria-expanded="false"]:not([aria-haspopup])').all()) {
     const target = await identity(button);
     if (!seen.has(target)) {
-      const sampledSeparately = (await button.getAttribute("data-slot")) === "persona-row-expand";
+      const sampledSeparately = (await button.getAttribute("data-slot")) === "list-row-body";
       visits.push({
         name: `${name}: disclosure ${target}`,
         target,
@@ -529,7 +529,7 @@ async function disclosures(flow: SurfaceFlow, name: string, scope: Locator, visi
   const seen = new Set<string>();
   for (;;) {
     let next: Locator | undefined;
-    for (const button of await scope.locator('button[aria-expanded="false"]:not([aria-haspopup]):not([data-slot="persona-row-expand"])').all()) {
+    for (const button of await scope.locator('button[aria-expanded="false"]:not([aria-haspopup]):not([data-slot="list-row-body"])').all()) {
       const key = await identity(button);
       if (!seen.has(key) && (await button.isVisible()) && (await button.isEnabled())) {
         seen.add(key);

@@ -1,5 +1,5 @@
 // One row of Settings → Personas, the MANAGE surface. The row body has exactly one verb: it expands the
-// persona's editor (a stretched button under the row's other controls, which sit `relative` above it as their
+// persona's editor (the ListRow body button, beside the row's other controls, which are their
 // own tab stops). Avatar and name are display here; both are edited in the editor's identity row. The trailing
 // cluster is the favorite heart, the crown (the same component the switcher uses) and the chevron; at a coarse
 // pointer the faint toggles stand down into a ⋯ that carries only those two verbs. No chat state lives here:
@@ -12,12 +12,13 @@ import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel } from "@orb/ui/collapsible";
 import { ChevronDown, ChevronRight, Crown, Heart, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useId, useState } from "react";
+import { useState } from "react";
 import { ConfirmDialog, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
@@ -57,7 +58,6 @@ export function PersonaPanelRow({
   const invalidation = useInvalidation();
   const update = useUpdatePersona({ trpc, invalidation });
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const titleId = useId();
   const avatarSrc = persona.avatarHash === null ? {} : { src: blobUrl(persona.avatarHash) };
   // ONE ANNOUNCED IDENTITY PER ROW (#443/#458/#463): every control on the row embeds the same subject.
   const subject = rowActionSubject(persona.name, qualifier);
@@ -67,69 +67,56 @@ export function PersonaPanelRow({
 
   return (
     <Stack gap="field">
-      <Row
-        align="center"
-        className="group relative flex-wrap min-block-(--size-control-md)"
-        stateFill="expanded"
-        data-expanded={expanded ? "" : undefined}
-        gap="row"
-        padding="field"
-      >
-        <Button
-          aria-describedby={persona.title === null ? undefined : titleId}
-          aria-expanded={expanded}
-          aria-label={subject}
-          className="absolute inset-0"
-          data-slot="persona-row-expand"
-          variant="ghost"
-          onClick={onToggleExpand}
-        />
-        <Avatar className="pointer-events-none relative shrink-0" fallbackDelay={0} hueSeed={persona.id} size="sm" {...avatarSrc}>
-          {initialsFor(persona.name)}
-        </Avatar>
-        {/* Prefer a readable title track; a host below that basis can still shrink it without overflowing. */}
-        <Stack className="pointer-events-none relative flex-1 basis-(--width-title-floor) min-inline-0" data-slot="persona-row-name">
-          <Text as="span" className="truncate" voice="label">
-            {persona.name}
-          </Text>
-          {persona.title === null ? null : (
-            <Text className="truncate" id={titleId} voice="gloss">
-              {persona.title}
-            </Text>
-          )}
-        </Stack>
-        <FavoriteToggle onToggle={onToggleFavorite} starred={persona.starred} subject={subject} />
-        <PersonaCrown isDefault={isDefault} onClear={onClearDefault} onSet={onSetDefault} subject={subject} />
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                aria-label={expanded ? `Hide details for ${subject}` : `Show details for ${subject}`}
-                className="relative shrink-0"
-                variant="ghost"
-                onClick={onToggleExpand}
-                square={true}
-              >
-                <Icon icon={expanded ? ChevronDown : ChevronRight} size="sm" />
-              </Button>
-            }
-          />
-          <TooltipPopup side="top">{expanded ? `Hide details for ${subject}` : `Show details for ${subject}`}</TooltipPopup>
-        </Tooltip>
-        {/* COARSE ONLY: the two faint toggles above stand down at a coarse pointer, and their verbs ride here. */}
-        <Row align="center" className="relative shrink-0" hiddenAt="fine">
-          <RowActionsMenu label={rowActionsName(subject)}>
-            <MenuItem onClick={onToggleFavorite}>
-              <Icon icon={Heart} size="sm" />
-              {persona.starred ? "Unfavorite" : "Favorite"}
-            </MenuItem>
-            <MenuItem onClick={isDefault ? onClearDefault : onSetDefault}>
-              <Icon icon={Crown} size="sm" />
-              {isDefault ? "Clear default" : "Set as default"}
-            </MenuItem>
-          </RowActionsMenu>
-        </Row>
-      </Row>
+      {/* The body is ListRow's one button: it expands the editor, and the controls beside it are its own tab stops. */}
+      <ListRow
+        actions={
+          <>
+            <FavoriteToggle onToggle={onToggleFavorite} starred={persona.starred} subject={subject} />
+            <PersonaCrown isDefault={isDefault} onClear={onClearDefault} onSet={onSetDefault} subject={subject} />
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    aria-label={expanded ? `Hide details for ${subject}` : `Show details for ${subject}`}
+                    className="shrink-0"
+                    variant="ghost"
+                    onClick={onToggleExpand}
+                    square={true}
+                  >
+                    <Icon icon={expanded ? ChevronDown : ChevronRight} size="sm" />
+                  </Button>
+                }
+              />
+              <TooltipPopup side="top">{expanded ? `Hide details for ${subject}` : `Show details for ${subject}`}</TooltipPopup>
+            </Tooltip>
+            {/* COARSE ONLY: the two faint toggles above stand down at a coarse pointer, and their verbs ride here. */}
+            <Row align="center" className="shrink-0" hiddenAt="fine">
+              <RowActionsMenu label={rowActionsName(subject)}>
+                <MenuItem onClick={onToggleFavorite}>
+                  <Icon icon={Heart} size="sm" />
+                  {persona.starred ? "Unfavorite" : "Favorite"}
+                </MenuItem>
+                <MenuItem onClick={isDefault ? onClearDefault : onSetDefault}>
+                  <Icon icon={Crown} size="sm" />
+                  {isDefault ? "Clear default" : "Set as default"}
+                </MenuItem>
+              </RowActionsMenu>
+            </Row>
+          </>
+        }
+        clickable={true}
+        aria-expanded={expanded}
+        leading={
+          <Avatar className="shrink-0" fallbackDelay={0} hueSeed={persona.id} size="sm" {...avatarSrc}>
+            {initialsFor(persona.name)}
+          </Avatar>
+        }
+        onClick={onToggleExpand}
+        rowTint="row"
+        title={persona.name}
+        {...(qualifier === undefined ? {} : { titleQualifier: qualifier })}
+        {...(persona.title === null ? {} : { subtitle: persona.title })}
+      />
 
       <ConfirmDialog
         confirmLabel="Delete"

@@ -66,6 +66,8 @@ const SHELL_SLOTS = [
   // The room's carriers that the centred counter and the flank motion move with the content track.
   "chat-room-surface",
   "chat-room-flank-row",
+  // The room's plugin column, whose slide and lift ride the shell's motion tokens in the panel sheet.
+  "chat-thread-flank",
 ];
 const SHELL_CLASSES = ["orb-chat-track", "orb-composer-track"];
 

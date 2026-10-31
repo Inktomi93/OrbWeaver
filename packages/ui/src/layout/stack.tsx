@@ -27,16 +27,13 @@ export function Stack({
   dividerWeight,
   dividerTone,
   dividerStyle,
+  tone,
   receded,
   ground,
   plate,
-  highlight,
-  slide,
-  lifted,
   fade,
   fadeFrom,
   ink,
-  opacityMotion,
   focusTarget,
   scrollFade,
   cardCorners,
@@ -56,6 +53,7 @@ export function Stack({
     featherSrc === undefined ? style : { ...style, "--art-image": `url("${featherSrc}")` };
   return (
     <div
+      data-tone={tone}
       {...props}
       data-art-image={feather === undefined ? undefined : featherSrc !== undefined}
       style={imageStyle}
@@ -73,16 +71,13 @@ export function Stack({
         dividerWeight,
         dividerTone,
         dividerStyle,
+        tone,
         receded,
         ground,
         plate,
-        highlight,
-        slide,
-        lifted,
         fade,
         fadeFrom,
         ink,
-        opacityMotion,
         focusTarget,
         scrollFade,
         cardCorners,

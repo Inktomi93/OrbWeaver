@@ -82,6 +82,28 @@
     box-shadow: var(--shadow-overlay);
   }
 
+  /* The room's plugin column (`room-flank.tsx`) is a sheet while it is a panel. It slides in from its inline end on the
+   * shell's motion tokens and parks invisible, so a closed one paints nothing and takes no pointer; an open one over the
+   * transcript casts the overlay shadow. Like the panels above it rides a physical axis: the column is placed at the
+   * row's right edge. */
+  [data-slot="chat-thread-flank"][data-flank-sheet] {
+    transition:
+      translate var(--shell-motion) var(--shell-ease),
+      visibility var(--shell-motion) var(--shell-ease);
+  }
+  [data-slot="chat-thread-flank"][data-flank-sheet="shown"] {
+    visibility: visible;
+    translate: 0;
+  }
+  [data-slot="chat-thread-flank"][data-flank-sheet="parked"] {
+    pointer-events: none;
+    visibility: hidden;
+    translate: 100% 0;
+  }
+  [data-slot="chat-thread-flank"][data-flank-lifted] {
+    box-shadow: var(--shadow-overlay);
+  }
+
   /* The band's separator is an inset shadow, not a border: a border would leave an odd content box and centre
    * every occupant off the device-pixel grid. Two stops in two variables because two rules drop them
    * independently (ramp drops the rule, a floating context band drops the ember); `0 0 0 transparent` is the off
