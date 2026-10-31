@@ -29,6 +29,6 @@ export function createGreetingCompletion(deps: GreetingCompletionDeps): Characte
     const rc = await deps.roleClientsFor(caller.userId);
     const res = await rc.summarize([{ systemPrompt: prompt, userPrompt: "" }], posture);
     const item = res.items[0];
-    return { text: (item?.text ?? "").trim(), costUsd: item?.usage.costUsd ?? null };
+    return { text: (item?.text ?? "").trim() };
   };
 }
