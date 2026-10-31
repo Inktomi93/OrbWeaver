@@ -105,7 +105,11 @@ export default defineConfig({
   testIgnore: ["**/corpus-surface-walk.spec.ts"],
   // Seed selected owned stacks without navigating the client before its first spec.
   // The working-tree guard surrounds setup, specs and teardown.
-  globalSetup: ["./tooling/src/floor/testing/working-tree-guard.ts", "./tests/e2e/support/global-setup.ts"],
+  globalSetup: [
+    "./tooling/src/floor/testing/run-temp-root-setup.ts",
+    "./tooling/src/floor/testing/working-tree-guard.ts",
+    "./tests/e2e/support/global-setup.ts",
+  ],
   outputDir: `${E2E_REPORT_PREFIX}-results`, // reports/ is gitignored
   fullyParallel: false,
   workers: 1, // serial — avoids libSQL :memory: state collisions once the stack is wired

@@ -37,7 +37,7 @@ export const componentWebServer = {
 export default defineConfig<CtCorpusOptions>({
   testDir: "tests",
   build: { external: ["**/packages/server/src/**"] },
-  globalSetup: "./tooling/src/floor/testing/working-tree-guard.ts",
+  globalSetup: ["./tooling/src/floor/testing/run-temp-root-setup.ts", "./tooling/src/floor/testing/working-tree-guard.ts"],
   testMatch,
   testIgnore: LOCAL_SURFACE_CONTROLS,
   outputDir: "reports/ct-results",

@@ -24,6 +24,7 @@ import process from "node:process";
 import { expect, test } from "@orb/testkit/tooling";
 import type { HostSlotHolder, HostSlotLease, HostSlotPool } from "@orb/tooling/floor/host/host-slots";
 import { acquireHostSlot, HOST_POOL_ROOT_ENV, hostPoolDir, hostPoolRoot, hostSlotQueued, tryAcquireHostSlot } from "@orb/tooling/floor/host/host-slots";
+import { runTempBase } from "@orb/tooling/floor/process/run-temp-root";
 
 /** A disposable per-user runtime dir — the pool's real root is $XDG_RUNTIME_DIR, so this IS the seam. */
 function scratchRuntime(): NodeJS.ProcessEnv {
@@ -55,9 +56,9 @@ function fakeClock(): { now: () => Date; sleep: (ms: number) => Promise<void> } 
 test("the pool directory is derived from $XDG_RUNTIME_DIR — per-USER, never per-checkout (#1835)", () => {
   expect(hostPoolDir(poolOf(1), { [HOST_POOL_ROOT_ENV]: "/run/user/1000" })).toBe("/run/user/1000/orb-unit-slots");
   // A shell with no runtime dir (cron/ssh) still gets a HOST-wide root, not a per-tree one.
-  // The fallback is the OS temp dir, which exists on every platform; a literal `/tmp` does not on Windows.
-  expect(hostPoolRoot({}), "no XDG_RUNTIME_DIR").toBe(tmpdir());
-  expect(hostPoolRoot({ [HOST_POOL_ROOT_ENV]: "   " }), "an empty value is not a directory").toBe(tmpdir());
+  // The fallback is the OS temp dir from before any run folder redirected it, which exists on every platform; a literal `/tmp` does not on Windows.
+  expect(hostPoolRoot({}), "no XDG_RUNTIME_DIR").toBe(runTempBase());
+  expect(hostPoolRoot({ [HOST_POOL_ROOT_ENV]: "   " }), "an empty value is not a directory").toBe(runTempBase());
 });
 
 test("a free pool hands out a slot immediately, and the slot file names its holder", async () => {

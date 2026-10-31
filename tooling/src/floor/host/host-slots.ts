@@ -38,11 +38,11 @@
 // up waiting; the SENTENCES belong to the caller (`verify: queued behind pid …` reads nothing like
 // `ct: waiting for a host CT slot`). One mechanism, several dialects.
 import { existsSync, readdirSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "../cli/entrypoint.ts";
 import { processEnvValue } from "../process/process-env.ts";
+import { runTempBase } from "../process/run-temp-root.ts";
 import { readConcurrencyProfile, readStageBudgets } from "./concurrency-profile.ts";
 import type { HostSlotHolder, Liveness } from "./host-slot-records.ts";
 import { defaultAlive, holderState, liveHolders, ownedDir, readHolder, rewriteRecord, STATE_TEXT, takeAnySlot } from "./host-slot-records.ts";
@@ -88,7 +88,7 @@ export function hostPoolRoot(env?: NodeJS.ProcessEnv): string {
   // The ambient read goes through `process-env.ts`'s `processEnvValue` — the fleet's ONE door for an
   // ambient tooling value — rather than growing another `process.env` policy site here.
   const runtime = env === undefined ? processEnvValue(HOST_POOL_ROOT_ENV) : env[HOST_POOL_ROOT_ENV];
-  return runtime === undefined || runtime.trim() === "" ? tmpdir() : runtime;
+  return runtime === undefined || runtime.trim() === "" ? runTempBase() : runtime;
 }
 
 /** This pool's directory. Named `orb-<name>-slots` so an operator listing `/run/user/<uid>` can see at a
