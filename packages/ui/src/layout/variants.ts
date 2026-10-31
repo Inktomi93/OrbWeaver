@@ -13,6 +13,7 @@ import {
   SCROLL_FADE_X_CLASS,
   SCROLL_FADE_Y_CLASS,
   SR_ONLY_AT,
+  TONE_ARMS,
   TOUCH_FLOOR_AT_COARSE,
   tv,
   WALLPAPER_PLATE,
@@ -70,13 +71,14 @@ const DIVIDER = {
 
 // The divider's weight and ink. `rule` is the 2px step for an edge that marks a state or a boundary (a set override,
 // a consent ask, the rail's seam in a preview) rather than separating neighbours; it is compound on the edge, so it
-// thickens only the edge that `divider` draws. The tone recolours that edge.
+// thickens only the edge that `divider` draws. `dividerTone` recolours that edge for the sidebar's seam in a preview.
 const DIVIDER_TONE = {
   border: "",
-  primary: "border-primary",
-  warning: "border-warning",
   sidebar: "border-sidebar-border",
 } as const;
+// A colour tone marks its divider edge with the tone's `solid` role, because a rule that marks a state carries meaning
+// (D336). The component stamps `data-tone`, so the role resolves on the box.
+const DIVIDER_MEANING = { ...TONE_ARMS, primary: "border-tone-solid", warning: "border-tone-solid" } as const;
 // A dashed edge marks a doorway (a place to start something) rather than a boundary between neighbours.
 const DIVIDER_STYLE = { solid: "", dashed: "border-dashed" } as const;
 const DIVIDER_RULE = [
@@ -104,6 +106,8 @@ const SCROLL_FADE = { x: SCROLL_FADE_X_CLASS, y: SCROLL_FADE_Y_CLASS } as const;
 
 // The `gutterCentred` tracks, shared by `Grid cols` and `Row tracks` (the annotation gutter beside a centred measure,
 // explained at the `Grid` member).
+const RECEDED_MOTION = "transition-opacity duration-(--motion-base) ease-out-expo";
+
 const GUTTER_CENTRED_TRACKS = "grid-cols-[auto_minmax(0,1fr)] @cq-56:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]";
 
 export const stackVariants = tv({
@@ -131,16 +135,12 @@ export const stackVariants = tv({
     dividerWeight: { hairline: "", rule: "" },
     dividerTone: DIVIDER_TONE,
     dividerStyle: DIVIDER_STYLE,
-    receded: { true: RECEDED, false: "" },
+    tone: DIVIDER_MEANING,
+    // A box that recedes eases its opacity on the base motion step in both directions, so a flag that flips fades the
+    // box instead of snapping it; the reduced-motion floor removes the transition.
+    receded: { true: `${RECEDED} ${RECEDED_MOTION}`, false: RECEDED_MOTION },
     ground: GROUND,
     plate: WALLPAPER_PLATE,
-    // The rows a search or a citation points at: the muted fill and the ring, so the anchor reads in a long list.
-    highlight: { true: "bg-muted ring-1 ring-ring", false: "" },
-    // A side panel that slides in from its inline end and is invisible once parked, on the shell's motion tokens.
-    slide: {
-      shown: "visible translate-x-0 transition-[translate,visibility] duration-(--shell-motion) ease-(--shell-ease)",
-      parked: "pointer-events-none invisible translate-x-full transition-[translate,visibility] duration-(--shell-motion) ease-(--shell-ease)",
-    },
     // The ink drawn art inside the box inherits through `currentColor` (a diagram in a picker cell whose host recedes).
     // `prose` is the reading ink; `muted` keeps the muted ink over a wallpaper plate's own ink too (a notice row).
     ink: { inherit: "", foreground: "text-foreground", prose: "text-prose-body", muted: "text-muted-foreground in-data-has-bg-image:text-muted-foreground" },
@@ -162,11 +162,6 @@ export const stackVariants = tv({
     arrival: ARRIVAL,
     focusTarget: FOCUS_TARGET,
     scrollFade: SCROLL_FADE,
-    // A box whose opacity follows its state (it recedes while a re-run is pending) eases the change on the base motion
-    // step; the reduced-motion floor removes the transition.
-    opacityMotion: { true: "transition-opacity duration-(--motion-base) ease-out-expo", false: "" },
-    // A box that floats over its neighbours (an overlaid panel) casts the overlay shadow.
-    lifted: { true: "shadow-overlay", false: "" },
     fade: FADE,
     fadeFrom: FADE_FROM,
   },
@@ -195,18 +190,13 @@ export const rowVariants = tv({
     dividerWeight: { hairline: "", rule: "" },
     dividerTone: DIVIDER_TONE,
     dividerStyle: DIVIDER_STYLE,
+    tone: DIVIDER_MEANING,
     receded: { true: RECEDED, false: "" },
     // A row of trailing actions that reveals on the nearest `group` ancestor's hover.
     reveal: HOVER_REVEAL,
     inertUntilHover: { true: INERT_UNTIL_HOVER, false: "" },
     focusTarget: FOCUS_TARGET,
     scrollFade: SCROLL_FADE,
-    // A row that is itself a control picks up the accent fill on hover and holds it in its state: `expanded` keys on
-    // `data-expanded` (a row that opens its detail), `selected` on `data-selected` with a half-strength hover on the rest.
-    stateFill: {
-      expanded: "rounded-control transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent data-expanded:bg-accent",
-      selected: "rounded-control transition-colors duration-(--motion-fast) ease-out-expo hover:not-data-selected:bg-accent/50 data-selected:bg-accent",
-    },
     ground: GROUND,
     plate: WALLPAPER_PLATE,
     cardCorners: CARD_CORNERS,
@@ -241,17 +231,6 @@ export const sectionVariants = tv({
     kickerRow: "flex items-center gap-field",
   },
   variants: {
-    focal: {
-      true: {
-        root: `
-          relative isolate rounded-(--radius-base) [border-inline-start-width:var(--immersive-stripe-width)] [border-inline-start-style:solid]
-          [border-inline-start-color:var(--color-speaker)] p-row
-          before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-(--radius-base) before:opacity-40 before:shadow-glow
-          before:content-['']
-        `,
-      },
-      false: {},
-    },
     // The section is the container its descendants query (an element never queries itself).
     container: {
       true: { root: "@container" },
@@ -286,7 +265,6 @@ export const sectionVariants = tv({
 export const gridVariants = tv({
   base: "grid",
   variants: {
-    highlight: { true: "rounded-control bg-accent", false: "" },
     gap: GAP,
     cols: {
       auto: "grid-cols-[repeat(auto-fit,minmax(min(var(--width-cell-auto),100%),1fr))]",

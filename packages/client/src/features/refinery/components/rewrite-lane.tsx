@@ -8,7 +8,7 @@
 // settled for rewrite yet", while 1 · SCORE — the step to take — sat in a plain rail. CD3 is one focal
 // that POINTS WHERE THE USER SHOULD GO, so it has to move; `lib/workbench-lanes.ts` decides which lane
 // wears it (score until a score lands, this island thereafter — never analyze, which is a readout) and
-// `Section`'s focal variant is the treatment both lanes share.
+// `FocalSection`'s focal treatment is what both lanes share.
 //
 // ── …AND UN-FOCAL IT IS NOT A CARD EITHER (side-eye 2026-08-19 P2) ───────────────────────────────────
 // The line above used to end "un-focal, this stays a `Card`: it holds the widest content on the canvas and
@@ -17,11 +17,11 @@
 // was NOT focal, which is the same inversion #158 item 5 fixed for the stripe. The surface's own law is
 // its INSTRUMENT tier (`refinery-content-surface.tsx`: "its islands resolve the dense steps and its rails
 // are kickers + hairlines, not boxes"), and CD1 is at most ONE box on the canvas — the focal's. So this is
-// the same `Section` `PayloadLane` renders, with the same focal treatment applied to that same element:
+// the same `FocalSection` `PayloadLane` renders, with the same focal treatment applied to that same element:
 // three lanes, one anatomy, and the emphasis is the only thing that ever differs. Changing ELEMENT as the
 // pipeline advances is what the payload lane's header forbids, and this now does not.
 //
-// IT ALSO GAINS THE REGION LANDMARK the other two lanes had (the `aria-label`ed `Section`): the widest,
+// IT ALSO GAINS THE REGION LANDMARK the other two lanes had (the `aria-label`ed `FocalSection`): the widest,
 // most interactive lane on the canvas was the one a landmark walk could not reach.
 //
 // THE LANE STATES ITS OWN LIFE: not-run-yet says WHY (the stage-order rule the server enforces), a call in
@@ -29,7 +29,8 @@
 // and a rewrite the pipeline has moved past says so rather than sitting fresh-looking beside a newer score.
 
 import type { CompareDecision } from "@orb/ui/compare-blocks";
-import { Section, Stack } from "@orb/ui/layout";
+import { FocalSection } from "@orb/ui/focal-section";
+import { Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -169,7 +170,7 @@ export function RewriteLane({
   const provenance = provenanceOf(run);
   const settled = run !== null && run.stage === "rewrite";
   return (
-    <Section
+    <FocalSection
       aria-label="Rewrite"
       className="gap-row"
       focal={focal}
@@ -193,6 +194,6 @@ export function RewriteLane({
         <RewriteBody decided={decided} entries={entries} onDecide={onDecide} running={running} settled={settled} />
         {settled ? <UnapplicableEntries entries={unapplicable} /> : null}
       </Stack>
-    </Section>
+    </FocalSection>
   );
 }

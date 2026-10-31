@@ -189,17 +189,12 @@ test("the wallpaper plates paint only over art", async ({ mount }) => {
   expect(await style(kase(root, "plate-plain"), "background-color")).toBe(await probe(root, "transparent", "background-color"));
 });
 
-test("highlight, slide, lifted, fade, ink, opacityMotion, focusTarget and scrollFade take their properties", async ({ mount }) => {
+test("fade, ink, receded motion, focusTarget and scrollFade take their properties", async ({ mount }) => {
   const root = await mount<typeof LayoutFinishStory>(`${STORIES}/LayoutFinishStory`, {});
-  expect(await style(kase(root, "highlight"), "background-color")).toBe(await probe(root, "muted", "background-color"));
-  expect(await style(kase(root, "highlight"), "box-shadow")).not.toBe("none");
-  expect(await style(kase(root, "slide-parked"), "visibility")).toBe("hidden");
-  expect(await style(kase(root, "slide-parked"), "translate")).not.toBe("none");
-  expect(await style(kase(root, "slide-shown"), "visibility")).toBe("visible");
-  expect(await style(kase(root, "lifted"), "box-shadow")).not.toBe("none");
   expect(await style(kase(root, "fade"), "background-image")).toContain("linear-gradient");
   expect(await style(kase(root, "ink"), "color")).toBe(await probe(root, "foreground", "color"));
-  expect(await style(kase(root, "opacity-motion"), "transition-property")).toBe("opacity");
+  expect(await style(kase(root, "receded-motion"), "transition-property")).toBe("opacity");
+  expect(await style(kase(root, "receded-motion"), "opacity")).not.toBe("1");
   const target = kase(root, "focus-target");
   await target.focus();
   await expect.poll(() => style(target, "outline-style")).toBe("none");
@@ -207,15 +202,12 @@ test("highlight, slide, lifted, fade, ink, opacityMotion, focusTarget and scroll
   await expect(kase(root, "scroll-x")).toHaveClass(/(^|\s)scroll-fade-x(\s|$)/u);
 });
 
-test("an inert-until-hover row is inert at rest and live on its group's hover, and a state fill holds its state", async ({ mount }) => {
+test("an inert-until-hover row is inert at rest and live on its group's hover", async ({ mount }) => {
   const root = await mount<typeof LayoutFinishStory>(`${STORIES}/LayoutFinishStory`, {});
   await park(root);
   expect(await style(kase(root, "inert"), "pointer-events")).toBe("none");
   await kase(root, "reveal-group").hover();
   expect(await style(kase(root, "inert"), "pointer-events")).toBe("auto");
-  for (const name of ["state-expanded", "state-selected"]) {
-    expect(await style(kase(root, name), "background-color"), name).toBe(await probe(root, "accent", "background-color"));
-  }
 });
 
 test.describe("at a coarse pointer", () => {

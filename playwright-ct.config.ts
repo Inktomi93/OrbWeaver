@@ -86,6 +86,7 @@ export default defineConfig<CtCorpusOptions>({
         "**/primitives/card/card-interactive.ct.tsx",
         "**/primitives/spoiler/spoiler.ct.tsx",
         "**/primitives/badge/badge-family.ct.tsx",
+        "**/layout/visual-state-boxes.ct.tsx",
       ],
       use: { ...devices["iPhone 15"], launchOptions: nativeBrowserLaunchOptions("webkit") },
     },

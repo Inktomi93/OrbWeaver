@@ -75,10 +75,11 @@ export function FlankColumn({
             )
           : "relative pbs-block max-inline-(--width-sidebar-sm) @max-cq-32:overflow-y-auto @max-cq-32:pbs-0 @max-cq-32:max-block-1/2 @max-cq-32:max-inline-none",
       )}
-      // An open panel that overlays the transcript (not set inline beside it) paints the card ground and lifts.
+      // An open panel that overlays the transcript (not set inline beside it) paints the card ground and lifts. The
+      // shell's panel sheet (`panels.css`) keys the slide and the lift on this slot and these two stamps.
       ground={overlaid ? "card" : undefined}
-      lifted={overlaid}
-      slide={slide}
+      data-flank-lifted={overlaid ? "" : undefined}
+      data-flank-sheet={slide}
       data-collapsed={flank.panelMode && !flank.expanded ? "true" : undefined}
       data-slot="chat-thread-flank"
       id={id}

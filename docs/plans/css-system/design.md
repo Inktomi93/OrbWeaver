@@ -195,7 +195,7 @@ Each family map holds `defaults` and a list of `{ element, door, match, to, toDo
 | `button-family.json` (4a) | Button `size` `glyph-xs`..`glyph-lg` → `GlyphButton glyph`; `size="inline"` → `InlineAction step="label"`; `size="inline-body"` → `InlineAction step="body"`; `size="media"` and `variant="bare"` → `PictureButton` |
 | `badge-family.json` (4b) | Badge `size="inline"` → `InlineToken`; Badge `size="dot"` → `IndicatorDot` |
 | `card-family.json` (4c) | Card `tone` and `shape` per the Card table → `MessageBubble role`, the preview parts, `FloatingChip`, `RoomIsland`; Card and Stack `spoiler={true}` → `Spoiler` |
-| `layout-family.json` (4d) | Section `focal={true}` → `FocalSection` |
+| `layout-family.json` (4d) | Section `focal={true}` → `FocalSection`; both production sites are computed |
 
 ##### Step 4a record
 
@@ -234,6 +234,21 @@ Step 4c lands as three commits in order: `Spoiler` with the ink fixes, `MessageB
 
 Ink fixes: Card `interactive` hover and press paint `text-tone-text-on-tint`; the compare-blocks side panels paint `text-tone-text-on-tint`; the tool-call-block `pre` and the immersive-card body paint `text-accent-foreground` on the neutral tint.
 
+##### Step 4d record
+
+`FocalSection` lives in `packages/ui/src/layout/focal-section/` behind `@orb/ui/focal-section`. It renders `Section` and takes `focal`, on by default, so a lane that hands the focal over keeps its element; a pair of components would remount the lane. `CurrentStack` and `CurrentGrid` live in `packages/ui/src/layout/current/` behind `@orb/ui/current`. They render Stack and Grid, stamp the neutral tone and paint the neutral `tint-active` fill, the `text-on-tint` ink and the `tone-edge` ring while the call site sets `aria-current`. No layout box takes `focal`, `highlight`, `slide`, `lifted`, `opacityMotion` or `stateFill`. `dividerTone` keeps `border` and `sidebar`: the sidebar seam belongs to the preview parts in step 4c. Row and Stack take `tone`, which stamps `data-tone` only when a tone is named and paints the divider edge in the tone's `solid` role.
+
+| Site | Choice |
+| - | - |
+| `packages/client/src/features/refinery/components/payload-lane.tsx`, `rewrite-lane.tsx` | Both computed sites became `FocalSection focal={focal}`. |
+| `packages/client/src/features/chat/surfaces/message-list-surface.tsx` | The default, a `Card variant="soft"`, was refused: it adds a border and padding, and a conditional Card swaps the element and remounts a live row. The row wrapper became `CurrentStack` with `aria-current` and keeps `data-corpus-anchor`. The mark is the neutral soft paint, so the old `bg-muted` and focus-ring ring became `tint-active` and the quiet edge. |
+| `packages/client/src/components/setting-teach-row.tsx` | The same refusal, and a Card border would shift the subgrid row, which the zero-shift bar forbids. The row is `CurrentGrid` with `aria-current` on a search match. The mark gains the quiet ring and keeps the accent fill. The modified rail takes `tone="primary"`. |
+| `packages/client/src/features/chat/components/room-flank.tsx` | The column stamps `data-flank-sheet` (`shown`, `parked`) and `data-flank-lifted`. `panels.css` keys the slide, the parked visibility and the overlay shadow on `data-slot="chat-thread-flank"`, on the same motion tokens, so the slide is unchanged. |
+| `packages/client/src/features/refinery/components/payload-view.tsx` | `opacityMotion` is gone. Stack `receded` carries the opacity transition in both arms, because a transition that leaves with the `true` arm would not ease the recovery. |
+| `packages/client/src/features/persona/components/persona-panel-row.tsx` | The row became `ListRow` with `"aria-expanded"`. ListRow now holds the neutral `tint-active` fill and the `text-on-tint` ink while `aria-expanded` is set, on the body or, for a row-tinted row, on the root; that is the fill the row held as `stateFill`, mapped onto the tone roles. The `persona-row-expand` and `persona-row-name` slots leave, with `renames.ts` rows pointing at `list-row-body` and `list-row-title`. |
+| `packages/client/src/features/persona/components/persona-panel-row.tsx` (marker) | The row wrapper stamps `data-persona-row`, which the e2e disclosure walker keys on, so only persona rows leave its census. |
+| `packages/client/src/features/persona/components/persona-switch-list.tsx` | `ListRow` was refused: even with the step 4e attribute props it has no `tabIndex` or row focus seam, and the room list is one roving tab stop. The stretched switch button already is the row body, so it takes `selection="rail"` and `data-selected`, the selection rail `ListRow` wears. |
+| `packages/client/src/components/setting-teach-row.tsx`, `packages/client/src/features/plugin/components/plugin-row-leaves.tsx` | `dividerTone` `primary` and `warning` became `tone="primary"` and `tone="warning"`. |
 ##### Step 4e record
 
 ListRow takes its state as typed attribute props: `"data-selected"` and `"data-disabled"` carry `""` or nothing, `"aria-expanded"` carries a boolean. The row derives `aria-current` from `data-selected`, so a caller states one fact once. Disabled behavior stays in the primitive: `aria-disabled`, tab order and the dropped click key off `data-disabled`. `density` left with its last caller and `revealActions` stays with its story. `tests/ui/primitives/list-row/list-row-state.dom.test-d.ts` refuses the removed booleans, and `tests/ui/primitives/list-row/state-attributes.ct.tsx` reads the three states from the attributes in the Chromium and WebKit CT projects.
