@@ -4,6 +4,7 @@ import { presetDetailSchema, presetIdInputSchema } from "@orb/contracts/preset";
 import { serveCorpusProcedures } from "@orb/testkit/ct";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
+import { ZodError } from "zod";
 import { isTrpcRequestFor, malformedOrForwardTrpcWire, readTrpcOutput, routeTrpc, trpcEndSubscription, trpcError, trpcHold } from "../node/route-trpc.ts";
 
 const ORIGIN = "http://route-trpc.test";
@@ -118,5 +119,5 @@ test("native output capture validates unbatched success and refuses server error
   await page.evaluate(async (id) => {
     await fetch(`/api/trpc/preset.get?input=${encodeURIComponent(JSON.stringify({ id }))}`);
   }, preset.id);
-  await expect(readTrpcOutput(await malformed, "preset.get", presetDetailSchema)).rejects.toThrow("did not carry a successful result");
+  await expect(readTrpcOutput(await malformed, "preset.get", presetDetailSchema)).rejects.toThrow(ZodError);
 });
