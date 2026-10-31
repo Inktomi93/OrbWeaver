@@ -7,7 +7,7 @@
 import type { MessageView } from "@orb/contracts/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
-import { seedCorpusActors, seedMessage } from "@orb/testkit/node/composed";
+import { connectDevice, seedCorpusActors, seedMessage } from "@orb/testkit/node/composed";
 import { textRoom } from "../scenario-physical.ts";
 
 interface PositionedRow {
@@ -61,7 +61,7 @@ test("send, swipe, continue, undo and revert keep each row's number, on the page
   await using h = await textRoom(["First reply.", "Second swipe.", " Continued.", "Later reply."]);
   const { chat } = h.root.services;
   const presence = new AbortController();
-  h.root.app.presence.connect(h.owner.userId, presence.signal);
+  await connectDevice(h.root, h.owner.userId, presence.signal);
   try {
     const opener = await commit(h, "before the turn");
     const turn = await chat.send({ principal: h.owner, chatId: h.chatId, content: "the turn" });

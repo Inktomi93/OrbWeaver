@@ -54,7 +54,8 @@ test("runtime operation capabilities retain stateful chat and concrete embedding
   if (card === undefined || localSnapshot === null) {
     throw new Error("the shipped card and its local encoder must exist");
   }
-  const characterId = await app.characterSeeder.seedCard(ownerPrincipal, card.handle);
+  await app.contentSeeder.ensureSeeded(ownerPrincipal);
+  const characterId = (await services.character.findByHandle({ ownerId: ownerPrincipal.userId, handle: card.handle }))?.characterId ?? null;
   if (characterId === null) {
     throw new Error("the production seeder did not produce its shipped card");
   }
