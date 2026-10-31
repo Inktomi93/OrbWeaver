@@ -29,7 +29,15 @@ import type {
   RpgTrackerValues,
   RpgWeather,
 } from "@orb/contracts/rpg";
-import { RPG_CHECKPOINT_TRIGGERS, RPG_GAME_MODES, RPG_GAME_STATUSES, RPG_JOURNAL_TYPES } from "@orb/contracts/rpg";
+import {
+  RPG_CHECKPOINT_SNAPSHOT_KINDS,
+  RPG_CHECKPOINT_TRIGGERS,
+  RPG_GAME_MODES,
+  RPG_GAME_STATUSES,
+  RPG_JOURNAL_TYPES,
+  RPG_SNAPSHOT_KIND,
+  RPG_SNAPSHOT_KINDS,
+} from "@orb/contracts/rpg";
 import type {
   CharacterId,
   ChatId,
@@ -45,7 +53,7 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, foreignKey, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { checkList } from "../query/check-list.ts";
 import { characters } from "./character.ts";
 import { chats, messages, messageVariants } from "./chat.ts";
@@ -103,7 +111,7 @@ export const rpgGames = sqliteTable(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// rpg_snapshots — the swipe-volatile plane (§2.4-2.5, D124). TWO ARMS, pinned by a CHECK:
+// rpg_snapshots — the swipe-volatile plane (§2.4-2.5, D124). THREE KINDS, stored in `kind` and pinned by a CHECK:
 //   • TURN row — `message_id` + `variant_id` NOT NULL, `as_of_message_id` NULL. Written ONLY by the turn
 //     flush, keyed to the variant that produced it (variantId UNIQUE among non-null: a swipe rewinds by
 //     construction, each variant's snapshot is its own truth).
@@ -114,6 +122,10 @@ export const rpgGames = sqliteTable(
 //     export, digest, plugin, automation, fork, seed, SSE, counts) and had to be filtered seven times over.
 //     The row class is now unspellable, and the shape is the `rpg_journal.variantId IS NULL` hand-entry
 //     precedent applied one plane over.
+//   • BOOKMARK row — a checkpoint's saved state: message, variant and as-of all NULL. It is NOT A BEAT. The
+//     state ladder (`persistence/snapshots.ts`) reads turn and hand rows only, so a bookmark never becomes the
+//     room's current state and never shadows a swipe; only restore reads it, by id, and writes a hand beat.
+//     A bookmark shares a hand row's NULL keys, so the kind is stored, never derived from them.
 // Born WHOLE — full grafts ZERO columns here. `quests` folds INTO the snapshot (§2.5). `committed` births 0
 // at a turn flush; the NEXT user send's `onUserCommit` locks it to 1 (a hand row is born committed=1).
 // Ambient `clock`/`weather`/`calendarDate` are born nullable (§2.7).
@@ -156,7 +168,7 @@ export const rpgSnapshots = sqliteTable(
     // row orders before all history — exactly "state as of before the story started"). SET NULL, never
     // CASCADE: a deleted as-of slot degrades this row's ORDERING, it must never delete durable game state
     // (the old anchor slot's CASCADE was the "NEVER delete an anchor" footgun). NULL on a turn row, which
-    // carries its own `message_id` instead.
+    // carries its own `message_id` instead, and on a bookmark row, which has no place on the ladder.
     asOfMessageId: text("as_of_message_id")
       .$type<MessageId>()
       .references(() => messages.id, { onDelete: "set null" }),
@@ -190,10 +202,18 @@ export const rpgSnapshots = sqliteTable(
     // Born 0 at flush; the next user send's `onUserCommit` locks it to 1 (the commit lifecycle).
     committed: integer("committed").notNull().default(0),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    // The row's kind (the header). No default: every writer names it, and the arm CHECK ties it to the keys.
+    // `rpg_checkpoints` keys its foreign key on (id, kind), so a checkpoint can pin only a bookmark.
+    kind: text("kind", { enum: RPG_SNAPSHOT_KINDS }).notNull(),
   },
   (t) => [
-    // PARTIAL unique: one snapshot per variant on the TURN arm; hand rows (variant NULL) are unconstrained.
+    // PARTIAL unique: one snapshot per variant on the TURN arm; other kinds (variant NULL) are unconstrained.
+    // Keyed on `variant_id is not null`, not on `kind`: SQLite uses a partial index only when the query implies
+    // its WHERE, and `variant_id = ?` (the swipe lookups and the turn walk's join) implies only this one. The
+    // arm CHECK makes the two predicates select the same rows.
     uniqueIndex("rpg_snapshots_variant_unique").on(t.variantId).where(sql`variant_id is not null`),
+    // The parent key of the checkpoint's composite foreign key (SQLite requires a unique index over exactly it).
+    uniqueIndex("rpg_snapshots_id_kind_unique").on(t.id, t.kind),
     index("rpg_snapshots_game_idx").on(t.gameId),
     // The message CASCADE parent — deleting a message must find its snapshots, and nothing here leads with
     // `messageId` (FK-index test).
@@ -201,9 +221,16 @@ export const rpgSnapshots = sqliteTable(
     // The as-of SET NULL parent — a message delete must find the hand rows stamped at it, and this column
     // leads nothing else (FK-index test). Also the ladder's ordering join.
     index("rpg_snapshots_as_of_message_idx").on(t.asOfMessageId),
-    // THE TWO-ARM SHAPE (D124), the `rpg_sheets` actor-XOR idiom: message and variant are present together
-    // or absent together (turn vs hand), and a TURN row never carries an as-of stamp (it IS its position).
-    check("rpg_snapshots_arm_check", sql.raw("(message_id is null) = (variant_id is null) and (message_id is null or as_of_message_id is null)")),
+    // THE KIND SHAPE (D124): a TURN row carries message and variant and no as-of stamp (it IS its position); a
+    // HAND row carries neither key; a BOOKMARK row carries no key and no as-of stamp.
+    check(
+      "rpg_snapshots_arm_check",
+      sql.raw(
+        `(kind = '${RPG_SNAPSHOT_KIND.turn}' and message_id is not null and variant_id is not null and as_of_message_id is null)` +
+          ` or (kind = '${RPG_SNAPSHOT_KIND.hand}' and message_id is null and variant_id is null)` +
+          ` or (kind = '${RPG_SNAPSHOT_KIND.bookmark}' and message_id is null and variant_id is null and as_of_message_id is null)`,
+      ),
+    ),
   ],
 );
 
@@ -370,9 +397,15 @@ export const rpgTurnToolCalls = sqliteTable(
 // "restore broken because the snapshot vanished" must be a constraint error, not a silent dangle. Lite
 // only ever writes trigger "manual"; full ADDS the session/combat arms (additive tuple). CHECK-derived.
 //
+// A CHECKPOINT PINS ITS OWN BOOKMARK ROW, NEVER A BEAT. A turn row cascades with its message, so RESTRICT on
+// it makes that message undeletable, and continuation rewrites it in place; a turn or hand row is also on the
+// state ladder, where a pinned copy would shadow later swipes. The foreign key is composite over
+// (snapshot_id, snapshot_kind) against the snapshot's (id, kind), and `snapshot_kind` is CHECKed to
+// `bookmark`: pinning a turn or hand row fails at the database.
+//
 // LINEAGE (#1380): `game_id` and `snapshot_id`'s OWN `game_id` must be the same game — two FKs to two
 // tables, which SQLite cannot pair. Unlike the derive-only arms this pair IS caller-supplied on the
-// restore path, and it IS validated there: `verbs/game/restore-checkpoint.ts` compares
+// restore path, and it IS validated there: `verbs/checkpoint/restore-checkpoint.ts` compares
 // `checkpoint.gameId !== game.id` before use.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -384,10 +417,8 @@ export const rpgCheckpoints = sqliteTable(
       .$type<RpgGameId>()
       .notNull()
       .references(() => rpgGames.id, { onDelete: "cascade" }),
-    snapshotId: text("snapshot_id")
-      .$type<RpgSnapshotId>()
-      .notNull()
-      .references(() => rpgSnapshots.id, { onDelete: "restrict" }),
+    snapshotId: text("snapshot_id").$type<RpgSnapshotId>().notNull(),
+    snapshotKind: text("snapshot_kind", { enum: RPG_CHECKPOINT_SNAPSHOT_KINDS }).notNull().default(RPG_SNAPSHOT_KIND.bookmark),
     label: text("label").notNull(),
     trigger: text("trigger", { enum: RPG_CHECKPOINT_TRIGGERS }).notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
@@ -395,8 +426,14 @@ export const rpgCheckpoints = sqliteTable(
   (t) => [
     index("rpg_checkpoints_game_idx").on(t.gameId),
     // The snapshot FK is RESTRICT: every snapshot delete must PROBE this table to decide whether to refuse,
-    // and without a leading index that probe is a full scan (FK-index test).
-    index("rpg_checkpoints_snapshot_idx").on(t.snapshotId),
+    // and without an index over its child key that probe is a full scan (FK-index test).
+    index("rpg_checkpoints_snapshot_idx").on(t.snapshotId, t.snapshotKind),
+    foreignKey({
+      columns: [t.snapshotId, t.snapshotKind],
+      foreignColumns: [rpgSnapshots.id, rpgSnapshots.kind],
+      name: "rpg_checkpoints_snapshot_fk",
+    }).onDelete("restrict"),
+    check("rpg_checkpoints_snapshot_kind_check", sql.raw(`snapshot_kind = '${RPG_SNAPSHOT_KIND.bookmark}'`)),
     check("rpg_checkpoints_trigger_check", sql.raw(`trigger in (${checkList(RPG_CHECKPOINT_TRIGGERS)})`)),
   ],
 );

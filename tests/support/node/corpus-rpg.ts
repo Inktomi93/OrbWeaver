@@ -97,7 +97,12 @@ export async function seedCorpusRpg(root: ServerTestHarness): Promise<SeededCorp
   await caller.rpg.editSnapshot({ chatId, patch: { location: "Harbor" } });
   await caller.rpg.restoreCheckpoint({ chatId, checkpointId: checkpoint.id });
   const restoredCheckpoint = await seedRpgCheckpointRows(root, { ...params, label: "Restored loom" });
-  const restoredSnapshot = await captureRpgSnapshot(root.db, restoredCheckpoint.snapshotId);
+  // The restore's hand row is stamped at its narrator marker; a later checkpoint saves a bookmark copy instead.
+  const marker = (await caller.chat.listMessages({ chatId })).messages.at(-1);
+  const [restoredSnapshot] = marker === undefined ? [] : await root.db.select().from(rpgSnapshots).where(eq(rpgSnapshots.asOfMessageId, marker.id));
+  if (restoredSnapshot === undefined) {
+    throw new Error("the production restore left no hand row at its marker");
+  }
   await caller.rpg.deleteJournalEntry({ chatId, entryId: journal.id });
   const reads = {
     game: await caller.rpg.getGame({ chatId }),

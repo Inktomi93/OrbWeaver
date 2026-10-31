@@ -17,12 +17,15 @@ export interface RpgPortableSheet {
   readonly sheet: RpgSheet;
 }
 
-/** One `rpg_snapshots` row. The two-arm shape rides intact: a TURN row carries `messageId` + `variantId`
- *  (and never an as-of stamp), a HAND row carries neither and may carry `asOfMessageId`. */
+/** One `rpg_snapshots` row. The kind shape rides intact: a TURN row carries `messageId` + `variantId`
+ *  (and never an as-of stamp), a HAND row carries neither and may carry `asOfMessageId`. `bookmark` marks a
+ *  checkpoint's saved copy, which carries no keys; a restore writes a fresh bookmark for each checkpoint
+ *  instead of inserting it as a beat. */
 export interface RpgPortableSnapshot {
   readonly messageId: MessageId | null;
   readonly variantId: MessageVariantId | null;
   readonly asOfMessageId: MessageId | null;
+  readonly bookmark: boolean;
   readonly committed: boolean;
   readonly createdAt: number;
   readonly state: RpgSnapshotState;

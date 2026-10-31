@@ -39,8 +39,17 @@ export const rpgJournalTypeSchema = z.enum(RPG_JOURNAL_TYPES) satisfies z.ZodTyp
  *  tuple members — the reserved-vocabulary posture). */
 export const RPG_CHECKPOINT_TRIGGERS = ["manual"] as const;
 
-type RpgCheckpointTrigger = (typeof RPG_CHECKPOINT_TRIGGERS)[number];
+export type RpgCheckpointTrigger = (typeof RPG_CHECKPOINT_TRIGGERS)[number];
 export const rpgCheckpointTriggerSchema = z.enum(RPG_CHECKPOINT_TRIGGERS) satisfies z.ZodType<RpgCheckpointTrigger>;
+
+/** The kinds of `rpg_snapshots` row (D124). A `turn` row is keyed to the variant whose flush wrote it; a `hand`
+ *  row is every other state write. Both are beats on the room's state ladder. A `bookmark` row is a checkpoint's
+ *  saved state: restore reads it, and the ladder never does. */
+export const RPG_SNAPSHOT_KINDS = ["turn", "hand", "bookmark"] as const;
+type RpgSnapshotKind = (typeof RPG_SNAPSHOT_KINDS)[number];
+export const RPG_SNAPSHOT_KIND = { turn: "turn", hand: "hand", bookmark: "bookmark" } as const satisfies { readonly [K in RpgSnapshotKind]: K };
+/** The snapshot kinds a checkpoint may pin: only its own bookmark copy, never a beat. */
+export const RPG_CHECKPOINT_SNAPSHOT_KINDS = [RPG_SNAPSHOT_KIND.bookmark] as const;
 
 // The TRACKER axes (the tracked-field unification). These four
 // tuples ARE the unification: pool/meter/cast-field/band-orb/widget were never five concepts, they were one

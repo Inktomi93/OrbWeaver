@@ -30,6 +30,7 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import type {
   CancelStateRoundsOp,
   EmitRpgEvent,
+  RpgCheckpointView,
   RpgConfigView,
   RpgDeliveryPath,
   RpgExtractionMode,
@@ -896,7 +897,7 @@ export interface RpgService {
   readonly createCheckpoint: (params: CreateCheckpointParams) => Promise<RpgCheckpointId>;
   /** Host. Clone the checkpointed snapshot forward BORN COMMITTED onto a fresh narrator slot. */
   readonly restoreCheckpoint: (params: RestoreCheckpointParams) => Promise<void>;
-  readonly listCheckpoints: (params: ListCheckpointsParams) => Promise<readonly RpgCheckpointRow[]>;
+  readonly listCheckpoints: (params: ListCheckpointsParams) => Promise<readonly RpgCheckpointView[]>;
   /** Member. Server CSPRNG, bake-once — the total + faces + composer stamp. Zero state. */
   readonly rollDice: (params: RollDiceParams) => Promise<RollDiceResult>;
   /** Member. The takeover's mode read (§4.8). */

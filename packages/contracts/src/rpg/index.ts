@@ -97,12 +97,15 @@ export type {
   RpgTrackerShape,
 } from "./enums.ts";
 export {
+  RPG_CHECKPOINT_SNAPSHOT_KINDS,
   RPG_CHECKPOINT_TRIGGERS,
   RPG_CYOA_CHOICE_BEHAVIORS,
   RPG_GAME_MODES,
   RPG_GAME_STATUSES,
   RPG_JOURNAL_TYPES,
   RPG_RELATIONSHIP_KINDS,
+  RPG_SNAPSHOT_KIND,
+  RPG_SNAPSHOT_KINDS,
   rpgCheckpointTriggerSchema,
   rpgGameModeSchema,
   rpgGameStatusSchema,
@@ -295,6 +298,7 @@ export {
 } from "./tracker.ts";
 export type {
   RpgActorView,
+  RpgCheckpointView,
   RpgConfigView,
   RpgEffectiveDelivery,
   RpgGameView,

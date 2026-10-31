@@ -148,6 +148,7 @@ test("a room's injections, tags and rpg campaign restore into a fresh box, re-an
 const ANCHORED_TITLE = "The anchored campaign";
 const ANCHORED_LOCATION = "the ferry landing";
 const ANCHORED_JOURNAL = "The ferry was lost";
+const SWIPED_LOCATION = "the bridge that held";
 
 function line(role: "user" | "assistant", content: string): PortableChat["messages"][number] {
   return {
@@ -177,9 +178,23 @@ function line(role: "user" | "assistant", content: string): PortableChat["messag
   };
 }
 
-/** A four-message room whose campaign rows are all anchored to `messages[turn]`'s first variant. */
-function anchoredBundle(turn: number): Uint8Array {
-  const anchor = { messageIndex: turn, variantIdx: 0 };
+type PortableGame = NonNullable<PortableChat["rpg"]>;
+
+/** One committed turn snapshot at `messages[messageIndex]`'s variant `variantIdx`, recording `location`. */
+function turnSnapshot(messageIndex: number, variantIdx: number, location: string): PortableGame["snapshots"][number] {
+  return {
+    messageIndex,
+    variantIdx,
+    asOfMessageIndex: null,
+    bookmark: false,
+    committed: true,
+    createdAt: FROZEN_AT_MS,
+    state: rpgSnapshotStateSchema.parse({ clock: null, calendarDate: null, weather: null, fieldLocks: null, location }),
+  };
+}
+
+/** The anchored room around the given transcript and campaign planes. */
+function roomBundle(messages: PortableChat["messages"], rpg: Pick<PortableGame, "snapshots" | "journal" | "turnToolCalls" | "checkpoints">): Uint8Array {
   return buildChatBundleFile({
     title: ANCHORED_TITLE,
     createdAt: FROZEN_AT_MS,
@@ -195,27 +210,39 @@ function anchoredBundle(turn: number): Uint8Array {
     characterHandles: [HANDLE],
     tagNames: [],
     injections: [],
-    messages: [line("user", "Do we cross?"), line("assistant", "The bridge groans."), line("user", "Then the ferry."), line("assistant", "The ferry waits.")],
-    rpg: {
-      mode: "lite",
-      status: "active",
-      sessionNumber: 1,
-      config: rpgGameConfigSchema.parse({}),
-      createdAt: FROZEN_AT_MS,
-      sheets: [],
-      snapshots: [
-        {
-          ...anchor,
-          asOfMessageIndex: null,
-          committed: true,
-          createdAt: FROZEN_AT_MS,
-          state: rpgSnapshotStateSchema.parse({ clock: null, calendarDate: null, weather: null, fieldLocks: null, location: ANCHORED_LOCATION }),
-        },
-      ],
+    messages,
+    rpg: { mode: "lite", status: "active", sessionNumber: 1, config: rpgGameConfigSchema.parse({}), createdAt: FROZEN_AT_MS, sheets: [], ...rpg },
+  });
+}
+
+/** A four-message room whose campaign rows are all anchored to `messages[turn]`'s first variant. */
+function anchoredBundle(turn: number): Uint8Array {
+  const anchor = { messageIndex: turn, variantIdx: 0 };
+  return roomBundle(
+    [line("user", "Do we cross?"), line("assistant", "The bridge groans."), line("user", "Then the ferry."), line("assistant", "The ferry waits.")],
+    {
+      snapshots: [turnSnapshot(turn, 0, ANCHORED_LOCATION)],
       journal: [{ type: "event", label: "", title: ANCHORED_JOURNAL, content: "Lost.", ...anchor, sourceMessageIndex: turn, createdAt: FROZEN_AT_MS }],
       turnToolCalls: [{ ...anchor, calls: [{ name: "update_scene", args: "{}", verdict: "applied", issues: [] }], createdAt: FROZEN_AT_MS }],
       checkpoints: [{ snapshotIndex: 0, label: CHECKPOINT, trigger: "manual", createdAt: FROZEN_AT_MS }],
     },
+  );
+}
+
+/** A two-message room whose assistant turn was swiped: the checkpoint names the first variant's snapshot, and
+ *  the second variant is the selected one. */
+function swipedPinBundle(): Uint8Array {
+  const first = line("assistant", "The bridge groans.");
+  const [variant] = first.variants;
+  if (variant === undefined) {
+    throw new Error("the assistant line has no variant");
+  }
+  const swiped = { ...first, selectedIdx: 1, variants: [variant, { ...variant, idx: 1, content: "The bridge holds." }] };
+  return roomBundle([line("user", "Do we cross?"), swiped], {
+    snapshots: [turnSnapshot(1, 0, ANCHORED_LOCATION), turnSnapshot(1, 1, SWIPED_LOCATION)],
+    journal: [],
+    turnToolCalls: [],
+    checkpoints: [{ snapshotIndex: 0, label: CHECKPOINT, trigger: "manual", createdAt: FROZEN_AT_MS }],
   });
 }
 
@@ -285,6 +312,34 @@ test("deleting the turn a restored checkpoint was exported under succeeds, and t
   const [checkpoint] = await root.services.rpg.listCheckpoints(params);
   if (checkpoint === undefined) {
     throw new Error("the checkpoint was lost with its turn");
+  }
+  await root.services.rpg.restoreCheckpoint({ ...params, checkpointId: castId(checkpoint.id) });
+  expect((await root.services.rpg.getTrackerView(params)).ambient).toMatchObject({ location: ANCHORED_LOCATION });
+});
+
+test("a restored checkpoint pinned to a swiped-away variant leaves the selected swipe's state current and still restores", async () => {
+  await using root = await signedInBox();
+  const owner = await root.principalFor(root.ownerId);
+  await root.services.character.create({ principal: owner, input: createCharacterSchema.parse({ handle: HANDLE, name: "Warden", description: "A warden." }) });
+  const chat = root.app.portability.find((entity) => entity.kind === "chat");
+  if (chat === undefined) {
+    throw new Error("production composition has no chat portability descriptor");
+  }
+  expect(await chat.importFile(root.ownerId, { filename: `${HANDLE}/swiped${CHAT_BUNDLE_EXT}`, bytes: swipedPinBundle() })).toMatchObject({
+    ok: true,
+    created: true,
+  });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const [room] = (await caller.chat.listChats({ limit: 50 })).items.filter((item) => item.title === ANCHORED_TITLE);
+  if (room === undefined) {
+    throw new Error("the swiped room did not restore");
+  }
+  const params = { principal: owner, chatId: room.id };
+
+  expect((await root.services.rpg.getTrackerView(params)).ambient).toMatchObject({ location: SWIPED_LOCATION });
+  const [checkpoint] = await root.services.rpg.listCheckpoints(params);
+  if (checkpoint === undefined) {
+    throw new Error("the checkpoint did not restore");
   }
   await root.services.rpg.restoreCheckpoint({ ...params, checkpointId: castId(checkpoint.id) });
   expect((await root.services.rpg.getTrackerView(params)).ambient).toMatchObject({ location: ANCHORED_LOCATION });

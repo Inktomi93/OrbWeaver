@@ -114,7 +114,9 @@ function game(over: Partial<PortableRpgGame> = {}): PortableRpgGame {
     config: rpgGameConfigSchema.parse({}),
     createdAt: AT,
     sheets: [{ characterHandle: "hero", sheet: rpgSheetSchema.parse({ className: "Wanderer", level: 4 }) }],
-    snapshots: [{ messageIndex: 0, variantIdx: 0, asOfMessageIndex: null, committed: true, createdAt: AT, state: snapshotState("the broken bridge") }],
+    snapshots: [
+      { messageIndex: 0, variantIdx: 0, asOfMessageIndex: null, bookmark: false, committed: true, createdAt: AT, state: snapshotState("the broken bridge") },
+    ],
     journal: [
       {
         type: "event",
@@ -297,6 +299,32 @@ describe("the rpg plane", () => {
     expect(must(parseChatBundleFile(bytesOf(wire))).rpg?.turnToolCalls[0]?.calls[0]?.issues).toEqual([]);
   });
 
+  test("a bookmark snapshot round-trips as one, and a snapshot from a file without the flag reads as a beat", () => {
+    const marked = chat({
+      rpg: game({
+        snapshots: [
+          {
+            messageIndex: null,
+            variantIdx: null,
+            asOfMessageIndex: null,
+            bookmark: true,
+            committed: true,
+            createdAt: AT,
+            state: snapshotState("the saved bridge"),
+          },
+        ],
+      }),
+    });
+    expect(must(parseChatBundleFile(buildChatBundleFile(marked))).rpg?.snapshots[0]?.bookmark).toBe(true);
+    const wire = wireOf();
+    const snapshot = (wire.rpg as { snapshots: Record<string, unknown>[] }).snapshots[0];
+    if (snapshot === undefined) {
+      throw new Error("the built bundle carries no rpg snapshot");
+    }
+    snapshot["bookmark"] = undefined;
+    expect(must(parseChatBundleFile(bytesOf(wire))).rpg?.snapshots[0]?.bookmark).toBe(false);
+  });
+
   test("sheet handles are opaque wire strings: blank heals to null and an over-cap string is carried", () => {
     const wire = wireOf();
     const sheet = (wire.rpg as { sheets: { characterHandle: unknown }[] }).sheets[0];
@@ -313,7 +341,7 @@ describe("the rpg plane", () => {
   test("a reference past the end of the transcript is pruned per its plane, and a hand-authored plane survives", () => {
     const dangling = chat({
       rpg: game({
-        snapshots: [{ messageIndex: 9, variantIdx: 0, asOfMessageIndex: 9, committed: true, createdAt: AT, state: snapshotState("nowhere") }],
+        snapshots: [{ messageIndex: 9, variantIdx: 0, asOfMessageIndex: 9, bookmark: false, committed: true, createdAt: AT, state: snapshotState("nowhere") }],
         journal: [{ type: "event", label: "", title: "orphan", content: "…", messageIndex: 9, variantIdx: 0, sourceMessageIndex: 9, createdAt: AT }],
         turnToolCalls: [{ messageIndex: 9, variantIdx: 0, calls: [], createdAt: AT }],
         checkpoints: [{ snapshotIndex: 7, label: "orphan", trigger: "manual", createdAt: AT }],
