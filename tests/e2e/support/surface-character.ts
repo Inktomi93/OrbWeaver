@@ -14,6 +14,35 @@ import { expect, test } from "@playwright/test";
 import { CHARACTER_ACTION_SCOPE_IDS, CHARACTER_ACTIONS } from "#client/features/character/lib/character-actions.ts";
 import { CHARACTER_CARD_FACETS } from "#client/features/character/lib/character-card-facets.ts";
 import { characterCardFormFromDetail, characterUpdateDiff } from "#client/features/character/lib/character-card-form-model.ts";
+import {
+  CHARACTER_ACTIONS_MENU_NAME,
+  CHARACTER_ADD_TAG_NAME,
+  CHARACTER_CONNECT_PERSONA_NAME,
+  CHARACTER_DELETE_TITLE,
+  CHARACTER_DESCRIPTION_FIELD_NAME,
+  CHARACTER_DUPLICATE_TITLE,
+  CHARACTER_EDITOR_NAME,
+  CHARACTER_FEWER_TAGS_NAME,
+  CHARACTER_FILTER_TAGS_NAME,
+  CHARACTER_FILTERS_NAME,
+  CHARACTER_GROUP_BY_TAG_NAME,
+  CHARACTER_IMPORT_NAME,
+  CHARACTER_LIBRARY_NAME,
+  CHARACTER_LINK_BOOK_NAME,
+  CHARACTER_NAME_FIELD_NAME,
+  CHARACTER_NEW_NAME,
+  CHARACTER_RESTORE_SNAPSHOT_TITLE,
+  CHARACTER_SEARCH_NAME,
+  CHARACTER_SELECT_MULTIPLE_NAME,
+  CHARACTER_SHOW_ARCHIVED_NAME,
+  CHARACTER_SHOW_FAVORITES_NAME,
+  CHARACTER_SNAPSHOT_NOW_NAME,
+  CHARACTER_SORT_NAME,
+  CHARACTER_TAG_DIALOG_TITLE,
+  CHARACTER_TAG_VOCABULARY_NAME,
+  characterBulkDeleteTitle,
+  characterBulkTagTitle,
+} from "#client/features/character/lib/character-names.ts";
 import { CHARACTERS_SECTION_LABEL } from "#client/features/character/lib/characters-section-label.ts";
 import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
@@ -27,7 +56,6 @@ import { holdTrpcProcedure } from "./trpc.ts";
 
 const LIST = '.shell-panel[data-panel-side="list"]';
 const CONTEXT = '.shell-panel[data-panel-side="context"]';
-const EDITOR_NAME = "Edit character";
 const TABLIST_NAME = "Character";
 const UNEXERCISED_ACTIONS = [
   "greeting Rewrite and transform permutations",
@@ -96,7 +124,7 @@ async function record(flow: CharacterFlow, name: string, scope: Locator, witness
 async function openList(flow: CharacterFlow): Promise<Locator> {
   const { page } = flow;
   await dismissContext(flow);
-  const search = page.getByRole("textbox", { name: "Search characters", exact: true });
+  const search = page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true });
   const back = page.getByRole("button", { name: "Back to Characters", exact: true });
   const show = page.getByRole("button", { name: /^Show (?:list panel|Characters(?: · .+)? list)$/u });
   await expect.poll(async () => (await search.isVisible()) || (await back.isVisible()) || (await show.isVisible())).toBe(true);
@@ -111,11 +139,11 @@ async function openList(flow: CharacterFlow): Promise<Locator> {
 
 async function openCard(flow: CharacterFlow, name: string, rowName = name): Promise<Locator> {
   const list = await openList(flow);
-  const search = list.getByRole("textbox", { name: "Search characters", exact: true });
+  const search = list.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true });
   await search.fill(name);
-  const row = list.getByRole("list", { name: "Character library", exact: true }).getByRole("button", { name: rowName, exact: true });
+  const row = list.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true }).getByRole("button", { name: rowName, exact: true });
   await row.click();
-  const form = flow.page.getByRole("form", { name: EDITOR_NAME, exact: true });
+  const form = flow.page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true });
   await expect(form.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
   await flow.requestPanes();
   await dismissContext(flow);
@@ -159,9 +187,9 @@ async function dialogCancel(flow: CharacterFlow, dialog: Locator, name: string, 
 
 async function listJourney(flow: CharacterFlow, originalName: string, rowName: string): Promise<void> {
   const list = await openList(flow);
-  const search = list.getByRole("textbox", { name: "Search characters", exact: true });
-  await record(flow, "list-search-sort", list, [search, list.getByRole("combobox", { name: "Sort characters", exact: true })]);
-  const sort = list.getByRole("combobox", { name: "Sort characters", exact: true });
+  const search = list.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true });
+  await record(flow, "list-search-sort", list, [search, list.getByRole("combobox", { name: CHARACTER_SORT_NAME, exact: true })]);
+  const sort = list.getByRole("combobox", { name: CHARACTER_SORT_NAME, exact: true });
   await sort.click();
   const options = await controlledPanel(sort);
   await expect(options.getByRole("option")).toHaveCount(CHARACTER_LIST_SORTS.length);
@@ -173,8 +201,8 @@ async function listJourney(flow: CharacterFlow, originalName: string, rowName: s
   if (await disclosure.isVisible()) {
     await disclosure.click();
   }
-  const filters = list.getByRole("group", { name: "Filters", exact: true });
-  await record(flow, "filter-vocabulary", filters, [filters.getByRole("button", { name: "Show only favorites", exact: true })]);
+  const filters = list.getByRole("group", { name: CHARACTER_FILTERS_NAME, exact: true });
+  await record(flow, "filter-vocabulary", filters, [filters.getByRole("button", { name: CHARACTER_SHOW_FAVORITES_NAME, exact: true })]);
   const vocabularyRows = await flow.client.tag.listTagFilterVocabulary.query(undefined);
   const leadingTag = vocabularyRows[0];
   if (leadingTag !== undefined) {
@@ -183,9 +211,9 @@ async function listJourney(flow: CharacterFlow, originalName: string, rowName: s
   const more = filters.getByRole("button", { name: /^Show \d+ more tags$/u });
   if (await more.isVisible()) {
     await more.click();
-    const vocabulary = filters.getByRole("region", { name: "Tag vocabulary", exact: true });
-    await record(flow, "expanded-tag-vocabulary", filters, [filters.getByRole("searchbox", { name: "Filter tags", exact: true }), vocabulary]);
-    await filters.getByRole("button", { name: "Show fewer tags", exact: true }).click();
+    const vocabulary = filters.getByRole("region", { name: CHARACTER_TAG_VOCABULARY_NAME, exact: true });
+    await record(flow, "expanded-tag-vocabulary", filters, [filters.getByRole("searchbox", { name: CHARACTER_FILTER_TAGS_NAME, exact: true }), vocabulary]);
+    await filters.getByRole("button", { name: CHARACTER_FEWER_TAGS_NAME, exact: true }).click();
   }
   const fewerFilters = filters.getByRole("button", { name: /hide the tag vocabulary/u });
   if (await fewerFilters.isVisible()) {
@@ -203,8 +231,8 @@ async function listJourney(flow: CharacterFlow, originalName: string, rowName: s
     },
   });
   await search.fill(originalName);
-  await expect(list.getByRole("list", { name: "Character library", exact: true }).getByRole("button", { name: rowName, exact: true })).toBeVisible();
-  const group = list.getByRole("button", { name: "Group by tag", exact: true });
+  await expect(list.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true }).getByRole("button", { name: rowName, exact: true })).toBeVisible();
+  const group = list.getByRole("button", { name: CHARACTER_GROUP_BY_TAG_NAME, exact: true });
   await group.click();
   await expect(group).toHaveAttribute("aria-pressed", "true");
   await record(flow, "categorized-library", list, [group]);
@@ -220,9 +248,9 @@ async function createRefusalJourney(flow: CharacterFlow): Promise<void> {
   const open = async (): Promise<Locator> => {
     await openList(flow);
     await page.getByRole("button", { name: /^(?:New|New character)$/u }).click();
-    const dialog = page.getByRole("dialog", { name: "New character", exact: true });
-    await dialog.getByRole("textbox", { name: "Character name", exact: true }).fill(name);
-    await dialog.getByRole("textbox", { name: "Character description", exact: true }).fill(description);
+    const dialog = page.getByRole("dialog", { name: CHARACTER_NEW_NAME, exact: true });
+    await dialog.getByRole("textbox", { name: CHARACTER_NAME_FIELD_NAME, exact: true }).fill(name);
+    await dialog.getByRole("textbox", { name: CHARACTER_DESCRIPTION_FIELD_NAME, exact: true }).fill(description);
     return dialog;
   };
   try {
@@ -234,7 +262,9 @@ async function createRefusalJourney(flow: CharacterFlow): Promise<void> {
       },
       ready: async (): Promise<void> => {
         await expect(create).toBeHidden();
-        await expect(page.getByRole("form", { name: EDITOR_NAME, exact: true }).getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
+        await expect(page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true }).getByRole("textbox", { name: "Name", exact: true })).toHaveValue(
+          name,
+        );
       },
     });
     const persisted = (await client.character.list.query({ search: name })).items.filter((row) => row.name === name && !before.has(row.id));
@@ -246,7 +276,7 @@ async function createRefusalJourney(flow: CharacterFlow): Promise<void> {
     const response = await refusedResponse;
     expect(response.status()).toBe(400);
     expect(await response.json()).toMatchObject([{ error: { data: { code: "BAD_REQUEST", reason: CHARACTER_HANDLE_CONFLICT_OP_CODE } } }]);
-    const field = refused.getByRole("textbox", { name: "Character name", exact: true });
+    const field = refused.getByRole("textbox", { name: CHARACTER_NAME_FIELD_NAME, exact: true });
     await expect(field).toHaveAttribute("aria-invalid", "true");
     await checkpointState(flow, "native-name-conflict", refused, {
       state: "error",
@@ -272,13 +302,13 @@ async function libraryWalk(flow: CharacterFlow): Promise<void> {
   await walkDoor(flow, {
     id: "new-dialog",
     trigger: flow.page.getByRole("button", { name: /^(?:New|New character)$/u }),
-    body: flow.page.getByRole("dialog", { name: "New character", exact: true }),
+    body: flow.page.getByRole("dialog", { name: CHARACTER_NEW_NAME, exact: true }),
     exit: cancel,
   });
   await walkDoor(flow, {
     id: "import-dialog",
-    trigger: flow.page.getByRole("button", { name: "Import a character card", exact: true }),
-    body: flow.page.getByRole("dialog", { name: "Import a character card", exact: true }),
+    trigger: flow.page.getByRole("button", { name: CHARACTER_IMPORT_NAME, exact: true }),
+    body: flow.page.getByRole("dialog", { name: CHARACTER_IMPORT_NAME, exact: true }),
     exit: cancel,
   });
 }
@@ -288,10 +318,15 @@ async function contextWalk(flow: CharacterFlow, subject: string): Promise<void> 
   const links = await contextTab(flow, "Links");
   const dialog = flow.page.getByRole("dialog");
   const done = dialog.getByRole("button", { name: "Done", exact: true });
-  await walkDoor(flow, { id: `${subject}-book-picker`, trigger: links.getByRole("button", { name: "Link a book", exact: true }), body: dialog, exit: done });
+  await walkDoor(flow, {
+    id: `${subject}-book-picker`,
+    trigger: links.getByRole("button", { name: CHARACTER_LINK_BOOK_NAME, exact: true }),
+    body: dialog,
+    exit: done,
+  });
   await walkDoor(flow, {
     id: `${subject}-persona-picker`,
-    trigger: links.getByRole("button", { name: "Connect a persona", exact: true }),
+    trigger: links.getByRole("button", { name: CHARACTER_CONNECT_PERSONA_NAME, exact: true }),
     body: dialog,
     exit: done,
   });
@@ -306,8 +341,8 @@ async function editorWalk(flow: CharacterFlow, form: Locator, characterId: Chara
   const tags = form.locator('[data-slot="character-tags"]');
   await walkDoor(flow, {
     id: "tag-name-picker",
-    trigger: tags.getByRole("button", { name: "Add tag", exact: true }),
-    body: flow.page.getByRole("dialog", { name: "Tag this character", exact: true }),
+    trigger: tags.getByRole("button", { name: CHARACTER_ADD_TAG_NAME, exact: true }),
+    body: flow.page.getByRole("dialog", { name: CHARACTER_TAG_DIALOG_TITLE, exact: true }),
     exit: dialog.getByRole("button", { name: "Cancel", exact: true }),
   });
   const tag = (await flow.client.character.get.query({ characterId })).tags.find((candidate) => !candidate.isHiddenOnCard);
@@ -357,7 +392,7 @@ async function editorWalk(flow: CharacterFlow, form: Locator, characterId: Chara
 
 async function rowAndBulkJourney(flow: CharacterFlow, name: string): Promise<void> {
   const list = await openList(flow);
-  await list.getByRole("textbox", { name: "Search characters", exact: true }).fill(name);
+  await list.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true }).fill(name);
   const row = list.locator('[data-slot="list-row-root"]').filter({ has: flow.page.getByRole("button", { name, exact: true }) });
   await row.hover();
   await row.getByRole("button", { name: rowActionsName(name), exact: true }).click();
@@ -374,15 +409,15 @@ async function rowAndBulkJourney(flow: CharacterFlow, name: string): Promise<voi
   await record(flow, "row-export-formats-unsubmitted", flow.page.getByRole("menu").filter({ has: png }), [png]);
   await flow.page.keyboard.press("Escape");
   await flow.page.keyboard.press("Escape");
-  const select = list.getByRole("button", { name: "Select multiple", exact: true });
+  const select = list.getByRole("button", { name: CHARACTER_SELECT_MULTIPLE_NAME, exact: true });
   await select.click();
   await list.getByRole("checkbox", { name: `Select ${name}`, exact: true }).check();
   const tag = list.getByRole("button", { name: CHARACTER_ACTIONS.tag.label, exact: true });
   await record(flow, "bulk-selected", list, [tag, list.getByRole("button", { name: CHARACTER_ACTIONS.delete.label, exact: true })]);
   await tag.click();
-  await dialogCancel(flow, flow.page.getByRole("dialog", { name: "Tag 1 character", exact: true }), "bulk-tag-picker");
+  await dialogCancel(flow, flow.page.getByRole("dialog", { name: characterBulkTagTitle(1), exact: true }), "bulk-tag-picker");
   await list.getByRole("button", { name: CHARACTER_ACTIONS.delete.label, exact: true }).click();
-  await dialogCancel(flow, flow.page.getByRole("alertdialog", { name: "Delete 1 character?", exact: true }), "bulk-delete-confirm");
+  await dialogCancel(flow, flow.page.getByRole("alertdialog", { name: characterBulkDeleteTitle(1), exact: true }), "bulk-delete-confirm");
   await select.click();
 }
 
@@ -563,7 +598,7 @@ async function historyJourney(flow: CharacterFlow, characterId: CharacterId): Pr
 }
 
 async function snapshotJourney(flow: CharacterFlow, characterId: CharacterId, history: Locator): Promise<void> {
-  const snapshot = history.getByRole("button", { name: "Snapshot now", exact: true });
+  const snapshot = history.getByRole("button", { name: CHARACTER_SNAPSHOT_NOW_NAME, exact: true });
   await checkpointState(flow, "history-empty", history, {
     witnesses: [snapshot, history.getByText("No snapshots yet. Take one to capture this character's current state.", { exact: true })],
     state: "empty",
@@ -579,7 +614,7 @@ async function snapshotJourney(flow: CharacterFlow, characterId: CharacterId, hi
   const restore = history.getByRole("button", { name: "Restore", exact: true });
   await record(flow, "history-populated", history, [restore]);
   await restore.click();
-  await dialogCancel(flow, flow.page.getByRole("alertdialog", { name: "Restore this snapshot?", exact: true }), "snapshot-restore-confirm");
+  await dialogCancel(flow, flow.page.getByRole("alertdialog", { name: CHARACTER_RESTORE_SNAPSHOT_TITLE, exact: true }), "snapshot-restore-confirm");
 }
 
 async function historyFailureJourney(flow: CharacterFlow, name: string): Promise<void> {
@@ -628,7 +663,7 @@ async function lookFailureJourney(flow: CharacterFlow, characterId: CharacterId)
 
 async function actionsJourney(flow: CharacterFlow, characterId: CharacterId): Promise<void> {
   await contextTab(flow, "Overview");
-  const button = flow.page.locator(CONTEXT).getByRole("button", { name: "Character actions", exact: true });
+  const button = flow.page.locator(CONTEXT).getByRole("button", { name: CHARACTER_ACTIONS_MENU_NAME, exact: true });
   await button.click();
   let menu = flow.page.getByRole("menu");
   const detail = await flow.client.character.get.query({ characterId });
@@ -644,11 +679,11 @@ async function actionsJourney(flow: CharacterFlow, characterId: CharacterId): Pr
     menu.getByRole("menuitem", { name: CHARACTER_ACTIONS.delete.label, exact: true }),
   ]);
   await menu.getByRole("menuitem", { name: CHARACTER_ACTIONS.duplicate.label, exact: true }).click();
-  await dialogCancel(flow, flow.page.getByRole("alertdialog", { name: "Duplicate this character?", exact: true }), "duplicate-confirm");
+  await dialogCancel(flow, flow.page.getByRole("alertdialog", { name: CHARACTER_DUPLICATE_TITLE, exact: true }), "duplicate-confirm");
   await button.click();
   menu = flow.page.getByRole("menu");
   await menu.getByRole("menuitem", { name: CHARACTER_ACTIONS.delete.label, exact: true }).click();
-  await dialogCancel(flow, flow.page.getByRole("alertdialog", { name: "Delete this character?", exact: true }), "delete-confirm");
+  await dialogCancel(flow, flow.page.getByRole("alertdialog", { name: CHARACTER_DELETE_TITLE, exact: true }), "delete-confirm");
   await button.click();
   await flow.page.getByRole("menuitem", { name: CHARACTER_ACTIONS.openGallery.label, exact: true }).click();
   const gallery = flow.page.getByRole("dialog", { name: `${detail.name}'s gallery`, exact: true });
@@ -696,7 +731,7 @@ async function recoveryJourney(flow: CharacterFlow, name: string): Promise<void>
   await openList(flow);
   const lift = await abortProcedure(flow.page, "character.list");
   try {
-    await flow.page.getByRole("textbox", { name: "Search characters", exact: true }).fill(`${name} deliberately failed read`);
+    await flow.page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true }).fill(`${name} deliberately failed read`);
     const list = flow.page.locator(LIST);
     const retry = list.getByRole("button", { name: "Retry", exact: true });
     await checkpointState(flow, "library-transport-failure", list, { witnesses: [retry], state: "error" });
@@ -770,16 +805,18 @@ function completedCommand(flow: CharacterFlow, id: (typeof COMMAND_ACTION_IDS)[n
 
 async function characterCommandMenu(flow: CharacterFlow): Promise<Locator> {
   await contextTab(flow, "Overview");
-  await flow.page.locator(CONTEXT).getByRole("button", { name: "Character actions", exact: true }).click();
+  await flow.page.locator(CONTEXT).getByRole("button", { name: CHARACTER_ACTIONS_MENU_NAME, exact: true }).click();
   return flow.page.getByRole("menu");
 }
 
 async function createCommandCharacter(flow: CharacterFlow, name: string, subjects: CommandSubjects): Promise<SourceCharacter> {
   await openList(flow);
   await flow.page.getByRole("button", { name: /^(?:New|New character)$/u }).click();
-  const dialog = flow.page.getByRole("dialog", { name: "New character", exact: true });
-  await dialog.getByRole("textbox", { name: "Character name", exact: true }).fill(name);
-  await dialog.getByRole("textbox", { name: "Character description", exact: true }).fill("A disposable native command witness for {{char}} and {{user}}.");
+  const dialog = flow.page.getByRole("dialog", { name: CHARACTER_NEW_NAME, exact: true });
+  await dialog.getByRole("textbox", { name: CHARACTER_NAME_FIELD_NAME, exact: true }).fill(name);
+  await dialog
+    .getByRole("textbox", { name: CHARACTER_DESCRIPTION_FIELD_NAME, exact: true })
+    .fill("A disposable native command witness for {{char}} and {{user}}.");
   await flow.action("characters-commands-create", {
     action: async (): Promise<void> => {
       // eslint-disable-next-line orb/no-hand-copied-label -- This is the character creation submit, not a slash-command group label.
@@ -795,7 +832,7 @@ async function createCommandCharacter(flow: CharacterFlow, name: string, subject
     throw new Error("The native Character create left no disposable subject");
   }
   subjects.characters.add(created.id);
-  const form = flow.page.getByRole("form", { name: EDITOR_NAME, exact: true });
+  const form = flow.page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true });
   await expect(form.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
   await record(flow, "commands-native-created", form, [form.getByRole("textbox", { name: "Name", exact: true })]);
   return created;
@@ -803,7 +840,7 @@ async function createCommandCharacter(flow: CharacterFlow, name: string, subject
 
 async function duplicateCommandCharacter(flow: CharacterFlow, parent: SourceCharacter, name: string, subjects: CommandSubjects): Promise<SourceCharacter> {
   await (await characterCommandMenu(flow)).getByRole("menuitem", { name: CHARACTER_ACTIONS.duplicate.label, exact: true }).click();
-  const confirm = flow.page.getByRole("alertdialog", { name: "Duplicate this character?", exact: true });
+  const confirm = flow.page.getByRole("alertdialog", { name: CHARACTER_DUPLICATE_TITLE, exact: true });
   await record(flow, "commands-duplicate-confirm", confirm, [confirm.getByRole("button", { name: CHARACTER_ACTIONS.duplicate.label, exact: true })]);
   await flow.action("characters-commands-duplicate", {
     action: async (): Promise<void> => {
@@ -825,7 +862,7 @@ async function duplicateCommandCharacter(flow: CharacterFlow, parent: SourceChar
   }
   subjects.characters.add(copy.id);
   expect(copy.handle).not.toBe(parent.handle);
-  const form = flow.page.getByRole("form", { name: EDITOR_NAME, exact: true });
+  const form = flow.page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true });
   await dismissContext(flow);
   await flow.action("characters-commands-copy-identity-save", {
     action: async (): Promise<void> => {
@@ -851,8 +888,8 @@ async function duplicateCommandCharacter(flow: CharacterFlow, parent: SourceChar
 
 async function selectCommandCards(flow: CharacterFlow, search: string, names: readonly string[]): Promise<Locator> {
   const list = await openList(flow);
-  await list.getByRole("textbox", { name: "Search characters", exact: true }).fill(search);
-  const select = list.getByRole("button", { name: "Select multiple", exact: true });
+  await list.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true }).fill(search);
+  const select = list.getByRole("button", { name: CHARACTER_SELECT_MULTIPLE_NAME, exact: true });
   if ((await select.getAttribute("aria-pressed")) !== "true") {
     await select.click();
   }
@@ -875,7 +912,7 @@ async function tagCommandCharacters(
     cards.map(({ name }) => name),
   );
   await list.getByRole("button", { name: CHARACTER_ACTIONS.tag.label, exact: true }).click();
-  const dialog = flow.page.getByRole("dialog", { name: `Tag ${cards.length} characters`, exact: true });
+  const dialog = flow.page.getByRole("dialog", { name: characterBulkTagTitle(cards.length), exact: true });
   await dialog.getByRole("combobox", { name: "Tag name", exact: true }).fill(tagName);
   const submit = dialog.getByRole("button", { name: `Create "${tagName}"`, exact: true });
   await record(flow, "commands-bulk-tag-create", dialog, [submit]);
@@ -895,7 +932,7 @@ async function tagCommandCharacters(
     throw new Error("Native tagging persisted no named tag identity");
   }
   subjects.tags.add(tag.id);
-  await list.getByRole("button", { name: "Select multiple", exact: true }).click();
+  await list.getByRole("button", { name: CHARACTER_SELECT_MULTIPLE_NAME, exact: true }).click();
   const form = await openCard(flow, copy.name);
   const chip = form.getByRole("button", { name: `Edit tag ${tagName}`, exact: true });
   await chip.scrollIntoViewIfNeeded();
@@ -956,7 +993,7 @@ async function archiveCommandCharacters(flow: CharacterFlow, parent: SourceChara
   if (await disclosure.isVisible()) {
     await disclosure.click();
   }
-  const archived = library.getByRole("button", { name: "Show archived characters", exact: true });
+  const archived = library.getByRole("button", { name: CHARACTER_SHOW_ARCHIVED_NAME, exact: true });
   if ((await archived.getAttribute("aria-pressed")) === "true") {
     await archived.click();
   }
@@ -973,7 +1010,7 @@ async function archiveCommandCharacters(flow: CharacterFlow, parent: SourceChara
     },
   });
   await archived.click();
-  await list.getByRole("button", { name: "Select multiple", exact: true }).click();
+  await list.getByRole("button", { name: CHARACTER_SELECT_MULTIPLE_NAME, exact: true }).click();
   await openCard(flow, copy.name);
   const menu = await characterCommandMenu(flow);
   const unarchiveLabel = CHARACTER_ACTIONS.archive.toggledLabel;
@@ -1052,7 +1089,7 @@ async function convertCommandCharacter(flow: CharacterFlow, card: SourceCharacte
 
 async function deleteCommandCharacters(flow: CharacterFlow, parent: SourceCharacter, copy: SourceCharacter, subjects: CommandSubjects): Promise<void> {
   await (await characterCommandMenu(flow)).getByRole("menuitem", { name: CHARACTER_ACTIONS.delete.label, exact: true }).click();
-  const single = flow.page.getByRole("alertdialog", { name: "Delete this character?", exact: true });
+  const single = flow.page.getByRole("alertdialog", { name: CHARACTER_DELETE_TITLE, exact: true });
   await record(flow, "commands-delete-single-confirm", single, [single.getByRole("button", { name: CHARACTER_ACTIONS.delete.label, exact: true })]);
   await flow.action("characters-commands-delete-single", {
     action: async (): Promise<void> => {
@@ -1061,13 +1098,13 @@ async function deleteCommandCharacters(flow: CharacterFlow, parent: SourceCharac
     ready: async (): Promise<void> => {
       await expect(single).toBeHidden();
       await expect.poll(async () => (await flow.client.character.list.query({ search: copy.name })).items.some(({ id }) => id === copy.id)).toBe(false);
-      await expect(flow.page.getByRole("form", { name: EDITOR_NAME, exact: true })).toHaveCount(0);
+      await expect(flow.page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true })).toHaveCount(0);
     },
   });
   subjects.nativeDeleted.add(copy.id);
   const list = await selectCommandCards(flow, parent.name, [parent.name]);
   await list.getByRole("button", { name: CHARACTER_ACTIONS.delete.label, exact: true }).click();
-  const bulk = flow.page.getByRole("alertdialog", { name: "Delete 1 character?", exact: true });
+  const bulk = flow.page.getByRole("alertdialog", { name: characterBulkDeleteTitle(1), exact: true });
   const confirm = bulk.getByRole("button", { name: CHARACTER_ACTIONS.delete.label, exact: true });
   await record(flow, "commands-delete-bulk-confirm", bulk, [confirm]);
   await flow.action("characters-commands-delete-bulk", {

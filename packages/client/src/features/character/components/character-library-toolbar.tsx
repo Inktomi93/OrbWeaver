@@ -9,6 +9,7 @@ import { Select } from "@orb/ui/select";
 import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
 import { setBulkMode, setCharacterSortMode, setCharacterViewMode, useCharacterBulkMode, useCharacterSortMode, useCharacterViewMode } from "#state";
+import { CHARACTER_GROUP_BY_TAG_NAME, CHARACTER_SELECT_MULTIPLE_NAME, CHARACTER_SORT_NAME } from "../lib/character-names.ts";
 
 /** The §4.5 sort labels — a TOTAL Record over `CHARACTER_LIST_SORTS` (a new sort member fails `tsc`;
  *  Spine §5.5). The `random`/`name-desc` drops never appear because the tuple is the one home. */
@@ -35,7 +36,7 @@ export function CharacterSortSelect(): ReactElement {
   const sortMode = useCharacterSortMode();
   return (
     <Select
-      aria-label="Sort characters"
+      aria-label={CHARACTER_SORT_NAME}
       // `inline-auto` beats the trigger's own `w-full`: a full-width trigger would crush the search box.
       className="inline-auto"
       items={SORT_ITEMS}
@@ -57,7 +58,7 @@ export function CharacterViewGroup(): ReactElement {
   return (
     <Section aria-label="View" kicker="View" kickerLayout="inline" role="group">
       <Toggle
-        aria-label="Group by tag"
+        aria-label={CHARACTER_GROUP_BY_TAG_NAME}
         ink="foreground"
         onPressedChange={(pressed): void => setCharacterViewMode(pressed ? "categorized" : "flat")}
         pressed={viewMode === "categorized"}
@@ -67,7 +68,13 @@ export function CharacterViewGroup(): ReactElement {
         Group
       </Toggle>
       {/* It carries its word: beside the text toggle "Group", a bare pencil read as one phrase. */}
-      <Toggle aria-label="Select multiple" ink="foreground" onPressedChange={(pressed): void => setBulkMode(pressed)} pressed={bulkMode} size="sm">
+      <Toggle
+        aria-label={CHARACTER_SELECT_MULTIPLE_NAME}
+        ink="foreground"
+        onPressedChange={(pressed): void => setBulkMode(pressed)}
+        pressed={bulkMode}
+        size="sm"
+      >
         <Icon icon={Pencil} size="sm" />
         Select
       </Toggle>

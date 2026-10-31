@@ -27,6 +27,7 @@ import { useId, useState } from "react";
 import type { TagFilterEntry } from "#lib";
 import { tagFilterStateOf } from "#lib";
 import type { LibraryChipTag } from "../lib/character-library-lens.ts";
+import { CHARACTER_FILTERS_NAME, CHARACTER_SHOW_ARCHIVED_NAME, CHARACTER_SHOW_FAVORITES_NAME } from "../lib/character-names.ts";
 import { RailAction, TagFilterChip, TagVocabularyPanel } from "./character-filter-rail-parts.tsx";
 
 /** How many tag chips the row shows before the disclosure — one glance, at the 290px pane's width. */
@@ -116,7 +117,7 @@ export function CharacterFilterChips({
   // "1 filter" over a library nothing is filtering (the surface's own `filtersActive` draws the same line).
   const activeCount = tagFilter.length + (favoritesOnly ? 1 : 0);
   return (
-    <Section aria-label="Filters" kicker="Filters" kickerLayout="inline" role="group">
+    <Section aria-label={CHARACTER_FILTERS_NAME} kicker="Filters" kickerLayout="inline" role="group">
       {/* SCOPE and TAG share one register on purpose — Favorites and Archived ARE filters, they perform the
           same act — and are told apart by a leading glyph rather than by a second box or a colour.
           THEY COLLAPSE ONLY WHILE OFF (#491). A PRESSED scope pill is a filter that is currently narrowing
@@ -126,8 +127,8 @@ export function CharacterFilterChips({
           the same order, under the same keys, so a pill that survives keeps its element identity and its
           focus. (Pressing a visible pill OFF while collapsed unmounts it, which is the same shape as
           "Clear all" unmounting itself and has been the rail's behaviour since it shipped.) */}
-      <ScopePill glyph={Star} label="Favorites" name="Show only favorites" onToggle={onToggleFavorites} pressed={favoritesOnly} show={open} />
-      <ScopePill glyph={Archive} label="Archived" name="Show archived characters" onToggle={onToggleArchived} pressed={showArchived} show={open} />
+      <ScopePill glyph={Star} label="Favorites" name={CHARACTER_SHOW_FAVORITES_NAME} onToggle={onToggleFavorites} pressed={favoritesOnly} show={open} />
+      <ScopePill glyph={Archive} label="Archived" name={CHARACTER_SHOW_ARCHIVED_NAME} onToggle={onToggleArchived} pressed={showArchived} show={open} />
       {/* The orphans lead the row: they are the ones actively narrowing the library for a reason nothing
           else on screen explains, so they are the first thing to find and clear. They stay in the RAIL even
           while the vocabulary is expanded — the panel below is the tag LIBRARY, and by definition an orphan
