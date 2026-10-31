@@ -9,7 +9,7 @@
 // "the engine's pipeline imports shape from here" — that DIRECT cross-subsystem import is gate-illegal; this
 // substrate bridge is the legal form of the same coupling.)
 
-import { assemblePrompt, assemblePromptWithSlices, previewSection as previewSectionImpl } from "../assembly/assemble.ts";
+import { assemblePrompt, assemblePromptWithSlices } from "../assembly/assemble.ts";
 import { buildAssemblyBudget as buildAssemblyBudgetImpl } from "../assembly/budget.ts";
 import {
   buildHistoryBudget as buildHistoryBudgetImpl,
@@ -140,13 +140,6 @@ export function previewActionText(...args: Parameters<typeof previewActionTextIm
  *  serializable `AssembleContext` — they ride `TurnPrep`). Returns `null` for the empty-defs fast path. */
 export function buildTurnUserMacros(...args: Parameters<typeof buildTurnUserMacrosImpl>): ReturnType<typeof buildTurnUserMacrosImpl> {
   return buildTurnUserMacrosImpl(...args);
-}
-
-/** BUILD (one section): render ONE preset section against an immutable assemble ctx → its `SectionPreview`
- *  (the `previewSection` read verb / the COMPOSER editor surface). Side-effect free (the variable map is
- *  cloned inside). The legal bridge for the same `verbs/ → assembly/` coupling. */
-export function previewSection(...args: Parameters<typeof previewSectionImpl>): ReturnType<typeof previewSectionImpl> {
-  return previewSectionImpl(...args);
 }
 
 /** FIT: the §8 history-budget tail (drop oldest turns to fit the window; offset-from-end survives). */

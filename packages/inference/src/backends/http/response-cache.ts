@@ -60,7 +60,6 @@ export function responseReplaySupportedFor(connection: Pick<Resolved, "wire" | "
   }
   const tasks: Readonly<Record<Task, boolean>> = {
     chat: true,
-    agent: false,
     summarize: true,
     structured: true,
     generateImage: connection.features.images !== "images-api",

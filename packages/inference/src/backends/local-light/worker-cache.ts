@@ -18,7 +18,7 @@ import type {
 } from "#src/contract/local-light-worker.ts";
 import type { ScheduleTimeout } from "#src/contract/runtime.ts";
 import type { InferenceLog } from "#src/deps.ts";
-import type { LocalLightPrefetchHandle, WorkerModelCache } from "../../contract/local-light.ts";
+import type { WorkerModelCache } from "../../contract/local-light.ts";
 
 // How long `close` waits for the worker to exit: one embed or rerank run returns well inside it. A model load
 // in progress can outlast it; the process exit then tears the worker down mid-run and aborts (exit 134).
@@ -31,7 +31,6 @@ interface WorkerModelCacheConfig extends LocalLightWorkerOptions {
   readonly scheduleTimeout: ScheduleTimeout;
   readonly closeWaitMs?: number | undefined;
   readonly maxPending?: number | undefined;
-  readonly onProgress?: LocalLightPrefetchHandle["onProgress"];
   readonly log: InferenceLog;
 }
 
@@ -108,7 +107,7 @@ interface Live {
 }
 
 export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerModelCache {
-  const { log, onProgress } = config;
+  const { log } = config;
   const options: LocalLightWorkerOptions = {
     kernelModule: config.kernelModule,
     cpuPercent: config.cpuPercent,
@@ -135,10 +134,6 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
   const onMessage = (state: Live, message: LocalLightWorkerMessage): void => {
     if (message.type === "log") {
       log[message.level](message.fields, message.message);
-      return;
-    }
-    if (message.type === "progress") {
-      onProgress?.(message.progress);
       return;
     }
     const pending = state.pending.get(message.id);

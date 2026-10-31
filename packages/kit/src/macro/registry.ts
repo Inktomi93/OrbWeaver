@@ -138,10 +138,6 @@ class SimpleMacroRegistry implements MacroRegistry {
   names(): string[] {
     return [...this.handlers.keys()];
   }
-
-  requirementsOf(name: string): "chat" | "char" | undefined {
-    return this.options.get(name.toLowerCase())?.requires;
-  }
 }
 
 // Imported cards use straight (") and typographic (curly) quote pairs interchangeably; accept both.

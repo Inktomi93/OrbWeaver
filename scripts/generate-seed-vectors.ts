@@ -86,12 +86,22 @@ try {
     add("card-text", card.input.handle, text, await roles.embed(text));
   }
   const avatars = [...DEFAULT_CHARACTER_CARDS.map((card) => card.input.handle), castId<CharacterHandle>("persona-you")];
+  // Image embedding runs through the executor, as every production image embed does.
+  const { resolved: imageEncoder } = await built.runtime.resolve({ task: "imageEmbed", principal: author, connectionId: encoder.connectionId });
+  if (imageEncoder.task !== "imageEmbed") {
+    throw new Error("The local encoder did not resolve as an image embedder");
+  }
   for (const handle of avatars) {
     const avatar = await readSeedAvatar(handle);
     if (avatar === null) {
       throw new Error(`Missing shipped avatar ${handle}`);
     }
-    add("image-raw", handle, avatar.bytes, await roles.imageEmbed({ kind: "image", input: avatar.bytes }));
+    add(
+      "image-raw",
+      handle,
+      avatar.bytes,
+      await built.runtime.executor.imageEmbed({ connection: { ...imageEncoder, task: imageEncoder.task }, input: { kind: "image", input: avatar.bytes } }),
+    );
   }
   await writeFile(output, `${JSON.stringify(rows)}\n`);
   process.stdout.write(`Wrote ${rows.length} vectors to ${output}\n`);

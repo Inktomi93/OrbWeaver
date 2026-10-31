@@ -4,7 +4,7 @@ import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import type { VerifyAuthResult } from "@orb/contracts/providers";
 import type { LogLevel } from "@orb/contracts/settings";
 import type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn, ChatResult, Resolved } from "@orb/inference";
-import { ProviderError, toChatRequest } from "@orb/inference";
+import { ProviderError } from "@orb/inference";
 import { sql } from "drizzle-orm";
 import { vi } from "vitest";
 import { z } from "zod";
@@ -638,7 +638,7 @@ test("default native stderr protects an oversized known opaque credential in app
 
 const NATIVE_STARTUP_ARGS = ["--import", new URL("./sdk-native-startup-failure.ts", import.meta.url).href];
 
-test.each(["chat", "agent", "verify"] as const)("default native startup diagnostics use safe owned provenance for %s", async (operation) => {
+test.each(["chat", "verify"] as const)("default native startup diagnostics use safe owned provenance for %s", async (operation) => {
   let closed = false;
   await using harness = await createServerHarness({
     logLevel: SDK_LOG_LEVEL,
@@ -659,37 +659,7 @@ test.each(["chat", "agent", "verify"] as const)("default native startup diagnost
     throw new Error("native projection did not resolve its actual chat task");
   }
   const chat = { ...resolved, task: resolved.task };
-  const request = (async (): Promise<ChatResult | VerifyAuthResult> => {
-    if (operation === "agent") {
-      const { resolved: agent } = await harness.app.runtime.resolve({ task: "agent", connectionId: saved.connectionId, principal, cachedFacts: true });
-      if (agent.task !== "agent") {
-        throw new Error("native executor did not resolve its actual agent task");
-      }
-      const mounted = toChatRequest({
-        connection: chat,
-        params: {},
-        systemPrompt: { static: "", dynamic: "" },
-        history: [{ role: "user", content: [{ type: "text", text: "native startup boundary" }] }],
-        tools: {
-          offer: {
-            definitions: [],
-            turnLimit: 1,
-            execute: (): never => {
-              throw new Error("unscripted native boundary tool execution");
-            },
-          },
-        },
-      });
-      if (mounted.api !== "agent-sdk" || mounted.toolServer === undefined) {
-        throw new Error("the public SDK projection did not mount its actual tool server");
-      }
-      return harness.app.runtime.executor.runAgentTurn({
-        connection: { ...agent, task: agent.task },
-        prompt: "native startup boundary",
-        systemPrompt: "",
-        mcpServer: mounted.toolServer,
-      });
-    }
+  const request = ((): Promise<ChatResult | VerifyAuthResult> => {
     if (operation === "chat") {
       return harness.app.runtime.executor.runChatTurn({
         api: "agent-sdk",

@@ -22,7 +22,7 @@
 // to the preset's `postProcess` block) after the section/injection walk, before the caller's cache split —
 // the transform is idempotent and only reorders whitespace, so it never busts the static-cache prefix.
 
-import type { AssembleCharacter, AssembleContext, AssembledPrompt, AssemblePersona, AssembleTrace, ChatInjection, SectionPreview } from "@orb/contracts/chat";
+import type { AssembleCharacter, AssembleContext, AssembledPrompt, AssemblePersona, AssembleTrace, ChatInjection } from "@orb/contracts/chat";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES, NARRATOR_MAIN_PROMPT_TEMPLATE } from "@orb/contracts/preset";
 import type { ProseSlotId } from "@orb/contracts/prose";
@@ -1058,32 +1058,4 @@ function assembleWithSlices(
     },
     slices: acc.slices,
   };
-}
-
-/**
- * Render ONE section against a real `AssembleContext` — the prompt-manager edit dialog's Preview tab.
- * SIDE-EFFECT FREE: the variable map is cloned so a `{{setvar}}` in the preview can't bleed into the
- * caller's live `variableValues`.
- */
-export function previewSection(section: PromptSection, ctx: AssembleContext, config: PromptConfig, render: MacroRenderEnv): SectionPreview {
-  const half: "static" | "dynamic" = isSectionDynamic(section) ? "dynamic" : "static";
-  const trace = freshTrace(ctx);
-  if (!section.enabled) {
-    return { rendered: "", half, trace };
-  }
-  const previewCtx: AssembleContext = { ...ctx, variableValues: { ...(ctx.variableValues ?? {}) } };
-  const env: BuildEnv = {
-    ctx: previewCtx,
-    cardCtx: cardOwnerCtx(previewCtx),
-    trace,
-    originals: computeOriginals(config, previewCtx, render),
-    pivotIndex: -1,
-    render,
-    memberBlocks: new Map(),
-    // The single-section preview emits no budget slices, so nothing reads this — the field is carried for
-    // the env's shape, and `previewSection` deliberately shows the section's OWN render (the post-process is
-    // a property of the joined half, not of one section).
-    postProcess: config.postProcess,
-  };
-  return { rendered: renderSection(section, env), half, trace };
 }

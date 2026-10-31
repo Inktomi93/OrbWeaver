@@ -35,17 +35,16 @@ export const WIRE_DEFS: Record<Wire, WireDef> = {
     serves: ["chat", "summarize", "structured", "generateImage", "embed", "imageEmbed", "rerank"],
     deltas: ["text", "reasoning", "image", "tool-call", "citation", "usage"],
   },
-  // First-party API key over `@ai-sdk/anthropic` (§8.5). No agent path: the Claude Code loop needs the
-  // runtime (STATED CONSEQUENCE, F6).
+  // First-party API key over `@ai-sdk/anthropic` (§8.5).
   "anthropic-messages": {
     apis: ["anthropic-messages"],
     serves: ["chat", "summarize", "structured"],
     deltas: ["text", "reasoning", "tool-call", "citation", "usage"],
   },
-  // The subscription's wire and nothing else's (F18). `agent` is served HERE ONLY, by construction.
+  // The subscription's wire and nothing else's (F18).
   "agent-sdk": {
     apis: ["agent-sdk"],
-    serves: ["chat", "agent", "summarize", "structured"],
+    serves: ["chat", "summarize", "structured"],
     deltas: ["text", "reasoning", "tool-call", "usage"],
   },
   // In-process ONNX runtime; a generation entry in `curated/local-light.json` + a `chat` method widens it.

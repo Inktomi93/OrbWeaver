@@ -42,8 +42,8 @@ export function embedRequestTimeoutMs(features: Pick<EndpointFeatures, "requestT
   return features.requestTimeoutMs ?? DEFAULT_EMBED_REQUEST_TIMEOUT_MS;
 }
 
-/** The tasks that take a request through this file — every task but the two chat-shaped ones. */
-type RoleTask = Exclude<Task, "chat" | "agent">;
+/** The tasks that take a request through this file — every task but chat. */
+type RoleTask = Exclude<Task, "chat">;
 
 interface TaskRequestCommon<T extends RoleTask> {
   readonly connection: Resolved<T>;

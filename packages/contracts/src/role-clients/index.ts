@@ -5,11 +5,11 @@
 // Mostly type-only: a bundle of functions isn't wire-serializable. The ONE exception is
 // `responseFormatSchema`/`ResponseFormat` (D79) — the structured-output request vocabulary, minted
 // zod-first HERE (not infra) because the summarize role's domain-facing options carry it and `contracts`
-// cannot import infra (the package cake); the infra wire arms + `AgentTurnRequest` + `SummarizeOptions`
+// cannot import infra (the package cake); the infra wire arms + `SummarizeOptions`
 // import it DOWN. Call-argument shapes (`RerankQuery`/`ImageEmbedInput`/`SummarizeInput`) live here rather
 // than `contracts/providers` because that node holds only result shapes; the infra request shapes stay
 // infra-internal.
-// FLAG: only the four DERIVE roles below are buildable — chat/agent/generateImage join when their
+// FLAG: only the four DERIVE roles below are buildable — chat/generateImage join when their
 // result contracts land (confirm with lead before wiring a chat member here).
 
 import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
@@ -17,7 +17,7 @@ import type { WireReady } from "@orb/kit/json-schema";
 import { z } from "zod";
 import type { Capability, ProviderId } from "#inference";
 import type { RolePresetParams } from "#preset";
-import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "#providers";
+import type { EmbedResult, RerankResult, SummarizeResult } from "#providers";
 
 // @typeonly-ok: the wire vocabulary lives in `ResponseFormat` (the type consumers import); the runtime
 // schema itself is only referenced in type position here in contracts — infra's wire arms build their
@@ -100,7 +100,7 @@ export interface StructuredOptions extends SummarizeOptions {
   responseFormat: ResponseFormat;
 }
 
-/** The tasks a `RoleClients` bundle serves — the derive roles; chat/agent/generateImage reach the executor
+/** The tasks a `RoleClients` bundle serves — the derive roles; chat/generateImage reach the executor
  *  through their own doors. `structured` RIDES the `summarize` binding (F4 — one Model-roles slot). */
 export const ROLE_CLIENT_TASKS = ["embed", "rerank", "imageEmbed", "summarize", "structured"] as const;
 export type RoleClientTask = (typeof ROLE_CLIENT_TASKS)[number];
@@ -125,8 +125,6 @@ export interface RoleClients {
   /** Cross-encoder rerank. Documents carry caller ids; hits preserve them. `opts.instruction` is the
    *  per-task `<Instruct>` for instruction-aware rerankers; text-only families ignore it. */
   rerank: (query: RerankQuery, documents: RerankDocument[], opts?: { instruction?: string }) => Promise<RerankResult>;
-  /** Joint image+text embedding (image + text in one shared space). Discriminate via `kind`. */
-  imageEmbed: (req: ImageEmbedInput) => Promise<ImageEmbedResult>;
   /** Batched PROSE summarization. Returns one item per input; pass non-empty user prompts only. */
   summarize: (inputs: readonly SummarizeInput[], opts?: SummarizeOptions) => Promise<SummarizeResult>;
   /** Batched SCHEMA-CONSTRAINED generation — the one-shot structured primitive; `responseFormat` REQUIRED. */

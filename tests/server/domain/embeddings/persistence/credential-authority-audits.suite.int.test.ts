@@ -7,7 +7,6 @@
 import { RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
 import { auditLogs } from "@orb/db";
 import { ProviderError, toChatRequest } from "@orb/inference";
-import { DomainNoCredentialError } from "@orb/kit/errors";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect } from "@orb/testkit/node";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
@@ -93,63 +92,6 @@ test("an HTTP stream transport failure preserves the normalized error without in
       .from(auditLogs)
       .where(and(eq(auditLogs.entityId, key.id), eq(auditLogs.action, "credential.markRevoked"))),
   ).toHaveLength(0);
-});
-
-test("the admitted native agent executor crosses the same current authority and strike-out boundary", async ({ app, harness, db, ownerCaller, nativeSdk }) => {
-  const providerId = "claude-sub";
-  const key = await ownerCaller.credentials.add({ provider: providerId, key: "sdk-funding-token", metadata: { auth: "oauthToken" } });
-  const connection = await fundingConnection({ ownerCaller, harness, task: "agent", providerId, baseUrl: null, credentialId: key.id, cachedFacts: true });
-  const chat = await app.runtime.resolve({
-    task: "chat",
-    principal: await harness.principalFor(harness.ownerId),
-    connectionId: connection.connectionId,
-    cachedFacts: true,
-  });
-  const mounted = toChatRequest({
-    connection: { ...chat.resolved, task: "chat" },
-    params: {},
-    systemPrompt: { static: "Answer briefly.", dynamic: "" },
-    history: [{ role: "user", content: [{ type: "text", text: "A funding control." }] }],
-    tools: {
-      offer: {
-        definitions: [],
-        turnLimit: 1,
-        execute: (): never => {
-          throw new Error("unscripted funding tool execution");
-        },
-      },
-    },
-  });
-  if (mounted.api !== "agent-sdk" || mounted.toolServer === undefined) {
-    throw new Error("the SDK projection did not mount its real tool server");
-  }
-  const prior = nativeSdk.children.length;
-  await expect(
-    app.runtime.executor.runAgentTurn({
-      connection,
-      systemPrompt: "Answer briefly.",
-      prompt: "native-auth-rejection agent funding",
-      mcpServer: mounted.toolServer,
-    }),
-  ).toThrowProviderError("auth_failed");
-  expect(nativeSdk.children).toHaveLength(prior + 1);
-  expect(nativeSdk.tokens.at(-1)).toBe("sdk-funding-token");
-  await expect(
-    app.runtime.executor.runAgentTurn({
-      connection,
-      systemPrompt: "Answer briefly.",
-      prompt: "native-auth-rejection agent funding",
-      mcpServer: mounted.toolServer,
-    }),
-  ).rejects.toBeInstanceOf(DomainNoCredentialError);
-  expect(nativeSdk.children).toHaveLength(prior + 1);
-  expect((await ownerCaller.credentials.list()).find((row) => row.id === key.id)?.revokedReason).toBe("auth_failed");
-  expect(
-    await db
-      .select()
-      .from(auditLogs)
-      .where(and(eq(auditLogs.entityId, key.id), eq(auditLogs.action, "credential.markRevoked"))),
-  ).toHaveLength(1);
 });
 
 test("a native SDK utility rejection settles its owned timer and strikes once", async ({ app, harness, db, ownerCaller, nativeSdk }) => {

@@ -12,7 +12,7 @@ import { z } from "zod";
 import type { ModelKind } from "./kinds.ts";
 import type { Modality } from "./modalities.ts";
 
-export const TASKS = ["chat", "agent", "summarize", "structured", "generateImage", "embed", "imageEmbed", "rerank"] as const;
+export const TASKS = ["chat", "summarize", "structured", "generateImage", "embed", "imageEmbed", "rerank"] as const;
 export type Task = (typeof TASKS)[number];
 export const taskSchema = z.enum(TASKS) satisfies z.ZodType<Task>;
 
@@ -65,9 +65,6 @@ export type LocalLightSeedSlot = (typeof LOCAL_LIGHT_SEED_ROWS)[number]["task"];
 // survive so `RoutableTask` can be DERIVED from the rows rather than spelled twice.
 const taskDefinitions = {
   chat: { kind: "generation", scope: "actor", spend: "foreground", routable: true },
-  // `agent` is served only by the `agent-sdk` wire and rides the chat binding (F4: not routable today;
-  // nothing routes it — `ROUTING_ROLE_KEYS` never had it).
-  agent: { kind: "generation", requires: { tools: true }, scope: "actor", spend: "foreground", routable: false, ridesOn: "chat" },
   summarize: { kind: "generation", scope: "actor", spend: "background", routable: true },
   // The one-shot schema-constrained primitive (owner ruling 2026-07-27) — its OWN task on the wire, riding
   // the summarize binding in the pane (F4: one Utility slot, three requirement badges).

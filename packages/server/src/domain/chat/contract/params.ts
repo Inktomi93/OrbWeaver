@@ -128,17 +128,6 @@ export interface PreviewActionTemplatesParams extends ChatScopedParams, ViewerCl
   readonly presetId: PresetId;
 }
 
-/** `previewSection` — one section's render preview (the composer/editor surface). */
-export interface PreviewSectionParams extends ChatScopedParams {
-  readonly sectionId: string;
-  readonly speakerCharacterId?: CharacterId | null | undefined;
-}
-
-/** `peekPrompt` — the assembled prompt for the next real turn (no generation). */
-export interface PeekPromptParams extends ChatScopedParams {
-  readonly speakerCharacterId?: CharacterId | null | undefined;
-}
-
 /** `getVariantWire` — the per-variant WIRE RECORD: what ONE past generation actually sent (host/admin
  *  inspector). `variantId` is scoped by the `messages.chatId` join, so a foreign variant is unreachable even
  *  with a valid chatId (D108 carve #1, the same belt `rpg/persistence/reveal` uses). */
@@ -147,7 +136,7 @@ export interface GetVariantWireParams extends ChatScopedParams {
 }
 
 /** `getShapeTrace` — the content-free SHAPE trace for the next-turn shaping of the current canon (host/admin
- *  inspector). `speakerCharacterId` picks the primary speaker the peek shapes for (as `peekPrompt`). */
+ *  inspector). `speakerCharacterId` picks the primary speaker the peek shapes for (as `previewAssembly`). */
 export interface GetShapeTraceParams extends ChatScopedParams {
   readonly speakerCharacterId?: CharacterId | null | undefined;
 }
