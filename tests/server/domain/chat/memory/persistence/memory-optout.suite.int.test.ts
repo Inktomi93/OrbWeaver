@@ -14,6 +14,7 @@ import {
   createChatRoot,
   createCorpusProviderExecution,
   SUMMARIZE_TRANSCRIPT_MARKER,
+  summaryReply,
 } from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
 
@@ -32,7 +33,7 @@ async function group(memoryEnabled: boolean): Promise<
     chatText: (body) => {
       if (body.includes(SUMMARIZE_TRANSCRIPT_MARKER)) {
         summaries.push(body);
-        return "Group turn\nThe witnesses remember their conversation.\nKeywords: witnesses";
+        return summaryReply({ anchor: "Group turn", facts: "The witnesses remember their conversation.", keywords: ["witnesses"] });
       }
       return "Hi there";
     },

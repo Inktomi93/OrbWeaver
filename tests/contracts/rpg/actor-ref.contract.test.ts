@@ -9,7 +9,7 @@ const SLUG = "sister-vesna";
 test("the retired cast arm is refused while every live arm parses and projects its own key", ({ ids }) => {
   expect(rpgActorRefSchema.safeParse({ kind: "cast", castKey: SLUG }).success).toBe(false);
 
-  const characterId = mintTypeId("character");
+  const characterId = mintTypeId("character", ids.next);
   const userId = brandedId("UserId").parse(ids.uuid());
   const live = [
     { ref: { kind: "npc", npcKey: SLUG }, key: `npc:${SLUG}` },

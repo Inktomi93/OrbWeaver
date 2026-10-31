@@ -34,16 +34,6 @@ export interface SpeakerCandidate {
   readonly name: string;
 }
 
-/** One character a text names, with how firmly: `hits` counts the distinct name words the text carries (the
- *  whole phrase for a name of only stopwords), and `strong` says a hit was written as a name rather than as an
- *  ordinary word. A text word spelled with a capital is a name; a lowercase one is, only when the card spells
- *  that name word lowercase too. So "Will, come here" is strong and "we will find it" is not. */
-export interface NameMention {
-  readonly id: CharacterId;
-  readonly hits: number;
-  readonly strong: boolean;
-}
-
 /** The funder's bound rerank role as Smart's default pick reads it: the bound model's own capability (its
  *  window sizes the query and persona documents) and the role call itself. Whatever the user bound runs. */
 export interface SpeakerReranker {
@@ -57,14 +47,6 @@ export interface SpeakerArbiter {
   readonly structured: RoleClientsWithSignal["structured"];
   /** The bound model's context window in tokens; the arbiter caps the line it answers to a share of it. */
   readonly contextTokens: number;
-}
-
-/** What a canon line addresses, for both Smart pickers: the ordered groups of characters it names (a group of
- *  several is one ambiguous name), and whether any name in it could be a human player's as well as a character's.
- *  Either ambiguity sends the line to the picker instead of short-circuiting it. */
-export interface LineAddress {
-  readonly groups: readonly (readonly CharacterId[])[];
-  readonly humanAmbiguous: boolean;
 }
 
 /** One canon line as the speaker pick reads it: the text, its speaker's display name (null for an unnamed

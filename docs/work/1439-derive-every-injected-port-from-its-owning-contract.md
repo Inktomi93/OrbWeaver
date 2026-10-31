@@ -48,10 +48,22 @@ AGENTS.md rules one home per concept: a second copy of a shape is a defect. A ha
 
 - Its fixtures pass: a wired member, a builder-only member, a test-only member, a member reached through a derived port, and one reached across packages.
 
-- Every reported member is wired, deleted or recorded as deliberate with a cited reason, and each gets its own board item where it needs product work.
+- Every reported member is judged: wired, deleted, recorded in `tooling/src/unwired/deliberate.ts` with a cited ledger or law line, or listed with its decision in a bundled board item.
+
+- The scan counts a member reached when production hands it into a used slot or derives a used member from it, and its fixtures pin both.
 
 - No file under `packages/server/src/domain/<x>/` imports from another domain except the D117 workloads door. `domain-no-cross-feature` refuses a planted type-only cross-domain import, and `pnpm depcruise` passes on the whole tree.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The close-out ran on the lane branch after it merged local main.
+
+- `pnpm unwired ports` reports no open target. Every remaining target is informational: `ruled` (a handle pass `tooling/src/unwired/ruled-ops.ts` names under D337 or D259) or `distinct` (a look-alike `tooling/src/unwired/distinct-lookalikes.ts` records with its reason). The run prints `targets=0` and the counts by kind; its output is `reports/unwired/port-targets.json`.
+- The census resolves a handle-carrying type or alias to the op members it types before it reads the ruling tuple. `tests/tooling/unwired/port-census.int.test.ts` plants an unruled handle op, a ruled one and an alias of a ruled op.
+- `orb/derived-port-member` is on in `eslint.config.ts`. `pnpm lint:eslint packages tooling tests` exits 0 with no suppression or baseline for the rule.
+- `domain-no-cross-feature` in `.dependency-cruiser.ts` has no type-only exemption. `domain-workloads-door-types-only` allows the D117 door type-only. `tests/tooling/native-domain-cross-feature-boundary.test.ts` refuses a planted type-only cross-domain import, and whole-tree `pnpm depcruise` passes.
+- The scratch `ports.mjs` assignability workaround is deleted.
+- The unwired members scan (`pnpm unwired`) writes `reports/unwired/unwired.json`. It counts a member reached when production hands it into a used slot, by property, argument, return or spread, or derives a used member from it (`tests/tooling/unwired/scan.int.test.ts`); the run lists those under `reachedByFlow`.
+- Judged in this item: `SuggestionStore.voidChat`, `ReconcileInFlight.isRunning`, `Lifecycle.listeningAddress`, `DrillSelectionStore.dismissSecondary` and `AssetsContext.imageProbe` are deleted, since nothing calls them and the handoff sweep supersedes the blanket void. `ServicesResult.settleBackground` is deliberate in `tooling/src/unwired/deliberate.ts`, citing `docs/law/Spine-Testing.md`.
+- Every other reported member is listed with its location, what reaches it and its decision in a bundle: [1513](1513-delete-the-client-and-ui-members-no-production.md) client and ui, [1498](1498-judge-the-kit-contracts-and-inference-members-no.md) kit, contracts and inference, [1499](1499-link-the-plugin-host-ops-the-bridge-dispatches.md) plugin host ops, [1500](1500-judge-the-chat-members-no-production-code-calls.md) chat, [1501](1501-judge-the-other-server-domain-members-no-production.md) the other domains, [1502](1502-judge-the-server-entry-infra-and-transport-members.md) entry, infra and transport.
+- The census and the rule do not read spread flows yet; a probe that did found restated cross-domain ops, boarded as [1503](1503-teach-the-port-census-and-the-derived-port.md).

@@ -798,7 +798,7 @@ function fireRpgTurnCompleted(ctx: EngineContext, view: MessageView, turnId: Cha
       ctx,
       view.chatId,
       withRequestSpan({ traces: ctx.traces, requestId: rpgRoundRequestId(turnId) }, RPG_ROUND_SPAN, { chatId: view.chatId, messageId: view.id, turnId }, () =>
-        rpg.onTurnCompleted(view.chatId, view.id, view.selectedVariantId, turnId, turn),
+        rpg.onTurnCompleted({ chatId: view.chatId, messageId: view.id, variantId: view.selectedVariantId, turnId, turn }),
       ).catch((err: unknown) => getLog(ctx.logger).warn({ err, chatId: view.chatId, turnId }, "rpg: post-turn flush failed (reply already committed)")),
     );
   }

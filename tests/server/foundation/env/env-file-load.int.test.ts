@@ -20,22 +20,23 @@ interface Resolved {
 
 const outcomeSchema = z.union([z.object({ env: z.record(z.string(), z.unknown()) }), z.object({ error: z.string() })]);
 
-/** The resolved env of the production module started in `cwd` with exactly `processEnv` and no `.env` unless `dotenv` writes one. */
-function load(parent: string, name: string, dotenv: string | undefined, processEnv: Readonly<Record<string, string>> = {}): Resolved {
+/** A fresh working directory holding no `.env` unless `dotenv` writes one. */
+function launchDir(parent: string, name: string, dotenv: string | undefined): string {
   const cwd = mkdtempSync(join(parent, `${name}-`));
   if (dotenv !== undefined) {
     writeFileSync(join(cwd, ".env"), dotenv);
   }
-  return run(cwd, processEnv);
+  return cwd;
+}
+
+/** The resolved env of the production module started in a fresh directory with exactly `processEnv` and no `.env` unless `dotenv` writes one. */
+function load(parent: string, name: string, dotenv: string | undefined, processEnv: Readonly<Record<string, string>> = {}): Resolved {
+  return run(launchDir(parent, name, dotenv), processEnv);
 }
 
 /** The production module's whole outcome in a fresh process: the parsed record, or the refusal that stopped the boot. */
 function boot(parent: string, name: string, dotenv: string | undefined, processEnv: Readonly<Record<string, string>> = {}): z.infer<typeof outcomeSchema> {
-  const cwd = mkdtempSync(join(parent, `${name}-`));
-  if (dotenv !== undefined) {
-    writeFileSync(join(cwd, ".env"), dotenv);
-  }
-  return outcomeOf(cwd, processEnv);
+  return outcomeOf(launchDir(parent, name, dotenv), processEnv);
 }
 
 function outcomeOf(cwd: string, processEnv: Readonly<Record<string, string>>): z.infer<typeof outcomeSchema> {

@@ -13,7 +13,6 @@ plan: restoration-register
 
 computeBridge, formatMemory, buildRecallQuery, inLiveWindow, the rerankPick name and ambiguity rules, applyRerank's unscorable placement (rejection propagation, omitted-hit order and the openai-compat minimum-window refusal are rebuilt in the composed rerank suite) are pure rules with no door, so they have no unit home.
 
-
 Rulings for the two rules still in the server:
 
 - `buildRecallQuery`: split the pure rule from the rendering. Kit takes the rendered turn texts and returns the query; the server renders with `renderTranscript` and its error code, then calls kit. The hash stays server-side or moves to a kit hash over bytes, never `node:crypto` in kit.
@@ -33,7 +32,12 @@ Moved to `@orb/kit/recall` ([source](../../packages/kit/src/recall/index.ts)): `
 
 Unit tests: [bridge](../../tests/kit/recall/bridge.test.ts), [format and window](../../tests/kit/recall/format-and-window.test.ts), [apply rerank](../../tests/kit/rerank/apply-rerank.test.ts). Each rule has a planted defect that failed its cases and was reverted; the table is in the 0991 defect controls.
 
-Open, with the reason:
+Moved after the rulings above:
 
-- `buildRecallQuery` stays in the server. It renders the query text through `renderTranscript`, which throws a chat error and hashes with `node:crypto`. A kit move needs a design call: inject the renderer, or move the renderer with its error code.
-- The `rerankPick` name and ambiguity rules stay in the server. They live in the mention reader of `engine/select-speakers.ts`, shared with `smart-arbitrate.ts`, and read `isArbiterEligible` from participant persistence. A kit move needs that reader split from its roster type first.
+- `buildRecallQuery` split. `@orb/kit/recall` holds `recallQueryWindow` and `buildRecallQuery`, which takes the rendered window text. The server renders with `renderTranscript` and its chat error code in `recall/query.ts`, then calls kit. No `node:crypto` in kit.
+- The name and ambiguity rules moved to `@orb/kit/speaker-address` ([source](../../packages/kit/src/speaker-address/index.ts)): `addressedGroups`, `nameMentionsOf` and their word rules. A candidate is `{ id, name, eligible }`. `engine/select-speakers.ts` maps its roster, reads `isArbiterEligible` there and calls kit; the `NameMention` and `LineAddress` shapes moved to kit and left `contract/arbitration.ts`. No importer changed, so the codemod had nothing to repoint here.
+- The ruling named aliases on the candidate. No alias rule exists in the code, so the candidate carries none; an alias is a new behaviour for its own item.
+
+Unit tests: [query](../../tests/kit/recall/query.test.ts), [address](../../tests/kit/speaker-address/address.test.ts). Ten planted defects each failed their cases and were reverted; the 0991 defect controls list them. The Smart picker suite, the mention turn suite and the recall pipeline suite pass on the moved code.
+
+Not moved: the `rerankPick` ban of the last speaker, the rank order of its pick, blank-name handling, the window clip and the abort. They are `rerankPick` rules over the role and the roster, not name rules, and the rulings did not move them. The reference cases for them have no maintained case; they stay open in the 0991 map.

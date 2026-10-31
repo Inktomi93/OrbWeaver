@@ -570,6 +570,7 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
       "@typescript-eslint/strict-boolean-expressions": "error",
       "@typescript-eslint/restrict-template-expressions": "error",
       "@typescript-eslint/no-deprecated": "error",
+      "orb/derived-port-member": "error",
     },
   },
   {

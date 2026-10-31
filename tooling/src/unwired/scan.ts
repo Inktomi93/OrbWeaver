@@ -6,7 +6,7 @@ import { deliberateEntry } from "./deliberate.ts";
 import type { ServerReferences } from "./language-server.ts";
 import { serverReferences } from "./language-server.ts";
 import type { MemberReferences } from "./language-service.ts";
-import { scanWorld } from "./language-service.ts";
+import { scanWorldAndFlows } from "./language-service.ts";
 import { isProduction, loadWorld, packageWorlds, TEST_WORLDS } from "./worlds.ts";
 
 export const UNWIRED_KINDS = ["builder-only", "test-only", "unreferenced"] as const;
@@ -28,6 +28,8 @@ export interface UnwiredReport {
   readonly scanned: number;
   readonly unwired: readonly UnwiredMember[];
   readonly deliberate: readonly (UnwiredMember & { readonly reason: string })[];
+  /** Members no reference reaches that production code hands into a reached member's slot, with that slot. */
+  readonly reachedByFlow: readonly { readonly key: string; readonly via: string }[];
   /** Members engine one found unused and engine two found used: reported so a resolution gap stays visible. */
   readonly disagreements: readonly { readonly key: string; readonly uses: readonly string[] }[];
 }
@@ -92,15 +94,7 @@ function judge(
 export async function scanUnwired(options: ScanOptions): Promise<UnwiredReport> {
   const worlds = options.worlds ?? packageWorlds(options.root);
   const testWorlds = options.testWorlds ?? TEST_WORLDS;
-  const tally = new Map<string, Tally>();
-  const counted: UnwiredReport["worlds"][number][] = [];
-  const runs = [...worlds.map((world) => [world, false] as const), ...testWorlds.map((world) => [world, true] as const)];
-  for (const [config, testWorld] of runs) {
-    const members = scanWorld(options.root, config);
-    tallyWorld(tally, members, testWorld);
-    counted.push({ config, members: members.length });
-    options.log(`${config}: ${members.length} members`);
-  }
+  const { tally, flows, counted } = engineOne(options, worlds, testWorlds);
   const candidates = [...tally.values()].filter((entry) => entry.use === 0);
   const second = await serverReferences(
     options.root,
@@ -112,10 +106,14 @@ export async function scanUnwired(options: ScanOptions): Promise<UnwiredReport> 
   const unwired: UnwiredMember[] = [];
   const deliberate: (UnwiredMember & { readonly reason: string })[] = [];
   const disagreements: UnwiredReport["disagreements"][number][] = [];
+  const reached = reachedByFlow(flows, (key) => (tally.get(key)?.use ?? 0) > 0 || (serverUse.get(key)?.counts.use ?? 0) > 0);
   for (const entry of candidates) {
     const server = serverUse.get(entry.first.key);
     if (server !== undefined && server.counts.use > 0) {
       disagreements.push({ key: entry.first.key, uses: server.uses });
+      continue;
+    }
+    if (reached.has(entry.first.key)) {
       continue;
     }
     const { found, reason } = judge(entry, server, options.deliberate);
@@ -125,5 +123,50 @@ export async function scanUnwired(options: ScanOptions): Promise<UnwiredReport> 
       deliberate.push({ ...found, reason });
     }
   }
-  return { worlds: counted, scanned: tally.size, unwired, deliberate, disagreements };
+  const viaFlow = candidates.flatMap(({ first: { key } }) => {
+    const via = reached.get(key);
+    return via === undefined ? [] : [{ key, via }];
+  });
+  return { worlds: counted, scanned: tally.size, unwired, deliberate, disagreements, reachedByFlow: viaFlow };
+}
+
+interface EngineOne {
+  readonly tally: Map<string, Tally>;
+  readonly flows: Map<string, Set<string>>;
+  readonly counted: UnwiredReport["worlds"][number][];
+}
+
+// Engine one over every world, with the production member flows of the package worlds.
+function engineOne(options: ScanOptions, worlds: readonly string[], testWorlds: readonly string[]): EngineOne {
+  const found: EngineOne = { tally: new Map(), flows: new Map(), counted: [] };
+  const runs = [...worlds.map((world) => [world, false] as const), ...testWorlds.map((world) => [world, true] as const)];
+  for (const [config, testWorld] of runs) {
+    const scan = scanWorldAndFlows(options.root, config);
+    tallyWorld(found.tally, scan.members, testWorld);
+    // A test world's production files repeat the package worlds' flows; only those count.
+    for (const [value, slots] of testWorld ? [] : scan.flows) {
+      found.flows.set(value, new Set([...(found.flows.get(value) ?? []), ...slots]));
+    }
+    found.counted.push({ config, members: scan.members.length });
+    options.log(`${config}: ${scan.members.length} members`);
+  }
+  return found;
+}
+
+// The members production reaches through a chain of flows that ends in a referenced member, each with the slot it
+// flows into. The slot is the consumer's port; the composition root that wires the two is the production use.
+function reachedByFlow(flows: ReadonlyMap<string, ReadonlySet<string>>, used: (key: string) => boolean): ReadonlyMap<string, string> {
+  const reached = new Map<string, string>();
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const [value, slots] of flows) {
+      const via = reached.has(value) ? undefined : [...slots].find((slot) => used(slot) || reached.has(slot));
+      if (via !== undefined) {
+        reached.set(value, via);
+        grew = true;
+      }
+    }
+  }
+  return reached;
 }

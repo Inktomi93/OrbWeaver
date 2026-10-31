@@ -49,3 +49,11 @@ export interface TeachingCollection {
    *  the turn is byte-identical to a tool-less one. */
   readonly toolNames: readonly string[];
 }
+
+/** One domain's entry in the per-turn teaching collection (D145): registered at the composition root and collected
+ *  in `order` (ascending, ties by registration). `id` is a stable diagnostic name, unique within a registry. */
+export interface TeachingContribution {
+  readonly id: string;
+  readonly order: number;
+  readonly collect: (tctx: TeachingContext) => Promise<TeachingCollection>;
+}

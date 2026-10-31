@@ -3,7 +3,8 @@
 // A hop the checker accepts structurally leaves no symbol link, which is why reference searches lose it.
 import ts from "typescript";
 import type { ForeignTypes } from "./foreign-types.ts";
-import { foreignTypes, isSplitSignature } from "./foreign-types.ts";
+import { foreignTypes, isSplitSignature, passesDbHandle } from "./foreign-types.ts";
+import { jointBatchRulingOf } from "./ruled-ops.ts";
 
 /** Server tiers in import order: a member may derive only from a tier at or before its own. */
 const SERVER_TIERS = ["primitives", "foundation", "infra", "domain", "transport", "entry"] as const;
@@ -200,6 +201,8 @@ export interface Restatement {
   readonly foreign: ForeignTypes | null;
   /** The member the value comes from, whichever of the two is restating: the implemented side of the hop. */
   readonly source: PortMember;
+  /** For a cross-domain pair passing a db handle, the ledger row that rules its joint batch; else null. */
+  readonly ruling: string | null;
 }
 
 const nonNullable = (checker: ts.TypeChecker, type: ts.Type): ts.Type => checker.getNonNullableType(type);
@@ -443,11 +446,35 @@ export function restatementOf(checker: ts.TypeChecker, flow: Flow): Restatement 
     return null;
   }
   const foreign = crossDomainForeign(checker, restating, home);
-  // A split signature (contracts data plus runtime types) is the consumer's own contract, not a restated concept.
-  if (foreign !== null && isSplitSignature(foreign)) {
+  if (foreign === null) {
+    return { site, restating, owner: home, relation, crossDomain: false, foreign, source: owner, ruling: null };
+  }
+  // Across domains the slot is the consumer's: a split signature there (contracts data plus runtime types) is the
+  // consumer's own contract, which the owner's verb satisfies at the composition root.
+  const consumer = foreignTypes(checker, port);
+  if (isSplitSignature(consumer)) {
     return null;
   }
-  return { site, restating, owner: home, relation, crossDomain: foreign !== null, foreign, source: owner };
+  const passesHandle = passesDbHandle(foreign) || passesDbHandle(consumer);
+  const domains = [port, owner].map((member) => placementOf(homeFileOf(checker, member))?.domain ?? null);
+  const ruling = passesHandle ? jointBatchRulingOf([...rulingKeysOf(checker, port), ...rulingKeysOf(checker, owner)], domains) : null;
+  return { site, restating, owner: home, relation, crossDomain: true, foreign, source: owner, ruling };
+}
+
+/** The alias a member is typed by, then each alias that alias renames, nearest first. */
+export function aliasChain(checker: ts.TypeChecker, member: PortMember): readonly ts.TypeAliasDeclaration[] {
+  const chain: ts.TypeAliasDeclaration[] = [];
+  let alias = aliasOf(checker, member);
+  for (let hop = 0; hop < MAX_INDEXED_HOPS && alias !== null; hop++) {
+    chain.push(alias);
+    alias = ts.isTypeReferenceNode(alias.type) && alias.type.typeArguments === undefined ? aliasDeclarationOf(checker, alias.type) : null;
+  }
+  return chain;
+}
+
+/** The names a joint-batch ruling may know a member by: the member, `Holder.member`, and each alias it is typed by. */
+export function rulingKeysOf(checker: ts.TypeChecker, member: PortMember): readonly string[] {
+  return [member.name.getText(), memberLabel(member), ...aliasChain(checker, member).map((alias) => alias.name.text)];
 }
 
 const CONTRACT_FILE = /\/packages\/(?:contracts|kit)\/|\/contract\/|[/.-]contract\.ts$/u;
@@ -591,6 +618,16 @@ export function flowsAt(checker: ts.TypeChecker, node: ts.Node): Flows {
     return { members: each.flatMap((flows) => flows.members), types: each.flatMap((flows) => flows.types) };
   }
   return NO_FLOWS;
+}
+
+/** The member flows a `{ ...ops }` spread at `node` makes: each of the spread value's members into the literal's
+ *  same-named slot. The restatement matcher does not read them yet; the unwired scan does, so a spread-wired verb
+ *  counts as reached. */
+export function spreadFlowsAt(checker: ts.TypeChecker, node: ts.Node): readonly Flow[] {
+  if (!(ts.isSpreadAssignment(node) && ts.isObjectLiteralExpression(node.parent))) {
+    return [];
+  }
+  return objectFlow(checker, node, checker.getContextualType(node.parent), node.expression).members;
 }
 
 /** Every restatement among the member flows of `node`. */

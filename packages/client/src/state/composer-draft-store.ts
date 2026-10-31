@@ -70,6 +70,10 @@ const useComposerDraftStore = createPersistedStore<ComposerDraftState, Persisted
   partialize: (s): PersistedComposerDraftState => ({ drafts: bound(s.drafts) }),
 });
 
+/** One room's draft write, {@link setComposerDraft} bound to the room's scope key: the composer's `onChange`, which
+ *  its guided cluster edits through and restores a failed fire's text through. */
+export type ComposerDraftWrite = (text: string) => void;
+
 /** Replace a room's draft text (the composer's `onChange`). The touched key is RE-SEATED at the end of the
  *  map (delete-then-insert) so key order is most-recently-typed-last — the order the cap evicts by. */
 export function setComposerDraft(scopeKey: string, text: string): void {

@@ -4,6 +4,8 @@ import { relative } from "node:path";
 import ts from "typescript";
 import type { ReferenceKind } from "./classify.ts";
 import { classifyReference } from "./classify.ts";
+import type { PortMember } from "./restated-port.ts";
+import { effectiveMember, flowMembers, flowsAt, spreadFlowsAt } from "./restated-port.ts";
 import { isProduction, loadWorld, realpath } from "./worlds.ts";
 
 /** One member and what each engine found pointing at it. Lines are 1-based. */
@@ -61,8 +63,42 @@ function isFunctionTyped(
   return ts.isMethodSignature(member) || checker.getNonNullableType(checker.getTypeAtLocation(member)).getCallSignatures().length > 0;
 }
 
-/** Every scanned member of one world with its classified references. */
-export function scanWorld(root: string, config: string): readonly MemberReferences[] {
+/** One world's scanned members, and the production flows that hand one member's value into another member's slot. */
+export interface WorldScan {
+  readonly members: readonly MemberReferences[];
+  /** A member's key to the keys of the slots production code hands it into, such as a composition root wiring an
+   *  owner's verb into a consumer's port across domains, where no reference links the two declarations. */
+  readonly flows: ReadonlyMap<string, ReadonlySet<string>>;
+}
+
+// The scan key of a member declared directly in an interface or an object type alias; null for any other member.
+function memberKey(root: string, member: PortMember): string | null {
+  const holder = member.parent;
+  const alias = ts.isTypeLiteralNode(holder) && ts.isTypeAliasDeclaration(holder.parent) ? holder.parent : null;
+  const home = ts.isInterfaceDeclaration(holder) ? holder : alias;
+  return home === null ? null : `${relative(root, member.getSourceFile().fileName)}:${home.name.text}.${member.name.getText()}`;
+}
+
+function addFlow(flows: Map<string, Set<string>>, value: string | null, slot: string | null): void {
+  if (value !== null && slot !== null && value !== slot) {
+    flows.set(value, (flows.get(value) ?? new Set()).add(slot));
+  }
+}
+
+// A value handed into a slot, and a member derived from another (`readonly m: Owner["m"]`): a use of the slot or of
+// the derived member is a use of the member it comes from.
+function recordFlows(root: string, checker: ts.TypeChecker, node: ts.Node, flows: Map<string, Set<string>>): void {
+  for (const flow of [...flowsAt(checker, node).members, ...spreadFlowsAt(checker, node)]) {
+    const joined = flowMembers(checker, flow);
+    addFlow(flows, joined === null ? null : memberKey(root, joined.owner), joined === null ? null : memberKey(root, joined.port));
+  }
+  if (ts.isPropertySignature(node)) {
+    addFlow(flows, memberKey(root, effectiveMember(checker, node)), memberKey(root, node));
+  }
+}
+
+/** Every scanned member of one world with its classified references, and its production member flows. */
+export function scanWorldAndFlows(root: string, config: string): WorldScan {
   const service = createService(root, config);
   const program = service.getProgram();
   if (program === undefined) {
@@ -70,6 +106,7 @@ export function scanWorld(root: string, config: string): readonly MemberReferenc
   }
   const checker = program.getTypeChecker();
   const found: MemberReferences[] = [];
+  const flows = new Map<string, Set<string>>();
   for (const source of program.getSourceFiles()) {
     const file = relative(root, source.fileName);
     if (source.isDeclarationFile || !isProduction(file)) {
@@ -83,12 +120,16 @@ export function scanWorld(root: string, config: string): readonly MemberReferenc
           found.push(referencesOf(root, service, program, { source, file, home, member }));
         }
       }
+      recordFlows(root, checker, node, flows);
       ts.forEachChild(node, visit);
     };
     visit(source);
   }
-  return found;
+  return { members: found, flows };
 }
+
+/** Every scanned member of one world with its classified references. */
+export const scanWorld = (root: string, config: string): readonly MemberReferences[] => scanWorldAndFlows(root, config).members;
 
 interface Site {
   readonly source: ts.SourceFile;

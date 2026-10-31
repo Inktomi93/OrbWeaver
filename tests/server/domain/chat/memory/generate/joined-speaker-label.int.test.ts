@@ -12,6 +12,7 @@ import {
   createChatRoot,
   createCorpusProviderExecution,
   SUMMARIZE_TRANSCRIPT_MARKER,
+  summaryReply,
 } from "@orb/testkit/node/composed";
 
 const OPENING = "The lantern is lit above the bridge.";
@@ -26,7 +27,7 @@ test("a block built after a just-joined character's first reply names both speak
     chatText: (body): string => {
       if (body.includes(SUMMARIZE_TRANSCRIPT_MARKER)) {
         summaries.push(body);
-        return "Bridge scene\nThe lantern is lit and a witness answers.\nKeywords: bridge";
+        return summaryReply({ anchor: "Bridge scene", facts: "The lantern is lit and a witness answers.", keywords: ["bridge"] });
       }
       const reply = replies.shift();
       if (reply === undefined) {

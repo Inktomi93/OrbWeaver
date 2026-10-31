@@ -13,6 +13,7 @@ import { useId, useState } from "react";
 import { useUploadCaps } from "#data";
 import type { SlashArgOffer, SlashCommandContribution } from "#lib";
 import { IMAGE_GEN_NEEDS_TEXT, notify, testId } from "#lib";
+import type { ComposerDraftWrite } from "#state";
 import { openImagine, setComposerDraft, useComposerDraft } from "#state";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
 import { useComposerAttachments } from "../hooks/use-composer-attachments.ts";
@@ -81,7 +82,7 @@ export function Composer({
   // The draft read/write is scoped to THIS composer — the subscription is intentionally NOT lifted into the
   // shared ancestor, so a keystroke re-renders only this subtree and never cascades to the message thread.
   const value = useComposerDraft(chatId);
-  const onChange = (text: string): void => setComposerDraft(chatId, text);
+  const onChange: ComposerDraftWrite = (text) => setComposerDraft(chatId, text);
   // A composer attachment is an image OR a video (#317). The shared picker's ceiling is the single-asset
   // route cap (videos are the bigger class); IMAGE files are additionally pre-checked per file against the
   // tighter admin-tunable image cap in `addAttachmentFiles`. The server re-caps + magic-byte checks regardless.

@@ -1,12 +1,15 @@
 // A manifest's provider rows are a trust edge: the id stays inside the plugin's own namespace, a row cannot name a wire
 // the host does not implement, and a fixed baseUrl is egress the manifest must declare and the owner must consent to.
+import { PLUGIN_PROVIDER_ID_PREFIX } from "@orb/contracts/inference";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { expect, test } from "@orb/testkit/node";
 
 const HOST = "api.vendor.example";
+const PLUGIN = "vendor";
+const providerId = (plugin: string): string => `${PLUGIN_PROVIDER_ID_PREFIX}${plugin}/hosted`;
 
 const provider = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
-  id: "plugin:vendor/hosted",
+  id: providerId(PLUGIN),
   label: "Vendor",
   wire: "openai-compat",
   dialect: "openai-compatible",
@@ -19,7 +22,7 @@ const provider = (over: Record<string, unknown> = {}): Record<string, unknown> =
 });
 
 const manifest = (over: Record<string, unknown>): unknown => ({
-  id: "vendor",
+  id: PLUGIN,
   name: "Vendor",
   version: "1.0.0",
   hostVersion: PLUGIN_HOST_VERSIONS[0],
@@ -41,7 +44,7 @@ test("a manifest whose providers stay in their namespace and declare their host 
 });
 
 test("a provider id outside the plugin's own namespace, or declared twice, is refused", () => {
-  expect(issuePaths(manifest({ providers: [provider({ id: "plugin:other/hosted" })] }))).toContain("providers.0.id");
+  expect(issuePaths(manifest({ providers: [provider({ id: providerId("other") })] }))).toContain("providers.0.id");
   expect(issuePaths(manifest({ providers: [provider({ id: "openrouter" })] }))).toContain("providers.0.id");
   expect(issuePaths(manifest({ providers: [provider(), provider()] }))).toContain("providers.1.id");
 });
