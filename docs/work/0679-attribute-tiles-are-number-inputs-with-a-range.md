@@ -23,4 +23,4 @@ Tiles take numbers only, arrow keys step by one, and the range shows as a hint, 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+`tests/client/features/rpg/components/own-key-panels.ct.tsx` gains "an attribute tile takes numbers only, steps by one on the arrow keys and states the profile's range". With the tile's `range` prop withheld (old behaviour) it failed (ArrowUp left `14`, expected `15`; 5 other tests passed). With the fix all 6 pass, including the existing editor-height test (`pnpm test:ct`, chromium). The tile edits through the `NumberField` primitive's new stepper-less `tile` layout; its bounds description and the empty field's placeholder carry the profile's range. `pnpm typecheck packages/client/tsconfig.json packages/ui/tsconfig.json`, `pnpm lint:eslint` on the touched trees and `pnpm depcruise` exit 0.

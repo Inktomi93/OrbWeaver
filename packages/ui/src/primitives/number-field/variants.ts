@@ -57,6 +57,8 @@ export const numberFieldVariants = tv({
     layout: {
       field: { root: "inline-full", input: "text-center text-field leading-field" },
       inline: { root: "inline-(--width-number-inline)", input: "rounded-control px-field text-end font-mono text-code-field leading-code-field" },
+      // The stepper-less click-to-edit twin of a promoted stat tile's value: centered, at the title step the rest datum wears.
+      tile: { root: "inline-full", group: "block-auto min-block-0", input: "my-0 rounded-control px-field text-center text-title leading-title" },
     },
   },
   defaultVariants: { size: "sm", layout: "field" },
