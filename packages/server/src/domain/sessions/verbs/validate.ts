@@ -30,7 +30,6 @@ export function createValidate(ctx: SessionsContext): Pick<SessionsService, "val
       role: captureUserRole(session.role),
       handle: session.handle,
       externalId: session.externalId,
-      enabled: session.enabled,
     };
   }
   return { validate };

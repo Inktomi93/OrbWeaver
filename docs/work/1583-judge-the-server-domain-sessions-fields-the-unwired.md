@@ -34,4 +34,16 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Applied: `ValidatedSession.enabled`. A disabled row never resolves, so the field was always true. The one assertion on it in `tests/support/node/factories/sessions.int.test.ts` is dropped.
+
+Derived: `CreateSessionResult.token` and `.expiresAt`. `writeMintedSession` in `packages/server/src/entry/http/auth-routes.ts` read them through an inline twin; its parameter is now `Pick` of the `sessions.create` result.
+
+Kept, reclassified to a named reader:
+
+| Row | Reader |
+| - | - |
+| `CreateSessionResult.sessionId` | `tests/support/node/factories/sessions.int.test.ts:15` and `tests/support/node/factories/rows/sessions.ts:40` look the minted row up by it. No production reader. Owner question: keep it as the mint receipt, or drop it and have the factory find the row by token hash. |
+| `SessionsServiceDeps.rolePolicy`, `.logger`, `.idSource`, `.crypto` | `createSessionsService` hands `deps` whole to `createSessionsContext` in `packages/server/src/domain/sessions/context.ts`, which reads `inputs.rolePolicy`, `inputs.logger`, `inputs.idSource` and `inputs.crypto` |
+
+- Survey: `codegraph_explore` on the result, deps and verbs; `rg` over `packages`, `tests` and `tooling`.
+- Ran: `pnpm typecheck tsconfig.node.json`; `pnpm test` on `tests/server/domain/sessions`, `tests/server/entry/auth`, `session-policy` and the sessions factory suite.

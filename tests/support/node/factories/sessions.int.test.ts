@@ -16,7 +16,7 @@ test("a real session mint persists only its hash and revoke settles the actual r
   expect(capture.row.userId).toBe(actor.id);
   expect(capture.row.expiresAt).toBe(capture.created.expiresAt);
   expect(JSON.stringify(capture.row)).not.toContain(capture.created.token);
-  expect(await root.app.sessions.validate(capture.created.token)).toMatchObject({ sessionId: capture.row.id, userId: actor.id, enabled: true });
+  expect(await root.app.sessions.validate(capture.created.token)).toMatchObject({ sessionId: capture.row.id, userId: actor.id });
   expect(await root.app.sessions.revokeByToken(capture.created.token)).toEqual({ sessionId: capture.row.id, oidcIdToken: null });
   expect(await root.app.sessions.validate(capture.created.token)).toBeNull();
   expect(await root.app.sessions.revokeByToken(capture.created.token)).toBeNull();
