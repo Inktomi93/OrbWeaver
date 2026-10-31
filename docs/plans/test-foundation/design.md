@@ -124,7 +124,7 @@ Name the selected reference files, maintained test files and case-map location i
 
 Implementers read the selected reference files in full before recording case decisions. Preserve distinct fields, inputs, states and assertions in that comparison. Similar test names or matching input types do not establish equivalent coverage.
 
-Independent reviewers compare the original cases with the case map and maintained assertions, not only the implementation diff. Check each keep or drop decision against its cited evidence. Confirm the replacement reaches production and the defect control fails for the intended reason.
+Independent reviewers compare the original cases with the case map and maintained assertions, not only the implementation diff. They read every new test file in full and check each literal, list, table and shape against its production home: a roster or table derives from the production union or registry so a new member fails `tsc`, and a helper defined in a test file belongs in the testkit when a second file needs it or production already owns the rule. Check each keep or drop decision against its cited evidence. Confirm the replacement reaches production and the defect control fails for the intended reason.
 
 Record omitted or unresolved cases explicitly. Keep the register partial until every case in its named scope has a supported decision. Use the existing work item and register; add no separate tracking system.
 
