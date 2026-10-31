@@ -12,6 +12,7 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  SUMMARIZE_TRANSCRIPT_MARKER,
 } from "@orb/testkit/node/composed";
 import { and, eq, max } from "drizzle-orm";
 
@@ -23,7 +24,7 @@ test("the actual scoped digest build excludes complete blocks from before a char
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
     chatText: (body): string => {
-      if (!body.includes("Transcript block:")) {
+      if (!body.includes(SUMMARIZE_TRANSCRIPT_MARKER)) {
         return lateReplies.shift() ?? "The keeper records the completed scene.";
       }
       summaries.push(body);
@@ -85,7 +86,7 @@ test("the actual scoped digest build excludes complete blocks from before a char
     expect.stringContaining("Unwitnessed opening"),
   ]);
   // The summarizer body is JSON, so the block text is matched as it is escaped on the wire.
-  const openingBlock = JSON.stringify("Transcript block:\n\nAria: Unwitnessed opening 1.\nAria: Unwitnessed opening 2.").slice(1, -1);
+  const openingBlock = JSON.stringify(`${SUMMARIZE_TRANSCRIPT_MARKER}\n\nAria: Unwitnessed opening 1.\nAria: Unwitnessed opening 2.`).slice(1, -1);
   expect(summaries.some((body) => body.includes(openingBlock))).toBe(true);
   expect(summaries.some((body) => body.includes("Bryn: Joined bridge"))).toBe(true);
   expect(summaries.every((body) => !(body.includes(first.id) || body.includes(late.id)))).toBe(true);

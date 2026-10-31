@@ -5,6 +5,7 @@ import { defaultRehypePlugins, Streamdown } from "streamdown";
 import { cn, usePrefersReducedMotion } from "#lib";
 import { DIALOGUE_COMPONENTS } from "./dialogue-paragraph.tsx";
 import { DICE_COMPONENTS, remarkInlineDice } from "./dice-inline.tsx";
+import { MARKDOWN_INLINE_CODE_COMPONENTS } from "./inline-code-component.tsx";
 import { MARKDOWN_LIST_COMPONENTS } from "./list-components.tsx";
 import { MARKDOWN_MATH_PLUGIN } from "./math.ts";
 import {
@@ -22,10 +23,14 @@ import { holdAmbiguousTail } from "./tail-hold.ts";
 
 // The two stable `components` maps. Both are module-level constants because Streamdown's Block memo
 // reference-compares the map key by key — a per-render object would re-render every settled block.
-// The seal OWNS four elements now: the three list elements (#1085) and the thematic break (H19,
-// `rule-component.tsx`) — every one a vendor `jsx` call with an uncompiled class string and no branch
-// behind it, which is the test #1085 set for taking an element over rather than out-painting it.
-const SEAL_COMPONENTS: NonNullable<StreamdownProps["components"]> = { ...MARKDOWN_LIST_COMPONENTS, ...MARKDOWN_RULE_COMPONENTS };
+// The seal OWNS five elements: the three list elements (#1085), the thematic break (H19, `rule-component.tsx`)
+// and inline code (`inline-code-component.tsx`) — each a vendor `jsx` call with an uncompiled class string,
+// which is the test #1085 set for taking an element over rather than out-painting it.
+const SEAL_COMPONENTS: NonNullable<StreamdownProps["components"]> = {
+  ...MARKDOWN_LIST_COMPONENTS,
+  ...MARKDOWN_RULE_COMPONENTS,
+  ...MARKDOWN_INLINE_CODE_COMPONENTS,
+};
 const SEAL_COMPONENTS_WITH_DIALOGUE: NonNullable<StreamdownProps["components"]> = { ...SEAL_COMPONENTS, ...DIALOGUE_COMPONENTS };
 const DICE_SEAL_COMPONENTS = { ...SEAL_COMPONENTS, ...DICE_COMPONENTS };
 const DICE_SEAL_COMPONENTS_WITH_DIALOGUE = { ...SEAL_COMPONENTS_WITH_DIALOGUE, ...DICE_COMPONENTS };
@@ -236,9 +241,9 @@ export function Markdown({
   // list elements carry the same never-compiled utilities, and preflight zeroes list-style/margin/padding
   // on `ul`/`ol`, so every chat list rendered as flat unmarked text (owner-observed live). Here the seal
   // takes the ELEMENTS over (`components`, see `list-components.tsx` for the full ruling) instead of
-  // out-painting them from this root: unlike the code element there is no vendor branch to re-implement,
-  // and owning them means our tokens are the ONLY classes on the element rather than a compiled layer
-  // over dead vendor residue. The unscanned-dist ruling is untouched — the values are house tokens.
+  // out-painting them from this root: owning them means our tokens are the ONLY classes on the element
+  // rather than a compiled layer over dead vendor residue. Inline code is owned the same way now
+  // (`inline-code-component.tsx`), through Streamdown's `inlineCode` slot. The unscanned-dist ruling is untouched — the values are house tokens.
   //
   // H19 — THE FAMILY'S FOURTH CASE (side-eye HOME 2026-09-02), taken the #1085 way. Streamdown's `hr` is
   // `cn("my-6 border-border", …)`, so a message containing `---` rendered `[css] dead class · .my-6` in
@@ -246,12 +251,6 @@ export function Markdown({
   // the #1085 test: one vendor `jsx` call, no branch behind it, so owning it removes the dead class from
   // the DOM rather than out-painting it. Its spacing is the descendant variant above, and
   // `rule-component.tsx` states why that one is a margin where the blockquote's is padding.
-  //
-  // WHAT THIS DOES *NOT* DO: it does not move `snap --deadcss`, which still reports the vendor's three
-  // uncompiled literals (`text-sm`/`py-0.5`/`px-1.5`) because they stay in the class attribute — the
-  // element is Streamdown's, and taking it over would mean re-implementing its whole fenced-code branch
-  // (Shiki plugin dispatch, the control cluster) to own one inline span. Those three are the
-  // ruled-and-permanent cost of the unscanned dist, not a defect: the RENDER is what this fixes.
   //
   // `break-words` (overflow-wrap: break-word, inherited by every rendered block) is the ONE reading-surface
   // guard against a long unbroken token — a pasted URL/hash/run-on word — overflowing its column and

@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-10-30
+updated: 2026-10-31
 priority: P2
 area: architecture
+plan: unwired-code
 ---
 
 # Delete synonym type aliases; keep per-verb Params and Result names

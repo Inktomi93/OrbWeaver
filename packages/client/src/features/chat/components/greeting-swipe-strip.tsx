@@ -21,7 +21,7 @@
 // alternates AND the room is still in its window.
 
 import type { ChatId, MessageId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import { ChevronLeft, ChevronRight, Icon } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -84,17 +84,17 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current, foot 
       slot="greeting-swipe-strip"
       label={variantCountName(atCustom ? null : currentIdx + 1, total)}
       prev={
-        <Button
+        <GlyphButton
           variant="ghost"
           ink="muted"
-          size="glyph-lg"
+          glyph="lg"
           disabled={!canPrev || step.isPending}
           loading={step.isPending}
           aria-label="Previous greeting"
           onClick={(): void => pick(prevIdx)}
         >
           <Icon icon={ChevronLeft} size="sm" />
-        </Button>
+        </GlyphButton>
       }
       count={
         <Text as="span" voice="datum" aria-hidden="true" data-slot="greeting-swipe-strip-counter" className="whitespace-nowrap" ink="muted">
@@ -102,17 +102,17 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current, foot 
         </Text>
       }
       next={
-        <Button
+        <GlyphButton
           variant="ghost"
           ink="muted"
-          size="glyph-lg"
+          glyph="lg"
           disabled={!canNext || step.isPending}
           loading={step.isPending}
           aria-label="Next greeting"
           onClick={(): void => pick(nextIdx)}
         >
           <Icon icon={ChevronRight} size="sm" />
-        </Button>
+        </GlyphButton>
       }
     />
   );

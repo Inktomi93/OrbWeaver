@@ -11,6 +11,7 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  SUMMARIZE_TRANSCRIPT_MARKER,
 } from "@orb/testkit/node/composed";
 
 const OPENING = "The lantern is lit above the bridge.";
@@ -23,7 +24,7 @@ test("a block built after a just-joined character's first reply names both speak
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
     chatText: (body): string => {
-      if (body.includes("Transcript block:")) {
+      if (body.includes(SUMMARIZE_TRANSCRIPT_MARKER)) {
         summaries.push(body);
         return "Bridge scene\nThe lantern is lit and a witness answers.\nKeywords: bridge";
       }

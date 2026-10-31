@@ -30,8 +30,8 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe ────────────────────────────────────────────────────────────
   // THE HIT AREA IS NOT THE BOX (2026-08-16 — 10 of 13 "sub-target" findings in one audit were this).
-  // @orb/ui Button's size="inline"/size="glyph-*" variants carry a pointer-conditional touch-target
-  // ::before (packages/ui/src/primitives/button/variants.ts glyphBox + the inline arm; it was an ::after
+  // @orb/ui's InlineAction and GlyphButton boxes carry a pointer-conditional touch-target
+  // ::before (packages/ui/src/primitives/glyph-button/variants.ts glyphBox + inline-action's inlineBox; it was an ::after
   // until #1843 moved it off the CTA ring's layer — this probe reads BOTH), so a 25x15 border box can own
   // a 45x45 hit area. Probe what the COMPOSITOR says: sample points on the ring the pseudo would cover
   // and ask elementFromPoint whether this control still owns them. The measured extent is what WCAG
@@ -95,7 +95,7 @@ export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe �
   // which have NO paintable box of their own at the probed point, so the ancestor is the only thing that
   // CAN answer (and #807 then narrows WHICH hit may answer — see hitForwards):
   //   · PSEUDO-CARRIED: an overflowing ::before/::after touch-target pseudo (the @orb/ui Button glyph
-  //     ramp — packages/ui/src/primitives/button/variants.ts glyphBox, content-[''] + absolute
+  //     ramp — packages/ui/src/primitives/glyph-button/variants.ts glyphBox, content-[''] + absolute
   //     positioning) has no DOM node at all, so where an ancestor's overflow CLIPS its outward edge the
   //     box painting underneath is the only thing that can answer for it.
   //   · VISUALLY-HIDDEN: Base UI's native range input inside a Slider Thumb (isVisuallyHidden, core.ts —

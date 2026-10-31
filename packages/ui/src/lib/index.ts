@@ -69,5 +69,5 @@ export { INKS, isTone, TONE_ARMS, TONE_TEXT, type ToneInkSelection } from "./ton
 export { TOUCH_FLOOR_AT_COARSE } from "./touch-floor.ts";
 export { usePrefersLightColorScheme } from "./use-prefers-light-color-scheme.ts";
 export { usePrefersReducedMotion } from "./use-prefers-reduced-motion.ts";
-export { type ToneStamp, variantAttrs, variantProps } from "./variant-attrs.ts";
+export { type ToneStamp, type VariantStampProps, variantAttrs, variantProps } from "./variant-attrs.ts";
 export { assertBoundedScrollHeight, type GapToken, gapPxFor, UnboundedScrollHeightError } from "./virtual-gap.ts";

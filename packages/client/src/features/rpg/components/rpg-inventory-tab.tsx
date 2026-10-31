@@ -32,8 +32,8 @@
 
 import type { RpgActorOp, RpgActorView, RpgInventoryItem, RpgTrackerView } from "@orb/contracts/rpg";
 import { rpgActorVolatileLockBase } from "@orb/contracts/rpg";
-import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import { Coins, Icon, LayoutGrid, List, Plus } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -164,9 +164,9 @@ function PackSection({
         {/* The compact-grid / list view knob (a display preference, session-local). */}
         {items.length === 0 ? null : (
           <Tip text={toggleLabel}>
-            <Button variant="ghost" size="glyph-md" aria-label={toggleLabel} onClick={onToggleView}>
+            <GlyphButton variant="ghost" glyph="md" aria-label={toggleLabel} onClick={onToggleView}>
               <Icon icon={view === "grid" ? List : LayoutGrid} size="xs" />
-            </Button>
+            </GlyphButton>
           </Tip>
         )}
       </Row>

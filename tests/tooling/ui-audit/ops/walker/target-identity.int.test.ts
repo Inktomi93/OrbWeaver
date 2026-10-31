@@ -24,7 +24,7 @@ function toolbar(stamps: readonly [string, string]): string {
 test("two authored variant arms in one home are TWO tap-target decisions", async ({ runCli, scratch }) => {
   await writeFile(
     join(scratch, "stamped-arms.html"),
-    relationalDocument(toolbar(['data-size="glyph-xs" data-intent="ghost"', 'data-size="lg" data-intent="primary"'])),
+    relationalDocument(toolbar(['data-glyph="xs" data-intent="ghost"', 'data-size="lg" data-intent="primary"'])),
   );
   const res = await runCli("snap", ["--file", join(scratch, "stamped-arms.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("POPULATION   tap-target candidates=2 judged=2 affected=2 populations=2 representatives=2");
@@ -41,7 +41,7 @@ test("the SAME two controls with no stamp collapse into ONE decision — the F8 
 test("one shared arm still collapses — the split is the AXIS VALUE, not the attribute's presence", async ({ runCli, scratch }) => {
   // The permissive direction: if the key merely noticed that an attribute exists, a rail of identically
   // sized buttons would fragment into one population per button and every repair row would be a singleton.
-  await writeFile(join(scratch, "same-arm.html"), relationalDocument(toolbar(['data-size="glyph-xs"', 'data-size="glyph-xs"'])));
+  await writeFile(join(scratch, "same-arm.html"), relationalDocument(toolbar(['data-glyph="xs"', 'data-glyph="xs"'])));
   const res = await runCli("snap", ["--file", join(scratch, "same-arm.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("POPULATION   tap-target candidates=2 judged=2 affected=2 populations=1 representatives=2");
 });

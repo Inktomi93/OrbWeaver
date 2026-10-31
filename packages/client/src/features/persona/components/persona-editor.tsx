@@ -14,6 +14,7 @@ import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { FileTrigger } from "@orb/ui/file-trigger";
 import { Copy, Download, Icon, Trash2 } from "@orb/ui/icons";
+import { InlineAction } from "@orb/ui/inline-action";
 import { Row, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
@@ -262,11 +263,11 @@ function AvatarTrigger({ persona }: { readonly persona: PersonaDetail }): ReactE
       }}
     >
       {({ open }): ReactElement => (
-        <Button aria-label={`Change avatar for ${persona.name}`} className="shrink-0" variant="ghost" onClick={open} size="inline">
+        <InlineAction aria-label={`Change avatar for ${persona.name}`} className="shrink-0" variant="ghost" onClick={open} step="label">
           <Avatar fallbackDelay={0} hueSeed={persona.id} size="md" {...avatarSrc}>
             {initialsFor(persona.name)}
           </Avatar>
-        </Button>
+        </InlineAction>
       )}
     </FileTrigger>
   );

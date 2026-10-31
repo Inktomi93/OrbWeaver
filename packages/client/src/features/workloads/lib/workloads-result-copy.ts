@@ -66,7 +66,7 @@ type WorkloadResultRenderer<K extends WorkloadKind> = (result: WorkloadResultByK
 
 /** index — an embed pass: what it wrote, and what it skipped as already current. */
 const indexSummary: WorkloadResultRenderer<"index"> = (result) =>
-  summarize([tally(result.embedded, "embedded"), tallyIfAny(result.skipped, "already up to date")]);
+  summarize([tally(result.embedded, "embedded"), tallyIfAny(result.skipped, "already up to date"), tallyIfAny(result.failedAssets?.length, "failed")]);
 
 /**
  * Why an analytics pass wrote nothing, in the user's terms — an exhaustive `Record` over the contract's own

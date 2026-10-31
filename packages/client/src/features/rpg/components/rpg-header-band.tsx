@@ -5,8 +5,8 @@
 // (rules-of-hooks). `null` from the hook (a race where the pointer cleared mid-render) collapses to nothing.
 
 import type { ChatId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
 import { EyeOff, Icon } from "@orb/ui/icons";
+import { InlineAction } from "@orb/ui/inline-action";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -42,10 +42,10 @@ function RpgVeiledCue({ chatId }: { readonly chatId: ChatId }): ReactElement | n
   }
   return (
     <Tip text={`${count} veiled ${count === 1 ? "truth" : "truths"} in play — host only. Opens Status → Veiled.`}>
-      <Button
+      <InlineAction
         type="button"
         variant="ghost"
-        size="inline"
+        step="label"
         data-slot="rpg-veiled-cue"
         onClick={(): void => revealContextPanel("rpg.status")}
         className="px-field"
@@ -59,7 +59,7 @@ function RpgVeiledCue({ chatId }: { readonly chatId: ChatId }): ReactElement | n
         <Text as="span" voice="interactiveKicker" ink="accolade">
           {count} veiled
         </Text>
-      </Button>
+      </InlineAction>
     </Tip>
   );
 }

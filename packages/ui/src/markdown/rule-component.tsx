@@ -10,10 +10,8 @@
 // `my-6` generated nothing — and Tailwind's preflight zeroes margins. The rule therefore painted flush
 // against the prose on either side of it, which is the one thing a thematic break exists not to do.
 //
-// WHY OWNING THE ELEMENT rather than out-painting it from the seal root, and why that is not a reversal:
-// the reason #238/#490 stayed descendant variants was that taking the CODE element over meant
-// re-implementing its whole fenced branch (highlighter dispatch, the control cluster) to own one
-// inline span. An `hr` has NO vendor branch — it is one `jsx` call with a class string — so owning it is
+// WHY OWNING THE ELEMENT rather than out-painting it from the seal root: an `hr` has NO vendor branch — it is
+// one `jsx` call with a class string — so owning it is
 // cheap AND total: our classes are the only ones on the element, so the dead class leaves the DOM instead
 // of merely being out-painted, which is the difference the flagger (and the reader) can see. The
 // unscanned-dist ruling is untouched: the value below is a house SPACING TOKEN, never the vendor's rem.

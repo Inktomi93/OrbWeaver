@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-24
+updated: 2026-10-31
 priority: P3
 area: tooling
+plan: test-foundation
 ---
 
 # The package test-mirror test names a suite the reach list dropped

@@ -11,8 +11,8 @@ import type { RpgConfigView, RpgStatAttributeDef, RpgStatProfile } from "@orb/co
 import { RPG_HINT_MAX, RPG_PROFILE_MAX_ATTRIBUTES } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
-import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Icon, Plus, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -30,7 +30,7 @@ import { AddRow, HintEditor, TrackerValue } from "./tracker-blocks/index.ts";
  *  console reads as ONE list grammar. `slot` is the row's owner-CSS hook, so the card keeps it.
  *
  *  `rows="control"` floors the card's OWN rows at the pointer-conditional control-sm height, so a
- *  `size="inline"` button's touch target sits inside its own row instead of overflowing onto the next row's
+ *  `InlineAction`'s touch target sits inside its own row instead of overflowing onto the next row's
  *  text; a list-level `rows="control"` only floors the card. */
 export function DefRow({ slot, children }: { readonly slot: string; readonly children: ReactNode }): ReactElement {
   return (
@@ -76,9 +76,9 @@ function AttributeRow({
           subject={`${attr.label}'s key`}
         />
         <Tip text={`Remove ${attr.label} from the vocabulary`}>
-          <Button aria-label={`Remove ${attr.label} from the vocabulary`} variant="ghost" size="glyph-md" onClick={onRemove}>
+          <GlyphButton aria-label={`Remove ${attr.label} from the vocabulary`} variant="ghost" glyph="md" onClick={onRemove}>
             <Icon icon={Trash2} size="xs" />
-          </Button>
+          </GlyphButton>
         </Tip>
       </Row>
       <HintEditor

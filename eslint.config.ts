@@ -4,7 +4,7 @@ import { relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { staticImportGraph, unsupportedAtFloor, withoutPolyfilled } from "@orb/tooling/browser-support";
 import { authorClassIgnores, baseUiDoors, classClassifier, createOrbPlugin, exportedLabels, shellOwnedSlots } from "@orb/tooling/eslint";
-import { BUTTON_SIZE_OVERFLOW } from "@orb/ui/button/size-hit-area";
+import { BUTTON_BOX_OVERFLOW } from "@orb/ui/button/box-hit-area";
 import { TOKENS, TONES } from "@orb/ui/tokens";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 import pluginRouter from "@tanstack/eslint-plugin-router";
@@ -1294,10 +1294,11 @@ const localPlugin = createOrbPlugin({
   domLookupHomes: DOM_LOOKUP_HOMES,
   baseUiDoors: baseUiDoors(fileURLToPath(new URL("./packages/ui", import.meta.url))),
   browserNodeGlobals: new Set([...Object.keys(browserGlobalsOverride.linter.rules.style.noRestrictedGlobals.options.deniedGlobals), "process"]),
-  floorlessButtonSizes: new Set(
-    Object.entries(BUTTON_SIZE_OVERFLOW)
-      .filter(([, overflows]) => overflows)
-      .map(([size]) => size),
+  // The map keys each component by its camelCase name; the rule matches the element name.
+  floorlessControls: new Set(
+    Object.entries(BUTTON_BOX_OVERFLOW)
+      .filter(([, steps]) => Object.values(steps).every(Boolean))
+      .map(([component]) => `${component.charAt(0).toUpperCase()}${component.slice(1)}`),
   ),
   shellClasses: new Set(OWNER_CSS_SHELL_CLASSES),
   shellSlots: shellOwnedSlots(ROOT),

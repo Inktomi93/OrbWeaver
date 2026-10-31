@@ -22,7 +22,7 @@
 
 import type { GuidedGameSteerKind } from "@orb/kit/guided";
 import { RPG_PLOT_STEER_KINDS, RPG_PLOT_STEERS } from "@orb/kit/guided";
-import { Button } from "@orb/ui/button";
+import { GlyphButton } from "@orb/ui/glyph-button";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Compass, Eraser, History, Icon, ListOrdered, MessageSquarePlus, Pencil, Redo2, RefreshCw, Undo2, WandSparkles } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
@@ -169,9 +169,9 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
                 // so it is the same DOM node and the same string — but an icon-only `@orb/ui` Button REQUIRES
                 // its name at the type level, and a name declared one component up is invisible to that check
                 // (and to a reader of this element).
-                <Button aria-label="Message tools" type="button" variant="ghost" size="glyph-lg" shape="pill" className="shrink-0">
+                <GlyphButton aria-label="Message tools" type="button" variant="ghost" glyph="lg" shape="pill" className="shrink-0">
                   <Icon icon={WandSparkles} size="sm" />
-                </Button>
+                </GlyphButton>
               }
             />
           }

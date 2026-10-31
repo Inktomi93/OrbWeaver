@@ -12,6 +12,7 @@ import {
   createChatRoot,
   createCorpusProviderExecution,
   freshHeldDb,
+  SUMMARIZE_TRANSCRIPT_MARKER,
 } from "@orb/testkit/node/composed";
 
 const RECALL_INTENT = { maxContextTokens: 4096, maxOutputTokens: 64 } as const;
@@ -28,7 +29,7 @@ async function recallRoom(group: NonNullable<ChatRootOptions["group"]>, options:
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
     chatText: (body): string =>
-      body.includes("Transcript block:")
+      body.includes(SUMMARIZE_TRANSCRIPT_MARKER)
         ? "An earlier ledger scene\nThe keeper remembers the earlier orbital ledger scene.\nKeywords: ledger"
         : "The keeper recalls the earlier ledger scene.",
   });
