@@ -1,4 +1,4 @@
-import type { SeedThemeName } from "@orb/client/state";
+import type { SeedThemeName } from "@orb/client/lib";
 import { APPEARANCE_BOOT_AXES, rememberAppearanceBootHint, rememberDataThemeHint, useAppearanceBootHint } from "@orb/client/state";
 import { pickKeys } from "@orb/kit/objects";
 import { CtClientProviders } from "@orb/testkit/browser";

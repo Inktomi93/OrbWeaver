@@ -6,19 +6,10 @@
 // selection.
 
 import type { MessageId } from "@orb/kit/ids";
+import type { BulkSelectionState } from "./bulk-selection-state.ts";
 import { createGatedStore } from "./create-gated-store.ts";
 
-interface MessageSelectionState {
-  /** Whether bulk-select mode is active (checkboxes shown, per-row actions suppressed). */
-  readonly active: boolean;
-  /** The selected message ids as a presence map (`id → true`) — present ⇒ selected. */
-  readonly selectedIds: Readonly<Record<string, true>>;
-}
-
-const useMessageSelectionStore = createGatedStore<MessageSelectionState>(
-  "message-selection",
-  (): MessageSelectionState => ({ active: false, selectedIds: {} }),
-);
+const useMessageSelectionStore = createGatedStore<BulkSelectionState>("message-selection", (): BulkSelectionState => ({ active: false, selectedIds: {} }));
 
 /** Enter bulk-select mode (from the chat options menu's "Select messages…"). Starts with an empty set. */
 export function enterSelectionMode(): void {

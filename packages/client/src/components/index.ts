@@ -65,7 +65,7 @@ export {
 export { TagPickerDialog } from "./tag-picker-dialog.tsx";
 export { Tip } from "./tip.tsx";
 export { TrailingArrow } from "./trailing-arrow.tsx";
-export type { ConfigLeafAddress, ConfigLeafValue } from "./use-config-leaf.ts";
+export type { ConfigLeafValue } from "./use-config-leaf.ts";
 export { configLeafKey, useConfigLeaf, useConfigLeafReadings } from "./use-config-leaf.ts";
 export { useEmbedderRebuild } from "./use-embedder-rebuild.ts";
 export { useFirstBootBox } from "./use-first-boot-box.ts";
