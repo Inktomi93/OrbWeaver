@@ -2,7 +2,7 @@
 // Replicates neo's `assembly/context.ts` algorithm VERBATIM, with ONE correctness upgrade: the `randomPick`
 // branch draws from the INJECTED turn PRNG (never ambient `Math.random` — orbweaver's determinism law forbids
 // entropy on the eval path). Pure + isomorphic (no db, no I/O) — reused by BOTH the assembly env seed (a turn
-// resolves with `"random"`, ONCE before assembly) AND the merged `getVariables` read and every preview
+// resolves with `"random"`, ONCE before assembly) AND every preview
 // (`"stable"` — a fixed display of effective values, no per-read variance).
 
 import type { ChoiceBlockSpec } from "@orb/contracts/preset";

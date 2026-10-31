@@ -3,7 +3,7 @@
 //
 // IT TAKES NO ID AND HAS NO GUARD, and that is the D18 single-owned posture rather than a missing check: the
 // scope IS `principal.userId`, so there is no way to ask for someone else's lane and therefore nothing for a
-// gate to refuse. `listGlobalVariables` reads its plane the same way, for the same reason. The moment this
+// gate to refuse. The moment this
 // verb grew an `ownerId` PARAMETER it would need one — which is precisely why it does not have one.
 
 import type { RuleView } from "@orb/contracts/automation";

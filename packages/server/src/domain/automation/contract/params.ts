@@ -103,8 +103,7 @@ export interface ListChatActivityParams extends AutomationActorParams {
 }
 
 /** C5 — the OWNER-GLOBAL lane's rule list (the Automation settings pane's read). Takes no id at all: the
- *  plane is single-owned, so the caller's own `principal.userId` IS the scope (the `listGlobalVariables`
- *  posture). There is no way to ask for someone else's lane, which is what makes the read leak-free by
+ *  plane is single-owned, so the caller's own `principal.userId` IS the scope. There is no way to ask for someone else's lane, which is what makes the read leak-free by
  *  construction rather than by a gate. */
 export type ListOwnerRulesParams = AutomationActorParams;
 
