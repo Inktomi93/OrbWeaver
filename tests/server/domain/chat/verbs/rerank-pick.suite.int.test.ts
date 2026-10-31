@@ -110,15 +110,15 @@ test("each character document is clipped to the reranker's window before it is s
   }
 });
 
-test("public Stop during a held rerank closes the pick without a fallback speaker, warning or foreground generation", async () => {
-  await using room = await smartRoom({ holdRerank: true, rerank: [...ARIA_FIRST] }, { group: { ...SMART, allowSelfResponses: true } });
+test("public Stop during a held rerank cancels the pick instead of degrading it: no fallback speaker, warning or foreground generation", async () => {
+  await using room = await smartRoom({ holdRerank: true }, { group: { ...SMART, allowSelfResponses: true } });
   await bindRerank(room);
   const sending = send(room);
   const settled = Promise.allSettled([sending]);
   try {
     await room.peer.reached;
     await room.h.root.services.chat.abort({ principal: room.h.owner, chatId: room.h.chatId });
-    // The rerank call carries no signal, so the pick sees the Stop when the held answer arrives.
+    // The rerank call carries no signal, so the pick sees the Stop when the held answer arrives, and that answer is a refusal.
     room.peer.release();
     const outcome = await sending;
     expect(outcome).toMatchObject({ aborted: true, abortReason: "user" });

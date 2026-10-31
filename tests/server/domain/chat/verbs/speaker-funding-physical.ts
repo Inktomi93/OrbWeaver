@@ -85,11 +85,13 @@ async function speakerPeer(plan: SpeakerWirePlan, ownership: AsyncDisposableStac
     await released.promise;
   }
   async function rerankReply(bindings: NativeHttpBindings): Promise<Response> {
+    if (plan.holdRerank) {
+      // The answer that follows the hold is a refusal: a pick that survives a Stop must read it as a failed rerank.
+      await hold(bindings);
+      return Response.json({ error: { message: "Controlled rerank refusal", type: "server_error" } }, { status: 500 });
+    }
     if (plan.rerank === undefined) {
       throw new Error("unplanned physical rerank request");
-    }
-    if (plan.holdRerank) {
-      await hold(bindings);
     }
     return Response.json({ results: plan.rerank });
   }
