@@ -6,6 +6,7 @@ import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
+import type { Page } from "@playwright/test";
 import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 import type { ReadingRoom } from "./chat-style-reading.fixtures.ts";
@@ -162,6 +163,47 @@ test.describe("desktop", () => {
       // The fade runs toward the text: to the right of a start-side portrait, to the left of an end-side one.
       expect(entry.mask).toMatch(entry.onStart ? /linear-gradient\((?:90deg|to right),/u : /linear-gradient\((?:270deg|-90deg|to left),/u);
     }
+  });
+});
+
+test.describe("message number", () => {
+  test.use({ viewport: DESKTOP, hasTouch: true });
+
+  async function numberFacts(page: Page): Promise<{ readonly place: "metadata" | "portrait" | "absent"; readonly gap: number; readonly offCentre: number }> {
+    // The last reply is fully in view; a row above it may sit under the transcript's top edge.
+    const row = page.locator(ROW).last();
+    await expect(row).toBeVisible();
+    return row.evaluate((element) => {
+      const number = element.querySelector('[data-slot="message-metadata-id"]');
+      const portrait = element.querySelector('[data-slot="avatar-root"]')?.getBoundingClientRect();
+      if (number === null) {
+        return { place: "absent" as const, gap: Number.NaN, offCentre: Number.NaN };
+      }
+      const box = number.getBoundingClientRect();
+      return {
+        place: number.closest('[data-slot="message-metadata-row"]') === null ? ("portrait" as const) : ("metadata" as const),
+        gap: portrait === undefined ? Number.NaN : box.top - portrait.bottom,
+        offCentre: portrait === undefined ? Number.NaN : Math.abs(box.left + box.width / 2 - (portrait.left + portrait.width / 2)),
+      };
+    });
+  }
+
+  test("ripple seats the message number under its portrait, centred on it", async ({ corpus, mount, page }) => {
+    await openReadingStyle(page, corpus, "ripple", { showMessageId: true });
+    await seedShellState(page, { activeSection: "chats" });
+    await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
+    const facts = await numberFacts(page);
+    expect(facts.place).toBe("portrait");
+    // Capture 194745 puts it a field step (about 6px) under the portrait, centred on it.
+    expect(facts.offCentre).toBeLessThanOrEqual(1);
+    expect(Math.abs(facts.gap - LENGTH_BASE_PX["spacing.field"])).toBeLessThanOrEqual(1);
+  });
+
+  test("another style keeps the message number in the metadata row", async ({ corpus, mount, page }) => {
+    await openReadingStyle(page, corpus, "bubble", { showMessageId: true });
+    await seedShellState(page, { activeSection: "chats" });
+    await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
+    expect((await numberFacts(page)).place).toBe("metadata");
   });
 });
 
