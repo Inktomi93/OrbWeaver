@@ -58,29 +58,23 @@ import { createRoleClientsFor } from "./roles/role-clients.ts";
 export type { ResolvedWarning } from "@orb/contracts/inference";
 
 export { availableClaudeExecutable } from "./backends/agent-sdk/executable.ts";
-export type { SessionEntryWriter } from "./backends/agent-sdk/index.ts";
 
 export { cachePolicyContextOf, responseReplaySupportedFor } from "./backends/http/response-cache.ts";
-
-export type { LocalLightModelCache, LocalLightModelSlot, LocalLightPrefetchTarget } from "./backends/local-light/index.ts";
-export { LOCAL_LIGHT_MODEL_SLOTS } from "./backends/local-light/index.ts";
-
 export { cacheDepthCovering, preservesCacheBlockEnds, rowIndexAtCacheDepth } from "./backends/wire/cache-control.ts";
-export type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn } from "./contract/agent-sdk-execution.ts";
+export type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn } from "./contract/agent-sdk-native.ts";
 export * from "./contract/index.ts";
+export type { LocalLightModelCache, LocalLightPrefetchTarget } from "./contract/local-light.ts";
 export type { LoadTransformersKernel, LocalLightKernelModule } from "./contract/local-light-kernel.ts";
-
-export type { BindingActor, BindingStore, ConnectionStore, InferenceDeps, ProviderSnapshot, ProviderStore, SnapshotStore } from "./deps.ts";
+export type { ProviderRegistry } from "./contract/registry.ts";
+export type { ResolveArgs, ResolveOutcome } from "./contract/task-resolution.ts";
+export type { BindingStore, ConnectionStore, InferenceDeps, ProviderSnapshot, ProviderStore, SnapshotStore } from "./deps.ts";
 export { resolveCachePolicy } from "./funnel/resolve-cache.ts";
 // `resolveCarryReasoning` is exported BESIDE the whole funnel because the chat engine needs exactly one of
 // its answers BEFORE the first wire call: the `conversation` rung materializes prior thinking at the
 // history-build seam, which runs upstream of `resolveChat`. One policy home, two readers (§8.8).
 export { resolveCarryReasoning, resolveChat } from "./funnel/resolve-chat.ts";
-
 export { resolveSideGenSampling } from "./funnel/resolve-side-gen.ts";
-export type { ProviderRegistry } from "./registry/providers.ts";
 export { requiresHubModelId, supportsManagedCompaction } from "./resolve/operation-capabilities.ts";
-export type { ResolveArgs, ResolveOutcome } from "./resolve/resolve-task.ts";
 export { NoConnectionError } from "./resolve/resolve-task.ts";
 // The chat turn's ONE neutral-to-backend projection: a caller hands over a history array and its tools as
 // definitions + an execute callback, and never branches on the connection's wire itself.

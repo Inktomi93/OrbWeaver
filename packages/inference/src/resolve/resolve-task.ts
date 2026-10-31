@@ -599,4 +599,4 @@ export async function resolveTaskWithBaseline(ctx: ResolverContext, args: Resolv
   return await abortableWait(resolveTaskFold(ctx, args, true), args.signal, RESOLUTION_ABORTED_MESSAGE);
 }
 
-export type { ResolveArgs, ResolveOutcome, ResolverContext } from "../contract/task-resolution.ts";
+export type { ResolverContext } from "../contract/task-resolution.ts";
