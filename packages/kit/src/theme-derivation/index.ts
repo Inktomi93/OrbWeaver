@@ -1175,6 +1175,7 @@ export function carriedInks(base: Oklch): CarriedInks {
 /** The painted pixels of a carried base's ramp hosts, the palette its tone roles resolve against; `inks` are {@link carriedInks} of the base. */
 export function carriedTonePalette(base: Oklch, { foreground: foregroundLightness, accentForeground, muted }: CarriedInks): TonePalette<CarriedToneHost> {
   const deltas = rampDeltas(base);
+  const bubbles = bubbleFills(base);
   const polarity = surfacePolarity(base);
   const background = opaquePixel(base);
   const foreground = opaquePixel({ l: foregroundLightness, c: 0, h: base.h });
@@ -1200,9 +1201,9 @@ export function carriedTonePalette(base: Oklch, { foreground: foregroundLightnes
       border: srgbToOklch(compositeSrgb(borderInk, THEME_DERIVATION.borderAlpha, oklchToSrgb(base))),
       // A bubble's fill is the ramp member the base token binds it to (`user-bubble` to secondary, `ai-bubble` to card,
       // `system-bubble` to muted); a scope that picks a bubble fill is not judged on the pick.
-      "user-bubble": opaquePixel(rampSurface(base, deltas.secondary)),
-      "ai-bubble": opaquePixel(rampSurface(base, deltas.card)),
-      "system-bubble": opaquePixel(rampSurface(base, deltas.muted)),
+      "user-bubble": bubbleFillColor(base, bubbles.user),
+      "ai-bubble": bubbleFillColor(base, bubbles.ai),
+      "system-bubble": bubbleFillColor(base, bubbles.system),
     },
   };
 }
@@ -1671,6 +1672,88 @@ function formsDistance(a: PaintedForms, b: PaintedForms): number {
 /** The OKLab distance two colours paint at: the worse of the float colours and their 8-bit pixels. */
 export function paintedDistance(a: Oklch, b: Oklch): number {
   return formsDistance(paintedForms(a), paintedForms(b));
+}
+
+/** The least painted OKLab distance a message bubble's fill keeps from the page, so the bubble style reads as a bubble. */
+export const BUBBLE_PAGE_SEPARATION = 0.02;
+
+/** The three bubble roles, each a {@link CarriedToneHost}. */
+export const BUBBLE_HOSTS = ["user-bubble", "ai-bubble", "system-bubble"] as const satisfies readonly CarriedToneHost[];
+export type BubbleHost = (typeof BUBBLE_HOSTS)[number];
+
+/** One bubble role's fill and how far it paints from the page. */
+export interface BubblePageMiss {
+  readonly host: BubbleHost;
+  readonly distance: number;
+}
+
+// A bubble fill moves away from the page one two-hundredth of the lightness range at a time.
+const BUBBLE_DELTA_STEP = 0.005;
+
+/**
+ * One bubble role's fill as an offset from the base: a lightness `delta`, at the base's chroma unless `neutral`. A base so
+ * saturated that every lightness paints the same pixel can only be left through a neutral fill.
+ */
+export interface BubbleFill {
+  readonly delta: number;
+  readonly neutral: boolean;
+}
+
+/** A carried base's three bubble fills. */
+export interface BubbleFills {
+  readonly user: BubbleFill;
+  readonly ai: BubbleFill;
+  readonly system: BubbleFill;
+}
+
+/** The colour a {@link BubbleFill} paints on a base. */
+export function bubbleFillColor(base: Oklch, { delta, neutral }: BubbleFill): Oklch {
+  const fill = rampSurface(base, delta);
+  return opaquePixel(neutral ? { ...fill, c: 0 } : fill);
+}
+
+/**
+ * The fill a ramp member keeps as a bubble: its own when it paints {@link BUBBLE_PAGE_SEPARATION} off the page, else the
+ * nearest offset that does, on the member's side of the page first and then the other, and then neutral.
+ */
+function bubbleFillApart(base: Oklch, host: BubbleHost, rampDelta: number): BubbleFill {
+  const page = opaquePixel(base);
+  const apart = (fill: BubbleFill): boolean => bubblePageMisses(page, { [host]: bubbleFillColor(base, fill) }).length === 0;
+  const steps = Math.round(1 / BUBBLE_DELTA_STEP);
+  for (const neutral of [false, true]) {
+    const own = { delta: rampDelta, neutral };
+    if (apart(own)) {
+      return own;
+    }
+    for (const side of rampDelta < 0 ? [-1, 1] : [1, -1]) {
+      for (let step = 1; step <= steps; step += 1) {
+        const fill = { delta: side * step * BUBBLE_DELTA_STEP, neutral };
+        if (apart(fill)) {
+          return fill;
+        }
+      }
+    }
+  }
+  throw new Error("unable to derive a bubble fill that keeps its separation from the page");
+}
+
+/** The fills a carried base paints its three bubbles at: the ramp members they bind, moved apart from the page where one sits too close. */
+export function bubbleFills(base: Oklch): BubbleFills {
+  const deltas = rampDeltas(base);
+  return {
+    user: bubbleFillApart(base, "user-bubble", deltas.secondary),
+    ai: bubbleFillApart(base, "ai-bubble", deltas.card),
+    system: bubbleFillApart(base, "system-bubble", deltas.muted),
+  };
+}
+
+/** The bubble roles whose fill paints closer to the page than {@link BUBBLE_PAGE_SEPARATION}. */
+export function bubblePageMisses(page: Oklch, fills: Readonly<Partial<Record<BubbleHost, Oklch>>>): readonly BubblePageMiss[] {
+  return BUBBLE_HOSTS.flatMap((host) => {
+    const fill = fills[host];
+    const distance = fill === undefined ? Number.POSITIVE_INFINITY : paintedDistance(fill, page);
+    return distance < BUBBLE_PAGE_SEPARATION ? [{ host, distance }] : [];
+  });
 }
 
 // Linear channels within this of 0–1 count as in gamut: the bisection below converges onto the boundary from inside.

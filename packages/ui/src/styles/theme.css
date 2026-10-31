@@ -505,7 +505,7 @@
     --color-shadow-cta-highlight: oklch(1 0 0 / 0.22);
     --color-user-bubble: oklch(0.93 0.02 60);
     --color-user-bubble-foreground: oklch(0.25 0.02 60);
-    --color-ai-bubble: oklch(0.97 0.006 60);
+    --color-ai-bubble: oklch(0.95 0.006 60);
     --color-ai-bubble-foreground: oklch(0.22 0.02 60);
     --color-system-bubble: oklch(0.93 0.015 60);
     --color-system-bubble-foreground: oklch(0.45 0.02 60);

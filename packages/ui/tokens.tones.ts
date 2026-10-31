@@ -3,6 +3,8 @@
 // A role is never a :root variable: a root formula freezes to the root palette, so it resolves on the stamped element.
 import type { CarriedToneHost, Oklch, TonePalette, ToneRoleRecipe, ToneScheme, ToneSource } from "@orb/kit/theme-derivation";
 import {
+  BUBBLE_HOSTS,
+  bubblePageMisses,
   CARRIED_TONE_HOSTS,
   carriedLiteralRoles,
   compositeSrgb,
@@ -321,6 +323,11 @@ export function assertShippedToneFloors(contract: TokenContractResult, model: To
       host: background,
       hosts: Object.fromEntries(CARRIED_TONE_HOSTS.map((host) => [host, color(`color.${host}`)])) as Record<CarriedToneHost, Oklch>,
     };
+    findings.push(
+      ...bubblePageMisses(background, Object.fromEntries(BUBBLE_HOSTS.map((host) => [host, page.hosts[host]]))).map(
+        ({ host, distance }) => `${theme.id}: ${host} paints ${distance.toFixed(SEPARATION_DIGITS)} off the page`,
+      ),
+    );
     for (const host of TONE_HOSTS) {
       const scheme = { recipes, palette: tonePaletteOn(page, host) };
       for (const tone of model.tones) {
