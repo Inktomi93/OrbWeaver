@@ -12,6 +12,7 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  SECRET_BOX_TEST_KEY,
 } from "@orb/testkit/node/composed";
 import { createSdkProcessSpawner } from "@orb/testkit/node/helpers";
 import { z } from "zod";
@@ -94,7 +95,7 @@ export async function coreSdkRoom(
         { role: "assistant", content: "The prior assistant answers." },
       ],
       server: {
-        secretBoxKey: Buffer.alloc(32, 1),
+        secretBoxKey: SECRET_BOX_TEST_KEY,
         ids: sdkIds,
         ...server,
         sdkSpawn: (input) => {

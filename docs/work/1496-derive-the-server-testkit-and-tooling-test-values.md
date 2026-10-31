@@ -50,14 +50,93 @@ Row numbers are the rows of reports/test-derivation-audit/shard-b.md.
 | - | - |
 | 80, 81, 85 | `SURFACE_PROVIDER_REQUESTS` in `tests/support/iso/surface-data.ts` is the one request tuple; the surface peer builds its routes from it. The refused structured schema in `surface-provider.test.ts` is any scripted reply the peer does not serve. |
 | 84 | `PUBLIC_PEER_ADDRESS` replaces the literal in every `tests/support` file. |
+| 87 | The scripted peer's refinery reply names come from `REFINERY_RESPONSE_FORMATS` (`stage-resolution.ts`), read through `TEST_CONSTANT_HOMES`; the stage tuple `REFINERY_STAGES` already exists in contracts, and the wire names were the gap. |
 
 ### Ruled to stay (tests/support)
 
 | Rows | Reason |
 | - | - |
 | 76 | The `surface-data.int.test.ts` triggers corrupt a neighbouring table after a write; `refuseWrites` aborts a write. They are planted through `plantTrigger`, which `refuseWrites` is now built on. |
-| 87 | `REFINERY_RESPONSE_FORMATS` has no door, and a door export only a test imports is refused. It needs the stage names moved to a contracts tuple first. |
 | 69, 68, 70, 71, 73, 88, 89 | Browser CT rows. Each needs a CT run and, for 69, a tooling door export; left for a CT leg. |
+
+### Fixed in the `tests/server/domain` domain
+
+| Rows | Fix |
+| - | - |
+| 31, 44 | `tests/support/node/factories/portable-chat.ts` and `tests/support/node/chat/cast.ts` replace the local message, snapshot, room, character, persona and avatar builders in `library-planes`, `identity` and `persona-resolution`. |
+| 18, 19, 21 | `makeProviderRow` and `makePluginProviderRow` build every provider row in the provider-rows, provider-contributions and provider-crash-window suites. |
+| 28, 29, 37 | The image-sweep suite reads its image kind from a typed `ImageLens` literal and asserts the refusal through its cause; the guest asset read types its expected view from `PluginBridge`. |
+| 36, 84 | `PUBLIC_PEER_ADDRESS` replaces the literal throughout `tests/server/domain`. |
+| 1, 3, 5, 34, 35, 45 and the unseeded ids named by the sweep | Absent ids come from the root's own seeded source, so one cannot collide with a minted row; bytes-only seeds use a seeded generator. |
+
+### Ruled to stay (tests/server/domain)
+
+| Rows | Reason |
+| - | - |
+| 25, 26 | The marker, source and guided-action literals are compared against closed unions, so `tsc` refuses a rename. `AGENTS.md` (type homes and unions) closes a case with a type. The builtin provider id `custom-openai` has no production tuple; it belongs to item 1504. |
+| 35 | The floors throw a plain `Error`; a class is production work. |
+| 40 | The host's call must pass the gate; the verbs return a view, an id or nothing, so the gate case asserts that it is not refused. |
+
+### Fixed in the `tests/server` entry, foundation, infra, primitives and transport domains
+
+| Rows | Fix |
+| - | - |
+| 46 | `BOOT_DISCLAIMER_TOPICS` gives the block's order; the file is listed in `TEST_CONSTANT_HOMES`. |
+| 47, 49 | `migrationsBeforeLatest` (`tests/support/node/db.ts`, composed door) cuts the chain before the newest journal entry, and the blocked-backup refusal asserts its `ENOTDIR` code. A planted backup name must satisfy `isBackupFileName`. |
+| 50 and the silent case tables | `forEachNonEmpty` registers the `LEGACY_ENTRIES` tables in `migrate-data-layout.int.test.ts` and `data-layout/index.test.ts`, so an empty table fails at collection. |
+| 53, 55 (slice) | `IN_RANGE_CARD_FRAME_STYLE` replaces the slice in the card and plugin frame suites. |
+| 56, 30 | `PORTABILITY_ROUTES` and `exportCharacterPath` replace the route and export path literals in every `tests/server` suite that spelled them. |
+| 60 | `ENV_NO_FILE_KEY` and `ENV_NO_OVERRIDE_KEY` replace the hatch names; `VITEST` is vitest's own name. |
+| 63, 64, 66 | The card-serde script id is seeded; the chat-bundle serde suite builds its rooms on `makePortableChat` and its siblings, types its refusal names as `PortableParseFailure` and reads the databank kind from `DATABANK_SCHEMA_KIND`. |
+| 36, 84 | `PUBLIC_PEER_ADDRESS` replaces the literal in `tests/server/entry`, `foundation`, `infra` and `primitives`. |
+
+### Ruled to stay (entry, foundation, infra, primitives, transport)
+
+| Rows | Reason |
+| - | - |
+| 54 | The served style block's `${family}, sans-serif` spelling is the bytes under test over the real HTTP entry. |
+| 55 (root block) | The kit's root-block builder is module-private; an export only a test imports is refused. It needs a production home from item 1504. |
+| 57 | The numbered-twin suffix formatter has no production export; item 1504 owns it. |
+| 58, 62 | The data-layout skip refusal and the worker-permission refusal throw a plain `Error` with a message; a code is production work. |
+| 65 | `HANDLE_MAX` is module-private in `packages/contracts/src/character/index.ts`; an export only a test imports is refused, and the cap needs a production export first. |
+| 66 (usage) | The usage fields are required and nullable with no schema defaults, so the base lists them. |
+
+### Fixed in the `tests/contracts`, `tests/db`, `tests/inference` and `tests/kit` domains
+
+| Rows | Fix |
+| - | - |
+| 2, 4, 5 | The manifest suite builds its provider row with `makePluginProviderRow`; the actor-ref suite builds its identity and volatile with `makeRpgActorIdentity` and `makeRpgActorVolatile`; the stale prose key is typed as a `ProseSlotId`. |
+| 53 (contracts) | The card-frame contract suite uses `IN_RANGE_CARD_FRAME_STYLE`. |
+| 9 | Warning codes are asserted with `toContain<WarningCode>`, so a renamed code fails `tsc`. |
+| unseeded ids | The sheet-patch suite seeds its chat id; the freeze-provenance suite draws the colliding insert's id from the same source as the seeded row. |
+| 36, 84 | `PUBLIC_PEER_ADDRESS` replaces the literal in `tests/inference`. |
+
+### Ruled to stay (contracts, db, inference, kit)
+
+| Rows | Reason |
+| - | - |
+| 8, 10 | The anthropic beta header names and the `provider.thinking_dropped` event name have no production export; item 1504 owns them. |
+| 13, 14, 15, 16 | The builtin provider ids have no production tuple, the native route spellings are the wire under test, and the probe cap and idle-time message are private to `diagnostics.ts`; each needs a production export from item 1504. |
+| 17 | See the proposal above: kit cannot import ui, so the number needs a kit owner. |
+
+### Fixed in the `tests/tooling` domain
+
+| Rows | Fix |
+| - | - |
+| 90 | `GPU_LAUNCH_SWITCH` replaces the `--enable-gpu` literal. |
+| 92 | The containment suite maps its `@orb/ui` doors from the ui package's own exports map. |
+| 93 | A case reads the production `eslint.config.ts` and proves the rule is registered under its name at `error`; with the config set to `off` it fails. |
+| 94 | `plantedTsconfig` serves the four unwired suites. |
+| 95 | The ports suite builds its refusal text from `E2E_PORT_OFFSET_STRIDE` and the band-0 port from `stageBandPorts`. |
+
+### Ruled to stay (tests/tooling)
+
+| Rows | Reason |
+| - | - |
+| 90 (`loginctl`) | The command name is a private literal in `tooling/src/floor/host/platform.ts`; an export only a test imports is refused. |
+| 91 | `OWNED_RULES` declares which rules this suite owns, and each planted row names its rule, so a removed rule fails; the config has no tuple of reach rules to derive from. |
+| 96 | The ui-audit message strings and populations are hand-counted from the walker; a structured finding field is the fix, and it belongs to the ui-audit tool. |
+| the other `tests/tooling` files changed since the 30th | Spine-Testing section 9 governs product tests and says tests for retained application-development tools belong in their tool mirrors; these suites plant their own trees and read tooling, so section 9 does not bind them beyond the rows above. |
 
 ### Ruled to stay
 
@@ -73,9 +152,9 @@ Row numbers are the rows of reports/test-derivation-audit/shard-b.md.
 
 Kit cannot import ui, so `TINT_PERCENT` and the Hearth page in `tests/kit/theme-derivation/tone-roles.test.ts` stay hand copies. Let `THEME_DERIVATION` in `@orb/kit/theme-derivation` own the tint percentage, and let `packages/ui/tokens.build.ts` write `tone-mix.tint` from it. `tokens.json` then references the kit number and the test imports it.
 
-### Not changed in this leg
+### Not changed
 
-Rows 4, 5 (slot id), 8 to 11, 13 to 16, 25 to 31, 35 (refusal class: the floors throw a plain `Error`, so a class is production work), 36 and 84 (the peer address is done in `tests/support`; the other domains still spell it), 37, 38, 40, 42, 44, 46 to 49, 53 to 58, 60, 62 to 66, 78 to 79, 82 to 83, 86 to 87, 90 to 93, 95 and 96 stay open for a later leg; the browser rows in the `tests/support` table are listed there.
+Every row not in a Fixed table above is ruled to stay with its reason, or is a browser row left for a CT leg (the `tests/support` table names them).
 
 ### Proof
 

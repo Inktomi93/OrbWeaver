@@ -9,26 +9,16 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
-import { importStartedSchema } from "@orb/contracts/import";
 import { createPersonaSchema } from "@orb/contracts/persona";
-import type { PortableKind } from "@orb/contracts/portability";
-import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
-import { rpgGameConfigSchema, rpgSnapshotStateSchema } from "@orb/contracts/rpg";
-import type { CharacterHandle, ChatId, WorkloadId } from "@orb/kit/ids";
+import type { CharacterHandle, ChatId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
-import type { PortableChat } from "@orb/server/primitives/serde/chat-bundle";
 import { buildChatBundleFile, CHAT_BUNDLE_EXT, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import { createSeededIds, FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, makeAssetBytes, seedRpgCheckpoint, seedRpgGame, seedTranscript } from "@orb/testkit/node/composed";
+import { exportLibrary, makeAssetBytes, restoreBundle, seedRpgCheckpoint, seedRpgGame, seedTranscript, signedInBox } from "@orb/testkit/node/composed";
+import { makePortableChat, makePortableGame, makePortableMessage, makePortableTurnSnapshot } from "@orb/testkit/node/helpers";
 
-const EXPORT_ROUTE = PORTABILITY_ROUTES.exportLibrary;
-const BUNDLE_ROUTE = PORTABILITY_ROUTES.importBundle;
-/** Any signed-in request runs the first-login seed; this one reads nothing else. */
-const SIGNED_IN_ROUTE = "/api/trpc/sessions.me";
-const WORKLOAD_DEADLINE_MS = 60_000;
 const SOURCE_ID_CURSOR = 2 ** 29;
 const HANDLE = castId<CharacterHandle>("bridge-warden");
 const TITLE = "The bridge fell";
@@ -36,40 +26,6 @@ const INJECTION = "Keep the tone wry and the stakes personal.";
 const TAG = "campaign";
 const CHECKPOINT = "before the bridge";
 const JOURNAL = "The span gave way under the caravan.";
-
-async function signedInBox(ids?: ReturnType<typeof createSeededIds>): Promise<ServerTestHarness> {
-  const root = await createServerHarness({
-    physicalPeer: () => "127.0.0.1",
-    startJobs: false,
-    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
-    ...(ids === undefined ? {} : { ids }),
-  });
-  expect((await root.http.request(SIGNED_IN_ROUTE)).status).toBe(200);
-  await root.settleBackground();
-  return root;
-}
-
-async function exportLibrary(root: ServerTestHarness, kinds: readonly PortableKind[]): Promise<Uint8Array> {
-  const response = await root.http.request(`${EXPORT_ROUTE}?kinds=${kinds.join(",")}`);
-  expect(response.status).toBe(200);
-  return new Uint8Array(await response.arrayBuffer());
-}
-
-async function restore(root: ServerTestHarness, bundle: Uint8Array): Promise<{ readonly status: string; readonly failed: number | undefined }> {
-  const response = await root.http.request(BUNDLE_ROUTE, { method: "POST", headers: { [CSRF_HEADER]: "1" }, body: bundle });
-  expect(response.status).toBe(202);
-  const id: WorkloadId = importStartedSchema.parse(await response.json()).workloadId;
-  const run = root.runAdmittedWorkload;
-  if (run === undefined) {
-    throw new Error("the harness owns workload execution only with startJobs: false");
-  }
-  await run(id, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
-  const row = await root.services.workloads.get({ caller: await root.principalFor(root.ownerId), id });
-  if (row.kind !== "import-bundle" || row.poison) {
-    throw new Error("the bundle upload left no typed import-bundle workload");
-  }
-  return { status: row.status, failed: row.result?.failed };
-}
 
 /** Everything a restored room carries that the test seeded, read through the product's own verbs. */
 async function planesOf(root: ServerTestHarness, chatId: ChatId): Promise<unknown> {
@@ -95,7 +51,7 @@ async function roomsOf(root: ServerTestHarness): Promise<readonly ChatId[]> {
 }
 
 test("a room's injections, tags and rpg campaign restore into a fresh box, re-anchored to the restored rows, and a second restore adds nothing", async () => {
-  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR) });
   const owner = await source.principalFor(source.ownerId);
   await source.services.character.create({
     principal: owner,
@@ -123,7 +79,7 @@ test("a room's injections, tags and rpg campaign restore into a fresh box, re-an
   const bundle = await exportLibrary(source, ["character", "chat"]);
 
   await using target = await signedInBox();
-  expect(await restore(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
+  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
   const [restoredRoom, ...extra] = await roomsOf(target);
   if (restoredRoom === undefined || extra.length > 0) {
     throw new Error("the restore did not land exactly one room");
@@ -140,7 +96,7 @@ test("a room's injections, tags and rpg campaign restore into a fresh box, re-an
     checkpointId: castId(checkpoint?.id ?? ""),
   });
 
-  expect(await restore(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
+  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
   expect(await roomsOf(target)).toEqual([restoredRoom]);
   expect((await targetCaller.chat.listChatInjections({ chatId: restoredRoom })).map((row) => row.content)).toEqual([INJECTION]);
   expect((await targetCaller.rpg.listCheckpoints({ chatId: restoredRoom })).map((row) => row.label)).toEqual([CHECKPOINT]);
@@ -155,105 +111,56 @@ const HAND_EDIT_LOCATION = "the toll house";
 // A real hand edit that v0.3.x reused as the checkpoint target, made a minute before the checkpoint.
 const EDIT_BEFORE_CHECKPOINT_MS = 60_000;
 
-function line(role: "user" | "assistant", content: string): PortableChat["messages"][number] {
-  return {
-    role,
-    kind: "standard",
-    speakerHandle: role === "assistant" ? HANDLE : null,
-    personaName: null,
-    createdAt: FROZEN_AT_MS,
-    selectedIdx: 0,
-    variants: [
-      {
-        idx: 0,
-        content,
-        model: null,
-        provider: null,
-        tokensIn: null,
-        tokensOut: null,
-        tokenProvenance: "unrecorded",
-        reasoning: null,
-        ttftMs: null,
-        genStartedAt: null,
-        genFinishedAt: null,
-        variableDelta: null,
-        metadata: null,
-      },
-    ],
-  };
-}
-
-type PortableGame = NonNullable<PortableChat["rpg"]>;
-
-/** One committed turn snapshot at `messages[messageIndex]`'s variant `variantIdx`, recording `location`. */
-function turnSnapshot(messageIndex: number, variantIdx: number, location: string): PortableGame["snapshots"][number] {
-  return {
-    messageIndex,
-    variantIdx,
-    asOfMessageIndex: null,
-    bookmark: false,
-    committed: true,
-    createdAt: FROZEN_AT_MS,
-    state: rpgSnapshotStateSchema.parse({ clock: null, calendarDate: null, weather: null, fieldLocks: null, location }),
-  };
-}
-
-/** The anchored room around the given transcript and campaign planes. */
-function roomBundle(messages: PortableChat["messages"], rpg: Pick<PortableGame, "snapshots" | "journal" | "turnToolCalls" | "checkpoints">): Uint8Array {
-  return buildChatBundleFile({
-    title: ANCHORED_TITLE,
-    createdAt: FROZEN_AT_MS,
-    updatedAt: FROZEN_AT_MS,
-    starred: false,
-    archived: false,
-    compactSummary: null,
-    compactedAtSeq: null,
-    metadata: null,
-    variableValues: null,
-    userMacroValues: null,
-    anchorPersonaName: null,
-    characterHandles: [HANDLE],
-    tagNames: [],
-    injections: [],
-    messages,
-    rpg: { mode: "lite", status: "active", sessionNumber: 1, config: rpgGameConfigSchema.parse({}), createdAt: FROZEN_AT_MS, sheets: [], ...rpg },
-  });
-}
-
 /** A four-message room whose campaign rows are all anchored to `messages[turn]`'s first variant. */
 function anchoredBundle(turn: number): Uint8Array {
   const anchor = { messageIndex: turn, variantIdx: 0 };
-  return roomBundle(
-    [line("user", "Do we cross?"), line("assistant", "The bridge groans."), line("user", "Then the ferry."), line("assistant", "The ferry waits.")],
-    {
-      snapshots: [turnSnapshot(turn, 0, ANCHORED_LOCATION)],
-      journal: [{ type: "event", label: "", title: ANCHORED_JOURNAL, content: "Lost.", ...anchor, sourceMessageIndex: turn, createdAt: FROZEN_AT_MS }],
-      turnToolCalls: [{ ...anchor, calls: [{ name: "update_scene", args: "{}", verdict: "applied", issues: [] }], createdAt: FROZEN_AT_MS }],
-      checkpoints: [{ snapshotIndex: 0, label: CHECKPOINT, trigger: "manual", createdAt: FROZEN_AT_MS }],
-    },
+  return buildChatBundleFile(
+    makePortableChat({
+      title: ANCHORED_TITLE,
+      characterHandles: [HANDLE],
+      messages: [
+        makePortableMessage("user", "Do we cross?"),
+        makePortableMessage("assistant", "The bridge groans.", { speakerHandle: HANDLE }),
+        makePortableMessage("user", "Then the ferry."),
+        makePortableMessage("assistant", "The ferry waits.", { speakerHandle: HANDLE }),
+      ],
+      rpg: makePortableGame({
+        snapshots: [makePortableTurnSnapshot(turn, 0, ANCHORED_LOCATION)],
+        journal: [{ type: "event", label: "", title: ANCHORED_JOURNAL, content: "Lost.", ...anchor, sourceMessageIndex: turn, createdAt: FROZEN_AT_MS }],
+        turnToolCalls: [{ ...anchor, calls: [{ name: "update_scene", args: "{}", verdict: "applied", issues: [] }], createdAt: FROZEN_AT_MS }],
+        checkpoints: [{ snapshotIndex: 0, label: CHECKPOINT, trigger: "manual", createdAt: FROZEN_AT_MS }],
+      }),
+    }),
   );
 }
 
+type PortableSnapshot = ReturnType<typeof makePortableTurnSnapshot>;
+
 /** A committed hand snapshot stamped at `messages[asOfMessageIndex]`, as a file written before bookmarks carries it. */
-function handSnapshot(asOfMessageIndex: number, location: string, createdAt: number): PortableGame["snapshots"][number] {
-  return { ...turnSnapshot(asOfMessageIndex, 0, location), messageIndex: null, variantIdx: null, asOfMessageIndex, createdAt };
+function handSnapshot(asOfMessageIndex: number, location: string, createdAt: number): PortableSnapshot {
+  return { ...makePortableTurnSnapshot(asOfMessageIndex, 0, location), messageIndex: null, variantIdx: null, asOfMessageIndex, createdAt };
 }
 
 /** A two-message room whose assistant turn was swiped: the first variant recorded the saved location, the second
  *  (selected) one the swiped location, plus any `extra` rows; the checkpoint, made at `FROZEN_AT_MS`, names `pinned`. */
-function swipedRoomBundle(extra: PortableGame["snapshots"], pinned: number): Uint8Array {
-  const first = line("assistant", "The bridge groans.");
+function swipedRoomBundle(extra: readonly PortableSnapshot[], pinned: number): Uint8Array {
+  const first = makePortableMessage("assistant", "The bridge groans.", { speakerHandle: HANDLE });
   const [variant] = first.variants;
   if (variant === undefined) {
     throw new Error("the assistant line has no variant");
   }
   const swiped = { ...first, selectedIdx: 1, variants: [variant, { ...variant, idx: 1, content: "The bridge holds." }] };
-  return roomBundle([line("user", "Do we cross?"), swiped], {
-    snapshots: [turnSnapshot(1, 0, ANCHORED_LOCATION), turnSnapshot(1, 1, SWIPED_LOCATION), ...extra],
-    journal: [],
-    turnToolCalls: [],
-    checkpoints: [{ snapshotIndex: pinned, label: CHECKPOINT, trigger: "manual", createdAt: FROZEN_AT_MS }],
-  });
+  return buildChatBundleFile(
+    makePortableChat({
+      title: ANCHORED_TITLE,
+      characterHandles: [HANDLE],
+      messages: [makePortableMessage("user", "Do we cross?"), swiped],
+      rpg: makePortableGame({
+        snapshots: [makePortableTurnSnapshot(1, 0, ANCHORED_LOCATION), makePortableTurnSnapshot(1, 1, SWIPED_LOCATION), ...extra],
+        checkpoints: [{ snapshotIndex: pinned, label: CHECKPOINT, trigger: "manual", createdAt: FROZEN_AT_MS }],
+      }),
+    }),
+  );
 }
 
 /** The checkpoint names the first variant's turn snapshot. */
@@ -452,7 +359,7 @@ const SCENARIO = "a rain-soaked frontier town";
 const VARIABLES = { mood: "grim" };
 
 test("a room's compact summary, room overrides and variable picks restore by value, and its character's card art restores byte for byte", async () => {
-  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR) });
   const owner = await source.principalFor(source.ownerId);
   const art = await source.services.assets.store({
     principal: owner,
@@ -484,7 +391,7 @@ test("a room's compact summary, room overrides and variable picks restore by val
 
   await using target = await signedInBox();
   const cardBundle = await exportLibrary(source, ["character"]);
-  expect(await restore(target, cardBundle)).toEqual({ status: "succeeded", failed: 0 });
+  expect(await restoreBundle(target, cardBundle)).toEqual({ status: "succeeded", failed: 0 });
   const chat = target.app.portability.find((entity) => entity.kind === "chat");
   if (chat === undefined) {
     throw new Error("production composition has no chat portability descriptor");
@@ -522,7 +429,7 @@ test("a room's compact summary, room overrides and variable picks restore by val
 });
 
 test("an owner's persona, world book, global databank document and settings value restore into a fresh box, and a second restore adds none", async () => {
-  await using source = await signedInBox(createSeededIds(SOURCE_ID_CURSOR));
+  await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR) });
   const owner = await source.principalFor(source.ownerId);
   const sourceCaller = await source.internalCallerFor(source.ownerId);
   await source.services.persona.create({
@@ -548,11 +455,11 @@ test("an owner's persona, world book, global databank document and settings valu
     continueOnSend: (await targetCaller.settings.getUserSettings()).config.chat.continueOnSend,
   });
 
-  expect(await restore(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
+  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
   const first = await landed();
   expect(first).toEqual({ personas: ["Backup Persona"], books: ["Backup World"], documents: ["Field Notes"], globalDocuments: 1, continueOnSend: false });
   // No chunk travels in a bundle, so the restored document is searchable only once the restore queues its ingest.
   expect((await targetCaller.workloads.list()).filter((job) => job.kind === "databank-ingest")).toHaveLength(1);
-  expect(await restore(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
+  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
   expect(await landed()).toEqual(first);
 });

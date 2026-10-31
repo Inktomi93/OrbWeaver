@@ -7,6 +7,7 @@ import type { CarryReasoning } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
@@ -15,6 +16,7 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  SECRET_BOX_TEST_KEY,
 } from "@orb/testkit/node/composed";
 
 const MODEL = "claude-opus-5-5";
@@ -66,10 +68,10 @@ export async function room(): Promise<
   const h = construction.use(
     await createChatRoot({
       server: {
-        secretBoxKey: Buffer.alloc(32, 1),
+        secretBoxKey: SECRET_BOX_TEST_KEY,
         networkExecution: {
           resolver: (host): Promise<readonly string[]> =>
-            host === hostname ? Promise.resolve(["93.184.215.14"]) : Promise.reject(new Error(`unscripted signed-group address resolution: ${host}`)),
+            host === hostname ? Promise.resolve([PUBLIC_PEER_ADDRESS]) : Promise.reject(new Error(`unscripted signed-group address resolution: ${host}`)),
         },
       },
       group: { output: "per-speaker", cardScope: "merged", policy: "list", allowSelfResponses: true },

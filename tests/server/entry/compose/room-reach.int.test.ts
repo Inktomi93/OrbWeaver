@@ -1,7 +1,7 @@
 // Real composed writes and transport frames prove reach authority, confirmed deletion, and failure isolation.
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { chatDocuments, chatRegexScripts } from "@orb/db";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { expect } from "@orb/testkit/node";
 import { withheldTable } from "@orb/testkit/node/composed";
@@ -10,6 +10,7 @@ import { test } from "./room-reach.fixtures.ts";
 
 test("bulk regex capture fans only confirmed owned scripts, once per room, and never a host-only library tier", async ({
   app,
+  ids,
   ownerCaller,
   otherCaller,
 }): Promise<void> => {
@@ -32,7 +33,7 @@ test("bulk regex capture fans only confirmed owned scripts, once per room, and n
       }
     }),
   );
-  expect(await ownerCaller.regex.bulkRemove({ scriptIds: [first.id, second.id, global.id, foreign.id, mintTypeId(ID_PREFIX.regexScript)] })).toEqual({
+  expect(await ownerCaller.regex.bulkRemove({ scriptIds: [first.id, second.id, global.id, foreign.id, ids.typeId(ID_PREFIX.regexScript)] })).toEqual({
     affected: 3,
   });
   expect((await otherCaller.regex.listScripts()).map(({ id }) => id)).toContain(foreign.id);

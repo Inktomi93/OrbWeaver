@@ -6,10 +6,10 @@ import { supportsManagedCompaction } from "@orb/inference";
 import { createResolveEmbeddingConnection, precomputedSeedEmbedding } from "@orb/server/domain/embeddings";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
 
 test("runtime operation capabilities retain stateful chat and concrete embedding route behavior", async () => {
-  await using root = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1) });
+  await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY });
   const { app, services } = root;
   const ownerPrincipal = await root.principalFor(root.ownerId);
   const credential = await services.credentials.add({ principal: ownerPrincipal, provider: "claude-sub", key: "ownership-sdk-token" });

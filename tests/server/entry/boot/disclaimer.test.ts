@@ -14,6 +14,7 @@ import { composeBootDisclaimer } from "@orb/server/entry/boot";
 import { bindPostureInput, ownerFallbackPeerInput, resolveBindPosture, resolveOwnerFallbackPeers } from "@orb/server/foundation/env/record";
 import { expect, test } from "@orb/testkit/node";
 import { createTestEnv } from "@orb/testkit/node/helpers";
+import { BOOT_DISCLAIMER_TOPICS } from "#server/entry/boot/disclaimer.ts";
 
 type Options = Parameters<typeof composeBootDisclaimer>[0];
 type BootDisclaimerLine = ReturnType<typeof composeBootDisclaimer>[number];
@@ -63,13 +64,9 @@ const isLoginMode = (mode: AuthMode): mode is LoginMode => mode !== "single-user
 const LOGIN_MODES: readonly EnvInput[] = AUTH_MODES.filter(isLoginMode).map((mode) => LOGIN_MODE_ENV[mode]);
 
 test("a block names the mode, listener, owner rule, cookie rule and secrets, in that order", () => {
-  expect(topics(composeBootDisclaimer(options({ [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" })))).toEqual([
-    "mode",
-    "listen",
-    "owner",
-    "cookie",
-    "secrets",
-  ]);
+  // The tuple states the block's order; the single-user caveat and the security exposure lines ride only some boots.
+  const standing = BOOT_DISCLAIMER_TOPICS.filter((topic) => topic !== "caveat" && topic !== "exposure");
+  expect(topics(composeBootDisclaimer(options({ [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" })))).toEqual(standing);
 });
 
 test("the single-user proxy caveat rides every single-user boot as information, and no login mode carries it", () => {

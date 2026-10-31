@@ -1,7 +1,9 @@
 // @subject packages/inference/src/backends/agent-sdk/catalog.ts
 // @subject packages/inference/src/catalog/listing.ts
+
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { SECRET_BOX_TEST_KEY } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 import { physicalSdkScenario } from "./regression-edge.fixtures.ts";
 
@@ -20,7 +22,7 @@ const MODELS = [
 
 test("native daemon discovery uses the caller's current saved credential and normalizes advertised model facts", async () => {
   await using edge = physicalSdkScenario({ models: MODELS });
-  await using root = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: edge.spawn, startJobs: false });
+  await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: edge.spawn, startJobs: false });
   const principal = await root.principalFor(root.ownerId);
   const key = await root.services.credentials.add({ principal, provider: "claude-sub", key: TOKEN });
   const foreign = await root.actor();
@@ -46,7 +48,7 @@ test("native daemon discovery uses the caller's current saved credential and nor
 
 test("native catalog refusal scrubs a reflected saved token from the readable reason and the actual warning", async () => {
   await using edge = physicalSdkScenario({ catalogError: `auth rejected for ${TOKEN} — refresh the token` });
-  await using root = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: edge.spawn, startJobs: false });
+  await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: edge.spawn, startJobs: false });
   const principal = await root.principalFor(root.ownerId);
   const key = await root.services.credentials.add({ principal, provider: "claude-sub", key: TOKEN });
   using warning = vi.spyOn(root.logger, "warn");
@@ -68,7 +70,7 @@ test("native catalog refusal scrubs a reflected saved token from the readable re
 
 test("native catalog error prose remains readable, markup-free, control-free and bounded", async () => {
   await using edge = physicalSdkScenario({ catalogError: `<html><body><h1>Daemon died</h1><p>exit\u0007 ${"filler ".repeat(300)}</p></body></html>` });
-  await using root = await createServerHarness({ secretBoxKey: Buffer.alloc(32, 1), sdkSpawn: edge.spawn, startJobs: false });
+  await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: edge.spawn, startJobs: false });
   const principal = await root.principalFor(root.ownerId);
   const key = await root.services.credentials.add({ principal, provider: "claude-sub", key: TOKEN });
   const listing = await root.services.connection.draftCatalogModels({ principal, providerId: "claude-sub", credentialId: key.id });

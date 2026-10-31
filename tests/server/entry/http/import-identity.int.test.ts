@@ -22,14 +22,13 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, makeAssetBytes } from "@orb/testkit/node/composed";
+import { createServerHarness, makeAssetBytes, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { CSRF_HEADERS } from "./_body-limit-inputs.ts";
 
 const DIALOG_ROUTE = PORTABILITY_ROUTES.importCards;
 const TREE_ROUTE = PORTABILITY_ROUTES.importTree;
 const DIALOG_FIELD = "file";
 const WRAPPER = "default-user";
-const WORKLOAD_DEADLINE_MS = 60_000;
 const ENCODER = new TextEncoder();
 
 function harness(): Promise<ServerTestHarness> {

@@ -9,6 +9,7 @@ import { stat } from "node:fs/promises";
 import process from "node:process";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { claimShareOwner, createServerHarness, readRelayStarts, relayExecutable, relayProgram } from "@orb/testkit/node/composed";
 import { lanAddress, requestWithHost } from "@orb/testkit/node/helpers";
@@ -23,7 +24,7 @@ test("the server root runs the pinned native relay and shares its live host with
     env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
     share: { relay: { pin } },
     networkExecution: {
-      resolver: () => Promise.resolve(["93.184.215.14"]),
+      resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]),
       fetch: (): Promise<Response> => {
         downloads += 1;
         return Promise.resolve(new Response(bytes));
@@ -63,7 +64,7 @@ test("a bad pinned download restores real seating overrides and never reaches na
   await using harness = await createServerHarness({
     env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
     share: { relay: { pin } },
-    networkExecution: { resolver: () => Promise.resolve(["93.184.215.14"]), fetch: () => Promise.resolve(new Response(corrupt)) },
+    networkExecution: { resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]), fetch: () => Promise.resolve(new Response(corrupt)) },
   });
   await claimShareOwner(harness);
   const caller = await harness.internalCallerFor(harness.ownerId);
@@ -80,7 +81,7 @@ test("native child release is joined after immediate host invalidation, and the 
   await using harness = await createServerHarness({
     env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
     share: { relay: { pin } },
-    networkExecution: { resolver: () => Promise.resolve(["93.184.215.14"]), fetch: () => Promise.resolve(new Response(bytes)) },
+    networkExecution: { resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]), fetch: () => Promise.resolve(new Response(bytes)) },
   });
   await claimShareOwner(harness);
   const caller = await harness.internalCallerFor(harness.ownerId);
@@ -134,7 +135,7 @@ test("unscripted roots refuse relay and ACME before raw network execution and pr
     networkExecution: {
       resolver: () => {
         outbound += 1;
-        return Promise.resolve(["93.184.215.14"]);
+        return Promise.resolve([PUBLIC_PEER_ADDRESS]);
       },
     },
   });
@@ -178,7 +179,7 @@ test("a held raw download keeps owned storage until physical execution acknowled
     env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
     share: { relay: { pin: program.pin } },
     networkExecution: {
-      resolver: () => Promise.resolve(["93.184.215.14"]),
+      resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]),
       fetch: (_input, init) => {
         const signal = init?.signal;
         if (signal === undefined || signal === null) {
@@ -219,7 +220,7 @@ test("a named native interface shares through its real loopback companion and di
     bindHost: host,
     allowPublicBind: true,
     share: { relay: { pin: program.pin } },
-    networkExecution: { resolver: () => Promise.resolve(["93.184.215.14"]), fetch: () => Promise.resolve(new Response(program.bytes)) },
+    networkExecution: { resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]), fetch: () => Promise.resolve(new Response(program.bytes)) },
   });
   const address = await harness.listen();
   expect(address.address).toBe(host);

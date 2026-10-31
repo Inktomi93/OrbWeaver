@@ -5,6 +5,7 @@
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, authMeSchema } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -24,9 +25,10 @@ function rootFor(execution: typeof fetch): Promise<ServerTestHarness> {
       ["FORWARD_AUTH_JWT_ISSUER"]: ISSUER,
       ["FORWARD_AUTH_JWT_AUDIENCE"]: CLIENT_ID,
     },
-    physicalPeer: () => "93.184.215.14",
+    physicalPeer: () => PUBLIC_PEER_ADDRESS,
     networkExecution: {
-      resolver: (hostname) => (hostname === KEY_HOST ? Promise.resolve(["93.184.215.14"]) : Promise.reject(new Error("unscripted JWKS address resolution"))),
+      resolver: (hostname) =>
+        hostname === KEY_HOST ? Promise.resolve([PUBLIC_PEER_ADDRESS]) : Promise.reject(new Error("unscripted JWKS address resolution")),
       fetch: execution,
     },
   });

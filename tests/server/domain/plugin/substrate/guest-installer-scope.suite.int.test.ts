@@ -7,6 +7,7 @@
 import { spawn } from "node:child_process";
 import { createCharacterSchema, parsePluginImportedFrom } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
+import type { PluginBridge } from "@orb/contracts/plugin";
 import { PLUGIN_CARD_DATA_FIND_MAX, PluginCapabilityError } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, PluginId } from "@orb/kit/ids";
@@ -119,10 +120,12 @@ test("a guest reads assets only from its installer's own storage", { tags: ["slo
   const theirs = await ownAsset(o.root, o.stranger);
   const { run } = await o.guest(o.owner, "asset-reader");
 
-  expect(await run("readAsset", { assetId: mine.assetId })).toEqual({
-    ok: true,
-    value: { mime: "image/png", sizeBytes: mine.bytes.byteLength, dataBase64: Buffer.from(mine.bytes).toString("base64") },
-  });
+  const view: NonNullable<Awaited<ReturnType<PluginBridge["assets"]["read"]>>> = {
+    mime: "image/png",
+    sizeBytes: mine.bytes.byteLength,
+    dataBase64: Buffer.from(mine.bytes).toString("base64"),
+  };
+  expect(await run("readAsset", { assetId: mine.assetId })).toEqual({ ok: true, value: view });
   expect(await run("readAsset", { assetId: theirs.assetId })).toEqual({ ok: true, value: null });
 });
 
