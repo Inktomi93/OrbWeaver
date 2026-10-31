@@ -28,4 +28,11 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+2 rows: 2 applied, 0 kept, 0 owner questions. Neither row sits under a Plugin API heading, and no guest reaches either field.
+
+- `PluginPanelPrefsPatchVars.section` (`packages/client/src/features/plugin/hooks/use-plugin-chat-visibility.ts`): the type is the router input intersected with a `patch` narrowed to the profile keys the optimistic update reads. The narrowing stays because `update` reads `vars.patch.hiddenChatPluginIds`, `flankCollapsed` and `sidecarChatPluginSurfaces`.
+- `GuestState.log` (`packages/client/src/features/plugin/lib/ui-guest/ui-guest-realm.ts`): deleted with its write in `packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts`. `GuestState` is the worker's own state record. A guest reaches `orb.ui(1).log.*` through the `log` ring that `installRealm` receives as `deps.log` (`ui-guest-realm.ts:159,190`), not through this field.
+
+Ran: `pnpm typecheck packages/client/tsconfig.json tsconfig.tests-dom.json` (exit 0).
+
+Reclass list: none.
