@@ -1147,6 +1147,12 @@ export type UpdateCharacterOp = (params: UpdateCharacterParams) => Promise<Chara
 export type DuplicateCharacterOp = (params: DuplicateCharacterParams) => Promise<CharacterDetail>;
 export type SnapshotCharacterOp = (params: SnapshotParams) => Promise<SnapshotRef>;
 export type FindCharacterByHandleOp = (params: FindByHandleParams) => Promise<CharacterRef | null>;
+
+/** A gallery export's re-link: an owned character's portable handle, or `null` when it is missing or foreign. */
+export type ResolveGalleryCharacterHandleOp = (ownerId: UserId, characterId: CharacterId) => Promise<CharacterHandle | null>;
+
+/** A gallery import's re-link: the owner's own character id carrying `handle`, or `null` when none exists. */
+export type FindGalleryCharacterByHandleOp = (params: FindByHandleParams) => Promise<CharacterId | null>;
 export type FindCharacterByImportHashOp = (params: FindByImportHashParams) => Promise<CharacterRef | null>;
 
 // ── Refinery's reach into the character library: the owner implements each op, refinery consumes it ──────
