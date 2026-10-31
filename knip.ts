@@ -50,9 +50,6 @@ export const config = {
       ],
       project: ["scripts/**/*.ts!", "tests/**/*-stories.tsx!", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx,css}"],
       playwright: { config: ["playwright.config.ts", "playwright-ct.config.ts"] },
-      // mkfifo is the POSIX coreutils binary the orchestrator-inject hook test uses to plant a FIFO transcript path;
-      // it is an OS tool, never an npm dependency, so knip has no package to credit it to.
-      ignoreBinaries: ["mkfifo"],
       // pino-pretty is a root devDependency the dev launcher's pretty log rides; its importer is the tooling
       // workspace (tooling/src/dev/ops/dev.ts), which knip credits to that workspace, not to the root.
       // @anthropic-ai/sdk is never imported; it is the peer pin for @anthropic-ai/claude-agent-sdk (pnpm-workspace.yaml).

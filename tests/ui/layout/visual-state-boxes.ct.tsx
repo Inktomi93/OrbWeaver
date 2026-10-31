@@ -22,16 +22,20 @@ const caseOf = (root: Locator, name: string): Locator => root.locator(`[data-cas
 const probeOf = (root: Locator, name: string): Locator => root.locator(`[data-probe="${name}"]`);
 
 for (const { name, ...props } of CASES) {
-  test(`${name}: a focal section wears the speaker stripe and glow, an unfocal one is the plain section, and neither changes element`, async ({ mount }) => {
+  test(`${name}: a focal section wears the speaker edge ring and glow on a rounded box with no one-sided border, an unfocal one is the plain section, and neither changes element`, async ({
+    mount,
+  }) => {
     const root = await mount<typeof FocalSectionStory>(`${STORIES}/FocalSectionStory`, props);
     const focal = caseOf(root, "focal");
     const unfocal = caseOf(root, "unfocal");
     const plain = caseOf(root, "plain");
     expect(await focal.evaluate((element) => element.tagName)).toBe("SECTION");
     expect(await unfocal.evaluate((element) => element.tagName)).toBe("SECTION");
-    expect(await style(focal, "border-inline-start-style")).toBe("solid");
-    expect(await style(focal, "border-inline-start-width")).not.toBe("0px");
-    expect(await style(focal, "border-inline-start-color")).toBe(await style(probeOf(root, "speaker"), "color"));
+    // A border on one edge of a rounded box is the generated-UI side-tab shape: the focal draws its edge as a ring, so every border side is the same width.
+    const sides = await Promise.all(["top", "right", "bottom", "left"].map((side) => style(focal, `border-${side}-width`)));
+    expect(new Set(sides).size, `border widths ${sides.join(" ")}`).toBe(1);
+    expect(await style(focal, "border-top-left-radius")).not.toBe("0px");
+    expect(await style(focal, "box-shadow")).toContain(await style(probeOf(root, "speaker"), "color"));
     expect(await style(focal, "box-shadow", "::before")).not.toBe("none");
     for (const quiet of [unfocal, plain]) {
       expect(await style(quiet, "border-inline-start-width")).toBe("0px");
