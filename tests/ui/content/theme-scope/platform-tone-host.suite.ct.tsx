@@ -1,7 +1,7 @@
 // D336: a soft tone tint mixes over the surface it sits on, so a badge on a card, a raised rail or a popover stays apart
 // from that host by the tint separation in the painted pixels, under every seed palette and a custom ThemeScope.
 import type { ToneHost } from "@orb/kit/theme-derivation";
-import { oklabDistance, srgbToOklch, TONE_TINT_SEPARATION } from "@orb/kit/theme-derivation";
+import { oklabDistance, srgbToOklch, TONE_HOSTS, TONE_TINT_SEPARATION } from "@orb/kit/theme-derivation";
 import { pixelSurface } from "@orb/testkit/browser/spec";
 import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
@@ -9,7 +9,10 @@ import type { ToneHostStory } from "./_tone-host-stories.tsx";
 import { BASES } from "./contrast-cases.ts";
 
 const STORY = "tests/ui/content/theme-scope/_tone-host-stories/ToneHostStory";
-const SURFACE_HOSTS = ["card", "surface-raised", "popover"] as const satisfies readonly ToneHost[];
+// Every host but the page: each surface the story mounts, so a host added to `TONE_HOSTS` is judged here or fails.
+const SURFACE_HOSTS: readonly ToneHost[] = TONE_HOSTS.filter((host) => host !== "background");
+// A tint on a host: a soft badge, an inline token in each tone, and the dice chip the transcript renders.
+const TINTS = '[data-badge], [data-slot="message-dice-chip"]';
 
 const CASES = [
   { name: "hearth seed" },
@@ -17,8 +20,18 @@ const CASES = [
   ...BASES.map(({ name, background }) => ({ name: `custom ${name}`, background })),
 ] as const;
 
+test("an inline token's side padding is the tight spacing token, so the dice stamp's text clears its tint edge", async ({ mount, page }) => {
+  await mount<typeof ToneHostStory>(STORY, {});
+  const tight = await page.locator('[data-probe="tight"]').evaluate((element) => getComputedStyle(element).inlineSize);
+  const chip = page.locator('[data-slot="message-dice-chip"]').first();
+  await expect(chip).toBeVisible();
+  for (const side of ["padding-inline-start", "padding-inline-end"]) {
+    expect(await chip.evaluate((element, property) => getComputedStyle(element).getPropertyValue(property), side), side).toBe(tight);
+  }
+});
+
 for (const { name, ...props } of CASES) {
-  test(`${name}: a soft badge's tint stands apart from its card, raised and popover host`, async ({ mount, page }) => {
+  test(`${name}: a soft badge or inline token's tint stands apart from its card, raised, popover and bubble host`, async ({ mount, page }) => {
     const component = await mount<typeof ToneHostStory>(STORY, props);
     const merged: string[] = [];
     let judged = 0;
@@ -33,7 +46,7 @@ for (const { name, ...props } of CASES) {
       const sample = surface.locator('[data-sample="host"]');
       await sample.scrollIntoViewIfNeeded();
       const ground = srgbToOklch((await pixelSurface(page, sample)).rgb);
-      const badges = await surface.locator("[data-badge]").all();
+      const badges = await surface.locator(TINTS).all();
       expect(badges.length, `${host} renders its badges`).toBeGreaterThan(0);
       for (const badge of badges) {
         await badge.scrollIntoViewIfNeeded();
@@ -41,7 +54,7 @@ for (const { name, ...props } of CASES) {
         const distance = oklabDistance(tint, ground);
         judged += 1;
         if (distance < TONE_TINT_SEPARATION) {
-          merged.push(`${await badge.getAttribute("data-badge")} on ${host}: ${distance.toFixed(4)} off ${JSON.stringify(ground)}`);
+          merged.push(`${(await badge.getAttribute("data-badge")) ?? "dice chip"} on ${host}: ${distance.toFixed(4)} off ${JSON.stringify(ground)}`);
         }
       }
     }

@@ -1030,7 +1030,9 @@ function roleFloors<Role extends string, Knob extends string, Host extends strin
   tone: ToneSource,
   palette: TonePalette<Host>,
 ): readonly ToneFloorSurface<Role, Host>[] {
-  return tone === "neutral" ? recipe.floor : [...recipe.floor, ...recipe.pageInks.map((host) => ({ host: palette.hostInks?.[host] ?? host }))];
+  return tone === "neutral" || palette.carriesPageInks === false
+    ? recipe.floor
+    : [...recipe.floor, ...recipe.pageInks.map((host) => ({ host: palette.hostInks?.[host] ?? host }))];
 }
 
 export type ToneRoleRecipes<Role extends string, Knob extends string, Host extends string> = Readonly<Record<Role, ToneRoleRecipe<Role, Knob, Host>>>;
@@ -1044,6 +1046,8 @@ export interface TonePalette<Host extends string> {
   readonly host: Oklch;
   /** The ink a page ink becomes on the host: on a card the page's `foreground` is the card's own ink. Absent on the page. */
   readonly hostInks?: Readonly<Partial<Record<Host, Host>>>;
+  /** False on a host whose content paints no selected, hovered or active fill (a message bubble): its page inks are not judged over a tint there. */
+  readonly carriesPageInks?: boolean;
   readonly hosts: Readonly<Record<Host, Oklch>>;
 }
 
@@ -1061,30 +1065,45 @@ export const CARRIED_TONE_HOSTS = [
   "accent",
   "accent-foreground",
   "border",
+  "user-bubble",
+  "ai-bubble",
+  "system-bubble",
 ] as const;
 export type CarriedToneHost = (typeof CARRIED_TONE_HOSTS)[number];
 
 /**
  * The surfaces a tone wash sits over, each of which a surface primitive names through its `tone-host-<host>` utility.
  * Every floor and every tint separation is judged over each, by the token build for a seed and by the clamp for a carried palette.
+ * A message bubble is a host per role: a seed's bubble fills differ from the ramp's, and a bubble holds the transcript's tokens.
  */
-export const TONE_HOSTS = ["background", "surface-raised", "card", "popover"] as const satisfies readonly CarriedToneHost[];
+export const TONE_HOSTS = [
+  "background",
+  "surface-raised",
+  "card",
+  "popover",
+  "user-bubble",
+  "ai-bubble",
+  "system-bubble",
+] as const satisfies readonly CarriedToneHost[];
 export type ToneHost = (typeof TONE_HOSTS)[number];
 
 /** The ink each host paints its content in: a row on a card's tint keeps the card's ink, on a popover's the popover's. */
-const TONE_HOST_INKS = {
+const TONE_HOST_INKS: Readonly<Partial<Record<ToneHost, CarriedToneHost>>> = {
   background: "foreground",
   "surface-raised": "foreground",
   card: "card-foreground",
   popover: "popover-foreground",
-} as const satisfies Readonly<Record<ToneHost, CarriedToneHost>>;
+};
 
 /**
  * The palette on one host: its `host` operand on that surface, and its `foreground` page ink the ink that surface paints,
- * so a tint's page-ink floor is judged as the pair that host actually draws.
+ * so a tint's page-ink floor is judged as the pair that host actually draws. A bubble host has no page inks to judge.
  */
 export function tonePaletteOn(palette: TonePalette<CarriedToneHost>, host: ToneHost): TonePalette<CarriedToneHost> {
-  return { ...palette, host: palette.hosts[host], hostInks: { foreground: TONE_HOST_INKS[host] } };
+  const ink = TONE_HOST_INKS[host];
+  return ink === undefined
+    ? { ...palette, host: palette.hosts[host], carriesPageInks: false }
+    : { ...palette, host: palette.hosts[host], hostInks: { foreground: ink } };
 }
 
 /** A carried palette's low-emphasis ink and the input-fill alpha it clears, judged over the hosts that ink is painted on. */
@@ -1179,6 +1198,11 @@ export function carriedTonePalette(base: Oklch, { foreground: foregroundLightnes
       accent: opaquePixel(rampSurface(base, deltas.accent)),
       "accent-foreground": opaquePixel({ l: accentForeground, c: 0, h: base.h }),
       border: srgbToOklch(compositeSrgb(borderInk, THEME_DERIVATION.borderAlpha, oklchToSrgb(base))),
+      // A bubble's fill is the ramp member the base token binds it to (`user-bubble` to secondary, `ai-bubble` to card,
+      // `system-bubble` to muted); a scope that picks a bubble fill is not judged on the pick.
+      "user-bubble": opaquePixel(rampSurface(base, deltas.secondary)),
+      "ai-bubble": opaquePixel(rampSurface(base, deltas.card)),
+      "system-bubble": opaquePixel(rampSurface(base, deltas.muted)),
     },
   };
 }

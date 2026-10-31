@@ -36,6 +36,7 @@ function Family(): ReactElement {
           <IndicatorDot data-case="dot-solid" tone={tone} aria-hidden={true} />
           <IndicatorDot data-case="dot-outline" tone={tone} variant="outline" aria-hidden={true} />
           <span data-probe="dot-box" style={{ display: "block", inlineSize: "var(--spacing-field)", blockSize: "var(--spacing-field)" }} />
+          <span data-probe="tight" style={{ display: "block", inlineSize: "var(--spacing-tight)" }} />
           <span data-probe="transparent" style={{ backgroundColor: "transparent" }} />
           {TONE_ROLES.map((role) => (
             <span key={role} data-probe={role} data-tone={tone} style={{ color: roleVar(role) }} />

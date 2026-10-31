@@ -5,11 +5,11 @@ import type { MessageRole } from "@orb/kit/message-role";
  *  reading floor is a min-width and the transcript measure belongs to the column, not the bubble. */
 export const MESSAGE_BUBBLE_BOX = "rounded-card px-block py-row inline-fit max-inline-(--reading-bubble-cap) min-inline-0";
 
-/** The per-role fill and its paired ink. Every token is a ThemeScope-overridable custom property. */
+/** The per-role fill and its paired ink, and the tone host each fill is (D336): a tint inside mixes over the bubble. Every token is a ThemeScope-overridable custom property. */
 export const MESSAGE_BUBBLE_GROUND = {
-  user: "bg-user-bubble text-user-bubble-foreground",
-  assistant: "bg-ai-bubble text-ai-bubble-foreground",
-  system: "bg-system-bubble text-system-bubble-foreground",
+  user: "bg-user-bubble tone-host-user-bubble text-user-bubble-foreground",
+  assistant: "bg-ai-bubble tone-host-ai-bubble text-ai-bubble-foreground",
+  system: "bg-system-bubble tone-host-system-bubble text-system-bubble-foreground",
 } as const satisfies Record<MessageRole, string>;
 
 /** The per-role fill and ink as a box's, edgeless. The edge colour returns to the ink: a Card's base `border-border`

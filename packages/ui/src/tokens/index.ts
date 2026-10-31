@@ -601,7 +601,7 @@ export function toneLiteralVar(tone: Exclude<Tone, "neutral">, role: ToneRole): 
 export const TONE_HOST_VAR = "--tone-host";
 
 /** The utility a surface wears to make itself the host of the tone washes inside it. */
-export const TONE_HOST_UTILITIES = {"background":"tone-host-background","surface-raised":"tone-host-surface-raised","card":"tone-host-card","popover":"tone-host-popover"} as const satisfies Readonly<Record<ToneHost, string>>;
+export const TONE_HOST_UTILITIES = {"background":"tone-host-background","surface-raised":"tone-host-surface-raised","card":"tone-host-card","popover":"tone-host-popover","user-bubble":"tone-host-user-bubble","ai-bubble":"tone-host-ai-bubble","system-bubble":"tone-host-system-bubble"} as const satisfies Readonly<Record<ToneHost, string>>;
 
 /** Each role's recipe as data, for the numeric twin in `@orb/kit/theme-derivation`. */
 export const TONE_ROLE_RECIPES = {
