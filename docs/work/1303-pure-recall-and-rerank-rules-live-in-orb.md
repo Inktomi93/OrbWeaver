@@ -13,6 +13,12 @@ plan: restoration-register
 
 computeBridge, formatMemory, buildRecallQuery, inLiveWindow, the rerankPick name and ambiguity rules, applyRerank's unscorable placement (rejection propagation, omitted-hit order and the openai-compat minimum-window refusal are rebuilt in the composed rerank suite) are pure rules with no door, so they have no unit home.
 
+
+Rulings for the two rules still in the server:
+
+- `buildRecallQuery`: split the pure rule from the rendering. Kit takes the rendered turn texts and returns the query; the server renders with `renderTranscript` and its error code, then calls kit. The hash stays server-side or moves to a kit hash over bytes, never `node:crypto` in kit.
+- The `rerankPick` name and ambiguity rules: split the mention reader in `engine/select-speakers.ts` from its roster type. Kit takes a structural candidate (name, aliases, eligible) and the server maps its participants, with `isArbiterEligible` read at the caller.
+
 ## Why
 
 The layer table puts pure logic in unit tests in @orb/kit and @orb/contracts; a test-only door export is banned, and driving pure rules through the composed root is the expensive layer for cheap permutations.
