@@ -81,8 +81,6 @@ export interface FrameQueue {
   readonly pushControl: (frame: StreamControlFrame) => void;
   /** End the stream: the drain loop finishes once the buffer empties. */
   readonly close: () => void;
-  /** Pending frame count — the backpressure probe the tests assert on. */
-  readonly size: () => number;
   /** The single consumer. One socket generator per queue. */
   readonly drain: () => AsyncGenerator<StreamFrame>;
 }
@@ -210,7 +208,6 @@ export function createFrameQueue(opts: FrameQueueOptions): FrameQueue {
       closed = true;
       bump();
     },
-    size: (): number => items.length,
     drain,
   };
 }

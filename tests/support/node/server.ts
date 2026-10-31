@@ -212,6 +212,8 @@ export interface ServerTestHarness extends ComposedServerRoot, AsyncDisposable {
   readonly timers: Omit<ControlledTimers, keyof Disposable>;
   readonly ownerId: UserId;
   readonly principalFor: ReturnType<typeof createHostPrincipalResolver>;
+  /** The funder's role clients through the runtime's own binder, under that user's row-derived Principal. */
+  readonly roleClientsFor: (userId: UserId) => Promise<ReturnType<ServicesResult["runtime"]["roleClientsFor"]>>;
   /** Internal row-derived tRPC calls, not request authentication; HTTP owns cookie/session admission proof. */
   readonly internalCallerFor: (userId: UserId | null) => Promise<ReturnType<typeof createCaller>>;
   readonly actor: (spec?: ActorSpec) => Promise<ActorAccount>;
@@ -770,6 +772,7 @@ export async function createServerHarness(
     ...(ownerId === undefined ? {} : { ownerId }),
     ...(configuredOidc === undefined ? {} : { ownerClaimFile: configuredOidc.ownerClaimFile }),
     principalFor,
+    roleClientsFor: async (userId: UserId) => app.runtime.roleClientsFor(await principalFor(userId)),
     actor,
     listen: async (): Promise<Readonly<AddressInfo>> => {
       const address = await http.listen();

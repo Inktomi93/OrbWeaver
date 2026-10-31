@@ -79,11 +79,11 @@ for (const status of [401, 402]) {
   });
 }
 
-test("the actual role bundle reports a provider rejection only once", async ({ app, harness, db, ownerCaller, fundingProvider }) => {
+test("the actual role bundle reports a provider rejection only once", async ({ harness, db, ownerCaller, fundingProvider }) => {
   const key = await ownerCaller.credentials.add({ provider: TEST_PROVIDER_ID, key: "role-funding-key", metadata: { auth: "endpoint" } });
   const connection = await fundingConnection({ ownerCaller, harness, task: "summarize", credentialId: key.id });
   await ownerCaller.connection.setBinding({ task: "summarize", connectionId: connection.connectionId });
-  const roles = await app.roleClientsFor(harness.ownerId);
+  const roles = await harness.roleClientsFor(harness.ownerId);
   const inputs = [{ systemPrompt: "Answer briefly.", userPrompt: "A funding control." }];
   await roles.summarize(inputs);
   fundingProvider.status(401);

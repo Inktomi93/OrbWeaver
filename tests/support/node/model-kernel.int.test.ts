@@ -96,7 +96,7 @@ async function stageHead(directory: string): Promise<void> {
 }
 
 async function bindReranker(harness: Awaited<ReturnType<typeof createServerHarness>>): Promise<{
-  clients: Awaited<ReturnType<typeof harness.app.roleClientsFor>>;
+  clients: Awaited<ReturnType<typeof harness.roleClientsFor>>;
   directory: string;
   metadataDirectory: string;
 }> {
@@ -111,7 +111,7 @@ async function bindReranker(harness: Awaited<ReturnType<typeof createServerHarne
   });
   const binding = await harness.services.connection.setBinding({ principal, task: "rerank", connectionId: connection.id });
   expect(binding.connectionId).toBe(connection.id);
-  const clients = await harness.app.roleClientsFor(principal.userId);
+  const clients = await harness.roleClientsFor(principal.userId);
   const resolved = await clients.resolved("rerank");
   expect(resolved?.connectionId).toBe(connection.id);
   if (resolved?.capability.kind !== "rerank" || resolved.capability.rerank.onnx?.head !== "sentence-transformers") {

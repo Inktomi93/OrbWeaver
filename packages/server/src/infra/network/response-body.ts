@@ -57,11 +57,11 @@ const rethrow = (outcome: CancelOutcome): void => {
  * Own actual reads and cancellation of the producer and every caller-requested clone, without an unused tee.
  *
  * @remarks A cancellation failure is recorded as state (`failures`) and a rejecting promise exists only for a caller
- * that reads `settled` or calls `cancel`, so an ignored failure cannot surface as an unhandled rejection.
+ * that reads `settled`, so an ignored failure cannot surface as an unhandled rejection.
  */
 export function createOwnedResponseBody(response: Response, signal: AbortSignal): OwnedResponseBody {
   if (response.body === null) {
-    return { response, settled: Promise.resolve(), cancel: () => Promise.resolve() };
+    return { response, settled: Promise.resolve() };
   }
   const done = Promise.withResolvers<void>();
   const branches = new Set<BodyBranch>();
@@ -100,10 +100,6 @@ export function createOwnedResponseBody(response: Response, signal: AbortSignal)
     for (const branch of branches) {
       branch.begin(reason);
     }
-  };
-  const cancel = (reason?: unknown): Promise<void> => {
-    startCancel(reason);
-    return join();
   };
   const abort = (): void => {
     startCancel(signal.reason);
@@ -206,6 +202,5 @@ export function createOwnedResponseBody(response: Response, signal: AbortSignal)
     get settled(): Promise<void> {
       return join();
     },
-    cancel,
   };
 }

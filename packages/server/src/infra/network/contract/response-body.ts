@@ -2,5 +2,4 @@
 export interface OwnedResponseBody {
   readonly response: Response;
   readonly settled: Promise<void>;
-  readonly cancel: (reason?: unknown) => Promise<void>;
 }

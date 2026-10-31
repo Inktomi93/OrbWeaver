@@ -47,7 +47,7 @@ async function nativeSummary(value: object): Promise<SummarizeResult> {
     declared: { kind: "generation", generation: makeGenerationCapability({ context: { window: 8192 } }) },
   });
   await root.services.connection.setBinding({ principal, task: "summarize", connectionId: row.id });
-  const clients = await root.app.roleClientsFor(principal.userId);
+  const clients = await root.roleClientsFor(principal.userId);
   try {
     const work = clients.summarize([{ systemPrompt: "Be terse.", userPrompt: "Answer." }]);
     const state = { settled: false };
