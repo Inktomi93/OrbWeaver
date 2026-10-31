@@ -51,7 +51,7 @@ interface WidgetBehavior {
 /** A `topbar.trail` widget. The trail row measures its room and moves the actions that do not fit into a menu,
  *  so a widget that declares no menu form has no way to stay reachable and does not type-check. Called as a hook
  *  over the door-frozen entry list, once per overflowed entry. */
-export interface TrailWidgetBehavior extends WidgetBehavior {
+interface TrailWidgetBehavior extends WidgetBehavior {
   readonly useMenuForms: () => readonly OverflowMenuForm[];
 }
 
