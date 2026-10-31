@@ -147,3 +147,16 @@ Reclassed to keep, each found by deleting the field and reading the typecheck or
 Not judged here: the `ShapeOutput.stages`, `MemoryRecallRecord`, `MemoryBuildTrace`, `TurnPipelineResult`, `ChatEmitted` and `ChatStreamReplayEvent` rows (they feed traces, recorders or events), the `…Data` view rows, `chatMetadataSchema.*`, the results rows that would empty a type (`GeneratedText`, `DrainReport`, `ExtractQuietResult`, `StoreDigestParams.signal`), the persisted-JSON keys (`actorRekeysSchema`), the model-schema key `responders`, `NamedRow`, `CanonRow.folded`, `ShapeInput.speakers`, `SquashMode.canonApart`, `SlotTarget`, `PreviewInputs`-adjacent `TurnBase.*`. `SendParams.blocks` is the owner call and is left alone.
 
 Ran `pnpm typecheck packages/server/tsconfig.json tsconfig.node.json tsconfig.tests-dom.json tsconfig.tests-iso.json` (exit 0). Suites (all exit 0): `core-modes`, `read-preview-honesty`, `react-tool-rows`, `commit-fence-races` (19 tests); `memory-build-lifecycle.suite`, `memory-build-rows`, `joined-speaker-label` (5); `chain-stop-untouched`, `stored-narrator-smart-chain`, `bus-golden.suite` (12), all under `tests/server/domain/chat`.
+
+### Group 1: assembly shape, names, slot target, turn base
+
+Applied: `SlotTarget.personaId`, `SlotTarget.selectedVariantIdx` (and both select columns in `slotTargetSelection`).
+
+Kept, with the reader:
+- `CanonRow.folded`: `assembly/names.ts:145` reads `m.folded === true` through the names input type, so a folded row takes no second speaker label. Deleting the write at `shape.ts:205` made `prompt-cache-prefix.suite.int.test.ts` fail ("Alice: aria: r1"). The typecheck passed, so the typecheck cannot prove this row.
+- `SquashMode.canonApart`: `shape.ts:549` and `:642` hand the mode to `squashRuns`, which requires `canonApart` (`assembly/role-squash.ts:39`).
+- `ShapeInput.speakers.user`, `.assistant`: `assembly/names.ts:155` reads `speakers.user` and `speakers.assistant` from the `applyNamesBehavior` parameter, which `shape.ts:658` fills from `input.speakers`.
+- `NamedRow.role`, `.content`, `.name`, `.messageId`: `shape.ts:663`, `:667` and `:698` require `NamedRow[]` to be assignable to `WireRow[]`.
+- `TurnBase.terminalTools`, `.respondsToLatestUserTurn`, `.freezeMacroRegistry`: `BuiltTurnContext` requires them at `verbs/turn.ts:2188`, `:2231` and `:2581`.
+
+Ran `pnpm typecheck packages/server/tsconfig.json` (exit 0) and `pnpm test` on `persona-matrix.suite`, `solo-byte-identical.suite`, `continue-revert-row-races.suite` and `prompt-cache-prefix.suite` under `tests/server/domain/chat` (the last failed only with the `folded` deletion, now reverted; the rest pass).
