@@ -18,6 +18,7 @@ import type { createListSeedAccountIds, createSettleSessionSecret } from "@orb/s
 import type { ensureSeedThemes, healLegacyBackgroundPins } from "@orb/server/domain/settings";
 import type { reconcileOwnersMissingTimeline } from "@orb/server/domain/stats";
 import type { reclaimInFlightOnBoot } from "@orb/server/domain/workloads";
+import type { rehashPluginProviderDefinitionsOnBoot } from "@orb/server/entry/boot";
 import { expectTypeOf, test } from "vitest";
 
 test("a plain wiring handle never stands in for the boot grant", () => {
@@ -57,6 +58,7 @@ test("every verb that crosses owners at boot demands the boot grant", () => {
   expectTypeOf<Parameters<typeof hasRedeemableInvite>[0]>().toEqualTypeOf<BootDatabaseHandle>();
   expectTypeOf<Parameters<typeof migrateAutomationArms>[0]>().toEqualTypeOf<BootDatabaseHandle>();
   expectTypeOf<Parameters<typeof hasSealedCredentials>[0]>().toEqualTypeOf<BootDatabaseHandle>();
+  expectTypeOf<Parameters<typeof rehashPluginProviderDefinitionsOnBoot>[0]["db"]>().toEqualTypeOf<BootDatabaseHandle>();
   expectTypeOf<Parameters<typeof createSettleSessionSecret>[0]["db"]>().toEqualTypeOf<BootDatabaseHandle>();
   expectTypeOf<Parameters<typeof createListSeedAccountIds>[0]>().toEqualTypeOf<BootDatabaseHandle>();
 });

@@ -237,7 +237,6 @@ function inviteOnRefusal(rc: RuleCtx, actions: readonly AutomationAction[], limi
     chatId,
     source,
     actorUserId: rc.rule.ownerId,
-    summary,
     expiresAt,
     payload: null,
   });

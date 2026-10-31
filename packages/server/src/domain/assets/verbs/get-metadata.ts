@@ -1,4 +1,4 @@
-// verb: getMetadata — the blob-serve gate: {mime,size} of a viewable asset, else undefined (404; missing and foreign collapse).
+// verb: getMetadata — the blob-serve gate: {mime} of a viewable asset, else undefined (404; missing and foreign collapse).
 // Owner-scoped first, then loadCoParticipantOwner: a co-participant's rostered avatar, active persona, or a room-linked
 // attachment at or above the caller's history floor, never a bare hash; a hit returns that owner's CAS partition.
 
@@ -22,7 +22,7 @@ async function getMetadata(ctx: AssetsContext, principal: GetMetadataParams["pri
     if (coOwnerId !== undefined) {
       const coMeta = await metadataForOwnerAndHash(ctx.db, coOwnerId, hash);
       if (coMeta !== undefined) {
-        return { mime: coMeta.mime, size: coMeta.size, ownerId: coOwnerId };
+        return { mime: coMeta.mime, ownerId: coOwnerId };
       }
     }
   }

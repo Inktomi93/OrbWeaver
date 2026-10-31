@@ -12,17 +12,17 @@ export interface Site {
 
 export const siteKey = (site: Site): string => `${site.file}:${site.position}`;
 
-export const REFERENCE_KINDS = ["use", "builder", "plumbing", "test", "external"] as const;
+const REFERENCE_KINDS = ["use", "builder", "plumbing", "test", "external"] as const;
 /** `use`: production code reads or calls it. `builder`: an object literal or JSX attribute supplies it.
  *  `plumbing`: a type position names it. `test`: a use outside production code. `external`: a library file. */
 export type ReferenceKind = (typeof REFERENCE_KINDS)[number];
 
-export const SYNTAX_ROLES = ["read", "write", "type"] as const;
+const SYNTAX_ROLES = ["read", "write", "type"] as const;
 /** `write`: an object literal, JSX attribute or plain assignment gives the property a value. `type`: a type position,
  *  a declaration or an import names it. `read`: everything else. */
 export type SyntaxRole = (typeof SYNTAX_ROLES)[number];
 
-export const LITERAL_ROLES = ["construct", "compare", "case", "key", "type", "module"] as const;
+const LITERAL_ROLES = ["construct", "compare", "case", "key", "type", "module"] as const;
 /** What a string literal does with its value: builds one, tests one, names a key or a module, or sits in a type. */
 export type LiteralRole = (typeof LITERAL_ROLES)[number];
 
@@ -57,7 +57,7 @@ export class Sources {
 }
 
 /** A source file parsed alone, for an engine that has positions but no program. */
-export function parseAlone(fileName: string, text: string): ts.SourceFile {
+function parseAlone(fileName: string, text: string): ts.SourceFile {
   return ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, fileName.endsWith("x") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
 }
 
@@ -142,7 +142,7 @@ export function classifyReference(source: ts.SourceFile, position: number, relat
 
 /** One argument a call passes: its literal text when it is a literal, and the keys it supplies when it is an object
  *  literal or a JSX element's attributes. `keys` is null when a spread or a non-literal may supply any key. */
-export interface ArgumentShape {
+interface ArgumentShape {
   readonly literal: string | null;
   readonly keys: readonly string[] | null;
 }
@@ -274,7 +274,7 @@ export function literalRoleAt(source: ts.SourceFile, position: number): LiteralR
   return isKeyName(node, parent) ? "key" : "construct";
 }
 
-export const VALUE_USES = ["call", "define", "type", "test", "parse", "escape"] as const;
+const VALUE_USES = ["call", "define", "type", "test", "parse", "escape"] as const;
 /** What a reference to a function, a callable member or a tuple does with the value. `define`: an implementation
  *  supplies the member. `test`: a membership method reads it. `parse`: `z.enum` reads it. `escape`: the value
  *  leaves for code the scan cannot follow, so any argument or member may be reached there. */

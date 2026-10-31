@@ -103,7 +103,7 @@ async function rooted(stack: AsyncDisposableStack): Promise<Rooted> {
 test("an older store read cannot republish an admin provider after its durable removal", async () => {
   await using stack = new AsyncDisposableStack();
   const { root, hold } = await rooted(stack);
-  const registry = root.services.connection.registry;
+  const registry = root.app.runtime.providers.registry;
   const admin = provider("admin-shared", "Shared");
   await registry.register(admin, { admin: root.ownerId });
   expect(registry.get(admin.id, root.ownerId)).toEqual(admin);
@@ -122,7 +122,7 @@ test("an older store read cannot republish an admin provider after its durable r
 test("a failed store read does not poison later registry publication", async () => {
   await using stack = new AsyncDisposableStack();
   const { root, failNext } = await rooted(stack);
-  const registry = root.services.connection.registry;
+  const registry = root.app.runtime.providers.registry;
   const boom = new Error("controlled store read refusal");
 
   failNext(boom);
@@ -138,7 +138,7 @@ test("an activation whose publish fails releases its claim link, so the install'
 }, async () => {
   await using stack = new AsyncDisposableStack();
   const { root, failNext } = await rooted(stack);
-  const registry = root.services.connection.registry;
+  const registry = root.app.runtime.providers.registry;
   const caller = await root.principalFor(root.ownerId);
   const installed = await root.services.plugin.install({ caller, bundle: makePluginBundle(manifest, "orb.host(1);", root.clock.now()), grant: [] });
   const outcome = await root.services.plugin.setGrant({ caller, pluginId: installed.id, grant: manifest.capabilities, acknowledgedNetHosts: [], enable: true });

@@ -1210,7 +1210,7 @@ export type CountRefineryScoreTargetsOp = (args: WorkloadEstimateScope & { reado
 /** One half of the derived signals — the two halves have INDEPENDENT producers (a score run stamps
  *  `score`, an analyze run stamps `analysis`; security pass §1 gap 2), so the patch is one arm, never
  *  both, and the stamp merges it over the currently-stored other half. */
-export type RefinerySignalsPatch = { readonly score: number } | { readonly analysis: RefineryAnalyzePayload };
+type RefinerySignalsPatch = { readonly score: number } | { readonly analysis: RefineryAnalyzePayload };
 
 /** Merge-stamp `characters.refinery` for one OWNED character. The owner predicate rides IN THE WHERE
  *  (injected-op-caller-gate: an op that dropped its caller would be a cross-tenant write hole) — the

@@ -39,6 +39,5 @@ export interface PlaneDiffRenderer<T> {
  *  plane, so the registry can't be generic; `definePlaneDiff` binds `select`+`render` into `run` so the erased
  *  slice never leaks across the pair). `run` takes the two FULL snapshots and internally selects. */
 export interface RegisteredPlaneDiff {
-  readonly plane: string;
   readonly run: (prev: RpgSnapshotState, cur: RpgSnapshotState, ctx: DeltaContext) => readonly string[];
 }

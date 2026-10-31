@@ -59,18 +59,23 @@ async function root(random: () => number): ReturnType<typeof createChatRoot> {
   });
 }
 
+/** The next-turn prompt the host's assembly preview builds, as bytes, so two polls compare whole. */
+async function preview(h: Awaited<ReturnType<typeof root>>): Promise<string> {
+  return JSON.stringify((await h.root.services.chat.previewAssembly({ principal: h.owner, chatId: h.chatId })).prompt);
+}
+
 /** A live PRNG whose draws differ call to call, so any preview that rides it renders differently per poll. */
 function drifting(): () => number {
   let n = 0;
   return () => (n++ * 0.37) % 1;
 }
 
-test("a preset section preview renders the same on every poll even when the live PRNG drifts", async () => {
+test("a preset section's {{random}} picks read the same on every assembly preview even when the live PRNG drifts", async () => {
   await using h = await root(drifting());
-  const first = await h.root.services.chat.previewSection({ principal: h.owner, chatId: h.chatId, sectionId: "picks" });
-  const second = await h.root.services.chat.previewSection({ principal: h.owner, chatId: h.chatId, sectionId: "picks" });
-  expect(first.rendered).toBe(STABLE_PREVIEW);
-  expect(second.rendered).toBe(STABLE_PREVIEW);
+  const first = await preview(h);
+  expect(first).toContain(STABLE_PREVIEW);
+  expect(first).not.toContain(SEEDED_TURN);
+  expect(await preview(h)).toBe(first);
 });
 
 test("a guided-action preview renders the same on every poll even when the live PRNG drifts", async () => {
@@ -98,20 +103,15 @@ test("a member card display renders the same on every read even when the live PR
   expect(await read()).toBe(STABLE_PREVIEW);
 });
 
-/** The next-turn prompt as bytes, so two peeks compare whole. */
-async function peek(h: Awaited<ReturnType<typeof root>>): Promise<string> {
-  return JSON.stringify(await h.root.services.chat.peekPrompt({ principal: h.owner, chatId: h.chatId }));
-}
-
-test("a chat injection's {{random}} picks read the same on every peekPrompt even when the live PRNG drifts", async () => {
+test("a chat injection's {{random}} picks read the same on every assembly preview even when the live PRNG drifts", async () => {
   await using h = await root(drifting());
   await h.caller.chat.setChatInjection({ chatId: h.chatId, position: "in_prompt", role: "system", depth: 0, order: 0, content: `INJ=<${PICKS}>` });
-  const first = await peek(h);
+  const first = await preview(h);
   expect(first).toContain(`INJ=<${STABLE_PREVIEW}>`);
-  expect(await peek(h)).toBe(first);
+  expect(await preview(h)).toBe(first);
 });
 
-test("a lore entry's {{random}} picks read the same on every peekPrompt even when the live PRNG drifts", async () => {
+test("a lore entry's {{random}} picks read the same on every assembly preview even when the live PRNG drifts", async () => {
   await using h = await root(drifting());
   const book = await h.root.services.worldInfo.createBook({ principal: h.owner, input: createBookSchema.parse({ name: "Prng lore" }) });
   await h.root.services.worldInfo.createEntry({
@@ -120,15 +120,14 @@ test("a lore entry's {{random}} picks read the same on every peekPrompt even whe
     input: createEntrySchema.parse({ title: "Picks", content: `LORE=<${PICKS}>` }),
   });
   await h.root.services.worldInfo.attachToChat({ principal: h.owner, chatId: h.chatId, bookId: book.id });
-  const first = await peek(h);
+  const first = await preview(h);
   expect(first).toContain(`LORE=<${STABLE_PREVIEW}>`);
-  expect(await peek(h)).toBe(first);
+  expect(await preview(h)).toBe(first);
 });
 
 test("a ChoiceBlock random pick stays unresolved in a preview and resolves from the seeded PRNG in a real turn", async () => {
-  await using preview = await root(drifting());
-  const rendered = await preview.root.services.chat.previewSection({ principal: preview.owner, chatId: preview.chatId, sectionId: "mood" });
-  expect(rendered.rendered).toBe("MOOD=<x, y>");
+  await using unresolved = await root(drifting());
+  expect(await preview(unresolved)).toContain("MOOD=<x, y>");
   await using turn = await root(() => SEEDED_LAST);
   const outcome = await turn.root.services.chat.send({ principal: turn.owner, chatId: turn.chatId, content: "hello" });
   expect(outcome.aborted).toBe(false);

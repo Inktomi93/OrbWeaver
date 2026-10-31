@@ -171,12 +171,11 @@ export type RpgTurnToolCallsRow = typeof rpgTurnToolCalls.$inferSelect;
 export type NewRpgTurnToolCalls = typeof rpgTurnToolCalls.$inferInsert;
 
 /** One assistant slot's selected-variant body for the HOST-REVEAL read (§3.6): the slot id (the reveal eye
- *  keys per message) + the stored content the tokenizer scans for hidden spans. Chronological (`seq` asc) so
- *  the standing-lie inventory's most-recent-wins fold reads in emission order. The `persistence/reveal` query
+ *  keys per message) + the stored content the tokenizer scans for hidden spans. Chronological (the query orders
+ *  by `seq`) so the standing-lie inventory's most-recent-wins fold reads in emission order. The `persistence/reveal` query
  *  returns it; the pure `substrate/reveal` projection consumes it. */
 export interface RevealBodyRow {
   readonly messageId: MessageId;
-  readonly seq: number;
   readonly content: string;
 }
 
@@ -538,7 +537,6 @@ export interface RpgPopulateDelta {
  *  nothing names this shape directly outside this file (knip). */
 interface RpgStateRoundInput {
   readonly chatId: ChatId;
-  readonly gameId: RpgGameId;
   readonly turnId: ChatTurnId;
   readonly messageId: MessageId;
   readonly variantId: MessageVariantId;

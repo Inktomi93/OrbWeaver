@@ -30,7 +30,7 @@ import { getById, setStatus } from "../persistence/plugins.ts";
 import { buildPluginBridge } from "../substrate/bridge.ts";
 import { invokeFailureKind, logPluginFailure } from "../substrate/failure-log.ts";
 import { consentedNetHosts } from "../substrate/grants.ts";
-import { parseBundle } from "../substrate/manifest.ts";
+import { parseInstalledBundle } from "../substrate/manifest.ts";
 
 /** Hand every collected registration to its registrar op, collecting the deregistration handles. Each carries
  *  the per-activation {@link PluginActivationScope} (the manifest slug for namespacing + the installer for the
@@ -116,7 +116,7 @@ function revalidate(
   withheldNetHosts: readonly string[],
 ): { readonly ok: true; readonly bundle: RevalidatedBundle } | { readonly ok: false; readonly error: string } {
   try {
-    const parsed = parseBundle(bytes);
+    const parsed = parseInstalledBundle(bytes);
     return {
       ok: true,
       bundle: {

@@ -44,7 +44,6 @@ export interface UpgradePluginParams {
 }
 
 export interface PreviewFromGitParams {
-  readonly caller: Principal;
   readonly url: string;
 }
 
@@ -69,7 +68,6 @@ export interface UpgradeFromStoredGitParams {
  *  consent. SELF-authority: any authenticated principal — the fetch spends the server's egress, so it is
  *  authed, but it touches no owned row. */
 export interface PreviewFromUrlParams {
-  readonly caller: Principal;
   readonly url: string;
 }
 

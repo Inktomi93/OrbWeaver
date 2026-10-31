@@ -9,7 +9,7 @@
 import type { EmbedMoveRefusal } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";
 import type { EmbedTargetRefusal, RoutableTask } from "@orb/contracts/inference";
-import { embedDtypeOf, embedSpaceOf, servesImageVectors } from "@orb/contracts/inference";
+import { servesImageVectors } from "@orb/contracts/inference";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { connectionFingerprint } from "#primitives/embedding-generation";
 import { EmbedAuthError, EmbedUnreachableError, EmbedWidthUnmakeableError } from "../contract/errors.ts";
@@ -58,7 +58,6 @@ export async function vectorResolutionOf(
     return {
       space: {
         fingerprint: connectionFingerprint(resolved),
-        model: embedSpaceOf(resolved.model, embedDtypeOf(resolved.capability)),
         dim: resolved.capability.embedding.dims,
       },
       servesImages: servesImageVectors(resolved.capability),

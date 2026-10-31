@@ -86,14 +86,13 @@ function tierKSeqSpan(
 
 /**
  * Stamp `digest_theme_assignments.msgMidAt` for every assigned digest — tier-0 via the exact 1:1 segment
- * span, tier-k via the injected tier-grid fold. Idempotent (recomputes the same immutable stamp). Returns
- * the count of digests stamped. Standalone `(db, tier0RangeOf, ownerId?)` so the service factory and
+ * span, tier-k via the injected tier-grid fold. Idempotent (recomputes the same immutable stamp). Standalone `(db, tier0RangeOf, ownerId?)` so the service factory and
  * `computeThemes` both drive it with the ctx-bound grid op.
  */
-export async function backfillMsgMidAt(db: Db, tier0RangeOf: Tier0RangeOp, scope: WorkloadRunScope): Promise<{ stamped: number }> {
+export async function backfillMsgMidAt(db: Db, tier0RangeOf: Tier0RangeOp, scope: WorkloadRunScope): Promise<void> {
   const [tier0Spans, tierKDigests] = await Promise.all([readTier0DigestSpans(db, scope), readTierKDigestSpans(db, scope)]);
   if (tier0Spans.length === 0 && tierKDigests.length === 0) {
-    return { stamped: 0 };
+    return;
   }
 
   // The tier-k arm needs the verbatim block grid of its chats to fold covered ranges into seq-spans.
@@ -131,5 +130,4 @@ export async function backfillMsgMidAt(db: Db, tier0RangeOf: Tier0RangeOp, scope
   if (updates.length > 0) {
     await db.batch(batchMany(updates));
   }
-  return { stamped: updates.length };
 }

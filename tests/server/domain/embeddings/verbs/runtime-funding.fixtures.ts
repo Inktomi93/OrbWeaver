@@ -363,7 +363,7 @@ export async function fundingConnection<T extends Task>(args: {
   return { ...resolved, task };
 }
 
-export type BackgroundTask = Exclude<Task, "chat" | "agent" | "generateImage">;
+export type BackgroundTask = Exclude<Task, "chat" | "generateImage">;
 export type Execute = (runtime: InferenceRuntime, connection: Resolved) => ReturnType<ProviderExecutor[keyof ProviderExecutor]>;
 
 export const INPUTS = [{ systemPrompt: "Answer briefly.", userPrompt: "A funding control." }];

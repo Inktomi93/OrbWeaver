@@ -27,9 +27,10 @@ import {
   test,
 } from "../verbs/runtime-funding.fixtures.ts";
 
-const BOUND_EXECUTE: Record<RoleClientTask, (roles: RoleClientsWithSignal) => ReturnType<RoleClientsWithSignal[RoleClientTask]>> = {
+// The role tasks the bound bundle calls directly; image embedding runs through the pinned generation above.
+type BoundTask = RoleClientTask & keyof RoleClientsWithSignal;
+const BOUND_EXECUTE: Record<BoundTask, (roles: RoleClientsWithSignal) => ReturnType<RoleClientsWithSignal[BoundTask]>> = {
   embed: (roles) => roles.embed("funding control"),
-  imageEmbed: (roles) => roles.imageEmbed({ kind: "text", input: "funding control" }),
   rerank: (roles) => roles.rerank("control", [{ id: "document", text: "control" }]),
   summarize: (roles) => roles.summarize(INPUTS),
   structured: (roles) => roles.structured(INPUTS, { responseFormat: FORMAT }),
@@ -127,7 +128,7 @@ test("a pinned encoder whose real connection was removed refuses without a provi
   expect(await db.select().from(embeddingCalls).where(eq(embeddingCalls.ownerId, harness.ownerId))).toEqual(priorAccounting);
 });
 
-for (const task of ROLE_CLIENT_TASKS) {
+for (const task of ROLE_CLIENT_TASKS.filter((role): role is BoundTask => Object.hasOwn(BOUND_EXECUTE, role))) {
   test(`the bound ${task} caller re-reads its owner's current funding without making a refused purchase`, async ({
     harness,
     db,

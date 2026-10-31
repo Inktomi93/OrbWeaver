@@ -20,9 +20,9 @@ export function createConnectionWorkloadContributions(deps: ConnectionWorkloadDe
       params: emptyWorkloadParams,
       lane: "sweep",
       resume: "idempotent-restart",
-      run: async (_ctx, _params, report, signal): Promise<CatalogRefreshResult> => {
+      run: async (_ctx, _params, report): Promise<CatalogRefreshResult> => {
         report({ message: "refreshing the OpenRouter model catalog" });
-        const outcome = await deps.connection.refreshCatalog({ providerId: OPENROUTER_PROVIDER_ID, signal });
+        const outcome = await deps.connection.refreshCatalog({ providerId: OPENROUTER_PROVIDER_ID });
         return { models: outcome.models, agentSdkModels: null };
       },
     },

@@ -30,7 +30,7 @@ import type { SQL } from "drizzle-orm";
 import type { Logger } from "#foundation/observability";
 import type { GenerationReceipt } from "./generation.ts";
 import type { EmbedPassParams, PruneMemoryBlocksParams, SegmentStoreParams, StoreParams } from "./params.ts";
-import type { ImageSpace, ImageSpaceDegrade, PruneMemoryBlocksResult, PurgeDocumentVectorsResult, PurgeMemoryVectorsResult, StoreResult } from "./results.ts";
+import type { ImageSpace, ImageSpaceDegrade, StoreResult } from "./results.ts";
 
 // The typed API surface: the two DI bundles, the verb interface, injected cross-feature op types, and the
 // indexer interface. Every cross-feature capability arrives as an injected op (no sideways imports); there is
@@ -190,12 +190,12 @@ export interface EmbeddingsService {
     readonly ownerId: UserId;
     readonly generation: GenerationReceipt;
     readonly emptyScope?: SQL | undefined;
-  }) => Promise<PurgeMemoryVectorsResult>;
+  }) => Promise<void>;
   /** The chat-memory SHRINK seam: delete the digest/segment rows whose BLOCK no longer exists in canon (and,
    *  for digests, the consolidations that folded them). Distinct from {@link purgeMemoryVectors}, which
    *  reclaims a retired embed SPACE — this one reclaims blocks that canon itself dropped. memory calls it at
    *  the end of every build pass; an ordinary pass deletes nothing. */
-  readonly pruneMemoryBlocks: (params: PruneMemoryBlocksParams) => Promise<PruneMemoryBlocksResult>;
+  readonly pruneMemoryBlocks: (params: PruneMemoryBlocksParams) => Promise<void>;
   /** the reindex-shrink seam. After the ingest upserts a document's current chunks,
    *  this deletes the strays (shrunk tail `chunkIdx >= keepCount` + retired-space `model != model`), scoped to
    *  the one document. databank never touches `document_chunks` directly (single-write-path invariant). */
@@ -210,7 +210,7 @@ export interface EmbeddingsService {
   /** Reclaim the OLD document embed space — deletes `document_chunks` rows whose `model` differs
    *  from the active `roleClients.embedModel`. BULK-ONLY + skip-on-abort is the caller's guard (the
    *  databank-reindex runner), mirroring `purgeMemoryVectors`. */
-  readonly purgeDocumentVectors: (params: { readonly ownerId: UserId; readonly generation: GenerationReceipt }) => Promise<PurgeDocumentVectorsResult>;
+  readonly purgeDocumentVectors: (params: { readonly ownerId: UserId; readonly generation: GenerationReceipt }) => Promise<void>;
 }
 
 /** The DI bundle the indexer handlers close over (assembled at `entry/`). */

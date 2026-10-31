@@ -242,7 +242,7 @@ export interface SimilarArtHit {
 }
 
 /** The scope a document search runs over: one chat's active documents, or an owner's whole bank. */
-export type DocumentSearchScope = { readonly chatId: ChatId } | { readonly ownerId: UserId };
+type DocumentSearchScope = { readonly chatId: ChatId } | { readonly ownerId: UserId };
 
 /** The databank scope-junction resolver, injected into search at the composition root. The union SQL has one
  *  home in the databank domain, so search never re-implements it. */
@@ -454,7 +454,7 @@ export interface CorpusParams {
 export interface DigestSearchEvents {
   readonly onRerankUnavailable: () => void;
 }
-export interface RetrievalFallback<T> {
+interface RetrievalFallback<T> {
   readonly empty: T;
   readonly onIndexUnavailable: (() => void) | undefined;
 }

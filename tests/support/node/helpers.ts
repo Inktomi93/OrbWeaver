@@ -1,7 +1,7 @@
 // The node helpers door: Node-side helpers that never load the server graph at import, importable outside vitest.
 
 export { loadAppearancePreset } from "@orb/tooling/floor/appearance/appearance-flags";
-export type { AnthropicInputUsage, AnthropicMessageEnd, AnthropicStreamEvent, ScriptedMessageDelta } from "./anthropic-stream.ts";
+export type { AnthropicStreamEvent } from "./anthropic-stream.ts";
 export {
   anthropicSse,
   anthropicTextReply,
@@ -58,7 +58,7 @@ export {
 export { STORY_SHOT_DIR } from "./story-shot.ts";
 export { SURFACE_CHECKS } from "./surface-audit.ts";
 export type { PreparedSurfaceData } from "./surface-data.ts";
-export { assertSurfaceRunOutput, createSurfaceArtifactRun, openPreparedSurfaceRoot, prepareSurfaceData, surfaceGenerationSchema } from "./surface-data.ts";
+export { assertSurfaceRunOutput, createSurfaceArtifactRun, openPreparedSurfaceRoot, prepareSurfaceData } from "./surface-data.ts";
 export {
   initializeSurfaceAgentEntry,
   prepareSurfaceAgentReport,
@@ -85,7 +85,6 @@ export {
   surfaceNativeTimeout,
   surfaceRunConfigSchema,
 } from "./surface-run.ts";
-export { ownedTempDir } from "./temp-dir.ts";
 export type { TlsAnswer } from "./tls-hop.ts";
 export { tlsRequest } from "./tls-hop.ts";
 export { webVitalsSource } from "./web-vitals-source.ts";

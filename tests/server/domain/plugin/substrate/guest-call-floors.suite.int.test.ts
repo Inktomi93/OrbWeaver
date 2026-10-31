@@ -14,7 +14,7 @@ import type { JsonValue } from "@orb/kit/json";
 import { MS_PER_HOUR, MS_PER_SECOND } from "@orb/kit/time";
 import { PLUGIN_ASSET_EGRESS_PER_HOUR, PLUGIN_EGRESS_PER_HOUR, PLUGIN_QUIET_LLM_PER_HOUR, PLUGIN_SEARCH_QUERY_PER_HOUR } from "@orb/server/domain/plugin";
 import { expect, test } from "@orb/testkit/node";
-import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import type { GuestOps, GuestRun, ServerTestHarness } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -22,12 +22,12 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
   createServerHarness,
+  guestRunner,
+  installGuest,
   makeAssetBytes,
   seedCorpusActors,
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
-import type { GuestOps, GuestRun } from "./_guest-command.ts";
-import { guestRunner, installGuest } from "./_guest-command.ts";
 
 const NET_HOST = "plugin.example.test";
 const PAGE_URL = `https://${NET_HOST}/page`;

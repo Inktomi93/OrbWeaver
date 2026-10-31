@@ -86,6 +86,7 @@ export {
   pluginManifestSchema,
   pluginNetHostSchema,
   pluginSlugSchema,
+  storedPluginManifestSchema,
 } from "./manifest.ts";
 export type {
   ChatAuthority,

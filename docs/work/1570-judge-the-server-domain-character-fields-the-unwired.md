@@ -31,4 +31,10 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+All seven rows reclassed; no field deleted. Type-only edit: `stampImportHashIfUnset` and `findByOwnerImportedFrom` in `packages/server/src/domain/character/persistence/queries.ts` now take and return the contract types, so the fields the persistence code reads by name (`:757` destructure, the `out.push` at `:784`) count as reads of `StampImportIdentityParams` and `ImportedFromMatch`.
+
+- `StampImportIdentityParams.ownerId`, `.characterId`, `.importHash`: read by the destructure at `queries.ts:757`; they were typed by an inline twin. Derived from the contract type (slot rule for `unknown`).
+- `ImportedFromMatch.importedFrom`, `.characterId`: same inline-twin case at `findByOwnerImportedFrom`. Its other callers read both (`persistence/handoff-copy-write.ts:97`, `:194`).
+- `refinerySignalsReadParser.score`, `.analysis`: the parsed object is the card's `refinery` value (`queries.ts:864`), read whole by every card consumer. The keys are the field-level heal; deleting them would drop the stamped score and analysis on read.
+
+Ran `pnpm typecheck packages/server/tsconfig.json` (exit 0). The rescan runs at the end of the lane.
