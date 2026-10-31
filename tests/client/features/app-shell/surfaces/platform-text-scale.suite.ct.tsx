@@ -196,12 +196,10 @@ async function firstCharacterId(): Promise<CharacterId> {
   return character.id;
 }
 
-type Mount = (story: string, props: Record<string, never>) => Promise<unknown>;
-
-/** Opens the corpus' first chat room on the production shell and returns its message field. */
-async function openFirstRoom(mount: Mount, page: Page): Promise<Locator> {
+/** Opens the corpus' first chat room on the production shell and returns its message field; `mountShell` mounts the shell story. */
+async function openFirstRoom(mountShell: () => Promise<unknown>, page: Page): Promise<Locator> {
   await seedShellState(page, { activeSection: "chats" });
-  await mount(STORY, {});
+  await mountShell();
   await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS["chats"], exact: true }).click();
   await page.getByRole("list", { name: "Chats list", exact: true }).getByRole("button").first().click();
   const input = page.getByRole("textbox", { name: "Message", exact: true });
@@ -265,7 +263,7 @@ for (const [viewport, scale] of QUALIFIED.room) {
     test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
 
     test("keeps the transcript, the message field and Send reachable", async ({ mount, page }) => {
-      const input = await openFirstRoom(mount, page);
+      const input = await openFirstRoom(() => mount<typeof AppShellStory>(STORY, {}), page);
       await scaleRoot(page, scale.factor);
       await expect(page.getByRole("button", { name: "Send message", exact: true })).toBeVisible();
       for (const control of [input, page.getByRole("button", { name: "Send message", exact: true })]) {
@@ -284,7 +282,7 @@ for (const [viewport, scale] of QUALIFIED.jumpToLatest) {
     // The pill is mounted while hidden and takes its width from the same label it shows, so its box is the one a
     // pending arrival would paint; the flank row clips on x, so a pill wider than the row loses its ends.
     test("stays inside the flank row it overlays", async ({ mount, page }) => {
-      await openFirstRoom(mount, page);
+      await openFirstRoom(() => mount<typeof AppShellStory>(STORY, {}), page);
       await scaleRoot(page, scale.factor);
       const row = page.locator('[data-slot="chat-room-flank-row"]');
       const pill = page.locator('[data-slot="jump-to-latest"] button');
