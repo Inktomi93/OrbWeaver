@@ -1025,7 +1025,7 @@ export interface PluginCardDataLookup {
   readonly slug: string;
   readonly values: readonly string[];
 }
-/** A stamp lookup hit: the owner's character and the plugin's whole stored object. */
+/** A stamp lookup hit: one distinct stored object of the plugin's and one of the owner's characters holding it. */
 export interface PluginCardDataHit {
   readonly characterId: CharacterId;
   readonly data: Record<string, unknown>;

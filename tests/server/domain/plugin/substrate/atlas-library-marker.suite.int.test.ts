@@ -5,7 +5,7 @@
 
 import { spawn } from "node:child_process";
 import type { Principal } from "@orb/contracts/identity";
-import { pluginCardStateKey } from "@orb/contracts/plugin";
+import { PLUGIN_CARD_DATA_FIND_MAX, pluginCardStateKey } from "@orb/contracts/plugin";
 import type { CharacterId, PluginId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -18,6 +18,9 @@ const HUB_ADDRESS = "93.184.215.14";
 const WYVERN = "wyvern";
 const BOTBOORU = "botbooru";
 const STAMP_KEY = pluginCardStateKey(ATLAS);
+const DEEP_MARK = "deep-value";
+// Past SQLite's JSON nesting limit, so its JSON functions refuse the column.
+const DEEP_LEVELS = 1100;
 const ATLAS_GRANTS = ["storage.kv", "ui.surface", "net.fetch", "character.ingest", "character.card_state"] as const;
 
 type Card = Readonly<Record<string, unknown>>;
@@ -223,4 +226,47 @@ test("a forged non-object stamp on an imported card reads as no stamp, and the l
   expect(await atlasDriver(enabled).tiles(WYVERN)).toEqual(["Bramble"]);
   const log = await enabled.caller.plugin.getLog({ pluginId: enabled.pluginId });
   expect(log.filter(({ message }) => message.includes("library lookup failed"))).toEqual([]);
+});
+
+test("a card too deep for the JSON functions stays readable and costs no other card its badge", { tags: ["slow"] }, async () => {
+  await using root = await atlasRoot({ wyvern: [{ id: "w1", card: card("Yarrow") }], botbooru: [] });
+  const { owner } = await seedCorpusActors(root);
+  const enabled = await enableAtlas(root, owner);
+  const atlas = atlasDriver(enabled);
+  await atlas.add(WYVERN, 0);
+  const descriptor = root.app.portability.find((candidate) => candidate.kind === "character");
+  if (descriptor === undefined) {
+    throw new Error("the real graph omitted its character import operation");
+  }
+  const deep = JSON.stringify(card("Deep vendor", { vendor: DEEP_MARK })).replace(
+    JSON.stringify(DEEP_MARK),
+    `${"[".repeat(DEEP_LEVELS)}${"]".repeat(DEEP_LEVELS)}`,
+  );
+
+  expect(await descriptor.importFile(owner.userId, { filename: "deep.json", bytes: new TextEncoder().encode(deep) })).toMatchObject({ ok: true });
+
+  expect(await atlas.tiles(WYVERN)).toEqual(["Yarrow: in your library"]);
+  await expect(enabled.caller.character.get({ characterId: await libraryId(enabled.caller, "Deep vendor") })).resolves.toMatchObject({ name: "Deep vendor" });
+});
+
+test("copies of one stamped card cannot push another card out of the lookup", { tags: ["slow"] }, async () => {
+  await using root = await atlasRoot({
+    wyvern: [
+      { id: "w1", card: card("Alpha") },
+      { id: "w2", card: card("Beta") },
+    ],
+    botbooru: [],
+  });
+  const { owner } = await seedCorpusActors(root);
+  const enabled = await enableAtlas(root, owner);
+  const atlas = atlasDriver(enabled);
+  await atlas.add(WYVERN, 0);
+  const alpha = await libraryId(enabled.caller, "Alpha");
+  for (let copy = 0; copy <= PLUGIN_CARD_DATA_FIND_MAX; copy += 1) {
+    await enabled.caller.character.duplicate({ characterId: alpha });
+  }
+
+  await atlas.add(WYVERN, 1);
+
+  expect(await atlas.tiles(WYVERN)).toEqual(["Alpha: in your library", "Beta: in your library"]);
 });

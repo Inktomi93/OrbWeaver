@@ -160,6 +160,9 @@ test("a card-state lookup answers only for the calling plugin's own stamps on it
   expect(await keeper.run("findCards", { values: ["match-me", "absent"] })).toEqual({ ok: true, value: [{ characterId: mine, data }] });
   expect(await sibling.run("findCards", { values: ["match-me"] })).toEqual({ ok: true, value: [{ characterId: unstamped, data: { other: "match-me" } }] });
   expect(await strangersKeeper.run("findCards", { values: ["match-me"] })).toEqual({ ok: true, value: [{ characterId: theirs, data: { other: "match-me" } }] });
+  // Two plugins stamp one character: the lookup reads only the caller's own key on the row.
+  await sibling.run("setCard", { characterId: mine, data: { note: "sibling-only" } });
+  expect(await keeper.run("findCards", { values: ["sibling-only"] })).toEqual({ ok: true, value: [] });
   // A stored number is not a string, and an empty list asks nothing.
   expect(await keeper.run("findCards", { values: ["7"] })).toEqual({ ok: true, value: [] });
   expect(await keeper.run("findCards", { values: [] })).toEqual({ ok: true, value: [] });

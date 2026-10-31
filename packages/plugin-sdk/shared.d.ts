@@ -811,8 +811,9 @@ interface PluginHostV1 {
     /** Read back your own per-card blob, or `null` when you have written none. capability: character.card_state */
     getCardData: (characterId: string) => Promise<Record<string, unknown> | null>;
     /** The installer's OWN characters whose blob from YOUR plugin holds any of `values` as a string, at any depth,
-     *  each with its whole blob. Imported cards carry blobs too, so treat a match as data, not proof. Refuses more
-     *  than 64 values; answers at most 64 characters. capability: character.card_state */
+     *  each with its whole blob. Characters with identical blobs collapse to one match, so `characterId` names one
+     *  holder, not every holder. Imported cards carry blobs too, so treat a match as data, not proof. Refuses more
+     *  than 64 values; answers at most 64 distinct blobs. capability: character.card_state */
     findCardData: (values: readonly string[]) => Promise<readonly { characterId: string; data: Record<string, unknown> }[]>;
   };
 

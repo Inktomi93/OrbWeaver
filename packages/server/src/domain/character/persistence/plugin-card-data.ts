@@ -29,6 +29,7 @@ import { PLUGIN_CARD_DATA_FIND_MAX, pluginCardStateKey } from "@orb/contracts/pl
 import { characters } from "@orb/db";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
+import type { CharacterId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { PluginCardDataLookup, PluginCardDataTarget } from "../contract/params.ts";
 import type { PluginCardDataHit, PluginCardDataRead } from "../contract/results.ts";
@@ -72,9 +73,15 @@ export async function readPluginCardData(handle: DatabaseHandle, target: PluginC
   return { found: true, data: JSON.parse(row.value) as Record<string, unknown> };
 }
 
-/** The owner's characters whose object stamp for this plugin holds any of `values` as a string, at any depth.
- *  Owner and slug scope match {@link readPluginCardData}. `json_tree` keeps the match blind to the stamp's shape,
- *  and the `json_type` gate gives a hostile imported scalar or array the same answer as no stamp. */
+/** The owner's distinct object stamps for this plugin holding any of `values` as a string, at any depth, each with
+ *  one character that carries it. Owner and slug scope match {@link readPluginCardData}. `json_tree` keeps the match
+ *  blind to the stamp's shape, and the `json_type` gate gives a hostile imported scalar or array the same answer as
+ *  no stamp. Grouping before the limit bounds the answer by distinct stamps, because a duplicate keeps its stamp and
+ *  copies of one card must not push another card out.
+ *
+ *  The `CASE` is the guard, not a style choice: an uploaded card can nest past SQLite's JSON limit, the JSON functions
+ *  raise on that column, and one such row would fail this owner-wide read. `CASE` guarantees evaluation order and a
+ *  `WHERE` conjunction does not. */
 export async function findPluginCardData(handle: DatabaseHandle, { ownerId, slug, values }: PluginCardDataLookup): Promise<PluginCardDataHit[]> {
   if (values.length === 0) {
     return [];
@@ -82,17 +89,22 @@ export async function findPluginCardData(handle: DatabaseHandle, { ownerId, slug
   const db = databaseForOwner(handle);
   const path = cardStatePath(slug);
   const stored = inArray(sql`atom`, [...values]);
+  const stamp = sql<string>`json_extract(${characters.extensions}, ${path})`;
+  const holder = sql<CharacterId>`min(${characters.id})`;
   const rows = await db
-    .select({ id: characters.id, value: sql<string>`json_extract(${characters.extensions}, ${path})` })
+    .select({ id: holder, value: stamp })
     .from(characters)
     .where(
       and(
         eq(characters.ownerId, ownerId),
-        sql`json_type(${characters.extensions}, ${path}) = 'object'`,
-        sql`exists (select 1 from json_tree(${characters.extensions}, ${path}) where type = 'text' and ${stored})`,
+        sql`case when json_valid(${characters.extensions})
+          then json_type(${characters.extensions}, ${path}) = 'object'
+            and exists (select 1 from json_tree(${characters.extensions}, ${path}) where type = 'text' and ${stored})
+          else 0 end`,
       ),
     )
-    .orderBy(asc(characters.id))
+    .groupBy(stamp)
+    .orderBy(asc(holder))
     .limit(PLUGIN_CARD_DATA_FIND_MAX);
   return rows.map((row) => ({ characterId: row.id, data: JSON.parse(row.value) as Record<string, unknown> }));
 }

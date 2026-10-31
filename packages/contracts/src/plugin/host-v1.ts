@@ -131,11 +131,11 @@ export interface PluginSearchHit {
   readonly score: number;
 }
 
-/** The most strings one `character.findCardData` call may name, and the most characters it answers with. An
+/** The most strings one `character.findCardData` call may name, and the most distinct stamps it answers with. An
  *  over-long list is refused rather than clipped: a clipped lookup would read as "not in the library". */
 export const PLUGIN_CARD_DATA_FIND_MAX = 64;
 
-/** One `character.findCardData` hit: an installer-owned character and this plugin's whole stamp on it. */
+/** One `character.findCardData` hit: a distinct stamp of this plugin's and one installer-owned character holding it. */
 export interface PluginCardDataMatch {
   readonly characterId: SandboxWireId<CharacterId>;
   readonly data: Record<string, unknown>;
@@ -442,7 +442,9 @@ export interface PluginHostV1 {
      *  slug and owner scope are closed over host-side. A stamp arrives with imported cards too, so a match is
      *  plugin data, not proof of origin: a forged stamp can only mislead this plugin about the installer's own
      *  library. A non-object value under the key never matches. More than {@link PLUGIN_CARD_DATA_FIND_MAX}
-     *  values is a refusal of the call; matches stop at the same count. */
+     *  values is a refusal of the call. Characters with identical stamps collapse to one match, because a copy keeps
+     *  its stamp and a library of copies must not crowd out another card, so `characterId` names one holder rather
+     *  than every holder. Matches stop at the same count of distinct stamps. */
     findCardData: (values: readonly string[]) => Promise<readonly PluginCardDataMatch[]>;
   };
 
