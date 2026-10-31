@@ -7,6 +7,7 @@ import type {
   Expression,
   FunctionDeclaration,
   Identifier,
+  InterfaceDeclaration,
   Node,
   NodeArray,
   NoSubstitutionTemplateLiteral,
@@ -27,6 +28,7 @@ import {
   isGetAccessorDeclaration,
   isIdentifier,
   isIndexedAccessTypeNode,
+  isInterfaceDeclaration,
   isJsxAttribute,
   isJsxAttributes,
   isJsxSpreadAttribute,
@@ -317,10 +319,41 @@ function* overloadLinks(checker: Checker, pair: { readonly overload: TypeNode; r
   return links;
 }
 
+// Every type an interface extends, directly or through its bases, a generic base through its generic target.
+function* ancestors(type: Type): APIRequestGenerator<readonly Type[]> {
+  const origin = type.isTypeReference() ? yield* type.getTarget.gen() : type;
+  const direct = (yield* origin.getBaseTypes.gen()) ?? [];
+  const all: Type[] = [...direct];
+  for (const base of direct) {
+    all.push(...(yield* ancestors(base)));
+  }
+  return all;
+}
+
+// An interface member that redeclares a base member is its own symbol: a use of it is a use of each member it redeclares.
+function* redeclarations(checker: Checker, declaration: InterfaceDeclaration): APIRequestGenerator<readonly Link[]> {
+  const symbol = yield* checker.getSymbolAtLocation.gen(declaration.name);
+  const bases = symbol === undefined ? [] : yield* ancestors(yield* checker.getDeclaredTypeOfSymbol.gen(symbol));
+  const links: Link[] = [];
+  for (const member of declaration.members) {
+    if (!((isPropertySignatureDeclaration(member) || isMethodSignatureDeclaration(member)) && isPropertyName(member.name))) {
+      continue;
+    }
+    const own = yield* checker.getSymbolAtLocation.gen(member.name);
+    const inherited: (NativeSymbol | undefined)[] = [];
+    for (const base of bases) {
+      inherited.push(yield* checker.getPropertyOfType.gen(base, member.name.text));
+    }
+    links.push({ from: keysOf([own]), to: keysOf(inherited) });
+  }
+  return links;
+}
+
 /** Every property site of a world resolved to the property declarations it means. A spread, computed key, `for…in`
  *  or reflective call credits its value expression's site to each property it reads. */
 export function propertyIndex(world: NativeWorld): ReferenceIndex {
   const lookups: Lookup[] = [];
+  const extending: InterfaceDeclaration[] = [];
   const reflections: (Reflection<Node> & { readonly site: Site })[] = [];
   const indexed: { readonly member: Node; readonly owner: Node; readonly name: string }[] = [];
   const implementations: Signature[] = [];
@@ -335,6 +368,9 @@ export function propertyIndex(world: NativeWorld): ReferenceIndex {
     }
     if (isFunctionDeclaration(node) && node.body !== undefined && node.name !== undefined) {
       implementations.push(node as Signature);
+    }
+    if (isInterfaceDeclaration(node) && node.heritageClauses !== undefined) {
+      extending.push(node);
     }
   });
   const { checker } = world;
@@ -358,8 +394,9 @@ export function propertyIndex(world: NativeWorld): ReferenceIndex {
     }),
   );
   const overloaded = world.batch(implementations.flatMap(overloadPairs).map((pair) => overloadLinks(checker, pair)));
+  const redeclared = world.batch(extending.map((declaration) => redeclarations(checker, declaration)));
   const index = new Map<string, Site[]>();
-  const links: Link[] = [...derived, ...overloaded.flat()];
+  const links: Link[] = [...derived, ...overloaded.flat(), ...redeclared.flat()];
   for (const [at, lookup] of lookups.entries()) {
     const { symbols, own } = found[at] ?? { symbols: [], own: undefined };
     for (const symbol of symbols) {
