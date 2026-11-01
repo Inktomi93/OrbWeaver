@@ -14,7 +14,7 @@ A host with no shell skill, on bare metal or Docker, takes one step and friends 
 
 The sibling legacy source named in `AGENTS.md` (Test layout) is reference-only. It is not run, compiled or included in CI.
 
-Legs T, L, H, R, S, D and J are built. Docker sharing uses the pinned relay download defined by D272. Its runtime supplies system certificate authorities, and a disposable-volume proof verifies public health and cache reuse after restart. Optional IP certificates remain in `docs/work/0172-easy-sharing-leg-c-an-automatic-ip-certificate.md`. The sections below describe the design and its probes; claims marked unverified still need proof.
+Legs T, L, H, R, S, D and J are built. Docker sharing uses the pinned relay download defined by D272. Its runtime supplies system certificate authorities, and a disposable-volume proof verifies public health and cache reuse after restart. Optional IP certificates (leg C) are built; their live issuance proof was waived by the owner, because the owner's region blocking drops some Let's Encrypt validation probes. The sections below describe the design and its probes; claims marked unverified still need proof.
 
 ### 1. Premises re-derived against the tree
 
