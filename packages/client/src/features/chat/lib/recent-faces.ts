@@ -13,19 +13,18 @@
 import type { CharacterId } from "@orb/kit/ids";
 import type { FaceStripItem } from "#components";
 //
-// UNCAPPED by default (FACEFILT): the curation answers "who, in what order", and the STRIP answers "how many
+// UNCAPPED (FACEFILT): the curation answers "who, in what order", and the STRIP answers "how many
 // fit" by measuring the pane it lives in — a count here was a second, blinder answer to the same question,
 // and the one that produced a sideways-scrolling row on a six-character library. Everyone past the fold is
-// still reachable through the strip's picker, so nothing this returns is wasted. `cap` survives for a caller
-// that genuinely has one.
+// still reachable through the strip's picker, so nothing this returns is wasted.
 
 /** The chat shape the curation reads (a structural subset of `ChatSummary`), already in recency order. */
 export interface FaceSourceChat {
   readonly participantPortraits: readonly { readonly characterId: CharacterId; readonly name: string; readonly avatarHash: string | null }[];
 }
 
-/** Distinct character seats in first-appearance order across `chats`; `cap` bounds the run when given. */
-export function recentFaces(chats: readonly FaceSourceChat[], cap?: number): readonly FaceStripItem[] {
+/** Distinct character seats in first-appearance order across `chats`. */
+export function recentFaces(chats: readonly FaceSourceChat[]): readonly FaceStripItem[] {
   const faces: FaceStripItem[] = [];
   const seen = new Set<string>();
   for (const chat of chats) {
@@ -35,9 +34,6 @@ export function recentFaces(chats: readonly FaceSourceChat[], cap?: number): rea
       }
       seen.add(seat.characterId);
       faces.push({ id: seat.characterId, name: seat.name, avatarHash: seat.avatarHash });
-      if (cap !== undefined && faces.length >= cap) {
-        return faces;
-      }
     }
   }
   return faces;

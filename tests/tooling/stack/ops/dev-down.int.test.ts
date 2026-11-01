@@ -105,7 +105,7 @@ server.listen(0, "127.0.0.1", () => process.stdout.write(JSON.stringify({ port: 
       };
       const outcome = await doDevDown(context, {}, { readPorts });
       expect(outcome).toBe(finalRead === "free" ? EXIT.clean : EXIT.toolError);
-      expect(child.exitCode !== null || child.signalCode !== null).toBe(true);
+      expect(child.exitCode ?? child.signalCode).not.toBeNull();
       expect(postExitReads).toBeGreaterThanOrEqual(3);
     } finally {
       killPidGroup(child.pid, "SIGKILL");

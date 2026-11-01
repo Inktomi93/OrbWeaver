@@ -26,6 +26,14 @@ import {
 import type { OrbRule } from "./syntax.ts";
 import { restrictionRule } from "./syntax.ts";
 import { ctNegativeOnlyCaseRule } from "./test-absence.ts";
+import type { CssVocabulary } from "./test-derivation.ts";
+import {
+  noBareThrowAssertionRule,
+  noFilteredCaseTableRule,
+  noHandTypedCssTokenRule,
+  noSpreadCorpusCaptureRule,
+  noUnseededTypeIdRule,
+} from "./test-derivation.ts";
 import type { ExportedLabel } from "./test-labels.ts";
 import { handCopiedLabelRule } from "./test-labels.ts";
 import {
@@ -38,6 +46,7 @@ import {
 import { ctResponderReadsInputRule } from "./test-routes.ts";
 import { ctPollIntervalsSharedRule, evaluateNoScopeCaptureRule, typedTestIdRule, uiCtColorRule } from "./tests.ts";
 import { textVoiceOnlyRule } from "./text-voices.ts";
+import { trpcPayloadKeysRule } from "./trpc-payload.ts";
 import type { AppearanceVocabulary } from "./ui-appearance.ts";
 import { appearanceNameRule } from "./ui-appearance.ts";
 import { floorlessControlRule, registerApiRule, registryContextRule, stateFilesRule, storeDerivedRule } from "./ui-composition.ts";
@@ -128,6 +137,8 @@ export function createOrbPlugin(options: {
   domLookupHomes: readonly DomLookupHome[];
   /** The D336 tones that carry a base `--color-*` token, whose hand-written colour recipes are refused. */
   intentColors: readonly string[];
+  /** The `TOKENS` and `MEDIA_QUERIES` spellings a test reads instead of typing. */
+  cssVocabulary: CssVocabulary;
 }): {
   rules: Record<string, OrbRule>;
 } {
@@ -181,12 +192,18 @@ export function createOrbPlugin(options: {
       "ct-poll-intervals-shared": ctPollIntervalsSharedRule,
       "ct-responder-reads-input": ctResponderReadsInputRule,
       "ct-negative-only-case": ctNegativeOnlyCaseRule,
+      "no-hand-typed-css-token": noHandTypedCssTokenRule(options.cssVocabulary),
+      "no-bare-throw-assertion": noBareThrowAssertionRule,
+      "no-unseeded-type-id": noUnseededTypeIdRule,
+      "no-filtered-case-table": noFilteredCaseTableRule,
+      "no-spread-corpus-capture": noSpreadCorpusCaptureRule,
       "no-hand-copied-label": handCopiedLabelRule(options.exportedLabels, options.exportedProductionValues),
       "no-floorless-control-in-wrap": floorlessControlRule(options.floorlessControls),
       "evaluate-no-scope-capture": evaluateNoScopeCaptureRule,
       "assumes-single-replica": assumesSingleReplicaRule,
       "no-module-state": moduleStateRule,
       "derived-port-member": derivedPortMemberRule,
+      "trpc-payload-declared-keys": trpcPayloadKeysRule,
       "no-hardcoded-side-gen-sampling": sideGenSamplingRule,
       "session-channel-boundary": sessionChannelBoundaryRule,
       "detached-work-traced": detachedWorkRule,

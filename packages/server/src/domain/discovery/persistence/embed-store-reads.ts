@@ -903,13 +903,8 @@ interface OwnedSegmentVector {
 }
 
 /** The owner's verbatim segment vectors for the similar-chats centroid scan — the target chat's segments
- *  always, then the most-recent segments across the owner's other hosted chats, up to `cap` rows total. */
-export async function readOwnedSegmentVectorsByChat(
-  db: Db,
-  ownerId: UserId,
-  targetChatId: ChatId,
-  cap: number = SIMILAR_CHATS_SEG_CAP,
-): Promise<OwnedSegmentVector[]> {
+ *  always, then the most-recent segments across the owner's other hosted chats, up to {@link SIMILAR_CHATS_SEG_CAP} rows total. */
+export async function readOwnedSegmentVectorsByChat(db: Db, ownerId: UserId, targetChatId: ChatId): Promise<OwnedSegmentVector[]> {
   return await db
     .select({
       chatId: chatSegments.chatId,
@@ -932,7 +927,7 @@ export async function readOwnedSegmentVectorsByChat(
     .where(currentSegment)
     // Target chat first (its rows are never evicted by the cap), then recency for the rest.
     .orderBy(desc(eq(chatSegments.chatId, targetChatId)), desc(chatSegments.createdAt))
-    .limit(cap);
+    .limit(SIMILAR_CHATS_SEG_CAP);
 }
 
 /** Representative source rows remain scoped at the cluster read boundary. */

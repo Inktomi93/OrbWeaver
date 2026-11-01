@@ -4,6 +4,7 @@ import { seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
@@ -67,7 +68,7 @@ const CASES = [
   { style: "tide", avatars: true, width: 1440 },
 ] as const;
 async function expectRippleFits(row: Locator): Promise<void> {
-  const facts = await row.evaluate((element) => {
+  const facts = await row.evaluate((element, readingBubbleCap) => {
     const scroll = element.closest('[data-slot="message-list-scroll"]');
     if (scroll === null) {
       throw new Error("Missing transcript scrollport");
@@ -86,7 +87,7 @@ async function expectRippleFits(row: Locator): Promise<void> {
       throw new Error("Missing bubble");
     }
     const probe = document.createElement("span");
-    probe.style.cssText = "position:absolute;visibility:hidden;inline-size:var(--reading-bubble-cap)";
+    probe.style.cssText = `position:absolute;visibility:hidden;inline-size:var(${readingBubbleCap})`;
     bubble.append(probe);
     const cap = probe.getBoundingClientRect().width;
     probe.remove();
@@ -96,7 +97,7 @@ async function expectRippleFits(row: Locator): Promise<void> {
       overflow: Math.max(...[...boxes, ...lines].map((box) => Math.max(edge.left - box.left, box.right - edge.right))),
       portrait: element.querySelector('[data-slot="avatar-root"]')?.getBoundingClientRect().width ?? 0,
     };
-  });
+  }, TOKENS["reading.bubble-cap"].cssVar);
   expect(facts.overflow).toBeLessThanOrEqual(1);
   expect(facts.portrait).toBeGreaterThan(0);
   expect(facts.bubbleWidth).toBeLessThanOrEqual(facts.cap);

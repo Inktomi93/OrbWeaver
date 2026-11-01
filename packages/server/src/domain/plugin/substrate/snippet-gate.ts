@@ -30,13 +30,13 @@ const SNIPPET_CONCURRENCY_PER_USER = 4;
 /** Build the process-wide snippet gate. Zero state per user at rest: the map holds a key only while that user
  *  has a run in flight (the release deletes the entry at 0), so a long-lived process accumulates nothing and
  *  needs no sweep — the counted thing is inherently transient, unlike the notify floor's cooldown timestamps. */
-export function createSnippetGate(max: number = SNIPPET_CONCURRENCY_PER_USER): SnippetGate {
+export function createSnippetGate(): SnippetGate {
   const running = new Map<UserId, number>();
   return {
     admit: (userId): (() => void) => {
       const current = running.get(userId) ?? 0;
-      if (current >= max) {
-        throw new PluginSnippetBusyError(max);
+      if (current >= SNIPPET_CONCURRENCY_PER_USER) {
+        throw new PluginSnippetBusyError(SNIPPET_CONCURRENCY_PER_USER);
       }
       running.set(userId, current + 1);
       // The release is IDEMPOTENT: a caller that somehow released twice must not hand its neighbour a free slot

@@ -11,7 +11,6 @@ export interface DetectArgs {
   readonly baseUrl: string;
   readonly secret: string | null;
   readonly headers?: Readonly<Record<string, string>> | undefined;
-  readonly signal?: AbortSignal | undefined;
 }
 
 export interface EndpointFetchArgs {

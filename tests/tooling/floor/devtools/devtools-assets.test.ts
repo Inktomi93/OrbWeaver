@@ -181,7 +181,7 @@ test("the verified asset server binds loopback and serves only exact GET/HEAD me
   } finally {
     await server.close();
   }
-  await expect(fetch(`${server.origin}${path}`)).rejects.toThrow();
+  await expect(fetch(`${server.origin}${path}`)).rejects.toThrow("fetch failed");
 });
 
 test("hash drift fails before the asset server opens", async () => {
@@ -195,7 +195,7 @@ test("the formatter worker cannot disappear from the generated closure", async (
   roots.push(root);
   await cp(REAL_ROOT, root, { recursive: true });
   await unlink(join(root, `assets/serve_rev/@${REAL_REVISION}/entrypoints/formatter_worker/formatter_worker-entrypoint.js`));
-  expect(() => verifyDevToolsAssets(root)).toThrow();
+  expect(() => verifyDevToolsAssets(root)).toThrow("DevTools asset is not a regular owned file");
 });
 
 test("the installed Playwright and Chromium versions must match the tuple pin", async () => {
@@ -210,7 +210,7 @@ test("the installed Playwright and Chromium versions must match the tuple pin", 
 test("missing notices and unexpected members fail the exact inventory", async () => {
   const missing = await syntheticRoot();
   await unlink(join(missing.root, missing.notice));
-  expect(() => verifyDevToolsAssets(missing.root)).toThrow();
+  expect(() => verifyDevToolsAssets(missing.root)).toThrow("DevTools license is not a regular owned file");
 
   const extra = await syntheticRoot();
   await writeFile(join(extra.root, "unexpected.txt"), "not in the manifest");

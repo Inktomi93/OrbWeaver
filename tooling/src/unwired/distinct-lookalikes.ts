@@ -76,11 +76,9 @@ export const DISTINCT_LOOKALIKES = [
       "packages/client/src/features/refinery/surfaces/refinery-content-surface.tsx#setOpen",
       "packages/client/src/features/regex/components/regex-bulk-placement-dialog.tsx#onOpenChange",
       "packages/client/src/features/user-admin/components/admin-create-user-dialog.tsx#onOpenChange",
-      "packages/client/src/features/user-admin/components/admin-link-sso-dialog.tsx#onOpenChange",
+      "packages/client/src/features/user-admin/lib/admin-model.ts#onOpenChange",
       "packages/client/src/features/user-admin/components/admin-override-field.tsx#onSet",
-      "packages/client/src/features/user-admin/components/admin-reset-password-dialog.tsx#onOpenChange",
       "packages/client/src/features/user-admin/components/admin-user-row.tsx#onSetEnabled",
-      "packages/client/src/features/user-admin/components/admin-user-sessions-dialog.tsx#onOpenChange",
       "packages/client/src/features/workloads/components/create-schedule-dialog.tsx#onOpenChange",
       "packages/client/src/features/workloads/components/run-workload-dialog.tsx#onOpenChange",
       "packages/client/src/features/workloads/components/schedules-section.tsx#onToggle",
@@ -136,7 +134,6 @@ export const DISTINCT_LOOKALIKES = [
   {
     shape: "packages/client/src/features/discovery/components/corpus-controls.tsx#ParamToggleOption",
     distinctFrom: [
-      "packages/client/src/features/preset/lib/assembly-model.ts#ToggleItem",
       "packages/client/src/state/config-group-registry.ts#ConfigSettingOption",
       "packages/contracts/src/plugin/ui.ts#PluginSelectOption",
       "packages/kit/src/macro/user-macros.ts#UserMacroInputOption",
@@ -159,17 +156,6 @@ export const DISTINCT_LOOKALIKES = [
     reason: "Log panel props; the plugin transform view is a wire view of another concept.",
   },
   {
-    shape: "packages/client/src/features/rpg/components/rpg-scene-cards.tsx#RpgSceneCardsProps",
-    distinctFrom: [
-      "packages/client/src/features/chat/hooks/use-context-panel-mutations.ts#SetCharactersCanReactVars",
-      "packages/client/src/features/chat/hooks/use-context-panel-mutations.ts#SetHostDisplayScriptsVars",
-      "packages/client/src/features/chat/hooks/use-context-panel-mutations.ts#SetMemberPersonaLoreVars",
-      "packages/client/src/features/chat/hooks/use-context-panel-mutations.ts#SetOfferChoicesVars",
-      "packages/client/src/features/chat/hooks/use-context-panel-mutations.ts#SetReactionsEnabledVars",
-    ],
-    reason: "Rpg component props; the matches are chat mutation variables, another layer and owner.",
-  },
-  {
     shape: "packages/client/src/features/tag/hooks/use-tag-library.ts#TagLibraryFact",
     distinctFrom: ["packages/client/src/lib/collection-contracts.ts#CollectionInsight"],
     reason: "Tag library facts render only on its own surface; collection insights are the collection host's contribution data.",
@@ -178,19 +164,6 @@ export const DISTINCT_LOOKALIKES = [
     shape: "packages/client/src/features/user-admin/components/admin-create-user-dialog.tsx#AdminCreateUserDialogProps",
     distinctFrom: ["packages/client/src/features/workloads/components/create-schedule-dialog.tsx#CreateScheduleDialogProps"],
     reason: "A user-admin dialog and a workloads dialog with the same three props; no flow.",
-  },
-  {
-    shape: "packages/client/src/features/user-admin/components/admin-link-sso-dialog.tsx#AdminLinkSsoDialogProps",
-    distinctFrom: [
-      "packages/client/src/features/user-admin/components/admin-reset-password-dialog.tsx#AdminResetPasswordDialogProps",
-      "packages/client/src/features/user-admin/components/admin-user-sessions-dialog.tsx#AdminUserSessionsDialogProps",
-    ],
-    reason: "Separate per-user admin dialogs; no dialog renders another.",
-  },
-  {
-    shape: "packages/client/src/features/user-admin/components/admin-reset-password-dialog.tsx#AdminResetPasswordDialogProps",
-    distinctFrom: ["packages/client/src/features/user-admin/components/admin-user-sessions-dialog.tsx#AdminUserSessionsDialogProps"],
-    reason: "Separate per-user admin dialogs; no dialog renders another.",
   },
   {
     shape: "packages/contracts/src/persona/owner-ops.ts#ExportPersonaParams",
@@ -515,7 +488,7 @@ export const DISTINCT_LOOKALIKES = [
   {
     shape: "packages/ui/src/primitives/message-list/pin-spacer.ts#PinnedSpan",
     distinctFrom: ["packages/kit/src/chunk/split.ts#Span", "packages/kit/src/content/index.ts#HiddenRun"],
-    reason: "Virtual-window pixel offsets, character spans and hidden tag runs: different concepts sharing {start, end}.",
+    reason: "Virtual-window pixel offsets, the chunker's character spans and hidden tag runs: different concepts sharing {start, end}.",
   },
   {
     shape: "packages/ui/src/stream/shimmer.tsx#StreamShimmerProps",

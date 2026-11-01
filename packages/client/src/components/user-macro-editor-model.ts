@@ -6,7 +6,7 @@ import { z } from "zod";
 import { formValuesEqual } from "#forms";
 
 const rowId = z.uuid();
-export const macroRowIdsSchema = z.object({
+const macroRowIdsSchema = z.object({
   id: rowId,
   args: z.array(rowId),
   inputs: z.array(z.object({ id: rowId, options: z.array(rowId) })),

@@ -1,17 +1,17 @@
 // Edit-in-place's textarea half — swapped in for MessageContent while a row is editing. The mode flag
 // and in-progress text both live in the external message-edit-draft store, never useState: the chat
 // surface does not keepMounted editing rows, so a component-local draft would silently drop on a
-// scroll-driven unmount/remount. An optional onSave overrides the chat.editMessage verb path (the draft
-// greeting seam, which persists sync to the draft-config store instead).
+// scroll-driven unmount/remount.
 
 import type { MessageView } from "@orb/contracts/chat";
-import type { ChatId, MessageId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Check, Icon, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Textarea } from "@orb/ui/textarea";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useLayoutEffect, useRef } from "react";
+import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
 import { cancelEditingMessage, setMessageEditDraft, useMessageEditDraftText } from "#state";
@@ -19,14 +19,7 @@ import { MESSAGE_EDIT_NAME } from "../lib/message-action-names.ts";
 import type { MoveNeighbours } from "../lib/move-neighbours.ts";
 import { MessageMoveArrows } from "./message-move-arrows.tsx";
 
-interface EditMessageVars {
-  readonly chatId: ChatId;
-  readonly messageId: MessageId;
-  readonly content: string;
-  readonly timeZone: string;
-}
-
-const useEditMessageMutation = createEntityMutation<EditMessageVars, unknown>({
+const useEditMessageMutation = createEntityMutation<inferInput<Trpc["chat"]["editMessage"]>, unknown>({
   options: (trpc) => trpc.chat.editMessage.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't save that edit.",
@@ -34,14 +27,12 @@ const useEditMessageMutation = createEntityMutation<EditMessageVars, unknown>({
 
 export interface MessageEditTextareaProps {
   readonly message: MessageView;
-  /** Overrides the chat.editMessage verb path; empty is allowed on this path. */
-  readonly onSave?: ((text: string) => void) | undefined;
   /** The host's Move up / Move down ride this toolbar; absent ⇒ no arrows. The verb is host-only, so only the
    *  host's row passes it. */
   readonly moveNeighbours?: MoveNeighbours | undefined;
 }
 
-export function MessageEditTextarea({ message, onSave, moveNeighbours }: MessageEditTextareaProps): ReactElement {
+export function MessageEditTextarea({ message, moveNeighbours }: MessageEditTextareaProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const editMessage = useEditMessageMutation({ trpc, invalidation });
@@ -62,11 +53,6 @@ export function MessageEditTextarea({ message, onSave, moveNeighbours }: Message
   };
 
   const save = async (): Promise<void> => {
-    if (onSave !== undefined) {
-      onSave(text);
-      cancelEditingMessage(message.id);
-      return;
-    }
     if (editMessage.isPending || text.length === 0) {
       return;
     }
@@ -125,7 +111,7 @@ export function MessageEditTextarea({ message, onSave, moveNeighbours }: Message
           variant="outline"
           size="sm"
           loading={editMessage.isPending}
-          disabled={onSave === undefined && text.length === 0}
+          disabled={text.length === 0}
           aria-label="Save edit"
           onClick={(): void => void save().catch(globalThis.reportError)}
         >

@@ -22,9 +22,7 @@ type CardEmbedFields = Pick<CharacterCard, "name" | "description" | "personality
 // consistent with the bytes that actually reach the vector, which is why the cut lives at this projection
 // and not only at the provider surface.
 //
-// The window is not a bare 8192 literal: the caller passes the engine's self-reported value when available,
-// else this falls to the single-home env floor (VLLM_EMBED_MAX_MODEL_LEN), which is also the engine's launch
-// flag. One home, engine-self-report wins.
+// The window is the pooling-window floor, not a bare literal at the call site.
 
 /** Strip HTML, collapse runs of whitespace/newlines, trim per line. */
 function cleanText(text: string): string {
@@ -44,14 +42,14 @@ function normalizePlaceholders(text: string, charName: string, userName: string)
   return swapIdentityMacros(text, { char: charName, user: userName });
 }
 
-/** Field ORDER is load-bearing: last-token pooling weights later text less, so identity fields lead.
- *  `maxTokens` is the RESOLVED embed model's window (`EmbeddingCapability.maxInputTokens`, inference program
- *  §10-5); the default is the pooling-window floor a bare unit call sizes off. */
-/** The embed window floor when no model is resolved — the pooling engines' 8192 (the pre-program env default). */
-const DEFAULT_EMBED_WINDOW_TOKENS = 8192;
+/** The embed window floor — the pooling engines' 8192. */
+const EMBED_WINDOW_TOKENS = 8192;
+/** What `{{user}}` projects to: a card is embedded without any viewer. */
+const USER_PLACEHOLDER_NAME = "User";
 
-export function buildCardEmbedText(card: CardEmbedFields, userName = "User", maxTokens: number = DEFAULT_EMBED_WINDOW_TOKENS): string {
-  const budget = safeTokenWindow(maxTokens);
+/** Field ORDER is load-bearing: last-token pooling weights later text less, so identity fields lead. */
+export function buildCardEmbedText(card: CardEmbedFields): string {
+  const budget = safeTokenWindow(EMBED_WINDOW_TOKENS);
   const name = card.name;
   const first = card.greetings[0]?.text ?? null;
   const alternates = card.greetings.slice(1);
@@ -60,7 +58,7 @@ export function buildCardEmbedText(card: CardEmbedFields, userName = "User", max
     if (value === null || value.length === 0) {
       return null;
     }
-    const cleaned = cleanText(normalizePlaceholders(value, name, userName));
+    const cleaned = cleanText(normalizePlaceholders(value, name, USER_PLACEHOLDER_NAME));
     return cleaned.length > 0 ? `${label}: ${cleaned}` : null;
   };
 
@@ -74,7 +72,7 @@ export function buildCardEmbedText(card: CardEmbedFields, userName = "User", max
 
   if (alternates.length > 0) {
     const joined = alternates
-      .map((g) => cleanText(normalizePlaceholders(g.text, name, userName)))
+      .map((g) => cleanText(normalizePlaceholders(g.text, name, USER_PLACEHOLDER_NAME)))
       .filter((g) => g.length > 0)
       .join("\n---\n");
     if (joined.length > 0) {

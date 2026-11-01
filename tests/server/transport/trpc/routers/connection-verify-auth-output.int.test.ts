@@ -2,7 +2,8 @@
 // @subject packages/contracts/src/providers/index.ts
 import type { VerifyAuthResult } from "@orb/contracts/providers";
 import { verifyAuthAccountSchema } from "@orb/contracts/providers";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
+import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
@@ -12,7 +13,7 @@ const VERIFIED: VerifyAuthResult = { source: "max-pro-sub", ok: true, apiKeySour
 test("the verify-auth result refuses a key the wire does not declare instead of dropping it", async () => {
   await using root = await createServerHarness();
   const caller = await root.internalCallerFor(root.ownerId);
-  const connectionId = mintTypeId(ID_PREFIX.userConnection);
+  const connectionId = createSeededIds().typeId(ID_PREFIX.userConnection);
   const verify = vi.spyOn(root.services.connection, "verifyAuth");
   try {
     verify.mockResolvedValueOnce(VERIFIED);

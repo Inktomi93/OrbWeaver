@@ -1,3 +1,4 @@
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { MenuClampStory } from "./_clamp-stories.tsx";
@@ -10,16 +11,16 @@ interface Clamp {
 
 /** The popup's own max block size against the space Base UI left it and the chrome row token, all as resolved. */
 function clampOf(popup: Locator): Promise<Clamp> {
-  return popup.evaluate((element) => {
+  return popup.evaluate((element, dimensionChromeRow) => {
     const style = getComputedStyle(element);
     const rootFont = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
-    const chrome = style.getPropertyValue("--dimension-chrome-row").trim();
+    const chrome = style.getPropertyValue(dimensionChromeRow).trim();
     return {
       maxHeight: Number.parseFloat(style.maxHeight),
       available: Number.parseFloat(style.getPropertyValue("--available-height")),
       chromeRow: chrome.endsWith("rem") ? Number.parseFloat(chrome) * rootFont : Number.parseFloat(chrome),
     };
-  });
+  }, TOKENS["dimension.chrome-row"].cssVar);
 }
 
 test("the default clamp runs to the viewport edge and belowChrome stops one chrome row short of it", async ({ mount, page }) => {

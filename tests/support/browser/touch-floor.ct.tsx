@@ -93,5 +93,5 @@ test("maintained browser boundaries: pitch retains first-sibling origin and unco
   );
   expect(await measurePitch(page.locator("#grid button"))).toEqual({ x: 50, y: 60 });
   expect(await measurePitch(page.locator("#single button"))).toEqual({ x: Number.POSITIVE_INFINITY, y: Number.POSITIVE_INFINITY });
-  await expect(measurePitch(page.locator("html"))).rejects.toThrow();
+  await expect(measurePitch(page.locator("html"))).rejects.toThrow("has no parent element");
 });

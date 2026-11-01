@@ -1,5 +1,7 @@
 // The base-layer element defaults of the platform baseline (docs/plans/css-system/design.md). Runs on Chromium and on the
 // opt-in webkit-iphone project.
+
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
 import type { PlatformBaselineStory } from "./_platform-baseline-stories.tsx";
 
@@ -10,14 +12,14 @@ test.beforeEach(async ({ mount }) => {
 });
 
 test("native controls take the primary colour", async ({ page }) => {
-  const read = await page.evaluate(() => {
+  const read = await page.evaluate((colorPrimary) => {
     const probe = document.createElement("span");
-    probe.style.color = "var(--color-primary)";
+    probe.style.color = `var(${colorPrimary})`;
     document.body.append(probe);
     const primary = getComputedStyle(probe).color;
     probe.remove();
     return { primary, accent: getComputedStyle(document.querySelector('input[type="checkbox"]') as Element).accentColor };
-  });
+  }, TOKENS["color.primary"].cssVar);
   expect(read.accent).toBe(read.primary);
 });
 

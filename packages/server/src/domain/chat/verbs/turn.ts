@@ -30,11 +30,12 @@ import type {
 } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP, buildIdentityNameContext, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
 import type { ParticipantRoleState, Principal } from "@orb/contracts/identity";
+import type { BindingActor } from "@orb/contracts/inference";
 import type { GenerationType, GuidedImpersonatePerson, UserIntent, UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { PRESET_FORMAT_SLOT_IDS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
 import { batchMany, isConstraintViolation } from "@orb/db/query";
-import type { BindingActor, Resolved, WireTool } from "@orb/inference";
+import type { Resolved, WireTool } from "@orb/inference";
 import { resolveSideGenSampling } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, MacroRegistry, RandomSource, UserMacroDef } from "@orb/kit/macro";
@@ -103,7 +104,7 @@ import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
 import { projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { ownedCitedAssetIds } from "../substrate/owned-citations.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
-import { humanSeatPersonasOf, memberPersonaIdsOf, presentAndEnabledHumanUserIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
+import { humanSeatPersonasOf, lorePersonaIdsOf, presentAndEnabledHumanUserIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
@@ -230,7 +231,7 @@ interface Room {
   /** The `speakerKey`s of the present MUTED seats (character + agent) — the `unmutedCharacters` producer, keyed on
    *  the same seat `disabled` axis arbitration reads. Empty ⇒ nothing muted. */
   readonly mutedSpeakerKeys: ReadonlySet<string>;
-  /** The consented seats' personas — whose persona books join the world-info pool (`memberPersonaIdsOf`). */
+  /** The consented seats' personas and the room's pin — whose persona books join the world-info pool (`lorePersonaIdsOf`). */
   readonly personaIds: readonly PersonaId[];
   /** Every PRESENT human's `userId` — the FOREIGN persona read's CONSENT SET (`ResolveForeignInputsOp`):
    *  a persona resolves for this room iff its owner is one of these. Deliberately NOT presence-filtered (an
@@ -270,7 +271,7 @@ async function reasoningHostOnlyFor(ctx: ChatContext, chatId: ChatId, membership
 
 /** Loads the present roster → the {@link Room}. Hostless is unusable (leak-free NOT_FOUND). A deferred turn
  *  supplies its already-frozen host so cards, assembly, tools, and funding retain one identity across replay. */
-async function loadRoom(ctx: ChatContext, chatId: ChatId, frozenHostUserId?: UserId): Promise<Room> {
+async function loadRoom(ctx: ChatContext, chatId: ChatId, anchorPersonaId: PersonaId | null, frozenHostUserId?: UserId): Promise<Room> {
   const participants = await loadParticipants(ctx.db, chatId);
   const currentHostUserId = hostUserIdOf(participants);
   if (currentHostUserId === null) {
@@ -318,7 +319,7 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId, frozenHostUserId?: Use
     characterLines,
     characterIds: charRows.map((r) => r.characterId),
     mutedSpeakerKeys: new Set(candidates.filter((c) => c.disabled).map((c) => speakerKey(c.ref))),
-    personaIds: memberPersonaIdsOf(humanSeats),
+    personaIds: lorePersonaIdsOf(humanSeats, anchorPersonaId),
     presentHumanUserIds,
     humanSeats,
   };
@@ -1623,7 +1624,7 @@ async function commitUserTurn(
   // line ABOVE them — that path claims the chat first (R0 F4(a), every GENERATED turn claims), this one has
   // already committed a user row. Folding the trio would put the claim/no-claim decision behind a helper
   // whose name cannot carry it, which is the ordering bug this file has paid for before.
-  const room = await loadRoom(ctx, chatId);
+  const room = await loadRoom(ctx, chatId, membership.chat.anchorPersonaId);
   const identity = resolveTurnIdentityVia({
     principalUserId: principal.userId,
     hostUserId: room.hostUserId,
@@ -1800,7 +1801,7 @@ function createCommitMessage(ctx: ChatContext, deps: TurnDeps): ChatService["com
 function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService["forceCharacterTurn"] {
   return async ({ principal, chatId, characterId, intent, guided, timeZone }: ForceCharacterTurnParams): Promise<TurnOutcome> => {
     const membership = await requireHost(ctx, principal, chatId);
-    const room = await loadRoom(ctx, chatId);
+    const room = await loadRoom(ctx, chatId, membership.chat.anchorPersonaId);
     const identity = resolveTurnIdentityVia({
       principalUserId: principal.userId,
       hostUserId: room.hostUserId,
@@ -1970,7 +1971,7 @@ async function resolveTurnBase(
   // generate) share this base, so the claim cannot be forgotten on one of them. Each caller has
   // already run its own membership guard; this is before any engine write.
   await deps.claimChat(chatId);
-  const room = await loadRoom(ctx, chatId);
+  const room = await loadRoom(ctx, chatId, args.anchorPersonaId);
   const identity = resolveTurnIdentityVia({
     principalUserId: principal.userId,
     hostUserId: room.hostUserId,
@@ -2706,7 +2707,7 @@ async function runDeferredRound(
   if (chat === undefined) {
     throw new ChatNotFoundError(row.chatId);
   }
-  const room = await loadRoom(ctx, row.chatId, row.runAsUserId); // current hostless/gone → ChatNotFoundError (a drop)
+  const room = await loadRoom(ctx, row.chatId, chat.anchorPersonaId, row.runAsUserId); // current hostless/gone → ChatNotFoundError (a drop)
   const identity = { triggeredBy: row.triggeredBy, funderUserId: row.runAsUserId, runAsUserId: row.runAsUserId };
   const connection = await deps.resolveConnection({ funderUserId: identity.funderUserId, chatId: row.chatId });
   const group = chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
@@ -2928,7 +2929,7 @@ async function resolveRequestTurn(ctx: ChatContext, deps: TurnDeps, params: Requ
     throw new ChatNotFoundError(chatId);
   }
   // Resolves the FUNDING host from canon (never a caller-supplied id); hostless is unusable (leak-free).
-  const room = await loadRoom(ctx, chatId);
+  const room = await loadRoom(ctx, chatId, chat.anchorPersonaId);
   // A forced speaker must hold a present seat (presence only, as `forceCharacterTurn` checks it); a speaker with
   // no seat is a leak-free NOT_FOUND here, never a claim followed by a turn voiced by someone else.
   if (speakerCharacterId !== undefined && !room.candidates.some((c) => c.ref.characterId === speakerCharacterId && c.leftSeq === null)) {

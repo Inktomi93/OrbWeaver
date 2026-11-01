@@ -28,4 +28,8 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Two rows, both applied (applied 2, kept 0, handed off 0, owner question 0).
+
+- `UserMacrosFormValues`: `packages/client/src/components/index.ts` now exports it from `./user-macro-editor-model.ts`; the dialog's pass-through is gone. Scan: ast-grep ts+tsx over `packages tests`, no other importer used the dialog path.
+- `ListPaneHeaderProps`: the `export type ... from "#lib"` in `list-pane-header.tsx` is deleted; no importer used it (ast-grep ts+tsx), `#lib` still exports it from `list-pane-header-view.ts`.
+- `pnpm typecheck packages/client/tsconfig.json` exit 0.

@@ -27,4 +27,6 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+One row: one applied, none kept, none handed off, no owner questions.
+
+`useRulePresetCatalogue` in `packages/client/src/features/roster-preset/hooks/use-saved-rosters.ts` takes no parameter and runs the query unconditionally. The three callers (`use-start-roster.ts:32`, `roster-picker.tsx:269`, `roster-member-surface.tsx:84`) passed `true`; `enabled` is a query gate with no design-system axis. Literal `rg` over `packages tests tooling scripts` shows no other caller. Proof: client typecheck clean; roster-preset CTs in the lane report.

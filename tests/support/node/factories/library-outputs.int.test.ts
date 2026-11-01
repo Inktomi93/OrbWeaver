@@ -3,6 +3,7 @@
 // @subject tests/support/node/corpus-library-views.ts
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import { isPlainObject } from "@orb/kit/guards";
 import { seedPersonaLibraryViews, seedRegexLibraryViews, seedTagLibraryViews, seedWorldInfoLibraryViews } from "../corpus-library-views.ts";
 import { seedCorpusLibraries } from "../corpus-seed.ts";
@@ -64,7 +65,7 @@ test("world book import defaults admit a native named book and title repair capt
   expect((await caller.worldInfo.listEntries({ bookId: book.id })).map((row) => row.title)).toEqual(["archive, witness", ""]);
   expect(await other.worldInfo.listEntries({ bookId: foreignBook.id })).toEqual(foreignBefore);
   expect((await seedBackfilledWorldTitlesRows(root, { principal, bookId: book.id })).result).toEqual({ filled: 0 });
-  await expect(seedBackfilledWorldTitlesRows(root, { principal, bookId: foreignBook.id })).rejects.toThrow();
+  await expect(seedBackfilledWorldTitlesRows(root, { principal, bookId: foreignBook.id })).rejects.toThrow(DomainNotFoundError);
 });
 
 test("world library outputs preserve attachment roles, entry ordering, portable collisions and owner boundaries", async () => {

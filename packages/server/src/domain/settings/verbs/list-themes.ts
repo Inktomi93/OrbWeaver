@@ -1,13 +1,13 @@
 // verb: listThemes — the caller's own themes PLUS every seed palette, as views. Read-only; no audit.
 
-import type { ThemeView } from "@orb/contracts/settings";
+import type { Theme } from "@orb/contracts/theme";
 import type { ListThemesParams } from "../contract/params.ts";
 import type { SettingsContext, SettingsService } from "../contract/service.ts";
 import { listReadableThemes } from "../persistence/theme-queries.ts";
 import { toThemeView } from "../substrate/theme-views.ts";
 
 export function createListThemes(ctx: SettingsContext): Pick<SettingsService, "listThemes"> {
-  async function listThemes(params: ListThemesParams): Promise<ThemeView[]> {
+  async function listThemes(params: ListThemesParams): Promise<Theme[]> {
     const rows = await listReadableThemes(ctx.db, params.principal.userId);
     return rows.map(toThemeView);
   }

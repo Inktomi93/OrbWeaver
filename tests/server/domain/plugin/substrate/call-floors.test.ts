@@ -21,10 +21,10 @@ test("the hourly floor refuses the call past its limit and releases when the hou
   for (let call = 0; call < LIMIT; call += 1) {
     expect(() => floor.admit(plugin)).not.toThrow();
   }
-  expect(() => floor.admit(plugin)).toThrow(Error);
+  expect(() => floor.admit(plugin)).toThrow("llm.quiet is limited");
 
   clock.advance(MS_PER_HOUR - 1);
-  expect(() => floor.admit(plugin)).toThrow();
+  expect(() => floor.admit(plugin)).toThrow("llm.quiet is limited");
   clock.advance(1);
   expect(() => floor.admit(plugin)).not.toThrow();
 });
@@ -35,7 +35,7 @@ test("each plugin has its own hourly budget", ({ ids }) => {
   const second = mintTypeId("plugin", ids.next);
 
   floor.admit(first);
-  expect(() => floor.admit(first)).toThrow();
+  expect(() => floor.admit(first)).toThrow("net.fetch is limited");
   expect(() => floor.admit(second)).not.toThrow();
 });
 
@@ -46,9 +46,9 @@ test("the notice floor spaces one plugin's notices per chat and releases at the 
   const chat = mintTypeId("chat", ids.next);
 
   floor.admit(plugin, chat);
-  expect(() => floor.admit(plugin, chat)).toThrow();
+  expect(() => floor.admit(plugin, chat)).toThrow("notifications.post is limited");
   clock.advance(COOLDOWN_MS - 1);
-  expect(() => floor.admit(plugin, chat)).toThrow();
+  expect(() => floor.admit(plugin, chat)).toThrow("notifications.post is limited");
   clock.advance(1);
   expect(() => floor.admit(plugin, chat)).not.toThrow();
 });
@@ -63,5 +63,5 @@ test("a notice in one room or from one plugin never mutes another pair", ({ ids 
   floor.admit(plugin, chat);
   expect(() => floor.admit(plugin, otherChat)).not.toThrow();
   expect(() => floor.admit(otherPlugin, chat)).not.toThrow();
-  expect(() => floor.admit(plugin, chat)).toThrow();
+  expect(() => floor.admit(plugin, chat)).toThrow("notifications.post is limited");
 });

@@ -5,7 +5,7 @@
 // target and a subject already bound elsewhere; those surface as the sticky mutation error. Base UI unmounts
 // the closed popup, so a reopen never shows a previous subject.
 
-import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
+import type { ExternalId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
@@ -17,16 +17,10 @@ import { FormDialog, FormSubmitButton } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { notify, testId } from "#lib";
 import { useLinkSsoIdentity } from "../hooks/use-admin-mutations.ts";
-
-export interface AdminLinkSsoDialogProps {
-  readonly userId: UserId;
-  readonly handle: Handle;
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
-}
+import type { AdminUserDialogProps } from "../lib/admin-model.ts";
 
 /** The dialog shell — the body mounts fresh per open (Base UI unmounts closed popups). */
-export function AdminLinkSsoDialog(props: AdminLinkSsoDialogProps): ReactElement {
+export function AdminLinkSsoDialog(props: AdminUserDialogProps): ReactElement {
   return (
     <FormDialog
       description="Stamp this account's stable SSO subject (the IdP's sub/uid — never an email) so their first single sign-on lands on this same account instead of a new one."

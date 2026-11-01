@@ -40,4 +40,9 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Fourteen rows: applied 13, kept 1, handed off 0, owner question 0.
+
+- `CardImportResult` x3 (`import-characters.ts`, `data/index.ts`) and `ChatImportResult` x3 (`import-chats.ts`, `data/index.ts`): the data re-exports are deleted; the three consumers (`character-import-dialog.tsx`, `portability-model.ts`, `chat-import-dialog.tsx`) import the type from `@orb/contracts/import`, its home. Scan: ast-grep ts+tsx over `packages tests`; no other importer used the `#data` path.
+- `ChatBusDeps`, `markTurnStopping`, `recoverTurnAfterStopFailure`, `useBusRoom`, `useChatBus`, `useChatBusDeps`, `useOrbSocket`, `useRpgBus`, `useUserBus`: `data/index.ts` exports each from its home file under `data/bus/`. `data/bus/index.ts` had no other importer (rg over `packages tests` and configs) and is deleted.
+- `InvalidateFilter`: kept. No such symbol exists (ast-grep ts+tsx 0 hits, rg 0); `data/index.ts` already exports `Invalidation` straight from `./invalidation.ts`, its home.
+- `pnpm typecheck packages/client/tsconfig.json tsconfig.tests-dom.json` exit 0; `pnpm lint:eslint` on the touched files exit 0; `pnpm depcruise` exit 0.

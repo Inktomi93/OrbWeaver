@@ -266,7 +266,7 @@ export function RosterPicker(): ReactElement {
   // The catalogue is a static CODE catalogue and every door in this surface needs it: the include-line's
   // knob gloss, and the apply report's naming of a REFUSED rule (which can happen from the library plane,
   // with no room open at all — so it is not gated on hosting the way the capture read is).
-  const catalogue = useRulePresetCatalogue(true);
+  const catalogue = useRulePresetCatalogue();
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const create = useCreateRosterPreset({ trpc, invalidation });

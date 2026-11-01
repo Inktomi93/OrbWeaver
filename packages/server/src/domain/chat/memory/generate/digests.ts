@@ -48,7 +48,6 @@ interface GenerateDigestsArgs {
   readonly config?: MemoryConfig | null | undefined;
   readonly witnessing?: readonly WitnessInterval[] | undefined;
   readonly signal?: AbortSignal | undefined;
-  readonly embedSpace?: MemoryEmbedSpace | undefined;
   readonly embedOwnerId?: UserId | undefined;
 }
 
@@ -195,7 +194,7 @@ export async function planDigests(ctx: ChatContext, args: GenerateDigestsArgs): 
   if (summarizerContextTokens < SUMMARIZER_CONTEXT_FLOOR) {
     logBuild(ctx, args.scope, { startedAt, counts: EMPTY_TIER0_COUNTS, note: "summarizer context below floor" });
   }
-  const embedSpace = args.embedSpace ?? (await ctx.resolveMemoryEmbedSpace(args.embedOwnerId ?? args.funderUserId));
+  const embedSpace = await ctx.resolveMemoryEmbedSpace(args.embedOwnerId ?? args.funderUserId);
 
   const canon = await loadCanonThroughSeq(ctx.db, chatId, cutoff);
   const macroNames = await loadTranscriptNames(ctx.db, canon);

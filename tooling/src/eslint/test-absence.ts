@@ -53,13 +53,18 @@ const EQUAL_MATCHERS = new Set(["toEqual", "toStrictEqual"]);
 const MESSAGE =
   "Every assertion in this case proves something absent, so it passes when the setup never reached the guard. Add a positive control: assert the presence or the value the same setup produces on the allowed path.";
 
+const DISJUNCTION_MESSAGE =
+  "An `||` inside a truth assertion hides which operand held, and passes when the one the case is about is false. Assert the value: `toContain` for a set of outcomes, a bound for a range, or one `expect` per operand.";
+const TRUE_MATCHERS = new Set(["toBe", "toEqual", "toStrictEqual"]);
+
 interface Assertion {
   readonly matcher: string;
   readonly negated: boolean;
   readonly argument: TSESTree.CallExpressionArgument | undefined;
+  readonly subject: TSESTree.CallExpressionArgument | undefined;
 }
 
-function isExpectRoot(node: TSESTree.Node): boolean {
+function isExpectRoot(node: TSESTree.Node): node is TSESTree.CallExpression {
   if (node.type !== "CallExpression") {
     return false;
   }
@@ -82,7 +87,7 @@ function assertionOf(call: TSESTree.CallExpression): Assertion | undefined {
     negated ||= target.property.name === "not";
     target = target.object;
   }
-  return isExpectRoot(target) ? { matcher: callee.property.name, negated, argument: call.arguments[0] } : undefined;
+  return isExpectRoot(target) ? { matcher: callee.property.name, negated, argument: call.arguments[0], subject: target.arguments[0] } : undefined;
 }
 
 function isEmptyValue(argument: TSESTree.CallExpressionArgument | undefined): boolean {
@@ -106,6 +111,19 @@ function provesAbsence({ matcher, negated, argument }: Assertion): boolean {
     return isEmptyValue(argument);
   }
   return EQUAL_MATCHERS.has(matcher) && argument?.type === "ArrayExpression" && isEmptyValue(argument);
+}
+
+function holdsDisjunction(node: TSESTree.Node | undefined): boolean {
+  if (node?.type !== "LogicalExpression" || node.operator === "??") {
+    return false;
+  }
+  return node.operator === "||" || holdsDisjunction(node.left) || holdsDisjunction(node.right);
+}
+
+// `expect(a || b).toBe(true)`, and the same `||` as an operand of `&&`.
+function isTruthOfDisjunction({ matcher, negated, argument, subject }: Assertion): boolean {
+  const assertsTrue = matcher === "toBeTruthy" || (TRUE_MATCHERS.has(matcher) && argument?.type === "Literal" && argument.value === true);
+  return assertsTrue && !negated && holdsDisjunction(subject);
 }
 
 function testRoot(callee: TSESTree.Node): { readonly name: string; readonly member: string | undefined } | undefined {
@@ -172,12 +190,27 @@ function evidenceOf(context: OrbRuleContext, call: TSESTree.CallExpression, body
   return provesAbsence(assertion) ? "absence" : "observation";
 }
 
+function absenceOption(options: readonly unknown[]): boolean {
+  const [option] = options;
+  return !(typeof option === "object" && option !== null && "absence" in option && option.absence === false);
+}
+
+/** Refuse a case that only proves an absence and a truth assertion over an `||`. `{ absence: false }` keeps the second alone,
+ *  for suites outside the CT and e2e layers, where a refusal is proved by a typed throw. */
 export const ctNegativeOnlyCaseRule: OrbRule = {
-  meta: { type: "problem", schema: [] },
+  meta: { type: "problem", schema: [{ type: "object", properties: { absence: { type: "boolean" } }, additionalProperties: false }] },
   create(context: OrbRuleContext): RuleVisitor {
+    const judgesAbsence = absenceOption(context.options);
     const cases: { readonly body: TSESTree.BlockStatement; absences: number; observations: number }[] = [];
     return {
       "CallExpression[callee]"(call: TSESTree.CallExpression): void {
+        const assertion = assertionOf(call);
+        if (assertion !== undefined && isTruthOfDisjunction(assertion)) {
+          context.report({ node: call, message: DISJUNCTION_MESSAGE });
+        }
+        if (!judgesAbsence) {
+          return;
+        }
         const body = caseBody(call);
         if (body !== undefined) {
           cases.push({ body, absences: 0, observations: 0 });

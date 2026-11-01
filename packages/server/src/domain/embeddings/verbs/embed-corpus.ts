@@ -29,7 +29,7 @@ async function embedOneCard(
     return "skipped";
   }
   const cardOwnerId = await ctx.loadCharacterOwner(characterId);
-  const embedModel = cardOwnerId === null ? null : await requireTaskModel(ctx, cardOwnerId, "embed");
+  const embedModel = cardOwnerId === null ? null : await requireTaskModel(ctx, cardOwnerId);
   if (cardOwnerId === null || embedModel === null) {
     return "skipped";
   }

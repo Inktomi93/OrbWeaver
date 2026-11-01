@@ -18,7 +18,14 @@ const cssVar = (token: keyof typeof TOKENS): string => `var(${TOKENS[token].cssV
 
 function Bubbles(): ReactElement {
   return (
-    <div style={{ display: "grid", gap: "0.5rem", backgroundColor: "var(--color-background)", color: "var(--color-foreground)" }}>
+    <div
+      style={{
+        display: "grid",
+        gap: "0.5rem",
+        backgroundColor: `var(${TOKENS["color.background"].cssVar})`,
+        color: `var(${TOKENS["color.foreground"].cssVar})`,
+      }}
+    >
       {MESSAGE_ROLES.map((role) => (
         <div key={role} data-role-row={role} style={{ display: "grid", gap: "0.5rem" }}>
           <MessageBubble data-case="bubble" messageRole={role} shape="bubble">

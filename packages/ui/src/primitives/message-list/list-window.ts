@@ -17,16 +17,15 @@ export function updateEdgeFades(el: HTMLElement): void {
 }
 
 // Merges keepMounted's forced indices — plus the roving mode's ACTIVE ROW, which must survive a
-// scroll-away or the list's single tab stop disappears mid-thread — into rangeExtractor's base range;
+// scroll-away or the list's single tab stop disappears mid-thread — into the library's base range;
 // sorted ascending because virtual-core requires ascending indices from its range extractors.
 export function composeRangeExtractor<T>(
   items: readonly T[],
   keepMounted: ((item: T) => boolean) | undefined,
-  rangeExtractor: ((range: Range) => number[]) | undefined,
   activeIndex: number,
 ): ((range: Range) => number[]) | undefined {
   if (keepMounted === undefined && activeIndex < 0) {
-    return rangeExtractor;
+    return undefined;
   }
   const forced: number[] = activeIndex < 0 ? [] : [activeIndex];
   for (const [index, item] of items.entries()) {
@@ -34,9 +33,8 @@ export function composeRangeExtractor<T>(
       forced.push(index);
     }
   }
-  const base = rangeExtractor ?? defaultRangeExtractor;
   return (range: Range): number[] => {
-    const union = new Set<number>(base(range));
+    const union = new Set<number>(defaultRangeExtractor(range));
     for (const index of forced) {
       union.add(index);
     }

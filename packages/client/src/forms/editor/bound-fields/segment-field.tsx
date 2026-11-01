@@ -10,13 +10,13 @@ import type { SelectOption } from "@orb/ui/select";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
+import type { BoundFieldShellProps } from "./use-bound-field.ts";
 import { useBoundField } from "./use-bound-field.ts";
 
-export interface SegmentFieldProps {
+export interface SegmentFieldProps extends BoundFieldShellProps {
+  /** Also the group's `aria-label`, so it stays a string. */
   readonly label: string;
-  readonly description?: string;
   readonly items: readonly SelectOption<string>[];
-  readonly disabled?: boolean;
 }
 
 export function SegmentField(props: SegmentFieldProps): ReactElement {

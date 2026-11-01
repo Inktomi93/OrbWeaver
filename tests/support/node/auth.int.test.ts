@@ -2,6 +2,7 @@ import { chatListPageSchema } from "@orb/contracts/chat";
 import { AUTH_MODES } from "@orb/contracts/identity";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { resolveBindPosture } from "@orb/server/foundation/env";
+import { forEachNonEmpty } from "@orb/testkit/iso";
 import { z } from "zod";
 import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import type { AuthModeRoot, SignedIn } from "./auth.ts";
@@ -95,17 +96,21 @@ forEachAuthMode("a forwarding header refuses the owner fallback and leaves a cre
   expect(relayed.status).toBe(capability.members ? OK : UNAUTHORIZED);
 });
 
-test.for(MEMBERLESS_MODES)("a mode without members refuses the owner from an off-box peer with the product's 401 [%s]", async (mode) => {
-  await using onBox = await createAuthModeRoot(mode);
-  expect((await signIn(onBox, await ownerSubject(onBox))).viewer.globalRole).toBe("owner");
-  await using offBox = await createAuthModeRoot(mode, { physicalPeer: () => PUBLIC_PEER_ADDRESS });
-  await expect(signIn(offBox, await ownerSubject(offBox))).rejects.toMatchObject({ name: REFUSED, status: UNAUTHORIZED });
+forEachNonEmpty(MEMBERLESS_MODES, "modes without members", (mode) => {
+  test(`a mode without members refuses the owner from an off-box peer with the product's 401 [${mode}]`, async () => {
+    await using onBox = await createAuthModeRoot(mode);
+    expect((await signIn(onBox, await ownerSubject(onBox))).viewer.globalRole).toBe("owner");
+    await using offBox = await createAuthModeRoot(mode, { physicalPeer: () => PUBLIC_PEER_ADDRESS });
+    await expect(signIn(offBox, await ownerSubject(offBox))).rejects.toMatchObject({ name: REFUSED, status: UNAUTHORIZED });
+  });
 });
 
-test.for(MEMBERLESS_MODES)("a mode without members answers a member's password login as an unmounted route [%s]", async (mode) => {
-  await using root = await createAuthModeRoot(mode);
-  expect((await signIn(root, await ownerSubject(root))).viewer.globalRole).toBe("owner");
-  await expect(signIn(root, await mintMember(root))).rejects.toMatchObject({ name: REFUSED, status: NOT_FOUND });
+forEachNonEmpty(MEMBERLESS_MODES, "modes without members", (mode) => {
+  test(`a mode without members answers a member's password login as an unmounted route [${mode}]`, async () => {
+    await using root = await createAuthModeRoot(mode);
+    expect((await signIn(root, await ownerSubject(root))).viewer.globalRole).toBe("owner");
+    await expect(signIn(root, await mintMember(root))).rejects.toMatchObject({ name: REFUSED, status: NOT_FOUND });
+  });
 });
 
 test("single-user refuses a public bind with no declared owner peers, while a login mode binds it", async () => {

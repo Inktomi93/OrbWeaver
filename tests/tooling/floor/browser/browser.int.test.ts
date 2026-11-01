@@ -801,5 +801,5 @@ test("watch durably records every poll, dedupes unchanged terminal noise, and mi
   expect(watch.intervalMs).toBe(30);
   expect(watch.ticks.length).toBeGreaterThanOrEqual(3);
   expect(watch.ticks.every((tick) => tick.shot === null && tick.evals.length === 1)).toBe(true);
-  expect(() => readFileSync(join(REPORT_SNAPS, `${name}.png`))).toThrow();
+  expect(() => readFileSync(join(REPORT_SNAPS, `${name}.png`))).toThrow(expect.objectContaining({ code: "ENOENT" }));
 });

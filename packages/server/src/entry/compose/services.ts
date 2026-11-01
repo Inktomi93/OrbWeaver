@@ -42,9 +42,8 @@
 
 import { resolve } from "node:path";
 import type { IsMemoryEnabledOp } from "@orb/contracts/chat";
-import type { DomainEvent } from "@orb/contracts/events";
 import type { AuthModeSource, Principal } from "@orb/contracts/identity";
-import type { ResolvePersonasForParticipants } from "@orb/contracts/persona";
+import type { BindingActor } from "@orb/contracts/inference";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { ImportCardScripts } from "@orb/contracts/regex";
 import { CATALOG_SETTINGS_PREFIX } from "@orb/contracts/settings";
@@ -52,13 +51,12 @@ import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { SEED_MANIFEST } from "@orb/default-content";
-import type { BindingActor, InferenceDeps, InferenceRuntime, RoleClientsWithSignal } from "@orb/inference";
+import type { InferenceDeps, InferenceRuntime, RoleClientsWithSignal } from "@orb/inference";
 import { availableClaudeExecutable, createInferenceRuntime } from "@orb/inference";
 import { createBinding } from "@orb/kit/binding";
 import type { ChatId, IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
-import type { PubSub } from "@orb/kit/pubsub";
 import type { Clock, TimerScheduler } from "@orb/kit/time";
 import { packShowcaseBundle, readShowcaseManifest } from "@orb/showcase-plugins";
 import type { ServerRestartPort } from "#domain/admin";
@@ -73,7 +71,6 @@ import {
 } from "#domain/assets";
 import type { AutomationService } from "#domain/automation";
 import { createAutomationTeachingContributions, createRuleOwnedBy, startAutomationWatcher } from "#domain/automation";
-import type { DefaultCharacterSeeder } from "#domain/character";
 import { createCharacterImportOps, createFindSeedCharacter } from "#domain/character";
 import type { ChatAssemblyContext, MemoryRecallRecorder, SignupInviteOps } from "#domain/chat";
 import {
@@ -96,7 +93,6 @@ import { createRecordUsage, createResolveEmbeddingConnection, createVectorSweepO
 import type { ExportService } from "#domain/export";
 import { createImageryPortability } from "#domain/imagery";
 import { buildImportContext, cardPngIdentity, createInstallerCharacterImport, serializeImportCard } from "#domain/import";
-import type { DefaultPersonaSeeder } from "#domain/persona";
 import { createSeedPersonaWithCompletion } from "#domain/persona";
 import type { DistributedPluginApplier, ExamplePluginSeeder } from "#domain/plugin";
 import {
@@ -130,7 +126,6 @@ import { createEnableShareSeating, createShareService } from "#domain/share";
 import { createStatsBatchWiring } from "#domain/stats";
 import type { TagAssemblyContext } from "#domain/tag";
 import { createImportedCardTag, createReadAttachedEntity, createTagService } from "#domain/tag";
-import type { ToolUseService } from "#domain/tool-use";
 import { createToolUseTeachingContributions } from "#domain/tool-use";
 import type { WorkloadContributions, WorkloadProgressBus } from "#domain/workloads";
 import { createWorkloadProgressBus } from "#domain/workloads";
@@ -160,13 +155,12 @@ import { createImageAdapter } from "#infra/image";
 import { createVideoPreparer } from "#infra/media";
 import type { ScopedEgress, ScopedEgressOptions } from "#infra/network";
 import { createScopedEgress } from "#infra/network";
-import type { Cas } from "#infra/storage";
 import { createCas, createUserRuntimeDirs, createVariantCache, RUNTIME_TOOL_OF_WIRE } from "#infra/storage";
 import type { BackgroundWork } from "#infra/tasks";
 import { createBackgroundWork } from "#infra/tasks";
 import { createScopedTimers } from "#infra/timers";
 import type { ServiceJobs } from "#transport/jobs";
-import type { ContextForRequest, LiveBuses, PresenceRegistry, Services, SocketRegistry } from "#transport/trpc";
+import type { ContextForRequest, LiveBuses, Services, SocketRegistry } from "#transport/trpc";
 import { createContext, createLiveBuses, createPresenceRegistry, createSocketRegistry } from "#transport/trpc";
 import { createHostPrincipalResolver, createMultiHumanCapability } from "../auth/index.ts";
 import { createExamplePluginSeeder } from "../boot/seed-example-plugins.ts";
@@ -350,7 +344,6 @@ export interface ServicesResult extends AsyncDisposable {
    *  buses through it (`createAutomationWatcherEnv` reads this handle). Also on the transport `Services` bundle
    *  (the `automation` router — the §A8 rule/budget/fire lifecycle surface). */
   readonly automation: AutomationService;
-  readonly presence: PresenceRegistry;
   /** The multiplexed-socket cells (SSE-1) — one per tab; composed here so its reap clock is the injected one. */
   readonly sockets: SocketRegistry;
   readonly sessions: SessionsService;
@@ -363,7 +356,6 @@ export interface ServicesResult extends AsyncDisposable {
   readonly importWorldInfo: ImportWorldInfoPort;
   /** The card regex-script lift, for the HTTP card door (the same op every other import door threads). */
   readonly importCardScripts: ImportCardScripts;
-  readonly eventBus: PubSub<DomainEvent>;
   /** The kind-keyed workload contribution registry (the retired runner-env's replacement) — the worker
    *  driver dispatches through it. */
   readonly workloadContributions: WorkloadContributions;
@@ -377,11 +369,6 @@ export interface ServicesResult extends AsyncDisposable {
   readonly auditFailures: AuditWiring["failures"];
   readonly effectiveConfig: EffectiveConfigWiring;
   readonly secretBox: SecretBox;
-  /** The default-card seeder — the one instance both boot and the app first-request hook share, so the
-   *  in-process memo + persisted latch hold across both call sites. */
-  readonly characterSeeder: DefaultCharacterSeeder;
-  /** Mirrors `characterSeeder`, for the default `{{user}}` persona. */
-  readonly personaSeeder: DefaultPersonaSeeder;
   /** The user seed (D263): walks the manifest for an account and seeds what its seed ledger lacks. Drives
    *  `characterSeeder` and `personaSeeder`; the boot owner step and the first-authed-request hook share it. */
   readonly contentSeeder: UserContentSeeder;
@@ -394,10 +381,6 @@ export interface ServicesResult extends AsyncDisposable {
    *  fan-out, driven by the same first-authed-request hook and latched per user. Distinct from
    *  `examplePluginSeeder`: that ships with the build, this is whatever THIS deployment's admin published. */
   readonly distributedPluginApplier: DistributedPluginApplier;
-  /** The rpg `ChatRpgOps` runtime (the turn hooks chat fires) — surfaced top-level so the composed-real int
-   *  test drives a turn's flush (`onTurnCompleted`) through the REAL compose graph (the [compose-stub-goes-stale]
-   *  antidote). Not on the transport `Services` bundle (chat's turn lifecycle is its only production caller). */
-  readonly rpgChatOps: RpgComposeResult["chatOps"];
   /** R-OBS — the rpg flight recorder's READ half, or `undefined` when tracing is off. `lifecycle.ts` hands it
    *  to `createApp`, which registers `/api/_debug/rpg/traces` only when it is present (the route's own
    *  `rpgTrace === undefined ⇒ not registered` contract, `foundation/observability/debug/routes.ts`). */
@@ -407,17 +390,6 @@ export interface ServicesResult extends AsyncDisposable {
    *  `/api/_debug/wire/captures` as `enabled` so a reader can tell an off recorder from a quiet one. Surfaced
    *  because the decision lives HERE, so no downstream reader re-reads the knob. */
   readonly wireCaptureOn: boolean;
-  /** The content store this graph writes, surfaced so a suite ages a blob past the GC grace window: a blob's
-   *  mtime is a filesystem fact no injected clock moves. */
-  readonly cas: Cas;
-  /** The ops the root binds into one domain from another, surfaced so a domain suite drives its own factory
-   *  against the op production wires (Spine-Testing §3) instead of importing the other domain. */
-  readonly crossFeatureOps: {
-    readonly resolveChatHostUserId: (chatId: ChatId) => Promise<UserId | null>;
-    readonly resolvePersonasForParticipants: ResolvePersonasForParticipants;
-    /** The installer's import context: character, assets and tag binders under one Principal. */
-    readonly importContextFor: (principal: Principal) => ReturnType<typeof buildImportContext>;
-  };
   /** D259 — chat's signup-invite ops, for the local signup route. */
   readonly signupInvites: SignupInviteOps;
   /** The per-user local-light seed, surfaced for the signup route (it runs after the signup commit). */
@@ -429,10 +401,6 @@ export interface ServicesResult extends AsyncDisposable {
   /** #250 — the memory-recall flight recorder's READ half. Always present (the recorder is unconditional);
    *  `lifecycle.ts` hands it to `createApp`, which registers `/api/_debug/memory/recalls` over it. */
   readonly recallRecorder: MemoryRecallRecorder;
-  /** The ONE tool-use registry (rpg's 7 state tools registered into it) — surfaced so the composed-real int
-   *  test drives a CHEAP tool turn through the REAL registered handlers (`resolveTools` + `executeToolCalls`),
-   *  proving the compose tool-registration is live. Not on the transport `Services` bundle. */
-  readonly toolUse: ToolUseService;
   /** The REAL chat-side rpg-facing ops (getMembership/postNarratorMessage/setRpgPointer/resolveRpgRoster) —
    *  the deps `buildRpg` closes over. Surfaced so the composed-real extraction test builds its own `buildRpg`
    *  over the SAME real chat wiring with only the executor/connection faked (never a live model). */
@@ -1595,7 +1563,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     trpcContext,
     multiHumanCapable,
     automation,
-    presence,
     sockets,
     sessions,
     embeddings,
@@ -1606,23 +1573,18 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     settleImportMemory,
     importWorldInfo,
     importCardScripts: regexCompose.importCardScripts,
-    eventBus,
     workloadContributions,
     databankIngest,
     runtime,
     auditFailures: deps.audit.failures,
     effectiveConfig,
     secretBox,
-    characterSeeder,
-    personaSeeder,
     contentSeeder,
     backgroundSeeder,
     examplePluginSeeder,
     distributedPluginApplier,
-    rpgChatOps: rpgCompose.chatOps,
     rpgTrace,
     recallRecorder,
-    toolUse,
     chatRpgOps: chatCompose.rpgChatOps,
     signupInvites: chatCompose.signupInvites,
     seedUserConnections,
@@ -1633,7 +1595,5 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       embedReindex.detachStaleSpaceReindex();
     },
     wireCaptureOn,
-    cas,
-    crossFeatureOps: { resolveChatHostUserId, resolvePersonasForParticipants, importContextFor: installerImportContext },
   };
 }

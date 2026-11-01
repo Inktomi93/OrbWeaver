@@ -8,7 +8,7 @@ import type { AttachOwnedBooksByName, ImportStandaloneLorebook, ImportWorldInfoP
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource, PersonaId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { AssetsContext, AssetsService } from "#domain/assets";
+import type { AssetsAssemblyContext, AssetsService } from "#domain/assets";
 import { createBackgroundStore } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import { createCompareAndSetImportedTokenUsage, createListImportedTokenUsageCandidates } from "#domain/chat";
@@ -60,7 +60,7 @@ export interface PortabilityRunnerComposeDeps {
   readonly worldInfoExportCtx: WorldInfoExportAssemblyContext;
   readonly importStandaloneLorebook: ImportStandaloneLorebook;
   /** The gallery-extended assets ctx (the two character-handle resolvers the gallery export/import verbs need). */
-  readonly galleryCtx: AssetsContext;
+  readonly galleryCtx: AssetsAssemblyContext;
   readonly imageryPortability: ImageryPortabilityService;
   /** The databank portability bundle (db + clock + id minter + the ingest enqueue a restore re-runs). */
   readonly databankCtx: DatabankPortabilityAssemblyContext;

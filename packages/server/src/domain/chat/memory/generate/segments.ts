@@ -40,7 +40,6 @@ interface GenerateSegmentsArgs {
   readonly funderUserId: UserId;
   readonly config?: MemoryConfig | null | undefined;
   readonly signal?: AbortSignal | undefined;
-  readonly embedSpace?: MemoryEmbedSpace | undefined;
   readonly embedOwnerId?: UserId | undefined;
 }
 
@@ -78,7 +77,7 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
   if (cutoff < cfg.blockSize) {
     return empty;
   }
-  const embedSpace = args.embedSpace ?? (await ctx.resolveMemoryEmbedSpace(args.embedOwnerId ?? args.funderUserId));
+  const embedSpace = await ctx.resolveMemoryEmbedSpace(args.embedOwnerId ?? args.funderUserId);
 
   const canon = await loadCanonThroughSeq(ctx.db, args.chatId, cutoff);
   const macroNames = await loadTranscriptNames(ctx.db, canon);

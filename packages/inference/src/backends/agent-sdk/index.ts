@@ -32,8 +32,6 @@ import { createAgentSdkLog } from "./log.ts";
 import { runChatTurn } from "./runner.ts";
 import { SessionCache } from "./session/index.ts";
 
-export type { SessionEntryWriter } from "./session/index.ts";
-
 const DEFAULT_TOOL_SERVER_NAME = "orbweaver";
 const CLAUDE_TOOL = "claude";
 
@@ -73,7 +71,6 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
     scheduleTimeout: deps.scheduleTimeout,
     scheduleIdleTimeout: deps.scheduleIdleTimeout,
     ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
-    debug: deps.debug ?? false,
     childEnv,
   };
   const logFor = (connection: Pick<Resolved, "providerId">): ReturnType<typeof createAgentSdkLog> => createAgentSdkLog(deps.log, connection.providerId);
@@ -95,7 +92,7 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
     runChatTurn: chatTurn,
     summarize: sideGen,
     structured: sideGen,
-    verifyAuth: (req: DiagnosticRequestCommon): Promise<VerifyAuthResult> => verifyAuth(req, resolved, logFor(req.connection)),
+    verifyAuth: (req: DiagnosticRequestCommon): Promise<VerifyAuthResult> => verifyAuth(req, resolved),
     listModels: async (req: ListModelsRequest): Promise<ModelListing> => {
       try {
         const models = await fetchAgentSdkModels(req.connection, resolved, logFor(req.connection));

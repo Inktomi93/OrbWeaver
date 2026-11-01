@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+import assert, { AssertionError } from "node:assert/strict";
 import { lstatSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -48,12 +48,12 @@ test("the private root accepts development ownership and rejects runtime or unre
   }
   const invalidUtf8 = join(scratch, "invalid-utf8.json");
   writeFileSync(invalidUtf8, Buffer.concat([Buffer.from('{"name":"orbweaver","note":"'), Buffer.from([0xff]), Buffer.from('"}')]));
-  expect(() => assertDevelopmentRoot(invalidUtf8)).toThrow();
+  expect(() => assertDevelopmentRoot(invalidUtf8)).toThrow(expect.objectContaining({ code: "ERR_ENCODING_INVALID_ENCODED_DATA" }));
   const manifestTarget = join(scratch, "root-target.json");
   const manifestLink = join(scratch, "root-link.json");
   writeFileSync(manifestTarget, JSON.stringify({ name: "orbweaver", private: true }));
   symlinkSync(manifestTarget, manifestLink);
-  expect(() => assertDevelopmentRoot(manifestLink)).toThrow();
+  expect(() => assertDevelopmentRoot(manifestLink)).toThrow(AssertionError);
   const admitted = join(scratch, "admitted");
   const external = join(scratch, "external-manifest");
   mkdirSync(join(admitted, "packages"), { recursive: true });
@@ -61,7 +61,7 @@ test("the private root accepts development ownership and rejects runtime or unre
   writeFileSync(join(external, "package.json"), JSON.stringify({ name: "orbweaver", private: true }));
   const directoryLink = join(admitted, "packages", "linked-package");
   symlinkSync(external, directoryLink, "dir");
-  expect(() => assertDevelopmentRoot(join(directoryLink, "package.json"), admitted)).toThrow();
+  expect(() => assertDevelopmentRoot(join(directoryLink, "package.json"), admitted)).toThrow(AssertionError);
   const admittedAlias = join(scratch, "admitted-alias");
   symlinkSync(external, admittedAlias, "dir");
   expect(() => assertDevelopmentRoot(join(admittedAlias, "package.json"), admittedAlias)).not.toThrow();
@@ -70,6 +70,6 @@ test("the private root accepts development ownership and rejects runtime or unre
   for (const source of ["", '{"name":', '{"name":"orbweaver","dependencies":{"tsx":["x"]}}', '{"name":"orbweaver","dependencies":null}', '{"private":true}']) {
     const path = join(scratch, "package.json");
     writeFileSync(path, source);
-    expect(() => assertDevelopmentRoot(path), source).toThrow();
+    expect(() => assertDevelopmentRoot(path), source).toThrow(/JSON|invalid_type/u);
   }
 });

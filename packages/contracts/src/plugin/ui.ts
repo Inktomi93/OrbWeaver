@@ -1458,7 +1458,7 @@ const PLUGIN_COMMAND_DESCRIBE_MAX = 200;
 /** The arg-string a `/plugin <slug> <name> <rest>` dispatch hands the guest, capped at the membrane. A command
  *  is a control affordance, not a paste target — a plugin that needs a document takes it through its own surface. */
 export const PLUGIN_COMMAND_ARGS_MAX = 2000;
-export const PLUGIN_COMMAND_PLACEMENT_TARGETS = ["composer-action", "composer-media"] as const;
+export const PLUGIN_COMMAND_PLACEMENT_TARGETS = ["composer-action", "composer-media", "topbar"] as const;
 // A placement label shares the vocabulary's label bound: it renders as one menu item beside host labels.
 const PLUGIN_COMMAND_PLACEMENT_LABEL_MAX = LABEL_MAX;
 export type PluginCommandPlacementTarget = (typeof PLUGIN_COMMAND_PLACEMENT_TARGETS)[number];

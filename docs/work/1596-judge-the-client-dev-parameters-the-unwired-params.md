@@ -42,4 +42,8 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Sixteen rows: none applied, sixteen kept, none handed off, no owner questions.
+
+The decision (derive the input type from the router) is already in place. `AgentSeedClient` in `packages/client/src/dev/agent-seed/client.ts` types every input as `Parameters<TrpcClient[...][...]["query" | "mutate"]>[0]` (lines 23, 27, 35, 39, 40, 41, 43, 46, 48, 49), so the flagged keys (`starred`, `archived`, `includeTagIds`, `excludeTagIds`, `sort`, `cursor`, `anchorPersonaId`, `opening`, `injections`, `temporary`, `startAsGame`, `gmPresetId`, `extractionMode`, `releaseLocks`, `lockPaths`, `autoLock`) are members of the router's own input, not a restated copy. The seeder (`packages/client/src/dev/agent-seed/index.ts`) legitimately passes a subset; there is no client-side key to delete and the router keys cannot go without a schema change. The drift guard is `tests/client/dev/agent-seed/variant-payloads.dom.test-d.ts`.
+
+Survey: `codegraph_explore` on `AgentSeedClient agent-seed client.ts inferInput`; read `client.ts` in full.

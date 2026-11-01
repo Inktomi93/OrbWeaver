@@ -16,6 +16,7 @@ import {
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  connectDevice,
   createCorpusProviderExecution,
   createServerHarness,
   SUMMARIZE_TRANSCRIPT_MARKER,
@@ -23,7 +24,6 @@ import {
   summaryReply,
 } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
-import { vi } from "vitest";
 
 const FUNDING_HEADER = "x-orb-corpus-funder";
 const HOST_FUNDING = "frozen-host-connection";
@@ -120,9 +120,8 @@ test("a member's actual turn uses the frozen host connection while keeping the m
   const room = await root.services.chat.startChat({ principal: owner, characterIds: [card.id], opening: "none" });
   const invite = await root.services.chat.createInvite({ principal: owner, chatId: room.chat.id, input: { invitedHandle: member.handle } });
   await root.services.chat.acceptInvite({ principal: member, inviteId: invite.invite.id });
-  const completed = vi.spyOn(root.app.rpgChatOps, "onTurnCompleted");
   const hostOnline = new AbortController();
-  root.app.presence.connect(owner.userId, hostOnline.signal);
+  await connectDevice(root, owner.userId, hostOnline.signal);
   try {
     const outcome = await root.services.chat.send({ principal: member, chatId: room.chat.id, content: "Witness the orbital marker.", intent: {} });
     await root.settleBackground();
@@ -139,21 +138,12 @@ test("a member's actual turn uses the frozen host connection while keeping the m
     expect(assistant.connectionAttributionProvenance).toBe("recorded");
     const variants = await root.db.select().from(messageVariants).where(eq(messageVariants.id, assistant.selectedVariantId));
     expect(variants.map((variant) => variant.connectionId)).toEqual([connections.text.id]);
-    expect(completed).toHaveBeenCalledOnce();
-    const terminal = completed.mock.calls[0]?.[0];
-    if (terminal === undefined) {
-      throw new Error("the committed turn did not reach the actual root's RPG terminal hook");
-    }
-    expect(terminal).toMatchObject({ chatId: room.chat.id, messageId: assistant.id, variantId: assistant.selectedVariantId });
-    expect(terminal.turn).toMatchObject({ kind: "send", triggeredBy: member.userId, connection: { ownerId: owner.userId } });
-    expect(terminal.turn.transcript.map((message) => message.content)).toContain(TURN_REPLY);
     const canon = await root.db.select().from(messages).where(eq(messages.chatId, room.chat.id));
     expect(canon.filter((message) => message.role === "user")).toMatchObject([{ authorUserId: member.userId }]);
     expect(canon.map((message) => message.createdAt)).toEqual(canon.map(() => root.clock.now()));
     expect(variants.map((variant) => variant.createdAt)).toEqual([root.clock.now()]);
   } finally {
     hostOnline.abort();
-    completed.mockRestore();
   }
 });
 
@@ -174,7 +164,7 @@ test("bound memory ports retain shared buckets and enforce real join, leave and 
   const invite = await root.services.chat.createInvite({ principal: owner, chatId, input: { invitedHandle: member.handle } });
   await root.services.chat.acceptInvite({ principal: member, inviteId: invite.invite.id });
   const hostOnline = new AbortController();
-  root.app.presence.connect(owner.userId, hostOnline.signal);
+  await connectDevice(root, owner.userId, hostOnline.signal);
   const send = async (content: string): Promise<void> => {
     const outcome = await root.services.chat.send({ principal: member, chatId, content, intent: MEMORY_INTENT });
     expect(outcome.aborted).toBe(false);
@@ -307,7 +297,7 @@ test("post-turn memory detaches from the reply and physically unwinds with its p
   await root.settleBackground();
   const room = await caller.chat.startChat({ characterIds: [card.id], opening: "none" });
   const hostOnline = new AbortController();
-  root.app.presence.connect(owner.userId, hostOnline.signal);
+  await connectDevice(root, owner.userId, hostOnline.signal);
   try {
     root.app.supervise("memory-lifetime-barrier", "memory.lifetimeControl", {}, async () => {
       await root.app.egress.configuredEndpointFetch("https://memory-lifetime.test/held");

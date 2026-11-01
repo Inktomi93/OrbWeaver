@@ -199,11 +199,13 @@ export interface GhostMessageRowProps {
   readonly chatStyle: keyof typeof MESSAGE_ROW_SKINS;
   /** Pacing (and the streaming caret) run only while true; pending shows the typing dots instead. */
   readonly streaming: boolean;
-  readonly renderContext?: MessageRenderContext | undefined;
-  readonly rowCharacterId?: CharacterId | null | undefined;
   /** The live turn's resolved identity, the same shape resolveRowAttribution produces for the settled
    *  row. Undefined ⇒ no sibling avatar, no immersive decoration. */
   readonly attribution?: RowAttribution | undefined;
+  /** The live turn's voiced character: the subject `{{char}}` resolves to, as the settled row's stamp does. */
+  readonly speakerCharacterId: CharacterId | null;
+  /** The room's macro-name context, so the streamed text and reasoning resolve `{{char}}`/`{{user}}` exactly as the settled row. */
+  readonly renderContext: MessageRenderContext;
   readonly avatarSize?: "sm" | "md" | "lg" | undefined;
   readonly avatarShape?: "round" | "square" | "rounded" | undefined;
   readonly avatarAspect?: "square" | "portrait" | undefined;
@@ -241,9 +243,9 @@ export function GhostMessageRow({
   chatId,
   chatStyle,
   streaming,
-  renderContext,
-  rowCharacterId,
   attribution,
+  speakerCharacterId,
+  renderContext,
   avatarSize = "lg",
   avatarShape = "round",
   avatarAspect = "square",
@@ -262,12 +264,14 @@ export function GhostMessageRow({
   const arrival = useEnterMotion(enterMotion);
   const viewArt = useArtViewer();
   const artControl = useArtControl();
-  const rawText = useGhostText(chatId);
+  const text = useGhostText(chatId);
   const rawReasoning = useGhostReasoning(chatId);
+  const reasoning = renderMessageForDisplay(rawReasoning, renderContext, speakerCharacterId, null);
   const thinking = useGhostThinking(chatId);
-  const text = renderContext === undefined ? rawText : renderMessageForDisplay(rawText, renderContext, rowCharacterId);
-  const reasoning = renderContext === undefined ? rawReasoning : renderMessageForDisplay(rawReasoning, renderContext, rowCharacterId);
-  const paced = useSmoothText(text, { enabled: streaming && smoothStream, cps: smoothStreamCps });
+  const paced = useSmoothText(renderMessageForDisplay(text, renderContext, speakerCharacterId, null), {
+    enabled: streaming && smoothStream,
+    cps: smoothStreamCps,
+  });
   // The live speaker's own name (the same value the server's per-speaker clean strips against). In a
   // speakerTags group turn the model, trained on the `Name:`-prefixed transcript, echoes its own `JFC: `
   // prefix at the START of the stream — the server strips it at finalize, so without this the raw prefix

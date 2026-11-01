@@ -4,14 +4,15 @@
 // this block (and its controls) never mounts for one.
 
 import type { MessageView } from "@orb/contracts/chat";
-import type { ChatId, MessageId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Check, Eraser, Icon, Pencil, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Textarea } from "@orb/ui/textarea";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
+import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { cancelEditingReasoning, setReasoningEditDraft, startEditingReasoning, useIsEditingReasoning, useReasoningEditDraftText } from "#state";
 import {
@@ -26,22 +27,13 @@ import {
 } from "../lib/message-action-names.ts";
 import { ReasoningBlock } from "./reasoning-block.tsx";
 
-interface ReasoningVars {
-  readonly chatId: ChatId;
-  readonly messageId: MessageId;
-}
-
-interface EditReasoningVars extends ReasoningVars {
-  readonly reasoning: string;
-}
-
-const useEditReasoningMutation = createEntityMutation<EditReasoningVars, unknown>({
+const useEditReasoningMutation = createEntityMutation<inferInput<Trpc["chat"]["editReasoning"]>, unknown>({
   options: (trpc) => trpc.chat.editReasoning.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't save that reasoning.",
 });
 
-const useClearReasoningMutation = createEntityMutation<ReasoningVars, unknown>({
+const useClearReasoningMutation = createEntityMutation<inferInput<Trpc["chat"]["clearReasoning"]>, unknown>({
   options: (trpc) => trpc.chat.clearReasoning.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't clear that reasoning.",

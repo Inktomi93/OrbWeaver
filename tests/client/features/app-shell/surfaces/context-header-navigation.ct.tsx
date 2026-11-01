@@ -4,6 +4,7 @@ import { contextToggleLabel } from "@orb/client/lib";
 import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { AppShellRoomStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -56,7 +57,7 @@ for (const hasTouch of [false, true]) {
       await expect(pane.getByRole("tablist")).toHaveCount(1);
       const close = page.getByRole("button", { name: contextToggleLabel(false), exact: true });
       await expect(close).toBeVisible();
-      const floor = await resolvedLength(page, "var(--size-touch-target)");
+      const floor = await resolvedLength(page, `var(${TOKENS["size.touch-target"].cssVar})`);
       const box = await choose.boundingBox();
       expect(Math.min(box?.width ?? 0, box?.height ?? 0)).toBeGreaterThanOrEqual(floor);
       // The pane's close is its edge control, laid over the header's end lane: the tab strip's controls stop short of it.

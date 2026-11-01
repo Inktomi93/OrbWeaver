@@ -4,6 +4,7 @@ import { ENTRY_POSITIONS } from "@orb/kit/world-info";
 import { Button } from "@orb/ui/button";
 import { Icon, Trash } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { removeActionName } from "@orb/ui/lib";
 import { Separator } from "@orb/ui/separator";
 import { SortableList } from "@orb/ui/sortable";
 import { Text } from "@orb/ui/text";
@@ -11,7 +12,7 @@ import type { ReactElement } from "react";
 import { useEffect, useId, useRef } from "react";
 import type { AutosaveSession } from "#forms/editor";
 import { touchedFieldError } from "#forms/editor";
-import { notify, removeActionName } from "#lib";
+import { notify } from "#lib";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { RuleBookField } from "./rule-book-field.tsx";
 

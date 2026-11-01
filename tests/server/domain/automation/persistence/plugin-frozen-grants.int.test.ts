@@ -108,7 +108,7 @@ test("unexpected loss rejects a parked invocation and old callbacks before expli
   await exited;
   delivery.release();
   expect(await running).toMatchObject([{ status: "rejected" }]);
-  await expect(guest.invoke("noop")).rejects.toThrow();
+  await expect(guest.invoke("noop")).toThrowTRPCError("BAD_REQUEST");
   expect((await capturePluginRows(root.db, root.ownerId, guest.pluginId)).kv).toEqual([]);
   expect(edge.children).toHaveLength(1);
   await guest.disable();

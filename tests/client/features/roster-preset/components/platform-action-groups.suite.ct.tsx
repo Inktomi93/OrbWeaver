@@ -6,6 +6,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { RosterActionGroupsStory } from "./_action-groups-stories.tsx";
 
 const STORY = "tests/client/features/roster-preset/components/_action-groups-stories/RosterActionGroupsStory";
@@ -61,7 +62,7 @@ for (const regime of REGIMES) {
         expect(
           (await actionGroupGeometry(page.getByRole("group", { name: "Saved roster action host", exact: true }), controls)).inlineOverflow,
         ).toBeLessThanOrEqual(1);
-        const floor = await resolvedLength(page, "var(--size-control-sm)", row);
+        const floor = await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`, row);
         for (const box of geometry.controls) {
           expect(box.width).toBeGreaterThanOrEqual(floor);
           expect(box.height).toBeGreaterThanOrEqual(floor);

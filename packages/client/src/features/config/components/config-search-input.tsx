@@ -70,7 +70,7 @@ function staticHits(entries: readonly ConfigSearchEntry[], terms: string): reado
 
 function selectEntry(entry: ConfigSearchEntry): void {
   openConfigTo(entry.groupId, entry.subId ?? undefined, entry.settingId ?? undefined);
-  setConfigSearchMatch({ group: entry.groupId, sub: entry.subId, setting: entry.settingId, memberId: null });
+  setConfigSearchMatch({ group: entry.groupId, sub: entry.subId, setting: entry.settingId });
 }
 
 /** One group's DYNAMIC rows (members / persona names) — its own component so `useSearchRows` runs in its
@@ -102,13 +102,13 @@ function GroupSearchRows({
   const select = (row: ConfigSearchRow): void => {
     if (row.memberId === undefined) {
       openConfigTo(group.id, row.subId);
-      setConfigSearchMatch({ group: group.id, sub: row.subId ?? null, setting: null, memberId: null });
+      setConfigSearchMatch({ group: group.id, sub: row.subId ?? null, setting: null });
       return;
     }
     // A MEMBER hit opens the member itself: land the group (which clears any stale selection), then select.
     openConfigTo(group.id);
     selectCollectionMember(group.id, row.memberId);
-    setConfigSearchMatch({ group: group.id, sub: null, setting: null, memberId: row.memberId });
+    setConfigSearchMatch({ group: group.id, sub: null, setting: null });
   };
   return (
     <>

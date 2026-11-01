@@ -33,7 +33,7 @@
 // predicate, because a row that is off screen cannot be in the set.
 
 import { isPrimitive } from "@orb/kit/guards";
-import type { ConfigLeafAddress, ConfigLeafValue } from "#components";
+import type { ConfigLeafValue } from "#components";
 import { configLeafKey, useConfigLeaf, useConfigLeafReadings } from "#components";
 import { useSettingsViewerView } from "#data";
 import type { ConfigContextState, ConfigRosterEntry, ConfigTeachDoor, ConfigTeachValue, ConfigTeachView, ContextDefinition } from "#lib";
@@ -172,7 +172,7 @@ function memberArm(group: CollectionGroupDefinition, memberId: string, title: st
 }
 
 /** The focused leaf's address for `useConfigLeaf`, or null when no LEAF is focused. */
-function focusedLeafAddress(focus: { readonly group: ConfigGroupId; readonly sub: string; readonly setting: string | null } | null): ConfigLeafAddress | null {
+function focusedLeafAddress(focus: ConfigFocus | null): ConfigSettingRef | null {
   return focus === null || focus.setting === null ? null : { group: focus.group, sub: focus.sub, setting: focus.setting };
 }
 
@@ -261,7 +261,7 @@ function buildRoster(
  *  focus cannot leak a value or a Reset into a resting pane — the address itself is null when the row is off
  *  screen, which is the one place that can be true for the lesson and the value at once. It subsumes the
  *  old group/section match: a row outside the active group is never in the active group's visible set. */
-function drillAddressOf(focus: ConfigFocus | null, activeGroup: ConfigGroupId | null, visible: readonly ConfigVisibleSetting[]): ConfigLeafAddress | null {
+function drillAddressOf(focus: ConfigFocus | null, activeGroup: ConfigGroupId | null, visible: readonly ConfigVisibleSetting[]): ConfigSettingRef | null {
   const address = focusedLeafAddress(focus);
   if (address === null || address.group !== activeGroup) {
     return null;
@@ -271,7 +271,7 @@ function drillAddressOf(focus: ConfigFocus | null, activeGroup: ConfigGroupId | 
 
 interface DrillInput {
   readonly group: ConfigGroupDefinition;
-  readonly address: ConfigLeafAddress;
+  readonly address: ConfigSettingRef;
   readonly sections: readonly ConfigSectionContribution[];
   /** The group's own lesson — what the §7.2 ladder falls back to when the leaf declares no teach. */
   readonly fallback: ConfigTeachView;

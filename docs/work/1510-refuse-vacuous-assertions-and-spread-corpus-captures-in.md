@@ -23,4 +23,4 @@ Both refuse a planted case and accept the correct form; existing sites are fixed
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+`orb/ct-negative-only-case` reports an `||` inside a truth assertion, and runs on every test file with `{ absence: false }` outside the CT and e2e layers. `orb/no-spread-corpus-capture` is in `tooling/src/eslint/test-derivation.ts`; `tests/support/node/corpus-read-responder.int.test.ts` stays outside it because its subject is that a spread capture is refused. Controls are in `tests/tooling/eslint-test-derivation.test.ts`. `pnpm lint:eslint` over `tests/` by directory reports zero for both.

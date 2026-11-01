@@ -2,7 +2,7 @@
 // always a new owned row (fresh id, deep-copied override/css, name defaulted to "<source> copy" and
 // de-duped by a numeric suffix). Seeds are never edited in place.
 
-import type { ThemeView } from "@orb/contracts/settings";
+import type { Theme } from "@orb/contracts/theme";
 import { DomainConflictError } from "@orb/kit/errors";
 import { nextFreeName } from "@orb/kit/strings";
 import { ThemeNotFoundError } from "../contract/errors.ts";
@@ -16,7 +16,7 @@ const THEME_ENTITY = "theme";
 const COPY_SUFFIX = " copy";
 
 export function createDuplicateTheme(ctx: SettingsContext): Pick<SettingsService, "duplicateTheme"> {
-  async function duplicateTheme(params: DuplicateThemeParams): Promise<ThemeView> {
+  async function duplicateTheme(params: DuplicateThemeParams): Promise<Theme> {
     const ownerId = params.principal.userId;
     const source = await readableTheme(ctx.db, ownerId, params.id);
     if (source === undefined) {

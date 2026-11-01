@@ -48,7 +48,8 @@ resource and cascades failures into later tests in the same file.
 
 - `vi.mock` binds by resolved module id. A dependency that resolves only inside a sub-package's own
   `node_modules` cannot be mocked from `tests/`; inject it at the composition root instead.
-- To observe an injected-op exec frame at compose level, `vi.spyOn` the shared `ServicesResult` object.
+- To observe an injected-op exec frame at compose level, `vi.spyOn` a domain on the shared `root.services` bundle.
+- A `ServicesResult` field exists for a production reader. Never add one for a test: reach the behavior through a door (the stream socket for presence, a chat turn for tools).
 
 ## Suite shape
 

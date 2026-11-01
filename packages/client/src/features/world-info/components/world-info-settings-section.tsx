@@ -14,6 +14,7 @@ import type { UserSettings } from "@orb/contracts/settings";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
+import type { SectionPatchVars } from "#data";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
@@ -24,11 +25,7 @@ import { WORLD_INFO_SETTINGS_SUBCATEGORY } from "../lib/world-info-settings-nav.
 // The form value IS the stored section shape — derived in place (no re-spelled alias; no-inline-types).
 type WorldInfoSettingsForm = UserSettings["worldInfo"];
 
-interface UpdateWorldInfoVars {
-  readonly section: "worldInfo";
-  readonly patch: Record<string, unknown>;
-}
-const useUpdateWorldInfoSettings = createEntityMutation<UpdateWorldInfoVars, unknown>({
+const useUpdateWorldInfoSettings = createEntityMutation<SectionPatchVars<"worldInfo">, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
   errorToast: "Couldn't save your world-info settings.",
@@ -57,8 +54,7 @@ function WorldInfoSettingsFormBody({ anchorId, sectionId }: { readonly anchorId:
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
   const update = useUpdateWorldInfoSettings({ trpc, invalidation });
 
-  const save = (values: WorldInfoSettingsForm): Promise<unknown> =>
-    update.mutateAsync({ section: "worldInfo", patch: values as unknown as Record<string, unknown> });
+  const save = (values: WorldInfoSettingsForm): Promise<unknown> => update.mutateAsync({ section: "worldInfo", patch: values });
 
   return (
     <WorldInfoSettingsAutosaveForm entityId={WORLD_INFO_SETTINGS_ENTITY_ID} serverValues={data.config.worldInfo} save={save}>

@@ -1,17 +1,8 @@
 // Exact-art edges collapse transitively; near matches do not connect components.
 // Members retain their dossier identity beside their first-seen display name.
 
+import type { ImageDuplicatePair } from "@orb/contracts/discovery";
 import type { CharacterId } from "@orb/kit/ids";
-
-/** One near-duplicate art pair as this module reads it — passed structurally by the tab, like
- *  `disambiguateLabels`' clusters, so no wire shape is re-spelled here. */
-interface ArtPair {
-  readonly characterIdA: CharacterId;
-  readonly nameA: string;
-  readonly characterIdB: CharacterId;
-  readonly nameB: string;
-  readonly similarity: number;
-}
 
 /** A member's displayed name and dossier identity travel together through grouping and rendering. */
 export interface ArtCliqueMember {
@@ -45,7 +36,7 @@ const MIN_CLIQUE = 3;
  * back as its pair (it is already the minimal rendering), and every sub-identical pair passes through
  * untouched in input order — the caller has already ranked them.
  */
-export function groupIdenticalArt<T extends ArtPair>(pairs: readonly T[]): ArtDuplicateSections<T> {
+export function groupIdenticalArt<T extends ImageDuplicatePair>(pairs: readonly T[]): ArtDuplicateSections<T> {
   const identical = pairs.filter((pair) => pair.similarity >= IDENTICAL_FLOOR);
   const roots = connect(identical);
   const cliques = componentsOf(identical, roots);
@@ -56,7 +47,7 @@ export function groupIdenticalArt<T extends ArtPair>(pairs: readonly T[]): ArtDu
 }
 
 /** Union-find over the identical edges → each card's component root. */
-function connect(identical: readonly ArtPair[]): Map<CharacterId, CharacterId> {
+function connect(identical: readonly ImageDuplicatePair[]): Map<CharacterId, CharacterId> {
   const parent = new Map<CharacterId, CharacterId>();
   for (const pair of identical) {
     const [rootA, rootB] = [rootOf(parent, pair.characterIdA), rootOf(parent, pair.characterIdB)];
@@ -78,7 +69,7 @@ function rootOf(parent: Map<CharacterId, CharacterId>, id: CharacterId): Charact
 }
 
 /** Components of 3+ members, in the order the ranked pair list introduced them. */
-function componentsOf(identical: readonly ArtPair[], parent: Map<CharacterId, CharacterId>): ArtCliqueGroup[] {
+function componentsOf(identical: readonly ImageDuplicatePair[], parent: Map<CharacterId, CharacterId>): ArtCliqueGroup[] {
   const components = new Map<CharacterId, { id: CharacterId; readonly members: ArtCliqueMember[] }>();
   const seen = new Set<CharacterId>();
   for (const member of identical.flatMap((pair) => [

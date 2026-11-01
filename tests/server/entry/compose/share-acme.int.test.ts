@@ -116,11 +116,13 @@ test("the real root obtains an IP certificate through native ACME, stores privat
   const wire = JSON.stringify(await caller.share.status());
   expect(wire).not.toContain(key);
   expect(wire).not.toContain(certificate);
-  await expect(fetch(`http://127.0.0.1:${setting.challengePort}/.well-known/acme-challenge/${TOKEN}`)).rejects.toThrow();
+  await expect(fetch(`http://127.0.0.1:${setting.challengePort}/.well-known/acme-challenge/${TOKEN}`)).rejects.toMatchObject({
+    cause: { code: "ECONNREFUSED" },
+  });
   await caller.share.disableIpCertificate();
   await expect(stat(join(harness.secretsDir, IP_CERTIFICATE_FILE_NAMES.certificate))).rejects.toMatchObject({ code: "ENOENT" });
   await expect(stat(join(harness.secretsDir, IP_CERTIFICATE_FILE_NAMES.accountKey))).resolves.toBeDefined();
-  await expect(tlsConfig(setting.httpsPort, certificate)).rejects.toThrow();
+  await expect(tlsConfig(setting.httpsPort, certificate)).rejects.toMatchObject({ code: "ECONNREFUSED" });
 });
 
 test("overlapping owner certificate enables keep the acknowledged persisted choice and native TLS aligned", async () => {
@@ -149,7 +151,7 @@ test("overlapping owner certificate enables keep the acknowledged persisted choi
       identityAddress: a.address,
       headers: { host: a.address },
     }),
-  ).rejects.toThrow();
+  ).rejects.toMatchObject({ code: "ECONNREFUSED" });
 });
 
 test("overlapping owner certificate enable then disable retains off settings and deletes native serving files", async () => {
@@ -197,7 +199,9 @@ test.each(["/directory", "/chall/1", "/order/1/finalize"])("disposal cancels and
   await harness[Symbol.asyncDispose]();
   await held.closed;
   await expect(stat(harness.secretsDir)).rejects.toMatchObject({ code: "ENOENT" });
-  await expect(fetch(`http://127.0.0.1:${setting.challengePort}/.well-known/acme-challenge/${TOKEN}`)).rejects.toThrow();
+  await expect(fetch(`http://127.0.0.1:${setting.challengePort}/.well-known/acme-challenge/${TOKEN}`)).rejects.toMatchObject({
+    cause: { code: "ECONNREFUSED" },
+  });
   held.release();
 });
 
@@ -225,7 +229,7 @@ test("the native challenge listener serves only its pending token and owner disa
   await subject.held?.closed;
   await subject.harness.settleSharing();
   expect((await subject.caller.share.status()).certificate).toEqual({ state: "off" });
-  await expect(fetch(url)).rejects.toThrow();
+  await expect(fetch(url)).rejects.toMatchObject({ cause: { code: "ECONNREFUSED" } });
   subject.held?.release();
 });
 
@@ -293,7 +297,7 @@ test("a real TLS listener still closes and root storage releases when a supplied
   expect((await tlsConfig(subject.setting.httpsPort, certificate)).status).toBe(200);
   refuse = true;
   await expect(subject.harness[Symbol.asyncDispose]()).rejects.toMatchObject({ errors: [failure] });
-  await expect(tlsConfig(subject.setting.httpsPort, certificate)).rejects.toThrow();
+  await expect(tlsConfig(subject.setting.httpsPort, certificate)).rejects.toMatchObject({ code: "ECONNREFUSED" });
   await expect(stat(subject.harness.secretsDir)).rejects.toMatchObject({ code: "ENOENT" });
   expect(timers.pending()).toBe(0);
 });
@@ -410,7 +414,7 @@ test("native renewals keep the serving certificate on failure, replace it on rec
   await subject.harness.settleSharing();
   expect((await subject.caller.share.status()).certificate).toMatchObject({ state: "failed", failure: { code: "expired" } });
   expect(subject.authority.requests.filter((entry) => entry.path === "/new-order")).toHaveLength(ordersBeforeExpiry);
-  await expect(tlsConfig(subject.setting.httpsPort, renewed)).rejects.toThrow();
+  await expect(tlsConfig(subject.setting.httpsPort, renewed)).rejects.toMatchObject({ code: "ECONNREFUSED" });
 });
 
 test("the ACME edge records object JSON but rejects malformed envelope, key and identifier observations", async () => {

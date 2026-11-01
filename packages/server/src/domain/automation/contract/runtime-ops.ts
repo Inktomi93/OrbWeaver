@@ -1,10 +1,11 @@
 import type { RequestTurnOp, ToolCallRecord, TurnInitiator } from "@orb/contracts/chat";
 import type { Principal, ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { GeneratePicture } from "@orb/contracts/imagery";
+import type { BindingActor } from "@orb/contracts/inference";
 import type { ResolveUtilityPresetParams } from "@orb/contracts/preset";
 import type { GetUserSettingsOp } from "@orb/contracts/settings";
 import type { IsToolDrivableByOp, ListDrivableToolNamesOp, ResolveToolsOp } from "@orb/contracts/tool-use";
-import type { BindingActor, ChatToolDefinition, RoleClientsWithSignal, ToolCallInput } from "@orb/inference";
+import type { ChatToolDefinition, RoleClientsWithSignal, ToolCallInput } from "@orb/inference";
 import type { AssetId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import type { AutomationOps, ListRuleTools } from "./ops.ts";
 

@@ -59,7 +59,7 @@ test("a speaker tick is a short bar flush to the inline end, sized by the immers
   expect(await tick("width")).toBe(await resolved(box, "width", `var(${TOKENS["immersive.stripe-width"].cssVar})`));
   expect(await tick("height")).toBe(await resolved(box, "height", `var(${TOKENS["immersive.tick-length"].cssVar})`));
   expect(await tick("inset-block-start")).toBe(await resolved(box, "inset-block-start", `var(${TOKENS["immersive.tick-offset"].cssVar})`));
-  expect(await tick("background-color")).toBe(await resolved(box, "background-color", "var(--color-speaker)"));
+  expect(await tick("background-color")).toBe(await resolved(box, "background-color", `var(${TOKENS["color.speaker"].cssVar})`));
 });
 
 test("art that rests dimmed takes the token's opacity and returns to full under the pointer", async ({ mount }) => {

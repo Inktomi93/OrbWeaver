@@ -11,7 +11,6 @@ import { useLabelsSelectionTitle } from "./labels-selection-title.ts";
 
 export const labelsCorpusMode: CorpusModeContribution = {
   list: () => <LabelsListSurface />,
-  listSearch: "required",
   useListHeader: useLabelsListHeader,
   content: () => <LabelsContent />,
   contextHeader: () => <LabelsContextHeader />,

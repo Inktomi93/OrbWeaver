@@ -92,4 +92,21 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 66 rows = applied 9, derived 0, kept 53, handed off 4 (3 test-only readers, 1 field with writers and no reader), owner questions 0.
+
+Method: codegraph and reads of the web-weave, markdown, live-token-resolver and css-merge files; compiler probe (removed every candidate, then `pnpm typecheck packages/ui/tsconfig.json packages/client/tsconfig.json tooling/tsconfig.json tsconfig.node.json tsconfig.tests-dom.json tsconfig.tests-iso.json`, errors sorted by file kind); the restored tree exits 0. Suites `tests/ui/art/web-weave/geometry.dom.test.ts`, `variant-transitions.test.ts`, and CT `tests/ui/primitives/table/platform-table-sort.suite.ct.tsx` plus `tests/ui/primitives/select/trigger-ref.ct.tsx` (7 passed, `CT_PORT=5481`). No primitive part set changed; UI behaviour is unchanged (every deleted field had no reader and, for props, no passer).
+
+| Rows | Class | Reader or reason |
+| - | - | - |
+| `WeaveGlyphOwnProps.className`, `WebSpinnerOwnProps.className`, `WovenWeb.reach`, `ChartEvent.seriesIndex/dataIndex`, `LiveResolverRootElement.getPropertyValue`, `SelectOpeningObservation.event`, `TableColumn.width`, `ToolCallBlockRecord.toolCallId` | applied | no reader and no writer in production, testkit, CT stories or tests |
+| `WeaveDewDrop.x/y`, `WovenWeb.freeZoneRadius` | handed off (test-only reader) | only `tests/ui/art/web-weave/geometry.dom.test.ts:45,54` read them |
+| `BarListItem.id` | handed off | writers only (`packages/client/.../analytics-overview-surface.tsx:282` row type, CT story `tests/ui/styles/_ramp-enforcement-stories.tsx:76`); no reader, but deleting needs the story and the client row type edited together |
+| `WeavePalette.spiderBody/spiderBand` | kept | `input.palette` reaches `SpiderPalette` at `web-weave-render.ts:319`; read at `web-weave-spider-body.ts:112,118` |
+| `WeaveFrameInput.dt/prey` | kept | the whole input is a `SpiderScene` (`web-weave-render.ts:307`); typecheck fails without them |
+| `bubble.fg`, `themeScopeTokensSchema.font/radius/density` | kept | the paired contracts theme wire shape (`clamp.ts:70-72` header) carries them; a theme parse fills them |
+| `ClampedTheme.color` | kept | written by the `inheritedInkOn` spread (`clamp.ts:367`), read at `theme-scope.tsx:98` |
+| `CssMergeConflict.*`, `CssMergeReceipt.conflicts`, `CssMergeTraceState.*` | kept | the snap tooling parses and re-emits them by string key at `tooling/src/snap/ops/arms/cascade.ts:48-82` |
+| `LiveResolverProbeElement.style.*`, `LiveResolverPaintCanvas.width/height`, `LiveResolverObserverOptions.*` | kept | structural views of real DOM objects; the browser reads them (`canvas.width = 1` at `live-token-resolver.ts:149`, `MutationObserver.observe` options) |
+| `MarkdownNode.value/data/data.hName/data.hChildren`, `DiceHastNode.*`, `MarkdownToken.start/end.*`, `MarkdownCompilerExtension.enter`, `HastElement.children` | kept | the remark/mdast/hast pipeline reads them: the extension is registered at `dice-inline.tsx:136`, `data.hName/hChildren` feed to-hast, tokens are mdast-util-from-markdown's |
+| `ShikiHighlightToken.*`, `ShikiHighlightResult.*` | kept | Streamdown reads the result; `satisfies CodeHighlighterPlugin` at `shiki-plugin.ts:234` checks the shape |
+| `TableColumn.sortable` | kept | CT story writer `tests/ui/primitives/table/table-sort-stories.tsx`; read at `primitives/table/table.tsx` (`ariaSortFor`, sort button) |

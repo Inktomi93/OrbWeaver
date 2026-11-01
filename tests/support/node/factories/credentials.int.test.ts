@@ -3,7 +3,8 @@
 
 import { credentialExecutionEvidenceOf, credentialViewSchema } from "@orb/contracts/credentials";
 import { auditLogs, userCredentials } from "@orb/db";
-import { DomainNoCredentialError, DomainOperationError } from "@orb/kit/errors";
+import { DomainNoCredentialError } from "@orb/kit/errors";
+import { CREDENTIALS_OP_CODES } from "@orb/server/domain/credentials";
 import { and, eq } from "drizzle-orm";
 import { testProviderId } from "../../iso/inference-identities.ts";
 import { expect, test } from "../fixtures.ts";
@@ -70,7 +71,9 @@ test("an unknown provider cannot create resolved authority or leave credential a
   await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY });
   const principal = await root.principalFor(root.ownerId);
   const before = { credentials: await root.db.select().from(userCredentials), audit: await root.db.select().from(auditLogs) };
-  await expect(seedApiKeySecretRows(root, { principal, provider: "unregistered-test-provider", key: KEY })).rejects.toBeInstanceOf(DomainOperationError);
+  await expect(seedApiKeySecretRows(root, { principal, provider: "unregistered-test-provider", key: KEY })).rejects.toMatchObject({
+    code: CREDENTIALS_OP_CODES.providerUnknown,
+  });
   expect({ credentials: await root.db.select().from(userCredentials), audit: await root.db.select().from(auditLogs) }).toEqual(before);
 });
 
@@ -147,7 +150,7 @@ test("a foreign credential ID cannot manufacture a resolved secret or widen the 
   expect(await foreignCaller.credentials.list()).toEqual([]);
   expect(await ownerCaller.credentials.list()).toEqual([capture.view]);
   const before = { credentials: await root.db.select().from(userCredentials), audit: await root.db.select().from(auditLogs) };
-  await expect(foreignCaller.credentials.replace({ credentialId: capture.view.id, key: REPLACEMENT_KEY })).rejects.toThrow();
+  await expect(foreignCaller.credentials.replace({ credentialId: capture.view.id, key: REPLACEMENT_KEY })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   expect({ credentials: await root.db.select().from(userCredentials), audit: await root.db.select().from(auditLogs) }).toEqual(before);
 });
 
@@ -159,7 +162,7 @@ test("disabled deployment storage refuses before producing a credential or audit
   const credentialsBefore = await root.db.select().from(userCredentials);
   const auditBefore = await root.db.select().from(auditLogs);
   const refused = seedApiKeySecretRows(root, { principal, provider: "custom-openai", key: KEY });
-  await expect(refused).rejects.toBeInstanceOf(DomainOperationError);
+  await expect(refused).rejects.toMatchObject({ code: CREDENTIALS_OP_CODES.disabled });
   await expect(refused).rejects.toThrow("Per-user credential storage is disabled");
   expect(await root.db.select().from(userCredentials)).toEqual(credentialsBefore);
   expect(await root.db.select().from(auditLogs)).toEqual(auditBefore);

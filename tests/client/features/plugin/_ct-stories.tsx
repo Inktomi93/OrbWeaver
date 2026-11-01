@@ -1,8 +1,8 @@
 import { QueryBoundary } from "@orb/client/components";
 import { SkeletonRows } from "@orb/client/data";
 import { pluginPageKey, selectPluginPageFromList, useSectionRegistry } from "@orb/client/state";
-import type { PluginId } from "@orb/kit/ids";
-import { CtClientProviders } from "@orb/testkit/browser";
+import type { ChatId, PluginId } from "@orb/kit/ids";
+import { CtClientProviders, CtShellRoom } from "@orb/testkit/browser";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
@@ -17,6 +17,15 @@ function NativePluginPage({ pluginId, surfaceId }: { readonly pluginId: PluginId
     throw new Error("the Extensions contribution must provide its production content");
   }
   return <QueryBoundary fallback={<SkeletonRows count={2} shape="line" />}>{content()}</QueryBoundary>;
+}
+
+/** The production shell with one room open, so the top bar and You sheet read their real plugin commands. */
+export function PluginRoomShellStory({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  return (
+    <CtClientProviders>
+      <CtShellRoom chatId={chatId} />
+    </CtClientProviders>
+  );
 }
 
 /** Mount only the production Extensions content contribution; its normal page path owns the real Worker. */

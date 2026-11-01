@@ -21,12 +21,8 @@ import type { useRefineryPreflight } from "../hooks/use-refinery-schemas.ts";
 type PreflightData = ReturnType<typeof useRefineryPreflight>["data"];
 type StagePreflightView = NonNullable<PreflightData>["stages"][number];
 
-/** One stage's budget verdict: the two over-budget directions and the sentence they earn. */
+/** One stage's budget verdict: the sentence the two over-budget directions earn. */
 export interface StageWarn {
-  /** The expected OUTPUT exceeds the resolved max output — the fit line's ⚠ fires on either arm. */
-  readonly outputOver: boolean;
-  /** The assembled prompt exceeds the model's context. */
-  readonly inputOver: boolean;
   /** The advisory, in the user's words. Null when the stage fits — the ONE thing callers switch on. */
   readonly message: string | null;
 }
@@ -35,18 +31,16 @@ export interface StageWarn {
  *  concrete ceiling and a concrete remedy (raise max output), which is the more actionable of the two. */
 export function stageWarnOf(stagePre: StagePreflightView | undefined, contextTokens: number | null): StageWarn {
   if (stagePre === undefined) {
-    return { outputOver: false, inputOver: false, message: null };
+    return { message: null };
   }
   const outputOver = stagePre.maxOutputTokens !== null && stagePre.outputEstimate > stagePre.maxOutputTokens;
   const inputOver = contextTokens !== null && stagePre.inputEstimate > contextTokens;
   if (outputOver) {
     return {
-      outputOver,
-      inputOver,
       message: `The expected ${stagePre.stage} output likely exceeds the resolved max output (${stagePre.maxOutputTokens} tok) — a thinking model spends this budget on reasoning too. Raise max output in the preset, or narrow the selection.`,
     };
   }
-  return { outputOver, inputOver, message: inputOver ? "The assembled prompt likely exceeds the model's context — narrow the selection." : null };
+  return { message: inputOver ? "The assembled prompt likely exceeds the model's context — narrow the selection." : null };
 }
 
 /**

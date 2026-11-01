@@ -12,9 +12,6 @@ import { throwHttpError } from "./http-error.ts";
 
 const IMPORT_FIELD = "file";
 
-/** One imported (or deduped) transcript — `created:false` marks a re-import of a chat already present. */
-export type { ChatImportResult } from "@orb/contracts/import";
-
 /** POST picked `.jsonl` transcripts to the chat-import route and return the server's real per-file result.
  *  Throws on a non-OK response (a whole-batch rejection); per-file failures ride back in the 200 body. */
 export async function importChats(files: readonly File[]): Promise<ChatImportResult> {

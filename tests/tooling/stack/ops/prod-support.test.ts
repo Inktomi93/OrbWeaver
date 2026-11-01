@@ -47,6 +47,6 @@ test("pidfile cleanup ignores absence only and surfaces an unlink failure", ({ s
   removePidfile();
   expect(existsSync(path)).toBe(false);
   mkdirSync(path);
-  expect(() => removePidfile()).toThrow();
+  expect(() => removePidfile()).toThrow(expect.objectContaining({ code: "EISDIR" }));
   expect(existsSync(path)).toBe(true);
 });

@@ -27,7 +27,7 @@ export interface ProfileImportDeps {
 /** What the #1598 RESTORE door needs: the same card-import wiring, plus the ONE card file whose embedded
  *  lorebook the owner is asking to re-assert. `worldInfo` is REQUIRED here (unlike the batch import, whose
  *  card-only arm legitimately skips embedded books) — a restore with no lorebook write op could only refuse. */
-export interface CardLorebookRestoreDeps extends Omit<ProfileImportDeps, "files" | "worldInfo"> {
+export interface CardLorebookRestoreDeps extends Omit<ProfileImportDeps, "files" | "worldInfo" | "importCardScripts"> {
   readonly worldInfo: ImportWorldInfoPort;
   readonly file: ImportFile;
 }

@@ -22,8 +22,6 @@ import type { GeneratedImage } from "./generation.ts";
 
 import type { Resolved } from "./resolved.ts";
 
-export type { GeneratedImage } from "./generation.ts";
-
 /** The base deadline of one remote embed request when its row states none. */
 const DEFAULT_EMBED_REQUEST_TIMEOUT_MS = 120_000;
 
