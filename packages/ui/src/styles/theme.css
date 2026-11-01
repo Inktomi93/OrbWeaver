@@ -518,6 +518,7 @@
     --color-chart-3: light-dark(oklch(0.53 0.12 300), oklch(0.68 0.12 300));
     --color-chart-4: light-dark(oklch(0.52 0.11 130), oklch(0.74 0.11 130));
     --color-chart-5: light-dark(oklch(0.55 0.12 35), oklch(0.7 0.12 35));
+    --color-field-fill: light-dark(oklch(0.995 0.003 75), oklch(0.99 0.005 60 / 0.12));
     --color-input-border: light-dark(oklch(0.51 0.008 70), oklch(0.68 0.005 70));
     --tone-mix-hover: 90%;
     --tone-mix-active: 80%;
@@ -610,6 +611,7 @@
     --color-chart-3: light-dark(oklch(0.53 0.12 300), oklch(0.68 0.12 300));
     --color-chart-4: light-dark(oklch(0.52 0.11 130), oklch(0.74 0.11 130));
     --color-chart-5: light-dark(oklch(0.55 0.12 35), oklch(0.7 0.12 35));
+    --color-field-fill: light-dark(oklch(0.995 0.003 75), oklch(0.99 0.005 60 / 0.12));
     --color-input-border: light-dark(oklch(0.51 0.008 70), oklch(0.68 0.005 70));
     --tone-mix-hover: 90%;
     --tone-mix-active: 80%;
@@ -702,6 +704,7 @@
     --color-chart-3: light-dark(oklch(0.53 0.12 300), oklch(0.68 0.12 300));
     --color-chart-4: light-dark(oklch(0.52 0.11 130), oklch(0.74 0.11 130));
     --color-chart-5: light-dark(oklch(0.55 0.12 35), oklch(0.7 0.12 35));
+    --color-field-fill: light-dark(oklch(0.995 0.003 75), oklch(0.99 0.005 60 / 0.12));
     --color-input-border: light-dark(oklch(0.51 0.008 70), oklch(0.68 0.005 70));
     --tone-mix-hover: 90%;
     --tone-mix-active: 80%;

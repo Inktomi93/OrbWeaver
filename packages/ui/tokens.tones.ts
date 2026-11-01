@@ -3,6 +3,7 @@
 // A role is never a :root variable: a root formula freezes to the root palette, so it resolves on the stamped element.
 import type { CarriedToneHost, Oklch, TonePalette, ToneRoleRecipe, ToneScheme, ToneSource } from "@orb/kit/theme-derivation";
 import {
+  AA_NON_TEXT_RATIO,
   BUBBLE_HOSTS,
   bubblePageMisses,
   CARRIED_TONE_HOSTS,
@@ -13,6 +14,7 @@ import {
   srgbToOklch,
   TONE_HOSTS,
   TONE_TINT_SEPARATION,
+  toneContrast,
   toneFloorMisses,
   tonePaletteOn,
   toneRoleColors,
@@ -282,6 +284,8 @@ function seedPalette(contract: TokenContractResult, theme: TokenContractResult["
 const SEPARATION_DIGITS = 4;
 
 /** One tone's findings over one host: each floor its pairs miss and, for a colored tone, each tint that merges with the host. */
+const SOLID_ROLE = "solid";
+
 /** The tints the separation floor holds off their host: the literal roles a carried scope solves that mix toward the host. */
 function tintRoles(model: ToneModel): readonly string[] {
   return model.roles
@@ -307,7 +311,17 @@ function toneFindings(scheme: ToneScheme<string, string, CarriedToneHost>, sourc
     const distance = paintedDistance(color, scheme.palette.host);
     return distance < TONE_TINT_SEPARATION ? [`tone-${role} sits ${distance.toFixed(SEPARATION_DIGITS)} off its host`] : [];
   });
-  return [...floors, ...separations];
+  const solid = colors[SOLID_ROLE];
+  if (solid === undefined) {
+    throw new Error(`tone-${SOLID_ROLE} escaped the recipe map`);
+  }
+  // A glyph paints the solid on a tint (an active rail cell), so the pair holds the non-text floor.
+  const marks = tintRoles(model).flatMap((role) => {
+    const color = colors[role];
+    const ratio = color === undefined ? 0 : toneContrast(solid, color);
+    return ratio < AA_NON_TEXT_RATIO ? [`tone-${SOLID_ROLE} on tone-${role} is ${ratio.toFixed(2)}:1`] : [];
+  });
+  return [...floors, ...separations, ...marks];
 }
 
 /**

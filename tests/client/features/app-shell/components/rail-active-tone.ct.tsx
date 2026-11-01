@@ -55,6 +55,19 @@ test("the active section cell takes the primary tint and its on-tint ink", async
   expect(await style(cell.locator("svg").first(), "color")).toBe(await primaryRole(page, "text-on-tint"));
 });
 
+test("the active phone tab keeps the rail's tint and on-tint ink, a pair the D336 floors judge", async ({ corpus, mount, page }) => {
+  await routeShell(page, corpus, await root.internalCallerFor(root.ownerId), SECTION_PROCEDURES);
+  await page.setViewportSize({ width: 430, height: 900 });
+  await seedShellState(page, { activeSection: "characters" });
+  await mount<typeof AppShellStory>(STORY, {});
+  const cell = page.locator(ACTIVE);
+  await expect(cell).toHaveAccessibleName(SECTION_LABELS.characters);
+  await page.locator(".shell-topbar").hover();
+  expect(await style(cell, "background-color")).toBe(await primaryRole(page, "tint"));
+  expect(await style(cell.locator(".shell-rail-button-label"), "color")).toBe(await primaryRole(page, "text-on-tint"));
+  expect(await style(cell.locator("svg").first(), "color")).toBe(await primaryRole(page, "text-on-tint"));
+});
+
 test("the active Home brand takes the primary tint, the pigment glyph and the accent bar", async ({ corpus, mount, page }) => {
   await routeShell(page, corpus, await root.internalCallerFor(root.ownerId), SECTION_PROCEDURES);
   await page.setViewportSize({ width: 1280, height: 900 });

@@ -1292,6 +1292,7 @@ export const OWNER_CSS_THEME_SCOPE_VARS = [
   "--color-chart-4",
   "--color-chart-5",
   "--color-dialogue",
+  "--color-field-fill",
   "--color-foreground",
   "--color-input",
   "--color-input-border",

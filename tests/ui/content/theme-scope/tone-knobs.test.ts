@@ -30,6 +30,8 @@ import { BASES, keepsHue, MID_GREY } from "./contrast-cases.ts";
 
 // The sweeps run the production clamp per case; they outrun the default per-test budget.
 const SWEEP_TIMEOUT_MS = 180_000;
+// Every accent on every contrast-case base, picked and inherited: each pair is a distinct solve, and it measured 290 s at load 30.
+const ACCENT_SWEEP_TIMEOUT_MS = 2 * SWEEP_TIMEOUT_MS;
 const HEARTH_ACCENT = TOKENS["color.primary"].value;
 const ACCENT_LIGHTNESSES = Array.from({ length: 20 }, (_unused, index) => (index + 0.5) / 20);
 const ACCENT_CHROMAS = [0, 0.06, 0.12, 0.2, 0.37];
@@ -142,7 +144,7 @@ function emittedScope(background: string, tokens: { readonly accent?: string }, 
  */
 function nestedAccentScope(background: string, accent: string): EmittedScope {
   const outer = clampThemeTokens({ background }, undefined, HEARTH_ACCENT);
-  const nested = clampThemeTokens({ accent }, outer.resolvedBackground, outer.accentSource, "carried");
+  const nested = clampThemeTokens({ accent }, outer.resolvedBackground, outer.accentSource, { palette: "carried" });
   const vars = { ...outer.vars, ...nested.vars };
   const scheme = schemeOf(background);
   const primary: CarriedTone = {
@@ -256,7 +258,7 @@ test(
     );
     expect(misses).toEqual([]);
   },
-  SWEEP_TIMEOUT_MS,
+  ACCENT_SWEEP_TIMEOUT_MS,
 );
 
 /** A dark accent no one ink covers with its solid steps, and a saturated one past the gamut. */
