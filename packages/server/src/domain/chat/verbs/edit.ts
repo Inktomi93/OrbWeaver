@@ -42,7 +42,7 @@ import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
-import { assetIdsInContent } from "@orb/kit/content";
+import { assetIdsInContent, stripHiddenSpans } from "@orb/kit/content";
 import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, RandomSource } from "@orb/kit/macro";
 import type { RegexPlacement } from "@orb/kit/regex";
@@ -120,7 +120,7 @@ import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import { buildTurnMacroContext, freezeVolatileMacros } from "../substrate/assembly-access.ts";
 import { assertAuthorOrHost, isBelowHistoryFloor, permitsHost } from "../substrate/auth/index.ts";
 import { continuationToolsAreUndone } from "../substrate/content-signatures.ts";
-import { projectViewReturnForViewer } from "../substrate/member-visibility.ts";
+import { projectViewReturnForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { ownedCitedAssetIds } from "../substrate/owned-citations.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { humanSeatPersonasOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
@@ -559,6 +559,11 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
   return async ({ principal, chatId, messageId, content, timeZone }: EditMessageParams) => {
     const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
+    // A non-host edits the stripped view, so saving it would erase bytes they cannot read. The author test cannot
+    // lift this: a host can write a hidden span into a member's own row.
+    if (!viewerReadsHidden(membership) && stripHiddenSpans(slot.content).hadHidden) {
+      throw new ChatOperationError(CHAT_OP_CODES.hiddenSpanEdit, `chat ${chatId}: this message holds content only the host can edit`);
+    }
     const participants = await loadParticipants(ctx.db, chatId);
     const hostUserId = hostUserIdOf(participants);
     const purified = await purifyEditedContent(ctx, { hostUserId, slot, content });

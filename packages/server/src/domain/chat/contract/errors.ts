@@ -32,6 +32,9 @@ export const CHAT_OP_CODES = {
   /** An edit/delete-a-slot verb (`author-or-host`) called by a member who is neither the slot's
    *  `authorUserId` nor the room host — a known-existence authority refusal (the caller IS a member). */
   notAuthor: "not_author",
+  /** A non-host's `editMessage` over a stored body with a hidden span. They edit the stripped view, so saving it
+   *  would erase bytes they cannot read. The refusal names no hidden byte. */
+  hiddenSpanEdit: "hidden_span_edit",
   /** An abort called by a member who does not own the in-flight turn (`turn-owner` — the
    *  rollback-theft defense; a host aborting a member's turn is refused). */
   notTurnOwner: "not_turn_owner",
