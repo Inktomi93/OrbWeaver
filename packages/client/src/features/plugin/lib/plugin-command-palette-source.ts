@@ -7,7 +7,7 @@
 // <cmd>` — discoverable only if you already know the plugin and command names. U8's mandate is that each
 // command is its OWN searchable row (name + plugin label + describe), so the command palette — the ST-extension
 // UX backbone — surfaces them like any house action. This is a SURFACING layer, not a new execution path: a
-// picked row runs through the SAME `usePluginCommandRunner` the `/plugin` dispatch and the wand menu already
+// picked row runs through the SAME `usePluginCommandRunner` the `/plugin` dispatch and the placed commands already
 // share, so the three surfaces cannot drift (one resolve, one invoke, one outcome).
 //
 // NO PER-ROW MOUNT. A `SlashCommandContribution` mounts an invisible fiber per command so a hook-using runner
@@ -43,7 +43,7 @@ function usePluginPaletteRows(context: SlashCommandContext): readonly PaletteCom
     // The `/plugin` spelling is a real search term — a person who knows the dispatch grammar finds the row by it.
     keywords: [command.pluginName, command.slug, `/plugin ${command.slug} ${command.name}`],
     // #791 — the shared collect-or-run: a command that DECLARES typed args opens the args-collection modal, else
-    // it dispatches directly (the U8 shape, unchanged). One home so the palette and the wand menu cannot drift.
+    // it dispatches directly (the U8 shape, unchanged). One home so the palette and the placed commands cannot drift.
     run: (): void => runCommand(command),
   }));
 }

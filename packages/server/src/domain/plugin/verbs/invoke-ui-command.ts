@@ -1,5 +1,5 @@
 // verb: invokeUiCommand — the COMMAND round-trip. `/plugin <slug> <name> …` in
-// the composer and the "Plugins" chrome menu both land here; the verb re-enters the command's `onRun` in the
+// the composer and the command palette both land here; the verb re-enters the command's `onRun` in the
 // resident guest and returns the drained UI outcome (toasts + at most one dialog open).
 //
 // THE AUTHORITY GATE, in the order a hostile caller meets it — the `invokeUiAction` ladder plus a fourth rung
@@ -14,7 +14,7 @@
 //     oracle) and threaded as a real `InvocationChat` with the resolved `canWrite`. THIS RUNG IS THE POINT: a
 //     command is a NEW way to reach a guest with a room attached, and if it admitted the chat by itself, it
 //     would be a door around the chat-read admission every other guest entry point passes through. A command
-//     run outside a room (the chrome menu on a non-chat section) carries `null` and `chat.current()` throws in
+//     run outside a room (the palette or top bar on a non-chat section) carries `null` and `chat.current()` throws in
 //     the guest — the honest answer, not a synthesized room.
 //
 // The re-entry runs through the resident's crash-policy'd `invoke`, so a throwing/hung command bumps

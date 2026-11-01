@@ -495,10 +495,10 @@ export interface PluginService {
    *  worst a caller can do with it is disable their own plugin — which `setEnabled` already lets them do. */
   readonly reportUiCrash: (params: ReportUiCrashParams) => Promise<void>;
   /** The caller's OWN enabled plugins' registered COMMANDS (U5) — owner-scoped, no foreign id, the
-   *  `listSurfaces` posture exactly. Both the `/plugin` dispatcher and the Plugins chrome menu read it. */
+   *  `listSurfaces` posture exactly. Both the `/plugin` dispatcher and the command palette read it. */
   readonly listCommands: (params: ListCommandsParams) => Promise<readonly PluginCommandView[]>;
   /** Run one registered command under the crash policy (owner-scoped, leak-free) and return the drained UI
-   *  outcome. `/plugin <slug> <name> <rest>` and the chrome menu are the two surfaces that reach it. */
+   *  outcome. `/plugin <slug> <name> <rest>`, the palette and the placed commands reach it. */
   readonly invokeUiCommand: (params: InvokeUiCommandParams) => Promise<PluginUiOutcome>;
   /** The caller's OWN enabled plugins' registered DISPLAY transforms (seam 14, U6) —
    *  owner-scoped, no foreign id. The per-row round-trip's BYTE-IDENTITY gate: an empty answer means the

@@ -23,4 +23,12 @@ With no plugin placing into the top bar, nothing plugin-related renders there; a
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Owner rulings:
+
+- `PLUGIN_COMMAND_PLACEMENT_TARGETS` gains an optional `topbar` target. Placement stays up to the plugin, and the top bar shows nothing when no plugin places a command there.
+- The top bar renders one icon button per placed command, with no aggregate wand.
+- The value feeds `pluginCommandPlacementSchema`, the registration `placements` bound, `packages/plugin-sdk/shared.d.ts` and `scripts/generate-plugin-author-support.ts`.
+
+Unplaced command decision: a command with no placement gets no menu or top bar control, and registration still admits it. Before this change it had the wand, its overflow submenu, the phone You sheet rows, the command palette and `/plugin`. The palette and `/plugin` stay. The palette opens from the top bar, the overflow menu and the phone You sheet, so every unplaced command keeps a door on every width. Requiring a placement was rejected: it would refuse guests that registered without one.
+
+Tests: `tests/client/features/plugin/components/plugin-topbar-placement.ct.tsx` and `tests/server/domain/plugin/substrate/guest-command-placement.int.test.ts`.
