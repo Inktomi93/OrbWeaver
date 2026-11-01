@@ -61,6 +61,7 @@
     "cpd": "node scripts/cpd.ts -c jscpd.json",
     "typecheck": "node scripts/typecheck.ts",
     "lint:eslint": "eslint --flag unstable_native_nodejs_ts_config --max-warnings 0",
+    "lint:eslint:box": "node scripts/eslint-box.ts",
     "lint:css": "stylelint \"packages/**/*.css\"",
     "test:ct": "playwright test --config=playwright-ct.config.ts --project=chromium",
     "test:ct:webkit": "playwright test --config=playwright-ct.config.ts --project=webkit-iphone",
