@@ -8,6 +8,7 @@ import {
   span,
   withRequestSpan,
 } from "@orb/server/foundation/observability";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createTestEnv } from "@orb/testkit/node/helpers";
 import { Hono } from "hono";
@@ -73,7 +74,7 @@ test("a handled HTTP error retains error status and redacts its invite capabilit
   expect(recorded?.spans[0]?.attributes["http.path"]).toBe("/join/:token");
   expect(JSON.stringify(recorded)).not.toContain(token);
   expect(recorded?.spans[0]?.events).toEqual([
-    expect.objectContaining({ name: "exception", attributes: { "exception.message": failure.message, "exception.type": "Error" } }),
+    asymmetric(expect.objectContaining({ name: "exception", attributes: { "exception.message": failure.message, "exception.type": "Error" } })),
   ]);
 });
 
@@ -94,7 +95,7 @@ test("cancellation propagates the original reason and ends both spans as errors"
   expect(recorded).toMatchObject({ status: "error", totals: { spanCount: 2 } });
   expect(recorded?.spans.map((entry) => entry.status)).toEqual(["error", "error"]);
   expect(recorded?.spans.find((entry) => entry.name === CHILD)?.events).toEqual([
-    expect.objectContaining({ name: "exception", attributes: { "exception.message": reason.message, "exception.type": "Error" } }),
+    asymmetric(expect.objectContaining({ name: "exception", attributes: { "exception.message": reason.message, "exception.type": "Error" } })),
   ]);
 });
 
@@ -113,5 +114,5 @@ test("the ring keeps bounded scalar metadata, native arrays and event attributes
   expect(child?.attributes).not.toHaveProperty("absent");
   const bounded = child?.attributes["detail"];
   expect(bounded).toBe(`${long.slice(0, 512)}…`);
-  expect(child?.events).toEqual([expect.objectContaining({ name: "metadata.event", attributes: { detail: bounded, count: 2, enabled: true } })]);
+  expect(child?.events).toEqual([asymmetric(expect.objectContaining({ name: "metadata.event", attributes: { detail: bounded, count: 2, enabled: true } }))]);
 });

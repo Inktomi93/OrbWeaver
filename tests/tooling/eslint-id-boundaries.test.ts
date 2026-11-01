@@ -2,10 +2,12 @@
 // the real flat config, one planted source per arm, so a rule that loses its scope or its selector goes red here.
 
 import { join } from "node:path";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
-
+import type { ResolvedConfig } from "./_eslint-config.ts";
+import { resolvedConfig } from "./_eslint-config.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 // The first case loads the whole flat config, which dwarfs every later one.
@@ -23,9 +25,9 @@ const SERVER = "packages/server/src/probe.ts";
 const CONTRACTS = "packages/contracts/src/probe.ts";
 
 const eslints = new Map<string, ESLint>();
-const configs = new Map<string, ReturnType<ESLint["calculateConfigForFile"]>>();
+const configs = new Map<string, Promise<ResolvedConfig>>();
 
-async function configFor(root: string, filename: string): ReturnType<ESLint["calculateConfigForFile"]> {
+async function configFor(root: string, filename: string): Promise<ResolvedConfig> {
   const key = `${root}\0${filename}`;
   let config = configs.get(key);
   if (config === undefined) {
@@ -34,7 +36,7 @@ async function configFor(root: string, filename: string): ReturnType<ESLint["cal
       eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: root });
       eslints.set(root, eslint);
     }
-    config = eslint.calculateConfigForFile(filename);
+    config = resolvedConfig(eslint, filename);
     configs.set(key, config);
   }
   return await config;
@@ -51,7 +53,7 @@ async function messages(root: string, rule: string, source: string, path: string
       plugins: config.plugins,
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, ecmaFeatures: { jsx: true } } },
       linterOptions: { reportUnusedDisableDirectives: "error" },
-      rules: { [rule]: config.rules?.[rule] ?? "off" },
+      rules: { [rule]: config.rules[rule] ?? "off" },
     },
     { filename },
   );
@@ -107,7 +109,7 @@ test(
     const bad = 'export const x = castId("");\n';
     expect(await messages(repoRoot, FAKE_DISABLED, permission + bad, CLIENT)).toEqual([]);
     expect(await messages(repoRoot, FAKE_DISABLED, `${permission}export const y = 1;\n`, CLIENT)).toMatchObject([
-      { ruleId: null, message: expect.stringContaining("Unused eslint-disable directive") },
+      { ruleId: null, message: asymmetric(expect.stringContaining("Unused eslint-disable directive")) },
     ]);
   },
   CONFIG_LOAD_TIMEOUT_MS,
@@ -155,7 +157,7 @@ test(
     const permission = `// eslint-disable-next-line ${RAW_ID} -- Bounded native permission control.\n`;
     expect(await messages(repoRoot, RAW_ID, `${ZOD}export const s = {\n  ${permission}  requestId: z.string(),\n};\n`, CONTRACTS)).toEqual([]);
     expect(await messages(repoRoot, RAW_ID, `${ZOD}${permission}export const s = 1;\n`, CONTRACTS)).toMatchObject([
-      { ruleId: null, message: expect.stringContaining("Unused eslint-disable directive") },
+      { ruleId: null, message: asymmetric(expect.stringContaining("Unused eslint-disable directive")) },
     ]);
   },
   CONFIG_LOAD_TIMEOUT_MS,
@@ -327,7 +329,7 @@ test(
     const permission = `// eslint-disable-next-line ${WIRE_JSON} -- Bounded native permission control.\n`;
     expect(await messages(repoRoot, WIRE_JSON, `${ROW_TYPE}${permission}${bad.slice(ROW_TYPE.length)}`, CLIENT)).toEqual([]);
     expect(await messages(repoRoot, WIRE_JSON, `${permission}export const y = 1;\n`, CLIENT)).toMatchObject([
-      { ruleId: null, message: expect.stringContaining("Unused eslint-disable directive") },
+      { ruleId: null, message: asymmetric(expect.stringContaining("Unused eslint-disable directive")) },
     ]);
   },
   CONFIG_LOAD_TIMEOUT_MS,

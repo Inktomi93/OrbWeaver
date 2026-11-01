@@ -6,6 +6,7 @@ import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { asymmetric } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { READINESS_PASSES } from "#client/features/discovery/lib/corpus-readiness-passes.ts";
@@ -140,7 +141,7 @@ test("a pass that calls the helper model confirms its estimated calls, then enqu
     .toEqual(
       expect.arrayContaining([
         { kind: "memory-backfill", dependsOn: [], waitsOnBackfill: false },
-        { kind: "compute-themes", dependsOn: [expect.any(String)], waitsOnBackfill: true },
+        { kind: "compute-themes", dependsOn: [asymmetric(expect.any(String))], waitsOnBackfill: true },
       ]),
     );
 });

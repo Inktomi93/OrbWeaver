@@ -3,6 +3,7 @@
 import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
+import { asymmetric } from "@orb/testkit/iso";
 import { startFilmstripAuthFixture } from "@orb/testkit/node/helpers";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
@@ -184,7 +185,7 @@ test("the CLI withholds an over-cap action tape whose required brackets cannot a
   expect(index.verdict.arms.find((arm) => arm.arm === "filmstrip")).toMatchObject({
     state: "refused",
     artifacts: [],
-    detail: expect.stringMatching(/^FILMSTRIP REFUSED: action-relative frame was not retained \(\$\.actions\[\d+\]\.(?:before|at|after)\)$/u),
+    detail: asymmetric(expect.stringMatching(/^FILMSTRIP REFUSED: action-relative frame was not retained \(\$\.actions\[\d+\]\.(?:before|at|after)\)$/u)),
   });
   expect(index.resultPairs).toContainEqual(["filmstrip", "REFUSED"]);
   expect(index.artifacts.some((artifact) => artifact.channel === "filmstrip")).toBe(false);
@@ -192,7 +193,7 @@ test("the CLI withholds an over-cap action tape whose required brackets cannot a
   expect(fact).toMatchObject({
     data: {
       state: "refused",
-      detail: expect.stringContaining("action-relative frame was not retained"),
+      detail: asymmetric(expect.stringContaining("action-relative frame was not retained")),
       retainedFrames: 3,
       artifact: null,
     },
@@ -211,8 +212,8 @@ test("start, ack, stop, and detach failures remain explicit and cleanup failures
   await expect(startFilmstripCapture(null, LIMITS, { createCdp: async () => start })).rejects.toMatchObject({
     name: "AggregateError",
     errors: [
-      expect.objectContaining({ message: expect.stringContaining("startScreencast") }),
-      expect.objectContaining({ message: expect.stringContaining("detach") }),
+      asymmetric(expect.objectContaining({ message: asymmetric(expect.stringContaining("startScreencast")) })),
+      asymmetric(expect.objectContaining({ message: asymmetric(expect.stringContaining("detach")) })),
     ],
   });
 
@@ -221,8 +222,12 @@ test("start, ack, stop, and detach failures remain explicit and cleanup failures
   stop.frame(Buffer.from("frame"), 1);
   await expect(controller.stop()).rejects.toMatchObject({
     name: "AggregateError",
-    errors: expect.arrayContaining(
-      ["Page.screencastFrameAck", "Page.stopScreencast", "detach"].map((method) => expect.objectContaining({ message: expect.stringContaining(method) })),
+    errors: asymmetric(
+      expect.arrayContaining(
+        ["Page.screencastFrameAck", "Page.stopScreencast", "detach"].map((method) =>
+          expect.objectContaining({ message: asymmetric(expect.stringContaining(method)) }),
+        ),
+      ),
     ),
   });
 });
@@ -414,7 +419,7 @@ test("scenario checkpoints each own a scoped filmstrip fact and artifact", async
   expect(artifacts).toHaveLength(2);
   expect(index.verdict.arms.find((arm) => arm.arm === "filmstrip")).toMatchObject({
     state: "passed",
-    artifacts: expect.arrayContaining(artifacts.map((artifact) => artifact.path)),
+    artifacts: asymmetric(expect.arrayContaining(artifacts.map((artifact) => artifact.path))),
   });
   expect(new Set(facts.map((fact) => (fact.scope.window.kind === "exact" ? fact.scope.window.value : null))).size).toBe(2);
   for (const fact of facts) {

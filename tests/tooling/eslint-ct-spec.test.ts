@@ -1,8 +1,10 @@
 // Native ESLint guards story test ids, tRPC route order and shared poll schedules.
 import { join } from "node:path";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
+import { resolvedConfig } from "./_eslint-config.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 const STORY_ID = "orb/testid-typed-only-stories";
@@ -17,7 +19,7 @@ const CONFIG_LOAD = { timeout: scaledBudget(CONFIG_LOAD_BASE_MS) };
 
 async function ordinary(root: string, rule: string, source: string, path: string): Promise<readonly Linter.LintMessage[]> {
   const filename = join(root, path);
-  const config = await new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: root }).calculateConfigForFile(filename);
+  const config = await resolvedConfig(new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: root }), filename);
   expect(config).toBeDefined();
   const found = new Linter().verify(
     source,
@@ -56,7 +58,7 @@ test("a story freeform id takes a reasoned inline permission, and a stale permis
   const permission = `// eslint-disable-next-line ${STORY_ID} -- Bounded native permission control.\n`;
   expect(await ordinary(repoRoot, STORY_ID, permission + bad, STORY)).toEqual([]);
   expect(await ordinary(repoRoot, STORY_ID, `${permission}export const A = 1;`, STORY)).toMatchObject([
-    { ruleId: null, message: expect.stringContaining("Unused eslint-disable directive") },
+    { ruleId: null, message: asymmetric(expect.stringContaining("Unused eslint-disable directive")) },
   ]);
 });
 

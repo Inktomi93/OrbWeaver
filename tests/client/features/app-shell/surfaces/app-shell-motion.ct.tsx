@@ -9,6 +9,7 @@ import { emulateMedia, releaseEmulatedMedia, resolvedLength, seedShellState, she
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
+import { asymmetric } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
@@ -477,7 +478,7 @@ test.describe("a section swap", () => {
         ),
       )
       .toBe(`The row box (${DOOR_BOXES.row}) is absent`);
-    await expect(readBoxes(page, SECTION_BOXES)).resolves.toMatchObject({ main: expect.any(Number) });
+    await expect(readBoxes(page, SECTION_BOXES)).resolves.toMatchObject({ main: asymmetric(expect.any(Number)) });
   });
 
   test("under full motion the swap captures the content pane only, crossfaded at a fixed scale", async ({ mount, page }) => {

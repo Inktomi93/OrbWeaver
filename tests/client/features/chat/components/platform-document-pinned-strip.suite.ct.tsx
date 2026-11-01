@@ -128,8 +128,8 @@ async function expectPinnedStrip(row: Locator, scrollport: Locator, expectReveal
       return Array.from(range.getClientRects());
     });
     return {
-      band: band.toJSON(),
-      reading: reading.toJSON(),
+      band: { top: band.top, bottom: band.bottom, left: band.left, right: band.right },
+      reading: { top: reading.top, bottom: reading.bottom, left: reading.left, right: reading.right },
       coveredLines: lines.filter((line) => line.bottom > band.top && line.top < band.bottom).length,
     };
   });

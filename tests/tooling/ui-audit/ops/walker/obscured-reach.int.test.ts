@@ -22,6 +22,7 @@
 // declines to answer at this coordinate", and the sub-pixel boundary is the whole mechanism.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { asymmetric } from "@orb/testkit/iso";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
 import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
 import { expect, test } from "@orb/testkit/tooling";
@@ -118,11 +119,13 @@ test("obscured withholding names the exact partially visible subject and centre"
 
   expect(result.code).toBe(2);
   expect(report.obscuredUnaskable).toEqual([
-    expect.objectContaining({
-      selector: expect.stringContaining("data-slot=edge-copy"),
-      reason: "centre-outside-frame",
-      centre: expect.objectContaining({ x: -30 }),
-    }),
+    asymmetric(
+      expect.objectContaining({
+        selector: asymmetric(expect.stringContaining("data-slot=edge-copy")),
+        reason: "centre-outside-frame",
+        centre: asymmetric(expect.objectContaining({ x: -30 })),
+      }),
+    ),
   ]);
   expect(report.populationAccounting?.["obscured-target"]).toMatchObject({ candidates: 1, judged: 0, withheld: { unaskable: 1 } });
 });
@@ -157,6 +160,8 @@ test("obscured census keeps a null compositor answer withheld after the centre i
   const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as RelationalPopulationReport;
 
   expect(result.code).toBe(2);
-  expect(report.obscuredUnaskable).toEqual([expect.objectContaining({ selector: expect.stringContaining("data-slot=null-hit"), reason: "hit-test-null" })]);
+  expect(report.obscuredUnaskable).toEqual([
+    asymmetric(expect.objectContaining({ selector: asymmetric(expect.stringContaining("data-slot=null-hit")), reason: "hit-test-null" })),
+  ]);
   expect(report.populationAccounting?.["obscured-target"]).toMatchObject({ candidates: 1, judged: 0, withheld: { unaskable: 1 } });
 });

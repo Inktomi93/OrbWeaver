@@ -2,7 +2,7 @@
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { routeTrpc } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
+import { asymmetric, createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import type { BackgroundSectionStory } from "./_background-upload-stories.tsx";
 
 const UPLOAD_ROUTE = "**/api/assets/upload";
@@ -33,6 +33,10 @@ test("an uploaded background is saved under the id the runtime's source minted",
     .poll(() => saved.at(-1))
     .toMatchObject({
       section: "appearance",
-      patch: { backgroundLibrary: expect.arrayContaining([expect.objectContaining({ entryId: expectedEntryId, assetId, assetHash: HASH, name: "dusk" })]) },
+      patch: {
+        backgroundLibrary: asymmetric(
+          expect.arrayContaining([asymmetric(expect.objectContaining({ entryId: expectedEntryId, assetId, assetHash: HASH, name: "dusk" }))]),
+        ),
+      },
     });
 });

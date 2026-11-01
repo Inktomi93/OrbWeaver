@@ -7,6 +7,7 @@ import type { Server } from "node:http";
 import { createServer } from "node:http";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { launchProbeSession, withProbeSession } from "@orb/tooling/floor/browser/browser";
 import type { DevToolsCascadeRawDeclaration, DevToolsCascadeRawReceipt } from "@orb/tooling/floor/devtools/devtools-runtime";
@@ -111,7 +112,7 @@ test("the official DevTools SDK reports the planted cascade matrix without mutat
       expect(declaration(row(receipts, "#source-order"), "blue").sourceUrl).toBe("/workspace/packages/client/src/styles/globals.css");
       expect(row(receipts, "#computed-default")).toMatchObject({ computedDefault: true, declarations: [] });
       expect(row(receipts, "#user-agent").declarations).toContainEqual(expect.objectContaining({ state: "Active", sourceUrl: null, styleSheetId: null }));
-      expect(row(receipts, "#mixed").declarations).toEqual([expect.objectContaining({ state: "Active", value: "blue" })]);
+      expect(row(receipts, "#mixed").declarations).toEqual([asymmetric(expect.objectContaining({ state: "Active", value: "blue" }))]);
       expect(
         receipts.filter((receipt) => receipt.selector === ".representative").map(({ matchIndex, computedValue }) => ({ matchIndex, computedValue })),
       ).toEqual([

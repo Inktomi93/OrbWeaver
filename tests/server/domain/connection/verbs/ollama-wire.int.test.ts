@@ -1,7 +1,7 @@
 // @subject packages/inference/src/backends/openai-compat/ollama-native.ts
 import { setImmediate } from "node:timers/promises";
 import type { SummarizeResult } from "@orb/contracts/providers";
-import { makeGenerationCapability } from "@orb/testkit/iso";
+import { asymmetric, makeGenerationCapability } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 
@@ -86,6 +86,6 @@ test.each([
   await expect(nativeSummary({ ...VALID, ...patch })).rejects.toMatchObject({
     kind: "unknown",
     retryable: false,
-    message: expect.stringContaining("Failed to process successful response"),
+    message: asymmetric(expect.stringContaining("Failed to process successful response")),
   });
 });

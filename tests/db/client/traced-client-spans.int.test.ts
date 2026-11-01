@@ -2,6 +2,7 @@
 
 import { closeDb, createDb } from "@orb/db";
 import { createObservabilityRings, withRequestSpan, wrapLibSqlClient } from "@orb/server/foundation/observability";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { sql } from "drizzle-orm";
 
@@ -32,7 +33,7 @@ test("the real DB wrapper records query results and failures without breaking na
   expect(failed).toMatchObject({ status: "error", totals: { spanCount: 2, dbSpanCount: 1 } });
   expect(failed?.spans.find((entry) => entry.name === "db.execute")).toMatchObject({
     status: "error",
-    events: [expect.objectContaining({ name: "exception" })],
+    events: [asymmetric(expect.objectContaining({ name: "exception" }))],
   });
   lifetime.dispose();
   await expect(db.get(sql`SELECT 7 AS answer`)).rejects.toMatchObject({ cause: { code: "CLIENT_CLOSED" } });

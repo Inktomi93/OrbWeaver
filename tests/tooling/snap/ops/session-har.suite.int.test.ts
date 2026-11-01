@@ -1,9 +1,9 @@
 // #1296: HAR is real correlated CDP Network evidence, never the shallow Playwright request summary.
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { openRunSlot, publishRunSlot } from "@orb/tooling/floor/artifacts/artifacts";
 import { launchProbeSession, settle, withProbeSession } from "@orb/tooling/floor/browser/browser";
@@ -16,6 +16,7 @@ import { chromium } from "@playwright/test";
 import { vi } from "vitest";
 import { assertCompleteNetworkHar, buildNetworkHar, writeNetworkHar } from "../../../../tooling/src/snap/lib/network-har.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { listeningAddress } from "../../_server-address.ts";
 
 vi.setConfig({ testTimeout: scaledBudget(120_000, 4), hookTimeout: scaledBudget(120_000, 4) });
 
@@ -100,7 +101,7 @@ async function loopbackServer(): Promise<{ readonly base: string; readonly close
     response.end("popup-data");
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const port = (server.address() as AddressInfo).port;
+  const port = listeningAddress(server).port;
   return {
     base: `http://127.0.0.1:${port}`,
     close: async () => await new Promise<void>((resolve, reject) => server.close((error) => (error === undefined ? resolve() : reject(error)))),
@@ -380,7 +381,7 @@ test("session export snapshots the CDP HAR without closing its browser owner", a
     const parsedHar = JSON.parse(harText) as { readonly log?: { readonly _orbRetention?: unknown } };
     assertCompleteNetworkHar(parsedHar);
     expect(browserEvidenceRetentionBatchSchema.parse(parsedHar.log._orbRetention).rows).toEqual(
-      expect.arrayContaining([expect.objectContaining({ source: "browser-network-completed", complete: true })]),
+      expect.arrayContaining([asymmetric(expect.objectContaining({ source: "browser-network-completed", complete: true }))]),
     );
     const stillLive = await runCli("snap", ["--session", name, "--eval", "document.querySelector('h1')?.textContent", "--no-shot"], {
       env,

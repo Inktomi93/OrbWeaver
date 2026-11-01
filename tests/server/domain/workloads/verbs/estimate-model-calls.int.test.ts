@@ -8,6 +8,7 @@ import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { WORKLOAD_NOT_ADMISSIBLE } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createMemoryBackfillRoom, createServerHarness, seedCorpusConnections } from "@orb/testkit/node/composed";
 
@@ -78,7 +79,7 @@ test("a run the owning domain would refuse counts zero unless the confirm asks t
   const ask = async (assumeAdmitted?: boolean): Promise<unknown> =>
     await room.caller.workloads.estimateModelCalls({ input: MEMORY, mode: "singular", ...(assumeAdmitted === undefined ? {} : { assumeAdmitted }) });
   const admitted = await ask();
-  expect(admitted).toEqual({ calls: expect.any(Number) });
+  expect(admitted).toEqual({ calls: asymmetric(expect.any(Number)) });
   expect(admitted).not.toEqual({ calls: 0 });
 
   await room.caller.settings.updateUserSettingsSection({ section: "memory", patch: { enabled: false } });

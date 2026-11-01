@@ -5,7 +5,7 @@
 
 import type { ServerResponse } from "node:http";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { aggregateScope, exactScope } from "@orb/tooling/floor/artifacts/artifact-scope";
 import { launchProbeSession, settle, withProbeSession } from "@orb/tooling/floor/browser/browser";
@@ -20,6 +20,7 @@ import {
 } from "@orb/tooling/floor/browser/browser-network";
 import { vi } from "vitest";
 import { scaledBudget } from "../../_load-budget.ts";
+import { listeningAddress } from "../../_server-address.ts";
 
 vi.setConfig({ testTimeout: scaledBudget(120_000, 4), hookTimeout: scaledBudget(120_000, 4) });
 
@@ -45,7 +46,7 @@ test("bounded browser evidence keeps cursor attribution and active network chain
     response.end("<!doctype html><html data-app-ready><body>retention</body></html>");
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const origin = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+  const origin = `http://127.0.0.1:${String(listeningAddress(server).port)}`;
   const session = await launchProbeSession({
     headless: true,
     viewport: { width: 640, height: 480 },
@@ -137,27 +138,29 @@ test("bounded browser evidence keeps cursor attribution and active network chain
       expect(browserEvidenceRetentionBatchSchema.parse(batch)).toEqual(batch);
       expect(batch.rows).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ source: "browser-console", dropped: expect.any(Number), complete: false }),
-          expect.objectContaining({ source: "browser-page-errors", dropped: 2, complete: false }),
-          expect.objectContaining({ source: "browser-diagnostics", complete: false }),
-          expect.objectContaining({ source: "browser-diagnostic-completeness", dropped: 3, complete: false }),
-          expect.objectContaining({ source: "browser-request-summary-latest-url", complete: false }),
-          expect.objectContaining({ source: "browser-network-completed", complete: false }),
-          expect.objectContaining({ source: "browser-network-orphan-extra", dropped: 5, complete: false }),
-          expect.objectContaining({
-            source: "browser-console",
-            dropped: expect.any(Number),
-            scope: {
-              kind: "scope-v1",
-              context: { kind: "exact", value: 0 },
-              page: { kind: "exact", value: 0 },
-              window: { kind: "exact", value: "1" },
-            },
-          }),
+          asymmetric(expect.objectContaining({ source: "browser-console", dropped: asymmetric(expect.any(Number)), complete: false })),
+          asymmetric(expect.objectContaining({ source: "browser-page-errors", dropped: 2, complete: false })),
+          asymmetric(expect.objectContaining({ source: "browser-diagnostics", complete: false })),
+          asymmetric(expect.objectContaining({ source: "browser-diagnostic-completeness", dropped: 3, complete: false })),
+          asymmetric(expect.objectContaining({ source: "browser-request-summary-latest-url", complete: false })),
+          asymmetric(expect.objectContaining({ source: "browser-network-completed", complete: false })),
+          asymmetric(expect.objectContaining({ source: "browser-network-orphan-extra", dropped: 5, complete: false })),
+          asymmetric(
+            expect.objectContaining({
+              source: "browser-console",
+              dropped: asymmetric(expect.any(Number)),
+              scope: {
+                kind: "scope-v1",
+                context: { kind: "exact", value: 0 },
+                page: { kind: "exact", value: 0 },
+                window: { kind: "exact", value: "1" },
+              },
+            }),
+          ),
         ]),
       );
       expect(batch.limits.length).toBeGreaterThan(0);
-      expect(diagnosticRetentionSummary(batch)).toMatchObject({ complete: false, dropped: expect.any(Number) });
+      expect(diagnosticRetentionSummary(batch)).toMatchObject({ complete: false, dropped: asymmetric(expect.any(Number)) });
     });
   } finally {
     for (const response of held) {
@@ -174,5 +177,5 @@ test("below-cap ring stays complete", () => {
   ring.push("a", exactScope(0, 0, 0));
   ring.push("b", exactScope(0, 0, 0));
   expect(ring.read(0, ring.cursor(), "clean-twin")).toMatchObject({ records: ["a", "b"], receipt: { dropped: 0, complete: true } });
-  expect(ring.receipts("clean-twin")).toEqual(expect.arrayContaining([expect.objectContaining({ dropped: 0, complete: true })]));
+  expect(ring.receipts("clean-twin")).toEqual(expect.arrayContaining([asymmetric(expect.objectContaining({ dropped: 0, complete: true }))]));
 });

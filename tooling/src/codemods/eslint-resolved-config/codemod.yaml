@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "eslint-resolved-config"
+version: "0.1.0"
+description: "Read ESLint's resolved config through the typed resolvedConfig reader instead of the any-typed calculateConfigForFile result."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

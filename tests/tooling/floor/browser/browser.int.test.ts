@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { asymmetric } from "@orb/testkit/iso";
 import type { ChromiumIdentity } from "@orb/testkit/node/helpers";
 import {
   chromiumDescendantIdentities,
@@ -379,8 +380,8 @@ test("snap excludes React Activity-style hidden DOM unless the operator opts in"
   expect(active.stdout).toContain("assertion-fails=0");
   const activeCapture = (manifest(activeName)["captures"] as Record<string, unknown>[])[0];
   expect(activeCapture?.["mapResult"]).toEqual([
-    expect.objectContaining({ role: "main", actionability: "locator-only" }),
-    expect.objectContaining({ role: "button", name: "Active", actionability: "actionable" }),
+    asymmetric(expect.objectContaining({ role: "main", actionability: "locator-only" })),
+    asymmetric(expect.objectContaining({ role: "button", name: "Active", actionability: "actionable" })),
   ]);
 
   const hiddenName = `${RUN_ID}_hidden`;
@@ -401,9 +402,9 @@ test("snap excludes React Activity-style hidden DOM unless the operator opts in"
   expect(hidden.status, hidden.stdout + hidden.stderr).toBe(0);
   const hiddenCapture = (manifest(hiddenName)["captures"] as Record<string, unknown>[])[0];
   expect(hiddenCapture?.["mapResult"]).toEqual([
-    expect.objectContaining({ role: "main", actionability: "locator-only" }),
-    expect.objectContaining({ role: "button", name: "Active", actionability: "actionable" }),
-    expect.objectContaining({ role: "button", name: "Inactive", visibility: "hidden", actionability: "locator-only" }),
+    asymmetric(expect.objectContaining({ role: "main", actionability: "locator-only" })),
+    asymmetric(expect.objectContaining({ role: "button", name: "Active", actionability: "actionable" })),
+    asymmetric(expect.objectContaining({ role: "button", name: "Inactive", visibility: "hidden", actionability: "locator-only" })),
   ]);
 });
 
@@ -578,9 +579,9 @@ test("snap omits semantic plumbing that is not an agent target", () => {
   expect(result.status, result.stdout + result.stderr).toBe(0);
   const capture = (manifest(name)["captures"] as Array<{ mapResult: Array<{ role: string; name: string; actionability: string }> }>)[0];
   expect(capture?.mapResult).toEqual([
-    expect.objectContaining({ role: "main", actionability: "locator-only" }),
-    expect.objectContaining({ role: "region", name: "Workspace" }),
-    expect.objectContaining({ role: "button", name: "Act" }),
+    asymmetric(expect.objectContaining({ role: "main", actionability: "locator-only" })),
+    asymmetric(expect.objectContaining({ role: "region", name: "Workspace" })),
+    asymmetric(expect.objectContaining({ role: "button", name: "Act" })),
   ]);
 });
 

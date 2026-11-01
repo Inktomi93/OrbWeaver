@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import ts from "typescript";
 import { beforeAll } from "vitest";
+import { asymmetric } from "../iso/asymmetric.ts";
 import { expect, test } from "./fixtures.ts";
 
 const REPO = join(import.meta.dirname, "../../..");
@@ -399,5 +400,5 @@ test.for(PLANTED_SHAPES)("$shape of a row-returning corpus seed on the composed 
   expect(
     planted.readers.filter((reader) => reader.exported === exported),
     exported,
-  ).toEqual([expect.objectContaining({ door: "./node/composed", exported })]);
+  ).toEqual([asymmetric(expect.objectContaining({ door: "./node/composed", exported }))]);
 });

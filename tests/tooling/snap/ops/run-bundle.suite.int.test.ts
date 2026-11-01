@@ -3,6 +3,7 @@
 // Corrupt/missing/ambiguous evidence refuses rather than becoming a false-clean summary.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import type { InstrumentArtifactMetadata } from "@orb/tooling/floor/artifacts/artifact-out";
 import { beginInstrumentRun, finishInstrumentRun, registerInstrumentArtifact } from "@orb/tooling/floor/artifacts/artifact-out";
@@ -315,7 +316,7 @@ test("a completed run writes a self-consistent index and its receipt READ comman
     producerArm: null,
     channel: "capture-manifest",
     completeness: "complete",
-    completenessDetail: expect.stringContaining("capture manifest"),
+    completenessDetail: asymmetric(expect.stringContaining("capture manifest")),
   });
   const armFacts = index.results?.batches.flatMap((batch) => batch.arms) ?? [];
   // Since #1342 every page arm FILES what it prints: the aria and map facts bind their own evidence file
@@ -324,7 +325,7 @@ test("a completed run writes a self-consistent index and its receipt READ comman
   expect(armFacts.find((fact) => fact.arm === "aria")?.artifacts).toEqual(["evidence/aria.json", captureManifest?.relativePath]);
   expect(armFacts.find((fact) => fact.arm === "map")?.artifacts).toEqual(["evidence/map.json", captureManifest?.relativePath]);
   const coreArtifact = index.artifacts.find((artifact) => artifact.relativePath === "evidence/core-capture.json");
-  expect(coreArtifact).toMatchObject({ completeness: "bounded", completenessDetail: expect.stringContaining("latest-per-URL") });
+  expect(coreArtifact).toMatchObject({ completeness: "bounded", completenessDetail: asymmetric(expect.stringContaining("latest-per-URL")) });
   const core = JSON.parse(await readFile(coreArtifact?.path ?? "missing-core-capture", "utf8")) as {
     readonly populations: {
       readonly pageErrors: Readonly<Record<string, unknown>>;
@@ -571,7 +572,7 @@ test("same-SHA worktrees retain checkout and byte-sensitive dirty identity; exac
     "RUNS OMITTED valid=7 total=27 showing-newest=20; widen with --last N, narrow with --lane <name>, or inspect a known run with pnpm snap --report <exact-run-id> --problems",
   ]);
   expect(lines.filter((line) => line.startsWith("RUN INDEX SKIPPED"))).toEqual([
-    expect.stringMatching(/invalid=5 scanned=\d+ examples=3 omitted=2 .*pnpm snap --report/u),
+    asymmetric(expect.stringMatching(/invalid=5 scanned=\d+ examples=3 omitted=2 .*pnpm snap --report/u)),
   ]);
   expect(lines.some((line) => line.startsWith("RUN INDEX REFUSED"))).toBe(false);
 });
@@ -580,8 +581,8 @@ test("failed Git identity reads are unknown with field-level failures rather tha
   const detached = join(scratch, "detached-repository");
   await initializeRepository(detached);
   git(detached, ["checkout", "--detach"]);
-  expect(snapGitIdentity(detached)).toMatchObject({ sha: expect.stringMatching(/^[0-9a-f]{40}$/u), ref: "detached", failures: [] });
-  expect(snapDirtyIdentity(detached)).toMatchObject({ state: "clean", digest: expect.stringMatching(/^[0-9a-f]{64}$/u), failures: [] });
+  expect(snapGitIdentity(detached)).toMatchObject({ sha: asymmetric(expect.stringMatching(/^[0-9a-f]{40}$/u)), ref: "detached", failures: [] });
+  expect(snapDirtyIdentity(detached)).toMatchObject({ state: "clean", digest: asymmetric(expect.stringMatching(/^[0-9a-f]{64}$/u)), failures: [] });
 
   const root = join(scratch, "not-a-repository");
   await mkdir(root, { recursive: true });
@@ -590,15 +591,15 @@ test("failed Git identity reads are unknown with field-level failures rather tha
   expect(gitIdentity).toMatchObject({
     sha: "unavailable",
     ref: "unavailable",
-    failures: [expect.objectContaining({ field: "sha" }), expect.objectContaining({ field: "ref" })],
+    failures: [asymmetric(expect.objectContaining({ field: "sha" })), asymmetric(expect.objectContaining({ field: "ref" }))],
   });
   expect(dirtyIdentity).toMatchObject({
     state: "unknown",
     digest: null,
     failures: [
-      expect.objectContaining({ field: "status" }),
-      expect.objectContaining({ field: "tracked-delta" }),
-      expect.objectContaining({ field: "untracked-list" }),
+      asymmetric(expect.objectContaining({ field: "status" })),
+      asymmetric(expect.objectContaining({ field: "tracked-delta" })),
+      asymmetric(expect.objectContaining({ field: "untracked-list" })),
     ],
   });
   expect([...gitIdentity.failures, ...dirtyIdentity.failures].every((failure) => failure.detail !== "")).toBe(true);
@@ -611,13 +612,15 @@ test("failed Git identity reads are unknown with field-level failures rather tha
     sha: "unavailable",
     ref: "unavailable",
     dirty: { state: "unknown", digest: null },
-    gitFailures: expect.arrayContaining([
-      expect.objectContaining({ field: "sha" }),
-      expect.objectContaining({ field: "ref" }),
-      expect.objectContaining({ field: "status" }),
-      expect.objectContaining({ field: "tracked-delta" }),
-      expect.objectContaining({ field: "untracked-list" }),
-    ]),
+    gitFailures: asymmetric(
+      expect.arrayContaining([
+        asymmetric(expect.objectContaining({ field: "sha" })),
+        asymmetric(expect.objectContaining({ field: "ref" })),
+        asymmetric(expect.objectContaining({ field: "status" })),
+        asymmetric(expect.objectContaining({ field: "tracked-delta" })),
+        asymmetric(expect.objectContaining({ field: "untracked-list" })),
+      ]),
+    ),
   });
   const problems = await runCli("snap", ["--report", path, "--problems"]);
   await expect(problems).toExitWith(EXIT.clean);
@@ -798,11 +801,11 @@ test("multi-arm diagnostics round-trip preserves severity/caps and keeps trace.z
   });
   expect(index.artifacts.find((artifact) => artifact.relativePath === "motion/motion.json")).toMatchObject({
     completeness: "bounded",
-    completenessDetail: expect.stringContaining("finite"),
+    completenessDetail: asymmetric(expect.stringContaining("finite")),
   });
   expect(index.artifacts.find((artifact) => artifact.relativePath === "perf/perf.json")).toMatchObject({
     completeness: "complete",
-    completenessDetail: expect.stringContaining("finite action tape"),
+    completenessDetail: asymmetric(expect.stringContaining("finite action tape")),
   });
   // Deliberately planted transcript-only states do not become structured facts. The writer refuses the
   // enabled arms rather than parsing the RESULT pairs registered above.
@@ -949,14 +952,18 @@ test("named session on an isolated stage preserves multi-context diagnostic iden
   expect(index.diagnostics).toMatchObject({
     state: "complete",
     records: { total: 2, complete: true },
-    counts: expect.arrayContaining([
-      expect.objectContaining({ channel: "console", context: 0, page: 0, window: "8", records: 1 }),
-      expect.objectContaining({ channel: "console", context: 1, page: 2, window: "9", records: 1 }),
-    ]),
-    rawChannels: expect.arrayContaining([
-      expect.objectContaining({ channel: "console", scope: exactScope(0, 0, "8"), records: 1, complete: true }),
-      expect.objectContaining({ channel: "console", scope: exactScope(1, 2, "9"), records: 1, complete: true }),
-    ]),
+    counts: asymmetric(
+      expect.arrayContaining([
+        asymmetric(expect.objectContaining({ channel: "console", context: 0, page: 0, window: "8", records: 1 })),
+        asymmetric(expect.objectContaining({ channel: "console", context: 1, page: 2, window: "9", records: 1 })),
+      ]),
+    ),
+    rawChannels: asymmetric(
+      expect.arrayContaining([
+        asymmetric(expect.objectContaining({ channel: "console", scope: exactScope(0, 0, "8"), records: 1, complete: true })),
+        asymmetric(expect.objectContaining({ channel: "console", scope: exactScope(1, 2, "9"), records: 1, complete: true })),
+      ]),
+    ),
   });
   const filtered = await runCli("snap", ["--report", path, "--all", "--channel", "browser-diagnostics", "--context", "1", "--page", "2", "--window", "9"]);
   await expect(filtered).toExitWith(EXIT.clean);
@@ -1230,7 +1237,7 @@ test("composite findings correlate the same unsafe-port failure across diagnosti
     severity: "annotation",
     arms: ["interaction-perf"],
     channels: ["interaction-perf"],
-    evidence: [expect.objectContaining({ source: "interaction-perf" })],
+    evidence: [asymmetric(expect.objectContaining({ source: "interaction-perf" }))],
   });
   expect(index.verdict.exit).toBe(EXIT.violations);
 
@@ -1289,12 +1296,14 @@ test("a malformed core completeness receipt is an explicit indexed problem rathe
   const index = JSON.parse(await readFile(path, "utf8")) as RunIndex;
   expect(index.verdict).toMatchObject({ exit: EXIT.clean, state: "passed" });
   expect(index.findings).toEqual([
-    expect.objectContaining({
-      severity: "error",
-      what: "structured evidence is malformed",
-      completeness: "incomplete",
-      conflicts: [expect.stringContaining("failedRequests completeness receipt")],
-    }),
+    asymmetric(
+      expect.objectContaining({
+        severity: "error",
+        what: "structured evidence is malformed",
+        completeness: "incomplete",
+        conflicts: [asymmetric(expect.stringContaining("failedRequests completeness receipt"))],
+      }),
+    ),
   ]);
 
   const report = await runCli("snap", ["--report", path, "--problems"]);

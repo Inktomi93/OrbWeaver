@@ -3,6 +3,7 @@
 // @subject packages/db/src/schema/connection-bindings.ts
 
 import { PLUGIN_PROVIDER_ID_PREFIX } from "@orb/contracts/inference";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { freshDb } from "@orb/testkit/node/composed";
 import type { SQL } from "drizzle-orm";
@@ -19,9 +20,11 @@ test("the table refuses an admin row on a plugin id and a plugin row on a bare i
   await db.run(insert(PLUGIN_ROW, "plugin"));
 
   await expect(db.run(insert(`${PLUGIN_PROVIDER_ID_PREFIX}acme/squat`, "admin"))).rejects.toMatchObject({
-    cause: { message: expect.stringContaining("provider_rows_namespace_check") },
+    cause: { message: asymmetric(expect.stringContaining("provider_rows_namespace_check")) },
   });
-  await expect(db.run(insert("bare-id", "plugin"))).rejects.toMatchObject({ cause: { message: expect.stringContaining("provider_rows_namespace_check") } });
+  await expect(db.run(insert("bare-id", "plugin"))).rejects.toMatchObject({
+    cause: { message: asymmetric(expect.stringContaining("provider_rows_namespace_check")) },
+  });
   const stored = await db.all<{ id: string }>(sql`select id from provider_rows order by id`);
   expect(stored.map((row) => row.id)).toEqual(["acme-endpoint", PLUGIN_ROW]);
 });

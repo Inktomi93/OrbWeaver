@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
@@ -62,20 +63,22 @@ test("native config admits authored paths and rejects unnecessary default/namesp
   const report = lintTree(root, repoRoot, [ORDINARY_PATH, ...ADMITTED_PATHS, SCRIPT_PATH, FRAMEWORK_PATH, NAMESPACE_PATH, NAMED_PATH, ...PROTECTED_PATHS]);
   const diagnostics = report["diagnostics"];
   expect(diagnostics).toContainEqual(
-    expect.objectContaining({ category: "lint/suspicious/noDoubleEquals", location: expect.objectContaining({ path: ORDINARY_PATH }) }),
+    expect.objectContaining({ category: "lint/suspicious/noDoubleEquals", location: asymmetric(expect.objectContaining({ path: ORDINARY_PATH })) }),
   );
   for (const path of ADMITTED_PATHS) {
-    expect(diagnostics).toContainEqual(expect.objectContaining({ category: "lint/suspicious/noDoubleEquals", location: expect.objectContaining({ path }) }));
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({ category: "lint/suspicious/noDoubleEquals", location: asymmetric(expect.objectContaining({ path })) }),
+    );
   }
   expect(diagnostics).toContainEqual(
-    expect.objectContaining({ category: "lint/style/noDefaultExport", location: expect.objectContaining({ path: SCRIPT_PATH }) }),
+    expect.objectContaining({ category: "lint/style/noDefaultExport", location: asymmetric(expect.objectContaining({ path: SCRIPT_PATH })) }),
   );
   expect(diagnostics).toContainEqual(
-    expect.objectContaining({ category: "lint/performance/noNamespaceImport", location: expect.objectContaining({ path: NAMESPACE_PATH }) }),
+    expect.objectContaining({ category: "lint/performance/noNamespaceImport", location: asymmetric(expect.objectContaining({ path: NAMESPACE_PATH })) }),
   );
   for (const path of ["packages/client/src/routes/routeTree.gen.ts", "packages/kit/src/__dc_native-config.ts"]) {
     expect(diagnostics).toContainEqual(
-      expect.objectContaining({ category: "lint/style/useFilenamingConvention", location: expect.objectContaining({ path }) }),
+      expect.objectContaining({ category: "lint/style/useFilenamingConvention", location: asymmetric(expect.objectContaining({ path })) }),
     );
   }
   expect(diagnostics).toHaveLength(9);
@@ -108,15 +111,15 @@ test("native framework permissions stop at actual Node and environment intake ow
   const diagnostics = report["diagnostics"];
   expect(report["summary"]).toMatchObject({ unchanged: 10, diagnosticsNotPrinted: 0 });
   expect(diagnostics).toContainEqual(
-    expect.objectContaining({ category: "lint/correctness/noProcessGlobal", location: expect.objectContaining({ path: PLAIN_NODE_PATH }) }),
+    expect.objectContaining({ category: "lint/correctness/noProcessGlobal", location: asymmetric(expect.objectContaining({ path: PLAIN_NODE_PATH })) }),
   );
   for (const path of [FOREIGN_CLIENT_CONFIG, FOREIGN_ROOT_CONFIG]) {
     for (const category of ["lint/correctness/noProcessGlobal", "lint/style/noProcessEnv", "lint/style/noMagicNumbers"]) {
-      expect(diagnostics).toContainEqual(expect.objectContaining({ category, location: expect.objectContaining({ path }) }));
+      expect(diagnostics).toContainEqual(expect.objectContaining({ category, location: asymmetric(expect.objectContaining({ path })) }));
     }
   }
   expect(diagnostics).toContainEqual(
-    expect.objectContaining({ category: "lint/correctness/noNodejsModules", location: expect.objectContaining({ path: FOREIGN_CLIENT_CONFIG }) }),
+    expect.objectContaining({ category: "lint/correctness/noNodejsModules", location: asymmetric(expect.objectContaining({ path: FOREIGN_CLIENT_CONFIG })) }),
   );
   expect(diagnostics).toHaveLength(8);
 });
@@ -145,7 +148,7 @@ test("Playwright suite callbacks stay synchronous without rejecting legal async 
     expect(diagnostics).toContainEqual(
       expect.objectContaining({
         category: "lint/correctness/usePlaywrightValidDescribeCallback",
-        location: expect.objectContaining({ path }),
+        location: asymmetric(expect.objectContaining({ path })),
       }),
     );
   }
@@ -162,10 +165,10 @@ test("native JSON parsing rejects comments in strict consumers while preserving 
   const report = lintTree(root, repoRoot, paths);
   const diagnostics = report["diagnostics"];
   for (const path of rejected) {
-    expect(diagnostics).toContainEqual(expect.objectContaining({ category: "parse", location: expect.objectContaining({ path }) }));
+    expect(diagnostics).toContainEqual(expect.objectContaining({ category: "parse", location: asymmetric(expect.objectContaining({ path })) }));
   }
   for (const path of accepted) {
-    expect(diagnostics).not.toContainEqual(expect.objectContaining({ location: expect.objectContaining({ path }) }));
+    expect(diagnostics).not.toContainEqual(expect.objectContaining({ location: asymmetric(expect.objectContaining({ path })) }));
   }
   expect(report["summary"]).toMatchObject({ unchanged: paths.length, diagnosticsNotPrinted: 0 });
 });

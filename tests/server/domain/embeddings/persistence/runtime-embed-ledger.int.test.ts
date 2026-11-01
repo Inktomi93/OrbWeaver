@@ -5,7 +5,7 @@
 
 import { embeddingCalls } from "@orb/db";
 import { NoConnectionError, ProviderError } from "@orb/inference";
-import { DEFAULT_EMBED_MODEL } from "@orb/testkit/iso";
+import { asymmetric, DEFAULT_EMBED_MODEL } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createRuntimeRoot, RUNTIME_ENDPOINT, RUNTIME_KEY, runtimeConnection } from "../../../../inference/roles/runtime.fixtures.ts";
 
@@ -52,7 +52,7 @@ test("a cleared real embedding binding refuses implicit resolution while its own
   const beforeRequests = [...requests];
   const beforeAccounting = await root.db.select().from(embeddingCalls);
   expect(beforeAccounting).toEqual(
-    expect.arrayContaining([expect.objectContaining({ ownerId: root.ownerId, connectionId: connection.connectionId, task: "embed" })]),
+    expect.arrayContaining([asymmetric(expect.objectContaining({ ownerId: root.ownerId, connectionId: connection.connectionId, task: "embed" }))]),
   );
   await expect(root.app.runtime.resolve({ principal, task: "embed", cachedFacts: true })).rejects.toBeInstanceOf(NoConnectionError);
   expect((await root.app.runtime.resolve({ principal, task: "embed", connectionId: connection.connectionId, cachedFacts: true })).resolved.connectionId).toBe(

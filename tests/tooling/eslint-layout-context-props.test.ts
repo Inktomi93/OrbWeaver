@@ -3,6 +3,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const RULE = "orb/no-layout-context-props";
@@ -16,14 +17,14 @@ beforeAll(async () => {
 }, 120_000);
 
 async function findings(source: string, path: string): Promise<readonly Linter.LintMessage[]> {
-  const config = await eslint.calculateConfigForFile(join(ROOT, path));
+  const config = await resolvedConfig(eslint, join(ROOT, path));
   const found = new Linter({ cwd: ROOT }).verify(
     source,
     {
       files: ["**/*.{ts,tsx}"],
-      plugins: config?.plugins ?? {},
+      plugins: config.plugins,
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true } } },
-      rules: { [RULE]: config?.rules?.[RULE] ?? "off" },
+      rules: { [RULE]: config.rules[RULE] ?? "off" },
     },
     { filename: join(ROOT, path) },
   );

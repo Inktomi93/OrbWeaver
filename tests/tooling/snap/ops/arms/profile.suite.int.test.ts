@@ -9,16 +9,17 @@
 import { readFile, stat, symlink } from "node:fs/promises";
 import type { RequestListener } from "node:http";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
 import { vi } from "vitest";
 import { REACT_PROFILE_SUPPORTED_MINOR } from "../../../../../tooling/src/snap/contract/react-profile.ts";
 import { scaledBudget } from "../../../_load-budget.ts";
+import { listeningAddress } from "../../../_server-address.ts";
 
 const CLI_TIMEOUT_MS = scaledBudget(180_000);
 vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
@@ -212,7 +213,7 @@ async function startFixture(repoRoot: string, plantedTree: (files: Readonly<Reco
   await new Promise<void>((resolve) => {
     server.listen(0, "127.0.0.1", resolve);
   });
-  const { port } = server.address() as AddressInfo;
+  const { port } = listeningAddress(server);
   const close = async (): Promise<void> => {
     await new Promise<void>((resolve) => {
       server.close(() => resolve());
@@ -315,7 +316,7 @@ test("the real React renderer ranks the planted hot component and retains the ag
     expect(summary.summary).toEqual(artifact.summary);
     expect(summary.gaps).toEqual([]);
     expect(summary.hottest).toEqual(artifact.ranked.slice(0, 20));
-    expect(summary.artifacts).toEqual({ rawFiber: artifactPath(run.stdout), trace: expect.stringMatching(/\.trace\.json$/u) });
+    expect(summary.artifacts).toEqual({ rawFiber: artifactPath(run.stdout), trace: asymmetric(expect.stringMatching(/\.trace\.json$/u)) });
     expect((await stat(summaryPath(run.stdout))).size).toBeLessThan(250_000);
 
     const report = await runCli("snap", ["--report", runIndexPath(run.stdout), "--problems", "--arm", "react-profile"], {
@@ -339,9 +340,9 @@ test("hook, renderer and commit absences each refuse instead of reading clean", 
     expect(noRenderer.stdout).toContain("a React renderer is ABSENT");
     expect(noRenderer.stdout).toContain("react-profile=REFUSED");
     expect((await readSummary(noRenderer.stdout)).gaps).toEqual([
-      expect.objectContaining({ evidence: "a React renderer" }),
-      expect.objectContaining({ evidence: "a React commit" }),
-      expect.objectContaining({ evidence: "a ranked React component" }),
+      asymmetric(expect.objectContaining({ evidence: "a React renderer" })),
+      asymmetric(expect.objectContaining({ evidence: "a React commit" })),
+      asymmetric(expect.objectContaining({ evidence: "a ranked React component" })),
     ]);
 
     const noCommit = await runCli("snap", ["/renderer.html", "--base", fixture.base, "--react-profile", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });

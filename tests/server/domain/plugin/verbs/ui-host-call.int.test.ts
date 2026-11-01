@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { PLUGIN_MAIN_ENTRY, PLUGIN_UI_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { jsonValueSchema } from "@orb/kit/json";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, makePluginBundle, seedCorpusActors, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/composed";
 import { strToU8 } from "fflate";
@@ -51,7 +52,7 @@ test("scripted chat reads use admitted mount scope, reject main-host argument sh
   expect(jsonValueSchema.parse(JSON.parse(variables.resultJson))).toEqual({ [VARIABLE_KEY]: VARIABLE_VALUE });
   const messages = await relay("chat.listMessages", [{ limit: 1 }]);
   expect(jsonValueSchema.parse(JSON.parse(messages.resultJson))).toEqual([
-    expect.objectContaining({ id: committed.messages[0]?.id, role: "user", content: "Mounted transcript witness." }),
+    asymmetric(expect.objectContaining({ id: committed.messages[0]?.id, role: "user", content: "Mounted transcript witness." })),
   ]);
   expect(jsonValueSchema.parse(JSON.parse((await relay("chat.listMessages", [])).resultJson))).toHaveLength(1);
   await expect(relay("chat.getVariables", [chatId])).rejects.toBeInstanceOf(z.ZodError);

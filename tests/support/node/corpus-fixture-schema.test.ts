@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import { asymmetric } from "../iso/asymmetric.ts";
 import { parseCorpusWire } from "../iso/corpus.ts";
 import { expect, test } from "./fixtures.ts";
 
@@ -32,6 +33,8 @@ test("the committed corpus fixture parses against the current published-corpus s
 test("a stale publication names the missing and the extra field", () => {
   const published = z.record(z.string(), z.json()).parse(JSON.parse(readFileSync(COMMITTED_WIRE, "utf8")));
   const { health: _health, ...withoutHealth } = published;
-  expect(publicationIssues(JSON.stringify(withoutHealth))).toEqual([expect.stringMatching(/^health: /u)]);
-  expect(publicationIssues(JSON.stringify({ ...published, retiredSection: true }))).toEqual([expect.stringMatching(/^\(root\): .*retiredSection$/u)]);
+  expect(publicationIssues(JSON.stringify(withoutHealth))).toEqual([asymmetric(expect.stringMatching(/^health: /u))]);
+  expect(publicationIssues(JSON.stringify({ ...published, retiredSection: true }))).toEqual([
+    asymmetric(expect.stringMatching(/^\(root\): .*retiredSection$/u)),
+  ]);
 });

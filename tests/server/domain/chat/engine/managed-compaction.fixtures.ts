@@ -3,7 +3,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { ProviderError } from "@orb/inference";
-import { makePromptConfig } from "@orb/testkit/iso";
+import { asymmetric, makePromptConfig } from "@orb/testkit/iso";
 import { expect } from "@orb/testkit/node";
 import { sdkEngineRoom } from "./engine-physical.ts";
 import { ENGINE_SDK_MARKER } from "./engine-sdk-physical.mjs";
@@ -29,7 +29,9 @@ async function markerAt(count: number, search: ThresholdSearch): Promise<{ reado
   await search.record?.(fixture, count, heavy);
   fixture.setPolicy({ foreground: search.foregroundFails ? "fail" : "reply" });
   const [result] = await Promise.allSettled([fixture.turn()]);
-  const expected = search.foregroundFails ? { status: "rejected", reason: expect.any(ProviderError) } : { status: "fulfilled", value: { aborted: false } };
+  const expected = search.foregroundFails
+    ? { status: "rejected", reason: asymmetric(expect.any(ProviderError)) }
+    : { status: "fulfilled", value: { aborted: false } };
   expect(result).toMatchObject(expected);
   await fixture.h.root.settleBackground();
   return { compacted: (await fixture.marker()).compactSummary === ENGINE_SDK_MARKER, nativeExchanges: fixture.receipts.length };

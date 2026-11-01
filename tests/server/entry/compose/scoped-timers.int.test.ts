@@ -11,6 +11,7 @@ import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -131,7 +132,7 @@ test("the root's scoped timers drive the plugin macro, prompt-transform and disp
   await installEnabled(h, stalledManifest("stalledtransforms"), STALLED_TRANSFORMS_SOURCE);
   // The prompt-transform deadline skips the transform and says so on the bus.
   expect(await guardedTurn()).toBeDefined();
-  expect(skips).toEqual([expect.objectContaining({ code: "prompt_transform_skipped" })]);
+  expect(skips).toEqual([asymmetric(expect.objectContaining({ code: "prompt_transform_skipped" }))]);
 
   const text = "A row the stalled transform never rewrites.";
   let display: Awaited<ReturnType<typeof h.caller.plugin.transformForDisplay>> | undefined;

@@ -1,6 +1,7 @@
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 test("the configured PNG import restriction preserves aliases, nested doors and sanctioned homes", async ({ repoRoot }) => {
   const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot });
@@ -18,13 +19,13 @@ test("the configured PNG import restriction preserves aliases, nested doors and 
     ["packages/client/src/features/character/probe.ts", 'import { readCardChunk } from "@orb/kit/png-card-chunk";', 0],
   ] as const;
   for (const [path, source, expected] of cases) {
-    const config = await eslint.calculateConfigForFile(path);
+    const config = await resolvedConfig(eslint, path);
     const messages = linter.verify(
       source,
       {
         files: ["**/*.{ts,tsx}"],
         languageOptions: { parser: tseslint.parser },
-        rules: { "no-restricted-imports": config?.rules?.["no-restricted-imports"] ?? "off" },
+        rules: { "no-restricted-imports": config.rules["no-restricted-imports"] ?? "off" },
       },
       { filename: path },
     );

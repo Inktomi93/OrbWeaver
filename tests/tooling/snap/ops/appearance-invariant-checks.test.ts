@@ -1,3 +1,4 @@
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
 import { appearanceChannelName } from "#client/lib/appearance-carrier-manifest.ts";
@@ -247,7 +248,7 @@ describe("#953 literal appearance semantic checks", () => {
     const escapedCheck = buildAppearanceInvariantChecks(row("hover-pointer"), context(escaped, before)).find(
       (candidate) => candidate.id === "footprint-stable",
     );
-    expect(escapedCheck).toMatchObject({ passed: false, actual: expect.stringContaining('"contained":false') });
+    expect(escapedCheck).toMatchObject({ passed: false, actual: asymmetric(expect.stringContaining('"contained":false')) });
 
     const counterfeit = snapshot([subject("actions-row", hidden)]);
     expect(result(buildAppearanceInvariantChecks(row("hover-pointer"), context(current, counterfeit)), "rest-reveal-polarity")).toBe(false);

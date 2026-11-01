@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Stop must reach physical native HTTP and prevent tool, retry, completion and chained-generation effects.
 import type { MessageView } from "@orb/contracts/chat";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { readRoomCanon } from "@orb/testkit/node/composed";
@@ -19,7 +20,7 @@ test("completed wire tool calls execute and complete the turn in the same fixtur
     await f.h.root.settleBackground();
     expect(f.peer.requests).toEqual([f.chatPath, f.chatPath]);
     const reply = outcome.messages.find(({ role }) => role === "assistant");
-    expect(reply?.toolCalls).toEqual([expect.objectContaining({ name: f.toolName, result: "done", isError: false })]);
+    expect(reply?.toolCalls).toEqual([asymmetric(expect.objectContaining({ name: f.toolName, result: "done", isError: false }))]);
     expect(await f.toolWrites()).toEqual(["yes"]);
     expect(f.events.map(({ type }) => type)).toContain("turnCompleted");
     expect(await roles(f.h)).toEqual(["user", "assistant"]);

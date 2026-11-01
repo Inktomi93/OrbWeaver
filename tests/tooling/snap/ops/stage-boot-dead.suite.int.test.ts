@@ -13,10 +13,10 @@
 // `pidIsStageRooted` recognises the child as ours) holding a real detached node process group that binds a
 // real free port. The row carries the `dirty` key so `removeStageDir` is a plain rmSync with no git
 // bookkeeping, and the band table lives in a scratch home so the box's real bands are never touched.
+
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -31,7 +31,9 @@ import { readBands, writeBands } from "../../../../tooling/src/snap/ops/stage-ma
 import { readStageReaps } from "../../../../tooling/src/snap/ops/stage-reap-log.ts";
 import type { StageSettleDeps } from "../../../../tooling/src/snap/ops/stage-teardown.ts";
 import { settleStageReadiness } from "../../../../tooling/src/snap/ops/stage-teardown.ts";
+import { spawnedPid } from "../../_child-pid.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { listeningAddress } from "../../_server-address.ts";
 
 const CASE_BUDGET_MS = scaledBudget(120_000);
 const POLL_MS = 100;
@@ -58,7 +60,7 @@ async function until(predicate: () => boolean): Promise<boolean> {
 async function freePort(): Promise<number> {
   const probe = createServer();
   await new Promise<void>((resolve) => probe.listen(0, "127.0.0.1", resolve));
-  const port = (probe.address() as AddressInfo).port;
+  const port = listeningAddress(probe).port;
   await new Promise<void>((resolve, reject) => probe.close((error) => (error === undefined ? resolve() : reject(error))));
   return port;
 }
@@ -245,7 +247,7 @@ async function plantAnsweringPair(scratch: string): Promise<{ readonly server: n
   );
   const child = spawn(process.execPath, [script], { detached: true, stdio: "ignore" });
   child.unref();
-  const pid = child.pid as number;
+  const pid = spawnedPid(child);
   for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {
     const answered = await Promise.all(
       [server, vite].map((port) =>

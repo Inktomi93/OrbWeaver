@@ -7,7 +7,6 @@
 // SHOT_BASE reds here rather than silently doubling every run's image tokens.
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import type { CliResult } from "@orb/testkit/tooling";
 import { expect, test } from "@orb/testkit/tooling";
@@ -15,6 +14,7 @@ import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import sharp from "sharp";
 import { vi } from "vitest";
 import { scaledBudget } from "../../../_load-budget.ts";
+import { listeningAddress } from "../../../_server-address.ts";
 
 const BROWSER_TIMEOUT_MS = scaledBudget(60_000);
 
@@ -158,7 +158,7 @@ async function plantPaintServer(
     setTimeout(send, LATE_IMAGE_MS);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address() as AddressInfo;
+  const address = listeningAddress(server);
   return {
     base: `http://127.0.0.1:${String(address.port)}`,
     imageRequests: (): number => imageRequests,

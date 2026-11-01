@@ -4,6 +4,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { assertReferentialIntegrity } from "@orb/db";
 import { seedThemes } from "@orb/server/entry/boot";
+import { asymmetric } from "../iso/asymmetric.ts";
 import { bootGrantFor } from "./boot-grant.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
@@ -95,8 +96,8 @@ test("native stats preserve nonzero retained history and user preferences surviv
   expect(stats.wrapped.output).toMatchObject({ replies: 2, swipes: 1, topCharacter: { assistantTurns: 1 } });
   expect(stats.momentum.output).toEqual(
     expect.arrayContaining([
-      expect.objectContaining({ characterId: libraries.character.id, replies: 1 }),
-      expect.objectContaining({ characterId: otherCharacter.id, replies: 1 }),
+      asymmetric(expect.objectContaining({ characterId: libraries.character.id, replies: 1 })),
+      asymmetric(expect.objectContaining({ characterId: otherCharacter.id, replies: 1 })),
     ]),
   );
   expect(stats.latency.owner.output.avgGenMs).not.toBeNull();

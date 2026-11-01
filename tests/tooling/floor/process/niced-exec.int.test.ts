@@ -9,6 +9,7 @@
 // the real command too, or it orphans.
 // SIGINT/SIGQUIT/SIGHUP reach the shared group directly and the launcher only ignores them; SIGTERM,
 // typically aimed at one pid, is relayed directly to the child.
+
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -20,6 +21,7 @@ import { pidAlive } from "@orb/tooling/floor/artifacts/run-retention";
 import { listProcesses, processGroupId } from "@orb/tooling/floor/host/platform";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { TOOLING_PRIORITY } from "@orb/tooling/floor/process/process-priority";
+import { spawnedPid } from "../../_child-pid.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const REPO_ROOT = new URL("../../../../", import.meta.url);
@@ -103,7 +105,7 @@ test("the real child shares the LAUNCHER's own process group, never a group of i
   const launcher = spawn(process.execPath, [NICED_EXEC_PATH, "sh", "-c", "sleep 60"], { stdio: "ignore", detached: true });
   try {
     expect(launcher.pid, "the launcher must have a real pid").not.toBeUndefined();
-    const launcherPid = launcher.pid as number;
+    const launcherPid = spawnedPid(launcher);
     const childPid = await firstChildOf(launcherPid);
     expect(pgrpOf(childPid), "the child must share the launcher's OWN group, not lead one of its own").toBe(pgrpOf(launcherPid));
   } finally {
@@ -119,7 +121,7 @@ test("the real child shares the LAUNCHER's own process group, never a group of i
 
 test("a group SIGKILL of the launcher leaves no survivor — the verifier's repro", async () => {
   const launcher = spawn(process.execPath, [NICED_EXEC_PATH, "sh", "-c", "sleep 60"], { stdio: "ignore", detached: true });
-  const launcherPid = launcher.pid as number;
+  const launcherPid = spawnedPid(launcher);
   expect(launcherPid, "the launcher must have a real pid").not.toBeUndefined();
   const childPid = await firstChildOf(launcherPid);
   expect(pidAlive(childPid), "the child must be running before the group kill proves anything").toBe(true);
@@ -134,7 +136,7 @@ test("SIGTERM to the launcher's own pid (not a group signal) ends the child", as
   const home = mkdtempSync(path.join(tmpdir(), "orb-niced-exec-sigterm-"));
   try {
     const launcher = spawn(process.execPath, [NICED_EXEC_PATH, "sh", "-c", "sleep 60"], { stdio: "ignore" });
-    const launcherPid = launcher.pid as number;
+    const launcherPid = spawnedPid(launcher);
     expect(launcherPid, "the launcher must have a real pid").not.toBeUndefined();
     const childPid = await firstChildOf(launcherPid);
     expect(pidAlive(childPid), "the child must be running before the signal proves anything").toBe(true);
@@ -149,7 +151,7 @@ test("SIGTERM to the launcher's own pid (not a group signal) ends the child", as
 
 test("SIGHUP to the launcher's GROUP ends its real child, so a closed terminal never orphans it", async () => {
   const launcher = spawn(process.execPath, [NICED_EXEC_PATH, "sh", "-c", "sleep 60"], { stdio: "ignore", detached: true });
-  const launcherPid = launcher.pid as number;
+  const launcherPid = spawnedPid(launcher);
   expect(launcherPid, "the launcher must have a real pid").not.toBeUndefined();
   const childPid = await firstChildOf(launcherPid);
   expect(pidAlive(childPid), "the child must be running before the signal proves anything").toBe(true);

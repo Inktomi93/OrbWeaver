@@ -1,6 +1,7 @@
 // Browser evidence retention truth: replacement is not observation/eviction, while protected overflow
 // is incomplete even though no active request body may be dropped.
 
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { exactScope } from "../../../../tooling/src/floor/artifacts/artifact-scope.ts";
 import {
@@ -25,14 +26,16 @@ test("same-key latest-map replacement updates value and scope without receipt gr
   expect(latest.get("same")).toBe("three");
   expect(latest.size).toBe(1);
   expect(latest.receipts("latest")).toEqual([
-    expect.objectContaining({ observed: 1, retained: 1, dropped: 0, complete: true }),
-    expect.objectContaining({
-      observed: 1,
-      retained: 1,
-      dropped: 0,
-      complete: true,
-      scope: exactScope(1, 2, "three"),
-    }),
+    asymmetric(expect.objectContaining({ observed: 1, retained: 1, dropped: 0, complete: true })),
+    asymmetric(
+      expect.objectContaining({
+        observed: 1,
+        retained: 1,
+        dropped: 0,
+        complete: true,
+        scope: exactScope(1, 2, "three"),
+      }),
+    ),
   ]);
 });
 
@@ -53,11 +56,13 @@ test("a new distinct latest-map key still produces an honest eviction receipt", 
   const batch = retentionBatch(latest.receipts("latest"));
   expect(batch.rows[0]).toMatchObject({ observed: 3, retained: 2, dropped: 1, complete: false });
   expect(batch.limits).toEqual([
-    expect.objectContaining({
-      source: "latest",
-      complete: false,
-      events: [expect.objectContaining({ kind: "eviction", original: 3, retained: 2, omitted: 1 })],
-    }),
+    asymmetric(
+      expect.objectContaining({
+        source: "latest",
+        complete: false,
+        events: [asymmetric(expect.objectContaining({ kind: "eviction", original: 3, retained: 2, omitted: 1 }))],
+      }),
+    ),
   ]);
 });
 
@@ -93,12 +98,14 @@ test("protected oldest evidence may exceed capacity but receipt and limit stay e
   const overflow = retentionBatch(ring.receipts("network"));
   expect(overflow.rows[0]).toMatchObject({ capacity: 2, observed: 3, retained: 3, dropped: 0, complete: false });
   expect(overflow.limits).toEqual([
-    expect.objectContaining({
-      source: "network",
-      complete: false,
-      policy: { capacity: 2 },
-      events: [expect.objectContaining({ kind: "protected-overflow", original: 3, retained: 3, omitted: 0 })],
-    }),
+    asymmetric(
+      expect.objectContaining({
+        source: "network",
+        complete: false,
+        policy: { capacity: 2 },
+        events: [asymmetric(expect.objectContaining({ kind: "protected-overflow", original: 3, retained: 3, omitted: 0 }))],
+      }),
+    ),
   ]);
 
   oldest.protected = false;

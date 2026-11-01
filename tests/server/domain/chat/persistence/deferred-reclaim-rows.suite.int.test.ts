@@ -8,7 +8,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { characters, chatGenerationObservations, chatParticipants, messages, messageVariants, pendingTurns } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
-import { createFrozenClock } from "@orb/testkit/iso";
+import { asymmetric, createFrozenClock } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { and, eq, isNull } from "drizzle-orm";
 import { invitePerson } from "../persona-cache-physical.ts";
@@ -149,7 +149,7 @@ test("host acceptance settles the frozen old funder before copying, then subsequ
   expect(copied.id).not.toBe(h.characters[0]?.id);
   expect(owed[0]?.characterId).toBe(copied.id);
   expect((await h.root.services.chat.listParticipants({ principal: nextHost, chatId: h.chatId })).filter((p) => p.leftSeq === null)).toEqual(
-    expect.arrayContaining([expect.objectContaining({ userId: nextHost.userId }), expect.objectContaining({ characterId: copied.id })]),
+    expect.arrayContaining([asymmetric(expect.objectContaining({ userId: nextHost.userId })), asymmetric(expect.objectContaining({ characterId: copied.id }))]),
   );
   expect(
     await h.root.db

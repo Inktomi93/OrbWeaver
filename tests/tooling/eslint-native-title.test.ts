@@ -7,6 +7,7 @@ import { ESLint, Linter } from "eslint";
 import ts from "typescript";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const RULE = "orb/no-native-title";
@@ -42,17 +43,17 @@ function programFor(fileName: string, source: string): ts.Program {
 async function findings(body: string, path = PROBE): Promise<readonly Linter.LintMessage[]> {
   const fileName = join(ROOT, path);
   const source = `import type { ReactElement } from "react";\n${body}\n`;
-  const config = await eslint.calculateConfigForFile(fileName);
+  const config = await resolvedConfig(eslint, fileName);
   const found = new Linter({ cwd: ROOT }).verify(
     source,
     {
       files: ["**/*.tsx"],
-      plugins: config?.plugins ?? {},
+      plugins: config.plugins,
       languageOptions: {
         parser: tseslint.parser,
         parserOptions: { project: false, projectService: false, programs: [programFor(fileName, source)], ecmaFeatures: { jsx: true } },
       },
-      rules: { [RULE]: config?.rules?.[RULE] ?? "off" },
+      rules: { [RULE]: config.rules[RULE] ?? "off" },
     },
     { filename: fileName },
   );

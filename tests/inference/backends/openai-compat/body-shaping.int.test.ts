@@ -5,6 +5,7 @@ import { connectionExtrasSchema, DEFAULT_ATTACHMENT_QUALITY, isBeltOwnedBodyKey,
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ChatEvent, ChatHistoryMessage } from "@orb/inference";
 import { isPlainObject } from "@orb/kit/guards";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { RecordedRequest } from "@orb/testkit/node/helpers";
 import { openAiServer, warningCodes } from "@orb/testkit/node/helpers";
@@ -322,7 +323,7 @@ test("an OpenRouter cache marker rides its row's last text part, and a row with 
     { role: "user", content: [{ type: "text", text: "Three." }] },
   ];
   const own = await send(ANTHROPIC_ON_OPENROUTER, { history: withText });
-  expect(contentOf(own.body, 2)).toEqual([expect.objectContaining({ text: "Two.", ["cache_control"]: expect.anything() })]);
+  expect(contentOf(own.body, 2)).toEqual([asymmetric(expect.objectContaining({ text: "Two.", ["cache_control"]: asymmetric(expect.anything()) }))]);
   expect(contentOf(own.body, 1)).toBe("One.");
 
   const toolCallOnly: ChatHistoryMessage[] = [
@@ -332,7 +333,7 @@ test("an OpenRouter cache marker rides its row's last text part, and a row with 
     { role: "user", content: [{ type: "text", text: "Three." }] },
   ];
   const moved = await send(ANTHROPIC_ON_OPENROUTER, { history: toolCallOnly });
-  expect(contentOf(moved.body, 1)).toEqual([expect.objectContaining({ text: "One.", ["cache_control"]: expect.anything() })]);
+  expect(contentOf(moved.body, 1)).toEqual([asymmetric(expect.objectContaining({ text: "One.", ["cache_control"]: asymmetric(expect.anything()) }))]);
   expect(wireRows(moved.body)[2]).not.toHaveProperty("cache_control");
   expect(wireRows(moved.body)[2]?.["content"]).toBeNull();
 });
@@ -345,7 +346,10 @@ test("same-role rows fold into one message of parts on a block-end-preserving pr
     { role: "user", content: [{ type: "text", text: "Three." }] },
   ];
   const folded = await send(ANTHROPIC_ON_OPENROUTER, { history });
-  expect(contentOf(folded.body, 1)).toEqual([{ type: "text", text: "One." }, expect.objectContaining({ text: "Uno.", ["cache_control"]: expect.anything() })]);
+  expect(contentOf(folded.body, 1)).toEqual([
+    { type: "text", text: "One." },
+    asymmetric(expect.objectContaining({ text: "Uno.", ["cache_control"]: asymmetric(expect.anything()) })),
+  ]);
   expect(wireRows(folded.body)).toHaveLength(4);
 
   const plain = await send({ capability: CACHEABLE }, { history });

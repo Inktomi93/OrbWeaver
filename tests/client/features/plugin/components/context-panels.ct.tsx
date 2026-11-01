@@ -3,6 +3,7 @@ import { CHAT_PLUGINS_TAB_LABEL, contextToggleLabel } from "@orb/client/lib";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { seedShellState } from "@orb/testkit/browser/spec";
+import type { TrpcRecorder } from "@orb/testkit/ct";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
@@ -25,7 +26,7 @@ interface PreparedPanels {
   readonly caller: PanelCaller;
   readonly room: Awaited<ReturnType<PanelCaller["chat"]["listChats"]>>["items"][number];
   readonly installed: Awaited<ReturnType<PanelCaller["plugin"]["install"]>> | null;
-  readonly routes: Awaited<ReturnType<typeof routeTrpc>>;
+  readonly routes: TrpcRecorder;
 }
 
 async function preparePanels(root: PanelRoot, page: Page, corpus: Parameters<typeof createShellAmbientReads>[0], register = true): Promise<PreparedPanels> {

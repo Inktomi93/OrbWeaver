@@ -19,6 +19,7 @@ import { pluginKv } from "@orb/db";
 import { pluginDisplayTransformResultSchema, pluginUiHostCallResultSchema } from "@orb/server/domain/plugin";
 import { PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES } from "@orb/server/infra/plugin-host";
 import { ZodError } from "zod";
+import { asymmetric } from "../iso/asymmetric.ts";
 import {
   CORPUS_PLUGIN_CALLBACK_VALUE,
   CORPUS_PLUGIN_TYPED_VALUES,
@@ -36,22 +37,32 @@ test("native callbacks refuse invalid args and stale scopes, revoke grants and r
   await using root = await createServerHarness({ pluginSpawn: spawn, networkExecution: network.networkExecution });
   const captured = await seedCorpusPluginCallbackLifecycle(root, network);
   expect(captured.retained.state).toEqual({ calls: 1, retained: true, variables: {} });
-  expect(captured.stale.state).toMatchObject({ calls: 2, staleError: "Error", staleMessage: expect.stringContaining("invalid chat handle"), variables: {} });
+  expect(captured.stale.state).toMatchObject({
+    calls: 2,
+    staleError: "Error",
+    staleMessage: asymmetric(expect.stringContaining("invalid chat handle")),
+    variables: {},
+  });
   expect(captured.beforeRefusals.state).toEqual({ calls: 3, values: CORPUS_PLUGIN_TYPED_VALUES });
   expect(captured.invalid).toHaveLength(10);
   for (const refusal of captured.invalid) {
-    expect(refusal).toMatchObject({ status: "rejected", reason: expect.objectContaining({ message: expect.stringMatching(/^plugin host: |not found$/u) }) });
+    expect(refusal).toMatchObject({
+      status: "rejected",
+      reason: asymmetric(expect.objectContaining({ message: asymmetric(expect.stringMatching(/^plugin host: |not found$/u)) })),
+    });
   }
   expect(captured.invalid.slice(-2)).toEqual([
-    expect.objectContaining({ status: "rejected", reason: expect.objectContaining({ code: "NOT_FOUND" }) }),
-    expect.objectContaining({ status: "rejected", reason: expect.objectContaining({ code: "NOT_FOUND" }) }),
+    asymmetric(expect.objectContaining({ status: "rejected", reason: asymmetric(expect.objectContaining({ code: "NOT_FOUND" })) })),
+    asymmetric(expect.objectContaining({ status: "rejected", reason: asymmetric(expect.objectContaining({ code: "NOT_FOUND" })) })),
   ]);
   expect(captured.afterRefusals).toEqual(captured.beforeRefusals);
   expect(captured.failedAction).toEqual([
-    expect.objectContaining({
-      status: "rejected",
-      reason: expect.objectContaining({ code: "BAD_REQUEST", message: expect.stringContaining("Native callback refusal") }),
-    }),
+    asymmetric(
+      expect.objectContaining({
+        status: "rejected",
+        reason: asymmetric(expect.objectContaining({ code: "BAD_REQUEST", message: asymmetric(expect.stringContaining("Native callback refusal")) })),
+      }),
+    ),
   ]);
   expect(captured.afterFailureRows.plugin.consecutiveCrashes).toBe(1);
   expect(captured.clean).toEqual({ toasts: [] });
@@ -60,7 +71,7 @@ test("native callbacks refuse invalid args and stale scopes, revoke grants and r
   expect(captured.narrowed.outcome).toMatchObject({ status: "enabled", reconsentPending: true });
   expect(captured.narrowed.outcome.grantedCapabilities).not.toContain("storage.kv");
   expect(captured.revokedStorage.state).toEqual({ calls: 1, storageError: "PluginCapabilityError" });
-  expect(captured.retiredDraft).toEqual([expect.objectContaining({ status: "rejected" })]);
+  expect(captured.retiredDraft).toEqual([asymmetric(expect.objectContaining({ status: "rejected" }))]);
   expect(captured.disabled.state).toBeNull();
   expect(captured.disabled.surfaces).toEqual([]);
   expect(captured.disabled.commands).toEqual([]);
@@ -96,7 +107,9 @@ test("native log severity, staging clamps and both resident ring bounds survive 
   );
   expect(captured.chars.reduce((count, line) => count + line.message.length, 0)).toBeLessThanOrEqual(PLUGIN_LOG_RING_CHARS);
   expect(captured.repeated).toEqual(captured.chars);
-  expect(captured.foreignRead).toEqual([expect.objectContaining({ status: "rejected", reason: expect.objectContaining({ code: "NOT_FOUND" }) })]);
+  expect(captured.foreignRead).toEqual([
+    asymmetric(expect.objectContaining({ status: "rejected", reason: asymmetric(expect.objectContaining({ code: "NOT_FOUND" })) })),
+  ]);
   expect(captured.disabled).toEqual([]);
   expect(captured.restarted).toEqual(PLUGIN_LOG_LEVELS.map((level) => ({ level, message: `Native ${level}`, at: root.clock.now() })));
 });
@@ -132,9 +145,9 @@ test("native guest publications preserve callback inputs, private storage, draft
   expect(captured.display).toEqual({ text: "Native row [ledger]" });
   expect(captured.skippedDisplay).toEqual({ text: "skip failed transform" });
   expect(captured.snippet.error).toBeUndefined();
-  expect(captured.snippet.logLines).toEqual([expect.stringContaining("Native snippet")]);
-  expect(captured.parseFailure).toMatchObject({ errorKind: "parse", error: expect.any(String) });
-  expect(captured.runtimeFailure).toMatchObject({ errorKind: "runtime", error: expect.stringContaining("Native runtime refusal") });
+  expect(captured.snippet.logLines).toEqual([asymmetric(expect.stringContaining("Native snippet"))]);
+  expect(captured.parseFailure).toMatchObject({ errorKind: "parse", error: asymmetric(expect.any(String)) });
+  expect(captured.runtimeFailure).toMatchObject({ errorKind: "runtime", error: asymmetric(expect.stringContaining("Native runtime refusal")) });
   expect(captured.disabled.plugins[0]?.status).toBe("disabled");
   expect(captured.disabled.surfaces).toEqual([]);
   expect(captured.disabled.commands).toEqual([]);

@@ -12,6 +12,7 @@
 // `--help`, and an arm whose pairs the RESULT spine never claims still reaches the RESULT line. A
 // derivation that silently omitted an arm would read as a clean, complete instrument.
 
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import type { ResultPair } from "../../../../../tooling/src/floor/artifacts/artifacts.ts";
 import type { Arm } from "../../../../../tooling/src/snap/contract/arm-vocabulary.ts";
@@ -67,7 +68,7 @@ test("every arm reaches the CLI through its own row: flags, scanner class, handl
   }
   // A boolean arm flag really parses, and a page suffix on a non-targetable one really refuses.
   expect(parseSnapArgs(["/chats", "--no-deadcss"]).deadCss).toBe(false);
-  expect(parseSnapArgs(["/chats", "--no-deadcss@1"]).errors).toEqual([expect.stringContaining("does not accept a @<page> suffix")]);
+  expect(parseSnapArgs(["/chats", "--no-deadcss@1"]).errors).toEqual([asymmetric(expect.stringContaining("does not accept a @<page> suffix"))]);
 });
 
 // The derived scanner class BITES: `--contrast` is required-value ONLY because its `ArmDef` row says so,
@@ -76,7 +77,7 @@ test("every arm reaches the CLI through its own row: flags, scanner class, handl
 test("an arm's derived value class is what refuses a bad value", () => {
   expect(parseSnapArgs(["/chats", "--contrast", "choose who speaks next"]).errors).not.toEqual([]);
   expect(parseSnapArgs(["/chats", "--contrast", ".rail"]).errors).toEqual([]);
-  expect(parseSnapArgs(["/chats", "--contrast"]).errors).toEqual([expect.stringContaining("--contrast requires a value")]);
+  expect(parseSnapArgs(["/chats", "--contrast"]).errors).toEqual([asymmetric(expect.stringContaining("--contrast requires a value"))]);
 });
 
 test("the session-level flag set derives from each arm's declared level, not from a second list", () => {
@@ -222,7 +223,7 @@ test("the page-target class is exactly the arms that declared it (a @<page> suff
   expect(declared.has("--eval")).toBe(true);
   expect(declared.has("--lighthouse")).toBe(false);
   expect(parseSnapArgs(["/chats", "--pages", "2", "--eval@1", "1"]).errors).toEqual([]);
-  expect(parseSnapArgs(["/chats", "--lighthouse@1", "desktop"]).errors).toEqual([expect.stringContaining("does not accept a @<page> suffix")]);
+  expect(parseSnapArgs(["/chats", "--lighthouse@1", "desktop"]).errors).toEqual([asymmetric(expect.stringContaining("does not accept a @<page> suffix"))]);
 });
 
 test("the optional-inline classes are entirely arm-owned, which is why they exist", () => {

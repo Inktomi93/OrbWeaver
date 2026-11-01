@@ -2,11 +2,11 @@
 // drive the configured rule through the real flat config.
 
 import { join } from "node:path";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
-
 import tseslint from "typescript-eslint";
-
+import { resolvedConfig } from "./_eslint-config.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 // The first case loads the whole flat config, which dwarfs every later one.
@@ -26,7 +26,7 @@ async function messages(root: string, source: string, path: string): Promise<rea
     eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: root });
     eslints.set(root, eslint);
   }
-  const config = await eslint.calculateConfigForFile(filename);
+  const config = await resolvedConfig(eslint, filename);
   expect(config).toBeDefined();
   const found = new Linter().verify(
     source,
@@ -35,7 +35,7 @@ async function messages(root: string, source: string, path: string): Promise<rea
       plugins: config.plugins,
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false } },
       linterOptions: { reportUnusedDisableDirectives: "error" },
-      rules: { [RULE]: config.rules?.[RULE] ?? "off" },
+      rules: { [RULE]: config.rules[RULE] ?? "off" },
     },
     { filename },
   );
@@ -260,7 +260,7 @@ test(
   `${RULE} a directive that waives nothing is itself reported`,
   async ({ repoRoot }) => {
     expect(await messages(repoRoot, `${WAIVER}export function ok(): void {}\n`, SERVER)).toMatchObject([
-      { ruleId: null, message: expect.stringContaining("Unused eslint-disable directive") },
+      { ruleId: null, message: asymmetric(expect.stringContaining("Unused eslint-disable directive")) },
     ]);
   },
   CONFIG_LOAD_TIMEOUT_MS,

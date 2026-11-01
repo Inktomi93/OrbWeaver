@@ -5,6 +5,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { characters, chats, messages } from "@orb/db";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { and, eq, sql } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
@@ -32,7 +33,7 @@ test("an actual stored narrator and Smart combination heals to Natural without c
   expect((await h.root.services.connection.get({ principal: h.owner, connectionId })).promptCache?.enabled).toBe(false);
   expect(await h.root.services.chat.getGroupConfigForChat(params)).toMatchObject({ output: "narrator", policy: "natural" });
   expect((await h.root.services.connection.listBindings({ principal: h.owner })).find(({ task }) => task === "summarize")?.binding).toMatchObject({
-    connectionId: expect.any(String),
+    connectionId: asymmetric(expect.any(String)),
   });
   const events: ChatBusEvent[] = [];
   using subscription = new DisposableStack();

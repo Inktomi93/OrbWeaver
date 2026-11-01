@@ -10,6 +10,7 @@
 // The two rows are mutually exclusive by construction, which is why `exemption` is its own non-failing
 // kind rather than a sentence appended to a `threshold` row.
 
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import type { AuditData, BrowserEnvironmentEvidence, MotionSnapshot } from "../../../../tooling/src/motion-audit/index.ts";
 import { motionProblems } from "../../../../tooling/src/snap/lib/motion-problems.ts";
@@ -106,9 +107,9 @@ test("record-only analyzer rows retain measured breaches while execution and int
   const problems = motionProblems(data, [{ evidence: "planted missing evidence", detail: "absent" }], "record");
   expect(problems).toEqual(
     expect.arrayContaining([
-      expect.objectContaining({ metric: "loaf-blocking-ms", kind: "recorded", observed: "181ms", threshold: "50ms" }),
-      expect.objectContaining({ metric: "page-error", kind: "failure" }),
-      expect.objectContaining({ metric: "planted missing evidence", kind: "evidence-gap" }),
+      asymmetric(expect.objectContaining({ metric: "loaf-blocking-ms", kind: "recorded", observed: "181ms", threshold: "50ms" })),
+      asymmetric(expect.objectContaining({ metric: "page-error", kind: "failure" })),
+      asymmetric(expect.objectContaining({ metric: "planted missing evidence", kind: "evidence-gap" })),
     ]),
   );
 });

@@ -4,6 +4,7 @@
 
 import { chatEvents, closeDb, messages, messageVariants, statsCanonVersions } from "@orb/db";
 import { ChatOperationError } from "@orb/server/domain/chat";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { freshHeldDb } from "@orb/testkit/node/composed";
@@ -82,7 +83,9 @@ test("post-success host demotion returns current member bytes without undoing th
     const events = await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, h.chatId));
     expect(
       events.filter(({ type, payload }) => type === "messageCommitted" && payload.type === "messageCommitted" && payload.messageId === assistant.id),
-    ).toContainEqual(expect.objectContaining({ payload: expect.objectContaining({ view: expect.objectContaining({ content: committed?.content }) }) }));
+    ).toContainEqual(
+      expect.objectContaining({ payload: asymmetric(expect.objectContaining({ view: asymmetric(expect.objectContaining({ content: committed?.content })) })) }),
+    );
     expect(await h.root.db.select().from(messages).where(eq(messages.id, assistant.id))).toHaveLength(1);
   } finally {
     gate.release();

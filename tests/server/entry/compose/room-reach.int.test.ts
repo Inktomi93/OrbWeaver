@@ -3,6 +3,7 @@ import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { chatDocuments, chatRegexScripts } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { ServicesResult } from "@orb/server/entry/compose";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect } from "@orb/testkit/node";
 import { withheldTable } from "@orb/testkit/node/composed";
 import { onTestFinished, vi } from "vitest";
@@ -112,7 +113,10 @@ test("a failed regex reach capture is logged and cannot fault the confirmed dele
       affected: 1,
     });
     expect(warn).toHaveBeenCalledWith(
-      expect.objectContaining({ err: expect.objectContaining({ cause: expect.objectContaining({ code: "SQLITE_ERROR" }) }), entity: "regex" }),
+      expect.objectContaining({
+        err: asymmetric(expect.objectContaining({ cause: asymmetric(expect.objectContaining({ code: "SQLITE_ERROR" })) })),
+        entity: "regex",
+      }),
       "room-reach: pre-write delete capture failed; the delete proceeds unannounced",
     );
     expect(frames).toEqual([]);
@@ -151,7 +155,7 @@ test("a failed document reach is logged without rejecting or rolling back its al
     expect((await services.databank.rename({ principal: callerPrincipal, id: document.document.id, name: "committed" })).name).toBe("committed");
     expect(warn).toHaveBeenCalledWith(
       expect.objectContaining({
-        err: expect.objectContaining({ cause: expect.objectContaining({ code: "SQLITE_ERROR" }) }),
+        err: asymmetric(expect.objectContaining({ cause: asymmetric(expect.objectContaining({ code: "SQLITE_ERROR" })) })),
         entity: "databank",
         key: "document",
       }),

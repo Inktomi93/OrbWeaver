@@ -4,6 +4,7 @@
 import { messages, messageVariants, rpgGames, rpgSnapshots } from "@orb/db";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { plantLegacyZeroCanon } from "@orb/testkit/node/composed";
@@ -89,7 +90,7 @@ test.for(LEGACY_IMPORT_ARMS)("$title: a room that lost both origin proofs refuse
   const room = await importedRoom(h, legacy);
   await h.root.services.chat.deleteMessages({ principal: h.owner, chatId: room.chatId, messageIds: [slotAt(room, 0), slotAt(room, LINES.length - 1)] });
 
-  expect(await room.reimport()).toEqual({ ok: true, created: false, notes: [expect.any(String)] });
+  expect(await room.reimport()).toEqual({ ok: true, created: false, notes: [asymmetric(expect.any(String))] });
   expect(await h.root.db.select({ id: rpgGames.id }).from(rpgGames).where(eq(rpgGames.chatId, room.chatId))).toEqual([]);
 });
 

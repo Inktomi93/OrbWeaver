@@ -1,5 +1,6 @@
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { CtIsolation } from "@orb/testkit/browser";
+import { keysOf } from "@orb/testkit/iso";
 import { Card } from "@orb/ui/card";
 import { ListRow } from "@orb/ui/list-row";
 import { MessageBubble } from "@orb/ui/message-bubble";
@@ -169,7 +170,7 @@ export function ToneHueStory({ background }: { readonly background: string }): R
 /** Each seed palette's stamp: the base palette by its own block, the value-set palettes by `data-theme`. */
 const SEED_STAMPS = [
   { name: "base", stamp: { "data-palette": "base" } },
-  ...(Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[]).map((name) => ({ name, stamp: { "data-theme": name } })),
+  ...keysOf(SEED_THEME_VALUE_SETS).map((name) => ({ name, stamp: { "data-theme": name } })),
 ] as const;
 
 /** Every tone role under each seed palette, one fill per role addressed by `data-role-sample`. */

@@ -21,7 +21,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
-import { FROZEN_AT_MS } from "@orb/testkit/iso";
+import { asymmetric, FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { REPO_ROOT } from "@orb/tooling/floor/artifacts/artifacts";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
@@ -176,7 +176,7 @@ test("a run holding a stage is listed as a holder while it runs and removed when
   const release = holdStageUse(home, stage, LANE_CHECKOUT, 20);
   try {
     // Stamped at once, not one interval later: a sibling deciding right now must already see the hold.
-    expect(readBands(home)[0]?.holders).toEqual([expect.objectContaining({ pid: process.pid, checkout: LANE_CHECKOUT })]);
+    expect(readBands(home)[0]?.holders).toEqual([asymmetric(expect.objectContaining({ pid: process.pid, checkout: LANE_CHECKOUT }))]);
     const first = readBands(home)[0]?.lastUsedAt;
     await expect.poll(() => readBands(home)[0]?.lastUsedAt).not.toBe(first);
   } finally {
@@ -218,7 +218,7 @@ test("the owner's warm touch keeps a sibling's hold on the row", () => {
   const release = holdStageUse(home, stage, MAIN_CHECKOUT, 60_000);
   try {
     touchRow(home, 3, new Date(FROZEN_AT_MS + MS_PER_MINUTE).toISOString());
-    expect(readBands(home)[0]?.holders).toEqual([expect.objectContaining({ checkout: MAIN_CHECKOUT, pid: process.pid })]);
+    expect(readBands(home)[0]?.holders).toEqual([asymmetric(expect.objectContaining({ checkout: MAIN_CHECKOUT, pid: process.pid }))]);
   } finally {
     release();
   }
@@ -239,7 +239,7 @@ test("a later heartbeat that cannot take the table lock is skipped without waiti
     await sleep(200);
     // the same elapsed-time measurement's end.
     expect(Date.now() - started).toBeLessThan(2000);
-    expect(readBands(home)[0]?.holders).toEqual([expect.objectContaining({ pid: process.pid })]);
+    expect(readBands(home)[0]?.holders).toEqual([asymmetric(expect.objectContaining({ pid: process.pid }))]);
   } finally {
     releaseLockDir(lockDir);
     release();

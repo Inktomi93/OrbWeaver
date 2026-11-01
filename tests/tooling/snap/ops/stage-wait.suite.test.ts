@@ -5,6 +5,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { afterEach } from "vitest";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
@@ -108,7 +109,7 @@ test("a busy table keeps the head ticket's place; any other boot error ends it a
   h.failWith = (): Error => new Error("pnpm install failed");
   expect(stageWaiterTurn(h.home, a, h.deps)).toEqual({ kind: "exit", code: EXIT.toolError });
   const outcome = await awaitStageWait(h.home, a, h.deps);
-  expect(outcome).toEqual({ kind: "refused", line: expect.stringContaining("pnpm install failed") });
+  expect(outcome).toEqual({ kind: "refused", line: asymmetric(expect.stringContaining("pnpm install failed")) });
   expect(readStageWaits(h.home)).toEqual([]);
 });
 
@@ -132,7 +133,7 @@ test("a ticket past its deadline expires with exit 2, boots nothing, and the cal
   expect(stageWaiterTurn(h.home, a, h.deps)).toEqual({ kind: "exit", code: EXIT.toolError });
   expect(h.booted).toEqual([]);
   const outcome = await awaitStageWait(h.home, a, h.deps);
-  expect(outcome).toEqual({ kind: "refused", line: expect.stringContaining("STAGE WAIT EXPIRED") });
+  expect(outcome).toEqual({ kind: "refused", line: asymmetric(expect.stringContaining("STAGE WAIT EXPIRED")) });
   expect(readStageWaits(h.home)).toEqual([]);
 });
 

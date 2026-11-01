@@ -1,6 +1,7 @@
 // @subject packages/server/src/infra/plugin-host/process-runtime.ts
 import { ChildProcess } from "node:child_process";
 import { once } from "node:events";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import {
@@ -33,7 +34,7 @@ test.for([
   const settled = Promise.allSettled([running]);
   const frame = await delivery.reached;
   delivery.release(responseResult(frame, result));
-  expect(await settled).toMatchObject([{ status: "rejected", reason: { message: expect.stringContaining(message) } }]);
+  expect(await settled).toMatchObject([{ status: "rejected", reason: { message: asymmetric(expect.stringContaining(message)) } }]);
 });
 
 test("holding an actual synchronous IPC message preserves its identity, result and live child ownership", { timeout: NATIVE_TIMEOUT_MS }, async () => {
@@ -51,7 +52,7 @@ test("holding an actual synchronous IPC message preserves its identity, result a
   const observed: unknown[] = [];
   child.on("message", (value: unknown) => observed.push(value));
   delivery.release();
-  expect(await settled).toMatchObject([{ status: "fulfilled", value: { logLines: [expect.stringContaining("native-id=")] } }]);
+  expect(await settled).toMatchObject([{ status: "fulfilled", value: { logLines: [asymmetric(expect.stringContaining("native-id="))] } }]);
   expect((await running).error).toBeUndefined();
   expect(observed).toContain(captured);
   expect(edge.delivered).toContain(captured);

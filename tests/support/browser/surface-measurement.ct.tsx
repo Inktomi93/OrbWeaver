@@ -22,6 +22,7 @@ import { readBrowserAcceleration } from "@orb/tooling/floor/browser/browser-acce
 import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { TestInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { asymmetric } from "../iso/asymmetric.ts";
 import { attachNativeFile } from "../node/native-attachments.ts";
 import type { SerializedPerformanceEntry } from "./performance-entry.ts";
 import type { SurfaceDesignStory, SurfaceTouchTilingStory } from "./surface-design-fixtures.tsx";
@@ -153,9 +154,9 @@ httpTest("surface HTTP retains an early refusal after evidence ring eviction", a
   if (!(isPlainObject(ring) && isPlainObject(ring["ring"]))) {
     throw new Error("The native request ring did not retain its eviction accounting");
   }
-  expect(ring).toMatchObject({ ring: { capacity, retained: capacity }, entries: expect.any(Array) });
+  expect(ring).toMatchObject({ ring: { capacity, retained: capacity }, entries: asymmetric(expect.any(Array)) });
   expect(ring["ring"]["evicted"]).toBeGreaterThan(0);
-  expect(ring).not.toEqual(expect.objectContaining({ entries: expect.arrayContaining([expect.objectContaining({ status: 429 })]) }));
+  expect(ring).not.toEqual(expect.objectContaining({ entries: asymmetric(expect.arrayContaining([asymmetric(expect.objectContaining({ status: 429 }))])) }));
   const retained = JSON.parse(await nativeAttachmentText(info, `${name}-console-network`));
   expect(retained).toMatchObject({ httpFailures: [{ status: 429, method: "GET", address: `${httpOrigin}${HTTP_FAILURE_PATH}`, expected: false }] });
   expect(info.annotations.find((annotation) => annotation.type === SURFACE_HTTP_ANNOTATION)?.description).toContain("unexpected=1 expected=0");

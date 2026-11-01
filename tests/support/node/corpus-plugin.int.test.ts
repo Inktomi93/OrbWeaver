@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { distributedPluginViewSchema, pluginFanoutResultSchema } from "@orb/contracts/plugin";
 import { assertReferentialIntegrity, pluginKv, pluginProviderClaims } from "@orb/db";
 import { PluginNotFoundError } from "../../../packages/server/src/domain/plugin/contract/errors.ts";
+import { asymmetric } from "../iso/asymmetric.ts";
 import {
   CORPUS_ADMIN_PROVIDER,
   CORPUS_PLUGIN_ASSET_PATH,
@@ -24,7 +25,7 @@ test("native withdrawal removes matching copies but retains a recipient's upgrad
   expect(captured.published.outcome.applied).toBe(2);
   expect(captured.published.installs.every(({ plugin }) => plugin.status === "disabled" && plugin.grantedCapabilities.length === 0)).toBe(true);
   expect(captured.upgraded).toMatchObject({ version: "2.0.0", status: "enabled", grantedCapabilities: ["storage.kv"] });
-  expect(captured.refused).toEqual([expect.objectContaining({ status: "rejected" })]);
+  expect(captured.refused).toEqual([asymmetric(expect.objectContaining({ status: "rejected" }))]);
   expect(captured.stillPublished).toHaveLength(1);
   expect(captured.withdrawn).toEqual({
     slug: CORPUS_PLUGIN_PROVIDER_MANIFEST.id,
@@ -52,8 +53,8 @@ test("the corpus keeps real consent, per-owner provider claims and distribution 
   const captured = await seedCorpusPlugins(root, other.id);
   const recipientRpc = await root.internalCallerFor(other.id);
   expect(await recipientRpc.plugin.listSurfaces()).toEqual([
-    expect.objectContaining({ pluginId: captured.recipient.outcome.id, id: "ledger", anchor: "page", tier: "static" }),
-    expect.objectContaining({ pluginId: captured.recipient.outcome.id, id: "detail", anchor: "dialog", tier: "static" }),
+    asymmetric(expect.objectContaining({ pluginId: captured.recipient.outcome.id, id: "ledger", anchor: "page", tier: "static" })),
+    asymmetric(expect.objectContaining({ pluginId: captured.recipient.outcome.id, id: "detail", anchor: "dialog", tier: "static" })),
   ]);
   expect(captured.installed.plugin.status).toBe("disabled");
   expect(captured.installed.plugin.grantedCapabilities).toEqual([]);

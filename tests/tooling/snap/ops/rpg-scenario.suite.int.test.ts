@@ -5,14 +5,15 @@
 
 import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { join } from "node:path";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { parseSnapArgs, prepareScenario, SNAP_HELP } from "@orb/tooling/snap";
 import { vi } from "vitest";
 import { SNAP_SCENARIO_PRESET_NAMES, scenarioPresetFile } from "../../../../tooling/src/snap/contract/scenario-presets.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { listeningAddress } from "../../_server-address.ts";
 
 const TIMEOUT_MS = scaledBudget(120_000);
 vi.setConfig({ testTimeout: TIMEOUT_MS, hookTimeout: TIMEOUT_MS });
@@ -83,7 +84,7 @@ async function withFixtureServer<T>(mode: FixtureMode, run: (origin: string) => 
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   try {
-    const address = server.address() as AddressInfo;
+    const address = listeningAddress(server);
     return await run(`http://127.0.0.1:${String(address.port)}`);
   } finally {
     await new Promise<void>((resolve, reject) => server.close((error) => (error === undefined ? resolve() : reject(error))));
@@ -162,13 +163,15 @@ test("the shipped tape seeds, opens, walks, maps, screenshots, and reads the sam
     expect(data.scenario.checkpoints.every((checkpoint) => checkpoint.screenshot !== null)).toBe(true);
     expect(evalPayloads(data)).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ chatId: "chat_rpg_fixture" }),
+        asymmetric(expect.objectContaining({ chatId: "chat_rpg_fixture" })),
         { tab: "rpg.map", status: "opened", lock: "Maps are planned" },
         { tab: "rpg.game", status: "opened" },
       ]),
     );
     expect(data.captures[5]?.mapShell).toMatchObject({ status: "available" });
-    expect(data.captures[5]?.assertions).toEqual(expect.arrayContaining([expect.objectContaining({ line: expect.stringContaining('rpg-map-tab"]: PASS') })]));
+    expect(data.captures[5]?.assertions).toEqual(
+      expect.arrayContaining([asymmetric(expect.objectContaining({ line: asymmetric(expect.stringContaining('rpg-map-tab"]: PASS')) }))]),
+    );
   });
 });
 
@@ -190,7 +193,9 @@ test("the host-only checkpoint records an honest skip when rpg.game is not publi
     const result = await runCli("snap", ["--scenario", scenario, "--base", origin, "--json", "--no-failure-evidence"], { timeoutMs: TIMEOUT_MS });
     await expect(result).toExitWith(EXIT.clean);
     expect(evalPayloads(await manifest(result.stdout))).toEqual(
-      expect.arrayContaining([expect.objectContaining({ tab: "rpg.game", status: "skipped", reason: "host-only tab not published for this viewer" })]),
+      expect.arrayContaining([
+        asymmetric(expect.objectContaining({ tab: "rpg.game", status: "skipped", reason: "host-only tab not published for this viewer" })),
+      ]),
     );
   });
 });

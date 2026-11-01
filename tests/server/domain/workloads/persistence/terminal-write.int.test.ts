@@ -6,6 +6,7 @@ import { workloads } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { WorkloadId } from "@orb/kit/ids";
 import { reapOrphanedWorkloads } from "@orb/server/domain/workloads";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
@@ -67,7 +68,7 @@ test("a row reaped mid-run stays worker_died and the late success of its zombie 
   await executeAdmitted(harness, id);
   expect(run).toHaveBeenCalledTimes(1);
   expect(reaped).toBe(1);
-  expect(await stored(harness, id)).toEqual({ status: "worker_died", result: null, error: expect.any(String) });
+  expect(await stored(harness, id)).toEqual({ status: "worker_died", result: null, error: asymmetric(expect.any(String)) });
 });
 
 test("a row cancelled while running ends cancelled and the late success of its run is refused", async ({ harness }) => {

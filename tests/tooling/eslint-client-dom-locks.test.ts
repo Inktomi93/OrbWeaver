@@ -10,6 +10,7 @@ import { domLookupRule } from "@orb/tooling/eslint";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
+import { levelOf, resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const STYLE = "orb/no-static-style-prop";
@@ -32,14 +33,14 @@ beforeAll(async () => {
 }, 120_000);
 
 async function findings(rule: string, source: string, path: string, force = false): Promise<readonly Linter.LintMessage[]> {
-  const config = await eslint.calculateConfigForFile(join(ROOT, path));
+  const config = await resolvedConfig(eslint, join(ROOT, path));
   const found = new Linter({ cwd: ROOT }).verify(
     source,
     {
       files: ["**/*.{ts,tsx}"],
-      plugins: config?.plugins ?? {},
+      plugins: config.plugins,
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true } } },
-      rules: { [rule]: force ? "error" : (config?.rules?.[rule] ?? "off") },
+      rules: { [rule]: force ? "error" : (config.rules[rule] ?? "off") },
     },
     { filename: join(ROOT, path) },
   );
@@ -309,7 +310,7 @@ test.for(CASES)("%s: %s", { timeout: 120_000 }, async ([rule, , source, path, co
 });
 
 test("the locks judge the client only, and the render read lock also judges @orb/ui", { timeout: 120_000 }, async () => {
-  const severity = async (rule: string, path: string): Promise<unknown> => (await eslint.calculateConfigForFile(join(ROOT, path)))?.rules?.[rule]?.[0];
+  const severity = async (rule: string, path: string): Promise<unknown> => levelOf((await resolvedConfig(eslint, join(ROOT, path))).rules[rule]);
   for (const rule of [STYLE, LOOKUP, CLASS_LIST, SEALED]) {
     expect(await severity(rule, UI), rule).toBeUndefined();
   }

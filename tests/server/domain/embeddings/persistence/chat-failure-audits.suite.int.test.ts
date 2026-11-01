@@ -7,6 +7,7 @@
 import type { LibSqlWrap } from "@orb/db";
 import { auditLogs, userCredentials } from "@orb/db";
 import { ProviderError } from "@orb/inference";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect } from "@orb/testkit/node";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
 import { and, eq } from "drizzle-orm";
@@ -136,7 +137,7 @@ test("a real credential persistence failure is reported without replacing the pr
   expect(received).toBe(fundingProvider.errors[0]);
   expect(received).toMatchObject({ kind: "auth_failed" });
   expect(writes.failed).toHaveLength(1);
-  expect(report).toHaveBeenCalledWith(expect.objectContaining({ credentialId: key.id, err: expect.any(String) }), expect.any(String));
+  expect(report).toHaveBeenCalledWith(expect.objectContaining({ credentialId: key.id, err: asymmetric(expect.any(String)) }), expect.any(String));
   const views = await ownerCaller.credentials.list();
   expect(views.find((row) => row.id === key.id)?.revokedAt).toBeNull();
   const logBytes = JSON.stringify(report.mock.calls);
@@ -179,7 +180,7 @@ test("a real accounting settlement failure retains the provider cause and still 
   );
   expect(writes.failed).toHaveLength(1);
   expect(failure.cause).toBe(fundingProvider.errors[0]);
-  expect(failure.errors).toEqual([fundingProvider.errors[0], expect.objectContaining({ cause: secondary })]);
+  expect(failure.errors).toEqual([fundingProvider.errors[0], asymmetric(expect.objectContaining({ cause: secondary }))]);
   expect(fundingProvider.errors[0]).toMatchObject({ kind: "auth_failed", apiErrorStatus: 401 });
   expect((await ownerCaller.credentials.list()).find((row) => row.id === key.id)?.revokedReason).toBe("auth_failed");
   expect(

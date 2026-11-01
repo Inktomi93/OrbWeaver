@@ -2,11 +2,13 @@
 // the call, bound to a variable, spread in, or typed as TrpcRoutes: a responder answers the request it is given, or is
 // a kit marker, or its procedure takes no input.
 import { join } from "node:path";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import ts from "typescript";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const RULE = "orb/ct-responder-reads-input";
@@ -63,18 +65,18 @@ function programFor(fileName: string, source: string): ts.Program {
 async function findings(body: string, header = "", spec = SPEC): Promise<readonly Linter.LintMessage[]> {
   const fileName = join(ROOT, spec);
   const source = `${header}${PRELUDE}\nexport async function probe(): Promise<void> {\n${body}\n}\n`;
-  const config = await eslint.calculateConfigForFile(fileName);
+  const config = await resolvedConfig(eslint, fileName);
   const found = new Linter({ cwd: ROOT }).verify(
     source,
     {
       files: ["**/*.{ts,tsx}"],
-      plugins: config?.plugins ?? {},
+      plugins: config.plugins,
       languageOptions: {
         parser: tseslint.parser,
         parserOptions: { project: false, projectService: false, programs: [programFor(fileName, source)], ecmaFeatures: { jsx: true } },
       },
       linterOptions: { reportUnusedDisableDirectives: "error" },
-      rules: { [RULE]: config?.rules?.[RULE] ?? "off" },
+      rules: { [RULE]: config.rules[RULE] ?? "off" },
     },
     { filename: fileName },
   );
@@ -305,6 +307,6 @@ test("a file header names the exception and its reason, and a stale one is refus
   const header = `/* eslint-disable ${RULE} -- the subject is the route helper itself */\n`;
   expect(await findings(`await routeTrpc(page, { "a.list": ["x"] });`, header)).toEqual([]);
   expect(await findings(`await routeTrpc(page, { "a.list": ({ id }) => [id] });`, header)).toMatchObject([
-    { ruleId: null, message: expect.stringContaining("Unused eslint-disable directive") },
+    { ruleId: null, message: asymmetric(expect.stringContaining("Unused eslint-disable directive")) },
   ]);
 });

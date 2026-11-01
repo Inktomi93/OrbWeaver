@@ -4,6 +4,7 @@
 
 import { join } from "node:path";
 import process from "node:process";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import type { ListeningPortsRead, PortOwner } from "../../../../tooling/src/floor/host/platform.ts";
@@ -62,7 +63,7 @@ test("a table that cannot be read leaves the stop unconfirmed, with the refusal 
   const run = planted([{ kind: "refused", reason: "socket table unreadable on linux: planted" }]);
   expect(stopStage(noStage(scratch), PORTS, run.deps)).toEqual({
     kind: "unconfirmed",
-    reason: expect.stringContaining("socket table unreadable on linux: planted"),
+    reason: asymmetric(expect.stringContaining("socket table unreadable on linux: planted")),
   });
 });
 
@@ -70,7 +71,7 @@ test("a band port still held by an owner the OS will not name leaves the stop un
   const run = planted([table(new Map([[PORTS.vite, { kind: "unknown" }]]))]);
   expect(stopStage(noStage(scratch), PORTS, run.deps)).toEqual({
     kind: "unconfirmed",
-    reason: expect.stringContaining(`:${String(PORTS.vite)} is still held by an owner the OS will not name`),
+    reason: asymmetric(expect.stringContaining(`:${String(PORTS.vite)} is still held by an owner the OS will not name`)),
   });
   expect(run.signals).toEqual([]);
 });
@@ -79,7 +80,7 @@ test("a band port held by a pid that is not a stage leaves the stop unconfirmed 
   const run = planted([table(new Map([[PORTS.server, { kind: "pid", pid: 7 }]]))]);
   expect(stopStage(noStage(scratch), PORTS, run.deps)).toEqual({
     kind: "unconfirmed",
-    reason: expect.stringContaining(`:${String(PORTS.server)} is still held by pid 7`),
+    reason: asymmetric(expect.stringContaining(`:${String(PORTS.server)} is still held by pid 7`)),
   });
   expect(run.signals).toEqual([]);
 });
@@ -88,7 +89,7 @@ test("a stage group that survives TERM and KILL, still holding the port on every
   const run = planted([HELD_BY_STAGE]);
   expect(stopStage(noStage(scratch), PORTS, run.deps)).toEqual({
     kind: "unconfirmed",
-    reason: expect.stringContaining(`:${String(PORTS.server)} is still held by pid ${String(STAGE_PID)} after TERM and KILL`),
+    reason: asymmetric(expect.stringContaining(`:${String(PORTS.server)} is still held by pid ${String(STAGE_PID)} after TERM and KILL`)),
   });
   expect(run.signals, "the escalation dev-down runs: TERM, then KILL, to the group").toEqual([
     `${String(STAGE_GROUP)} SIGTERM`,
@@ -150,7 +151,7 @@ test("the sweep's reap of a band whose stage group exits on TERM reports it reap
 test("a row-less teardown whose stage group survives TERM and KILL reports the stop not confirmed", () => {
   const run = planted([BAND_HELD]);
   const lines = tearDownRowlessBand(ROWLESS, run.deps);
-  expect(lines).toEqual([expect.stringContaining(`band ${String(BAND)}: row-less teardown NOT confirmed`)]);
+  expect(lines).toEqual([asymmetric(expect.stringContaining(`band ${String(BAND)}: row-less teardown NOT confirmed`))]);
   expect(run.signals).toEqual([`${String(STAGE_GROUP)} SIGTERM`, `${String(STAGE_GROUP)} SIGKILL`]);
 });
 

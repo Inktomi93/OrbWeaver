@@ -1,6 +1,7 @@
 // The iso door: pure helpers every world may import.
 
 export { ENLARGED_APPEARANCE_SETTINGS } from "./appearance.ts";
+export { asymmetric } from "./asymmetric.ts";
 export type { BusPayloadFailure, EconomicsField } from "./bus-payload-policy.ts";
 export type { BeltMismatch, BeltMismatchOf, BusName, SubUnionEscape } from "./bus-registry.ts";
 export { IN_RANGE_CARD_FRAME_STYLE } from "./card-frame-style.ts";
@@ -13,6 +14,7 @@ export type { SeededIds } from "./ids.ts";
 export { createSeededIds, FIXTURE_ID_CURSOR } from "./ids.ts";
 export { makeCapability, makeGenerationCapability } from "./inference-capability.ts";
 export { DEFAULT_EMBED_MODEL, testModelId, testProviderId } from "./inference-identities.ts";
+export { keysOf } from "./keys-of.ts";
 export { PUBLIC_PEER_ADDRESS } from "./network.ts";
 export { forEachNonEmpty } from "./non-empty.ts";
 export { makePromptConfig } from "./preset-config.ts";

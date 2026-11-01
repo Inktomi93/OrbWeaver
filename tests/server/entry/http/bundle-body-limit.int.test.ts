@@ -6,6 +6,7 @@ import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { IMPORT_BUNDLE_MAX_BYTES, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { BUNDLE_ROUTE, bodyRequest, CSRF_HEADERS, observedBody, REQUEST_CHUNK_BYTES } from "./_body-limit-inputs.ts";
@@ -57,7 +58,7 @@ test("a backup over the in-memory import cap is staged whole and its import read
   expect(staged.size).toBe(body.byteLength);
   await runAdmitted(workloadId, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
   const settled = await root.services.workloads.get({ id: workloadId, caller: principal });
-  expect({ status: settled.status, error: settled.error }).toEqual({ status: "failed", error: expect.stringMatching(MALFORMED_ARCHIVE) });
+  expect({ status: settled.status, error: settled.error }).toEqual({ status: "failed", error: asymmetric(expect.stringMatching(MALFORMED_ARCHIVE)) });
 });
 
 test("a second upload by an owner whose first is still staging is refused before its body is read", async () => {

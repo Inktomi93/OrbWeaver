@@ -1,5 +1,6 @@
 // @subject packages/server/src/infra/plugin-host/worker-runtime.ts
 import { spawn } from "node:child_process";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 
@@ -20,7 +21,7 @@ test("the synchronous native codec preserves valid zero entropy and marshals a g
   const room = (await caller.chat.startChat({ characterIds: [] })).chat;
   const first = await caller.plugin.runSnippet({ chatId: room.id, code: SOURCE });
   expect(first.error).toBeUndefined();
-  expect(first.logLines).toEqual([expect.stringContaining("random=0")]);
+  expect(first.logLines).toEqual([asymmetric(expect.stringContaining("random=0"))]);
   const failed = await caller.plugin.runSnippet({ chatId: room.id, code: 'throw new TypeError("guest refusal");' });
   expect(failed.error).toContain("guest refusal");
   const after = await caller.plugin.runSnippet({ chatId: room.id, code: SOURCE });

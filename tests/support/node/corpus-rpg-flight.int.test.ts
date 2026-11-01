@@ -9,6 +9,7 @@ import { assertReferentialIntegrity } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import { CHAT_OP_CODES } from "../../../packages/server/src/domain/chat/contract/errors.ts";
 import { RPG_OP_CODES } from "../../../packages/server/src/domain/rpg/contract/op-codes.ts";
+import { asymmetric } from "../iso/asymmetric.ts";
 import { createFrozenClock } from "../iso/clock.ts";
 import { createControlledTimers } from "../iso/timers.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
@@ -63,7 +64,7 @@ test("native registry recursion retains terminal state and journal calls from bo
   const canon = result.canon.find((row) => row.slot.id === assistant.id);
   expect(canon?.variant.tokensIn).toBe(100);
   expect(canon?.variant.tokensOut).toBe(35);
-  expect(canon?.variant.toolCalls).toMatchObject([{ name: CHAT_REACT_TOOL_NAME, result: expect.stringContaining('"reacted":true') }]);
+  expect(canon?.variant.toolCalls).toMatchObject([{ name: CHAT_REACT_TOOL_NAME, result: asymmetric(expect.stringContaining('"reacted":true')) }]);
   const registryResult = canon?.variant.toolCalls?.[0]?.result;
   if (registryResult === undefined || registryResult === null) {
     throw new Error("native recursion has no executed registry result");

@@ -3,6 +3,7 @@
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, ROUTABLE_TASKS } from "@orb/contracts/inference";
 import { assertReferentialIntegrity, closeDb } from "@orb/db";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
+import { asymmetric } from "../iso/asymmetric.ts";
 import { createFrozenClock } from "../iso/clock.ts";
 import { createSeededIds } from "../iso/ids.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
@@ -127,15 +128,15 @@ test("native connection catalog, capability and account outputs retain real task
   expect(result.catalogs.requestsAfterBuiltin).toBe(result.catalogs.requestsBeforeBuiltin);
   expect(result.catalogs.builtin).toMatchObject({
     listed: true,
-    models: expect.arrayContaining(LOCAL_LIGHT_SEED_ROWS.map((row) => expect.objectContaining({ id: row.model }))),
+    models: asymmetric(expect.arrayContaining(LOCAL_LIGHT_SEED_ROWS.map((row) => expect.objectContaining({ id: row.model })))),
   });
   expect(result.catalogs.empty).toMatchObject({ listed: false, reason: "the provider listed no models" });
-  expect(result.catalogs.failed).toMatchObject({ listed: false, reason: expect.stringContaining("500") });
+  expect(result.catalogs.failed).toMatchObject({ listed: false, reason: asymmetric(expect.stringContaining("500")) });
   expect(result.catalogs.malformed).toMatchObject({ listed: false });
   expect(result.catalogs.failed).not.toHaveProperty("models");
   expect(result.diagnostics.ok).toMatchObject({ ok: true, response: { status: 200 } });
   expect(result.diagnostics.failed).toMatchObject({ ok: false, response: { status: 500 } });
-  expect(result.diagnostics.unavailable).toMatchObject({ ok: false, response: null, error: expect.stringContaining("unavailable") });
+  expect(result.diagnostics.unavailable).toMatchObject({ ok: false, response: null, error: asymmetric(expect.stringContaining("unavailable")) });
   expect(result.diagnostics.probe.status).toBe("ok");
   expect(result.diagnostics.throttled.status).toBe("throttled");
   expect(result.diagnostics.unreachable).toMatchObject({ status: "unreachable", httpStatus: 502 });
@@ -236,7 +237,10 @@ test("native connection corpus spends its recipes after legitimate memory and pe
     expect(wire.requests).toHaveLength(0);
     wire.hostedCatalog();
     cold = await caller.connection.catalogModels({ connectionId });
-    expect(cold).toMatchObject({ listed: true, models: expect.arrayContaining([expect.objectContaining({ id: CORPUS_CONNECTION_HOSTED_MODEL })]) });
+    expect(cold).toMatchObject({
+      listed: true,
+      models: asymmetric(expect.arrayContaining([asymmetric(expect.objectContaining({ id: CORPUS_CONNECTION_HOSTED_MODEL }))])),
+    });
     expect(wire.requests).toHaveLength(3);
     expect(wire.remaining()).toBe(0);
     expect(await caller.connection.catalogModels({ connectionId })).toEqual(cold);

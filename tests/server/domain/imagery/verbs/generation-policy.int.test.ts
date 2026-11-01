@@ -12,7 +12,7 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import { processMacros } from "@orb/kit/macro";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { AppRouter } from "@orb/server";
-import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
+import { asymmetric, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -154,24 +154,26 @@ test("member previews use the host's live Utility binding, preset and instructio
   ).toBe("extracted");
   expect(await wire.requests[0]?.clone().json()).toMatchObject({
     model: HOST_MODEL,
-    messages: expect.arrayContaining([
-      {
-        role: "system",
-        content: processMacros(resolveImageryTemplate(defaults.imagery, "character"), {
-          char: room.character.name,
-          user: "User",
-          persona: "",
-          scenario: "",
-          env: {},
-          nowMs: root.clock.now(),
-        }),
-      },
-    ]),
+    messages: asymmetric(
+      expect.arrayContaining([
+        {
+          role: "system",
+          content: processMacros(resolveImageryTemplate(defaults.imagery, "character"), {
+            char: room.character.name,
+            user: "User",
+            persona: "",
+            scenario: "",
+            env: {},
+            nowMs: root.clock.now(),
+          }),
+        },
+      ]),
+    ),
   });
   expect(await preview()).toMatchObject({ prompt: CAPTION.trim(), source: "captioned" });
   expect(await wire.requests[1]?.clone().json()).toMatchObject({
     model: HOST_MODEL,
-    messages: expect.arrayContaining([{ role: "system", content: resolveImageryCaption(defaults.imagery, "character_multimodal") }]),
+    messages: asymmetric(expect.arrayContaining([{ role: "system", content: resolveImageryCaption(defaults.imagery, "character_multimodal") }])),
   });
   const preset = await root.services.preset.create({
     userId: room.host.userId,
@@ -193,7 +195,7 @@ test("member previews use the host's live Utility binding, preset and instructio
   expect(await wire.requests[2]?.clone().json()).toMatchObject({
     model: HOST_MODEL,
     temperature: 0.7,
-    messages: expect.arrayContaining([{ role: "system", content: HOST_CAPTION }]),
+    messages: asymmetric(expect.arrayContaining([{ role: "system", content: HOST_CAPTION }])),
   });
   expect(await wire.requests[2]?.clone().text()).toContain(Buffer.from(room.avatarBytes).toString("base64"));
   expect(wire.requests[2]?.headers.get("authorization")).toBe(`Bearer ${HOST_KEY}`);
@@ -254,7 +256,7 @@ test("a member's room image uses the host's image connection and live negative p
     input: { section: "prose", patch: { [IMAGERY_NEGATIVE_SLOT_ID]: proseOverrideFromLegacy(HOST_NEGATIVE) } },
   });
   expect((await generate()).authorUserId).toBe(room.member.userId);
-  expect(await wire.requests[1]?.clone().json()).toMatchObject({ model: IMAGE_MODEL, prompt: expect.stringContaining(HOST_NEGATIVE) });
+  expect(await wire.requests[1]?.clone().json()).toMatchObject({ model: IMAGE_MODEL, prompt: asymmetric(expect.stringContaining(HOST_NEGATIVE)) });
   expect(await wire.requests[1]?.clone().text()).not.toContain("member excluded detail");
   expect(wire.requests.map((request) => request.headers.get("authorization"))).toEqual([`Bearer ${HOST_KEY}`, `Bearer ${HOST_KEY}`]);
   const stored = await root.services.assets.listOwned({ principal: room.host, kind: "generated", limit: 10 });
@@ -349,7 +351,7 @@ test("imagery retains a real dropped-edit warning and filters a real native unsu
     useAvatarReference: true,
     reuse: "never",
   });
-  expect(filtered.warnings).toEqual([{ code: WARNING_CODE.imageEditDropped, detail: expect.stringContaining(model) }]);
+  expect(filtered.warnings).toEqual([{ code: WARNING_CODE.imageEditDropped, detail: asymmetric(expect.stringContaining(model)) }]);
   const image = filtered.images[0];
   if (image === undefined) {
     throw new Error("the actual imagery warning path stored no generated image");

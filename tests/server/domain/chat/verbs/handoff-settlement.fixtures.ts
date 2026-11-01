@@ -2,6 +2,7 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect } from "@orb/testkit/node";
 import { invitePerson } from "../persona-cache-physical.ts";
 import type { SpeakerRoom } from "./speaker-funding-physical.ts";
@@ -51,5 +52,5 @@ export async function transferred(room: SpeakerRoom, recipient: SpeakerRoom["h"]
   const copies = (await h.root.services.character.list({ principal: recipient })).items;
   expect(copies).toHaveLength(1);
   expect(copies[0]?.id).not.toBe(h.characters[0]?.id);
-  expect(seats).toEqual(expect.arrayContaining([expect.objectContaining({ characterId: copies[0]?.id, leftSeq: null })]));
+  expect(seats).toEqual(expect.arrayContaining([asymmetric(expect.objectContaining({ characterId: copies[0]?.id, leftSeq: null }))]));
 }

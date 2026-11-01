@@ -5,6 +5,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { LogLevel } from "@orb/contracts/settings";
 import { WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
 import { characterEmbeddings, closeDb, embeddingCalls } from "@orb/db";
+import { asymmetric } from "../iso/asymmetric.ts";
 import { createFrozenClock } from "../iso/clock.ts";
 import { createControlledTimers } from "../iso/timers.ts";
 import { seedCorpusConnections } from "./corpus-actors.ts";
@@ -42,9 +43,9 @@ test(
       // The held read is released only in `finally`, so this settles only if the owned deadline reached its owner first.
       const failure = await result;
       expect(failure).toMatchObject({
-        message: expect.stringContaining('"phase":"initial-background"'),
+        message: asymmetric(expect.stringContaining('"phase":"initial-background"')),
         cause: {
-          timeout: expect.any(DOMException),
+          timeout: asymmetric(expect.any(DOMException)),
           admitted: started,
           lastObserved: undefined,
         },
@@ -98,9 +99,9 @@ test(
     try {
       await pending.reached;
       expect(await result).toMatchObject({
-        message: expect.stringContaining('"phase":"admitted-job","index":0'),
+        message: asymmetric(expect.stringContaining('"phase":"admitted-job","index":0')),
         cause: {
-          timeout: expect.any(DOMException),
+          timeout: asymmetric(expect.any(DOMException)),
           phase: "admitted-job",
           index: 0,
           admitted: started,
@@ -154,9 +155,9 @@ test(
       const events = root.app.workloadEvents.getRecentWorkloadEvents(admitted.id);
       expect(events.some((event) => event.type === "progress")).toBe(true);
       expect(failure).toMatchObject({
-        message: expect.stringContaining('"phase":"scheduled-worker-loop","index":null'),
+        message: asymmetric(expect.stringContaining('"phase":"scheduled-worker-loop","index":null')),
         cause: {
-          timeout: expect.any(DOMException),
+          timeout: asymmetric(expect.any(DOMException)),
           phase: "scheduled-worker-loop",
           index: null,
           admitted: started,
@@ -173,7 +174,7 @@ test(
           ],
         },
       });
-      expect(failure).toMatchObject({ message: expect.stringContaining('"observation":"last-observed"') });
+      expect(failure).toMatchObject({ message: asymmetric(expect.stringContaining('"observation":"last-observed"')) });
     } finally {
       pending?.release();
       unsubscribe();
@@ -207,9 +208,9 @@ test(
       await pending.reached;
       const failure = await settleCorpusWorkloads(root, observer, started).catch((error: unknown) => error);
       expect(failure).toMatchObject({
-        message: expect.stringContaining('"requested":1,"observation":"none"'),
+        message: asymmetric(expect.stringContaining('"requested":1,"observation":"none"')),
         cause: {
-          timeout: expect.any(DOMException),
+          timeout: asymmetric(expect.any(DOMException)),
           phase: "initial-background",
           index: null,
           admitted: started,
@@ -370,8 +371,8 @@ test("manual native corpus execution joins only its admitted jobs and leaves an 
     input: { kind: "distill-characters", params: {} },
   });
   await expect(settleCorpusWorkloads(root, caller, [failed])).rejects.toMatchObject({
-    message: expect.stringContaining('"status":"failed"'),
-    cause: [expect.objectContaining({ id: failed.id, status: "failed" })],
+    message: asymmetric(expect.stringContaining('"status":"failed"')),
+    cause: [asymmetric(expect.objectContaining({ id: failed.id, status: "failed" }))],
   });
   const foreign = await seedCorpusAccount(root);
   const foreignCaller = await root.internalCallerFor(foreign.userId);

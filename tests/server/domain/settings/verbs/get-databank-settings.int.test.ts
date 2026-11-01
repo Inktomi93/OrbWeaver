@@ -1,5 +1,6 @@
 // @subject packages/server/src/entry/compose/databank.ts
 import { createGetDatabankSettings } from "@orb/server/domain/settings";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { principal } from "@orb/testkit/node/helpers";
 
@@ -12,7 +13,7 @@ test("databank settings remain owner-isolated and live while excluding the chat-
     principal: await principal(harness, owner.id),
     input: { section: "databank", patch: { chunk: { chunkSize: 1200 }, retrieval: { k: 3, minScore: 0.4, rerank: true }, slotTokenBudget: 2048 } },
   });
-  expect(await read(owner.id)).toEqual({ chunk: expect.objectContaining({ chunkSize: 1200 }) });
+  expect(await read(owner.id)).toEqual({ chunk: asymmetric(expect.objectContaining({ chunkSize: 1200 })) });
   expect(await read(owner.id)).not.toHaveProperty("slotTokenBudget");
   expect(await read(other.id)).toEqual(otherBefore);
   await services.settings.updateUserSettingsSection({

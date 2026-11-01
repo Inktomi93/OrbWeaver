@@ -5,6 +5,7 @@ import { createPersonaSchema } from "@orb/contracts/persona";
 import { createBookSchema, createEntrySchema, updateEntrySchema } from "@orb/contracts/world-info";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { isPlainObject } from "@orb/kit/guards";
+import { asymmetric } from "../../iso/asymmetric.ts";
 import { seedPersonaLibraryViews, seedRegexLibraryViews, seedTagLibraryViews, seedWorldInfoLibraryViews } from "../corpus-library-views.ts";
 import { seedCorpusLibraries } from "../corpus-seed.ts";
 import { expect, test } from "../fixtures.ts";
@@ -90,9 +91,9 @@ test("world library outputs preserve attachment roles, entry ordering, portable 
   expect(views.chatBooks.output).toMatchObject([{ id: library.world.book.id, role: null }]);
   expect(views.inheritedBooks.output).toEqual(
     expect.arrayContaining([
-      expect.objectContaining({ id: library.world.book.id, inherited: { source: "global", name: null } }),
-      expect.objectContaining({ id: library.world.book.id, inherited: { source: "character", name: library.character.name } }),
-      expect.objectContaining({ id: library.world.book.id, inherited: { source: "persona", name: library.persona.name } }),
+      asymmetric(expect.objectContaining({ id: library.world.book.id, inherited: { source: "global", name: null } })),
+      asymmetric(expect.objectContaining({ id: library.world.book.id, inherited: { source: "character", name: library.character.name } })),
+      asymmetric(expect.objectContaining({ id: library.world.book.id, inherited: { source: "persona", name: library.persona.name } })),
     ]),
   );
   expect(views.imported.output).toMatchObject({ created: true, renamedFrom: views.book.name });
@@ -185,7 +186,7 @@ test("tag and persona captures preserve adopted versus pending reach and default
   expect(tags.pendingAfter.output.map((tag) => tag.id)).not.toContain(tags.tag.id);
   expect(tags.reaches.map((capture) => capture.output)).toEqual([
     { entities: [{ targetType: "character", targetId: library.character.id, name: library.character.name }], hasMore: false },
-    { entities: [{ targetType: "chat", targetId: library.room.chat.id, name: expect.any(String) }], hasMore: false },
+    { entities: [{ targetType: "chat", targetId: library.room.chat.id, name: asymmetric(expect.any(String)) }], hasMore: false },
     { entities: [{ targetType: "worldBook", targetId: library.world.book.id, name: library.world.book.name }], hasMore: false },
     { entities: [{ targetType: "persona", targetId: library.persona.id, name: library.persona.name }], hasMore: false },
     { entities: [{ targetType: "preset", targetId: library.preset.id, name: library.preset.name }], hasMore: false },

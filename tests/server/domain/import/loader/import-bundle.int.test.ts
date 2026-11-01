@@ -24,7 +24,7 @@ import type { AssetId, CharacterHandle, CharacterId, ChatId, UserId } from "@orb
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { buildChatBundleFile, CHAT_BUNDLE_EXT, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
-import { createSeededIds } from "@orb/testkit/iso";
+import { asymmetric, createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -215,10 +215,12 @@ test("a restored chat binds to its own card when another character already holds
     keepers: await Promise.all(keepers.map(async (c) => ({ suffixed: c.handle !== CHOSEN_HANDLE, transcripts: await transcriptsOf(target, c.id) }))),
   }).toEqual({
     outcome: { status: "succeeded", failed: 0 },
-    keepers: expect.arrayContaining([
-      { suffixed: false, transcripts: [] },
-      { suffixed: true, transcripts: [lines.map((line) => line.content)] },
-    ]),
+    keepers: asymmetric(
+      expect.arrayContaining([
+        { suffixed: false, transcripts: [] },
+        { suffixed: true, transcripts: [lines.map((line) => line.content)] },
+      ]),
+    ),
   });
   expect(keepers).toHaveLength(2);
 });
@@ -282,7 +284,7 @@ test("a chat bundle written before seats carried their card still re-links by ha
 
   expect({ carried: seatCards?.length, outcome, transcripts: keeper === undefined ? null : await transcriptsOf(target, keeper.id) }).toEqual({
     carried: 1,
-    outcome: expect.objectContaining({ ok: true, created: true }),
+    outcome: asymmetric(expect.objectContaining({ ok: true, created: true })),
     transcripts: [lines.map((line) => line.content)],
   });
 });

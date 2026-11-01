@@ -5,6 +5,7 @@
 import type { MessageView } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { chatEvents, chatParticipants, messageVariants, statsCanonVersions } from "@orb/db";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { and, eq, gt } from "drizzle-orm";
 import { beforeAll } from "vitest";
@@ -50,19 +51,21 @@ function expectNativeB(next: typeof messageVariants.$inferSelect | undefined, be
   expect(priorSignatures).toHaveLength(undo ? 1 : 2);
   expect(next?.toolCalls).toEqual([
     ...(priorCalls ?? []),
-    expect.objectContaining({
-      toolCallId: "same",
-      name: IMAGE_TOOL,
-      arguments: "{}",
-      result: "Moon",
-      isError: false,
-      durationMs: 0,
-      textOffset: restoredContent.length + "B.".length,
-      exchangeTextEnd: restoredContent.length + "B.".length,
-      exchangeOrdinal: 0,
-      callOrdinal: 0,
-      turnId: expect.any(String),
-    }),
+    asymmetric(
+      expect.objectContaining({
+        toolCallId: "same",
+        name: IMAGE_TOOL,
+        arguments: "{}",
+        result: "Moon",
+        isError: false,
+        durationMs: 0,
+        textOffset: restoredContent.length + "B.".length,
+        exchangeTextEnd: restoredContent.length + "B.".length,
+        exchangeOrdinal: 0,
+        callOrdinal: 0,
+        turnId: asymmetric(expect.any(String)),
+      }),
+    ),
   ]);
   expect(priorCalls?.map(({ turnId }) => turnId)).not.toContain(nextCall?.turnId);
   expect(next?.metadata?.continuationTools).toEqual({

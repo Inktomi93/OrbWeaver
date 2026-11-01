@@ -1,9 +1,10 @@
 import type { Server } from "node:http";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { afterEach, beforeEach } from "vitest";
 import { provisionRatedStageThemes } from "../../../../tooling/src/floor/appearance/rated-theme-fixture.ts";
+import { listeningAddress } from "../../_server-address.ts";
 
 interface StoredTheme {
   readonly id: string;
@@ -78,7 +79,7 @@ beforeEach(async () => {
     });
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  baseUrl = `http://127.0.0.1:${listeningAddress(server).port}`;
 });
 
 afterEach(async () => {
@@ -126,8 +127,8 @@ test("a post-create failure preserves both the primary and cleanup failures", as
   await expect(provisionRatedStageThemes(baseUrl, true)).rejects.toMatchObject({
     message: "INSTRUMENT ERROR: rated theme provisioning and exact cleanup both failed",
     errors: [
-      expect.objectContaining({ message: expect.stringContaining("settings.listThemes failed") }),
-      expect.objectContaining({ message: expect.stringContaining("rated theme cleanup left") }),
+      asymmetric(expect.objectContaining({ message: asymmetric(expect.stringContaining("settings.listThemes failed")) })),
+      asymmetric(expect.objectContaining({ message: asymmetric(expect.stringContaining("rated theme cleanup left")) })),
     ],
   });
   expect(themes.size).toBe(2);

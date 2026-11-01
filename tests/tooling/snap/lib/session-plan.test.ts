@@ -5,6 +5,7 @@
 // tests/tooling/snap/lib/session-wire.test.ts; the imperative halves are proven by
 // tests/tooling/snap/ops/session-daemon.int.test.ts.
 
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { APPEARANCE_PRESET_FLAG } from "@orb/tooling/floor/appearance/appearance-flags";
 import type { SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
@@ -108,10 +109,10 @@ test("limits: flag > env > default, fractional minutes are legal, and a bad valu
   expect(resolveSessionLimits({ ttlMinEnv: "0.05", capEnv: "2", ttlMinFlag: null }).limits).toEqual({ ttlMs: 3000, cap: 2 });
   expect(resolveSessionLimits({ ttlMinEnv: "0.05", capEnv: undefined, ttlMinFlag: 10 }).limits.ttlMs).toBe(10 * MINUTE);
   const badTtl = resolveSessionLimits({ ttlMinEnv: "0", capEnv: undefined, ttlMinFlag: null });
-  expect(badTtl.errors).toEqual([expect.stringContaining("positive number of minutes")]);
+  expect(badTtl.errors).toEqual([asymmetric(expect.stringContaining("positive number of minutes"))]);
   expect(badTtl.limits.ttlMs).toBe(DEFAULT_SESSION_TTL_MIN * MINUTE);
   const badCap = resolveSessionLimits({ ttlMinEnv: undefined, capEnv: "many", ttlMinFlag: null });
-  expect(badCap.errors).toEqual([expect.stringContaining("ORB_SESSION_CAP")]);
+  expect(badCap.errors).toEqual([asymmetric(expect.stringContaining("ORB_SESSION_CAP"))]);
   expect(badCap.limits.cap).toBe(DEFAULT_SESSION_CAP);
   expect(resolveSessionLimits({ ttlMinEnv: undefined, capEnv: "0", ttlMinFlag: null }).errors).toHaveLength(1);
 });
@@ -151,9 +152,11 @@ test("a later call carrying a browser-lifetime flag is named, page suffix and al
 
 test("F7 --stage-owner is a deliberate stage-down selector, never a stray checkout argument", () => {
   expect(parseSnapArgs(["--stage-down", "--stage-owner", LANE]).errors).toEqual([
-    expect.stringContaining("--stage-down --stage-owner <checkout> requires --force"),
+    asymmetric(expect.stringContaining("--stage-down --stage-owner <checkout> requires --force")),
   ]);
-  expect(parseSnapArgs(["--stage-owner", LANE]).errors).toEqual([expect.stringContaining("--stage-owner <checkout> only selects rows for --stage-down")]);
+  expect(parseSnapArgs(["--stage-owner", LANE]).errors).toEqual([
+    asymmetric(expect.stringContaining("--stage-owner <checkout> only selects rows for --stage-down")),
+  ]);
   const targeted = parseSnapArgs(["--stage-down", "--stage-owner", LANE, "--force"]);
   expect(targeted.errors).toEqual([]);
   expect(targeted.stageOwner).toBe(LANE);
@@ -272,7 +275,7 @@ test("the checkpoint refusal rows judge the modes on the inherited args and the 
   const shimmed = parseSnapArgs(["--full-motion", "--theme", "none"]);
   expect(shimmed.appearance).not.toBeNull();
   expect(checkpointArgErrors(inheritSessionArgs(boot, shimmed, "x"), "cp", ["--full-motion", "--theme", "none"])).toEqual([
-    expect.stringContaining("browser-lifetime flags (--full-motion --theme)"),
+    asymmetric(expect.stringContaining("browser-lifetime flags (--full-motion --theme)")),
   ]);
 });
 
@@ -313,18 +316,18 @@ test("the parse-time session rows: every combination that cannot mean anything r
   };
   expect(rows(["--session", "p-x", "--eval", "1"])).toEqual([]);
   expect(rows(["--session-status"])).toEqual([]);
-  expect(rows(["--session-close", "p-x", "--session-sweep"])).toEqual([expect.stringContaining("mutually exclusive")]);
-  expect(rows(["--session", "p-x", "--session-export", "p-x"])).toEqual([expect.stringContaining("stand alone")]);
-  expect(rows(["--session", "p-x", "--session-daemon", "p-x"])).toEqual([expect.stringContaining("--session-daemon is the daemon's own entry")]);
-  expect(rows(["--session-ttl", "5"])).toEqual([expect.stringContaining("boot property")]);
+  expect(rows(["--session-close", "p-x", "--session-sweep"])).toEqual([asymmetric(expect.stringContaining("mutually exclusive"))]);
+  expect(rows(["--session", "p-x", "--session-export", "p-x"])).toEqual([asymmetric(expect.stringContaining("stand alone"))]);
+  expect(rows(["--session", "p-x", "--session-daemon", "p-x"])).toEqual([asymmetric(expect.stringContaining("--session-daemon is the daemon's own entry"))]);
+  expect(rows(["--session-ttl", "5"])).toEqual([asymmetric(expect.stringContaining("boot property"))]);
   expect(rows(["--session", "p-x", "--matrix"])).toEqual([]);
   // #1259: the phase-1 refusal of `--session` + `--lighthouse` is DELETED. It existed because two
   // mechanisms wrote `--remote-debugging-port` onto one browser (the arm RESERVED a loopback port, a
   // session read Chrome's own back), which is last-wins and silent. Phase 3 deleted the reserving path,
   // so one endpoint serves both and the pair composes: the audit runs against the session's live page.
   expect(rows(["--session", "p-x", "--lighthouse", "desktop"])).toEqual([]);
-  expect(rows(["--session-sweep", "--stage-sweep"])).toEqual([expect.stringContaining("do not combine with --stage-status")]);
-  expect(sessionNameErrors(parseSnapArgs(["--session", "P-Bad", "--session-ttl", "1"]))).toEqual([expect.stringContaining("must match")]);
+  expect(rows(["--session-sweep", "--stage-sweep"])).toEqual([asymmetric(expect.stringContaining("do not combine with --stage-status"))]);
+  expect(sessionNameErrors(parseSnapArgs(["--session", "P-Bad", "--session-ttl", "1"]))).toEqual([asymmetric(expect.stringContaining("must match"))]);
   expect(sessionNameErrors(parseSnapArgs(["--session", "p-good"]))).toEqual([]);
 });
 

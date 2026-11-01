@@ -7,6 +7,7 @@ import { closeDb, notifications } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { NotificationId } from "@orb/kit/ids";
 import { createPluginNotificationDelivery } from "@orb/server/domain/notifications";
+import { asymmetric } from "@orb/testkit/iso";
 import type { Fixtures } from "@orb/testkit/node";
 import type { HeldDb } from "@orb/testkit/node/composed";
 import { freshHeldDb } from "@orb/testkit/node/composed";
@@ -110,7 +111,7 @@ test("a raced malformed refresh refuses before the held dismissal changes timest
   } finally {
     gate.release();
   }
-  expect(await refused).toEqual([{ status: "rejected", reason: expect.any(z.ZodError) }]);
+  expect(await refused).toEqual([{ status: "rejected", reason: asymmetric(expect.any(z.ZodError)) }]);
   expect(await disposition(harness.db, raised.id)).toEqual({ readAt: null, dismissedAt: null });
 });
 
@@ -135,7 +136,7 @@ test("bulk withdrawal rechecks a malformed raced refresh before its one atomic w
   } finally {
     gate.release();
   }
-  expect(await refused).toEqual([{ status: "rejected", reason: expect.any(z.ZodError) }]);
+  expect(await refused).toEqual([{ status: "rejected", reason: asymmetric(expect.any(z.ZodError)) }]);
   expect(await disposition(harness.db, first.id)).toEqual({ readAt: null, dismissedAt: null });
   expect(await disposition(harness.db, second.id)).toEqual({ readAt: null, dismissedAt: null });
 });
@@ -166,8 +167,8 @@ test("refused stored recipient bytes never reach the real recipient-keyed public
     const publication = Promise.allSettled([stream.next()]);
     const verdict = await Promise.allSettled([delivery.retractStanding({ recipientUserId: actors.alice.userId, type: "invite" })]);
     lifetime.abort();
-    expect(await publication).toEqual([{ status: "rejected", reason: expect.objectContaining({ name: "AbortError" }) }]);
-    expect(verdict).toEqual([{ status: "rejected", reason: expect.any(z.ZodError) }]);
+    expect(await publication).toEqual([{ status: "rejected", reason: asymmetric(expect.objectContaining({ name: "AbortError" })) }]);
+    expect(verdict).toEqual([{ status: "rejected", reason: asymmetric(expect.any(z.ZodError)) }]);
     expect(await disposition(harness.db, own.id)).toEqual({ readAt: null, dismissedAt: null });
   } finally {
     lifetime.abort();

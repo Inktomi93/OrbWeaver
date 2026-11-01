@@ -1,5 +1,6 @@
 // @subject tests/support/node/corpus-rpg-outputs.ts
 import { assertReferentialIntegrity } from "@orb/db";
+import { asymmetric } from "../iso/asymmetric.ts";
 import { RPG_OUTPUT_NAME, RPG_OUTPUT_NAME_MAX, RPG_OUTPUT_SECRET, seedCorpusRpgOutputs } from "./corpus-rpg-outputs.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
@@ -10,12 +11,12 @@ test("native RPG outputs preserve actor rekeying, disclosed name clamping, deter
   expect(result.created).toEqual({ gameId: result.born.id, trackersReadOnly: result.born.trackersReadOnly });
   expect(result.born.chatId).toBe(result.room.chat.id);
   expect(result.born.mode).toBe("lite");
-  expect(result.missing).toMatchObject({ ok: false, reason: expect.stringContaining("nothing to promote") });
+  expect(result.missing).toMatchObject({ ok: false, reason: asymmetric(expect.stringContaining("nothing to promote")) });
   expect(result.patched).toEqual({ ok: true });
   const actor = result.beforePromotion.actors.find((entry) => entry.name === RPG_OUTPUT_NAME);
   expect(actor?.actorRef.kind).toBe("npc");
   expect(actor?.volatile?.inventory).toMatchObject([{ name: "Loom shuttle" }]);
-  expect(result.promoted).toMatchObject({ ok: true, issues: [expect.stringContaining("shortened")] });
+  expect(result.promoted).toMatchObject({ ok: true, issues: [asymmetric(expect.stringContaining("shortened"))] });
   const foundingCharacterId = result.room.chat.participants.find((seat) => seat.kind === "character")?.characterId;
   const promoted = result.afterPromotion.actors.find((entry) => entry.actorRef.kind === "character" && entry.actorRef.characterId !== foundingCharacterId);
   expect(promoted?.actorRef.kind).toBe("character");
@@ -45,8 +46,8 @@ test("native RPG outputs preserve actor rekeying, disclosed name clamping, deter
   expect(result.born).not.toHaveProperty("steeringNote");
   expect(result.born.publicConfig).not.toHaveProperty("hiddenContentReveal");
   expect(result.checkpoints).toMatchObject([{ id: result.checkpointId, label: "Promoted witness", trigger: "manual" }]);
-  expect(result.resync).toMatchObject({ ok: false, reason: expect.any(String) });
-  expect(result.populate).toMatchObject({ ok: false, reason: expect.any(String) });
+  expect(result.resync).toMatchObject({ ok: false, reason: asymmetric(expect.any(String)) });
+  expect(result.populate).toMatchObject({ ok: false, reason: asymmetric(expect.any(String)) });
   const outsiderRow = await root.actor();
   const outsider = await root.internalCallerFor(outsiderRow.id);
   await expect(outsider.rpg.revealHidden({ chatId: result.born.chatId })).rejects.toMatchObject({ code: "NOT_FOUND" });

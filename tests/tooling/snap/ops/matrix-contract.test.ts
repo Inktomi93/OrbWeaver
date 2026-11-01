@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import { appearanceMatrixContract } from "#client/lib/appearance-carrier-manifest.ts";
@@ -99,8 +100,8 @@ test("joins every mandatory historical row to its exact planner cell or twin end
   const oppositeRows = matrix.plan.receipt.requiredRows.filter((row) => row.id.startsWith("opposite-os-app-prepaint::"));
   expect(oppositeRows.map((row) => matrix.plan.cells.find((cell) => cell.id === row.cellId)?.assignment)).toEqual(
     expect.arrayContaining([
-      expect.objectContaining({ theme: "custom-dark", "os-color": "light" }),
-      expect.objectContaining({ theme: "custom-light", "os-color": "dark" }),
+      asymmetric(expect.objectContaining({ theme: "custom-dark", "os-color": "light" })),
+      asymmetric(expect.objectContaining({ theme: "custom-light", "os-color": "dark" })),
     ]),
   );
   for (const twin of matrix.plan.receipt.requiredTwins) {

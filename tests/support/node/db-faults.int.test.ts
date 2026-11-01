@@ -2,6 +2,7 @@
 
 import { sql } from "drizzle-orm";
 import { integer, sqliteTable } from "drizzle-orm/sqlite-core";
+import { asymmetric } from "../iso/asymmetric.ts";
 import { freshDb } from "./db.ts";
 import { plantTrigger, refuseWrites } from "./db-faults.ts";
 import { expect, test } from "./fixtures.ts";
@@ -40,7 +41,7 @@ test("a write refusal aborts the matching statement with its message, only while
   const db = await scratch();
   await using fault = await refuseWrites(db, { table: probe, event: "INSERT", message: "probe writes are refused" });
   await expect(db.run(sql`INSERT INTO fault_probe (id) VALUES (1)`)).rejects.toMatchObject({
-    cause: expect.objectContaining({ message: expect.stringContaining("probe writes are refused") }),
+    cause: asymmetric(expect.objectContaining({ message: asymmetric(expect.stringContaining("probe writes are refused")) })),
   });
   expect(await db.all(sql`SELECT id FROM fault_probe`)).toEqual([]);
 

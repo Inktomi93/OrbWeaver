@@ -2,6 +2,7 @@
 // findings reach run.json, the bounded end card, or a later browser-free report.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { vi } from "vitest";
@@ -74,7 +75,9 @@ test("query and page-error canaries cannot cross the core-capture writer or its 
   }
   expect(coreText).toContain("[REDACTED]");
   expect(core.pageErrors.some((entry) => entry.kind === "runtime" && entry.message.includes("ordinary page failure"))).toBe(true);
-  expect(core.failedRequests).toEqual([expect.objectContaining({ method: "GET", url: expect.stringContaining("ordinary=kept"), status: null, type: "image" })]);
+  expect(core.failedRequests).toEqual([
+    asymmetric(expect.objectContaining({ method: "GET", url: asymmetric(expect.stringContaining("ordinary=kept")), status: null, type: "image" })),
+  ]);
   expect(core.populations.pageErrors.records).toBe(core.pageErrors.length);
   expect(core.populations.failedRequests).toEqual({ records: core.failedRequests.length, dropped: null, complete: false, basis: "latest-per-url" });
   expect(index.findings.some((finding) => finding.what.includes("ordinary page failure"))).toBe(true);

@@ -9,6 +9,7 @@ import type { TrpcWireOutput } from "@orb/testkit/ct";
 import { createShellAmbientReads, holdCorpusProcedure, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
+import { asymmetric } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { makePluginRow } from "@orb/testkit/node/helpers";
 import { TOKENS } from "@orb/ui/tokens";
@@ -663,6 +664,6 @@ test.describe("the trail is a lens over the chrome registry", () => {
     await expect(trail.getByRole("button", { name: JUMP_CHIP })).toBeVisible();
     await expect
       .poll(() => trail.locator("button").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label") ?? "")))
-      .toStrictEqual([STORY_TRAIL_WIDGET, expect.stringMatching(JUMP_CHIP)]);
+      .toStrictEqual([STORY_TRAIL_WIDGET, asymmetric(expect.stringMatching(JUMP_CHIP))]);
   });
 });

@@ -6,6 +6,7 @@ import { ESLint, Linter } from "eslint";
 import ts from "typescript";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const WRITES = "orb/no-direct-row-writes";
@@ -57,14 +58,14 @@ function programFor(fileName: string, source: string): ts.Program {
 async function findings(rule: typeof WRITES | typeof READS, body: string, path: string = COMPOSED): Promise<readonly Linter.LintMessage[]> {
   const fileName = join(ROOT, path);
   const source = `${PRELUDE}\nexport async function probe(): Promise<void> {\n${body}\n}\n`;
-  const config = await eslint.calculateConfigForFile(fileName);
+  const config = await resolvedConfig(eslint, fileName);
   const found = new Linter({ cwd: ROOT }).verify(
     source,
     {
       files: ["**/*.ts"],
-      plugins: config?.plugins ?? {},
+      plugins: config.plugins,
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: [programFor(fileName, source)] } },
-      rules: { [rule]: config?.rules?.[rule] ?? "off" },
+      rules: { [rule]: config.rules[rule] ?? "off" },
     },
     { filename: fileName },
   );
@@ -121,9 +122,9 @@ test.for([
   "tests/support/node/corpus-search.ts",
   "tests/tooling/seed/ops/row-access-probe.int.test.ts",
 ])("the persistence tier, a testkit row-read home or tooling test %s may write and read rows directly", async (path) => {
-  const config = await eslint.calculateConfigForFile(join(ROOT, path));
-  expect(config?.rules?.[WRITES]).toBeUndefined();
-  expect(config?.rules?.[READS]).toBeUndefined();
+  const config = await resolvedConfig(eslint, join(ROOT, path));
+  expect(config.rules[WRITES]).toBeUndefined();
+  expect(config.rules[READS]).toBeUndefined();
   expect(await findings(WRITES, `await db.insert(rows).values({ id: "a" });`, path)).toEqual([]);
   expect(await findings(READS, "await db.select().from(rows);\nvoid db.query;", path)).toEqual([]);
 });
@@ -132,8 +133,8 @@ test.for([
 test.for(["tests/support/node/factories/row-access-probe.ts", "tests/support/node/row-access-probe.ts", "tests/support/node/corpus-actors.ts"])(
   "the testkit door module %s writes rows but every read is a finding",
   async (path) => {
-    const config = await eslint.calculateConfigForFile(join(ROOT, path));
-    expect(config?.rules?.[WRITES]).toBeUndefined();
+    const config = await resolvedConfig(eslint, join(ROOT, path));
+    expect(config.rules[WRITES]).toBeUndefined();
     expect(await findings(WRITES, `await db.insert(rows).values({ id: "a" });`, path)).toEqual([]);
     expect(await findings(READS, "await db.select().from(rows);", path)).toHaveLength(1);
   },
@@ -142,8 +143,8 @@ test.for(["tests/support/node/factories/row-access-probe.ts", "tests/support/nod
 test.for(["scripts/row-access-probe.ts", "playwright/row-access-probe.ts", "tests/e2e/row-access-probe.spec.ts"])(
   "%s is in scope of both rules",
   async (path) => {
-    const config = await eslint.calculateConfigForFile(join(ROOT, path));
-    expect(config?.rules?.[WRITES]).toEqual([2]);
-    expect(config?.rules?.[READS]).toEqual([2]);
+    const config = await resolvedConfig(eslint, join(ROOT, path));
+    expect(config.rules[WRITES]).toEqual([2]);
+    expect(config.rules[READS]).toEqual([2]);
   },
 );

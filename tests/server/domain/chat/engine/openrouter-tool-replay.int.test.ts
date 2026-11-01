@@ -7,7 +7,7 @@
 import { spawn } from "node:child_process";
 import { builtinProvider } from "@orb/contracts/inference";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginToolWireName } from "@orb/contracts/plugin";
-import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
+import { asymmetric, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createChatRoot, makePluginBundle, SECRET_BOX_TEST_KEY, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
@@ -101,6 +101,6 @@ host.tools.register({name:"look",description:"Look.",replayHistory:true,
   expect(bodies).toHaveLength(3);
   const carried = (body: z.infer<typeof bodySchema> | undefined): unknown =>
     body?.messages.find((row) => row.tool_calls?.[0]?.id === TOOL_CALL.id)?.reasoning_details;
-  expect(carried(bodies[1])).toEqual([expect.objectContaining({ type: DETAIL.type, data: DETAIL.data })]);
-  expect(carried(bodies[2])).toEqual([expect.objectContaining({ type: DETAIL.type, data: DETAIL.data })]);
+  expect(carried(bodies[1])).toEqual([asymmetric(expect.objectContaining({ type: DETAIL.type, data: DETAIL.data }))]);
+  expect(carried(bodies[2])).toEqual([asymmetric(expect.objectContaining({ type: DETAIL.type, data: DETAIL.data }))]);
 });

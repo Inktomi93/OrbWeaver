@@ -4,6 +4,7 @@ import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import { RPG_SNAPSHOT_KIND, rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import { assertReferentialIntegrity, rpgJournal, rpgSnapshots } from "@orb/db";
 import { eq } from "drizzle-orm";
+import { asymmetric } from "../iso/asymmetric.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import { seedCorpusRpgProvider } from "./corpus-rpg-provider.ts";
@@ -168,8 +169,11 @@ test("native RPG host doors distinguish no-card, stranger, writer-less and physi
   expect(physical.requests.length).toBe(beforeRequests);
   const populatedInput = { chatId, actorRef: { kind: "character", characterId: result.character.id } } as const;
   refuse = true;
-  expect(await caller.rpg.populateFromCharacter(populatedInput)).toMatchObject({ ok: false, reason: expect.stringContaining("corpus RPG provider refused") });
-  expect(await caller.rpg.resyncFromStory({ chatId })).toMatchObject({ ok: false, reason: expect.stringContaining("corpus RPG provider refused") });
+  expect(await caller.rpg.populateFromCharacter(populatedInput)).toMatchObject({
+    ok: false,
+    reason: asymmetric(expect.stringContaining("corpus RPG provider refused")),
+  });
+  expect(await caller.rpg.resyncFromStory({ chatId })).toMatchObject({ ok: false, reason: asymmetric(expect.stringContaining("corpus RPG provider refused")) });
   expect(refusedCalls).toBe(2);
   const connection = await root.services.connection.get({ principal: owner, connectionId: connections.text.id });
   await root.services.connection.update({

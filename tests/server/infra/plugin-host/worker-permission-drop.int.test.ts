@@ -12,6 +12,7 @@ import type { InvocationChat, PluginCapability } from "@orb/contracts/plugin";
 import { mintTypeId } from "@orb/kit/ids";
 import type { createPluginHost } from "@orb/server/infra/plugin-host";
 import type { createSeededIds } from "@orb/testkit/iso";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { formatPluginBrokerArguments } from "#server/infra/plugin-host/process-argv.ts";
 import { parsePluginIpcMessage } from "#server/infra/plugin-host/process-channel.ts";
@@ -181,5 +182,5 @@ test("the runtime refuses to start on a Node without permission.drop before any 
   // The Worker ended at load: the observer never ran and the guest never reached its host call.
   expect(run.probe).toBeUndefined();
   expect(run.bridged).toEqual([]);
-  expect(run.response).toMatchObject({ ok: false, error: { message: expect.stringContaining("could not drop the permission to start Workers") } });
+  expect(run.response).toMatchObject({ ok: false, error: { message: asymmetric(expect.stringContaining("could not drop the permission to start Workers")) } });
 });

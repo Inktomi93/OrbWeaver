@@ -2,6 +2,7 @@
 
 import type { UpstreamFetchDeps } from "@orb/server/infra/upstream-update";
 import { createUpstreamFetches } from "@orb/server/infra/upstream-update";
+import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { vi } from "vitest";
 import { parseLatestRelease, parseMainHead } from "#server/infra/upstream-update/adapter.ts";
@@ -49,7 +50,7 @@ test("rate limits and missing releases keep distinct reasons, and non-success bo
     const res = response(COMMIT_BODY, status);
     const bytes = vi.fn(res.bytes);
     fetchImpl.mockResolvedValue({ ...res, bytes });
-    expect(await probes.main()).toMatchObject({ ok: false, reason: expect.stringContaining("rate-limiting") });
+    expect(await probes.main()).toMatchObject({ ok: false, reason: asymmetric(expect.stringContaining("rate-limiting")) });
     expect(res.dispose).toHaveBeenCalledOnce();
     expect(bytes).not.toHaveBeenCalled();
   }

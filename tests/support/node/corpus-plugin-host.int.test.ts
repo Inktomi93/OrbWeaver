@@ -9,6 +9,7 @@ import { jsonValueSchema } from "@orb/kit/json";
 import { estimateTokens } from "@orb/kit/tokens";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { asymmetric } from "../iso/asymmetric.ts";
 import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import {
@@ -105,13 +106,15 @@ test("the native resident guest captures admitted host returns and real prompt/e
     cardState: { witness: "native card" },
   });
   expect(reads["at"]).toBe(result.readAt);
-  expect(reads["ids"]).toEqual([expect.any(String), expect.any(String)]);
+  expect(reads["ids"]).toEqual([asymmetric(expect.any(String)), asymmetric(expect.any(String))]);
   expect(new Set(z.array(z.string()).parse(reads["ids"])).size).toBe(2);
   expect(reads["room"]).toEqual(expect.any(String));
-  expect(reads["messages"]).toEqual([expect.objectContaining({ content: "Native host transcript witness.", role: "user" })]);
+  expect(reads["messages"]).toEqual([asymmetric(expect.objectContaining({ content: "Native host transcript witness.", role: "user" }))]);
   expect(reads["characters"]).toEqual([{ id: library.character.id, name: library.character.name, avatarAssetId: null }]);
   expect(reads["books"]).toEqual([{ id: library.world.book.id, name: library.world.book.name }]);
-  expect(reads["entries"]).toEqual(expect.arrayContaining([expect.objectContaining({ content: "Native guest lore", enabled: true, keys: ["native"] })]));
+  expect(reads["entries"]).toEqual(
+    expect.arrayContaining([asymmetric(expect.objectContaining({ content: "Native guest lore", enabled: true, keys: ["native"] }))]),
+  );
   const ownedBytes = await root.app.assets.readOwnedAssetBytes(actors.owner, library.asset.assetId);
   expect(reads["asset"]).toEqual({ mime: "image/png", sizeBytes: ownedBytes.bytes.byteLength, dataBase64: Buffer.from(ownedBytes.bytes).toString("base64") });
 
@@ -151,7 +154,9 @@ test("the native resident guest captures admitted host returns and real prompt/e
     connectionId: result.imageConnection.id,
   });
   expect(result.observations[KEYS.search]).toEqual(
-    expect.arrayContaining([expect.objectContaining({ documentId, documentName: "Native guest source", content: expect.stringContaining("funded witness") })]),
+    expect.arrayContaining([
+      asymmetric(expect.objectContaining({ documentId, documentName: "Native guest source", content: asymmetric(expect.stringContaining("funded witness")) })),
+    ]),
   );
   expect(result.turn.aborted).toBe(false);
   expect(observationsSchema.parse(result.observations[KEYS.transform])).toMatchObject({
