@@ -105,7 +105,6 @@ test("debug existence does not invent a chat for a missing row", ({ ids }) => {
       startedAt: null,
       parentChatId: null,
       forkedAt: null,
-      streamSeq: 0,
       createdAt: 0,
       updatedAt: 0,
     },

@@ -163,12 +163,10 @@ export type ListParticipantsParams = ChatScopedParams;
 /** `listMessageVariants` — the full sibling-variant set for one slot (no content). */
 export interface ListMessageVariantsParams extends MessageScopedParams {}
 
-/** `replayStreamEvents` — resume the SSE token log from a cursor. */
-export interface ReplayStreamEventsParams extends ChatScopedParams {
-  readonly afterSeq?: number | undefined;
+/** `replayLiveTurn` — the turn in flight as of the attach's own bounds read. */
+export interface ReplayLiveTurnParams extends ChatScopedParams {
+  readonly throughSeq: number;
 }
-
-export type StreamEventBoundsParams = ChatScopedParams;
 
 /** `replayChatEvents` — resume the durable chat-bus log from a cursor. */
 export interface ReplayChatEventsParams extends ChatScopedParams {

@@ -18,7 +18,6 @@
 
 import type {
   AssembleContext,
-  ChatDeltaEvent,
   ChatReasoningPart,
   ChatWarning,
   ContentSignatures,
@@ -97,7 +96,6 @@ import {
   readRetainedCanonContributions,
 } from "../persistence/queries.ts";
 import { prepareRetainedCanonStats } from "../persistence/retained-canon.ts";
-import { insertChatStreamEventStatements } from "../persistence/stream-events.ts";
 import { buildHistoryBudget, fitCeiling, historyTurnTokens } from "../substrate/assembly-access.ts";
 import { isCoveredByCompaction } from "../substrate/compaction-coverage.ts";
 import { continuedSignatureMetadata } from "../substrate/content-signatures.ts";
@@ -577,9 +575,6 @@ async function commitGeneration(args: {
   readonly nextSeq: number;
   readonly genStartedAt: number;
   readonly genFinishedAt: number;
-  /** The provider deltas already published live, in callback order. They join the destination message in
-   *  the canon batch so only committed turns become resumable token history. */
-  readonly streamDeltas: readonly ChatDeltaEvent[];
   /** §6.7 — the CAS ids of the pictures this generation emitted and the engine already stored, in the order
    *  their spans were spliced into `result.content`. Each gets a `message_assets` link stamped
    *  `inline-reply`, in THIS batch: a body `asset:` span retains its blob only for an owner seated in the
@@ -617,15 +612,6 @@ async function commitGeneration(args: {
         rows: args.inlineReplyAssetIds.map((assetId) => ({ id: ctx.newMessageAssetId(), messageId, assetId })),
         origin: INLINE_REPLY_ORIGIN,
         now,
-      }),
-    );
-    statements.push(
-      ...insertChatStreamEventStatements(ctx.db, {
-        message: { id: messageId, chatId: prep.chatId },
-        deltas: args.streamDeltas,
-        newEventId: ctx.newStreamEventId,
-        newGenerationId: ctx.newStreamGenerationId,
-        createdAt: now,
       }),
     );
 
@@ -1704,7 +1690,6 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
   // tail outside the try so BOTH success and failure terminals must drain it; otherwise a partial stream that
   // throws can publish turnAborted before its already-observed delta reaches the durable bus.
   let deltaTail: Promise<void> = Promise.resolve();
-  const streamDeltas: ChatDeltaEvent[] = [];
   try {
     // PRE-TURN managed-compaction arm (the wedge-state fix): a chat whose context ALREADY overflows the window
     // makes the model fail, and the post-turn arm never runs on a failed turn — so compact BEFORE dispatch when
@@ -1788,7 +1773,6 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
         signal: prep.signal,
       },
       onDelta: (delta): void => {
-        streamDeltas.push(delta);
         deltaTail = deltaTail.then(() => deps.emit({ type: "delta", chatId: prep.chatId, slotSeq, delta }));
       },
     } satisfies Parameters<typeof runTurnPipeline>[0];
@@ -1846,7 +1830,6 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
       nextSeq: maxSeq + 1,
       genStartedAt,
       genFinishedAt,
-      streamDeltas,
     });
     // BEFORE the client-visible `turnCompleted` emit (w4-my-lane S1, option 1): the rpg register is
     // SYNCHRONOUS (`onTurnCompleted` enters the flush barrier before its first await), so firing it

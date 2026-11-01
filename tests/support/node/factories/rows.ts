@@ -126,7 +126,6 @@ function makeChat(overrides: Partial<ChatRow>, source: IdSource): ChatRow {
     variableValues: null,
     userMacroValues: null,
     runtimeVariables: null,
-    streamSeq: 0,
     standaloneVariableDeltas: null,
     importedFrom: null,
     importHash: null,

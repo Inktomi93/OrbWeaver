@@ -55,8 +55,6 @@ export const ID_PREFIX = {
   // variant-level), and a fresh swipe legitimately starts with an empty reaction set.
   messageReaction: "message_reaction",
   chatEvent: "chat_event",
-  chatStreamEvent: "chat_stream_event",
-  chatStreamGeneration: "chat_stream_generation",
   sessionEntry: "session_entry",
   chatInjection: "chat_injection",
   chatParticipant: "chat_participant",
@@ -218,10 +216,8 @@ export type MessageAssetId = TypeIdOf<"message_asset">;
  *  INSERT or one DELETE under a UNIQUE (MA-2 §4). */
 export type MessageReactionId = TypeIdOf<"message_reaction">;
 export type ChatEventId = TypeIdOf<"chat_event">;
-export type ChatStreamEventId = TypeIdOf<"chat_stream_event">;
 /** One committed provider generation in the resumable token log. A swipe or continue can reuse its
  * message slot, so the slot id cannot identify the hidden-span scrubber lifetime. */
-export type ChatStreamGenerationId = TypeIdOf<"chat_stream_generation">;
 export type SessionEntryId = TypeIdOf<"session_entry">;
 export type ChatInjectionId = TypeIdOf<"chat_injection">;
 export type ChatParticipantId = TypeIdOf<"chat_participant">;

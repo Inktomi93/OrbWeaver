@@ -16,6 +16,7 @@
 // Deps not on `ChatContext`: `loadParticipantViews` resolves the roster read-model; `resolveConnection`
 // resolves the model the previews need; `resolveForeignInputs` is the foreign half of the assemble ctx.
 
+import { setImmediate as yieldToLoop } from "node:timers/promises";
 import type {
   ActionTemplatesPreview,
   AssembleCharacter,
@@ -30,6 +31,7 @@ import type {
   ContextFitAnswer,
   ContextFitPreview,
   ContextFitUnbound,
+  DurableChatBusEvent,
   EffectiveRegexView,
   GroupConfig,
   HistoryPage,
@@ -61,6 +63,7 @@ import {
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { composeProse, isPresetProseSlotId, resolveProseText } from "@orb/contracts/prose";
 import { isRpgEngaged } from "@orb/contracts/rpg";
+import type { Db } from "@orb/db";
 import { generationOf, preservesCacheBlockEnds, resolveCarryReasoning } from "@orb/inference";
 import { projectBodyForPreview } from "@orb/kit/content";
 import type { CharacterId, ChatId, MessageId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
@@ -71,6 +74,7 @@ import type { IanaTimeZone } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
 import { captureParticipantRole } from "#primitives/role-data";
+import type { ActiveTurns } from "../contract/active-turns.ts";
 import type { MacroRenderEnv } from "../contract/assembly-macros.ts";
 import type { ChatContext, ChatServiceDeps, LoadParticipantViewsBatchOp, LoadParticipantViewsOp } from "../contract/context.ts";
 import { ChatNotFoundError } from "../contract/errors.ts";
@@ -96,21 +100,12 @@ import type {
   PreviewAssemblyParams,
   PreviewContextFitParams,
   ReplayChatEventsParams,
-  ReplayStreamEventsParams,
-  StreamEventBoundsParams,
+  ReplayLiveTurnParams,
 } from "../contract/params.ts";
 import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
 import type { HistoryBudgetInput, HistoryMacroNames } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
-import type {
-  ChatDetailData,
-  ChatEventAttach,
-  ChatLineageData,
-  ChatListPageData,
-  ChatStreamReplayEvent,
-  ChatSummaryData,
-  StreamEventBounds,
-} from "../contract/views.ts";
+import type { ChatBusReplayEvent, ChatDetailData, ChatEventAttach, ChatLineageData, ChatListPageData, ChatSummaryData } from "../contract/views.ts";
 import { gateLineagePerAncestor, requireHost, requireParticipant } from "../guard.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { loadInlineReplyAssetIds } from "../persistence/message-asset-links.ts";
@@ -118,6 +113,7 @@ import { loadMessagePositions, positionCanonPage } from "../persistence/message-
 import { loadPageCursors } from "../persistence/page-cursors.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants, loadPresentVisibilityRows } from "../persistence/participants-read.ts";
+import type { ChatEventLogRow } from "../persistence/queries.ts";
 import {
   countMemberChats,
   listMemberChats,
@@ -126,15 +122,14 @@ import {
   loadCanonHistory,
   loadCanonReasoningParts,
   loadChatEventBounds,
-  loadChatEventReplay,
+  loadChatEventPage,
   loadChatLastMessages,
   loadChatMessageStats,
   loadChatRow,
   loadForkChildren,
+  loadLastTurnTerminalSeq,
   loadMessagesPage,
   loadMessageVariantSummaries,
-  loadStreamBounds,
-  loadStreamReplay,
   loadVariantWire,
   loadViewerLastTurnAt,
   loadViewerLastTurns,
@@ -163,7 +158,7 @@ import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisi
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { isCoveredByCompaction } from "../substrate/compaction-coverage.ts";
 import { cueReplayFor } from "../substrate/cue-replay.ts";
-import { scrubChatEventReplayForMember, scrubStreamReplayForMember, stripMemberCardForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
+import { scrubChatEventReplayForMember, stripMemberCardForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import {
   humanSeatPersonasOf,
@@ -188,6 +183,7 @@ async function resolveReasoningHostOnly(ctx: ChatContext, chatId: ChatId): Promi
 
 /** The collaborators not on `ChatContext` (see the file header). */
 interface ReadDeps {
+  readonly activeTurns: ActiveTurns;
   readonly loadParticipantViewsBatch: LoadParticipantViewsBatchOp;
   readonly loadParticipantViews: LoadParticipantViewsOp;
   readonly resolveConnection: ChatServiceDeps["resolveConnection"];
@@ -220,10 +216,9 @@ type ReadVerbs = Pick<
   | "listMessages"
   | "listMessageVariants"
   | "listParticipants"
-  | "replayStreamEvents"
+  | "replayLiveTurn"
   | "replayChatEvents"
   | "chatEventBounds"
-  | "streamEventBounds"
 >;
 
 /** One parsed `chats` row as the persistence layer yields it — the input `buildSummaries` maps. Derived from
@@ -1639,32 +1634,6 @@ function createPreviewActionTemplates(ctx: ChatContext, deps: ReadDeps): ChatSer
   };
 }
 
-/** `replayStreamEvents` — resume the resumable SSE token log from a cursor (late-subscriber ramp-up).
- *  D16-clamped: a stream row is raw transcript text, so a `from-join` caller only gets rows anchored to a
- *  slot at/above their `historyFloorSeq` (see `loadStreamReplay`). §3.6 member-scrub: the replayed `text`
- *  deltas carry the model's raw output (hidden spans included), so a NON-HOST caller's rows run through the
- *  per-slot stream scrubber — the durable twin of the live delta scrubber the transport applies. */
-function createReplayStreamEvents(ctx: ChatContext): ChatService["replayStreamEvents"] {
-  return async ({ principal, chatId, afterSeq }: ReplayStreamEventsParams): Promise<ChatStreamReplayEvent[]> => {
-    const membership = await requireParticipant(ctx, principal, chatId);
-    const rows = await loadStreamReplay(ctx.db, chatId, afterSeq, membership.historyFloorSeq);
-    // P3 (§3.6): on a deception game a member's replayed REASONING token rows are dropped (host-only reasoning),
-    // the durable twin of the live reasoning-delta drop. Resolved once here; `false` (no drop) for a host / a
-    // non-deception chat. The host bit is the PROJECTION class's `viewerReadsHidden` — the same lens
-    // `scrubStreamReplayForMember` applies one line below, so the two can never answer differently.
-    const reasoningHostOnly = viewerReadsHidden(membership) ? false : await resolveReasoningHostOnly(ctx, chatId);
-    return scrubStreamReplayForMember(rows, membership, reasoningHostOnly);
-  };
-}
-
-/** `streamEventBounds` — the retained stream-log replay-cursor bounds (min/max seq; null/null when empty). */
-function createStreamEventBounds(ctx: ChatContext): ChatService["streamEventBounds"] {
-  return async ({ principal, chatId }: StreamEventBoundsParams): Promise<StreamEventBounds> => {
-    await requireParticipant(ctx, principal, chatId);
-    return await loadStreamBounds(ctx.db, chatId);
-  };
-}
-
 /** `replayChatEvents` — resume the durable chat-bus log from a cursor (the log is append-only, so a
  *  resume is never truncated). Member-gated; the events are room-public by the bus payload allowlist.
  *
@@ -1681,34 +1650,82 @@ function createStreamEventBounds(ctx: ChatContext): ChatService["streamEventBoun
 function createReplayChatEvents(ctx: ChatContext): ChatService["replayChatEvents"] {
   return async ({ principal, chatId, afterSeq }: ReplayChatEventsParams) => {
     const membership = await requireParticipant(ctx, principal, chatId);
-    const rows = await loadChatEventReplay(ctx.db, chatId, afterSeq);
-    // The host verdict here SELECTS BYTES (verbatim replay vs the §3.6 member projection) — the DATA-PROJECTION
-    // class, homed ONCE at `member-visibility::viewerReadsHidden` (D110 — chosen over the enforcement arm
-    // precisely because a lens that may later diverge from operation
-    // authority — a co-GM who commands the room but must not read deception truth — needs its own home).
-    // Deliberately NOT `auth::permitsHost`: that is the ENFORCEMENT arm (it gates whether an operation may
-    // proceed, e.g. the fork gate), and routing a byte-selection through it would thread a Principal + `can()`
-    // into a pure projection for zero behavior change.
-    const readsHidden = viewerReadsHidden(membership);
-    // The D16 join-history floor drops pre-join rows FIRST (per-EVENT, on the payload's own anchor), for host
-    // and member alike (a promoted host is floored at 0). The §3.6 member projection then runs STATEFULLY over
-    // the survivors: `scrubChatEventReplayForMember` removes hidden-class `<lie>` spans from every replayed
-    // `view` payload AND — the durable twin of the live transport's `resolveLiveYield` — scrubs raw `delta`
-    // rows per-slot (a resume from `lastEventId:"0"` re-drains the mid-turn token stream, so an unscrubbed
-    // durable replay would leak the model's hidden TEXT bytes the live path scrubs). On a deception game the
-    // member also loses the whole reasoning channel: reasoning deltas + `reasoningStreamDone` dropped,
-    // `view.reasoning` nulled. Host reads verbatim (identity).
-    const floored = rows
-      .filter(({ payload }) => !isBelowHistoryFloor(payload, membership.historyFloorSeq))
-      .map(({ seq, payload }) => ({ seq, event: payload }));
-    const reasoningHostOnly = readsHidden ? false : await resolveReasoningHostOnly(ctx, chatId);
-    const delivered = readsHidden ? floored : scrubChatEventReplayForMember(floored, membership, reasoningHostOnly);
-    const named = new Set(delivered.flatMap(({ event }) => eventViewMessageId(event) ?? []));
-    const positions = await loadMessagePositions(ctx.db, chatId, membership.historyFloorSeq, [...named]);
-    return delivered.map(({ seq, event }) => {
-      const id = eventViewMessageId(event);
-      return { seq, event: withViewPosition(event, id === undefined ? undefined : positions.get(id)) };
-    });
+    return await projectChatEventReplay(ctx, chatId, membership, await readEventPages(ctx.db, chatId, afterSeq ?? 0));
+  };
+}
+
+/** How many log rows one read takes before the loop gets a turn. */
+const EVENT_REPLAY_PAGE_ROWS = 1000;
+
+/** Every log row after `afterSeq`, oldest-first. libSQL reads synchronously and a turn's log runs to tens of
+ *  thousands of rows, so one statement over all of them would hold every other request for its whole length. */
+async function readEventPages(db: Db, chatId: ChatId, afterSeq: number, only?: Parameters<typeof loadChatEventPage>[2]["only"]): Promise<ChatEventLogRow[]> {
+  const rows: ChatEventLogRow[] = [];
+  for (let cursor = afterSeq; ; ) {
+    const page = await loadChatEventPage(db, chatId, { afterSeq: cursor, limit: EVENT_REPLAY_PAGE_ROWS, ...(only === undefined ? {} : { only }) });
+    rows.push(...page);
+    const last = page.at(-1);
+    if (last === undefined || page.length < EVENT_REPLAY_PAGE_ROWS) {
+      return rows;
+    }
+    cursor = last.seq;
+    await yieldToLoop();
+  }
+}
+
+/** The one per-viewer verdict over durable log rows, shared by both replays so neither can answer differently. */
+async function projectChatEventReplay(
+  ctx: ChatContext,
+  chatId: ChatId,
+  membership: Awaited<ReturnType<typeof requireParticipant>>,
+  rows: readonly ChatEventLogRow[],
+): Promise<ChatBusReplayEvent[]> {
+  // The host verdict here SELECTS BYTES (verbatim replay vs the §3.6 member projection) — the DATA-PROJECTION
+  // class, homed ONCE at `member-visibility::viewerReadsHidden` (D110 — chosen over the enforcement arm
+  // precisely because a lens that may later diverge from operation
+  // authority — a co-GM who commands the room but must not read deception truth — needs its own home).
+  // Deliberately NOT `auth::permitsHost`: that is the ENFORCEMENT arm (it gates whether an operation may
+  // proceed, e.g. the fork gate), and routing a byte-selection through it would thread a Principal + `can()`
+  // into a pure projection for zero behavior change.
+  const readsHidden = viewerReadsHidden(membership);
+  // The D16 join-history floor drops pre-join rows FIRST (per-EVENT, on the payload's own anchor), for host
+  // and member alike (a promoted host is floored at 0). The §3.6 member projection then runs STATEFULLY over
+  // the survivors: `scrubChatEventReplayForMember` removes hidden-class `<lie>` spans from every replayed
+  // `view` payload AND — the durable twin of the live transport's `resolveLiveYield` — scrubs raw `delta`
+  // rows per-slot (a resume from `lastEventId:"0"` re-drains the mid-turn token stream, so an unscrubbed
+  // durable replay would leak the model's hidden TEXT bytes the live path scrubs). On a deception game the
+  // member also loses the whole reasoning channel: reasoning deltas + `reasoningStreamDone` dropped,
+  // `view.reasoning` nulled. Host reads verbatim (identity).
+  const floored = rows.filter(({ payload }) => !isBelowHistoryFloor(payload, membership.historyFloorSeq)).map(({ seq, payload }) => ({ seq, event: payload }));
+  const reasoningHostOnly = readsHidden ? false : await resolveReasoningHostOnly(ctx, chatId);
+  const delivered = readsHidden ? floored : scrubChatEventReplayForMember(floored, membership, reasoningHostOnly);
+  const named = new Set(delivered.flatMap(({ event }) => eventViewMessageId(event) ?? []));
+  const positions = await loadMessagePositions(ctx.db, chatId, membership.historyFloorSeq, [...named]);
+  return delivered.map(({ seq, event }) => {
+    const id = eventViewMessageId(event);
+    return { seq, event: withViewPosition(event, id === undefined ? undefined : positions.get(id)) };
+  });
+}
+
+/** What a device needs to stand a live turn's ghost up. The rest of a turn's log is canon the mount's own reads
+ *  already carry, or a once-only signal (a warning, a user row's composer clear) that belongs to whoever was
+ *  there. `messageCommitted` stays for the assistant row alone: it is the ghost's handover signal. */
+const LIVE_TURN_EVENT_TYPES = ["turnAccepted", "turnStarted", "delta", "messageCommitted"] as const satisfies readonly DurableChatBusEvent["type"][];
+
+/** `replayLiveTurn` — what a device attaching with no cursor is missing of the turn in flight, from generation
+ *  start through `throughSeq` (the attach's own bounds read, so the rows above it are the live tail's). Empty
+ *  when no turn is running: `activeTurns` is the liveness truth, because a crash leaves an open turn in the log
+ *  with no terminal, and replaying that would strand a ghost nothing ever closes. */
+function createReplayLiveTurn(ctx: ChatContext, deps: ReadDeps): ChatService["replayLiveTurn"] {
+  return async ({ principal, chatId, throughSeq }: ReplayLiveTurnParams): Promise<ChatBusReplayEvent[]> => {
+    const membership = await requireParticipant(ctx, principal, chatId);
+    if (deps.activeTurns.countActive(chatId) === 0) {
+      return [];
+    }
+    const lastTerminal = await loadLastTurnTerminalSeq(ctx.db, chatId);
+    const rows = await readEventPages(ctx.db, chatId, lastTerminal, { throughSeq, types: LIVE_TURN_EVENT_TYPES });
+    const ghost = rows.filter(({ payload }) => payload.type !== "messageCommitted" || payload.view?.role === "assistant");
+    return await projectChatEventReplay(ctx, chatId, membership, ghost);
   };
 }
 
@@ -1773,8 +1790,7 @@ export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
     listMessageVariants: createListMessageVariants(ctx),
     listParticipants: createListParticipants(ctx, deps),
 
-    replayStreamEvents: createReplayStreamEvents(ctx),
-    streamEventBounds: createStreamEventBounds(ctx),
+    replayLiveTurn: createReplayLiveTurn(ctx, deps),
     replayChatEvents: createReplayChatEvents(ctx),
     chatEventBounds: createChatEventBounds(ctx),
   };

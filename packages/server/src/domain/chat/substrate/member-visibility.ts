@@ -66,7 +66,7 @@ import type { HiddenSpanStreamScrubber } from "@orb/kit/content";
 import { createHiddenSpanStreamScrubber, stripHiddenSpans } from "@orb/kit/content";
 import type { ChatId } from "@orb/kit/ids";
 import { participantRoleValue } from "#primitives/role-data/decode";
-import type { ChatBusReplayEvent, ChatStreamReplayEvent } from "../contract/views.ts";
+import type { ChatBusReplayEvent } from "../contract/views.ts";
 
 /** A caller's chat role — the §3.6 verdict axis (host reads unstripped; anyone else is a member). Matches the
  *  captured participant-role data the guards resolve, narrowed to the one field this boundary needs. */
@@ -337,44 +337,6 @@ export function createMemberDeltaStamper(): MemberDeltaStamper {
       return { ...event, memberText };
     },
   };
-}
-
-/** Scrub the DURABLE SSE token-log replay (`replayStreamEvents`) for a NON-HOST caller (§3.6). A late
- *  subscriber / reconnect replays the raw per-slot token stream; without this a member would receive the
- *  model's hidden bytes in the replayed `text` deltas. Each committed generation gets a FRESH scrubber;
- *  swipe/continue generations can reuse a `messageId`, so `generationId` is the lifetime boundary. Historical
- *  rows without that marker fall back to the slot key. A row whose scrubbed text is empty is DROPPED (it
- *  carried only held/hidden bytes). The final held tail is dropped — the caller's authoritative
- *  content is the at-commit-stripped `listMessages`/`replayChatEvents` view, not the token log. Reasoning
- *  rows and a `null` messageId (an unanchored control row) pass through. Identity for a host (verbatim). */
-export function scrubStreamReplayForMember(rows: readonly ChatStreamReplayEvent[], viewer: ViewerRole, reasoningHostOnly = false): ChatStreamReplayEvent[] {
-  if (viewerReadsHidden(viewer)) {
-    return [...rows];
-  }
-  const scrubbers = new Map<string, HiddenSpanStreamScrubber>();
-  const out: ChatStreamReplayEvent[] = [];
-  for (const row of rows) {
-    // P3 (§3.6): a REASONING replay row is a member-visible thinking-channel byte; DROP it on a deception game
-    // (host-only reasoning), else pass it through.
-    if (row.kind === "reasoning") {
-      if (!reasoningHostOnly) {
-        out.push(row);
-      }
-      continue;
-    }
-    // A `text` row with no slot anchor (an unanchored control row) passes through — it carries no scrubable body.
-    if (row.messageId === null) {
-      out.push(row);
-      continue;
-    }
-    const scrubberKey = row.generationId ?? row.messageId;
-    const scrubber = scrubbers.getOrInsertComputed(scrubberKey, () => createHiddenSpanStreamScrubber());
-    const safe = scrubber.push(row.delta);
-    if (safe.length > 0) {
-      out.push({ ...row, delta: safe });
-    }
-  }
-  return out;
 }
 
 /** The member projection of the DURABLE chat-bus-log replay (`replayChatEvents`), §3.6. Unlike the per-event

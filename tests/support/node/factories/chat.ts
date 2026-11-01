@@ -10,7 +10,6 @@ import type {
   chatInvites,
   chatLocks,
   chatParticipants,
-  chatStreamEvents,
   chats,
   compactionSpend,
   messageAssets,
@@ -33,7 +32,6 @@ type ChatImportClaimRow = typeof chatImportClaims.$inferSelect;
 type ChatInjectionRow = typeof chatInjections.$inferSelect;
 type MessageAssetRow = typeof messageAssets.$inferSelect;
 type ChatEventRow = typeof chatEvents.$inferSelect;
-type ChatStreamEventRow = typeof chatStreamEvents.$inferSelect;
 type ChatLockRow = typeof chatLocks.$inferSelect;
 type PendingTurnRow = typeof pendingTurns.$inferSelect;
 export type ChatGenerationObservationRow = typeof chatGenerationObservations.$inferSelect;
@@ -42,7 +40,6 @@ export type ChatHandoffResumptionRow = typeof chatHandoffResumptions.$inferSelec
 
 export interface CapturedChatReplayRows {
   readonly events: readonly ChatEventRow[];
-  readonly stream: readonly ChatStreamEventRow[];
   readonly locks: readonly ChatLockRow[];
   readonly pending: readonly PendingTurnRow[];
 }
