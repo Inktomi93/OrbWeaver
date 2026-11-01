@@ -41,6 +41,10 @@ export function createImportPersonas(ctx: ImportContext): ImportService["importP
       profile.personaByUserName.set(key, personaId);
     }
 
+    if (result.defaultPersonaId !== null) {
+      await profile.adoptDefaultPersona(ctx.ownerId, result.defaultPersonaId);
+    }
+
     return {
       personasCreated: result.personasCreated,
       mergedKeys: result.mergedKeys,
