@@ -136,7 +136,6 @@ export const DISTINCT_LOOKALIKES = [
   {
     shape: "packages/client/src/features/discovery/components/corpus-controls.tsx#ParamToggleOption",
     distinctFrom: [
-      "packages/client/src/features/preset/lib/assembly-model.ts#ToggleItem",
       "packages/client/src/state/config-group-registry.ts#ConfigSettingOption",
       "packages/contracts/src/plugin/ui.ts#PluginSelectOption",
       "packages/kit/src/macro/user-macros.ts#UserMacroInputOption",
@@ -157,17 +156,6 @@ export const DISTINCT_LOOKALIKES = [
     shape: "packages/client/src/features/plugin/components/plugin-log-panel.tsx#PluginLogPanelProps",
     distinctFrom: ["packages/contracts/src/plugin/view.ts#PluginDisplayTransformView"],
     reason: "Log panel props; the plugin transform view is a wire view of another concept.",
-  },
-  {
-    shape: "packages/client/src/features/rpg/components/rpg-scene-cards.tsx#RpgSceneCardsProps",
-    distinctFrom: [
-      "packages/client/src/features/chat/hooks/use-context-panel-mutations.ts#SetCharactersCanReactVars",
-      "packages/client/src/features/chat/hooks/use-context-panel-mutations.ts#SetHostDisplayScriptsVars",
-      "packages/client/src/features/chat/hooks/use-context-panel-mutations.ts#SetMemberPersonaLoreVars",
-      "packages/client/src/features/chat/hooks/use-context-panel-mutations.ts#SetOfferChoicesVars",
-      "packages/client/src/features/chat/hooks/use-context-panel-mutations.ts#SetReactionsEnabledVars",
-    ],
-    reason: "Rpg component props; the matches are chat mutation variables, another layer and owner.",
   },
   {
     shape: "packages/client/src/features/tag/hooks/use-tag-library.ts#TagLibraryFact",

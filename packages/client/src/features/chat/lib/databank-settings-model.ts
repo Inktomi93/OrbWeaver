@@ -5,6 +5,7 @@
 // the same edges the server re-validate does.
 
 import type { UserSettings } from "@orb/contracts/settings";
+import type { SectionPatchVars } from "#data";
 
 type DatabankSection = UserSettings["databank"];
 
@@ -35,7 +36,7 @@ export function projectDatabankForm(section: DatabankSection): DatabankSettingsF
 
 /** The flat form value → the section-patch shape `updateUserSettingsSection("databank")` deep-merges (the
  *  retrieval leaf is re-nested; `chunk` is omitted so the deep-merge preserves the stored ingest params). */
-export function toDatabankSectionPatch(form: DatabankSettingsForm): Record<string, unknown> {
+export function toDatabankSectionPatch(form: DatabankSettingsForm): SectionPatchVars<"databank">["patch"] {
   return {
     retrieval: { k: form.k, minScore: form.minScore, rerank: form.rerank },
     slotTokenBudget: form.slotTokenBudget,

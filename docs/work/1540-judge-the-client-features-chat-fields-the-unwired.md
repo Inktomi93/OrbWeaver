@@ -156,4 +156,22 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+130 rows: 127 applied, 3 kept with a named reader, 0 owner questions.
+
+Applied:
+
+- 117 `...Vars` rows: each mutation variable type is now `inferInput<Trpc["<router>"]["<procedure>"]>`, read off the procedure its own `mutationOptions()` names. The hooks under `packages/client/src/features/chat/hooks/` and the components under `packages/client/src/features/chat/components/` changed. Where a Vars type is also a function parameter type (`packages/client/src/features/chat/hooks/use-chat-row-mutations.ts`), it is now an alias of the router input.
+- `QualityUpdate.section`, `.patch`, `.patch.attachmentQuality` (3): reclassed from delete to derive. The listed write is the section's save call, so deleting it would remove the save. The type is now the router input.
+- `TranscriptEdges.earlier`, `.settling`, `.later` (3, class unknown): the slot the value flows into is `moveNeighboursAt`'s `edges` parameter, which restated the shape inline (`packages/client/src/features/chat/lib/move-neighbours.ts`). It is now typed `TranscriptEdges`.
+- `UseGenerateImageResult.error`, `UseSendMessageResult.error`, `JumpToLatestState.atTail`, `NextTurnInputs.availabilityFailed` (4): deleted with their writes. The send hook's error state and `setError` went with it, and its catch now only keeps the rejection from escaping, since the mutation's `errorToast` reports the failure.
+
+Kept:
+
+- `ResolvedAttachment.dims.w`, `.h`: `dims` is handed whole to `MessageMedia`, which reads both (`packages/ui/src/content/message-media/message-media.tsx:65,74`) from `packages/client/src/features/chat/components/message-media-block.tsx:81-91`.
+- `SpeakerColorTokens.speaker`: the tokens object is handed whole to `ThemeScope` (`packages/client/src/features/chat/components/message-content.tsx:147`), whose key table maps `speaker` to `--color-speaker` (`packages/ui/src/content/theme-scope/emit-vars.ts:134`).
+
+Method: a one-shot scratch script rewrote the uniform `interface ...Vars` plus `createEntityMutation<...>` shape (not the `codemod` CLI: the shapes were few, each diff was read, and the script is not kept). The router input types a TypeId as a plain string, so a caller that reads a branded id from the variables needs the brand added back; none in this item did.
+
+Ran: `pnpm typecheck packages/client/tsconfig.json tsconfig.tests-dom.json` (exit 0). `pnpm test tests/client/features/chat/lib/move-neighbours.test.ts` (exit 0, 4 tests); `pnpm test:ct` over `tests/client/features/chat/components/composer-two-rows.ct.tsx`, `jump-to-latest.ct.tsx`, `message-reasoning-and-move.ct.tsx`, `transcript-retry.ct.tsx`, `platform-prose-action-groups.suite.ct.tsx` and `tests/client/features/character/components/platform-context-recovery.suite.ct.tsx` (44 passed, exit 0). No CT mounts the hooks that only changed their variable type; the typecheck is their proof.
+
+Reclass list: `QualityUpdate.*` delete -> derive; `TranscriptEdges.*` unknown -> derive from the slot; `ResolvedAttachment.dims.w/h` and `SpeakerColorTokens.speaker` delete -> kept (whole-object handoff).

@@ -68,7 +68,6 @@ export function createLogger(level: LogLevel, ring: BoundedRing<string> | null):
 }
 
 interface RequestContext {
-  requestId: string;
   log: Logger;
   /** Set once auth resolves (see `bindRequestUser`); read by the request-ring recorder. */
   userId?: UserId;
@@ -78,7 +77,7 @@ const requestContext = new AsyncLocalStorage<RequestContext>();
 
 /** Run `fn` with a request-scoped child of the root's logger, bound to this request id. */
 export function runInRequest<T>(base: Logger, requestId: string, fn: () => T): T {
-  return requestContext.run({ requestId, log: base.child({ requestId }) }, fn);
+  return requestContext.run({ log: base.child({ requestId }) }, fn);
 }
 
 /** The current request's logger (carries requestId + — once bound — userId/handle), else `base`, the

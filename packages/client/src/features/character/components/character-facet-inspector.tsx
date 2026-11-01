@@ -85,7 +85,7 @@ function InspectorLoader({
     residualData: data.residualData,
     refinery: data.refinery,
   };
-  return <InspectorBody form={form} characterId={characterId} facetId={facetId} readOnly={readOnly} />;
+  return <InspectorBody form={form} facetId={facetId} readOnly={readOnly} />;
 }
 
 /** The thin per-facet detail body — small knobs + counts only; the big text authors in CONTENT.
@@ -97,12 +97,10 @@ function InspectorLoader({
  *  name, then the body placeholder's) rebuilt one tier down. */
 function InspectorBody({
   form,
-  characterId,
   facetId,
   readOnly,
 }: {
   readonly form: CardForm;
-  readonly characterId: CharacterId;
   readonly facetId: CharacterFacetId;
   readonly readOnly: CharacterProvenanceSectionProps;
 }): ReactElement {
@@ -118,7 +116,7 @@ function InspectorBody({
         <Text voice="gloss">{facet.subtitle}</Text>
       </Stack>
 
-      {arm.render({ form, characterId, readOnly })}
+      {arm.render({ form, readOnly })}
     </Stack>
   );
 }
@@ -143,8 +141,6 @@ function FacetContextEmpty({ arm, glyph }: { readonly arm: FacetContextNone; rea
 
 interface FacetDetailProps {
   readonly form: CardForm;
-  /** D121-E: the regex detail counts ATTACHED library rows, so the dispatch carries the row identity. */
-  readonly characterId: CharacterId;
   readonly readOnly: CharacterProvenanceSectionProps;
 }
 

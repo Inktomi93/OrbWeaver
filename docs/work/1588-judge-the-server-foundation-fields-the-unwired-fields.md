@@ -77,4 +77,18 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 51 rows = applied 1, derived 0, kept 49, handed off 1, owner questions 0.
+
+Method: codegraph on the inspect, tracing and logger symbols; `ast-grep -l ts` (5890 files) and `-l tsx` (1526 files) over packages, tests, tooling for `requestContext.getStore()`; `pnpm typecheck tsconfig.node.json` exit 0.
+
+| Rows | Class | Reader or reason |
+| - | - | - |
+| `RequestContext.requestId` | applied | deleted with its write in `runInRequest`; the three `getStore()` reads (`logger.ts` `getLog`, `bindRequestUser`, `getRequestUserId`) never touch it |
+| `DataLayout.dbDir` | kept | `tests/support/node/surface-data.ts:309` (testkit) reads `audit.dbDir` |
+| `DataLayout.cache` | handed off | only `tests/server/entry/boot/persistence/migrate-data-layout.int.test.ts:166,209,312` read it; test-only readers, tests not rewritten (like 1696) |
+| `envObjectSchema.DATA_DIR`, `.DATA_LAYOUT_SKIP` | kept | `resolveDataLayout(val)` at `foundation/env/record/index.ts:679` reads both off the parsed env; an operator sets them (`.env.example:41,44`, `docker/entrypoint.sh:20`), so the schema key is the outside writer |
+| `UserSettingsRow`, `RpgGameRow`, `PresetRow`, `PersonaRow`, `RenderPolicyVerdict`, `CharacterDetailRow`, `ChatConfigRow`, `CharacterPolicyRow`, `ChatListRow`, `IntegrityReport`, `AutomationFireRow` fields | kept | each row is serialized whole by `c.json` in `foundation/observability/debug/routes.ts` (`/api/_debug/config/*`, `/db/chats`, `/db/integrity`, `/automation/fires`, lines 462-540); the debug body is the product, and `packages/client/src/data/fetch-automation-fires.ts` reads the fires route |
+| `RequestRecord.*`, `SerializedSpan.attributes/events`, `SerializedSpanEvent.*`, `RequestTraceTotals.*`, `RequestTrace.spans` | kept | whole-served by `/api/_debug/requests` (`routes.ts:428-435`) and `/api/_debug/traces/:requestId` (`routes.ts:447-449`) |
+| `WireWarning.code` | kept | `WireOutcome.warnings` rides whole through `/api/_debug/wire/outcomes` (`routes.ts:419-425`) and the spill file |
+
+The reclassified "delete" rows are the debug wire body: removing a key changes what an operator or the agent bridge receives. An owner may still rule the debug body thinner.

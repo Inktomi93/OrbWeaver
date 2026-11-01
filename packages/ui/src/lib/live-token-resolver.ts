@@ -23,7 +23,6 @@
 // shapes (which don't structurally overlap these locals under a direct assertion, TS2352).
 
 interface LiveResolverRootElement {
-  readonly getPropertyValue?: unknown;
   readonly append?: (child: LiveResolverProbeElement) => void;
   /** The inline-style chain: an inline `--token` that reaches the root is declared on it or an ancestor. */
   readonly parentElement?: LiveResolverRootElement | null;

@@ -3,7 +3,7 @@
 // @subject packages/client/src/data/import-tree-served.ts
 
 import type { TreeImportCaps, TreeImportPlan } from "@orb/client/data";
-import { importTree, planServedFolderImport, relativePathOf } from "@orb/client/data";
+import { importTree, planServedFolderImport, relativePathOf, skippedByReason } from "@orb/client/data";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { PersonaCollisionChoices, StProfileHandledEntry } from "@orb/contracts/import";
@@ -96,7 +96,7 @@ test("a split native backup skips entries outside native directories instead of 
   const files = [...splitNativeTree(harness), ...outside];
   const plan = await planTreeImport(files, SPLIT_CAPS);
   expect(plan.layout).toBe("orb");
-  expect(plan.skipped.map((entry) => entry.path).toSorted()).toEqual(["README.txt", "notes/plan.txt"]);
+  expect(plan.skipped).toHaveLength(outside.length);
   expect(plan.batches.flat().some((file) => outside.includes(file))).toBe(false);
   for (const paths of uploadedPaths(plan.batches)) {
     expect(admitTreeBatch(paths, plan.layout).kind).toBe("orb");
@@ -215,11 +215,18 @@ test("the plan never sends a secrets.json at any depth, and reports foreign plan
     profileFile(`${FOREIGN_PLANE}/index.bin`),
   ];
   const plan = await planTreeImport(files, SPLIT_CAPS);
-  const skipped = new Map(plan.skipped.map((entry) => [entry.path, entry.reason]));
-  expect(skipped.get(`${PROFILE_DIR}/${FOREIGN_PLANE}/index.bin`)).toBe(foreign.reason);
-  expect(skipped.get(`${PROFILE_DIR}/${ST_SECRETS_FILE}`)).toBe(secrets.reason);
-  expect(skipped.get(`${PROFILE_DIR}/${nestedSecrets}`)).toBe(secrets.reason);
+  expect(plan.skipped).toHaveLength(3);
   expect(pathsOf(plan.batches.flat())).toEqual([ST_SETTINGS_FILE, `${CHARACTERS}/Aria.png`]);
+  // A skip carries no path, so each candidate is planned alone to pin its own reason to it.
+  for (const [path, reason] of [
+    [ST_SECRETS_FILE, secrets.reason],
+    [nestedSecrets, secrets.reason],
+    [`${FOREIGN_PLANE}/index.bin`, foreign.reason],
+  ] as const) {
+    const alone = await planTreeImport([profileFile(ST_SETTINGS_FILE, "{}"), profileFile(`${CHARACTERS}/Aria.png`), profileFile(path, "{}")], SPLIT_CAPS);
+    expect(skippedByReason(alone.skipped)).toEqual([{ reason, files: 1 }]);
+    expect(pathsOf(alone.batches.flat())).not.toContain(path);
+  }
 });
 
 test("a multi-profile root keeps every profile's settings in every upload", async () => {
@@ -299,7 +306,8 @@ test("a file no framed upload can carry is skipped with its reason instead of se
   const served: TreeImportCaps = { totalBytes: totalHolding([small]), fileBytes: UNIT * 2, files: DEFAULT_UPLOAD_CAPS.importTreeFiles };
   const plan = await planServedTreeImport([small, whole], served, []);
   expect(plan.batches).toEqual([[small]]);
-  expect(plan.skipped.map((entry) => entry.path)).toEqual([relativePathOf(whole).slice(WRAPPER.length + 1)]);
+  expect(plan.skipped).toHaveLength(1);
+  expect(plan.batches.flat()).not.toContain(whole);
   expect(plan.files).toBe(1);
 });
 
