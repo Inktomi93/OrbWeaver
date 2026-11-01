@@ -68,12 +68,9 @@ function useSlotImage(urlAt: ((cssWidth: number) => string) | undefined): {
   return { attach: setElement, url, failed };
 }
 
-/** A speaker's art as the control that opens it full size. The bare style: a tint over the art would read as a smudge,
- *  and the press scale already answers a tap. The picture button sizes itself from its child, so wrapped art keeps its box. */
-export function ArtButton({
-  view,
-  ...button
-}: Omit<PictureButtonProps, "aria-label" | "onClick" | "ref" | "variant"> & { readonly view: ArtView }): ReactElement {
+// A speaker's art as the control that opens it full size. The bare style: a tint over the art would read as a smudge,
+// and the press scale already answers a tap. The picture button sizes itself from its child, so wrapped art keeps its box.
+function ArtButton({ view, ...button }: Omit<PictureButtonProps, "aria-label" | "onClick" | "ref" | "variant"> & { readonly view: ArtView }): ReactElement {
   return (
     <PictureButton
       {...button}
