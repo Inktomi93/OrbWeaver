@@ -19,6 +19,8 @@ export interface RpgStateRoundTool {
   readonly name: string;
   readonly description: string;
   readonly parameters: Record<string, unknown>;
+  /** Worked inputs the Anthropic wire shows beside the schema; every example must validate against `parameters`. */
+  readonly inputExamples?: readonly Record<string, unknown>[] | undefined;
 }
 
 /**

@@ -123,7 +123,8 @@ function nativeMessage(row: Json, toolNames: ReadonlyMap<string, string>, label:
 }
 
 /** OpenAI messages to Ollama's: string content, base64 `images`, object tool arguments, replayed thinking as
- *  `thinking`, and a tool result named by the call it answers (`tool_name`) and paired with it by id
+ *  `thinking` (the field the route takes; whether the loaded runner and model template render it back into the
+ *  prompt is unmeasured here), and a tool result named by the call it answers (`tool_name`) and paired with it by id
  *  (`tool_call_id`), so two calls of one tool keep their own results in any order. */
 function nativeMessages(messages: unknown, label: string): Json[] {
   const rows = Array.isArray(messages) ? messages.filter(isRecord) : [];

@@ -69,6 +69,7 @@ Finish an active plan before opening new work. File a finding; it never jumps th
 5. `inference-flow` and `easy-sharing`.
 6. `test-foundation` and `test-enforcement`, owed proof runs first.
 7. `unwired-code`: server bugs first, then field judgments in bulk.
+8. `restoration-register` judging pass, not started: it waits until `type-law` is done in full and `unwired-code` cleanup is finished (owner, 2026-11-01).
 
 ## Lane cap
 

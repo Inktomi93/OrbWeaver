@@ -20,14 +20,13 @@ import type { ChatPosture } from "./side-gen.ts";
 export const HISTORY_ROLES = ["user", "assistant", "tool", "system"] as const;
 export type HistoryRole = (typeof HISTORY_ROLES)[number];
 
-/** The assembly's per-row hints the hosted wires forward (§8.0): a cache breakpoint on this row, a
- *  `clearAt` on a mid-conversation system row, a per-turn effort. The converter maps them; a hint the
+/** The assembly's per-row hints the hosted wires forward (§8.0): a cache breakpoint on this row and a
+ *  `clearAt` on a mid-conversation system row. The converter maps them; a hint the
  *  curated row says the model does not honour is dropped with a warning. NOTE the FIRST system row is
  *  hoisted by the anthropic converter, so `wireMeta` on it is inert by construction. */
 export interface WireMeta {
   readonly cacheBreakpoint?: true | undefined;
   readonly clearAt?: "next_user_message" | undefined;
-  readonly effort?: string | undefined;
 }
 
 /** One assembled history turn. `name` carries the per-participant label the view-builder stamped. */

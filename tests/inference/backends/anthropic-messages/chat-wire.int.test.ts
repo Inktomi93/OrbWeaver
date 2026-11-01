@@ -6,6 +6,8 @@
 
 import { WARNING_CODE } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
+import type { ExtractionRefs } from "@orb/contracts/rpg";
+import { buildToolRoundWireTools, rpgGameConfigSchema, withStateToolExamples } from "@orb/contracts/rpg";
 import type { ChatHistoryMessage, ChatResult, ToolChoice, WireTool } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
 import { isPlainObject } from "@orb/kit/guards";
@@ -24,6 +26,7 @@ import {
   warningCodes,
 } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
+import { z } from "zod";
 import { createRuntimeRoot, wireConnection } from "../../roles/runtime.fixtures.ts";
 
 const THINKING = "The signed thought.";
@@ -356,6 +359,48 @@ test("the cache marker rides the last tool alone, a tool's strict and input exam
 
   const none = await drive({ model: "claude-opus-5", reply: textReply });
   expect(none.sent.body).not.toHaveProperty("tools");
+});
+
+const ESTABLISH_STATES = [false, true].flatMap((location) =>
+  [false, true].flatMap((timeOfDay) => [false, true].map((presentCast) => ({ location, timeOfDay, presentCast }))),
+);
+
+test("the cheap state round's tools reach the wire under a cached static system block and last tool, and update_scene's input examples validate against the schema sent beside them in every establish state", async () => {
+  for (const establishScene of ESTABLISH_STATES) {
+    const refs: ExtractionRefs = {
+      actorRefs: ["Mira"],
+      trackerWriteGroups: [],
+      gameTrackerKeys: { deltaKeys: [], setKeys: [] },
+      conditionNames: [],
+      establishScene,
+    };
+    const tools = withStateToolExamples(buildToolRoundWireTools(refs, rpgGameConfigSchema.parse({}), {}));
+    const { sent } = await drive({
+      model: "claude-opus-5",
+      reply: textReply,
+      tools,
+      toolChoice: { mode: "auto" },
+      systemPrompt: { static: "STATE ROUND SYSTEM", dynamic: "" },
+    });
+
+    const wireTools = sent.body["tools"];
+    if (!Array.isArray(wireTools)) {
+      throw new Error("the turn sent no tools");
+    }
+    const scene = wireTools.find((tool) => isPlainObject(tool) && tool["name"] === "update_scene");
+    const examples: unknown = isPlainObject(scene) ? scene["input_examples"] : undefined;
+    const schema: unknown = isPlainObject(scene) ? scene["input_schema"] : undefined;
+    if (!(Array.isArray(examples) && isPlainObject(schema))) {
+      throw new Error("update_scene reached the wire without examples or a schema");
+    }
+    const sentSchema = z.fromJSONSchema(schema);
+    expect(examples.length).toBeGreaterThan(0);
+    for (const example of examples) {
+      expect(sentSchema.safeParse(example).success, JSON.stringify({ establishScene, example })).toBe(true);
+    }
+    expect(wireTools.at(-1)).toMatchObject({ ["cache_control"]: { type: "ephemeral" } });
+    expect(sent.body["system"]).toMatchObject([{ type: "text", text: "STATE ROUND SYSTEM", ["cache_control"]: { type: "ephemeral" } }]);
+  }
 });
 
 test("the provider's rate-limit headers become the turn's snapshot, and the message id is the generation id", async () => {

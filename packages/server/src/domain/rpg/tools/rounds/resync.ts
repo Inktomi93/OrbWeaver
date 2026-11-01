@@ -172,7 +172,7 @@ async function resyncViaStructuredRound(
 }
 
 function resyncNeededTokens(conn: Resolved<"chat">, inputs: PromptInputs, userPrompt: string, toolRound: boolean): number {
-  const primary = stateRoundNeededTokens(stateRoundRequestText(conn, inputs, userPrompt, toolRound));
+  const primary = stateRoundNeededTokens(stateRoundRequestText(conn, inputs, userPrompt, toolRound ? "resync-tools" : "extraction"));
   if (!toolRound) {
     return primary;
   }

@@ -18,9 +18,15 @@ export type MintVia = (typeof MINT_VIAS)[number];
 const SLOT_KINDS = ["argument", "return", "property", "variable", "jsx-prop", "element", "state", "collection-key", "cast"] as const;
 export type SlotKind = (typeof SLOT_KINDS)[number];
 
-const LAYERS = ["contract", "port", "client-state", "local", "library"] as const;
-/** How close a slot sits to a wire or port: the rank of a widen edge. */
+const LAYERS = ["contract", "port", "client-state", "local", "library", "schema-input", "unknown"] as const;
+/** How close a slot sits to a wire or port: the rank of a widen edge. A `schema-input` slot is declared as a brand
+ *  schema, whose zod input type is `string` by design, so it is no defect; an `unknown` slot's declaration could not be
+ *  read, so it is neither counted as one nor guessed. */
 export type Layer = (typeof LAYERS)[number];
+
+const DECLARED = ["brand-schema", "plain", "unknown"] as const;
+/** What the slot's own declaration says: a brand schema, a plain string, or nothing the scan could read. */
+export type Declared = (typeof DECLARED)[number];
 
 export interface Where {
   readonly file: string;
@@ -53,6 +59,7 @@ export interface Slot {
   readonly declSite: string | null;
   readonly declFile: string | null;
   readonly lib: boolean;
+  readonly declared: Declared;
 }
 
 export interface WidenSite extends Where {
@@ -88,6 +95,31 @@ export interface CrossBrandSite extends Where {
   readonly value: string;
   readonly slot: string;
   readonly provenance: Provenance;
+}
+
+const VOCAB_HOWS = ["assigned", "compared", "case"] as const;
+type VocabHow = (typeof VOCAB_HOWS)[number];
+
+/** One literal read or written against a kind, status or role field, keyed to the field's declaration. */
+export interface VocabObservation extends Where {
+  readonly field: string;
+  readonly value: string;
+  readonly how: VocabHow;
+}
+
+/** A string-typed kind, status or role field, with the values the code is seen to give or test it. */
+export interface VocabField extends Where {
+  readonly site: string;
+  readonly name: string;
+  readonly declKind: string;
+  readonly owner: string | null;
+  /** Values seen in production files, sorted. */
+  readonly values: readonly string[];
+  /** Values seen only in tests, sorted. */
+  readonly testValues: readonly string[];
+  readonly assigned: number;
+  readonly compared: number;
+  readonly cased: number;
 }
 
 /** An id-named declaration with no brand to map to: reported apart, never a defect. */

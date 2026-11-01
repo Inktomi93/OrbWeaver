@@ -1,6 +1,7 @@
 ---
 kind: plan
-status: active
+status: parked
+blocked: wake gone docs/plans/type-law/design.md
 updated: 2026-10-30
 ---
 
