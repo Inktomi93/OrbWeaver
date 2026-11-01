@@ -2,8 +2,9 @@
 
 import type { ImportPreview, ImportPreviewKind, ImportPreviewList } from "@orb/contracts/import";
 import { IMPORT_PREVIEW_KINDS } from "@orb/contracts/import";
+import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
-import { Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Progress } from "@orb/ui/progress";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -27,7 +28,9 @@ function counted(count: number, [one, many]: readonly [string, string]): string 
 
 function kindLine(kind: ImportPreviewKind, list: ImportPreviewList): string {
   const owned = list.items.filter((item) => item.inLibrary === true).length;
-  return owned === 0 ? counted(list.total, KIND_NOUNS[kind]) : `${counted(list.total, KIND_NOUNS[kind])}, ${String(owned)} already in your library`;
+  const bare = list.items.filter((item) => item.withoutArt === true).length;
+  const notes = [...(owned === 0 ? [] : [`${String(owned)} already in your library`]), ...(bare === 0 ? [] : [`${String(bare)} will import without art`])];
+  return [counted(list.total, KIND_NOUNS[kind]), ...notes].join(", ");
 }
 
 function namesLine(names: readonly string[], total: number): string {
@@ -35,18 +38,25 @@ function namesLine(names: readonly string[], total: number): string {
   return unlisted > 0 ? `${names.join(", ")}, and ${String(unlisted)} more` : names.join(", ");
 }
 
-/** One line per distinct reason: a broken folder repeats one reason many times. */
-function skipLines(skipped: ImportPreview["skipped"]): string[] {
-  const counts = new Map<string, number>();
-  for (const { reason } of skipped.items) {
-    counts.set(reason, (counts.get(reason) ?? 0) + 1);
+interface SkipGroup {
+  readonly reason: string;
+  readonly sources: readonly string[];
+}
+
+/** One group per distinct reason: a broken folder repeats one reason many times. */
+function skipGroups(skipped: ImportPreview["skipped"]): SkipGroup[] {
+  const groups = new Map<string, string[]>();
+  for (const { reason, source } of skipped.items) {
+    groups.set(reason, [...(groups.get(reason) ?? []), source]);
   }
-  return [...counts].map(([reason, count]) => (count === 1 ? reason : `${reason} (${String(count)})`));
+  return [...groups].map(([reason, sources]) => ({ reason, sources }));
 }
 
 function PreviewReport({ preview }: { readonly preview: ImportPreview }): ReactElement {
   const kinds = IMPORT_PREVIEW_KINDS.filter((kind) => preview.kinds[kind].total > 0);
   const { skipped } = preview;
+  const groups = skipGroups(skipped);
+  const unlisted = skipped.total - skipped.items.length;
   return (
     <Stack gap="tight" role="group" aria-label="What this import would bring">
       {kinds.length === 0 ? <Text voice="reading">Nothing to import was found in this folder.</Text> : null}
@@ -58,9 +68,9 @@ function PreviewReport({ preview }: { readonly preview: ImportPreview }): ReactE
       {skipped.total === 0 ? null : (
         <>
           <Text voice="reading">{`${counted(skipped.total, ["item", "items"])} would be skipped:`}</Text>
-          {skipLines(skipped).map((line) => (
-            <Text key={line} voice="gloss" className="wrap-anywhere">
-              {line}
+          {groups.map(({ reason, sources }) => (
+            <Text key={reason} voice="gloss" className="wrap-anywhere">
+              {sources.length === 1 ? reason : `${reason} (${String(sources.length)})`}
             </Text>
           ))}
         </>
@@ -81,14 +91,16 @@ function PreviewReport({ preview }: { readonly preview: ImportPreview }): ReactE
                 )}`}
               </Text>
             ))}
-            {skipped.total === 0 ? null : (
-              <Text voice="gloss" className="wrap-anywhere">
-                {`skipped: ${namesLine(
-                  skipped.items.map((item) => item.source),
-                  skipped.total,
-                )}`}
+            {groups.map(({ reason, sources }) => (
+              <Text key={reason} voice="gloss" className="wrap-anywhere">
+                {`Skipped, ${reason}: ${sources.join(", ")}`}
               </Text>
-            )}
+            ))}
+            {unlisted > 0 ? (
+              <Text voice="gloss" className="wrap-anywhere">
+                {`And ${String(unlisted)} more skipped.`}
+              </Text>
+            ) : null}
           </Stack>
         </CollapsiblePanel>
       </Collapsible>
@@ -97,7 +109,7 @@ function PreviewReport({ preview }: { readonly preview: ImportPreview }): ReactE
 }
 
 /** Nothing for a pick with no dry run; a failed dry run says so and leaves the import to the reader. */
-export function ImportPreviewSummary({ state }: { readonly state: ImportPreviewState }): ReactElement | null {
+export function ImportPreviewSummary({ state, onRetry }: { readonly state: ImportPreviewState; readonly onRetry: () => void }): ReactElement | null {
   switch (state.status) {
     case "off":
       return null;
@@ -107,7 +119,18 @@ export function ImportPreviewSummary({ state }: { readonly state: ImportPreviewS
       return <Progress showValue={true} value={progress.pct} label={`${upload}Reading the folder. Nothing is imported yet.`} />;
     }
     case "failed":
-      return <Text voice="gloss">{`No preview: ${state.message} You can still import, or cancel.`}</Text>;
+      return (
+        <Stack gap="tight">
+          <Text voice="reading" tone="destructive" role="status">
+            {`No preview. ${state.message} You can still import, or try again.`}
+          </Text>
+          <Row justify="start">
+            <Button variant="outline" onClick={onRetry}>
+              Try again
+            </Button>
+          </Row>
+        </Stack>
+      );
     case "ready":
       return <PreviewReport preview={state.preview} />;
   }
