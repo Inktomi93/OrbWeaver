@@ -4,7 +4,9 @@
 // same way, but a `rem` inside a media query stays at the platform default, so a browser whose own default is 200% would
 // also flip the shell regime. Every surface runs every cell of EVERY_CELL; an exception is named beside it in QUALIFIED.
 
-import { BLANK_CHAT_NAME, contextToggleLabel, testId } from "@orb/client/lib";
+import { BLANK_CHAT_NAME, CHAT_NAME_FIELD_NAME, contextToggleLabel, testId } from "@orb/client/lib";
+import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
+import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
@@ -26,6 +28,8 @@ const NARROW = { name: "narrow phone", touch: true, size: { width: 320, height: 
 const DESKTOP = { name: "desktop", touch: false, size: { width: 1440, height: 900 } } as const;
 const TEXT_200 = { name: "200% text", factor: 2 } as const;
 const LAYOUT_300 = { name: "300% layout", factor: 3 } as const;
+// The widest root at which the desktop topbar still shows the wide identity that renames a room.
+const TEXT_125 = { name: "125% text", factor: 1.25 } as const;
 // The character band's chip row scrolls by ruling: it keeps each chip whole rather than wrap into a ragged void.
 const SIDEWAYS_STRIPS = 'input, textarea, [role="tablist"], [role="toolbar"], [data-slot="character-context-band"] > * > *';
 const IMPORT_DOOR = /^Import/u;
@@ -39,7 +43,7 @@ const REACHABLE =
   'button, a[href], input, textarea, select, [role="button"], [role="tab"], [role="menuitem"], [role="switch"], [role="checkbox"], [role="radio"], [role="combobox"], [role="textbox"]';
 
 type Viewport = typeof PHONE | typeof NARROW | typeof DESKTOP;
-type Scale = typeof TEXT_200 | typeof LAYOUT_300;
+type Scale = typeof TEXT_125 | typeof TEXT_200 | typeof LAYOUT_300;
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
 const EVERY_CELL = [
@@ -106,6 +110,9 @@ const QUALIFIED = {
   presetsWelcome: EVERY_CELL,
   importDialog: EVERY_CELL,
   characterEditor: EVERY_CELL,
+  echoFoot: EVERY_CELL,
+  // Only the wide identity renames; from 200% the desktop row has swapped to the screen name.
+  renameField: [[DESKTOP, TEXT_125]],
 } as const satisfies Record<string, readonly (readonly [Viewport, Scale])[]>;
 
 // How many of the composer row's movable actions sit in the Message tools menu in each room case, as measured.
@@ -403,6 +410,12 @@ async function scaleRoot(page: Page, factor: number): Promise<void> {
   // !important: the appearance writer owns the inline value and rewrites it after boot.
   await setRootFontScale(page, FONT_SCALE_PROPERTY, factor);
   await expect.poll(() => page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize))).toBeGreaterThanOrEqual(16 * factor);
+}
+
+/** Writes the owner's chat style, which the shell's served reads pick up on the next mount. */
+async function setChatStyle(chatStyle: ThemeChatStyle): Promise<void> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  await caller.settings.updateUserSettingsSection({ section: "appearance", patch: { chatStyle } });
 }
 
 async function firstCharacterId(): Promise<CharacterId> {
@@ -964,6 +977,59 @@ for (const [viewport, scale] of QUALIFIED.characterEditor) {
       await scaleRoot(page, scale.factor);
       await expect.poll(() => editor.locator('[data-slot="save-bar-root"]').evaluate(overlappingParts, SUBPIXEL)).toEqual([]);
       await expect.poll(() => findings(editor)).toEqual([]);
+      expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
+    });
+  });
+}
+
+for (const [viewport, scale] of QUALIFIED.echoFoot) {
+  test.describe(`Echo's foot band at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    test("stays inside its card with its chevrons reachable", async ({ mount, page }) => {
+      const resting = appearanceSettingsSchema.parse({}).chatStyle;
+      await setChatStyle("echo");
+      try {
+        await openLongRoom((chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }), page);
+        await scaleRoot(page, scale.factor);
+        await page.locator('[data-slot="message-list-scroll"]').evaluate((node) => {
+          node.scrollTop = node.scrollHeight;
+        });
+        const foot = page.locator('[data-slot="swipe-strip"]');
+        await foot.scrollIntoViewIfNeeded();
+        const card = page.locator('[data-slot="message-bubble"]').last();
+        await expect
+          .poll(async () => {
+            const [within, band] = await Promise.all([card.boundingBox(), foot.boundingBox()]);
+            return within !== null && band !== null && band.x >= within.x - SUBPIXEL && band.x + band.width <= within.x + within.width + SUBPIXEL;
+          })
+          .toBe(true);
+        await expect.poll(() => findings(foot)).toEqual([]);
+        expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
+      } finally {
+        await setChatStyle(resting);
+      }
+    });
+  });
+}
+
+for (const [viewport, scale] of QUALIFIED.renameField) {
+  test.describe(`renaming a room at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    test("keeps the typed name inside the title group, whatever its length", async ({ mount, page }) => {
+      await openLongRoom((chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }), page);
+      await scaleRoot(page, scale.factor);
+      await page.locator("button.shell-topbar-title-group").click();
+      const field = page.getByRole("textbox", { name: CHAT_NAME_FIELD_NAME, exact: true });
+      await field.fill("A name long enough to run past the room the topbar leaves its title group at an enlarged root");
+      const group = page.locator(".shell-topbar-title-group").filter({ has: field });
+      await expect
+        .poll(async () => {
+          const [within, box] = await Promise.all([group.boundingBox(), field.boundingBox()]);
+          return within !== null && box !== null && box.x >= within.x - SUBPIXEL && box.x + box.width <= within.x + within.width + SUBPIXEL;
+        })
+        .toBe(true);
       expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
     });
   });
