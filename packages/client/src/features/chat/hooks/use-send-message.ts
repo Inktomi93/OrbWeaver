@@ -16,12 +16,10 @@ import { createEntityMutation, UploadRefusedError, useInvalidation, useTRPC, use
 import { notify, turnMutationToast, viewerTimeZone } from "#lib";
 import { subscribeUserMessageCommitted } from "#state";
 
-type SendVars = inferInput<Trpc["chat"]["send"]>;
-
 const SEND_FAILED_TITLE = "Couldn't send your message.";
 
 // TData is `unknown` — the sent turn is bus-driven (messageCommitted/turnStarted/...), never read back.
-const useSendMutation = createEntityMutation<SendVars, unknown>({
+const useSendMutation = createEntityMutation<inferInput<Trpc["chat"]["send"]>, unknown>({
   options: (trpc) => trpc.chat.send.mutationOptions(),
   // busDriven: the turn's messageCommitted/turnCompleted bus events already run the full chatReads
   // invalidation; a mutation-side invalidate here would double-refetch (the observed 4-5x/send storm).

@@ -16,9 +16,7 @@ import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
-export type ToggleReactionVars = inferInput<Trpc["chat"]["toggleReaction"]>;
-
-export const useToggleReactionMutation = createEntityMutation<ToggleReactionVars, unknown>({
+export const useToggleReactionMutation = createEntityMutation<inferInput<Trpc["chat"]["toggleReaction"]>, unknown>({
   options: (trpc) => trpc.chat.toggleReaction.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't change that reaction.",
