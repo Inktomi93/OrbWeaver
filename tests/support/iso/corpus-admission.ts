@@ -31,7 +31,6 @@ const SEARCH_PATHS = {
   digests: "search.search",
   corpus: "search.search",
   documents: "search.search",
-  segments: "search.search",
   imagesRaw: "search.search",
   imagesCaptioned: "search.search",
   fields: "search.fields",

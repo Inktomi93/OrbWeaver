@@ -3,12 +3,12 @@
 // busDriven: a delete may orphan theme.selectedThemeId, so it must also refetch getUserSettings, which
 // themesChanged doesn't cover — it keeps only that uncovered key.
 
-import type { CreateThemeInput, Theme } from "@orb/contracts/theme";
+import type { Theme } from "@orb/contracts/theme";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { SectionPatchVars, Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
-export const useCreateTheme = createEntityMutation<CreateThemeInput, Theme>({
+export const useCreateTheme = createEntityMutation<inferInput<Trpc["settings"]["createTheme"]>, Theme>({
   options: (trpc) => trpc.settings.createTheme.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't create the theme.",

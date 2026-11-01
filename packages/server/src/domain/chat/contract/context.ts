@@ -647,6 +647,7 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly resolveUserPublics: ResolveUserPublicsOp;
   readonly resolveAssetHash: ResolveAssetHashOp;
   readonly filterOwnedAssetIds: FilterOwnedAssetIdsOp;
+  readonly filterOwnedImageAssetIds: FilterOwnedAssetIdsOp;
   /** Materialize a user-pasted external background URL into an owned CAS asset (side-eye F-P0-2) — the
    *  `setChatBackground` verb runs it for a `kind:"external"` source so a persisted carried background is
    *  always same-origin-paintable (an external URL is CSP-blocked). Compose-built from infra + assets.store. */

@@ -281,11 +281,10 @@ export async function seedCorpusSearch(root: ServerTestHarness, sources: Sources
     throw new Error("native search sources lost their group POV or avatar seed");
   }
   const ownerScope = { kind: "owner" } as const;
-  const chatScope = { kind: "chat", chatId: group.room.chat.id, scopedCharacterId: pov.id } as const;
+  const chatScope = { kind: "chat", chatId: group.room.chat.id } as const;
   const base = { query: "orbital ledger", topN: 20, rerank: false } as const;
   const inputs: readonly SearchInput[] = [
     ...(["entities", "characters", "discover", "digests", "corpus", "documents"] as const).map((over) => ({ ...base, over, scope: ownerScope })),
-    { ...base, over: "segments", scope: chatScope },
     { ...base, over: "images", scope: ownerScope, lens: "image-raw" },
     { ...base, over: "images", scope: ownerScope, lens: "image-captioned" },
   ];
@@ -297,13 +296,8 @@ export async function seedCorpusSearch(root: ServerTestHarness, sources: Sources
   for (const card of group.characters) {
     scoped.push(await caller.search.search({ ...base, over: "digests", scope: { kind: "character", characterId: card.id } }));
   }
-  const foreign: SearchOutput[] = [];
-  for (const over of ["digests", "segments"] as const) {
-    foreign.push(await other.search.search({ ...base, over, scope: chatScope }));
-  }
+  const foreign: SearchOutput[] = [await other.search.search({ ...base, over: "digests", scope: chatScope })];
   const refusals = await Promise.all([
-    searchRefusal(caller.search.search({ ...base, over: "segments", scope: { kind: "chat", chatId: group.room.chat.id } })),
-    searchRefusal(caller.search.search({ ...base, over: "segments", scope: ownerScope })),
     searchRefusal(caller.search.search({ ...base, over: "images", scope: ownerScope })),
     searchRefusal(caller.search.search({ ...base, over: "documents", scope: chatScope })),
     searchRefusal(caller.search.search({ ...base, over: "characters", scope: chatScope })),
@@ -369,7 +363,6 @@ export async function captureCorpusSearchPublication(root: ServerTestHarness, so
     digests: await capture<"search.search">(inputs.digests, caller.search.search),
     corpus: await capture<"search.search">(inputs.corpus, caller.search.search),
     documents: await capture<"search.search">(inputs.documents, caller.search.search),
-    segments: await capture<"search.search">(inputs.segments, caller.search.search),
     imagesRaw: await capture<"search.search">(inputs.imagesRaw, caller.search.search),
     imagesCaptioned: await capture<"search.search">(inputs.imagesCaptioned, caller.search.search),
     fields: await capture<"search.fields">(inputs.fields, caller.search.fields),
@@ -387,7 +380,6 @@ export async function captureCorpusSearchPublication(root: ServerTestHarness, so
       reads.digests.output,
       reads.corpus.output,
       reads.documents.output,
-      reads.segments.output,
       reads.imagesRaw.output,
       reads.imagesCaptioned.output,
     ]),

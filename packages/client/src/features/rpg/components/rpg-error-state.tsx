@@ -21,6 +21,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
+import { trpcErrorCode } from "#lib";
 import { useDetachDanglingPointer } from "../hooks/use-rpg-mutations.ts";
 
 export interface RpgErrorStateProps {
@@ -38,11 +39,7 @@ export interface RpgErrorStateProps {
  *  the domain code on `error.data.code` (the `invite-dialog` discrimination precedent); any other error (a 500,
  *  a transport failure) is transient and keeps the Retry arm. */
 function isDanglingPointer(error: unknown): boolean {
-  if (typeof error !== "object" || error === null || !("data" in error)) {
-    return false;
-  }
-  const data = (error as { data?: { code?: string } }).data;
-  return data?.code === "NOT_FOUND";
+  return trpcErrorCode(error) === "NOT_FOUND";
 }
 
 /** The single announced error region the game-tab body renders when a takeover read fails. `role="alert"`

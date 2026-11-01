@@ -12,7 +12,6 @@ const TARGET_DISCLOSURE: Readonly<Record<Search["over"], string>> = {
   digests: "Nearest saved memory digests. These are generated summaries, not verbatim dialogue.",
   images: "Caption and image-likeness matches from indexed assets.",
   entities: "Nearest indexed entities.",
-  segments: "Nearest indexed passages in this room.",
   corpus: "Nearest indexed passages and memory summaries.",
   documents: "Nearest indexed document chunks.",
 };

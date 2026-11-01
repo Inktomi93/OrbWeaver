@@ -23,7 +23,6 @@ function assertRoutedArms(
   const discover = result.reads.outputs.find((output) => output.over === "discover");
   const digests = result.reads.outputs.find((output) => output.over === "digests");
   const corpus = result.reads.outputs.find((output) => output.over === "corpus");
-  const segments = result.reads.outputs.find((output) => output.over === "segments");
   const documents = result.reads.outputs.find((output) => output.over === "documents");
   if (
     entities === undefined ||
@@ -31,7 +30,6 @@ function assertRoutedArms(
     discover === undefined ||
     digests === undefined ||
     corpus === undefined ||
-    segments === undefined ||
     documents === undefined
   ) {
     throw new Error("native routed search lost a required result arm");
@@ -66,8 +64,6 @@ function assertRoutedArms(
   for (const hit of corpus.hits) {
     assertNativeSource(hit.source, result);
   }
-  expect(segments.hits.every((hit) => hit.blockKey.chatId === result.group.room.chat.id && hit.blockKey.tier === 0)).toBe(true);
-  expect(segments.hits.every((hit) => result.group.memory.segments.some((row) => row.blockIdx === hit.blockKey.blockIdx && row.text === hit.text))).toBe(true);
   expect(documents.hits.map((hit) => hit.chunkId)).toEqual(result.canonical.chunks.map((row) => row.id));
   expect(result.foreignChunks.length).toBeGreaterThan(0);
   expect(documents.hits.some((hit) => hit.documentId === result.foreignDocument.document.id)).toBe(false);
@@ -113,7 +109,7 @@ function assertNativeSource(source: CorpusSource, result: SearchCapture): void {
 }
 
 // Producing the whole search corpus takes about 6 s of real producer work, with no held resource and no wall-clock wait.
-test("native search exposes all eight routed arms and five output families with genuine provenance, scopes and lexical publication", {
+test("native search exposes all seven routed arms and five output families with genuine provenance, scopes and lexical publication", {
   tags: ["slow"],
 }, async () => {
   const physical = createCorpusProviderExecution({
@@ -134,7 +130,7 @@ test("native search exposes all eight routed arms and five output families with 
   const images = await seedCorpusKnowledgeImages(root);
   const result = await seedCorpusSearch(root, { actors, libraries, recall, images });
   expect(new Set(result.reads.outputs.map((output) => output.over))).toEqual(
-    new Set(["entities", "characters", "discover", "segments", "digests", "corpus", "images", "documents"]),
+    new Set(["entities", "characters", "discover", "digests", "corpus", "images", "documents"]),
   );
   for (const output of result.reads.outputs) {
     expect(output.hits.length, output.over).toBeGreaterThan(0);
@@ -164,18 +160,14 @@ test("native search exposes all eight routed arms and five output families with 
     expect(hits[0]?.avatarHash).toBe(images.assets[1]?.hash);
   }
   expect(result.foreignSeed).toEqual([]);
-  expect(result.foreign.map((output) => output.hits)).toEqual([[], []]);
+  expect(result.foreign.map((output) => output.hits)).toEqual([[]]);
   expect(result.scoped.every((output) => output.hits.length > 0)).toBe(true);
   const chatRead = result.scoped[0];
   if (chatRead?.over !== "digests") {
     throw new Error("native chat scope did not return its digest arm");
   }
-  expect(
-    chatRead.hits.every((hit) => hit.blockKey.chatId === result.group.room.chat.id && hit.blockKey.scopedCharacterId === result.group.characters[0]?.id),
-  ).toBe(true);
+  expect(chatRead.hits.every((hit) => hit.blockKey.chatId === result.group.room.chat.id)).toBe(true);
   expect(result.refusals).toMatchObject([
-    { cause: { code: "scope_required" } },
-    { cause: { code: "scope_unsupported" } },
     { cause: { code: "lens_required" } },
     { cause: { code: "scope_unsupported" } },
     { cause: { code: "scope_unsupported" } },

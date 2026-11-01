@@ -43,7 +43,7 @@ import { Fragment, useRef, useState } from "react";
 import { RowActionsMenu, RowToggleAction } from "#components";
 import type { Trpc } from "#data";
 import { useGatedQuery, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { rowActionsName } from "#lib";
+import { rowActionsName, trpcErrorCode } from "#lib";
 import { useDetachDocumentFromChat, useSetChatDocumentVisibility } from "../hooks/use-chat-document-mutations.ts";
 import { isDetachableFromChat, nextHiddenSet, placesDatabankSlot, sourceChips } from "../lib/chat-documents-model.ts";
 import { AddChatDocumentDialog } from "./add-chat-document-dialog.tsx";
@@ -60,7 +60,7 @@ type SlotState = (typeof SLOT_STATES)[number];
  *  `error.data.code` — the `databank-context-body` / `rpg-error-state` discrimination precedent. Any other
  *  failure is transient and says nothing about which arrangement will run. */
 function isUnresolvablePreset(error: unknown): boolean {
-  const code = (error as { data?: { code?: string } } | null | undefined)?.data?.code;
+  const code = trpcErrorCode(error);
   return code === "NOT_FOUND" || code === "FORBIDDEN";
 }
 
