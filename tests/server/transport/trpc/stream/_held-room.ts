@@ -26,15 +26,16 @@ import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { coreProse } from "../../../domain/chat/engine/core-physical.ts";
 import { signedInMember } from "../../../entry/_auth-roots.ts";
 
-const THOUGHT = "Weighing the witness. ";
+export const THOUGHT = "Weighing the witness. ";
 export const SECRET_HEAD = "ledger-truth-";
 export const SECRET_TAIL = "held-past-the-join";
 /** The hidden span opens before the join and closes after it: a read that loses the scrub state leaks the tail. */
-const BEFORE_JOIN = ["The opening ", "stays public. ", '<lie character="Witness" truth="', SECRET_HEAD];
-const AFTER_JOIN = [`${SECRET_TAIL}"/>`, " The close", " lands live."];
+export const BEFORE_JOIN = ["The opening ", "stays public. ", '<lie character="Witness" truth="', SECRET_HEAD];
+export const AFTER_JOIN = [`${SECRET_TAIL}"/>`, " The close", " lands live."];
 /** The tokens a held reply streams before it waits: the reasoning, then the text. */
 export const tokenCount = BEFORE_JOIN.length + 1;
-const FULL_TEXT = [...BEFORE_JOIN, ...AFTER_JOIN].join("");
+export const FULL_TEXT = [...BEFORE_JOIN, ...AFTER_JOIN].join("");
+export const OPENING = "The opening stays public.";
 const HOST_PASSWORD = "a-real-late-join-host-password";
 
 export interface Frame {
@@ -232,8 +233,8 @@ export async function admit(room: Room, handle: string): Promise<{ readonly id: 
   return seat;
 }
 
-const typesOf = (frames: readonly Frame[]): readonly string[] => frames.map(({ event }) => event.type);
-const channelOf = (frames: readonly Frame[], kind: "text" | "reasoning"): string =>
+export const typesOf = (frames: readonly Frame[]): readonly string[] => frames.map(({ event }) => event.type);
+export const channelOf = (frames: readonly Frame[], kind: "text" | "reasoning"): string =>
   frames.flatMap(({ event }) => (event.type === "delta" && event.delta.kind === kind ? [event.delta.text] : [])).join("");
 export const textOf = (frames: readonly Frame[]): string => channelOf(frames, "text");
 export const ended = (frames: readonly Frame[]): boolean => typesOf(frames).some((type) => type === "turnCompleted" || type === "turnAborted");
