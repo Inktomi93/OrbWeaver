@@ -154,7 +154,7 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
     throw new CardNotDistillableError();
   }
   if (ready.length === 0) {
-    return { scanned: targets.length, distilled: 0, failed: 0, skipped, tagsStaged: 0 };
+    return { scanned: targets.length, distilled: 0, skipped };
   }
 
   // The card owner's Utility-role preset over the `distill` posture (temp 0.2, 512 out — near-deterministic
@@ -203,15 +203,9 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
   signal?.throwIfAborted();
   await commitSummaries(db, writes.stmts);
   // Stage AFTER summaries commit — a failed tag attach must not roll back the facets.
-  const tagsStaged = await stageSuggestions(deps, writes.stagedLabels, signal);
+  await stageSuggestions(deps, writes.stagedLabels, signal);
 
-  return {
-    scanned: targets.length,
-    distilled: writes.stmts.length,
-    failed: writes.failed,
-    skipped,
-    tagsStaged,
-  };
+  return { scanned: targets.length, distilled: writes.stmts.length, skipped };
 }
 
 /** One distill target (a card ready to distill). */

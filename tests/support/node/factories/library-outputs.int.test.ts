@@ -203,7 +203,7 @@ test("tag and persona captures preserve adopted versus pending reach and default
   expect(personas.imported.output.id).not.toBe(personas.duplicate.output.id);
   expect(personas.imported.output.description).toBe(library.persona.description);
   expect(personas.repeated.output.id).toBe(personas.imported.output.id);
-  expect(personas.deleted.output).toEqual({ deleted: true, newDefaultPersonaId: null });
+  expect(personas.deleted.output).toEqual({ newDefaultPersonaId: null });
   expect(personas.disconnected.output).toEqual({ disconnected: false });
   const relation = { characterId: library.character.id, personaId: library.persona.id };
   expect(await caller.persona.disconnectFromCharacter(relation)).toEqual({ disconnected: true });
@@ -216,7 +216,7 @@ test("tag and persona captures preserve adopted versus pending reach and default
     section: "seeds",
     patch: { defaultPersonaId: replacementTarget.id, currentPersonaId: library.persona.id },
   });
-  expect(await caller.persona.remove({ personaId: replacementTarget.id })).toEqual({ deleted: true, newDefaultPersonaId: library.persona.id });
+  expect(await caller.persona.remove({ personaId: replacementTarget.id })).toEqual({ newDefaultPersonaId: library.persona.id });
   expect((await caller.settings.getUserSettings()).config.seeds.defaultPersonaId).toBe(library.persona.id);
   await expect(other.persona.listConnectedCharacters({ personaId: library.persona.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
 });

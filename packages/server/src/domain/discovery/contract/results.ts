@@ -108,7 +108,6 @@ export type {
   SimilarityGraphEdge,
   SwipeHotspot,
   TagCount,
-  TagPair,
   ThemeDetail,
   ThemeDriftBucket,
   ThemeDriftTheme,

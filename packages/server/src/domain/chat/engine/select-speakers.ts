@@ -80,7 +80,7 @@ function shuffled<T>(items: readonly T[], rng: () => number): T[] {
 function naturalOrder(pool: readonly ArbiterCandidate[], mentionedIds: readonly CharacterId[], rng: () => number): ArbiterCandidate[] {
   const byKey = new Map(pool.map((c) => [speakerKey(c.ref), c] as const));
   const mentioned = mentionedIds.flatMap((characterId) => {
-    const c = byKey.get(speakerKey({ kind: "character", characterId }));
+    const c = byKey.get(speakerKey({ characterId }));
     return c === undefined ? [] : [c];
   });
   const rolled: ArbiterCandidate[] = [];
@@ -110,9 +110,7 @@ export function selectSpeakers(params: SelectSpeakersParams): SpeakerRef[] {
   const eligibleKeys = new Set(eligible.map((c) => speakerKey(c.ref)));
 
   // 1. @mention/forced hard-override — before any policy; bypasses ban-last; eligible-intersected, ordered.
-  const forced = (params.forcedIds ?? [])
-    .map((characterId): SpeakerRef => ({ kind: "character", characterId }))
-    .filter((ref) => eligibleKeys.has(speakerKey(ref)));
+  const forced = (params.forcedIds ?? []).map((characterId): SpeakerRef => ({ characterId })).filter((ref) => eligibleKeys.has(speakerKey(ref)));
   if (forced.length > 0) {
     return cap(dedupe(forced), params.maxSpeakers);
   }

@@ -41,7 +41,7 @@ test("effective controls, recency and embedding receipts reject partial facts", 
   expectTypeOf<Recency & { lastChattedAt: number; lastChatId: null }>().not.toExtend<CharacterSummary>();
   expectTypeOf<Recency & { lastChattedAt: null; lastChatId: null }>().toExtend<CharacterSummary>();
   expectTypeOf<Recency & { lastChattedAt: number; lastChatId: ChatId }>().toExtend<CharacterSummary>();
-  type Store = Pick<StoreResult, "outcome" | "contentHash" | "model">;
+  type Store = Pick<StoreResult, "outcome" | "model">;
   expectTypeOf<Store>().toExtend<StoreResult>();
   expectTypeOf<Store & { generationId: EmbedGenerationId }>().not.toExtend<StoreResult>();
   expectTypeOf<Store & { generationId: EmbedGenerationId; generationEpoch: number; generationVia: "embed" }>().toExtend<StoreResult>();

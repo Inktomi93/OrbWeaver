@@ -298,14 +298,14 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId, anchorPersonaId: Perso
   const humanSeats = humanSeatPersonasOf(participants, presentHumanUserIds);
 
   const charCandidates: ArbiterCandidate[] = charRows.map((r) => ({
-    ref: { kind: "character", characterId: r.characterId },
+    ref: { characterId: r.characterId },
     talkativeness: r.talkativeness,
     disabled: r.disabled,
     leftSeq: r.leftSeq,
   }));
 
   const charSpeakerCandidates: SpeakerCandidate[] = charRows.map((r, i) => ({
-    ref: { kind: "character", characterId: r.characterId },
+    ref: { characterId: r.characterId },
     name: cards[i]?.name ?? "",
   }));
   const candidates: ArbiterCandidate[] = [...charCandidates];
@@ -377,7 +377,7 @@ function lastSpeakerRef(row: { readonly characterId: CharacterId | null; readonl
     return null;
   }
   if (row.characterId !== null) {
-    return { kind: "character", characterId: row.characterId };
+    return { characterId: row.characterId };
   }
   return null;
 }
@@ -982,7 +982,7 @@ async function arbitrate(
   // and returns exactly that intersection — so a returned speaker who is a forced target proves it. The
   // converse is safe too: when no forced id is eligible the result is policy-derived off the eligible pool,
   // which is disjoint from the (ineligible) forced ids.
-  const forcedKeys = new Set(forced.map((characterId) => speakerKey({ kind: "character", characterId })));
+  const forcedKeys = new Set(forced.map((characterId) => speakerKey({ characterId })));
   const forcedOverride = speakers.some((c) => forcedKeys.has(speakerKey(c.ref)));
   return { speakers, aborted: false, forcedOverride };
 }
@@ -2077,7 +2077,7 @@ function speakerShapeFor(room: Room, characterId: CharacterId | null): TurnPrep[
     cardScope: "merged",
     scopedTargetId: null,
     speakerName: name,
-    speakerRef: { kind: "character", characterId },
+    speakerRef: { characterId },
   };
 }
 

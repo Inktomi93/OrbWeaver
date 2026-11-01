@@ -927,7 +927,6 @@ function cardRenderContext(
     // Required on the ctx type, but the macro option mapper never reads it (card fields render off
     // `character`/`pinnedPersona` only) — the system default satisfies the type without a preset read.
     promptConfig: DEFAULT_PROMPT_CONFIG,
-    recentMessages: [],
     variableValues: {},
     // A card field's `{{time}}`/`{{date}}` reads the viewer's clock, as the turn that sends the card does.
     timezone: clock.timezone,

@@ -38,13 +38,11 @@ type Verdicts = Map<string, { readonly key: BlockKey; verdict: MemoryRecallVerdi
  *  the pool is empty, or no block survives — early-returning before any embed call on off/empty-pool; the
  *  slice then carries the reason in `note`. */
 export async function recallMemory(ctx: ChatContext, args: RecallMemoryArgs): Promise<MemoryRecallResult> {
-  const startedAt = ctx.now();
   const cfg = resolveCfg(args.config);
   const { scope } = args;
   const verdicts: Verdicts = new Map();
   if (cfg.mode === "off") {
     return finish(ctx, args, {
-      startedAt,
       text: "",
       slice: { mode: cfg.mode, queryText: null, queryEmbedded: false, poolSize: 0, candidateCount: 0, note: "mode off", verdicts, rendered: [], scored: null },
     });
@@ -74,7 +72,6 @@ export async function recallMemory(ctx: ChatContext, args: RecallMemoryArgs): Pr
   });
   if (union.length === 0) {
     return finish(ctx, args, {
-      startedAt,
       text: "",
       slice: {
         mode: cfg.mode,
@@ -108,7 +105,6 @@ export async function recallMemory(ctx: ChatContext, args: RecallMemoryArgs): Pr
         ).text
       : rankedText;
   return finish(ctx, args, {
-    startedAt,
     text,
     slice: {
       mode: cfg.mode,
@@ -142,11 +138,7 @@ interface SliceParts {
 
 /** Build the slice, emit it to BOTH observability sinks (the structured log + the debug ring), and return it
  *  with the text. The single exit — so a future early return cannot skip the trace. */
-function finish(
-  ctx: ChatContext,
-  args: RecallMemoryArgs,
-  env: { readonly startedAt: number; readonly text: string; readonly slice: SliceParts },
-): MemoryRecallResult {
+function finish(ctx: ChatContext, args: RecallMemoryArgs, env: { readonly text: string; readonly slice: SliceParts }): MemoryRecallResult {
   const p = env.slice;
   for (const [id, entry] of p.verdicts) {
     // Anything still marked admitted that did NOT render was scanned and lost the retrieval cut. (A stored
@@ -164,7 +156,7 @@ function finish(
       scopedCharacterId: key.scopedCharacterId,
       verdict: "admitted",
       rank,
-      ...(hit === undefined ? {} : { score: hit.score, relevance: hit.relevance }),
+      ...(hit === undefined ? {} : { relevance: hit.relevance }),
     };
   });
   const rejects: MemoryRecallCandidate[] = [];
@@ -181,7 +173,6 @@ function finish(
     poolSize: p.poolSize,
     candidateCount: p.candidateCount,
     surfaced: admitted.length,
-    ms: ctx.now() - env.startedAt,
     note: p.note,
     candidates: [...admitted, ...rejects],
   };

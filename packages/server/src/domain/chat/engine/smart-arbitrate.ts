@@ -263,7 +263,7 @@ function addressedInLastLine(params: SmartArbitrateParams): SpeakerRef[] | null 
   return groups
     .flat()
     .slice(0, MAX_SMART_RESPONDERS)
-    .map((characterId) => ({ kind: "character", characterId }));
+    .map((characterId) => ({ characterId }));
 }
 
 /** The arbiter's user prompt: the scene, the human players, each candidate with its line, how often it spoke and
@@ -318,7 +318,7 @@ function speakerTag(line: TranscriptLine, roster: RoundLabels): string {
   if (line.characterId === null) {
     return `${roster.other(humanIdentity(line.speakerName), line.speakerName)}: `;
   }
-  const key = speakerKey({ kind: "character", characterId: line.characterId });
+  const key = speakerKey({ characterId: line.characterId });
   return `${roster.seats.get(key) ?? roster.other(key, line.speakerName)}: `;
 }
 
