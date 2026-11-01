@@ -18,6 +18,9 @@ export const BASES = [
 /** The tinted dialogue a speaker's scope picks: the chroma the review measured on a mid-grey bubble. */
 export const SPEAKER_DIALOGUE = "oklch(0.86 0.16 85)";
 
+/** A theme's narration pick and a card's assistant bubble fill: the pair the review measured at 4.01:1. */
+export const INHERITED_INK_CASE = { narrationColor: "oklch(0.67 0.03 260)", aiBubble: "oklch(0.34 0.06 35)" } as const;
+
 /** A neutral mid-grey, where a fixed-colour edge has the least room on either side. */
 export const MID_GREY = "oklch(0.6 0 0)";
 

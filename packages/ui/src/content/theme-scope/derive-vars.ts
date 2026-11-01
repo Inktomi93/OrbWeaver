@@ -12,6 +12,7 @@ import {
   carriedInks,
   chartRampForSurface,
   derivedForegroundLightness,
+  derivedForegroundLightnessForSurfaces,
   READING_BAND_ALPHA,
   rampDeltas,
   rampSurface,
@@ -301,7 +302,8 @@ export function surfaceVarsOn(background: string, carried: CarriedPalette | null
   vars["--color-foreground"] = foregroundAt(origin, carried.inks.foreground);
   vars["--color-card-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.card));
   vars["--color-popover-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.popover));
-  vars["--color-sidebar-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.sidebar));
+  // List rows wear this ink on the page as well as on the rail.
+  vars["--color-sidebar-foreground"] = foregroundAt(origin, derivedForegroundLightnessForSurfaces([opaqueBase, surfaces.sidebar]));
   vars["--color-sidebar-accent-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.sidebarAccent));
   vars["--color-secondary-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.secondary));
   const mutedPair = carried.inks.muted;

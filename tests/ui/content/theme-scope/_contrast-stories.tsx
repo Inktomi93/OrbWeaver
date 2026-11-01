@@ -18,6 +18,7 @@ const SEMANTIC_PAIRS = [
   ["card", "prose-body"],
   ["accent", "foreground"],
   ["muted", "foreground"],
+  ["background", "sidebar-foreground"],
   ["popover", "popover-foreground"],
   ["sidebar", "sidebar-foreground"],
   ["accent", "accent-foreground"],
@@ -26,7 +27,7 @@ const SEMANTIC_PAIRS = [
 ] as const;
 const MUTED_HOSTS = ["background", "card", "popover", "sidebar", "secondary", "muted"] as const;
 const INPUT_HOSTS = ["background", "card", "popover"] as const;
-const FIELD_HOSTS = ["background", "surface-raised", "card", "popover"] as const;
+const FIELD_HOSTS = ["background", "surface-raised", "card", "popover", "sidebar"] as const;
 // Columns wrap so every sample stays inside a phone viewport as well as a desktop one.
 const GRID_COLUMNS = "repeat(auto-fill, minmax(10rem, 1fr))";
 const SAMPLE_STYLE: CSSProperties = { margin: 0, padding: "1rem", minHeight: "3rem" };
@@ -368,6 +369,31 @@ export function SpeakerInkStory({ background, dialogueColor }: { readonly backgr
             ))}
           </ThemeScope>
         </div>
+      </ThemeScope>
+    </CtIsolation>
+  );
+}
+
+/** A theme's narration pick under a card scope that picks the assistant bubble's fill and no ink. */
+export function InheritedInkStory({
+  background,
+  narrationColor,
+  aiBubble,
+}: {
+  readonly background: string;
+  readonly narrationColor: string;
+  readonly aiBubble: string;
+}): ReactElement {
+  return (
+    <CtIsolation subject="ThemeScope" isolates="An inherited prose pick judged again on a bubble fill a nested scope picked">
+      <ThemeScope tokens={{ background, narrationColor }}>
+        <ThemeScope tokens={{ aiBubble: { bg: aiBubble } }}>
+          <MessageBubble messageRole="assistant">
+            <span data-inherited-ink="" style={{ color: `var(${TOKENS["color.narration"].cssVar})` }}>
+              Staff meeting
+            </span>
+          </MessageBubble>
+        </ThemeScope>
       </ThemeScope>
     </CtIsolation>
   );

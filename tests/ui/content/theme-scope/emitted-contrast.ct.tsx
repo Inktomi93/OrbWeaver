@@ -14,6 +14,7 @@ import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
 import type {
   BubbleSeparationStory,
+  InheritedInkStory,
   NestedSeedStory,
   NestedSeedSurfaceStory,
   NeutralFillStory,
@@ -26,7 +27,7 @@ import type {
   ToneRoleContrastStory,
 } from "./_contrast-stories.tsx";
 
-import { BASES, keepsHue, MID_GREY, SPEAKER_DIALOGUE } from "./contrast-cases.ts";
+import { BASES, INHERITED_INK_CASE, keepsHue, MID_GREY, SPEAKER_DIALOGUE } from "./contrast-cases.ts";
 
 const SEED_THEMES = Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[];
 
@@ -41,7 +42,7 @@ for (const { name, ...props } of SEMANTIC_CASES) {
   test(`${name}: semantic and muted/input inks clear their painted backings`, async ({ mount, page }, testInfo) => {
     const component = await mount<typeof SemanticContrastStory>("tests/ui/content/theme-scope/_contrast-stories/SemanticContrastStory", props);
     const subjects = component.locator("p");
-    await expect(subjects).toHaveCount(25);
+    await expect(subjects).toHaveCount(27);
     for (const subject of await subjects.all()) {
       await expect(subject).toBeVisible();
       await subject.scrollIntoViewIfNeeded();
@@ -181,6 +182,15 @@ for (const { name, ...props } of SEMANTIC_CASES) {
     }
   });
 }
+
+test("an inherited narration pick clears a bubble fill a nested scope picked", async ({ mount, page }) => {
+  const component = await mount<typeof InheritedInkStory>("tests/ui/content/theme-scope/_contrast-stories/InheritedInkStory", {
+    background: BASES[0].background,
+    ...INHERITED_INK_CASE,
+  });
+  const receipt = await pixelContrast(page, component.locator("[data-inherited-ink]"));
+  expect(receipt.ratio, receipt.describe).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+});
 
 test("a custom mid-grey page keeps every colored tone's hue in its painted text, tints and solid", async ({ mount, page }) => {
   const component = await mount<typeof ToneHueStory>("tests/ui/content/theme-scope/_contrast-stories/ToneHueStory", { background: MID_GREY });

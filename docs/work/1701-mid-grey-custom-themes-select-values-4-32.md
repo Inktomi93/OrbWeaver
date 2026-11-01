@@ -24,6 +24,8 @@ Both ramp arms step toward the crossover, so a mid-luminance base had no room on
 - The input rail keeps `inputAlpha` and paints apart from the card.
 - The accent fill paints apart from muted and popover.
 - Every shipped palette holds a tone's solid at 3:1 on its tints.
+- The phone tab bar's active cell paints the primary tint and on-tint ink.
+- A field value clears 4.5:1 on a sidebar panel, and a sidebar ink clears it on the page.
 
 ## Evidence
 

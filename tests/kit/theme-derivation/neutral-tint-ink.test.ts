@@ -2,6 +2,7 @@
 import type { Oklch } from "@orb/kit/theme-derivation";
 import {
   AA_NORMAL_RATIO,
+  accentFillLightness,
   carriedInks,
   carriedReadingHosts,
   compositeSrgb,
@@ -120,6 +121,17 @@ test("a picked bubble fill replaces the derived one as a reading host, and hosts
   expect(proseInkCorrection(ink, 1, hearth, carriedReadingHosts(hearth, { ai: mid }))?.l).toBeGreaterThan(ink.l);
   const white = { l: 1, c: 0, h: 0 };
   expect(proseInkCorrection(ink, 1, hearth, carriedReadingHosts(hearth, { ai: white }))).toBeNull();
+});
+
+test("a corrected ink and accent stay inside sRGB at their lightness, so the hue they paint is the hue they named", () => {
+  const page = { l: 0.6, c: 0, h: 0 };
+  const dialogue = { l: 0.86, c: 0.16, h: 85 };
+  const fix = proseInkCorrection(dialogue, 1, page, carriedReadingHosts(page));
+  const painted = srgbToOklch(oklchToSrgb({ l: fix?.l ?? 0, c: fix?.c ?? 0, h: dialogue.h }));
+  expect(Math.abs(painted.h - dialogue.h)).toBeLessThan(5);
+  const hearth = { l: 0.72, c: 0.175, h: 52 };
+  const corrected = accentFillLightness(hearth, 1, page);
+  expect(corrected.kind === "corrected" ? Math.abs(corrected.fill.h - hearth.h) : 0).toBeLessThan(5);
 });
 
 test("an arm that fits its base is returned as authored, and only a base near the crossover mirrors", () => {

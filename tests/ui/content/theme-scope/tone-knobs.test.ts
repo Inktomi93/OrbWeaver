@@ -144,7 +144,7 @@ function emittedScope(background: string, tokens: { readonly accent?: string }, 
  */
 function nestedAccentScope(background: string, accent: string): EmittedScope {
   const outer = clampThemeTokens({ background }, undefined, HEARTH_ACCENT);
-  const nested = clampThemeTokens({ accent }, outer.resolvedBackground, outer.accentSource, "carried");
+  const nested = clampThemeTokens({ accent }, outer.resolvedBackground, outer.accentSource, { palette: "carried" });
   const vars = { ...outer.vars, ...nested.vars };
   const scheme = schemeOf(background);
   const primary: CarriedTone = {

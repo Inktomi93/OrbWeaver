@@ -96,11 +96,7 @@
       border-radius: 0;
       color: var(--color-muted-foreground);
     }
-    /* The active glow and ring are column affordances; a tab uses colour alone. */
-    .shell-rail .shell-rail-button[data-active] {
-      background: none;
-      color: var(--color-primary);
-    }
+    /* The active glow and ring are column affordances; a tab keeps the rail's tint and on-tint ink, a judged pair on every palette. */
     .shell-rail .shell-rail-button[data-active]::before,
     .shell-rail .shell-rail-button[data-active]::after {
       content: none;

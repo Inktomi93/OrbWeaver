@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { createContext, use, useEffect } from "react";
-import type { AmbientPalette, ThemeScopeTokens } from "./clamp.ts";
+import type { AmbientPalette, ProseInks, ThemeScopeTokens } from "./clamp.ts";
 import { clampThemeTokens } from "./clamp.ts";
 import { InputBorderFallbackReporterContext, ToneFallbackReporterContext } from "./tone-fallback.ts";
 
@@ -55,6 +55,9 @@ interface AmbientBase {
  */
 const AmbientAccentContext = createContext<string | null>(null);
 
+/** The validated prose inks the scopes above have picked: a nested scope that picks a bubble fill re-judges them there. */
+const AmbientProseContext = createContext<ProseInks>({});
+
 // The ONLY sanctioned path for a ThemeOverride to reach the DOM — values are parsed + clamped by
 // clampThemeTokens, so a hostile `accent: "url(//x)"` is dropped, not applied.
 export function ThemeScope({ tokens, children, className, ambientBackground, ambientAccent }: ThemeScopeProps): ReactElement {
@@ -63,7 +66,7 @@ export function ThemeScope({ tokens, children, className, ambientBackground, amb
   // The shell hands the active app theme's base to the root scope, which carries that background itself when the theme is custom.
   const ambient: AmbientBase | null = ambientBackground === undefined ? inheritedBase : { pixel: ambientBackground, palette: "seed" };
   const accentAmbient = ambientAccent ?? inheritedAccent;
-  const clamped = clampThemeTokens(tokens, ambient?.pixel, accentAmbient ?? undefined, ambient?.palette);
+  const clamped = clampThemeTokens(tokens, ambient?.pixel, accentAmbient ?? undefined, { palette: ambient?.palette, inks: use(AmbientProseContext) });
   const reportFallback = use(ToneFallbackReporterContext);
   const reportInputBorderFallback = use(InputBorderFallbackReporterContext);
   // The fallback's fields, not the object the clamp rebuilds every render, so a scope reports one fallback once.
@@ -100,9 +103,11 @@ export function ThemeScope({ tokens, children, className, ambientBackground, amb
   return (
     <AmbientBaseContext value={clamped.resolvedBackground === undefined ? ambient : { pixel: clamped.resolvedBackground, palette: "carried" }}>
       <AmbientAccentContext value={clamped.accentSource ?? accentAmbient}>
-        <div className={className} style={style} data-slot="theme-scope" {...(clamped.density === undefined ? {} : { "data-density": clamped.density })}>
-          {children}
-        </div>
+        <AmbientProseContext value={clamped.proseInks}>
+          <div className={className} style={style} data-slot="theme-scope" {...(clamped.density === undefined ? {} : { "data-density": clamped.density })}>
+            {children}
+          </div>
+        </AmbientProseContext>
       </AmbientAccentContext>
     </AmbientBaseContext>
   );

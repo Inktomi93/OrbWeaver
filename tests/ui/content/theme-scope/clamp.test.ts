@@ -74,7 +74,7 @@ test("a scope that paints its own accent over a seed palette resets the primary 
 });
 
 test("an accent-only scope over a carried palette emits its primary alone, so every other tone keeps the outer solve", () => {
-  const { vars } = clampThemeTokens({ accent: "oklch(0.6 0.2 300)" }, MID_BASE, HEARTH_ACCENT, "carried");
+  const { vars } = clampThemeTokens({ accent: "oklch(0.6 0.2 300)" }, MID_BASE, HEARTH_ACCENT, { palette: "carried" });
   const primaryLiterals = LITERAL_ROLES.map((role) => toneLiteralVar("primary", role));
   const primarySteps = ["hover", "active"] as const satisfies readonly ToneMixKnob[];
   expect(Object.keys(vars).toSorted()).toEqual(
@@ -107,4 +107,15 @@ test("an ink-only scope over a seed base is judged on that base's reading hosts,
   const lightness = Number(/ ([\d.]+) c h \/ 1\)$/u.exec(emitted)?.[1]);
   expect(lightness).toBeLessThan(0.55);
   expect(lightness).toBeGreaterThan(0.5);
+});
+
+test("a scope that picks a bubble fill re-judges an inherited ink there, and leaves the cascade alone when the ink still clears", () => {
+  const page = "oklch(0.158 0.006 60)";
+  const narrationVar = TOKENS["color.narration"].cssVar;
+  const inks = { narrationColor: "oklch(0.67 0.03 260)" };
+  expect(clampThemeTokens({ aiBubble: { bg: "oklch(0.34 0.06 35)" } }, page, undefined, { palette: "carried", inks }).vars[narrationVar]).toContain(
+    "oklch(from",
+  );
+  expect(clampThemeTokens({ aiBubble: { bg: "oklch(0.2 0.02 35)" } }, page, undefined, { palette: "carried", inks }).vars[narrationVar]).toBeUndefined();
+  expect(clampThemeTokens({}, page, undefined, { palette: "carried", inks }).vars[narrationVar]).toBeUndefined();
 });
