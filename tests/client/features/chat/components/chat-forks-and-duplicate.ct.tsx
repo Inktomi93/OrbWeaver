@@ -4,7 +4,7 @@ import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_DUPLICATE_NAME } from "#client/features/chat/lib/message-action-names.ts";
+import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_DUPLICATE_GENERATING, MESSAGE_DUPLICATE_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import type { ChatContextTabStory } from "./_chat-forks-stories.tsx";
 import type { RoomTranscriptStory } from "./_message-reasoning-and-move-stories.tsx";
 
@@ -96,6 +96,42 @@ test("the message menu's Duplicate copies the row to a new slot at the end of th
       return rows.length === ids.length + 1 ? rows.at(-1)?.content : null;
     })
     .toBe(source.content);
+});
+
+test("the message menu's Duplicate is disabled with its reason while a turn is generating, and a click copies nothing", async ({
+  mount,
+  page,
+  corpusMedia,
+}) => {
+  await using root = await createCorpusHarness();
+  const { chatId, host, ids } = await hostRoom(root);
+  const target = ids[1];
+  if (target === undefined) {
+    throw new Error("The room has no interior row");
+  }
+  await serveAs(root, page, host, TRANSCRIPT_PROCEDURES);
+  await corpusMedia();
+  await mount<typeof RoomTranscriptStory>(TRANSCRIPT_STORY, {
+    chatId,
+    width: 960,
+    height: 900,
+    appearance: appearanceSettingsSchema.parse({}),
+    startTurnLabel: "Start a turn",
+  });
+  const rows = page.locator("[data-message-id]");
+  await expect(rows.first()).toBeVisible();
+  await page.getByRole("button", { name: "Start a turn", exact: true }).click();
+
+  const row = page.locator(`[data-message-id="${target}"]`);
+  await row.hover();
+  await row.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME, exact: true }).click();
+  const item = page.getByRole("menuitem", { name: MESSAGE_DUPLICATE_NAME });
+  await expect(item).toHaveAttribute("aria-disabled", "true");
+  await expect(page.getByText(MESSAGE_DUPLICATE_GENERATING, { exact: true })).toBeVisible();
+  const shown = await rows.count();
+  await item.click({ force: true });
+  await expect(rows).toHaveCount(shown);
+  expect((await host.chat.listMessages({ chatId })).messages).toHaveLength(ids.length);
 });
 
 test("the This-chat tab lists the forks of the room under Forks", async ({ mount, page, corpusMedia }) => {

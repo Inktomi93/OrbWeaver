@@ -455,37 +455,37 @@ export async function commitCanonAppend<T>(
   chatId: ChatId,
   build: (seq: number) => { readonly statements: readonly BatchStmt[]; readonly result: T },
 ): Promise<T> {
-  for (let attempt = 0; attempt < MAX_CANON_APPEND_ATTEMPTS; attempt += 1) {
-    const seq = (await loadMaxMessageSeq(db, chatId)) + 1;
+  return await retryLostCanonHead(db, chatId, async (seq) => {
     const { statements, result } = build(seq);
-    const landed = await commitOrLoseAllocation(db, chatId, statements, seq);
-    if (landed) {
-      return result;
+    await db.batch(batchMany(statements));
+    return result;
+  });
+}
+
+/**
+ * The head-allocation retry itself, for an append whose commit carries more than a plain batch (the retained-canon
+ * stats fence). `attempt` is called with the allocated seq and must build its statements and ids afresh; it is
+ * re-called only when it fails on a UNIQUE violation the canon head explains (a sibling took this seq). Any other
+ * failure, including a UNIQUE violation the head does NOT explain, propagates, so a caller bug stays loud.
+ */
+export async function retryLostCanonHead<T>(db: Db, chatId: ChatId, attempt: (seq: number) => Promise<T>): Promise<T> {
+  for (let tries = 0; tries < MAX_CANON_APPEND_ATTEMPTS; tries += 1) {
+    const seq = (await loadMaxMessageSeq(db, chatId)) + 1;
+    try {
+      return await attempt(seq);
+    } catch (err) {
+      // CLASSIFIED, never swallowed: the only error consumed here is a UNIQUE violation the canon head itself
+      // explains (another append reached this seq); the loop re-allocates. Everything else rethrows unchanged.
+      if (isConstraintViolation(err)?.kind === "unique" && (await loadMaxMessageSeq(db, chatId)) >= seq) {
+        continue;
+      }
+      throw err;
     }
   }
   throw new ChatOperationError(
     CHAT_OP_CODES.canonAppendContended,
     `chat ${chatId}: a canon append lost the head allocation ${MAX_CANON_APPEND_ATTEMPTS} times`,
   );
-}
-
-/** One attempt: `true` when it committed, `false` when it provably lost the head to a sibling. Any other
- *  failure — including a UNIQUE violation the head does NOT explain (a duplicate message/variant id) —
- *  propagates, so a caller bug stays loud instead of being retried as contention. */
-async function commitOrLoseAllocation(db: Db, chatId: ChatId, statements: readonly BatchStmt[], seq: number): Promise<boolean> {
-  try {
-    await db.batch(batchMany(statements));
-    return true;
-  } catch (err) {
-    // CLASSIFIED, never swallowed (which is why this needs no suppression — the caught-failure-ownership
-    // gate does not flag it, measured): the only error consumed here is a UNIQUE violation the canon head
-    // itself explains (another append reached this seq), reported as `false` and re-allocated by the caller.
-    // Everything else rethrows unchanged.
-    if (isConstraintViolation(err)?.kind === "unique" && (await loadMaxMessageSeq(db, chatId)) >= seq) {
-      return false;
-    }
-    throw err;
-  }
 }
 
 /** Rebase transcript-only flags against the current row in the same atomic continuation UPDATE. */

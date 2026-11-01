@@ -29,6 +29,8 @@ Duplicate and the fork list are wired. Reattribute is not.
 - The message menu carries "Duplicate message" (`packages/client/src/features/chat/components/message-actions-row.tsx`). The This-chat tab carries a "Forks" section (`packages/client/src/features/chat/components/chat-forks-section.tsx`). `listForks` is refetched by the `chatsChanged` user event (`packages/client/src/data/invalidation-user.ts`).
 - `tests/client/features/chat/components/chat-forks-and-duplicate.ct.tsx` mounts both through the production surfaces over the corpus server.
 
+`duplicateMessage` is refused with `locked` while a turn is in flight (the `moveMessage` guard) and allocates its seq through the shared head retry `retryLostCanonHead` (`packages/server/src/domain/chat/persistence/canon-write.ts`), so concurrent copies each land on their own seq. `tests/server/domain/chat/verbs/duplicate-message-guards.int.test.ts` fails without the guard and without the retry. The menu item (`message-duplicate-item.tsx`) is disabled with its reason during a live turn; the CT holds a turn and checks nothing is copied.
+
 Reattribute is held back for two reasons.
 
 - `reattributeMessages` stamps `characterId` on a chat slot and only checks `requireHost`. It does not check that the character belongs to the room or the host. `.claude/rules/chat.md` requires that gate at the write boundary, and a router procedure would expose the gap. The gate is a security change and needs an owner call.

@@ -31,7 +31,7 @@
 
 import type { ForkResult, MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
-import { Code, Copy, CopyPlus, Eye, EyeOff, GitFork, Icon, Pencil, Redo2, SmilePlus, Undo2 } from "@orb/ui/icons";
+import { Code, Copy, Eye, EyeOff, GitFork, Icon, Pencil, Redo2, SmilePlus, Undo2 } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
 import type { ComponentProps, ReactElement, RefObject } from "react";
@@ -42,11 +42,12 @@ import { copyWithNotice, NEEDS_CONTINUATION, notify, testId } from "#lib";
 import { selectChat, startEditingMessage } from "#state";
 import { useReactionsEnabled, useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
 import { useReattributeTarget } from "../hooks/use-reattribute-target.ts";
-import { MESSAGE_DUPLICATE_NAME, MESSAGE_VIEW_WIRE_TRACE_NAME } from "../lib/message-action-names.ts";
+import { MESSAGE_VIEW_WIRE_TRACE_NAME } from "../lib/message-action-names.ts";
 import type { ActionsReveal } from "../lib/message-actions-reveal.ts";
 import { ACTIONS_REVEAL_POSTURE } from "../lib/message-actions-reveal.ts";
 import { GenerationCredit } from "./generation-credit.tsx";
 import { MessageActionsCluster } from "./message-actions-cluster.tsx";
+import { MessageDuplicateItem } from "./message-duplicate-item.tsx";
 import { ReattributeFromHereConfirm, ReattributeFromHereItem } from "./reattribute-from-here.tsx";
 import { RowReactionPicker } from "./row-reaction-picker.tsx";
 import { SavedRepliesItem, SavedRepliesPicker } from "./saved-replies-picker.tsx";
@@ -64,11 +65,6 @@ interface HideVars {
 interface DeleteVars {
   readonly chatId: ChatId;
   readonly messageIds: MessageId[];
-}
-
-interface DuplicateVars {
-  readonly chatId: ChatId;
-  readonly messageId: MessageId;
 }
 
 interface ForkVars {
@@ -91,13 +87,6 @@ const useDeleteMutation = createEntityMutation<DeleteVars, unknown>({
   options: (trpc) => trpc.chat.deleteMessages.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't delete that message.",
-});
-
-// The verb emits `messageCommitted` for the new tail slot, so the transcript refetches off the bus.
-const useDuplicateMutation = createEntityMutation<DuplicateVars, unknown>({
-  options: (trpc) => trpc.chat.duplicateMessage.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't duplicate that message.",
 });
 
 const useForkMutation = createEntityMutation<ForkVars, ForkResult>({
@@ -184,7 +173,6 @@ export function MessageActionsRow({
   const hide = useHideMutation({ trpc, invalidation });
   const remove = useDeleteMutation({ trpc, invalidation });
   const fork = useForkMutation({ trpc, invalidation });
-  const duplicate = useDuplicateMutation({ trpc, invalidation });
   const undoContinue = useUndoContinueMutation({ trpc, invalidation });
   const revertContinue = useRevertContinueMutation({ trpc, invalidation });
   const [wireOpen, setWireOpen] = useState(false);
@@ -240,13 +228,6 @@ export function MessageActionsRow({
       return;
     }
     remove.mutate({ chatId, messageIds: [messageId] });
-  };
-
-  const onDuplicate = (): void => {
-    if (duplicate.isPending) {
-      return;
-    }
-    duplicate.mutate({ chatId, messageId });
   };
 
   const onFork = async (): Promise<void> => {
@@ -308,12 +289,7 @@ export function MessageActionsRow({
                 Fork chat here
               </MenuItem>
             ) : null}
-            {editable ? (
-              <MenuItem onClick={onDuplicate}>
-                <Icon icon={CopyPlus} size="sm" />
-                {MESSAGE_DUPLICATE_NAME}
-              </MenuItem>
-            ) : null}
+            {editable ? <MessageDuplicateItem message={message} /> : null}
             {editable ? (
               <MenuItem onClick={onToggleHidden}>
                 <Icon icon={excludedFromPrompt ? EyeOff : Eye} size="sm" />

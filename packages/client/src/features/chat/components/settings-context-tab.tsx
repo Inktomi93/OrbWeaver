@@ -316,7 +316,7 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
       </DisclosureSection>
       {/* THE HOST-OPS GROUP (D-1). Rendered only for a host, so the group's own name is never an empty
           promise — and the three §8.1 permission-OMITs inside it keep their individual gates (Group behavior
-          also needs a group chat). A member's tab simply ends after Macro picks. */}
+          also needs a group chat). A member's tab simply ends after Forks. */}
       {isHost ? <HostControls chatId={chatId} background={background} showGroup={showGroup} sections={sections} /> : null}
     </Stack>
   );

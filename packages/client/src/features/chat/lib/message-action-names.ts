@@ -29,6 +29,9 @@ export const MESSAGE_FORK_NAME = "Fork chat here";
 /** The row's overflow-menu door that copies the message to a new slot at the end of the chat. */
 export const MESSAGE_DUPLICATE_NAME = "Duplicate message";
 
+/** Why the duplicate door is disabled while a turn is generating in the room. */
+export const MESSAGE_DUPLICATE_GENERATING = "Wait for the reply to finish.";
+
 /** The viewer's own user row's restamp door: their lines from this one onward take their current persona. */
 export const MESSAGE_REATTRIBUTE_NAME = "Reattribute from here";
 
