@@ -12,8 +12,6 @@ import type {
   ReportProgress,
   WorkloadError,
   WorkloadEvent,
-  WorkloadKind,
-  WorkloadParamsByKind,
   WorkloadProgress,
   WorkloadRunContext,
   WorkloadRunnableRow,
@@ -45,8 +43,8 @@ function dispatchAndRun(
   deps: WorkloadRunnerDeps,
   args: { ctx: WorkloadRunContext; row: WorkloadRunnableRow; report: ReportProgress; signal: AbortSignal },
 ): Promise<unknown> {
-  const contribution = deps.contributions[args.row.kind] as WorkloadContribution<WorkloadKind>;
-  return contribution.run(args.ctx, args.row.params as WorkloadParamsByKind[WorkloadKind], args.report, args.signal);
+  const contribution = deps.contributions[args.row.kind] as WorkloadContribution;
+  return contribution.run(args.ctx, args.row.params, args.report, args.signal);
 }
 
 /** Build the per-dispatch run context — identity + clock ONLY. Anything else a job needs is a dep of its

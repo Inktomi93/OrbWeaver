@@ -13,7 +13,6 @@
 // `ownerId` is ALWAYS the resolved principal id, never caller input (audit #1) — the verb signature takes a
 // branded `UserId` the tRPC seam supplies.
 
-import type { DuplicateRelation } from "@orb/contracts/discovery";
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, chats, duplicateCharacterPairs, duplicateChatPairs } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
@@ -103,5 +102,5 @@ export async function readDuplicateChats(db: Db, ownerId: UserId, opts: Duplicat
     .orderBy(desc(duplicateChatPairs.similarity));
 
   const rows = opts.limit !== undefined ? await base.limit(opts.limit) : await base;
-  return rows.map((r) => ({ ...r, relation: r.relation as DuplicateRelation }));
+  return rows;
 }

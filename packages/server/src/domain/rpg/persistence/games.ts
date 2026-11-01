@@ -28,7 +28,7 @@ function healRetiredExtractionMode(config: unknown): unknown {
   if (typeof config !== "object" || config === null || !("extractionMode" in config)) {
     return config;
   }
-  const mode: unknown = (config as { extractionMode: unknown }).extractionMode;
+  const mode: unknown = config.extractionMode;
   return (RPG_EXTRACTION_MODES as readonly unknown[]).includes(mode) ? config : { ...config, extractionMode: undefined };
 }
 

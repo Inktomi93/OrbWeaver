@@ -309,7 +309,7 @@ export function cardFromJson(raw: unknown, fallbackName: string): CharacterCard 
   const rawCard = (raw ?? {}) as RawCard;
   const spec = detectSpec(rawCard);
   const cardJson = normalizeCardJson(rawCard);
-  const data: RawCard = typeof cardJson.data === "object" && cardJson.data !== null ? (cardJson.data as RawCard) : cardJson;
+  const data: RawCard = typeof cardJson.data === "object" && cardJson.data !== null ? cardJson.data : cardJson;
 
   const first = str(data.first_mes);
   const alternates = strArray(data.alternate_greetings);

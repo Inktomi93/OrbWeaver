@@ -318,7 +318,8 @@ test("a context-initialization failure leaves no owned Chromium process behind",
       if (property === "length") {
         throw initFailure;
       }
-      return Reflect.get(target, property, receiver);
+      const value: unknown = Reflect.get(target, property, receiver);
+      return value;
     },
   });
   const failure = await launchProbeSession({

@@ -277,7 +277,7 @@ const wireRecordedToolCallSchema = z.object({
     .array(z.string())
     .catch([])
     .transform((issues): readonly string[] => issues),
-}) satisfies z.ZodType<RpgRecordedToolCall, unknown>;
+}) satisfies z.ZodType<RpgRecordedToolCall>;
 
 const wireRpgSchema = z.object({
   mode: rpgGameModeSchema,

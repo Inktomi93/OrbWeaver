@@ -228,7 +228,7 @@ export function listRuleRowsForChat(db: Db, chatId: ChatId): Promise<RuleRow[]> 
 export async function applyRuleUpdate(db: Db, ruleId: AutomationRuleId, patch: RuleUpdate): Promise<void> {
   await db
     .update(automationRules)
-    .set({ ...patch, actions: patch.actions as RuleRow["actions"], consecutiveErrors: 0, lastError: null })
+    .set({ ...patch, actions: patch.actions, consecutiveErrors: 0, lastError: null })
     .where(eq(automationRules.id, ruleId));
 }
 

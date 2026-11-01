@@ -62,7 +62,7 @@ function windows(owned: readonly [OwnedProcess, OwnedProcess, OwnedProcess]): Wi
     status: 0,
     errorCode: undefined as string | undefined,
     vanishOnTaskkill: true,
-    calls: [] as (readonly [string, readonly string[]])[],
+    calls: [],
   };
   const deps: ProcessGroupDeps = {
     platform: "win32",

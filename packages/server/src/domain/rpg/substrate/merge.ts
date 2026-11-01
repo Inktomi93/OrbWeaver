@@ -202,7 +202,7 @@ function mergeKeyedArray(args: {
 }): unknown[] {
   const { baseArr, patchArr, plane, arb, fieldPath } = args;
   const keyOf = plane.keyOf;
-  const baseById = new Map<string, unknown>();
+  const baseById = new Map<string>();
   for (const el of baseArr) {
     const id = keyOf(el);
     if (id !== undefined) {

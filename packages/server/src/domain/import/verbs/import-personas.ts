@@ -10,7 +10,7 @@
 // reach domain/assets — the avatar store is injected, same as the card PNG).
 
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
-import type { BulkImportPersonaInput, PersonaMetadata } from "@orb/contracts/persona";
+import type { BulkImportPersonaInput } from "@orb/contracts/persona";
 import type { ImportPersonaInput } from "../contract/params.ts";
 import type { ImportPersonasResult } from "../contract/results.ts";
 import type { ImportContext, ImportService } from "../contract/service.ts";
@@ -30,7 +30,7 @@ export function createImportPersonas(ctx: ImportContext): ImportService["importP
       name: pi.parsed.name,
       description: pi.parsed.description,
       avatarAssetId: pi.avatarAssetId ?? null,
-      metadata: (pi.parsed.metadata as PersonaMetadata | null) ?? null,
+      metadata: pi.parsed.metadata ?? null,
       isDefault: pi.parsed.isDefault,
     }));
 

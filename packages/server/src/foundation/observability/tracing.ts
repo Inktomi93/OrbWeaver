@@ -12,6 +12,7 @@ import type { ReadableSpan, SpanProcessor } from "@opentelemetry/sdk-trace";
 import { TracerProvider } from "@opentelemetry/sdk-trace";
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic-conventions";
 import { errorMessage } from "@orb/kit/error-message";
+import { isPlainObject } from "@orb/kit/guards";
 import { versionIdentity } from "#foundation/version";
 import type { Logger } from "./contract/logging.ts";
 import type { DetachedSupervision, RequestTrace, SerializedSpan, SerializedSpanEvent, SpanAttrs, TraceRing } from "./contract/tracing.ts";
@@ -244,11 +245,11 @@ export function span<T>(name: string, fn: (span: Span) => Promise<T> | T, attrs:
   const parent = trace.getActiveSpan();
   if (parent !== undefined) {
     // `attributes` is NOT part of the public OTel `Span` interface — it is the SDK concrete-span property,
-    // read via an internal cast to copy the request id down so the ring buckets the whole tree. If a
-    // future OTel drops/renames it the cast yields `undefined` and the child lands without the request id:
+    // read reflectively to copy the request id down so the ring buckets the whole tree. If a
+    // future OTel drops/renames it the read yields `undefined` and the child lands without the request id:
     // it degrades gracefully (missing from its bucket; traces still record), it does NOT throw.
-    const parentAttrs = (parent as unknown as { attributes?: Record<string, unknown> }).attributes;
-    const reqId = parentAttrs?.[REQUEST_ID_ATTR];
+    const parentAttrs: unknown = Reflect.get(parent, "attributes");
+    const reqId = isPlainObject(parentAttrs) ? parentAttrs[REQUEST_ID_ATTR] : undefined;
     if (typeof reqId === "string") {
       opts.attributes = { ...opts.attributes, [REQUEST_ID_ATTR]: reqId };
     }
@@ -303,7 +304,7 @@ export function withRequestSpan<T>(
       // (called from that onError, root still active) marks ERROR; the SDK's setStatus lets a later OK
       // overwrite a prior ERROR (only OK is final — verified against @opentelemetry/sdk-trace), so
       // guard explicitly or the /api/_debug/traces status would seal back to "ok".
-      if (spanStatusCode(root) !== SpanStatusCode.ERROR) {
+      if (!spanIsError(root)) {
         root.setStatus({ code: SpanStatusCode.OK });
       }
       return result;
@@ -348,11 +349,12 @@ export function createDetachedSupervision(log: Logger, traces: TraceRing | null)
   };
 }
 
-/** Read the SDK concrete-span status code through the same internal cast `span()` uses for `.attributes`
- *  (the OTel WRITE `Span` interface omits `.status`). Degrades to `undefined` — the OK-set path, i.e. prior
+/** Whether the SDK concrete span already carries ERROR, read reflectively like `span()` reads `.attributes`
+ *  (the OTel WRITE `Span` interface omits `.status`). Degrades to `false` — the OK-set path, i.e. prior
  *  behavior — if a future OTel renames the property; it never throws. */
-function spanStatusCode(s: Span): SpanStatusCode | undefined {
-  return (s as unknown as { status?: { code?: SpanStatusCode } }).status?.code;
+function spanIsError(s: Span): boolean {
+  const status: unknown = Reflect.get(s, "status");
+  return isPlainObject(status) && status["code"] === SpanStatusCode.ERROR;
 }
 
 /**

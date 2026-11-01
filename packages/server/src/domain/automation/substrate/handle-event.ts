@@ -213,7 +213,7 @@ async function handleDomainEvent(ctx: AutomationContext, event: DomainEvent): Pr
   if (!wantRules || bus !== "domain") {
     return;
   }
-  const rules = await loadMatchedRules(ctx, bus, null, event.type as AutomationTrigger["type"]);
+  const rules = await loadMatchedRules(ctx, bus, null, event.type);
   if (rules.length === 0) {
     return;
   }

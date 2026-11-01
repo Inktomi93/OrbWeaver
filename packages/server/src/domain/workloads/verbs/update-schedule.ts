@@ -25,7 +25,7 @@ function resolveUpdatePatch(ctx: WorkloadServiceContext, existing: WorkloadSched
     const input = parseWorkloadInput(ctx.getContributions(), params.input);
     effectiveKind = input.kind;
     patch.kind = input.kind;
-    patch.params = input.params as Record<string, unknown>;
+    patch.params = input.params;
   }
   if (params.mode !== undefined) {
     effectiveMode = params.mode;

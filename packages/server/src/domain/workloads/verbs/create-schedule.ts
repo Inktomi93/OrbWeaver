@@ -34,7 +34,7 @@ export function createCreateSchedule(ctx: WorkloadServiceContext): Pick<Workload
       ownerId,
       kind: input.kind,
       mode: params.mode,
-      params: input.params as Record<string, unknown>,
+      params: input.params,
       cadence: params.cadence,
       nextRunAt: now + CADENCE_INTERVAL_MS[params.cadence],
       enabled: params.enabled ?? true,

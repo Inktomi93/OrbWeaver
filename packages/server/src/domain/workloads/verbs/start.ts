@@ -108,7 +108,7 @@ export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, 
         admissionKey: resolveAdmissionKey(contributions, input.kind, input.params),
         // The execution lane is the OWNING domain's declaration, stamped here so it survives a restart.
         lane: contributions[input.kind].lane,
-        params: input.params as Record<string, unknown>,
+        params: input.params,
         ownerId,
         funderUserId: params.caller === null ? params.funderUserId : params.caller.userId,
         dependsOn: params.dependsOn ?? null,

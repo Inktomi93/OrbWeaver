@@ -3,7 +3,7 @@
 // the review hashes the same bytes the real run stores.
 
 import { ST_SETTINGS_FILE } from "@orb/contracts/import";
-import type { IncomingPersona, PersonaMetadata } from "@orb/contracts/persona";
+import type { IncomingPersona } from "@orb/contracts/persona";
 import { sha256Hex } from "#primitives/content-hash";
 import { decodePortableObject } from "#primitives/serde/lib";
 import type { UploadedFile } from "../contract/collection.ts";
@@ -30,7 +30,7 @@ export function incomingPersonasOf(files: readonly UploadedFile[]): IncomingPers
       out.push({
         name: parsed.name,
         description: parsed.description,
-        metadata: parsed.metadata as PersonaMetadata | null,
+        metadata: parsed.metadata,
         artHash: avatar === undefined ? null : sha256Hex(avatar),
       });
     }

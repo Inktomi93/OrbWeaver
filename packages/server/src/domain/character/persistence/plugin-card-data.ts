@@ -31,8 +31,11 @@ import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { z } from "zod";
 import type { PluginCardDataLookup, PluginCardDataTarget } from "../contract/params.ts";
 import type { PluginCardDataHit, PluginCardDataRead } from "../contract/results.ts";
+
+const cardStateSchema = z.record(z.string(), z.unknown());
 
 /** The SQLite JSON path for a plugin's reserved card-state key. Quoted (`$."…"`) because a slug may contain `-`,
  *  which a bare path label would terminate on — the quoted form is exact for the full `plugin_<slug>` key. */
@@ -70,7 +73,7 @@ export async function readPluginCardData(handle: DatabaseHandle, target: PluginC
   if (row.type !== "object" || row.value === null) {
     return { found: true, data: null };
   }
-  return { found: true, data: JSON.parse(row.value) as Record<string, unknown> };
+  return { found: true, data: cardStateSchema.parse(JSON.parse(row.value)) };
 }
 
 /** The owner's distinct object stamps for this plugin holding any of `values` as a string, at any depth, each with
@@ -106,7 +109,7 @@ export async function findPluginCardData(handle: DatabaseHandle, { ownerId, slug
     .groupBy(stamp)
     .orderBy(asc(holder))
     .limit(PLUGIN_CARD_DATA_FIND_MAX);
-  return rows.map((row) => ({ characterId: row.id, data: JSON.parse(row.value) as Record<string, unknown> }));
+  return rows.map((row) => ({ characterId: row.id, data: cardStateSchema.parse(JSON.parse(row.value)) }));
 }
 
 /** Merge one plugin's per-card state under its reserved `plugin_<slug>` key on an INSTALLER-OWNED character's

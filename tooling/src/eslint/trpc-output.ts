@@ -35,6 +35,17 @@ export function declaredInContract(checker: ts.TypeChecker, type: ts.Type): bool
   });
 }
 
+// A function-valued member marks a dependency bundle: the strict output parses JSON, so no wire shape can declare one.
+const carriesFunction = (checker: ts.TypeChecker, type: ts.Type, at: ts.Node): boolean =>
+  members(type).some((member) =>
+    checker
+      .getPropertiesOfType(member)
+      .some((property) => checker.getNonNullableType(checker.getTypeOfSymbolAtLocation(property, at)).getCallSignatures().length > 0),
+  );
+
+const isWireContract = (checker: ts.TypeChecker, type: ts.Type, at: ts.Node): boolean =>
+  declaredInContract(checker, type) && !carriesFunction(checker, type, at);
+
 const isNamed = (property: TSESTree.Node, name: string): boolean => property.type === AST_NODE_TYPES.Identifier && property.name === name;
 
 function isResolver(node: TSESTree.Node): boolean {
@@ -97,7 +108,7 @@ export const trpcOutputKeysRule: OrbRule = {
       }
       const target = checker.getNonNullableType(checker.getAwaitedType(contextual) ?? contextual);
       const resolver = owner !== null && isResolver(owner);
-      if (!(resolver || declaredInContract(checker, target))) {
+      if (!(resolver || isWireContract(checker, target, expression))) {
         return;
       }
       const keys = undeclaredKeys(checker, expression, target, resolver);
