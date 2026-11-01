@@ -15,12 +15,12 @@ plan: unwired-code
 
 | Member | At | Kind | Class | Decision |
 | - | - | - | - | - |
-| `ROLE_POLICY_ENV_KEYS.DEFAULT_USER_HANDLE` | `server/src/domain/sessions/contract/role-policy.ts:9` | unbuilt | unknown (read) | the tuple names `Env` keys for a `Pick`, and the env parse builds them: keep, and teach the scan a tuple used only as type keys |
-| `ROLE_POLICY_ENV_KEYS.OWNER_HANDLES` | `server/src/domain/sessions/contract/role-policy.ts:10` | unbuilt | unknown (read) | the tuple names `Env` keys for a `Pick`, and the env parse builds them: keep, and teach the scan a tuple used only as type keys |
-| `ROLE_POLICY_ENV_KEYS.OWNER_GROUP` | `server/src/domain/sessions/contract/role-policy.ts:11` | unbuilt | unknown (read) | the tuple names `Env` keys for a `Pick`, and the env parse builds them: keep, and teach the scan a tuple used only as type keys |
-| `ROLE_POLICY_ENV_KEYS.OIDC_ADMIN_GROUPS` | `server/src/domain/sessions/contract/role-policy.ts:12` | unbuilt | unknown (read) | the tuple names `Env` keys for a `Pick`, and the env parse builds them: keep, and teach the scan a tuple used only as type keys |
-| `ROLE_POLICY_ENV_KEYS.OIDC_ALLOWED_GROUPS` | `server/src/domain/sessions/contract/role-policy.ts:13` | unbuilt | unknown (read) | the tuple names `Env` keys for a `Pick`, and the env parse builds them: keep, and teach the scan a tuple used only as type keys |
-| `ROLE_POLICY_ENV_KEYS.RE_DERIVE_ROLE_ON_LOGIN` | `server/src/domain/sessions/contract/role-policy.ts:14` | unbuilt | unknown (read) | the tuple names `Env` keys for a `Pick`, and the env parse builds them: keep, and teach the scan a tuple used only as type keys |
+| `ROLE_POLICY_ENV_KEYS.DEFAULT_USER_HANDLE` | `server/src/domain/sessions/contract/role-policy.ts:9` | unbuilt | unknown (read) | keep: `substrate/role-policy.ts` reads the key; the tuple now holds constants, which `tupleOf` skips, so the scan needs no teaching |
+| `ROLE_POLICY_ENV_KEYS.OWNER_HANDLES` | `server/src/domain/sessions/contract/role-policy.ts:10` | unbuilt | unknown (read) | keep: `substrate/role-policy.ts` reads the key; the tuple now holds constants, which `tupleOf` skips, so the scan needs no teaching |
+| `ROLE_POLICY_ENV_KEYS.OWNER_GROUP` | `server/src/domain/sessions/contract/role-policy.ts:11` | unbuilt | unknown (read) | keep: `substrate/role-policy.ts` reads the key; the tuple now holds constants, which `tupleOf` skips, so the scan needs no teaching |
+| `ROLE_POLICY_ENV_KEYS.OIDC_ADMIN_GROUPS` | `server/src/domain/sessions/contract/role-policy.ts:12` | unbuilt | unknown (read) | keep: `substrate/role-policy.ts` reads the key; the tuple now holds constants, which `tupleOf` skips, so the scan needs no teaching |
+| `ROLE_POLICY_ENV_KEYS.OIDC_ALLOWED_GROUPS` | `server/src/domain/sessions/contract/role-policy.ts:13` | unbuilt | unknown (read) | keep: `substrate/role-policy.ts` reads the key; the tuple now holds constants, which `tupleOf` skips, so the scan needs no teaching |
+| `ROLE_POLICY_ENV_KEYS.RE_DERIVE_ROLE_ON_LOGIN` | `server/src/domain/sessions/contract/role-policy.ts:14` | unbuilt | unknown (read) | keep: `substrate/role-policy.ts` reads the key; the tuple now holds constants, which `tupleOf` skips, so the scan needs no teaching |
 
 ## Why
 
@@ -32,4 +32,4 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Every row: [1698](1698-judge-the-unwired-auth-members-authseamresolution-csrfheaderpresent-identityresolution.md).

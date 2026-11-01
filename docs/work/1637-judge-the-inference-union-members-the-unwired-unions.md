@@ -15,10 +15,10 @@ plan: unwired-code
 
 | Member | At | Kind | Class | Decision |
 | - | - | - | - | - |
-| `HOST_SECRET_ENV_KEYS.OPENROUTER_API_KEY` | `inference/src/backends/agent-sdk/env.ts:21` | parsed | unknown (read) | keep: runtime input (a platform pair, an env key, an object key) is matched against the tuple, so any member can arrive |
-| `HOST_SECRET_ENV_KEYS.OIDC_CLIENT_SECRET` | `inference/src/backends/agent-sdk/env.ts:24` | parsed | unknown (read) | keep: runtime input (a platform pair, an env key, an object key) is matched against the tuple, so any member can arrive |
-| `HOST_SECRET_ENV_KEYS.DEBUG_TOKEN` | `inference/src/backends/agent-sdk/env.ts:25` | parsed | unknown (read) | keep: runtime input (a platform pair, an env key, an object key) is matched against the tuple, so any member can arrive |
-| `HOST_SECRET_ENV_KEYS.LOCAL_INITIAL_PASSWORD` | `inference/src/backends/agent-sdk/env.ts:26` | parsed | unknown (read) | keep: runtime input (a platform pair, an env key, an object key) is matched against the tuple, so any member can arrive |
+| `HOST_SECRET_ENV_KEYS.OPENROUTER_API_KEY` | `inference/src/backends/agent-sdk/env.ts:21` | parsed | unknown (read) | delete: the membership test ran over `SUPPORTED_HOST_ENV_KEYS`, which holds no member of this tuple, so it could never fire; the allowlist is the firewall |
+| `HOST_SECRET_ENV_KEYS.OIDC_CLIENT_SECRET` | `inference/src/backends/agent-sdk/env.ts:24` | parsed | unknown (read) | delete: the membership test ran over `SUPPORTED_HOST_ENV_KEYS`, which holds no member of this tuple, so it could never fire; the allowlist is the firewall |
+| `HOST_SECRET_ENV_KEYS.DEBUG_TOKEN` | `inference/src/backends/agent-sdk/env.ts:25` | parsed | unknown (read) | delete: the membership test ran over `SUPPORTED_HOST_ENV_KEYS`, which holds no member of this tuple, so it could never fire; the allowlist is the firewall |
+| `HOST_SECRET_ENV_KEYS.LOCAL_INITIAL_PASSWORD` | `inference/src/backends/agent-sdk/env.ts:26` | parsed | unknown (read) | delete: the membership test ran over `SUPPORTED_HOST_ENV_KEYS`, which holds no member of this tuple, so it could never fire; the allowlist is the firewall |
 | `NESTED_GENERATION_KEYS.turns` | `inference/src/capability/synthesize.ts:28` | parsed | unknown (read) | keep: runtime input (a platform pair, an env key, an object key) is matched against the tuple, so any member can arrive |
 
 ## Why
@@ -32,3 +32,5 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+The `HOST_SECRET_ENV_KEYS` rows: [1698](1698-judge-the-unwired-auth-members-authseamresolution-csrfheaderpresent-identityresolution.md).

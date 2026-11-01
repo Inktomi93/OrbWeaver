@@ -18,11 +18,11 @@ plan: unwired-code
 | `bindPostureWarnings` / `bindPostureWarnings` | `server/src/foundation/env/index.ts:22` | reexport-chain | delete | export it from its home, not through `server/src/foundation/env/record/index.ts` |
 | `diagnosticsPostureWarnings` / `diagnosticsPostureWarnings` | `server/src/foundation/env/index.ts:24` | reexport-chain | delete | export it from its home, not through `server/src/foundation/env/record/index.ts` |
 | `loopbackCompanion` / `loopbackCompanion` | `server/src/foundation/env/index.ts:27` | reexport-chain | delete | export it from its home, not through `server/src/foundation/env/record/index.ts` |
-| `ownerFallbackPeerWarnings` / `ownerFallbackPeerWarnings` | `server/src/foundation/env/index.ts:30` | reexport-chain | delete | export it from its home, not through `server/src/foundation/env/record/index.ts` |
+| `ownerFallbackPeerWarnings` / `ownerFallbackPeerWarnings` | `server/src/foundation/env/index.ts:30` | reexport-chain | delete | delete the chain: `entry/lifecycle.ts` imports from `#foundation/env/record`; the record's re-export stays as the door to `fallback-peers.ts` |
 | `resolveAllowedHosts` / `resolveAllowedHosts` | `server/src/foundation/env/index.ts:32` | reexport-chain | delete | export it from its home, not through `server/src/foundation/env/record/index.ts` |
 | `resolveBindPosture` / `resolveBindPosture` | `server/src/foundation/env/index.ts:33` | reexport-chain | delete | export it from its home, not through `server/src/foundation/env/record/index.ts` |
 | `resolveDiagnosticsPosture` / `resolveDiagnosticsPosture` | `server/src/foundation/env/index.ts:34` | reexport-chain | delete | export it from its home, not through `server/src/foundation/env/record/index.ts` |
-| `resolveOwnerFallbackPeers` / `resolveOwnerFallbackPeers` | `server/src/foundation/env/index.ts:35` | reexport-chain | delete | export it from its home, not through `server/src/foundation/env/record/index.ts` |
+| `resolveOwnerFallbackPeers` / `resolveOwnerFallbackPeers` | `server/src/foundation/env/index.ts:35` | reexport-chain | delete | delete the chain: `entry/lifecycle.ts` imports from `#foundation/env/record`; the record's re-export stays as the door to `fallback-peers.ts` |
 | `ClientErrorReport` / `ClientErrorReport` | `server/src/foundation/observability/client-error.ts:14` | reexport-chain | delete | export it from its home, not through `contracts/src/diagnostics/index.ts` |
 | `MemoryRecallInspector` / `MemoryRecallInspector` | `server/src/foundation/observability/debug/index.ts:5` | reexport-chain | delete | export it from its home, not through `server/src/foundation/observability/debug/routes.ts` |
 | `RpgTraceInspector` / `RpgTraceInspector` | `server/src/foundation/observability/debug/index.ts:6` | reexport-chain | delete | export it from its home, not through `server/src/foundation/observability/debug/routes.ts` |
@@ -57,3 +57,5 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+The `ownerFallbackPeerWarnings` and `resolveOwnerFallbackPeers` rows: [1698](1698-judge-the-unwired-auth-members-authseamresolution-csrfheaderpresent-identityresolution.md).

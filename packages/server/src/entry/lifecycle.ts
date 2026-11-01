@@ -32,11 +32,10 @@ import {
   launchedBySupervisor,
   loopbackCompanion,
   ownerFallbackPeerInput,
-  ownerFallbackPeerWarnings,
   resolveBindPosture,
   resolveDiagnosticsPosture,
-  resolveOwnerFallbackPeers,
 } from "#foundation/env";
+import { ownerFallbackPeerWarnings, resolveOwnerFallbackPeers } from "#foundation/env/record";
 import type { Logger } from "#foundation/observability";
 import { createAuditWiring, createDetachedSupervision, initTracing, wrapLibSqlClient } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";

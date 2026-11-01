@@ -748,6 +748,8 @@ export const APP_SECRET_ENV_KEYS = [
   OPENROUTER_API_KEY_ENV,
   DEBUG_TOKEN_ENV,
   LOCAL_INITIAL_PASSWORD_ENV,
+  // A remote database URL can carry a token.
+  "DATABASE_URL",
 ] as const satisfies readonly EnvKey[];
 
 /** The three stamps the persona auto-create policy reads. */

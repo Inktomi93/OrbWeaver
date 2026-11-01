@@ -15,9 +15,9 @@ plan: unwired-code
 
 | Shape | At | Kind | Class | Decision |
 | - | - | - | - | - |
-| `authConfigFromEnv` / `authConfigFromEnv` | `server/src/entry/auth/index.ts:1` | reexport-chain | delete | export it from its home, not through `server/src/infra/auth/index.ts` |
-| `oidcPendingJoinCookieFor` / `oidcPendingJoinCookieFor` | `server/src/entry/auth/index.ts:1` | reexport-chain | delete | export it from its home, not through `server/src/infra/auth/index.ts` |
-| `readRequestCookie` / `readRequestCookie` | `server/src/entry/auth/index.ts:1` | reexport-chain | delete | export it from its home, not through `server/src/infra/auth/index.ts` |
+| `authConfigFromEnv` / `authConfigFromEnv` | `server/src/entry/auth/index.ts:1` | reexport-chain | delete | keep: `@orb/server/entry/auth` is the package door `tests/support` reads, and `infra/auth` has no package export |
+| `oidcPendingJoinCookieFor` / `oidcPendingJoinCookieFor` | `server/src/entry/auth/index.ts:1` | reexport-chain | delete | keep: `@orb/server/entry/auth` is the package door `tests/support` reads, and `infra/auth` has no package export |
+| `readRequestCookie` / `readRequestCookie` | `server/src/entry/auth/index.ts:1` | reexport-chain | delete | keep: `@orb/server/entry/auth` is the package door `tests/support` reads, and `infra/auth` has no package export |
 | `BackfillPluginProvenanceOnBootDeps` / `HealLegacyBackgroundPinsDeps` | `server/src/entry/boot/backfill-plugin-provenance.ts:21` | restated | unknown (read) | two boot steps that both take `{ db, logger }` match by coincidence: keep each step's own deps |
 | `BackfillPluginProvenanceOnBootDeps` / `MigrateHandoffOfferVocabDeps` | `server/src/entry/boot/backfill-plugin-provenance.ts:21` | restated | unknown (read) | two boot steps that both take `{ db, logger }` match by coincidence: keep each step's own deps |
 | `BackfillPluginProvenanceOnBootDeps` / `MigratePluginToolWireNamesDeps` | `server/src/entry/boot/backfill-plugin-provenance.ts:21` | restated | unknown (read) | two boot steps that both take `{ db, logger }` match by coincidence: keep each step's own deps |
@@ -54,3 +54,5 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+The `authConfigFromEnv`, `oidcPendingJoinCookieFor` and `readRequestCookie` rows: [1698](1698-judge-the-unwired-auth-members-authseamresolution-csrfheaderpresent-identityresolution.md).

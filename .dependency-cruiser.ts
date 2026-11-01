@@ -475,6 +475,10 @@ const SERVER_TEST_REACHES = {
   "tests/server/entry/boot/identity-ownership.int.test.ts": {
     "foundation/data-layout": "SECRET_FILE_NAMES: the suite plants the boot secret files by their production names",
   },
+  "tests/server/entry/boot/secret-boot-process.int.test.ts": {
+    "foundation/data-layout": "DATA_LAYOUT_DIRS and SECRET_FILE_NAMES: the suite plants the session keyfile at its production path",
+    "foundation/env": "APP_SECRET_ENV_KEYS: the boot scrub's own list, which the suite plants and then looks for in a child's env",
+  },
   "tests/server/entry/compose/share-acme.int.test.ts": {
     "foundation/data-layout": "IP_CERTIFICATE_FILE_NAMES: the suite reads and corrupts the stored certificate files by their production names",
   },

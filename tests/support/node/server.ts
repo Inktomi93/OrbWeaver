@@ -81,6 +81,8 @@ export interface ServerHarnessOptions extends EnvSeamOptions, Partial<Pick<Servi
   readonly sdkQuery?: AgentSdkQuery;
   readonly sdkSpawn?: AgentSdkSpawn;
   readonly sdkNative?: AgentSdkNativeOptions;
+  /** Variables laid over the root's fixed host env, so a test can plant what the agent child's allowlist must refuse. */
+  readonly hostEnv?: Readonly<Record<string, string>>;
   readonly runtimeSpan?: NonNullable<ServicesDeps["providerSeams"]>["span"];
   readonly modelKernelModule?: NonNullable<NonNullable<ServicesDeps["providerSeams"]>["localLight"]>["kernelModule"];
   readonly allowRemoteModels?: NonNullable<NonNullable<ServicesDeps["providerSeams"]>["localLight"]>["allowRemoteModels"];
@@ -678,7 +680,7 @@ export async function createServerHarness(
     logger,
     rings,
     audit,
-    hostEnvAllowlist: noHostEnv,
+    hostEnvAllowlist: () => ({ ...noHostEnv(), ...options.hostEnv }),
     authModeSource: authModeSourceOf(options),
     authConfig,
     rolePolicy,
