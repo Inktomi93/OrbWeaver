@@ -1,4 +1,4 @@
-import { confirmSuggestionResultSchema, fireViewSchema, ruleViewSchema, runRuleNowResultSchema, testRunResultSchema } from "@orb/contracts/automation";
+import { fireViewSchema, ruleViewSchema, runRuleNowResultSchema, testRunResultSchema } from "@orb/contracts/automation";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { makeRuleView } from "@orb/testkit/node/helpers";
@@ -35,6 +35,4 @@ test("dry-run previews remain closed and omit absent optional fields while fire 
   expect(fireViewSchema.parse(fire)).toEqual(fire);
   expect(fireViewSchema.safeParse({ ...fire, privateAudit: "private" }).success).toBe(false);
   expect(runRuleNowResultSchema.parse({ outcome: "predicate_false" })).toEqual({ outcome: "predicate_false" });
-  expect(confirmSuggestionResultSchema.parse({ ran: "fresh-run", outcome: "predicate_false" })).toEqual({ ran: "fresh-run", outcome: "predicate_false" });
-  expect(confirmSuggestionResultSchema.safeParse({ ran: "private-path", outcome: "fired" }).success).toBe(false);
 });

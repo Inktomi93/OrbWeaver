@@ -25,4 +25,10 @@ The admin surface runs the production verb with progress and result feedback; ho
 
 ## Evidence
 
-Not landed; it needs a schema change. Maintenance verbs reach admins as workload kinds (`assets-gc`, `assets-fsck` in `packages/server/src/domain/assets/workload-contributions.ts`), which give progress, result feedback and the owner-only maintenance gate. A new kind goes into `WORKLOAD_KINDS`, and `packages/db/src/schema/workloads.ts` mirrors that tuple in a CHECK on `workloads.kind` and `workload_schedules.kind`, so it needs a numbered migration. The verb also takes a `kind` (asset kind) param that no param control offers. The alternative, a one-shot admin mutation, drops the progress the item asks for. Owner call: migration plus workload kind, or a synchronous admin procedure.
+`assets-rebuild-index` is a workload kind, so it has progress, a result line and the owner-only bulk gate that `assets-gc` and `assets-fsck` have.
+
+- **Kind and params:** `WORKLOAD_KINDS` and `WORKLOAD_KIND_MODES` (bulk only, so owner-only) in `packages/contracts/src/workloads/axes.ts`; the params are `{ kind: <asset kind> }` (`assetsRebuildIndexWorkloadParams`).
+- **Contribution:** `packages/server/src/domain/assets/workload-contributions.ts` runs `rebuildFromTree`, which now returns the blobs walked and the rows re-derived. The kind excludes `assets-gc` and the imports from running beside it.
+- **Migration:** `packages/db/src/migrations/0008_assets-rebuild-index-kind.sql` rebuilds `workloads` and `workload_schedules` with the widened kind CHECK. `tests/db/schema/workload-rebuild-index-kind.repo.int.test.ts` runs it over existing workload and schedule rows, and checks the single-active bulk lock survives.
+- **Control:** the run and schedule dialogs show a "What to rebuild" asset-kind picker for the kind (`packages/client/src/features/workloads/components/workload-kind-fields.tsx`). Maintenance kinds now also get their own param control there, so `assets-gc` shows its dry-run switch.
+- **Tests:** `tests/server/domain/assets/verbs/rebuild-index.int.test.ts` starts the kind through the workloads router, runs it, and checks the orphan blob gets a row of the chosen kind, a second run changes nothing, a member is refused and a bad asset kind is refused. `tests/client/features/workloads/components/rebuild-asset-index.ct.tsx` schedules the kind through the dialog.

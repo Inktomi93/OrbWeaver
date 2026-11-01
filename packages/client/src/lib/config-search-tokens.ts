@@ -1,6 +1,6 @@
 // config-search-tokens — the PURE grammar of the Settings search's typed `@` filters
 // (VS Code's settings-search token grammar): `@modified` · `@shelf:<shelf>` · `@in:<groupId>` ·
-// `@plugin:<plugin-slug>` · `@advanced`. Tier 4 (`#lib`) on §13.9's homing rule: pure, DOM-free, one consumer
+// `@plugin:<plugin-slug>`. Tier 4 (`#lib`) on §13.9's homing rule: pure, DOM-free, one consumer
 // today (the config feature); it graduates to `@orb/kit` only when a second consumer appears. It deliberately
 // knows NO vocabulary — `shelf`/`group` are raw strings the FEATURE resolves against its labels and tuples (the lib
 // floor cannot import `#state`), and an unknown shelf simply matches nothing, which is the honest answer.
@@ -22,14 +22,12 @@ export const CONFIG_QUERY_TOKENS: readonly ConfigQueryToken[] = [
   { token: "@shelf:", hint: "one shelf — user, app, collections or plugins" },
   { token: "@in:", hint: "one group by its name, with hyphens for spaces (chat-behavior)" },
   { token: "@plugin:", hint: "one plugin's rows, by its name" },
-  { token: "@advanced", hint: "include the advanced rows hidden by default" },
 ];
 
 export interface ParsedConfigQuery {
   /** The free-text remainder — every non-`@` word, joined by single spaces. */
   readonly terms: string;
   readonly modified: boolean;
-  readonly advanced: boolean;
   /** `@shelf:<value>`, lowercased. Absent when the token wasn't typed; empty-valued spellings are UNKNOWN. */
   readonly shelf?: string;
   /** `@in:<groupId>`, as typed (group ids are mixed-case — `worldInfo`); the consumer compares its own way. */
@@ -43,7 +41,6 @@ const VALUE_TOKEN_RE = /^@(shelf|in|plugin):(.*)$/iu;
 interface MutableParse {
   terms: string[];
   modified: boolean;
-  advanced: boolean;
   shelf?: string;
   group?: string;
   plugin?: string;
@@ -54,10 +51,6 @@ function applyTokenWord(word: string, out: MutableParse): void {
   const lower = word.toLowerCase();
   if (lower === "@modified") {
     out.modified = true;
-    return;
-  }
-  if (lower === "@advanced") {
-    out.advanced = true;
     return;
   }
   const valued = VALUE_TOKEN_RE.exec(word);
@@ -79,7 +72,7 @@ function applyTokenWord(word: string, out: MutableParse): void {
 /** Parse a live query into free-text terms + the typed filters. Whitespace-tokenised; later duplicate
  *  value-tokens win (the one nearest the caret is the one being edited). */
 export function parseConfigQuery(text: string): ParsedConfigQuery {
-  const out: MutableParse = { terms: [], modified: false, advanced: false };
+  const out: MutableParse = { terms: [], modified: false };
   for (const word of text.split(/\s+/u)) {
     if (word.length === 0) {
       continue;
@@ -93,7 +86,6 @@ export function parseConfigQuery(text: string): ParsedConfigQuery {
   return {
     terms: out.terms.join(" "),
     modified: out.modified,
-    advanced: out.advanced,
     ...(out.shelf === undefined ? {} : { shelf: out.shelf }),
     ...(out.group === undefined ? {} : { group: out.group }),
     ...(out.plugin === undefined ? {} : { plugin: out.plugin }),

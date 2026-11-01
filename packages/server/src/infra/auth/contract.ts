@@ -128,7 +128,6 @@ export interface ForwardJwtVerifier {
  *  its layer inert. No upsertUser/determineRole/validateCookie here — those are resolution-tier reads. */
 export interface ResolveDeps {
   verifyForwardJwt?: ForwardJwtVerifier;
-  oidcStore?: OidcTransactionStore;
   /** Raw TCP peer socket address — never a spoofable X-Forwarded-For/X-Real-IP header. TWO gates read it:
    *  the forward-header unsigned trusted-proxy gate (`modes/forward-header.ts`) and, since #298 f2, the
    *  LOOPBACK gate on the un-credentialed owner fallback (`ownerFallbackAllowed`, `dispatch.ts`). Absent
@@ -182,13 +181,12 @@ export interface SessionCookie {
 
 export type ModeResolver = (headers: Headers, config: AuthConfig, deps: ResolveDeps) => Promise<ResolvedIdentity | null>;
 
-/** Verification-tier output: the pre-row identity plus per-request signals. Carries no userId/role — the
+/** Verification-tier output: the pre-row identity plus its `via` signal. Carries no userId/role — the
  *  seam resolves the row and mints the Principal from this. Infra never resolves a cookie (the seam does
  *  via sessions.validate), so infra only yields "header" or "fallback" — "cookie" is the seam's own via. */
 export interface IdentityResolution {
   identity: ResolvedIdentity | null;
   via: "header" | "fallback";
-  hasCsrfHeader: boolean;
 }
 
 /** The configured OIDC client reads the same validated startup settings as production lifecycle. */
@@ -239,8 +237,6 @@ export interface BackchannelLogoutVerifier {
 /** The local-password hashing seam; constructed at entry/ with the SESSION_SECRET pepper and injected
  *  into the login route + admin user verbs. */
 export interface PasswordHasher {
-  /** false when no pepper is configured → hash/verify throw at call time. */
-  readonly enabled: boolean;
   /** Hash a cleartext password into the self-contained `scrypt$salt$hash` form. Throws if too short. */
   hash: (plain: string) => Promise<string>;
   /** Constant-time verify of a cleartext password against a stored value. false (never throws) for a

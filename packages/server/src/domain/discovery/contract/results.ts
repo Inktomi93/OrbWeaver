@@ -60,7 +60,6 @@ export interface CooccurrenceStats {
 }
 
 // ── hubness ─────────────────────────────────────────────────────────────────
-/** The `computeCharacterHubScores` summary. */
 /** One stored vector a hub pass reads: the row id, its embed model, the vector and its content hash. */
 export interface HubVector {
   readonly id: string;
@@ -69,10 +68,11 @@ export interface HubVector {
   readonly contentHash: string;
 }
 
+/** The `computeCharacterHubScores` summary; the digest, segment and image passes return only their `rowsScored`. */
 export interface HubStats {
   /** Vectors scored — and therefore also the pass's INPUT-PLANE CENSUS: every vector it loads gets exactly
    *  one hub update, so `0` means the embedding table was empty, not that the maths found nothing. The `csls`
-   *  contribution turns that zero into a stated "nothing indexed" result rather than a 0-written success
+   *  contribution sums the four kinds' counts and turns a total of zero into a stated "nothing indexed" result rather than a 0-written success
    *  (issue #561; the honest-accounting family of #166). */
   readonly rowsScored: number;
   readonly groupsProcessed: number;

@@ -38,7 +38,6 @@ export interface OidcGcSchedulerDeps {
   /** The injected clock — the reap gates on it (no ambient `Date.now`). */
   readonly now: Clock;
   readonly scheduleInterval: ScheduleOp;
-  readonly intervalMs?: number;
 }
 
 // ONE reap step: delete every expired transaction as of `now`. Logs the count only when something was
@@ -58,7 +57,6 @@ async function runOidcGc(deps: OidcGcSchedulerDeps): Promise<void> {
  */
 export function startOidcGcScheduler(deps: OidcGcSchedulerDeps): () => void {
   const log = getLog(deps.logger).child({ component: LOG_COMPONENT });
-  const intervalMs = deps.intervalMs ?? OIDC_GC_INTERVAL_MS;
 
   const safeSweep = (): void => {
     const completion = runOidcGc(deps).catch((err: unknown) => {
@@ -68,5 +66,5 @@ export function startOidcGcScheduler(deps: OidcGcSchedulerDeps): () => void {
   };
 
   safeSweep();
-  return deps.scheduleInterval(safeSweep, intervalMs);
+  return deps.scheduleInterval(safeSweep, OIDC_GC_INTERVAL_MS);
 }

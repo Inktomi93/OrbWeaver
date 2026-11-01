@@ -324,6 +324,39 @@ export function parseMacros(text: string): MacroAST {
   return buildBlocks(flatAst);
 }
 
+/** The longest torn macro a streaming display holds back. A prose `{{name` that never closes would hide the
+ *  rest of the stream; past this length it renders as the literal text the parser degrades it to. */
+const MAX_HELD_MACRO_LENGTH = 2048;
+
+/** Streaming display: strip a trailing macro whose closing `}}` has not arrived, so a half-streamed
+ *  `{{cha` never flashes as literal text. "Torn" is the parser's own verdict — `readTag` stops on an
+ *  unclosed macro or comment, or leaves an opener plus flags at the very end of the text — so this cannot
+ *  drift from what the renderer treats as a macro. An opener the parser reads as literal (`{{ `, `\{{`)
+ *  is never held. A lone trailing `{` is held too: it may be the first half of the next chunk's `{{`. */
+export function holdTornMacro(text: string): string {
+  const cursor = createSpanCursor();
+  let pos = 0;
+  while (pos < text.length) {
+    const tagStart = text.indexOf("{{", pos);
+    if (tagStart === NOT_FOUND) {
+      break;
+    }
+    if (tagStart > 0 && text.charAt(tagStart - 1) === "\\") {
+      pos = tagStart + BRACE_LEN;
+      continue;
+    }
+    const result = readTag(text, tagStart, tagStart + BRACE_LEN, cursor);
+    // A closed tag ending the text yields a macro/close node or none (comment); only a literal-text node
+    // reaching the end is the opener-and-flags-only case.
+    const torn = result.stop || (result.pos === text.length && result.nodes[0]?.type === "text");
+    if (torn) {
+      return text.length - tagStart > MAX_HELD_MACRO_LENGTH ? text : text.slice(0, tagStart);
+    }
+    pos = result.pos;
+  }
+  return text.endsWith("{") ? text.slice(0, -1) : text;
+}
+
 // Reconstruct source text from an AST, emitting each node's original bytes — text `value`, a call/block's
 // `raw` open tag, a block's `children` then `closeRaw`. A comment produced NO node at parse (readTag
 // returns `nodes: []`), so what comes back is the source with exactly the comment spans removed and
