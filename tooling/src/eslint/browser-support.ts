@@ -1,6 +1,7 @@
 import type { RuleVisitor } from "@eslint/core";
 import { indexCss } from "@orb/tooling/browser-support";
 import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import ts from "typescript";
 import type { ConstantText } from "./browser-support-classes.ts";
 import { classSupportVisitor } from "./browser-support-classes.ts";
@@ -90,7 +91,7 @@ function hasEventOwner(type: ts.Type, owner: string, event: string): boolean {
 }
 
 function listenedEvent(context: OrbRuleContext, call: TSESTree.CallExpression): { readonly receiver: TSESTree.Expression; readonly event: string } | undefined {
-  if (call.callee.type !== "MemberExpression" || accessedName(context, call.callee) !== "addEventListener") {
+  if (call.callee.type !== AST_NODE_TYPES.MemberExpression || accessedName(context, call.callee) !== "addEventListener") {
     return undefined;
   }
   const argument = call.arguments[0];
@@ -118,25 +119,25 @@ function declaringInterface(symbol: ts.Symbol): string | undefined {
 
 function memberName(node: TSESTree.MemberExpression): string | undefined {
   if (!node.computed) {
-    return node.property.type === "Identifier" ? node.property.name : undefined;
+    return node.property.type === AST_NODE_TYPES.Identifier ? node.property.name : undefined;
   }
-  return node.property.type === "Literal" && typeof node.property.value === "string" ? node.property.value : undefined;
+  return node.property.type === AST_NODE_TYPES.Literal && typeof node.property.value === "string" ? node.property.value : undefined;
 }
 
 /** The use that throws when the thing is missing; a plain read is `undefined` and is not one. */
 function throwingUse(node: TSESTree.Node): Use {
   const parent = node.parent;
-  if (parent?.type === "CallExpression" && parent.callee === node && !parent.optional) {
+  if (parent?.type === AST_NODE_TYPES.CallExpression && parent.callee === node && !parent.optional) {
     return "call";
   }
-  if (parent?.type === "NewExpression" && parent.callee === node) {
+  if (parent?.type === AST_NODE_TYPES.NewExpression && parent.callee === node) {
     return "new";
   }
-  return parent?.type === "MemberExpression" && parent.object === node && !parent.optional ? "chain" : null;
+  return parent?.type === AST_NODE_TYPES.MemberExpression && parent.object === node && !parent.optional ? "chain" : null;
 }
 
 function exits(statement: TSESTree.Statement): boolean {
-  if (statement.type === "BlockStatement") {
+  if (statement.type === AST_NODE_TYPES.BlockStatement) {
     const last = statement.body.at(-1);
     return last !== undefined && exits(last);
   }
@@ -144,10 +145,10 @@ function exits(statement: TSESTree.Statement): boolean {
 }
 
 function statementsOf(node: TSESTree.Node): readonly TSESTree.Node[] {
-  if (node.type === "BlockStatement" || node.type === "Program") {
+  if (node.type === AST_NODE_TYPES.BlockStatement || node.type === AST_NODE_TYPES.Program) {
     return node.body;
   }
-  return node.type === "SwitchCase" ? node.consequent : [];
+  return node.type === AST_NODE_TYPES.SwitchCase ? node.consequent : [];
 }
 
 /** True when an enclosing branch, short-circuit or earlier exiting `if` tests for the thing `pattern` names. */
@@ -155,10 +156,13 @@ function isGuarded(sourceCode: Source, site: TSESTree.Node, pattern: RegExp): bo
   const tests = (test: TSESTree.Node): boolean => pattern.test(sourceCode.getText(test));
   let child: TSESTree.Node = site;
   for (let parent = site.parent; parent; child = parent, parent = parent.parent) {
-    const branch = (parent.type === "IfStatement" || parent.type === "ConditionalExpression") && child !== parent.test && tests(parent.test);
-    const shortCircuit = parent.type === "LogicalExpression" && child === parent.right && tests(parent.left);
+    const branch =
+      (parent.type === AST_NODE_TYPES.IfStatement || parent.type === AST_NODE_TYPES.ConditionalExpression) && child !== parent.test && tests(parent.test);
+    const shortCircuit = parent.type === AST_NODE_TYPES.LogicalExpression && child === parent.right && tests(parent.left);
     const earlier = statementsOf(parent).slice(0, statementsOf(parent).indexOf(child));
-    const bailed = earlier.some((sibling) => sibling.type === "IfStatement" && sibling.alternate === null && exits(sibling.consequent) && tests(sibling.test));
+    const bailed = earlier.some(
+      (sibling) => sibling.type === AST_NODE_TYPES.IfStatement && sibling.alternate === null && exits(sibling.consequent) && tests(sibling.test),
+    );
     if (branch || shortCircuit || bailed) {
       return true;
     }
@@ -276,7 +280,7 @@ export const browserSupportRule = ({ unsupported, harmless, candidatesToCss }: B
         const libReferences = globalScope.variables.filter(({ defs }) => defs.length === 0).flatMap(({ references }) => references);
         for (const { identifier, isValueReference } of [...globalScope.through, ...libReferences]) {
           const parent = identifier.parent;
-          if (isValueReference !== false && !(parent.type === "UnaryExpression" && parent.operator === "typeof")) {
+          if (isValueReference !== false && !(parent.type === AST_NODE_TYPES.UnaryExpression && parent.operator === "typeof")) {
             checkGlobal(identifier.name, throwingUse(identifier), identifier);
           }
         }
@@ -325,7 +329,7 @@ export const browserSupportRule = ({ unsupported, harmless, candidatesToCss }: B
           if (name === undefined || use === null) {
             return;
           }
-          if (node.object.type === "Identifier" && GLOBAL_ROOTS.has(node.object.name)) {
+          if (node.object.type === AST_NODE_TYPES.Identifier && GLOBAL_ROOTS.has(node.object.name)) {
             checkGlobal(name, use, node);
           }
           checkMember(node, name);

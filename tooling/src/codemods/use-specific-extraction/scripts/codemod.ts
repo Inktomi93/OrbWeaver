@@ -41,7 +41,9 @@ function readMatch(entry: object, label: string): Readonly<Record<string, MatchV
     throw new Error(`${label} needs a match object`);
   }
   const match: Record<string, MatchValue> = {};
-  for (const [name, value] of Object.entries(raw)) {
+  for (const [name, rawValue] of Object.entries(raw)) {
+    // `Object.entries` of a bare `object` types its values `any`; take them as `unknown` so the checks below narrow.
+    const value: unknown = rawValue;
     if (typeof value !== "string" && value !== true) {
       throw new Error(`${label} matches ${name} on a value that is neither a string nor true`);
     }

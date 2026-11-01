@@ -4,6 +4,7 @@
 
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 
 const SHELL_DIRECTORY = "/features/app-shell/";
@@ -18,7 +19,7 @@ const MESSAGES = {
 
 function staticClassList(attribute: TSESTree.JSXAttribute): readonly string[] | undefined {
   const value = attribute.value;
-  if (value?.type === "Literal" && typeof value.value === "string") {
+  if (value?.type === AST_NODE_TYPES.Literal && typeof value.value === "string") {
     return value.value.split(/\s+/u).filter((token) => token !== "");
   }
   return undefined;
@@ -26,10 +27,10 @@ function staticClassList(attribute: TSESTree.JSXAttribute): readonly string[] | 
 
 /** Object literals a spread may carry; a conditional of literals counts as its arms. */
 function spreadObjects(expression: TSESTree.Expression): readonly TSESTree.ObjectExpression[] | undefined {
-  if (expression.type === "ObjectExpression") {
+  if (expression.type === AST_NODE_TYPES.ObjectExpression) {
     return [expression];
   }
-  if (expression.type === "ConditionalExpression") {
+  if (expression.type === AST_NODE_TYPES.ConditionalExpression) {
     const consequent = spreadObjects(expression.consequent);
     const alternate = spreadObjects(expression.alternate);
     return consequent === undefined || alternate === undefined ? undefined : [...consequent, ...alternate];
@@ -38,15 +39,15 @@ function spreadObjects(expression: TSESTree.Expression): readonly TSESTree.Objec
 }
 
 function staticKey(property: TSESTree.Property): string | undefined {
-  if (property.key.type === "Identifier") {
+  if (property.key.type === AST_NODE_TYPES.Identifier) {
     return property.key.name;
   }
-  return property.key.type === "Literal" ? String(property.key.value) : undefined;
+  return property.key.type === AST_NODE_TYPES.Literal ? String(property.key.value) : undefined;
 }
 
 /** A property carries paint unless its key is known and is not one; a computed key is known only inside the shell. */
 function propertyCarriesPaint(property: TSESTree.ObjectLiteralElement, inShell: boolean): boolean {
-  if (property.type !== "Property") {
+  if (property.type !== AST_NODE_TYPES.Property) {
     return true;
   }
   if (property.computed) {
@@ -66,10 +67,10 @@ function attributeMessage(
   inShell: boolean,
   shellClasses: ReadonlySet<string>,
 ): string | undefined {
-  if (attribute.type === "JSXSpreadAttribute") {
+  if (attribute.type === AST_NODE_TYPES.JSXSpreadAttribute) {
     return spreadCarriesPaint(attribute, inShell) ? MESSAGES.spread : undefined;
   }
-  const name = attribute.name.type === "JSXIdentifier" ? attribute.name.name : undefined;
+  const name = attribute.name.type === AST_NODE_TYPES.JSXIdentifier ? attribute.name.name : undefined;
   if (name === "style") {
     return MESSAGES.style;
   }

@@ -1,5 +1,6 @@
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import { lexicalVariable, singleInitializer } from "./general.ts";
 import { staticMemberName } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
@@ -31,11 +32,11 @@ const DETACHED_MESSAGES = {
 function unwrapTransparent(node: TSESTree.Node): TSESTree.Node {
   let current = node;
   while (
-    current.type === "ChainExpression" ||
-    current.type === "TSNonNullExpression" ||
-    current.type === "TSAsExpression" ||
-    current.type === "TSSatisfiesExpression" ||
-    current.type === "TSTypeAssertion"
+    current.type === AST_NODE_TYPES.ChainExpression ||
+    current.type === AST_NODE_TYPES.TSNonNullExpression ||
+    current.type === AST_NODE_TYPES.TSAsExpression ||
+    current.type === AST_NODE_TYPES.TSSatisfiesExpression ||
+    current.type === AST_NODE_TYPES.TSTypeAssertion
   ) {
     current = current.expression;
   }
@@ -44,24 +45,24 @@ function unwrapTransparent(node: TSESTree.Node): TSESTree.Node {
 
 function staticDetachedKey(context: OrbRuleContext, node: TSESTree.Node, hops = 4): string | undefined {
   const value = unwrapTransparent(node);
-  if (value.type === "Literal") {
+  if (value.type === AST_NODE_TYPES.Literal) {
     return typeof value.value === "string" ? value.value : undefined;
   }
-  if (value.type === "TemplateLiteral") {
+  if (value.type === AST_NODE_TYPES.TemplateLiteral) {
     return value.expressions.length === 0 ? (value.quasis[0] as TSESTree.TemplateElement & { value: { cooked: string } }).value.cooked : undefined;
   }
-  if (value.type === "BinaryExpression" && value.operator === "+") {
+  if (value.type === AST_NODE_TYPES.BinaryExpression && value.operator === "+") {
     const left = staticDetachedKey(context, value.left, hops);
     const right = staticDetachedKey(context, value.right, hops);
     return left === undefined || right === undefined ? undefined : left + right;
   }
-  const initializer = value.type === "Identifier" && hops > 0 ? singleInitializer(context, value) : undefined;
+  const initializer = value.type === AST_NODE_TYPES.Identifier && hops > 0 ? singleInitializer(context, value) : undefined;
   return initializer === undefined ? undefined : staticDetachedKey(context, initializer, hops - 1);
 }
 
 function literalMember(context: OrbRuleContext, node: TSESTree.Node): { name: string; receiver: TSESTree.Node } | undefined {
   const member = unwrapTransparent(node);
-  if (member.type !== "MemberExpression") {
+  if (member.type !== AST_NODE_TYPES.MemberExpression) {
     return;
   }
   const name = member.computed ? staticDetachedKey(context, member.property) : (member.property as TSESTree.Identifier | TSESTree.PrivateIdentifier).name;
@@ -69,19 +70,19 @@ function literalMember(context: OrbRuleContext, node: TSESTree.Node): { name: st
 }
 
 function isOpenerCall(context: OrbRuleContext, node: TSESTree.Node): boolean {
-  if (node.type !== "CallExpression") {
+  if (node.type !== AST_NODE_TYPES.CallExpression) {
     return false;
   }
   const callee = unwrapTransparent(node.callee);
-  return ROOT_SPAN_OPENER_NAMES.has((callee.type === "Identifier" ? callee.name : literalMember(context, callee)?.name) as string);
+  return ROOT_SPAN_OPENER_NAMES.has((callee.type === AST_NODE_TYPES.Identifier ? callee.name : literalMember(context, callee)?.name) as string);
 }
 
 function isDiscardingHandler(context: OrbRuleContext, node: TSESTree.Node | undefined): boolean {
   const handler = node === undefined ? undefined : unwrapTransparent(node);
-  if (handler?.type !== "ArrowFunctionExpression" && handler?.type !== "FunctionExpression") {
+  if (handler?.type !== AST_NODE_TYPES.ArrowFunctionExpression && handler?.type !== AST_NODE_TYPES.FunctionExpression) {
     return false;
   }
-  return handler.body.type === "BlockStatement"
+  return handler.body.type === AST_NODE_TYPES.BlockStatement
     ? handler.body.body.length === 0
     : DISCARD_BODIES.has(context.sourceCode.getText(unwrapTransparent(handler.body)));
 }
@@ -94,7 +95,7 @@ function discardsRejection(context: OrbRuleContext, call: TSESTree.CallExpressio
 
 function hasAbsorbingLink(context: OrbRuleContext, expression: TSESTree.Node): boolean {
   let current = unwrapTransparent(expression);
-  while (current.type === "CallExpression") {
+  while (current.type === AST_NODE_TYPES.CallExpression) {
     if (discardsRejection(context, current)) {
       return true;
     }
@@ -115,14 +116,14 @@ const COMBINATOR_MEMBERS = new Set(["all", "allSettled", "race", "any", "from"])
 
 function chainRootName(context: OrbRuleContext, expression: TSESTree.Node): TSESTree.Identifier | undefined {
   let current = unwrapTransparent(expression);
-  while (current.type === "CallExpression") {
+  while (current.type === AST_NODE_TYPES.CallExpression) {
     const link = literalMember(context, current.callee);
     if (link === undefined || !PROMISE_LINKS.has(link.name)) {
       return;
     }
     current = link.receiver;
   }
-  return current.type === "Identifier" ? current : undefined;
+  return current.type === AST_NODE_TYPES.Identifier ? current : undefined;
 }
 
 const PROMISE_CHAIN_MEMBERS = new Set(["then", "catch", "finally"]);
@@ -137,16 +138,16 @@ function bindingConsumed(context: OrbRuleContext, id: TSESTree.Identifier, depth
 }
 
 function loopConsumes(context: OrbRuleContext, loop: TSESTree.ForOfStatement, depth: number): boolean {
-  const declarator = loop.left.type === "VariableDeclaration" ? loop.left.declarations[0] : undefined;
-  return loop.await || declarator?.id.type !== "Identifier" || bindingConsumed(context, declarator.id, depth);
+  const declarator = loop.left.type === AST_NODE_TYPES.VariableDeclaration ? loop.left.declarations[0] : undefined;
+  return loop.await || declarator?.id.type !== AST_NODE_TYPES.Identifier || bindingConsumed(context, declarator.id, depth);
 }
 
 function callbackConsumes(context: OrbRuleContext, callback: TSESTree.Node | undefined, depth: number): boolean {
-  if (callback?.type !== "ArrowFunctionExpression" && callback?.type !== "FunctionExpression") {
+  if (callback?.type !== AST_NODE_TYPES.ArrowFunctionExpression && callback?.type !== AST_NODE_TYPES.FunctionExpression) {
     return callback !== undefined;
   }
   const [first] = callback.params;
-  return first !== undefined && (first.type !== "Identifier" || bindingConsumed(context, first, depth));
+  return first !== undefined && (first.type !== AST_NODE_TYPES.Identifier || bindingConsumed(context, first, depth));
 }
 
 function callFlowConsumed(context: OrbRuleContext, parent: TSESTree.CallExpression, current: TSESTree.Node, depth: number): boolean {
@@ -157,7 +158,7 @@ function callFlowConsumed(context: OrbRuleContext, parent: TSESTree.CallExpressi
 }
 
 function memberFlowConsumed(context: OrbRuleContext, parent: TSESTree.MemberExpression, current: TSESTree.Node, depth: number): boolean {
-  const call = parent.object === current && parent.parent.type === "CallExpression" && parent.parent.callee === parent ? parent.parent : undefined;
+  const call = parent.object === current && parent.parent.type === AST_NODE_TYPES.CallExpression && parent.parent.callee === parent ? parent.parent : undefined;
   const member = staticMemberName(parent);
   if (call === undefined) {
     return false;
@@ -174,9 +175,9 @@ function boundFlowConsumed(
   current: TSESTree.Node,
   depth: number,
 ): boolean {
-  const target = parent.type === "VariableDeclarator" ? parent.id : parent.left;
-  const source = parent.type === "VariableDeclarator" ? parent.init : parent.right;
-  return source === current && target.type === "Identifier" && bindingConsumed(context, target, depth - 1);
+  const target = parent.type === AST_NODE_TYPES.VariableDeclarator ? parent.id : parent.left;
+  const source = parent.type === AST_NODE_TYPES.VariableDeclarator ? parent.init : parent.right;
+  return source === current && target.type === AST_NODE_TYPES.Identifier && bindingConsumed(context, target, depth - 1);
 }
 
 function flowConsumed(context: OrbRuleContext, node: TSESTree.Node, depth: number = FLOW_DEPTH): boolean {
@@ -193,25 +194,25 @@ function flowConsumed(context: OrbRuleContext, node: TSESTree.Node, depth: numbe
     return false;
   }
   switch (parent.type) {
-    case "AwaitExpression":
-    case "ReturnStatement":
+    case AST_NODE_TYPES.AwaitExpression:
+    case AST_NODE_TYPES.ReturnStatement:
       return true;
-    case "ArrowFunctionExpression":
+    case AST_NODE_TYPES.ArrowFunctionExpression:
       return parent.body === current;
-    case "ArrayExpression":
-    case "ConditionalExpression":
-    case "LogicalExpression":
+    case AST_NODE_TYPES.ArrayExpression:
+    case AST_NODE_TYPES.ConditionalExpression:
+    case AST_NODE_TYPES.LogicalExpression:
       return flowConsumed(context, parent, depth);
-    case "SpreadElement":
-      return parent.parent.type === "ArrayExpression" ? flowConsumed(context, parent.parent, depth) : true;
-    case "ForOfStatement":
+    case AST_NODE_TYPES.SpreadElement:
+      return parent.parent.type === AST_NODE_TYPES.ArrayExpression ? flowConsumed(context, parent.parent, depth) : true;
+    case AST_NODE_TYPES.ForOfStatement:
       return parent.right === current && loopConsumes(context, parent, depth - 1);
-    case "VariableDeclarator":
-    case "AssignmentExpression":
+    case AST_NODE_TYPES.VariableDeclarator:
+    case AST_NODE_TYPES.AssignmentExpression:
       return boundFlowConsumed(context, parent, current, depth);
-    case "CallExpression":
+    case AST_NODE_TYPES.CallExpression:
       return callFlowConsumed(context, parent, current, depth);
-    case "MemberExpression":
+    case AST_NODE_TYPES.MemberExpression:
       return memberFlowConsumed(context, parent, current, depth);
     default:
       return false;
@@ -228,10 +229,10 @@ function isRetainedPromise(context: OrbRuleContext, name: TSESTree.Identifier): 
   return (
     variable?.references.some(({ identifier }) => {
       const call = identifier.parent;
-      const collecting = call.type === "CallExpression" && call.arguments.includes(identifier as TSESTree.Identifier) ? call.callee : undefined;
+      const collecting = call.type === AST_NODE_TYPES.CallExpression && call.arguments.includes(identifier as TSESTree.Identifier) ? call.callee : undefined;
       return (
-        collecting?.type === "MemberExpression" &&
-        collecting.object.type === "Identifier" &&
+        collecting?.type === AST_NODE_TYPES.MemberExpression &&
+        collecting.object.type === AST_NODE_TYPES.Identifier &&
         COLLECTING_MEMBERS.has(staticMemberName(collecting) as string) &&
         readsWhole(context, collecting.object)
       );
@@ -242,11 +243,15 @@ function isRetainedPromise(context: OrbRuleContext, name: TSESTree.Identifier): 
 function escapedCatchClause(context: OrbRuleContext, thrown: TSESTree.ThrowStatement): TSESTree.CatchClause | undefined {
   let clause: TSESTree.CatchClause | undefined;
   for (const node of context.sourceCode.getAncestors(thrown).toReversed()) {
-    if (node.type === "CatchClause") {
+    if (node.type === AST_NODE_TYPES.CatchClause) {
       clause = node;
       break;
     }
-    const guardedTry = node.type === "BlockStatement" && node.parent.type === "TryStatement" && node.parent.block === node && node.parent.handler !== null;
+    const guardedTry =
+      node.type === AST_NODE_TYPES.BlockStatement &&
+      node.parent.type === AST_NODE_TYPES.TryStatement &&
+      node.parent.block === node &&
+      node.parent.handler !== null;
     if (FUNCTION_NODES.has(node.type) || guardedTry) {
       return;
     }
@@ -265,7 +270,7 @@ export const detachedWorkRule: OrbRule = {
     return {
       ExpressionStatement: (statement: TSESTree.ExpressionStatement) => {
         const raw = unwrapTransparent(statement.expression);
-        const expression = raw.type === "UnaryExpression" && raw.operator === "void" ? raw.argument : raw;
+        const expression = raw.type === AST_NODE_TYPES.UnaryExpression && raw.operator === "void" ? raw.argument : raw;
         const root = chainRootName(context, expression);
         const retained = root !== undefined && isRetainedPromise(context, root);
         if (hasAbsorbingLink(context, expression) && !retained && !insideOpener(statement)) {

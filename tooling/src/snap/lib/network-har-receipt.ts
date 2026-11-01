@@ -3,6 +3,7 @@
 // tooling file.
 import type { InstrumentArtifactLimitReceipt } from "../../floor/artifacts/artifact-out.ts";
 import { browserEvidenceRetentionBatchSchema } from "../../floor/browser/browser-evidence-ring.ts";
+import { readMember } from "../../floor/instrument/member.ts";
 
 export interface NetworkHarWriteReceipt {
   readonly entries: number;
@@ -12,7 +13,7 @@ export interface NetworkHarWriteReceipt {
 }
 
 function field(value: unknown, key: string): unknown {
-  return typeof value === "object" && value !== null ? Reflect.get(value, key) : undefined;
+  return typeof value === "object" && value !== null ? readMember(value, key) : undefined;
 }
 
 function finiteNumber(value: unknown, key: string): number {
@@ -73,9 +74,10 @@ function limitEvent(value: unknown, path: string, fallback: string): InstrumentA
   if (typeof value !== "object" || value === null) {
     return null;
   }
-  const retained = Reflect.get(value, "limitBytes");
+  const retained = readMember(value, "limitBytes");
+  const reason = readMember(value, "reason");
   return {
-    kind: String(Reflect.get(value, "reason") ?? fallback),
+    kind: typeof reason === "string" ? reason : fallback,
     path,
     original: null,
     retained: typeof retained === "number" ? retained : null,

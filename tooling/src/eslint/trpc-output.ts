@@ -4,6 +4,7 @@
 
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import ts from "typescript";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 import { excessKeys, undeclaredKeys } from "./type-keys.ts";
@@ -32,22 +33,22 @@ function declaredInContract(checker: ts.TypeChecker, type: ts.Type): boolean {
   });
 }
 
-const isNamed = (property: TSESTree.Node, name: string): boolean => property.type === "Identifier" && property.name === name;
+const isNamed = (property: TSESTree.Node, name: string): boolean => property.type === AST_NODE_TYPES.Identifier && property.name === name;
 
 function isResolver(node: TSESTree.Node): boolean {
   const call = node.parent;
   return (
-    call?.type === "CallExpression" &&
+    call?.type === AST_NODE_TYPES.CallExpression &&
     call.arguments[0] === node &&
-    call.callee.type === "MemberExpression" &&
-    call.callee.property.type === "Identifier" &&
+    call.callee.type === AST_NODE_TYPES.MemberExpression &&
+    call.callee.property.type === AST_NODE_TYPES.Identifier &&
     RESOLVER_METHODS.has(call.callee.property.name)
   );
 }
 
 function enclosingFunction(node: TSESTree.Node): TSESTree.Node | null {
   for (let at = node.parent; at !== undefined; at = at.parent) {
-    if (at.type === "ArrowFunctionExpression" || at.type === "FunctionExpression" || at.type === "FunctionDeclaration") {
+    if (at.type === AST_NODE_TYPES.ArrowFunctionExpression || at.type === AST_NODE_TYPES.FunctionExpression || at.type === AST_NODE_TYPES.FunctionDeclaration) {
       return at;
     }
   }
@@ -69,7 +70,7 @@ export const trpcOutputKeysRule: OrbRule = {
     // type it must produce is the one the mapped array is headed for.
     const mappedElement = (owner: TSESTree.Node | null): ts.Type | undefined => {
       const call = owner?.parent;
-      if (call?.type !== "CallExpression" || call.arguments[0] !== owner || call.callee.type !== "MemberExpression") {
+      if (call?.type !== AST_NODE_TYPES.CallExpression || call.arguments[0] !== owner || call.callee.type !== AST_NODE_TYPES.MemberExpression) {
         return undefined;
       }
       const flat = isNamed(call.callee.property, "flatMap");
@@ -122,10 +123,10 @@ export const trpcOutputKeysRule: OrbRule = {
         const callee = node.callee;
         if (
           handler !== undefined &&
-          callee.type === "MemberExpression" &&
-          callee.property.type === "Identifier" &&
+          callee.type === AST_NODE_TYPES.MemberExpression &&
+          callee.property.type === AST_NODE_TYPES.Identifier &&
           RESOLVER_METHODS.has(callee.property.name) &&
-          (handler.type === "Identifier" || handler.type === "MemberExpression")
+          (handler.type === AST_NODE_TYPES.Identifier || handler.type === AST_NODE_TYPES.MemberExpression)
         ) {
           judgeHandler(handler);
         }
@@ -136,7 +137,7 @@ export const trpcOutputKeysRule: OrbRule = {
         }
       },
       ArrowFunctionExpression: (node: TSESTree.ArrowFunctionExpression): void => {
-        if (node.body.type !== "BlockStatement") {
+        if (node.body.type !== AST_NODE_TYPES.BlockStatement) {
           judge(node.body, node);
         }
       },
