@@ -176,8 +176,8 @@ function RowMarkers({
           </Text>
         </>
       )}
-      {enabled ? null : <InlineToken>OFF</InlineToken>}
-      {notYours ? <InlineToken>previous host</InlineToken> : null}
+      {enabled ? null : <InlineToken>Off</InlineToken>}
+      {notYours ? <InlineToken>Previous host</InlineToken> : null}
     </Row>
   );
 }

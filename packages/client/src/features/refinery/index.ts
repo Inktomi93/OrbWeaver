@@ -21,8 +21,8 @@ export {} from "./hooks/use-refinery-list-header.tsx";
 export {} from "./hooks/use-refinery-mutations.ts";
 
 export {} from "./hooks/use-refinery-schemas.ts";
-
 export {} from "./hooks/use-refinery-sessions.ts";
+export {} from "./hooks/use-refinery-snapshots.ts";
 export {} from "./lib/builtin-hints.ts";
 export { refinerySection } from "./lib/refinery-section.tsx";
 export {} from "./lib/render-plan.ts";

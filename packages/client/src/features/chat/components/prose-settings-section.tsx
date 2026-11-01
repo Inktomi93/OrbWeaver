@@ -26,12 +26,12 @@ import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
-import type { SectionPatchVars } from "#data";
-import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { ConfirmDialog, QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { CAPPED_FIELD_MAX_ROWS } from "#forms";
 import type { AutosaveSession } from "#forms/editor";
 import { CappedFieldCounter, createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
+import { useUpdateProse } from "../hooks/use-chat-settings-mutations.ts";
 import {
   keepProsePatch,
   PROSE_SETTINGS_SUBCATEGORY,
@@ -44,12 +44,6 @@ import {
 /** The form bag + the patch shape as LOCAL aliases off the model's own return types (D120: an exported
  *  patch/form alias is `no-inline-types` RED — the shape has ONE home, the function that builds it). */
 type ProseForm = ReturnType<typeof projectProseForm>;
-
-const useUpdateProse = createEntityMutation<SectionPatchVars<"prose">, unknown>({
-  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
-  errorToast: "Couldn't save your prose overrides.",
-});
 
 // The validator REFUSES a write it cannot make survive (see `validateProseLengths`): an over-cap override
 // self-heals to absent on the way in, so saving it would delete the host's wording rather than reject it.
@@ -235,9 +229,17 @@ function ProseCardFooter({ footer, length, onUseDefault, onKeepMine }: ProseCard
       <Row gap="field" align="center">
         <Text voice="gloss">{footer.isDefault ? "Using the built-in wording" : "Customized"}</Text>
         {footer.isDefault ? null : (
-          <Button variant="ghost" size="sm" onClick={onUseDefault}>
-            Reset to built-in
-          </Button>
+          <ConfirmDialog
+            confirmLabel="Reset to built-in"
+            description="Your wording for this slot is replaced by the built-in text."
+            onConfirm={onUseDefault}
+            title="Reset to the built-in wording?"
+            trigger={
+              <Button variant="ghost" size="sm">
+                Reset to built-in
+              </Button>
+            }
+          />
         )}
         <CappedFieldCounter counterAt={PROSE_COUNTER_AT} length={length} max={PROSE_MAX_CHARS} />
       </Row>

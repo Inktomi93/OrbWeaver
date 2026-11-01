@@ -13,20 +13,14 @@ import { pickKeys } from "@orb/kit/objects";
 import { Row, Section } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#components";
-import type { SectionPatchVars } from "#data";
-import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
+import { useUpdateMessageDetails } from "../hooks/use-chat-settings-mutations.ts";
 import { APPEARANCE_MESSAGE_DETAILS_KEYS, APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY } from "../lib/appearance-message-details-model.ts";
 import { MESSAGE_ACTIONS_ITEMS } from "../lib/appearance-select-items.ts";
 
 type MessageDetailsForm = Pick<AppearanceSettings, (typeof APPEARANCE_MESSAGE_DETAILS_KEYS)[number]>;
-
-const useUpdateMessageDetails = createEntityMutation<SectionPatchVars<"appearance">, unknown>({
-  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
-  errorToast: "Couldn't save your message-detail settings.",
-});
 
 const MessageDetailsAutosaveForm = createAutosaveEntityForm<MessageDetailsForm>({
   defaultValues: pickKeys(DEFAULT_APPEARANCE_SETTINGS, APPEARANCE_MESSAGE_DETAILS_KEYS),

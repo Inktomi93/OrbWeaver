@@ -6,7 +6,8 @@ import { tv } from "#lib";
 export const swatchVariants = tv({
   base: "block",
   variants: {
-    indeterminate: { true: "orb-indeterminate-hairline", false: "" },
+    // The running hairline is one device pixel tall; the caller sets only the inline length.
+    indeterminate: { true: "orb-indeterminate-hairline block-px", false: "" },
     fill: {
       none: "",
       foreground: "bg-foreground",

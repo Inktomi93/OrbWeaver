@@ -95,7 +95,8 @@ export function ruleCandidates(facts: UiFacts): readonly RuleCandidate[] {
       engine: "eslint",
       polices: "copy cohorts, ellipsis outliers",
       extends: null,
-      hits: cohortOutliers(facts, "copy:placeholder-search", "ellipsis") + cohortOutliers(facts, "copy:placeholder", "ellipsis"),
+      // A placeholder that carries the ellipsis is the convention; only a search placeholder without one is a hit.
+      hits: cohortOutliers(facts, "copy:placeholder-search", "ellipsis", "none"),
     },
     {
       id: "raw length in a stylesheet outside the token layer",

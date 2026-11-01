@@ -82,6 +82,7 @@ export { shellOwnedSlots } from "./shell-slots.ts";
 export { exportedLabels, exportedProductionValues } from "./test-labels.ts";
 export { domLookupRule } from "./ui-dom.ts";
 export { classClassifier } from "./ui-feature-classname.ts";
+export { DESTRUCTIVE_EXEMPT } from "./ui-feature-policy.ts";
 
 const LOCAL_RESTRICTIONS = [
   TEST_FABRICATION_RESTRICTIONS,

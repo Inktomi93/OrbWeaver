@@ -156,6 +156,7 @@ test("native implicit caching explains provider ownership without invented contr
   await expect(concurrency).toBeFocused();
   await expect(concurrency.getByRole("button", { name: "Reset utility calls at once", exact: true })).toBeVisible();
   await concurrency.getByRole("button", { name: "Reset utility calls at once", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Reset", exact: true }).click();
   await expect(concurrency).toBeFocused();
   await expect(concurrency.getByRole("button", { name: "Override utility calls at once", exact: true })).toBeVisible();
   expect(captured.physicalRequests.length).toBeGreaterThan(0);

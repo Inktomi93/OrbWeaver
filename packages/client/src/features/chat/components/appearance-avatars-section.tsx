@@ -13,20 +13,14 @@ import { pickKeys } from "@orb/kit/objects";
 import { Row, Section } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#components";
-import type { SectionPatchVars } from "#data";
-import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
+import { useUpdateAvatars } from "../hooks/use-chat-settings-mutations.ts";
 import { APPEARANCE_AVATARS_KEYS, APPEARANCE_AVATARS_SUBCATEGORY } from "../lib/appearance-avatars-model.ts";
 import { AVATAR_ASPECT_ITEMS, AVATAR_RING_ITEMS, AVATAR_SHAPE_ITEMS, AVATAR_SIZE_ITEMS } from "../lib/appearance-select-items.ts";
 
 type AvatarsForm = Pick<AppearanceSettings, (typeof APPEARANCE_AVATARS_KEYS)[number]>;
-
-const useUpdateAvatars = createEntityMutation<SectionPatchVars<"appearance">, unknown>({
-  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
-  errorToast: "Couldn't save your avatar settings.",
-});
 
 const AvatarsAutosaveForm = createAutosaveEntityForm<AvatarsForm>({
   defaultValues: pickKeys(DEFAULT_APPEARANCE_SETTINGS, APPEARANCE_AVATARS_KEYS),

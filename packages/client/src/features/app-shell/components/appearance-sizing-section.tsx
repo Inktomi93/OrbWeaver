@@ -16,10 +16,10 @@ import { Row, Section } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#components";
-import type { SectionPatchVars } from "#data";
-import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
+import { useUpdateSizing } from "../hooks/use-appearance-mutations.ts";
 import { useIsBelowShellContentFloor } from "../hooks/use-is-mobile-viewport.ts";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN, FONT_SCALE_MAX, FONT_SCALE_MIN, FONT_SCALE_STEP } from "../lib/appearance-bounds.ts";
 import { OS_PREFERENCE_ITEMS } from "../lib/appearance-select-items.ts";
@@ -28,12 +28,6 @@ import { DensityCards } from "./appearance-density-cards.tsx";
 import { ElevationCards } from "./appearance-elevation-cards.tsx";
 
 type SizingForm = Pick<AppearanceSettings, (typeof APPEARANCE_SIZING_KEYS)[number]>;
-
-const useUpdateSizing = createEntityMutation<SectionPatchVars<"appearance">, unknown>({
-  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
-  errorToast: "Couldn't save your sizing settings.",
-});
 
 const SizingAutosaveForm = createAutosaveEntityForm<SizingForm>({
   defaultValues: pickKeys(DEFAULT_APPEARANCE_SETTINGS, APPEARANCE_SIZING_KEYS),

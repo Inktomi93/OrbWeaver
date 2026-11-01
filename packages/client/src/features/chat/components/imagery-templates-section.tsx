@@ -19,20 +19,14 @@ import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import type { SectionPatchVars } from "#data";
-import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, usePromptMacroSuggestions, useSuspenseQuery, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, usePromptMacroSuggestions, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
+import { useUpdateImagery } from "../hooks/use-chat-settings-mutations.ts";
 import { IMAGERY_TEMPLATES_ENTITY_ID, ImageryTemplatesAutosaveForm } from "../hooks/use-imagery-templates-form.ts";
 import type { ImageryTemplatesForm } from "../lib/imagery-templates-model.ts";
 import { projectImageryTemplatesForm, toImageryTemplatesPatch } from "../lib/imagery-templates-model.ts";
 import { IMAGERY_TEMPLATES_SUBCATEGORY } from "../lib/imagery-templates-section-nav.ts";
-
-const useUpdateImagery = createEntityMutation<SectionPatchVars<"imagery">, unknown>({
-  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
-  errorToast: "Couldn't save your image-prompt templates.",
-});
 
 /** The IDENTITY macros an extraction template resolves — the two `ProcessMacroOptions` fields the shaper
  *  actually fills (`domain/chat/verbs/extract-quiet.ts`). Still hand-curated rather than the app-wide builtin

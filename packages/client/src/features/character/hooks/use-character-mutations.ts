@@ -1,3 +1,9 @@
+import type { ThemeBackground } from "@orb/contracts/theme";
+import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
+import type { SectionPatchVars, Trpc } from "#data";
+import { createEntityMutation } from "#data";
+import { characterBulkTagRefusal, characterMutationToast } from "../lib/character-refusal-notice.ts";
+
 // The character CRUD mutations used by the LIST (mirrors use-persona-mutations.ts) — the ONE mutation
 // factory (`createEntityMutation`) instanced per verb. Every character verb emits `charactersChanged` on
 // the user-bus, and `USER_BUS_FILTERS.charactersChanged` path-invalidates the whole `character` router
@@ -5,12 +11,6 @@
 // reconciles the acting device AND another device (a self-`invalidates` would double-refetch). The star
 // chip + archive toggles are NOT separate verbs — they ride `character.update` (a partial patch: send only
 // the changed key). Bulk verbs invalidate the same way. TVars are the tRPC-INFERRED inputs.
-
-import type { ThemeBackground } from "@orb/contracts/theme";
-import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
-import type { Trpc } from "#data";
-import { createEntityMutation } from "#data";
-import { characterBulkTagRefusal, characterMutationToast } from "../lib/character-refusal-notice.ts";
 
 type CharacterDetail = inferOutput<Trpc["character"]["update"]>;
 
@@ -103,4 +103,30 @@ export const useBulkRemoveCharacters = createEntityMutation<inferInput<Trpc["cha
   options: (trpc) => trpc.character.bulkRemove.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't delete the selected characters.",
+});
+
+/** The rewrite generation — returns the revised greeting text (no cache/bus effect; the result is previewed). */
+export const useRewriteGreetingMutation = createEntityMutation<
+  inferInput<Trpc["character"]["rewriteGreeting"]>,
+  inferOutput<Trpc["character"]["rewriteGreeting"]>
+>({
+  options: (trpc) => trpc.character.rewriteGreeting.mutationOptions(),
+  busDriven: true,
+  errorToast: "Couldn't rewrite the greeting.",
+});
+
+/** The new-greeting generation — returns a fresh greeting text (no cache/bus effect; the result is previewed). */
+export const useGenerateGreetingMutation = createEntityMutation<
+  inferInput<Trpc["character"]["generateGreeting"]>,
+  inferOutput<Trpc["character"]["generateGreeting"]>
+>({
+  options: (trpc) => trpc.character.generateGreeting.mutationOptions(),
+  busDriven: true,
+  errorToast: "Couldn't generate the greeting.",
+});
+
+export const useUpdateLibrary = createEntityMutation<SectionPatchVars<"library">, unknown>({
+  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
+  busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
+  errorToast: "Couldn't save your library settings.",
 });

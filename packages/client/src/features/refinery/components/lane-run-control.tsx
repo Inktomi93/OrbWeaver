@@ -121,7 +121,7 @@ export function SessionPreflightWarn({
 
 /** The lane's running ornament — see the header for the reduced-motion contract it carries. */
 function RunningHairline(): ReactElement {
-  return <Swatch indeterminate={true} className="pointer-events-none block-px" data-testid={testId("refineryLaneHairline")} fill="primaryFaint" shape="pill" />;
+  return <Swatch indeterminate={true} className="pointer-events-none" data-testid={testId("refineryLaneHairline")} fill="primaryFaint" shape="pill" />;
 }
 
 export function LaneRunControl({

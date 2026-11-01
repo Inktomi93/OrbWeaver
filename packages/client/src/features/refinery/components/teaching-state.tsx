@@ -154,7 +154,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
                 same decoration to face the way the eye actually travels; above the step it is horizontal
                 again. It is decoration either way (`Icon` with no `label` is `aria-hidden`), so nothing
                 about the announced order changes — that is DOM order, which is the real sequence. */}
-              {index === 0 ? null : <Icon className="rotate-90 @cq-28:rotate-0" icon={ChevronRight} size="sm" />}
+              {index === 0 ? null : <Icon flowTurn={true} icon={ChevronRight} size="sm" />}
               <Stack className="flex-1 block-full" gap="tight">
                 <Row align="center" gap="tight">
                   <Icon icon={step.glyph} size="sm" />

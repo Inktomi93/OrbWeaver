@@ -101,8 +101,12 @@ export function RestartServerControl(): ReactElement {
             RESTART_NOT_READY_COPY
           ) : (
             <>
-              {phase === "requesting" ? <span role="status">{RESTART_COPY.requesting}</span> : null} Active requests stop while the server starts again.
-              Everyone reconnects afterward. An in-app sharing link ends.
+              {phase === "requesting" ? (
+                <Text as="span" role="status">
+                  {RESTART_COPY.requesting}
+                </Text>
+              ) : null}{" "}
+              Active requests stop while the server starts again. Everyone reconnects afterward. An in-app sharing link ends.
             </>
           )
         }

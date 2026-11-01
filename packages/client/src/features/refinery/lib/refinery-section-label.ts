@@ -2,3 +2,6 @@
 // not the LIST band's title, which names what the pane holds. A zero-import leaf, so a spec's node side reads it.
 
 export const REFINERY_SECTION_LABEL = "Refinery";
+
+/** The LIST band's title: it names what the pane holds, where the section label names the screen. */
+export const REFINERY_LIST_TITLE = "Sessions";

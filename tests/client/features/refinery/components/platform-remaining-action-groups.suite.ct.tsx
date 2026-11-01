@@ -130,7 +130,7 @@ for (const regime of REGIMES) {
       await expect(scope).toBeFocused();
       await page.keyboard.press("Enter");
       const dialog = page.getByRole("dialog", { name: "Scope", exact: true });
-      await expect(dialog.getByRole("checkbox", { name: "description", exact: true })).toBeChecked();
+      await expect(dialog.getByRole("checkbox", { name: "Description", exact: true })).toBeChecked();
       await page.keyboard.press("Escape");
       await expect(dialog).toBeHidden();
       await expect(scope).toBeFocused();

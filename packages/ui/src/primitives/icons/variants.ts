@@ -28,6 +28,8 @@ export const iconVariants = tv({
     openTurn: { true: OPEN_TURN, false: "" },
     // A rest-visible marker that steps aside while its ListRow's revealed cluster shows the same fact.
     yieldOnHover: { true: HOVER_YIELD, false: "" },
+    // A chevron between steps that turns to face down when the steps stack, and across once they sit in a row.
+    flowTurn: { true: "rotate-90 @cq-28:rotate-0", false: "" },
   },
-  defaultVariants: { size: "md", weight: "regular", shadow: false, receded: false, pulse: false, openTurn: false, yieldOnHover: false },
+  defaultVariants: { size: "md", weight: "regular", shadow: false, receded: false, pulse: false, openTurn: false, yieldOnHover: false, flowTurn: false },
 });

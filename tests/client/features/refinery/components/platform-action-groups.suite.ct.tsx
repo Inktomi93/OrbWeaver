@@ -79,7 +79,7 @@ for (const regime of REGIMES) {
       await page.keyboard.press("Tab");
       await expect(keep).toBeFocused();
       await page.keyboard.press("Enter");
-      const reopen = page.getByRole("button", { name: "reopen postHistoryInstructions", exact: true });
+      const reopen = page.getByRole("button", { name: "Reopen postHistoryInstructions", exact: true });
       await expect(reopen).toBeVisible();
       expect((await actionGroupGeometry(reopen.locator(".."), [opener, reopen])).inlineOverflow).toBeLessThanOrEqual(1);
       await expect.poll(async () => (await caller.refinery.getSession({ sessionId: session.id })).rewriteDecisions[run.id]).toEqual([null, true]);
