@@ -109,6 +109,15 @@ For example, a three-line sign is enough:
     title: "CYOA teach",
     fires: "Every game turn, only when `features.cyoa` is on — teaches the standing `:::choices` fence.",
   },
+  "rpg.reminder.playerRolledDice": {
+    home: "preset",
+    version: 1,
+    text: "PLAYER ROLL: the player's latest message carries a dice stamp, written [dice: what → total]. That total is the player's roll for this moment. Decide the outcome from it, and neither reroll it nor narrate a different result.",
+    requiredMacros: [],
+    requiredTokens: ["[dice:"],
+    title: "Player roll note",
+    fires: "A game turn that answers the latest player message, only when that message carries a dice stamp.",
+  },
   "rpg.reminder.frame": {
     home: "preset",
     version: 1,

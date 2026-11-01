@@ -638,10 +638,8 @@ export async function loadMaxMessageSeq(db: Db, chatId: ChatId): Promise<number>
   return rows.at(0)?.maxSeq ?? 0;
 }
 
-/** The text of the latest user-role message's selected variant, or `null` (no user line yet). The rpg
- *  `skill_check` re-reads this server-side to feed the player's queued d20 (D58) — the pending
- *  user text the AI GM turn is responding to. `role='user'` scopes it to human sends (never a narrator/assistant
- *  line); newest by `seq`. */
+/** The text of the latest user-role message's selected variant, or `null` (no user line yet). `role='user'`
+ *  scopes it to human sends (never a narrator/assistant line); newest by `seq`. */
 export async function loadPendingUserText(db: Db, chatId: ChatId): Promise<string | null> {
   const rows = await db
     .select({ text: messageVariants.content })

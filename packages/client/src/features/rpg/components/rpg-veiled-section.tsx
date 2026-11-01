@@ -3,20 +3,22 @@
 // this tab already is). All crown-gold so "host-only" reads without a label. LIVE off `rpg.revealHidden`
 // (the P3 read — host-gated server-side, leak-free NOT_FOUND for a member): the `standingLies` inventory
 // (most-recent lie per character/truth across the visible transcript) → claim/truth/origin rows; the
-// TurnRef (`messageId`) anchors where it was told. A member NEVER mounts this (the host gate + PERMISSION-
-// omit: the section is only rendered for `isHost`), so member DOM carries zero veiled content.
+// TurnRef (`messageId`) anchors where it was told. The `messages` log below them lists every hidden span.
+// A member NEVER mounts this (the host gate + PERMISSION-omit: the section is only rendered for `isHost`), so
+// member DOM carries zero veiled content.
 //
 // Its own QueryBoundary: a host game with no hidden content shows NOTHING (the honest empty plane — the
-// ledger returns null on zero lies), and a failed reveal read surfaces the sealed battery
+// ledger returns null on zero messages), and a failed reveal read surfaces the sealed battery
 // (`QueryErrorState` + Retry) contained to this section, never breaking the participants above it.
 //
 // EACH TRUTH SITS BEHIND A RevealGate, so a host on a shared screen or a stream does not spoil it at rest:
 // the truth text is unmounted until the host reveals it and unmounted again on Hide. This is presentation
 // only. The host gate above and the server's host check on `rpg.revealHidden` are the authorization.
 
-import type { RpgStandingLie } from "@orb/contracts/rpg";
-import type { ChatId } from "@orb/kit/ids";
+import type { RpgRevealedSpan, RpgRevealView, RpgStandingLie } from "@orb/contracts/rpg";
+import type { ChatId, MessageId } from "@orb/kit/ids";
 import { Card } from "@orb/ui/card";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Row, Stack } from "@orb/ui/layout";
 import { RevealGate } from "@orb/ui/reveal-gate";
 import { Text } from "@orb/ui/text";
@@ -32,7 +34,57 @@ function truthSubject(character: string, index: number, count: number): string {
   return count > 1 ? `the truth for ${character}, ${index + 1} of ${count}` : `the truth for ${character}`;
 }
 
-/** The reveal read + the crown-gold ledger rows. Suspends on `rpg.revealHidden`; empty ⇒ null. */
+/** One hidden span as a log row. An attr-less or over-cap span has no readable field, so it has nothing to gate. */
+function HiddenLogRow({ span, messageId, subject }: { readonly span: RpgRevealedSpan; readonly messageId: MessageId; readonly subject: string }): ReactElement {
+  const fields = span.fields.filter((field) => field.value !== "");
+  return (
+    <Card tone="warning" variant="outline">
+      <Stack gap="field" data-slot="rpg-veiled-log-row">
+        <Row gap="field" align="baseline" justify="between">
+          <Text as="span" voice="label">
+            {span.revealLabel}
+          </Text>
+          <RpgTurnRef messageId={messageId} />
+        </Row>
+        {fields.length === 0 ? (
+          <Text voice="gloss" data-slot="rpg-veiled-log-unreadable">
+            Nothing readable here. The model still remembers it.
+          </Text>
+        ) : (
+          <RevealGate subject={subject}>
+            <Stack gap="field">
+              {fields.map((field) => (
+                <Text key={field.key} voice="gloss" ink="accolade">
+                  {field.key}: {field.value}
+                </Text>
+              ))}
+            </Stack>
+          </RevealGate>
+        )}
+      </Stack>
+    </Card>
+  );
+}
+
+/** Every hidden span by turn, newest first. The ledger above keeps only standing lies, so an `<ofilter>`, a
+ *  retold lie's earlier telling and an unreadable span live here. Closed at rest because a long game holds many. */
+function HiddenLog({ messages }: { readonly messages: RpgRevealView["messages"] }): ReactElement {
+  const rows = messages.toReversed().flatMap(({ messageId, spans }) => spans.map((span, index) => ({ key: `${messageId}:${index}`, messageId, span })));
+  return (
+    <Collapsible data-slot="rpg-veiled-log">
+      <CollapsibleTrigger>Every hidden line ({rows.length})</CollapsibleTrigger>
+      <CollapsiblePanel>
+        <Stack gap="field">
+          {rows.map(({ key, messageId, span }, index) => (
+            <HiddenLogRow key={key} span={span} messageId={messageId} subject={`hidden line ${index + 1} of ${rows.length}`} />
+          ))}
+        </Stack>
+      </CollapsiblePanel>
+    </Collapsible>
+  );
+}
+
+/** The reveal read + the crown-gold ledger rows and the hidden log. Suspends on `rpg.revealHidden`; empty ⇒ null. */
 function VeiledLedger({ chatId }: { readonly chatId: ChatId }): ReactElement | null {
   const trpc = useTRPC();
   const { data: reveal } = useSuspenseQuery(trpc.rpg.revealHidden.queryOptions({ chatId }));
@@ -41,7 +93,7 @@ function VeiledLedger({ chatId }: { readonly chatId: ChatId }): ReactElement | n
   const lies: { readonly lie: RpgStandingLie; readonly subject: string }[] = reveal.standingLies.flatMap((group) =>
     group.lies.map((lie, index) => ({ lie, subject: truthSubject(lie.character, index, group.lies.length) })),
   );
-  if (lies.length === 0) {
+  if (reveal.messages.length === 0) {
     return null;
   }
   return (
@@ -70,6 +122,7 @@ function VeiledLedger({ chatId }: { readonly chatId: ChatId }): ReactElement | n
           </Stack>
         </Card>
       ))}
+      <HiddenLog messages={reveal.messages} />
     </Stack>
   );
 }

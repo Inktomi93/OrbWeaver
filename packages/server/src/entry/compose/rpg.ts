@@ -111,6 +111,7 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     // host verdict, exactly as chat/automation do. Wired here, never imported by the domain (§2 flow).
     can,
     getMembership: deps.rpgChatOps.getMembership,
+    getPendingUserText: deps.rpgChatOps.getPendingUserText,
     // #1528 — the DATA-PROJECTION verdict the member-facing reads belt on (hidden-span posture + the D16
     // floor), off chat's ONE cross-domain op. Distinct from `getMembership`, which answers the ENFORCEMENT
     // question `guard.ts` gates with.

@@ -26,6 +26,7 @@ import type { ChatInjection, GatherTurnContextArgs } from "@orb/contracts/chat";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import { actorRefKey } from "@orb/contracts/rpg";
+import { tokenizeContent } from "@orb/kit/content";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import type { RpgGatherResult } from "../contract/chat-turn.ts";
 import type { RpgContext, RpgGameRow } from "../contract/service.ts";
@@ -60,6 +61,17 @@ async function buildFoldedTurnSafely(
     ctx.onFoldBuildFailed({ chatId: game.chatId, gameId: game.id, err });
     return null;
   }
+}
+
+/** Does the player message this turn answers carry a dice stamp? A swipe or a drained send has no pending text, so
+ *  it reads the stored message. A turn that does not answer that message is never told, so a stale die cannot
+ *  steer a later round. A stamp is authored text, not proof of a server roll; the flag only says one is there. */
+async function playerRolledDice(ctx: RpgContext, args: GatherTurnContextArgs): Promise<boolean> {
+  if (!args.respondsToLatestUserTurn) {
+    return false;
+  }
+  const userText = args.pendingUserText ?? (await ctx.getPendingUserText(args.chatId));
+  return userText !== null && tokenizeContent(userText).some((span) => span.kind === "dice");
 }
 
 /**
@@ -172,6 +184,7 @@ export async function gatherTurnContext(ctx: RpgContext, args: GatherTurnContext
     // P3 hidden-channel teaching gates (§3.3) — composed into the reminder only when the knob is on.
     deception: game.config.features.deception,
     omniscience: game.config.features.omniscience,
+    playerRolledDice: await playerRolledDice(ctx, args),
     dateMode: game.config.dateMode, // #9 — narrated drops the day counter from the ambient line
     // PROSE-1 — the preset's model-facing prose overrides, so the reminder's teaches/headings resolve any host
     // edit (absent ⇒ shipped defaults, byte-identical to pre-PROSE-1).

@@ -102,9 +102,8 @@ export function createRpgChatOps(input: RpgAssemblyContext): RpgChatOps {
     // DISENGAGED game (#40) yields `[]`: the turn resolves preset macros only, byte-identical to no game.
     resolveUserMacros: async (chatId) => (await findEngagedGame(chatId))?.config.userMacros ?? [],
     // GATHER (§4.7): the depth-0 reminder injection + the resolved-mode tool set (cheap-with-tools) or none
-    // (readonly). `args.pendingUserText`/`args.respondsToLatestUserTurn` are full's dice-feed inputs — lite
-    // has no checks, so the gather ignores them (never threaded through to the impl below). `args.steerIdentity`
-    // is chat's authoritative `{{user}}`/`{{char}}` binding, threaded so the reminder renders the host
+    // (readonly). `args.pendingUserText`/`args.respondsToLatestUserTurn` tell the reminder the player rolled.
+    // `args.steerIdentity` is chat's authoritative `{{user}}`/`{{char}}` binding, threaded so the reminder renders the host
     // steeringNote's identity macros (rpg splices, never re-derives). `args.regenSlotMessageId` is chat's
     // swipe/reroll target — the turn's state reads resolve as of BEFORE that slot so a reroll is never told the
     // abandoned variant's beats (VER-1b). `args.prose` is the turn PRESET's `promptConfig.prose` — the

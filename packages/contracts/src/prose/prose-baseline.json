@@ -388,6 +388,10 @@
       "version": 1,
       "sha256": "9bc9f8e67e7513468c8b597f056a24eced9f0452910fcc64d23950e326c0bb27"
     },
+    "rpg.reminder.playerRolledDice": {
+      "version": 1,
+      "sha256": "6e059c81931a24e5bfdbd630270129595c32769333252551bac323dcaa08b60f"
+    },
     "rpg.reminder.frame": {
       "version": 1,
       "sha256": "3d153e4240242f2e5c99a1a0e0f45f4b152c5ba4af64256bc9335775d453aafe"
