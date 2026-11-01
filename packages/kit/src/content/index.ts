@@ -1198,16 +1198,20 @@ export type HiddenContentSpan = Extract<ContentSpan, { kind: "hidden" }>;
  * Also deliberately NOT `committed`: an EOF-closed fence would swallow an unterminated tail; strict-close
  * keeps that tail scannable. Fail-closed beats consistent at a trust boundary.
  */
-function tokenizeForHiddenScan(content: string, brokenHidden: Exclude<BrokenHiddenPosture, "literal"> = "body"): ContentSpan[] {
+function tokenizeForHiddenScan(
+  content: string,
+  brokenHidden: Exclude<BrokenHiddenPosture, "literal"> = "body",
+  codeFences: boolean = brokenHidden !== "prefix",
+): ContentSpan[] {
   return tokenizeWithEnv({
     content,
     lines: splitLines(content),
     lenient: false,
     committed: false,
     directiveFences: false,
-    hiddenRuns: hiddenTagRuns(content, brokenHidden),
+    hiddenRuns: codeFences ? hiddenTagRuns(content, brokenHidden) : [],
     brokenHidden,
-    codeFences: brokenHidden !== "prefix",
+    codeFences,
   });
 }
 
@@ -1223,19 +1227,109 @@ export function stripHiddenSpans(content: string): { readonly content: string; r
   return { content: projected.content, hadHidden: projected.hadHidden };
 }
 
-function hiddenRunsOf(spans: readonly ContentSpan[]): readonly HiddenRun[] {
+/** How many passes the strip gives a body. SECURITY: removing a tag joins the bytes around it, and those bytes can spell a
+ *  new tag, so one pass is not final. Repeating until clean is quadratic on a deep nest, so the passes are capped and a
+ *  nest past the cap conceals the rest of the body. It never releases it. */
+const MAX_HIDDEN_PASSES = 8;
+
+interface LocatedHiddenSpan extends HiddenRun {
+  readonly span: HiddenContentSpan;
+}
+
+/** A pass's text, and for each of its characters that character's index in the original body. */
+interface SurvivingText {
+  readonly text: string;
+  readonly origin: readonly number[];
+}
+
+function originOf(text: string): readonly number[] {
+  return Array.from({ length: text.length }, (_, index) => index);
+}
+
+function locateHiddenSpans(spans: readonly ContentSpan[]): LocatedHiddenSpan[] {
   let cursor = 0;
   return spans.flatMap((span) => {
     const start = cursor;
     cursor += contentSpanRaw(span).length;
-    return span.kind === "hidden" ? [{ start, end: cursor }] : [];
+    return span.kind === "hidden" ? [{ start, end: cursor, span }] : [];
   });
+}
+
+function dropRuns({ text, origin }: SurvivingText, runs: readonly HiddenRun[]): SurvivingText {
+  const kept: string[] = [];
+  const keptOrigin: number[] = [];
+  let cursor = 0;
+  for (const { start, end } of [...runs, { start: text.length, end: text.length }]) {
+    kept.push(text.slice(cursor, start));
+    for (let at = cursor; at < start; at += 1) {
+      keptOrigin.push(origin[at] ?? 0);
+    }
+    cursor = end;
+  }
+  return { text: kept.join(""), origin: keptOrigin };
+}
+
+/** Does a removal fall inside this span or right after it? Only then can it be new: anything else was there for the first
+ *  pass, which read it with the fence state the ratified code-fence exclusion rests on. Right after counts, because
+ *  removing a tag that ends the body leaves the open in front of it unclosed. */
+function touchesRemoval({ start, end }: HiddenRun, origin: readonly number[], joinableEnd: number): boolean {
+  return (origin[end] ?? joinableEnd) - (origin[start] ?? 0) !== end - start;
+}
+
+/** Where the joinable bytes stop once `layer` goes: a span concealed to the end leaves nothing behind it to rejoin, so
+ *  the prose in front of it ends the body, and a tag removed from the end does not. */
+function joinableEndAfter(layer: readonly LocatedHiddenSpan[], { text, origin }: SurvivingText, current: number): number {
+  const last = layer.at(-1);
+  return last !== undefined && last.end === text.length && scanSelfClosingTag(last.span.raw, 0).kind !== "tag" ? (origin[last.start] ?? current) : current;
+}
+
+/** Every span the strip removes, in original positions: THE ONE ANSWER the strip, the reveal, the ranges and the position
+ *  projection all read. Later passes are blind to fences because a removal can write a fence line, which would hide the
+ *  very tag it rejoined; {@link touchesRemoval} keeps that blindness off every tag the first pass left literal. */
+function hiddenSpansToFixpoint(content: string, codeFences = true): readonly LocatedHiddenSpan[] {
+  const first = locateHiddenSpans(tokenizeForHiddenScan(content, "body", codeFences));
+  if (first.length === 0) {
+    return first;
+  }
+  const found = [...first];
+  let body: SurvivingText = { text: content, origin: originOf(content) };
+  let layer = first;
+  let joinableEnd = content.length;
+  for (let pass = 1; ; pass += 1) {
+    joinableEnd = joinableEndAfter(layer, body, joinableEnd);
+    body = dropRuns(body, layer);
+    const { text, origin } = body;
+    const stop = joinableEnd;
+    layer = locateHiddenSpans(tokenizeForHiddenScan(text, "body", false)).filter((span) => touchesRemoval(span, origin, stop));
+    const next = layer[0];
+    if (next === undefined) {
+      return found;
+    }
+    if (pass === MAX_HIDDEN_PASSES) {
+      const span: HiddenContentSpan = { kind: "hidden", tag: next.span.tag, attrs: {}, raw: text.slice(next.start) };
+      return [...found, { start: origin[next.start] ?? 0, end: content.length, span }];
+    }
+    found.push(...layer.map(({ start, end, span }) => ({ start: origin[start] ?? 0, end: (origin[end - 1] ?? 0) + 1, span })));
+  }
+}
+
+function mergedRuns(spans: readonly HiddenRun[]): readonly HiddenRun[] {
+  const merged: HiddenRun[] = [];
+  for (const { start, end } of spans.toSorted((left, right) => left.start - right.start)) {
+    const last = merged.at(-1);
+    if (last !== undefined && start <= last.end) {
+      merged[merged.length - 1] = { start: last.start, end: Math.max(last.end, end) };
+    } else {
+      merged.push({ start, end });
+    }
+  }
+  return merged;
 }
 
 /** The byte ranges {@link stripHiddenSpans} removes from `content`, ascending and disjoint. SECURITY: text spliced into one
  *  of these can break the tag into prose and hand its bytes to a member, so a writer places text outside them. */
 export function hiddenSpanRanges(content: string): readonly HiddenRun[] {
-  return hiddenRunsOf(tokenizeForHiddenScan(content));
+  return mergedRuns(hiddenSpansToFixpoint(content));
 }
 
 /** Project positions with the whole-body strip: positions inside a removed span collapse to its visible start. */
@@ -1243,34 +1337,31 @@ export function projectHiddenSpans(
   content: string,
   offsets: readonly number[],
 ): { readonly content: string; readonly hadHidden: boolean; readonly offsets: readonly number[] } {
-  const spans = tokenizeForHiddenScan(content);
-  if (!spans.some((s) => s.kind === "hidden")) {
+  const removed = hiddenSpanRanges(content);
+  if (removed.length === 0) {
     return { content, hadHidden: false, offsets };
   }
-  const removed = hiddenRunsOf(spans);
   return {
-    content: spans
-      .filter((s) => s.kind !== "hidden")
-      .map(contentSpanRaw)
-      .join(""),
+    content: dropRuns({ text: content, origin: [] }, removed).text,
     hadHidden: true,
     offsets: offsets.map((offset) => offset - removed.reduce((count, span) => count + Math.max(0, Math.min(offset, span.end) - span.start), 0)),
   };
 }
 
 /** Did the strip lose the rest of this body to a hidden tag that broke the grammar, as opposed to one the input cut
- *  short? A loose open conceals to the end of the body, so it can only be the last span. */
+ *  short? */
 export function concealsBrokenHiddenTag(content: string): boolean {
-  const last = scanHiddenSpans(content).at(-1);
-  return last !== undefined && scanSelfClosingTag(last.raw, 0).kind === "loose";
+  return scanHiddenSpans(content).some((span) => scanSelfClosingTag(span.raw, 0).kind === "loose");
 }
 
 /** The STRIP'S TWIN (§3.6): every hidden-class span in a body, in document order — what the host-reveal eye
- *  shows and what {@link stripHiddenSpans} removes, from the ONE pass above. A reveal built on the plain
+ *  shows and what {@link stripHiddenSpans} removes, from the ONE fixpoint above. A reveal built on the plain
  *  `tokenizeContent` grammar would miss exactly the spans a fence hides, which is how the host lost in-card
  *  lies from their own standing inventory while members received them. */
 export function scanHiddenSpans(content: string): readonly HiddenContentSpan[] {
-  return tokenizeForHiddenScan(content).filter((s): s is HiddenContentSpan => s.kind === "hidden");
+  return hiddenSpansToFixpoint(content)
+    .toSorted((left, right) => left.start - right.start)
+    .map(({ span }) => span);
 }
 
 // ── The MID-STREAM member scrubber (§3.6 — the delta leak the at-commit strip can't reach) ────────────────
@@ -1283,7 +1374,7 @@ export function scanHiddenSpans(content: string): readonly HiddenContentSpan[] {
 // and DROP any hidden tag that completes. FAIL-CLOSED by construction: an unclosed potential-open is withheld
 // (mid-stream "unclosed" means "the close hasn't arrived yet"). A registered name that turns out to be prose is
 // released: the hold asks {@link scanSelfClosingTag} the same question the commit strip asks, so the two agree.
-// Allocation-sane: the held buffer is bounded by ONE tag's in-progress length, and a run that outgrows the
+// Allocation-sane: the held buffer is bounded by the hidden-tag scan and the fragment chain, and a run that outgrows the
 // hidden-tag scan bound stops being buffered at all (it is CONCEALED — see below), never the whole ghost.
 
 // THE OVER-CAP RUN (#1352 — this replaces a force-RELEASE). A hold-back run that outgrows `MAX_HIDDEN_TAG_SCAN`
@@ -1296,14 +1387,43 @@ export function scanHiddenSpans(content: string): readonly HiddenContentSpan[] {
 // BLOCKED, it just stops carrying the concealed run, and the member's authoritative view is the at-commit
 // strip either way (which now conceals the same run — one rule, both planes).
 
+const LONGEST_HIDDEN_NAME = Math.max(...HIDDEN_TAGS.map((def) => def.tag.length));
+// Bounds the fragments one hold reaches back through, because every later delta re-walks them.
+const MAX_FRAGMENT_CHAIN = 256;
+
 /** Does the buffer end inside what may yet be a hidden-tag NAME (`<`, `<l`, `<ofil`)? This covers only the bytes the
  *  tag scan cannot judge, because no complete name exists yet. Past the name, `scanSelfClosingTag` decides. */
 function endsInsideHiddenName(text: string, lt: number): boolean {
+  if (text.length - lt - 1 > LONGEST_HIDDEN_NAME) {
+    return false;
+  }
   const name = text.slice(lt + 1).toLowerCase();
   return HIDDEN_TAGS.some((d) => d.tag.startsWith(name));
 }
 
-/** Split accumulated text into `{ safe, held }`: `held` is the trailing run from the LEFTMOST `<` that begins a
+/** Where a hold must start for an open forming at `lt`, and how many fragments it reaches back through. SECURITY: bytes
+ *  ahead of the open may be the start of a tag that the open's removal will rejoin, and bytes once released cannot rejoin
+ *  anything, so a member would read the far side of the tag. Past {@link MAX_FRAGMENT_CHAIN} the turn conceals. `floor` is
+ *  the end of the last complete tag: a `<` before it may sit inside that tag's quoted value, and a cut there splits the tag. */
+function fragmentChain(text: string, lt: number, floor: number): { readonly from: number; readonly depth: number } {
+  let from = lt;
+  let depth = 0;
+  while (from > 0 && depth <= MAX_FRAGMENT_CHAIN) {
+    const previous = text.lastIndexOf("<", from - 1);
+    if (previous < floor || !mayGrowIntoHiddenTag(text.slice(previous, from))) {
+      break;
+    }
+    from = previous;
+    depth += 1;
+  }
+  return { from, depth };
+}
+
+function mayGrowIntoHiddenTag(fragment: string): boolean {
+  return scanSelfClosingTag(fragment, 0).kind === "truncated" || endsInsideHiddenName(fragment, 0);
+}
+
+/** Split accumulated text at `safe`; what follows it is held: the trailing run from the LEFTMOST `<` that begins a
  *  hidden-tag open which has NOT yet completed (quote-aware, via `scanSelfClosingTag` — so a `<` or a `/>` inside
  *  a quoted attr value never mis-splits the tag). Everything before that `<` is `safe`. When no in-progress
  *  hidden open exists, the whole buffer is safe. FAIL-CLOSED: once a hidden open may have begun, the ENTIRE run
@@ -1313,41 +1433,71 @@ function endsInsideHiddenName(text: string, lt: number): boolean {
  *  it further only re-walks a growing buffer — the scrubber stops emitting for the rest of the turn.
  *
  *  (The `StreamCut` type below carries that second verdict; the walk itself is `cutAtIncompleteOpen`.) */
-type StreamCut = { readonly kind: "cut"; readonly safe: string; readonly held: string } | { readonly kind: "conceal"; readonly safe: string };
+interface StreamCut {
+  readonly kind: "cut" | "conceal";
+  readonly safe: string;
+}
 
 /** The split itself — the walk whose two verdicts {@link StreamCut} names (documented in full above it). */
 function cutAtIncompleteOpen(text: string): StreamCut {
   let lt = text.indexOf("<");
+  let floor = 0;
   while (lt !== -1) {
     // A COMPLETE self-closing tag (hidden OR not) is consumed WHOLE: skip PAST its `/>` so an inner `<` in its
-    // attr value is never mistaken for a new open (the D106 mid-stream leak). `stripHiddenSpans` on the released
+    // attr value is never mistaken for a new open (the D106 mid-stream leak). `settleDelta` on the released
     // `safe` prefix drops it if it was hidden; a non-hidden complete tag stays literal — both handled downstream.
     const outcome = scanSelfClosingTag(text, lt);
     if (outcome.kind === "tag") {
-      lt = text.indexOf("<", outcome.scan.end);
+      floor = outcome.scan.end;
+      lt = text.indexOf("<", floor);
       continue;
     }
     // Not a complete tag. A hidden open whose close hasn't arrived, or a name still arriving, HOLDS the whole run
     // from here (fail-closed).
     if (outcome.kind === "truncated" || endsInsideHiddenName(text, lt)) {
-      return { kind: "cut", safe: text.slice(0, lt), held: text.slice(lt) };
+      const { from, depth } = fragmentChain(text, lt, floor);
+      return { kind: depth > MAX_FRAGMENT_CHAIN ? "conceal" : "cut", safe: text.slice(0, from) };
     }
     // A REGISTERED hidden open the commit strip conceals to the end: the stream conceals it the same way.
     if (concealsRest(outcome, "prefix")) {
-      return { kind: "conceal", safe: text.slice(0, lt) };
+      return { kind: "conceal", safe: text.slice(0, fragmentChain(text, lt, floor).from) };
     }
     // A `malformed` verdict is prose on both planes, so it passes.
     lt = text.indexOf("<", lt + 1);
   }
-  return { kind: "cut", safe: text, held: "" };
+  return { kind: "cut", safe: text };
 }
 
-/** The member's bytes of a released stream prefix: the commit strip, minus its reading that the prefix ends the input. */
-function stripStreamPrefix(text: string): string {
-  return tokenizeForHiddenScan(text, "prefix")
-    .filter((span) => span.kind !== "hidden")
-    .map(contentSpanRaw)
-    .join("");
+/** The commit strip, blind to fences as every stream read is: {@link ScanEnv} says why. */
+function stripStreamBody(text: string): string {
+  return dropRuns({ text, origin: [] }, mergedRuns(hiddenSpansToFixpoint(text, false))).text;
+}
+
+/** One delta's verdict: what a member may read now, what waits for more bytes, and whether the rest of the turn conceals.
+ *  A removal joins the bytes around it, so what it leaves is cut again before any of it is emitted. The hold keeps the RAW
+ *  bytes, removed tags included, so a later delta and the flush read the seams the commit strip reads. The prefix strip is
+ *  the commit strip minus its reading that the prefix ends the input. An open that only a removal exposed holds rather
+ *  than ends the turn: the bytes that would complete it may still be arriving behind a tag the same pass removes. */
+function settleDelta(buffer: string): { readonly emit: string; readonly held: string; readonly concealing: boolean } {
+  let rest: SurvivingText = { text: buffer, origin: originOf(buffer) };
+  // One pass past the cap, which only confirms: the commit strip's cap counts removals.
+  for (let pass = 0; pass <= MAX_HIDDEN_PASSES; pass += 1) {
+    const cut = cutAtIncompleteOpen(rest.text);
+    // `safe` may contain COMPLETE hidden tags (a `<lie …/>` that finished this tick).
+    const terminal = cut.kind === "conceal" && pass === 0;
+    const removed = !terminal && cut.safe.length > 0 ? locateHiddenSpans(tokenizeForHiddenScan(cut.safe, "prefix")) : [];
+    if (terminal) {
+      return { emit: stripStreamBody(buffer), held: "", concealing: true };
+    }
+    if (removed.length === 0) {
+      const held = buffer.slice(rest.origin[cut.safe.length] ?? buffer.length);
+      // Every later delta re-walks the hold, so the removed tags it keeps cost as much as the bytes it is waiting on.
+      const overflow = held.length > MAX_HIDDEN_TAG_SCAN || held.length - (rest.text.length - cut.safe.length) > MAX_TAG_SCAN;
+      return { emit: cut.safe, held: overflow ? "" : held, concealing: overflow };
+    }
+    rest = dropRuns(rest, removed);
+  }
+  return { emit: stripStreamBody(buffer), held: "", concealing: true };
 }
 
 /** A stateful per-subscriber scrubber over ONE turn's text-delta stream (§3.6). Feed each delta's text; get
@@ -1374,16 +1524,15 @@ export function createHiddenSpanStreamScrubber(): HiddenSpanStreamScrubber {
       if (concealing) {
         return "";
       }
-      const cut = cutAtIncompleteOpen(held + text);
-      held = cut.kind === "cut" ? cut.held : "";
-      concealing = cut.kind === "conceal";
-      // `safe` may contain COMPLETE hidden tags (a `<lie …/>` that finished this tick) — strip them.
-      return cut.safe.length > 0 ? stripStreamPrefix(cut.safe) : "";
+      const settled = settleDelta(held + text);
+      held = settled.held;
+      concealing = settled.concealing;
+      return settled.emit;
     },
     flush(): string {
       const tail = held;
       held = "";
-      return stripHiddenSpans(tail).content;
+      return stripStreamBody(tail);
     },
   };
 }
