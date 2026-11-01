@@ -68,10 +68,11 @@ export const useReplaceCredential = createEntityMutation<inferInput<Trpc["creden
   errorToast: "Couldn't replace that key — check the value and try again.",
 });
 
-/** The add dialog's key mint. No toast: the dialog states the failure inline, and this mint has no other caller. */
+/** The add dialog's key mint. The dialog states the failure inline and claims it with `failureShownInline`; a mint that fails after the dialog closed toasts. */
 export const useAddCredentialOwned = createEntityMutation<inferInput<Trpc["credentials"]["add"]>, CredentialView>({
   options: addCredentialOptions,
   invalidates: (trpc) => [trpc.credentials.list.pathFilter()],
+  errorToast: "Couldn't save that key.",
 });
 
 /** The USER-FACING revoke (invariant #6) — the user pre-empts the next turn's 401 when they know a key was

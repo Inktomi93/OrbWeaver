@@ -23,9 +23,9 @@ The observable bar a verifier can check.
 
 ## Evidence
 
-The rule (`docs/law/client-architecture-state-and-gates.md` §10, item 5 "Toasts"): the factory `errorToast` is always the fallback. A mounted consumer that renders the failure in its own text claims it with `failureShownInline`, and the toast stands down only while that claim is live. A failure that lands after the consumer has unmounted toasts. A persistent mark that reads `error` carries state only.
+The rule (`docs/law/client-architecture-state-and-gates.md` §10, item 5 "Toasts"): the factory `errorToast` is always the fallback. A consumer that renders a failure in its own text claims it with `failureShownInline`, and the toast stands down only if the failing mutation is the observer's newest, the observer was not reset since, and the claim holds. Every other failure toasts. A failure shown twice is cosmetic; a failure shown nowhere is a defect.
 
-The mechanism: `createEntityMutation` ties the claim to the consumer's mounted lifetime (`packages/client/src/data/create-entity-mutation.ts`). The flag takes `true` or a predicate over the error, and the global handler asks the claim at failure time (`packages/client/src/data/query-client.ts`). A per-call `onSuccess` or `onError` would not fire after unmount, which is why the claim lives on the hook.
+The mechanism: `createEntityMutation` records the newest `mutate` on its observer and clears it on `clearError`, and the global handler in `packages/client/src/data/query-client.ts` asks `failureClaimed(error, mutation)` at failure time. The claim is `true` or a predicate over the error. A hook that outlives its surface passes an open-state predicate: the New-character dialog, the schema editor and the book and document pickers.
 
 Survey before the fixes, from the ui-facts feedback cohort: 318 entity-mutation hooks with 402 consumer sites. Failure surface per consumer: toast only 352, toast and an inline read 24, nothing 16, inline only 10.
 

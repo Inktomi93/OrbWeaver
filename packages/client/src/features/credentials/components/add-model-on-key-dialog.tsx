@@ -76,7 +76,7 @@ function AddModelOnKeyBody({
 }): ReactElement {
   const queryClient = useQueryClient();
   const providerLabel = providerDisplayLabel(provider);
-  const createConnection = useCreateConnection({ trpc, invalidation });
+  const createConnection = useCreateConnection({ trpc, invalidation, failureShownInline: true });
   const checkSignIn = useSignInCheckAfterSave({ trpc, invalidation });
   const catalogKey = trpc.connection.catalogModels.queryKey({ connectionId: connection.id });
 

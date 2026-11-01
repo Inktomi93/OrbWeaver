@@ -53,7 +53,7 @@ export interface AddChatBookDialogProps {
 export function AddChatBookDialog({ chatId, open, onOpenChange, attachedIds }: AddChatBookDialogProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const attach = useAttachBookToChat({ trpc, invalidation, failureShownInline: true });
+  const attach = useAttachBookToChat({ trpc, invalidation, failureShownInline: open });
   const ownedRef = useRef(false);
   const [failure, setFailure] = useState<string | null>(null);
 

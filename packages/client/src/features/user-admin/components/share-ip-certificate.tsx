@@ -174,7 +174,8 @@ function Offer({ initial }: { readonly initial: IpCertificateSetting | null }): 
           size="sm"
           loading={enable.isPending}
           onClick={(): void => {
-            form.handleSubmit().catch(globalThis.reportError);
+            // The save's failure is already said, inline or by the toast; the rethrow carries nothing new.
+            form.handleSubmit().catch(() => undefined);
           }}
         >
           {initial === null ? "Get a certificate" : "Try again"}

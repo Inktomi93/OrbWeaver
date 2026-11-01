@@ -95,7 +95,7 @@ export function AddConnectionFormBody({
   providerOf,
 }: AddConnectionFormBodyProps): ReactElement {
   const deps = { trpc, invalidation };
-  const addCredential = useAddCredentialOwned(deps);
+  const addCredential = useAddCredentialOwned({ ...deps, failureShownInline: true });
   const createConnection = useCreateConnection({ ...deps, failureShownInline: true });
   const checkSignIn = useSignInCheckAfterSave(deps);
   const draftModels = useDraftCatalogModels({ ...deps, failureShownInline: true });

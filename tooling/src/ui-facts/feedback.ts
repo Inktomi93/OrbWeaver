@@ -102,7 +102,7 @@ function isStateMark(node: ts.Node): boolean {
 }
 
 /** A setter says a failure only when its name does: `setOpen(false)` or `setPending(false)` in a catch says nothing about what failed. */
-const FAILURE_SETTER = /^set\w*(?:Error|Failure|Fail|Message|Refusal|Notice|Problem)\w*$/u;
+const FAILURE_SETTER = /^set\w*(?:Error|Failure|Failed|Message|Refusal|Notice|Problem)$/u;
 
 /** The consumer says the failure itself: a call that sets failure state or toasts. */
 function isFailureStatement(node: ts.Node): boolean {
@@ -123,6 +123,20 @@ function mentionsMutation(root: ts.Node, handles: ReadonlySet<string>): boolean 
   return anyNode(root, (node) => ts.isIdentifier(node) && handles.has(node.text));
 }
 
+/** The function fires this mutation: `handle.mutate(...)`, `handle.mutateAsync(...)`, or a destructured `mutate`/`mutateAsync` call. */
+function callsMutation(root: ts.Node, handles: ReadonlySet<string>): boolean {
+  return anyNode(root, (node) => {
+    if (!ts.isCallExpression(node)) {
+      return false;
+    }
+    const callee = node.expression;
+    if (ts.isPropertyAccessExpression(callee)) {
+      return MUTATE_CALLS.has(callee.name.text) && ts.isIdentifier(callee.expression) && handles.has(callee.expression.text);
+    }
+    return ts.isIdentifier(callee) && MUTATE_CALLS.has(callee.text) && handles.has(callee.text);
+  });
+}
+
 function isSubmit(receiver: ts.Expression): boolean {
   return ts.isCallExpression(receiver) && ts.isPropertyAccessExpression(receiver.expression) && receiver.expression.name.text === "handleSubmit";
 }
@@ -135,8 +149,9 @@ function catchSaysFailure(root: ts.Node, handles: ReadonlySet<string>): boolean 
       return ts.isTryStatement(attempt) && mentionsMutation(attempt.tryBlock, handles) && anyNode(node.block, isFailureStatement);
     }
     const isPromiseCatch = ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === "catch";
-    // A form submit rethrows the save's failure, so `form.handleSubmit().catch(...)` is where the mutation's failure lands.
-    const reachesMutation = (receiver: ts.Expression): boolean => mentionsMutation(receiver, handles) || isSubmit(receiver);
+    // A form submit rethrows the save's failure, so `form.handleSubmit().catch(...)` is where the mutation's failure lands,
+    // provided this function calls the mutation at all (a submit whose save is another mutation's says nothing about this one).
+    const reachesMutation = (receiver: ts.Expression): boolean => mentionsMutation(receiver, handles) || (isSubmit(receiver) && callsMutation(root, handles));
     return isPromiseCatch && reachesMutation(node.expression.expression) && node.arguments.some((argument) => anyNode(argument, isFailureStatement));
   });
 }

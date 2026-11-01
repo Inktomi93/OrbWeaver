@@ -295,8 +295,8 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
   const deps = { trpc, invalidation };
   const generate = useGenerateRefinerySchema(deps);
   const refine = useRefineRefinerySchema(deps);
-  const create = useCreateRefinerySchema({ ...deps, failureShownInline: true });
-  const update = useUpdateRefinerySchema({ ...deps, failureShownInline: true });
+  const create = useCreateRefinerySchema({ ...deps, failureShownInline: open });
+  const update = useUpdateRefinerySchema({ ...deps, failureShownInline: open });
 
   const schema = parseDraft(schemaText);
   // The live preview: the SAME plan derivation every run renders through, over an EMPTY payload (the

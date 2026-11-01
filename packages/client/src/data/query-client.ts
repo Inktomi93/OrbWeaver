@@ -5,7 +5,7 @@
 // settled error also passes the stale-session belt (#23b) — a mid-session UNAUTHORIZED re-auths instead of
 // silently rendering the per-user empty.
 
-import type { Query } from "@tanstack/react-query";
+import type { Mutation, Query } from "@tanstack/react-query";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { notify, trpcErrorCode } from "#lib";
 import { recoverIfStaleSession } from "./stale-session.ts";
@@ -17,9 +17,9 @@ interface AppMeta {
    *  which the chat bus surfaces its own honest notice for — see `isSilencedTurnAbort`); a returned string
    *  still toasts. */
   readonly errorToast?: string | ((error: unknown) => string | null);
-  /** A mounted consumer that renders this failure in its own text answers `true`; the toast stands down while the
-   *  claim is live. A consumer that has unmounted answers `false`, so the toast fires and no failure is silent. */
-  readonly failureClaimed?: (error: unknown) => boolean;
+  /** True only while the surface that renders this failure in its own text is showing THIS mutation's error: the
+   *  toast stands down then. Anything else toasts, so no failure is silent. */
+  readonly failureClaimed?: (error: unknown, mutation: Mutation<unknown, unknown, unknown, unknown>) => boolean;
 }
 
 declare module "@tanstack/react-query" {
@@ -37,8 +37,8 @@ function retryUnlessBadRequest(failureCount: number, error: unknown): boolean {
   return trpcErrorCode(error) !== "BAD_REQUEST" && failureCount < QUERY_RETRIES;
 }
 
-function toastFromMeta(meta: AppMeta | undefined, error: unknown): void {
-  if (meta?.errorToast === undefined || meta.failureClaimed?.(error) === true) {
+function toastFromMeta(meta: AppMeta | undefined, error: unknown, mutation?: Mutation<unknown, unknown, unknown, unknown>): void {
+  if (meta?.errorToast === undefined || (mutation !== undefined && meta.failureClaimed?.(error, mutation) === true)) {
     return;
   }
   const message = typeof meta.errorToast === "function" ? meta.errorToast(error) : meta.errorToast;
@@ -76,7 +76,7 @@ export function createAppQueryClient(): QueryClient {
     mutationCache: new MutationCache({
       onError: (error, _variables, _onMutateResult, mutation): void => {
         recoverIfStaleSession(error);
-        toastFromMeta(mutation.meta, error);
+        toastFromMeta(mutation.meta, error, mutation);
       },
     }),
   });

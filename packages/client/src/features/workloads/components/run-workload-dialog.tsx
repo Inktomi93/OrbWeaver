@@ -209,7 +209,8 @@ function RunWorkloadFormBody({
         disabled={start.isPending}
         label={start.isPending ? "Starting…" : RUN_LABEL}
         onSubmit={(): void => {
-          form.handleSubmit().catch(globalThis.reportError);
+          // The save's failure is already said, inline or by the toast; the rethrow carries nothing new.
+          form.handleSubmit().catch(() => undefined);
         }}
         testKey="runWorkloadSubmit"
       />

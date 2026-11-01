@@ -86,7 +86,8 @@ function CreateUserFormBody({ viewerIsOwner, onDone }: { readonly viewerIsOwner:
         disabled={createUser.isPending}
         label={createUser.isPending ? "Creating…" : "Create user"}
         onSubmit={(): void => {
-          form.handleSubmit().catch(globalThis.reportError);
+          // The save's failure is already said, inline or by the toast; the rethrow carries nothing new.
+          form.handleSubmit().catch(() => undefined);
         }}
         testKey="adminCreateUserSubmit"
       />

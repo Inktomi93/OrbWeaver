@@ -1,0 +1,44 @@
+// No failure is silent: a consumer's claim covers only its newest, unreset write.
+import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
+import { createCorpusHarness } from "@orb/testkit/node/composed";
+import type { ClaimedWritesStory } from "./_mutation-failure-claim-stories.tsx";
+
+const STORY = "tests/client/data/_mutation-failure-claim-stories/ClaimedWritesStory";
+const SAVE_FAILED = "Couldn't save the setting.";
+const settle = (): Promise<void> => new Promise<void>((done) => setTimeout(done, 400));
+
+test("a write that fails after a newer write succeeded is still said", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const hold = holdServed();
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings"]),
+    ...serveCorpusProcedures(caller, ["settings.updateAppSettings"], (input) => (input.partial.promptCacheMinDepth === 1 ? hold : undefined)),
+  });
+  await mount<typeof ClaimedWritesStory>(STORY, {});
+
+  await page.getByRole("button", { name: "Write first", exact: true }).click();
+  await hold.requested;
+  await page.getByRole("button", { name: "Write second", exact: true }).click();
+  await page.evaluate(settle);
+  hold.fail();
+  await expect(page.getByRole("region", { name: "Alerts", exact: true }).getByRole("alert", { name: SAVE_FAILED, exact: true })).toHaveCount(1);
+});
+
+test("a write whose error was cleared before it failed is still said", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const hold = holdServed();
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings"]),
+    ...serveCorpusProcedures(caller, ["settings.updateAppSettings"], (input) => (input.partial.promptCacheMinDepth === 1 ? hold : undefined)),
+  });
+  await mount<typeof ClaimedWritesStory>(STORY, {});
+
+  await page.getByRole("button", { name: "Write first", exact: true }).click();
+  await hold.requested;
+  await page.getByRole("button", { name: "Clear error", exact: true }).click();
+  hold.fail();
+  await expect(page.getByRole("region", { name: "Alerts", exact: true }).getByRole("alert", { name: SAVE_FAILED, exact: true })).toHaveCount(1);
+});

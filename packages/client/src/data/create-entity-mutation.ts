@@ -14,6 +14,7 @@
 import type {
   DefaultError,
   InvalidateQueryFilters,
+  Mutation,
   MutationFunctionContext,
   QueryClient,
   QueryKey,
@@ -192,15 +193,16 @@ export type FailureClaim = boolean | ((error: unknown) => boolean);
 
 /** Build the mutation hook once at module scope; features call the returned hook. Deps (trpc +
  *  invalidation) arrive per-call so the factory itself stays import-pure. A consumer that renders the failure in
- *  its own text passes `failureShownInline`: the global `errorToast` stands down only while that consumer is
- *  mounted. A failure that lands after it unmounts (a flushed save, a cancelled dialog) toasts, so none is silent
- *  and none shows twice. */
+ *  its own text passes `failureShownInline`. At failure time the global `errorToast` stands down only if the
+ *  failing mutation is this observer's newest, the observer was not reset since, and the consumer's claim still
+ *  holds (it is mounted, and a predicate can add that its surface is open). Every other failure toasts, so none
+ *  is silent; a failure the surface also shows may say it twice, which is the lesser fault. */
 export function createEntityMutation<TVars, TData, TRead = unknown>(
   config: EntityMutationConfig<TVars, TData, TRead>,
 ): (deps: { trpc: Trpc; invalidation: Invalidation; failureShownInline?: FailureClaim }) => EntityMutationResult<TVars, TData> {
   // biome-ignore lint/correctness/noComponentHookFactories: the D54 §13.1 editor-factory pattern — factories run at MODULE scope (const useDeleteCharacter = createEntityMutation(...)), so the returned hook has a stable identity (see forms/editor/create-saved-entity-form.ts).
   return function useEntityMutation({ trpc, invalidation, failureShownInline = false }): EntityMutationResult<TVars, TData> {
-    // The claim lives exactly as long as the consumer's mount: the cleanup withdraws it, so a late failure toasts.
+    // The claim lives exactly as long as the consumer's mount: the cleanup withdraws it.
     const claim = useRef<FailureClaim>(false);
     useEffect(() => {
       claim.current = failureShownInline;
@@ -208,7 +210,14 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
         claim.current = false;
       };
     }, [failureShownInline]);
-    const failureClaimed = (error: unknown): boolean => (typeof claim.current === "function" ? claim.current(error) : claim.current);
+    // The newest mutate on this observer, or null once it was reset: only that mutation's failure can be on the surface.
+    const newest = useRef<{ readonly variables: TVars | undefined } | null>(null);
+    const failureClaimed = (error: unknown, failing: Mutation<unknown, unknown, unknown, unknown>): boolean => {
+      if (newest.current === null || newest.current.variables !== failing.state.variables) {
+        return false;
+      }
+      return typeof claim.current === "function" ? claim.current(error) : claim.current;
+    };
 
     async function echoResponse(data: TData, vars: TVars, client: QueryClient): Promise<void> {
       const echo = config.echo;
@@ -298,16 +307,26 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
       },
     });
 
+    const mutate: UseMutateFunction<TData, DefaultError, TVars> = (...args): void => {
+      newest.current = { variables: args[0] };
+      mutation.mutate(...args);
+    };
     return {
-      mutate: mutation.mutate,
-      mutateAsync: mutation.mutateAsync,
+      mutate,
+      mutateAsync: (variables): Promise<TData> => {
+        newest.current = { variables };
+        return mutation.mutateAsync(variables);
+      },
       isPending: mutation.isPending,
       pendingVariables: mutation.isPending ? mutation.variables : undefined,
       error: mutation.error,
-      clearError: mutation.reset,
+      clearError: (): void => {
+        newest.current = null;
+        mutation.reset();
+      },
       retry: (): void => {
         if (mutation.isError && mutation.variables !== undefined) {
-          mutation.mutate(mutation.variables);
+          mutate(mutation.variables);
         }
       },
     };

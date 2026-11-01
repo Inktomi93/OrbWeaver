@@ -160,7 +160,8 @@ function ScheduleFormBody({
         disabled={isPending}
         label={submitLabel}
         onSubmit={(): void => {
-          form.handleSubmit().catch(globalThis.reportError);
+          // The save's failure is already said, inline or by the toast; the rethrow carries nothing new.
+          form.handleSubmit().catch(() => undefined);
         }}
         testKey={isEdit ? "editScheduleSubmit" : "createScheduleSubmit"}
       />

@@ -217,9 +217,10 @@ test("a toast that only takes null as an argument still toasts, a setter that is
       "export const useNullArg = createEntityMutation<A, B>({ errorToast: (e) => describe(e, null), busDriven: true });",
       "export const useCloser = createEntityMutation<A, B>({ busDriven: true });",
       "export const useForm = createEntityMutation<A, B>({ busDriven: true });",
+      "export const useOther = createEntityMutation<A, B>({ busDriven: true });",
     ].join("\n"),
     "components/more.tsx": [
-      'import { useCloser, useForm, useNullArg } from "../hooks/use-more.ts";',
+      'import { useCloser, useForm, useNullArg, useOther } from "../hooks/use-more.ts";',
       "export const NullArg = (d) => {",
       "  const save = useNullArg(d);",
       "  return save.error === null ? null : <p>x</p>;",
@@ -230,8 +231,14 @@ test("a toast that only takes null as an argument still toasts, a setter that is
       "  const run = async () => { try { await save.mutateAsync({}); } catch { setOpen(false); } };",
       "  return null;",
       "};",
+      "export const Unrelated = (d) => {",
+      "  const save = useOther(d);",
+      '  form.handleSubmit().catch(() => notify.error("no"));',
+      "  return null;",
+      "};",
       "export const Form = (d) => {",
       "  const save = useForm(d);",
+      "  const run = () => save.mutate({});",
       '  form.handleSubmit().catch(() => notify.error("no"));',
       "  return null;",
       "};",
@@ -241,6 +248,7 @@ test("a toast that only takes null as an argument still toasts, a setter that is
   expect(feedback.map((member) => [member.label, member.cells["failure"]?.value])).toEqual([
     ["useNullArg", "toast+inline"],
     ["useCloser", "none"],
+    ["useOther", "none"],
     ["useForm", "inline"],
   ]);
 });
