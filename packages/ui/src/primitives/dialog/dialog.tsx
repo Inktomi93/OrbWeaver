@@ -62,13 +62,10 @@ export function DialogTitle(props: DialogTitleProps): ReactElement {
   return <BaseDialog.Title className={dialogVariants({ clearsClose, focusTarget }).title({ className })} {...rest} />;
 }
 
-export interface DialogDescriptionProps extends Omit<BaseDescriptionProps, "className"> {
-  className?: string;
-}
+export type DialogDescriptionProps = Omit<BaseDescriptionProps, "className">;
 
 export function DialogDescription(props: DialogDescriptionProps): ReactElement {
-  const { className, ...rest } = props;
-  return <BaseDialog.Description className={slots.description({ className })} {...rest} />;
+  return <BaseDialog.Description className={slots.description()} {...props} />;
 }
 
 export function DialogClose(props: BaseCloseProps): ReactElement {

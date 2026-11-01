@@ -6,6 +6,7 @@ import type { VariantProps } from "tailwind-variants";
 import { cn, variantAttrs } from "#lib";
 import { useFieldIdentity } from "#primitives/field";
 import { Icon, Lock, Minus, MoveHorizontal, Plus } from "#primitives/icons";
+import { stripComposedGroups, stripPastedGroups, stripTypedGroups } from "./group-text.ts";
 import { numberFieldVariants } from "./variants.ts";
 
 // THE STEPPERS NAME THEIR SUBJECT (side-eye F-20, 2026-08-03). A bare "Decrease"/"Increase" is fine for
@@ -24,6 +25,11 @@ function stepperLabel(verb: string, subject: string | undefined): string {
 
 const SCRUB_CURSOR_ICON: ReactElement = <Icon icon={MoveHorizontal} size="xs" />;
 
+// An editable number is the digits a person types: Base UI groups by default, which turns a port into "8,443". A
+// caller that wants grouping opts in through `format`, which is merged over this. Grouped text typed or pasted still
+// parses whole: `group-text.ts` removes the locale's separator that an ungrouped format no longer tells Base UI about.
+const EDITABLE_FORMAT: Intl.NumberFormatOptions = { useGrouping: false };
+
 /**
  * The ONE home for the bounds sentence — no call site spells it, so none can drift from it.
  *
@@ -32,8 +38,8 @@ const SCRUB_CURSOR_ICON: ReactElement = <Icon icon={MoveHorizontal} size="xs" />
  * range. The bounds reach assistive tech as an accessible DESCRIPTION instead (owner ruling 2026-08-02) —
  * never by stamping a spinbutton role back on.
  *
- * Bounds are formatted with the field's own `locale`/`format` because Base UI formats the input's VISIBLE
- * value the same way: an unformatted "1024" description under a "1,024" input reads as a different number.
+ * Bounds are formatted with the field's own `locale` and its resolved `format`, the one Base UI formats the input's VISIBLE
+ * value with, so the description reads the same digits as the input.
  */
 function boundsDescription(
   min: number | undefined,
@@ -117,10 +123,11 @@ export function NumberField(props: NumberFieldProps): ReactElement {
   const hasSteppers = layout !== "inline" && layout !== "tile";
   const hasScrub = scrubLabel !== undefined && scrubLabel !== null;
   const boundsId = useId();
-  const bounds = boundsDescription(rest.min, rest.max, rest.locale, rest.format);
+  const format: Intl.NumberFormatOptions = { ...EDITABLE_FORMAT, ...rest.format };
+  const bounds = boundsDescription(rest.min, rest.max, rest.locale, format);
   const inputDescribedBy = [describedBy, bounds === null ? undefined : boundsId].filter((id) => id !== undefined && id !== "").join(" ");
   return (
-    <BaseNumberField.Root className={cn(slots.root(), className)} data-slot="number-field-root" {...rest} {...identity}>
+    <BaseNumberField.Root className={cn(slots.root(), className)} data-slot="number-field-root" {...rest} format={format} {...identity}>
       {hasScrub ? (
         <BaseNumberField.ScrubArea className={slots.scrubArea()} data-slot="number-field-scrub-area" direction={scrubDirection}>
           {scrubLabel}
@@ -153,6 +160,9 @@ export function NumberField(props: NumberFieldProps): ReactElement {
           autoFocus={autoFocus}
           className={slots.input()}
           data-slot="number-field-input"
+          onChange={(event): void => stripTypedGroups(event, rest.locale)}
+          onCompositionEnd={(event): void => stripComposedGroups(event, rest.locale)}
+          onPaste={(event): void => stripPastedGroups(event, rest.locale)}
           {...nameProp}
           placeholder={placeholder}
           {...variantAttrs(numberFieldVariants, { size, layout })}

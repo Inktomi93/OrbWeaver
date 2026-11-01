@@ -41,8 +41,9 @@ export function spokenEstimate(tokens: number | null): string {
 }
 
 /**
- * The EDITABLE-VALUE number grammar (crunch-list 9, extended by side-eye F-23): RAW digits, no locale
- * grouping, for every `NumberField` on the preset surface.
+ * The preset surface's editable-value fraction width (crunch-list 9, extended by side-eye F-23): six places, so a
+ * knob like 0.0005 is not rounded to Intl's three. The `NumberField` primitive already writes RAW digits with no
+ * locale grouping.
  *
  * Distinct from `formatCount` above and deliberately so — the two answer different questions. A token COUNT
  * is a magnitude you read and compare down a column, so it groups; a knob VALUE is a string you TYPE, and a
@@ -55,4 +56,4 @@ export function spokenEstimate(tokens: number | null): string {
  * Every preset-surface `NumberField` takes this — that is what makes "one grammar" a property of the
  * surface rather than of whichever call site remembered.
  */
-export const PRESET_NUMBER_FORMAT: Intl.NumberFormatOptions = { useGrouping: false, maximumFractionDigits: 6 };
+export const PRESET_NUMBER_FORMAT: Intl.NumberFormatOptions = { maximumFractionDigits: 6 };

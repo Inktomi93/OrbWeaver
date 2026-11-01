@@ -274,6 +274,7 @@ function GreetingActions({
             type="button"
             size="sm"
             variant="ghost"
+            wrap={true}
             onClick={(): void => {
               // The D78 store-subscription driver persists structural array ops (removeFieldValue routes
               // through setFieldValue) — no call-site flush (D78).
@@ -294,6 +295,7 @@ function GreetingActions({
           type="button"
           size="sm"
           variant="ghost"
+          wrap={true}
           onClick={(): void => {
             // The D78 store-subscription driver persists the structural push (pushFieldValue routes through
             // setFieldValue) — no call-site flush (D78). The new slot then

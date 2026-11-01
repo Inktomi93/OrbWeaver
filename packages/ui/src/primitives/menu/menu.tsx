@@ -85,9 +85,7 @@ export function MenuPopup(props: MenuPopupProps): ReactElement {
   );
 }
 
-export interface MenuViewportProps extends Omit<BaseViewportProps, "className"> {
-  className?: string;
-}
+export type MenuViewportProps = Omit<BaseViewportProps, "className">;
 
 /**
  * OPTIONAL transition container — render it INSIDE `<MenuPopup>`, wrapping the items, when ONE menu
@@ -97,18 +95,14 @@ export interface MenuViewportProps extends Omit<BaseViewportProps, "className"> 
  * nothing here.
  */
 export function MenuViewport(props: MenuViewportProps): ReactElement {
-  const { className, ...rest } = props;
-  return <BaseMenu.Viewport className={className} data-slot="menu-viewport" {...rest} />;
+  return <BaseMenu.Viewport data-slot="menu-viewport" {...props} />;
 }
 
-export interface MenuArrowProps extends Omit<BaseArrowProps, "className"> {
-  className?: string;
-}
+export type MenuArrowProps = Omit<BaseArrowProps, "className">;
 
 /** An arrow that points at the anchor — place inside `<MenuPopup>`. */
 export function MenuArrow(props: MenuArrowProps): ReactElement {
-  const { className, ...rest } = props;
-  return <BaseMenu.Arrow className={slots.arrow({ className })} data-slot="menu-arrow" {...rest} />;
+  return <BaseMenu.Arrow className={slots.arrow()} data-slot="menu-arrow" {...props} />;
 }
 
 export interface MenuItemProps extends Omit<BaseItemProps, "className"> {
@@ -136,29 +130,21 @@ export function MenuSeparator(props: MenuSeparatorProps): ReactElement {
   return <BaseMenu.Separator className={slots.separator()} {...props} />;
 }
 
-export interface MenuGroupProps extends Omit<BaseGroupProps, "className"> {
-  className?: string;
-}
+export type MenuGroupProps = Omit<BaseGroupProps, "className">;
 
 /** Groups related items under one MenuGroupLabel — Base UI wires the label↔group aria association. */
 export function MenuGroup(props: MenuGroupProps): ReactElement {
-  const { className, ...rest } = props;
-  return <BaseMenu.Group className={slots.group({ className })} data-slot="menu-group" {...rest} />;
+  return <BaseMenu.Group className={slots.group()} data-slot="menu-group" {...props} />;
 }
 
-export interface MenuGroupLabelProps extends Omit<BaseGroupLabelProps, "className"> {
-  className?: string;
-}
+export type MenuGroupLabelProps = Omit<BaseGroupLabelProps, "className">;
 
 /** The heading for a MenuGroup — a muted section caption, auto-associated with its parent group. */
 export function MenuGroupLabel(props: MenuGroupLabelProps): ReactElement {
-  const { className, ...rest } = props;
-  return <BaseMenu.GroupLabel className={slots.groupLabel({ className })} data-slot="menu-group-label" {...rest} />;
+  return <BaseMenu.GroupLabel className={slots.groupLabel()} data-slot="menu-group-label" {...props} />;
 }
 
-export interface MenuCheckboxItemProps extends Omit<BaseCheckboxItemProps, "className"> {
-  className?: string;
-}
+export type MenuCheckboxItemProps = Omit<BaseCheckboxItemProps, "className">;
 
 /**
  * A toggle row (view/display toggles like "Show minimap"). Bakes Base UI's native
@@ -166,9 +152,9 @@ export interface MenuCheckboxItemProps extends Omit<BaseCheckboxItemProps, "clas
  * keep open while flipping several toggles.
  */
 export function MenuCheckboxItem(props: MenuCheckboxItemProps): ReactElement {
-  const { className, children, ...rest } = props;
+  const { children, ...rest } = props;
   return (
-    <BaseMenu.CheckboxItem className={slots.checkboxItem({ className })} data-slot="menu-checkbox-item" {...rest}>
+    <BaseMenu.CheckboxItem className={slots.checkboxItem()} data-slot="menu-checkbox-item" {...rest}>
       <BaseMenu.CheckboxItemIndicator className={slots.itemIndicator()}>
         <Icon icon={Check} size="sm" />
       </BaseMenu.CheckboxItemIndicator>
@@ -182,18 +168,16 @@ export function MenuRadioGroup(props: BaseRadioGroupProps): ReactElement {
   return <BaseMenu.RadioGroup {...props} />;
 }
 
-export interface MenuRadioItemProps extends Omit<BaseRadioItemProps, "className"> {
-  className?: string;
-}
+export type MenuRadioItemProps = Omit<BaseRadioItemProps, "className">;
 
 /**
  * One option in a MenuRadioGroup — selecting it deselects its siblings. Default `closeOnClick` is
  * `false` (the menu stays open so the user can re-pick).
  */
 export function MenuRadioItem(props: MenuRadioItemProps): ReactElement {
-  const { className, children, ...rest } = props;
+  const { children, ...rest } = props;
   return (
-    <BaseMenu.RadioItem className={slots.radioItem({ className })} data-slot="menu-radio-item" {...rest}>
+    <BaseMenu.RadioItem className={slots.radioItem()} data-slot="menu-radio-item" {...rest}>
       <BaseMenu.RadioItemIndicator className={slots.itemIndicator()}>
         <Icon icon={Check} size="sm" />
       </BaseMenu.RadioItemIndicator>
@@ -207,9 +191,7 @@ export function MenuSubmenuRoot(props: BaseSubmenuRootProps): ReactElement {
   return <BaseMenu.SubmenuRoot {...props} />;
 }
 
-export interface MenuSubmenuTriggerProps extends Omit<BaseSubmenuTriggerProps, "className"> {
-  className?: string;
-}
+export type MenuSubmenuTriggerProps = Omit<BaseSubmenuTriggerProps, "className">;
 
 /** The row that opens a nested submenu, with a trailing chevron. Opens on hover and ArrowRight.
  *
@@ -223,9 +205,9 @@ export interface MenuSubmenuTriggerProps extends Omit<BaseSubmenuTriggerProps, "
  *  plumbing (a seal-owned context published by `MenuPopup` and read here), which a P3 does not buy. Left
  *  static and stated, rather than plumbed or silently wrong. */
 export function MenuSubmenuTrigger(props: MenuSubmenuTriggerProps): ReactElement {
-  const { className, children, ...rest } = props;
+  const { children, ...rest } = props;
   return (
-    <BaseMenu.SubmenuTrigger className={slots.submenuTrigger({ className })} data-slot="menu-submenu-trigger" {...rest}>
+    <BaseMenu.SubmenuTrigger className={slots.submenuTrigger()} data-slot="menu-submenu-trigger" {...rest}>
       {children}
       {/* The chevron rides its own BOX, not a bare `<svg>`: `item`'s leading-gutter rule withdraws the
           gutter from a row whose first ELEMENT child is an svg, and a text-only trigger's first element
@@ -237,22 +219,16 @@ export function MenuSubmenuTrigger(props: MenuSubmenuTriggerProps): ReactElement
   );
 }
 
-export interface MenuLinkItemProps extends Omit<BaseLinkItemProps, "className"> {
-  className?: string;
-}
+export type MenuLinkItemProps = Omit<BaseLinkItemProps, "className">;
 
 /** A navigating menu item — renders an `<a>` with `href`. Default `closeOnClick` is `false`. */
 export function MenuLinkItem(props: MenuLinkItemProps): ReactElement {
-  const { className, ...rest } = props;
-  return <BaseMenu.LinkItem className={slots.linkItem({ className })} data-slot="menu-link-item" {...rest} />;
+  return <BaseMenu.LinkItem className={slots.linkItem()} data-slot="menu-link-item" {...props} />;
 }
 
-export interface MenuBackdropProps extends Omit<BaseBackdropProps, "className"> {
-  className?: string;
-}
+export type MenuBackdropProps = Omit<BaseBackdropProps, "className">;
 
 /** An optional dimming overlay for a modal menu; render as a direct child of `<Menu>`. */
 export function MenuBackdrop(props: MenuBackdropProps): ReactElement {
-  const { className, ...rest } = props;
-  return <BaseMenu.Backdrop className={slots.backdrop({ className })} data-slot="menu-backdrop" {...rest} />;
+  return <BaseMenu.Backdrop className={slots.backdrop()} data-slot="menu-backdrop" {...props} />;
 }
