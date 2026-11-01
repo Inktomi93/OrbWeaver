@@ -46,9 +46,18 @@ test("an open that swallows a code fence delimiter conceals past it", () => {
   expect(projectBodyForPreview(body)).toBe(LEAD.trim());
 });
 
-test("an open inside an author's code fence stays literal, the ratified exclusion", () => {
-  const body = `\`\`\`\n<lie truth="${SECRET_LETTERS}`;
-  expect(stripHiddenSpans(body)).toEqual({ content: body, hadHidden: false });
+test("a code block is no shelter: a tag inside one strips, and an open inside one conceals the rest", () => {
+  const closed = `\`\`\`\n<lie truth="${SECRET_LETTERS}"/>\n\`\`\`\nafter`;
+  expect(stripHiddenSpans(closed)).toEqual({ content: "```\n\n```\nafter", hadHidden: true });
+  const open = `\`\`\`\n<lie truth="${SECRET_LETTERS}\n\`\`\`\nafter`;
+  expect(stripHiddenSpans(open)).toEqual({ content: "```\n", hadHidden: true });
+  expect(projectBodyForSummary(open)).not.toContain(SECRET_LETTERS);
+  expect(projectBodyForPreview(open)).not.toContain(SECRET_LETTERS);
+});
+
+test("the render and the wire grammar still show a code block's tag as written", () => {
+  const body = `\`\`\`\n<lie truth="${SECRET_LETTERS}"/>\n\`\`\``;
+  expect(tokenizeContent(body, { committed: true })).toEqual([{ kind: "text", text: body }]);
 });
 
 test("an unclosed open inside a card still leaves the fence bytes around it", () => {

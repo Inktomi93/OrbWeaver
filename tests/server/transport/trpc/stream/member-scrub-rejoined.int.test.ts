@@ -18,6 +18,9 @@ async function latestReply(room: Room, principal: Room["host"]): Promise<string>
 }
 
 test.each([
+  ["a tag inside a code block", [`${OPENING}\n\`\`\`\n<lie ${SEALED}\n\`\`\`\n${CLOSE}`], `${OPENING}\n\`\`\`\n\n\`\`\`\n${CLOSE}`],
+  ["a code block across deltas", [`${OPENING}\n\`\`\`\n`, `<lie ${SEALED}`, `\n\`\`\`\n${CLOSE}`], `${OPENING}\n\`\`\`\n\n\`\`\`\n${CLOSE}`],
+  ["an unclosed open inside a code block", [`${OPENING}\n\`\`\`\n<lie truth="${SECRET_HEAD}\n\`\`\`\n${CLOSE}`], `${OPENING}\n\`\`\`\n`],
   ["one delta", [`${OPENING}<l${INNER}ie ${SEALED}${CLOSE}`], `${OPENING}${CLOSE}`],
   ["the tag between its fragments arrives alone", [`${OPENING}<l`, INNER, `ie ${SEALED}`, CLOSE], `${OPENING}${CLOSE}`],
   ["a fragment ahead of an open still forming", [`${OPENING}<l<`, `lie truth="x"/>ie tr`, `uth="${SECRET_HEAD}"/>${CLOSE}`], `${OPENING}${CLOSE}`],

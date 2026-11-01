@@ -8,7 +8,7 @@ import { expect, test } from "@orb/testkit/node";
 const BUDGET_MS = 1000;
 const TICK = "`";
 const SECRET = "the-sealed-truth";
-// A line that opens with three ticks is a code fence, which no tag or stamp scan reads, so these bodies open with prose.
+// A line that opens with three ticks is a code fence, which the stamp scan never reads, so these bodies open with prose.
 const PROSE_OPENER = "a ";
 
 function elapsedMs(run: () => void): number {
@@ -164,7 +164,7 @@ test("hidden ranges are the bytes the strip removes", () => {
 test.each([
   ["an unclosed open reaches the end", `a <lie truth="${SECRET}`, [[2, 2 + `<lie truth="${SECRET}`.length]]],
   ["prose holds no range", "<lie down on the bed", []],
-  ["a fenced tag stays literal", '```\n<lie truth="x"/>\n```', []],
+  ["a tag in a code block holds a range", '```\n<lie truth="x"/>\n```', [[4, 20]]],
 ])("hidden ranges: %s", (_name, body, ranges) => {
   expect(hiddenSpanRanges(body).map(({ start, end }) => [start, end])).toEqual(ranges);
 });

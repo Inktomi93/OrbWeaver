@@ -54,9 +54,11 @@ test.each([
   expect(projectBodyForSummary(body)).not.toContain(SECRET);
 });
 
-test("a tag the ratified fence shows stays shown beside a removed tag", () => {
-  const fenced = `\`\`\`\n<lie truth="${SECRET}"/>\n\`\`\``;
-  expect(stripHiddenSpans(`${INNER}\n${fenced}`).content).toBe(`\n${fenced}`);
+test("an unregistered tag stays in a member's text, whether or not a hidden tag sits beside it", () => {
+  const unknown = '<gm x="1"/>';
+  expect(stripHiddenSpans(`a ${unknown} b`)).toEqual({ content: `a ${unknown} b`, hadHidden: false });
+  expect(stripHiddenSpans(`a ${unknown}${INNER} b`).content).toBe(`a ${unknown} b`);
+  expect(hiddenSpanRanges(`a ${unknown} b`)).toEqual([]);
 });
 
 test("positions collapse through a rejoined tag onto the visible bytes", () => {
@@ -120,6 +122,16 @@ test("the fragments ahead of an exposed open hold with it", () => {
   const body = `<LI<lie tr<l<l${INNER}ie a="1"/>ie truth="${SECRET}"/><li<ofilter event="x"/>e truth="${SECRET}"<la\n`;
   expect(streamed([body])).toBe(stripHiddenSpans(body).content);
   expect(streamed([...body])).toBe(stripHiddenSpans(body).content);
+});
+
+test.each([
+  ["a finished tag behind prose that stops the walk", `<lie truth="${SECRET}<x <<li<lie a="/><lie tr`],
+  ["fragments ahead of an open a removal exposed", `<li x<ofilter event="x"/>uth="y"/>\n\n<lie<li<l${INNER}ie truth="y"/>e truth="y"<li<l`],
+])("the stream reaches the commit's bytes: %s", (_name, body) => {
+  const committed = stripHiddenSpans(body).content;
+  expect(committed).not.toContain(SECRET);
+  expect(streamed([body])).toBe(committed);
+  expect(streamed([...body])).toBe(committed);
 });
 
 test("prose that only looks like a fragment reaches a member whole", () => {
