@@ -15,6 +15,8 @@ Every schema change ships as a numbered migration. Never regenerate the baseline
 3. Put any data backfill in the same migration file, after the DDL.
 4. Run `pnpm --filter @orb/db exec drizzle-kit check --config=drizzle.config.ts` and `pnpm exec biome check --write` on the meta files.
 5. Preserve the numbered migration and review its SQL before commit.
+6. Land a migration's body in the same merge as its number. Boot compares recorded migration hashes, so a database that booted a placeholder body refuses the real one.
+7. Write no row-returning statement in a migration. The browser libSQL migrator rejects it, so every corpus CT fails.
 
 `pnpm seed:demo --fresh` is the only wipe. Never open the live db with the `sqlite3` CLI while
 the server runs; it can checkpoint and delete the WAL out from under libSQL. Read live state

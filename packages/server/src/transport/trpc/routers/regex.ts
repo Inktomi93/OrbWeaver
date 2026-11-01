@@ -44,7 +44,7 @@ import {
   updateRegexScriptSchema,
 } from "@orb/contracts/regex";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { strictInput } from "@orb/kit/zod-schema";
+import { strictTwin } from "@orb/kit/zod-schema";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
@@ -65,12 +65,12 @@ export const regexRouter = t.router({
 
   createScript: authedProcedure
     .output(regexScriptViewSchema)
-    .input(strictInput(z.strictObject({ input: createRegexScriptSchema })))
+    .input(strictTwin(z.strictObject({ input: createRegexScriptSchema })))
     .mutation(({ ctx, input }) => ctx.services.regex.createScript({ principal: ctx.auth, input: input.input })),
 
   updateScript: authedProcedure
     .output(regexScriptViewSchema)
-    .input(strictInput(z.strictObject({ scriptId: typeIdSchema(ID_PREFIX.regexScript), input: updateRegexScriptSchema })))
+    .input(strictTwin(z.strictObject({ scriptId: typeIdSchema(ID_PREFIX.regexScript), input: updateRegexScriptSchema })))
     .mutation(({ ctx, input }) => ctx.services.regex.updateScript({ principal: ctx.auth, scriptId: input.scriptId, input: input.input })),
 
   removeScript: authedProcedure
@@ -113,7 +113,7 @@ export const regexRouter = t.router({
   // so a shared script and a restored one are the same bytes. The regex family's `lifecycle-portability`
   // door cells cite exactly these two names.
   exportScript: authedProcedure
-    .output(portableTextFileSchema)
+    .output(strictTwin(portableTextFileSchema))
     .input(regexScriptIdInputSchema)
     .query(async ({ ctx, input }) => {
       const file = await ctx.services.regex.exportScript({ principal: ctx.auth, scriptId: input.scriptId });
@@ -139,6 +139,7 @@ export const regexRouter = t.router({
     .query(({ ctx, input }) => ctx.services.regex.listScriptUsage({ principal: ctx.auth, scriptId: input.scriptId })),
 
   attachGlobal: authedProcedure
+    .output(z.void())
     .input(regexScriptIdInputSchema)
     .mutation(({ ctx, input }) => ctx.services.regex.attachGlobal({ principal: ctx.auth, scriptId: input.scriptId })),
 
@@ -150,6 +151,7 @@ export const regexRouter = t.router({
   listGlobal: authedProcedure.output(z.array(regexScriptViewSchema)).query(({ ctx }) => ctx.services.regex.listGlobal({ principal: ctx.auth })),
 
   attachToCharacter: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character), scriptId: typeIdSchema(ID_PREFIX.regexScript) }))
     .mutation(({ ctx, input }) => ctx.services.regex.attachToCharacter({ principal: ctx.auth, characterId: input.characterId, scriptId: input.scriptId })),
 
@@ -164,6 +166,7 @@ export const regexRouter = t.router({
     .query(({ ctx, input }) => ctx.services.regex.listForCharacter({ principal: ctx.auth, characterId: input.characterId })),
 
   attachToPreset: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ presetId: typeIdSchema(ID_PREFIX.preset), scriptId: typeIdSchema(ID_PREFIX.regexScript) }))
     .mutation(({ ctx, input }) => ctx.services.regex.attachToPreset({ principal: ctx.auth, presetId: input.presetId, scriptId: input.scriptId })),
 
@@ -178,6 +181,7 @@ export const regexRouter = t.router({
     .query(({ ctx, input }) => ctx.services.regex.listForPreset({ principal: ctx.auth, presetId: input.presetId })),
 
   attachToChat: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat), scriptId: typeIdSchema(ID_PREFIX.regexScript) }))
     .mutation(({ ctx, input }) => ctx.services.regex.attachToChat({ principal: ctx.auth, chatId: input.chatId, scriptId: input.scriptId })),
 

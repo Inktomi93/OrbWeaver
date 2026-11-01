@@ -1,4 +1,4 @@
-import { strictInput } from "@orb/kit/zod-schema";
+import { strictTwin } from "@orb/kit/zod-schema";
 import { expect, test } from "@orb/testkit/node";
 import { z } from "zod";
 
@@ -9,7 +9,7 @@ test("the twin refuses an undeclared key at every depth the source schema strips
     pair: z.tuple([z.object({ x: z.number() })]),
     byKey: z.record(z.string(), z.object({ on: z.boolean() })),
   });
-  const twin = strictInput(source);
+  const twin = strictTwin(source);
   const valid = { kind: { k: "a", n: 1 }, rows: [{ id: "r" }], pair: [{ x: 1 }], byKey: { a: { on: true } } };
   expect(twin.parse(valid)).toEqual(source.parse(valid));
   for (const extra of [
@@ -28,16 +28,16 @@ test("the twin keeps refinements, defaults, transforms and preprocessing", () =>
   const source = z
     .object({ low: z.number(), high: z.number(), label: z.string().default("x"), size: z.string().transform((s) => s.length) })
     .refine((v) => v.low <= v.high, { error: "low above high" });
-  const twin = strictInput(source);
+  const twin = strictTwin(source);
   expect(twin.parse({ low: 1, high: 2, size: "abc" })).toEqual({ low: 1, high: 2, label: "x", size: 3 });
   expect(twin.safeParse({ low: 3, high: 2, size: "" }).success).toBe(false);
-  const preprocessed = strictInput(z.preprocess((raw) => (typeof raw === "string" ? { name: raw } : raw), z.object({ name: z.string() })));
+  const preprocessed = strictTwin(z.preprocess((raw) => (typeof raw === "string" ? { name: raw } : raw), z.object({ name: z.string() })));
   expect(preprocessed.parse("lamp")).toEqual({ name: "lamp" });
   expect(preprocessed.safeParse({ name: "lamp", junk: 1 }).success).toBe(false);
 });
 
 test("a catch stays a heal boundary and a declared loose object stays open", () => {
-  const twin = strictInput(z.object({ healed: z.object({ a: z.string() }).catch({ a: "fallback" }), open: z.looseObject({ auth: z.string() }) }));
+  const twin = strictTwin(z.object({ healed: z.object({ a: z.string() }).catch({ a: "fallback" }), open: z.looseObject({ auth: z.string() }) }));
   expect(twin.parse({ healed: { a: "kept", junk: 1 }, open: { auth: "k", extra: 2 } })).toEqual({ healed: { a: "kept" }, open: { auth: "k", extra: 2 } });
 });
 
@@ -53,10 +53,16 @@ test("a self-referencing schema resolves through lazy and getter recursion", () 
       return tree.optional();
     },
   });
-  const lazyTwin = strictInput(node);
+  const lazyTwin = strictTwin(node);
   expect(lazyTwin.parse({ name: "a", children: [{ name: "b" }] })).toEqual({ name: "a", children: [{ name: "b" }] });
   expect(lazyTwin.safeParse({ name: "a", children: [{ name: "b", junk: 1 }] }).success).toBe(false);
-  const getterTwin = strictInput(tree);
+  const getterTwin = strictTwin(tree);
   expect(getterTwin.parse({ name: "a", next: { name: "b" } })).toEqual({ name: "a", next: { name: "b" } });
   expect(getterTwin.safeParse({ name: "a", next: { name: "b", junk: 1 } }).success).toBe(false);
+});
+
+test("a lazy the source has already resolved still twins to a strict inner", () => {
+  const node = z.lazy(() => z.object({ name: z.string() }));
+  expect(node.parse({ name: "a", junk: 1 })).toEqual({ name: "a" });
+  expect(strictTwin(node).safeParse({ name: "a", junk: 1 }).success).toBe(false);
 });

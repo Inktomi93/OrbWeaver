@@ -10,7 +10,7 @@
 // Tunables are optional (no Zod `.default()`) — precedence (param → user setting → the owner's floor)
 // resolves inside the contribution's run body. A kind with no tunables keeps an explicit `z.object({})` so
 // every kind validates uniformly.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs take the strict twin via `strictInput` (`@orb/kit/zod-schema`).
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import { z } from "zod";
 import type { MemoryBackfillWorkloadParams } from "#chat";
