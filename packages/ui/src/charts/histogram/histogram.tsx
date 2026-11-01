@@ -9,8 +9,6 @@ import { LabeledChartFrame } from "../labeled-chart-frame/index.ts";
 import type { HistogramBucket } from "./option.ts";
 import { buildHistogramOption } from "./option.ts";
 
-export type { HistogramBucket } from "./option.ts";
-
 export interface HistogramProps {
   /** Pre-binned buckets, in domain order (left to right). */
   readonly buckets: readonly HistogramBucket[];

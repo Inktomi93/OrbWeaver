@@ -3,7 +3,7 @@
 // a taken name reuses the row; different content lands under the next free name; no owned row is edited.
 // Security: css re-runs the same validateThemeCss guard as createTheme — a failing css degrades to null.
 
-import type { ImportThemeOp } from "@orb/contracts/settings";
+import type { ImportedThemeLanding, ImportThemeOp, SettingsImportOutcome } from "@orb/contracts/settings";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { validateThemeCss } from "@orb/kit/css-validate";
 import type { UserId } from "@orb/kit/ids";
@@ -11,7 +11,6 @@ import { nextFreeName } from "@orb/kit/strings";
 import { portableParseError } from "#primitives/serde/lib";
 import type { CanonicalTheme } from "#primitives/serde/theme";
 import { parseThemeFile, THEME_SCHEMA_KIND, themeContentKey } from "#primitives/serde/theme";
-import type { ImportedThemeLanding, SettingsImportOutcome } from "../contract/portability.ts";
 import type { SettingsAssemblyContext, SettingsContext } from "../contract/service.ts";
 import { insertThemes, listOwnedThemes } from "../persistence/theme-queries.ts";
 

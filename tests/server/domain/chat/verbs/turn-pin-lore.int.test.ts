@@ -11,6 +11,7 @@ import type { PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { connectDevice } from "@orb/testkit/node/composed";
+import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 import {
   attachPersonaLore,
   inputSystemBlocks,
@@ -124,7 +125,7 @@ test("a pin whose owner left keeps its book for the host and a member, and a mem
   expect(await inheritedPersonaBooks(h)).toEqual(["Ledgerkeeper"]);
 
   expect(await inheritedPersonaBooks(h, carol)).toEqual([]);
-  await expect(h.root.services.chat.previewAssembly({ principal: carol, chatId: h.chatId })).rejects.toThrow();
+  await expect(h.root.services.chat.previewAssembly({ principal: carol, chatId: h.chatId })).rejects.toMatchObject({ code: CHAT_OP_CODES.notHost });
 });
 
 test("a pin whose owner is disabled keeps its book, while a disabled seat's unpinned book drops", async () => {

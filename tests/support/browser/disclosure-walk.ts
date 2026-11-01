@@ -4,7 +4,7 @@
 
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import { expect } from "@playwright/test";
-import type { SurfaceCoverageDisposition } from "../iso/surface-coverage.ts";
+import type { SurfaceWitnessDisposition } from "../iso/surface-coverage.ts";
 import { controlledPanel } from "./shell-drive.ts";
 
 const TRIGGER = '[data-slot="collapsible-trigger"]';
@@ -20,9 +20,9 @@ export interface DisclosureWalkHooks {
   readonly expect: (id: string, kind: "disclosure" | "native-details") => void;
   readonly action: (id: string, step: { readonly action: () => Promise<void>; readonly ready: () => Promise<void> }) => Promise<unknown>;
   readonly checkpoint: (id: string, scope: Locator) => Promise<void>;
-  readonly record: (id: string, disposition: SurfaceCoverageDisposition, detail: string) => void;
+  readonly record: (id: string, disposition: SurfaceWitnessDisposition, detail: string) => void;
   /** The disposition of a scope whose disclosures were all opened. */
-  readonly completed: SurfaceCoverageDisposition;
+  readonly completed: SurfaceWitnessDisposition;
   /** The body a disclosure opened is settled: visible, loaded and carrying text. */
   readonly ready: (body: Locator) => Promise<void>;
   /** The scope with its disclosures open, before the walk restores them. */

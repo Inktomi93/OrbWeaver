@@ -1,6 +1,6 @@
 // Real guest registrations and callbacks supply wire values; private rows and opaque room handles stay Node-only.
 
-import type { PluginCommandArgSpec, PluginUiOutcome } from "@orb/contracts/plugin";
+import type { PluginCommandArgSpec, PluginLogView, PluginUiOutcome } from "@orb/contracts/plugin";
 import {
   PLUGIN_HOST_VERSIONS,
   PLUGIN_LOG_CHARS_MAX,
@@ -10,7 +10,6 @@ import {
   pluginManifestSchema,
 } from "@orb/contracts/plugin";
 import { ID_PREFIX } from "@orb/kit/ids";
-import type { PluginLogView } from "@orb/server/domain/plugin";
 import { PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES } from "@orb/server/infra/plugin-host";
 import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import { seedCorpusAccount } from "./corpus-auth.ts";

@@ -135,7 +135,7 @@ Check database findings against schema registration, relational metadata, migrat
 | Module-local constraint vocabulary, ownership-column shape, scoping type and backup pin suffix | Localize unused export modifiers. Preserve their actual declarations, classifier, query predicates, registry and backup naming behavior. |
 | Cascading lifecycle result-type exports | Localize only when removing an unused root forward leaves no named external consumer. Keep actual function signatures and inferred results unchanged. |
 | SQL literal-list formatting | Rebuild meaningful quote, backslash and canonical-member cases through the existing `checkList` function, which the suite reads from its owning file under the §9 ruling. This pure calculation belongs in unit tests, not a fabricated database service. |
-| Reset-script construction | Drop. The reset function and its script builder are deleted under D163 with the boot reset arm, so these cases have no subject. |
+| Reset-script construction | Drop. The reset function and its script builder are deleted under D163 with the boot reset path, so these cases have no subject. |
 | Schema and migration metadata | Keep. A missing named import does not establish unused database registration. No schema, relation, migration or live database is changed by this selection. |
 
 Ordinary native Knip includes DB entry exports and reports no unused findings. Production-only findings retain actual testkit and tooling consumers without public-marker exemptions. Affected compiler, lint, dependency and selected native behavior checks pass. Isolated literal-quote defects fail the intended unit assertions while their positive cases pass; sources are restored exactly.

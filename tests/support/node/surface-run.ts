@@ -15,7 +15,8 @@ import { assertSurfaceRunOutput, surfaceAuthenticationSchema, surfaceGenerationS
 
 export const SURFACE_RUN_CONFIG_ENV = "ORB_SURFACE_RUN_CONFIG";
 export const SURFACE_OUTPUT_ROOT_ENV = "ORB_SURFACE_OUTPUT_ROOT";
-export const SURFACE_NATIVE_TIMEOUT_MS = 1_800_000;
+// Owner ruling: the whole baseline walk fits in 90 minutes at normal load. Shard it by project or cut repeated work; never raise this.
+export const SURFACE_NATIVE_TIMEOUT_MS = 5_400_000;
 export const SURFACE_BOOT_DIAGNOSTIC_TITLE = "production navigation boot diagnostic";
 export const SURFACE_CASE_REPORT_TIMEOUT_MS = 5000;
 const SURFACE_CASE_ADMISSION_FILE = "case-admission.json";

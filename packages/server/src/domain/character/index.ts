@@ -4,6 +4,7 @@
 export type { GreetingCompletionDeps } from "./contract/greeting-ops.ts";
 export type { ImportCharacterPort } from "./contract/import-ops.ts";
 export type { BackfillPluginProvenanceResult } from "./contract/results.ts";
+export type { DefaultCharacterSeeder } from "./contract/seeder.ts";
 export type { CharacterService } from "./contract/service.ts";
 export { createLinkCharacterAvatars } from "./persistence/avatar-link-write.ts";
 // A boot verb that reads or writes rows of every owner takes `BootDatabaseHandle`, which only boot mints (D335).
@@ -21,8 +22,8 @@ export {
   createStampRefinerySignals,
 } from "./persistence/refinery-ops.ts";
 export { createLoadSeatCards } from "./persistence/seat-cards.ts";
-export type { DefaultCharacterSeeder } from "./seeder/index.ts";
-export { createDefaultCharacterSeeder, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "./seeder/index.ts";
+export { DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "./seeder/cards.ts";
+export { createDefaultCharacterSeeder } from "./seeder/seed.ts";
 export { createCharacterService } from "./service.ts";
 export { cardTokenSize } from "./substrate/card-tokens.ts";
 export { buildCardEmbedText } from "./substrate/embed-text.ts";

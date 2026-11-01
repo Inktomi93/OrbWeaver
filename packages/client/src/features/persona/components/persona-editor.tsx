@@ -13,7 +13,7 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { FileTrigger } from "@orb/ui/file-trigger";
-import { Copy, Download, Icon, Trash2 } from "@orb/ui/icons";
+import { Copy, Download, Icon, Trash } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
 import { Row, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
@@ -227,7 +227,7 @@ function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorB
           Export
         </Button>
         <Button variant="ghost" size="sm" onClick={onRequestDelete}>
-          <Icon icon={Trash2} size="sm" />
+          <Icon icon={Trash} size="sm" />
           Delete
         </Button>
       </Row>

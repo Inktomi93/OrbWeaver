@@ -18,7 +18,6 @@
 import type { PluginIconName } from "@orb/contracts/plugin";
 import type { LucideIcon } from "@orb/ui/icons";
 import {
-  AlertTriangle,
   ArrowLeft,
   Award,
   Bookmark,
@@ -51,6 +50,7 @@ import {
   Star,
   Swords,
   Tag,
+  TriangleAlert,
   Users,
   X,
 } from "@orb/ui/icons";
@@ -86,7 +86,7 @@ export const PLUGIN_ICON_GLYPHS = {
   check: Check,
   info: Info,
   circleAlert: CircleAlert,
-  alertTriangle: AlertTriangle,
+  alertTriangle: TriangleAlert,
   search: Search,
   externalLink: ExternalLink,
   chevronRight: ChevronRight,

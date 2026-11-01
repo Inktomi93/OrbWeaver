@@ -9,7 +9,7 @@
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 
-/** The DI bundle `createExport` closes over (assembled at the entry composition root). Read-only: the
+/** The DI bundle `createExportWorldBook` closes over (assembled at the entry composition root). Read-only: the
  *  standalone export is a pure owner-scoped read + serde build — no clock / id-minter / audit needed. */
 export interface WorldInfoExportContext {
   readonly db: Db;

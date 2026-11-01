@@ -13,7 +13,7 @@
 // The foreign DTO supplies promptConfig/personas/globalRegexScripts/scanDepth/injectionTokenBudget/
 // memoryConfig (settings/preset/persona reads chat must not perform).
 
-import type { AssembleContext, ChatInjection, MacroFreezeRecord, MemoryRecallSlice, MessageView } from "@orb/contracts/chat";
+import type { AssembleContext, ChatInjection, GuidedSteer, MacroFreezeRecord, MemoryRecallSlice, MessageView } from "@orb/contracts/chat";
 import type { GenerationType } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RandomSource } from "@orb/kit/macro";
@@ -25,7 +25,6 @@ import type { ChoicePickMode } from "../contract/assembly-macros.ts";
 import type { ChatContext } from "../contract/context.ts";
 import type { ForeignInputs } from "../contract/foreign.ts";
 import type { MemoryRecallInputs, MsgRow, TurnRetrievalWarningEpisode } from "../contract/memory.ts";
-import type { GuidedSteer } from "../contract/params.ts";
 import { loadTranscriptNames } from "../memory/persistence/queries.ts";
 import { recallMemory } from "../memory/recall/recall.ts";
 import { loadCanonHistory, loadChatInjections, loadChatRow, loadStoredVariables, loadVariableDeltas } from "../persistence/queries.ts";

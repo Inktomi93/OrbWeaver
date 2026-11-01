@@ -16,7 +16,7 @@
 // trigger instead when that surface closes and focus would drop to the page.
 
 import { Button } from "@orb/ui/button";
-import { Icon, MoreHorizontal } from "@orb/ui/icons";
+import { Ellipsis, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
@@ -320,7 +320,7 @@ export function OverflowActions({ actions, label, className, gap = "row", slot }
                 square={true}
                 type="button"
               >
-                <Icon icon={MoreHorizontal} size="sm" />
+                <Icon icon={Ellipsis} size="sm" />
               </Button>
             }
           />

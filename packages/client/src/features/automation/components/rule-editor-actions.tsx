@@ -2,7 +2,7 @@ import type { AutomationActionType } from "@orb/contracts/automation";
 import { AUTOMATION_ACTION_ARMS_MAX, AUTOMATION_ACTION_TYPES, AUTOMATION_ARM_SCOPE, automationTriggerFor } from "@orb/contracts/automation";
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Icon, Trash2 } from "@orb/ui/icons";
+import { Icon, Trash } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Separator } from "@orb/ui/separator";
@@ -105,7 +105,7 @@ export function RuleEditorActions({
                           ]).catch(() => notify.error("Couldn't remove the action."));
                         }}
                       >
-                        <Icon icon={Trash2} size="sm" />
+                        <Icon icon={Trash} size="sm" />
                       </Button>
                     </Row>
                     <RuleActionFields form={form} index={index} action={action} chatId={chatId} />

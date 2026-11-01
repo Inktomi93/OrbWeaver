@@ -14,7 +14,7 @@
 // a narrow, named, non-`store` write seam. Store-then-prune, never clear-then-store, so the build's no-op
 // economy is untouched — an ordinary pass deletes nothing and re-embeds nothing.
 
-import type { PruneMemoryBlocksParams } from "../contract/params.ts";
+import type { PruneMemoryBlocksParams } from "@orb/contracts/embeddings";
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
 import { dropChatDigestKeys, pruneChatDigests, pruneChatSegments } from "../persistence/clear.ts";
 import { resolveTargetGeneration } from "../substrate/generation.ts";

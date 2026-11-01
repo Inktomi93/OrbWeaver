@@ -14,7 +14,16 @@
 // unparseable-params row as `{params: null, poison: true}` (a visibly-broken, cancel/retry-able row) instead
 // of silently dropping it, while `nextRunnableWorkload` returns only `WorkloadRunnableRow`s.
 
-import type { WorkloadError, WorkloadKind, WorkloadLane, WorkloadProgress, WorkloadStatus } from "@orb/contracts/workloads";
+import type {
+  CancelWorkloadResult,
+  WorkloadError,
+  WorkloadKind,
+  WorkloadLane,
+  WorkloadProgress,
+  WorkloadRowAnyKind,
+  WorkloadRunnableRow,
+  WorkloadStatus,
+} from "@orb/contracts/workloads";
 import { ACTIVE_WORKLOAD_STATUSES, WORKLOAD_KINDS, WORKLOAD_LIST_MAX_LIMIT, workloadResultSchemaOf, workloadRowBaseSchema } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
@@ -26,15 +35,13 @@ import { z } from "zod";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { WorkloadContributions } from "../contract/contribution.ts";
-import type { CancelWorkloadResult, ListWorkloadsParams } from "../contract/params.ts";
+import type { ListWorkloadsParams } from "../contract/params.ts";
 import type {
   AuthorizeWorkloadRead,
   WorkloadClaim,
   WorkloadDecodedRow,
   WorkloadInFlightRow,
   WorkloadQueueFailureSink,
-  WorkloadRowAnyKind,
-  WorkloadRunnableRow,
   WorkloadTerminalWrite,
   WorkloadTextRow,
 } from "../contract/workload-row.ts";

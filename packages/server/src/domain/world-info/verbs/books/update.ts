@@ -12,7 +12,7 @@ import type { UpdateBookParams } from "#src/domain/world-info/contract/params.ts
 import type { WorldInfoContext, WorldInfoService } from "#src/domain/world-info/contract/service.ts";
 import { loadOwnedBook, toBookView } from "#src/domain/world-info/persistence/queries.ts";
 
-export function createUpdate(ctx: WorldInfoContext): WorldInfoService["updateBook"] {
+export function createUpdateBook(ctx: WorldInfoContext): WorldInfoService["updateBook"] {
   return async ({ principal, bookId, input }: UpdateBookParams) => {
     const ownerId = principal.userId;
     const edits = stripUndefined({ name: input.name, description: input.description });

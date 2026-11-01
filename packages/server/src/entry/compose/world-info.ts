@@ -21,7 +21,7 @@ import { can } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type { ChatServiceDeps } from "#domain/chat";
-import { createBulkImportChats, createReadInheritedChatBooks, requireHost, requireParticipant } from "#domain/chat";
+import { createBulkImportChats, createReadInheritedChatBooks, requireWiredHost, requireWiredParticipant } from "#domain/chat";
 import { createBulkImportPersonas } from "#domain/persona";
 import type { SessionsService } from "#domain/sessions";
 import { createResolveUserEnabled } from "#domain/sessions";
@@ -82,8 +82,8 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
     newBookId: minter(ID_PREFIX.worldBook, deps.idSource),
     newEntryId: minter(ID_PREFIX.worldEntry, deps.idSource),
     audit,
-    requireChatHost: (principal, chatId) => requireHost({ db, can }, principal, chatId).then((): void => undefined),
-    requireChatMember: (principal, chatId) => requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
+    requireChatHost: (principal, chatId) => requireWiredHost({ db, can }, principal, chatId).then((): void => undefined),
+    requireChatMember: (principal, chatId) => requireWiredParticipant({ db, can }, principal, chatId).then((): void => undefined),
     readInheritedChatBooks: createReadInheritedChatBooks({
       db,
       can,

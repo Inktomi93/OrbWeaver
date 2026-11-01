@@ -34,10 +34,10 @@
 // per-lane loop stays sequential BY DESIGN (see the poll-loop comment); lanes are EXECUTION, the single-active
 // unique indexes are ADMISSION, and the two never interact.
 
-import type { WorkloadLane } from "@orb/contracts/workloads";
+import type { WorkloadLane, WorkloadRunnableRow } from "@orb/contracts/workloads";
 import { WORKLOAD_LANES } from "@orb/contracts/workloads";
 import type { WorkloadId } from "@orb/kit/ids";
-import type { WorkloadReapReason, WorkloadRunnableRow } from "#domain/workloads";
+import type { WorkloadReapReason } from "#domain/workloads";
 import { getLog } from "#foundation/observability";
 import type { WorkloadsWorkerDeps } from "./contract/workloads-worker.ts";
 

@@ -1,7 +1,5 @@
 import type { ImageCaptionMeta } from "@orb/contracts/embeddings";
 
-export type { StoreResult } from "@orb/contracts/embeddings";
-
 /** One owner's Utility analysis before persistence: caption and provenance/facets share one call.
  * An empty caption is the facetless skip signal. The indexer saves a successful annotation before
  * encoding, so a failed encoder does not repeat paid Utility work on the next pass. */
