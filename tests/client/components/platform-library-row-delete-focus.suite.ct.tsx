@@ -1,6 +1,6 @@
+import { ROW_DELETE_NAME } from "@orb/client/lib";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Page } from "@playwright/test";
-import { ROW_DELETE_NAME } from "#client/lib/row-menu-names.ts";
 import type { RemovableRowsStory } from "./_library-list-rows-focus-stories.tsx";
 
 const STORY = "tests/client/components/_library-list-rows-focus-stories/RemovableRowsStory";
