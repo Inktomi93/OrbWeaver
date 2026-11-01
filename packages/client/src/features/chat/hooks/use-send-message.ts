@@ -12,11 +12,13 @@ import type { AssetId, ChatId } from "@orb/kit/ids";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import { useState } from "react";
 import type { Trpc } from "#data";
-import { createEntityMutation, useInvalidation, useTRPC, useUploadAsset } from "#data";
-import { turnMutationToast, viewerTimeZone } from "#lib";
+import { createEntityMutation, UploadRefusedError, useInvalidation, useTRPC, useUploadAsset } from "#data";
+import { notify, turnMutationToast, viewerTimeZone } from "#lib";
 import { subscribeUserMessageCommitted } from "#state";
 
 type SendVars = inferInput<Trpc["chat"]["send"]>;
+
+const SEND_FAILED_TITLE = "Couldn't send your message.";
 
 // TData is `unknown` — the sent turn is bus-driven (messageCommitted/turnStarted/...), never read back.
 const useSendMutation = createEntityMutation<SendVars, unknown>({
@@ -24,7 +26,7 @@ const useSendMutation = createEntityMutation<SendVars, unknown>({
   // busDriven: the turn's messageCommitted/turnCompleted bus events already run the full chatReads
   // invalidation; a mutation-side invalidate here would double-refetch (the observed 4-5x/send storm).
   busDriven: true,
-  errorToast: (error) => turnMutationToast(error, "Couldn't send your message."),
+  errorToast: (error) => turnMutationToast(error, SEND_FAILED_TITLE),
 });
 
 export interface UseSendMessageOptions {
@@ -61,7 +63,12 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
   // before the event can arrive. A send that fails before commit never fires the user-role
   // messageCommitted, so onDraftCommitted never runs and the draft survives for retry untouched.
   const runSend = async (trimmed: string, attachments: readonly File[]): Promise<void> => {
-    const attachmentAssetIds = await uploadAttachments(upload, attachments);
+    // The upload is a raw POST outside the send mutation, so its `errorToast` never sees a refusal: say it
+    // here, with the server's own reason when it gave one, and rethrow so the draft and strip stay put.
+    const attachmentAssetIds = await uploadAttachments(upload, attachments).catch((err: unknown) => {
+      notify.error({ title: SEND_FAILED_TITLE, ...(err instanceof UploadRefusedError ? { description: err.reason } : {}) });
+      throw err;
+    });
     const unsubscribe = subscribeUserMessageCommitted(opts.chatId, () => opts.onDraftCommitted?.());
     try {
       await sendMutation.mutateAsync({
