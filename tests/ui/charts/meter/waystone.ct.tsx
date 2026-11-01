@@ -58,7 +58,7 @@ test("golden windows paint ember below the midday sky and intermediate hours ble
   const component = await mount<typeof WaystoneStory>(STORY, { clock: { hour: 12, minute: 0 }, weather: "clear" });
   const from = component.locator(SKY_FROM);
   const gradient = component.locator("radialGradient");
-  await expect(from).toHaveAttribute("stop-color", "var(--color-sky-day-horizon)");
+  await expect(from).toHaveAttribute("stop-color", `var(${TOKENS["color.sky-day-horizon"].cssVar})`);
   const middayCenter = Number.parseFloat((await gradient.getAttribute("cy")) ?? "");
   const middayPaint = await from.evaluate((stop) => getComputedStyle(stop).stopColor);
   for (const hour of [6, 18]) {

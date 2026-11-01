@@ -6,6 +6,7 @@ import { CHAT_MESSAGE_LIST_MAX_LIMIT } from "@orb/contracts/chat";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { forEachNonEmpty } from "@orb/testkit/iso";
 import { LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
 import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
@@ -225,24 +226,28 @@ test.describe("message number", () => {
 test.describe("phone", () => {
   test.use({ viewport: PHONE, hasTouch: true });
 
-  for (const chatStyle of THEME_CHAT_STYLES.filter((style) => MESSAGE_ROW_SKINS[style].actionsRow.identity)) {
-    // Moonlit stacks the timestamp under the name on a phone in every style but echo.
-    const stacked = chatStyle !== "echo";
-    test(`${chatStyle} puts the timestamp ${stacked ? "under" : "beside"} the name on a phone`, async ({ corpus, mount, page }) => {
-      await openReadingStyle(page, corpus, chatStyle);
-      await seedShellState(page, { activeSection: "chats" });
-      await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
-      const header = page.locator(`${ROW} [data-slot="message-name-row"]`).first();
-      await expect(header).toBeVisible();
-      const geometry = await header.evaluate((element) => {
-        const name = element.querySelector('[data-slot="message-attribution"]')?.getBoundingClientRect();
-        const stamp = element.querySelector('[data-slot="message-metadata-timestamp"]')?.getBoundingClientRect();
-        if (name === undefined || stamp === undefined) {
-          throw new Error("the header has no name or timestamp");
-        }
-        return { under: stamp.top >= name.bottom - 1 };
+  forEachNonEmpty(
+    THEME_CHAT_STYLES.filter((style) => MESSAGE_ROW_SKINS[style].actionsRow.identity),
+    "chat styles with an identity row",
+    (chatStyle) => {
+      // Moonlit stacks the timestamp under the name on a phone in every style but echo.
+      const stacked = chatStyle !== "echo";
+      test(`${chatStyle} puts the timestamp ${stacked ? "under" : "beside"} the name on a phone`, async ({ corpus, mount, page }) => {
+        await openReadingStyle(page, corpus, chatStyle);
+        await seedShellState(page, { activeSection: "chats" });
+        await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
+        const header = page.locator(`${ROW} [data-slot="message-name-row"]`).first();
+        await expect(header).toBeVisible();
+        const geometry = await header.evaluate((element) => {
+          const name = element.querySelector('[data-slot="message-attribution"]')?.getBoundingClientRect();
+          const stamp = element.querySelector('[data-slot="message-metadata-timestamp"]')?.getBoundingClientRect();
+          if (name === undefined || stamp === undefined) {
+            throw new Error("the header has no name or timestamp");
+          }
+          return { under: stamp.top >= name.bottom - 1 };
+        });
+        expect(geometry.under).toBe(stacked);
       });
-      expect(geometry.under).toBe(stacked);
-    });
-  }
+    },
+  );
 });

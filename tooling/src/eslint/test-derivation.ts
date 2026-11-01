@@ -4,10 +4,15 @@ import type { RuleVisitor } from "@eslint/core";
 import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
 import type { OrbRule, OrbRuleContext, Source } from "./syntax.ts";
 
-const NARRATION_CALLEES = new Set(["test", "it", "describe", "suite", "bench", "expect"]);
+const TITLED_CALLEES = new Set(["test", "it", "describe", "suite", "bench"]);
 const CASE_TABLE_ROOTS = new Set(["test", "it", "describe", "suite"]);
 const CASE_TABLE_METHODS = new Set(["for", "each"]);
 const THROW_MATCHERS = new Set(["toThrow", "toThrowError"]);
+const EMPTY_REJECTION_MATCHERS = new Set(["toBeDefined", "toBeTruthy"]);
+const INSTANCE_MATCHER = "toBeInstanceOf";
+const REJECTS = "rejects";
+// `DomainOperationError` is the base of every coded refusal, so naming it alone proves no reason.
+const REASONLESS_CLASSES = new Set(["Error", "DomainOperationError"]);
 const NEGATION = "not";
 const EXPECT = "expect";
 
@@ -70,6 +75,8 @@ const CSS_TEXT = /[{}]/u;
 // A Tailwind arbitrary value stays one literal so the class scanner can see it.
 const ARBITRARY_VALUE = /\[[^\]\s]*var\(/u;
 const VAR_READ = /var\(\s*(--[\w-]+)(?=\s*[,)])/gu;
+// `--name: value` outside a block; a class string's `[--name:value]` stays one literal for the scanner.
+const DECLARED_NAME = /(?<![\w[-])(--[a-z][a-z0-9-]*)\s*:/gu;
 const NAME_HEAD = /(?<![\w-])(--[a-z][a-z0-9-]*-)$/u;
 const MEDIA_CONDITION = /\((?:any-)?(?:hover|pointer)\s*:[^()]*\)|\((?:min-|max-)?(?:width|height)\s*[:<>][^()]*\)/gu;
 
@@ -82,16 +89,24 @@ const mediaMessage = (condition: string, key: string | undefined): string =>
     ? `"${condition}" is a hand-typed media condition no \`MEDIA_QUERIES\` entry names; read one from \`@orb/ui/tokens\`, or add the entry where production uses the condition.`
     : `"${condition}" is a hand-typed media condition; read \`MEDIA_QUERIES["${key}"]\` from \`@orb/ui/tokens\`.`;
 
+// `expect(value, "message")` and `expect.soft(value, "message")`; the arguments of a matcher chained on it are values.
+function isExpectCall(call: TSESTree.CallExpression): boolean {
+  const callee = unwrapped(call.callee);
+  if (callee.type === "Identifier") {
+    return callee.name === EXPECT;
+  }
+  return (
+    callee.type === "MemberExpression" && staticName(callee) === "soft" && rootName(callee.object) === EXPECT && unwrapped(callee.object).type === "Identifier"
+  );
+}
+
 function isNarration(node: TSESTree.Node): boolean {
   const call = node.parent;
-  if (call?.type !== "CallExpression" || !call.arguments.includes(node as TSESTree.CallExpressionArgument)) {
+  if (call?.type !== "CallExpression") {
     return false;
   }
-  const root = rootName(call.callee);
-  if (root === undefined || !NARRATION_CALLEES.has(root)) {
-    return false;
-  }
-  return call.arguments.indexOf(node as TSESTree.CallExpressionArgument) === (root === EXPECT ? 1 : 0);
+  const index = call.arguments.indexOf(node as TSESTree.CallExpressionArgument);
+  return index === 1 ? isExpectCall(call) : index === 0 && TITLED_CALLEES.has(rootName(call.callee) ?? "");
 }
 
 function textFindings(text: string, { tokens, media }: CssVocabulary): readonly string[] {
@@ -102,7 +117,8 @@ function textFindings(text: string, { tokens, media }: CssVocabulary): readonly 
   if (exact !== undefined) {
     return [tokenMessage(text.trim(), exact)];
   }
-  const names = ARBITRARY_VALUE.test(text) ? [] : [...text.matchAll(VAR_READ)].flatMap((match) => match[1] ?? []);
+  const reads = ARBITRARY_VALUE.test(text) ? [] : [...text.matchAll(VAR_READ)].flatMap((match) => match[1] ?? []);
+  const names = [...reads, ...[...text.matchAll(DECLARED_NAME)].flatMap((match) => match[1] ?? [])];
   const found = names.flatMap((name) => {
     const key = tokens.get(name);
     return key === undefined ? [] : [tokenMessage(name, key)];
@@ -156,25 +172,58 @@ export function noHandTypedCssTokenRule(vocabulary: CssVocabulary): OrbRule {
 
 const BARE_THROW_MESSAGE =
   "A bare refusal passes on any error, an unrelated ENOENT or TypeError included. Name the reason: the production error class, `toThrowTRPCError(code)`, `rejects.toMatchObject({ code })`, or a message pattern.";
+const REASONLESS_CLASS_MESSAGE = "`expect.any(Error)` matches any failure. Name the reason: the production error class, its `code`, or a message pattern.";
+const MATCH_ALL_PATTERNS = new Set(["", ".", ".*", ".+", "(?:)", "[\\s\\S]*"]);
+
+function isAsymmetric(node: TSESTree.CallExpression, name: string): boolean {
+  const callee = unwrapped(node.callee);
+  return (
+    callee.type === "MemberExpression" && staticName(callee) === name && unwrapped(callee.object).type === "Identifier" && rootName(callee.object) === EXPECT
+  );
+}
+
+function isReasonlessClass(node: TSESTree.Node | undefined): boolean {
+  return node?.type === "Identifier" && REASONLESS_CLASSES.has(node.name);
+}
+
+function isReasonlessExpected(node: TSESTree.CallExpressionArgument): boolean {
+  if (node.type === "Identifier") {
+    return node.name === "undefined" || isReasonlessClass(node);
+  }
+  if (node.type === "Literal") {
+    return node.value === "" || ("regex" in node && MATCH_ALL_PATTERNS.has(node.regex.pattern));
+  }
+  if (node.type === "TemplateLiteral") {
+    return node.expressions.length === 0 && node.quasis[0]?.value.cooked === "";
+  }
+  return node.type === "CallExpression" && (isAsymmetric(node, "anything") || (isAsymmetric(node, "any") && isReasonlessClass(node.arguments[0])));
+}
 
 function isBareRefusal(args: readonly TSESTree.CallExpressionArgument[]): boolean {
   const [first] = args;
-  return first === undefined || (args.length === 1 && first.type === "Identifier" && (first.name === "Error" || first.name === "undefined"));
+  return first === undefined || (args.length === 1 && isReasonlessExpected(first));
 }
 
-// True for `expect(x).toThrow`, `expect(x).rejects.toThrow` and `expect.soft(x)...`; a negated chain asserts that nothing threw.
-function refusesThroughExpect(member: TSESTree.MemberExpression): boolean {
+// The chain a matcher hangs on: `{ expected, rejected }` for `expect(x).rejects.toThrow`, undefined for another root or a negation.
+function expectChain(member: TSESTree.MemberExpression): { readonly rejected: boolean } | undefined {
+  let rejected = false;
   let node = unwrapped(member.object);
   while (node.type === "MemberExpression") {
     if (staticName(node) === NEGATION) {
-      return false;
+      return undefined;
     }
+    rejected ||= staticName(node) === REJECTS;
     node = unwrapped(node.object);
   }
-  return node.type === "CallExpression" && rootName(node.callee) === EXPECT;
+  return node.type === "CallExpression" && rootName(node.callee) === EXPECT ? { rejected } : undefined;
 }
 
-/** Refuse `toThrow()`, `toThrow(Error)` and their `rejects` forms; a chain rooted at another helper stays that helper's assertion. */
+function isEmptyRejection(name: string, args: readonly TSESTree.CallExpressionArgument[]): boolean {
+  return EMPTY_REJECTION_MATCHERS.has(name) || (name === INSTANCE_MATCHER && isReasonlessClass(args[0]));
+}
+
+/** Refuse a refusal that names no reason: `toThrow()`, `toThrow(Error)`, a match-all expectation, the `DomainOperationError` base
+ *  alone, `rejects.toBeDefined()` and the like. A chain rooted at another helper stays that helper's assertion. */
 export const noBareThrowAssertionRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
@@ -182,10 +231,22 @@ export const noBareThrowAssertionRule: OrbRule = {
       "CallExpression[callee]"(call: TSESTree.CallExpression): void {
         const callee = unwrapped(call.callee);
         if (
-          callee.type === "MemberExpression" &&
-          THROW_MATCHERS.has(staticName(callee) ?? "") &&
-          isBareRefusal(call.arguments) &&
-          refusesThroughExpect(callee)
+          isAsymmetric(call, "any") &&
+          call.arguments[0]?.type === "Identifier" &&
+          call.arguments[0].name === "Error" &&
+          !THROW_MATCHERS.has(calledName(parentCallee(call)) ?? "")
+        ) {
+          context.report({ node: call, message: REASONLESS_CLASS_MESSAGE });
+          return;
+        }
+        if (callee.type !== "MemberExpression") {
+          return;
+        }
+        const name = staticName(callee) ?? "";
+        const chain = expectChain(callee);
+        if (
+          chain !== undefined &&
+          ((THROW_MATCHERS.has(name) && isBareRefusal(call.arguments)) || (chain.rejected && isEmptyRejection(name, call.arguments)))
         ) {
           context.report({ node: call, message: BARE_THROW_MESSAGE });
         }
@@ -196,6 +257,10 @@ export const noBareThrowAssertionRule: OrbRule = {
 
 const UNSEEDED_ID_MESSAGE =
   "`mintTypeId(prefix)` draws an ambient uuidv7, so the run differs each time (Spine-Testing §3). Use `ids.typeId(prefix)` from the fixture or `createSeededIds(FIXTURE_ID_CURSOR)` (`@orb/testkit/iso`), or `root.idSource.typeId(prefix)`.";
+
+function parentCallee(call: TSESTree.CallExpression): TSESTree.Node {
+  return call.parent.type === "CallExpression" ? call.parent.callee : call.parent;
+}
 
 function calledName(callee: TSESTree.Node): string | undefined {
   const value = unwrapped(callee);
@@ -240,11 +305,38 @@ function holdsFilter(sourceCode: Source, node: TSESTree.Node, seen: Set<TSESTree
   return callee.type === "MemberExpression" && (staticName(callee) === "filter" || holdsFilter(sourceCode, callee.object, seen));
 }
 
-/** Refuse a `test.for` or `test.each` table that a `.filter()` call produced. */
+const TEST_MEMBERS_THAT_REGISTER_NOTHING = new Set(["step", "info", "use", "setTimeout", "slow", "beforeEach", "beforeAll", "afterEach", "afterAll"]);
+
+function isCaseRegistration(call: TSESTree.CallExpression): boolean {
+  return CASE_TABLE_ROOTS.has(rootName(call.callee) ?? "") && !TEST_MEMBERS_THAT_REGISTER_NOTHING.has(calledName(call.callee) ?? "");
+}
+
+// Direct statements only: a function body runs later, so a loop inside a case asserts rather than registers.
+function registersCases(statement: TSESTree.Statement): boolean {
+  switch (statement.type) {
+    case "BlockStatement":
+      return statement.body.some(registersCases);
+    case "ForOfStatement":
+      return registersCases(statement.body);
+    case "IfStatement":
+      return registersCases(statement.consequent) || (statement.alternate !== null && registersCases(statement.alternate));
+    case "ExpressionStatement":
+      return statement.expression.type === "CallExpression" && isCaseRegistration(statement.expression);
+    default:
+      return false;
+  }
+}
+
+/** Refuse a `test.for`, `test.each` or registering `for...of` table that a `.filter()` call produced. */
 export const noFilteredCaseTableRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
     return {
+      "ForOfStatement[await=false]"(loop: TSESTree.ForOfStatement): void {
+        if (holdsFilter(context.sourceCode, loop.right) && registersCases(loop.body)) {
+          context.report({ node: loop.right, message: FILTERED_TABLE_MESSAGE });
+        }
+      },
       "CallExpression[callee]"(call: TSESTree.CallExpression): void {
         const callee = unwrapped(call.callee);
         const [table] = call.arguments;

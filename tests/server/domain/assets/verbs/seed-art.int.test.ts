@@ -2,8 +2,8 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { readSeedAvatar, SEED_MANIFEST } from "@orb/default-content";
-import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
-import { createSeedAvatarOps } from "@orb/server/domain/assets";
+import { DomainNotFoundError } from "@orb/kit/errors";
+import { AssetContentRejectedError, createSeedAvatarOps } from "@orb/server/domain/assets";
 import { expect, test } from "@orb/testkit/node";
 import { seedCharacter } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
@@ -26,7 +26,7 @@ test("truncated real shipped art is refused by the production magic guard before
     store: (args) => services.assets.store(args),
     addToGallery: (args) => services.assets.addToGallery(args),
   });
-  await expect(ops.character.storeAvatar(actor, CARD.input.handle)).rejects.toThrow(DomainOperationError);
+  await expect(ops.character.storeAvatar(actor, CARD.input.handle)).rejects.toThrow(AssetContentRejectedError);
   expect(await services.assets.listOwned({ principal: actor, limit: 100 })).toEqual([]);
   const valid = createSeedAvatarOps({
     readAvatar: readSeedAvatar,

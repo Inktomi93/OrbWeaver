@@ -23,4 +23,4 @@ The rule refuses a planted bare refusal and accepts a typed one; the existing si
 
 ## Evidence
 
-Rule `orb/no-bare-throw-assertion` in `tooling/src/eslint/test-derivation.ts`; controls in `tests/tooling/eslint-test-derivation.test.ts`. Each site names what its suite was observed to throw through a recording matcher, or what the helper source throws for CT and e2e. `pnpm lint:eslint` over `tests/` by directory reports zero for the rule.
+Rule `orb/no-bare-throw-assertion` in `tooling/src/eslint/test-derivation.ts`, which also refuses a match-all expectation, the `DomainOperationError` base alone, `expect.any(Error)`, `rejects.toBeDefined()` and `rejects.toBeTruthy()`; controls in `tests/tooling/eslint-test-derivation.test.ts`. Each site names what its suite was observed to throw through a recording matcher, or what the helper source throws for CT and e2e. `pnpm lint:eslint` over `tests/` by directory reports zero for the rule.

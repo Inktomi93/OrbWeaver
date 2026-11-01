@@ -6,7 +6,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { WORKLOAD_NOT_ADMISSIBLE } from "@orb/contracts/workloads";
-import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { createMemoryBackfillRoom, createServerHarness, seedCorpusConnections } from "@orb/testkit/node/composed";
@@ -34,7 +34,9 @@ test("a mode the kind does not run is refused, the same kind's supported mode is
   await using root = await createServerHarness({ startJobs: false });
   const owner = await root.principalFor(root.ownerId);
 
-  await expect(root.services.workloads.estimateModelCalls({ caller: owner, mode: "singular", input: CATALOG })).rejects.toBeInstanceOf(DomainOperationError);
+  await expect(root.services.workloads.estimateModelCalls({ caller: owner, mode: "singular", input: CATALOG })).rejects.toMatchObject({
+    code: "unsupported_mode",
+  });
   expect(await root.services.workloads.estimateModelCalls({ caller: owner, mode: "bulk", input: CATALOG })).toEqual({ calls: null });
 });
 

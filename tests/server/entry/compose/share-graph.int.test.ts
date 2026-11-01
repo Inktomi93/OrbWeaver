@@ -192,7 +192,7 @@ test("a held raw download keeps owned storage until physical execution acknowled
   });
   await claimShareOwner(harness);
   const caller = await harness.internalCallerFor(harness.ownerId);
-  const starting = expect(caller.share.start()).rejects.toBeDefined();
+  const starting = expect(caller.share.start()).rejects.toMatchObject({ code: "BAD_REQUEST", cause: { code: "relay_binary_download_failed" } });
   const signal = await reached.promise;
   const aborted = Promise.withResolvers<void>();
   signal.addEventListener("abort", () => aborted.resolve(), { once: true });

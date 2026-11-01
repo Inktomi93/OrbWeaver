@@ -23,4 +23,4 @@ Both rules refuse a planted case and accept the derived form; existing sites are
 
 ## Evidence
 
-Rules `orb/no-unseeded-type-id` and `orb/no-filtered-case-table` in `tooling/src/eslint/test-derivation.ts`; controls in `tests/tooling/eslint-test-derivation.test.ts`. Type contracts stay outside the id rule because they run nothing. The lane skill names the seeded form. `pnpm lint:eslint` over `tests/` by directory reports zero for both rules.
+Rules `orb/no-unseeded-type-id` and `orb/no-filtered-case-table` in `tooling/src/eslint/test-derivation.ts`; controls in `tests/tooling/eslint-test-derivation.test.ts`. The table rule also covers a registering `for...of`. Type contracts stay outside the id rule because they run nothing. The lane skill names the seeded form. `pnpm lint:eslint` over `tests/` by directory reports zero for both rules.

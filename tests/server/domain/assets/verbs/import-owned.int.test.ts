@@ -3,7 +3,7 @@
 import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, FORWARD_AUTH_TRUSTED_PROXIES_KEY } from "@orb/contracts/identity";
-import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ExternalId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { createImportAvatarStore, createImportOwnedAsset } from "@orb/server/domain/assets";
@@ -72,7 +72,7 @@ test("avatar policy retains the original Principal and false-magic flag while a 
   const bytes = new TextEncoder().encode("Already parsed avatar bytes");
   const stored = vi.spyOn(services.assets, "store");
   const capped = createImportAvatarStore(actor, (params) => services.assets.store({ ...params, maxBytes: 1 }));
-  await expect(capped({ bytes, mime: "image/png" })).rejects.toThrow(DomainOperationError);
+  await expect(capped({ bytes, mime: "image/png" })).rejects.toMatchObject({ code: "asset_too_large" });
   expect(stored.mock.calls[0]?.[0]).toMatchObject({ principal: actor, enforceMagic: false, kind: "avatar", maxBytes: 1 });
   expect(await services.assets.listOwned({ principal: actor, limit: ASSET_LIST_LIMIT_MAX })).toEqual([]);
   const store = createImportAvatarStore(actor, (params) => services.assets.store(params));

@@ -193,6 +193,6 @@ test.describe("rule editor field rows", () => {
     if (box === null) {
       throw new Error("The explanatory line must render");
     }
-    expect(box.width).toBeLessThanOrEqual((await resolvedLength(page, "var(--reading-measure-prose)", line)) + 1);
+    expect(box.width).toBeLessThanOrEqual((await resolvedLength(page, `var(${TOKENS["reading.measure-prose"].cssVar})`, line)) + 1);
   });
 });
