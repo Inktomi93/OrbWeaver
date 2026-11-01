@@ -24,6 +24,7 @@
 // REQUIRED ref and means what its name says — THIS room failed.
 
 import type { SubscriptionErrorFrame } from "@orb/contracts/rpc";
+import { isSubscriptionErrorFrame } from "@orb/contracts/rpc";
 import type { StreamFrame } from "@orb/contracts/stream";
 import { useSubscription } from "@trpc/tanstack-react-query";
 import { useEffect } from "react";
@@ -39,7 +40,7 @@ import { socketId } from "./socket-id.ts";
 type SocketPayload = StreamFrame | SubscriptionErrorFrame;
 
 function routeFrame(payload: SocketPayload): void {
-  if ("__subscriptionError" in payload) {
+  if (isSubscriptionErrorFrame(payload)) {
     // The whole socket is over — ONE thing that happened, so ONE alert, from the socket itself (#222). This
     // used to call `roomRegistry.failed(payload.message)` with no ref, which the registry fanned to EVERY
     // joined room; since every room hook's `onError` is a `notify.error`, one socket death produced N

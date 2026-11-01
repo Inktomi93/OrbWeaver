@@ -91,6 +91,7 @@ export interface ProfileCollectRecords
     | "refusedThemes"
     | "skippedBackgrounds"
     | "unreadableGroups"
+    | "missingPersonaAvatars"
     | "skippedChats"
     | "orphanChatDirs"
     | "skippedCharacters"

@@ -7,7 +7,7 @@
 // THE PREFLIGHT IS THE POINT. The pane described what it ACCEPTS and never what it DOES: a drop began
 // uploading on the spot, so a reader restoring a backup over a library they had already built learned the
 // collision rule from the report of an import that had already happened. A pick now STAGES
-// (`use-library-import.ts` — zero requests), and this preflight states the consequence in the words the
+// (`use-library-import.ts` — nothing is imported), and this preflight states the consequence in the words the
 // server verbs actually implement, then asks. The consequence copy is DERIVED, not reassuring:
 //   · `import-character.ts` — identity is the parsed content (`cardImportHash`), never the name, so an equal
 //     card is skipped and two "Eleni" cards stay two characters.
@@ -20,7 +20,8 @@
 // Nothing in any wave deletes, and seed rows (`ownerId IS NULL`) are structurally unreachable — so "adds,
 // never deletes; a backup's settings merge into yours" is the whole true statement. A folder pick also shows
 // its PLAN (`planNotes`): what the browser leaves out before uploading (and why), and how many uploads the
-// folder takes.
+// folder takes. A SillyTavern folder also shows its dry run (`import-preview-summary.tsx`): what is in it, by
+// kind, and what a real run would skip.
 
 import type { PersonaCollision, PersonaCollisionChoice, PersonaCollisionChoices } from "@orb/contracts/import";
 import { Button } from "@orb/ui/button";
@@ -29,15 +30,17 @@ import { FileDropzone, FolderPicker } from "@orb/ui/file-dropzone";
 import { Row, Stack } from "@orb/ui/layout";
 import { Progress } from "@orb/ui/progress";
 import { Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
-import { useRef } from "react";
+import type { ReactElement, Ref } from "react";
+import { useEffect, useRef } from "react";
 import { ImportedChatsMemoryOffer } from "#components";
 import type { TreeImportPlan } from "#data";
 import { useUploadCaps } from "#data";
 import { testId } from "#lib";
+import type { ImportPreviewState } from "../hooks/use-library-import.ts";
 import { useLibraryImport } from "../hooks/use-library-import.ts";
 import { planNotes } from "../lib/portability-model.ts";
 import { BundleWorkloadTracker } from "./bundle-workload-tracker.tsx";
+import { ImportPreviewSummary } from "./import-preview-summary.tsx";
 import { ImportReportSummary } from "./import-report-summary.tsx";
 import { PersonaCollisionReview } from "./persona-collision-review.tsx";
 
@@ -49,6 +52,8 @@ const IMPORT_CONSEQUENCE = [
   "A world book, theme or preset that shares a name with a DIFFERENT one of yours is imported under a numbered name, and so is a persona restored from an Orbweaver backup. Two different cards that share a name stay two characters.",
 ] as const;
 
+const NOTHING_TO_SEND_ID = "import-preflight-nothing-to-send";
+
 /** Said only when the folder's personas are listed above, so a zip or card import never points at a list that
  *  is not there. */
 const PERSONA_QUESTION_NOTE = "A persona in this SillyTavern folder that shares a name with one of yours asks you instead, above.";
@@ -58,6 +63,9 @@ const PERSONA_QUESTION_NOTE = "A persona in this SillyTavern folder that shares 
 function stagedTitle(files: readonly File[], plan: TreeImportPlan | null): string {
   const first = files[0];
   if (plan !== null) {
+    if (plan.files === 0) {
+      return "Nothing in the folder you picked can be imported";
+    }
     return `Import ${String(plan.files)} file${plan.files === 1 ? "" : "s"} from the folder you picked?`;
   }
   return files.length === 1 && first !== undefined ? `Import “${first.name}”?` : `Import ${String(files.length)} files?`;
@@ -71,26 +79,35 @@ function ImportPreflight({
   plan,
   collisions,
   choices,
+  preview,
   onChoose,
   onChooseAll,
   onConfirm,
   onCancel,
+  onRetryPreview,
+  ref,
 }: {
+  readonly ref: Ref<HTMLDivElement>;
+  readonly onRetryPreview: () => void;
   readonly files: readonly File[];
   readonly plan: TreeImportPlan | null;
   readonly collisions: readonly PersonaCollision[];
   readonly choices: PersonaCollisionChoices;
+  readonly preview: ImportPreviewState;
   readonly onChoose: (key: string, choice: PersonaCollisionChoice) => void;
   readonly onChooseAll: (choice: PersonaCollisionChoice) => void;
   readonly onConfirm: () => void;
   readonly onCancel: () => void;
 }): ReactElement {
   const title = stagedTitle(files, plan);
+  const nothingToSend = plan !== null && plan.batches.length === 0 && plan.skipped.length > 0;
   return (
-    // A named GROUP, not an alert: nothing has happened yet and nothing is being interrupted.
-    <Card aria-label={title} data-slot="import-preflight" padding="none" role="group" shape="row" variant="outline">
+    // A named GROUP, not an alert: nothing has happened yet and nothing is being interrupted. It takes focus on a
+    // pick (tabIndex -1: focusable by script, not a tab stop) so a screen reader lands on its name.
+    <Card aria-label={title} data-slot="import-preflight" padding="none" role="group" shape="row" variant="outline" tabIndex={-1} ref={ref}>
       <Stack gap="field" padding="field">
         <Text voice="label">{title}</Text>
+        <ImportPreviewSummary state={preview} onRetry={onRetryPreview} />
         <PersonaCollisionReview collisions={collisions} choices={choices} onChoose={onChoose} onChooseAll={onChooseAll} />
         <Stack gap="tight">
           {[...IMPORT_CONSEQUENCE, ...(collisions.length > 0 ? [PERSONA_QUESTION_NOTE] : [])].map((line) => (
@@ -106,8 +123,17 @@ function ImportPreflight({
                 </Text>
               ))}
         </Stack>
+        {nothingToSend ? (
+          <Text id={NOTHING_TO_SEND_ID} voice="reading">
+            Every file in this folder is being left out, so there is nothing to import. The reasons are listed above.
+          </Text>
+        ) : null}
         <Row justify="start" align="center" gap="field">
-          <Button onClick={onConfirm} disabled={plan !== null && plan.batches.length === 0 && plan.skipped.length > 0}>
+          <Button
+            onClick={onConfirm}
+            disabled={preview.status === "reading" || nothingToSend}
+            aria-describedby={nothingToSend ? NOTHING_TO_SEND_ID : undefined}
+          >
             Import
           </Button>
           <Button variant="outline" onClick={onCancel}>
@@ -126,11 +152,22 @@ export function ImportLibrarySection(): ReactElement {
   // tighter in-memory card cap is refused by its route with that cap's message. The folder picker carries NO cap
   // of its own: the plan decides per file against the served folder caps and says why a file stays behind.
   const importMaxBytes = useUploadCaps().importBundle;
-  const { state, stageFiles, stageFolder, chooseCollision, chooseAllCollisions, confirm, cancel, reset, track } = useLibraryImport();
+  const { state, stageFiles, stageFolder, chooseCollision, chooseAllCollisions, confirm, cancel, retryPreview, reset, track, previewTrack } =
+    useLibraryImport();
   const filePickerRef = useRef<HTMLInputElement>(null);
+  const preflightRef = useRef<HTMLDivElement>(null);
   const folderPickerRef = useRef<HTMLElement | null>(null);
   const stagedPickerRef = useRef<HTMLElement | null>(null);
   const staged = state.status === "staged" ? state : null;
+  // Each pick stages a fresh files array. The preflight can land below the fold of a long pane, so a pick
+  // scrolls it to the top and moves focus onto it; nothing else on the page announces that the pick took.
+  const stagedFiles = staged?.files ?? null;
+  useEffect(() => {
+    if (stagedFiles !== null) {
+      preflightRef.current?.focus({ preventScroll: true });
+      preflightRef.current?.scrollIntoView({ block: "start" });
+    }
+  }, [stagedFiles]);
   const busy = state.status === "uploading" || state.status === "running";
   const done = state.status === "done";
   const succeeded = done && state.summary.failed === 0;
@@ -181,10 +218,13 @@ export function ImportLibrarySection(): ReactElement {
       </Row>
       {staged === null ? null : (
         <ImportPreflight
+          ref={preflightRef}
+          onRetryPreview={retryPreview}
           files={staged.files}
           plan={staged.plan}
           collisions={staged.collisions}
           choices={staged.choices}
+          preview={staged.preview}
           onChoose={chooseCollision}
           onChooseAll={chooseAllCollisions}
           onCancel={(): void => {
@@ -194,6 +234,15 @@ export function ImportLibrarySection(): ReactElement {
           onConfirm={confirm}
         />
       )}
+      {staged?.preview.status === "reading" && staged.preview.workloadId !== null ? (
+        <BundleWorkloadTracker
+          key={staged.preview.workloadId}
+          workloadId={staged.preview.workloadId}
+          onProgress={previewTrack.onProgress}
+          onSucceeded={previewTrack.onSucceeded}
+          onFailed={previewTrack.onFailed}
+        />
+      ) : null}
       {state.status === "running" ? (
         <>
           <BundleWorkloadTracker workloadId={state.workloadId} onProgress={track.onProgress} onSucceeded={track.onSucceeded} onFailed={track.onFailed} />

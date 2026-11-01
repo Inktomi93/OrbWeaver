@@ -99,7 +99,7 @@ export interface EngineContext extends Pick<ChatAccountingContext, "db" | "now" 
   readonly traces: TraceRing;
   readonly timers: TimerScheduler;
   readonly backgroundSignal?: AbortSignal;
-  readonly trackBackground?: (settled: Promise<void>, chatId: ChatId) => void;
+  readonly trackBackground: (settled: Promise<void>, chatId: ChatId) => void;
   /** The wire-capture outcome recorder; compose wires it only when wire capture is on. */
   readonly recordTurnOutcome?: (outcome: WireOutcome) => void;
   readonly newMessageId: () => MessageId;

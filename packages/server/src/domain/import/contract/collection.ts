@@ -36,6 +36,8 @@ export interface ParsedStTags {
 export interface CollectedChat {
   readonly parsed: ParsedChat;
   readonly importedFrom: string;
+  /** The transcript's path in the profile, stable across the uploads of a split folder. */
+  readonly sourceFile: string;
   /** The transcript's content identity (`chatContentHash`). */
   readonly importHash: string;
   /** The whole-file hash a row imported before the content identity carries (the write op's second lookup). */
@@ -137,6 +139,8 @@ export interface CollectedBackground {
  *  is the only point at which the mapping exists. */
 export interface CollectedGroup {
   readonly parsed: ParsedStGroup;
+  /** The group file's path in the profile, stable across the uploads of a split folder. */
+  readonly sourceFile: string;
   readonly chats: CollectedChat[];
   /** Leaves the group claimed that had no readable file under `group chats/` (recorded, never silent). */
   readonly missingChatLeaves: string[];
@@ -199,6 +203,8 @@ export interface CollectResult {
   readonly skippedBackgrounds: { readonly file: string; readonly reason: string }[];
   /** A `groups/*.json` that did not parse as an ST group definition (recorded, never silent). */
   readonly unreadableGroups: string[];
+  /** A persona's avatar name that matched no file in the profile's avatar folder. The persona imports without art. */
+  readonly missingPersonaAvatars: string[];
   /** Top-level profile entries the importer does not process (assets/backgrounds/presets/themes/…). */
   readonly unhandled: string[];
   /** settings.json top-level sections the importer does not process (only `power_user.personas` is read). */

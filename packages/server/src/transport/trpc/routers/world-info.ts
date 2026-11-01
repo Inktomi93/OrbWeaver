@@ -16,7 +16,6 @@ import {
   createEntrySchema,
   detachResultSchema,
   entryViewSchema,
-  removeResultSchema,
   reorderResultSchema,
   updateBookSchema,
   updateEntrySchema,
@@ -75,7 +74,7 @@ export const worldInfoRouter = t.router({
     ),
 
   removeBook: authedProcedure
-    .output(removeResultSchema)
+    .output(z.void())
     .input(worldBookIdInputSchema)
     .mutation(({ ctx, input }) => ctx.services.worldInfo.removeBook({ principal: ctx.auth, bookId: input.bookId })),
 
@@ -148,7 +147,7 @@ export const worldInfoRouter = t.router({
     ),
 
   removeEntry: authedProcedure
-    .output(removeResultSchema)
+    .output(z.void())
     .input(worldEntryIdInputSchema)
     .mutation(({ ctx, input }) => ctx.services.worldInfo.removeEntry({ principal: ctx.auth, entryId: input.entryId })),
 

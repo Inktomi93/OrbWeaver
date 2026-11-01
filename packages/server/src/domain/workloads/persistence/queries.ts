@@ -34,7 +34,7 @@ import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
-import type { WorkloadContributions } from "../contract/contribution.ts";
+import type { ActiveWorkloadRow, WorkloadContributions } from "../contract/contribution.ts";
 import type { ListWorkloadsParams } from "../contract/params.ts";
 import type {
   AuthorizeWorkloadRead,
@@ -570,6 +570,17 @@ export async function findInFlightForBootReclaim(db: Db): Promise<WorkloadInFlig
     .select({ id: workloads.id, kind: workloads.kind, respawns: workloads.respawns, updatedAt: workloads.updatedAt })
     .from(workloads)
     .where(inArray(workloads.status, [...IN_FLIGHT_STATUSES]));
+}
+
+/** Every row that may still run, for the boot sweep. A row whose stored JSON will not decode throws here, and that
+ *  sweep then frees nothing: a row nothing can read may still own what the sweep would remove. */
+// THE ENGINE PLANE (D20 un-principal) — boot's enumeration of every owner's live rows, feeding only the owning domains' sweeps. Ends if a Principal-bearing caller reaches this read.
+export async function findActiveForBootSweep(db: Db): Promise<ActiveWorkloadRow[]> {
+  const rows = await db
+    .select({ kind: workloads.kind, params: WORKLOAD_READ_COLUMNS.params })
+    .from(workloads)
+    .where(inArray(workloads.status, [...ACTIVE_WORKLOAD_STATUSES]));
+  return rows.map((row) => ({ kind: row.kind, params: JSON.parse(row.params) as unknown }));
 }
 
 /** Put an orphaned in-flight row BACK IN THE QUEUE (#529) — the resumable disposition of the boot reclaim.

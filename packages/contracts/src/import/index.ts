@@ -1,6 +1,7 @@
 // Native and SillyTavern import vocabulary and shared folder-layout admission.
 // The planner and HTTP boundary classify the same paths before selecting their import behavior.
 
+import { trimEndWhile } from "@orb/kit/strings";
 import { z } from "zod";
 import { PORTABLE_DIRECTORIES } from "../portability/index.ts";
 import { encodePersonaCollisionChoices, PERSONA_COLLISION_CHOICES, PERSONA_COLLISION_FIELD } from "./persona-collision.ts";
@@ -21,6 +22,8 @@ export {
   personaCollisionChoicesSchema,
   personaCollisionReviewSchema,
 } from "./persona-collision.ts";
+export type { ImportPreview, ImportPreviewItem, ImportPreviewKind, ImportPreviewList, ImportPreviewSkip } from "./preview.ts";
+export { IMPORT_PREVIEW_KINDS, IMPORT_PREVIEW_LIST_MAX, IMPORT_PREVIEW_TEXT_MAX, importPreviewSchema, mergeImportPreviews } from "./preview.ts";
 export type { ImportStarted } from "./started.ts";
 export { importStartedSchema } from "./started.ts";
 
@@ -46,36 +49,33 @@ const ST_PROFILE_HANDLED_ENTRIES = [
 
 export type StProfileHandledEntry = (typeof ST_PROFILE_HANDLED_ENTRIES)[number];
 
-const TEXT_COMPLETION_TEMPLATES = "text-completion templates — text-completion is out of product scope (owner ruling)";
-const TEXT_COMPLETION_PRESETS = "text-completion preset files — orb has no text-completion mode (owner ruling)";
-const TEXT_COMPLETION_LIVE = "live text-completion preset — orb has no text-completion mode (owner ruling)";
+const TEXT_COMPLETION_TEMPLATES = "text-completion templates, which Orbweaver does not use";
+const TEXT_COMPLETION_PRESETS = "text-completion presets, which Orbweaver does not use";
+const TEXT_COMPLETION_LIVE = "the live text-completion preset, which Orbweaver does not use";
 
 /** Why each unhandled top-level profile plane has no importer. A directory name ends in `/`. A plane absent
  *  here renders bare in the report, so a new ST plane shows up instead of vanishing. */
 export const ST_PROFILE_UNHANDLED_REASONS: ReadonlyMap<string, string> = new Map([
-  ["movingUI/", "saved UI layout state — no domain home"],
+  ["movingUI/", "saved window layout"],
   ["context/", TEXT_COMPLETION_TEMPLATES],
   ["instruct/", TEXT_COMPLETION_TEMPLATES],
   ["sysprompt/", TEXT_COMPLETION_TEMPLATES],
-  ["reasoning/", "saved reasoning-format template library — the ACTIVE template already folds onto the live preset; the library is out of product scope"],
+  ["reasoning/", "the saved reasoning-format templates (the one in use is already carried by your preset)"],
   ["TextGen Settings/", TEXT_COMPLETION_PRESETS],
   ["NovelAI Settings/", TEXT_COMPLETION_PRESETS],
   ["KoboldAI Settings/", TEXT_COMPLETION_PRESETS],
-  ["QuickReplies/", "STscript quick-reply buttons — orb has no STscript executor (orb automation is CEL-based, D46)"],
-  ["assets/", "ST extension assets (portraits, audio) — no supported importer"],
-  ["vectors/", "ST's own vector store — orb re-embeds locally after import, so a foreign index never travels"],
-  ["extensions/", "third-party extension INSTALLS (code, not state) — out of scope"],
-  ["backups/", "ST's own chat backups — the live chats import; a backup copy would duplicate them"],
-  ["thumbnails/", "ST's cached avatar thumbnails — orb derives its own"],
-  ["_cache/", "ST's internal cache — not canon"],
-  [
-    "user/",
-    "user/files (Data Bank) + user/images (character gallery) ARE walked and counted (see the Data Bank / gallery section); user/workflows is ST's stock ComfyUI workflow pair — orb has no ComfyUI workflow store",
-  ],
-  [ST_SECRETS_FILE, "API keys — never uploaded and never imported (credentials are entered per-install)"],
-  ["stats.json", "usage stats — recomputed locally, not import canon"],
-  ["content.log", "ST install log — not canon"],
-  ["image-metadata.json", "ST gallery/background thumbnail metadata — orb derives its own media metadata at CAS-store time"],
+  ["QuickReplies/", "quick-reply buttons, which rely on SillyTavern scripts"],
+  ["assets/", "extension assets such as portraits and audio"],
+  ["vectors/", "SillyTavern's search index, which Orbweaver rebuilds itself"],
+  ["extensions/", "installed extensions, which are code and not your data"],
+  ["backups/", "SillyTavern's chat backups; your live chats import"],
+  ["thumbnails/", "cached avatar thumbnails, which Orbweaver makes itself"],
+  ["_cache/", "SillyTavern's internal cache"],
+  ["user/", "SillyTavern's image-generation workflows"],
+  [ST_SECRETS_FILE, "your API keys, which never leave this browser; add them again in Orbweaver"],
+  ["stats.json", "usage statistics, which Orbweaver counts itself"],
+  ["content.log", "SillyTavern's log file"],
+  ["image-metadata.json", "thumbnail details for images, which Orbweaver works out itself"],
 ]);
 
 /** Why each unhandled `settings.json` section has no importer (ST snake_case section names). */
@@ -120,20 +120,20 @@ export function stProfileEntryDisposition(
   return { handled: false, reason: ST_PROFILE_UNHANDLED_REASONS.get(isDirectory ? `${name}/` : name) ?? null };
 }
 
-/** The ST credentials file by its last path segment — the one name every door drops before staging. */
+/** The ST credentials file by its last path segment, in any case: a Windows or macOS profile may carry any
+ *  spelling of the name. Every door drops it before staging. */
 export function isStSecretsFile(relPath: string): boolean {
-  return relPath.split("/").at(-1) === ST_SECRETS_FILE;
+  return relPath.split("/").at(-1)?.toLowerCase() === ST_SECRETS_FILE;
 }
 
-const TRAILING_DIGITS = /\d+$/u;
-const TRAILING_HYPHENS = /-+$/u;
+const DIGITS = "0123456789";
 const SPEC_WRAPPER = /^main-(.+)-spec-v\d+$/u;
 
 /** The card slugs a chat directory's slug may belong to when no card carries it exactly: the slug minus
  *  an ST folder-name decoration (a trailing number, the `main-<name>-spec-v2` wrapper), in the order the
  *  pairing tries them. The browser planner and the server collector pair by this ONE rule. */
 export function chatDirCardCandidates(slug: string): string[] {
-  const candidates = [slug.replace(TRAILING_DIGITS, "").replace(TRAILING_HYPHENS, ""), SPEC_WRAPPER.exec(slug)?.[1]];
+  const candidates = [trimEndWhile(trimEndWhile(slug, DIGITS), "-"), SPEC_WRAPPER.exec(slug)?.[1]];
   return candidates.filter((c): c is string => c !== undefined && c.length > 0 && c !== slug);
 }
 
@@ -263,6 +263,10 @@ export const TREE_FILE_FIELD = "file";
 /** The multipart field naming a batch's declared layout. Without it the server sniffs the batch alone. */
 export const TREE_LAYOUT_FIELD = "layout";
 
+/** The tree upload's dry-run field: a SillyTavern upload carrying it reports what it holds and writes nothing. */
+export const TREE_DRY_RUN_FIELD = "dryRun";
+export const TREE_DRY_RUN_VALUE = "true";
+
 // RFC 2046 caps a multipart boundary at 70 characters. A delimiter line is `--`, the boundary and CRLF; the
 // close delimiter adds a trailing `--`.
 const MULTIPART_BOUNDARY_MAX_CHARS = 70;
@@ -306,7 +310,7 @@ export function treeUploadPartFramingBytes(part: TreeUploadPart): number {
 
 /**
  * An upper bound on the bytes every tree upload's multipart body carries whatever files it holds: a layout
- * declaration, any choice for each persona collision, and the close delimiter. A planner reserves this once per upload.
+ * declaration, the dry-run field, any choice for each persona collision, and the close delimiter. A planner reserves this once per upload.
  */
 export function treeUploadFixedFramingBytes(personaCollisionKeys: readonly string[]): number {
   const layout = Math.max(...TREE_LAYOUT_DECLARATIONS.map((value) => partFramingBytes(TREE_LAYOUT_FIELD, null) + encodedBytes(value)));
@@ -315,7 +319,8 @@ export function treeUploadFixedFramingBytes(personaCollisionKeys: readonly strin
     (sum, key) => sum + partFramingBytes(PERSONA_COLLISION_FIELD, null) + encodedBytes(encodePersonaCollisionChoices({ [key]: longestChoice })[0] ?? ""),
     0,
   );
-  return layout + collisions + MULTIPART_CLOSE_BYTES;
+  const dryRun = partFramingBytes(TREE_DRY_RUN_FIELD, null) + encodedBytes(TREE_DRY_RUN_VALUE);
+  return layout + dryRun + collisions + MULTIPART_CLOSE_BYTES;
 }
 
 /**

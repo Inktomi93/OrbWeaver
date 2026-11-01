@@ -9,7 +9,7 @@
 // SELECTION IS STAGED, NEVER FIRED. Picking a file used to BE the import: the drop handler uploaded
 // immediately, so the first thing that told you what an import does to a library you already own was the
 // report of what it had just done. A pick now lands in `staged` — a pure client state, zero requests — and
-// the surface states the consequence and asks. `confirm()` is the only caller of the upload seams;
+// the surface states the consequence and asks. `confirm()` is the only caller that imports;
 // `cancel()` returns to the resting dropzone having touched nothing. The staged files are held in state
 // deliberately: re-deriving them from the input after a confirm is impossible (a `FileList` does not
 // survive the re-render that clears the picker). A folder pick stages its PLAN beside the files, so the
@@ -17,19 +17,24 @@
 // REVIEW: the same-name, different-content personas the profile carries, each with a Merge / Keep both choice
 // (Merge preselected). The choices ride every upload of the folder, so the whole run honors them.
 //
+// A SillyTavern folder also runs a DRY RUN the moment it is staged: every upload goes through the tree route as an
+// import-st workload that writes nothing, and their merged preview names what a real run would bring and skip.
+// The real import still re-sends the folder on confirm, so a dropped preview strands no staged upload.
+//
 // The `.zip` subscription itself lives in <BundleWorkloadTracker>, mounted only while running; this hook
 // owns the state transitions and hands the tracker its terminal/progress callbacks via `track`.
 
-import type { PersonaCollision, PersonaCollisionChoice, PersonaCollisionChoices } from "@orb/contracts/import";
-import { DEFAULT_PERSONA_COLLISION_CHOICE } from "@orb/contracts/import";
+import type { ImportPreview, PersonaCollision, PersonaCollisionChoice, PersonaCollisionChoices } from "@orb/contracts/import";
+import { DEFAULT_PERSONA_COLLISION_CHOICE, mergeImportPreviews } from "@orb/contracts/import";
 import type { WorkloadId } from "@orb/kit/ids";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { TreeImportCaps, TreeImportPlan } from "#data";
-import { importBundle, importCharacters, importTree, planServedFolderImport, relativePathOf, useInvalidation, useUploadCaps } from "#data";
+import { HttpError, importBundle, importCharacters, importTree, planServedFolderImport, relativePathOf, useInvalidation, useTRPC, useUploadCaps } from "#data";
 import { notify } from "#lib";
 import type { BundleCounts, ImportSummary } from "../lib/portability-model.ts";
 import { planNotes, sumBundleCounts, summarizeBundleCounts, summarizeCardImport, summaryCaption } from "../lib/portability-model.ts";
 import type { WorkloadProgressView } from "../lib/workloads-model.ts";
+import { useCancelWorkload } from "./use-workload-mutations.ts";
 
 const ZIP_EXTENSION = ".zip";
 
@@ -38,6 +43,39 @@ interface BatchProgress {
   readonly index: number;
   readonly total: number;
 }
+
+const NO_PROGRESS: WorkloadProgressView = { pct: null, label: null };
+const NO_PREVIEW = { status: "off" } as const;
+const UNREADABLE_PREVIEW = "The server returned no preview.";
+const HTTP_CONFLICT = 409;
+const HTTP_TOO_LARGE = 413;
+const HTTP_SERVER_ERROR = 500;
+/** A cancelled dry run holds the account's import slot until it settles, so the next upload is refused for a
+ *  moment. The dry run waits that out instead of failing. */
+const CONFLICT_RETRY_MS = 1000;
+const CONFLICT_RETRY_LIMIT = 30;
+
+/** What the reader is told when the dry run could not start. The status and the server's text stay out of it. */
+function previewFailureMessage(error: unknown): string {
+  if (!(error instanceof HttpError)) {
+    return "Could not reach the server.";
+  }
+  if (error.status === HTTP_CONFLICT) {
+    return "Another import is still finishing.";
+  }
+  if (error.status === HTTP_TOO_LARGE) {
+    return "This folder is too large to preview.";
+  }
+  return error.status >= HTTP_SERVER_ERROR ? "The server could not read this folder." : "The server did not accept this folder for a preview.";
+}
+
+/** The staged folder's dry run. A pick with no preview sits at `off`; a failed preview leaves the import available. */
+export type ImportPreviewState =
+  | typeof NO_PREVIEW
+  /** `workloadId` is null while the upload is still being sent. */
+  | { readonly status: "reading"; readonly workloadId: WorkloadId | null; readonly progress: WorkloadProgressView; readonly batch: BatchProgress }
+  | { readonly status: "ready"; readonly preview: ImportPreview }
+  | { readonly status: "failed"; readonly message: string };
 
 type LibraryImportState =
   | { readonly status: "idle" }
@@ -50,6 +88,7 @@ type LibraryImportState =
       readonly plan: TreeImportPlan | null;
       readonly collisions: readonly PersonaCollision[];
       readonly choices: PersonaCollisionChoices;
+      readonly preview: ImportPreviewState;
     }
   | { readonly status: "uploading"; readonly filename: string }
   | {
@@ -66,7 +105,7 @@ type LibraryImportState =
 /** The progress + terminal callbacks the section wires into <BundleWorkloadTracker> while running. */
 interface LibraryImportTrack {
   readonly onProgress: (progress: WorkloadProgressView) => void;
-  readonly onSucceeded: (counts: BundleCounts) => void;
+  readonly onSucceeded: (counts: BundleCounts, preview: ImportPreview | null) => void;
   readonly onFailed: (message: string) => void;
 }
 
@@ -74,20 +113,24 @@ export interface LibraryImport {
   readonly state: LibraryImportState;
   /** STAGE a picked batch (a single `.zip` bundle, or one-or-many bare card files) — no request. */
   readonly stageFiles: (files: readonly File[]) => void;
-  /** STAGE a picked FOLDER (each file carries its `webkitRelativePath`) and plan its uploads — no request. */
+  /** STAGE a picked FOLDER (each file carries its `webkitRelativePath`), plan its uploads and start its dry run. */
   readonly stageFolder: (files: readonly File[]) => void;
   /** Answer one persona collision of the staged folder. */
   readonly chooseCollision: (key: string, choice: PersonaCollisionChoice) => void;
   /** Give every collision of the staged folder the same answer (Merge all / Keep all). */
   readonly chooseAllCollisions: (choice: PersonaCollisionChoice) => void;
-  /** Send the staged selection — the ONE caller of the upload seams. */
+  /** Send the staged selection — the ONE caller that imports. */
   readonly confirm: () => void;
-  /** Drop the staged selection, having sent nothing. */
+  /** Drop the staged selection, having imported nothing. */
   readonly cancel: () => void;
+  /** Run the staged folder's dry run again after it failed. */
+  readonly retryPreview: () => void;
   /** Return to the resting dropzone (clears a prior report / error). */
   readonly reset: () => void;
   /** Wired into the workload tracker while `state.status === "running"`. */
   readonly track: LibraryImportTrack;
+  /** Wired into the workload tracker while the staged folder's preview runs. */
+  readonly previewTrack: LibraryImportTrack;
 }
 
 function isZip(file: File): boolean {
@@ -109,12 +152,107 @@ interface FolderRun {
   done: BundleCounts;
 }
 
+/** A folder's dry run, one upload after another. Held in a ref for the same reason as {@link FolderRun}. */
+interface PreviewRun {
+  readonly plan: TreeImportPlan;
+  index: number;
+  workloadId: WorkloadId | null;
+  readonly previews: ImportPreview[];
+}
+
 export function useLibraryImport(): LibraryImport {
   const invalidation = useInvalidation();
+  const trpc = useTRPC();
   const caps = useUploadCaps();
+  const cancelWorkload = useCancelWorkload({ trpc, invalidation });
   const [state, setState] = useState<LibraryImportState>({ status: "idle" });
   const requestEpoch = useRef(0);
   const folderRun = useRef<FolderRun | null>(null);
+  const previewRun = useRef<PreviewRun | null>(null);
+  const conflictTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearConflictTimer = (): void => {
+    if (conflictTimer.current !== null) {
+      clearTimeout(conflictTimer.current);
+      conflictTimer.current = null;
+    }
+  };
+  useEffect(
+    () => (): void => {
+      if (conflictTimer.current !== null) {
+        clearTimeout(conflictTimer.current);
+      }
+    },
+    [],
+  );
+
+  const setPreview = (run: PreviewRun, preview: ImportPreviewState): void => {
+    if (previewRun.current === run) {
+      setState((prev) => (prev.status === "staged" ? { ...prev, preview } : prev));
+    }
+  };
+
+  const failPreview = (run: PreviewRun, message: string): void => {
+    setPreview(run, { status: "failed", message });
+    if (previewRun.current === run) {
+      previewRun.current = null;
+    }
+  };
+
+  /** Stop the running dry run so a later pick is not refused as a second running import. */
+  const dropPreview = (): void => {
+    const run = previewRun.current;
+    previewRun.current = null;
+    clearConflictTimer();
+    if (run !== null && run.workloadId !== null) {
+      cancelWorkload.mutate({ id: run.workloadId });
+    }
+  };
+
+  const sendPreviewBatch = (run: PreviewRun, attempt = 0): void => {
+    const batch = run.plan.batches[run.index];
+    if (batch === undefined) {
+      setPreview(run, { status: "ready", preview: mergeImportPreviews(run.previews) });
+      previewRun.current = null;
+      return;
+    }
+    const position = { index: run.index, total: run.plan.batches.length };
+    run.workloadId = null;
+    setPreview(run, { status: "reading", workloadId: null, progress: NO_PROGRESS, batch: position });
+    // the .catch below calls failPreview(), which leaves the staged import available and shows why. A refusal
+    // for a running import is retried while this run is still the live one.
+    importTree(batch, {}, run.plan.layout, { dryRun: true })
+      .then(({ workloadId }) => {
+        if (previewRun.current !== run) {
+          cancelWorkload.mutate({ id: workloadId });
+          return;
+        }
+        run.workloadId = workloadId;
+        setPreview(run, { status: "reading", workloadId, progress: NO_PROGRESS, batch: position });
+      })
+      .catch((error: unknown) => {
+        if (error instanceof HttpError && error.status === HTTP_CONFLICT && attempt < CONFLICT_RETRY_LIMIT && previewRun.current === run) {
+          conflictTimer.current = setTimeout(() => {
+            conflictTimer.current = null;
+            if (previewRun.current === run) {
+              sendPreviewBatch(run, attempt + 1);
+            }
+          }, CONFLICT_RETRY_MS);
+          return;
+        }
+        failPreview(run, previewFailureMessage(error));
+      });
+  };
+
+  const retryPreview = (): void => {
+    if (state.status !== "staged" || state.preview.status !== "failed" || state.plan === null || !state.plan.previewable) {
+      return;
+    }
+    dropPreview();
+    const run: PreviewRun = { plan: state.plan, index: 0, workloadId: null, previews: [] };
+    previewRun.current = run;
+    sendPreviewBatch(run);
+  };
 
   const finish = (epoch: number, summary: ImportSummary): void => {
     if (epoch !== requestEpoch.current) {
@@ -142,13 +280,15 @@ export function useLibraryImport(): LibraryImport {
 
   const stageFiles = (files: readonly File[]): void => {
     if (files.length > 0) {
-      setState({ status: "staged", files: [...files], folder: false, plan: null, collisions: [], choices: {} });
+      dropPreview();
+      setState({ status: "staged", files: [...files], folder: false, plan: null, collisions: [], choices: {}, preview: NO_PREVIEW });
     }
   };
   const stageFolder = (files: readonly File[]): void => {
     if (files.length === 0) {
       return;
     }
+    dropPreview();
     const epoch = ++requestEpoch.current;
     // The plan reads group definitions, so it is async; the picker's files are staged the moment it lands.
     // the .catch below calls fail(), whose
@@ -157,12 +297,18 @@ export function useLibraryImport(): LibraryImport {
       .then(({ plan, collisions }) => {
         if (epoch === requestEpoch.current) {
           const choices = Object.fromEntries(collisions.map((c): [string, PersonaCollisionChoice] => [c.key, DEFAULT_PERSONA_COLLISION_CHOICE]));
-          setState({ status: "staged", files: [...files], folder: true, plan, collisions, choices });
+          setState({ status: "staged", files: [...files], folder: true, plan, collisions, choices, preview: NO_PREVIEW });
+          if (plan.previewable && plan.batches.length > 0) {
+            const run: PreviewRun = { plan, index: 0, workloadId: null, previews: [] };
+            previewRun.current = run;
+            sendPreviewBatch(run);
+          }
         }
       })
       .catch((error: unknown) => fail(epoch, errorMessage(error)));
   };
   const cancel = (): void => {
+    dropPreview();
     folderRun.current = null;
     setState({ status: "idle" });
   };
@@ -258,8 +404,32 @@ export function useLibraryImport(): LibraryImport {
     },
   };
 
+  const previewTrack: LibraryImportTrack = {
+    onProgress: (progress) => {
+      setState((prev) => (prev.status === "staged" && prev.preview.status === "reading" ? { ...prev, preview: { ...prev.preview, progress } } : prev));
+    },
+    onSucceeded: (_counts, preview) => {
+      const run = previewRun.current;
+      if (run === null) {
+        return;
+      }
+      if (preview === null) {
+        failPreview(run, UNREADABLE_PREVIEW);
+        return;
+      }
+      run.previews.push(preview);
+      run.index += 1;
+      sendPreviewBatch(run);
+    },
+    onFailed: (message) => {
+      if (previewRun.current !== null) {
+        failPreview(previewRun.current, message);
+      }
+    },
+  };
+
   const confirm = (): void => {
-    if (state.status !== "staged") {
+    if (state.status !== "staged" || state.preview.status === "reading") {
       return;
     }
     if (state.folder && state.plan !== null) {
@@ -280,11 +450,12 @@ export function useLibraryImport(): LibraryImport {
   };
 
   const reset = (): void => {
+    dropPreview();
     requestEpoch.current += 1;
     folderRun.current = null;
     setState({ status: "idle" });
   };
-  return { state, stageFiles, stageFolder, chooseCollision, chooseAllCollisions, confirm, cancel, reset, track };
+  return { state, stageFiles, stageFolder, chooseCollision, chooseAllCollisions, confirm, cancel, retryPreview, reset, track, previewTrack };
 }
 
 function errorMessage(error: unknown): string {

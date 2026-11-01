@@ -39,7 +39,7 @@ export { createEntityMutation, withProcedureInput } from "./create-entity-mutati
 export { readAutomationFires } from "./fetch-automation-fires.ts";
 export { fetchPluginUiSource } from "./fetch-plugin-ui-source.ts";
 export { readFresh } from "./fresh-read.ts";
-export {} from "./http-error.ts";
+export { HttpError } from "./http-error.ts";
 export { importBundle } from "./import-bundle.ts";
 export { importCharacters } from "./import-characters.ts";
 export { importChats } from "./import-chats.ts";

@@ -1,6 +1,6 @@
 // domain/import/contract/results — the verb result shapes.
 
-import type { CardLorebookRestoreResult } from "@orb/contracts/import";
+import type { CardLorebookRestoreResult, ImportPreview } from "@orb/contracts/import";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 
 export interface ImportedCharacterRef {
@@ -262,6 +262,8 @@ export interface ImportReport {
   readonly dryRun: boolean;
   /** The dry run's per-wave census, or null on a real run. */
   readonly dryRunWouldImport: ImportDryRunCensus | null;
+  /** The dry run's names per kind and its skips, or null on a real run. */
+  readonly preview: ImportPreview | null;
   /** ST library tags that did not attach to their imported card (the attach is per-tag isolated). */
   readonly skippedCardTags: readonly ImportSkippedCardTag[];
   /** Cards skipped by per-card isolation (validation defect repair could not fix), with the reason each. */
@@ -310,6 +312,8 @@ export interface ImportReport {
   readonly seatedDisabledMembers: readonly ImportSeatedDisabledMember[];
   /** A transcript leaf a group's own `chats[]` claimed with no readable file under `group chats/`. */
   readonly missingGroupChats: readonly string[];
+  /** A persona's avatar name that matched no file in the profile's avatar folder; the persona imported without art. */
+  readonly missingPersonaAvatars: readonly string[];
   readonly skippedChats: readonly string[];
   readonly orphanChatDirs: readonly string[];
   readonly skippedCharacters: readonly string[];

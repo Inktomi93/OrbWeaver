@@ -48,6 +48,8 @@ export interface TreeImportPlan {
   readonly files: number;
   /** The layout every upload declares, or null when each upload is recognized on its own. */
   readonly layout: TreeLayoutDeclaration | null;
+  /** A SillyTavern profile, the one layout a dry run reads. */
+  readonly previewable: boolean;
 }
 
 const PNG_EXT = /\.png$/iu;
@@ -63,7 +65,7 @@ const WORLDS_DIR = "worlds" satisfies StProfileHandledEntry;
 // Generic and profile plans report the same per-file cap refusal.
 const OVER_FILE_CAP_REASON = "over the per-file size cap";
 const OVER_UPLOAD_CAP_REASON = "too large for one upload";
-const UNHANDLED_FALLBACK = "no importer for this plane";
+const UNHANDLED_FALLBACK = "Orbweaver cannot import this";
 /** Why `secrets.json` is left out, from the one reason map. */
 const ST_PROFILE_SECRETS_REASON = (stProfileEntryDisposition(ST_SECRETS_FILE, false) as { readonly reason: string | null }).reason ?? UNHANDLED_FALLBACK;
 
@@ -147,7 +149,7 @@ function packerFor(caps: TreeImportCaps, framing: TreeUploadFraming, always: rea
 
 /** The finished uploads, with each rejected file joining `skipped` and the files the uploads carry
  *  counted once each (shared files repeat across uploads). */
-function finishPlan(packer: UploadPacker<PlannedFile>, skipped: SkippedTreeFile[]): Omit<TreeImportPlan, "layout"> {
+function finishPlan(packer: UploadPacker<PlannedFile>, skipped: SkippedTreeFile[]): Omit<TreeImportPlan, "layout" | "previewable"> {
   const { batches, rejected } = packer.finish();
   skipped.push(...rejected.map(() => ({ reason: OVER_UPLOAD_CAP_REASON })));
   return { batches, skipped, files: new Set(batches.flat()).size };
@@ -159,7 +161,7 @@ function packGeneric(
   caps: TreeImportCaps,
   framing: TreeUploadFraming,
   skipped: SkippedTreeFile[],
-): Omit<TreeImportPlan, "layout"> {
+): Omit<TreeImportPlan, "layout" | "previewable"> {
   const packer = packerFor(caps, framing, []);
   for (const f of planned) {
     if (f.file.size > caps.fileBytes) {
@@ -187,11 +189,11 @@ function planGeneric(picked: readonly PlannedFile[], caps: TreeImportCaps, frami
   const planned = picked.toSorted((a, b) => nativeImportRank(a) - nativeImportRank(b));
   const whole = packGeneric(planned, caps, framing, []);
   if (whole.batches.length <= 1) {
-    return { ...whole, layout: null };
+    return { ...whole, layout: null, previewable: false };
   }
   const nativeEntry = (f: PlannedFile): boolean => admitTreeBatch([f.path], "orb").kind === "orb";
   const outside = planned.filter((f) => !nativeEntry(f)).map(() => ({ reason: UNHANDLED_FALLBACK }));
-  return { ...packGeneric(planned.filter(nativeEntry), caps, framing, outside), layout: "orb" };
+  return { ...packGeneric(planned.filter(nativeEntry), caps, framing, outside), layout: "orb", previewable: false };
 }
 
 /** Where one picked file belongs in the plan. */
@@ -363,7 +365,7 @@ export async function planTreeImport(files: readonly File[], caps: TreeImportCap
     const members = group.memberKeys.flatMap((key) => classified.bundles.get(key)?.cards ?? []);
     packer.add([group.definition, ...members], group.chats);
   }
-  return { ...finishPlan(packer, classified.skipped), layout: null };
+  return { ...finishPlan(packer, classified.skipped), layout: null, previewable: true };
 }
 
 /** Every file the plan's uploads carry, once each (settings.json and the avatars repeat across batches). The
