@@ -423,7 +423,8 @@ async function bufferCapped(source: ReadableStream<Uint8Array> | AsyncIterable<U
   return out;
 }
 
-const STAGING_PREFIX = "orb-import-stage-";
+/** The name each extraction directory starts with, under the staging root its caller gave. */
+export const ZIP_STAGING_PREFIX = "orb-import-stage-";
 
 // O_CREAT|O_EXCL|O_NOFOLLOW: never open an existing path, so a pre-planted symlink can't be followed or clobbered.
 async function writeStaged(path: string, bytes: Uint8Array): Promise<void> {
@@ -479,7 +480,7 @@ export async function extractZip(source: ZipSource, options?: ExtractOptions): P
   const records = await readCentralDirectory(archive, location, { maxEntries, maxEntryBytes });
 
   await mkdir(stagingRoot, { recursive: true });
-  const dir = await mkdtemp(join(stagingRoot, STAGING_PREFIX));
+  const dir = await mkdtemp(join(stagingRoot, ZIP_STAGING_PREFIX));
   const dispose = (): Promise<void> => rm(dir, { recursive: true, force: true });
   try {
     const entries = await stageRecords(dir, archive, records, maxTotalDecompressedBytes);

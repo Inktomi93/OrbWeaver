@@ -21,7 +21,7 @@ export { createImportService } from "./service.ts";
 export { buildImportContext } from "./substrate/build-context.ts";
 export { cardPngIdentity } from "./substrate/card.ts";
 export { incomingPersonasOf } from "./substrate/persona-review.ts";
-export { DEFAULT_IMPORT_STAGING_DIR, stagedOwnerRoot } from "./substrate/staging.ts";
+export { DEFAULT_IMPORT_STAGING_DIR, STAGED_BUNDLE_PREFIX, STAGED_TREE_PREFIX, stagedOwnerRoot } from "./substrate/staging.ts";
 export { createEnqueueImportIndex } from "./verbs/enqueue-import-index.ts";
 export { createImportLibraryEmitter } from "./verbs/import-library-emitter.ts";
 export { createInstallerCharacterImport, serializeImportCard } from "./verbs/installer-character.ts";

@@ -27,6 +27,8 @@ import {
   importStartedSchema,
   isStSecretsFile,
   PERSONA_COLLISION_FIELD,
+  TREE_DRY_RUN_FIELD,
+  TREE_DRY_RUN_VALUE,
   TREE_FILE_FIELD,
   TREE_LAYOUT_FIELD,
   treeLayoutDeclarationSchema,
@@ -40,7 +42,7 @@ import type { IdSource } from "@orb/kit/ids";
 import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { UploadedFile } from "#domain/import";
-import { DEFAULT_IMPORT_STAGING_DIR, incomingPersonasOf, stagedOwnerRoot } from "#domain/import";
+import { DEFAULT_IMPORT_STAGING_DIR, incomingPersonasOf, STAGED_TREE_PREFIX, stagedOwnerRoot } from "#domain/import";
 import type { PersonaService } from "#domain/persona";
 import type { WorkloadService } from "#domain/workloads";
 import type { Logger } from "#foundation/observability";
@@ -239,9 +241,9 @@ async function stageTree(stagedRoot: string, parts: readonly UploadedFile[], wra
 }
 
 /** The workload the sniffed layout dispatches to (the token names the staged dir under the staging root). */
-function startInput(layout: "st" | "orb", token: string, choices: PersonaCollisionChoices): StartWorkloadInput {
+function startInput(layout: "st" | "orb", token: string, fields: UploadFields): StartWorkloadInput {
   return layout === "st"
-    ? { kind: "import-st", params: { stagedDir: token, personaCollisions: choices } }
+    ? { kind: "import-st", params: { stagedDir: token, personaCollisions: fields.choices, ...(fields.dryRun ? { dryRun: true } : {}) } }
     : { kind: "import-bundle", params: { token, source: "dir" } };
 }
 
@@ -270,13 +272,32 @@ function readLayoutDeclaration(form: FormData): TreeLayoutDeclaration | null {
   return parsed.data;
 }
 
+/** The dry-run field. Anything but one exact value rejects the whole upload: a request for a preview must never
+ *  fall through to a real import. */
+function readDryRun(form: FormData): boolean {
+  const values = form.getAll(TREE_DRY_RUN_FIELD);
+  if (values.length === 0) {
+    return false;
+  }
+  if (values.length !== 1 || values[0] !== TREE_DRY_RUN_VALUE) {
+    throw new TreeRejected(BAD_REQUEST, `malformed "${TREE_DRY_RUN_FIELD}" field`);
+  }
+  return true;
+}
+
+interface UploadFields {
+  readonly choices: PersonaCollisionChoices;
+  readonly declared: TreeLayoutDeclaration | null;
+  readonly dryRun: boolean;
+}
+
 /** Admit + stage the batch into a fresh unique dir. Throws {@link TreeRejected} on an unrecognized layout;
  *  cleans up its OWN partial dir on a staging failure so the caller only owns cleanup after this returns. */
 async function stageUpload(
   nativeDirs: ReadonlySet<string>,
   staging: { readonly root: string; readonly newOpaqueId: () => string },
   parts: readonly UploadedFile[],
-  fields: { readonly choices: PersonaCollisionChoices; readonly declared: TreeLayoutDeclaration | null },
+  fields: UploadFields,
 ): Promise<{ readonly stagedRoot: string; readonly input: StartWorkloadInput }> {
   const wrapper = commonWrapper(parts.map((p) => p.relPath));
   const layout = admitTreeBatch(
@@ -288,8 +309,11 @@ async function stageUpload(
     const found = layout.found.join(", ") || "nothing";
     throw new TreeRejected(BAD_REQUEST, `unrecognized library layout (found: ${found})`);
   }
+  if (fields.dryRun && layout.kind !== "st") {
+    throw new TreeRejected(BAD_REQUEST, "a dry run reads a SillyTavern profile only");
+  }
   await mkdir(staging.root, { recursive: true, mode: OWNER_ONLY_DIR });
-  const token = `import-tree-${staging.newOpaqueId()}`;
+  const token = `${STAGED_TREE_PREFIX}${staging.newOpaqueId()}`;
   const stagedRoot = join(staging.root, token);
   await mkdir(stagedRoot, { recursive: true });
   try {
@@ -298,7 +322,7 @@ async function stageUpload(
     await rm(stagedRoot, { recursive: true, force: true });
     throw err;
   }
-  return { stagedRoot, input: startInput(layout.kind, token, fields.choices) };
+  return { stagedRoot, input: startInput(layout.kind, token, fields) };
 }
 
 /** Map a caught upload failure to its typed response; rethrows an unexpected error to the app's onError. */
@@ -334,6 +358,7 @@ export function registerImportTree(app: Hono<PrincipalEnv>, deps: ImportTreeDeps
       const { stagedRoot, input } = await stageUpload(nativeDirs, staging, parts, {
         choices: readCollisionChoices(form),
         declared: readLayoutDeclaration(form),
+        dryRun: readDryRun(form),
       });
       try {
         const { id } = await deps.workloads.start({

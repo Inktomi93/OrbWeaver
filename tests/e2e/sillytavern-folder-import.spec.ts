@@ -165,19 +165,21 @@ test("a SillyTavern library folder imports every handled plane for the owner", {
     await chooser.setFiles(root);
     const preflight = page.getByRole("group", { name: IMPORT_GROUP_NAME });
     await expect(preflight).toBeVisible({ timeout: settleMs });
+    await expect(preflight.getByRole("group", { name: "What this import would bring", exact: true })).toBeVisible({ timeout: settleMs });
     await preflight.getByRole("button", { name: "Import", exact: true }).click();
     await expect(page.getByRole("button", { name: "Import another", exact: true })).toBeVisible({ timeout: settleMs });
   } finally {
     page.off("response", recordResponse);
   }
   await expect(page.getByTestId(testId("importReport"))).toBeVisible();
-  // The browser sends exactly the production plan's uploads, each accepted.
-  expect(statuses).toEqual(plan.batches.map(() => 202));
+  // The browser sends the production plan's uploads twice, each accepted: the preview's dry run, then the import.
+  expect(statuses).toEqual([...plan.batches, ...plan.batches].map(() => 202));
 
   const after = await host.trpc.workloads.list.query({ kind: "import-st", limit: WORKLOAD_LIST_MAX_LIMIT });
   expect(after.length).toBeLessThan(WORKLOAD_LIST_MAX_LIMIT);
   const created = after.filter((row) => !beforeIds.has(row.id));
-  expect(created).toHaveLength(plan.batches.length);
+  expect(created).toHaveLength(plan.batches.length * 2);
+  const dryRuns: boolean[] = [];
   for (const row of created) {
     const workload = await host.trpc.workloads.get.query({ id: row.id });
     expect(workload.ownerId).toBe(owner.userId);
@@ -185,9 +187,10 @@ test("a SillyTavern library folder imports every handled plane for the owner", {
     if (workload.poison || workload.kind !== "import-st" || workload.result === null) {
       throw new Error("SillyTavern import has no canonical maintenance result");
     }
-    expect(workload.result.dryRun).toBe(false);
+    dryRuns.push(workload.result.dryRun);
     expect(workload.result.failed ?? 0).toBe(0);
   }
+  expect(dryRuns.filter(Boolean)).toHaveLength(plan.batches.length);
 
   for (const name of restoredNames) {
     const restored = (await host.trpc.character.list.query({ search: name })).items.filter((item) => item.name === name);

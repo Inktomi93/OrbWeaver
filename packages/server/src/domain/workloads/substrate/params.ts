@@ -88,6 +88,16 @@ export async function countModelCalls<K extends WorkloadKind>(
   return estimate === undefined ? null : await estimate({ ...scope, params });
 }
 
+/** Hand a row that ended before it ran back to its owning domain (`WorkloadContribution.releaseUnrun`). */
+export async function releaseUnrun<K extends WorkloadKind>(
+  contributions: WorkloadContributions,
+  kind: K,
+  params: WorkloadParamsByKind[K],
+  ownerId: UserId | null,
+): Promise<void> {
+  await contributions[kind].releaseUnrun?.({ ownerId, params });
+}
+
 /**
  * The single-active refusal, as a sentence the person who hit it can ACT on. The admission key means a
  * conflict is never "this kind is busy" any more — it is "this exact unit of work is already in flight", so

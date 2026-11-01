@@ -21,7 +21,7 @@ async function committed(reply: string, flags: Partial<PostProcess>): Promise<st
 
 test.each([
   ["trailing blanks of every kind go", "Done. \t\n ", { trimTrailingWhitespace: true }, "Done."],
-  ["no-break and byte-order spaces are whitespace", "Done. ﻿", { trimTrailingWhitespace: true }, "Done."],
+  ["no-break and byte-order spaces are whitespace", "Done.\u00A0\uFEFF", { trimTrailingWhitespace: true }, "Done."],
   ["inner and leading blanks stay", "  a  b  \n", { trimTrailingWhitespace: true }, "  a  b"],
   ["an unfinished sentence drops", "One. Two and", { dropIncompleteSentence: true }, "One."],
   ["a closer stays with the last complete sentence", 'One." Two and', { dropIncompleteSentence: true }, 'One."'],

@@ -210,20 +210,23 @@ test("the plan never sends a secrets.json at any depth, and reports foreign plan
     throw new Error("the contract handles a plane this case reads as reported");
   }
   const nestedSecrets = `${CHATS}/Aria/${ST_SECRETS_FILE}`;
+  const upperSecrets = ST_SECRETS_FILE.toUpperCase();
   const files = [
     profileFile(ST_SETTINGS_FILE, "{}"),
     profileFile(ST_SECRETS_FILE, "{}"),
     profileFile(nestedSecrets, "{}"),
+    profileFile(upperSecrets, "{}"),
     profileFile(`${CHARACTERS}/Aria.png`),
     profileFile(`${FOREIGN_PLANE}/index.bin`),
   ];
   const plan = await planTreeImport(files, SPLIT_CAPS);
-  expect(plan.skipped).toHaveLength(3);
+  expect(plan.skipped).toHaveLength(4);
   expect(pathsOf(plan.batches.flat())).toEqual([ST_SETTINGS_FILE, `${CHARACTERS}/Aria.png`]);
   // A skip carries no path, so each candidate is planned alone to pin its own reason to it.
   for (const [path, reason] of [
     [ST_SECRETS_FILE, secrets.reason],
     [nestedSecrets, secrets.reason],
+    [upperSecrets, secrets.reason],
     [`${FOREIGN_PLANE}/index.bin`, foreign.reason],
   ] as const) {
     const alone = await planTreeImport([profileFile(ST_SETTINGS_FILE, "{}"), profileFile(`${CHARACTERS}/Aria.png`), profileFile(path, "{}")], SPLIT_CAPS);

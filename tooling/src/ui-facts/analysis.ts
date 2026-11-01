@@ -1,0 +1,109 @@
+// The whole read: sources in, one facts object out. Read-only; nothing here writes.
+
+import type { SectionAdoption, VariantUse } from "./adoption.ts";
+import { adoptionBySection, declaredVariants, variantUsage } from "./adoption.ts";
+import { buildContext, classifiable, classifySite, clusterKey } from "./classify.ts";
+import { buildCohorts } from "./cohorts.ts";
+import type { Cohort, Comparison } from "./compare.ts";
+import { compareCohort } from "./compare.ts";
+import type { Composition } from "./composition.ts";
+import { analyseComposition } from "./composition.ts";
+import { buildCopyCohorts } from "./copy.ts";
+import { scanCss } from "./css.ts";
+import type { DuplicateGroup } from "./duplicates.ts";
+import { findDuplicateMaps } from "./duplicates.ts";
+import type { ExceptionEntry } from "./exceptions.ts";
+import { isExcepted } from "./exceptions.ts";
+import { factsOf } from "./file-facts.ts";
+import { scanMarkup } from "./markup.ts";
+import { buildMutationCohort } from "./mutations.ts";
+import type { ShapeGroup } from "./shapes.ts";
+import { findShapes } from "./shapes.ts";
+import type { Classified, Site } from "./sites.ts";
+import type { Source } from "./source.ts";
+import { loadSources } from "./source.ts";
+import { loadLengthTokens } from "./tokens.ts";
+
+interface ScanCounts {
+  readonly ts: number;
+  readonly tsx: number;
+  readonly css: number;
+  readonly total: number;
+  readonly client: number;
+  readonly ui: number;
+  readonly inSelection: number;
+}
+
+export interface UiFacts {
+  readonly scanned: ScanCounts;
+  readonly selection: readonly string[] | null;
+  /** Every hand-rolled site, classified where the split applies. */
+  readonly sites: readonly (Site | Classified)[];
+  readonly excepted: readonly Site[];
+  readonly cohorts: readonly Cohort[];
+  readonly comparisons: readonly Comparison[];
+  readonly duplicates: readonly DuplicateGroup[];
+  readonly shapes: readonly ShapeGroup[];
+  readonly adoption: readonly SectionAdoption[];
+  readonly variants: readonly VariantUse[];
+  readonly composition: Composition;
+  readonly sections: readonly string[];
+}
+
+export const isClassified = (site: Site | Classified): site is Classified => "cls" in site;
+
+function countFiles(sources: readonly Source[], selection: readonly string[] | null): ScanCounts {
+  const count = (test: (source: Source) => boolean): number => sources.filter(test).length;
+  return {
+    ts: count((source) => source.kind === "ts"),
+    tsx: count((source) => source.kind === "tsx"),
+    css: count((source) => source.kind === "css"),
+    total: sources.length,
+    client: count((source) => source.layer === "client"),
+    ui: count((source) => source.layer === "ui"),
+    inSelection: selection === null ? sources.length : count((source) => selection.includes(source.section)),
+  };
+}
+
+function clusterFilesOf(sites: readonly Site[]): ReadonlyMap<string, ReadonlySet<string>> {
+  const map = new Map<string, Set<string>>();
+  for (const site of sites) {
+    if (site.cluster !== null && site.layer === "client") {
+      const key = clusterKey(site.cluster);
+      map.set(key, (map.get(key) ?? new Set()).add(site.path));
+    }
+  }
+  return map;
+}
+
+export function analyse(root: string, exceptions: readonly ExceptionEntry[], selection: readonly string[] | null): UiFacts {
+  const sources = loadSources(root);
+  const sections = [...new Set(sources.map((source) => source.section))].sort();
+  const unknown = (selection ?? []).filter((name) => !sections.includes(name));
+  if (unknown.length > 0) {
+    throw new Error(`--only names no section: ${unknown.join(", ")}`);
+  }
+  const files = sources.flatMap((source) => factsOf(source) ?? []);
+  const raw = sources.flatMap((source) => (source.kind === "css" ? scanCss(source) : scanMarkup(source)));
+  const excepted = raw.filter((site) => isExcepted(site, exceptions));
+  const live = raw.filter((site) => !isExcepted(site, exceptions));
+  const context = buildContext(live, clusterFilesOf(live), loadLengthTokens(root));
+  const sites = live.map((site) => (classifiable(site) ? classifySite(site, context) : site));
+  const declared = declaredVariants(root);
+  const { cohorts: compositionCohorts, composition } = analyseComposition(sources, files, declared);
+  const cohorts = [...buildCohorts(files), ...buildCopyCohorts(files), buildMutationCohort(sources), ...compositionCohorts];
+  return {
+    scanned: countFiles(sources, selection),
+    selection,
+    sites,
+    excepted,
+    cohorts,
+    comparisons: cohorts.flatMap(compareCohort),
+    duplicates: findDuplicateMaps(sources),
+    shapes: findShapes(files),
+    adoption: adoptionBySection(files),
+    variants: variantUsage(files, declared),
+    composition,
+    sections,
+  };
+}

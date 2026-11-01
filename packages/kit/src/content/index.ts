@@ -52,6 +52,7 @@
 import type { AssetId } from "#ids";
 import { castId } from "#ids";
 import { speakerTagsToPlain } from "#speaker-label";
+import { isSpaceChar } from "#strings";
 
 /** A parsed image target: an owned-CAS asset (by id) or an external URL. The chat domain resolves this to a
  *  model-fetchable URL via the injected `resolveImageUrl` op (asset→CAS URL/data-URI; external→gated). */
@@ -139,9 +140,6 @@ export interface TokenizeContentOptions {
 
 // ── Image refs (the original D51 grammar — unchanged) ────────────────────────────────────────────────────
 
-// `![alt](target)` — `alt` excludes `]`, `target` excludes whitespace + `)` (both linear, no backtracking →
-// ReDoS-safe). The title form `![a](u "t")` intentionally fails to match (the space) and falls through to text.
-const IMAGE_RE = /!\[([^\]]*)\]\(([^)\s]+)\)/g;
 /** The target scheme of an owned-asset image: `![alt](asset:<id>)`. */
 export const ASSET_SCHEME = "asset:";
 
@@ -154,20 +152,61 @@ function parseTarget(target: string): ContentImageRef {
   return { kind: "external", url: target };
 }
 
-/** The original image tokenization over one maximal text run (no empty-fallback — the caller owns that). */
+const IMAGE_OPEN = "![";
+
+// The first `)` or whitespace at or after `from`, else the end of the text.
+function targetStop(text: string, from: number): number {
+  let at = from;
+  while (at < text.length && text.charAt(at) !== ")" && !isSpaceChar(text.charAt(at))) {
+    at += 1;
+  }
+  return at;
+}
+
+interface ImageMatch {
+  readonly start: number;
+  readonly end: number;
+  readonly alt: string;
+  readonly target: string;
+}
+
+// Every `![alt](target)` left to right: `alt` excludes `]`, `target` excludes whitespace and `)`, so the title form
+// `![a](u "t")` is text. A scan, because `/!\[([^\]]*)\]\(([^)\s]+)\)/g` retries every `![` of an unclosed run against the
+// rest of the body.
+function* imageMatches(text: string): Generator<ImageMatch> {
+  let search = 0;
+  // Reused while a later target starts before it, so overlapping `](` runs walk each character once.
+  let stop = -1;
+  for (;;) {
+    const open = text.indexOf(IMAGE_OPEN, search);
+    const close = open === -1 ? -1 : text.indexOf("]", open + IMAGE_OPEN.length);
+    if (close === -1) {
+      return;
+    }
+    // Every `![` before this `]` shares it as its first closer, so a failure here fails them all.
+    search = close + 1;
+    if (text.charAt(close + 1) !== "(") {
+      continue;
+    }
+    const target = close + 2;
+    stop = stop < target ? targetStop(text, target) : stop;
+    if (text.charAt(stop) === ")" && stop > target) {
+      yield { start: open, end: stop + 1, alt: text.slice(open + IMAGE_OPEN.length, close), target: text.slice(target, stop) };
+      search = stop + 1;
+    }
+  }
+}
+
+/** The image tokenization over one maximal text run (no empty-fallback — the caller owns that). */
 function tokenizeImages(text: string): ContentSpan[] {
   const spans: ContentSpan[] = [];
   let last = 0;
-  for (const m of text.matchAll(IMAGE_RE)) {
-    const idx = m.index;
-    const full = m[0];
-    const alt = m[1] ?? "";
-    const target = m[2] ?? "";
-    if (idx > last) {
-      spans.push({ kind: "text", text: text.slice(last, idx) });
+  for (const image of imageMatches(text)) {
+    if (image.start > last) {
+      spans.push({ kind: "text", text: text.slice(last, image.start) });
     }
-    spans.push({ kind: "image", ref: parseTarget(target), alt });
-    last = idx + full.length;
+    spans.push({ kind: "image", ref: parseTarget(image.target), alt: image.alt });
+    last = image.end;
   }
   if (last < text.length) {
     spans.push({ kind: "text", text: text.slice(last) });
@@ -393,8 +432,8 @@ function concealsRest(outcome: TagScanOutcome, posture: BrokenHiddenPosture): ou
   return outcome.kind === "capped" || (outcome.kind === "truncated" && posture === "body") || (outcome.kind === "loose" && posture !== "literal");
 }
 
-/** One REGISTERED hidden tag's byte range, walked FENCE-BLIND (#1524). */
-interface HiddenRun {
+/** One hidden tag's byte range in a body. */
+export interface HiddenRun {
   readonly start: number;
   readonly end: number;
 }
@@ -745,6 +784,13 @@ interface ScanEnv {
   readonly hiddenRuns: readonly HiddenRun[];
   /** What an unclosed or loose hidden open becomes (D285). */
   readonly brokenHidden: BrokenHiddenPosture;
+  /**
+   * Honor markdown code fences. FALSE only for a released stream prefix. SECURITY: a prefix is a piece of a body, so its
+   * first line may be mid-line in the body and its fence state is unknown. Reading it as a whole body lets ticks at the
+   * start of a delta open a fence the commit strip never sees, and the tag behind them reaches a member. Blind to fences,
+   * the stream can only conceal more than the commit does.
+   */
+  readonly codeFences: boolean;
 }
 
 /** A code-fence delimiter line: toggle the fence state (its own line stays literal); the lenient html arm may
@@ -787,7 +833,7 @@ function stepLine(env: ScanEnv, i: number, inCode: boolean): StepState {
   // fewer, hidden tags. A tag the author genuinely fenced still sits inside a block this pass opened and
   // closed normally, so it stays literal — the ratified hole is untouched.
   const swallowedOpener = line !== undefined && !inCode && insideHiddenRun(env.hiddenRuns, line.start);
-  if (text.startsWith(CODE_FENCE_MARK) && !swallowedOpener) {
+  if (env.codeFences && text.startsWith(CODE_FENCE_MARK) && !swallowedOpener) {
     return stepCodeFenceLine(env, i, inCode);
   }
   if (inCode) {
@@ -1054,6 +1100,7 @@ export function tokenizeContent(content: string, options?: TokenizeContentOption
     // looking at a code block. The §3.6 correction below is the trust boundary's, and only its.
     hiddenRuns: [],
     brokenHidden: "literal",
+    codeFences: true,
   });
 }
 
@@ -1160,6 +1207,7 @@ function tokenizeForHiddenScan(content: string, brokenHidden: Exclude<BrokenHidd
     directiveFences: false,
     hiddenRuns: hiddenTagRuns(content, brokenHidden),
     brokenHidden,
+    codeFences: brokenHidden !== "prefix",
   });
 }
 
@@ -1175,6 +1223,21 @@ export function stripHiddenSpans(content: string): { readonly content: string; r
   return { content: projected.content, hadHidden: projected.hadHidden };
 }
 
+function hiddenRunsOf(spans: readonly ContentSpan[]): readonly HiddenRun[] {
+  let cursor = 0;
+  return spans.flatMap((span) => {
+    const start = cursor;
+    cursor += contentSpanRaw(span).length;
+    return span.kind === "hidden" ? [{ start, end: cursor }] : [];
+  });
+}
+
+/** The byte ranges {@link stripHiddenSpans} removes from `content`, ascending and disjoint. SECURITY: text spliced into one
+ *  of these can break the tag into prose and hand its bytes to a member, so a writer places text outside them. */
+export function hiddenSpanRanges(content: string): readonly HiddenRun[] {
+  return hiddenRunsOf(tokenizeForHiddenScan(content));
+}
+
 /** Project positions with the whole-body strip: positions inside a removed span collapse to its visible start. */
 export function projectHiddenSpans(
   content: string,
@@ -1184,12 +1247,7 @@ export function projectHiddenSpans(
   if (!spans.some((s) => s.kind === "hidden")) {
     return { content, hadHidden: false, offsets };
   }
-  let cursor = 0;
-  const removed = spans.flatMap((span) => {
-    const start = cursor;
-    cursor += contentSpanRaw(span).length;
-    return span.kind === "hidden" ? [{ start, end: cursor }] : [];
-  });
+  const removed = hiddenRunsOf(spans);
   return {
     content: spans
       .filter((s) => s.kind !== "hidden")
