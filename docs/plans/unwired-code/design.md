@@ -43,6 +43,14 @@ A deleted tRPC input key strips silently under `z.object`. A sweep of every land
 
 The fields scan's two engines disagree on some rows. Every row is decidable inside one program, so the cause is not a gap between tsconfig worlds. Engine one judges, and find-references audits one way: a disagreement means engine two found a production site in a role engine one lacks. [1715](../../work/1715-unwired-engine-one-judges-and-find-references-audits.md) owns that change and holds the classification, the program sets, the time and memory profile, and the TypeScript 6 retirement order. [1697](../../work/1697-unwired-scans-link-structurally-equivalent-twin-types-and.md) owns the write and read forms neither engine follows.
 
+## Limits of the fields scan
+
+Engine one links a hand-off through a generic constraint, a spread into a typed literal down its nested members, an `in` check and a key typed by a type parameter. These forms stay reported as findings, so judge them by hand:
+
+- A computed key built from runtime strings, such as a template of `prefix` and `suffix`, types as `string`. No name is known, so no field is read or written.
+- A type-level registry entry reached only through `Registry[K]` in a type position. The scan counts a type position as no read, so the entry needs a value read by name.
+- A read inside a string, such as a JSON scenario file.
+
 ## Judging a finding
 
 Each item step 2 lists gives every finding of one scan in one domain a class (wire, delete, deliberate with a cited ruling, or unknown) and a decision. A class marked `(read)` was judged from the cited code. The others follow these rules:
