@@ -7,6 +7,7 @@ import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { IdSource } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
+import type { Logger } from "#foundation/observability";
 import { createNotificationsContext } from "./context.ts";
 import type { NotificationsService } from "./contract/service.ts";
 import { createList } from "./verbs/list.ts";
@@ -21,13 +22,20 @@ interface NotificationsServiceDeps {
   db: DatabaseHandle;
   now: Clock;
   readonly idSource: IdSource;
+  readonly logger: Logger;
   /** The #1799 cross-feature read behind `InboxView.actionable` (`@orb/contracts/notifications`). Required: see the field's
    *  note on `NotificationsContext` for why a defaulted no-op would be a silently wrong indicator. */
   resolveStandingAsks: ResolveStandingAsks;
 }
 
 export function createNotificationsService(deps: NotificationsServiceDeps): NotificationsService {
-  const ctx = createNotificationsContext(databaseForOwner(deps.db), deps.now, deps.resolveStandingAsks, deps.idSource);
+  const ctx = createNotificationsContext({
+    db: databaseForOwner(deps.db),
+    now: deps.now,
+    resolveStandingAsks: deps.resolveStandingAsks,
+    idSource: deps.idSource,
+    logger: deps.logger,
+  });
   return {
     ...createRecord(ctx),
     ...createRead(ctx),

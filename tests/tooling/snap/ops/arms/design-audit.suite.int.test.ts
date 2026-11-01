@@ -281,19 +281,19 @@ test("#1538 — the five verdict channels are INDEPENDENT: one withheld channel 
     unprovenSelectors: 0,
   });
 
-  // …and a surface whose SELECTION IDIOM has no selected twin withholds `population` and NOTHING else.
-  // TWO unselected rows sharing one authored claim + home and NO selected sibling: `census-selection.ts`
+  // …and a surface whose SELECTION IDIOM has no unselected twin withholds `population` and NOTHING else.
+  // TWO selected rows sharing one authored claim + home and NO unselected sibling: `census-selection.ts`
   // needs SELECT_COMPARISON_MIN_MEMBERS (2) in the group to get past `insufficientPopulation`, then finds
-  // `group.selected.length === 0` and withholds `unmatchedUnselected` (#1114's structural no-verdict).
-  // A ONE-row fixture does not reach it — it is EXCLUDED as insufficient, which is why the first draft of
-  // this test came back all-`complete` and proved nothing.
+  // `group.unselected.length === 0` and withholds `unmatchedSelected`. A ONE-row fixture does not reach
+  // it — it is EXCLUDED as insufficient. (Zero chosen at rest is excluded, not withheld, so it cannot
+  // plant this channel.)
   const partial = await plant(
     scratch,
     "withheld.html",
     page(
       '<main style="background:#000;color:#fff"><ul style="list-style:none;margin:0;padding:0">' +
-        '<li><button data-slot="row" aria-selected="false" style="width:200px;height:44px">First row</button></li>' +
-        '<li><button data-slot="row" aria-selected="false" style="width:200px;height:44px">Second row</button></li>' +
+        '<li><button data-slot="row" data-selected style="width:200px;height:44px">First row</button></li>' +
+        '<li><button data-slot="row" data-selected style="width:200px;height:44px">Second row</button></li>' +
         "</ul></main>",
     ),
   );
@@ -311,7 +311,7 @@ test("#1538 — the five verdict channels are INDEPENDENT: one withheld channel 
     instrumentPageErrorVerdict: "complete",
   });
   // …and the run says WHICH rule withheld, so the channel is attributable rather than merely non-clean.
-  expect(run.stdout).toContain("selection-idiom: unmatchedUnselected=1");
+  expect(run.stdout).toContain("selection-idiom: unmatchedSelected=1");
   await expect(run).toExitWith(EXIT.toolError);
 });
 

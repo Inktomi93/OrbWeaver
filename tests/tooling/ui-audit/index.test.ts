@@ -67,7 +67,7 @@ import {
 } from "../../../tooling/src/ui-audit/index.ts";
 import { checkHoverContrast, hoverContrastPopulations } from "../../../tooling/src/ui-audit/lib/checks-hover.ts";
 import { collectAudit } from "../../../tooling/src/ui-audit/lib/collect.ts";
-import { populationEvidenceGap, settledPopulationAccounting } from "../../../tooling/src/ui-audit/lib/population.ts";
+import { populationEvidenceGap, populationRuleVerdicts, settledPopulationAccounting } from "../../../tooling/src/ui-audit/lib/population.ts";
 
 const BLACK: Rgb = { r: 0, g: 0, b: 0 };
 const WHITE: Rgb = { r: 255, g: 255, b: 255 };
@@ -2142,13 +2142,32 @@ test("a withheld reason with a known remedy prints it; one without keeps the bar
     collapsed: {},
   });
 
-  const remedied = populationEvidenceGap({ "selection-idiom": withheldAs("unmatchedUnselected") })?.detail;
-  expect(remedied).toContain("unmatchedUnselected=1");
+  const remedied = populationEvidenceGap({ "selection-idiom": withheldAs("unmatchedSelected") })?.detail;
+  expect(remedied).toContain("unmatchedSelected=1");
   expect(remedied).toContain("Remedy —");
-  expect(remedied).toContain("--open-chat");
   // THE CONTROL. The remedy map is deliberately sparse — a reason with no verified operator action must
   // print exactly as before rather than carry invented advice.
   expect(populationEvidenceGap({ "obscured-target": withheldAs("unaskable") })?.detail).not.toContain("Remedy —");
+});
+
+test("one withheld rule is a partial population: the other rules keep their verdicts", () => {
+  const row = (withheld: Record<string, number>): RulePopulationAccounting => ({
+    candidates: 1,
+    judged: withheld["unaskable"] === undefined ? 1 : 0,
+    affected: 0,
+    populations: 0,
+    emitted: 0,
+    withheld,
+    excluded: {},
+    collapsed: {},
+  });
+  const accounting = { "row-void": row({}), "obscured-target": row({ unaskable: 1 }), contrast: row({}) };
+  expect(populationRuleVerdicts(accounting)).toEqual([
+    { rule: "row-void", verdict: "complete" },
+    { rule: "obscured-target", verdict: "no-verdict" },
+    { rule: "contrast", verdict: "complete" },
+  ]);
+  expect(populationEvidenceGap(accounting)?.detail).toContain("1 of 3 rule(s) have NO VERDICT");
 });
 
 test("collision populations group repeated instances without erasing a later authored decision", () => {

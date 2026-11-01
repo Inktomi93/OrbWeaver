@@ -24,8 +24,9 @@
     min-block-size: 0;
     background: var(--color-background);
     /* The named query container for the topbar's progressive disclosure: the content column narrows independently
-     * of the viewport when panes dock, and the name keeps deeper thread queries off this box. */
-    container: shell-main / inline-size;
+     * of the viewport when panes dock, and the name keeps deeper thread queries off this box. It answers height
+     * too, in the enlarged root's rem and past the keyboard inset, where a media query's rem and height do neither. */
+    container: shell-main / size;
   }
   .shell-topbar {
     flex: none;
@@ -147,6 +148,21 @@
   .shell-context-header {
     block-size: calc(var(--dimension-chrome-row) - var(--border-width-accent));
     box-shadow: inset 0 calc(var(--border-width-control) * -1) 0 var(--color-sidebar-border);
+  }
+  /* A pane narrower than this cannot seat its tabs beside the row's own controls at the enlarged root, so the strip
+   * takes a whole line and the controls keep their trailing edge on the next. */
+  @container shell-panel (inline-size < 20rem) {
+    .shell-context-header {
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      block-size: auto;
+      min-block-size: calc(var(--dimension-chrome-row) - var(--border-width-accent));
+    }
+    .shell-context-header > [data-slot="context-tab-strip"] {
+      flex: none;
+      inline-size: 100%;
+      min-block-size: var(--dimension-chrome-row);
+    }
   }
   /* The tab strip scrolls inside its row; the fade and chevron say there is more, so no native scrollbar. */
   .shell-context-tab-strip {

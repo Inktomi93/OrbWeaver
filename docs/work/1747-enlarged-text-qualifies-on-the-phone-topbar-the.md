@@ -11,15 +11,15 @@ plan: css-system
 
 ## What
 
-The change, in a sentence.
+Qualify the shell's list and Context panels, the topbar, the room and the Import dialog at 200% text and 300% layout, on the phone and the desktop, on Chromium and WebKit, and repair each failure at its shared owner.
 
 ## Why
 
-The symptom or the ruling behind it.
+Item 1299 landed with these cases open. At 300% on a phone the list lost its rows, the transcript collapsed to one line, the Context header overlaid its own controls and menus ran off the screen. Comparative acceptance waits on this.
 
 ## Done when
 
-The observable bar a verifier can check.
+`tests/client/features/app-shell/surfaces/platform-text-scale.suite.ct.tsx` runs every surface at every cell of its matrix on both browsers, with old-source failures shown. A rendered reviewer accepts the wrapped states. Real-device behaviour stays a device check.
 
 ## Evidence
 

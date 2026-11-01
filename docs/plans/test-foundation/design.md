@@ -216,7 +216,7 @@ Done. The full map is in commit `11fa4d7fef` (`git show 11fa4d7fef:docs/plans/te
 
 ### Selected case map: flow-walking CTs
 
-Done. The map lives in the Evidence of [item 0977](../../work/0977-rebuild-client-lifecycle-and-boundary-regression-cases.md#selected-case-map-flow-walking-cts).
+Done. The map lives in the Evidence of item 0977.
 
 ### Harness and execution
 

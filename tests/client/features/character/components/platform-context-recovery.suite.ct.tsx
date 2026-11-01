@@ -10,6 +10,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { CHARACTER_EDITOR_NAME, CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
 import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
@@ -70,7 +71,7 @@ async function selectCharacter(page: Page, name: string): Promise<void> {
   if (await back.isVisible()) {
     await back.click();
   }
-  const library = page.getByRole("list", { name: "Character library", exact: true });
+  const library = page.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true });
   const search = page.getByRole("textbox", { name: "Search characters", exact: true });
   const showList = page.getByRole("button", { name: /^Show (?:list panel|Characters(?: · .+)? list)$/u });
   if ((await page.locator('.shell-panel[data-panel-side="list"]').getAttribute("data-panel-mode")) === "collapsed") {
@@ -79,7 +80,7 @@ async function selectCharacter(page: Page, name: string): Promise<void> {
   await expect(search).toBeVisible();
   await search.fill(name);
   await library.getByRole("button", { name, exact: true }).click();
-  await expect(page.getByRole("form", { name: "Edit character", exact: true }).getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
+  await expect(page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true }).getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
 }
 
 async function expectFailedSheetExit(page: Page, context: Locator): Promise<void> {

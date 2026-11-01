@@ -318,7 +318,7 @@ Saved rosters use the live character-seat schema. Future desired-seat contracts 
 ## BFF session ≠ SDK chat session
 
 Two unrelated concepts sharing a word: the BFF browser session (`sessions` table — identity) vs. the
-agent-sdk prompt-cache lineage (`session_entries` table, backend-internal, D8). Separate tables, homes,
+agent-sdk prompt-cache lineage (`session_entries` table, backend-internal, D8). `domain/connection` owns that table and writes it through `createSessionEntryWriter` (`packages/server/src/domain/connection/persistence/session-entries.ts`). Separate tables, homes,
 tiers; never merge or cross-reference them.
 
 ## Persona — three axes, three homes

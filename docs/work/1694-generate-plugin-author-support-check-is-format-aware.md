@@ -3,6 +3,7 @@ kind: tooling
 status: open
 updated: 2026-10-31
 priority: P3
+plan: test-enforcement
 area: tooling
 ---
 

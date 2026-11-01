@@ -8,6 +8,7 @@ import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createFirstBootHarness, seedCorpusConnections } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { CHARACTER_EDITOR_NAME } from "#client/features/character/lib/character-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const CAPTION = "Wayfinding witness";
@@ -171,7 +172,7 @@ test("native library starred shelf opens the character editor by keyboard even w
   await expect(face).toHaveAccessibleDescription("");
   await face.focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("form", { name: "Edit character", exact: true }).getByRole("textbox", { name: "Name", exact: true })).toHaveValue(
+  await expect(page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true }).getByRole("textbox", { name: "Name", exact: true })).toHaveValue(
     subjects.starred.name,
   );
 });

@@ -11,15 +11,15 @@ plan: surface-walk
 
 ## What
 
-The change, in a sentence.
+The design audit's cohort-anatomy rule compares rows that share an anatomy, measuring each band rather than its disclosure wrapper, so an open settings group is not a finding.
 
 ## Why
 
-The symptom or the ruling behind it.
+An open Settings group is taller by design: its body holds the subcategory rows, and the audit reports it as a P2 on every run.
 
 ## Done when
 
-The observable bar a verifier can check.
+`--design-audit` on the Settings list with a group open reports no cohort-anatomy finding, and a planted band of the wrong height still does.
 
 ## Evidence
 

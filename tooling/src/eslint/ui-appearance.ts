@@ -5,6 +5,7 @@
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
+import { posixPath } from "./syntax.ts";
 
 /** The generated channel's names (`appearanceChannelVocabulary()` in `packages/client/appearance-channel.build.ts`). */
 export interface AppearanceVocabulary {
@@ -41,7 +42,7 @@ export function appearanceNameRule(vocabulary: AppearanceVocabulary): OrbRule {
   return {
     meta: { type: "problem", schema: [] },
     create(context: OrbRuleContext): RuleVisitor {
-      const inUi = context.filename.includes(UI_SOURCE);
+      const inUi = posixPath(context.filename).includes(UI_SOURCE);
       const check = (node: TSESTree.Node, text: string): void => {
         for (const match of text.matchAll(APPEARANCE_NAME)) {
           if (!known.has(match[0])) {

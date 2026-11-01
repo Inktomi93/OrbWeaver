@@ -66,6 +66,9 @@ const SHELL_SLOTS = [
   // The room's carriers that the centred counter and the flank motion move with the content track.
   "chat-room-surface",
   "chat-room-flank-row",
+  // The LIST page's rows, which a short pane floors while the page scrolls around them.
+  "library-list-scroll",
+  "library-list-bounded",
   // The room's plugin column, whose slide and lift ride the shell's motion tokens in the panel sheet.
   "chat-thread-flank",
 ];

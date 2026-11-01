@@ -1,7 +1,7 @@
 import type { Principal } from "@orb/contracts/identity";
+import type { ResolveUtilityPresetParams } from "@orb/contracts/preset";
 import type { InferenceRuntime, Resolved } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
-import type { RefineryContext } from "./service.ts";
 
 /** Cached editor facts may name a bound connection that background work cannot fund. */
 export type ResolveStructuredBinding = (ownerId: UserId) => Promise<Resolved | null>;
@@ -15,5 +15,5 @@ export interface StructuredBindingDeps {
 /** Draft planning uses the owner's live binding and Utility preset, never a default account. */
 export interface SchemaPlanDeps {
   readonly resolveStructuredBinding: ResolveStructuredBinding;
-  readonly resolveUtilityPresetParams: RefineryContext["resolveUtilityPresetParams"];
+  readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
 }

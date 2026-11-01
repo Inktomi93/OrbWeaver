@@ -26,6 +26,7 @@ import {
   MESSAGE_FORK_NAME,
   MESSAGE_REACTION_ADD_NAME,
   MESSAGE_REATTRIBUTE_NAME,
+  MESSAGE_REATTRIBUTE_VOICE_NAME,
   MESSAGE_VIEW_WIRE_TRACE_NAME,
 } from "#client/features/chat/lib/message-action-names.ts";
 import { resolveIsGroupChat } from "#client/features/chat/lib/roster.ts";
@@ -1912,7 +1913,7 @@ async function runChatMessageOperations(input: SurfaceFlow): Promise<MessageOper
       await menu.getByRole("menuitem", { name: MESSAGE_REATTRIBUTE_NAME, exact: true }).click();
       const confirm = flow.page.getByRole("alertdialog", { name: "Reattribute from here?", exact: true });
       await expect(confirm).toContainText(persona.name);
-      await confirm.getByRole("button", { name: "Reattribute", exact: true }).click();
+      await confirm.getByRole("button", { name: MESSAGE_REATTRIBUTE_VOICE_NAME, exact: true }).click();
       await expect(confirm).toBeHidden();
       await expect.poll(async () => (await readCanon(flow, room.id)).find(({ id }) => id === user.id)?.personaId).toBe(persona.id);
       await expect(messageRow(flow.page, user.id)).toHaveAccessibleName(persona.name);

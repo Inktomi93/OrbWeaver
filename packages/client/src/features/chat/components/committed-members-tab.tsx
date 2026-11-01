@@ -84,14 +84,14 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
   // reason `people` is: the procedure rides the multi-human-capability belt and is refused as nonexistent below it, and a
   // single-human box has no other human to be present. A `null` here (unresolved / refused / errored) is
   // UNKNOWN, not offline — see `useRosterPresence`.
-  const onlineUserIds = useRosterPresence(chat.participants, multiHumanCapable);
+  const presence = useRosterPresence(chat.participants, multiHumanCapable);
   const sources = {
     participants: chat.participants,
     identities: chat.identities,
     viewerUserId: chat.viewerUserId,
     pendingHostUserId: chat.pendingHostUserId,
     respondingCharacterId,
-    onlineUserIds,
+    presence,
   };
   const people = multiHumanCapable ? toPersonRows(sources) : [];
   // No display floor on the characters: the room's characters ARE the roster, and a "worth its own list" threshold
@@ -172,7 +172,7 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
                   this cluster wraps within it, which is what makes the honest spelling affordable at every
                   width the pane can be. The budget the words are priced against is recorded in
                   `members-panel.tsx`'s header — read it before changing either label. */}
-              <Button type="button" variant="ghost" size="sm" onClick={(): void => openModal("savedRosters")}>
+              <Button type="button" variant="ghost" size="sm" wrap={true} onClick={(): void => openModal("savedRosters")}>
                 <Icon icon={Users} size="sm" />
                 Saved rosters…
               </Button>

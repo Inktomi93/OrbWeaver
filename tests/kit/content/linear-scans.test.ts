@@ -139,6 +139,7 @@ test.each([
   ["ticks that open a delta", ["Hi", `\`\`\`<lie truth="${SECRET}"/> seen`]],
   ["a closing fence line in the same delta", ["```\ncode\n", `\`\`\`\n<lie truth="${SECRET}"/> seen`]],
   ["a fence line ahead of the tag in one delta", [`a\n\`\`\`\n<lie truth="${SECRET}"/> seen`]],
+  ["a fence line ahead of the tag, with the turn concealing behind it", [`seen\n\`\`\`\n<lie truth="${SECRET}"/> <lie a=b`]],
 ])("the stream conceals a tag behind %s", (_name, deltas) => {
   const scrubber = createHiddenSpanStreamScrubber();
   const emitted = [...deltas.map((delta) => scrubber.push(delta)), scrubber.flush()].join("");

@@ -166,6 +166,7 @@ test.each([false, true])(
 
 test.each(["EOF", "error", "cancel"] as const)(
   "configured Request ownership releases after physical body %s while its context remains live",
+  { timeout: budget(FORCED_GC_BASE_MS) },
   async (terminal) => {
     await using lifetime = new AsyncDisposableStack();
     const finish = Promise.withResolvers<() => void>();

@@ -27,24 +27,33 @@ of truth), and **building it never blocks a reply** (post-commit fire-and-forget
 
 ## Invariants (cross-domain — gate-protected)
 
-1. **ONE vector write path.** Every insert/update on the six vector tables (`character_embeddings` ·
-   `image_embeddings` · `chat_digests` · `chat_segments` · `chat_digest_speakers` · `document_chunks` —
-   the set the `orb/vector-scope-derived` lint rules pin) lives in
-   `packages/server/src/domain/embeddings/persistence/queries.ts`, reached only via `embeddings.store` / `embeddings.storeSegments`
-   (+ `writeHubScores`, inv 3). Producers (card/avatar/digest) call `store`; they never insert directly.
+1. **ONE vector write path.** The vector tables are the primary vector tables (`character_embeddings` ·
+   `image_embeddings` · `chat_digests` · `chat_segments` · `document_chunks`) plus `chat_digest_speakers`,
+   the digest's speaker join. The `VECTOR_TABLES` tuple in `tooling/src/eslint/security-policy.ts` is the set
+   the `orb/vector-scope-derived` lint rules pin. Every insert, update and delete on them lives in
+   `packages/server/src/domain/embeddings/persistence/`. Producers (card/avatar/digest) call
+   `embeddings.store` / `embeddings.storeSegments`; they never write a vector table directly. Upserts and their
+   own prunes live in `queries.ts`. `writeHubScores` (inv 3) writes only `hub_score`.
    `store`'s params are discriminated by kind, and `segment` is deliberately not one of its cases:
    `storeSegments` is the one batch path, for the verbatim segment producer, because that producer holds
    a whole corpus's work at once and a block over the embed window becomes N chunks — same persistence
    file, same hash gate, same space tripwire, one embed flood (one call per owner) instead of one
    awaited embed per block. `content_hash` is the staleness gate: identical hash ⇒ `noop` before the
    embed runs.
+
+   Four files in the same directory are the named exceptions, each a write the store verbs do not cover:
+
+   - `clear.ts` prunes digests, segments and document chunks that canon no longer produces.
+   - `space-state.ts` deletes the vectors of a retired generation when the owner's target moves.
+   - `image-analysis.ts` deletes an asset's captioned image vectors when a new image analysis lands.
+   - `handoff-restamp.ts` re-keys digests and their speaker rows for the host-handoff copy.
 2. **Two cosine access patterns, two owners — never mixed.** Top-k retrieval = `search` only (the
    `vector_distance_cos` SQL appears solely in `search/persistence/`). All-pairs in-RAM analytics =
    `discovery` only (`pairwiseCosineCooperative` in `@orb/kit/vector-math`). `memory` holds ZERO cosine of either kind —
    it delegates the scan to the injected `searchDigests` op (wired at `packages/server/src/entry/compose/chat.ts`). Note:
    discovery does NOT call `search` in the built slice — analytics is not retrieval.
 3. **The `hub_score` seam:** `discovery` computes the values (`packages/server/src/domain/discovery/verbs/compute-hub-scores.ts`) →
-   `embeddings.writeHubScores` performs the write (the ONLY non-`store` vector-table write) → `search`
+   `embeddings.writeHubScores` performs the write (the only write that touches `hub_score`) → `search`
    reads it (`cslsAdjust`). A vector write (`store`) NEVER sets or nulls `hub_score` — the column is
    nullable, never defaulted, advisory-stale by design.
 4. **Schema is named for its producer.** Vector tables live in `packages/db/src/schema/embeddings.ts`; discovery's rollups in `packages/db/src/schema/discovery.ts`. The consumer never

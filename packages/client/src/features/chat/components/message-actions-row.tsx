@@ -37,7 +37,7 @@ import type { ComponentProps, ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
 import { DescribedMenuItem } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { copyWithNotice, NEEDS_CONTINUATION, notify, testId } from "#lib";
+import { cn, copyWithNotice, NEEDS_CONTINUATION, notify, testId } from "#lib";
 import { selectChat, startEditingMessage } from "#state";
 import { useDeleteMutation, useForkMutation, useHideMutation, useRevertContinueMutation, useUndoContinueMutation } from "../hooks/use-message-mutations.ts";
 import { useReactionsEnabled, useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
@@ -104,8 +104,12 @@ export interface MessageActionsRowProps {
 
 // The document chip paints the reading band under the cluster at the card radius, positioned and raised so it paints
 // over the line it sits on, not under its words.
-function ActionsFrame({ chip, ...row }: ComponentProps<typeof Row> & { readonly chip: boolean }): ReactElement {
-  return chip ? <Row {...row} ground="readingBand" cardCorners="all" className="relative z-(--z-raised)" /> : <Row {...row} />;
+function ActionsFrame({ chip, className, ...row }: ComponentProps<typeof Row> & { readonly chip: boolean }): ReactElement {
+  return chip ? (
+    <Row {...row} ground="readingBand" cardCorners="all" className={cn("relative z-(--z-raised)", className) ?? ""} />
+  ) : (
+    <Row {...row} className={className ?? ""} />
+  );
 }
 
 export function MessageActionsRow({
@@ -212,7 +216,15 @@ export function MessageActionsRow({
   };
 
   return (
-    <ActionsFrame chip={chip} gap="glyph" align="center" justify="end" data-slot="message-actions-row" reveal={ACTIONS_REVEAL_POSTURE[messageActions]}>
+    <ActionsFrame
+      chip={chip}
+      gap="glyph"
+      align="center"
+      className="@max-cq-20:flex-wrap"
+      justify="end"
+      data-slot="message-actions-row"
+      reveal={ACTIONS_REVEAL_POSTURE[messageActions]}
+    >
       <MessageActionsCluster
         credit={renderGenerationCredit(generationCredit, message)}
         editable={editable}
