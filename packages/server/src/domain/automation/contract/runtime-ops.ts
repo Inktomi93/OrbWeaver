@@ -23,7 +23,7 @@ export interface AutomationRuntimeDeps<TSet> {
   readonly toolUse: {
     readonly isToolDrivableBy: IsToolDrivableByOp;
     readonly listDrivableToolNames: ListDrivableToolNamesOp;
-    readonly resolveTools: ResolveToolsOp<TSet>;
+    readonly resolveDrivableTools: ResolveToolsOp<TSet>;
     readonly toToolDefinitions: (set: TSet) => readonly ChatToolDefinition[];
     readonly executeToolCalls: (
       set: TSet,

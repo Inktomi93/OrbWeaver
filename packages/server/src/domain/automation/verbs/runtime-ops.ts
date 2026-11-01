@@ -76,14 +76,14 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
       }
       let set: TSet;
       try {
-        // Resolved on the RULE AUTHOR's own shelf (#677): a rule names a tool its author installed, and the
-        // gate above already refused anything else. Passing the author here is what makes that structural —
+        // Resolved on the RULE AUTHOR's own shelf (#677): a rule names a tool its author installed, and this
+        // resolve refuses anything else. Passing the author here is what makes that structural —
         // with N users' copies of the same plugin resident, a name-only resolve would hand the arm whichever
         // copy happened to register first, i.e. it would spend a stranger's grant on the author's rule.
-        set = deps.toolUse.resolveTools(authorUserId, [name]);
+        set = deps.toolUse.resolveDrivableTools(authorUserId, [name]);
       } catch {
-        // `resolveTools` THROWS on an unknown name — its documented "at attach time this is OUR wiring bug"
-        // posture, which is right for a turn and wrong for this consumer. Reaching it here means the
+        // `resolveDrivableTools` THROWS on an unknown name — the "OUR wiring bug" posture it shares with
+        // `resolveTools`, which is right for a turn and wrong for this consumer. Reaching it here means the
         // deactivation landed in the microtask between the check above and this line, so it is the same
         // vanished-contributor answer, never a rule fault.
         return { ok: false, reason: "unavailable" };
@@ -94,8 +94,8 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
         principal: await resolveOwnerPrincipal(authorUserId),
         triggeredBy: authorUserId,
         chatId,
-        // No turn exists — a rule dispatch is not a turn. This is also why turn-scoped first-party tools are
-        // not direct-drivable (`tool-use/substrate/reachability.ts` carries the receipts).
+        // No turn exists — a rule dispatch is not a turn. This is also why first-party tools are not
+        // direct-drivable: `executeToolCalls` rejects this `exec` for a first-party set at compile time.
         turnId: null,
         // FAIL-CLOSED, deliberately. `roster` feeds the declarative `can()` ceiling, and only capability-NULL
         // tools are drivable today (a plugin tool's real ceiling is its PL-C installer read, which does its
@@ -126,7 +126,7 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
     },
     listRuleTools: (userId): ReturnType<AutomationRuntimeOps["listRuleTools"]> => {
       const names = deps.toolUse.listDrivableToolNames(userId);
-      const resolved = deps.toolUse.resolveTools(userId, names);
+      const resolved = deps.toolUse.resolveDrivableTools(userId, names);
       return deps.toolUse
         .toToolDefinitions(resolved)
         .map(({ name, description, parameters }) => automationRuleToolViewSchema.parse({ name, description, parameters }));
