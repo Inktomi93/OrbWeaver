@@ -12,7 +12,7 @@ import type { RpgContext } from "#src/domain/rpg/contract/service.ts";
 import { findGameByChat } from "#src/domain/rpg/persistence/games.ts";
 import { deriveTrackersReadOnly, hasStructuredWriter, primaryStateRound, structuredVehicleUnavailable } from "#src/domain/rpg/substrate/readonly-axis.ts";
 import { stateRoundNeededTokens } from "#src/domain/rpg/substrate/state-round-fit.ts";
-import { buildExtractionUserPrompt, extractionSystem, resolveExtractionRefs, toolRoundSystem } from "./prompts.ts";
+import { buildExtractionUserPrompt, extractionSystem, resolveExtractionRefs, toolRoundSystem, toolRoundUserPrompt } from "./prompts.ts";
 import { resolveFunderChat, roomWindowed } from "./round-connection.ts";
 import { structuredRound, structuredShapes } from "./structured.ts";
 
@@ -69,7 +69,7 @@ export function stateRoundRequestText(conn: Resolved<"chat">, inputs: PromptInpu
     const round = structuredRound(primary, shapes.schemas()[primary], wireTools, { lead: toolRoundSystem(inputs), prose });
     return [round.systemPrompt, userPrompt, JSON.stringify(round.format.schema)];
   }
-  return [toolRoundSystem(inputs), userPrompt, JSON.stringify(wireTools)];
+  return [toolRoundSystem(inputs), toolRoundUserPrompt(userPrompt, prose), JSON.stringify(wireTools)];
 }
 
 /** Build the `resolveStateRoundFit` op: price the round a turn would run on the funder's connection over `baseState`

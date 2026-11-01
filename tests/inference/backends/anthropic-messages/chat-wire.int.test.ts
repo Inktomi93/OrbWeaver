@@ -6,6 +6,8 @@
 
 import { WARNING_CODE } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
+import type { ExtractionRefs } from "@orb/contracts/rpg";
+import { buildToolRoundWireTools, rpgGameConfigSchema } from "@orb/contracts/rpg";
 import type { ChatHistoryMessage, ChatResult, ToolChoice, WireTool } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
 import { isPlainObject } from "@orb/kit/guards";
@@ -356,6 +358,32 @@ test("the cache marker rides the last tool alone, a tool's strict and input exam
 
   const none = await drive({ model: "claude-opus-5", reply: textReply });
   expect(none.sent.body).not.toHaveProperty("tools");
+});
+
+test("the rpg state tools reach the wire with update_scene's input examples, under a cached static system block and a cached last tool", async () => {
+  const refs: ExtractionRefs = {
+    actorRefs: ["Mira"],
+    trackerWriteGroups: [],
+    gameTrackerKeys: { deltaKeys: [], setKeys: [] },
+    conditionNames: [],
+    establishScene: { location: false, timeOfDay: false, presentCast: false },
+  };
+  const tools = buildToolRoundWireTools(refs, rpgGameConfigSchema.parse({}), {});
+  const { sent } = await drive({
+    model: "claude-opus-5",
+    reply: textReply,
+    tools,
+    toolChoice: { mode: "auto" },
+    systemPrompt: { static: "STATE ROUND SYSTEM", dynamic: "" },
+  });
+
+  const wireTools = sent.body["tools"];
+  if (!Array.isArray(wireTools)) {
+    throw new Error("the turn sent no tools");
+  }
+  expect(wireTools.find((tool) => isPlainObject(tool) && tool["name"] === "update_scene")).toMatchObject({ ["input_examples"]: expect.any(Array) });
+  expect(wireTools.at(-1)).toMatchObject({ ["cache_control"]: { type: "ephemeral" } });
+  expect(sent.body["system"]).toMatchObject([{ type: "text", text: "STATE ROUND SYSTEM", ["cache_control"]: { type: "ephemeral" } }]);
 });
 
 test("the provider's rate-limit headers become the turn's snapshot, and the message id is the generation id", async () => {

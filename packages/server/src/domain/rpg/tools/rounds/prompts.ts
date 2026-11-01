@@ -155,6 +155,12 @@ export function buildExtractionUserPrompt(
   return extractionUserPrompt({ story, stateJson: json, lockedPathsLine, beat, prose });
 }
 
+/** The user message a round that sends the state tools carries: the extraction prompt, then the cue to call them.
+ *  The structured vehicles send the plain prompt, and a folded turn's narrator prompt never carries it. */
+export function toolRoundUserPrompt(userPrompt: string, prose: ProseOverrides): string {
+  return `${userPrompt}\n\n${resolveProseText("rpg.extract.toolRoundUserLine", prose)}`;
+}
+
 /** The SEMANTIC self-ref the human player's actor always answers to — a STABLE token independent of the
  *  display name (owner ruling 2026-07-27: "You" is the no-persona fallback, a persona sets a real name, and
  *  the model reaching for "player" was the saner API). The wire vocabulary leads with this; the resolver

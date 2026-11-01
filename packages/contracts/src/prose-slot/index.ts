@@ -236,6 +236,7 @@ export const PROSE_SLOT_IDS = [
   "rpg.extract.patchRoundFrame",
   "rpg.extract.reconcilePass",
   "rpg.extract.foldedReconcile",
+  "rpg.extract.toolRoundUserLine",
   "rpg.extract.lockedPaths",
   "rpg.extract.refs.targets",
   "rpg.extract.refs.playerToken",
