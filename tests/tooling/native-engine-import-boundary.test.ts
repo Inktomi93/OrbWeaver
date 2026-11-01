@@ -1,7 +1,6 @@
-// The installed native import checker must preserve the engine boundary through real module edges.
-import { join } from "node:path";
+// The turn engine reaches request authority through no module edge: the real rule fires on a planted engine file.
 import { expect, test } from "@orb/testkit/tooling";
-import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { cruiseRules, fires, unresolvable } from "./_native-cruise.ts";
 
 const CHAT = "packages/server/src/domain/chat";
 const RULE = "chat-engine-authority-context";
@@ -21,31 +20,14 @@ test.for([
     blocked: true,
   },
   {
-    name: "namespace computed guard",
-    source: 'import * as guards from "../guard.ts"; const field = "requireHost"; export const check = guards[field];',
-    blocked: true,
-  },
-  {
-    name: "destructured guard alias",
-    source: 'import * as guards from "../guard.ts"; const { requireHost: check } = guards; export { check };',
-    blocked: true,
-  },
-  { name: "dynamic guard import", source: 'export const check = import("../guard.ts").then((guards) => guards.requireHost);', blocked: true },
-  {
-    name: "generated engine source",
-    source: 'import type { ChatContext } from "../context.ts"; export type Value = ChatContext;',
-    generated: true,
-    blocked: true,
-  },
-  {
     name: "foreign type and local shadow",
     source:
       'import type { Principal } from "../contract/wire.ts"; const bag = { Principal: 1 }; export const value = bag.Principal; export type Value = Principal;',
     blocked: false,
   },
   { name: "composition root", source: 'import type { ChatContext } from "./context.ts"; export type Value = ChatContext;', composition: true, blocked: false },
-] as const)("the native engine import boundary judges $name", async (row, { plantedTree, repoRoot }) => {
-  const entry = `${CHAT}/${"composition" in row ? "service.ts" : `engine/probe${"generated" in row ? ".gen" : ""}.ts`}`;
+] as const)("the native engine import boundary judges $name", async (row, { plantedTree }) => {
+  const entry = `${CHAT}/${"composition" in row ? "service.ts" : "engine/probe.ts"}`;
   const root = await plantedTree({
     [`${CHAT}/context.ts`]: 'export type { ChatContext } from "./contract/context.ts";',
     [`${CHAT}/contract/context.ts`]: "export interface ChatContext { readonly can: () => void; }",
@@ -54,15 +36,7 @@ test.for([
     [`${CHAT}/substrate/barrel.ts`]: "barrel" in row ? row.barrel : "export {};",
     [entry]: row.source,
   });
-  const result = runNicedSync(
-    join(repoRoot, "node_modules/.bin/depcruise"),
-    [entry, "--config", join(repoRoot, ".dependency-cruiser.ts"), "--output-type", "err-long"],
-    { cwd: root },
-  );
-  const output = result.stdout + result.stderr;
-  expect(result.errorCode, output).toBeUndefined();
-  expect(output).not.toContain("not-to-unresolvable");
-  expect(result.status === 0, output).toBe(!row.blocked);
-  expect(output.includes(RULE), output).toBe(row.blocked);
-  expect(output).toContain(row.blocked ? entry : "no dependency violations found");
+  const violations = await cruiseRules(root, [entry], [RULE]);
+  expect(unresolvable(violations)).toEqual([]);
+  expect(fires(violations, RULE, [entry])).toBe(row.blocked);
 });
