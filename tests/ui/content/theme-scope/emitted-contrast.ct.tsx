@@ -20,12 +20,13 @@ import type {
   ReadingBandStory,
   SelectedRowStory,
   SemanticContrastStory,
+  SpeakerInkStory,
   ToneHueStory,
   ToneMarkStory,
   ToneRoleContrastStory,
 } from "./_contrast-stories.tsx";
 
-import { BASES, keepsHue, MID_GREY } from "./contrast-cases.ts";
+import { BASES, keepsHue, MID_GREY, SPEAKER_DIALOGUE } from "./contrast-cases.ts";
 
 const SEED_THEMES = Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[];
 
@@ -40,7 +41,7 @@ for (const { name, ...props } of SEMANTIC_CASES) {
   test(`${name}: semantic and muted/input inks clear their painted backings`, async ({ mount, page }, testInfo) => {
     const component = await mount<typeof SemanticContrastStory>("tests/ui/content/theme-scope/_contrast-stories/SemanticContrastStory", props);
     const subjects = component.locator("p");
-    await expect(subjects).toHaveCount(23);
+    await expect(subjects).toHaveCount(25);
     for (const subject of await subjects.all()) {
       await expect(subject).toBeVisible();
       await subject.scrollIntoViewIfNeeded();
@@ -50,6 +51,22 @@ for (const { name, ...props } of SEMANTIC_CASES) {
     const screenshot = testInfo.outputPath("settled-theme.png");
     await component.screenshot({ path: screenshot, animations: "disabled" });
     await testInfo.attach("settled-theme", { path: screenshot, contentType: "image/png" });
+  });
+}
+
+for (const { name, background } of BASES) {
+  test(`${name}: a speaker's dialogue ink clears every bubble it renders on`, async ({ mount, page }) => {
+    const component = await mount<typeof SpeakerInkStory>("tests/ui/content/theme-scope/_contrast-stories/SpeakerInkStory", {
+      background,
+      dialogueColor: SPEAKER_DIALOGUE,
+    });
+    const samples = await component.locator("[data-dialogue]").all();
+    expect(samples.length).toBeGreaterThan(0);
+    for (const sample of samples) {
+      await sample.scrollIntoViewIfNeeded();
+      const receipt = await pixelContrast(page, sample);
+      expect(receipt.ratio, `${(await sample.getAttribute("data-dialogue")) ?? "bubble"}: ${receipt.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+    }
   });
 }
 

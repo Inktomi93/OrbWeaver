@@ -278,6 +278,19 @@ export function compositeSrgb(top: Rgb, alpha: number, under: Rgb): Rgb {
   };
 }
 
+/** A re-derived prose ink: the lightness, and the chroma where the author's own could not clear its hosts. */
+export interface ProseInkCorrection {
+  readonly l: number;
+  readonly c: number;
+}
+
+const PROSE_CHROMA_STEP = 0.01;
+
+// A chromatic candidate must carry the derivation margin the browser's gamut mapping spends; a neutral one may settle for what its end point reaches.
+function proseInkAim(endpoint: number, neutral: boolean): number {
+  return neutral ? Math.max(AA_NORMAL_RATIO, Math.min(AA_NORMAL_DERIVATION_RATIO, endpoint)) : AA_NORMAL_DERIVATION_RATIO;
+}
+
 /**
  * The #204 §7a prose-ink clamp decision — for the four AUTHOR-PICKED transcript inks
  * (`speaker`/`dialogueColor`/`narrationColor`/`bodyColor`), the only inks exempt from the house
@@ -285,19 +298,35 @@ export function compositeSrgb(top: Rgb, alpha: number, under: Rgb): Rgb {
  * (post-#204 every reading plate derives from that one base, so base-legibility is plate-legibility):
  *   • `null`  — the authored ink already clears AA against the base: keep it BYTE-IDENTICAL
  *     (the no-op-where-the-card-was-sensible guarantee; the dark-art rooms do not move a pixel);
- *   • a number — the ink fails AA there: the LIGHTNESS to re-derive it at, keeping the author's hue and
- *     chroma and using the same measured polarity/render-target solver as every derived foreground.
+ *   • a correction — the ink fails AA there: the LIGHTNESS to re-derive it at, keeping the author's hue and
+ *     chroma where it can, using the same measured polarity/render-target solver as every derived foreground.
  * `inkAlpha < 1` composites the ink over the base first — a naive ratio on a translucent ink lies. (The
  * comparison stays INSIDE the backticks: tsdoc reads a bare `<` followed by a space as a malformed HTML
  * element and the eslint tsdoc/syntax rule reds the file.)
+ *
+ * `hosts` are the surfaces the ink is read on, the base alone unless a carried palette names its reading hosts
+ * ({@link carriedReadingHosts}). The re-derived lightness keeps walking toward the polarity's end point until the
+ * author's chroma clears them too. Near the crossover chroma itself spends more luminance than any lightness returns, so
+ * only there the chroma steps down: on a mid-grey page the hue gives way before the reading floor does.
  */
-export function proseInkLightness(ink: Oklch, inkAlpha: number, base: Oklch): number | null {
-  const baseRgb = oklchToSrgb(base);
-  const inkRgb = inkAlpha < 1 ? compositeSrgb(oklchToSrgb(ink), inkAlpha, baseRgb) : oklchToSrgb(ink);
-  if (wcagContrastRatio(inkRgb, baseRgb) >= AA_NORMAL_RATIO) {
+export function proseInkCorrection(ink: Oklch, inkAlpha: number, base: Oklch, hosts: readonly Oklch[] = [base]): ProseInkCorrection | null {
+  const grounds = hosts.map((host) => oklchToSrgb(host));
+  const authored = oklchToSrgb(ink);
+  if (grounds.every((ground) => wcagContrastRatio(inkAlpha < 1 ? compositeSrgb(authored, inkAlpha, ground) : authored, ground) >= AA_NORMAL_RATIO)) {
     return null;
   }
-  return derivedForegroundLightness(base);
+  const start = derivedForegroundLightness(base);
+  const direction = surfacePolarity(base) === "light" ? -1 : 1;
+  const steps = Math.ceil(ink.c / PROSE_CHROMA_STEP);
+  for (let step = 0; step <= steps; step += 1) {
+    const c = Math.max(0, ink.c - step * PROSE_CHROMA_STEP);
+    const contrast = (lightness: number): number => worstTextContrast(oklchToSrgb({ l: lightness, c, h: ink.h }), grounds);
+    const l = nearestClearingLightness(start, direction, (candidate) => contrast(candidate) >= proseInkAim(contrast(direction > 0 ? 1 : 0), step === steps));
+    if (l !== null) {
+      return { l, c };
+    }
+  }
+  return { l: start, c: 0 };
 }
 
 const SURFACE_POLARITIES = ["dark", "light"] as const;
@@ -469,7 +498,7 @@ const PLATE_ALPHA_STEPS = Math.round((1 - THEME_DERIVATION.readingPlate.alpha) /
  * done-bar room read narration 3.48:1 / dialogue 4.09:1 over the bright wallpaper regions and 4.94/5.39
  * over the dark ones — the same ink, the same alpha, the scroll position deciding the verdict.
  *
- * THE REFERENCE INK, and why it is not AA itself. The §7a clamp (`proseInkLightness`) guarantees an ink
+ * THE REFERENCE INK, and why it is not AA itself. The §7a clamp (`proseInkCorrection`) guarantees an ink
  * clears AA_NORMAL against the BASE. That floor is unreachable on the plate at ANY alpha: the plate is
  * `deltaL` darker than the base, so even at α = 1 an ink sitting exactly on 4.5 vs the base measures
  * ~4.1 vs the plate — preserving the base guarantee would need `deltaL` to move to 0, i.e. the plate to
@@ -626,7 +655,7 @@ export function shadowIngredients(base: Oklch): ShadowIngredients {
 
 /** The eight neutral-surface lightness deltas one picked base derives its chrome from — the ramp. */
 export interface RampDeltas {
-  /** The rail: the one member that RECEDES on both polarities. */
+  /** The rail: the one member that RECEDES on both arms, and rises on a mirrored ramp, where every member flips. */
   readonly sidebar: number;
   /** The elevation-ramp mid panel (`shell-grid[data-elevation=ramp]`). */
   readonly surfaceRaised: number;
@@ -905,7 +934,7 @@ export type AccentFill = { readonly kind: "clears" } | { readonly kind: "correct
  * THE ACCENT FILL'S LIGHTNESS for a carried base — the §7a ink clamp's shape, applied to the one PICKED
  * token that paints a GRAPHIC rather than an ink (#692). `clears` ⇒ the accent already clears against the
  * card it is painted on, so the caller passes it through (the no-op-where-the-pick-was-sensible guarantee
- * `proseInkLightness` states); `corrected` ⇒ the fill re-derived at a new lightness, keeping the author's hue
+ * `proseInkCorrection` states); `corrected` ⇒ the fill re-derived at a new lightness, keeping the author's hue
  * and chroma as far as the sRGB gamut allows.
  *
  * THE MOTIVATING MEASUREMENT (#692, and it is not a light-arm ramp defect): `--color-primary` is never
@@ -925,7 +954,7 @@ export type AccentFill = { readonly kind: "clears" } | { readonly kind: "correct
  * card, lighter. The search walks `ACCENT_L_STEP` at a time
  * and stops at the FIRST clearing lightness — the smallest move that buys legibility, so an author's pick
  * is nudged rather than replaced. A translucent accent is composited over the card before judging (a naive
- * ratio on a translucent fill lies, `proseInkLightness`'s own trap) and the caller re-emits it OPAQUE.
+ * ratio on a translucent fill lies, `proseInkCorrection`'s own trap) and the caller re-emits it OPAQUE.
  *
  * The walk tries both directions a step at a time, the card's own direction first, and returns the nearest
  * clearing lightness. The corrected fill is the opaque sRGB pixel at that lightness, so the caller paints exactly
@@ -1151,12 +1180,19 @@ function opaquePixel(color: Oklch): Oklch {
   return srgbToOklch(oklchToSrgb(color));
 }
 
-/** The shared ink of the background, raised and card host family, and of a field's value on the input wash over each panel. */
+/**
+ * The shared ink of the background, raised and card host family, of a field's value on the input wash over each panel,
+ * and of a row that keeps this ink on a neutral tint. A carried palette has no call-site sweep to lean on, and `rampDeltas`
+ * holds both tints where the polarity's end point clears them.
+ */
 function carriedForegroundLightness(base: Oklch, inputWash: number): number {
   const deltas = rampDeltas(base);
   const wash = oklchToSrgb({ l: inputWash, c: 0, h: base.h });
   const fields = fieldPanels(base, deltas).map((panel) => compositeSrgb(wash, THEME_DERIVATION.inputAlpha, oklchToSrgb(panel)));
-  return derivedForegroundLightnessForSurfaces([base, rampSurface(base, deltas.surfaceRaised), rampSurface(base, deltas.card)], fields);
+  return derivedForegroundLightnessForSurfaces(
+    [base, rampSurface(base, deltas.surfaceRaised), rampSurface(base, deltas.card), rampSurface(base, deltas.accent), rampSurface(base, deltas.muted)],
+    fields,
+  );
 }
 
 /** The accent ink covers the accent and muted host family: it is the neutral tone's text on both of its tints (D336). */
@@ -1191,6 +1227,12 @@ export function familyForegroundLightness(family: readonly Oklch[]): number | nu
     }
   }
   return null;
+}
+
+/** The surfaces a carried palette's prose is read on: the page, a card, and each message bubble's fill. */
+export function carriedReadingHosts(base: Oklch): readonly Oklch[] {
+  const { user, ai, system } = bubbleFills(base);
+  return [base, rampSurface(base, rampDeltas(base).card), bubbleFillColor(base, user), bubbleFillColor(base, ai), bubbleFillColor(base, system)];
 }
 
 /** The neutral inks a carried base solves: each is a search, so a caller solves them once and hands them to every derivation. */
@@ -1749,7 +1791,8 @@ function bubbleFillColor(base: Oklch, { delta, neutral }: BubbleFill): Oklch {
 
 /**
  * The fill a ramp member keeps as a bubble: its own when it paints {@link BUBBLE_PAGE_SEPARATION} off the page, else the
- * nearest offset that does, on the member's side of the page first and then the other, and then neutral.
+ * nearest offset that does, on the polarity's side of the page first, where the page's prose ink only gains contrast, and
+ * then the other, and then neutral.
  */
 function bubbleFillApart(base: Oklch, host: BubbleHost, rampDelta: number): BubbleFill {
   const page = opaquePixel(base);
@@ -1760,7 +1803,7 @@ function bubbleFillApart(base: Oklch, host: BubbleHost, rampDelta: number): Bubb
     if (apart(own)) {
       return own;
     }
-    for (const side of rampDelta < 0 ? [-1, 1] : [1, -1]) {
+    for (const side of surfacePolarity(base) === "light" ? [1, -1] : [-1, 1]) {
       for (let step = 1; step <= steps; step += 1) {
         const fill = { delta: side * step * BUBBLE_DELTA_STEP, neutral };
         if (apart(fill)) {

@@ -22,7 +22,7 @@ Split off [ADR 0071](0071-theme-palette-pipeline.md), whose accepted-base foregr
   `sidebar-accent-foreground` (rail hover fill). Transparent action controls inherit their host ink rather
   than substituting `muted-foreground`. Both ramp arms step toward the black/white crossover, so a base whose arm does not fit takes the mirrored arm when that keeps more of the ramp. If a member still would make a documented shared
   family impossible, that delta retracts toward the unchanged authored base on a measured 0.001 grid. If the
-  translucent input fill alone makes the muted/input family impossible, its wash keeps its alpha and runs away from the ink. The page ink is solved over that wash on every panel a field sits on, and a dark carried palette paints `--color-field-fill` from it.
+  translucent input fill alone makes the muted/input family impossible, its wash keeps its alpha and runs away from the ink. The page ink is solved over that wash on every panel a field sits on and over both neutral tints, and a dark carried palette paints `--color-field-fill` from it. Under a carried palette, an author's prose pick is judged on the page, the card and each bubble fill.
   The dedicated sidebar-accent surface is never retracted. The accent delta retracts toward the base where one ink cannot cover the accent and muted family, which D336 makes the neutral tone's text-on-tint hosts.
   Builder/create/update, ST import, root/nested/carried ThemeScopes and
   portals all accept the same `ThemeOverride` domain; only unreadable/contextual values without an ambient
@@ -30,7 +30,7 @@ Split off [ADR 0071](0071-theme-palette-pipeline.md), whose accepted-base foregr
   winning values; owner custom CSS remains the later unlayered winning plane. **Framebuffer-margin rider:** 4.5 remains the legal and rendered floor, but Orb-owned neutral foreground
   derivation aims at `AA_NORMAL_DERIVATION_RATIO = 4.6` before paint. That aim is capped only by the
   authored anchor's strongest black/white endpoint (`sqrt(21) ≈ 4.5826` is the physical crossover ceiling),
-  and derived ramps/input alpha project to the same attainable target. The 2,060 accepted-base matrix now
+  and derived ramps and the input wash project to the same attainable target. The 2,060 accepted-base matrix now
   bottoms at 4.5798 analytically (+0.0798 over AA); exact pivot input pairs solve at 4.6127/4.6144. Shipped
   seed neutral pairs carry the full 4.6 target on their actual hosts: only Mocha's derived-role
   `muted-foreground` moves (L 0.720→0.731; its input/popover minimum 4.430→4.6286 quantized). Owner-authored

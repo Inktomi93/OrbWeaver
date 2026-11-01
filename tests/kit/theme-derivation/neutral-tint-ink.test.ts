@@ -3,9 +3,11 @@ import type { Oklch } from "@orb/kit/theme-derivation";
 import {
   AA_NORMAL_RATIO,
   carriedInks,
+  carriedReadingHosts,
   compositeSrgb,
   oklchToSrgb,
   paintedDistance,
+  proseInkCorrection,
   rampDeltas,
   rampSurface,
   surfacePolarity,
@@ -60,6 +62,29 @@ test("every accepted base keeps the input fill at its full alpha, and the page i
     });
   });
   expect(misses).toEqual([]);
+});
+
+test("every accepted base keeps the page ink above AA on both neutral tints, so a hovered row needs no ink swap", () => {
+  const misses = ACCEPTED_BASES.flatMap((base) => {
+    const ink = oklchToSrgb({ l: carriedInks(base).foreground, c: 0, h: base.h });
+    const { accent, muted } = rampDeltas(base);
+    const ratio = Math.min(...[accent, muted].map((delta) => wcagContrastRatio(ink, oklchToSrgb(rampSurface(base, delta)))));
+    return ratio >= AA_NORMAL_RATIO ? [] : [`${JSON.stringify(base)} ${ratio.toFixed(2)}`];
+  });
+  expect(misses).toEqual([]);
+});
+
+test("a picked prose ink re-derives until its chroma clears every reading host, and a pick that clears them stays", () => {
+  const dialogue = { l: 0.86, c: 0.16, h: 85 };
+  const misses = NEAR_NEUTRAL_BASES.flatMap((base) => {
+    const hosts = carriedReadingHosts(base);
+    const ink = oklchToSrgb({ ...dialogue, ...proseInkCorrection(dialogue, 1, base, hosts) });
+    const ratio = Math.min(...hosts.map((host) => wcagContrastRatio(ink, oklchToSrgb(host))));
+    return ratio >= AA_NORMAL_RATIO ? [] : [`${JSON.stringify(base)} ${ratio.toFixed(2)}`];
+  });
+  expect(misses).toEqual([]);
+  const hearth = { l: 0.158, c: 0.006, h: 60 };
+  expect(proseInkCorrection(dialogue, 1, hearth, carriedReadingHosts(hearth))).toBeNull();
 });
 
 test("an arm that fits its base is returned as authored, and only a base near the crossover mirrors", () => {

@@ -11,7 +11,12 @@ export const BASES = [
   { name: "light polarity boundary", background: "oklch(0.57 0.01 60)" },
   { name: "mid grey", background: "oklch(0.5 0 0)" },
   { name: "pale paper", background: "oklch(0.93 0.02 90)" },
+  { name: "grey 0.6", background: "oklch(0.6 0 0)" },
+  { name: "dark arm that still fits", background: "oklch(0.43 0 0)" },
 ] as const;
+
+/** The tinted dialogue a speaker's scope picks: the chroma the review measured on a mid-grey bubble. */
+export const SPEAKER_DIALOGUE = "oklch(0.86 0.16 85)";
 
 /** A neutral mid-grey, where a fixed-colour edge has the least room on either side. */
 export const MID_GREY = "oklch(0.6 0 0)";

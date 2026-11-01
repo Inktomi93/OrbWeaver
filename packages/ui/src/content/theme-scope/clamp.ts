@@ -30,7 +30,7 @@
 
 import { isDeterministicColor, isSafeColor } from "@orb/kit/safe-color";
 import type { Oklch } from "@orb/kit/theme-derivation";
-import { derivedForegroundLightness, proseInkLightness, surfacePolarity } from "@orb/kit/theme-derivation";
+import { carriedReadingHosts, derivedForegroundLightness, proseInkCorrection, surfacePolarity } from "@orb/kit/theme-derivation";
 import { z } from "zod";
 import { TOKENS } from "#tokens";
 import type { ParsedOklch } from "./color-parse.ts";
@@ -193,7 +193,7 @@ function fontStackFor(font: ThemeFont): string {
  * Opaque inherits the same margin every derived foreground has; translucency is the author's intent only
  * while their pick is legible, which the pass-through arm preserves byte-identically.
  */
-function proseInkOn(picked: string | undefined, base: ParsedOklch | null, absentFallback?: string): string | undefined {
+function proseInkOn(picked: string | undefined, base: ParsedOklch | null, hosts: readonly Oklch[] | undefined, absentFallback?: string): string | undefined {
   if (picked === undefined) {
     return absentFallback;
   }
@@ -204,8 +204,23 @@ function proseInkOn(picked: string | undefined, base: ParsedOklch | null, absent
   if (ink === null) {
     return picked;
   }
-  const clampedL = proseInkLightness({ l: ink.l, c: ink.c, h: ink.h }, ink.alpha, { l: base.l, c: base.c, h: base.h });
-  return clampedL === null ? picked : `oklch(from ${picked} ${clampedL} c h / 1)`;
+  const fix = proseInkCorrection({ l: ink.l, c: ink.c, h: ink.h }, ink.alpha, { l: base.l, c: base.c, h: base.h }, hosts);
+  if (fix === null) {
+    return picked;
+  }
+  return `oklch(from ${picked} ${fix.l} ${fix.c === ink.c ? "c" : fix.c} h / 1)`;
+}
+
+/**
+ * The surfaces a picked prose ink is judged on beyond its base: a carried palette's reading hosts, whether this scope
+ * carries it or sits inside one. A seed's bubbles and cards are its own generated block, so a seed ambient judges the base alone.
+ */
+function readingHostsOn(t: ThemeScopeTokens, inkBase: ParsedOklch | null, ambientPalette: AmbientPalette): readonly Oklch[] | undefined {
+  const picksInk = [t.speaker, t.dialogueColor, t.narrationColor, t.bodyColor].some((ink) => ink !== undefined);
+  if (!picksInk || inkBase === null || (t.background === undefined && ambientPalette !== "carried")) {
+    return;
+  }
+  return carriedReadingHosts({ l: inkBase.l, c: inkBase.c, h: inkBase.h });
 }
 
 /** What a scope emits for the accent: the fill `--color-primary`/`--color-ring` take, and the foreground
@@ -453,15 +468,19 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
   // carried background is precisely the case where the composed surface IS knowable. The residual
   // provider-less fail-open (neither side statically readable) stands unchanged.
   const inkBase = inkBaseFor(t.background, ambientBackground);
+  const inkHosts = readingHostsOn(t, inkBase, ambientPalette);
   // A carried base also owns every ABSENT prose pick (#985). Otherwise a legal background-only custom
   // theme inherits all four inks from the outer seed, which can be the opposite polarity. Derive the
   // fallback from the resolved carried pixel; with no carried background there is deliberately no
   // fallback and the cascade remains intact. Explicit picks still take the pass-through/correction arms
-  // above byte-for-byte.
-  put(THEME_OVERRIDE_COLOR_VARS.speaker, proseInkOn(t.speaker, inkBase, absentProseInkOn(raw, "speaker", t.background, carried)));
-  put(THEME_OVERRIDE_COLOR_VARS.dialogueColor, proseInkOn(t.dialogueColor, inkBase, absentProseInkOn(raw, "dialogueColor", t.background, carried)));
-  put(THEME_OVERRIDE_COLOR_VARS.narrationColor, proseInkOn(t.narrationColor, inkBase, absentProseInkOn(raw, "narrationColor", t.background, carried)));
-  put(THEME_OVERRIDE_COLOR_VARS.bodyColor, proseInkOn(t.bodyColor, inkBase, absentProseInkOn(raw, "bodyColor", t.background, carried)));
+  // above, judged on the reading hosts under a carried palette.
+  put(THEME_OVERRIDE_COLOR_VARS.speaker, proseInkOn(t.speaker, inkBase, inkHosts, absentProseInkOn(raw, "speaker", t.background, carried)));
+  put(THEME_OVERRIDE_COLOR_VARS.dialogueColor, proseInkOn(t.dialogueColor, inkBase, inkHosts, absentProseInkOn(raw, "dialogueColor", t.background, carried)));
+  put(
+    THEME_OVERRIDE_COLOR_VARS.narrationColor,
+    proseInkOn(t.narrationColor, inkBase, inkHosts, absentProseInkOn(raw, "narrationColor", t.background, carried)),
+  );
+  put(THEME_OVERRIDE_COLOR_VARS.bodyColor, proseInkOn(t.bodyColor, inkBase, inkHosts, absentProseInkOn(raw, "bodyColor", t.background, carried)));
   // Bubbles: the picker sets each bubble's bg; the fg is always derived for contrast, never picked.
   const putBubble = (bg: string, bubbleVars: { readonly bg: string; readonly fg: string }): void => {
     const parsedBubble = toOklch(bg);

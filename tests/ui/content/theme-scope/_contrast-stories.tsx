@@ -16,6 +16,8 @@ const SEMANTIC_PAIRS = [
   ["card", "foreground"],
   ["card", "card-foreground"],
   ["card", "prose-body"],
+  ["accent", "foreground"],
+  ["muted", "foreground"],
   ["popover", "popover-foreground"],
   ["sidebar", "sidebar-foreground"],
   ["accent", "accent-foreground"],
@@ -335,6 +337,27 @@ export function BubbleSeparationStory({
   return (
     <CtIsolation subject="ThemeScope" isolates="Message bubble fills against the page under shipped palettes and custom scopes">
       {background === undefined ? <div data-theme={theme}>{content}</div> : <ThemeScope tokens={{ background }}>{content}</ThemeScope>}
+    </CtIsolation>
+  );
+}
+
+/** A speaker's ink-only scope nested in a custom scope, as a transcript row sits in a custom app theme: its dialogue on each bubble. */
+export function SpeakerInkStory({ background, dialogueColor }: { readonly background: string; readonly dialogueColor: string }): ReactElement {
+  return (
+    <CtIsolation subject="ThemeScope" isolates="A nested ink-only scope judged on the bubbles of the carried palette around it">
+      <ThemeScope tokens={{ background }}>
+        <div style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, padding: "1rem" }}>
+          <ThemeScope tokens={{ dialogueColor }}>
+            {MESSAGE_ROLES.map((role) => (
+              <MessageBubble key={role} messageRole={role}>
+                <span data-dialogue={role} style={{ color: `var(${TOKENS["color.dialogue"].cssVar})` }}>
+                  {role}
+                </span>
+              </MessageBubble>
+            ))}
+          </ThemeScope>
+        </div>
+      </ThemeScope>
     </CtIsolation>
   );
 }
