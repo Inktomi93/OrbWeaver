@@ -4,8 +4,16 @@
 import type { RpgTurnTranscriptMessage } from "@orb/contracts/chat";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
-import type { ExtractionRefs, RpgActorRef, RpgGameConfig, RpgSheet, RpgSnapshotState, RpgTrackerCarrier } from "@orb/contracts/rpg";
-import { actorRefKey, buildTrackerWriteGroups, composePlaneTeaching, gameTrackerWriteKeys, rpgGameConfigSchema } from "@orb/contracts/rpg";
+import type { ExtractionRefs, RpgActorRef, RpgGameConfig, RpgSheet, RpgSnapshotState, RpgStateRoundTool, RpgTrackerCarrier } from "@orb/contracts/rpg";
+import {
+  actorRefKey,
+  buildTrackerWriteGroups,
+  composePlaneTeaching,
+  gameTrackerWriteKeys,
+  rpgGameConfigSchema,
+  withStateToolExamples,
+} from "@orb/contracts/rpg";
+import type { Resolved } from "@orb/inference";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { PromptInputs, RpgRoundsDeps } from "#src/domain/rpg/contract/rounds.ts";
 import { findGameByChat } from "#src/domain/rpg/persistence/games.ts";
@@ -153,6 +161,20 @@ export function buildExtractionUserPrompt(
   // `window`/`full` — the new behavior: sliced story + the §4.4 model-projected state.
   const { json, lockedPathsLine } = projectStateForModel(baseState, prose);
   return extractionUserPrompt({ story, stateJson: json, lockedPathsLine, beat, prose });
+}
+
+/** The user message of the dedicated cheap tool round: the extraction prompt, then the cue to call the state tools.
+ *  The structured vehicles, the host resync (which re-states the whole scene, so a "latest beat" cue misleads) and a
+ *  folded turn's narrator prompt send the plain prompt. */
+export function toolRoundUserPrompt(userPrompt: string, prose: ProseOverrides): string {
+  return `${userPrompt}\n\n${resolveProseText("rpg.extract.toolRoundUserLine", prose)}`;
+}
+
+/** The tools the dedicated cheap round sends on `conn`: `update_scene`'s worked examples ride only where the wire
+ *  has a slot for them (the Anthropic wire; the openai-compatible converter drops them), so a priced payload counts
+ *  no bytes the wire never sends. The folded turn and the resync send the plain tools. */
+export function cheapRoundTools(conn: Resolved<"chat">, tools: RpgStateRoundTool[]): RpgStateRoundTool[] {
+  return conn.api === "anthropic-messages" ? withStateToolExamples(tools) : tools;
 }
 
 /** The SEMANTIC self-ref the human player's actor always answers to — a STABLE token independent of the

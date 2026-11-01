@@ -73,13 +73,13 @@ function requireGeneration(connection: Resolved, label: string): GenerationCapab
   return connection.capability.generation;
 }
 
-function sdkEffortOf(effort: string | undefined, warnings: ResolvedWarning[], where: string): SdkEffort | undefined {
+function sdkEffortOf(effort: string | undefined, warnings: ResolvedWarning[]): SdkEffort | undefined {
   if (effort === undefined) {
     return;
   }
   const found = SDK_EFFORTS.find((candidate) => candidate === effort);
   if (found === undefined) {
-    warnings.push({ code: "effort_dropped", message: `${where} effort "${effort}" ignored: the anthropic wire spells low | medium | high | xhigh | max` });
+    warnings.push({ code: "effort_dropped", message: `turn effort "${effort}" ignored: the anthropic wire spells low | medium | high | xhigh | max` });
   }
   return found;
 }
@@ -228,7 +228,7 @@ function anthropicOptions(
   },
 ): Omit<LanguageModelV4CallOptions, "prompt" | "abortSignal"> {
   const { generation, toolCache, plan } = model;
-  const effort = knobs.reasoning.enabled ? sdkEffortOf(knobs.reasoning.effort, warnings, "turn") : undefined;
+  const effort = knobs.reasoning.enabled ? sdkEffortOf(knobs.reasoning.effort, warnings) : undefined;
   if (knobs.verbosity !== undefined) {
     warnings.push({ code: "verbosity_dropped", message: "verbosity ignored: the anthropic wire has no verbosity field" });
   }
