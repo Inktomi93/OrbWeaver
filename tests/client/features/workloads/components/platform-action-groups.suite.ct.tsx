@@ -118,8 +118,8 @@ for (const regime of REGIMES) {
       const chooserPromise = page.waitForEvent("filechooser");
       await page.keyboard.press("Enter");
       await (await chooserPromise).setFiles({ name: "import-action-card.png", mimeType: "image/png", buffer: bytes });
-      await expect(picker).toBeFocused();
       const preflight = page.getByRole("group", { name: "Import “import-action-card.png”?", exact: true });
+      await expect(preflight).toBeFocused();
       const confirm = preflight.getByRole("button", { name: "Import", exact: true });
       const cancel = preflight.getByRole("button", { name: "Cancel", exact: true });
       await expect(confirm).toBeEnabled();
