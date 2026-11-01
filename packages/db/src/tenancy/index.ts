@@ -286,7 +286,6 @@ export const TABLE_SCOPING = {
     why: "the roster IS the membership predicate every other (b) read resolves through (D18).",
   },
   chatSegments: { sqlName: "chat_segments", scope: "membership", why: "the room's embedded transcript segments — chat-anchored derived data." },
-  chatStreamEvents: { sqlName: "chat_stream_events", scope: "membership", why: "the resumable SSE token log — room-public to members, chat-anchored." },
   chats: {
     sqlName: "chats",
     scope: "membership",

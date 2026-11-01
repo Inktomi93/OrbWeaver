@@ -12,7 +12,6 @@ import {
   chatInvites,
   chatLocks,
   chatParticipants,
-  chatStreamEvents,
   chats,
   compactionSpend,
   messageAssets,
@@ -64,13 +63,12 @@ export async function captureChatGenerationObservations(db: Db, chatId: ChatId):
 
 /** Observe actual publication and in-flight lock state; only the real turn owns append, commit and release policy. */
 export async function captureChatReplayRows(db: Db, chatId: ChatId): Promise<CapturedChatReplayRows> {
-  const [events, stream, locks, pending] = await Promise.all([
+  const [events, locks, pending] = await Promise.all([
     db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId)).orderBy(chatEvents.seq),
-    db.select().from(chatStreamEvents).where(eq(chatStreamEvents.chatId, chatId)).orderBy(chatStreamEvents.seq),
     db.select().from(chatLocks).where(eq(chatLocks.chatId, chatId)),
     db.select().from(pendingTurns).where(eq(pendingTurns.chatId, chatId)).orderBy(pendingTurns.createdAt, pendingTurns.id),
   ]);
-  return { events, stream, locks, pending };
+  return { events, locks, pending };
 }
 
 /** Capture newly written conversations by returned IDs; refusal and dedup do not invent a new room identity. */
