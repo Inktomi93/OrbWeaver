@@ -30,7 +30,7 @@ import { BASES, keepsHue, MID_GREY } from "./contrast-cases.ts";
 
 // The sweeps run the production clamp per case; they outrun the default per-test budget.
 const SWEEP_TIMEOUT_MS = 180_000;
-// Every accent on every contrast-case base, picked and inherited: each pair is a distinct solve, and it measured 200 s at load 55.
+// Every accent on every contrast-case base, picked and inherited: each pair is a distinct solve, and it measured 290 s at load 30.
 const ACCENT_SWEEP_TIMEOUT_MS = 2 * SWEEP_TIMEOUT_MS;
 const HEARTH_ACCENT = TOKENS["color.primary"].value;
 const ACCENT_LIGHTNESSES = Array.from({ length: 20 }, (_unused, index) => (index + 0.5) / 20);
