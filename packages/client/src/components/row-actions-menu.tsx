@@ -27,7 +27,7 @@ import { ConfirmDialog } from "./confirm-dialog.tsx";
 export interface RowDestructiveAction {
   /** The menu item label. @defaultValue `ROW_DELETE_NAME` */
   readonly label?: string;
-  /** The menu item glyph. @defaultValue Trash2 */
+  /** The menu item glyph. @defaultValue Trash */
   readonly icon?: LucideIcon;
   /** The confirm dialog heading. */
   readonly title: ReactNode;
@@ -52,7 +52,7 @@ export interface RowActionsMenuProps {
   readonly label: string;
   /** The non-destructive menu items. */
   readonly children?: ReactNode;
-  /** The trigger glyph. @defaultValue MoreHorizontal */
+  /** The trigger glyph. @defaultValue Ellipsis */
   readonly icon?: LucideIcon;
   /** Popup alignment. @defaultValue "end" */
   readonly align?: "center" | "end" | "start";

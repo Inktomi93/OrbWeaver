@@ -513,23 +513,9 @@ export const DISTINCT_LOOKALIKES = [
     reason: "The alert dialog and dialog primitives each follow their own base part.",
   },
   {
-    shape: "packages/ui/src/primitives/autocomplete/autocomplete.tsx#AutocompleteGroup",
-    distinctFrom: ["packages/ui/src/primitives/combobox/combobox.tsx#ComboboxGroup"],
-    reason: "Each primitive's own public group type; one shared group type is a ui design call, not a census merge.",
-  },
-  {
-    shape: "packages/ui/src/primitives/highlighted-text/highlighted-text.tsx#HighlightedTextRange",
-    distinctFrom: [
-      "packages/kit/src/content/index.ts#HiddenRun",
-      "packages/ui/src/markdown/dialogue.ts#Range",
-      "packages/ui/src/primitives/message-list/pin-spacer.ts#PinnedSpan",
-    ],
-    reason: "Highlight offsets, virtual-window offsets, hidden tag runs and dialogue ranges: different concepts sharing {start, end}.",
-  },
-  {
     shape: "packages/ui/src/primitives/message-list/pin-spacer.ts#PinnedSpan",
-    distinctFrom: ["packages/kit/src/content/index.ts#HiddenRun", "packages/ui/src/markdown/dialogue.ts#Range"],
-    reason: "Highlight offsets, virtual-window offsets, hidden tag runs and dialogue ranges: different concepts sharing {start, end}.",
+    distinctFrom: ["packages/kit/src/chunk/split.ts#Span", "packages/kit/src/content/index.ts#HiddenRun"],
+    reason: "Virtual-window pixel offsets, character spans and hidden tag runs: different concepts sharing {start, end}.",
   },
   {
     shape: "packages/ui/src/stream/shimmer.tsx#StreamShimmerProps",
