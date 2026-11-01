@@ -845,7 +845,7 @@ export type AutomationSuggestionKind = (typeof AUTOMATION_SUGGESTION_KINDS)[numb
 /** The rendered ask's cap. A card is one line of host-facing prose, not a preview pane. */
 export const AUTOMATION_SUGGESTION_SUMMARY_MAX = 200;
 
-// What ONE dispatch of a rule DID, as a VERB RESULT reports it (`runRuleNow`, `confirmSuggestion`): a fire
+// What ONE dispatch of a rule DID, as a VERB RESULT reports it (`runRuleNow`): a fire
 //  terminal, or one of the two NON-FIRE terminals below.
 //
 //  Neither `suggested` nor `paused` is a member of {@link AUTOMATION_FIRE_OUTCOMES}, and the distinction is the

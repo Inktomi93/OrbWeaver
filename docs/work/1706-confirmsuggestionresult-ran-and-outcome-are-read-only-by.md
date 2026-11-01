@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-Delete `ConfirmSuggestionResult` and its schema; `confirmSuggestion` returns `void`, like `dismissSuggestion`.
+Delete `ConfirmSuggestionResult` and its schema; `confirmSuggestion` returns `void`, like `dismissSuggestion`. A confirmed act that fails refuses with the typed `automation_suggestion_act_failed` on every path, so a failure never reads as success.
 
 ## Why
 
@@ -19,7 +19,7 @@ The client never reads the confirm result (`packages/client/src/features/automat
 
 ## Done when
 
-No `ConfirmSuggestionResult` or `confirmSuggestionResultSchema` in `packages/`, `tests/`, `tooling/` or `scripts/`. The confirm effects (fires, variables, world entries) stay asserted by the dispatch and execution-outputs suites.
+A rule-path failure keeps its `action_error` fire row; a plugin-path failure is logged (it has no fire row). The ask is spent once confirmed, so a retry meets suggestion-not-found; the host re-triggers the rule or plugin to get a new ask. No `ConfirmSuggestionResult` or `confirmSuggestionResultSchema` in `packages/`, `tests/`, `tooling/` or `scripts/`. The confirm effects (fires, variables, world entries) stay asserted by the dispatch and execution-outputs suites.
 
 ## Evidence
 

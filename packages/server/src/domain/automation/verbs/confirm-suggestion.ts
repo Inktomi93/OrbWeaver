@@ -104,6 +104,18 @@ async function assertPluginStillLive(ctx: AutomationContext, pending: PendingSug
   await assertActorStillHosts(ctx, pending, "the plugin's installer no longer hosts this room");
 }
 
+const ACT_FAILED = "act_failed";
+
+/** The fire row and the `ruleErrored` event are already written; the typed refusal keeps the confirm from reading as success. */
+function refuseIfErrored(outcome: AutomationRunOutcome): void {
+  if (outcome === "action_error") {
+    throw new SuggestionRefusedError(ACT_FAILED, "the confirmed act failed");
+  }
+}
+
+/** The fire terminals of a fresh run that mean the host's yes did nothing useful. */
+const FRESH_RUN_FAILURES: ReadonlySet<AutomationRunOutcome> = new Set<AutomationRunOutcome>(["action_error", "predicate_error", "authority_refused"]);
+
 /** Execute a CONFIRMED PLUGIN act through the PLUGIN's OWN executor (the injected op).
  *
  *  THE ENFORCEMENT SET FOLLOWS THE ORIGIN, and this is the whole reason the payload is a union rather than an
@@ -120,19 +132,23 @@ async function assertPluginStillLive(ctx: AutomationContext, pending: PendingSug
  *  CONFIRMER is the AUTHORIZER only and is deliberately NOT a parameter here: there is nothing to stamp them
  *  onto, and the act runs as the INSTALLER — on the installer's budget, in the installer's namespace. Their
  *  authorization was spent at the host gate and the take-once claim, upstream. */
-async function runPluginAct(ctx: AutomationContext, pending: PendingSuggestion, pluginId: PluginId): Promise<AutomationRunOutcome> {
+async function runPluginAct(ctx: AutomationContext, pending: PendingSuggestion, pluginId: PluginId): Promise<void> {
   const payload = pending.payload;
   if (payload === null || payload.via !== "plugin-act") {
     throw new SuggestionRefusedError("no_stashed_arm", "this suggestion carries nothing to execute");
   }
+  let failed = false;
   try {
     await ctx.executePluginSuggestion({ pluginId, installerUserId: pending.actorUserId, chatId: pending.chatId, act: payload.act });
-  } catch {
-    // Errors-as-data, matching the arm path: a refused/failed act is an OUTCOME the host reads, never a
-    // thrown 500 — and the ask is already spent, so there is nothing to retry against.
-    return "action_error";
+  } catch (err) {
+    // The ask is already spent and this path writes no fire row, so the log line is the only record.
+    ctx.logger.warn({ pluginId, chatId: pending.chatId, err }, "automation: a confirmed plugin act failed");
+    failed = true;
   }
-  return "fired";
+  if (failed) {
+    // The host sees a failed confirm; a retry meets suggestion-not-found.
+    throw new SuggestionRefusedError(ACT_FAILED, "the plugin's act failed");
+  }
 }
 
 /** Execute a CONFIRMED analysis act (the `{via:"analysis"}` payload — S5's confirm-routed outputs) and
@@ -140,9 +156,9 @@ async function runPluginAct(ctx: AutomationContext, pending: PendingSuggestion, 
  *  engine's OWN confirm executor (`substrate/analysis-confirm.ts`), NOT `ctx.runArm`: a re-synthesized arm
  *  would macro-render the model's bytes (§2 law 6) and could not advance the settled-span watermark on
  *  apply — the enforcement set still has one home (the lore act rides the same `applyRuleLoreWrite` belt
- *  the arm does, re-checked at confirm time). Errors-as-data like the stashed-arm path: a refusal is an
- *  `action_error` outcome the host reads, never a thrown 500 — the ask is already spent. */
-async function runAnalysisAct(ctx: AutomationContext, pending: PendingSuggestion, rule: RuleRow, confirmer: Principal): Promise<AutomationRunOutcome> {
+ *  the arm does, re-checked at confirm time). A failed act records its `action_error` fire, then refuses
+ *  typed (`act_failed`) so the confirm does not read as success — the ask is already spent. */
+async function runAnalysisAct(ctx: AutomationContext, pending: PendingSuggestion, rule: RuleRow, confirmer: Principal): Promise<void> {
   const payload = pending.payload;
   if (payload === null || payload.via !== "analysis") {
     throw new SuggestionRefusedError("no_stashed_arm", "this suggestion carries nothing to execute");
@@ -152,7 +168,7 @@ async function runAnalysisAct(ctx: AutomationContext, pending: PendingSuggestion
   let error: string | null = null;
   // the owner is the fire row written below: `error` carries the caught
   // message into `insertFireWithRuleStamp`'s `detail.error`, and `ctx.notify` raises `ruleErrored` for the
-  // `action_error` outcome the verb returns. Ends if the `error` detail or the `ruleErrored` notify is dropped.
+  // `action_error` outcome the verb refuses with. Ends if the `error` detail or the `ruleErrored` notify is dropped.
   try {
     await runAnalysisConfirm(
       { db: ctx.db, ops: ctx.ops, serialLanes: ctx.serialLanes, nowMs, applyProseRewrite: ctx.applyProseRewrite },
@@ -190,7 +206,7 @@ async function runAnalysisAct(ctx: AutomationContext, pending: PendingSuggestion
   ctx.notify(
     outcome === "fired" ? { type: "ruleFired", chatId: pending.chatId, ruleId: rule.id } : { type: "ruleErrored", chatId: pending.chatId, ruleId: rule.id },
   );
-  return outcome;
+  refuseIfErrored(outcome);
 }
 
 /** Execute the STASHED arm and record the confirmed fire, stamped with who authorized it.
@@ -208,7 +224,7 @@ async function runAnalysisAct(ctx: AutomationContext, pending: PendingSuggestion
  *  rule state and no chat variable plane, and they run through the PLUGIN's bridge with the plugin's own
  *  belts. Putting an unrelated executor behind the chat's dispatch lane would buy nothing and would make a
  *  slow generation delay every rule in the room. */
-function runStashedArm(ctx: AutomationContext, pending: PendingSuggestion, rule: RuleRow, confirmer: Principal): Promise<AutomationRunOutcome> {
+function runStashedArm(ctx: AutomationContext, pending: PendingSuggestion, rule: RuleRow, confirmer: Principal): Promise<void> {
   return ctx.serialLanes.run(automationChatLaneKey(pending.chatId), () => executeStashedArm(ctx, pending, rule, confirmer));
 }
 
@@ -226,10 +242,11 @@ function combinedOutcome(armOutcome: ArmOutcome, continuationResult: ArmsResult 
   return continuationResult ?? { detail: null, suggested: false, paused: false };
 }
 
-async function executeStashedArm(ctx: AutomationContext, pending: PendingSuggestion, rule: RuleRow, confirmer: Principal): Promise<AutomationRunOutcome> {
+async function executeStashedArm(ctx: AutomationContext, pending: PendingSuggestion, rule: RuleRow, confirmer: Principal): Promise<void> {
   const payload = pending.payload;
   if (payload !== null && payload.via === "analysis") {
-    return runAnalysisAct(ctx, pending, rule, confirmer);
+    await runAnalysisAct(ctx, pending, rule, confirmer);
+    return;
   }
   const stashed = payload !== null && payload.via === "arm" ? payload.stashed : null;
   if (stashed === null) {
@@ -258,7 +275,7 @@ async function executeStashedArm(ctx: AutomationContext, pending: PendingSuggest
     // D146-d, reached only through the CONTINUATION (the confirmed arm itself cannot pause — the invariant
     // above): no fire row, no error tick, no `last_fired_at` — the same "nothing to log" the gate itself
     // would produce had this been a fresh dispatch that paused on this arm.
-    return "paused";
+    return;
   }
   if (combined.suggested) {
     // A LATER arm in the continuation ALSO stashed itself — S4's fire-log honesty (header, "nothing is
@@ -266,7 +283,7 @@ async function executeStashedArm(ctx: AutomationContext, pending: PendingSuggest
     // arm's own effect already happened, but the rule as a whole is not "fired" while a fresh ask is live.
     // The new ask's OWN `suggestionRaised` notify already fired inside `stashConfirmFirstArm`; nothing more
     // to announce or record here.
-    return "suggested";
+    return;
   }
   const outcome: AutomationRunOutcome = combined.detail === null ? "fired" : "action_error";
   const nowMs = ctx.now();
@@ -295,7 +312,7 @@ async function executeStashedArm(ctx: AutomationContext, pending: PendingSuggest
   ctx.notify(
     outcome === "fired" ? { type: "ruleFired", chatId: pending.chatId, ruleId: rule.id } : { type: "ruleErrored", chatId: pending.chatId, ruleId: rule.id },
   );
-  return outcome;
+  refuseIfErrored(outcome);
 }
 
 export function createConfirmSuggestion(ctx: AutomationContext): AutomationService["confirmSuggestion"] {
@@ -342,8 +359,12 @@ export function createConfirmSuggestion(ctx: AutomationContext): AutomationServi
       return;
     }
     // The invitation class: no payload existed to stash, so the confirm is a FRESH host run (R7).
-    if ((await dispatchRuleNow(ctx, rule, claimed.chatId, principal.userId)) === null) {
+    const outcome = await dispatchRuleNow(ctx, rule, claimed.chatId, principal.userId);
+    if (outcome === null) {
       throw new SuggestionRefusedError("not_runnable", "this rule cannot be run on demand");
+    }
+    if (FRESH_RUN_FAILURES.has(outcome)) {
+      throw new SuggestionRefusedError(ACT_FAILED, "the rule ran and failed");
     }
   };
 }
