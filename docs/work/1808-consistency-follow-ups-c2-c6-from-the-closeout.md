@@ -2,7 +2,7 @@
 kind: bug
 status: open
 updated: 2026-11-01
-priority: P2
+priority: P1
 area: client
 plan: cross-surface-consistency
 ---
