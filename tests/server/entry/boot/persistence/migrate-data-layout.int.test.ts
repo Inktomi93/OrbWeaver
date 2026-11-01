@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createDb, listBackupFiles, preCloseHousekeeping } from "@orb/db";
 import { migrateDataLayout } from "@orb/server/entry/boot";
 import { DATA_LAYOUT_DIRS, DATA_LAYOUT_SKIP_KEY, DB_FILE_NAME, LEGACY_ENTRIES } from "@orb/server/foundation/data-layout";
-import { asymmetric, forEachNonEmpty } from "@orb/testkit/iso";
+import { forEachNonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createTestEnv, createTestLogger } from "@orb/testkit/node/composed";
 import { sql } from "drizzle-orm";
@@ -552,7 +552,7 @@ test("a legacy session secret kept beside a different explicit SESSION_SECRET is
   for (const boot of ["first", "second"]) {
     const outcome = await migrateInChild(root, join(importStagingDir, `${boot}.json`), minted);
     expect(outcome.error, boot).toBeUndefined();
-    expect(stranded(outcome), boot).toEqual([asymmetric(expect.objectContaining({ keptBy: "SESSION_SECRET", legacyKeyfile: join(root, keyfile) }))]);
+    expect(stranded(outcome), boot).toEqual([expect.objectContaining({ keptBy: "SESSION_SECRET", legacyKeyfile: join(root, keyfile) })]);
   }
 
   const sameRoot = freshRoot(importStagingDir);

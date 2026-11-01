@@ -5,7 +5,6 @@
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { readRoomCanon } from "@orb/testkit/node/composed";
 import { muteCara, send, smartRoom, THREE, warnings } from "./smart-picker.fixtures.ts";
@@ -30,8 +29,8 @@ test("default Smart ranks native negative logits once and never calls Utility", 
   const rankRequests = room.peer.requests.filter((request) => new URL(request.url).pathname === "/v1/rerank");
   expect(rankRequests).toHaveLength(1);
   expect(await rankRequests[0]?.clone().json()).toMatchObject({
-    query: asymmetric(expect.stringContaining("who's up?")),
-    documents: [asymmetric(expect.stringMatching(/^aria:/u)), asymmetric(expect.stringMatching(/^bryn:/u))],
+    query: expect.stringContaining("who's up?"),
+    documents: [expect.stringMatching(/^aria:/u), expect.stringMatching(/^bryn:/u)],
   });
   expect(await speakerInputs(room.peer.requests, B_UTILITY_MODEL)).toEqual([]);
   expect(warnings(room)).toEqual([]);

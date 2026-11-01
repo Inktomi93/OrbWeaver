@@ -4,7 +4,6 @@
 // boundary both refuse loudly instead of producing a clean zero-file receipt.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -84,14 +83,12 @@ test("--upload reaches direct/descendant inputs and prints the selected file ide
   expect(corePath).toBeDefined();
   const core = JSON.parse(readFileSync(corePath ?? "", "utf8")) as { readonly captures: readonly { readonly fileActions: readonly unknown[] }[] };
   expect(core.captures[0]?.fileActions).toEqual([
-    asymmetric(
-      expect.objectContaining({
-        kind: "upload",
-        feeder: "input",
-        files: 1,
-        identities: [asymmetric(expect.objectContaining({ relativePath: "fixture.txt" }))],
-      }),
-    ),
+    expect.objectContaining({
+      kind: "upload",
+      feeder: "input",
+      files: 1,
+      identities: [expect.objectContaining({ relativePath: "fixture.txt" })],
+    }),
   ]);
 });
 

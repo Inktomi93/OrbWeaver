@@ -6,7 +6,6 @@
 import { createBookSchema } from "@orb/contracts/world-info";
 import { automationRuleState } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
@@ -58,5 +57,5 @@ test("a cold lore pass over a room numbered from seq 0 summarizes that opening r
   expect(passes).toHaveLength(1);
   expect(await passes[0]?.clone().text()).toContain(OPENING);
   const stored = await h.root.db.select({ state: automationRuleState.state }).from(automationRuleState).where(eq(automationRuleState.ruleId, rule.id)).get();
-  expect(stored?.state).toMatchObject({ settledThroughSeq: asymmetric(expect.any(Number)) });
+  expect(stored?.state).toMatchObject({ settledThroughSeq: expect.any(Number) });
 });

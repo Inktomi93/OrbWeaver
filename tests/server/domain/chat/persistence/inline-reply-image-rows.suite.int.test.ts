@@ -3,7 +3,6 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 
 import { ID_PREFIX } from "@orb/kit/ids";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { makeAssetBytes } from "@orb/testkit/node/composed";
 import { seedAssetRows } from "@orb/testkit/node/rows";
@@ -45,9 +44,7 @@ test("the next actual native request carries its prior picture on model, never u
   expect((await fixture.turn()).aborted).toBe(false);
   const inputs = await fixture.inputs();
   expect(inputs).toHaveLength(2);
-  expect(wireParts(inputs[1] ?? [], "model")).toContainEqual(
-    expect.objectContaining({ inlineData: asymmetric(expect.objectContaining({ mimeType: "image/png" })) }),
-  );
+  expect(wireParts(inputs[1] ?? [], "model")).toContainEqual(expect.objectContaining({ inlineData: expect.objectContaining({ mimeType: "image/png" }) }));
   expect(JSON.stringify(wireParts(inputs[1] ?? [], "user"))).not.toContain("inlineData");
   expect(await inlineImageRows(fixture.h).generated()).toHaveLength(1);
 });
@@ -65,7 +62,7 @@ test("native image and text signatures stay private and replay only with their s
   expect(JSON.stringify(await inlineImageRows(fixture.h).events())).not.toContain("private-native-");
   expect((await fixture.turn()).aborted).toBe(false);
   const parts = wireParts((await fixture.inputs())[1] ?? [], "model");
-  expect(parts).toContainEqual(expect.objectContaining({ inlineData: asymmetric(expect.any(Object)), thoughtSignature: IMAGE_SIGNATURE }));
+  expect(parts).toContainEqual(expect.objectContaining({ inlineData: expect.any(Object), thoughtSignature: IMAGE_SIGNATURE }));
   expect(parts).toContainEqual({ text: IMAGE_PROSE, thoughtSignature: TEXT_SIGNATURE });
   expect(parts.filter((part) => JSON.stringify(part).includes(IMAGE_SIGNATURE))).toHaveLength(1);
   expect(parts.filter((part) => JSON.stringify(part).includes(TEXT_SIGNATURE))).toHaveLength(1);
@@ -147,9 +144,9 @@ for (const imageBeforeTool of [true, false]) {
     expect(partKinds(orderParts)).toEqual(
       imageBeforeTool ? ["Before.", "image", "call", "result", "After."] : ["Before.", "call", "result", "image", "After."],
     );
-    expect(parts).toContainEqual(expect.objectContaining({ inlineData: asymmetric(expect.any(Object)), thoughtSignature: IMAGE_SIGNATURE }));
+    expect(parts).toContainEqual(expect.objectContaining({ inlineData: expect.any(Object), thoughtSignature: IMAGE_SIGNATURE }));
     expect(parts).toContainEqual(
-      expect.objectContaining({ functionCall: asymmetric(expect.objectContaining({ id: "same", name: IMAGE_TOOL })), thoughtSignature: TOOL_SIGNATURE }),
+      expect.objectContaining({ functionCall: expect.objectContaining({ id: "same", name: IMAGE_TOOL }), thoughtSignature: TOOL_SIGNATURE }),
     );
   });
 
@@ -180,9 +177,9 @@ for (const imageBeforeTool of [true, false]) {
     expect(partKinds(parts)).toEqual(imageBeforeTool ? ["Before.", "image", "call", "After.", "Done."] : ["Before.", "call", "image", "After.", "Done."]);
     expect(parts).toContainEqual({ text: "Before.", thoughtSignature: BEFORE_SIGNATURE });
     expect(parts).toContainEqual({ text: "After.", thoughtSignature: AFTER_SIGNATURE });
-    expect(parts).toContainEqual(expect.objectContaining({ inlineData: asymmetric(expect.any(Object)), thoughtSignature: IMAGE_SIGNATURE }));
+    expect(parts).toContainEqual(expect.objectContaining({ inlineData: expect.any(Object), thoughtSignature: IMAGE_SIGNATURE }));
     expect(parts).toContainEqual(
-      expect.objectContaining({ functionCall: asymmetric(expect.objectContaining({ id: "same", name: IMAGE_TOOL })), thoughtSignature: TOOL_SIGNATURE }),
+      expect.objectContaining({ functionCall: expect.objectContaining({ id: "same", name: IMAGE_TOOL }), thoughtSignature: TOOL_SIGNATURE }),
     );
     expect(JSON.stringify(await inlineImageRows(fixture.h).events())).not.toContain("private-native-");
   });

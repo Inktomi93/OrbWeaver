@@ -9,7 +9,6 @@ import type { UserIntent } from "@orb/contracts/preset";
 import type { ChatHistoryMessage, ChatResult, ToolChoice, WireTool } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
 import { isPlainObject } from "@orb/kit/guards";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { AnthropicStreamEvent, RecordedRequest } from "@orb/testkit/node/helpers";
 import {
@@ -174,10 +173,10 @@ test("a minimal turn sends exactly one request body, so a provider SDK upgrade t
 
   expect(sent.body).toEqual({
     model: "claude-opus-5",
-    ["max_tokens"]: asymmetric(expect.any(Number)),
+    ["max_tokens"]: expect.any(Number),
     thinking: { type: "adaptive", display: "summarized" },
     ["output_config"]: { effort: "high" },
-    metadata: { ["user_id"]: asymmetric(expect.any(String)) },
+    metadata: { ["user_id"]: expect.any(String) },
     system: [{ type: "text", text: "You are a helpful assistant.", ["cache_control"]: { type: "ephemeral", ttl: "1h" } }],
     messages: [{ role: "user", content: [{ type: "text", text: "What is the weather in Paris?" }] }],
     stream: true,

@@ -10,7 +10,6 @@ import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import process from "node:process";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
@@ -138,14 +137,12 @@ test("every request is ordered under one denominator with measured sizes() evide
         window: { kind: "aggregate", values: "all" },
       },
       limits: [
-        asymmetric(
-          expect.objectContaining({
-            source: "request-ring",
-            complete: true,
-            policy: { capacity: REQUEST_RING_CAPACITY },
-            events: [{ kind: "ring-window", path: "$.requests", original: 4, retained: 4, omitted: 0 }],
-          }),
-        ),
+        expect.objectContaining({
+          source: "request-ring",
+          complete: true,
+          policy: { capacity: REQUEST_RING_CAPACITY },
+          events: [{ kind: "ring-window", path: "$.requests", original: 4, retained: 4, omitted: 0 }],
+        }),
       ],
     });
     expect(artifact?.publishedPath).not.toBeNull();

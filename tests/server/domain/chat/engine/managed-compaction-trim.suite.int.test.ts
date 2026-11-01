@@ -3,7 +3,7 @@
 // Fit trimming without a marker: a real over-window room trims, warns and commits through the native SDK route.
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import { asymmetric, makePromptConfig } from "@orb/testkit/iso";
+import { makePromptConfig } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { sdkEngineRoom } from "./engine-physical.ts";
 import { ENGINE_SDK_REPLY } from "./engine-sdk-physical.mjs";
@@ -11,7 +11,7 @@ import { ENGINE_SDK_REPLY } from "./engine-sdk-physical.mjs";
 test("a permanent marker outage cannot wall a real over-window turn: trim, warn, commit and leave no marker", async () => {
   await using fixture = await sdkEngineRoom({ history: 16, window: 300, policy: { marker: "fail" } });
   const preview = await fixture.h.caller.chat.previewContextFit({ chatId: fixture.h.chatId });
-  expect(preview).toMatchObject({ droppedCount: asymmetric(expect.any(Number)), limit: { kind: "window", tokens: 300 } });
+  expect(preview).toMatchObject({ droppedCount: expect.any(Number), limit: { kind: "window", tokens: 300 } });
   if ("unbound" in preview) {
     throw new Error("the real SDK room lost its binding");
   }

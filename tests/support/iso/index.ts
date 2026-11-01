@@ -1,7 +1,6 @@
 // The iso door: pure helpers every world may import.
 
 export { ENLARGED_APPEARANCE_SETTINGS } from "./appearance.ts";
-export { asymmetric } from "./asymmetric.ts";
 export type { BusPayloadFailure, EconomicsField } from "./bus-payload-policy.ts";
 export type { BeltMismatch, BeltMismatchOf, BusName, SubUnionEscape } from "./bus-registry.ts";
 export { IN_RANGE_CARD_FRAME_STYLE } from "./card-frame-style.ts";

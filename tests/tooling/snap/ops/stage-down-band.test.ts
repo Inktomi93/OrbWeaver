@@ -2,7 +2,6 @@
 // running, a band a live session still holds is refused, and a band another checkout owns is never reached.
 // The per-row stop is injected, so no stage process is touched.
 
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import { stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
@@ -66,7 +65,7 @@ test("a band with a live session is refused, and --force overrides the refusal",
   const views = [view(row(1), 1, { liveSessions: ["review"] })];
   const refused = released(views, { band: 1, force: false, owner: null });
   expect(refused.bands).toEqual([]);
-  expect(refused.lines).toEqual([asymmetric(expect.stringContaining("live session review"))]);
+  expect(refused.lines).toEqual([expect.stringContaining("live session review")]);
   expect(released(views, { band: 1, force: true, owner: null }).bands).toEqual([1]);
 });
 

@@ -4,7 +4,6 @@
 import { assertReferentialIntegrity } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { UNKNOWN_COMMIT } from "@orb/kit/version-identity";
-import { asymmetric } from "../iso/asymmetric.ts";
 import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import {
@@ -41,8 +40,8 @@ test("native surface suppliers preserve app override provenance, owner-only glob
   expect(settings.updates.map((update) => update.status)).toEqual(["up-to-date", "behind", "unknown", "unknown"]);
   expect(settings.updates[0]?.reason).toBeNull();
   expect(settings.updates[1]?.remote?.channel).toBe(settings.version.channel);
-  expect(settings.updates[2]).toMatchObject({ remote: null, reason: asymmetric(expect.stringContaining("payload")) });
-  expect(settings.updates[3]).toMatchObject({ remote: null, reason: asymmetric(expect.stringContaining("couldn't reach GitHub")) });
+  expect(settings.updates[2]).toMatchObject({ remote: null, reason: expect.stringContaining("payload") });
+  expect(settings.updates[3]).toMatchObject({ remote: null, reason: expect.stringContaining("couldn't reach GitHub") });
   expect(wire.remainingUpdates()).toBe(0);
   const upstream = wire.requests.filter((request) => new URL(request.url).hostname === "api.github.com");
   expect(upstream).toHaveLength(4);

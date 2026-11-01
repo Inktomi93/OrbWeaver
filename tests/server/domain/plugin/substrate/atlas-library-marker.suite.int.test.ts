@@ -7,7 +7,6 @@ import { spawn } from "node:child_process";
 import type { Principal } from "@orb/contracts/identity";
 import { PLUGIN_CARD_DATA_FIND_MAX, pluginCardStateKey } from "@orb/contracts/plugin";
 import type { CharacterId, PluginId } from "@orb/kit/ids";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, guestRunner, installGuest, requireShowcaseBundle, seedCorpusActors } from "@orb/testkit/node/composed";
@@ -133,9 +132,9 @@ function atlasDriver({ caller, pluginId }: EnabledAtlas): AtlasDriver {
     add: async (source, tile): Promise<void> => {
       await search(source);
       await act("open_result", { tile: `r${tile}` });
-      await expect.poll(state).toMatchObject({ stage: "card", status: "", detail: { blurb: asymmetric(expect.stringContaining("waits by the gate")) } });
+      await expect.poll(state).toMatchObject({ stage: "card", status: "", detail: { blurb: expect.stringContaining("waits by the gate") } });
       await act("add_to_library");
-      await expect.poll(state).toMatchObject({ stage: "card", detail: { owned: asymmetric(expect.stringContaining("ibrary")) } });
+      await expect.poll(state).toMatchObject({ stage: "card", detail: { owned: expect.stringContaining("ibrary") } });
     },
   };
 }

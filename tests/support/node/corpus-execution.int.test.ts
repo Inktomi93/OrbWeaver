@@ -4,7 +4,6 @@ import { once } from "node:events";
 import { setTimeout as physicalDelay, setImmediate as physicalTurn } from "node:timers/promises";
 import { closeDb } from "@orb/db";
 import { vi } from "vitest";
-import { asymmetric } from "../iso/asymmetric.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import { freshCountedDb, freshHeldDb } from "./db.ts";
 import { expect, test } from "./fixtures.ts";
@@ -62,7 +61,7 @@ test("a caller execution scope permits native load beyond the helper default and
   const driver = vi.spyOn(next, "runAdmittedWorkload");
   const settle = vi.spyOn(next, "settleBackground");
   const failure = await settleCorpusWorkloads(next, caller, [admitted]).catch((error: unknown) => error);
-  expect(failure).toMatchObject({ message: asymmetric(expect.stringContaining("cancelled")), cause: { cancellation: reason, lastObserved: undefined } });
+  expect(failure).toMatchObject({ message: expect.stringContaining("cancelled"), cause: { cancellation: reason, lastObserved: undefined } });
   expect(cancellationOf(failure)).toBe(reason);
   expect(driver).not.toHaveBeenCalled();
   expect(settle).not.toHaveBeenCalled();
@@ -90,7 +89,7 @@ test("caller cancellation during initial native load returns its reason while ba
     controller.abort(reason);
     const failure = await result;
     expect(failure).toMatchObject({
-      message: asymmetric(expect.stringContaining('"phase":"admitted-job","index":0')),
+      message: expect.stringContaining('"phase":"admitted-job","index":0'),
       cause: { cancellation: reason, lastObserved: undefined, replay: [{ observation: "unobserved" }] },
     });
     expect(cancellationOf(failure)).toBe(reason);
@@ -140,7 +139,7 @@ test("setup and repeated calls cannot renew an expired native caller timeout or 
   counted.queries.reset();
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const failure = await settleCorpusWorkloads(root, caller, [admitted]).catch((error: unknown) => error);
-    expect(failure).toMatchObject({ message: asymmetric(expect.stringContaining("timed out")), cause: { timeout: workloadExecutionSignal.reason } });
+    expect(failure).toMatchObject({ message: expect.stringContaining("timed out"), cause: { timeout: workloadExecutionSignal.reason } });
     if (!(failure instanceof Error) || typeof failure.cause !== "object" || failure.cause === null || !("timeout" in failure.cause)) {
       throw new Error("The native caller timeout lost its owned cause");
     }

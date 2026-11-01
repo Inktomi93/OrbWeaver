@@ -3,7 +3,6 @@ import { existsSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import process from "node:process";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { openRunSlot, publishRunSlot } from "@orb/tooling/floor/artifacts/artifacts";
 import { launchProbeSession, settle, withProbeSession } from "@orb/tooling/floor/browser/browser";
@@ -381,7 +380,7 @@ test("session export snapshots the CDP HAR without closing its browser owner", a
     const parsedHar = JSON.parse(harText) as { readonly log?: { readonly _orbRetention?: unknown } };
     assertCompleteNetworkHar(parsedHar);
     expect(browserEvidenceRetentionBatchSchema.parse(parsedHar.log._orbRetention).rows).toEqual(
-      expect.arrayContaining([asymmetric(expect.objectContaining({ source: "browser-network-completed", complete: true }))]),
+      expect.arrayContaining([expect.objectContaining({ source: "browser-network-completed", complete: true })]),
     );
     const stillLive = await runCli("snap", ["--session", name, "--eval", "document.querySelector('h1')?.textContent", "--no-shot"], {
       env,

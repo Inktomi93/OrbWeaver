@@ -14,6 +14,7 @@ import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const SETTINGS_READS = [
   "chat.getGroupConfig",
+  "chat.listForks",
   "chat.listChatInjections",
   "databank.listActiveForChat",
   "worldInfo.listForChat",

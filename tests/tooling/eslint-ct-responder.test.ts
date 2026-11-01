@@ -2,7 +2,6 @@
 // the call, bound to a variable, spread in, or typed as TrpcRoutes: a responder answers the request it is given, or is
 // a kit marker, or its procedure takes no input.
 import { join } from "node:path";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import ts from "typescript";
@@ -307,6 +306,6 @@ test("a file header names the exception and its reason, and a stale one is refus
   const header = `/* eslint-disable ${RULE} -- the subject is the route helper itself */\n`;
   expect(await findings(`await routeTrpc(page, { "a.list": ["x"] });`, header)).toEqual([]);
   expect(await findings(`await routeTrpc(page, { "a.list": ({ id }) => [id] });`, header)).toMatchObject([
-    { ruleId: null, message: asymmetric(expect.stringContaining("Unused eslint-disable directive")) },
+    { ruleId: null, message: expect.stringContaining("Unused eslint-disable directive") },
   ]);
 });

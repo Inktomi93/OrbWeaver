@@ -1,6 +1,5 @@
 import { ROLE_ROWS_ORDERED, roleRequirementVerdicts } from "@orb/client/lib";
 import { bindingTaskOf, GENERATION_FLOOR, ROUTABLE_TASKS, TASKS, taskDef } from "@orb/contracts/inference";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 
 test("authored role rails cover each actual task requirement", () => {
@@ -12,9 +11,7 @@ test("authored role rails cover each actual task requirement", () => {
     }
     const clauses = row.requirements.map(({ requires }) => requires);
     for (const [axis, value] of Object.entries(taskDef(task).requires ?? {})) {
-      expect(clauses, `${task}.${axis} has no authored requirement warning`).toEqual(
-        expect.arrayContaining([asymmetric(expect.objectContaining({ [axis]: value }))]),
-      );
+      expect(clauses, `${task}.${axis} has no authored requirement warning`).toEqual(expect.arrayContaining([expect.objectContaining({ [axis]: value })]));
     }
   }
 });

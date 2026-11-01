@@ -7,7 +7,6 @@ import { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { closeDb } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { asymmetric } from "../iso/asymmetric.ts";
 import type { CorpusWire } from "../iso/corpus.ts";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
 import { createCorpusReadResponder, createCorpusViewerReadResponder } from "../iso/corpus-read-responder.ts";
@@ -152,9 +151,7 @@ test("portable stats publish final native owner reads with exact request recipes
   expect(createCorpusReadResponder("stats.overview", root.ownerId, parsed.reads["stats.overview"])(undefined)).toEqual(await caller.stats.overview());
   expect(createCorpusReadResponder("stats.wrapped", root.ownerId, parsed.reads["stats.wrapped"])(undefined)).toEqual(await caller.stats.wrapped());
   expect(createCorpusReadResponder("stats.byModel", root.ownerId, parsed.reads["stats.byModel"])(undefined)).toEqual(await caller.stats.byModel());
-  expect(parsed.reads["stats.byModel"][0]?.output).toEqual(
-    expect.arrayContaining([asymmetric(expect.objectContaining({ model: CORPUS_TEXT_MODEL, tokensOut: 15 }))]),
-  );
+  expect(parsed.reads["stats.byModel"][0]?.output).toEqual(expect.arrayContaining([expect.objectContaining({ model: CORPUS_TEXT_MODEL, tokensOut: 15 })]));
   expect(createCorpusReadResponder("stats.personaUsage", root.ownerId, parsed.reads["stats.personaUsage"])(undefined)).toEqual(
     await caller.stats.personaUsage(),
   );

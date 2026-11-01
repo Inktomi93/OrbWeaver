@@ -7,7 +7,6 @@
 // is REFUSED loudly instead of silently rendering the account's own theme, and that the patch states the
 // SELECTION only (the app fetches the real theme row itself — the shim never fabricates a palette).
 
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import {
   applyThemeFlag,
@@ -53,10 +52,10 @@ test("a missing seed/custom discriminator stays unknown — provenance is never 
 
 test("catalog capabilities are derived from real rows and expose seed/custom polarity without a hand list", () => {
   expect(themeCatalogCapabilities(readThemeList(LIST_BODY) ?? [])).toEqual({
-    seed: { light: [asymmetric(expect.objectContaining({ name: "Light" }))], dark: [asymmetric(expect.objectContaining({ name: "Hearth" }))] },
+    seed: { light: [expect.objectContaining({ name: "Light" })], dark: [expect.objectContaining({ name: "Hearth" })] },
     custom: {
-      light: [asymmetric(expect.objectContaining({ name: "Alex's Neon", hasCustomCss: true }))],
-      dark: [asymmetric(expect.objectContaining({ name: "Midnight", hasCustomCss: false }))],
+      light: [expect.objectContaining({ name: "Alex's Neon", hasCustomCss: true })],
+      dark: [expect.objectContaining({ name: "Midnight", hasCustomCss: false })],
     },
     unknown: [],
   });
@@ -84,7 +83,7 @@ test("`none` is a real arm: NO selection, i.e. the shipped Hearth default a fres
 test("an unknown theme is REFUSED with the account's real list — the silent-drop trap this axis was built to avoid", () => {
   const outcome = resolveTheme(readThemeList(LIST_BODY) ?? [], "Solarized");
 
-  expect(outcome).toMatchObject({ error: asymmetric(expect.stringContaining("no theme named")) });
+  expect(outcome).toMatchObject({ error: expect.stringContaining("no theme named") });
   const message = "error" in outcome ? outcome.error : "";
   for (const entry of LIBRARY) {
     expect(message).toContain(entry.name);
@@ -98,7 +97,7 @@ test("the patch states the SELECTION only — the palette comes from the app's o
 });
 
 test("an empty --theme value is CLI misuse, and a refusal routes to the CLI's error list", () => {
-  expect(parseThemeFlag("  ")).toMatchObject({ error: asymmetric(expect.stringContaining("expects a theme name")) });
+  expect(parseThemeFlag("  ")).toMatchObject({ error: expect.stringContaining("expects a theme name") });
   expect(parseThemeFlag(" Light ")).toEqual({ theme: "Light" });
 
   const args: { theme: string | null; errors: string[] } = { theme: null, errors: [] };

@@ -4,7 +4,6 @@ import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import { basename, join } from "node:path";
 import process from "node:process";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { launchProbeSession, settle, withProbeSession } from "@orb/tooling/floor/browser/browser";
 import { createPageCapture, wireProbePage } from "@orb/tooling/floor/browser/browser-capture";
@@ -200,13 +199,13 @@ test("the full orb console ring retains subtypes, windows, reset, and explicit c
       expect.arrayContaining(["console", "uncaught", "rejection"]),
     );
     expect(ring.find((record) => record.text.includes("orb-uncaught-unique"))?.details).toMatchObject({
-      route: asymmetric(expect.any(String)),
+      route: expect.any(String),
       subtype: "uncaught",
     });
 
     await page.evaluate("for (let index = 0; index < 130; index += 1) console.error('orb-overflow-' + index)");
     const gap = await collectOrbConsoleDiagnostics(page, diagnosticRing, completenessRing, false);
-    expect(gap).toMatchObject({ kind: "instrument", message: asymmetric(expect.stringContaining("dropped 5 record(s)")), name: null, stack: null });
+    expect(gap).toMatchObject({ kind: "instrument", message: expect.stringContaining("dropped 5 record(s)"), name: null, stack: null });
     expect(ring.some((record) => record.origin === "instrument-limit" && record.source === "orb-console-ring")).toBe(true);
     expect(completeness.at(-1)).toMatchObject({ contextIndex: 2, pageIndex: 3, evidenceWindow: 1, records: 128, dropped: 5, cap: 128, complete: false });
 
@@ -219,12 +218,12 @@ test("the full orb console ring retains subtypes, windows, reset, and explicit c
     await page.evaluate("globalThis.__orb = { consoleErrors: 7 }");
     expect(await collectOrbConsoleDiagnostics(page, diagnosticRing, completenessRing, false)).toMatchObject({
       kind: "instrument",
-      message: asymmetric(expect.stringContaining("malformed")),
+      message: expect.stringContaining("malformed"),
     });
     await page.evaluate("delete globalThis.__orb");
     expect(await collectOrbConsoleDiagnostics(page, diagnosticRing, completenessRing, false)).toMatchObject({
       kind: "instrument",
-      message: asymmetric(expect.stringContaining("missing __orb.consoleErrors")),
+      message: expect.stringContaining("missing __orb.consoleErrors"),
     });
     expect(await collectOrbConsoleDiagnostics(page, diagnosticRing, completenessRing, true)).toBeNull();
   } finally {
@@ -397,7 +396,7 @@ test("Snap JSON and a live session export retain the lossless diagnostics ring",
     const retentionArtifact = exportIndex.artifacts.find((artifact) => artifact.channel === "browser-retention");
     expect(retentionArtifact).toBeDefined();
     const retention = browserEvidenceRetentionBatchSchema.parse(JSON.parse(readFileSync(retentionArtifact?.path ?? "", "utf8")));
-    expect(retention.rows).toEqual(expect.arrayContaining([asymmetric(expect.objectContaining({ source: "browser-console", complete: true }))]));
+    expect(retention.rows).toEqual(expect.arrayContaining([expect.objectContaining({ source: "browser-console", complete: true })]));
     const readBack = await runCli("snap", ["--report", exportIndexPath ?? "", "--all"], { env, timeoutMs: scaledBudget(30_000, 4) });
     await expect(readBack).toExitWith(EXIT.clean);
     expect(readBack.stdout).toContain("browser-retention");

@@ -10,7 +10,6 @@ import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { TAG_TARGET_TYPES } from "@orb/contracts/tag";
 import { assertReferentialIntegrity } from "@orb/db";
 import { CHAT_WARNING_CODES } from "../../../packages/contracts/src/chat/bus.ts";
-import { asymmetric } from "../iso/asymmetric.ts";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
 import { createCorpusReadResponder, createCorpusViewerReadResponder } from "../iso/corpus-read-responder.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
@@ -51,8 +50,8 @@ test("native library projections retain canonical usage, ordering, intake and re
   ]);
   expect(world.demoted.output).toEqual(
     expect.arrayContaining([
-      asymmetric(expect.objectContaining({ id: world.book.id, role: "auxiliary" })),
-      asymmetric(expect.objectContaining({ id: world.replacement.id, role: "primary" })),
+      expect.objectContaining({ id: world.book.id, role: "auxiliary" }),
+      expect.objectContaining({ id: world.replacement.id, role: "primary" }),
     ]),
   );
   expect(world.detail.output).toMatchObject({ id: library.world.book.id, name: library.world.book.name });

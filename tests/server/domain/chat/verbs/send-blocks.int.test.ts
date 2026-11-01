@@ -13,7 +13,6 @@ import { tokenizeContent } from "@orb/kit/content";
 import type { AssetId, ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -158,7 +157,7 @@ test("mixed blocks persist as one body, project to the same render order and rea
     AFTER,
   ]);
   expect((await box.root.services.assets.resolveChatAssetRefs(box.member.userId, box.chatId, [assetId])).map((ref) => ref.assetId)).toEqual([assetId]);
-  expect(userParts(lastRequest(box)).map(partOrder)).toContainEqual([asymmetric(expect.stringContaining(BEFORE)), await wireUrl(box, assetId), AFTER]);
+  expect(userParts(lastRequest(box)).map(partOrder)).toContainEqual([expect.stringContaining(BEFORE), await wireUrl(box, assetId), AFTER]);
 });
 
 test("a blocks body rides every later turn through swipe, edit, fork, duplicate and a bundle round trip", async () => {
@@ -173,7 +172,7 @@ test("a blocks body rides every later turn through swipe, edit, fork, duplicate 
   }
 
   await box.caller.chat.swipe({ chatId: box.chatId, messageId: reply.id, timeZone: UTC_TIME_ZONE });
-  expect(userParts(lastRequest(box)).map(partOrder)).toContainEqual([asymmetric(expect.stringContaining(BEFORE)), url, AFTER]);
+  expect(userParts(lastRequest(box)).map(partOrder)).toContainEqual([expect.stringContaining(BEFORE), url, AFTER]);
 
   await box.caller.chat.editMessage({ chatId: box.chatId, messageId: user.id, content: `${user.content}\n\nEdited.`, timeZone: UTC_TIME_ZONE });
   expect(await replayedImageUrls(box, box.chatId)).toEqual([url]);
@@ -295,11 +294,7 @@ test("a USER_INPUT regex reads the block text only and cannot touch a picture re
 
   const user = outcome.messages.find((message) => message.role === "user");
   expect(user?.content).toBe(`Before the x.\n\n![${ALT}](asset:${assetId})\n\nAfter the x.`);
-  expect(userParts(lastRequest(box)).map(partOrder)).toContainEqual([
-    asymmetric(expect.stringContaining("Before the x.")),
-    await wireUrl(box, assetId),
-    "After the x.",
-  ]);
+  expect(userParts(lastRequest(box)).map(partOrder)).toContainEqual([expect.stringContaining("Before the x."), await wireUrl(box, assetId), "After the x."]);
 });
 
 test("a volatile macro freezes in the block text around a picture", async () => {

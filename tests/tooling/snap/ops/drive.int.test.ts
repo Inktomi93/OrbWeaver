@@ -1,6 +1,6 @@
 // Navigation keeps the first document's verdict; a later healthy document cannot erase its failure.
 import { createServer } from "node:http";
-import { asymmetric, FROZEN_AT_MS } from "@orb/testkit/iso";
+import { FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { chromium, devices } from "@playwright/test";
 import { MOBILE_DEVICE } from "../../../../tooling/src/floor/browser/browser-environment.ts";
@@ -89,7 +89,7 @@ test("a failed first navigation stays failed even when a second document would s
   try {
     expect(await driveOnce(["/", "--isolated"], server.base)).toContain("data-app-ready came up DEGRADED");
     expect(server.documents()).toBe(1);
-    expect(takeStageOutcome()).toMatchObject({ kind: "unsettled", reason: asymmetric(expect.stringContaining("first navigation came back degraded")) });
+    expect(takeStageOutcome()).toMatchObject({ kind: "unsettled", reason: expect.stringContaining("first navigation came back degraded") });
   } finally {
     await server.close();
   }

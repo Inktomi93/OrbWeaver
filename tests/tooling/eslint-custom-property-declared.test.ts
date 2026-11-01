@@ -4,7 +4,6 @@ import { execFileSync } from "node:child_process";
 import { globSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
@@ -74,7 +73,7 @@ test.for([
   ["an underscore name", 'export const A = "w-[var(--probe_gone,1)]";', "--probe_gone"],
   ["a class-string write nothing reads", 'export const A = "[--probe-dead:2]";', "--probe-dead"],
 ] as const)("%s is refused", async ([, source, name]) => {
-  expect(await findings(source)).toEqual([asymmetric(expect.stringContaining(`"${name}"`))]);
+  expect(await findings(source)).toEqual([expect.stringContaining(`"${name}"`)]);
 });
 
 test.for([
@@ -83,7 +82,7 @@ test.for([
   ["a getPropertyValue of a deleted property", 'export const A = getComputedStyle(document.body).getPropertyValue("--probe-gone");', "--probe-gone"],
   ["a stylesheet injected with a deleted property", 'export const A = ":root { --font-scale: 2 !important; }";', "--font-scale"],
 ] as const)("%s is refused in a CT", async ([, source, name]) => {
-  expect(await findings(source, CT)).toEqual([asymmetric(expect.stringContaining(`"${name}"`))]);
+  expect(await findings(source, CT)).toEqual([expect.stringContaining(`"${name}"`)]);
 });
 
 test("a CT may set a declared property", async () => {

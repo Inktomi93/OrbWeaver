@@ -1,6 +1,5 @@
 // Native ESLint guards story test ids, tRPC route order and shared poll schedules.
 import { join } from "node:path";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
@@ -58,7 +57,7 @@ test("a story freeform id takes a reasoned inline permission, and a stale permis
   const permission = `// eslint-disable-next-line ${STORY_ID} -- Bounded native permission control.\n`;
   expect(await ordinary(repoRoot, STORY_ID, permission + bad, STORY)).toEqual([]);
   expect(await ordinary(repoRoot, STORY_ID, `${permission}export const A = 1;`, STORY)).toMatchObject([
-    { ruleId: null, message: asymmetric(expect.stringContaining("Unused eslint-disable directive")) },
+    { ruleId: null, message: expect.stringContaining("Unused eslint-disable directive") },
   ]);
 });
 

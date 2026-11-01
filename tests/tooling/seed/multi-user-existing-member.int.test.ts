@@ -4,7 +4,6 @@
 import { createServer } from "node:http";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
@@ -79,7 +78,5 @@ test("a member handle that already exists gets the fixture password instead of s
 test("a missing member is created, and nobody else's password is touched", async () => {
   const calls = await seedAgainst([{ id: "user_owner", handle: castId<Handle>("owner") }]);
   expect(calls).toContainEqual({ proc: "admin.createUser", body: { handle: "member", password: MEMBER_PASSWORD, role: "user" } });
-  expect(calls.filter((call) => call.proc === "admin.resetPassword").map((call) => call.body)).toEqual([
-    asymmetric(expect.objectContaining({ userId: "user_owner" })),
-  ]);
+  expect(calls.filter((call) => call.proc === "admin.resetPassword").map((call) => call.body)).toEqual([expect.objectContaining({ userId: "user_owner" })]);
 });

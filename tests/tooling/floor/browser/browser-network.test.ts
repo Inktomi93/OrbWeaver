@@ -1,7 +1,6 @@
 // CDP network events are normalized once at the typed handler boundary; retained records and HAR never
 // reinterpret raw protocol objects with Reflect.
 
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import type { CDPSession, Page } from "@playwright/test";
 import { networkRecordsForPages, selectNetworkBodies, wirePageNetwork } from "../../../../tooling/src/floor/browser/browser-network.ts";
@@ -138,7 +137,7 @@ test("typed CDP handlers retain only the normalized request/response/initiator/e
   expect(records[0]).toMatchObject({
     initiatorType: "script",
     request: { method: "POST", url: "https://example.test/api?token=secret", hasPostData: true, postData: '{"ordinary":true}' },
-    requestExtra: { headersText: "Cookie: orb_session=secret\r\n", cookies: [asymmetric(expect.objectContaining({ name: "orb_session", sameSite: "Lax" }))] },
+    requestExtra: { headersText: "Cookie: orb_session=secret\r\n", cookies: [expect.objectContaining({ name: "orb_session", sameSite: "Lax" })] },
     response: { status: 201, protocol: "h2", timing: { dnsStart: 1, receiveHeadersEnd: 8 }, securityDetails: { protocol: "TLS 1.3" } },
     responseExtra: { statusCode: 201, headersText: "HTTP/2 201\r\n" },
   });

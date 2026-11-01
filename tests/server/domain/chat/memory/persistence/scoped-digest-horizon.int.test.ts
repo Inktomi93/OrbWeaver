@@ -4,7 +4,6 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { chatDigests, chatParticipants, chatSegments, messages } from "@orb/db";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -103,7 +102,7 @@ test("the actual scoped digest build excludes complete blocks from before a char
   expect(own.every((row) => row.text.includes("Joined bridge"))).toBe(true);
   expect(own.every((row) => !row.text.includes("Unwitnessed opening"))).toBe(true);
   expect(digests.filter((row) => row.scopedCharacterId === first.id && row.blockIdx === 0).map((row) => row.text)).toEqual([
-    asymmetric(expect.stringContaining("Unwitnessed opening")),
+    expect.stringContaining("Unwitnessed opening"),
   ]);
   // The summarizer body is JSON, so the block text is matched as it is escaped on the wire.
   const openingBlock = JSON.stringify(`${SUMMARIZE_TRANSCRIPT_MARKER}\n\nAria: Unwitnessed opening 1.\nAria: Unwitnessed opening 2.`).slice(1, -1);
@@ -123,7 +122,7 @@ test("the actual scoped digest build excludes complete blocks from before a char
         !beforeTraces.has(trace.requestId) && trace.rootName === "memory.turnCompleted" && trace.spans.some((span) => span.attributes["chatId"] === h.chatId),
     );
   expect(traces).toHaveLength(1);
-  expect(traces[0]).toMatchObject({ status: "ok", requestId: asymmetric(expect.stringMatching(/^memory-turn:/u)) });
+  expect(traces[0]).toMatchObject({ status: "ok", requestId: expect.stringMatching(/^memory-turn:/u) });
   expect(traces[0]?.requestId).not.toBe(outer);
   expect(traces[0]?.spans.find((span) => span.name === "memory.turnCompleted")?.parentSpanId).toBeUndefined();
 });

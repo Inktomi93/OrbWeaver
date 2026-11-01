@@ -15,7 +15,6 @@ import {
   isCharacterSeated,
   loadPresentHostUserId,
 } from "@orb/server/domain/chat";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { isAdmin, isOwner } from "@orb/testkit/node/auth";
 import {
@@ -46,7 +45,7 @@ test("composed imagery card reads carry the row-derived host role rather than a 
     ProviderError,
   );
   expect(getCard).toHaveBeenCalledExactlyOnceWith({
-    principal: asymmetric(expect.objectContaining({ userId: host.userId, handle: host.handle })),
+    principal: expect.objectContaining({ userId: host.userId, handle: host.handle }),
     characterId: subject.id,
   });
   const captured = getCard.mock.calls[0]?.[0].principal;
@@ -133,7 +132,7 @@ test("quiet extraction sends only the caller's visible scene through the host's 
   const extracted = await root.services.imagery.extractPrompt({ caller: member, ...params });
   expect(extracted).toMatchObject({ prompt: extractedPrompt, source: "extracted" });
   expect(getCard).toHaveBeenCalledExactlyOnceWith({
-    principal: asymmetric(expect.objectContaining({ userId: host.userId, role: host.role })),
+    principal: expect.objectContaining({ userId: host.userId, role: host.role }),
     characterId: subject.id,
   });
   const extractionRequests = requests

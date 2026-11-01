@@ -8,7 +8,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import {
   appearanceBootHintPatch,
@@ -122,8 +121,8 @@ test("a response that is not the settings envelope is passed through, reported a
 });
 
 test("unparseable JSON and a non-object are CLI misuse, never a silent no-op", () => {
-  expect(parseAppearancePatch("not json")).toMatchObject({ error: asymmetric(expect.stringContaining("expects a JSON object")) });
-  expect(parseAppearancePatch('["reducedMotion"]')).toMatchObject({ error: asymmetric(expect.stringContaining("expects a JSON object")) });
+  expect(parseAppearancePatch("not json")).toMatchObject({ error: expect.stringContaining("expects a JSON object") });
+  expect(parseAppearancePatch('["reducedMotion"]')).toMatchObject({ error: expect.stringContaining("expects a JSON object") });
   expect(parseAppearancePatch('{"reducedMotion":"system"}')).toEqual({ patch: { reducedMotion: "system" } });
 });
 
@@ -137,10 +136,10 @@ test("unknown keys and schema-healed values refuse instead of pretending the req
 
   // Planted preset-equivalent controls exercise the same validator the committed JSON passes through.
   expect(validateAppearancePatch({ ghostAppearance: true }, `${APPEARANCE_PRESET_FLAG} "planted"`)).toMatchObject({
-    error: asymmetric(expect.stringContaining("unknown appearance key")),
+    error: expect.stringContaining("unknown appearance key"),
   });
   expect(validateAppearancePatch({ chatWidthPct: 101 }, `${APPEARANCE_PRESET_FLAG} "planted"`)).toMatchObject({
-    error: asymmetric(expect.stringContaining("invalid value")),
+    error: expect.stringContaining("invalid value"),
   });
 });
 
@@ -156,7 +155,7 @@ test("the exported validator RETURNS its refusal for a non-object, rather than t
 
   expect(() => validateAppearancePatch(notAnObject, "--appearance")).not.toThrow();
   expect(validateAppearancePatch(notAnObject, "--appearance")).toMatchObject({
-    error: asymmetric(expect.stringContaining("--appearance is not a readable appearance object")),
+    error: expect.stringContaining("--appearance is not a readable appearance object"),
   });
   // The guarded callers keep their own, more specific refusals — this door did not take their job.
   expect(parseAppearancePatch("7")).toEqual({ error: '--appearance expects a JSON object, got "7"' });
@@ -165,7 +164,7 @@ test("the exported validator RETURNS its refusal for a non-object, rather than t
 test("an unknown preset name is refused with the valid list, not treated as an empty patch", () => {
   const outcome = loadAppearancePreset("maximalist");
 
-  expect(outcome).toMatchObject({ error: asymmetric(expect.stringContaining("is not a profile")) });
+  expect(outcome).toMatchObject({ error: expect.stringContaining("is not a profile") });
   const message = "error" in outcome ? outcome.error : "";
   for (const name of appearancePresetNames()) {
     expect(message).toContain(name);

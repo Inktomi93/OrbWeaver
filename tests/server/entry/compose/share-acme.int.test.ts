@@ -16,7 +16,7 @@ import type { IpCertificateSetting } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, authMeSchema, CSRF_HEADER, ipCertificateSettingSchema } from "@orb/contracts/identity";
 import { closeDb } from "@orb/db";
 import { IP_CERTIFICATE_FILE_NAMES } from "@orb/server/foundation/data-layout";
-import { asymmetric, createControlledTimers, createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso";
+import { createControlledTimers, createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
 import { claimShareOwner, createServerHarness, freshDb, SHARE_OWNER_PASSWORD } from "@orb/testkit/node/composed";
@@ -85,7 +85,7 @@ test("the real root obtains an IP certificate through native ACME, stores privat
     throw new Error("native finalize did not send a CSR");
   }
   expect(readCsr(csr).sanNames).toEqual([{ tag: GENERAL_NAME_IP_TAG, bytes: ipBytes(ADDRESS) }]);
-  expect(authority.fetches).toMatchObject([{ status: 200, body: asymmetric(expect.stringContaining(`${TOKEN}.`)) }]);
+  expect(authority.fetches).toMatchObject([{ status: 200, body: expect.stringContaining(`${TOKEN}.`) }]);
   const certificate = await readFile(join(harness.secretsDir, IP_CERTIFICATE_FILE_NAMES.certificate), "utf8");
   const key = await readFile(join(harness.secretsDir, IP_CERTIFICATE_FILE_NAMES.certificateKey), "utf8");
   expect(new X509Certificate(certificate).checkIP(ADDRESS)).toBe(ADDRESS);
@@ -244,7 +244,7 @@ test("native authority errors retain their reason without exposing the account k
   const status = (await subject.caller.share.status()).certificate;
   expect(status).toMatchObject({
     state: "failed",
-    failure: { code: "issuance_failed", message: asymmetric(expect.stringContaining("native refusal with private diagnostic")) },
+    failure: { code: "issuance_failed", message: expect.stringContaining("native refusal with private diagnostic") },
   });
   expect(JSON.stringify(status)).not.toContain(key.replaceAll("\n", ""));
   const body = key.split("\n")[1];

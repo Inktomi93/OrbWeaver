@@ -10,7 +10,6 @@ import { RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
 import { assets, auditLogs, rpgSheets } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect } from "@orb/testkit/node";
 import { createServerHarness, makeAssetBytes, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
@@ -134,7 +133,7 @@ test("the real host populate caller reports a provider refusal without overwriti
   const before = await db.select().from(rpgSheets);
   expect(before).toHaveLength(1);
   fundingProvider.status(401);
-  expect(await ownerCaller.rpg.populateFromCharacter(input)).toMatchObject({ ok: false, reason: asymmetric(expect.any(String)) });
+  expect(await ownerCaller.rpg.populateFromCharacter(input)).toMatchObject({ ok: false, reason: expect.any(String) });
   expect(await db.select().from(rpgSheets)).toEqual(before);
   expect((await ownerCaller.credentials.list()).find((row) => row.id === key.id)?.revokedReason).toBe("auth_failed");
   expect(

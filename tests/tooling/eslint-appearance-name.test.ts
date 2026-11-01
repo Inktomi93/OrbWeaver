@@ -1,7 +1,6 @@
 // `orb/appearance-name-in-manifest`: an appearance channel name a client or ui string spells is one the manifest's
 // channel writes. Run through the real config, so the vocabulary is the one the generator derives.
 import { join } from "node:path";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
@@ -56,7 +55,7 @@ test.for([
   // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is template source the rule reads.
   ["a name in a template chunk", "export const A = (k: string): string => `[data-appearance-texture=${k}]`;", "data-appearance-texture"],
 ] as const)("%s is refused", async ([, source, name]) => {
-  expect(await findings(source)).toEqual([asymmetric(expect.stringContaining(`"${name}"`))]);
+  expect(await findings(source)).toEqual([expect.stringContaining(`"${name}"`)]);
 });
 
 test("an OS-only variant in a ui file is pointed at the guarded sheet form, which ui can use", async () => {

@@ -1,4 +1,3 @@
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@playwright/test";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { waitForAppReady } from "./chat-room.ts";
@@ -37,7 +36,7 @@ test("diagnostic capture failure preserves the original readiness assertion", as
   await waitForAppReady(page);
   await page.close();
   await expect(waitForAppReady(page, 100)).rejects.toMatchObject({
-    message: asymmetric(expect.stringContaining("diagnostic capture failed")),
-    cause: { message: asymmetric(expect.stringContaining("toHaveAttribute")) },
+    message: expect.stringContaining("diagnostic capture failed"),
+    cause: { message: expect.stringContaining("toHaveAttribute") },
   });
 });

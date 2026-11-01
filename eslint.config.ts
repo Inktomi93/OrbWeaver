@@ -2234,6 +2234,11 @@ export default [
     rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, FILESYSTEM_MODULE_MOCK_RESTRICTION] },
   },
   {
+    files: ["tests/tooling/**/*.{ts,tsx,mts,cts}"],
+    // Tooling tests read subprocess reports and fake OS-level protocol faults whose shapes have no production schema.
+    rules: { "@typescript-eslint/no-unsafe-type-assertion": "off" },
+  },
+  {
     files: ["tests/**/*.{ts,tsx}"],
     // Tooling CLI subjects own process-environment inputs; inherited runner cleanup restores their stubs.
     ignores: ["tests/tooling/**", "**/*.test-d.ts"],

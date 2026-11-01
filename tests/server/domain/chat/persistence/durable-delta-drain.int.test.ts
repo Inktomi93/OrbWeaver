@@ -7,7 +7,6 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { LogLevel } from "@orb/contracts/settings";
 import { chatEvents, chatLocks, closeDb, messages, messageVariants } from "@orb/db";
 import { ProviderError } from "@orb/inference";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { HeldStatement } from "@orb/testkit/node/composed";
 import { freshHeldDb, refuseWrites } from "@orb/testkit/node/composed";
@@ -95,15 +94,13 @@ test.for([
       row.failed
         ? {
             status: "rejected",
-            reason: asymmetric(
-              expect.objectContaining({
-                kind: "unknown",
-                retryable: false,
-                apiErrorStatus: 200,
-                message: asymmetric(expect.stringContaining("Failed to process successful response")),
-                cause: asymmetric(expect.objectContaining({ message: "Failed to process successful response" })),
-              }),
-            ),
+            reason: expect.objectContaining({
+              kind: "unknown",
+              retryable: false,
+              apiErrorStatus: 200,
+              message: expect.stringContaining("Failed to process successful response"),
+              cause: expect.objectContaining({ message: "Failed to process successful response" }),
+            }),
           }
         : { status: "fulfilled", value: { aborted: false } },
     );

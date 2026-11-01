@@ -4,7 +4,6 @@
 // @subject packages/server/src/domain/rpg/persistence/snapshots.ts
 
 import { rpgSnapshots } from "@orb/db";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { seedRecallRoom, seedRpgGame } from "@orb/testkit/node/composed";
 import { sql } from "drizzle-orm";
@@ -30,7 +29,7 @@ test("a snapshot actor row under the retired cast spelling fails the whole read 
 
   await expect(harness.services.rpg.getTrackerView({ principal: host, chatId })).rejects.toMatchObject({
     code: RPG_OP_CODES.stateCorrupt,
-    message: asymmetric(expect.stringContaining("actorState")),
+    message: expect.stringContaining("actorState"),
   });
 
   await db.update(rpgSnapshots).set({ actorState: sql`${JSON.stringify([])}` });

@@ -1,4 +1,3 @@
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { CannedResponse } from "@orb/testkit/node/composed";
 import { bootAtlas, bootAtlasDates, lastAtlasState } from "@orb/testkit/node/composed";
@@ -99,12 +98,10 @@ describe("card atlas under the realm's ambient denial", () => {
     const state = lastAtlasState(drive);
     expect(state["stage"]).toBe("card");
     expect(state["detail"]).toMatchObject({
-      stats: asymmetric(
-        expect.arrayContaining([
-          { key: "Created", value: "2025-06-01" },
-          { key: "Updated", value: "2025-06-02" },
-        ]),
-      ),
+      stats: expect.arrayContaining([
+        { key: "Created", value: "2025-06-01" },
+        { key: "Updated", value: "2025-06-02" },
+      ]),
     });
     expect(drive.logs.filter((line) => line.includes("open failed"))).toEqual([]);
   });

@@ -1,4 +1,3 @@
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import type { VariantMatrixSpec } from "@orb/tooling/floor/variant-matrix/variant-matrix";
 import { planVariantMatrix, variantArtifactId, variantCellId } from "@orb/tooling/floor/variant-matrix/variant-matrix";
@@ -61,7 +60,7 @@ test("plans a deterministic pairwise matrix while preserving required rows and s
     id: "density=comfortable__surface=shell__pointer=coarse",
     assignment: { density: "comfortable", surface: "shell", pointer: "coarse" },
   });
-  expect(first.receipt.requiredRows).toEqual([{ id: "compact-portal", cellId: asymmetric(expect.any(String)) }]);
+  expect(first.receipt.requiredRows).toEqual([{ id: "compact-portal", cellId: expect.any(String) }]);
   expect(first.receipt.requiredTwins).toEqual([
     {
       id: "pointer-polarity",

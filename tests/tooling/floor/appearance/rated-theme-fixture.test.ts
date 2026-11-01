@@ -1,6 +1,5 @@
 import type { Server } from "node:http";
 import { createServer } from "node:http";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { afterEach, beforeEach } from "vitest";
 import { provisionRatedStageThemes } from "../../../../tooling/src/floor/appearance/rated-theme-fixture.ts";
@@ -127,8 +126,8 @@ test("a post-create failure preserves both the primary and cleanup failures", as
   await expect(provisionRatedStageThemes(baseUrl, true)).rejects.toMatchObject({
     message: "INSTRUMENT ERROR: rated theme provisioning and exact cleanup both failed",
     errors: [
-      asymmetric(expect.objectContaining({ message: asymmetric(expect.stringContaining("settings.listThemes failed")) })),
-      asymmetric(expect.objectContaining({ message: asymmetric(expect.stringContaining("rated theme cleanup left")) })),
+      expect.objectContaining({ message: expect.stringContaining("settings.listThemes failed") }),
+      expect.objectContaining({ message: expect.stringContaining("rated theme cleanup left") }),
     ],
   });
   expect(themes.size).toBe(2);

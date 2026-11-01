@@ -7,7 +7,6 @@ import type { ImageLens } from "@orb/contracts/embeddings";
 import { embedGenerations, embedSpaceState, imageAnalyses, imageEmbeddings } from "@orb/db";
 import { readSeedAvatar, SEED_MANIFEST } from "@orb/default-content";
 import type { AssetId } from "@orb/kit/ids";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -162,9 +161,7 @@ test("an avatar already indexed by its own event still promotes its generation i
 
   expect(await root.app.embeddings.embedAssets({ ownerId: null, force: false, signal: signal() })).toEqual({ embedded: 0, skipped: 1 });
   expect(wire.requests).toHaveLength(spent);
-  expect(await root.db.select().from(embedSpaceState).where(eq(embedSpaceState.scope, "images"))).toEqual([
-    asymmetric(expect.objectContaining({ ownerId: owner.userId })),
-  ]);
+  expect(await root.db.select().from(embedSpaceState).where(eq(embedSpaceState.scope, "images"))).toEqual([expect.objectContaining({ ownerId: owner.userId })]);
 });
 
 test("an avatar whose stored file is gone fails alone: the rest embed and the run names the failed asset", async () => {
@@ -219,7 +216,7 @@ test("a failure that is not a missing file stops the sweep instead of failing ea
   await using fault = await refuseWrites(root.db, { table: imageEmbeddings, event: "INSERT", message: VECTOR_REFUSAL });
 
   await expect(root.app.embeddings.embedAssets({ ownerId: null, force: false, signal: signal() })).rejects.toMatchObject({
-    cause: asymmetric(expect.objectContaining({ message: asymmetric(expect.stringContaining(VECTOR_REFUSAL)) })),
+    cause: expect.objectContaining({ message: expect.stringContaining(VECTOR_REFUSAL) }),
   });
 
   // Positive control: with the fault lifted the same sweep embeds both avatars.

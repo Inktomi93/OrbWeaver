@@ -2,7 +2,6 @@
 
 import { settings } from "@orb/db";
 import { createEnableShareSeating } from "@orb/server/domain/share";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { refuseWrites } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
@@ -63,7 +62,7 @@ test("restoration leaves already-on settings alone and an actual stored-write fa
   await using refusal = await refuseWrites(db, { table: settings, event: "UPDATE", message: "restore refused" });
   try {
     await expect(restore()).rejects.toMatchObject({
-      cause: asymmetric(expect.objectContaining({ message: asymmetric(expect.stringContaining("restore refused")) })),
+      cause: expect.objectContaining({ message: expect.stringContaining("restore refused") }),
     });
   } finally {
     await refusal.lift();

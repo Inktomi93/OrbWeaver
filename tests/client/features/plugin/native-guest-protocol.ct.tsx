@@ -6,7 +6,7 @@ import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { routeTrpc, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { asymmetric, createCorpusReadResponder, createCorpusViewerReadResponder } from "@orb/testkit/iso";
+import { createCorpusReadResponder, createCorpusViewerReadResponder } from "@orb/testkit/iso";
 import { makePluginRow, makePluginScriptedPage } from "@orb/testkit/node/helpers";
 import type { Page } from "@playwright/test";
 import { EXTENSIONS_GONE_TITLE } from "#client/features/plugin/lib/extensions-copy.ts";
@@ -261,7 +261,7 @@ test("a native guest boot failure publishes ready:false and reports the original
   await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
   await expect
     .poll(() => trpc.lastInput("plugin.reportUiCrash"))
-    .toMatchObject({ pluginId: plugin.id, surfaceId: "protocol", reason: asymmetric(expect.stringContaining(BOOT_FAILURE_MESSAGE)) });
+    .toMatchObject({ pluginId: plugin.id, surfaceId: "protocol", reason: expect.stringContaining(BOOT_FAILURE_MESSAGE) });
   const messages = await page.evaluate((key) => sessionStorage.getItem(key), OBSERVATIONS);
   expect(messages).toContain('"kind":"ready","ok":false');
   expect(messages).toContain(`TypeError: ${BOOT_FAILURE_MESSAGE}`);
@@ -358,7 +358,7 @@ memoryTest(
       }
     });
     expect(reservation.smallBytes).toBe(65_536);
-    expect(reservation.failure).toMatchObject({ name: "RangeError", message: asymmetric(expect.any(String)) });
+    expect(reservation.failure).toMatchObject({ name: "RangeError", message: expect.any(String) });
     const plugin = makePluginRow({
       name: "Native reservation refusal",
       declaredCapabilities: ["ui.surface", "storage.kv"],
@@ -380,12 +380,10 @@ memoryTest(
     await observeProtocol(page);
     await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
     const retry = page.getByRole("button", { name: "Retry", exact: true });
-    const unavailable = asymmetric(
-      expect.objectContaining({
-        kind: "unavailable" satisfies UiGuestUnavailableMessage["kind"],
-        message: asymmetric(expect.stringMatching(/the browser could not reserve \d+ bytes for the plugin's interface:/u)),
-      }),
-    );
+    const unavailable = expect.objectContaining({
+      kind: "unavailable" satisfies UiGuestUnavailableMessage["kind"],
+      message: expect.stringMatching(/the browser could not reserve \d+ bytes for the plugin's interface:/u),
+    });
     for (const attempt of [1, 2]) {
       await expect(retry).toBeVisible();
       expect(closed).toHaveLength(attempt);
@@ -411,7 +409,7 @@ memoryTest(
           return { bytes: null, failure: error instanceof Error ? { name: error.name, message: error.message } : null };
         }
       }, requestedBytes);
-      expect(fixedReservation).toMatchObject({ bytes: null, failure: { name: "RangeError", message: asymmetric(expect.any(String)) } });
+      expect(fixedReservation).toMatchObject({ bytes: null, failure: { name: "RangeError", message: expect.any(String) } });
       if (attempt === 2) {
         if (frames === null || typeof frames !== "object" || Array.isArray(frames)) {
           throw new Error("Native protocol observation did not retain its message envelope");

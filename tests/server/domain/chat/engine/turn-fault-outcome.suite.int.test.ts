@@ -7,7 +7,7 @@ import { ProviderError } from "@orb/inference";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { asymmetric, createControlledTimers, createFrozenClock, createSeededIds } from "@orb/testkit/iso";
+import { createControlledTimers, createFrozenClock, createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -46,19 +46,17 @@ test("a provider fault records disposition:error with the native provider termin
   await using fixture = await sdkEngineRoom({ history: 2, policy: { foreground: "fail" }, server: outcomeServer });
   await expect(fixture.turn({ effort: "high" })).toThrowProviderError("server");
   expect(await outcomes(fixture.h)).toEqual([
-    asymmetric(
-      expect.objectContaining({
-        chatId: fixture.h.chatId,
-        disposition: "error",
-        terminalReason: "api_error",
-        contentChars: 0,
-        model: ENGINE_SDK_MODEL,
-        reasoningEffort: "high",
-        tokensOut: null,
-        modelCalls: null,
-        maxOutputTokens: null,
-      }),
-    ),
+    expect.objectContaining({
+      chatId: fixture.h.chatId,
+      disposition: "error",
+      terminalReason: "api_error",
+      contentChars: 0,
+      model: ENGINE_SDK_MODEL,
+      reasoningEffort: "high",
+      tokensOut: null,
+      modelCalls: null,
+      maxOutputTokens: null,
+    }),
   ]);
   expect(fixture.receipts.filter(({ marker }) => !marker)).toHaveLength(1);
 });
@@ -161,9 +159,9 @@ test("a routed physical 429 retains ProviderError as the actual TRPCError cause 
     if (rejected.status !== "rejected") {
       throw new Error("the physical 429 unexpectedly resolved");
     }
-    expect(rejected.reason).toMatchObject({ name: "TRPCError", code: "TOO_MANY_REQUESTS", cause: asymmetric(expect.any(ProviderError)) });
+    expect(rejected.reason).toMatchObject({ name: "TRPCError", code: "TOO_MANY_REQUESTS", cause: expect.any(ProviderError) });
     expect(rejected.reason.cause).toMatchObject({ kind: "rate_limit" });
-    expect(await outcomes(h)).toEqual([asymmetric(expect.objectContaining({ disposition: "error", terminalReason: "rate_limit" }))]);
+    expect(await outcomes(h)).toEqual([expect.objectContaining({ disposition: "error", terminalReason: "rate_limit" })]);
   });
 });
 
@@ -176,7 +174,7 @@ test("a physical caller cancellation records user, never a provider fault", asyn
     await fixture.h.root.services.chat.abort({ principal: fixture.h.owner, chatId: fixture.h.chatId });
     expect(await running).toMatchObject({ aborted: true, abortReason: "user" });
     await expect.poll(() => fixture.held.size).toBe(0);
-    expect(await outcomes(fixture.h)).toEqual([asymmetric(expect.objectContaining({ disposition: "user", terminalReason: "aborted" }))]);
+    expect(await outcomes(fixture.h)).toEqual([expect.objectContaining({ disposition: "user", terminalReason: "aborted" })]);
   } finally {
     fixture.release();
     await settled;
@@ -217,12 +215,10 @@ test("a completed native turn keeps raw warning code and operator prose while it
     expect((await routed()).aborted).toBe(false);
     const raw = "topK ignored: model does not expose a topK range";
     expect(await outcomes(h)).toEqual([
-      asymmetric(
-        expect.objectContaining({
-          disposition: "completed",
-          warnings: asymmetric(expect.arrayContaining([{ code: WARNING_CODE.samplingKnobDropped, message: raw }])),
-        }),
-      ),
+      expect.objectContaining({
+        disposition: "completed",
+        warnings: expect.arrayContaining([{ code: WARNING_CODE.samplingKnobDropped, message: raw }]),
+      }),
     ]);
     const warnings = (await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId })).flatMap(({ event }) =>
       event.type === "warning" ? [event] : [],

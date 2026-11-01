@@ -5,7 +5,6 @@ import { auditLogs, userConnections, users } from "@orb/db";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { asymmetric } from "../iso/asymmetric.ts";
 import { expect, test } from "./fixtures.ts";
 
 const PASSWORD = "actor-mint-password";
@@ -32,7 +31,7 @@ test("an actor is shaped by the owner's audited admin verbs and reads back throu
   const minted = await harness.actor({ role: "admin", enabled: false, password: PASSWORD, externalId: SUBJECT });
   const listed = await ownerCaller.admin.listUsers();
   expect(listed.filter((user) => user.id === minted.id)).toEqual([
-    asymmetric(expect.objectContaining({ role: "admin", enabled: false, externalId: SUBJECT, kind: "human" })),
+    expect.objectContaining({ role: "admin", enabled: false, externalId: SUBJECT, kind: "human" }),
   ]);
   const audited = await db.select({ action: auditLogs.action, actorUserId: auditLogs.actorUserId }).from(auditLogs).where(eq(auditLogs.entityId, minted.id));
   expect(new Set(audited.map((row) => row.action))).toEqual(new Set(["admin.linkSsoIdentity", "admin.setRole", "admin.setEnabled", "admin.resetPassword"]));
@@ -62,6 +61,6 @@ test("two concurrent actors asking for one handle mint one account and refuse th
   const minted = settled.flatMap((result) => (result.status === "fulfilled" ? [result.value.id] : []));
   const refused = settled.flatMap((result) => (result.status === "rejected" ? [String(result.reason)] : []));
   expect(minted).toHaveLength(1);
-  expect(refused).toEqual([asymmetric(expect.stringMatching(/already held/))]);
+  expect(refused).toEqual([expect.stringMatching(/already held/)]);
   expect(await db.select({ id: users.id }).from(users).where(eq(users.handle, handle))).toEqual([{ id: minted[0] }]);
 });

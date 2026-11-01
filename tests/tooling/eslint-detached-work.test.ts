@@ -2,7 +2,6 @@
 // drive the configured rule through the real flat config.
 
 import { join } from "node:path";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
@@ -260,7 +259,7 @@ test(
   `${RULE} a directive that waives nothing is itself reported`,
   async ({ repoRoot }) => {
     expect(await messages(repoRoot, `${WAIVER}export function ok(): void {}\n`, SERVER)).toMatchObject([
-      { ruleId: null, message: asymmetric(expect.stringContaining("Unused eslint-disable directive")) },
+      { ruleId: null, message: expect.stringContaining("Unused eslint-disable directive") },
     ]);
   },
   CONFIG_LOAD_TIMEOUT_MS,

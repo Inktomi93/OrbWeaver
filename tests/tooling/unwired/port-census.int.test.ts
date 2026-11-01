@@ -1,7 +1,6 @@
 // `pnpm unwired ports` plans each restating member: derive through the owner's door, a kit type for a concept,
 // a contracts move across domains, a hand note where a derive would close an import cycle.
 
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import type { PortTarget } from "../../../tooling/src/unwired/index.ts";
 import { portCensus } from "../../../tooling/src/unwired/index.ts";
@@ -203,16 +202,16 @@ test("a handle-carrying type reports ruled only when it resolves to an op the le
   const { targets } = portCensus(root, () => undefined);
   // Unruled: no name of the op is in the ledger tuple, and contracts can never hold its handle.
   expect(typeTargets(targets, "PlaceStatement")).toEqual([
-    { kind: "db-handle-review", note: asymmetric(expect.stringContaining("@orb/db: StatementToken; ruling: unruled")) },
+    { kind: "db-handle-review", note: expect.stringContaining("@orb/db: StatementToken; ruling: unruled") },
   ]);
   // Ruled by its own name, as D337's table writes it.
-  expect(typeTargets(targets, "NotificationsEmitOp")).toEqual([{ kind: "ruled", note: asymmetric(expect.stringContaining("ruling: D337")) }]);
+  expect(typeTargets(targets, "NotificationsEmitOp")).toEqual([{ kind: "ruled", note: expect.stringContaining("ruling: D337") }]);
   // Ruled through the consumer's alias, which types the op member D337 names.
-  expect(typeTargets(targets, "HandoffRestampStatements")).toEqual([{ kind: "ruled", note: asymmetric(expect.stringContaining("ruling: D337")) }]);
+  expect(typeTargets(targets, "HandoffRestampStatements")).toEqual([{ kind: "ruled", note: expect.stringContaining("ruling: D337") }]);
   // A ruled op's name alone rules nothing: the ruled owner domain must be one of the two the handle crosses.
   expect(typeTargets(targets, "AtlasClaim")).toEqual([{ kind: "review", note: expect.not.stringContaining("ruling: D337") }]);
   // A split signature the composition root fills is the consumer's own contract, not a copy to move.
-  expect(typeTargets(targets, "StoreSegmentsOp")).toEqual([{ kind: "ruled", note: asymmetric(expect.stringContaining("copies:")) }]);
+  expect(typeTargets(targets, "StoreSegmentsOp")).toEqual([{ kind: "ruled", note: expect.stringContaining("copies:") }]);
   expect(typeTargets(targets, "StoreSegmentsOp")[0]?.note).toContain("stays with its consumer");
 });
 
@@ -224,8 +223,8 @@ test("a look-alike reports distinct once the registry records the pair, and revi
   } as const;
   const judged = portCensus(root, () => undefined, [{ ...pair, reason: "planted: two domains' rows that share only {id, name}" }]);
   const unjudged = portCensus(root, () => undefined, []);
-  expect(typeTargets(unjudged.targets, "AlphaView")).toEqual([{ kind: "review", note: asymmetric(expect.stringContaining("same shape, no flow")) }]);
-  expect(typeTargets(judged.targets, "AlphaView")).toEqual([{ kind: "distinct", note: asymmetric(expect.stringContaining("distinct by registry")) }]);
+  expect(typeTargets(unjudged.targets, "AlphaView")).toEqual([{ kind: "review", note: expect.stringContaining("same shape, no flow") }]);
+  expect(typeTargets(judged.targets, "AlphaView")).toEqual([{ kind: "distinct", note: expect.stringContaining("distinct by registry") }]);
 });
 
 test("the registry holds only pairs with no flow: a registered pair a flow links stays open work", { timeout: 120_000 }, async ({ plantedTree }) => {
@@ -235,5 +234,5 @@ test("the registry holds only pairs with no flow: a registered pair a flow links
     distinctFrom: [`${SERVER}/domain/chat/contract/service.ts#place`],
   } as const;
   const { targets } = portCensus(root, () => undefined, [{ ...linked, reason: "planted: a wrong judgment over a real flow" }]);
-  expect(typeTargets(targets, "PlaceStatement")).toEqual([{ kind: "db-handle-review", note: asymmetric(expect.stringContaining("copies:")) }]);
+  expect(typeTargets(targets, "PlaceStatement")).toEqual([{ kind: "db-handle-review", note: expect.stringContaining("copies:") }]);
 });

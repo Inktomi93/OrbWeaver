@@ -4,7 +4,6 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { parseVariantMetadata } from "@orb/contracts/chat";
 import { characters, chatGenerationObservations, closeDb, messages, messageVariants, ownerStats } from "@orb/db";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { freshHeldDb } from "@orb/testkit/node/composed";
 import { captureSdkSessionRows } from "@orb/testkit/node/rows";
@@ -140,7 +139,7 @@ test("actual SDK continuation replaces operation economics while retaining the n
     expect.objectContaining({
       type: "cost-state",
       sessionId: firstSession[0]?.sdkSessionId,
-      modelUsage: asymmetric(expect.objectContaining({ [fixture.connection.model]: asymmetric(expect.objectContaining({ costUSD: 0.25 })) })),
+      modelUsage: expect.objectContaining({ [fixture.connection.model]: expect.objectContaining({ costUSD: 0.25 }) }),
     }),
   );
   expect(continued.messages).toMatchObject([{ id: target.id, content: "A retained reply.Continued." }]);

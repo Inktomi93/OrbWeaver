@@ -8,7 +8,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { chatDigests, chatSegments, messages, messageVariants } from "@orb/db";
-import { asymmetric, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -220,7 +220,7 @@ test("bound memory ports retain shared buckets and enforce real join, leave and 
     expect(absent).not.toEqual([]);
     for (const row of absent) {
       expect(recall.trace.candidates).toEqual(
-        expect.arrayContaining([asymmetric(expect.objectContaining({ blockIdx: row.blockIdx, scopedCharacterId: sharedId, verdict: "unwitnessed" }))]),
+        expect.arrayContaining([expect.objectContaining({ blockIdx: row.blockIdx, scopedCharacterId: sharedId, verdict: "unwitnessed" })]),
       );
     }
     expect(recall.trace.candidates.some((candidate) => candidate.verdict === "admitted" && witnessed.some((row) => row.blockIdx === candidate.blockIdx))).toBe(

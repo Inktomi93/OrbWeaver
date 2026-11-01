@@ -21,7 +21,6 @@ import {
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterHandle, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -434,7 +433,7 @@ test("native continuation settles before handoff rebases its retained cohort and
     expect(settledHandoffs).toBe(1);
     expect(await root.db.select().from(characters).where(eq(characters.ownerId, nominee.userId)).orderBy(characters.id)).toEqual(beforeCards);
     expect(await root.db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId))).toEqual(
-      expect.arrayContaining([asymmetric(expect.objectContaining({ role: "host", userId: actors.owner.userId, leftSeq: null }))]),
+      expect.arrayContaining([expect.objectContaining({ role: "host", userId: actors.owner.userId, leftSeq: null })]),
     );
     expect(await root.db.select().from(messageVariants).where(eq(messageVariants.messageId, source.id))).toEqual(beforeVariants);
     expect(await root.db.select().from(chatGenerationObservations).where(eq(chatGenerationObservations.chatId, chatId))).toMatchObject([
@@ -449,7 +448,7 @@ test("native continuation settles before handoff rebases its retained cohort and
     expect(accepted).toEqual(
       expect.arrayContaining([
         { status: "fulfilled", value: undefined },
-        { status: "rejected", reason: asymmetric(expect.objectContaining({ code: TURN_LOCKED_OP_CODE })) },
+        { status: "rejected", reason: expect.objectContaining({ code: TURN_LOCKED_OP_CODE }) },
       ]),
     );
     expect(await root.db.select().from(chatGenerationObservations).where(eq(chatGenerationObservations.chatId, chatId))).toEqual([]);

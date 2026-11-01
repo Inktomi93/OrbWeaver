@@ -21,7 +21,6 @@ import {
   selectBestCharacterBook,
   UNTITLED_LORE_ENTRY_TITLE,
 } from "@orb/server/primitives/serde/card";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { describe } from "vitest";
 
@@ -278,10 +277,10 @@ describe("buildCardV3 emits the strict V3 wire", () => {
   test("a switched-off script leaves with ST's disabled flag and returns off, and an enabled one leaves enabled", () => {
     const off = { ...SCRIPT, enabled: false };
     const card = buildCardV3(exportFields({ regexScripts: [off] }), []);
-    expect(card.data.extensions["regex_scripts"]).toEqual([asymmetric(expect.objectContaining({ enabled: false, disabled: true }))]);
+    expect(card.data.extensions["regex_scripts"]).toEqual([expect.objectContaining({ enabled: false, disabled: true })]);
     expect(cardFromJson(card, FALLBACK).regexScripts).toEqual([off]);
     const on = buildCardV3(exportFields(), []);
-    expect(on.data.extensions["regex_scripts"]).toEqual([asymmetric(expect.objectContaining({ enabled: true, disabled: false }))]);
+    expect(on.data.extensions["regex_scripts"]).toEqual([expect.objectContaining({ enabled: true, disabled: false })]);
     expect(cardFromJson(on, FALLBACK).regexScripts).toEqual([SCRIPT]);
   });
 

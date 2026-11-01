@@ -1,6 +1,5 @@
 import { buildPresetFile, DEFAULT_PROMPT_CONFIG, parsePresetFile, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 
 const INJECTED_PRESET = {
@@ -33,7 +32,7 @@ test("depth bounds clamp one field, report its loss and count the returned secti
     ]);
     expect(sectionCount).toBe(config.sections.length);
     expect(dropped).toEqual(
-      depth === MAX_INJECTION_DEPTH ? [] : [{ field: "prompts.a.injection_depth", reason: asymmetric(expect.stringContaining(`SillyTavern sent ${depth};`)) }],
+      depth === MAX_INJECTION_DEPTH ? [] : [{ field: "prompts.a.injection_depth", reason: expect.stringContaining(`SillyTavern sent ${depth};`) }],
     );
   }
 });

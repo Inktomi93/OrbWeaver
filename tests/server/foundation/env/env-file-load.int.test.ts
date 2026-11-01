@@ -8,7 +8,6 @@ import { fileURLToPath } from "node:url";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, DEFAULT_USER_HANDLE_KEY, OWNER_GROUP_KEY } from "@orb/contracts/identity";
 import { ENV_NO_FILE_KEY, ENV_NO_OVERRIDE_KEY } from "@orb/kit/env-file";
 import { AUTH_MODE_DEFAULT_FALLBACK } from "@orb/server/foundation/env";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { z } from "zod";
 
@@ -104,12 +103,12 @@ test.for(["AUTH_FALLBACK=owner", "AUTH_FALLBACK_TRUSTED_PEERS=172.16.0.0/12"])(
   "%s written in .env refuses the boot, while the same value from the launch environment boots",
   (line, { importStagingDir }) => {
     const [key = "", value = ""] = line.split("=");
-    expect(boot(importStagingDir, "pinned", `AUTH_MODE=single-user\n${line}\n`)).toEqual({ error: asymmetric(expect.any(String)) });
+    expect(boot(importStagingDir, "pinned", `AUTH_MODE=single-user\n${line}\n`)).toEqual({ error: expect.any(String) });
 
     // Controls: the same file without the line boots at the mode's default, and the launch environment may set it.
     const unpinned = boot(importStagingDir, "unpinned", "AUTH_MODE=single-user\n");
     expect(unpinned).toMatchObject({ env: { [AUTH_FALLBACK_KEY]: AUTH_MODE_DEFAULT_FALLBACK["single-user"] } });
-    expect(boot(importStagingDir, "launched", "AUTH_MODE=single-user\n", { [key]: value })).toMatchObject({ env: { [key]: asymmetric(expect.anything()) } });
+    expect(boot(importStagingDir, "launched", "AUTH_MODE=single-user\n", { [key]: value })).toMatchObject({ env: { [key]: expect.anything() } });
   },
 );
 

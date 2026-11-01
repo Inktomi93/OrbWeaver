@@ -8,7 +8,7 @@ import { ProviderError } from "@orb/inference";
 import { isPlainObject } from "@orb/kit/guards";
 import type { JsonValue } from "@orb/kit/json";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { asymmetric, createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
+import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import type { RecordedRequest } from "@orb/testkit/node/helpers";
@@ -369,7 +369,7 @@ test("(6) a direct Anthropic summarize carries the connection's inference geogra
   });
   await executor.summarize({ connection, inputs: [ITEM], maxTokens: 128 });
   expect(recorded[0]?.body["inference_geo"]).toBe("us");
-  expect(recorded[0]?.body["metadata"]).toMatchObject({ ["user_id"]: asymmetric(expect.any(String)) });
+  expect(recorded[0]?.body["metadata"]).toMatchObject({ ["user_id"]: expect.any(String) });
 });
 
 const SESSION_ID = "a95fcd1f-a1ca-42db-ac6c-de6b1f01091d";

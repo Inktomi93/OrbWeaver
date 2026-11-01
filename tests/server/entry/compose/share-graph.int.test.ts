@@ -9,7 +9,7 @@ import { stat } from "node:fs/promises";
 import process from "node:process";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
-import { asymmetric, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { claimShareOwner, createServerHarness, readRelayStarts, relayExecutable, relayProgram } from "@orb/testkit/node/composed";
 import { lanAddress, requestWithHost } from "@orb/testkit/node/helpers";
@@ -141,7 +141,7 @@ test("unscripted roots refuse relay and ACME before raw network execution and pr
   });
   const cookie = await claimShareOwner(harness);
   const caller = await harness.internalCallerFor(harness.ownerId);
-  await expect(caller.share.start()).rejects.toMatchObject({ message: asymmetric(expect.stringContaining("unscripted")) });
+  await expect(caller.share.start()).rejects.toMatchObject({ message: expect.stringContaining("unscripted") });
   const { port } = await harness.listen();
   const refused = await fetch(`http://127.0.0.1:${port}/api/trpc/share.start`, {
     method: "POST",

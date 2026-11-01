@@ -73,7 +73,13 @@ test("the loaded preset detail identifies and labels every form field", async ({
 });
 
 test.describe("submitted form keys", () => {
-  const submittedKeys = (page: Page): Promise<string[]> => page.evaluate(() => [...new FormData(document.querySelector("form") as HTMLFormElement).keys()]);
+  const submittedKeys = (page: Page): Promise<string[]> =>
+    page.locator("form").evaluate((form) => {
+      if (!(form instanceof HTMLFormElement)) {
+        throw new Error("The first form landmark is not a form element");
+      }
+      return [...new FormData(form).keys()];
+    });
 
   test("a caller's own name is the key a Field-wrapped Input, Checkbox and Select submit under", async ({ mount, page }) => {
     await mount<typeof FormKeysStory>("tests/client/features/app-shell/_field-identity-stories/FormKeysStory", { named: true });

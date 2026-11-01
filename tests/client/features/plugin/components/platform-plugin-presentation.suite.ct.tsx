@@ -13,7 +13,6 @@ import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contrac
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { asymmetric } from "@orb/testkit/iso";
 import { captureCookieAuth, createCorpusHarness, makePluginBundle, requireShowcaseBundle } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { strToU8 } from "fflate";
@@ -202,7 +201,7 @@ for (const viewport of VIEWPORTS) {
         .poll(() => caller.plugin.getSurfaceState(address))
         .toMatchObject({
           loading: false,
-          tiles: asymmetric(expect.arrayContaining([asymmetric(expect.objectContaining({ title: "Witness card 1" }))])),
+          tiles: expect.arrayContaining([expect.objectContaining({ title: "Witness card 1" })]),
         });
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await routePluginReads(page, caller);

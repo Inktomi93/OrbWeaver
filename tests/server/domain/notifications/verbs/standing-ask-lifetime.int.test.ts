@@ -15,6 +15,7 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { makePluginBundle, PLUGIN_ZIP_MTIME_SECONDS_RANGE } from "@orb/testkit/node/composed";
 import { unzipSync } from "fflate";
 import { describe } from "vitest";
+import { z } from "zod";
 import { expect, NOTIFICATION_GUEST_SOURCE, pendingConsent, test } from "../_fixtures.ts";
 
 const CONSENT_TYPE = "plugins-awaiting-consent";
@@ -187,7 +188,7 @@ process.stdout.write(JSON.stringify(archives));`;
   if (code !== 0) {
     throw new Error(`native ZIP child failed: ${diagnostic}`);
   }
-  return JSON.parse(bytes) as string[];
+  return z.array(z.string()).parse(JSON.parse(bytes));
 }
 
 test("the same raw plugin input has exact native ZIP bytes across UTC and Boise including a DST-boundary epoch", { tags: "slow" }, async ({

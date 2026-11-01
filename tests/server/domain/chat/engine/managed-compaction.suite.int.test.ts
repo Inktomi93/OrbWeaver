@@ -4,7 +4,7 @@
 import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_COMPACT_INSTRUCTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { asymmetric, makePromptConfig } from "@orb/testkit/iso";
+import { makePromptConfig } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "@orb/testkit/node/composed";
 import { sdkEngineRoom } from "./engine-physical.ts";
@@ -18,7 +18,7 @@ test("agent-sdk fit drops rebuild the durable marker through the chat's own nati
   await using fixture = await sdkEngineRoom({ history: 8 });
   expect((await fixture.turn(SMALL_INTENT)).aborted).toBe(false);
   await fixture.h.root.settleBackground();
-  expect(await fixture.marker()).toMatchObject({ compactSummary: ENGINE_SDK_MARKER, compactedAtSeq: asymmetric(expect.any(Number)) });
+  expect(await fixture.marker()).toMatchObject({ compactSummary: ENGINE_SDK_MARKER, compactedAtSeq: expect.any(Number) });
   expect((await fixture.marker()).compactedAtSeq).toBeGreaterThan(0);
   const markerRequest = fixture.receipts.find(({ marker }) => marker);
   expect(markerRequest).toBeDefined();
@@ -48,7 +48,7 @@ test("the detached post-turn marker opens its own successful request trace", asy
   const root = currentTrace?.spans.find((span) => span.name === "chat.managedCompaction" && span.attributes["chatId"] === fixture.h.chatId);
   expect(root).toBeDefined();
   const turnId = typeIdSchema(ID_PREFIX.chatTurn).parse(root?.attributes["turnId"]);
-  expect(currentTrace).toMatchObject({ status: "ok", requestId: asymmetric(expect.stringMatching(/^compaction-turn:/u)) });
+  expect(currentTrace).toMatchObject({ status: "ok", requestId: expect.stringMatching(/^compaction-turn:/u) });
   expect(currentTrace?.requestId).toBe(`compaction-turn:${turnId}`);
   expect(root?.parentSpanId).toBeUndefined();
   expect(currentTrace?.requestId).not.toBe(outer);

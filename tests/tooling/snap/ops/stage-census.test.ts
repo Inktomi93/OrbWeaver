@@ -1,7 +1,7 @@
 // The claim row the allocator writes before a boot: it must be held by the claiming process, or a full table
 // reads it as dangling residue and reaps it while its stack is still coming up.
 import process from "node:process";
-import { asymmetric, FROZEN_AT_MS } from "@orb/testkit/iso";
+import { FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { STAGE_BAND_COUNT, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { StageBandView, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
@@ -70,7 +70,7 @@ test("a claim still booting is held by the claiming process, so a full table doe
   // The holder stamps real wall time, which the frozen clock cannot reach; an epoch stamp is stale at any
   // `nowMs`, so only the running claiming process can keep the claim live.
   const claim: StageRow = { ...booted, holders: (booted.holders ?? []).map((holder) => ({ ...holder, stampedAt: new Date(0).toISOString() })) };
-  expect(claim.holders).toEqual([asymmetric(expect.objectContaining({ pid: process.pid, checkout: CHECKOUT }))]);
+  expect(claim.holders).toEqual([expect.objectContaining({ pid: process.pid, checkout: CHECKOUT })]);
   expect(allocateAgainst(claim, nowMs).kind).toBe("exhausted");
   // Positive control: the same claim with no holder is the dangling residue the reap exists for.
   expect(allocateAgainst({ ...claim, holders: [] }, nowMs)).toEqual(expect.objectContaining({ kind: "reap", band: 0 }));

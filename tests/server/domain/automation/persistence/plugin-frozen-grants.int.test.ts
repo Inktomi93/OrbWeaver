@@ -5,7 +5,6 @@
 import { once } from "node:events";
 import { PLUGIN_CONTINUATION_WINDOW_MS } from "@orb/contracts/plugin";
 import { globalVariables } from "@orb/db";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { capturePluginRows } from "@orb/testkit/node/rows";
@@ -77,7 +76,7 @@ test("watchdog loss during activation fails closed without replay and permits on
   await exited;
   delivery.release();
   expect(await activating).toMatchObject([
-    { status: "rejected", reason: { name: "PluginHostUnavailable", message: asymmetric(expect.stringContaining("broker became unavailable")) } },
+    { status: "rejected", reason: { name: "PluginHostUnavailable", message: expect.stringContaining("broker became unavailable") } },
   ]);
   expect(await guest.view()).toMatchObject({ status: "disabled", grantedCapabilities: [...BASE_GRANTS] });
   expect((await capturePluginRows(root.db, root.ownerId, guest.pluginId)).kv).toEqual([]);

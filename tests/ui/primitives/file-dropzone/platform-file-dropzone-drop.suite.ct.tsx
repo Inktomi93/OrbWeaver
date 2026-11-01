@@ -1,6 +1,8 @@
 // The dropzone decides `accept` itself, per file, for both a drop and the picker: the native attribute filters only the OS dialog.
+
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { z } from "zod";
 import type { DropAcceptStory } from "./_drop-accept-stories.tsx";
 
 const STORY = "tests/ui/primitives/file-dropzone/_drop-accept-stories/DropAcceptStory";
@@ -9,11 +11,6 @@ interface SampleFile {
   readonly name: string;
   readonly type: string;
   readonly size?: number;
-}
-
-interface Batch {
-  readonly accepted: readonly string[];
-  readonly rejected: readonly { readonly name: string; readonly reason: string }[];
 }
 
 async function dropEvent(zone: Locator, type: "dragenter" | "dragover" | "dragleave" | "drop", files: readonly SampleFile[]): Promise<void> {
@@ -27,9 +24,12 @@ async function dropEvent(zone: Locator, type: "dragenter" | "dragover" | "dragle
   await zone.dispatchEvent(type, { dataTransfer: transfer });
 }
 
+const BATCH = z.object({ accepted: z.array(z.string()), rejected: z.array(z.object({ name: z.string(), reason: z.string() })) });
+type Batch = z.infer<typeof BATCH>;
+
 async function batches(page: Page): Promise<readonly Batch[]> {
   const text = await page.locator('[data-slot="batches"]').textContent();
-  return JSON.parse(text ?? "[]") as readonly Batch[];
+  return z.array(BATCH).parse(JSON.parse(text ?? "[]"));
 }
 
 async function zoneOf(component: Locator): Promise<Locator> {

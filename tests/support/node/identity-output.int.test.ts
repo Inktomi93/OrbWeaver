@@ -7,7 +7,6 @@ import type { LogLevel } from "@orb/contracts/settings";
 import type { ExternalId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { installKind } from "@orb/server/foundation/env";
-import { asymmetric } from "../iso/asymmetric.ts";
 import { captureAccountViews } from "./corpus-auth.ts";
 import { captureNotificationViews } from "./factories/notification.ts";
 import { expect, test } from "./fixtures.ts";
@@ -38,7 +37,7 @@ test("native account and sharing suppliers keep request identity and owner-only 
     throw new Error("native owner diagnostic control did not enter the included projection");
   }
   expect(owned.diagnostics.serverErrors.records).toContainEqual({
-    at: asymmetric(expect.any(Number)),
+    at: expect.any(Number),
     source: "output supplier",
     event: "supplier.capture",
     errorType: "Error",

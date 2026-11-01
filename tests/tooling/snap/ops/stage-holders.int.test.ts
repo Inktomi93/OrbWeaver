@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { asymmetric, FROZEN_AT_MS } from "@orb/testkit/iso";
+import { FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { onTestFinished, vi } from "vitest";
 import { processStartTicks } from "../../../../tooling/src/floor/host/platform.ts";
@@ -76,7 +76,7 @@ test("a sibling's cache:check that shared-reuses a stage through ensureStage hol
     armStageKeeper: (_home, armed) => armed,
   };
   ensureStage({ ref: SHA, fresh: false }, ops);
-  expect(readBands(home)[0]?.holders).toEqual([asymmetric(expect.objectContaining({ pid: process.pid, checkout: SIBLING }))]);
+  expect(readBands(home)[0]?.holders).toEqual([expect.objectContaining({ pid: process.pid, checkout: SIBLING })]);
   expect(ownerFresh(home)).toBe("refuse");
 });
 
@@ -129,7 +129,7 @@ test("the first beat waits out a contended lock and is on the row before the run
   writeFileSync(join(lockDir, "pid"), `${holder.stdout.trim()}\n`);
   const release = holdStageUse(home, row, SIBLING, 60 * MINUTE);
   try {
-    expect(readBands(home)[0]?.holders).toEqual([asymmetric(expect.objectContaining({ pid: process.pid, checkout: SIBLING }))]);
+    expect(readBands(home)[0]?.holders).toEqual([expect.objectContaining({ pid: process.pid, checkout: SIBLING })]);
     expect(ownerFresh(home)).toBe("refuse");
   } finally {
     release();

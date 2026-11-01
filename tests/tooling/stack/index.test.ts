@@ -9,7 +9,6 @@
 // runs on a private run dir in index.int.test.ts.
 import { readFileSync } from "node:fs";
 import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "@orb/tooling/floor/process/server-entry";
 import type { ObservedInstance, ProdRecord } from "../../../tooling/src/stack/index.ts";
@@ -69,7 +68,7 @@ test("the verbs the callers spell by name parse to their invocation, and the dro
   });
   // The shell-era spellings are gone, not aliased: a word the grammar does not know exits with usage.
   for (const dropped of ["stop", "start-fg", "force-restart"]) {
-    expect(parseStackArgv([dropped]), dropped).toMatchObject({ ok: false, error: asymmetric(expect.stringContaining(`unknown verb '${dropped}'`)) });
+    expect(parseStackArgv([dropped]), dropped).toMatchObject({ ok: false, error: expect.stringContaining(`unknown verb '${dropped}'`) });
   }
 });
 
@@ -97,7 +96,7 @@ test("mode is positional and debug is orthogonal to it", () => {
 });
 
 test("--build is refused in dev — the vite dev server needs no bundle", () => {
-  expect(parseStackArgv(["up", "--build"])).toEqual({ ok: false, error: asymmetric(expect.stringContaining("--build is prod-only")) });
+  expect(parseStackArgv(["up", "--build"])).toEqual({ ok: false, error: expect.stringContaining("--build is prod-only") });
 });
 
 test("an unknown verb or flag is a parse ERROR, never a silently-ignored word", () => {
@@ -159,8 +158,8 @@ test("--force and the leader are REFUSED in prod, but up-fg (FOREGROUND prod) is
   // Prod's whole safety story is that it only signals what it can prove is its own, so there is no prod
   // force. `_leader` is the dev-only re-exec target (prod has no leader). Dropping either quietly would be
   // the same defect class as falling through to dev.
-  expect(parseStackArgv(["restart", "prod", "--force"])).toEqual({ ok: false, error: asymmetric(expect.stringContaining("--force is dev-only")) });
-  expect(parseStackArgv(["_leader", "prod"])).toEqual({ ok: false, error: asymmetric(expect.stringContaining("dev-only")) });
+  expect(parseStackArgv(["restart", "prod", "--force"])).toEqual({ ok: false, error: expect.stringContaining("--force is dev-only") });
+  expect(parseStackArgv(["_leader", "prod"])).toEqual({ ok: false, error: expect.stringContaining("dev-only") });
   // …and both those stay legal in dev.
   expect(parseStackArgv(["restart", "--force"])).toMatchObject({ ok: true, invocation: { force: true, mode: "dev" } });
   expect(parseStackArgv(["_leader"])).toMatchObject({ ok: true, invocation: { verb: "_leader", mode: "dev" } });
@@ -331,7 +330,7 @@ test("a healthy port is NOT identity — a stale incumbent on our port classifie
 test("`up` on a verified-healthy instance ADOPTS in place — never a second spawn", () => {
   expect(decideUp(classifyInstance({ record: RECORD, observed: OBSERVED, recordProcessAlive: true }))).toEqual({
     action: "adopt",
-    reason: asymmetric(expect.any(String)),
+    reason: expect.any(String),
   });
 });
 

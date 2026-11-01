@@ -3,7 +3,6 @@ import { createServer } from "node:http";
 import type { Profiler } from "node:inspector";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { asymmetric } from "@orb/testkit/iso";
 import type { CliResult } from "@orb/testkit/tooling";
 import { expect, test } from "@orb/testkit/tooling";
 import type { MeterData, StepReport } from "@orb/tooling/cpu-profile";
@@ -157,15 +156,13 @@ async function assertMeasuredPerf(perf: CliResult, artifact: PerfArtifact, index
   expect(perf.stdout).toContain(`breach-steps=${interactionPerfBreachCount(artifact.reports)}`);
   expect(artifact.problems).toEqual(
     expect.arrayContaining([
-      asymmetric(expect.objectContaining({ arm: "interaction-perf", metric: "long-task-count", subject: "click #target", threshold: "0" })),
-      asymmetric(
-        expect.objectContaining({
-          arm: "interaction-perf",
-          metric: "click-duration-ms",
-          subject: "click #target",
-          threshold: `${String(INTERACTION_PERF_CLICK_BREACH_MS)}ms`,
-        }),
-      ),
+      expect.objectContaining({ arm: "interaction-perf", metric: "long-task-count", subject: "click #target", threshold: "0" }),
+      expect.objectContaining({
+        arm: "interaction-perf",
+        metric: "click-duration-ms",
+        subject: "click #target",
+        threshold: `${String(INTERACTION_PERF_CLICK_BREACH_MS)}ms`,
+      }),
     ]),
   );
   expect(index.verdict.state).toBe("passed");
@@ -426,7 +423,7 @@ test("a failing motion artifact carries the exact offender and threshold into th
   };
   expect(artifact.problems).toEqual(
     expect.arrayContaining([
-      asymmetric(expect.objectContaining({ arm: "motion", metric: "dirty-animation", subject: "#spin", observed: "width", threshold: "compositor-only" })),
+      expect.objectContaining({ arm: "motion", metric: "dirty-animation", subject: "#spin", observed: "width", threshold: "compositor-only" }),
     ]),
   );
   const index = JSON.parse(await readFile(resultValue(motion.stdout, "index"), "utf8")) as {
@@ -599,7 +596,7 @@ test("CPU stop refusal detaches its native session without closing the owner pag
       await session.page.locator("#target").click();
       await instance.afterActions({ page: session.page, opts, pageIndex: 0 });
       expect(opened).toBe(1);
-      expect(instance.facts()[0]?.data).toMatchObject({ state: "refused", detail: asymmetric(expect.stringContaining("Profiler.stop")) });
+      expect(instance.facts()[0]?.data).toMatchObject({ state: "refused", detail: expect.stringContaining("Profiler.stop") });
       expect(instance.exit(EXIT.clean)).toBe(EXIT.toolError);
       await expect.poll(() => closed, { timeout: scaledBudget(5000) }).toBe(1);
       expect(await session.page.locator("#clean").textContent()).toBe("clean");

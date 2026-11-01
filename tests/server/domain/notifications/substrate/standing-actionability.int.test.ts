@@ -3,7 +3,6 @@
 // @subject packages/server/src/domain/notifications/verbs/replay-since.ts
 import type { InboxView } from "@orb/contracts/notifications";
 import { closeDb } from "@orb/db";
-import { asymmetric } from "@orb/testkit/iso";
 import type { Fixtures } from "@orb/testkit/node";
 import { freshCountedDb } from "@orb/testkit/node/composed";
 import { test as base, expect } from "../_fixtures.ts";
@@ -41,7 +40,7 @@ test("names the invite and nomination ids, deduped, and nothing else", async ({
   expect(page.items.filter((row) => row.payload.type === "invite").map((row) => row.payload)).toEqual([
     actors.aliceInvite,
     actors.aliceInvite,
-    asymmetric(expect.objectContaining({ inviteId: other.invite.id })),
+    expect.objectContaining({ inviteId: other.invite.id }),
   ]);
   expect(page.items.filter((row) => row.id === first.id || row.id === duplicate.id).map((row) => row.actionable)).toEqual([true, true]);
   const inviteSql = counted.queries.statements().filter((statement) => statement.includes('from "chat_invites"'));

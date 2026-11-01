@@ -23,7 +23,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
-import { asymmetric, FROZEN_AT_MS } from "@orb/testkit/iso";
+import { FROZEN_AT_MS } from "@orb/testkit/iso";
 import type { CliResult } from "@orb/testkit/tooling";
 import { expect, test } from "@orb/testkit/tooling";
 import { abandonedRuns } from "@orb/tooling/floor/artifacts/artifacts";
@@ -676,8 +676,8 @@ test("F4 — a caller from ANOTHER checkout is refused naming the owner, pid and
     };
     expect(exportIndex.artifacts).toEqual(
       expect.arrayContaining([
-        asymmetric(expect.objectContaining({ channel: "har", relativePath: `sessions/${exportBase}/session.har` })),
-        asymmetric(expect.objectContaining({ channel: "playwright-trace", relativePath: `sessions/${exportBase}/trace-000.zip` })),
+        expect.objectContaining({ channel: "har", relativePath: `sessions/${exportBase}/session.har` }),
+        expect.objectContaining({ channel: "playwright-trace", relativePath: `sessions/${exportBase}/trace-000.zip` }),
       ]),
     );
     rmSync(join(repoRoot, "reports", "sessions", exportBase), { recursive: true, force: true });

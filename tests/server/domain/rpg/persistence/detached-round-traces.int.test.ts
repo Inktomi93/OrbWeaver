@@ -4,7 +4,6 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 
 import { closeDb, rpgSnapshots } from "@orb/db";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { freshHeldDb } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
@@ -54,7 +53,7 @@ test("the actual detached RPG round seals a fresh trace after its outer SEND has
       .traces(100)
       .filter((trace) => trace.rootName === "rpg.turnCompleted" && trace.spans.some((span) => span.attributes["messageId"] === assistant.id));
     expect(rounds).toHaveLength(1);
-    expect(rounds[0]).toMatchObject({ requestId: asymmetric(expect.stringMatching(/^rpg-turn:/u)), status: "ok" });
+    expect(rounds[0]).toMatchObject({ requestId: expect.stringMatching(/^rpg-turn:/u), status: "ok" });
     expect(rounds[0]?.requestId).not.toBe(outer);
     expect(rounds[0]?.spans.find((span) => span.name === "rpg.turnCompleted")?.parentSpanId).toBeUndefined();
   } finally {

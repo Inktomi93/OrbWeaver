@@ -13,7 +13,7 @@ import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@
 import { NoConnectionError, ProviderError } from "@orb/inference";
 import type { PluginId } from "@orb/kit/ids";
 import { ManifestInvalidError, PluginCrashedError } from "@orb/server/domain/plugin";
-import { asymmetric, makePluginProviderRow, pluginProviderId } from "@orb/testkit/iso";
+import { makePluginProviderRow, pluginProviderId } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { CORPUS_EMBEDDING_VECTOR, createCorpusProviderExecution, createServerHarness, makePluginBundle, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
@@ -352,7 +352,7 @@ test("the installer lists models, saves a connection and generates through its o
     allowBackground: true,
   });
   // The row names its plugin wherever the provider is named, so it never reads as the built-in "Anthropic".
-  expect(saved).toMatchObject({ providerId: relayId, tasks: asymmetric(expect.arrayContaining(["chat", "summarize"])) });
+  expect(saved).toMatchObject({ providerId: relayId, tasks: expect.arrayContaining(["chat", "summarize"]) });
   expect(saved.providerLabel).not.toBe(RELAY_PROVIDER.label);
   expect(saved.providerLabel).toContain(pluginNameOfProviderId(relayId));
   await root.services.connection.setBinding({ principal: installer, task: "chat", connectionId: saved.id });

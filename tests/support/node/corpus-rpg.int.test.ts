@@ -4,7 +4,6 @@
 // @subject packages/server/src/domain/rpg/persistence/journal.ts
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { assertReferentialIntegrity, closeDb } from "@orb/db";
-import { asymmetric } from "../iso/asymmetric.ts";
 import { seedCorpusRpg } from "./corpus-rpg.ts";
 import { freshHeldDb } from "./db.ts";
 import { expect, test } from "./fixtures.ts";
@@ -146,7 +145,7 @@ test("graph schedule timers preserve future cancellation and paused cadence befo
   expect(result.paused).toEqual([result.disabled]);
   expect(result.pausedJobs.map((job) => [job.id, job.status])).toEqual([[result.queued.id, "cancelled"]]);
   expect(result.resumed.enabled).toBe(true);
-  expect(result.afterTick).toMatchObject([{ id: result.schedule.id, lastRunAt: asymmetric(expect.any(Number)) }]);
+  expect(result.afterTick).toMatchObject([{ id: result.schedule.id, lastRunAt: expect.any(Number) }]);
   const fired = result.afterTick[0];
   if (fired === undefined || fired.lastRunAt === null) {
     throw new Error("native schedule did not fire");

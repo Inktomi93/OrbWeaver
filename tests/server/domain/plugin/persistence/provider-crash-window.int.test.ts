@@ -7,7 +7,7 @@ import { spawn } from "node:child_process";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { pluginProviderClaims, providerRows } from "@orb/db";
 import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "@orb/server/domain/plugin";
-import { asymmetric, makePluginProviderRow, pluginProviderId } from "@orb/testkit/iso";
+import { makePluginProviderRow, pluginProviderId } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, makePluginBundle, refuseWrites } from "@orb/testkit/node/composed";
 import { count, isNotNull } from "drizzle-orm";
@@ -51,7 +51,7 @@ test("a boot after a crash-window auto-disable unlinks the errored install's cla
     message: TEARDOWN_REFUSAL,
   });
   await expect(crash()).rejects.toMatchObject({
-    cause: asymmetric(expect.objectContaining({ message: asymmetric(expect.stringContaining(TEARDOWN_REFUSAL)) })),
+    cause: expect.objectContaining({ message: expect.stringContaining(TEARDOWN_REFUSAL) }),
   });
   expect((await root.services.plugin.list({ caller: who })).find((row) => row.id === installed.id)?.status).toBe("errored");
   expect(await linked()).toBe(1);

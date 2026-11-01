@@ -6,7 +6,6 @@
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join } from "node:path";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { beginBootTrace } from "@orb/tooling/cpu-profile";
 import type { CDPSession, Page } from "@playwright/test";
@@ -76,7 +75,7 @@ test("beginBootTrace preserves the start and detach failures together", async ()
   const planted = plantedStartFailure(cleanup);
   const failure = await beginBootTrace(planted.page).catch((error: unknown) => error);
   expect(failure).toBeInstanceOf(AggregateError);
-  expect((failure as AggregateError).errors).toEqual([asymmetric(expect.objectContaining({ message: "planted Tracing.start refusal" })), cleanup]);
+  expect((failure as AggregateError).errors).toEqual([expect.objectContaining({ message: "planted Tracing.start refusal" }), cleanup]);
   expect(planted.detach).toHaveBeenCalledTimes(1);
   expect(planted.removeListener).toHaveBeenCalledTimes(2);
   expect(planted.send).toHaveBeenCalledWith("Page.enable");
@@ -222,7 +221,7 @@ for (const failureMode of ["completion", "presentation-and-completion", "end-com
         messages.push("planted metadata failure");
       }
       const errors = failure instanceof AggregateError ? failure.errors : [failure];
-      expect(errors).toEqual(messages.map((message) => expect.objectContaining({ message: asymmetric(expect.stringContaining(message)) })));
+      expect(errors).toEqual(messages.map((message) => expect.objectContaining({ message: expect.stringContaining(message) })));
       expect(retained).toHaveBeenCalledExactlyOnceWith({ complete: false, eventCount: 1 });
       expect(detach).toHaveBeenCalledTimes(1);
       expect(send).toHaveBeenCalledWith("Page.removeScriptToEvaluateOnNewDocument", { identifier: "stop-failure-observer" });

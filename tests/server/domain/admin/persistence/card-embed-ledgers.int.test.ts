@@ -7,7 +7,6 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { auditLogs, characterEmbeddings, embeddingCalls } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
-import { asymmetric } from "@orb/testkit/iso";
 import { expect } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { TEST_BASE_URL, TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
@@ -89,7 +88,7 @@ test("admin authority does not widen card ownership; foreign and synthetic refus
   const beforeBodies = fundingProvider.requestBodies.length;
   await root.services.admin.embedCharacterCard({ principal: owner, characterId: card.id });
   expect(fundingProvider.requestBodies.slice(beforeBodies).map((body) => JSON.parse(body))).toEqual([
-    asymmetric(expect.objectContaining({ model: FUNDING_MODEL, input: [text] })),
+    expect.objectContaining({ model: FUNDING_MODEL, input: [text] }),
   ]);
   expect(fundingProvider.authorizations.at(-1)).toBe(`Bearer ${FUNDING_KEY}`);
   expect(await root.db.select().from(characterEmbeddings)).toMatchObject([
@@ -129,7 +128,7 @@ test("the inline admin producer follows the owner's changed binding and persists
   const beforeFirst = fundingProvider.requestBodies.length;
   await root.services.admin.embedCharacterCard(params);
   expect(fundingProvider.requestBodies.slice(beforeFirst).map((body) => JSON.parse(body))).toEqual([
-    asymmetric(expect.objectContaining({ model: FUNDING_MODEL, input: [text] })),
+    expect.objectContaining({ model: FUNDING_MODEL, input: [text] }),
   ]);
   expect(await root.db.select().from(characterEmbeddings)).toMatchObject([
     { characterId: card.id, model: FUNDING_MODEL, dim: 3, embedding: new Float32Array([1, 0, 0]) },
@@ -141,7 +140,7 @@ test("the inline admin producer follows the owner's changed binding and persists
   const beforeAccounting = await root.db.select().from(embeddingCalls);
   await root.services.admin.embedCharacterCard(params);
   expect(fundingProvider.requestBodies.slice(beforeSecond).map((body) => JSON.parse(body))).toEqual([
-    asymmetric(expect.objectContaining({ model: REBOUND_MODEL, input: [text] })),
+    expect.objectContaining({ model: REBOUND_MODEL, input: [text] }),
   ]);
   expect(await root.db.select().from(characterEmbeddings)).toMatchObject([
     { characterId: card.id, model: REBOUND_MODEL, dim: 3, embedding: new Float32Array([0, 1, 0]) },
