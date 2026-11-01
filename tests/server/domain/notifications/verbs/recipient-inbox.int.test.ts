@@ -1,5 +1,6 @@
 // @subject packages/server/src/domain/notifications/verbs/list.ts
 // @subject packages/server/src/domain/notifications/persistence/queries.ts
+import { NOTIFICATIONS_LIST_MAX_LIMIT } from "@orb/contracts/notifications";
 import { describe } from "vitest";
 import { expect, test } from "../_fixtures.ts";
 
@@ -47,6 +48,52 @@ describe("list — ordering + paging", () => {
     const page = await svc.list({ principal: actors.alice });
     expect(page.items).toHaveLength(1);
     expect(page.items[0]?.id).not.toBe(a.id);
+  });
+});
+
+describe("list — dismissed state", () => {
+  test("the dismissed state pages the caller's own dismissed rows, settled, and keeps every foreign row out", async ({
+    harness,
+    notificationActors: actors,
+  }) => {
+    const svc = harness.services.notifications;
+    const older = await svc.record({ event: actors.aliceInvite });
+    const newer = await svc.record({ event: actors.aliceInvite });
+    const active = await svc.record({ event: actors.aliceInvite });
+    await svc.dismiss({ principal: actors.alice, notificationId: older.id });
+    await svc.dismiss({ principal: actors.alice, notificationId: newer.id });
+
+    const first = await svc.list({ principal: actors.alice, state: "dismissed", limit: 2 });
+    expect(first.items.map((item) => item.id)).toEqual([newer.id, older.id]);
+    expect(first.items.map((item) => [item.actionable, item.dismissedAt])).toEqual([
+      [false, harness.clock.now()],
+      [false, harness.clock.now()],
+    ]);
+    const cursor = first.nextCursor;
+    if (cursor === null) {
+      throw new Error("expected a page cursor");
+    }
+    const second = await svc.list({ principal: actors.alice, state: "dismissed", limit: 2, cursor });
+    expect(second.items.map((item) => item.id)).toEqual([actors.aliceRaised.id]);
+    expect(second.nextCursor).toBeNull();
+
+    const bob = await svc.list({ principal: actors.bob, state: "dismissed" });
+    expect(bob.items.map((item) => item.id)).toEqual([actors.bobRaised.id]);
+    expect((await svc.list({ principal: actors.alice })).items.map((item) => item.id)).toEqual([active.id]);
+  });
+
+  test("a standing ask the producer superseded or withdrew never reads as the reader's dismissal", async ({
+    harness,
+    notificationActors: actors,
+    consentSnapshots: consent,
+  }) => {
+    const svc = harness.services.notifications;
+    await svc.record({ event: consent.small, supersedeActiveOfSameType: true });
+    await svc.record({ event: consent.large, supersedeActiveOfSameType: true });
+    await svc.retract({ recipientUserId: actors.alice.userId, type: consent.large.type });
+    const page = await svc.list({ principal: actors.alice, state: "dismissed", limit: NOTIFICATIONS_LIST_MAX_LIMIT });
+    expect(page.items.filter((item) => item.type === consent.large.type)).toEqual([]);
+    expect(page.items.length).toBeGreaterThan(0);
   });
 });
 

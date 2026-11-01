@@ -40,7 +40,7 @@ import { useId, useRef, useState } from "react";
 import { ConfirmDialog, SettingCheckboxRow } from "#components";
 import { rowActionsName } from "#lib";
 import type { MEMBER_ROW_CONFIRMS, MemberCharacterRow, MemberPersonRow, MemberRowActions, MemberRowFocusProps } from "../lib/member-rows.ts";
-import { rowAccessibleName } from "../lib/member-rows.ts";
+import { lastSeenPhrase, rowAccessibleName } from "../lib/member-rows.ts";
 import { buildMenuItems } from "./member-row-menu.tsx";
 import { TalkativenessPopover } from "./talkativeness-popover.tsx";
 
@@ -103,6 +103,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
             carries a handle at all, so the suffix has nothing to come back from. */}
         {row.displayName}
       </Text>
+      <LastSeen row={row} />
       <RowStateBadges row={row} />
       {responding ? (
         <>
@@ -183,6 +184,18 @@ function PresenceDot({ online }: { readonly online: boolean | null }): ReactElem
       fill={online ? "success" : "none"}
       shape="pill"
     />
+  );
+}
+
+/** When an offline member was last around. The row's accessible name carries the same words. */
+function LastSeen({ row }: { readonly row: MemberPersonRow | MemberCharacterRow }): ReactElement | null {
+  if (row.kind !== "person" || row.lastSeenAt === null) {
+    return null;
+  }
+  return (
+    <Text as="span" voice="gloss" ink="muted" className="shrink-0" data-slot="member-last-seen">
+      {lastSeenPhrase(row.lastSeenAt)}
+    </Text>
   );
 }
 

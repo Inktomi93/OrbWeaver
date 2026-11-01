@@ -35,6 +35,7 @@ import { useInbox, useMarkAllNotificationsRead } from "../hooks/use-inbox.ts";
 import { useInboxStream } from "../hooks/use-inbox-stream.ts";
 import { inboxRequests } from "../lib/notifications-requests.ts";
 import { HandoffAcceptConfirm } from "./handoff-accept-confirm.tsx";
+import { DismissedInbox, InboxLoadMore } from "./notification-inbox-older.tsx";
 import { InboxRow } from "./notification-inbox-row.tsx";
 
 /** The `notifications.list` row shape — a private local alias (each file that needs it derives its own,
@@ -59,7 +60,7 @@ export interface NotificationBellProps {
 export function NotificationBell({ presentation = "bar" }: NotificationBellProps = {}): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const { items, unreadCount, pendingCount } = useInbox();
+  const { items, unreadCount, pendingCount, hasNextPage, isFetchingNextPage, failed, loadMore } = useInbox();
   useInboxStream({ invalidation });
   const markAllRead = useMarkAllNotificationsRead({ trpc, invalidation });
   const [open, setOpen] = useState(false);
@@ -230,6 +231,8 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
           </Fragment>
         ))
       )}
+      <InboxLoadMore hasNextPage={hasNextPage} isFetchingNextPage={isFetchingNextPage} failed={failed} onLoadMore={loadMore} />
+      <DismissedInbox />
     </Stack>
   );
 

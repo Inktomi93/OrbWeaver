@@ -78,7 +78,7 @@ test("native account and sharing suppliers keep request identity and owner-only 
   await expect(anonymous.bugReportDiagnostics()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
 });
 
-test("native notification snapshots distinguish offline and unknown IDs from unavailable disclosure without leaking last-seen state", async () => {
+test("native notification snapshots distinguish offline and unknown IDs from unavailable disclosure and name a departed user's last-seen time", async () => {
   await using root = await createServerHarness({ logLevel: OUTPUT_LOG_LEVEL, env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
   const owner = await root.principalFor(root.ownerId);
   await root.services.settings.updateAppSettings({ principal: owner, partial: { localMultiUser: true } });
@@ -88,7 +88,7 @@ test("native notification snapshots distinguish offline and unknown IDs from una
   const unknownId = root.idSource.userId();
   const asked = [other.id, unknownId, root.ownerId, other.id, reader.id];
   const empty = await captureNotificationViews(root, reader.id, asked);
-  expect(empty).toEqual({ inbox: { items: [], nextCursor: null }, presence: { onlineUserIds: [] } });
+  expect(empty).toEqual({ inbox: { items: [], nextCursor: null }, presence: { onlineUserIds: [], lastSeen: [] } });
   const ownerDevice = new AbortController();
   const otherDevice = new AbortController();
   try {
@@ -96,16 +96,15 @@ test("native notification snapshots distinguish offline and unknown IDs from una
     await connectDevice(root, other.id, otherDevice.signal);
     const connected = await captureNotificationViews(root, reader.id, asked);
     expect(connected.inbox).toEqual(empty.inbox);
-    expect(connected.presence).toEqual({ onlineUserIds: [other.id, root.ownerId] });
+    expect(connected.presence).toEqual({ onlineUserIds: [other.id, root.ownerId], lastSeen: [] });
     await expect(caller.notifications.presence({ userIds: Array.from({ length: PRESENCE_READ_MAX_USER_IDS + 1 }, () => other.id) })).rejects.toMatchObject({
       code: "BAD_REQUEST",
     });
     otherDevice.abort();
+    const departedAt = root.clock.now();
     root.clock.advance(60_000);
     const departed = await captureNotificationViews(root, reader.id, asked);
-    expect(departed.presence).toEqual({ onlineUserIds: [root.ownerId] });
-    expect(JSON.stringify(departed.presence)).not.toContain("lastSeenAt");
-    expect(JSON.stringify(departed.presence)).not.toContain(String(root.clock.frozenAt));
+    expect(departed.presence).toEqual({ onlineUserIds: [root.ownerId], lastSeen: [{ userId: other.id, lastSeenAt: departedAt }] });
     await root.services.settings.updateAppSettings({ principal: owner, partial: { localMultiUser: false } });
     const unavailable = await root.internalCallerFor(reader.id);
     await expect(captureNotificationViews(root, reader.id, asked)).rejects.toMatchObject({ code: "NOT_FOUND" });

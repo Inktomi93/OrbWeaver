@@ -1,4 +1,5 @@
 import { blobUrl } from "@orb/contracts/assets";
+import { NOTIFICATIONS_LIST_MAX_LIMIT } from "@orb/contracts/notifications";
 import { brandedId } from "@orb/kit/ids";
 import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -53,7 +54,7 @@ test("the registered bell settles a held native inbox read into its unread state
   const inputs = trpc.inputs("notifications.list");
   expect(inputs.length).toBeGreaterThan(0);
   for (const input of inputs) {
-    expect(input).toEqual({});
+    expect(input).toEqual({ direction: "forward" });
   }
 });
 
@@ -75,7 +76,7 @@ test("the captured read stage keeps pending invitation actions without marking t
   const initialInputs = structuredClone(trpc.inputs("notifications.list"));
   expect(initialInputs.length).toBeGreaterThan(0);
   for (const input of initialInputs) {
-    expect(input).toEqual({});
+    expect(input).toEqual({ direction: "forward" });
   }
   await bell.click();
   const invitations = snapshot.read.output.items.flatMap((item) => (item.payload.type === "invite" ? [item.payload] : []));
@@ -90,4 +91,43 @@ test("the captured read stage keeps pending invitation actions without marking t
   }
   expect(trpc.inputs("notifications.list")).toEqual(initialInputs);
   expect(trpc.count("notifications.markAllRead")).toBe(0);
+});
+
+test("older rows load on request and a row dismissed on another device stays out of the inbox and shows under dismissed", async ({ corpus, mount, page }) => {
+  const reader = corpus.memberIdentities?.notificationReader.viewer;
+  if (reader === undefined) {
+    throw new Error("The shared corpus omitted its native notification reader");
+  }
+  await using root = await createCorpusHarness();
+  const readerId = brandedId("UserId").parse(reader.userId);
+  const rpc = await root.internalCallerFor(readerId);
+  const seed = (await rpc.notifications.list({})).items[0];
+  if (seed === undefined) {
+    throw new Error("The shared corpus omitted the reader's inbox rows");
+  }
+  for (let index = 0; index < NOTIFICATIONS_LIST_MAX_LIMIT; index += 1) {
+    await root.services.notifications.record({ event: seed.payload });
+  }
+  await rpc.notifications.markAllRead();
+  const dismissed = (await rpc.notifications.list({})).items[0];
+  if (dismissed === undefined) {
+    throw new Error("The reader's seeded inbox is empty");
+  }
+  await rpc.notifications.dismiss({ notificationId: dismissed.id });
+  const firstPage = await rpc.notifications.list({});
+  const remaining = await rpc.notifications.list({ limit: NOTIFICATIONS_LIST_MAX_LIMIT });
+  await routeTrpc(page, serveCorpusProcedures(rpc, ["notifications.list", "notifications.markAllRead"]));
+  await mount<typeof NotificationInboxStory>("tests/client/features/notifications/_ct-stories/NotificationInboxStory", {});
+  await page.getByRole("button", { name: "Notifications", exact: true }).click();
+  const rows = page.locator('[data-slot="inbox-row"]');
+  await expect(rows).toHaveCount(firstPage.items.length);
+  await page.getByRole("button", { name: "Load more", exact: true }).click();
+  await expect(rows).toHaveCount(remaining.items.length);
+  const older = page.locator('[data-slot="inbox-dismissed-row"]');
+  await expect(older).toHaveCount(0);
+  await page.getByRole("button", { name: "Show dismissed", exact: true }).click();
+  const archive = await rpc.notifications.list({ state: "dismissed" });
+  expect(archive.items.map((item) => item.id)).toContain(dismissed.id);
+  await expect(older).toHaveCount(archive.items.length);
+  await expect(older.getByRole("button")).toHaveCount(0);
 });

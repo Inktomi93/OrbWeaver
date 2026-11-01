@@ -3,14 +3,14 @@
 // nothing. markRead/dismiss set the timestamp via `COALESCE(col, :now)` so a re-flip keeps the original
 // instant.
 
-import type { NotificationEvent, NotificationType } from "@orb/contracts/notifications";
+import type { InboxState, NotificationEvent, NotificationType } from "@orb/contracts/notifications";
 import { notificationEventSchema } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import { notifications } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import type { NotificationId } from "@orb/kit/ids";
-import { and, asc, desc, eq, gt, isNull, lt, not, notExists, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNotNull, isNull, lt, ne, not, notExists, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
 /** A new notification row — the verb mints `id` + parses the closed `event` + passes its injected clock. */
@@ -179,17 +179,25 @@ export async function insertNotification(db: Db, row: NotificationInsert, extras
   return inserted[0] as NotificationRow;
 }
 
-/** The caller's active inbox page — recipient-scoped, dismissed excluded, newest-first by `seq`, paged with
- *  `seq < cursor` when a cursor is given. */
+// A standing ask's dismissed rows are mostly the producer's supersedes and retractions, which no reader did.
+const STANDING_ASK_TYPE: NotificationType = "plugins-awaiting-consent";
+
+interface InboxPageQuery {
+  readonly state: InboxState;
+  readonly cursor: number | undefined;
+  readonly limit: number;
+}
+
+/** One inbox page of `state` — recipient-scoped, newest-first by `seq`, paged with `seq < cursor` when a cursor
+ *  is given. */
 export async function selectInbox(
   db: Db,
   recipientUserId: NotificationEvent["recipientUserId"],
-  cursor: number | undefined,
-  limit: number,
+  { state, cursor, limit }: InboxPageQuery,
 ): Promise<NotificationRow[]> {
   const scoped = and(
     eq(notifications.recipientUserId, recipientUserId),
-    isNull(notifications.dismissedAt),
+    state === "active" ? isNull(notifications.dismissedAt) : and(isNotNull(notifications.dismissedAt), ne(notifications.type, STANDING_ASK_TYPE)),
     cursor === undefined ? undefined : lt(notifications.seq, cursor),
   );
   const rows = await db.select(TEXT_ROW_COLS).from(notifications).where(scoped).orderBy(desc(notifications.seq)).limit(limit);

@@ -14,6 +14,7 @@
 import type { ChatIdentity, HandoffOffer, JoinHistoryVisibility, ParticipantView } from "@orb/contracts/chat";
 import { buildIdentityAvatarMaps, buildIdentityNameContext } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
+import { timeLib } from "#lib";
 
 /** A PEOPLE (human) row view — projected by {@link toPersonRows} from `ParticipantView`. */
 export interface MemberPersonRow {
@@ -39,6 +40,8 @@ export interface MemberPersonRow {
    *  there rather than asserting an absence it cannot see. Server-derived from the live socket ref-count;
    *  never a client heartbeat (client-architecture-lockdown.md §6). */
   readonly online: boolean | null;
+  /** When an offline member's last device left; `null` when the server has no such moment to report. */
+  readonly lastSeenAt: number | null;
 }
 
 /** A CHARACTER-SEAT row view — source-agnostic (committed roster OR draft founding cards). */
@@ -98,11 +101,19 @@ export interface MemberRowActions {
  *  dot itself is `aria-hidden`. UNKNOWN (`null`) contributes NOTHING: claiming "offline" for a read that
  *  never resolved is the one lie this field can tell. Split out of {@link rowAccessibleName} because the
  *  three-way state needs a branch, and a nested ternary is banned house-wide (biome `noNestedTernary`). */
-function presenceClause(online: boolean | null): string {
+function presenceClause(online: boolean | null, lastSeenAt: number | null): string {
   if (online === null) {
     return "";
   }
-  return online ? ", online" : ", offline";
+  if (online) {
+    return ", online";
+  }
+  return lastSeenAt === null ? ", offline" : `, offline, ${lastSeenPhrase(lastSeenAt)}`;
+}
+
+/** The roster's words for {@link MemberPersonRow.lastSeenAt}. */
+export function lastSeenPhrase(lastSeenAt: number): string {
+  return `last seen ${timeLib.formatRelative(lastSeenAt)}`;
 }
 
 /** Identity + state — the row's accessible NAME (§7.1 examples: "Aria — character, muted" ·
@@ -116,7 +127,7 @@ export function rowAccessibleName(row: MemberPersonRow | MemberCharacterRow): st
     const history = row.historyVisibility === "from-join" ? ", limited history" : "";
     // Presence is the row's NON-COLOUR channel (#1039): the dot is `aria-hidden` decoration, so this word
     // is the whole announcement — a colour-blind or screen-reader user reads the state a sighted one sees.
-    return `${row.displayName} — ${role}${you}${nominated}${history}${presenceClause(row.online)}`;
+    return `${row.displayName} — ${role}${you}${nominated}${history}${presenceClause(row.online, row.lastSeenAt)}`;
   }
   return `${row.displayName} — character${row.disabled ? ", muted" : ""}`;
 }
@@ -131,11 +142,17 @@ export interface MemberRowSources {
   readonly pendingHostUserId: UserId | null;
   /** The live turn's voiced speaker (`turnStarted.speakerCharacterId`) — never a token read (§7.1). */
   readonly respondingCharacterId: CharacterId | null;
-  /** The human seats the presence read reported ONLINE (`notifications.presence`, #1039), or `null` while
-   *  presence is unknown — unresolved, unasked, or refused by the deployment. A userId's ABSENCE from a
-   *  non-null set means offline OR undisclosed: the server collapses both to the same answer on purpose,
-   *  so the client must not read absence as anything richer than "not shown as online". */
-  readonly onlineUserIds: ReadonlySet<UserId> | null;
+  /** The presence read (`notifications.presence`, #1039), or `null` while presence is unknown — unresolved,
+   *  unasked, or refused by the deployment. */
+  readonly presence: RosterPresence | null;
+}
+
+/** The roster's reading of a presence snapshot. A userId's ABSENCE from `onlineUserIds` means offline OR
+ *  undisclosed: the server collapses both to the same answer on purpose, so the client must not read absence
+ *  as anything richer than "not shown as online". */
+export interface RosterPresence {
+  readonly onlineUserIds: ReadonlySet<UserId>;
+  readonly lastSeenAt: ReadonlyMap<UserId, number>;
 }
 
 /**
@@ -183,7 +200,8 @@ export function toPersonRows(sources: MemberRowSources): MemberPersonRow[] {
       historyVisibility: p.joinHistoryVisibility,
       // `null` propagates: an unresolved presence read leaves every seat UNKNOWN rather than defaulting the
       // whole roster to "offline", which is what a `?? false` here would silently publish.
-      online: sources.onlineUserIds === null ? null : sources.onlineUserIds.has(p.userId),
+      online: sources.presence === null ? null : sources.presence.onlineUserIds.has(p.userId),
+      lastSeenAt: sources.presence?.lastSeenAt.get(p.userId) ?? null,
     });
   }
   return rows;

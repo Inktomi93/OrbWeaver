@@ -1,6 +1,6 @@
 // `useRosterPresence` — the roster's live-presence read (#1039). The ONE client consumer of
 // `notifications.presence`: it asks about the human seats this room actually has and returns the set the
-// server reported ONLINE, or `null` while presence is UNKNOWN.
+// server reported ONLINE with the last-seen times of the rest, or `null` while presence is UNKNOWN.
 //
 // NULL IS A STATE, NOT A FALLBACK. Unresolved, unasked (no human seats / a single-human deployment, where
 // the procedure's multi-human belt refuses it as nonexistent), or errored all yield `null`, and
@@ -24,6 +24,7 @@ import type { PresenceSnapshot } from "@orb/contracts/notifications";
 import { PRESENCE_READ_MAX_USER_IDS } from "@orb/contracts/notifications";
 import type { UserId } from "@orb/kit/ids";
 import { usePresenceRead } from "#data";
+import type { RosterPresence } from "../lib/member-rows.ts";
 import { resolveHumanParticipants } from "../lib/roster.ts";
 
 /** The human seats of `participants` whose presence is worth asking about — present members only (a kicked
@@ -45,14 +46,15 @@ function presenceAsk(participants: readonly ParticipantView[]): UserId[] {
 }
 
 /**
- * The set of this room's human seats currently reported ONLINE, or `null` while presence is unknown.
+ * This room's human seats currently reported ONLINE and when the rest were last seen, or `null` while presence
+ * is unknown.
  *
  * @param participants - the room's roster wire array; the human subset is derived here so a caller never
  *   has to build the ask itself (one home for "which ids does this room's dot need").
  * @param enabled - `false` on a deployment that cannot seat a second human: the read is refused there, and
  *   asking would only produce a 404 per mount.
  */
-export function useRosterPresence(participants: readonly ParticipantView[], enabled: boolean): ReadonlySet<UserId> | null {
+export function useRosterPresence(participants: readonly ParticipantView[], enabled: boolean): RosterPresence | null {
   const userIds: UserId[] = enabled ? presenceAsk(participants) : [];
   const { data } = usePresenceRead(userIds);
   // Pin the wire type: the `skipToken` + spread `useQuery` inference degrades `data` to `any` in some
@@ -60,5 +62,7 @@ export function useRosterPresence(participants: readonly ParticipantView[], enab
   // yields for a read nobody fed — both must land on the UNKNOWN arm rather than on a `.onlineUserIds`
   // read that throws.
   const snapshot: PresenceSnapshot | null | undefined = data;
-  return snapshot ? new Set(snapshot.onlineUserIds) : null;
+  return snapshot
+    ? { onlineUserIds: new Set(snapshot.onlineUserIds), lastSeenAt: new Map(snapshot.lastSeen.map(({ userId, lastSeenAt }) => [userId, lastSeenAt])) }
+    : null;
 }
