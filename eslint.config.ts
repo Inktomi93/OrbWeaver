@@ -1404,6 +1404,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
         "orb/theme-override-only-via-scope": "error",
       },
     },
+    { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/trpc-payload-declared-keys": "error" } },
     { files: ["packages/client/src/**/*.tsx"], rules: { "orb/no-raw-intrinsic-paint": "error" } },
     { files: ["packages/client/src/**/*.tsx"], rules: { "orb/text-voice-only": "error" } },
     // Tooling is outside: its CLI flags share the `--appearance-` prefix (`--appearance-preset`).
