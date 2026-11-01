@@ -34,7 +34,7 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import { ThemePreviewPane, ThemeSwatchStrip } from "@orb/ui/theme-swatch";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { BackgroundSourceField, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
+import { BackgroundSourceField, ConfirmDialog, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { AutosaveStatus } from "#forms/editor";
@@ -202,9 +202,17 @@ function ThemeControlsBody({ characterName, session }: ThemeControlsBodyProps): 
             {(override): ReactElement => (
               <Row gap="field" align="center">
                 <SaveAsThemeButton characterName={characterName} override={override} />
-                <Button variant="ghost" disabled={override === null} onClick={resetToGlobal}>
-                  Reset all to Inherit
-                </Button>
+                <ConfirmDialog
+                  confirmLabel="Reset all"
+                  description="Every colour and style this character sets goes back to Inherit, so it follows your global theme."
+                  onConfirm={resetToGlobal}
+                  title="Reset this character's look to Inherit?"
+                  trigger={
+                    <Button variant="ghost" disabled={override === null}>
+                      Reset all to Inherit
+                    </Button>
+                  }
+                />
               </Row>
             )}
           </form.Subscribe>

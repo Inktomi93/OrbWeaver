@@ -8,6 +8,7 @@ import {
   baseUiDoors,
   classClassifier,
   createOrbPlugin,
+  DESTRUCTIVE_EXEMPT,
   exportedLabels,
   exportedProductionValues,
   shellOwnedSlots,
@@ -1527,6 +1528,12 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     { files: ["packages/client/src/features/**/*.{ts,tsx}"], rules: { "orb/page-template-shapes": "error" } },
     { files: ["packages/client/src/**/*.tsx"], rules: { "orb/no-single-row-textarea": "error", "orb/copy-ellipsis": "error" } },
     { files: ["packages/client/src/features/**/surfaces/*-{list,library}-surface.tsx"], rules: { "orb/library-surface-row": "error" } },
+    {
+      files: ["packages/client/src/**/*.tsx"],
+      // Each exempt file names its reason in DESTRUCTIVE_EXEMPT (docs/law/client-architecture-state-and-gates.md §14).
+      ignores: DESTRUCTIVE_EXEMPT.map(({ path }) => path),
+      rules: { "orb/destructive-needs-confirm": "error" },
+    },
     {
       files: ["packages/client/src/**/*.{ts,tsx}"],
       ignores: ["packages/client/src/**/hooks/**", "packages/client/src/**/*-mutations.ts", "packages/client/src/data/**"],

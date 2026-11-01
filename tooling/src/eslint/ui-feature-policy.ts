@@ -36,7 +36,52 @@ export const SURFACE_SELECTORS = [
 // The centered editor column: the cap token beside `mx-auto`, in either order. A cap alone is a start-aligned measure.
 const EDITOR_COLUMN = String.raw`/mx-auto.*max-inline-\(--width-content-col\)|max-inline-\(--width-content-col\).*mx-auto/`;
 
+// A control that destroys data (docs/law/client-architecture-state-and-gates.md §14, "Destructive confirms") needs a confirm or an undo in its file.
+// The word list is the one `pnpm ui-facts` reads; a search or filter clear is not data.
+const DESTRUCTIVE_VERB = String.raw`/^\s*(Restore|Delete|Remove|Reset|Discard|Clear|Revert|Drop|Wipe|Erase|Overwrite|Replace)\b(?![^]*\b(search|filters?)\b)/i`;
+const ACTION_TAG = "/^(Button|GlyphButton|InlineAction|MenuItem)$/";
+// Evidence in the same file: a confirm, a dialog whose Cancel throws the edit away, or an Undo action.
+const CONFIRM_IN_FILE = "JSXOpeningElement[name.name=/^(ConfirmDialog|AlertDialog|RowActionsMenu|ModelRunConfirmDialog|FormDialog|ContentDialog|FlowDialog)$/]";
+const UNDO_IN_FILE = "Property[key.name='label'][value.value='Undo']";
+// An inline confirm step: the destructive control sits after a Keep or Cancel button in the same parent.
+const KEEP_BESIDE = String.raw`JSXElement:has(> JSXText[value=/^\s*(Cancel|Keep)\s*$/])`;
+const NOT_CONFIRMED_IN_FILE = `:not(Program:has(${CONFIRM_IN_FILE}) *):not(Program:has(${UNDO_IN_FILE}) *)`;
+const DESTRUCTIVE_MESSAGE =
+  "A control that destroys data needs a ConfirmDialog or an undo (docs/law/client-architecture-state-and-gates.md §14). Wrap it in a ConfirmDialog trigger, or offer Undo.";
+
+// Files exempt from `destructive-needs-confirm`, each with the owner-delegated call that permits it
+// (docs/law/client-architecture-state-and-gates.md §14, "Destructive confirms"). `pnpm ui-facts` reads the same list.
+export const DESTRUCTIVE_EXEMPT: readonly { readonly path: string; readonly reason: string }[] = [
+  { path: "packages/client/src/features/automation/components/rule-*-fields.tsx", reason: "rule editor: removes an optional field from the form being edited" },
+  {
+    path: "packages/client/src/features/automation/components/rule-editor-settings.tsx",
+    reason: "rule editor: removes an optional field from the form being edited",
+  },
+  { path: "packages/client/src/features/chat/components/injections-manager.tsx", reason: "injection rows are re-added in one step" },
+  { path: "packages/client/src/features/chat/components/room-overrides-form.tsx", reason: "clears a field of the override form being edited" },
+  { path: "packages/client/src/features/persona/components/persona-room-block.tsx", reason: "Clear pin is one click to undo: re-pin" },
+  { path: "packages/client/src/features/persona/components/persona-editor.tsx", reason: "asks the caller to delete; the caller owns the confirm" },
+  { path: "packages/client/src/features/character/components/greeting-studio.tsx", reason: "discards a generated preview that was never saved" },
+  { path: "packages/client/src/features/refinery/components/accept-review.tsx", reason: "discards a rewrite that was never applied" },
+  { path: "packages/client/src/features/refinery/components/apply-outcome.tsx", reason: "discards a refused rewrite that was never applied" },
+  { path: "packages/client/src/features/preset/components/staleness-row.tsx", reason: "Clear removes stored values the model ignores, so they are inert" },
+  { path: "packages/client/src/features/config/components/config-teacher.tsx", reason: "resets one setting to the default its row shows beside the value" },
+];
+
 export const UI_FEATURE_RESTRICTIONS = [
+  {
+    id: "destructive-needs-confirm",
+    selectors: [
+      {
+        selector: `JSXElement[openingElement.name.name=${ACTION_TAG}]:has(> JSXText[value=${DESTRUCTIVE_VERB}])${NOT_CONFIRMED_IN_FILE}:not(${KEEP_BESIDE} ~ JSXElement)`,
+        message: DESTRUCTIVE_MESSAGE,
+      },
+      {
+        selector: `JSXOpeningElement[name.name=${ACTION_TAG}]:has(> JSXAttribute[name.name='tone'][value.value='destructive'])${NOT_CONFIRMED_IN_FILE}:not(${KEEP_BESIDE} ~ JSXElement > JSXOpeningElement)`,
+        message: DESTRUCTIVE_MESSAGE,
+      },
+    ],
+  },
   {
     id: "no-layout-context-props",
     selectors: [

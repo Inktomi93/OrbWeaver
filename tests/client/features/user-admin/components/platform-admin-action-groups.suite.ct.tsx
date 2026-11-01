@@ -59,6 +59,7 @@ for (const regime of REGIMES) {
         expect((await caller.settings.getAppSettingsWithOverrides()).overrides.promptCacheMinDepth).toBe(3);
         expect(routes.inputs("settings.updateAppSettings")).toEqual([{ partial: { promptCacheMinDepth: 3 } }]);
         await reset.click();
+        await page.getByRole("alertdialog").getByRole("button", { name: "Reset to defaults", exact: true }).click();
         await expect(reset).toHaveCount(0);
         await expect(save).toBeDisabled();
         const cleared = await caller.settings.getAppSettingsWithOverrides();

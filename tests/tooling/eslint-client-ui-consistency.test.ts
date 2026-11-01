@@ -85,6 +85,33 @@ test("a word that is not a class and a token utility pass the paint-class rule",
   expect(found.filter(({ message }) => message.includes("raw radius, shadow, border"))).toEqual([]);
 });
 
+const DESTRUCTIVE = "orb/destructive-needs-confirm";
+
+test.for([
+  ["a Delete button with no confirm", "<Button>Delete</Button>"],
+  ["a Reset menu item with no confirm", "<MenuItem>Reset to defaults</MenuItem>"],
+  ["a destructive-tone button", '<Button tone="destructive">Go</Button>'],
+] as const)("%s is a finding", async ([, jsx]) => {
+  expect(await findings(DESTRUCTIVE, `export const A = () => ${jsx};`)).toHaveLength(1);
+});
+
+test.for([
+  ["a ConfirmDialog trigger", '<ConfirmDialog title="t" trigger={<Button>Delete</Button>} />'],
+  ["an Undo action", "<><Button>Remove</Button>{notify({ action: { label: 'Undo' } })}</>"],
+  ["an inline Keep step", "<Row><Button>Keep</Button><Button>Dismiss</Button></Row>"],
+  ["an editing dialog", "<><FormDialog title='t' dismissLabel='Close' /><Button>Remove</Button></>"],
+  ["a search clear", "<Button>Clear search</Button>"],
+  ["a non-destructive verb", "<Button>Save</Button>"],
+] as const)("%s is not a finding", async ([, jsx]) => {
+  expect(await findings(DESTRUCTIVE, `export const A = () => ${jsx};`)).toEqual([]);
+});
+
+test("a listed exempt file passes with a bare Delete", async () => {
+  expect(
+    await findings(DESTRUCTIVE, "export const A = () => <Button>Remove</Button>;", "packages/client/src/features/automation/components/rule-image-fields.tsx"),
+  ).toEqual([]);
+});
+
 const LIBRARY_ROW = "orb/library-surface-row";
 const LIST_SURFACE = "packages/client/src/features/stats/surfaces/probe-list-surface.tsx";
 

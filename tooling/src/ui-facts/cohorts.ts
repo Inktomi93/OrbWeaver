@@ -1,5 +1,6 @@
 // The composition cohorts (area C): which template, row composite, dialog anatomy, dismiss path and confirm each section uses.
 
+import { DESTRUCTIVE_EXEMPT } from "../eslint/ui-feature-policy.ts";
 import type { Cell, Cohort, Member } from "./compare.ts";
 import { NOT_APPLICABLE } from "./compare.ts";
 import type { FileFacts } from "./file-facts.ts";
@@ -143,6 +144,10 @@ const DESTRUCTIVE_WORD = /^(?:Restore|Delete|Remove|Reset|Discard|Clear|Revert|D
 const NOT_A_VERB_ON_DATA = /\b(?:search|filters?)\b/iu;
 const CONFIRMS = new Set(["ConfirmDialog", "AlertDialog"]);
 const ACTION_TAGS = new Set(["Button", "GlyphButton", "InlineAction", "MenuItem"]);
+// The same evidence `orb/destructive-needs-confirm` reads: an Undo, a Keep or Cancel step beside the control, a Cancel-able dialog,
+// and the files the owner exempted (`DESTRUCTIVE_EXEMPT`).
+const INLINE_CONFIRM_WORDS = new Set(["Keep", "Cancel"]);
+const EXEMPT_PATHS = DESTRUCTIVE_EXEMPT.map(({ path }) => new RegExp(`^${path.replaceAll(".", "\\.").replaceAll("*", "[^/]*")}$`, "u"));
 
 function destructiveMembers(facts: FileFacts): readonly Member[] {
   const sf = facts.source.sf;
@@ -157,7 +162,12 @@ function destructiveMembers(facts: FileFacts): readonly Member[] {
     if (!destructive) {
       continue;
     }
-    const guarded = insideTag(elem, CONFIRMS) || hasAny(facts, "ConfirmDialog", "AlertDialog", "RowActionsMenu", "ModelRunConfirmDialog");
+    const guarded =
+      insideTag(elem, CONFIRMS) ||
+      hasAny(facts, "ConfirmDialog", "AlertDialog", "RowActionsMenu", "ModelRunConfirmDialog", "FormDialog", "ContentDialog", "FlowDialog") ||
+      sf.text.includes('label: "Undo"') ||
+      buttonWithText(facts, INLINE_CONFIRM_WORDS) ||
+      EXEMPT_PATHS.some((pattern) => pattern.test(facts.source.path));
     out.push(member(facts, text === "" ? elem.tag : text, { confirm: cell(guarded ? "confirm in file" : "none", elem.line) }));
   }
   return out;
