@@ -19,7 +19,7 @@ The owner ticked inbox pagination, dismissed state and last seen as wire. The ti
 
 ## Done when
 
-- An inbox past one page shows a Load more control that loads the older rows, in the bar and sheet lenses.
+- An inbox past one page shows a Load more control that loads the older rows, in the bar and sheet views.
 - A row dismissed on one device is absent from the inbox on another and appears under Show dismissed, read-only, with its arrival and dismissal times.
 - A dismissed page holds only the caller's rows and no `plugins-awaiting-consent` row, because those rows are mostly producer supersedes and retractions.
 - An offline member with a last-seen time shows it on their roster row and in the row's accessible name. An online or unknown member shows none.
