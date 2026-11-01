@@ -6,6 +6,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { PortableFile } from "@orb/contracts/portability";
 import { galleryItems } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import { createGalleryCharacterOps } from "@orb/server/domain/character";
 import { expect, test } from "@orb/testkit/node";
 import { magicBytes, principal } from "@orb/testkit/node/helpers";
@@ -24,7 +25,7 @@ test("composed gallery export never resolves a foreign subject handle even from 
   const item = await services.assets.addToGallery({ principal: await principal(harness, owner.id), assetId: image.assetId, subjectCharacterId: owned.id });
   await expect(
     services.assets.addToGallery({ principal: await principal(harness, owner.id), assetId: image.assetId, subjectCharacterId: foreign.id }),
-  ).rejects.toThrow();
+  ).rejects.toThrow(DomainNotFoundError);
   await db.update(galleryItems).set({ subjectCharacterId: foreign.id }).where(eq(galleryItems.id, item.galleryItemId));
   const gallery = app.portability.find((entity) => entity.kind === "gallery");
   if (gallery === undefined) {

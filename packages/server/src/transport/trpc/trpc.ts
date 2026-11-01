@@ -151,9 +151,9 @@ const domainErrorMiddleware = t.middleware(async ({ ctx, path, type, next }) => 
 
 // The injected rate-limit gate; transport hands it the request facts, it owns the bucket policy. A
 // DomainRateLimitError is audited then re-thrown → mapped to TOO_MANY_REQUESTS.
-const rateLimitMiddleware = t.middleware(async ({ ctx, path, type, next }) => {
+const rateLimitMiddleware = t.middleware(async ({ ctx, path, next }) => {
   try {
-    await ctx.rateLimit.enforce({ path, type, principal: ctx.auth, clientIp: ctx.clientIp });
+    await ctx.rateLimit.enforce({ path, principal: ctx.auth, clientIp: ctx.clientIp });
   } catch (err) {
     if (err instanceof DomainRateLimitError) {
       securityEvent("rate_limit", { path }, "security: request throttled", ctx.logger);

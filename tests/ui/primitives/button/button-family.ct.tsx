@@ -1,5 +1,7 @@
 // D336 step four: GlyphButton, InlineAction and PictureButton each draw their own box through their own door, and take
 // the busy, disabled, focal and tone states from the one Button core. Tones under each seed live in the tone-variant matrix.
+
+import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { ButtonFamilyBoxesStory, ButtonFamilyStatesStory } from "./_button-family-stories.tsx";
@@ -41,7 +43,7 @@ test("each inline step is text-height at its type step and carries the touch-tar
 
 test("a picture button is its picture's box: the bare one draws nothing and dims on hover, the ghost one tints", async ({ mount, page }) => {
   // Tailwind's `hover:` applies only under `(hover: hover)`, so a touch device keeps both pictures at rest.
-  const hovers = await page.evaluate(() => matchMedia("(hover: hover)").matches);
+  const hovers = await page.evaluate((hoverCapable) => matchMedia(hoverCapable).matches, MEDIA_QUERIES["hover-capable"]);
   const component = await mount<typeof ButtonFamilyBoxesStory>(`${STORIES}/ButtonFamilyBoxesStory`, {});
   const bare = component.getByRole("button", { name: "Bare picture", exact: true });
   const ghost = component.getByRole("button", { name: "Ghost picture", exact: true });

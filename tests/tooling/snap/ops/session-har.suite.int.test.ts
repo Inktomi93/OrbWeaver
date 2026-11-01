@@ -249,7 +249,7 @@ test("shallow evidence and Network setup failure are refused without an artifact
     assertCompleteNetworkHar({
       log: { entries: [{ request: { headers: [] }, response: { headers: [] }, timings: { wait: 0 }, _orb: { requestId: "x" } }] },
     }),
-  ).toThrow();
+  ).toThrow("CDP HAR population is empty");
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext();
@@ -258,7 +258,7 @@ test("shallow evidence and Network setup failure are refused without an artifact
   try {
     const dead = await context.newCDPSession(page);
     await dead.detach();
-    await expect(wirePageNetwork(dead, page, { contextIndex: 0, pageIndex: 0, window: { value: 0 } })).rejects.toThrow();
+    await expect(wirePageNetwork(dead, page, { contextIndex: 0, pageIndex: 0, window: { value: 0 } })).rejects.toThrow("has been closed");
     const live = await context.newCDPSession(page);
     await expect(wirePageNetwork(rejectNetworkEnable(live), page, { contextIndex: 0, pageIndex: 0, window: { value: 0 } })).rejects.toThrow(
       "planted Network.enable refusal",

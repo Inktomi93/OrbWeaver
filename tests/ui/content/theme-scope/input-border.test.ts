@@ -12,7 +12,7 @@ import { MID_GREY } from "./contrast-cases.ts";
 
 const SWEEP_TIMEOUT_MS = 180_000;
 const HEARTH_ACCENT = TOKENS["color.primary"].value;
-const EDGE = "--color-input-border";
+const EDGE = TOKENS["color.input-border"].cssVar;
 /** An accent that clears the card as authored, so the ring is not pulled down to the 3:1 floor the edge also holds. */
 const STRONG_ACCENT = "oklch(0.2 0.1 260)";
 
@@ -58,7 +58,7 @@ function judged(background: string, accent: string | undefined): Judged {
   const clamped = clampThemeTokens({ background, ...(accent === undefined ? {} : { accent }) }, undefined, accent);
   const { vars } = clamped;
   const edge = pixel(emittedGrey(vars[EDGE], base.h).color);
-  const fill = emittedGrey(vars["--color-input"], base.h);
+  const fill = emittedGrey(vars[TOKENS["color.input"].cssVar], base.h);
   const deltas = rampDeltas(base);
   const panels = [
     base,
@@ -80,7 +80,7 @@ function judged(background: string, accent: string | undefined): Judged {
     }),
   ];
   const card = pixel(rampSurface(base, deltas.card));
-  const ringFill = vars["--color-ring"];
+  const ringFill = vars[TOKENS["color.ring"].cssVar];
   return {
     worst: Math.min(...seen.map((ground) => wcagContrastRatio(edge, ground))),
     edgeOnCard: wcagContrastRatio(edge, card),
@@ -112,7 +112,7 @@ test("a mid-grey scope whose inherited accent is corrected only to 3:1 raises th
   expect(ringOnCard).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
   expect(reported).toBe(false);
   // The accent fill itself is not moved: only the ring is raised.
-  expect(vars["--color-ring"]).not.toBe(vars["--color-primary"]);
+  expect(vars[TOKENS["color.ring"].cssVar]).not.toBe(vars[TOKENS["color.primary"].cssVar]);
 });
 
 test(
@@ -158,8 +158,8 @@ function nestedRing(background: string, accent: string): NestedRing {
   const card = pixel(rampSurface(base, rampDeltas(base).card));
   return {
     edgeOnCard: wcagContrastRatio(pixel(emittedGrey(vars[EDGE], base.h).color), card),
-    ringOnCard: wcagContrastRatio(pixel(parsed(vars["--color-ring"] ?? "")), card),
-    raised: vars["--color-ring"] !== vars["--color-primary"],
+    ringOnCard: wcagContrastRatio(pixel(parsed(vars[TOKENS["color.ring"].cssVar] ?? "")), card),
+    raised: vars[TOKENS["color.ring"].cssVar] !== vars[TOKENS["color.primary"].cssVar],
     reported: nested.inputBorderFallback !== undefined,
   };
 }
@@ -179,7 +179,7 @@ test(
 
 test("an accent-only scope over a seed palette leaves the ring to its fill", () => {
   const { vars, inputBorderFallback } = clampThemeTokens({ accent: NESTED_ACCENTS[0] }, MID_GREY, HEARTH_ACCENT);
-  expect(vars["--color-ring"]).toBe(vars["--color-primary"]);
+  expect(vars[TOKENS["color.ring"].cssVar]).toBe(vars[TOKENS["color.primary"].cssVar]);
   expect(inputBorderFallback).toBeUndefined();
 });
 
@@ -187,7 +187,7 @@ test("an accent-only scope over a seed palette leaves the ring to its fill", () 
 function bestRingOnCard(background: string): number {
   const base = parsed(background);
   const card = pixel(rampSurface(base, rampDeltas(base).card));
-  const accent = parsed(clampThemeTokens({ background }, undefined, HEARTH_ACCENT).vars["--color-primary"] ?? "");
+  const accent = parsed(clampThemeTokens({ background }, undefined, HEARTH_ACCENT).vars[TOKENS["color.primary"].cssVar] ?? "");
   const grid = Array.from({ length: 101 }, (_unused, index) => index / 100);
   return Math.max(...grid.map((l) => wcagContrastRatio(pixel({ l, c: accent.c, h: accent.h }), card)));
 }

@@ -1,7 +1,8 @@
 import type { ReadOwnedAssetBytes } from "@orb/contracts/assets";
 import type { ResolveHostPrincipalOp } from "@orb/contracts/identity";
+import type { BindingActor } from "@orb/contracts/inference";
 import type { ResolveUtilityPresetParams } from "@orb/contracts/preset";
-import type { BindingActor, RoleClientsWithSignal } from "@orb/inference";
+import type { RoleClientsWithSignal } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 
 export interface PluginQuietLlmDeps {

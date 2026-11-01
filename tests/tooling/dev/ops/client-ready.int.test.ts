@@ -40,7 +40,7 @@ test("a permanently degraded app still refuses at the supplied startup deadline"
     const page = await browser.newPage();
     await page.route("http://contributor.test/", (route) => route.fulfill({ contentType: "text/html", body: '<html data-app-ready="degraded"></html>' }));
     // this proof requires the real deadline to expire against a live browser. Ends if the browser and deadline use an injected clock.
-    await expect(awaitDevClientReady(page, "http://contributor.test/", Date.now() + 500)).rejects.toThrow();
+    await expect(awaitDevClientReady(page, "http://contributor.test/", Date.now() + 500)).rejects.toMatchObject({ name: "TimeoutError" });
   } finally {
     await browser.close();
   }
@@ -99,7 +99,7 @@ test("failed startup retains HAR request timing without response bodies", { time
         route.fulfill({ contentType: "text/javascript", body: 'globalThis.privateBodyMarker = "must-not-be-retained";' }),
       );
       // the real browser must exhaust the startup deadline before HAR closure. Ends if the browser and deadline share an injected clock.
-      await expect(awaitDevClientReady(page, "http://contributor.test/", Date.now() + 500)).rejects.toThrow();
+      await expect(awaitDevClientReady(page, "http://contributor.test/", Date.now() + 500)).rejects.toMatchObject({ name: "TimeoutError" });
     } finally {
       await context.close();
     }

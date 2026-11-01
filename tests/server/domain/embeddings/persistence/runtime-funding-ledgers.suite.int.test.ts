@@ -11,6 +11,7 @@ import { auditLogs, embeddingCalls } from "@orb/db";
 import type { RoleClientsWithSignal } from "@orb/inference";
 import { NoConnectionError } from "@orb/inference";
 import { DomainNoCredentialError } from "@orb/kit/errors";
+import { forEachNonEmpty } from "@orb/testkit/iso";
 import { expect } from "@orb/testkit/node";
 import { TEST_BASE_URL, TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
 import { and, eq } from "drizzle-orm";
@@ -128,25 +129,29 @@ test("a pinned encoder whose real connection was removed refuses without a provi
   expect(await db.select().from(embeddingCalls).where(eq(embeddingCalls.ownerId, harness.ownerId))).toEqual(priorAccounting);
 });
 
-for (const task of ROLE_CLIENT_TASKS.filter((role): role is BoundTask => Object.hasOwn(BOUND_EXECUTE, role))) {
-  test(`the bound ${task} caller re-reads its owner's current funding without making a refused purchase`, async ({
-    harness,
-    db,
-    ownerCaller,
-    fundingProvider,
-  }) => {
-    const captured = await fundingConnection({ ownerCaller, harness, task });
-    await ownerCaller.connection.setBinding({ task: bindingTaskOf(task), connectionId: captured.connectionId });
-    const roles = await harness.roleClientsFor(harness.ownerId);
-    await BOUND_EXECUTE[task](roles);
-    expect(fundingProvider.calls).toHaveLength(1);
-    const before = await db.select().from(embeddingCalls).where(eq(embeddingCalls.connectionId, captured.connectionId));
-    await ownerCaller.connection.update({ connectionId: captured.connectionId, patch: { allowBackground: false } });
-    await expect(BOUND_EXECUTE[task](roles)).rejects.toBeInstanceOf(NoConnectionError);
-    expect(fundingProvider.calls).toHaveLength(1);
-    expect(await db.select().from(embeddingCalls).where(eq(embeddingCalls.connectionId, captured.connectionId))).toEqual(before);
-  });
-}
+forEachNonEmpty(
+  ROLE_CLIENT_TASKS.filter((role): role is BoundTask => Object.hasOwn(BOUND_EXECUTE, role)),
+  "bound role tasks",
+  (task) => {
+    test(`the bound ${task} caller re-reads its owner's current funding without making a refused purchase`, async ({
+      harness,
+      db,
+      ownerCaller,
+      fundingProvider,
+    }) => {
+      const captured = await fundingConnection({ ownerCaller, harness, task });
+      await ownerCaller.connection.setBinding({ task: bindingTaskOf(task), connectionId: captured.connectionId });
+      const roles = await harness.roleClientsFor(harness.ownerId);
+      await BOUND_EXECUTE[task](roles);
+      expect(fundingProvider.calls).toHaveLength(1);
+      const before = await db.select().from(embeddingCalls).where(eq(embeddingCalls.connectionId, captured.connectionId));
+      await ownerCaller.connection.update({ connectionId: captured.connectionId, patch: { allowBackground: false } });
+      await expect(BOUND_EXECUTE[task](roles)).rejects.toBeInstanceOf(NoConnectionError);
+      expect(fundingProvider.calls).toHaveLength(1);
+      expect(await db.select().from(embeddingCalls).where(eq(embeddingCalls.connectionId, captured.connectionId))).toEqual(before);
+    });
+  },
+);
 
 for (const task of BACKGROUND_TASKS) {
   test(`the ${task} executor refuses a currently revoked key before provider I/O or new accounting`, async ({

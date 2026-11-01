@@ -4,6 +4,7 @@
 // @subject packages/server/src/domain/admin/substrate/audited-write.ts
 
 import { sessions } from "@orb/db";
+import { DomainForbiddenError } from "@orb/kit/errors";
 import type { SocketId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
@@ -48,7 +49,9 @@ test("the admin gate runs before a revoke, and the queried target is stamped on 
   const actor = await harness.actor({ role: "admin" });
   const target = await harness.actor();
   const session = await app.sessions.create({ userId: target.id, oidcIdToken: "private-id-token" });
-  await expect(app.services.admin.revokeSession({ principal: await principal(harness, target.id), sessionId: session.sessionId })).rejects.toThrow();
+  await expect(app.services.admin.revokeSession({ principal: await principal(harness, target.id), sessionId: session.sessionId })).rejects.toThrow(
+    DomainForbiddenError,
+  );
   expect(await app.sessions.validate(session.token)).toMatchObject({ userId: target.id });
   const rows = await app.services.admin.listSessions({ principal: await principal(harness, actor.id), userId: target.id });
   expect(rows).toHaveLength(1);
@@ -84,7 +87,9 @@ test("a refused durable revoke does not evict live sockets or invalidate a cooki
     onEvicted: evicted,
   });
   await using refusal = await refuseWrites(db, { table: sessions, event: "UPDATE", columns: [sessions.revokedAt], message: "revoke refused" });
-  await expect(app.services.admin.revokeSession({ principal: await principal(harness, actor.id), sessionId: session.sessionId })).rejects.toThrow();
+  await expect(app.services.admin.revokeSession({ principal: await principal(harness, actor.id), sessionId: session.sessionId })).rejects.toMatchObject({
+    cause: { code: "SQLITE_CONSTRAINT" },
+  });
   expect(evicted).not.toHaveBeenCalled();
   expect(await app.sessions.validate(session.token)).toMatchObject({ userId: target.id });
   await refusal.lift();

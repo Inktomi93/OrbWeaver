@@ -732,5 +732,3 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
     },
   };
 }
-
-export type { LocalLightModelCache } from "../../contract/local-light.ts";

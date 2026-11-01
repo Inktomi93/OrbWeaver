@@ -6,6 +6,7 @@ import type { TrpcRecorder } from "@orb/testkit/ct";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle, requireShowcaseBundle } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import type { PluginPresentationPageStory } from "../_ct-stories.tsx";
 
@@ -107,7 +108,7 @@ async function expectIntrinsicAction(button: Locator, body: Locator): Promise<vo
   const geometry = await actionGroupGeometry(body, [button]);
   expect(geometry.inlineOverflow).toBeLessThanOrEqual(1);
   expect(await button.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
-  const floor = await resolvedLength(button.page(), "var(--size-control-sm)", body);
+  const floor = await resolvedLength(button.page(), `var(${TOKENS["size.control-sm"].cssVar})`, body);
   for (const box of geometry.controls) {
     expect(box.height).toBeGreaterThanOrEqual(floor);
   }

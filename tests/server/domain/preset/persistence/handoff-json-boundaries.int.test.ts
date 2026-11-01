@@ -2,7 +2,6 @@
 
 import { DEFAULT_PROMPT_CONFIG, PROMPT_CONFIG_SCHEMA_VERSION, promptConfigSchema } from "@orb/contracts/preset";
 import { chatParticipants, presets, rpgGames } from "@orb/db";
-import { DomainOperationError } from "@orb/kit/errors";
 import { expect, test } from "@orb/testkit/node";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { handoffActors } from "../../chat/substrate/handoff.fixtures.ts";
@@ -30,7 +29,9 @@ for (const corruption of ["future-version", "bad-sections"] as const) {
         .set({ config: sql`${JSON.stringify({ ...source.config, sections: false })}` })
         .where(eq(presets.id, source.id));
     }
-    await expect(harness.services.chat.acceptHostHandoff({ principal: actors.nominee, chatId: actors.chat.id })).rejects.toBeInstanceOf(DomainOperationError);
+    await expect(harness.services.chat.acceptHostHandoff({ principal: actors.nominee, chatId: actors.chat.id })).rejects.toMatchObject({
+      code: "stored_config_unreadable",
+    });
     expect(await harness.db.select({ id: presets.id }).from(presets).where(eq(presets.ownerId, actors.nominee.userId))).toEqual([]);
     expect(
       await harness.db

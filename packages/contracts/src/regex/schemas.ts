@@ -31,7 +31,7 @@
 // directions, so "a depth field on a leg that cannot execute it" and "the depth-scoped leg with no depth
 // scope" are equally unrepresentable, and the client derives the pair at its ONE save boundary (the
 // `withDerivedTierFlags` precedent) rather than validating it in a form.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs take the strict twin via `strictInput` (`@orb/kit/zod-schema`).
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";

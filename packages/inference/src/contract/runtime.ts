@@ -25,8 +25,6 @@ import type { Resolved } from "./resolved.ts";
 import type { RoleClientsWithSignal } from "./roles.ts";
 import type { ImageToPng } from "./wire.ts";
 
-export type { BindingActor } from "@orb/contracts/inference";
-
 // Package-internal runtime and composition shapes. `src/contract/` is @orb/inference's one type home;
 // implementation modules import these downward and the package root re-exports only the public subset.
 

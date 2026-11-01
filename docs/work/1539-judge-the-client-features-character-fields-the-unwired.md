@@ -31,4 +31,10 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Five rows: 5 applied, 0 kept, 0 owner questions.
+
+- `FacetDetailProps.characterId`: deleted with its write and with `InspectorBody`'s own `characterId` prop, which fed only that write (`packages/client/src/features/character/components/character-facet-inspector.tsx`). No `render` arm destructured it.
+- `CharacterRefinery.analysis`: deleted from the restated type in `packages/client/src/features/character/components/character-provenance-section.tsx`; the readout shows only `score`, and the router's wider `refinery` value still assigns to it.
+- `UpdateLibraryVars.section`, `.patch`, `.patch.pageSize`: replaced by `inferInput<Trpc["settings"]["updateUserSettingsSection"]>` in `packages/client/src/features/character/components/library-settings-section.tsx`.
+- Ran: `pnpm typecheck packages/client/tsconfig.json tsconfig.tests-dom.json` (exit 0, run together with items 1538 and 1540 to 1544); `pnpm test:ct tests/client/features/character/components/platform-context-recovery.suite.ct.tsx` (exit 0, with the chat CTs listed in item 1540). No test mounts `CharacterFacetInspector` directly.
+- Reclass list: none.

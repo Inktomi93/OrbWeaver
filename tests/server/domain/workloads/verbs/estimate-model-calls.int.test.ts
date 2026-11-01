@@ -6,7 +6,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { WORKLOAD_NOT_ADMISSIBLE } from "@orb/contracts/workloads";
-import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { createMemoryBackfillRoom, createServerHarness, seedCorpusConnections } from "@orb/testkit/node/composed";
@@ -15,6 +15,7 @@ const DISTILL = { kind: "distill-characters", params: {} } satisfies StartWorklo
 const STATS = { kind: "reconcile-stats", params: {} } satisfies StartWorkloadInput;
 const MEMORY = { kind: "memory-backfill", params: {} } satisfies StartWorkloadInput;
 const CATALOG = { kind: "refresh-model-catalog", params: {} } satisfies StartWorkloadInput;
+const IMPORT_ST = { kind: "import-st", params: { dryRun: true } } satisfies StartWorkloadInput;
 
 test("a kind that calls no model answers null, never zero, and a kind that does answers a count", async () => {
   await using root = await createServerHarness({ startJobs: false });
@@ -34,7 +35,9 @@ test("a mode the kind does not run is refused, the same kind's supported mode is
   await using root = await createServerHarness({ startJobs: false });
   const owner = await root.principalFor(root.ownerId);
 
-  await expect(root.services.workloads.estimateModelCalls({ caller: owner, mode: "singular", input: CATALOG })).rejects.toBeInstanceOf(DomainOperationError);
+  await expect(root.services.workloads.estimateModelCalls({ caller: owner, mode: "singular", input: CATALOG })).rejects.toMatchObject({
+    code: "unsupported_mode",
+  });
   expect(await root.services.workloads.estimateModelCalls({ caller: owner, mode: "bulk", input: CATALOG })).toEqual({ calls: null });
 });
 
@@ -50,6 +53,21 @@ test("a retry estimate answers a stranger and a missing id with the same not-fou
     await expect(root.services.workloads.estimateRetryModelCalls({ caller: stranger, id })).rejects.toBeInstanceOf(DomainNotFoundError);
   }
   await expect(root.services.workloads.estimateRetryModelCalls({ caller: owner, id: missing })).rejects.toBeInstanceOf(DomainNotFoundError);
+});
+
+test("a bulk create-kind run through the door mints for its named target, on the estimate and the start, and refuses without one", async () => {
+  await using root = await createServerHarness({ startJobs: false });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const target = await root.actor();
+  const scope = { input: IMPORT_ST, mode: "bulk" } as const;
+
+  await expect(caller.workloads.estimateModelCalls(scope)).rejects.toThrow("targetOwnerId");
+  await expect(caller.workloads.start(scope)).rejects.toThrow("targetOwnerId");
+
+  const targeted = { ...scope, targetOwnerId: target.id };
+  expect(await caller.workloads.estimateModelCalls(targeted)).toEqual({ calls: null });
+  const ref = await caller.workloads.start(targeted);
+  expect(await caller.workloads.get({ id: ref.id })).toMatchObject({ kind: IMPORT_ST.kind, ownerId: target.id });
 });
 
 // The memory sweep is the one kind whose owning domain refuses a run (memory turned off); the chat suite owns its counts.

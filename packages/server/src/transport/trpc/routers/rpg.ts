@@ -59,7 +59,7 @@ import {
   rpgUpsertQuestInputSchema,
 } from "@orb/contracts/rpg";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { strictInput } from "@orb/kit/zod-schema";
+import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
@@ -70,10 +70,12 @@ export const rpgRouter = t.router({
     .input(rpgCreateGameInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.createGame({ principal: ctx.auth, ...input })),
   updateConfig: authedProcedure
-    .input(strictInput(rpgUpdateConfigInputSchema))
+    .output(z.void())
+    .input(strictTwin(rpgUpdateConfigInputSchema))
     .mutation(({ ctx, input }) => ctx.services.rpg.updateConfig({ principal: ctx.auth, ...input })),
   patchSheet: authedProcedure
-    .input(strictInput(rpgPatchSheetInputSchema))
+    .output(z.void())
+    .input(strictTwin(rpgPatchSheetInputSchema))
     .mutation(({ ctx, input }) => ctx.services.rpg.patchSheet({ principal: ctx.auth, ...input })),
   editSnapshot: authedProcedure
     .output(handDoorResultSchema)
@@ -84,11 +86,11 @@ export const rpgRouter = t.router({
   // chatId-scoped, so the cross-tenant sweep classifies them PROBED.
   patchActor: authedProcedure
     .output(handDoorResultSchema)
-    .input(strictInput(rpgPatchActorInputSchema))
+    .input(strictTwin(rpgPatchActorInputSchema))
     .mutation(({ ctx, input }) => ctx.services.rpg.patchActor({ principal: ctx.auth, ...input })),
   dismissActor: authedProcedure
     .output(handDoorResultSchema)
-    .input(strictInput(rpgDismissActorInputSchema))
+    .input(strictTwin(rpgDismissActorInputSchema))
     .mutation(({ ctx, input }) => ctx.services.rpg.dismissActor({ principal: ctx.auth, ...input })),
   // R4 — the PROMOTION doorway (`dismissActor`'s opposite). Also chatId-scoped and host-gated inside the verb,
   // so the cross-tenant sweep classifies it PROBED like every sibling; note that it is the ONE rpg proc whose
@@ -96,24 +98,30 @@ export const rpgRouter = t.router({
   // the host FIRST and threads that userId into the injected mint.
   promoteActor: authedProcedure
     .output(promoteActorResultSchema)
-    .input(strictInput(rpgPromoteActorInputSchema))
+    .input(strictTwin(rpgPromoteActorInputSchema))
     .mutation(({ ctx, input }) => ctx.services.rpg.promoteActor({ principal: ctx.auth, ...input })),
   upsertQuest: authedProcedure
     .output(rpgQuestSchema.shape.id)
     .input(rpgUpsertQuestInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.upsertQuest({ principal: ctx.auth, ...input })),
   editQuestObjective: authedProcedure
+    .output(z.void())
     .input(rpgEditQuestObjectiveInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.editQuestObjective({ principal: ctx.auth, ...input })),
-  deleteQuest: authedProcedure.input(rpgDeleteQuestInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.deleteQuest({ principal: ctx.auth, ...input })),
+  deleteQuest: authedProcedure
+    .output(z.void())
+    .input(rpgDeleteQuestInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.rpg.deleteQuest({ principal: ctx.auth, ...input })),
   addJournalEntry: authedProcedure
     .output(typeIdSchema(ID_PREFIX.rpgJournal))
     .input(rpgAddJournalEntryInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.addJournalEntry({ principal: ctx.auth, ...input })),
   editJournalEntry: authedProcedure
+    .output(z.void())
     .input(rpgEditJournalEntryInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.editJournalEntry({ principal: ctx.auth, ...input })),
   deleteJournalEntry: authedProcedure
+    .output(z.void())
     .input(rpgDeleteJournalEntryInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.deleteJournalEntry({ principal: ctx.auth, ...input })),
   createCheckpoint: authedProcedure
@@ -121,6 +129,7 @@ export const rpgRouter = t.router({
     .input(rpgCreateCheckpointInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.createCheckpoint({ principal: ctx.auth, ...input })),
   restoreCheckpoint: authedProcedure
+    .output(z.void())
     .input(rpgRestoreCheckpointInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.restoreCheckpoint({ principal: ctx.auth, ...input })),
   rollDice: authedProcedure
@@ -131,6 +140,7 @@ export const rpgRouter = t.router({
   // game that no longer exists (a pre-fix fork / any desync). Chat-scoped (the chatId-only read envelope); a
   // non-member collapses to leak-free NOT_FOUND, a non-host member to FORBIDDEN, a LIVE game to a refusal.
   detachDanglingPointer: authedProcedure
+    .output(z.void())
     .input(rpgReadGameInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.detachDanglingPointer({ principal: ctx.auth, ...input })),
   // §1.3 resyncFromStory — HOST-gated (a stamped-id write + model-call boundary): re-read a deep story window
@@ -148,7 +158,7 @@ export const rpgRouter = t.router({
   // any model call. Actor-scoped; an actor with no card is refused there too.
   populateFromCharacter: authedProcedure
     .output(populateResultSchema)
-    .input(strictInput(rpgPopulateFromCharacterInputSchema))
+    .input(strictTwin(rpgPopulateFromCharacterInputSchema))
     .mutation(({ ctx, input }) => ctx.services.rpg.populateFromCharacter({ principal: ctx.auth, ...input })),
 
   // ── reads (member-gated; getConfigView host-gated — the leak-free NOT_FOUND collapse INSIDE the verb) ──

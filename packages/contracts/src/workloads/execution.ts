@@ -20,9 +20,8 @@ export type WorkloadLane = (typeof WORKLOAD_LANES)[number];
 
 // The honest resumability contract — drives the retry affordance + the reaper's messaging.
 // `idempotent-restart` = a retry re-runs the whole job safely (every contribution today).
-// `none` = retry is destructive/unsafe. `checkpointed` = RESERVED, the dormant-by-design doorway for a
-// future job that persists a cursor (no producer today; named so the shape never needs a retrofit).
-const WORKLOAD_RESUME_POLICIES = ["idempotent-restart", "checkpointed", "none"] as const;
+// `none` = retry is destructive/unsafe.
+const WORKLOAD_RESUME_POLICIES = ["idempotent-restart", "none"] as const;
 export type WorkloadResumePolicy = (typeof WORKLOAD_RESUME_POLICIES)[number];
 
 /**

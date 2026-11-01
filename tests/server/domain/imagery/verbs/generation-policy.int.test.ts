@@ -7,6 +7,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import { resolveImageryCaption, resolveImageryTemplate } from "@orb/contracts/settings";
 import type { Resolved } from "@orb/inference";
+import { ProviderError } from "@orb/inference";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { processMacros } from "@orb/kit/macro";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -206,7 +207,7 @@ test("member previews use the host's live Utility binding, preset and instructio
   await expect(preview()).rejects.toMatchObject({ name: "PromptExtractionFailedError" });
   expect(wire.requests).toHaveLength(5);
   await root.services.connection.update({ principal: room.host, connectionId: room.utility.id, patch: { allowBackground: false } });
-  await expect(preview()).rejects.toThrow();
+  await expect(preview()).rejects.toThrow(ProviderError);
   expect(wire.requests).toHaveLength(5);
 });
 

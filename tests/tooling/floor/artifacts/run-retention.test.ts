@@ -33,5 +33,5 @@ test("no ledger means nothing was pruned here", ({ scratch }) => {
 test("an unreadable ledger is a failure, not an empty history", ({ scratch }) => {
   // A directory at the ledger path: present, but not readable as a file.
   mkdirSync(join(scratch, LEDGER));
-  expect(() => readPrunedRuns(scratch)).toThrow();
+  expect(() => readPrunedRuns(scratch)).toThrow(expect.objectContaining({ code: "EISDIR" }));
 });

@@ -6,7 +6,7 @@
 // the closed popup, so a reopen never shows the previous password.
 
 import { MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
@@ -17,16 +17,10 @@ import { FormDialog, FormSubmitButton } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { useResetPassword } from "../hooks/use-admin-mutations.ts";
-
-export interface AdminResetPasswordDialogProps {
-  readonly userId: UserId;
-  readonly handle: Handle;
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
-}
+import type { AdminUserDialogProps } from "../lib/admin-model.ts";
 
 /** The dialog shell — the body mounts fresh per open (Base UI unmounts closed popups). */
-export function AdminResetPasswordDialog(props: AdminResetPasswordDialogProps): ReactElement {
+export function AdminResetPasswordDialog(props: AdminUserDialogProps): ReactElement {
   return (
     <FormDialog
       description="Sets a new local password and revokes every live session — they'll need to sign in again on all devices."

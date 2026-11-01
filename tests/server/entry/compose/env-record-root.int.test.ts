@@ -47,7 +47,7 @@ describe("EGRESS_FIREWALL through the record", () => {
       return Promise.resolve(new Response("{}", { status: OK }));
     };
     await using guarded = await createServerHarness({ networkExecution: { fetch } });
-    await expect(guarded.app.egress.configuredEndpointFetch(PRIVATE_TARGET)).rejects.toThrow();
+    await expect(guarded.app.egress.configuredEndpointFetch(PRIVATE_TARGET)).rejects.toThrow("private endpoint");
     expect(dialed).toEqual([]);
 
     await using open = await createServerHarness({ networkExecution: { fetch }, env: { ["EGRESS_FIREWALL"]: "false" } });

@@ -131,7 +131,7 @@ test("batch tokens preserve the exact mutable operand, statement identity and at
     batchForOwner(handle).push(statementForOwner(token));
     expect(batch[0]).toBe(statement);
     batch.push(db.insert(users).values(duplicate));
-    await expect(db.batch(batchMany(batchForOwner(handle)))).rejects.toThrow();
+    await expect(db.batch(batchMany(batchForOwner(handle)))).rejects.toMatchObject({ code: "SQLITE_CONSTRAINT" });
     expect(await db.select().from(users)).toEqual([]);
     batch.pop();
     await db.batch(batchMany(batchForOwner(handle)));

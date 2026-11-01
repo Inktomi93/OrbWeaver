@@ -174,5 +174,3 @@ export async function createProviderRegistry(store: ProviderStore): Promise<Prov
     },
   };
 }
-
-export type { ProviderRegistry } from "../contract/registry.ts";

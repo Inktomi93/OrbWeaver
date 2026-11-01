@@ -32,4 +32,9 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Every row: [1698](1698-judge-the-unwired-auth-members-authseamresolution-csrfheaderpresent-identityresolution.md).
+Counts: 6 rows = 6 kept.
+
+- `ROLE_POLICY_ENV_KEYS.DEFAULT_USER_HANDLE`, `.OWNER_HANDLES`, `.OWNER_GROUP`, `.OIDC_ADMIN_GROUPS`, `.OIDC_ALLOWED_GROUPS`, `.RE_DERIVE_ROLE_ON_LOGIN`: kept, 6 rows, judged in [1698](1698-judge-the-unwired-auth-members-authseamresolution-csrfheaderpresent-identityresolution.md). `SessionsRolePolicyConfig` (`packages/server/src/domain/sessions/contract/role-policy.ts:26`) is the config `createSessionsRolePolicy` reads (`packages/server/src/domain/sessions/substrate/role-policy.ts:25`), and the env parse builds each key.
+- The scan needs no teaching: the tuple's members are now constants, which `tupleOf` in `tooling/src/unwired/unions.ts` skips.
+- Survey: codegraph_explore `ROLE_POLICY_ENV_KEYS createSessionsRolePolicy` (`createSessionsRolePolicy` has 13 callers incl. `packages/server/src/entry/lifecycle.ts` and `packages/server/src/entry/compose/services.ts`); rg `ROLE_POLICY_ENV_KEYS|SessionsRolePolicyConfig` over `packages tests tooling`; the whole of `contract/role-policy.ts` was read; ast-grep `ROLE_POLICY_ENV_KEYS` over `packages tests tooling` (5913 `.ts`, 1524 `.tsx`): 2 ts matches (declaration and the `Pick`), 0 tsx.
+- No code change.

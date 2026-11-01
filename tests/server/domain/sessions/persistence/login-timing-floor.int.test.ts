@@ -105,7 +105,7 @@ async function verifiedDuring(
 // A disabled (pepperless) production hasher throws only once its stored hash passes every format check and it
 // starts the KDF; a hash the verifier refuses resolves false without deriving.
 async function expectReachesKdf(stored: string): Promise<void> {
-  await expect(realCreatePasswordHasher(null).verify(PASSWORD, stored)).rejects.toThrow();
+  await expect(realCreatePasswordHasher(null).verify(PASSWORD, stored)).rejects.toThrow("SESSION_SECRET is not configured");
 }
 
 // Positive control: a real local row reaches the same spy with its own stored hash, the live format reference.

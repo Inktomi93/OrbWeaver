@@ -2,7 +2,7 @@ import { CtIsolation } from "@orb/testkit/browser";
 import { Card } from "@orb/ui/card";
 import { Stack } from "@orb/ui/layout";
 import { Spoiler } from "@orb/ui/spoiler";
-import { TONES } from "@orb/ui/tokens";
+import { TOKENS, TONES } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 import type { SeedScopeProps } from "../_seed-scope.tsx";
 import { SeedScope } from "../_seed-scope.tsx";
@@ -10,7 +10,14 @@ import { SeedScope } from "../_seed-scope.tsx";
 /** A layout twin: the same gap on a bare Stack, so the Spoiler's forwarded layout reads against it. */
 function Rows(): ReactElement {
   return (
-    <div style={{ display: "grid", gap: "0.5rem", backgroundColor: "var(--color-background)", color: "var(--color-foreground)" }}>
+    <div
+      style={{
+        display: "grid",
+        gap: "0.5rem",
+        backgroundColor: `var(${TOKENS["color.background"].cssVar})`,
+        color: `var(${TOKENS["color.foreground"].cssVar})`,
+      }}
+    >
       <Stack data-probe="stack" gap="row">
         <span>one</span>
         <span>two</span>

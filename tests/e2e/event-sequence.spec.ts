@@ -4,7 +4,8 @@
 import type { streamAttachInputSchema } from "@orb/contracts/stream";
 import { isPlainObject } from "@orb/kit/guards";
 import type { ChatId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { openChatByTitle, renameOpenChat } from "./support/chat-room.ts";
@@ -12,6 +13,8 @@ import type { StreamTap } from "./support/stream-tap.ts";
 import { chatFrameTypes, tapStream, waitForRoomOpened } from "./support/stream-tap.ts";
 import { WAIT_SHORT_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 import { deleteChat, listCharacters, startChat, trpc } from "./support/trpc.ts";
+
+const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 const POST_METHOD = "POST";
 const POST_REQUEST = `→ ${POST_METHOD}`;
@@ -122,8 +125,8 @@ test.describe("order-of-operations", () => {
     expect(() => expectInOrder([{ phase: "→ GET", procedure: GET_CHAT }, response], [request, response])).toThrow("Sequence not satisfied");
     expect(() => expectInOrder([response, request], [request, response])).toThrow("Sequence not satisfied");
 
-    const roomId = mintTypeId(ID_PREFIX.chat);
-    const otherRoomId = mintTypeId(ID_PREFIX.chat);
+    const roomId = ids.typeId(ID_PREFIX.chat);
+    const otherRoomId = ids.typeId(ID_PREFIX.chat);
     const roomAttach = { phase: POST_REQUEST, procedure: ATTACH, chatId: roomId };
     const batch = [GET_CHAT, LIST_MESSAGES, ATTACH];
     const extract = (ref: ReturnType<typeof streamAttachInputSchema.parse>["ref"]): readonly TimelineEntry[] =>

@@ -29,7 +29,7 @@ export function ToneStory(): ReactElement {
         <Row key={ink} gap="field" data-tone-case={ink}>
           <Text ink={ink}>{ink} text</Text>
           <Icon icon={Circle} ink={ink} label={`${ink} icon`} />
-          <span data-probe={ink} style={{ color: `var(--color-${ink})` }}>
+          <span data-probe={ink} style={{ color: `var(${TOKENS[`color.${ink}`].cssVar})` }}>
             probe
           </span>
         </Row>
@@ -48,7 +48,7 @@ export function TextModifierStory(): ReactElement {
       <Text numeric={true}>1234</Text>
       <Text>plain</Text>
       <Text voice="code">id_01hx</Text>
-      <span data-probe="code" style={{ fontFamily: "var(--font-mono)", color: "var(--color-foreground)" }}>
+      <span data-probe="code" style={{ fontFamily: `var(${TOKENS["font.mono"].cssVar})`, color: `var(${TOKENS["color.foreground"].cssVar})` }}>
         probe
       </span>
     </CtIsolation>
@@ -118,8 +118,8 @@ export function TouchFloorStory(): ReactElement {
           Tool chip
         </CollapsibleTrigger>
       </Collapsible>
-      <span data-probe="touch" style={{ blockSize: "var(--size-touch-target)", display: "block" }} />
-      <span data-probe="block-gap" style={{ inlineSize: "var(--spacing-block)", display: "block" }} />
+      <span data-probe="touch" style={{ blockSize: `var(${TOKENS["size.touch-target"].cssVar})`, display: "block" }} />
+      <span data-probe="block-gap" style={{ inlineSize: `var(${TOKENS["spacing.block"].cssVar})`, display: "block" }} />
     </CtIsolation>
   );
 }
@@ -176,9 +176,9 @@ export function CardShapeStory(): ReactElement {
           row in a tier
         </Card>
       </Surface>
-      <span data-probe="control" style={{ borderRadius: "var(--radius-control)", display: "block" }} />
-      <span data-probe="muted" style={{ backgroundColor: "var(--color-muted)", display: "block" }} />
-      <span data-probe="accent" style={{ backgroundColor: "var(--color-accent)", display: "block" }} />
+      <span data-probe="control" style={{ borderRadius: `var(${TOKENS["radius.control"].cssVar})`, display: "block" }} />
+      <span data-probe="muted" style={{ backgroundColor: `var(${TOKENS["color.muted"].cssVar})`, display: "block" }} />
+      <span data-probe="accent" style={{ backgroundColor: `var(${TOKENS["color.accent"].cssVar})`, display: "block" }} />
       <span data-probe="clear" style={{ backgroundColor: "transparent", display: "block" }} />
     </CtIsolation>
   );
@@ -190,7 +190,7 @@ export function InputStory(): ReactElement {
     <CtIsolation subject="Input width and numeric" isolates="The width steps reach the element, and numeric sets tabular figures">
       <Input aria-label="avatar-md" layout="inline" width="avatar-md" numeric={true} />
       <Input aria-label="full" layout="inline" />
-      <span data-probe="avatar-md" style={{ inlineSize: "var(--size-avatar-md)", display: "block" }} />
+      <span data-probe="avatar-md" style={{ inlineSize: `var(${TOKENS["size.avatar-md"].cssVar})`, display: "block" }} />
     </CtIsolation>
   );
 }
@@ -211,7 +211,7 @@ export function DividerStory(): ReactElement {
           stack
         </Stack>
       ))}
-      <span data-probe="border" style={{ color: "var(--color-border)" }}>
+      <span data-probe="border" style={{ color: `var(${TOKENS["color.border"].cssVar})` }}>
         probe
       </span>
     </CtIsolation>
@@ -238,7 +238,7 @@ export function ButtonToneStory(): ReactElement {
       <span data-probe="destructive" data-tone="destructive" style={{ color: `var(${TOKENS["color.tone-text"].cssVar})` }}>
         d
       </span>
-      <span data-probe="muted" style={{ color: "var(--color-muted-foreground)" }}>
+      <span data-probe="muted" style={{ color: `var(${TOKENS["color.muted-foreground"].cssVar})` }}>
         m
       </span>
     </CtIsolation>
@@ -259,7 +259,7 @@ export function RecededStory(): ReactElement {
       </Stack>
       <ListRow title="Archived chat" receded={true} />
       <Text>plain text</Text>
-      <span data-probe="receded" style={{ opacity: "var(--opacity-receded)" }}>
+      <span data-probe="receded" style={{ opacity: `var(${TOKENS["opacity.receded"].cssVar})` }}>
         probe
       </span>
     </CtIsolation>

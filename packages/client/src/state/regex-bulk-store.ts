@@ -14,16 +14,10 @@
 // Presence in `selectedIds` IS selection.
 
 import type { RegexScriptId } from "@orb/kit/ids";
+import type { BulkSelectionState } from "./bulk-selection-state.ts";
 import { createGatedStore } from "./create-gated-store.ts";
 
-interface RegexBulkState {
-  /** Whether bulk-select mode is active (rows show checkboxes, per-row controls are suppressed). */
-  readonly active: boolean;
-  /** The selected script ids as a presence map (`id → true`) — present ⇒ selected. */
-  readonly selectedIds: Readonly<Record<string, true>>;
-}
-
-const useRegexBulkStore = createGatedStore<RegexBulkState>("regex-bulk", (): RegexBulkState => ({ active: false, selectedIds: {} }));
+const useRegexBulkStore = createGatedStore<BulkSelectionState>("regex-bulk", (): BulkSelectionState => ({ active: false, selectedIds: {} }));
 
 /** Enter or leave bulk-select mode (the config band's toggle). LEAVING always clears — a selection that
  *  survived an invisible mode would act on rows the user can no longer see marked. */

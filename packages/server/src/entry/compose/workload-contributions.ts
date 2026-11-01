@@ -11,7 +11,7 @@
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import { WORKLOAD_KINDS } from "@orb/contracts/workloads";
-import type { AssetsWorkloadDeps } from "#domain/assets";
+import type { AssetsWorkloadAssemblyDeps } from "#domain/assets";
 import { createAssetsWorkloadContributions } from "#domain/assets";
 import type { ChatWorkloadDeps } from "#domain/chat";
 import { createChatWorkloadContributions } from "#domain/chat";
@@ -39,7 +39,7 @@ export interface WorkloadContributionsDeps
     DiscoveryWorkloadDeps,
     StatsWorkloadDeps,
     ConnectionWorkloadDeps,
-    AssetsWorkloadDeps,
+    AssetsWorkloadAssemblyDeps,
     ChatWorkloadDeps,
     DatabankWorkloadDeps {
   readonly importWorkloads: ImportWorkloadDeps;

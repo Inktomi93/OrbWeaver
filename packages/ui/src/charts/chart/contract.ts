@@ -2,8 +2,6 @@ import type { OrbChartOption, OrbEChartsInstance } from "./echarts-setup.ts";
 
 /** The ECharts event fields exposed by the shared chart seal. */
 export interface ChartEvent {
-  readonly seriesIndex?: number;
-  readonly dataIndex?: number;
   readonly data?: unknown;
 }
 

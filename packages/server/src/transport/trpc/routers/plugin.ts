@@ -52,6 +52,7 @@ import {
   pluginUiOutcomeSchema,
 } from "@orb/contracts/plugin";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
 import {
   distributedPluginViewSchema,
@@ -115,12 +116,12 @@ const gitCommitSchema = z.string().regex(/^[0-9a-f]{40}$/u);
 export const pluginRouter = t.router({
   install: authedProcedure
     .input(z.strictObject({ bundleBase64: z.string(), grant: grantSchema }))
-    .output(pluginViewSchema)
+    .output(strictTwin(pluginViewSchema))
     .mutation(({ ctx, input }) => ctx.services.plugin.install({ caller: ctx.auth, bundle: decodeBundle(input.bundleBase64), grant: input.grant })),
 
   upgrade: authedProcedure
     .input(z.strictObject({ pluginId: pluginIdSchema, bundleBase64: z.string() }))
-    .output(pluginViewSchema)
+    .output(strictTwin(pluginViewSchema))
     .mutation(({ ctx, input }) => ctx.services.plugin.upgrade({ caller: ctx.auth, pluginId: input.pluginId, bundle: decodeBundle(input.bundleBase64) })),
 
   // ── URL INSTALL / PREVIEW (U8, seam 15 — the security-review subject). Both are
@@ -135,12 +136,12 @@ export const pluginRouter = t.router({
   //    the CALLER's own row. Neither takes a foreign id, so both remain sweep-EXEMPT.
   previewFromUrl: authedProcedure
     .input(z.strictObject({ url: bundleUrlSchema }))
-    .output(pluginUrlPreviewSchema)
+    .output(strictTwin(pluginUrlPreviewSchema))
     .mutation(({ ctx, input }) => ctx.services.plugin.previewFromUrl({ url: input.url })),
 
   installFromUrl: authedProcedure
     .input(z.strictObject({ url: bundleUrlSchema, expectedBundleHash: pluginBundleHashSchema, grant: grantSchema }))
-    .output(pluginViewSchema)
+    .output(strictTwin(pluginViewSchema))
     .mutation(({ ctx, input }) =>
       ctx.services.plugin.installFromUrl({ caller: ctx.auth, url: input.url, expectedBundleHash: input.expectedBundleHash, grant: input.grant }),
     ),
@@ -148,12 +149,12 @@ export const pluginRouter = t.router({
   // Git preview and install perform guarded server egress, then reuse the same bundle funnel and consent.
   previewFromGit: authedProcedure
     .input(z.strictObject({ url: bundleUrlSchema }))
-    .output(pluginGitPreviewSchema)
+    .output(strictTwin(pluginGitPreviewSchema))
     .mutation(({ ctx, input }) => ctx.services.plugin.previewFromGit({ url: input.url })),
 
   installFromGit: authedProcedure
     .input(z.strictObject({ url: bundleUrlSchema, expectedCommit: gitCommitSchema, grant: grantSchema }))
-    .output(pluginViewSchema)
+    .output(strictTwin(pluginViewSchema))
     .mutation(({ ctx, input }) =>
       ctx.services.plugin.installFromGit({ caller: ctx.auth, url: input.url, expectedCommit: input.expectedCommit, grant: input.grant }),
     ),
@@ -176,14 +177,14 @@ export const pluginRouter = t.router({
 
   upgradeFromStoredUrl: authedProcedure
     .input(z.strictObject({ pluginId: pluginIdSchema, expectedBundleHash: pluginBundleHashSchema }))
-    .output(pluginViewSchema)
+    .output(strictTwin(pluginViewSchema))
     .mutation(({ ctx, input }) =>
       ctx.services.plugin.upgradeFromStoredUrl({ caller: ctx.auth, pluginId: input.pluginId, expectedBundleHash: input.expectedBundleHash }),
     ),
 
   upgradeFromStoredGit: authedProcedure
     .input(z.strictObject({ pluginId: pluginIdSchema, expectedCommit: gitCommitSchema }))
-    .output(pluginViewSchema)
+    .output(strictTwin(pluginViewSchema))
     .mutation(({ ctx, input }) =>
       ctx.services.plugin.upgradeFromStoredGit({ caller: ctx.auth, pluginId: input.pluginId, expectedCommit: input.expectedCommit }),
     ),
@@ -196,7 +197,7 @@ export const pluginRouter = t.router({
   //    of the examples — so a stranger cannot even learn that much about someone else's install.
   upgradeFromShowcase: authedProcedure
     .input(pluginIdInputSchema)
-    .output(pluginViewSchema)
+    .output(strictTwin(pluginViewSchema))
     .mutation(({ ctx, input }) => ctx.services.plugin.upgradeFromShowcase({ caller: ctx.auth, pluginId: input.pluginId })),
 
   // RE-CONSENT. `grant` is the WHOLE new confirmed subset (not a delta) and `acknowledgedNetHosts` is the
@@ -214,7 +215,7 @@ export const pluginRouter = t.router({
         enable: z.boolean(),
       }),
     )
-    .output(pluginViewSchema)
+    .output(strictTwin(pluginViewSchema))
     .mutation(({ ctx, input }) =>
       ctx.services.plugin.setGrant({
         caller: ctx.auth,
@@ -226,14 +227,16 @@ export const pluginRouter = t.router({
     ),
 
   setEnabled: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ pluginId: pluginIdSchema, enabled: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.plugin.setEnabled({ caller: ctx.auth, pluginId: input.pluginId, enabled: input.enabled })),
 
   uninstall: authedProcedure
+    .output(z.void())
     .input(pluginIdInputSchema)
     .mutation(({ ctx, input }) => ctx.services.plugin.uninstall({ caller: ctx.auth, pluginId: input.pluginId })),
 
-  list: authedProcedure.output(z.array(pluginViewSchema).readonly()).query(({ ctx }) => ctx.services.plugin.list({ caller: ctx.auth })),
+  list: authedProcedure.output(strictTwin(z.array(pluginViewSchema).readonly())).query(({ ctx }) => ctx.services.plugin.list({ caller: ctx.auth })),
 
   // ── SERVER-WIDE DISTRIBUTION (D147 clause (d)) — the only `adminProcedure`s on this router, and the
   //    exception that proves the rule above: the per-row verbs stay `authedProcedure` because their question
@@ -278,7 +281,9 @@ export const pluginRouter = t.router({
   //    service gates each on the owner-scoped `getById` load (leak-free NOT_FOUND). `invokeUiAction` is the
   //    guest-action round-trip: the mutation surfaces a throwing handler as a typed refusal (house toast) and a
   //    repeat crash rides the 3-strike auto-disable.
-  listSurfaces: authedProcedure.output(z.array(pluginSurfaceViewSchema).readonly()).query(({ ctx }) => ctx.services.plugin.listSurfaces({ caller: ctx.auth })),
+  listSurfaces: authedProcedure
+    .output(strictTwin(z.array(pluginSurfaceViewSchema).readonly()))
+    .query(({ ctx }) => ctx.services.plugin.listSurfaces({ caller: ctx.auth })),
 
   // #820 seam 11 — the bundle-shipped image map for ONE owned plugin (`ui/assets/<name>` → CAS id), read by
   // the renderer when a spec names a bundle path. It takes a FOREIGN pluginId, so it joins the PROBED sweep
@@ -366,6 +371,7 @@ export const pluginRouter = t.router({
     ),
 
   reportUiCrash: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ pluginId: pluginIdSchema, surfaceId: surfaceIdSchema, reason: z.string().max(CRASH_REASON_MAX) }))
     .mutation(({ ctx, input }) =>
       ctx.services.plugin.reportUiCrash({ caller: ctx.auth, pluginId: input.pluginId, surfaceId: input.surfaceId, reason: input.reason }),
@@ -376,7 +382,9 @@ export const pluginRouter = t.router({
   //    AND a foreign chatId, so it is PROBED by the cross-tenant sweep on BOTH: the service gates the plugin on
   //    the owner-scoped `getById` and the chat through the same leak-free `resolveChatAuthority` the snippet
   //    gate uses (a chat the caller cannot read ⇒ NOT_FOUND, never an existence oracle).
-  listCommands: authedProcedure.output(z.array(pluginCommandViewSchema).readonly()).query(({ ctx }) => ctx.services.plugin.listCommands({ caller: ctx.auth })),
+  listCommands: authedProcedure
+    .output(strictTwin(z.array(pluginCommandViewSchema).readonly()))
+    .query(({ ctx }) => ctx.services.plugin.listCommands({ caller: ctx.auth })),
 
   invokeUiCommand: authedProcedure
     .input(

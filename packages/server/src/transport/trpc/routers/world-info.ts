@@ -4,7 +4,7 @@
 // the verb's own injected chat guard rules — attach/detach are host-gated (room-wide prompt content), list is
 // member-readable (the room's shared pool).
 
-import { portableTextFileSchema } from "@orb/contracts/portability";
+import { importLandingSchema, portableTextFileSchema } from "@orb/contracts/portability";
 import {
   backfillResultSchema,
   bookAttachmentTargetsSchema,
@@ -28,6 +28,7 @@ import {
   worldInfoPersonaInputSchema,
 } from "@orb/contracts/world-info";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { strictTwin } from "@orb/kit/zod-schema";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
@@ -86,7 +87,7 @@ export const worldInfoRouter = t.router({
   // The two single-book DOORS (F2 — the verbs shipped with none, so sharing one lorebook required a full
   // library-zip round-trip). Both are thin arms over the bundle descriptor's own verbs.
   exportBook: authedProcedure
-    .output(portableTextFileSchema)
+    .output(strictTwin(portableTextFileSchema))
     .input(worldBookIdInputSchema)
     .query(async ({ ctx, input }) => {
       const file = await ctx.services.worldInfo.exportBook({ principal: ctx.auth, bookId: input.bookId });
@@ -98,6 +99,7 @@ export const worldInfoRouter = t.router({
 
   // `filename` names a raw SillyTavern world file (the book takes its stem); an orb export carries its own.
   importFile: authedProcedure
+    .output(importLandingSchema)
     .input(z.strictObject({ fileText: z.string().max(MAX_BOOK_FILE_CHARS), filename: z.string().max(MAX_FILENAME_CHARS).optional() }))
     .mutation(async ({ ctx, input }) => {
       const outcome = await ctx.services.worldInfo.importFile({
@@ -114,17 +116,17 @@ export const worldInfoRouter = t.router({
     }),
 
   listEntries: authedProcedure
-    .output(z.array(entryViewSchema))
+    .output(strictTwin(z.array(entryViewSchema)))
     .input(worldBookIdInputSchema)
     .query(({ ctx, input }) => ctx.services.worldInfo.listEntries({ principal: ctx.auth, bookId: input.bookId })),
 
   getEntry: authedProcedure
-    .output(entryViewSchema)
+    .output(strictTwin(entryViewSchema))
     .input(worldEntryIdInputSchema)
     .query(({ ctx, input }) => ctx.services.worldInfo.getEntry({ principal: ctx.auth, entryId: input.entryId })),
 
   createEntry: authedProcedure
-    .output(entryViewSchema)
+    .output(strictTwin(entryViewSchema))
     .input(z.strictObject({ bookId: typeIdSchema(ID_PREFIX.worldBook), input: createEntrySchema }))
     .mutation(({ ctx, input }) =>
       ctx.services.worldInfo.createEntry({
@@ -135,7 +137,7 @@ export const worldInfoRouter = t.router({
     ),
 
   updateEntry: authedProcedure
-    .output(entryViewSchema)
+    .output(strictTwin(entryViewSchema))
     .input(z.strictObject({ entryId: typeIdSchema(ID_PREFIX.worldEntry), input: updateEntrySchema }))
     .mutation(({ ctx, input }) =>
       ctx.services.worldInfo.updateEntry({
@@ -172,6 +174,7 @@ export const worldInfoRouter = t.router({
     ),
 
   attachToCharacter: authedProcedure
+    .output(z.void())
     .input(
       z.strictObject({
         characterId: typeIdSchema(ID_PREFIX.character),
@@ -210,6 +213,7 @@ export const worldInfoRouter = t.router({
     ),
 
   attachGlobal: authedProcedure
+    .output(z.void())
     .input(worldBookIdInputSchema)
     .mutation(({ ctx, input }) => ctx.services.worldInfo.attachGlobal({ principal: ctx.auth, bookId: input.bookId })),
 
@@ -221,6 +225,7 @@ export const worldInfoRouter = t.router({
   listGlobal: authedProcedure.output(z.array(bookAttachmentViewSchema)).query(({ ctx }) => ctx.services.worldInfo.listGlobal({ principal: ctx.auth })),
 
   attachToPersona: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ personaId: typeIdSchema(ID_PREFIX.persona), bookId: typeIdSchema(ID_PREFIX.worldBook) }))
     .mutation(({ ctx, input }) =>
       ctx.services.worldInfo.attachToPersona({
@@ -247,6 +252,7 @@ export const worldInfoRouter = t.router({
     .query(({ ctx, input }) => ctx.services.worldInfo.listForPersona({ principal: ctx.auth, personaId: input.personaId })),
 
   attachToChat: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat), bookId: typeIdSchema(ID_PREFIX.worldBook) }))
     .mutation(({ ctx, input }) =>
       ctx.services.worldInfo.attachToChat({

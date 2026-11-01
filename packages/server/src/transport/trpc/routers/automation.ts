@@ -50,6 +50,7 @@ export const automationRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.automation.updateRule({ ...input, principal: ctx.auth })),
 
   reorderRules: authedProcedure
+    .output(z.void())
     .input(automationRuleReorderSchema)
     .mutation(({ ctx, input }) => ctx.services.automation.reorderRules({ ...input, principal: ctx.auth })),
 
@@ -64,6 +65,7 @@ export const automationRouter = t.router({
     .query(({ ctx, input }) => ctx.services.automation.listRules({ principal: ctx.auth, chatId: input.chatId })),
 
   setRuleEnabled: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ ruleId: typeIdSchema(ID_PREFIX.automationRule), enabled: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.automation.setRuleEnabled({ principal: ctx.auth, ruleId: input.ruleId, enabled: input.enabled })),
 
@@ -71,12 +73,14 @@ export const automationRouter = t.router({
   // the "run it now?" invitation. Its OWN procedure preserves the rule's mint provenance when the preference
   // flips. Same rule-scoped host gate as `setRuleEnabled`, which is the procedure this one is shaped on.
   setRuleSuggestOnRefusal: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ ruleId: typeIdSchema(ID_PREFIX.automationRule), suggestOnRefusal: z.boolean() }))
     .mutation(({ ctx, input }) =>
       ctx.services.automation.setRuleSuggestOnRefusal({ principal: ctx.auth, ruleId: input.ruleId, suggestOnRefusal: input.suggestOnRefusal }),
     ),
 
   deleteRule: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ ruleId: typeIdSchema(ID_PREFIX.automationRule) }))
     .mutation(({ ctx, input }) => ctx.services.automation.deleteRule({ principal: ctx.auth, ruleId: input.ruleId })),
 
@@ -136,6 +140,7 @@ export const automationRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.automation.confirmSuggestion({ principal: ctx.auth, suggestionId: input.suggestionId })),
 
   dismissSuggestion: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ suggestionId: typeIdSchema(ID_PREFIX.automationSuggestion) }))
     .mutation(({ ctx, input }) => ctx.services.automation.dismissSuggestion({ principal: ctx.auth, suggestionId: input.suggestionId })),
 
@@ -179,6 +184,7 @@ export const automationRouter = t.router({
 
   // The owner-wide fire-rate cap (#1430) mirrors the domain verb's authoritative ceiling at the wire edge.
   setOwnerBudgets: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ maxFiresPerHour: z.int().min(0).max(AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR).optional() }))
     .mutation(({ ctx, input }) =>
       ctx.services.automation.setOwnerBudgets({

@@ -72,7 +72,7 @@ test("a rejected timer clear cannot strand supervised physical fetch cancellatio
   }
   expect(timers.pending()).toBe(0);
   expect(() => timers.timeout(() => undefined, 1)).toThrow("disposed timer scheduler");
-  await expect(harness.db.all(sql`select 1`)).rejects.toThrow();
+  await expect(harness.db.all(sql`select 1`)).rejects.toMatchObject({ cause: { code: "CLIENT_CLOSED" } });
   await expect(access(harness.modelCacheDir)).rejects.toMatchObject({ code: "ENOENT" });
 });
 

@@ -5,6 +5,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { ProseActionGroupsStory } from "./_prose-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_prose-action-groups-stories/ProseActionGroupsStory";
@@ -51,7 +52,7 @@ for (const regime of REGIMES) {
         expect(
           (await actionGroupGeometry(page.getByRole("group", { name: "Prose action host", exact: true }), [useNew, keep])).inlineOverflow,
         ).toBeLessThanOrEqual(1);
-        const floor = await resolvedLength(page, "var(--size-control-sm)", group);
+        const floor = await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`, group);
         for (const box of geometry.controls) {
           expect(box.height).toBeGreaterThanOrEqual(floor);
         }

@@ -226,9 +226,7 @@ export interface ChatMessageHandlingForm {
 
 /** The section's WRITE shape, DERIVED from the `OWNS` tuple: exactly the owned keys, with `autoSwipe`
  *  narrowed to the leaves the form edits (`maxRetries` has no editor and the deep-merge preserves it). Kept
- *  a local ALIAS (not exported, not an interface): `no-inline-types` reserves exported type aliases for the
- *  type homes, and an interface would lose the implicit index signature the tRPC input's
- *  `Record<string, unknown>` needs. Consumers derive it as `ReturnType<typeof toMessageHandlingPatch>`. */
+ *  a local ALIAS (not exported): `no-inline-types` reserves exported type aliases for the type homes. */
 type ChatMessageHandlingPatch = Omit<Pick<ChatSettings, (typeof CHAT_MESSAGE_HANDLING_KEYS)[number]>, "autoSwipe"> & {
   readonly autoSwipe: Omit<ChatSettings["autoSwipe"], "maxRetries">;
 };

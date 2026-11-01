@@ -2,6 +2,7 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { automationFires, automationRuleState } from "@orb/db";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { eq } from "drizzle-orm";
 import { seedCorpusConnections } from "../corpus-actors.ts";
@@ -68,8 +69,8 @@ test("foreign rule captures refuse before provenance or arm effects", async () =
   });
   await root.services.automation.setRuleEnabled({ principal, ruleId: rule.id, enabled: true });
   const foreignParams = { principal: await root.principalFor(root.ownerId), ruleId: rule.id };
-  await expect(seedAutomationTestFiresRows(root, foreignParams)).rejects.toThrow();
-  await expect(seedAutomationRunRows(root, foreignParams)).rejects.toThrow();
+  await expect(seedAutomationTestFiresRows(root, foreignParams)).rejects.toThrow(DomainNotFoundError);
+  await expect(seedAutomationRunRows(root, foreignParams)).rejects.toThrow(DomainNotFoundError);
   expect(await root.db.select().from(automationFires).where(eq(automationFires.ruleId, rule.id))).toEqual([]);
   expect(await root.services.automation.getGlobalVariable({ principal, key: "privateCounter" })).toBeNull();
 });

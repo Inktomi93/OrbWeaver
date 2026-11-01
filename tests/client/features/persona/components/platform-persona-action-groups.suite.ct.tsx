@@ -6,6 +6,7 @@ import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import type { PersonaActionGroupsStory } from "./_persona-action-groups-stories.tsx";
 
@@ -58,7 +59,7 @@ for (const regime of REGIMES) {
       const rowName = page.getByText(name, { exact: true });
       await expect(rowName).toBeVisible();
       const nameColumn = rowName.locator("..");
-      const titleFloor = await resolvedLength(page, "var(--width-title-floor)", nameColumn);
+      const titleFloor = await resolvedLength(page, `var(${TOKENS["width.title-floor"].cssVar})`, nameColumn);
       const nameBox = await nameColumn.boundingBox();
       if (nameBox === null) {
         throw new Error("The persona identity must retain its visible title column");
@@ -84,7 +85,7 @@ for (const regime of REGIMES) {
       expect(
         (await actionGroupGeometry(page.getByRole("group", { name: "Persona action host", exact: true }), [duplicate, exportButton, remove])).inlineOverflow,
       ).toBeLessThanOrEqual(1);
-      const floor = await resolvedLength(page, "var(--size-control-sm)", footer);
+      const floor = await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`, footer);
       for (const box of geometry.controls) {
         expect(box.height).toBeGreaterThanOrEqual(floor);
       }

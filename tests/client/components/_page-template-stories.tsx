@@ -7,6 +7,7 @@ import { Input } from "@orb/ui/input";
 import { Container, Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
+import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
 import type { TemplateSeed } from "./page-template-cases.ts";
@@ -32,8 +33,8 @@ function Cell({
       data-density={density}
       data-theme={theme}
       style={{
-        backgroundColor: "var(--color-background)",
-        color: "var(--color-foreground)",
+        backgroundColor: `var(${TOKENS["color.background"].cssVar})`,
+        color: `var(${TOKENS["color.foreground"].cssVar})`,
         inlineSize: "18rem",
         blockSize: "20rem",
         display: "flex",
@@ -79,7 +80,7 @@ function Matrix({ width, children }: { readonly width: string; readonly children
           data-density={density}
           data-theme={theme}
           key={caseId}
-          style={{ backgroundColor: "var(--color-background)", inlineSize: width }}
+          style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, inlineSize: width }}
         >
           {children}
         </div>

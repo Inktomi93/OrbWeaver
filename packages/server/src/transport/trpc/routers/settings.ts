@@ -4,6 +4,7 @@
 // validate → `ctx.services.settings.<verb>` → map errors. Schemas derive from `@orb/contracts/settings` +
 // `@orb/kit/json`.
 
+import { importLandingSchema } from "@orb/contracts/portability";
 import {
   appSettingsSchema,
   appSettingsViewSchema,
@@ -18,7 +19,7 @@ import { createThemeInputSchema, promoteThemeInputSchema, updateThemeInputSchema
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
 import { updateCheckSchema, versionIdentitySchema } from "@orb/kit/version-identity";
-import { strictInput } from "@orb/kit/zod-schema";
+import { strictTwin } from "@orb/kit/zod-schema";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { adminProcedure, authedProcedure, t } from "../trpc.ts";
@@ -86,7 +87,7 @@ export const settingsRouter = t.router({
 
   updateAppSettings: adminProcedure
     .output(effectiveAppConfigSchema)
-    .input(strictInput(z.strictObject({ partial: appSettingsSchema })))
+    .input(strictTwin(z.strictObject({ partial: appSettingsSchema })))
     .mutation(({ ctx, input }) => ctx.services.settings.updateAppSettings({ principal: ctx.auth, partial: input.partial })),
 
   // Raw global-KV — admin-gated at the router (the verbs take the bare key/value, no principal).
@@ -104,27 +105,27 @@ export const settingsRouter = t.router({
 
   // Themes library — owner-scoped by `principal.userId`; reads resolve owned ∪
   // seeds, writes go through `fetchOwned` (seeds are un-mutable by construction).
-  listThemes: authedProcedure.output(z.array(themeViewSchema)).query(({ ctx }) => ctx.services.settings.listThemes({ principal: ctx.auth })),
+  listThemes: authedProcedure.output(strictTwin(z.array(themeViewSchema))).query(({ ctx }) => ctx.services.settings.listThemes({ principal: ctx.auth })),
 
   getTheme: authedProcedure
-    .output(themeViewSchema)
+    .output(strictTwin(themeViewSchema))
     .input(z.strictObject({ id: typeIdSchema(ID_PREFIX.theme) }))
     .query(({ ctx, input }) => ctx.services.settings.getTheme({ principal: ctx.auth, id: input.id })),
 
   createTheme: authedProcedure
-    .output(themeViewSchema)
-    .input(strictInput(createThemeInputSchema))
+    .output(strictTwin(themeViewSchema))
+    .input(strictTwin(createThemeInputSchema))
     .mutation(({ ctx, input }) => ctx.services.settings.createTheme({ principal: ctx.auth, input })),
 
   // TD door 1 — promote a character card's look into the library. Owner-scoped (`principal.userId`); the
   // input is VALUES only (no foreign id to reach through), so there is no cross-tenant surface here.
   promoteTheme: authedProcedure
-    .output(themeViewSchema)
-    .input(strictInput(promoteThemeInputSchema))
+    .output(strictTwin(themeViewSchema))
+    .input(strictTwin(promoteThemeInputSchema))
     .mutation(({ ctx, input }) => ctx.services.settings.promoteTheme({ principal: ctx.auth, input })),
 
   duplicateTheme: authedProcedure
-    .output(themeViewSchema)
+    .output(strictTwin(themeViewSchema))
     .input(z.strictObject({ id: typeIdSchema(ID_PREFIX.theme), name: z.string().trim().min(1).optional() }))
     .mutation(({ ctx, input }) =>
       ctx.services.settings.duplicateTheme({
@@ -135,11 +136,12 @@ export const settingsRouter = t.router({
     ),
 
   updateTheme: authedProcedure
-    .output(themeViewSchema)
-    .input(strictInput(z.strictObject({ id: typeIdSchema(ID_PREFIX.theme), input: updateThemeInputSchema })))
+    .output(strictTwin(themeViewSchema))
+    .input(strictTwin(z.strictObject({ id: typeIdSchema(ID_PREFIX.theme), input: updateThemeInputSchema })))
     .mutation(({ ctx, input }) => ctx.services.settings.updateTheme({ principal: ctx.auth, id: input.id, input: input.input })),
 
   removeTheme: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ id: typeIdSchema(ID_PREFIX.theme) }))
     .mutation(({ ctx, input }) => ctx.services.settings.removeTheme({ principal: ctx.auth, id: input.id })),
 
@@ -147,6 +149,7 @@ export const settingsRouter = t.router({
   // same op the bundle restore calls. `filename` names an ST theme that carries no name of its own. The
   // refusal reason reaches the user as words.
   importThemeFile: authedProcedure
+    .output(importLandingSchema)
     .input(z.strictObject({ fileText: z.string().max(MAX_THEME_FILE_CHARS), filename: z.string().max(MAX_FILENAME_CHARS).optional() }))
     .mutation(async ({ ctx, input }) => {
       const outcome = await ctx.services.settings.importThemeFile({

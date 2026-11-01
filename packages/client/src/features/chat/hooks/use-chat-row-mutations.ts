@@ -12,14 +12,11 @@
 // FILTER-flavored optimistic mode on the factory (`setQueriesData` over a pathFilter, snapshotting each
 // matched key for rollback); that is a change to the shared `data/` machine, not to this row.
 
-import type { ChatId } from "@orb/kit/ids";
-import type { EntityMutateAsync } from "#data";
+import type { inferInput } from "@trpc/tanstack-react-query";
+import type { EntityMutateAsync, Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 
-interface UpdateTitleVars {
-  readonly chatId: ChatId;
-  readonly title: string | null;
-}
+type UpdateTitleVars = inferInput<Trpc["chat"]["updateTitle"]>;
 
 export const useUpdateChatTitle = createEntityMutation<UpdateTitleVars, unknown>({
   options: (trpc) => trpc.chat.updateTitle.mutationOptions(),
@@ -27,10 +24,7 @@ export const useUpdateChatTitle = createEntityMutation<UpdateTitleVars, unknown>
   errorToast: "Couldn't rename the chat.",
 });
 
-interface StarChatVars {
-  readonly chatId: ChatId;
-  readonly starred: boolean;
-}
+type StarChatVars = inferInput<Trpc["chat"]["star"]>;
 
 const useStarChat = createEntityMutation<StarChatVars, unknown>({
   options: (trpc) => trpc.chat.star.mutationOptions(),
@@ -38,10 +32,7 @@ const useStarChat = createEntityMutation<StarChatVars, unknown>({
   errorToast: "Couldn't update the star.",
 });
 
-interface ArchiveChatVars {
-  readonly chatId: ChatId;
-  readonly archived: boolean;
-}
+type ArchiveChatVars = inferInput<Trpc["chat"]["archive"]>;
 
 const useArchiveChat = createEntityMutation<ArchiveChatVars, unknown>({
   options: (trpc) => trpc.chat.archive.mutationOptions(),
@@ -49,9 +40,7 @@ const useArchiveChat = createEntityMutation<ArchiveChatVars, unknown>({
   errorToast: "Couldn't archive the chat.",
 });
 
-interface DeleteChatVars {
-  readonly chatId: ChatId;
-}
+type DeleteChatVars = inferInput<Trpc["chat"]["delete"]>;
 
 export const useDeleteChat = createEntityMutation<DeleteChatVars, unknown>({
   options: (trpc) => trpc.chat.delete.mutationOptions(),

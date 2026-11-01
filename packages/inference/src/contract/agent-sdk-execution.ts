@@ -1,8 +1,6 @@
 import type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn } from "./agent-sdk-native.ts";
 import type { InferenceLog, SpawnIdentity } from "./runtime.ts";
 
-export type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn } from "./agent-sdk-native.ts";
-
 export interface AgentSdkQueryLease extends AsyncDisposable {
   readonly signal: AbortSignal;
   readonly query: ReturnType<AgentSdkQuery>;

@@ -13,7 +13,6 @@ export interface SelectOpeningRequest {
 export interface SelectOpeningObservation {
   readonly phase: (typeof SELECT_OPENING_PHASES)[number];
   readonly request: SelectOpeningRequest;
-  readonly event: Event;
 }
 
 type OpeningSubscriber = (observation: SelectOpeningObservation) => void;
@@ -28,9 +27,9 @@ export function subscribeSelectOpening(subscriber: OpeningSubscriber): () => voi
   };
 }
 
-function publish(phase: SelectOpeningObservation["phase"], request: SelectOpeningRequest, event: Event = request.event): void {
+function publish(phase: SelectOpeningObservation["phase"], request: SelectOpeningRequest): void {
   for (const subscriber of subscribers) {
-    subscriber({ phase, request, event });
+    subscriber({ phase, request });
   }
 }
 
@@ -125,7 +124,7 @@ export function createSelectOpeningObserver(bornUncontrolled: boolean): SelectOp
         }
       }
       accepted = request;
-      publish("accepted", request, event);
+      publish("accepted", request);
     },
     clear,
   };

@@ -3,6 +3,7 @@
 
 import { backgroundMaterializeMessage } from "@orb/contracts/theme";
 import { assets } from "@orb/db";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { createSeededIds, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
@@ -53,7 +54,7 @@ test("public downloads sniff real bytes and store for the caller; a configured p
   expect(await root.services.assets.listOwned({ principal: owner, limit: 10 })).toMatchObject([
     { assetId: background.assetId, kind: "background", mime: MIME },
   ]);
-  await expect(root.services.assets.readOwnedAssetBytes(await root.principalFor(root.ownerId), background.assetId)).rejects.toThrow();
+  await expect(root.services.assets.readOwnedAssetBytes(await root.principalFor(root.ownerId), background.assetId)).rejects.toThrow(DomainNotFoundError);
   const before = await root.db.select().from(assets).orderBy(assets.id);
   await expect(root.services.settings.addExternalBackground({ principal: owner, url: PRIVATE_URL })).rejects.toMatchObject({
     code: CHAT_OP_CODES.backgroundUnavailable,

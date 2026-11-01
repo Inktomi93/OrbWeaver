@@ -29,4 +29,10 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 3 rows = 3 kept.
+
+- `CARRIED_TONE_HOSTS.user-bubble`, `.ai-bubble`, `.system-bubble`: kept, 3 rows. Each is a key of the record production builds by iterating the tuple: `packages/ui/tokens.tones.ts:328` (`Object.fromEntries(CARRIED_TONE_HOSTS.map(...))`), `packages/ui/tokens.tones.ts:78` (host lookup) and `packages/ui/token-contract.ts:647,659` (the carried-host set). `TONE_HOSTS` (`packages/kit/src/theme-derivation/index.ts:1075`) names the same three through `satisfies readonly CarriedToneHost[]`.
+- Handed off: the row asks to teach the unions scan record-key members. That is a change to `tooling/src/unwired/`, outside this lane.
+- `TONE_HOSTS` is also iterated in production: `solveCarriedToneRoles` maps it at `packages/kit/src/theme-derivation/index.ts:1969,1976`, so each bubble host is judged over every floor.
+- Survey: codegraph_explore `CARRIED_TONE_HOSTS TONE_HOSTS` (callers: `packages/ui/token-contract.ts`, `packages/ui/tokens.tones.ts`); ast-grep string-literal scan over `packages tests tooling` (5913 `.ts`, 1524 `.tsx`): `"user-bubble"`, `"ai-bubble"`, `"system-bubble"` 6 ts + 1 tsx each; rg `CARRIED_TONE_HOSTS|CarriedToneHost`.
+- No code change.

@@ -32,8 +32,9 @@ import { RegexScriptForm } from "../hooks/use-regex-script-form.ts";
 import { withDerivedTierFlags } from "../lib/derive-tier-flags.ts";
 
 /** Strip a row down to the authored fields the editor binds (id is identity, not content). */
+// The form saves through the strict update input, so the row's own identity and edit stamp stay behind.
 function toFormValues(row: RegexScriptRow): CreateRegexScriptInput {
-  const { id: _id, ...authored } = row;
+  const { id: _id, updatedAt: _updatedAt, ...authored } = row;
   return authored;
 }
 

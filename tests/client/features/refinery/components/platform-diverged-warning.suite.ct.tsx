@@ -6,6 +6,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { RefineryActionGroupsStory } from "./_action-groups-stories.tsx";
 
 const STORY = "tests/client/features/refinery/components/_action-groups-stories/RefineryActionGroupsStory";
@@ -102,8 +103,8 @@ for (const regime of REGIMES) {
       await expect(chip).toBeVisible();
       await expect(chip).toHaveText(DIVERGENCE_LABEL);
       await warning.scrollIntoViewIfNeeded();
-      const floor = await resolvedLength(page, "var(--width-field-floor)", warning);
-      const measure = await resolvedLength(page, "var(--reading-measure-prose)", warning);
+      const floor = await resolvedLength(page, `var(${TOKENS["width.field-floor"].cssVar})`, warning);
+      const measure = await resolvedLength(page, `var(${TOKENS["reading.measure-prose"].cssVar})`, warning);
       const boxes = await warning.evaluate((node) => {
         const parent = node.parentElement;
         if (parent === null) {

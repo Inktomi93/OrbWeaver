@@ -12,12 +12,12 @@
 
 import type { ImportWindow } from "@orb/contracts/chat";
 import { mergeImportWindows } from "@orb/contracts/chat";
+import type { ChatImportResult } from "@orb/contracts/import";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog, ImportedChatsMemoryOffer } from "#components";
-import type { ChatImportResult } from "#data";
 import { importChats, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 

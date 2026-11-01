@@ -39,3 +39,6 @@ export const trackedEventIdShape = {
   // eslint-disable-next-line orb/no-raw-id -- Opaque SSE resume token the tRPC client mints from the last tracked frame id; it names no entity.
   lastEventId: z.string().optional(),
 };
+
+/** The acknowledgement a procedure returns when the write itself is the whole answer. */
+export const okResultSchema = z.strictObject({ ok: z.literal(true) });

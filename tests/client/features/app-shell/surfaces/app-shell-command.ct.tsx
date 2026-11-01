@@ -4,6 +4,7 @@ import { dispatchCommandKey } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeTrpc, SECTION_LABELS, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { AppShellModalStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { JUMP_CHIP, PHONE, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -202,14 +203,14 @@ test("filtering keeps the dialog, its search and its result viewport where they 
   const results = palette.getByRole("listbox");
   await expect(search).toBeFocused();
   // The compact result viewport is the `--height-scroll-sm` step the palette declares, resolved by the page's own sheet.
-  const compactPx = await page.evaluate(() => {
+  const compactPx = await page.evaluate((heightScrollSm) => {
     const probe = document.createElement("div");
-    probe.style.blockSize = "var(--height-scroll-sm)";
+    probe.style.blockSize = `var(${heightScrollSm})`;
     document.body.append(probe);
     const height = probe.getBoundingClientRect().height;
     probe.remove();
     return height;
-  });
+  }, TOKENS["height.scroll-sm"].cssVar);
   const before = { dialog: await palette.boundingBox(), search: await search.boundingBox(), results: await results.boundingBox() };
   expect(before.results?.height).toBeCloseTo(compactPx, 0);
 

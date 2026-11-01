@@ -31,6 +31,9 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 5 rows = 4 deleted, 1 kept.
 
-The `HOST_SECRET_ENV_KEYS` rows: [1698](1698-judge-the-unwired-auth-members-authseamresolution-csrfheaderpresent-identityresolution.md).
+- `HOST_SECRET_ENV_KEYS.OPENROUTER_API_KEY`, `.OIDC_CLIENT_SECRET`, `.DEBUG_TOKEN`, `.LOCAL_INITIAL_PASSWORD`: deleted, 4 rows, judged in [1698](1698-judge-the-unwired-auth-members-authseamresolution-csrfheaderpresent-identityresolution.md).
+- `NESTED_GENERATION_KEYS.turns`: kept. `mergeGeneration` matches each key of a capability patch against the tuple (`packages/inference/src/capability/synthesize.ts:44`), and `turns` arrives in patches from curated rows (`packages/inference/src/capability/sources/curated/openai.ts:20` carries `promptCacheFormat` in `turns`), advertised, measured and declared evidence. Deleting it would stop `turns` merging one level deep and erase sibling cells.
+- Survey: codegraph_explore `HOST_SECRET_ENV_KEYS NESTED_GENERATION_KEYS` (one caller each, both in their own file); ast-grep string-literal scan over `packages tests tooling` (5913 `.ts`, 1524 `.tsx`): `"DEBUG_TOKEN"` 12, `"LOCAL_INITIAL_PASSWORD"` 6, `"OIDC_CLIENT_SECRET"` 4, `"OPENROUTER_API_KEY"` 3, `"turns"` 5 ts, 0 tsx.
+- `NESTED_GENERATION_KEYS.turns` needed no code change.

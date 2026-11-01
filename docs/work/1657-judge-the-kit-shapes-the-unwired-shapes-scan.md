@@ -48,4 +48,21 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+22 rows: applied 2, kept 20, handed off 0, owner question 0. Scan: ast-grep inline rule (identifier, type_identifier, property_identifier), `-l ts` and `-l tsx`, `packages tests` (5200 ts and 1450 tsx files) plus the per-statement import scanner over 7437 files; `HighlightedTextRange` had 6 hits, all in its own file, so no importer needed a rename.
+
+Applied (2): both are half-open character ranges, the concept kit's `Span` names ("an absolute half-open span into the original input text").
+- `Span` / `HighlightedTextRange`: `HighlightedTextRange` is deleted; `ui/src/primitives/highlighted-text/highlighted-text.tsx` types its `ranges` as `Span` from `@orb/kit/chunk`.
+- `Span` / `Range`: the private `Range` in `ui/src/markdown/dialogue.ts` (char offsets into a part's text) is replaced by `Span`.
+- `kit/src/chunk/index.ts` now exports the type `Span` (its placeholder `export {} from "./split.ts"` is replaced); `Span` has two real consumers now.
+
+Kept (20):
+- `ChunkParams` / `ChunkParamsWire`: deliberate. `contracts/src/databank/index.ts` pins the zod wire twin to the kit shape with a compile-time mutual-assignability check; kit stays zod-free. The pair is the kit-versus-wire seam, not a stray copy.
+- Byte, box and pixel ranges stay other concepts, as the item states: `Span` / `BoxSpan` (box payload bytes in `kit/src/image-sniff`), `Span` / `PinnedSpan` (message-list pin spacer, pixels), `Span` / `HiddenRun`, and every `HiddenRun`, `BoxSpan` and `PinnedSpan` pairing with the others (rows 6 to 14). `HiddenRun`'s own doc calls it a byte range of the registered hidden tag, scanned fence-blind. After the two merges above, the `Range` and `HighlightedTextRange` rows of these pairings read as `Span` and stay for the same reason.
+- `RowPersonaName` / `JoinerPersona`: a macro-render stamp (name and description for `{{persona}}`) versus the room joiner's persona wire; kit may not import contracts and the two change for different reasons.
+- `RowPersonaName` / `BookDetailsPatch`: coincidence, as the item states.
+- `TextNode` / `HastText`: the macro AST's text node and the markdown plugin's structural hast text node; `ui` carries no kit macro dependency for a hast walker.
+- `GlobalVarWrite` / `PluginBoundKeyValueRow`: a macro global write op and a plugin UI row (the plugin side is under `packages/contracts/src/plugin/`, which stays).
+- `UserMacroInputOption` / `PluginSelectOption`, `ConfigSettingOption`, `ParamToggleOption`, `ToggleItem` (4 rows): a bare `{ label, value }` pair is not a concept; each types its own control (user-macro inputs, plugin select, config leaf, toggles).
+
+Commands: `pnpm typecheck packages/kit/tsconfig.json packages/ui/tsconfig.json packages/client/tsconfig.json tsconfig.tests-dom.json` exit 0; `pnpm lint:eslint` on the touched paths exit 0; `pnpm depcruise` exit 0. No suite covers `dialogue.ts` or the highlighted-text types beyond the typecheck.
+- The distinct ledger `tooling/src/unwired/distinct-lookalikes.ts` drops the `HighlightedTextRange` pair and records `PinnedSpan` against `Span` and `HiddenRun`; `pnpm test:tools tests/tooling/unwired` exit 0.
