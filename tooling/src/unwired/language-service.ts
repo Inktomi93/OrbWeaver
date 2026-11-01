@@ -1,6 +1,7 @@
 // Engine two: TypeScript 7.1 find-references, batched, one world at a time, asked only about what engine one reports.
 // A second algorithm over the same compiler, so one index's resolution gap cannot report a wired symbol. The
 // TypeScript 6 language service answers instead under `crossCheck`, and serves the scans' checker walks.
+import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import ts from "typescript";
 import type { Site } from "./classify.ts";
@@ -121,14 +122,76 @@ export class ServiceWorld {
   }
 }
 
-// TypeScript 7.1 find-references for the sites a world holds, in one batched pass; returns how many it asked.
-function nativeReferences(root: string, config: string, sites: readonly Site[], merge: (site: Site, references: readonly Site[]) => void): number {
+// TypeScript 7.1 find-references for each site in one batched pass.
+function nativeReferences(root: string, config: string, sites: readonly Site[], merge: (site: Site, references: readonly Site[]) => void): void {
   using world = NativeWorld.open(root, config);
-  const held = sites.filter((site) => world.has(site.file));
-  for (const [at, found] of world.referencesAt(held).entries()) {
-    merge(held[at] as Site, found);
+  for (const [at, found] of world.referencesAt(sites).entries()) {
+    merge(sites[at] as Site, found);
   }
-  return held.length;
+}
+
+const WORD = /[\p{ID_Start}$_][\p{ID_Continue}$]*/gu;
+const NAME_AT = /[\p{ID_Start}$_][\p{ID_Continue}$]*/uy;
+
+// Which files spell each identifier. A reference spells its name, the same filter find-references itself starts from,
+// so a world need only be asked about a site when it adds a file that spells the name. Text alone: no engine one input.
+function filesSpelling(root: string, files: Iterable<string>): ReadonlyMap<string, readonly string[]> {
+  const spelled = new Map<string, string[]>();
+  for (const file of files) {
+    for (const word of new Set(readFileSync(join(root, file), "utf8").match(WORD))) {
+      const held = spelled.get(word);
+      if (held === undefined) {
+        spelled.set(word, [file]);
+      } else {
+        held.push(file);
+      }
+    }
+  }
+  return spelled;
+}
+
+function nameAt(root: string, { file, position }: Site): string | null {
+  const scan = new RegExp(NAME_AT);
+  scan.lastIndex = position;
+  return scan.exec(readFileSync(join(root, file), "utf8"))?.[0] ?? null;
+}
+
+// The holders of a site that together hold every file spelling its name, largest gain first. A find-references answer
+// is the same in every world that holds the referencing file, so one holder of each file is enough. A site with no
+// plain name, a quoted key, goes to every holder.
+function worldsFor(holders: readonly string[], lists: ReadonlyMap<string, ReadonlySet<string>>, spelling: readonly string[] | null): readonly string[] {
+  if (spelling === null) {
+    return holders;
+  }
+  const chosen: string[] = [];
+  let left = spelling.filter((file) => holders.some((world) => lists.get(world)?.has(file) === true));
+  while (left.length > 0) {
+    const best = widest(holders, lists, left);
+    chosen.push(best);
+    left = left.filter((file) => lists.get(best)?.has(file) !== true);
+  }
+  return chosen;
+}
+
+function widest(holders: readonly string[], lists: ReadonlyMap<string, ReadonlySet<string>>, files: readonly string[]): string {
+  const gain = (world: string): number => files.filter((file) => lists.get(world)?.has(file) === true).length;
+  return holders.reduce((a, b) => (gain(b) > gain(a) ? b : a));
+}
+
+// Each world's sites: every site once, in the fewest worlds that still reach all its references.
+function nativeAssignment(root: string, worlds: readonly string[], sites: readonly Site[]): ReadonlyMap<string, readonly Site[]> {
+  const lists = NativeWorld.fileLists(root, worlds);
+  const spelled = filesSpelling(root, new Set([...lists.values()].flatMap((files) => [...files])));
+  const assigned = new Map<string, Site[]>(worlds.map((world) => [world, []]));
+  const bySize = worlds.toSorted((a, b) => (lists.get(b)?.size ?? 0) - (lists.get(a)?.size ?? 0));
+  for (const site of new Map(sites.map((one) => [siteKey(one), one])).values()) {
+    const holders = bySize.filter((world) => lists.get(world)?.has(site.file) === true);
+    const name = nameAt(root, site);
+    for (const world of worldsFor(holders, lists, name === null ? null : (spelled.get(name) ?? []))) {
+      assigned.get(world)?.push(site);
+    }
+  }
+  return assigned;
 }
 
 // A site's own name and library files are not uses of it.
@@ -140,10 +203,11 @@ function keepReferences(into: Map<string, Site> | undefined, site: Site, referen
   }
 }
 
-/** Ask every world for the references of each site and merge them, so a site counts once however many worlds hold
- *  it. Worlds load one at a time; a site whose file a world lacks is not asked there. TypeScript 7.1 answers in
- *  batches; `crossCheck` asks the TypeScript 6 language service one site at a time instead, an audit of the 7.1
- *  answers. `visit` reads a TypeScript 6 program of each world before the next replaces it. */
+/** Ask the worlds for the references of each site and merge them, so a site counts once however many worlds hold it.
+ *  Worlds load one at a time. TypeScript 7.1 answers in batches, and each site goes only to the holders that together
+ *  reach every file spelling its name; `crossCheck` asks the TypeScript 6 language service in every world that holds
+ *  the site, one site at a time, an audit of the 7.1 answers. `visit` reads a TypeScript 6 program of each world
+ *  before the next replaces it. */
 export function serviceReferences(
   root: string,
   worlds: readonly string[],
@@ -156,8 +220,13 @@ export function serviceReferences(
 ): ReadonlyMap<string, readonly Site[]> {
   const merged = new Map<string, Map<string, Site>>(sites.map((site) => [siteKey(site), new Map()]));
   const merge = (site: Site, references: readonly Site[]): void => keepReferences(merged.get(siteKey(site)), site, references);
+  const assigned = hooks.crossCheck === true ? new Map<string, readonly Site[]>() : nativeAssignment(root, worlds, sites);
   for (const config of worlds) {
-    const asked = hooks.crossCheck === true ? 0 : nativeReferences(root, config, sites, merge);
+    const native = assigned.get(config) ?? [];
+    if (native.length > 0) {
+      nativeReferences(root, config, native, merge);
+    }
+    const asked = native.length;
     if (hooks.crossCheck === true || hooks.visit !== undefined) {
       const world = ServiceWorld.open(root, config);
       const held = hooks.crossCheck === true ? sites.filter((site) => world.source(site.file) !== undefined) : [];

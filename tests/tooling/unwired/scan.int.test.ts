@@ -1,6 +1,7 @@
 // `pnpm unwired` reports a member only when neither the TypeScript 7.1 index nor the TypeScript 6 language service
 // finds a production use. A planted two-package tree holds one member of each shape the scan must tell apart.
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
+import { vi } from "vitest";
 import { NativeWorld, Sources, scanUnwired, scanWorld, serviceReferences } from "../../../tooling/src/unwired/index.ts";
 import { LIB } from "./_planted.ts";
 
@@ -159,4 +160,28 @@ test("each engine finds the cross-package and derived-port uses on its own", { t
   expect(usesFrom(false)).toEqual(expected);
   // `--cross-check` asks the TypeScript 6 language service, which must reach the same uses.
   expect(usesFrom(true)).toEqual(expected);
+});
+
+test("engine two asks a site only in worlds that add a file spelling its name, and misses no reference", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const shape = "export interface Shape { readonly spelled: string; readonly quiet: string }";
+  const root = await plantedTree({
+    "wide/tsconfig.json": plantedTsconfig({ lib: LIB, include: ["src", "../shared"] }),
+    "narrow/tsconfig.json": plantedTsconfig({ lib: LIB, include: ["src", "../shared"] }),
+    "shared/shape.ts": shape,
+    "wide/src/quiet.ts": 'import type { Shape } from "../../shared/shape.ts";\nexport const quiet = (shape: Shape): string => shape.quiet;',
+    "wide/src/spelled.ts": 'import type { Shape } from "../../shared/shape.ts";\nexport const wide = (shape: Shape): string => shape.spelled;',
+    "narrow/src/spelled.ts": 'import type { Shape } from "../../shared/shape.ts";\nexport const narrow = (shape: Shape): string => shape.spelled;',
+  });
+  const quiet = { file: "shared/shape.ts", position: shape.indexOf("quiet") };
+  const spelled = { file: "shared/shape.ts", position: shape.indexOf("spelled") };
+  const asked = vi.spyOn(NativeWorld.prototype, "referencesAt");
+  const served = serviceReferences(root, ["narrow/tsconfig.json", "wide/tsconfig.json"], [quiet, spelled, spelled], { log: () => undefined });
+  const sizes = asked.mock.calls.map(([sites]) => sites.length);
+  asked.mockRestore();
+  expect(sizes.toSorted()).toEqual([1, 2]);
+  expect((served.get(`${quiet.file}:${quiet.position}`) ?? []).map(({ file }) => file)).toEqual(["wide/src/quiet.ts"]);
+  expect((served.get(`${spelled.file}:${spelled.position}`) ?? []).map(({ file }) => file).toSorted()).toEqual([
+    "narrow/src/spelled.ts",
+    "wide/src/spelled.ts",
+  ]);
 });
