@@ -28,6 +28,7 @@ import {
 } from "@orb/testkit/node/composed";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { proseOverrideFromLegacy } from "#contracts/prose-slot/index.ts";
+import { SIZE_PRESETS } from "#server/domain/imagery/substrate/size.ts";
 
 const HOST_MODEL = "imagery-host-utility";
 const LIVE_MODEL = "imagery-host-utility-live";
@@ -267,6 +268,37 @@ test("a member's room image uses the host's image connection and live negative p
   await expect(generate()).rejects.toThrow("room host");
   expect(wire.requests).toHaveLength(2);
   expect(await root.services.assets.listOwned({ principal: room.host, kind: "generated", limit: 10 })).toEqual(stored);
+});
+
+test("the count, size and negative on chat.generateImage reach the provider request, and every picture posts in one message", async () => {
+  const wire = physicalExecution([]);
+  await using root = await createServerHarness({ startJobs: false, providerFetch: wire.execute, secretBoxKey: Buffer.alloc(32, 3) });
+  const room = await policyRoom(root);
+  wire.images.push(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
+  const negative = "extra fingers, watermark";
+  const caller = await root.internalCallerFor(room.member.userId);
+  const posted = await caller.chat.generateImage({
+    chatId: room.chat.id,
+    mode: "free",
+    prompt: "The orbital loom.",
+    n: 2,
+    size: "portrait",
+    negative,
+    gallery: false,
+    timeZone: UTC_TIME_ZONE,
+  });
+  expect(wire.requests).toHaveLength(1);
+  const portrait = SIZE_PRESETS.portrait;
+  expect(await wire.requests[0]?.clone().json()).toMatchObject({
+    n: 2,
+    size: `${portrait.width}x${portrait.height}`,
+    prompt: expect.stringContaining(negative),
+  });
+  const stored = await root.services.assets.listOwned({ principal: room.host, kind: "generated", limit: 10 });
+  expect(stored).toHaveLength(2);
+  for (const asset of stored) {
+    expect(posted.content).toContain(`asset:${asset.assetId}`);
+  }
 });
 
 test("imagery retains a real dropped-edit warning and filters a real native unsupported-count warning", async () => {

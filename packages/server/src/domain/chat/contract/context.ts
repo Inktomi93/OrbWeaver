@@ -489,6 +489,7 @@ export type GeneratePictureOp = (
 
     readonly n?: number | undefined;
     readonly size?: SizePresetName | undefined;
+    readonly negative?: string | undefined;
     /** The character whose gallery each picture joins; imagery adds it only when the run-as host owns it. */
     readonly gallery?: { readonly subjectCharacterId: CharacterId } | undefined;
     /** The viewer's zone an extraction template's time macros read; absent ⇒ UTC. */

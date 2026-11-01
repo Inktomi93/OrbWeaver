@@ -257,6 +257,8 @@ interface GenerateImageFields extends ChatScopedParams, ViewerClockParams {
   /** The semantic size preset — forwarded to `imagery.generatePicture`; when absent
    *  the leaf uses `defaultSizeFor(mode)`. The I5 mode picker surfaces it. */
   readonly size?: SizePresetName | undefined;
+  /** Appended to the run-as host's negative base, never replaces it. */
+  readonly negative?: string | undefined;
   /** `false` keeps the pictures out of the room character's gallery; absent or `true` joins them to it. */
   readonly gallery?: boolean | undefined;
 }

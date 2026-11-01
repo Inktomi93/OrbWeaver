@@ -14,6 +14,7 @@ export function createGeneratePictureOp(generatePicture: GeneratePicture): Gener
 
       ...(p.n !== undefined ? { n: p.n } : {}),
       ...(p.size !== undefined ? { size: p.size } : {}),
+      ...(p.negative !== undefined ? { negative: p.negative } : {}),
       ...(p.gallery !== undefined ? { gallery: p.gallery } : {}),
       ...(p.timeZone !== undefined ? { timeZone: p.timeZone } : {}),
     });
