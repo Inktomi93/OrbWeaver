@@ -119,6 +119,9 @@ const PLAIN_CHAT_WARNING_CODES = [
   // a stale-capability edit). Emitted from `chat.generateImage`, mapping `GeneratedPicture.warnings` onto the
   // one chat `warning` surface so the user sees "generated without the avatar reference (model can't edit)".
   "image_edit_dropped",
+  // The resolved image wire cannot carry the requested picture count or size, so the picture posted without it.
+  "image_count_dropped",
+  "image_size_dropped",
   // Managed compaction (the post-turn LINEAR-marker refresh) FAILED — the quiet marker generation threw or
   // returned empty, so the EXISTING marker is untouched (never a half-written marker). Emitted from the engine's
   // compaction-trigger catch (the mirror of memory_build_failed) so the silent-failure black hole is observable;

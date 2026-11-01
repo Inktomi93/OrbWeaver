@@ -65,7 +65,7 @@ export function ImagineOptions({ busy, count, onCount, size, onSize, negative, o
             </ToggleGroup>
             {count > MIN_IMAGE_COUNT ? (
               <Text className="max-inline-(--reading-measure-prose)" data-slot="imagine-count-spend" voice="reading">
-                Each of the {count} images is its own charge.
+                Asks for {count} images. You pay for each one that comes back, and some connections make only one.
               </Text>
             ) : null}
           </Stack>

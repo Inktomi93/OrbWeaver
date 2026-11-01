@@ -289,11 +289,13 @@ export interface GeneratedPictureImage {
   readonly block: MessageContentBlock;
 }
 
-/** The imagery drop codes surfaced to a caller: `image_edit_dropped` = the whole edit/
- *  avatar reference dropped for a non-edit model.
+const IMAGERY_WARNING_CODES = ["image_edit_dropped", "image_count_dropped", "image_size_dropped"] as const;
+
+/** The imagery drop codes surfaced to a caller: `image_edit_dropped` = the whole edit/avatar reference dropped
+ *  for a non-edit model; `image_count_dropped` and `image_size_dropped` = the wire could not carry that knob.
  *  The imagery-owned provider operation projects the runtime warnings onto this image-only shape. */
 export interface ImageryWarning {
-  readonly code: "image_edit_dropped";
+  readonly code: (typeof IMAGERY_WARNING_CODES)[number];
   readonly detail: string;
 }
 
@@ -341,7 +343,7 @@ const generatedPictureImageSchema = z.strictObject({
 }) satisfies z.ZodType<GeneratedPictureImage>;
 
 const imageryWarningSchema = z.strictObject({
-  code: z.literal("image_edit_dropped"),
+  code: z.enum(IMAGERY_WARNING_CODES),
   detail: z.string(),
 }) satisfies z.ZodType<ImageryWarning>;
 

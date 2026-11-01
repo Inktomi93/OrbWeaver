@@ -301,7 +301,90 @@ test("the count, size and negative on chat.generateImage reach the provider requ
   }
 });
 
-test("imagery retains a real dropped-edit warning and filters a real native unsupported-count warning", async () => {
+test("a chat-completions image wire warns of the count and size it dropped, and a default size stays quiet", async () => {
+  const wire = physicalExecution([]);
+  let pixels: Uint8Array = new Uint8Array();
+  const reply = (): Response =>
+    Response.json({
+      id: "image-reply",
+      object: "chat.completion",
+      created: 0,
+      model: IMAGE_MODEL,
+      choices: [
+        {
+          index: 0,
+          ["finish_reason"]: "stop",
+          message: {
+            role: "assistant",
+            content: "",
+            images: [{ type: "image_url", ["image_url"]: { url: `data:image/png;base64,${Buffer.from(pixels).toString("base64")}` } }],
+          },
+        },
+      ],
+    });
+  await using root = await createServerHarness({
+    startJobs: false,
+    secretBoxKey: Buffer.alloc(32, 3),
+    networkExecution: { resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]) },
+    providerFetch: async (input, init) => {
+      const request = new Request(input, init);
+      return request.method === "POST" ? reply() : await wire.execute(request);
+    },
+  });
+  const room = await policyRoom(root);
+  pixels = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
+  const credential = await root.services.credentials.add({ principal: room.host, provider: "openrouter", key: HOST_KEY });
+  const modalities = await root.services.connection.create({
+    principal: room.host,
+    providerId: "openrouter",
+    credentialId: credential.id,
+    baseUrl: null,
+    model: IMAGE_MODEL,
+    allowBackground: true,
+    declared: {
+      kind: "generation",
+      generation: { context: { window: 32_000 }, output: { modalities: ["text", "image"] } },
+      features: { detectServer: false, images: "chat-modalities" },
+    },
+  });
+  await root.services.connection.setBinding({ principal: room.host, task: "generateImage", connectionId: modalities.id });
+  const warned: string[] = [];
+  using subscription = new DisposableStack();
+  subscription.defer(
+    root.app.liveBuses.chat.subscribeAllChatEvents(({ event }) => {
+      if (event.chatId === room.chat.id && event.type === "warning") {
+        warned.push(event.code);
+      }
+    }),
+  );
+  const caller = await root.internalCallerFor(room.host.userId);
+  const request = { chatId: room.chat.id, mode: "free", prompt: "The orbital loom.", gallery: false, timeZone: UTC_TIME_ZONE } as const;
+  await caller.chat.generateImage(request);
+  expect(warned).toEqual([]);
+  pixels = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
+  await caller.chat.generateImage({ ...request, n: 2, size: "portrait" });
+  expect(warned).toEqual([WARNING_CODE.imageCountDropped, WARNING_CODE.imageSizeDropped]);
+});
+
+test("a count, size or negative skips the reuse gate under default reuse, and that picture is never reused", async () => {
+  const wire = physicalExecution([CAPTION, CAPTION, CAPTION, CAPTION]);
+  await using root = await createServerHarness({ startJobs: false, providerFetch: wire.execute, secretBoxKey: Buffer.alloc(32, 3) });
+  const room = await policyRoom(root);
+  for (let index = 0; index < 5; index += 1) {
+    wire.images.push(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
+  }
+  const portrait = { caller: room.host, mode: CAPTION_MODE, subjectCharacterId: room.character.id } as const;
+  const plain = await root.services.imagery.generatePicture(portrait);
+  expect(plain.reused).toBe(false);
+  expect((await root.services.imagery.generatePicture(portrait)).reused).toBe(true);
+  for (const knob of [{ n: 2 }, { size: "landscape" }, { negative: "extra fingers" }] as const) {
+    expect(await root.services.imagery.generatePicture({ ...portrait, ...knob })).toMatchObject({ reused: false });
+  }
+  const after = await root.services.imagery.generatePicture(portrait);
+  expect(after).toMatchObject({ reused: true, images: [{ assetId: plain.images[0]?.assetId }] });
+});
+
+test("imagery retains a real dropped-edit warning and a real native dropped-count warning", async () => {
   const endpoint = "https://native-warning-image.test/v1beta";
   const model = "native-warning-image";
   const requests: Request[] = [];
@@ -360,7 +443,7 @@ test("imagery retains a real dropped-edit warning and filters a real native unsu
   const { resolved } = await root.services.connection.resolve({ principal, task: "generateImage" });
   const nativeConnection: Resolved<"generateImage"> = { ...resolved, task: "generateImage" };
   const native = await root.app.runtime.executor.generateImage({ connection: nativeConnection, prompt: "The orbital loom.", n: 2, edit: { image: pixels } });
-  expect(native.warnings.map(({ code }) => code)).toEqual([WARNING_CODE.sdkUnsupportedSetting, WARNING_CODE.imageEditDropped]);
+  expect(native.warnings.map(({ code }) => code)).toEqual([WARNING_CODE.imageCountDropped, WARNING_CODE.imageEditDropped]);
   const avatar = await root.services.assets.store({
     principal,
     bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)),
@@ -381,7 +464,10 @@ test("imagery retains a real dropped-edit warning and filters a real native unsu
     useAvatarReference: true,
     reuse: "never",
   });
-  expect(filtered.warnings).toEqual([{ code: WARNING_CODE.imageEditDropped, detail: expect.stringContaining(model) }]);
+  expect(filtered.warnings).toEqual([
+    { code: WARNING_CODE.imageEditDropped, detail: expect.stringContaining(model) },
+    { code: WARNING_CODE.imageCountDropped, detail: expect.stringContaining(model) },
+  ]);
   const image = filtered.images[0];
   if (image === undefined) {
     throw new Error("the actual imagery warning path stored no generated image");

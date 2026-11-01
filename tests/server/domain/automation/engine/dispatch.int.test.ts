@@ -93,6 +93,25 @@ portraitTest("a rule's image count, size and rendered negative reach the provide
   }
 });
 
+portraitTest("a dry run renders an image rule's negative and reports the macro error the live arm would raise", async ({ portrait }) => {
+  const { root, character, physical } = portrait;
+  const principal = await root.principalFor(root.ownerId);
+  const { chat } = await root.services.chat.startChat({ principal, characterIds: [character.id], opening: "none" });
+  const preview = async (negative: string): ReturnType<typeof root.services.automation.testRule> => {
+    const rule = await enabledRule(root, {
+      chatId: chat.id,
+      name: `Preview ${negative}`,
+      trigger: { bus: "chat", type: "chatOpened" },
+      predicateCel: null,
+      actions: [{ type: "generate_image", mode: "free", prompt: "a lighthouse", negative, n: 1, useAvatarReference: false, reuse: "never", quiet: true }],
+    });
+    return await root.services.automation.testRule({ principal, ruleId: rule.id });
+  };
+  expect((await preview("crowds {{expr::1 + 1}}")).arms).toEqual([{ type: "generate_image", renderedPreview: "a lighthouse" }]);
+  expect((await preview("{{bad hands}}")).arms).toEqual([{ type: "generate_image", error: expect.stringMatching(/unknown macro/iu) }]);
+  expect(physical.requests.filter((request) => request.startsWith("POST "))).toEqual([]);
+});
+
 async function prepareChain(
   root: ServerTestHarness,
   confirmFirst: boolean,
