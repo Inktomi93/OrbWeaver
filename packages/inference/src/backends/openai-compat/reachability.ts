@@ -111,7 +111,7 @@ function joinWake(flight: WakeFlight, signal: AbortSignal | undefined): Promise<
     if (signal?.aborted === true) {
       onAbort();
     }
-    // the rejection arm calls `reject(err)` at reachability.ts:121 on this task's own promise, which its caller awaits. Ends if the handler stops rejecting with the error.
+    // the rejection arm below rejects this task's own promise, which its caller awaits; it ends if the handler stops rejecting with the error.
     flight.run.then(
       (woke) => {
         leave();
