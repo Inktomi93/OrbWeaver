@@ -14,11 +14,9 @@ export type FieldsetLegendProps = Omit<BaseLegendProps, "className">;
  * RadioGroup/CheckboxGroup an accessible group name. The sanctioned way to name a control group.
  */
 export function Fieldset(props: FieldsetProps): ReactElement {
-  const rest = props;
-  return <BaseFieldset.Root className={slots.root()} data-slot="fieldset-root" {...rest} />;
+  return <BaseFieldset.Root className={slots.root()} data-slot="fieldset-root" {...props} />;
 }
 
 export function FieldsetLegend(props: FieldsetLegendProps): ReactElement {
-  const rest = props;
-  return <BaseFieldset.Legend className={slots.legend()} data-slot="fieldset-legend" {...rest} />;
+  return <BaseFieldset.Legend className={slots.legend()} data-slot="fieldset-legend" {...props} />;
 }

@@ -231,10 +231,9 @@ export function TooltipViewport(props: TooltipViewportProps): ReactElement {
 export type TooltipArrowProps = Omit<BaseArrowProps, "className">;
 
 export function TooltipArrow(props: TooltipArrowProps): ReactElement | null {
-  const rest = props;
   if (use(TooltipDescriptionCopyContext)) {
     // Pure decoration — the description copy is text, and an arrow glyph in it would be announced.
     return null;
   }
-  return <BaseTooltip.Arrow className={slots.arrow()} data-slot="tooltip-arrow" {...rest} />;
+  return <BaseTooltip.Arrow className={slots.arrow()} data-slot="tooltip-arrow" {...props} />;
 }

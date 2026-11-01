@@ -232,8 +232,8 @@ function centerRowInList(row: HTMLElement | null): void {
 
 export type CommandLoadingProps = Omit<ComponentProps<typeof BaseCommandLoading>, "className">;
 
-export function CommandLoading(rest: CommandLoadingProps): ReactElement {
-  return <BaseCommandLoading className={slots.loading()} data-slot="command-loading" {...rest} />;
+export function CommandLoading(props: CommandLoadingProps): ReactElement {
+  return <BaseCommandLoading className={slots.loading()} data-slot="command-loading" {...props} />;
 }
 
 /** Announces the live filtered-result count to screen readers. Must render under `<Command>`. */

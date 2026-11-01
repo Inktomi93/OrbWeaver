@@ -65,8 +65,7 @@ export function DialogTitle(props: DialogTitleProps): ReactElement {
 export type DialogDescriptionProps = Omit<BaseDescriptionProps, "className">;
 
 export function DialogDescription(props: DialogDescriptionProps): ReactElement {
-  const rest = props;
-  return <BaseDialog.Description className={slots.description()} {...rest} />;
+  return <BaseDialog.Description className={slots.description()} {...props} />;
 }
 
 export function DialogClose(props: BaseCloseProps): ReactElement {

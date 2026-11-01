@@ -2,7 +2,7 @@ import type { ComponentProps, ReactElement, ReactNode } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { saveBarVariants } from "./variants.ts";
 
-export interface SaveBarProps extends Omit<ComponentProps<"div">, "title">, VariantProps<typeof saveBarVariants> {
+export interface SaveBarProps extends Omit<ComponentProps<"div">, "className" | "title">, VariantProps<typeof saveBarVariants> {
   /** The entity/editor title (e.g. the character's name). */
   title: ReactNode;
   /** The entity kind label shown beside the title (e.g. "Character", "Preset"). */

@@ -95,16 +95,14 @@ export type MenuViewportProps = Omit<BaseViewportProps, "className">;
  * nothing here.
  */
 export function MenuViewport(props: MenuViewportProps): ReactElement {
-  const rest = props;
-  return <BaseMenu.Viewport data-slot="menu-viewport" {...rest} />;
+  return <BaseMenu.Viewport data-slot="menu-viewport" {...props} />;
 }
 
 export type MenuArrowProps = Omit<BaseArrowProps, "className">;
 
 /** An arrow that points at the anchor — place inside `<MenuPopup>`. */
 export function MenuArrow(props: MenuArrowProps): ReactElement {
-  const rest = props;
-  return <BaseMenu.Arrow className={slots.arrow()} data-slot="menu-arrow" {...rest} />;
+  return <BaseMenu.Arrow className={slots.arrow()} data-slot="menu-arrow" {...props} />;
 }
 
 export interface MenuItemProps extends Omit<BaseItemProps, "className"> {
@@ -136,16 +134,14 @@ export type MenuGroupProps = Omit<BaseGroupProps, "className">;
 
 /** Groups related items under one MenuGroupLabel — Base UI wires the label↔group aria association. */
 export function MenuGroup(props: MenuGroupProps): ReactElement {
-  const rest = props;
-  return <BaseMenu.Group className={slots.group()} data-slot="menu-group" {...rest} />;
+  return <BaseMenu.Group className={slots.group()} data-slot="menu-group" {...props} />;
 }
 
 export type MenuGroupLabelProps = Omit<BaseGroupLabelProps, "className">;
 
 /** The heading for a MenuGroup — a muted section caption, auto-associated with its parent group. */
 export function MenuGroupLabel(props: MenuGroupLabelProps): ReactElement {
-  const rest = props;
-  return <BaseMenu.GroupLabel className={slots.groupLabel()} data-slot="menu-group-label" {...rest} />;
+  return <BaseMenu.GroupLabel className={slots.groupLabel()} data-slot="menu-group-label" {...props} />;
 }
 
 export type MenuCheckboxItemProps = Omit<BaseCheckboxItemProps, "className">;
@@ -227,14 +223,12 @@ export type MenuLinkItemProps = Omit<BaseLinkItemProps, "className">;
 
 /** A navigating menu item — renders an `<a>` with `href`. Default `closeOnClick` is `false`. */
 export function MenuLinkItem(props: MenuLinkItemProps): ReactElement {
-  const rest = props;
-  return <BaseMenu.LinkItem className={slots.linkItem()} data-slot="menu-link-item" {...rest} />;
+  return <BaseMenu.LinkItem className={slots.linkItem()} data-slot="menu-link-item" {...props} />;
 }
 
 export type MenuBackdropProps = Omit<BaseBackdropProps, "className">;
 
 /** An optional dimming overlay for a modal menu; render as a direct child of `<Menu>`. */
 export function MenuBackdrop(props: MenuBackdropProps): ReactElement {
-  const rest = props;
-  return <BaseMenu.Backdrop className={slots.backdrop()} data-slot="menu-backdrop" {...rest} />;
+  return <BaseMenu.Backdrop className={slots.backdrop()} data-slot="menu-backdrop" {...props} />;
 }

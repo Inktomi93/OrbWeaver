@@ -982,6 +982,26 @@ for (const [viewport, scale] of QUALIFIED.characterEditor) {
   });
 }
 
+test.describe("character editor at normal text on a 320px phone", () => {
+  test.use({ viewport: NARROW.size, hasTouch: true, isMobile: true });
+
+  test("keeps the save bar's name and status on one line", async ({ mount, page }) => {
+    await seedShellState(page, { activeSection: "characters" });
+    await mount<typeof AppShellCharacterStory>(`${SHELL_STORIES}/AppShellCharacterStory`, { characterId: await firstCharacterId() });
+    const bar = page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true }).locator('[data-slot="save-bar-root"]');
+    await expect(bar).toBeVisible();
+    await expect
+      .poll(async () => {
+        const [label, actions] = await Promise.all([
+          bar.locator('[data-slot="save-bar-label"]').boundingBox(),
+          bar.locator('[data-slot="save-bar-actions"]').boundingBox(),
+        ]);
+        return label !== null && actions !== null && actions.y < label.y + label.height && label.y < actions.y + actions.height;
+      })
+      .toBe(true);
+  });
+});
+
 for (const [viewport, scale] of QUALIFIED.echoFoot) {
   test.describe(`Echo's foot band at ${scale.name} on the ${viewport.name}`, () => {
     test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });

@@ -82,16 +82,14 @@ export type DrawerTitleProps = Omit<BaseTitleProps, "className">;
 
 /** Accessible drawer heading (labels the panel for screen readers). */
 export function DrawerTitle(props: DrawerTitleProps): ReactElement {
-  const rest = props;
-  return <BaseDrawer.Title className={drawerVariants().title()} {...rest} />;
+  return <BaseDrawer.Title className={drawerVariants().title()} {...props} />;
 }
 
 export type DrawerDescriptionProps = Omit<BaseDescriptionProps, "className">;
 
 /** Supporting copy under the drawer title (wired to `aria-describedby`). */
 export function DrawerDescription(props: DrawerDescriptionProps): ReactElement {
-  const rest = props;
-  return <BaseDrawer.Description className={drawerVariants().description()} {...rest} />;
+  return <BaseDrawer.Description className={drawerVariants().description()} {...props} />;
 }
 
 /** Closes the drawer. Unstyled passthrough — compose your own control via `render`. */
@@ -126,8 +124,7 @@ export type DrawerIndentProps = Omit<BaseIndentProps, "className">;
  * drawer within the nearest DrawerProvider is open. Must be inside a DrawerProvider.
  */
 export function DrawerIndent(props: DrawerIndentProps): ReactElement {
-  const rest = props;
-  return <BaseDrawer.Indent className={drawerVariants().indent()} data-slot="drawer-indent" {...rest} />;
+  return <BaseDrawer.Indent className={drawerVariants().indent()} data-slot="drawer-indent" {...props} />;
 }
 
 export type DrawerIndentBackgroundProps = Omit<BaseIndentBackgroundProps, "className">;
@@ -137,8 +134,7 @@ export type DrawerIndentBackgroundProps = Omit<BaseIndentBackgroundProps, "class
  * drawer opens. Must be inside a DrawerProvider.
  */
 export function DrawerIndentBackground(props: DrawerIndentBackgroundProps): ReactElement {
-  const rest = props;
-  return <BaseDrawer.IndentBackground className={drawerVariants().indentBackground()} data-slot="drawer-indent-background" {...rest} />;
+  return <BaseDrawer.IndentBackground className={drawerVariants().indentBackground()} data-slot="drawer-indent-background" {...props} />;
 }
 
 /**

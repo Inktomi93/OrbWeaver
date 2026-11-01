@@ -116,15 +116,13 @@ export type PopoverViewportProps = Omit<BaseViewportProps, "className">;
  * A single-trigger popover needs nothing here — its children are already the popup body.
  */
 export function PopoverViewport(props: PopoverViewportProps): ReactElement {
-  const rest = props;
-  return <BasePopover.Viewport data-slot="popover-viewport" {...rest} />;
+  return <BasePopover.Viewport data-slot="popover-viewport" {...props} />;
 }
 
 export type PopoverArrowProps = Omit<BaseArrowProps, "className">;
 
 export function PopoverArrow(props: PopoverArrowProps): ReactElement {
-  const rest = props;
-  return <BasePopover.Arrow className={slots.arrow()} data-slot="popover-arrow" {...rest} />;
+  return <BasePopover.Arrow className={slots.arrow()} data-slot="popover-arrow" {...props} />;
 }
 
 export function PopoverClose(props: BaseCloseProps): ReactElement {
@@ -143,6 +141,5 @@ export function PopoverTitle(props: PopoverTitleProps): ReactElement {
 export type PopoverDescriptionProps = Omit<BaseDescriptionProps, "className">;
 
 export function PopoverDescription(props: PopoverDescriptionProps): ReactElement {
-  const rest = props;
-  return <BasePopover.Description className={slots.description()} {...rest} />;
+  return <BasePopover.Description className={slots.description()} {...props} />;
 }

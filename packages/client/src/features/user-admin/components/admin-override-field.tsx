@@ -54,7 +54,7 @@ export interface AdminOverrideFieldProps {
   readonly overridden: boolean;
   /** The floor NUMBER shown beneath the control ("Default: N") — the value an absent override falls to. A
    *  number, not a label: it is formatted here exactly as the NumberField formats the value above it, so
-   *  the row can't read "1,024" over "Default: 1024." (two different-looking numbers for one value).
+   *  the row can't read "1024" over "Default: 1,024." (two different-looking numbers for one value).
    *  `null` = the floor is UNNAMEABLE (an env-layered key whose stored override hides it): the row then
    *  points at Reset rather than naming a default it would be inventing. */
   readonly floorValue: number | null;
