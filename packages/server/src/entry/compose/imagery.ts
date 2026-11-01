@@ -1,6 +1,7 @@
 // Imagery graph wiring; late-bound chat ops are dereferenced only when a request runs.
 
 import type { CharacterOwnedOp } from "@orb/contracts/character";
+import type { ResolveViewerVisibility } from "@orb/contracts/chat";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { ProviderExecutor } from "@orb/inference";
 import type { IdSource } from "@orb/kit/ids";
@@ -9,7 +10,7 @@ import type { Clock } from "@orb/kit/time";
 import type { AssetsService } from "#domain/assets";
 import { createGeneratedAssetStore, createImageryGalleryAdd } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
-import type { ExtractQuietDeps, ImageryRoomAccessDeps, ResolveViewerVisibility } from "#domain/chat";
+import type { ExtractQuietDeps, ImageryRoomAccessDeps } from "#domain/chat";
 import { createImageryRoomAccess, createVisibleExtractQuiet } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import type { CaptionImageDeps, ImageryInstructionDeps, ImageryService } from "#domain/imagery";

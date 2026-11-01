@@ -19,8 +19,6 @@ import type { AuditEntry, AuditFailureSnapshot, AuditWiring } from "./contract/a
 import type { Logger } from "./contract/logging.ts";
 import { getLog } from "./logger.ts";
 
-export type { AuditEntry } from "./contract/audit-wiring.ts";
-
 // Re-raise the suppressed failure as a structural warn every Nth occurrence.
 const ALERT_EVERY = 25;
 

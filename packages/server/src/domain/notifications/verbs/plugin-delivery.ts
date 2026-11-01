@@ -1,6 +1,7 @@
 // Standing corrections publish only the rows their durable operation actually changed.
 
-import type { PluginNotificationDelivery, PluginNotificationDeliveryDeps } from "../contract/plugin-delivery.ts";
+import type { PluginNotificationDelivery } from "@orb/contracts/plugin";
+import type { PluginNotificationDeliveryDeps } from "../contract/plugin-delivery.ts";
 
 /** Bind episodic and standing delivery with durable-before-live ordering. */
 

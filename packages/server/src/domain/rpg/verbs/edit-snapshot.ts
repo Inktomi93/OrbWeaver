@@ -30,9 +30,9 @@
 // Both refuse as DATA (`HandDoorResult`), so the caller learns which path and why instead of reading a
 // `{}` that means "I did nothing and I'm not telling you".
 
+import type { HandDoorResult } from "@orb/contracts/rpg";
 import { RPG_HAND_PATCH_PLANES, RPG_OP_SHAPED_PLANES } from "@orb/contracts/rpg";
 import type { EditSnapshotParams } from "../contract/params.ts";
-import type { HandDoorResult } from "../contract/results.ts";
 import type { RpgContext, RpgService } from "../contract/service.ts";
 import { assertHostRole, resolveMember } from "../guard.ts";
 import { applyHandEdit } from "../snapshot-edit.ts";

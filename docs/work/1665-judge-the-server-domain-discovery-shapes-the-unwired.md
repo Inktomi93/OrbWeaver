@@ -35,4 +35,9 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 9 rows = 9 applied. 0 kept, 0 handed off, 0 owner questions.
+
+- `ThemeLevel`, `Archetype`, `ArchetypeMember`, `ModelRoutingRow`, `ThemeRow`, `VisualArchetype`, `THEME_LEVELS` reexport-chain: applied. The `domain/discovery/contract/params.ts` and `results.ts` re-exports and the door's `THEME_LEVELS` line are deleted; importers (plan from importers of each re-export module; ast-grep ts 5949 / tsx 1525 tracked files) take them from `@orb/contracts/discovery`. The contracts side is untouched.
+- `DiscoveryContext` / `DiscoveryAssemblyContext` renamed-reexport: applied. The door exports the declared name; the one importer is renamed. The inner `DiscoveryContext` is a different type.
+- `HubVector` / `HubRow` restated: applied, one concept (the stored vector a hub pass reads). `HubVector` is declared once in `contract/results.ts`; `persistence/embed-store-reads.ts` and `verbs/compute-hub-scores.ts` import it and `HubRow` is gone.
+- Check: `pnpm typecheck packages/server/tsconfig.json` exit 0.

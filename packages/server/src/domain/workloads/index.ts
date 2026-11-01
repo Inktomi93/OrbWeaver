@@ -7,15 +7,14 @@
 export type { AnyWorkloadContribution, WorkloadContribution, WorkloadContributions } from "./contract/contribution.ts";
 
 export type { WorkloadProgressBus } from "./contract/progress-bus.ts";
-export type { ScheduleTickAssemblyDeps as ScheduleTickDeps } from "./contract/schedule.ts";
+export type { ScheduleTickAssemblyDeps } from "./contract/schedule.ts";
 export type {
-  ReapWorkloadsAssemblyArgs as ReapWorkloadsArgs,
+  ReapWorkloadsAssemblyArgs,
   WorkloadReapReason,
-  WorkloadRunnerAssemblyDeps as WorkloadRunnerDeps,
+  WorkloadRunnerAssemblyDeps,
   WorkloadService,
   WorkloadServiceContext,
 } from "./contract/service.ts";
-export type { WorkloadRowAnyKind, WorkloadRunnableRow } from "./contract/workload-row.ts";
 export { createWorkloadProgressBus } from "./engine/progress-bus.ts";
 export { createWorkloadService } from "./service.ts";
 export { createReservedWorkloadContributions } from "./substrate/reserved-contributions.ts";

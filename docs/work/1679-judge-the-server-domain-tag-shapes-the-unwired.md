@@ -30,4 +30,7 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 3 rows = 3 applied. 0 kept, 0 handed off, 0 owner questions.
+
+- `TagContext` / `TagAssemblyContext` renamed-reexport: applied. The door exports the declared name; 3 importer files renamed with `move-import-names` (ast-grep ts 5949 / tsx 1525 tracked files). The inner `TagContext` is a different type.
+- `createTagLibraryExport` / `createExport` and `createTagLibraryImport` / `createImport` renamed-reexport: applied by naming each factory once at its declaration (`verbs/export.ts`, `verbs/import.ts`). The bare `createExport` and `createImport` would collide in `entry/compose/portability.ts`, which imports an export and an import factory from several domain doors. The tag domain's `service.ts` does not use either factory, so no domain-internal caller changed.

@@ -10,11 +10,12 @@ import { modelIdSchema } from "@orb/contracts/inference";
 import { imageGenerationSpendDelta } from "@orb/contracts/stats";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
+import type { GeneratedImage } from "@orb/inference";
 import type { AssetId, ImageryCallId, ModelId, UserConnectionId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
 import { GenerationFailedError } from "../contract/errors.ts";
 import type { GeneratedPictureImage, GenerationOutcome, GenerationProvenanceInput } from "../contract/results.ts";
-import type { GeneratedImage, ImageGenerateRequest, ImageryContext } from "../contract/service.ts";
+import type { ImageGenerateRequest, ImageryContext } from "../contract/service.ts";
 import { insertGenerationStatement } from "../persistence/queries.ts";
 
 /** The media block's `alt` is the prompt, truncated (a full 2k-char prompt is not alt text). */

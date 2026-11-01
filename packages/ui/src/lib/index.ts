@@ -13,10 +13,8 @@ export { cn, tv } from "./class-merge.ts";
 export { type ClipboardOutcome, writeClipboardText } from "./clipboard.ts";
 export { coarsePointerNow, finePointerNow, useCoarsePointer } from "./coarse-pointer-now.ts";
 export { CONTROL_BLOCK, CONTROL_INLINE, CONTROL_MIN_BLOCK, CONTROL_SIZE, CONTROL_SIZES, type ControlSize } from "./control-size.ts";
-export {
-  type CssMergeTraceSnapshot,
-  cssMergeTrace,
-} from "./css-merge-trace.ts";
+export type { CssMergeTraceSnapshot } from "./css-merge-contract.ts";
+export { cssMergeTrace } from "./css-merge-trace.ts";
 export { DISABLED_STATE, DISABLED_STATE_NATIVE } from "./disabled-state.ts";
 export { FIELD_CONTROL, FIELD_CONTROL_BOX } from "./field-control.ts";
 export {

@@ -2,7 +2,7 @@
 // UserIntent, guided-action) are never re-exported here — callers import them from @orb/contracts/preset.
 
 export type {
-  PresetAssemblyContext as PresetContext,
+  PresetAssemblyContext,
   PresetService,
 } from "./contract/service.ts";
 export { createCopyPresetToUser } from "./persistence/handoff-copy-write.ts";
@@ -12,8 +12,8 @@ export { migrateProseSlotVocab } from "./persistence/migrate-prose-slot-vocab.ts
 export { ensureSystemDefaultPreset } from "./seed.ts";
 export { createPresetService } from "./service.ts";
 export { createLoadOptionalPreset } from "./substrate/optional-read.ts";
-export { createExport as createExportPresets } from "./verbs/export.ts";
-export { createImport as createImportPresets } from "./verbs/import.ts";
+export { createExportPresets } from "./verbs/export.ts";
+export { createImportPresets } from "./verbs/import.ts";
 export { createReadOptionalPresetConfig } from "./verbs/optional-config.ts";
 export { createPresetReadable } from "./verbs/readable.ts";
 // The backward-bindings rule `PresetContext.resolvePresetUsage` runs; compose wires its three foreign inputs.

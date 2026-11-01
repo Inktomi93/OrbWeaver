@@ -27,7 +27,7 @@ import { ENTRY_POSITIONS, ENTRY_SCOPE_MODES, inertActivationFields } from "@orb/
 import { Button } from "@orb/ui/button";
 import { Combobox } from "@orb/ui/combobox";
 import { Field } from "@orb/ui/field";
-import { Icon, Trash2 } from "@orb/ui/icons";
+import { Icon, Trash } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
@@ -267,7 +267,7 @@ function DeleteEntryAction({ title, onDelete }: { readonly title: string; readon
       title={`Delete "${title}"?`}
       trigger={
         <Button variant="ghost" size="sm" aria-label={`Delete ${title}`}>
-          <Icon icon={Trash2} size="sm" />
+          <Icon icon={Trash} size="sm" />
         </Button>
       }
     />

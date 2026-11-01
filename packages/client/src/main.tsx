@@ -8,7 +8,7 @@ import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 // biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc +
 // vite resolve AlertTriangle/Icon fine.
-import { AlertTriangle, Icon } from "@orb/ui/icons";
+import { Icon, TriangleAlert } from "@orb/ui/icons";
 import { createToastManager, ToastProvider } from "@orb/ui/toast";
 import { RouterProvider } from "@tanstack/react-router";
 import type { ReactElement } from "react";
@@ -146,7 +146,7 @@ createRoot(rootEl).render(
           renderFallback={(): ReactElement => (
             <AppFailureSurface kind="crashed">
               <EmptyState
-                icon={<Icon icon={AlertTriangle} size="lg" />}
+                icon={<Icon icon={TriangleAlert} size="lg" />}
                 title="Something went wrong"
                 description="The app hit an unexpected error. Reloading usually fixes it."
                 action={<Button onClick={(): void => globalThis.location.reload()}>Reload</Button>}

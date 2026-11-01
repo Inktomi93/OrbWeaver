@@ -27,4 +27,6 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 1 row = 1 applied. 0 kept, 0 handed off, 0 owner questions.
+
+- `GeneratedImage` reexport-chain: applied. The `export type { GeneratedImage } from "@orb/inference"` in `domain/imagery/contract/service.ts` is deleted; its one importer (`substrate/generate-core.ts`, found with the importer plan; ast-grep ts 5949 / tsx 1525 tracked files) imports it from `@orb/inference`. The service file already imports the type from the same package for its own use.

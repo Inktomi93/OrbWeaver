@@ -23,6 +23,7 @@
 // so the corpus sweep can submit one embed flood instead of one awaited embed per block. Same hash gate, same
 // space tripwire, same single write path — a batch shape, because its producer holds a batch of work.
 
+import type { StoreResult } from "@orb/contracts/embeddings";
 import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
 import type { EmbedGenerationId } from "@orb/kit/ids";
 import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
@@ -34,7 +35,6 @@ import type {
   ImageRawStoreParams,
   StoreParams,
 } from "../contract/params.ts";
-import type { StoreResult } from "../contract/results.ts";
 import type { EmbeddingsContext, EmbeddingsService, PinnedGeneration } from "../contract/service.ts";
 import {
   existingCaptionedRow,

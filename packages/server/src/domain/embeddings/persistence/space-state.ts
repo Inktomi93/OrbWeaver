@@ -1,6 +1,6 @@
 // Durable candidate receipts and atomic generation promotion.
 
-import type { EmbeddingTask, VectorScope } from "@orb/contracts/embeddings";
+import type { EmbeddingTask, GenerationReceipt, VectorScope } from "@orb/contracts/embeddings";
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 import {
@@ -18,7 +18,6 @@ import { batchMany, batchStmt } from "@orb/db/query";
 import type { UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
-import type { GenerationReceipt } from "../contract/generation.ts";
 
 function taskOf(scope: VectorScope): EmbeddingTask {
   return scope === "images" ? "imageEmbed" : "embed";

@@ -12,6 +12,7 @@ import type { AgentSdkChatRequest, AgentSeedBlock, AgentSeedTurn, AgentToolServe
 import { AGENT_CONTINUATION_PROMPT_STUB, AGENT_PROMPT_TAIL_JOINER, deltaSubscriptionOf } from "#contract";
 import type { AgentToolSpec } from "../../contract/agent-sdk-backend.ts";
 import { createAgentToolServer } from "./index.ts";
+import { MCP_NAMESPACE, MCP_SERVER_VERSION } from "./translate.ts";
 
 /**
  * One part of a history row — DERIVED from the request contract's row, never re-spelled: this module maps
@@ -352,7 +353,7 @@ function mountToolOffer(offer: ChatToolOffer): AgentToolServer {
       };
     },
   }));
-  return createAgentToolServer({ tools });
+  return createAgentToolServer({ name: MCP_NAMESPACE, version: MCP_SERVER_VERSION, tools });
 }
 
 /**

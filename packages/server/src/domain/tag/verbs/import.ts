@@ -16,7 +16,7 @@ import type { TagContext } from "../contract/service.ts";
 import { restoreOwnedTags } from "../persistence/queries.ts";
 
 /** Parse tag-library bytes and merge them into the owner's namespace (idempotent, dedup by folded name). */
-export function createImport(input: DbAssemblyInput<TagContext>): (ownerId: UserId, bytes: Uint8Array) => Promise<TagLibraryImportResult> {
+export function createTagLibraryImport(input: DbAssemblyInput<TagContext>): (ownerId: UserId, bytes: Uint8Array) => Promise<TagLibraryImportResult> {
   const ctx: TagContext = { ...input, db: databaseForOwner(input.db) };
   return async (ownerId: UserId, bytes: Uint8Array): Promise<TagLibraryImportResult> => {
     const parsed = parseTagLibrary(bytes);

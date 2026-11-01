@@ -1,6 +1,6 @@
 // Canonical save status: failures are body-scale alerts; incomplete and pristine drafts are distinct.
 import { Button } from "@orb/ui/button";
-import { AlertTriangle, Icon } from "@orb/ui/icons";
+import { Icon, TriangleAlert } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -33,7 +33,7 @@ export function AutosaveStatus({ state, onRetry, retryable = true }: AutosaveSta
     // = an implicit aria-live="assertive" live region; the retry stays a real focusable affordance).
     return (
       <Row className="flex-wrap" gap="field" align="center" data-slot="autosave-status" role="alert">
-        <Icon tone="destructive" icon={AlertTriangle} size="sm" />
+        <Icon tone="destructive" icon={TriangleAlert} size="sm" />
         <Text tone="destructive" voice="reading">
           {AUTOSAVE_SAVE_FAILED_TEXT}
           {retryable ? " —" : ""}

@@ -12,8 +12,6 @@ import type { ContentSeedPolicyDeps, ContentSeedStep, SettingsComposedOps, UserC
 import { createUserContentSeeder as createContentSeedPolicy } from "#domain/settings";
 import type { Logger } from "#foundation/observability";
 
-export type { UserContentSeeder } from "#domain/settings";
-
 export interface UserContentSeederDeps {
   readonly logger: Logger;
   /** The operator switch (`SEED_CONTENT`); off ⇒ nothing is seeded and nothing is recorded. */

@@ -31,6 +31,7 @@ import type { AssetId, CharacterId, ChatDigestId, ChatId, EmbedGenerationId, The
 import type { SQL, SQLWrapper } from "drizzle-orm";
 import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, max, min, notInArray, sql } from "drizzle-orm";
 import { calendarBucketStartSql } from "#primitives/calendar-bucket-sql";
+import type { HubVector } from "../contract/results.ts";
 import { ownedRealCharacters, realCharactersOfEveryOwner } from "./character-scope.ts";
 
 /**
@@ -60,13 +61,6 @@ interface OwnedCharacterVector {
   readonly fingerprint: string | null;
   readonly characterId: CharacterId;
   readonly ownerId: UserId;
-  readonly model: string;
-  readonly embedding: Float32Array;
-  readonly contentHash: string;
-}
-
-interface HubVector {
-  readonly id: string;
   readonly model: string;
   readonly embedding: Float32Array;
   readonly contentHash: string;

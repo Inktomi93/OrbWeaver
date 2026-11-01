@@ -6,7 +6,7 @@
 import type { ImportWindow } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context.ts";
-import type { BlockSpan, ResolveBackfillMemoryConfig } from "../contract/memory.ts";
+import type { BlockSpan, ResolveBackfillMemoryConfig, ResolvedMemoryConfig } from "../contract/memory.ts";
 import { resolveCfg } from "../memory/constants.ts";
 import { blockHash, consolidationHash, sliceBlocks } from "../memory/generate/substrate/transcript.ts";
 import { spanWitnessed } from "../memory/generate/substrate/witnessing.ts";
@@ -16,8 +16,6 @@ import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadAllChatIds } from "./backfill.ts";
 import { digestsDerivable } from "./digests-derivable.ts";
 import { hostUserIdOf } from "./participants-host.ts";
-
-type MemoryCfg = ReturnType<typeof resolveCfg>;
 
 /** One child the next tier folds: its block index and the hash it will carry, `null` when it is rebuilt this pass. */
 interface TierChild {
@@ -51,7 +49,7 @@ function consolidationTier(children: readonly TierChild[], tier: number, fanOut:
 
 /** One bucket's calls, as the build makes them: a tier-0 summary per block whose stored hash is missing or stale, then
  *  each consolidation tier's parents that are not current. */
-function bucketCalls(blocks: readonly BlockSpan[], cfg: MemoryCfg, scope: BucketScope): number {
+function bucketCalls(blocks: readonly BlockSpan[], cfg: ResolvedMemoryConfig, scope: BucketScope): number {
   let children: TierChild[] = blocks.map((block) => {
     const hash = blockHash(`${scope.key}:0:${block.blockIdx}`, block.rows);
     return { blockIdx: block.blockIdx, hash: scope.existing.get(`0:${block.blockIdx}`) === hash ? hash : null };

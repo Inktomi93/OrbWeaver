@@ -1,11 +1,10 @@
 // The catch-up sweep shares avatar preparation with event delivery and records completed generations.
 
-import type { EmbedPassResult } from "@orb/contracts/embeddings";
+import type { EmbedPassResult, StoreResult } from "@orb/contracts/embeddings";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
 import { AssetFileCorruptError, AssetFileMissingError } from "../contract/errors.ts";
 import type { EmbedPassParams } from "../contract/params.ts";
-import type { StoreResult } from "../contract/results.ts";
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
 import { completeGenerationScope, resolveImageTargetGeneration } from "../substrate/generation.ts";
 

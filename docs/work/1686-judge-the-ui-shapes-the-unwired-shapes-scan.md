@@ -50,4 +50,22 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 24 rows = 14 applied, 7 kept with reason, 3 owner question. 0 handed off.
+
+Applied:
+
+- `BarListItem`, `HeatmapMatrix`, `HistogramBucket`, `ScatterPoint`, `ScatterSeries` reexport-chain: each chart `index.ts` exports from its `option.ts` home; the `.tsx` re-exports are removed (`BarListIntent` stays on its line). `CssMergeTraceSnapshot`: `lib/index.ts` exports it from `css-merge-contract.ts`; the `css-merge-trace.ts` re-export is deleted.
+- `ColorSchemeQuery` / `ReducedMotionQuery`: one `MatchMediaListView` in the new `lib/match-media-list.ts`; both hooks import it. `lib/reduced-motion-now.ts` keeps its own `ReducedMotionQuery`, which reads `matches` only and is a different shape.
+- `Range` (markdown/dialogue.ts) / `HighlightedTextRange`: both are character-offset ranges. Both fold into kit's `Span`; `@orb/kit/chunk` now exports the type (its door held `export {} from "./split.ts"` and nothing else).
+- `AutocompleteGroup` / `ComboboxGroup`: `autocomplete.tsx` uses `ComboboxGroup`, now exported from the combobox door.
+- Icons `AlertTriangle` (TriangleAlert), `MoreHorizontal` (Ellipsis), `MoreVertical` (EllipsisVertical), `SmilePlus` (FaceSlightlySmilingPlus), `Trash2` (Trash): the door exports lucide's canonical names and 44 importer files (`@orb/ui/icons` and `#primitives/icons`, `move-import-names` in-place plan) are renamed. Lucide 1.61 publishes the old names as aliases, so the door never renamed them. Strings: only codemod fixtures name these icons.
+
+Kept:
+
+- `History` / `RotateCcwClock` and `MapIcon` / `Map`: the canonical names are `History` and `Map`, which shadow the DOM `History` interface and the JS `Map` global in every importer, so the door's names are the safe ones. `lucide-react` publishes `MapIcon` and `RotateCcwClock`-aliased `History` itself.
+- `Range` / `PinnedSpan`, `HighlightedTextRange` / `PinnedSpan`, `PinnedSpan` / `Range`, `PinnedSpan` / `HighlightedTextRange`: `PinnedSpan` (`message-list/pin-spacer.ts`) holds virtualizer pixel offsets, not character offsets; the item says pixel ranges stay.
+- `StreamShimmerProps` / `TypingDotsProps`: each is the prop type of its own component (`label`, `className`). Two components with the same two props are not one concept.
+
+Owner question: `OrbChartOption` / `EChartsOption` and `OrbEChartsInstance` / `EChartsType` (two rows on `echarts-setup.ts`, one on `chart/index.ts`). Using the home names changes the chart seal's public type `OrbEChartsInstance` (imported by stories in `tests/ui` and `tests/client` through `@orb/ui/chart`), and the style gate `chartOptionType` in `tooling/src/eslint/ui-styles.ts` recognises the chart option type by the name `OrbChartOption` imported from `echarts-setup.ts` (its test is `tests/tooling/eslint-ui-style-values.test.ts`). Renaming needs the gate and its fixtures to change together; left for the owner.
+
+Checks: `pnpm typecheck packages/ui/tsconfig.json packages/kit/tsconfig.json packages/client/tsconfig.json` exit 0.

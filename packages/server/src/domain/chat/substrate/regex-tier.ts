@@ -30,11 +30,19 @@
 // parameter rather than a source field so the turn path (`resolveHostTierRegexScripts`, which throws the
 // listing away) never has to carry a name it does not render.
 
-import type { CharacterRegexSlice, EffectiveRegexEntry, EffectiveRegexView, RegexTierGroupView, RegexTierKey, RegexTierRowView } from "@orb/contracts/chat";
+import type {
+  CharacterRegexSlice,
+  ChatMetadata,
+  EffectiveRegexEntry,
+  EffectiveRegexView,
+  HostTierRegexAllow,
+  RegexTierGroupView,
+  RegexTierKey,
+  RegexTierRowView,
+} from "@orb/contracts/chat";
 import { characterRegexTierKey, isRegexEnabledInChat, isRegexTierAllowed } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
-import type { ChatMetadata } from "../contract/metadata.ts";
-import type { HostTierRegexAllow, HostTierRegexSources, RegexTierLabels } from "../contract/regex.ts";
+import type { HostTierRegexSources, RegexTierLabels } from "../contract/regex.ts";
 
 /** The room's REGEX LEVERS (#1742), lifted off the parsed metadata blob for the pure resolver below — which
  *  must not know what a chat row looks like. Both members pass through VERBATIM: the absent-⇒-allowed rule

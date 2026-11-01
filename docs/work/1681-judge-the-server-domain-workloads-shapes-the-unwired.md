@@ -35,4 +35,8 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 9 rows = 9 applied. 0 kept, 0 handed off, 0 owner questions.
+
+- `StartWorkloadParams`, `CancelWorkloadResult`, `WorkloadRowAnyKind`, `WorkloadRunnableRow` reexport-chain (contract rows and the two door rows): applied. The `contract/params.ts` and `contract/workload-row.ts` re-exports and the door's `workload-row.ts` line are deleted; 12 importer files (plan from importers of each module; ast-grep ts 5949 / tsx 1525 tracked files) take the types from `@orb/contracts/workloads`.
+- `ScheduleTickDeps` / `ScheduleTickAssemblyDeps`, `ReapWorkloadsArgs` / `ReapWorkloadsAssemblyArgs`, `WorkloadRunnerDeps` / `WorkloadRunnerAssemblyDeps` renamed-reexport: applied. The door exports the declared names; 3 importer files renamed. Inner types of the old names exist in `contract/`.
+- Check: `pnpm typecheck packages/server/tsconfig.json` exit 0.

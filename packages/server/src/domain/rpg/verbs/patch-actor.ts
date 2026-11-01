@@ -23,9 +23,9 @@
 // refusal below, plus a per-op field policy if the host ever wants to withhold one. Not built here (owner
 // scope): a member gets a FORBIDDEN, not a lie.
 
+import type { HandDoorResult } from "@orb/contracts/rpg";
 import { actorRefKey } from "@orb/contracts/rpg";
 import type { PatchActorParams } from "../contract/params.ts";
-import type { HandDoorResult } from "../contract/results.ts";
 import type { RpgContext, RpgService } from "../contract/service.ts";
 import { assertHostRole, resolveMember } from "../guard.ts";
 import { writeHandState } from "../snapshot-edit.ts";

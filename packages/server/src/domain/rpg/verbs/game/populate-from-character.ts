@@ -39,12 +39,11 @@
 // already wrote both fields) · `{ok:false,reason}` (the round could not run, or the F1 boundary refused the
 // state half). The client reads it through the `refusal` seam and toasts; `populated:false` is an INFO line.
 
-import type { RpgSheet, RpgSnapshotState } from "@orb/contracts/rpg";
+import type { PopulateResult, RpgSheet, RpgSnapshotState } from "@orb/contracts/rpg";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, RpgGameId } from "@orb/kit/ids";
 import { RPG_OP_CODES } from "#src/domain/rpg/contract/op-codes.ts";
 import type { PopulateFromCharacterParams } from "#src/domain/rpg/contract/params.ts";
-import type { PopulateResult } from "#src/domain/rpg/contract/results.ts";
 import type { RpgContext, RpgPopulateDelta, RpgService } from "#src/domain/rpg/contract/service.ts";
 import { snapshotRowToState } from "#src/domain/rpg/contract/service.ts";
 import { resolveHost } from "#src/domain/rpg/guard.ts";

@@ -12,7 +12,7 @@ import type { DuplicateBookParams } from "#src/domain/world-info/contract/params
 import type { WorldInfoContext, WorldInfoService } from "#src/domain/world-info/contract/service.ts";
 import { listBookEntries, loadOwnedBook } from "#src/domain/world-info/persistence/queries.ts";
 
-export function createDuplicate(ctx: WorldInfoContext): WorldInfoService["duplicateBook"] {
+export function createDuplicateBook(ctx: WorldInfoContext): WorldInfoService["duplicateBook"] {
   return async ({ principal, bookId }: DuplicateBookParams) => {
     const ownerId = principal.userId;
     const source = await loadOwnedBook(ctx.db, ownerId, bookId);
