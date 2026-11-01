@@ -7,6 +7,7 @@
 import type { ContentSpan } from "@orb/kit/content";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import { ASSET_LIST_LIMIT_MAX } from "../assets/index.ts";
 import { CONTENT_CLASS_POLICY } from "./content-classes.ts";
 
 // ── Message content blocks (D294, UI-Theming-and-Content §12.4) ────────────────────────────────────────────────────────────
@@ -61,6 +62,28 @@ export const messageContentBlockSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 export type MessageContentBlock = z.infer<typeof messageContentBlockSchema>;
+
+/** The per-send bounds on structured content. `blocks` is the attachment list cap, so a send's pictures share one limit. */
+export const SEND_BLOCK_LIMITS = { blocks: ASSET_LIST_LIMIT_MAX, mdChars: 100_000, altChars: 1024 } as const;
+
+// `]` ends the image grammar's alt and a newline reaches the line-anchored directive grammar.
+const SEND_BLOCK_ALT_RE = /^[^\]\r\n]*$/;
+
+/**
+ * What a caller may author on `send`: the render blocks that compile into the one stored body (D51). Text and an
+ * owned stored picture only. A card's trust tier is the server's verdict, `choices` is model output, an external
+ * ref never rides, the media kind is a fact of the stored asset, and the body cannot carry `dims`.
+ */
+export const sendContentBlockSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("markdown"), md: z.string().min(1).max(SEND_BLOCK_LIMITS.mdChars) }),
+  z.strictObject({
+    kind: z.literal("media"),
+    media: z.literal("image"),
+    src: z.strictObject({ kind: z.literal("asset"), assetId: typeIdSchema(ID_PREFIX.asset) }),
+    alt: z.string().max(SEND_BLOCK_LIMITS.altChars).regex(SEND_BLOCK_ALT_RE),
+  }),
+]);
+export type SendContentBlock = z.infer<typeof sendContentBlockSchema>;
 
 /**
  * Project kit content spans (`@orb/kit/content` `tokenizeContent` — the ONE ref grammar, D51) into

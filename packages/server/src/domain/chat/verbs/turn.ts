@@ -23,6 +23,7 @@ import type {
   PlainChatWarningCode,
   RequestTurnOp,
   RequestTurnParams,
+  SendContentBlock,
   SmartPicker,
   SpeakerRef,
   TurnKind,
@@ -37,6 +38,7 @@ import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contr
 import { batchMany, isConstraintViolation } from "@orb/db/query";
 import type { Resolved, WireTool } from "@orb/inference";
 import { resolveSideGenSampling } from "@orb/inference";
+import { contentSpanRaw } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, MacroRegistry, RandomSource, UserMacroDef } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
@@ -183,6 +185,17 @@ const RECENT_TRANSCRIPT = 10;
 const recursePatch = (toolRecurseLimit: number | undefined): { toolRecurseLimit?: number } => (toolRecurseLimit !== undefined ? { toolRecurseLimit } : {});
 
 const ATTACHMENT_ALT = "attachment";
+const BLOCK_SEPARATOR = "\n\n";
+
+/** The one body a structured send stores (D51): its blocks in authored order, as the same `asset:` refs an
+ *  attachment writes, so every later reader sees an ordinary message. */
+function composeBodyFromBlocks(blocks: readonly SendContentBlock[]): string {
+  return blocks
+    .map((block) =>
+      block.kind === "markdown" ? block.md : contentSpanRaw({ kind: "image", alt: block.alt, ref: { kind: "asset", assetId: block.src.assetId } }),
+    )
+    .join(BLOCK_SEPARATOR);
+}
 
 /** Composes the persisted body from the (post-regex) user text + one `![](asset:<id>)` ref per attached
  *  asset. Empty text + attachments yields an image-only body; no attachments returns the text unchanged. */
@@ -1607,6 +1620,8 @@ async function commitUserTurn(
   deps: TurnDeps,
   args: Readonly<Pick<SendParams, "principal" | "chatId" | "content" | "personaId" | "attachmentAssetIds" | "guided">> & {
     readonly timeZone: SendParams["timeZone"];
+    /** The pictures a structured send's body already cites; a foreign one refuses the send, unlike a typed quote. */
+    readonly blockAssetIds?: readonly AssetId[] | undefined;
   },
 ): Promise<CommittedUserTurn> {
   const { principal, chatId, content, personaId, guided } = args;
@@ -1615,7 +1630,7 @@ async function commitUserTurn(
   // claim replays the creation stats over the canon present at claim, and this row is about to join it.
   await deps.claimChat(chatId);
   const attachments = args.attachmentAssetIds ?? [];
-  await assertAttachmentsOwned(ctx, principal.userId, chatId, attachments);
+  await assertAttachmentsOwned(ctx, principal.userId, chatId, [...attachments, ...(args.blockAssetIds ?? [])]);
   // Same trust boundary as impersonate: an EXPLICIT personaId stamped onto the committed user row must be
   // owned by the caller, else the message-stamped persona name/avatar producers leak a foreign persona's
   // chrome. Omitted ⇒ the caller's own active persona (trusted). See assertPersonaOwnedIfExplicit.
@@ -1704,13 +1719,25 @@ async function commitUserTurn(
  *  the round, then (if autoMode) chain AI→AI, then run the host's post-round auto-behaviors.
  *  Member-gated; AI turns run as the host. */
 function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): ChatService["send"] {
-  return async ({ principal, chatId, content, personaId, attachmentAssetIds, intent, guided, timeZone }: SendParams): Promise<TurnOutcome> => {
+  return async ({
+    principal,
+    chatId,
+    content: plainContent,
+    personaId,
+    blocks,
+    attachmentAssetIds,
+    intent,
+    guided,
+    timeZone,
+  }: SendParams): Promise<TurnOutcome> => {
+    const content = blocks === undefined ? plainContent : composeBodyFromBlocks(blocks);
     const { membership, room, identity, connection, group, userView, built } = await commitUserTurn(ctx, deps, {
       principal,
       chatId,
       content,
       personaId,
       attachmentAssetIds,
+      blockAssetIds: blocks?.flatMap((block) => (block.kind === "media" ? [block.src.assetId] : [])),
       guided,
       timeZone,
     });
