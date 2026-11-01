@@ -130,6 +130,46 @@ function attributeResolution(elem: Elem, name: string, sf: ts.SourceFile): { rea
   return { resolution: resolve(expression, sf, 0), direct: literalOf(unwrap(expression)) !== null };
 }
 
+const SPREAD_UNREAD = "spread of a prop, parameter or import";
+
+function objectAxis(object: ts.ObjectLiteralExpression, axis: string, sf: ts.SourceFile, hops: number): Resolution {
+  const parts = object.properties.map((property): Resolution => {
+    if (ts.isSpreadAssignment(property)) {
+      return resolveSpread(property.expression, axis, sf, hops + 1);
+    }
+    if (!(ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property))) {
+      return NONE;
+    }
+    if (property.name.getText(sf).replace(/^["']|["']$/gu, "") !== axis) {
+      return NONE;
+    }
+    return ts.isPropertyAssignment(property) ? resolve(property.initializer, sf, hops + 1) : unresolved("identifier from a prop, parameter or import");
+  });
+  return merge(NONE, ...parts);
+}
+
+/** What `{...expression}` writes on one axis: object literals are read, anything else could carry any axis. */
+function resolveSpread(expression: ts.Expression, axis: string, sf: ts.SourceFile, hops: number): Resolution {
+  const node = unwrap(expression);
+  if (ts.isObjectLiteralExpression(node)) {
+    return objectAxis(node, axis, sf, hops);
+  }
+  if (ts.isConditionalExpression(node)) {
+    return merge(resolveSpread(node.whenTrue, axis, sf, hops), resolveSpread(node.whenFalse, axis, sf, hops));
+  }
+  if (ts.isBinaryExpression(node)) {
+    const op = node.operatorToken.kind;
+    if (op === ts.SyntaxKind.AmpersandAmpersandToken) {
+      return resolveSpread(node.right, axis, sf, hops);
+    }
+    if (op === ts.SyntaxKind.QuestionQuestionToken || op === ts.SyntaxKind.BarBarToken) {
+      return merge(resolveSpread(node.left, axis, sf, hops), resolveSpread(node.right, axis, sf, hops));
+    }
+  }
+  const init = ts.isIdentifier(node) && hops < MAX_HOPS ? constInitializer(sf, node.text) : null;
+  return init === null ? unresolved(SPREAD_UNREAD) : resolveSpread(init, axis, sf, hops + 1);
+}
+
 export interface ValueUse {
   readonly value: string;
   /** Sites that write the value as a literal. */
@@ -179,8 +219,14 @@ function axisSites(all: readonly FileFacts[], door: string, axis: string): reado
       return [];
     }
     return facts.elems.flatMap((elem) => {
-      const read = elem.door === door ? attributeResolution(elem, axis, sf) : null;
-      return read === null ? [] : [{ path: facts.source.path, tag: elem.tag, ...read }];
+      if (elem.door !== door) {
+        return [];
+      }
+      const path = facts.source.path;
+      const read = attributeResolution(elem, axis, sf);
+      const written = read === null ? [] : [{ path, tag: elem.tag, ...read }];
+      const spread = elem.spreads.map((expression) => ({ path, tag: elem.tag, resolution: resolveSpread(expression, axis, sf, 0), direct: false }));
+      return [...written, ...spread.filter((site) => site.resolution.values.length > 0 || site.resolution.reasons.length > 0)];
     });
   });
 }

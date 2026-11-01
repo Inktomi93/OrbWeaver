@@ -19,7 +19,7 @@ const COMPOSITION_CANNOT_SEE: readonly string[] = [
   "Success feedback is file-level: a toast manager anywhere in the file counts for every mutation in it. A success message built in a shared helper is invisible.",
   "Inline failure is a read of error, isError, retry or clearError on the hook result; an error shown through a prop passed from a parent is invisible.",
   "Form mode follows factory names across imports and tags; a form built by a helper in another file is attributed by its imported name only.",
-  "Variant uses resolve through same-file consts, conditionals and `??`, `||`, `&&` of literals, three hops deep. A prop, a call, an import or a template with substitutions stays unresolved, and so does a spread.",
+  "Variant uses resolve through same-file consts, conditionals and `??`, `||`, `&&` of literals, three hops deep. A prop, a call, an import or a template with substitutions stays unresolved. A spread of an object literal (or a same-file const of one) writes its axes; any other spread leaves every axis of its door unresolved.",
 ];
 const COHORT_NAMES = ["section-structure", "read-shape", "feedback", "form"] as const;
 
@@ -174,7 +174,7 @@ function variantLines(facts: UiFacts): string[] {
   return [
     "### Variant use",
     "",
-    `Read ${report.sitesRead} primitive axis writes. Cells are literal writes, plus writes reached through a same-file const map, conditional or fallback after the plus. ${report.spreadSites} primitive elements spread props, which can carry any axis and are not counted.`,
+    `Read ${report.sitesRead} primitive axis writes. Cells are literal writes, plus writes reached through a same-file const map, conditional or fallback after the plus. ${report.spreadSites} primitive elements spread props; the literal ones are read as writes, the rest stay unresolved on every axis of their door.`,
     "",
     ...table(["door", "axis", "values written (literal+resolved sites)", "still unresolved"], report.axes.map(variantRow)),
     `#### Zero uses on an axis with nothing unresolved (${valuesOf((axis, uses) => uses === 0 && !unclaimable(axis)).length})`,

@@ -97,6 +97,30 @@ test("variant values reached through a const map or a conditional count as writt
   expect(axes.find((entry) => entry.axis === "size")?.unresolved).toEqual({});
 });
 
+test("a spread of object literals writes its axes, and a spread the syntax cannot read makes every axis of the door unclaimable", ({ scratch }) => {
+  const root = plantDir(scratch, "variant-spreads");
+  plant(root, {
+    "components/spreads.tsx": [
+      'import { Button } from "@orb/ui/button";',
+      'const LOOK = { size: "md" } as const;',
+      "export const A = ({ flag, rest }) => (",
+      "  <>",
+      '    <Button {...(flag ? { variant: "ghost" } : {})} />',
+      "    <Button {...LOOK} />",
+      "  </>",
+      ");",
+      "export const B = ({ rest }) => <Button {...rest} />;",
+    ].join("\n"),
+  });
+  const axes = analyse(root, [], null).composition.variants.axes;
+  const axis = (name: string): (typeof axes)[number] | undefined => axes.find((entry) => entry.axis === name);
+  const resolved = (name: string, value: string): number | undefined => axis(name)?.values.find((entry) => entry.value === value)?.resolved;
+  expect(resolved("variant", "ghost")).toBe(1);
+  expect(resolved("size", "md")).toBe(1);
+  expect(axis("variant")?.unresolved).toEqual({ "spread of a prop, parameter or import": 1 });
+  expect(axis("size")?.unresolved).toEqual({ "spread of a prop, parameter or import": 1 });
+});
+
 test("an autosave form that dismisses with Cancel is a defect, and a hook toast beside an inline error is a repeated failure", ({ scratch }) => {
   const root = plantDir(scratch, "forms");
   plant(root, {
