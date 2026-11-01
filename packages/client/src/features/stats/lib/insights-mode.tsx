@@ -19,7 +19,6 @@ export const insightsCorpusMode: CorpusModeContribution = {
       <AnalyticsListSurface />
     </AnalyticsListAnchor>
   ),
-  listSearch: "required",
   useListHeader: useAnalyticsListHeader,
   content: () => <AnalyticsContent />,
   contextHeader: () => <AnalyticsContextHeader />,

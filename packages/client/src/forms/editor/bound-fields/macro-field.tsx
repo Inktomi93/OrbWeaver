@@ -7,15 +7,11 @@ import { Field } from "@orb/ui/field";
 import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import { MacroTextarea } from "@orb/ui/macro-textarea";
 import { Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
+import type { BoundFieldShellProps } from "./use-bound-field.ts";
 import { useBoundField } from "./use-bound-field.ts";
 
-export interface MacroFieldProps {
-  readonly label: ReactNode;
-  readonly description?: ReactNode;
-  /** A hover-tip explainer beside the label (`@orb/ui/field` `hint`) — for copy that doesn't need to
-   *  stay always-visible. */
-  readonly hint?: ReactNode;
+export interface MacroFieldProps extends BoundFieldShellProps {
   /** The macro catalog to complete against on `{{` (app-level data — the field never imports a registry). */
   readonly suggestions: readonly MacroSuggestion[];
   readonly placeholder?: string;

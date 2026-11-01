@@ -9,6 +9,7 @@
 
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { AssetId, ChatId } from "@orb/kit/ids";
+import type { MessageMediaProps } from "@orb/ui/message-media";
 import { createGatedStore } from "./create-gated-store.ts";
 import { openModal } from "./shell-store.ts";
 
@@ -38,7 +39,7 @@ export interface ImageSubject {
    *  (`AssetBlobRef.width/height`, stored at upload). OPTIONAL because that wire is honestly nullable: a
    *  non-image, an unparseable header, or a row written before #625 has none, and the modal must still
    *  render — it just falls back to the primitive's placeholder aspect. */
-  readonly dims?: { readonly w: number; readonly h: number };
+  readonly dims?: MessageMediaProps["dims"];
 }
 
 interface ImageryState {

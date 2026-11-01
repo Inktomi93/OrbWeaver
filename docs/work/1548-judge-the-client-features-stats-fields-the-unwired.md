@@ -30,4 +30,13 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+4 rows: 2 deleted, 0 derived, 2 kept, 0 handed off, 0 owner questions.
+
+| Row | Result |
+| - | - |
+| `MomentumRow.current`, `.prev` | deleted with their writes; `delta` is computed from locals |
+| `MomentumRow.characterId`, `.name` | kept: `momentumBarItems` reads `row.characterId` and `row.name` (`analytics-view-model.ts:206-208`) through its inline structural parameter, fed by `analytics-overview-surface.tsx:112-113`. That file's header makes the inline shape deliberate, and deriving the parameter from `LocalMomentum` would add a cycle with `local-calendar-folds.ts`, which imports `WEEKDAY_LABELS` from it |
+
+`MomentumRow.delta` was not in the table and stays (read at `analytics-view-model.ts:209` and in the sorts).
+
+Survey: `codegraph_explore` on `MomentumRow local-calendar-folds momentum`; ast-grep (`-l ts` 5904, `-l tsx` 1522 files) on `localMomentum($$$)` (1 caller). Typecheck exit 0 (same command as 1545). CT: `platform-accounting-coverage` mounts the stats components; it does not mount the overview surface, so the delete is proved by typecheck only.

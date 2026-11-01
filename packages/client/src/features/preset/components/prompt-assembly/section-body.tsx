@@ -31,6 +31,7 @@ import { isPlainMarkerSection, isTemplatedMarkerSection } from "#src/features/pr
 import { openConfigTo } from "#state";
 import type { PresetEditorValues } from "../../lib/preset-editor-values.ts";
 import { PresetMacroSuggestions } from "../preset-macro-suggestions.tsx";
+import type { MarkerCopy } from "./marker-copy.ts";
 import { CARRIER_ATTRIBUTION, MARKER_COPY } from "./marker-copy.ts";
 
 type AssemblyForm = AppFormInstance<PresetEditorValues>;
@@ -119,7 +120,7 @@ function TemplatedMarkerBody({ form, section, index }: SectionEditProps): ReactE
 /** The `templateNote`'s bytes behind a disclosure — the house band grammar (`aria-expanded` button +
  *  `hidden` body) the Actions cluster bands and the Configuration list groups already speak, rather than
  *  the Accordion primitive: this is ONE row of read-only text, not a set of alternating panels. */
-function TemplateNoteDetail({ detail }: { readonly detail: { readonly label: string; readonly text: string } }): ReactElement {
+function TemplateNoteDetail({ detail }: { readonly detail: NonNullable<MarkerCopy["templateNoteDetail"]> }): ReactElement {
   const bodyId = useId();
   const [open, setOpen] = useState(false);
   return (

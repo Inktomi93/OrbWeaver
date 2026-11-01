@@ -32,11 +32,7 @@ export function useChatContextState(): CommittedChatContext | null {
   }
   const chat = chatQuery.data;
   return {
-    phase: "committed",
     chatId,
-    // The stored title, raw (`""` until renamed) — the context band derives the rendered name from it +
-    // the character names through `deriveChatTitle`, the ONE title home the topbar identity already uses.
-    title: chat.title,
     participants: chat.participants,
     identities: chat.identities,
     viewerUserId: chat.viewerUserId,

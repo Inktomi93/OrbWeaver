@@ -1,4 +1,3 @@
-import type { CommittedChatContext, ContextRegionDef, ContextTabDef, ContributorRegistry } from "#lib";
 import type { ChromeRegistry } from "./chrome-registry-context.ts";
 import type { CommandPaletteSourceRegistry } from "./command-palette-source-registry-context.ts";
 import type { ConfigGroupRegistry } from "./config-group-registry.ts";
@@ -18,6 +17,4 @@ export interface AuthedComposition {
   readonly messageToolsRenderers: MessageToolsRendererRegistry;
   readonly slashCommands: SlashCommandRegistry;
   readonly commandPaletteSources: CommandPaletteSourceRegistry;
-  readonly chatContextContributors: ContributorRegistry<ContextTabDef<CommittedChatContext>>;
-  readonly chatContextRegions: ContributorRegistry<ContextRegionDef<CommittedChatContext>>;
 }
