@@ -5,6 +5,7 @@
 // the `contentSpansToBlocks` projection off the kit content-span grammar (D51), which DEGRADES, never throws.
 
 import type { ContentSpan } from "@orb/kit/content";
+import { contentSpanRaw, tokenizeContent } from "@orb/kit/content";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { ASSET_LIST_LIMIT_MAX } from "../assets/index.ts";
@@ -66,15 +67,18 @@ export type MessageContentBlock = z.infer<typeof messageContentBlockSchema>;
 /** The per-send bounds on structured content. `blocks` is the attachment list cap, so a send's pictures share one limit. */
 export const SEND_BLOCK_LIMITS = { blocks: ASSET_LIST_LIMIT_MAX, mdChars: 100_000, altChars: 1024 } as const;
 
-// `]` ends the image grammar's alt and a newline reaches the line-anchored directive grammar.
-const SEND_BLOCK_ALT_RE = /^[^\]\r\n]*$/;
+const SEND_BLOCK_SEPARATOR = "\n\n";
+
+// An alt is a literal label: `]` ends the image grammar's alt, `<` opens a tag the scanner reads first, a newline
+// reaches the line-anchored directive grammar, and `{{` would resolve in a later render of the stored body.
+const SEND_BLOCK_ALT_RE = /^(?!.*\{\{)[^\]<\r\n]*$/;
 
 /**
  * What a caller may author on `send`: the render blocks that compile into the one stored body (D51). Text and an
  * owned stored picture only. A card's trust tier is the server's verdict, `choices` is model output, an external
- * ref never rides, the media kind is a fact of the stored asset, and the body cannot carry `dims`.
+ * ref never rides, and the body cannot carry `dims`.
  */
-export const sendContentBlockSchema = z.discriminatedUnion("kind", [
+const sendContentBlockSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("markdown"), md: z.string().min(1).max(SEND_BLOCK_LIMITS.mdChars) }),
   z.strictObject({
     kind: z.literal("media"),
@@ -84,6 +88,45 @@ export const sendContentBlockSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 export type SendContentBlock = z.infer<typeof sendContentBlockSchema>;
+
+/** A send's markdown block texts, in order: the only part of a structured send the author-side transforms read. */
+export function sendBlockMarkdown(blocks: readonly SendContentBlock[]): string[] {
+  return blocks.flatMap((block) => (block.kind === "markdown" ? [block.md] : []));
+}
+
+/** Joins transformed block texts the way the stored body separates them. */
+export function joinSendBlockText(texts: readonly string[]): string {
+  return texts.join(SEND_BLOCK_SEPARATOR);
+}
+
+/**
+ * The one stored body of a structured send (D51): `markdown` holds the block texts in order, the pictures sit
+ * between them as the `asset:` refs an attachment writes. A text a transform emptied leaves no gap.
+ */
+export function composeSendBody(blocks: readonly SendContentBlock[], markdown: readonly string[] = sendBlockMarkdown(blocks)): string {
+  let next = 0;
+  const parts = blocks.map((block) => {
+    if (block.kind === "markdown") {
+      return markdown[next++] ?? "";
+    }
+    return contentSpanRaw({ kind: "image", alt: block.alt, ref: { kind: "asset", assetId: block.src.assetId } });
+  });
+  return joinSendBlockText(parts.filter((part) => part.length > 0));
+}
+
+// A markdown block can open a span that swallows the rest of the body, so a picture is checked in the composed body.
+function everyPictureSurvives(blocks: readonly SendContentBlock[]): boolean {
+  const images = tokenizeContent(composeSendBody(blocks), { committed: true }).filter((span) => span.kind === "image");
+  return blocks.every(
+    (block) => block.kind === "markdown" || images.some(({ alt, ref }) => alt === block.alt && ref.kind === "asset" && ref.assetId === block.src.assetId),
+  );
+}
+
+export const sendContentBlocksSchema = z
+  .array(sendContentBlockSchema)
+  .min(1)
+  .max(SEND_BLOCK_LIMITS.blocks)
+  .refine(everyPictureSurvives, { error: "a markdown block swallows a later picture" });
 
 /**
  * Project kit content spans (`@orb/kit/content` `tokenizeContent` — the ONE ref grammar, D51) into

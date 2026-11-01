@@ -7,6 +7,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatBusEvent, SendContentBlock } from "@orb/contracts/chat";
 import { contentSpansToBlocks, SEND_BLOCK_LIMITS } from "@orb/contracts/chat";
+import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { tokenizeContent } from "@orb/kit/content";
 import type { AssetId, ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -250,6 +251,84 @@ test("a foreign picture spelled inside a markdown block stays unplaced and off t
   expect(await box.root.services.assets.resolveChatAssetRefs(box.member.userId, box.chatId, [hostsPrivate])).toEqual([]);
 });
 
+test("an owned asset that is not an image is refused as a picture block", async () => {
+  const box = await openBox();
+  const bytes = new TextEncoder().encode("%PDF-1.7 not a picture");
+  const document = (await box.root.services.assets.store({ principal: box.host, bytes, kind: "attachment", mime: "application/pdf" })).assetId;
+
+  await expect(box.caller.chat.send({ chatId: box.chatId, content: "", blocks: mixedBlocks(document), timeZone: UTC_TIME_ZONE })).rejects.toMatchObject({
+    cause: { code: CHAT_OP_CODES.attachmentNotOwned },
+  });
+
+  expect((await box.caller.chat.listMessages({ chatId: box.chatId })).messages).toEqual([]);
+});
+
+test("a reaped upload refuses the send instead of committing a dead ref", async () => {
+  const box = await openBox();
+  const assetId = await storePicture(box, box.host);
+  await box.root.services.assets.reapIfOrphan([assetId]);
+
+  await expect(box.caller.chat.send({ chatId: box.chatId, content: "", blocks: mixedBlocks(assetId), timeZone: UTC_TIME_ZONE })).rejects.toMatchObject({
+    cause: { code: CHAT_OP_CODES.attachmentNotOwned },
+  });
+
+  expect((await box.caller.chat.listMessages({ chatId: box.chatId })).messages).toEqual([]);
+});
+
+test("a USER_INPUT regex reads the block text only and cannot touch a picture ref or its alt", async () => {
+  const box = await openBox();
+  const script = await box.root.services.regex.createScript({
+    principal: box.host,
+    input: createRegexScriptSchema.parse({
+      name: "Strip refs",
+      findRegex: "/!\\[[^\\]]*\\]\\([^)]*\\)|picture|ledger/g",
+      replaceString: "x",
+      placement: ["USER_INPUT"],
+    }),
+  });
+  await box.root.services.regex.attachGlobal({ principal: box.host, scriptId: script.id });
+  const assetId = await storePicture(box, box.host);
+
+  const outcome = await box.caller.chat.send({ chatId: box.chatId, content: "", blocks: mixedBlocks(assetId), timeZone: UTC_TIME_ZONE });
+
+  const user = outcome.messages.find((message) => message.role === "user");
+  expect(user?.content).toBe(`Before the x.\n\n![${ALT}](asset:${assetId})\n\nAfter the x.`);
+  expect(userParts(lastRequest(box)).map(partOrder)).toContainEqual([expect.stringContaining("Before the x."), await wireUrl(box, assetId), "After the x."]);
+});
+
+test("a volatile macro freezes in the block text around a picture", async () => {
+  const box = await openBox();
+  const assetId = await storePicture(box, box.host);
+  const blocks: SendContentBlock[] = [{ kind: "markdown", md: "{{roll:1d1}}" }, IMAGE_BLOCK(assetId), { kind: "markdown", md: "{{roll:1d1}} again" }];
+
+  const outcome = await box.caller.chat.send({ chatId: box.chatId, content: "", blocks, timeZone: UTC_TIME_ZONE });
+
+  expect(outcome.messages.find((message) => message.role === "user")?.content).toBe(`1\n\n![${ALT}](asset:${assetId})\n\n1 again`);
+});
+
+test("only block text picks a speaker: an @mention in an alt is a label", async () => {
+  const box = await openBox();
+  const roster = await Promise.all(
+    ["aria", "bryn"].map((handle) =>
+      box.root.services.character.create({
+        principal: box.host,
+        input: createCharacterSchema.parse({ handle, name: handle, description: "A keeper." }),
+      }),
+    ),
+  );
+  const room = await box.root.services.chat.startChat({ principal: box.host, characterIds: roster.map((character) => character.id), opening: "none" });
+  const chatId = room.chat.id;
+  await box.caller.chat.setGroupConfig({ chatId, config: { output: "per-speaker", policy: "list" } });
+  const assetId = await storePicture(box, box.host);
+  const speakers = async (blocks: SendContentBlock[]): Promise<(string | null)[]> =>
+    (await box.caller.chat.send({ chatId, content: "", blocks, timeZone: UTC_TIME_ZONE })).messages
+      .filter((message) => message.role === "assistant")
+      .map((message) => message.characterId);
+
+  expect(await speakers([IMAGE_BLOCK(assetId, "@bryn")])).toEqual(roster.map((character) => character.id));
+  expect(await speakers([{ kind: "markdown", md: "@bryn look" }, IMAGE_BLOCK(assetId)])).toEqual([roster[1]?.id]);
+});
+
 const IMAGE_BLOCK = (assetId: AssetId, alt = ALT): SendContentBlock => ({ kind: "media", media: "image", src: { kind: "asset", assetId }, alt });
 
 const REFUSED_INPUTS: readonly { readonly name: string; readonly input: (assetId: AssetId) => Record<string, unknown> }[] = [
@@ -268,6 +347,13 @@ const REFUSED_INPUTS: readonly { readonly name: string; readonly input: (assetId
   { name: "text in both content and blocks", input: () => ({ content: "both", blocks: [{ kind: "markdown", md: "x" }] }) },
   { name: "an alt that closes the ref early", input: (assetId) => ({ blocks: [IMAGE_BLOCK(assetId, "a](asset:other)")] }) },
   { name: "an alt spanning lines", input: (assetId) => ({ blocks: [IMAGE_BLOCK(assetId, "a\n:::card")] }) },
+  { name: "an alt the tag scanner reads as a tag", input: (assetId) => ({ blocks: [IMAGE_BLOCK(assetId, '<x a="b"/>')] }) },
+  { name: "an alt carrying a hidden tag", input: (assetId) => ({ blocks: [IMAGE_BLOCK(assetId, '<lie truth="t"/>')] }) },
+  { name: "an alt a later macro pass would rewrite", input: (assetId) => ({ blocks: [IMAGE_BLOCK(assetId, "{{char}}")] }) },
+  {
+    name: "an unterminated card that swallows a later picture",
+    input: (assetId) => ({ blocks: [{ kind: "markdown", md: ':::card title="x"' }, IMAGE_BLOCK(assetId)] }),
+  },
   { name: "an oversized alt", input: (assetId) => ({ blocks: [IMAGE_BLOCK(assetId, "a".repeat(SEND_BLOCK_LIMITS.altChars + 1))] }) },
   { name: "an oversized markdown block", input: () => ({ blocks: [{ kind: "markdown", md: "a".repeat(SEND_BLOCK_LIMITS.mdChars + 1) }] }) },
   { name: "too many blocks", input: () => ({ blocks: Array.from({ length: SEND_BLOCK_LIMITS.blocks + 1 }, () => ({ kind: "markdown", md: "x" })) }) },

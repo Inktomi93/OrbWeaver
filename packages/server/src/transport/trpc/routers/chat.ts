@@ -41,9 +41,8 @@ import {
   reattributeScopeSchema,
   regexTierKeySchema,
   roomOverridesSchema,
-  SEND_BLOCK_LIMITS,
   seatKnobsSchema,
-  sendContentBlockSchema,
+  sendContentBlocksSchema,
   shapeTraceSchema,
   startChatSchema,
   TOOL_CALL_EDIT_ACTIONS,
@@ -99,7 +98,7 @@ const sendSchema = z
     chatId: typeIdSchema(ID_PREFIX.chat),
     content: z.string(),
     personaId: typeIdSchema(ID_PREFIX.persona).nullish(),
-    blocks: z.array(sendContentBlockSchema).min(1).max(SEND_BLOCK_LIMITS.blocks).optional(),
+    blocks: sendContentBlocksSchema.optional(),
     // #67 — inline images the user attached (asset ids). The send verb TRUST-BOUNDARY-checks each is the
     // actor's own asset (rejecting a foreign/gone id), then persists a `message_assets` row + a body ref per id.
     attachmentAssetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX).optional(),

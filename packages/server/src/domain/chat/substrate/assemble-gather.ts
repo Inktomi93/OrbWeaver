@@ -37,6 +37,7 @@ import { resolveChoiceVariables } from "./variables.ts";
  *  here so the verb persists that. Threaded straight through to the pure core. */
 interface SendRegexSink {
   sendUserText?: string;
+  sendUserSegments?: readonly string[];
   /** The SEND bake's VOLATILE-FREEZE record (D129-F) — written by the pure core beside `sendUserText` so the
    *  verb persists it on the same variant. Absent ⇒ nothing froze. */
   sendMacroFreezes?: MacroFreezeRecord;
@@ -309,6 +310,7 @@ export async function gatherAssembleContext(
     /** The room seats more than one present human — carried onto the built ctx for SHAPE's name-stamp. */
     readonly multiHuman?: boolean | undefined;
     readonly pendingUserText?: string | undefined;
+    readonly pendingUserSegments?: readonly string[] | undefined;
     /** The one-turn typed steer — threaded to the BUILD, which resolves the action template once and
      *  delivers it via its placement. */
     readonly guided?: GuidedSteer | undefined;
@@ -495,6 +497,7 @@ export async function gatherAssembleContext(
       ...(lastUserMessage !== undefined ? { lastUserMessage } : {}),
       ...(lastCharMessage !== undefined ? { lastCharMessage } : {}),
       ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText, currentInput: args.pendingUserText } : {}),
+      ...(args.pendingUserSegments !== undefined ? { pendingUserSegments: args.pendingUserSegments } : {}),
       ...(args.guided !== undefined ? { guided: args.guided } : {}),
       // The per-turn user-macro registries (WAVE MU) — absent ⇒ the pure build's singleton fallback (byte-identical).
       ...macroRegistries,
