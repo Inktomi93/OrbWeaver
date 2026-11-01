@@ -95,7 +95,7 @@ test("gradient syntax is not an easing token", async () => {
 });
 
 test("a runtime gradient cannot hide a source-authored hex color", async () => {
-  const source = (start: string): string => `export const C = ({color}) => <div style={{background: \`linear-gradient(${start}, ${"$"}{color})\`}} />;`;
+  const source = (start: string): string => `export const C = ({color}) => <div style={{background: \`linear-gradient(${start}, \${color})\`}} />;`;
   expect(await findings(RAW, source("#fff"))).toHaveLength(1);
   expect(await findings(RAW, source("var(--color-primary)"))).toEqual([]);
   expect(await findings(RAW, 'export const C = ({width}) => <div style={{width: width + "px"}} />;')).toEqual([]);

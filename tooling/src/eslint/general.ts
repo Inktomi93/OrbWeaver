@@ -232,7 +232,7 @@ function isZodStringBuilder(context: OrbRuleContext, node: TSESTree.Node, hops: 
 function builderRoot(node: TSESTree.Node): TSESTree.CallExpression | undefined {
   let current = node;
   while (current.type === AST_NODE_TYPES.CallExpression) {
-    const receiver = current.callee.type === AST_NODE_TYPES.MemberExpression ? (current.callee as TSESTree.MemberExpression).object : undefined;
+    const receiver = current.callee.type === AST_NODE_TYPES.MemberExpression ? current.callee.object : undefined;
     if (receiver?.type !== AST_NODE_TYPES.CallExpression) {
       break;
     }

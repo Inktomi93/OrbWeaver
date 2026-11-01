@@ -380,7 +380,7 @@ function runWrapper(
     env["ORB_WRAPPER_OUTCOME"] = extra.outcome ?? "0";
     Object.assign(env, extra.env);
     if (box === undefined) {
-      delete env[DEDICATED_BOX_ENV];
+      Reflect.deleteProperty(env, DEDICATED_BOX_ENV);
     } else {
       env[DEDICATED_BOX_ENV] = box;
     }

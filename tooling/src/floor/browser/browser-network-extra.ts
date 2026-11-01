@@ -109,7 +109,7 @@ export class PendingNetworkExtras {
     this.#trim(isActive);
   }
 
-  take(requestId: string, kind: NetworkExtraKind): unknown | null {
+  take(requestId: string, kind: NetworkExtraKind): unknown {
     const pending = this.#map(kind);
     const queue = pending.get(requestId);
     const value = queue?.shift() ?? null;

@@ -1387,7 +1387,7 @@ test("a clipped label with NO ellipsis and no full-value affordance is still a t
   await writeFile(join(scratch, "bare-clip.html"), truncatedLabelPage("none"));
   const res = await runCli("snap", ["--file", join(scratch, "bare-clip.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("text-overflow");
-  expect(res.stdout, "the finding must carry the measured spill, or it cannot be acted on").toMatch(/\d+px spill/u);
+  expect(res.stdout, "the finding must carry the measured spill, or it cannot be acted on").toMatch(/(?<!\d)\d+px spill/u);
   await expect(res).toExitWith(1);
 });
 
@@ -1427,7 +1427,7 @@ test("a badge whose own centre hit-tests to the button on top of it is an obscur
   const res = await runCli("snap", ["--file", join(scratch, "collide.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("obscured-target");
   expect(res.stdout, "the finding must name what the press ACTUALLY lands on").toContain("button");
-  expect(res.stdout, "and the size of the collision, or it cannot be acted on").toMatch(/\d+px overlap/u);
+  expect(res.stdout, "and the size of the collision, or it cannot be acted on").toMatch(/(?<!\d)\d+px overlap/u);
   await expect(res).toExitWith(1);
 });
 

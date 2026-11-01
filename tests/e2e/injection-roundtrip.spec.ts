@@ -18,7 +18,7 @@ import { openContextSections } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { openContextTab, openDetailPanel, openOrCreateChat, reopenFirstChat, waitForAppReady } from "./support/chat-room.ts";
-import { WAIT_SHORT_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
+import { CASE_TWO_LIVE_TURNS_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 
 /** From an open chat, reach the Injections editor. IA UPDATE (panel-redesign consolidation): the ⋯ menu's
  *  "Injections…" jump and the standalone Injections meta-tab are BOTH gone — an option with a context-panel
@@ -79,7 +79,7 @@ test("injection: add → reload persists; remove → reload gone", async ({ page
   // the bootstrap. The budget ran out mid-leg, and Playwright reports that as whatever action was in flight
   // (a `locator.click` that "hung", an app-ready wait that never resolved) — two different-looking failures,
   // one cause. `members-tab-views.local.spec.ts` declares 180s for the same reason; this one reloads more.
-  test.setTimeout(240_000);
+  test.setTimeout(CASE_TWO_LIVE_TURNS_MS);
   await openOrCreateChat(page);
   await openInjectionsTab(page);
 

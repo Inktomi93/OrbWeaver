@@ -1,5 +1,7 @@
 // "Send a test request" rides the route and the body shaper a chat turn uses, so a green test means chat works.
 // @subject packages/inference/src/backends/openai-compat/diagnostics.ts
+
+import { toError } from "@orb/kit/error-message";
 import { expect, test } from "@orb/testkit/node";
 import type { RecordedRequest } from "@orb/testkit/node/helpers";
 import { openAiServer, recordRequest } from "@orb/testkit/node/helpers";
@@ -101,7 +103,7 @@ test("a hung endpoint fails the test request at the row's request timeout, as it
   const timer = observeRuntimeTimers();
   const hung: typeof fetch = (_input, init) =>
     new Promise<Response>((_resolve, reject) => {
-      init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+      init?.signal?.addEventListener("abort", () => reject(toError(init.signal?.reason)));
     });
   await using root = await createRuntimeRoot({ providerFetch: hung, timers: timer.timers });
   const connection = await wireConnection(root, {

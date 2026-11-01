@@ -24,7 +24,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const OMITTED = "[OMITTED]";
 const TRUNCATED = "[TRUNCATED]";
-const URL_TOKEN = /(?:[a-z][a-z0-9+.-]*:\/\/|\/\/)[^\s"'<>]+|(?:\/|\.\.?\/)[^\s"'<>]*\?[^\s"'<>]+/giu;
+const URL_TOKEN = /(?:[a-z][a-z0-9+.-]{0,63}:\/\/|\/\/)[^\s"'<>]+|(?:\/|\.\.?\/)[^\s"'<>]{0,2048}\?[^\s"'<>]+/giu;
 const ASSIGNMENT = /(^|[\s?&;,{[(])([A-Z][A-Z0-9_.-]{0,100})(\s*[:=]\s*)([^\s&;,}]+)/gimu;
 const QUOTED_ASSIGNMENT = /(["'])([A-Z][A-Z0-9_.-]{0,100})\1(\s*:\s*)(["'])([^"']*)\4/giu;
 const AUTH_SCHEME = /\b(Bearer|Basic)\s+[A-Z0-9._~+/-]+=*/giu;

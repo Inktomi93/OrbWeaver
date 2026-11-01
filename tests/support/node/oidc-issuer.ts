@@ -47,7 +47,7 @@ export async function createNativeIssuer(options: { readonly algorithm?: Generat
     const payload = { ...claims };
     const omitted = signing.omittedClaims ?? [];
     for (const claim of omitted) {
-      delete payload[claim];
+      Reflect.deleteProperty(payload, claim);
     }
     const token = new SignJWT(payload).setProtectedHeader(signing.header ?? { alg: algorithm, kid: SIGNING_KEY });
     // Native defaults must not repair raw negative cases or deliberately omitted required claims.
@@ -109,7 +109,7 @@ export async function createNativeIssuer(options: { readonly algorithm?: Generat
         ...claims,
       };
       for (const claim of omittedClaims) {
-        delete payload[claim];
+        Reflect.deleteProperty(payload, claim);
       }
       return sign(payload, { omittedClaims });
     },

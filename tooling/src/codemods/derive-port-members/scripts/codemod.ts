@@ -36,9 +36,14 @@ const MEMBER: RuleConfig<TS> = { rule: { any: [{ kind: "property_signature" }, {
 /** Every file may hold a target or a door export; the targets file decides. */
 export const getSelector: GetSelector<TS> = () => ({ rule: { kind: "program" } });
 
+// `Array.isArray` alone narrows a readonly array to `any[]`; the predicate keeps the element type.
+function isTargetList(value: unknown): value is readonly PortTarget[] {
+  return Array.isArray(value);
+}
+
 function readTargets(targetDir: string, file: string): readonly PortTarget[] {
   const parsed = JSON.parse(readFileSync(join(targetDir, file), "utf8")) as { readonly targets?: readonly PortTarget[] };
-  if (!Array.isArray(parsed.targets)) {
+  if (!isTargetList(parsed.targets)) {
     throw new Error(`${file}: expected { targets: [...] } from pnpm unwired ports`);
   }
   return parsed.targets;
@@ -120,7 +125,7 @@ function memberEdits(rootNode: SgNode<TS>, target: PortTarget): Edit[] {
   return member === null ? [] : [deriveMember(member, type)];
 }
 
-const IMPORT_BRACES = /\{([^}]*)\}/u;
+const IMPORT_BRACES = /(?<!\{)\{([^}]*)\}/u;
 
 const sourceOf = (statement: SgNode<TS>): string =>
   statement

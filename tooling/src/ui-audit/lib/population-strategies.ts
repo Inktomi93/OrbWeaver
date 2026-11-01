@@ -236,7 +236,7 @@ export function decisionPopulationFindings<T extends { readonly selector: string
       value: `${first.finding.value}; ${affectedSummary}; ${String(representatives.length)} representative(s), ${String(capped)} capped`,
       representatives,
       population: { affected: failures.length, judged: group.length, capped },
-    } as Finding);
+    });
   }
   const cap = affected - emitted;
   const withheld = { ...(census?.withheld ?? {}) };

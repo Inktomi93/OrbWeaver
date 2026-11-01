@@ -29,3 +29,15 @@ export const WAIT_STREAM_MS = 60_000;
 export const WAIT_RPG_ROUND_MS = 75_000;
 /** A live model turn. */
 export const WAIT_LIVE_TURN_MS = 120_000;
+
+// Whole-case allowances for `test.setTimeout`: a live spec spends its budget on model turns, so each rung names how many.
+/** A case holding one short streamed reply and its setup. */
+export const CASE_STREAM_MS = 90_000;
+/** A case holding one live model turn and its setup. */
+export const CASE_LIVE_TURN_MS = 120_000;
+/** A case holding a live turn plus a follow-up on it (a resume, a fork, a second reader). */
+export const CASE_LIVE_FOLLOW_UP_MS = 180_000;
+/** A case chaining two live model turns. */
+export const CASE_TWO_LIVE_TURNS_MS = 240_000;
+/** A case looping live turns through several rounds. */
+export const CASE_LIVE_LOOP_MS = 300_000;

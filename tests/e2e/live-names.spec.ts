@@ -17,7 +17,7 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { openNewestChat, renameOpenChat, reopenFirstChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
 import { frameCursor, tapStream } from "./support/stream-tap.ts";
-import { WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
+import { CASE_LIVE_FOLLOW_UP_MS, WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import { deleteChat, listCharacters, startChat } from "./support/trpc.ts";
 
 const USER_DISPLAY_NAME = "You";
@@ -34,7 +34,7 @@ async function speakerNameText(page: Page, role: "user" | "assistant"): Promise<
 test("row speaker names are DB-true and survive a chat rename + reload", {
   tag: "@live",
 }, async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(CASE_LIVE_FOLLOW_UP_MS);
 
   // SELF-SEED a fresh chat (greeting only) and open it in the UI (newest → first row). Avoids growing a
   // shared chat across runs and keeps the transcript short (top rows always rendered). The chat is deleted in

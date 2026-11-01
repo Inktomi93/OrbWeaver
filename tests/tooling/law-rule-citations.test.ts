@@ -62,7 +62,7 @@ function exists(name: string, rules: readonly string[]): boolean {
     `^${name
       .replaceAll(/[.+?^${}()|[\]\\]/gu, String.raw`\$&`)
       .replaceAll("*", "[a-z0-9-]*")
-      .replaceAll(/<[^>]+>/gu, "[a-z0-9-]+")}$`,
+      .replaceAll(/(?<!<)<[^>]+>/gu, "[a-z0-9-]+")}$`,
     "u",
   );
   return rules.some((rule) => pattern.test(rule));

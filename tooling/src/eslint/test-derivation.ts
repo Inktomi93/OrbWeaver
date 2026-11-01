@@ -76,7 +76,7 @@ export interface CssVocabulary {
 // A brace marks stylesheet text or a token-reference placeholder: the input of a parser, not a read of a token.
 const CSS_TEXT = /[{}]/u;
 // A Tailwind arbitrary value stays one literal so the class scanner can see it.
-const ARBITRARY_VALUE = /\[[^\]\s]*var\(/u;
+const ARBITRARY_VALUE = /(?<!\[)\[[^\]\s]*var\(/u;
 const VAR_READ = /var\(\s*(--[\w-]+)(?=\s*[,)])/gu;
 // `--name: value` outside a block; a class string's `[--name:value]` stays one literal for the scanner.
 const DECLARED_NAME = /(?<![\w[-])(--[a-z][a-z0-9-]*)\s*:/gu;

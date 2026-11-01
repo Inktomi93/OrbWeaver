@@ -15,7 +15,7 @@ interface Refusal {
 }
 
 const CLASS_TOKEN = /^[!\w@[\]:&>*()/.%#,'"=~-]+$/u;
-const DECLARATION = /^\s*([a-z][\w-]*)\s*:\s*([^{;]*);\s*$/gmu;
+const DECLARATION = /^[ \t]*([a-z][\w-]*)\s*:\s*([^{;]*);[ \t]*$/gmu;
 const CLASS_HOLDERS = "JSXAttribute[name.name=/^(className|class)$/][value], CallExpression[callee.name=/^(cva|cn|clsx|cx|tv|twMerge)$/]";
 
 function childNodes(node: TSESTree.Node): TSESTree.Node[] {

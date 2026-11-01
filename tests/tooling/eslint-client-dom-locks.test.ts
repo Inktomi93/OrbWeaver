@@ -55,7 +55,7 @@ const jsx = (body: string, preamble = ""): string =>
   `${preamble}export function P(props: { readonly n: number; readonly flag: boolean }) {\n  return ${body};\n}\n`;
 
 /** A template placeholder spelled without a literal `$` + `{` in this file's own strings. */
-const interp = (expression: string): string => `$${"{"}${expression}}`;
+const interp = (expression: string): string => `\${${expression}}`;
 
 // [rule, label, source, path, expected finding count]
 const CASES = [

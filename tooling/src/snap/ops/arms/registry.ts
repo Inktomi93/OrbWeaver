@@ -204,7 +204,7 @@ function mergeArmFailures(parts: readonly (readonly [Arm, ArmFailureCounts])[]):
       merged.set(field, count);
     }
   }
-  return Object.fromEntries(merged) as ArmFailureCounts;
+  return Object.fromEntries(merged);
 }
 
 /** THE RUN ARMS AS ONE SURFACE. `ops/run.ts` gains no branch per arm: every member below is total and

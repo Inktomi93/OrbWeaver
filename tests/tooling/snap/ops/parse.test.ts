@@ -98,7 +98,7 @@ test("every accepted public Snap flag derives exactly one grammar descriptor, in
   try {
     expect(() => snapFlagDescriptors()).toThrow(/--__planted-undocumented-snap-flag has no summary\/group/u);
   } finally {
-    delete FLAG_HANDLERS[planted];
+    Reflect.deleteProperty(FLAG_HANDLERS, planted);
   }
   expect(undocumentedAcceptedFlags()).toEqual([]);
 

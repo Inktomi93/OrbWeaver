@@ -126,7 +126,7 @@ test.describe("the current section on the mobile bar", () => {
     await expect.poll(() => currentTabs(bar)).toEqual([SECTION_LABELS.chats]);
     const home = await reachableTabs(bar);
     expect(home).not.toContain(SECTION_LABELS.corpus);
-    expect(home.length).toBe(standing.length);
+    expect(home).toHaveLength(standing.length);
   });
 });
 

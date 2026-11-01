@@ -112,7 +112,7 @@ async function manifest(stdout: string): Promise<ScenarioManifest> {
 }
 
 function evalPayloads(data: ScenarioManifest): readonly unknown[] {
-  return data.captures.flatMap((capture) => capture.evalResults.filter((result) => !result.failed).map((result) => JSON.parse(result.text) as unknown));
+  return data.captures.flatMap((capture) => capture.evalResults.filter((result) => !result.failed).map((result) => JSON.parse(result.text)));
 }
 
 async function presetSource(): Promise<Record<string, unknown>> {

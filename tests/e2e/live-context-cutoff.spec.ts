@@ -22,7 +22,7 @@ import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { gotoChatsList, messageRow } from "./support/chat-room.ts";
-import { WAIT_SURFACE_MS } from "./support/timeouts.ts";
+import { CASE_LIVE_FOLLOW_UP_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import {
   createPreset,
   deleteChat,
@@ -48,7 +48,7 @@ const AUTO = { mode: "auto" as const };
 test("the context-boundary divider is present-tense: preview-driven, knob-responsive, stale-stamp-proof", {
   tag: "@live",
 }, async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(CASE_LIVE_FOLLOW_UP_MS);
 
   // ── Seed a throwaway chat with history; the FINAL turn's tiny per-send ceiling stamps a canon boundary. ──
   const characterId = (await listCharacters())[0]?.id ?? castId<CharacterId>("");

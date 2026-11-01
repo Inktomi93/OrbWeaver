@@ -32,13 +32,14 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@playwright/test";
 import { addMemberToChat, loginLocal, ownerActor } from "./support/actors.ts";
 import { LOCAL_MEMBER } from "./support/modes.ts";
+import { CASE_LIVE_TURN_MS } from "./support/timeouts.ts";
 
 const LIE_TRUTH = "he is the smuggler the guards seek";
 const LIE_TAG = `<lie character="Thornwick" type="identity" truth="${LIE_TRUTH}" reason="to keep the party from turning him in"/>`;
 const CARD_HANDLE = "e2e-member-strip";
 
 test("P3 member-strip: a MEMBER's wire payload is byte-clean of the planted lie; the HOST reveals it", { tag: "@live" }, async ({ baseURL }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(CASE_LIVE_TURN_MS);
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
 

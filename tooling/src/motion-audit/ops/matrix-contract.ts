@@ -122,18 +122,30 @@ export function planMotionAppearanceMatrix(contract: RuntimeAppearanceContract, 
   return { ...provisional, staticExpected: { candidateId: candidate.id, controlId: control.id } };
 }
 
-function payloadFor<T>(matrix: Pick<MotionAppearanceMatrix, "axes">, assignment: VariantAssignment, axisId: string): T {
+function payloadFor<T>(
+  matrix: Pick<MotionAppearanceMatrix, "axes">,
+  assignment: VariantAssignment,
+  axisId: string,
+  accepts: (payload: unknown) => payload is T,
+): T {
   const axis = matrix.axes.find((candidate) => candidate.id === axisId);
   const value = axis?.values.find((candidate) => candidate.id === assignment[axisId]);
-  return value === undefined ? instrumentRefusal(`motion cell is missing ${axisId}`) : (value.payload as T);
+  if (value === undefined || !accepts(value.payload)) {
+    return instrumentRefusal(`motion cell is missing or has malformed ${axisId}`);
+  }
+  return value.payload;
 }
+
+const isNullableString = (payload: unknown): payload is string | null => payload === null || typeof payload === "string";
+const isBoolean = (payload: unknown): payload is boolean => typeof payload === "boolean";
+const isString = (payload: unknown): payload is string => typeof payload === "string";
 
 export function motionMatrixVariant(matrix: Pick<MotionAppearanceMatrix, "axes">, cell: VariantMatrixPlan["cells"][number], index = 0): MotionMatrixVariant {
   return {
     id: variantArtifactId(cell.id, index),
-    selector: payloadFor<string | null>(matrix, cell.assignment, SCENARIO_AXIS),
-    appReducedMotion: payloadFor<unknown>(matrix, cell.assignment, APP_MOTION_AXIS) === APP_REDUCED_MOTION_ON,
-    osReducedMotion: payloadFor<boolean>(matrix, cell.assignment, OS_MOTION_AXIS),
-    device: payloadFor<string | null>(matrix, cell.assignment, DEVICE_AXIS),
+    selector: payloadFor(matrix, cell.assignment, SCENARIO_AXIS, isNullableString),
+    appReducedMotion: payloadFor(matrix, cell.assignment, APP_MOTION_AXIS, isString) === APP_REDUCED_MOTION_ON,
+    osReducedMotion: payloadFor(matrix, cell.assignment, OS_MOTION_AXIS, isBoolean),
+    device: payloadFor(matrix, cell.assignment, DEVICE_AXIS, isNullableString),
   };
 }

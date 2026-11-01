@@ -36,6 +36,7 @@ import { FIXTURE_COVER_MARKER, FIXTURE_LIE_TRUTH, startFixtureProvider } from ".
 import { E2E_RUN_PORTS, LOCAL_MEMBER } from "./support/modes.ts";
 import type { StreamValue } from "./support/sse.ts";
 import { collectChatRoomFrames, readStreamEvent, requireSatisfied } from "./support/sse.ts";
+import { CASE_LIVE_FOLLOW_UP_MS } from "./support/timeouts.ts";
 
 const CARD_HANDLE = "e2e-reasoning-strip";
 const STREAM_TIMEOUT_MS = 60_000;
@@ -99,7 +100,7 @@ function sawReply(values: readonly StreamValue[]): boolean {
 test("P3 reasoning host-only: a deception turn's reasoning channel is withheld from the MEMBER's live SSE + replay, delivered to the HOST", async ({
   baseURL,
 }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(CASE_LIVE_FOLLOW_UP_MS);
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
 

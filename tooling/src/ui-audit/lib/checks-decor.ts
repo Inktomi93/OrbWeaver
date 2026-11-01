@@ -6,6 +6,7 @@ import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 import { rgbChroma } from "@orb/tooling/floor/instrument/wcag";
 import type { CandidateDisposition, Finding } from "../contract/findings.ts";
 import type { AccentBorderInput, GlowShadowInput } from "../contract/samples.ts";
+import { splitTopLevelCommas } from "./checks-ornament.ts";
 import { findColorToken } from "./css-color.ts";
 import { REM_PX } from "./ramp.ts";
 
@@ -153,9 +154,7 @@ const GLOW_MIN_ALPHA = 0.05;
 const GLOW_BLUR_INDEX = 2; // shadow lengths: offset-x, offset-y, blur, [spread]
 const DARK_BACKDROP_MAX_LUM = 0.1;
 
-const SHADOW_LAYER_SPLIT_RE = /,(?![^(]*\))/;
-
-const SHADOW_LENGTH_RE = /(-?\d*\.?\d+)(px|rem|em)?/g;
+const SHADOW_LENGTH_RE = /(-?(?<!\d)\d*\.?\d+)(px|rem|em)?/g;
 
 // COLOUR READING IS `lib/css-color.ts`'s JOB, NEVER A REGEX HERE (#983-family, 2026-09-01). This
 // file used to carry `SHADOW_COLOR_RE = /rgba?\([^)]*\)/i` plus a `/[\d.]+/g` channel scrape, which
@@ -205,7 +204,7 @@ function scanShadowValue(value: string, prop: string, onDark: boolean, selector:
   if (value === "") {
     return null;
   }
-  for (const layer of value.split(SHADOW_LAYER_SPLIT_RE)) {
+  for (const layer of splitTopLevelCommas(value)) {
     const verdict = classifyGlowLayer(layer, onDark);
     if (verdict === null) {
       continue;

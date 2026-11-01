@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { WORKLOAD_LANES } from "@orb/contracts/workloads";
 import { closeDb } from "@orb/db";
+import { toError } from "@orb/kit/error-message";
 import { sql } from "drizzle-orm";
 import { vi } from "vitest";
 import { createFrozenClock } from "../iso/clock.ts";
@@ -46,7 +47,7 @@ test("a rejected timer clear cannot strand supervised physical fetch cancellatio
         }
         executing.resolve(signal);
         return new Promise<Response>((_resolve, reject) => {
-          const onAbort = (): void => reject(signal.reason);
+          const onAbort = (): void => reject(toError(signal.reason));
           signal.addEventListener("abort", onAbort, { once: true });
           void release.promise.then(() => {
             signal.removeEventListener("abort", onAbort);

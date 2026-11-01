@@ -182,7 +182,7 @@ function pointerThroughParameter(variable: TSESLint.Scope.Variable, context: Orb
       return false;
     }
     const owner = def.node as FunctionNode;
-    const index = owner.params.indexOf(def.name as TSESTree.Parameter);
+    const index = owner.params.indexOf(def.name);
     const name = functionNameOf(owner);
     const callee = name === undefined ? undefined : variableNamed(context.sourceCode.getScope(name), name.name);
     return (

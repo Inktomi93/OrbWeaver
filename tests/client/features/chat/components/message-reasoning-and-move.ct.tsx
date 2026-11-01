@@ -236,7 +236,7 @@ for (const failure of NEIGHBOUR_READ_FAILURES) {
     if (predecessor === undefined) {
       throw new Error("The paged room has no row before its first loaded row");
     }
-    const beforeStart = JSON.parse(JSON.stringify(await host.chat.listMessages({ chatId, cursor: { kind: "before", seq: 0 }, limit: 1 }))) as unknown;
+    const beforeStart = JSON.parse(JSON.stringify(await host.chat.listMessages({ chatId, cursor: { kind: "before", seq: 0 }, limit: 1 })));
     expect((beforeStart as { readonly messages: readonly unknown[] }).messages).toEqual([]);
     await serveAs(root, page, host, () => failure.answer(beforeStart));
     await corpusMedia();

@@ -54,7 +54,7 @@ export class NativeWorld implements Disposable {
   readonly #root: string;
   readonly #fileOfPath: ReadonlyMap<string, string>;
   readonly #sourceOf: ReadonlyMap<string, SourceFile>;
-  readonly #answers = new Map<string, unknown>();
+  readonly #answers = new Map<string>();
 
   private constructor(root: string, config: string, api: API) {
     this.config = config;
@@ -111,7 +111,7 @@ export class NativeWorld implements Disposable {
     const run = (generator: APIRequestGenerator, finish: (value: unknown) => void, first: unknown): void => {
       let step = generator.next(first);
       while (step.done !== true) {
-        const request = step.value as Request;
+        const request = step.value;
         if (isAll(request)) {
           joined(request.generators as readonly APIRequestGenerator[], (answers) => run(generator, finish, answers));
           return;

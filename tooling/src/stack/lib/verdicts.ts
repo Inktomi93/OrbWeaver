@@ -121,9 +121,9 @@ export function servedCarriesDiskBytes(servedBody: string, diskSource: string): 
  *  their absence from the served body proves nothing); a re-export clause takes the LAST identifier of each
  *  clause, which is the exported name under `a as b`. `default` is skipped — the served body spells it as
  *  a keyword, not as a binding. */
-const VALUE_EXPORT_RE = /^\s*export\s+(?:async\s+)?(?:const|let|var|function\*?|class)\s+([A-Za-z_$][\w$]*)/gmu;
-const EXPORT_CLAUSE_RE = /^\s*export\s+\{([^}]*)\}/gmu;
-const CLAUSE_NAME_RE = /([A-Za-z_$][\w$]*)\s*$/u;
+const VALUE_EXPORT_RE = /^[ \t]*export\s+(?:async\s+)?(?:const|let|var|function\*?|class)\s+([A-Za-z_$][\w$]*)/gmu;
+const EXPORT_CLAUSE_RE = /^[ \t]*export\s+\{([^}]*)\}/gmu;
+const CLAUSE_NAME_RE = /(?<![\w$])([A-Za-z_$][\w$]*)\s*$/u;
 
 /** The value-export names a served dev transform of this source MUST still contain.
  *

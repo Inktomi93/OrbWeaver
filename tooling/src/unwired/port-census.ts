@@ -1,7 +1,7 @@
 // `pnpm unwired ports`: each hand-restated port member planned against its chain's one owner, each cross-domain import
 // (its shape moves to packages/contracts, Core-0 §4) and each type a door forgot to export. Only a flow, a type
 // reference or an alias makes two shapes one concept; every target lands in the cluster of its concept's owner.
-import { relative } from "node:path";
+import { dirname, relative } from "node:path";
 import ts from "typescript";
 import type { DistinctRegistry } from "./distinct-lookalikes.ts";
 import { DISTINCT_LOOKALIKES, isDistinctPair } from "./distinct-lookalikes.ts";
@@ -581,7 +581,7 @@ function forgottenTargets(found: Iterable<ForgottenExport>, judgments: Judgments
     const exports =
       kind !== "forgotten-door-export" || entry.doorFile === null || entry.door === null
         ? []
-        : [{ file: entry.doorFile, name: entry.name, from: `./${relative(entry.doorFile.replace(/[^/]+$/u, ""), entry.file)}` }];
+        : [{ file: entry.doorFile, name: entry.name, from: `./${relative(dirname(entry.doorFile), entry.file)}` }];
     const split = kind === "ruled" && !passesDbHandle(entry.foreign) ? `${describeForeignTypes(entry.foreign)}; ruling: ${SPLIT_RULING}` : "";
     const handle = passesDbHandle(entry.foreign) ? crossDomainNote(kind, entry.foreign, keys) : split;
     const note = [

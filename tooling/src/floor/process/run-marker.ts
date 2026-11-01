@@ -413,6 +413,6 @@ export function describeRunMarkerSweep(sweep: RunMarkerSweep): string | null {
   return (
     `[run-marker] swept ${String(reached.size)} process(es) that outlived the process-group kill ` +
     `(marker ${sweep.marker}): SIGTERM ${sweep.terminated.length === 0 ? "none" : sweep.terminated.join(",")}` +
-    `${sweep.killed.length === 0 ? "" : `, SIGKILL ${sweep.killed.join(",")}`}`
+    (sweep.killed.length === 0 ? "" : `, SIGKILL ${sweep.killed.join(",")}`)
   );
 }

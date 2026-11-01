@@ -358,7 +358,7 @@ async function driveGestureFixture(argv: readonly string[]): Promise<GestureRead
     return {
       stepFailures: failures.stepFailures,
       scrollLeft: Number(await page.evaluate("document.getElementById('strip').scrollLeft")),
-      holdMs: (await page.evaluate("window.__hold")) as number | null,
+      holdMs: await page.evaluate<number | null>("window.__hold"),
       spotTaps: Number(await page.evaluate("window.__spotTaps")),
     };
   } finally {
@@ -441,7 +441,7 @@ test("--soft-keyboard shrinks the visual viewport iOS-style, fires resize and sc
     expect(args.errors).toEqual([]);
     const failures = await driveActions({ page, actions: args.actions });
     expect(failures.stepFailures).toBe(0);
-    const seen = (await page.evaluate("window.__seen")) as readonly { readonly type: string; readonly inner: number; readonly inset: number }[];
+    const seen = await page.evaluate<readonly { readonly type: string; readonly inner: number; readonly inset: number }[]>("window.__seen");
     // Open: the layout viewport keeps its height (WebKit) and the inset is the keyboard band. Close: the
     // inset returns to rest. Each state reached BOTH listeners; a listener may hear a state more than once,
     // as on a real phone, so the distinct readings per event type are what is asserted.

@@ -16,8 +16,9 @@ test("persisted and draft store names stay a closed production classification", 
   createEntityDraftStore({ name: "character-card" });
   // @ts-expect-error device-local names require a production classification
   persisted("unclassified-store", initial, options);
+  const widened: string = "shell";
   // @ts-expect-error widening a literal cannot grant a device-local classification
-  persisted("shell" as string, initial, options);
+  persisted(widened, initial, options);
   // @ts-expect-error arbitrary names cannot enter through an imported alias
   persisted(unclassified, initial, options);
   // @ts-expect-error the namespace export retains the same closed name contract

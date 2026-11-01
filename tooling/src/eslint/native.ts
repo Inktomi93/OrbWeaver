@@ -362,7 +362,7 @@ export const nativeTitleRule: OrbRule = {
       );
     return {
       "JSXAttribute[name.name='title']": (node: TSESTree.JSXAttribute): void => {
-        if (targetIsNative(node.parent as TSESTree.JSXOpeningElement)) {
+        if (targetIsNative(node.parent)) {
           context.report({ node: node.name, message: NATIVE_TITLE_MESSAGE });
         }
       },
@@ -395,7 +395,7 @@ export const nativeTitleRule: OrbRule = {
           );
           return title !== undefined && !fromReactTypes(title.declarations) && !flaggedAtLiteral;
         });
-        if (authored && targetIsNative(node.parent as TSESTree.JSXOpeningElement)) {
+        if (authored && targetIsNative(node.parent)) {
           context.report({ node, message: NATIVE_TITLE_MESSAGE });
         }
       },

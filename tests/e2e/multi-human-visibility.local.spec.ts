@@ -23,6 +23,7 @@ import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from
 import { FIXTURE_COVER_MARKER, startFixtureProvider } from "./support/fixture-provider.ts";
 import { E2E_RUN_PORTS, LOCAL_MEMBER } from "./support/modes.ts";
 import { collectChatRoomFrames, requireSatisfied } from "./support/sse.ts";
+import { CASE_LIVE_FOLLOW_UP_MS, CASE_LIVE_TURN_MS } from "./support/timeouts.ts";
 import type { TrpcClientOutput, TrpcInput } from "./support/trpc.ts";
 
 const STREAM_TIMEOUT_MS = 20_000;
@@ -96,7 +97,7 @@ function unclampedFields(card: MemberCard, keys: readonly (keyof MemberCard)[]):
 }
 
 test("D22: a MEMBER's card read is field-clamped at EVERY memberCardVisibility tier; the HOST always reads full", async ({ baseURL }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(CASE_LIVE_TURN_MS);
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
   const characterId = await freshCharacter(host, castId<CharacterHandle>("e2e-d22-card"), CARD_FIELDS);
@@ -169,7 +170,7 @@ const POST_JOIN = "SEQ4-POSTJOIN-the road is clear";
 const JOIN_SEQ = 3;
 
 test("D16 from-join: a member's list + durable replay carry NO row below their own joinSeq; the host reads all four", async ({ baseURL }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(CASE_LIVE_TURN_MS);
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
   const characterId = await freshCharacter(host, castId<CharacterHandle>("e2e-d16-floor"), {
@@ -261,7 +262,7 @@ test("D16 from-join: a member's list + durable replay carry NO row below their o
 // ══ 3. The chat EXPORT is host-gated (the download-shaped bypass of every read clamp) ═══════════════════
 
 test("EXPORT: the chat transcript download 404s for a seated MEMBER and 200s for the HOST", async ({ baseURL }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(CASE_LIVE_TURN_MS);
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
   const characterId = await freshCharacter(host, castId<CharacterHandle>("e2e-export-gate"), {
@@ -324,7 +325,7 @@ async function createProbePersona(actor: ActorClient, name: string, description:
 }
 
 test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane (card + assembly), and is not a dead pin", async ({ baseURL }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(CASE_LIVE_TURN_MS);
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
   // The card's own description probes CARD-context `{{user}}` — it renders against the room ANCHOR.
@@ -434,7 +435,7 @@ async function pollForReply(host: ActorClient, chatId: ChatId): Promise<Messages
 // previews the HOST's next turn, so it resolves the HOST's persona by construction and can never observe
 // this. The real streamed turn uses only the external scripted provider.
 test("D122 TRIGGER: a MEMBER-triggered turn ships THEIR persona in the assembled prompt (the stamped wire record)", async ({ baseURL }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(CASE_LIVE_FOLLOW_UP_MS);
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
   const fixture = await startFixtureProvider(E2E_RUN_PORTS.fixtureProvider, undefined, "What happened to the well?");

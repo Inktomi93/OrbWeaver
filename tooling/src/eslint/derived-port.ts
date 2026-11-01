@@ -1,6 +1,5 @@
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
-import type ts from "typescript";
 import type { Restatement } from "../unwired/index.ts";
 import { memberLabel, passesDbHandle, RELATION, restatementsAt, runtimeTypes } from "../unwired/index.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
@@ -38,7 +37,7 @@ export const derivedPortMemberRule: OrbRule = {
     }
     const checker = program.getTypeChecker();
     const judge = (node: TSESTree.Node): void => {
-      for (const found of restatementsAt(checker, toTsMap.get(node) as ts.Node)) {
+      for (const found of restatementsAt(checker, toTsMap.get(node))) {
         // A ledger-ruled joint batch keeps its handle by ruling: the consumer's signature is its own contract.
         if (found.relation === RELATION.narrowed || found.ruling !== null) {
           continue;

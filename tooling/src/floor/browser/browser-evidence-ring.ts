@@ -308,7 +308,7 @@ export class BoundedLatestMap<K, V> {
       this.#recordNew(key, scope);
     }
     while (this.#entries.size > this.#capacity) {
-      const oldest = this.#entries.keys().next().value as K | undefined;
+      const oldest = this.#entries.keys().next().value;
       if (oldest === undefined) {
         break;
       }

@@ -387,7 +387,11 @@ test.describe("the list door on Chats", () => {
       const pushStyle = getComputedStyle(main);
       const paneStyle = getComputedStyle(pane);
       // A timing function holds commas of its own, so the transition lists split only on top-level commas.
-      const arms = (list: string): string[] => list.split(/,\s*(?![^(]*\))/u);
+      const arms = (list: string): string[] =>
+        list
+          .replace(/(?<!\()\([^)]*\)/gu, (group) => group.replaceAll(",", "\u{e000}"))
+          .split(",")
+          .map((part) => part.trim().replaceAll("\u{e000}", ","));
       const arm = arms(paneStyle.transitionProperty).indexOf("transform");
       return {
         push: { duration: pushStyle.animationDuration, easing: pushStyle.animationTimingFunction },

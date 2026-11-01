@@ -53,7 +53,7 @@ function isCreateContextMember(callee: TSESTree.Node): callee is TSESTree.Member
     return false;
   }
   if (!callee.computed) {
-    return (callee.property as TSESTree.Identifier | TSESTree.PrivateIdentifier).name === "createContext";
+    return callee.property.name === "createContext";
   }
   const { property } = callee;
   if (property.type === AST_NODE_TYPES.TemplateLiteral) {

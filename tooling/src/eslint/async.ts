@@ -65,7 +65,7 @@ function literalMember(context: OrbRuleContext, node: TSESTree.Node): { name: st
   if (member.type !== AST_NODE_TYPES.MemberExpression) {
     return;
   }
-  const name = member.computed ? staticDetachedKey(context, member.property) : (member.property as TSESTree.Identifier | TSESTree.PrivateIdentifier).name;
+  const name = member.computed ? staticDetachedKey(context, member.property) : member.property.name;
   return name === undefined ? undefined : { name, receiver: unwrapTransparent(member.object) };
 }
 

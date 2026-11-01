@@ -69,7 +69,7 @@ interface TapTarget {
  *  outlet in #247, and none of these stories renders one, so nothing is filtered — and a filter kept past
  *  its cause would silently hide a real story control that happened to match. */
 async function tapTargets(page: Page): Promise<readonly TapTarget[]> {
-  const samples = (await page.evaluate(COLLECT_SAMPLES_JS)) as { readonly tapTargets: readonly TapTarget[] };
+  const samples = await page.evaluate<{ readonly tapTargets: readonly TapTarget[] }>(COLLECT_SAMPLES_JS);
   return samples.tapTargets;
 }
 
@@ -94,7 +94,7 @@ test("a slider's effective target is its whole control row, not the box the sibl
   // The censused control is Base UI's native range input INSIDE the thumb (the thumb div itself carries no
   // tabindex, so INTERACTIVE_SELECTOR never matches it) — pinned here because "which element the walker
   // actually flags" is the premise the arithmetic below rests on, and it is not the one you would guess.
-  expect(targets.length, `expected exactly one product control on the slider stage — saw: ${targets.map((t) => t.selector).join(" | ")}`).toBe(1);
+  expect(targets, `expected exactly one product control on the slider stage — saw: ${targets.map((t) => t.selector).join(" | ")}`).toHaveLength(1);
   const measured = Math.min(targets[0]?.width ?? 0, targets[0]?.height ?? 0);
 
   // The regression this exists for: 22px (the r=11 probe ring — the last radius whose hit was the thumb
@@ -257,7 +257,7 @@ const sampledSelectors = (rows: readonly { readonly selector: string }[]): reado
 
 /** The walker's whole raw sample set for the mounted stage. */
 async function samplesOf(page: Page): Promise<RawSamples> {
-  return (await page.evaluate(COLLECT_SAMPLES_JS)) as RawSamples;
+  return await page.evaluate<RawSamples>(COLLECT_SAMPLES_JS);
 }
 
 // ── A finding must be LOCATABLE (issue #148 item 5) ──────────────────────────────────────────────
@@ -269,7 +269,7 @@ test("a selector the walker reports resolves to exactly one element, even when d
   const samples = await samplesOf(page);
 
   const reported = samples.textStyles.filter((t) => t.tag === "span").map((t) => t.selector);
-  expect(reported.length, `expected the walker to censuse both spans — saw ${JSON.stringify(reported)}`).toBe(2);
+  expect(reported, `expected the walker to censuse both spans — saw ${JSON.stringify(reported)}`).toHaveLength(2);
   expect(new Set(reported).size, `both spans reported the SAME selector ${JSON.stringify(reported[0])} — neither can be found`).toBe(2);
   const counts = await Promise.all(reported.map(async (selector) => ({ selector, count: await page.locator(selector).count() })));
   for (const { selector, count } of counts) {
@@ -639,7 +639,7 @@ test("one action offered from three unrelated places on one plane is ONE finding
   const seen = JSON.stringify(findings.map((f) => `${f.rule} ${f.value}`));
 
   const doors = findings.filter((f) => f.rule === "duplicate-action-door");
-  expect(doors.length, `three doors to one verb is one finding about one verb, not three — got ${seen}`).toBe(1);
+  expect(doors, `three doors to one verb is one finding about one verb, not three — got ${seen}`).toHaveLength(1);
   expect(doors[0]?.value, `the name key folds case and trailing punctuation, so "New chat"/"new chat"/"New chat…" are one door — got ${seen}`).toBe(
     '3x button "new chat"',
   );
@@ -715,7 +715,7 @@ test("two real same-role same-name buttons still produce exactly one duplicate-a
   const findings = collectFindings(await samplesOf(page));
   const duplicates = findings.filter((finding) => finding.rule === "duplicate-action-door" && finding.value === '2x button "duplicate action"');
 
-  expect(duplicates.length, "the programmatic-wrapper exclusion must not weaken true duplicate detection").toBe(1);
+  expect(duplicates, "the programmatic-wrapper exclusion must not weaken true duplicate detection").toHaveLength(1);
   expect(duplicates[0]?.message).toContain("[data-testid=duplicate-action-primary]");
   expect(duplicates[0]?.message).toContain("[data-testid=duplicate-action-secondary]");
 });
@@ -1060,7 +1060,7 @@ test("the healthy twin produces no clipped-overflow finding — scroll panes, sr
 
 /** Every finding the REAL walker + the REAL checks produce for the mounted page. */
 async function findingsFor(page: Page): Promise<readonly Finding[]> {
-  const samples = (await page.evaluate(COLLECT_SAMPLES_JS)) as RawSamples;
+  const samples = await page.evaluate<RawSamples>(COLLECT_SAMPLES_JS);
   return collectFindings(samples);
 }
 
@@ -1123,11 +1123,11 @@ test("#816: the same row without the badges keeps its name and its hit test — 
 // (RULE-AUTHORING.md step 1/2). This mounts the real component and reads the real census.
 test("the real @orb/ui Tooltip publishes the census's two attributes, one row per seal decision", async ({ mount, page }) => {
   await mount<typeof WalkerTooltipHintStory>("tests/tooling/_ct-stories/WalkerTooltipHintStory", {});
-  const samples = (await page.evaluate(COLLECT_SAMPLES_JS)) as { readonly unreachableHints?: readonly UnreachableHint[] };
+  const samples = await page.evaluate<{ readonly unreachableHints?: readonly UnreachableHint[] }>(COLLECT_SAMPLES_JS);
   const hints = samples.unreachableHints ?? [];
 
   // A zero here is "the walker never saw a tooltip trigger" — the blind case, which must never read as clean.
-  expect(hints.length, `the census saw no tooltip trigger at all — samples: ${JSON.stringify(hints)}`).toBe(3);
+  expect(hints, `the census saw no tooltip trigger at all — samples: ${JSON.stringify(hints)}`).toHaveLength(3);
   const decisions = hints.map((hint) => hint.describesDecision).sort((left, right) => String(left).localeCompare(String(right)));
   expect(decisions, "the seal's three decisions must be distinguishable in the DOM").toStrictEqual(["caller", "name", "self"]);
 

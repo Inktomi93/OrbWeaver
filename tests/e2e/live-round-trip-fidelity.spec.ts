@@ -20,7 +20,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { pageArray, pageObject, pageString } from "@orb/tooling/floor/browser/page-validate";
 import { expect, test } from "@playwright/test";
-import { WAIT_SURFACE_MS } from "./support/timeouts.ts";
+import { CASE_LIVE_FOLLOW_UP_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import {
   fetchWireCaptures,
   getActivePreset,
@@ -64,7 +64,7 @@ function nonSystemWireMessages(messages: unknown): readonly WireMessage[] {
 }
 
 test("TASK-24 four-layer capture works on the live stack (names 'completion', one real turn)", { tag: "@live" }, async () => {
-  test.setTimeout(180_000);
+  test.setTimeout(CASE_LIVE_FOLLOW_UP_MS);
   // The STATELESS openai-compat wire is the harness's local-engine connection — the `name` fingerprint this
   // spec reads manifests there (the agent-sdk path collapses history into a session prompt).
   const priorChatBinding = await pinChatToLocalEngine();

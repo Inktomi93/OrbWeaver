@@ -131,7 +131,7 @@ function insetEdges(boxShadow: string): { ember: boolean; rule: boolean } {
   }
   stops.push(current.trim());
   const painted = stops.filter((stop) => stop.includes("inset") && !/rgba\([^)]*,\s*0\)/u.test(stop));
-  const offset = (stop: string): number => Number.parseFloat((stop.match(/-?[\d.]+px/gu) ?? [])[1] ?? "0");
+  const offset = (stop: string): number => Number.parseFloat((stop.match(/-?(?<![\d.])[\d.]+px/gu) ?? [])[1] ?? "0");
   return { ember: painted.some((stop) => offset(stop) > 0), rule: painted.some((stop) => offset(stop) < 0) };
 }
 

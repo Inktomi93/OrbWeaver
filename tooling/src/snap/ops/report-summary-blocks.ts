@@ -14,7 +14,7 @@ const CSS_FINDINGS_CAP = 15;
 const CASCADE_STATE_PAD = 10;
 const CASCADE_SOURCE_PAD = 18;
 
-const RATIO_PATTERN = /(\d+(?:\.\d+)?):1/u;
+const RATIO_PATTERN = /(?<!\d)(\d+(?:\.\d+)?):1/u;
 
 /** The worst measured contrast ratio in a run, read off the arm's own printed rows.
  *

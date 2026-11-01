@@ -111,7 +111,7 @@ function isAccessibilityUtility(token: string): boolean {
 }
 
 // One declaration per line, so a match never runs on into the next declaration and hides its property.
-const DECLARATION = /^\s*([a-zA-Z-][\w-]*)\s*:[^{\n]*;\s*$/gmu;
+const DECLARATION = /^[ \t]*([a-zA-Z-][\w-]*)\s*:[^{\n]*;[ \t]*$/gmu;
 // Tailwind registers the custom properties a utility composes through (`contain-inline-size` builds `contain` from
 // four `--tw-contain-*` parts) as `@property` rules, whose `syntax`/`inherits` descriptors are not declarations.
 const PROPERTY_REGISTRATION = /@property[^{]*\{[^}]*\}/gu;

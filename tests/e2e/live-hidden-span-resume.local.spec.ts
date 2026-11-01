@@ -45,6 +45,7 @@ import {
 import { E2E_RUN_PORTS, LOCAL_MEMBER } from "./support/modes.ts";
 import type { StreamValue } from "./support/sse.ts";
 import { collectChatRoomFrames, readStreamEvent, requireSatisfied } from "./support/sse.ts";
+import { CASE_LIVE_FOLLOW_UP_MS } from "./support/timeouts.ts";
 
 const CARD_HANDLE = "e2e-span-resume";
 const STREAM_TIMEOUT_MS = 60_000;
@@ -80,7 +81,7 @@ function openerSeq(values: readonly StreamValue[]): number | undefined {
 }
 
 test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never receives its tail; the HOST does", async ({ baseURL }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(CASE_LIVE_FOLLOW_UP_MS);
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
   const fixture = await startFixtureProvider(E2E_RUN_PORTS.fixtureProvider, undefined, "What happened to the well?");

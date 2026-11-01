@@ -48,22 +48,7 @@ for (const viewport of VIEWPORTS) {
       await expect(createDialog).toBeVisible();
       await expectPairedScheduleActions(createDialog, "Create schedule");
       if (viewport.label === "desktop") {
-        await test.step("the geometry assertion rejects misaligned production actions", async () => {
-          const cancel = createDialog.getByRole("button", { name: "Cancel", exact: true });
-          const transform = await cancel.evaluate((node) => {
-            const original = node.style.transform;
-            node.style.transform = `translateY(${node.getBoundingClientRect().height}px)`;
-            return original;
-          });
-          try {
-            await expect(expectPairedScheduleActions(createDialog, "Create schedule")).rejects.toThrow(/toBeLessThanOrEqual/u);
-          } finally {
-            await cancel.evaluate((node, original) => {
-              node.style.transform = original;
-            }, transform);
-          }
-          await expectPairedScheduleActions(createDialog, "Create schedule");
-        });
+        await test.step("the geometry assertion rejects misaligned production actions", () => expectMisalignmentRejected(createDialog));
       }
       await expectScheduleActionsAfterScroll(createDialog, "Create schedule");
       await createDialog.getByRole("combobox", { name: "Runs", exact: true }).click();
@@ -103,6 +88,23 @@ for (const viewport of VIEWPORTS) {
       await expect(editTrigger).toBeFocused();
     });
   });
+}
+
+async function expectMisalignmentRejected(dialog: import("@playwright/test").Locator): Promise<void> {
+  const cancel = dialog.getByRole("button", { name: "Cancel", exact: true });
+  const transform = await cancel.evaluate((node) => {
+    const original = node.style.transform;
+    node.style.transform = `translateY(${node.getBoundingClientRect().height}px)`;
+    return original;
+  });
+  try {
+    await expect(expectPairedScheduleActions(dialog, "Create schedule")).rejects.toThrow(/toBeLessThanOrEqual/u);
+  } finally {
+    await cancel.evaluate((node, original) => {
+      node.style.transform = original;
+    }, transform);
+  }
+  await expectPairedScheduleActions(dialog, "Create schedule");
 }
 
 async function expectPairedScheduleActions(dialog: import("@playwright/test").Locator, submitLabel: string): Promise<void> {

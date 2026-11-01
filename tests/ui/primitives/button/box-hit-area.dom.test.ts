@@ -26,7 +26,7 @@ function classTokens(element: ReactElement): ReadonlySet<string> {
   return new Set((/class="([^"]*)"/u.exec(markup)?.[1] ?? "").split(/\s+/u));
 }
 
-function expectBoxes<Component extends keyof Box>(component: Component): void {
+function expectBoxes(component: keyof Box): void {
   const steps: Readonly<Record<string, boolean>> = BUTTON_BOX_OVERFLOW[component];
   const render = RENDER[component] as (step: string) => ReactElement;
   for (const [step, overflows] of Object.entries(steps)) {

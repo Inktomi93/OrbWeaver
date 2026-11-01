@@ -1,6 +1,7 @@
 // A second replica on the same database holds a room's turn lease through its own engine: a forced turn whose
 // provider request parks until the peer lets go. Its clock may run ahead, so an expiring lease is a real takeover.
 
+import { toError } from "@orb/kit/error-message";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { createFrozenClock } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
@@ -65,7 +66,7 @@ export async function seedPeerLease(root: ServerTestHarness, params: PeerLeasePa
       reached.resolve();
       // Parked until the peer's own abort reaches the physical edge.
       return await new Promise<never>((_resolve, reject) => {
-        request.signal.addEventListener("abort", () => reject(request.signal.reason), { once: true });
+        request.signal.addEventListener("abort", () => reject(toError(request.signal.reason)), { once: true });
       });
     },
   });

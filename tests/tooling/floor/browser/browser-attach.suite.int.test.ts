@@ -410,7 +410,7 @@ test("the viewport round trip keeps a phone's own screen size", async ({ scratch
     // A screenshot needs the first compositor frame; under load the launch can expose the page before it.
     await waitForCompositorFrame(session.page);
     const { viewport, screen } = session.environmentContract.applied;
-    const boot = (await session.page.evaluate(READ_SCREEN_JS)) as { readonly w: number; readonly h: number };
+    const boot = await session.page.evaluate<{ readonly w: number; readonly h: number }>(READ_SCREEN_JS);
     expect({ w: boot.w, h: boot.h }).toStrictEqual({ w: screen.width, h: screen.height });
     // Planted premise: the case only means something when the screen differs from the viewport.
     expect(screen.height).toBeGreaterThan(viewport.height);
@@ -429,7 +429,7 @@ test("the viewport round trip keeps a phone's own screen size", async ({ scratch
     // viewport, and afterwards a shot still reads the phone's own screen and viewport.
     const applied = session.environmentContract.applied;
     await overrideOwnerViewport(session.page, applied, { width: viewport.width, height: viewport.height * 2 });
-    expect(((await session.page.evaluate(READ_SCREEN_JS)) as { readonly ih: number }).ih).toBe(viewport.height * 2);
+    expect((await session.page.evaluate<{ readonly ih: number }>(READ_SCREEN_JS)).ih).toBe(viewport.height * 2);
     await session.page.screenshot({ scale: "css", fullPage: true });
     await reassertOwnerViewport(session.page, applied);
     await session.page.screenshot({ scale: "css" });

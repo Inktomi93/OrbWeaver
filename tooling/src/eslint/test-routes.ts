@@ -55,8 +55,8 @@ export function nativeOf(context: OrbRuleContext): Native | undefined {
   return {
     checker: services.program.getTypeChecker(),
     program: services.program,
-    toTs: (node) => toTsMap.get(node) as ts.Node,
-    toEs: (node) => toEsMap.get(node as never) as TSESTree.Node | undefined,
+    toTs: (node) => toTsMap.get(node),
+    toEs: (node) => toEsMap.get(node),
   };
 }
 

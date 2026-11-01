@@ -581,7 +581,10 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
       ...Object.fromEntries(
         Object.entries(regexp.configs["flat/recommended"].rules)
           .filter(([id]) => id.startsWith("regexp/"))
-          .map(([id, setting]) => [id, Array.isArray(setting) ? ["error", ...setting.slice(1)] : "error"]),
+          .map(([id, setting]) => {
+            const [, ...options] = Array.isArray(setting) ? setting : [];
+            return [id, Array.isArray(setting) ? ["error", ...options] : "error"];
+          }),
       ),
       // Spelling and unused-capture suggestions are not semantic correctness policies.
       "regexp/prefer-w": "off",

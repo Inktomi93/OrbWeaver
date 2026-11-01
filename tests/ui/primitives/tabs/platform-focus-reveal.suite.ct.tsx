@@ -11,12 +11,13 @@ async function expectRevealed(tab: Locator, clip: Locator): Promise<void> {
     halo: Math.max(
       0,
       ...getComputedStyle(node)
-        .boxShadow.split(/,(?![^(]*\))/u)
+        .boxShadow.replace(/(?<!\()\([^)]*\)/gu, "")
+        .split(",")
         .map((layer) => {
           if (layer.includes("inset")) {
             return 0;
           }
-          return Number.parseFloat(layer.match(/-?(?:\d*\.)?\d+px/gu)?.at(-1) ?? "0");
+          return Number.parseFloat(layer.match(/-?(?<!\d)(?:\d*\.)?\d+px/gu)?.at(-1) ?? "0");
         }),
     ),
   }));
