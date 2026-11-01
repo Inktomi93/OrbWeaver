@@ -18,7 +18,7 @@ import {
   resolveEffectivePresetInputSchema,
 } from "@orb/contracts/preset";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { strictInput } from "@orb/kit/zod-schema";
+import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
@@ -31,7 +31,7 @@ export const presetRouter = t.router({
   create: authedProcedure
     .output(presetDetailSchema)
     .input(
-      strictInput(
+      strictTwin(
         z.strictObject({
           name: z.string().min(1),
           kind: z.string().min(1),
@@ -58,7 +58,7 @@ export const presetRouter = t.router({
   update: authedProcedure
     .output(presetDetailSchema)
     .input(
-      strictInput(
+      strictTwin(
         z.strictObject({
           id: typeIdSchema(ID_PREFIX.preset),
           name: z.string().min(1).optional(),
@@ -84,7 +84,10 @@ export const presetRouter = t.router({
       }),
     ),
 
-  remove: authedProcedure.input(presetIdInputSchema).mutation(({ ctx, input }) => ctx.services.preset.remove({ userId: ctx.auth.userId, id: input.id })),
+  remove: authedProcedure
+    .output(z.void())
+    .input(presetIdInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.preset.remove({ userId: ctx.auth.userId, id: input.id })),
 
   resetToDefault: authedProcedure
     .output(presetDetailSchema)

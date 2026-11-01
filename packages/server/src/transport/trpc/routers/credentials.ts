@@ -55,10 +55,12 @@ export const credentialsRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.credentials.replace({ principal: ctx.auth, credentialId: input.credentialId, key: input.key })),
 
   remove: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ credentialId: typeIdSchema(ID_PREFIX.userCredential) }))
     .mutation(({ ctx, input }) => ctx.services.credentials.remove({ principal: ctx.auth, credentialId: input.credentialId })),
 
   markRevokedByUser: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ credentialId: typeIdSchema(ID_PREFIX.userCredential), reason: z.string().optional() }))
     .mutation(({ ctx, input }) =>
       ctx.services.credentials.markRevokedByUser({
@@ -68,10 +70,13 @@ export const credentialsRouter = t.router({
       }),
     ),
 
-  clearRevoked: authedProcedure.input(z.strictObject({ credentialId: typeIdSchema(ID_PREFIX.userCredential) })).mutation(({ ctx, input }) =>
-    ctx.services.credentials.clearRevoked({
-      principal: ctx.auth,
-      credentialId: input.credentialId,
-    }),
-  ),
+  clearRevoked: authedProcedure
+    .output(z.void())
+    .input(z.strictObject({ credentialId: typeIdSchema(ID_PREFIX.userCredential) }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.credentials.clearRevoked({
+        principal: ctx.auth,
+        credentialId: input.credentialId,
+      }),
+    ),
 });

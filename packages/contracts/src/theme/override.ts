@@ -8,7 +8,7 @@
 // — only the base surface COLOR (`background`) stays a token (it feeds the neutral ramp).
 // Also home to the CARD-EMBEDDABLE partition (bottom of file): which of these keys a character card may
 // carry into a room, and which stay the viewer's.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs take the strict twin via `strictInput` (`@orb/kit/zod-schema`).
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import { isDeterministicColor, isRenderableColor } from "@orb/kit/safe-color";
 import { z } from "zod";
