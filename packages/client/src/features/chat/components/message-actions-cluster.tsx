@@ -2,7 +2,7 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { GlyphButton } from "@orb/ui/glyph-button";
-import { GitFork, Icon, Pencil, SmilePlus } from "@orb/ui/icons";
+import { FaceSlightlySmilingPlus, GitFork, Icon, Pencil } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { RowActionsMenu } from "#components";
@@ -67,7 +67,7 @@ export function MessageActionsCluster({
           roving Tab stop must reach "Edit message" before "Add a reaction". */}
       {reactionsEnabled ? (
         <GlyphButton aria-label={MESSAGE_REACTION_ADD_NAME} hiddenAt="coarse" variant="ghost" onClick={onReact} shape="pill" glyph="lg">
-          <Icon shadow={true} icon={SmilePlus} size="sm" />
+          <Icon shadow={true} icon={FaceSlightlySmilingPlus} size="sm" />
         </GlyphButton>
       ) : null}
       <RowActionsMenu

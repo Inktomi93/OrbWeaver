@@ -14,6 +14,6 @@ import type { ListBooksParams } from "#src/domain/world-info/contract/params.ts"
 import type { WorldInfoContext, WorldInfoService } from "#src/domain/world-info/contract/service.ts";
 import { listOwnedBooksWithUsage } from "#src/domain/world-info/persistence/queries.ts";
 
-export function createListWithUsage(ctx: WorldInfoContext): WorldInfoService["listBooksWithUsage"] {
+export function createListBooksWithUsage(ctx: WorldInfoContext): WorldInfoService["listBooksWithUsage"] {
   return ({ principal }: ListBooksParams) => listOwnedBooksWithUsage(ctx.db, principal.userId);
 }

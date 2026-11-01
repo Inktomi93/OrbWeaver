@@ -24,7 +24,7 @@
 // is about to destroy ("Delete \"Sabine\"?" vs "Delete 3 characters?"), which only the calling surface knows.
 
 import type { LucideIcon } from "@orb/ui/icons";
-import { Archive, Copy, Download, Drama, FlaskConical, Handshake, LayoutGrid, Tag, Trash2 } from "@orb/ui/icons";
+import { Archive, Copy, Download, Drama, FlaskConical, Handshake, LayoutGrid, Tag, Trash } from "@orb/ui/icons";
 
 // The three surfaces one character's verbs are offered on.
 //
@@ -117,7 +117,7 @@ export const CHARACTER_ACTIONS: { readonly [Id in CharacterActionId]: CharacterA
   },
   convertToPersona: { id: "convertToPersona", label: "Convert to persona", toggledLabel: null, destructive: false, glyph: Drama, formats: [] },
   setWelcomeGreeter: { id: "setWelcomeGreeter", label: "Set as welcome greeter", toggledLabel: null, destructive: false, glyph: Handshake, formats: [] },
-  delete: { id: "delete", label: "Delete", toggledLabel: null, destructive: true, glyph: Trash2, formats: [] },
+  delete: { id: "delete", label: "Delete", toggledLabel: null, destructive: true, glyph: Trash, formats: [] },
 };
 
 /** The verbs a surface offers, in its declared render order — narrowed to that scope's own ids. */

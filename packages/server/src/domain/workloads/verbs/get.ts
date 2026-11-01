@@ -5,10 +5,10 @@
 // leak-free `DomainNotFoundError` as an absent one (never a FORBIDDEN existence oracle). A `null` (system)
 // caller or an admin sees any row.
 
+import type { WorkloadRowAnyKind } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { GetWorkloadParams } from "../contract/params.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
-import type { WorkloadRowAnyKind } from "../contract/workload-row.ts";
 import { loadWorkload } from "../persistence/queries.ts";
 import { isVisibleToCaller } from "../substrate/authorize.ts";
 

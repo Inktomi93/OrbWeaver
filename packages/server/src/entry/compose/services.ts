@@ -72,7 +72,7 @@ import {
 import type { AutomationService } from "#domain/automation";
 import { createAutomationTeachingContributions, createRuleOwnedBy, startAutomationWatcher } from "#domain/automation";
 import { createCharacterImportOps, createFindSeedCharacter } from "#domain/character";
-import type { ChatContext, MemoryRecallRecorder, SignupInviteOps } from "#domain/chat";
+import type { ChatAssemblyContext, MemoryRecallRecorder, SignupInviteOps } from "#domain/chat";
 import {
   createChatBus,
   createChatPublication,
@@ -81,9 +81,9 @@ import {
   createResolveViewerVisibility,
   isCharacterSeated,
   loadPresentHostUserId,
-  requireParticipant,
+  requireWiredParticipant,
 } from "#domain/chat";
-import type { ConnectionContext } from "#domain/connection";
+import type { ConnectionAssemblyContext } from "#domain/connection";
 import { createConnectionPorts, createConnectionService, createSessionEntryWriter } from "#domain/connection";
 import { createCredentialHealthThrottle, createCredentialOwned, createCredentialsService } from "#domain/credentials";
 import type { DatabankIngest } from "#domain/databank";
@@ -94,7 +94,7 @@ import type { ExportService } from "#domain/export";
 import { createImageryPortability } from "#domain/imagery";
 import { buildImportContext, cardPngIdentity, createInstallerCharacterImport, serializeImportCard } from "#domain/import";
 import { createSeedPersonaWithCompletion } from "#domain/persona";
-import type { DistributedPluginApplier } from "#domain/plugin";
+import type { DistributedPluginApplier, ExamplePluginSeeder } from "#domain/plugin";
 import {
   createDistributedPluginApplier,
   createPluginGrantTasksOf,
@@ -105,18 +105,18 @@ import {
 import { buildSideGenParams, createCopyPresetToUser, createLoadOptionalPreset, createPresetReadable } from "#domain/preset";
 import { createResolveStructuredBinding } from "#domain/refinery";
 import { createSeedRosterPreset } from "#domain/roster-preset";
-import type { RpgContext, RpgTraceRecorder } from "#domain/rpg";
+import type { RpgAssemblyContext, RpgTraceRecorder } from "#domain/rpg";
 import { createExportRpgGame, createRpgEventBus, createRpgTraceRecorder } from "#domain/rpg";
 import { createFieldIndexCache, withRetrievalDegrade } from "#domain/search";
 import type { SessionsContext, SessionsRolePolicy, SessionsService } from "#domain/sessions";
 import { createResolveUserEnabled, createSessionsRolePolicy, createSessionsService } from "#domain/sessions";
-import type { DefaultBackgroundSeeder, SettingsContext, SettingsServiceDeps } from "#domain/settings";
+import type { DefaultBackgroundSeeder, SettingsAssemblyContext, SettingsServiceDeps, UserContentSeeder } from "#domain/settings";
 import {
   createEffectiveConfigCache,
   createJoinerSettingsStatement,
   createReadSeededKeys,
+  createSettingsAssemblyContext,
   createSettingsComposedOps,
-  createSettingsContext,
   createSettingsKvPort,
   createSettingsService,
   recordSeededItemKeys,
@@ -124,7 +124,7 @@ import {
 import type { CertificateController, RelayController, ShareFacts, ShareGraphOptions } from "#domain/share";
 import { createEnableShareSeating, createShareService } from "#domain/share";
 import { createStatsBatchWiring } from "#domain/stats";
-import type { TagContext } from "#domain/tag";
+import type { TagAssemblyContext } from "#domain/tag";
 import { createImportedCardTag, createReadAttachedEntity, createTagService } from "#domain/tag";
 import { createToolUseTeachingContributions } from "#domain/tool-use";
 import type { WorkloadContributions, WorkloadProgressBus } from "#domain/workloads";
@@ -163,10 +163,8 @@ import type { ServiceJobs } from "#transport/jobs";
 import type { ContextForRequest, LiveBuses, Services, SocketRegistry } from "#transport/trpc";
 import { createContext, createLiveBuses, createPresenceRegistry, createSocketRegistry } from "#transport/trpc";
 import { createHostPrincipalResolver, createMultiHumanCapability } from "../auth/index.ts";
-import type { ExamplePluginSeeder } from "../boot/seed-example-plugins.ts";
 import { createExamplePluginSeeder } from "../boot/seed-example-plugins.ts";
 import { createLocalLightUserSeed } from "../boot/seed-local-light.ts";
-import type { UserContentSeeder } from "../boot/seed-user-content.ts";
 import { createUserContentSeeder } from "../boot/seed-user-content.ts";
 import { createRateLimitGate } from "../rate-limit-gate.ts";
 import { buildAdmin } from "./admin.ts";
@@ -247,7 +245,7 @@ export interface ServicesDeps {
   readonly authConfig?: Pick<AuthConfig, "mode">;
   readonly rolePolicy?: SessionsRolePolicy;
   readonly random: RandomSource;
-  readonly randomInt: RpgContext["randomInt"];
+  readonly randomInt: RpgAssemblyContext["randomInt"];
   readonly idSource: IdSource;
   readonly newOpaqueId: IdSource["uuid"];
   /** This root's identity, minted once from its id source; the live transport publishes it so a client sees a restart. */
@@ -565,7 +563,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const isMemoryEnabledBinding = createBinding<{ readonly isMemoryEnabled: IsMemoryEnabledOp }>("compose: isMemoryEnabled invoked before chat wiring");
   let emptyMemoryScope: ChatComposeResult["emptyMemoryScope"] = () => Promise.reject(new Error("compose: emptyMemoryScope invoked before chat wiring"));
   // The connection pane's embedder-change preview counts the embeddings domain's rows, which compose after it.
-  let countOwnedVectors: ConnectionContext["countOwnedVectors"] = () =>
+  let countOwnedVectors: ConnectionAssemblyContext["countOwnedVectors"] = () =>
     Promise.reject(new Error("compose: countOwnedVectors invoked before search-discovery wiring"));
   // materializeBackground (side-eye F-P0-2): built after `assets` + `effectiveConfig` exist (the assets-character
   // seam), but settings/character/chat compose BEFORE `assets`, so they deref this late-bound holder at request
@@ -599,7 +597,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // late-bound thunk, dereferenced per verb call after the registry has been assembled.
   const workloadBinding = createBinding<WorkloadContributions>("compose: workload contributions derefed before the registry was assembled");
   const getWorkloadContributions = workloadBinding.read;
-  const settingsCtx: SettingsContext = createSettingsContext(settingsDeps);
+  const settingsCtx: SettingsAssemblyContext = createSettingsAssemblyContext(settingsDeps);
   const settings = createSettingsService(settingsCtx);
   const rateLimit = createRateLimitGate({
     logger: deps.logger,
@@ -737,7 +735,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // admission reads it needs are wired here rather than derived inside the domain: a credential row is the
   // credentials domain's, a rule row automation's, a plugin row plugin's, and the allowlist verdict lives on
   // the egress guard. Owner-scoped reads by construction (the id AND the owner are the predicate).
-  const connectionCtx: ConnectionContext = {
+  const connectionCtx: ConnectionAssemblyContext = {
     db,
     now,
     newConnectionId: minter(ID_PREFIX.userConnection, idSource),
@@ -759,7 +757,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const connection = createConnectionService(connectionCtx);
 
   // Built before character so character's by-name card-tag attach port wires to the real tag verb.
-  const tagCtx: TagContext = {
+  const tagCtx: TagAssemblyContext = {
     db,
     now,
     newTagId: minter(ID_PREFIX.tag, idSource),
@@ -770,7 +768,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       personaName: (caller, id) => persona.get({ principal: caller, personaId: id }),
       presetName: (userId, id) => preset.get({ userId, id }),
     }),
-    requireParticipant: (principal, chatId) => requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
+    requireParticipant: (principal, chatId) => requireWiredParticipant({ db, can }, principal, chatId).then((): void => undefined),
     audit: (entry): Promise<void> => audit(entry, now()),
     emitUserEvent: publishUserEvent,
   };
@@ -994,9 +992,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // (chat's `rpgChatOps` is rpg's dep). The delegate below forwards to a late-bound holder bound SYNCHRONOUSLY
   // once rpg composes, a few lines down (the agents-delegate precedent) — no request can run before then, so the
   // holder is always live at call time (a null read would be a compose-order bug, hence the throw).
-  const rpgBinding = createBinding<NonNullable<ChatContext["rpg"]>>("rpg ops accessed before the rpg seam composed (compose-order bug)");
+  const rpgBinding = createBinding<NonNullable<ChatAssemblyContext["rpg"]>>("rpg ops accessed before the rpg seam composed (compose-order bug)");
   const rpgOps = rpgBinding.read;
-  const rpgOpsDelegate: NonNullable<ChatContext["rpg"]> = {
+  const rpgOpsDelegate: NonNullable<ChatAssemblyContext["rpg"]> = {
     planGameBirth: (chatId, params) => rpgOps().planGameBirth(chatId, params),
     gameBirthCommitted: (chatId) => rpgOps().gameBirthCommitted(chatId),
     resolvePresetOverride: (chatId) => rpgOps().resolvePresetOverride(chatId),
@@ -1441,7 +1439,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     rosterPreset,
     rpg,
     search,
-    sessions,
     settings,
     share,
     stats,

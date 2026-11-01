@@ -1,7 +1,7 @@
 import type { ToastPortalProps as BasePortalProps, ToastProviderProps as BaseProviderProps, ToastRootProps as BaseRootProps } from "@base-ui/react/toast";
 import { Toast as BaseToast } from "@base-ui/react/toast";
 import type { ReactElement } from "react";
-import { AlertTriangle, Check, CircleAlert, Icon, X } from "#primitives/icons";
+import { Check, CircleAlert, Icon, TriangleAlert, X } from "#primitives/icons";
 import { TOAST_ACTION_TONE, toastVariants } from "./variants.ts";
 
 const slots = toastVariants();
@@ -29,7 +29,7 @@ function TypeGlyph({ type }: { readonly type: string | undefined }): ReactElemen
     return <Icon className={slots.successIcon()} icon={Check} size="sm" />;
   }
   if (type === "warning") {
-    return <Icon className={slots.warningIcon()} icon={AlertTriangle} size="sm" />;
+    return <Icon className={slots.warningIcon()} icon={TriangleAlert} size="sm" />;
   }
   return null;
 }

@@ -1,7 +1,7 @@
 // The Labels finder owns phone arrival; the visible library owns desktop arrival.
 
 import { Button } from "@orb/ui/button";
-import { Icon, MoreVertical, Trash2 } from "@orb/ui/icons";
+import { EllipsisVertical, Icon, Trash } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Select } from "@orb/ui/select";
@@ -16,6 +16,7 @@ import { selectLabelFromList, setLabelFilter, setTagPruneConfirmOpen, useLabelFi
 import { TagCollectionRows } from "../components/tag-collection-rows.tsx";
 import { useTagCensus, useTagSortControl } from "../hooks/use-tag-library.ts";
 import { LABELS_FINDER_SLOT } from "../lib/labels-focus-targets.ts";
+import { TAG_FILTER_NAME } from "../lib/tag-list-name.ts";
 
 export function LabelsListSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -37,7 +38,7 @@ export function LabelsListSurface(): ReactElement {
         ) : null
       }
       ref={surfaceRef}
-      search={<Input aria-label="Filter tags" onValueChange={setLabelFilter} placeholder="Filter tags…" value={filter} />}
+      search={<Input aria-label={TAG_FILTER_NAME} onValueChange={setLabelFilter} placeholder={`${TAG_FILTER_NAME}…`} value={filter} />}
       searchAside={
         <>
           <LabelsSortSelect />
@@ -81,13 +82,13 @@ function LabelsOverflow(): ReactElement {
       <MenuTrigger
         render={
           <Button aria-label="More tag actions" variant="ghost" size="sm" square={true}>
-            <Icon icon={MoreVertical} size="sm" />
+            <Icon icon={EllipsisVertical} size="sm" />
           </Button>
         }
       />
       <MenuPopup align="end">
         <MenuItem onClick={(): void => setTagPruneConfirmOpen(true)}>
-          <Icon icon={Trash2} size="sm" />
+          <Icon icon={Trash} size="sm" />
           Prune unused tags
         </MenuItem>
       </MenuPopup>

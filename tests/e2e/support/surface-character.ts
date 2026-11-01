@@ -5,28 +5,58 @@ import { THEME_FONT_ALLOWLIST } from "@orb/contracts/theme";
 import type { CharacterId, PersonaId, TagId } from "@orb/kit/ids";
 import { isPng, readCardChunk } from "@orb/kit/png-card-chunk";
 import type { DistributiveOmit } from "@orb/testkit/browser/spec";
-import { controlledPanel, markExpectedSurfaceHttpFailure, publishSurfaceInventory } from "@orb/testkit/browser/spec";
+import { controlledPanel, markExpectedSurfaceHttpFailure } from "@orb/testkit/browser/spec";
 import type { SurfaceAuditRequest } from "@orb/testkit/ct";
 import type { SurfaceCoverageInventory } from "@orb/testkit/iso";
-import { parseSurfaceProviderEvidence, surfaceCoverageKey } from "@orb/testkit/iso";
+import { parseSurfaceProviderEvidence } from "@orb/testkit/iso";
 import { abortProcedure, attachNativeFile, isTrpcRequestFor, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
-import type { Locator, Page } from "@playwright/test";
+import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { CHARACTER_ACTION_SCOPE_IDS, CHARACTER_ACTIONS } from "#client/features/character/lib/character-actions.ts";
 import { CHARACTER_CARD_FACETS } from "#client/features/character/lib/character-card-facets.ts";
 import { characterCardFormFromDetail, characterUpdateDiff } from "#client/features/character/lib/character-card-form-model.ts";
+import {
+  CHARACTER_ACTIONS_MENU_NAME,
+  CHARACTER_ADD_TAG_NAME,
+  CHARACTER_CONNECT_PERSONA_NAME,
+  CHARACTER_DELETE_TITLE,
+  CHARACTER_DESCRIPTION_FIELD_NAME,
+  CHARACTER_DUPLICATE_TITLE,
+  CHARACTER_EDITOR_NAME,
+  CHARACTER_FEWER_TAGS_NAME,
+  CHARACTER_FILTER_TAGS_NAME,
+  CHARACTER_FILTERS_NAME,
+  CHARACTER_GROUP_BY_TAG_NAME,
+  CHARACTER_IMPORT_NAME,
+  CHARACTER_LIBRARY_NAME,
+  CHARACTER_LINK_BOOK_NAME,
+  CHARACTER_NAME_FIELD_NAME,
+  CHARACTER_NEW_NAME,
+  CHARACTER_RESTORE_SNAPSHOT_TITLE,
+  CHARACTER_SEARCH_NAME,
+  CHARACTER_SELECT_MULTIPLE_NAME,
+  CHARACTER_SHOW_ARCHIVED_NAME,
+  CHARACTER_SHOW_FAVORITES_NAME,
+  CHARACTER_SNAPSHOT_NOW_NAME,
+  CHARACTER_SORT_NAME,
+  CHARACTER_TAG_DIALOG_TITLE,
+  CHARACTER_TAG_VOCABULARY_NAME,
+  characterBulkDeleteTitle,
+  characterBulkTagTitle,
+} from "#client/features/character/lib/character-names.ts";
 import { CHARACTERS_SECTION_LABEL } from "#client/features/character/lib/characters-section-label.ts";
 import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
 import { charactersRailButton, waitForAppReady } from "./chat-room.ts";
 import type { SurfaceFlow } from "./surface-flow.ts";
+import type { SurfaceWalk } from "./surface-walker.ts";
+import { checkpoint, checkpointState, createSurfaceWalk, dismissContext, expectSubject, observe, publishWalk, walkDoor, walkScope } from "./surface-walker.ts";
 import type { HeldTrpcProcedure } from "./trpc.ts";
 import { holdTrpcProcedure } from "./trpc.ts";
 
 const LIST = '.shell-panel[data-panel-side="list"]';
 const CONTEXT = '.shell-panel[data-panel-side="context"]';
-const EDITOR_NAME = "Edit character";
 const TABLIST_NAME = "Character";
 const UNEXERCISED_ACTIONS = [
   "greeting Rewrite and transform permutations",
@@ -42,11 +72,12 @@ const UNEXERCISED_ACTIONS = [
 const ACTION_DISPOSITIONS = {
   openInRefinery: {
     disposition: "skipped",
+    skip: "not-activated",
     reason: "The cross-section session-opening action is not executed by this Character-only itinerary; no model operation is requested.",
   },
   setWelcomeGreeter: { disposition: "excluded", reason: "Changing the account's original welcome preference is outside disposable Character mutations." },
 } as const satisfies Readonly<
-  Partial<Record<keyof typeof CHARACTER_ACTIONS, Pick<SurfaceCoverageInventory["observations"][number], "disposition" | "reason">>>
+  Partial<Record<keyof typeof CHARACTER_ACTIONS, DistributiveOmit<SurfaceCoverageInventory["observations"][number], "id" | "kind">>>
 >;
 
 const COMMAND_ACTION_IDS = [
@@ -75,16 +106,9 @@ export const CHARACTER_WALK_AREAS = [
 ] as const;
 export type CharacterWalkArea = (typeof CHARACTER_WALK_AREAS)[number];
 
-interface CharacterFlow extends SurfaceFlow {
+interface CharacterFlow extends SurfaceWalk {
   readonly area: CharacterWalkArea;
-  readonly expected: Map<string, SurfaceCoverageInventory["expected"][number]>;
-  readonly observations: SurfaceCoverageInventory["observations"][number][];
   readonly provenance: { original?: CharacterId; disposable?: CharacterId };
-}
-
-function expectSubject(flow: CharacterFlow, id: string, kind: string): void {
-  const subject = { id, kind };
-  flow.expected.set(surfaceCoverageKey(subject), subject);
 }
 
 function alternateFont(current: string | undefined): (typeof THEME_FONT_ALLOWLIST)[number] {
@@ -96,34 +120,13 @@ function alternateFont(current: string | undefined): (typeof THEME_FONT_ALLOWLIS
 }
 
 async function record(flow: CharacterFlow, name: string, scope: Locator, witnesses: SurfaceAuditRequest["witnesses"]): Promise<void> {
-  expectSubject(flow, name, "checkpoint");
-  await flow.checkpoint({ name: `characters-${name}`, scope, state: "loaded", witnesses, checks: SURFACE_CHECKS });
-  flow.observations.push({ id: name, kind: "checkpoint", disposition: "visited" });
-}
-
-async function recordState(
-  flow: CharacterFlow,
-  name: string,
-  scope: Locator,
-  state: DistributiveOmit<SurfaceAuditRequest, "name" | "scope" | "checks">,
-): Promise<void> {
-  expectSubject(flow, name, "checkpoint");
-  await flow.checkpoint({ name: `characters-${name}`, scope, ...state, checks: SURFACE_CHECKS });
-  flow.observations.push({ id: name, kind: "checkpoint", disposition: "visited" });
-}
-
-async function closeOverlay(page: Page): Promise<void> {
-  const context = page.locator(CONTEXT);
-  if ((await context.getAttribute("data-panel-mode")) === "overlay") {
-    await page.getByRole("button", { name: /^(?:Close Characters details|Hide details)$/u }).click();
-  }
-  await expect(context).not.toHaveAttribute("data-panel-mode", "overlay");
+  await checkpointState(flow, name, scope, { state: "loaded", witnesses });
 }
 
 async function openList(flow: CharacterFlow): Promise<Locator> {
   const { page } = flow;
-  await closeOverlay(page);
-  const search = page.getByRole("textbox", { name: "Search characters", exact: true });
+  await dismissContext(flow);
+  const search = page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true });
   const back = page.getByRole("button", { name: "Back to Characters", exact: true });
   const show = page.getByRole("button", { name: /^Show (?:list panel|Characters(?: · .+)? list)$/u });
   await expect.poll(async () => (await search.isVisible()) || (await back.isVisible()) || (await show.isVisible())).toBe(true);
@@ -138,14 +141,14 @@ async function openList(flow: CharacterFlow): Promise<Locator> {
 
 async function openCard(flow: CharacterFlow, name: string, rowName = name): Promise<Locator> {
   const list = await openList(flow);
-  const search = list.getByRole("textbox", { name: "Search characters", exact: true });
+  const search = list.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true });
   await search.fill(name);
-  const row = list.getByRole("list", { name: "Character library", exact: true }).getByRole("button", { name: rowName, exact: true });
+  const row = list.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true }).getByRole("button", { name: rowName, exact: true });
   await row.click();
-  const form = flow.page.getByRole("form", { name: EDITOR_NAME, exact: true });
+  const form = flow.page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true });
   await expect(form.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
   await flow.requestPanes();
-  await closeOverlay(flow.page);
+  await dismissContext(flow);
   if ((await list.getAttribute("data-panel-mode")) === "overlay") {
     await flow.page.getByRole("button", { name: /^(?:Close Characters(?: · .+)? list|Hide list panel)$/u }).click();
   }
@@ -160,11 +163,6 @@ async function contextTab(flow: CharacterFlow, name: string): Promise<Locator> {
     await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
   }
   expectSubject(flow, name, "tab");
-  if (flow.area === "source-context") {
-    for (const label of await context.getByRole("tab").allTextContents()) {
-      expectSubject(flow, label.trim(), "tab");
-    }
-  }
   // eslint-disable-next-line orb/no-hand-copied-label -- The Character context tablist is not RPG's NPC journal type label.
   const tab = context.getByRole("tablist", { name: TABLIST_NAME, exact: true }).getByRole("tab", { name, exact: true });
   await tab.scrollIntoViewIfNeeded();
@@ -191,9 +189,9 @@ async function dialogCancel(flow: CharacterFlow, dialog: Locator, name: string, 
 
 async function listJourney(flow: CharacterFlow, originalName: string, rowName: string): Promise<void> {
   const list = await openList(flow);
-  const search = list.getByRole("textbox", { name: "Search characters", exact: true });
-  await record(flow, "list-search-sort", list, [search, list.getByRole("combobox", { name: "Sort characters", exact: true })]);
-  const sort = list.getByRole("combobox", { name: "Sort characters", exact: true });
+  const search = list.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true });
+  await record(flow, "list-search-sort", list, [search, list.getByRole("combobox", { name: CHARACTER_SORT_NAME, exact: true })]);
+  const sort = list.getByRole("combobox", { name: CHARACTER_SORT_NAME, exact: true });
   await sort.click();
   const options = await controlledPanel(sort);
   await expect(options.getByRole("option")).toHaveCount(CHARACTER_LIST_SORTS.length);
@@ -205,8 +203,8 @@ async function listJourney(flow: CharacterFlow, originalName: string, rowName: s
   if (await disclosure.isVisible()) {
     await disclosure.click();
   }
-  const filters = list.getByRole("group", { name: "Filters", exact: true });
-  await record(flow, "filter-vocabulary", filters, [filters.getByRole("button", { name: "Show only favorites", exact: true })]);
+  const filters = list.getByRole("group", { name: CHARACTER_FILTERS_NAME, exact: true });
+  await record(flow, "filter-vocabulary", filters, [filters.getByRole("button", { name: CHARACTER_SHOW_FAVORITES_NAME, exact: true })]);
   const vocabularyRows = await flow.client.tag.listTagFilterVocabulary.query(undefined);
   const leadingTag = vocabularyRows[0];
   if (leadingTag !== undefined) {
@@ -215,9 +213,9 @@ async function listJourney(flow: CharacterFlow, originalName: string, rowName: s
   const more = filters.getByRole("button", { name: /^Show \d+ more tags$/u });
   if (await more.isVisible()) {
     await more.click();
-    const vocabulary = filters.getByRole("region", { name: "Tag vocabulary", exact: true });
-    await record(flow, "expanded-tag-vocabulary", filters, [filters.getByRole("searchbox", { name: "Filter tags", exact: true }), vocabulary]);
-    await filters.getByRole("button", { name: "Show fewer tags", exact: true }).click();
+    const vocabulary = filters.getByRole("region", { name: CHARACTER_TAG_VOCABULARY_NAME, exact: true });
+    await record(flow, "expanded-tag-vocabulary", filters, [filters.getByRole("searchbox", { name: CHARACTER_FILTER_TAGS_NAME, exact: true }), vocabulary]);
+    await filters.getByRole("button", { name: CHARACTER_FEWER_TAGS_NAME, exact: true }).click();
   }
   const fewerFilters = filters.getByRole("button", { name: /hide the tag vocabulary/u });
   if (await fewerFilters.isVisible()) {
@@ -225,7 +223,7 @@ async function listJourney(flow: CharacterFlow, originalName: string, rowName: s
   }
   await search.fill(`No matching surface subject ${flow.info.project.name} ${flow.pass}`);
   const clear = list.getByRole("button", { name: "Clear search", exact: true });
-  await recordState(flow, "filtered-empty", list, { witnesses: [clear], state: "empty" });
+  await checkpointState(flow, "filtered-empty", list, { witnesses: [clear], state: "empty" });
   await flow.action("characters-recover-search", {
     action: async (): Promise<void> => {
       await clear.click();
@@ -235,23 +233,13 @@ async function listJourney(flow: CharacterFlow, originalName: string, rowName: s
     },
   });
   await search.fill(originalName);
-  await expect(list.getByRole("list", { name: "Character library", exact: true }).getByRole("button", { name: rowName, exact: true })).toBeVisible();
-  const group = list.getByRole("button", { name: "Group by tag", exact: true });
+  await expect(list.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true }).getByRole("button", { name: rowName, exact: true })).toBeVisible();
+  const group = list.getByRole("button", { name: CHARACTER_GROUP_BY_TAG_NAME, exact: true });
   await group.click();
   await expect(group).toHaveAttribute("aria-pressed", "true");
   await record(flow, "categorized-library", list, [group]);
   await group.click();
   await expect(group).toHaveAttribute("aria-pressed", "false");
-}
-
-async function creationDialogs(flow: CharacterFlow): Promise<void> {
-  await openList(flow);
-  await flow.page.getByRole("button", { name: /^(?:New|New character)$/u }).click();
-  const create = flow.page.getByRole("dialog", { name: "New character", exact: true });
-  await record(flow, "new-dialog", create, [create.getByRole("textbox", { name: "Character name", exact: true })]);
-  await dialogCancel(flow, create, "new-dialog-cancel");
-  await flow.page.getByRole("button", { name: "Import a character card", exact: true }).click();
-  await dialogCancel(flow, flow.page.getByRole("dialog", { name: "Import a character card", exact: true }), "import-dialog");
 }
 
 async function createRefusalJourney(flow: CharacterFlow): Promise<void> {
@@ -262,9 +250,9 @@ async function createRefusalJourney(flow: CharacterFlow): Promise<void> {
   const open = async (): Promise<Locator> => {
     await openList(flow);
     await page.getByRole("button", { name: /^(?:New|New character)$/u }).click();
-    const dialog = page.getByRole("dialog", { name: "New character", exact: true });
-    await dialog.getByRole("textbox", { name: "Character name", exact: true }).fill(name);
-    await dialog.getByRole("textbox", { name: "Character description", exact: true }).fill(description);
+    const dialog = page.getByRole("dialog", { name: CHARACTER_NEW_NAME, exact: true });
+    await dialog.getByRole("textbox", { name: CHARACTER_NAME_FIELD_NAME, exact: true }).fill(name);
+    await dialog.getByRole("textbox", { name: CHARACTER_DESCRIPTION_FIELD_NAME, exact: true }).fill(description);
     return dialog;
   };
   try {
@@ -276,7 +264,9 @@ async function createRefusalJourney(flow: CharacterFlow): Promise<void> {
       },
       ready: async (): Promise<void> => {
         await expect(create).toBeHidden();
-        await expect(page.getByRole("form", { name: EDITOR_NAME, exact: true }).getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
+        await expect(page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true }).getByRole("textbox", { name: "Name", exact: true })).toHaveValue(
+          name,
+        );
       },
     });
     const persisted = (await client.character.list.query({ search: name })).items.filter((row) => row.name === name && !before.has(row.id));
@@ -288,9 +278,13 @@ async function createRefusalJourney(flow: CharacterFlow): Promise<void> {
     const response = await refusedResponse;
     expect(response.status()).toBe(400);
     expect(await response.json()).toMatchObject([{ error: { data: { code: "BAD_REQUEST", reason: CHARACTER_HANDLE_CONFLICT_OP_CODE } } }]);
-    const field = refused.getByRole("textbox", { name: "Character name", exact: true });
+    const field = refused.getByRole("textbox", { name: CHARACTER_NAME_FIELD_NAME, exact: true });
     await expect(field).toHaveAttribute("aria-invalid", "true");
-    await recordState(flow, "native-name-conflict", refused, { state: "error", errorSource: "interaction", witnesses: [field, refused.getByRole("alert")] });
+    await checkpointState(flow, "native-name-conflict", refused, {
+      state: "error",
+      errorSource: "interaction",
+      witnesses: [field, refused.getByRole("alert")],
+    });
     markExpectedSurfaceHttpFailure(response);
     await dialogCancel(flow, refused, "native-name-conflict-cancel");
   } finally {
@@ -302,31 +296,105 @@ async function createRefusalJourney(flow: CharacterFlow): Promise<void> {
   }
 }
 
-async function tagsJourney(flow: CharacterFlow, form: Locator, characterId: CharacterId): Promise<void> {
-  await closeOverlay(flow.page);
-  // eslint-disable-next-line orb/no-hand-copied-label -- This accepted-card metadata group is not the tag library's list.
-  const tags = form.getByRole("group", { name: "Tags", exact: true });
-  const add = tags.getByRole("button", { name: "Add tag", exact: true });
-  await add.scrollIntoViewIfNeeded();
-  await record(flow, "accepted-tags", tags, [add]);
-  await add.click();
-  const picker = flow.page.getByRole("dialog", { name: "Tag this character", exact: true });
-  await record(flow, "tag-name-picker", picker, [picker.getByRole("combobox", { name: "Tag name", exact: true })]);
-  await dialogCancel(flow, picker, "tag-name-picker-cancel");
-  const detail = await flow.client.character.get.query({ characterId });
-  const tag = detail.tags.find((candidate) => !candidate.isHiddenOnCard);
+/** The library's dialogs open from plain buttons, so the walk names their doors. */
+async function libraryWalk(flow: CharacterFlow): Promise<void> {
+  const list = await openList(flow);
+  await walkScope(flow, list, "library");
+  const cancel = flow.page.getByRole("dialog").getByRole("button", { name: "Cancel", exact: true });
+  await walkDoor(flow, {
+    id: "new-dialog",
+    trigger: flow.page.getByRole("button", { name: /^(?:New|New character)$/u }),
+    body: flow.page.getByRole("dialog", { name: CHARACTER_NEW_NAME, exact: true }),
+    exit: cancel,
+  });
+  await walkDoor(flow, {
+    id: "import-dialog",
+    trigger: flow.page.getByRole("button", { name: CHARACTER_IMPORT_NAME, exact: true }),
+    body: flow.page.getByRole("dialog", { name: CHARACTER_IMPORT_NAME, exact: true }),
+    exit: cancel,
+  });
+}
+
+/** Everything the Context pane holds, tab by tab; the Links pickers open from plain buttons. */
+async function contextWalk(flow: CharacterFlow, subject: string): Promise<void> {
+  const links = await contextTab(flow, "Links");
+  const dialog = flow.page.getByRole("dialog");
+  const done = dialog.getByRole("button", { name: "Done", exact: true });
+  await walkDoor(flow, {
+    id: `${subject}-book-picker`,
+    trigger: links.getByRole("button", { name: CHARACTER_LINK_BOOK_NAME, exact: true }),
+    body: dialog,
+    exit: done,
+  });
+  await walkDoor(flow, {
+    id: `${subject}-persona-picker`,
+    trigger: links.getByRole("button", { name: CHARACTER_CONNECT_PERSONA_NAME, exact: true }),
+    body: dialog,
+    exit: done,
+  });
+  await walkScope(flow, flow.page.locator(CONTEXT), `${subject}-context`);
+}
+
+/** The editor, its tag and greeting doors, and every registered facet's drill with its inspector. */
+async function editorWalk(flow: CharacterFlow, form: Locator, characterId: CharacterId): Promise<void> {
+  await dismissContext(flow);
+  await walkScope(flow, form, "editor");
+  const dialog = flow.page.getByRole("dialog");
+  const tags = form.locator('[data-slot="character-tags"]');
+  await walkDoor(flow, {
+    id: "tag-name-picker",
+    trigger: tags.getByRole("button", { name: CHARACTER_ADD_TAG_NAME, exact: true }),
+    body: flow.page.getByRole("dialog", { name: CHARACTER_TAG_DIALOG_TITLE, exact: true }),
+    exit: dialog.getByRole("button", { name: "Cancel", exact: true }),
+  });
+  const tag = (await flow.client.character.get.query({ characterId })).tags.find((candidate) => !candidate.isHiddenOnCard);
   if (tag !== undefined) {
-    await tags.getByRole("button", { name: `Edit tag ${tag.name}`, exact: true }).click();
-    const editor = flow.page.getByRole("dialog", { name: `Edit tag ${tag.name}`, exact: true });
-    const close = editor.getByRole("button", { name: "Close tag editor", exact: true });
-    await record(flow, "tag-editor-readonly", editor, [close, editor.getByRole("textbox", { name: "Name", exact: true })]);
-    await close.click();
+    await walkDoor(flow, {
+      id: "tag-editor-readonly",
+      trigger: tags.getByRole("button", { name: `Edit tag ${tag.name}`, exact: true }),
+      body: flow.page.getByRole("dialog", { name: `Edit tag ${tag.name}`, exact: true }),
+      exit: dialog.getByRole("button", { name: "Close tag editor", exact: true }),
+    });
+  }
+  const greeting = form.locator('[data-slot="character-greeting"]');
+  // eslint-disable-next-line orb/no-hand-copied-label -- The greeting Studio control is not the preset template-group label.
+  const studio = greeting.getByRole("button", { name: "Studio", exact: true });
+  await walkDoor(flow, {
+    id: "greeting-edit",
+    trigger: greeting.getByRole("button", { name: "Edit", exact: true }),
+    body: greeting.getByRole("textbox", { name: /^Opening \d+$/u }),
+    exit: greeting.getByRole("button", { name: "Done", exact: true }),
+  });
+  await walkDoor(flow, {
+    id: "greeting-studio-no-generation",
+    trigger: studio,
+    body: greeting.locator('[data-slot="greeting-studio"]'),
+    exit: studio,
+  });
+  for (const facet of CHARACTER_CARD_FACETS) {
+    expectSubject(flow, facet.id, "facet");
+    await dismissContext(flow);
+    const opener = form.getByRole("button", { name: facet.label, exact: true });
+    await opener.click();
+    await dismissContext(flow);
+    const back = form.getByRole("button", { name: "Back", exact: true });
+    await expect(back).toBeVisible();
+    if (facet.id === "exampleMessages") {
+      await form.getByRole("button", { name: "Expand to edit", exact: true }).click();
+    }
+    await walkScope(flow, form, `facet-${facet.id}`);
+    observe(flow, facet.id, "visited", "Registered facet drill walked and left through Back");
+    const overview = await contextTab(flow, "Overview");
+    await checkpoint(flow, `facet-inspector-${facet.id}`, overview);
+    await dismissContext(flow);
+    await back.click();
+    await expect(opener).toBeFocused();
   }
 }
 
 async function rowAndBulkJourney(flow: CharacterFlow, name: string): Promise<void> {
   const list = await openList(flow);
-  await list.getByRole("textbox", { name: "Search characters", exact: true }).fill(name);
+  await list.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true }).fill(name);
   const row = list.locator('[data-slot="list-row-root"]').filter({ has: flow.page.getByRole("button", { name, exact: true }) });
   await row.hover();
   await row.getByRole("button", { name: rowActionsName(name), exact: true }).click();
@@ -343,35 +411,21 @@ async function rowAndBulkJourney(flow: CharacterFlow, name: string): Promise<voi
   await record(flow, "row-export-formats-unsubmitted", flow.page.getByRole("menu").filter({ has: png }), [png]);
   await flow.page.keyboard.press("Escape");
   await flow.page.keyboard.press("Escape");
-  const select = list.getByRole("button", { name: "Select multiple", exact: true });
+  const select = list.getByRole("button", { name: CHARACTER_SELECT_MULTIPLE_NAME, exact: true });
   await select.click();
   await list.getByRole("checkbox", { name: `Select ${name}`, exact: true }).check();
   const tag = list.getByRole("button", { name: CHARACTER_ACTIONS.tag.label, exact: true });
   await record(flow, "bulk-selected", list, [tag, list.getByRole("button", { name: CHARACTER_ACTIONS.delete.label, exact: true })]);
   await tag.click();
-  await dialogCancel(flow, flow.page.getByRole("dialog", { name: "Tag 1 character", exact: true }), "bulk-tag-picker");
+  await dialogCancel(flow, flow.page.getByRole("dialog", { name: characterBulkTagTitle(1), exact: true }), "bulk-tag-picker");
   await list.getByRole("button", { name: CHARACTER_ACTIONS.delete.label, exact: true }).click();
-  await dialogCancel(flow, flow.page.getByRole("alertdialog", { name: "Delete 1 character?", exact: true }), "bulk-delete-confirm");
+  await dialogCancel(flow, flow.page.getByRole("alertdialog", { name: characterBulkDeleteTitle(1), exact: true }), "bulk-delete-confirm");
   await select.click();
 }
 
 async function toggleGreetingStudio(greeting: Locator): Promise<void> {
   // eslint-disable-next-line orb/no-hand-copied-label -- The greeting Studio control is not the preset template-group label.
   await greeting.getByRole("button", { name: "Studio", exact: true }).click();
-}
-
-async function greetingJourney(flow: CharacterFlow, form: Locator): Promise<void> {
-  await closeOverlay(flow.page);
-  const greeting = form.locator('[data-slot="character-greeting"]');
-  await greeting.scrollIntoViewIfNeeded();
-  await record(flow, "greeting-preview", greeting, [greeting.getByRole("button", { name: "Edit", exact: true })]);
-  await greeting.getByRole("button", { name: "Edit", exact: true }).click();
-  await record(flow, "greeting-edit", greeting, [greeting.getByRole("textbox", { name: /^Opening \d+$/u })]);
-  await greeting.getByRole("button", { name: "Done", exact: true }).click();
-  await toggleGreetingStudio(greeting);
-  const studio = greeting.locator('[data-slot="greeting-studio"]');
-  await record(flow, "greeting-studio-no-generation", studio, [studio.getByRole("textbox", { name: "Greeting instructions", exact: true })]);
-  await toggleGreetingStudio(greeting);
 }
 
 async function greetingGenerationJourney(flow: CharacterFlow, form: Locator, characterId: CharacterId, originalId: CharacterId): Promise<void> {
@@ -405,7 +459,7 @@ async function greetingGenerationJourney(flow: CharacterFlow, form: Locator, cha
   try {
     await flow.client.connection.update.mutate({ connectionId, patch: { allowBackground: true } });
     await flow.client.connection.setBinding.mutate({ task: "summarize", connectionId });
-    await closeOverlay(flow.page);
+    await dismissContext(flow);
     await toggleGreetingStudio(greeting);
     const generate = greeting.getByRole("button", { name: "Make new", exact: true });
     const makePreview = async (name: string): Promise<void> => {
@@ -467,90 +521,6 @@ async function greetingGenerationJourney(flow: CharacterFlow, form: Locator, cha
     expect((await flow.client.connection.listBindings.query()).find(({ task }) => task === "summarize")?.binding?.connectionId ?? null).toBe(previousId);
     expect(await flow.client.character.get.query({ characterId: originalId })).toEqual(originalBefore);
   }
-}
-
-// What each facet's inspector shows first. A total Record over the registry's ids, so a new facet fails `tsc` here
-// instead of falling through to the generic heading.
-const detailsHeading = (overview: Locator): Locator => overview.getByRole("heading", { name: "Details", exact: true });
-const INSPECTOR_WITNESS: Record<(typeof CHARACTER_CARD_FACETS)[number]["id"], (overview: Locator) => Locator> = {
-  description: detailsHeading,
-  personality: detailsHeading,
-  scenario: detailsHeading,
-  exampleMessages: detailsHeading,
-  creatorNotes: detailsHeading,
-  systemPrompt: detailsHeading,
-  postHistoryInstructions: detailsHeading,
-  depthPrompt: (overview) => overview.getByRole("combobox", { name: "Role", exact: true }),
-  regexScripts: (overview) => overview.getByRole("button", { name: "Open your script library", exact: true }),
-  provenance: (overview) => overview.getByRole("textbox", { name: "Creator", exact: true }),
-};
-
-async function facetJourney(flow: CharacterFlow, form: Locator): Promise<void> {
-  for (const facet of CHARACTER_CARD_FACETS) {
-    await closeOverlay(flow.page);
-    const opener = form.getByRole("button", { name: facet.label, exact: true });
-    await opener.scrollIntoViewIfNeeded();
-    await opener.click();
-    await closeOverlay(flow.page);
-    const back = form.getByRole("button", { name: "Back", exact: true });
-    await expect(back).toBeVisible();
-    let witness = form.getByRole("textbox", { name: facet.label, exact: true });
-    if (facet.id === "exampleMessages") {
-      await form.getByRole("button", { name: "Expand to edit", exact: true }).click();
-    } else if (facet.id === "depthPrompt") {
-      witness = form.getByRole("textbox", { name: "Note text", exact: true });
-    } else if (facet.id === "provenance") {
-      witness = form.getByRole("textbox", { name: "Creator", exact: true });
-    } else if (facet.id === "regexScripts") {
-      witness = form.getByText("Picked from your script library — these run whenever this character is in the room.", { exact: true });
-    }
-    await witness.scrollIntoViewIfNeeded();
-    await record(flow, `facet-${facet.id}`, form, [back, witness]);
-    flow.observations.push({ id: facet.id, kind: "facet", disposition: "visited" });
-    const overview = await contextTab(flow, "Overview");
-    const detail = INSPECTOR_WITNESS[facet.id](overview);
-    await detail.scrollIntoViewIfNeeded();
-    await record(flow, `facet-inspector-${facet.id}`, overview, [detail]);
-    await closeOverlay(flow.page);
-    await back.scrollIntoViewIfNeeded();
-    await back.click();
-    await expect(opener).toBeFocused();
-  }
-}
-
-async function relationsJourney(flow: CharacterFlow, characterId: CharacterId, subject = "copy"): Promise<void> {
-  const links = await contextTab(flow, "Links");
-  const books = links.getByRole("button", { name: "Link a book", exact: true });
-  const personas = links.getByRole("button", { name: "Connect a persona", exact: true });
-  await record(flow, `${subject}-links-sections`, links, [books, personas]);
-  const linked = new Set((await flow.client.worldInfo.listForCharacter.query({ characterId })).map(({ id }) => id));
-  const availableBook = (await flow.client.worldInfo.listBooks.query(undefined)).find(({ id }) => !linked.has(id));
-  await books.click();
-  const bookPicker = flow.page.getByRole("dialog", { name: "Link a world book", exact: true });
-  if (availableBook === undefined) {
-    await recordState(flow, `${subject}-all-books-linked`, bookPicker, {
-      state: "empty",
-      witnesses: [bookPicker.getByText("Every book is already linked.", { exact: true })],
-    });
-  } else {
-    await record(flow, `${subject}-available-books`, bookPicker, [bookPicker.getByRole("button", { name: `Link ${availableBook.name}`, exact: true })]);
-  }
-  await dialogCancel(flow, bookPicker, `${subject}-world-book-picker`, "Done");
-  const connected = new Set((await flow.client.persona.listConnectedToCharacter.query({ characterId })).map(({ id }) => id));
-  const availablePersona = (await flow.client.persona.list.query(undefined)).find(({ id }) => !connected.has(id));
-  await personas.click();
-  const personaPicker = flow.page.getByRole("dialog", { name: "Connect a persona", exact: true });
-  if (availablePersona === undefined) {
-    await recordState(flow, `${subject}-all-personas-connected`, personaPicker, {
-      state: "empty",
-      witnesses: [personaPicker.getByText("Every persona is already connected.", { exact: true })],
-    });
-  } else {
-    await record(flow, `${subject}-available-personas`, personaPicker, [
-      personaPicker.getByRole("button", { name: `Connect ${availablePersona.name}`, exact: true }),
-    ]);
-  }
-  await dialogCancel(flow, personaPicker, `${subject}-persona-picker`, "Done");
 }
 
 async function lookJourney(flow: CharacterFlow, characterId: CharacterId): Promise<void> {
@@ -630,8 +600,8 @@ async function historyJourney(flow: CharacterFlow, characterId: CharacterId): Pr
 }
 
 async function snapshotJourney(flow: CharacterFlow, characterId: CharacterId, history: Locator): Promise<void> {
-  const snapshot = history.getByRole("button", { name: "Snapshot now", exact: true });
-  await recordState(flow, "history-empty", history, {
+  const snapshot = history.getByRole("button", { name: CHARACTER_SNAPSHOT_NOW_NAME, exact: true });
+  await checkpointState(flow, "history-empty", history, {
     witnesses: [snapshot, history.getByText("No snapshots yet. Take one to capture this character's current state.", { exact: true })],
     state: "empty",
   });
@@ -646,7 +616,7 @@ async function snapshotJourney(flow: CharacterFlow, characterId: CharacterId, hi
   const restore = history.getByRole("button", { name: "Restore", exact: true });
   await record(flow, "history-populated", history, [restore]);
   await restore.click();
-  await dialogCancel(flow, flow.page.getByRole("alertdialog", { name: "Restore this snapshot?", exact: true }), "snapshot-restore-confirm");
+  await dialogCancel(flow, flow.page.getByRole("alertdialog", { name: CHARACTER_RESTORE_SNAPSHOT_TITLE, exact: true }), "snapshot-restore-confirm");
 }
 
 async function historyFailureJourney(flow: CharacterFlow, name: string): Promise<void> {
@@ -660,7 +630,7 @@ async function historyFailureJourney(flow: CharacterFlow, name: string): Promise
     history = await contextTab(flow, "History");
     const retry = history.getByRole("button", { name: "Retry", exact: true });
     await retry.scrollIntoViewIfNeeded();
-    await recordState(flow, "history-transport-error", history, { witnesses: [retry], state: "error" });
+    await checkpointState(flow, "history-transport-error", history, { witnesses: [retry], state: "error" });
   } finally {
     await lift();
   }
@@ -683,7 +653,7 @@ async function lookFailureJourney(flow: CharacterFlow, characterId: CharacterId)
     await expect(status).toContainText(AUTOSAVE_SAVE_FAILED_TEXT);
     const retry = status.getByRole("button", { name: "Retry", exact: true });
     await retry.scrollIntoViewIfNeeded();
-    await recordState(flow, "look-failed-save-draft", look, { state: "error", errorSource: "interaction", witnesses: [retry] });
+    await checkpointState(flow, "look-failed-save-draft", look, { state: "error", errorSource: "interaction", witnesses: [retry] });
   } finally {
     await lift();
   }
@@ -693,21 +663,9 @@ async function lookFailureJourney(flow: CharacterFlow, characterId: CharacterId)
   await record(flow, "look-keyboard-save-recovered", look, [status]);
 }
 
-async function trustJourney(flow: CharacterFlow, subject = "copy"): Promise<void> {
-  const trust = await contextTab(flow, "Trust");
-  const html = trust.getByRole("combobox", { name: "HTML rendering", exact: true });
-  await html.scrollIntoViewIfNeeded();
-  await record(flow, `${subject}-trust-controls`, trust, [html, trust.getByRole("combobox", { name: "External media", exact: true })]);
-  await html.click();
-  const options = await controlledPanel(html);
-  await record(flow, `${subject}-trust-ladder`, options, [options.getByRole("option", { name: "Interactive", exact: true })]);
-  await flow.page.keyboard.press("Escape");
-  await expect(options).toBeHidden();
-}
-
 async function actionsJourney(flow: CharacterFlow, characterId: CharacterId): Promise<void> {
   await contextTab(flow, "Overview");
-  const button = flow.page.locator(CONTEXT).getByRole("button", { name: "Character actions", exact: true });
+  const button = flow.page.locator(CONTEXT).getByRole("button", { name: CHARACTER_ACTIONS_MENU_NAME, exact: true });
   await button.click();
   let menu = flow.page.getByRole("menu");
   const detail = await flow.client.character.get.query({ characterId });
@@ -723,21 +681,21 @@ async function actionsJourney(flow: CharacterFlow, characterId: CharacterId): Pr
     menu.getByRole("menuitem", { name: CHARACTER_ACTIONS.delete.label, exact: true }),
   ]);
   await menu.getByRole("menuitem", { name: CHARACTER_ACTIONS.duplicate.label, exact: true }).click();
-  await dialogCancel(flow, flow.page.getByRole("alertdialog", { name: "Duplicate this character?", exact: true }), "duplicate-confirm");
+  await dialogCancel(flow, flow.page.getByRole("alertdialog", { name: CHARACTER_DUPLICATE_TITLE, exact: true }), "duplicate-confirm");
   await button.click();
   menu = flow.page.getByRole("menu");
   await menu.getByRole("menuitem", { name: CHARACTER_ACTIONS.delete.label, exact: true }).click();
-  await dialogCancel(flow, flow.page.getByRole("alertdialog", { name: "Delete this character?", exact: true }), "delete-confirm");
+  await dialogCancel(flow, flow.page.getByRole("alertdialog", { name: CHARACTER_DELETE_TITLE, exact: true }), "delete-confirm");
   await button.click();
   await flow.page.getByRole("menuitem", { name: CHARACTER_ACTIONS.openGallery.label, exact: true }).click();
   const gallery = flow.page.getByRole("dialog", { name: `${detail.name}'s gallery`, exact: true });
   const addImages = gallery.getByRole("button", { name: "Add images", exact: true });
-  await recordState(flow, "gallery-copy-empty", gallery, { state: "empty", witnesses: [gallery.getByText("No images yet", { exact: true }), addImages] });
+  await checkpointState(flow, "gallery-copy-empty", gallery, { state: "empty", witnesses: [gallery.getByText("No images yet", { exact: true }), addImages] });
   await addImages.click();
   const candidates = await flow.client.assets.listOwned.query({ limit: 1, galleryCandidatesFor: characterId });
   const picker = flow.page.getByRole("dialog", { name: "Add images to the gallery", exact: true });
   if (candidates.length === 0) {
-    await recordState(flow, "gallery-candidates-empty", picker, {
+    await checkpointState(flow, "gallery-candidates-empty", picker, {
       state: "empty",
       witnesses: [picker.getByRole("button", { name: "Upload instead", exact: true })],
     });
@@ -757,38 +715,13 @@ async function actionsJourney(flow: CharacterFlow, characterId: CharacterId): Pr
 
 async function originalContextJourney(flow: CharacterFlow, characterId: CharacterId): Promise<void> {
   const detail = await flow.client.character.get.query({ characterId });
-  const overview = await contextTab(flow, "Overview");
-  await record(flow, "original-overview", overview, [overview.getByRole("group", { name: "Source", exact: true })]);
-
+  await contextWalk(flow, "original");
   const actualChats = await flow.client.chat.listChats.query({ characterId });
   const chats = await contextTab(flow, "Chats");
-  if (actualChats.totalCount === 0) {
-    await recordState(flow, "original-chats-empty", chats, { state: "empty", witnesses: [chats.getByRole("button", { name: "New chat", exact: true })] });
-  } else {
-    const rows = chats.getByRole("list", { name: `Chats with ${detail.name}`, exact: true });
-    await record(flow, "original-chats-populated", chats, [rows]);
-  }
-  await relationsJourney(flow, characterId, "original");
-
-  const look = await contextTab(flow, "Look");
-  const font = look.getByRole("combobox", { name: "Font", exact: true });
-  await font.scrollIntoViewIfNeeded();
-  await record(flow, "original-look-readonly", look, [font]);
-
+  await expect(chats.getByRole("list", { name: `Chats with ${detail.name}`, exact: true })).toHaveCount(actualChats.totalCount > 0 ? 1 : 0);
   const snapshots = await flow.client.character.listSnapshots.query({ characterId });
   const history = await contextTab(flow, "History");
-  const restores = history.getByRole("button", { name: "Restore", exact: true });
-  await expect(restores).toHaveCount(snapshots.length);
-  const snapshot = history.getByRole("button", { name: "Snapshot now", exact: true });
-  if (snapshots.length === 0) {
-    await recordState(flow, "original-history-readonly", history, {
-      state: "empty",
-      witnesses: [snapshot, history.getByText("No snapshots yet. Take one to capture this character's current state.", { exact: true })],
-    });
-  } else {
-    await record(flow, "original-history-readonly", history, [snapshot]);
-  }
-  await trustJourney(flow, "original");
+  await expect(history.getByRole("button", { name: "Restore", exact: true })).toHaveCount(snapshots.length);
   await attachNativeFile(flow.info, flow.info, "characters-original-context-population", {
     body: JSON.stringify({ characterId, chats: actualChats.totalCount, snapshots: snapshots.length, tags: detail.tags.length, mutation: "none" }),
     contentType: "application/json",
@@ -796,21 +729,21 @@ async function originalContextJourney(flow: CharacterFlow, characterId: Characte
 }
 
 async function recoveryJourney(flow: CharacterFlow, name: string): Promise<void> {
-  await closeOverlay(flow.page);
+  await dismissContext(flow);
   await openList(flow);
   const lift = await abortProcedure(flow.page, "character.list");
   try {
-    await flow.page.getByRole("textbox", { name: "Search characters", exact: true }).fill(`${name} deliberately failed read`);
+    await flow.page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true }).fill(`${name} deliberately failed read`);
     const list = flow.page.locator(LIST);
     const retry = list.getByRole("button", { name: "Retry", exact: true });
-    await recordState(flow, "library-transport-failure", list, { witnesses: [retry], state: "error" });
+    await checkpointState(flow, "library-transport-failure", list, { witnesses: [retry], state: "error" });
   } finally {
     await lift();
   }
   const retry = flow.page.locator(LIST).getByRole("button", { name: "Retry", exact: true });
   await retry.click();
   const clear = flow.page.locator(LIST).getByRole("button", { name: "Clear search", exact: true });
-  await recordState(flow, "library-retried-empty", flow.page.locator(LIST), { witnesses: [clear], state: "empty" });
+  await checkpointState(flow, "library-retried-empty", flow.page.locator(LIST), { witnesses: [clear], state: "empty" });
   await clear.click();
 }
 
@@ -831,7 +764,7 @@ async function sourceCharacter(flow: CharacterFlow): Promise<SourceCharacter> {
   if (original === undefined) {
     const list = await openList(flow);
     if (sourcePage.totalCount === 0) {
-      await recordState(flow, "genuine-empty-source-library", list, { witnesses: [list.getByText("No characters yet", { exact: true })], state: "empty" });
+      await checkpointState(flow, "genuine-empty-source-library", list, { witnesses: [list.getByText("No characters yet", { exact: true })], state: "empty" });
     }
     throw new Error("The source dataset has no Character subject; no synthetic owner subject was invented");
   }
@@ -874,16 +807,18 @@ function completedCommand(flow: CharacterFlow, id: (typeof COMMAND_ACTION_IDS)[n
 
 async function characterCommandMenu(flow: CharacterFlow): Promise<Locator> {
   await contextTab(flow, "Overview");
-  await flow.page.locator(CONTEXT).getByRole("button", { name: "Character actions", exact: true }).click();
+  await flow.page.locator(CONTEXT).getByRole("button", { name: CHARACTER_ACTIONS_MENU_NAME, exact: true }).click();
   return flow.page.getByRole("menu");
 }
 
 async function createCommandCharacter(flow: CharacterFlow, name: string, subjects: CommandSubjects): Promise<SourceCharacter> {
   await openList(flow);
   await flow.page.getByRole("button", { name: /^(?:New|New character)$/u }).click();
-  const dialog = flow.page.getByRole("dialog", { name: "New character", exact: true });
-  await dialog.getByRole("textbox", { name: "Character name", exact: true }).fill(name);
-  await dialog.getByRole("textbox", { name: "Character description", exact: true }).fill("A disposable native command witness for {{char}} and {{user}}.");
+  const dialog = flow.page.getByRole("dialog", { name: CHARACTER_NEW_NAME, exact: true });
+  await dialog.getByRole("textbox", { name: CHARACTER_NAME_FIELD_NAME, exact: true }).fill(name);
+  await dialog
+    .getByRole("textbox", { name: CHARACTER_DESCRIPTION_FIELD_NAME, exact: true })
+    .fill("A disposable native command witness for {{char}} and {{user}}.");
   await flow.action("characters-commands-create", {
     action: async (): Promise<void> => {
       // eslint-disable-next-line orb/no-hand-copied-label -- This is the character creation submit, not a slash-command group label.
@@ -899,7 +834,7 @@ async function createCommandCharacter(flow: CharacterFlow, name: string, subject
     throw new Error("The native Character create left no disposable subject");
   }
   subjects.characters.add(created.id);
-  const form = flow.page.getByRole("form", { name: EDITOR_NAME, exact: true });
+  const form = flow.page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true });
   await expect(form.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
   await record(flow, "commands-native-created", form, [form.getByRole("textbox", { name: "Name", exact: true })]);
   return created;
@@ -907,7 +842,7 @@ async function createCommandCharacter(flow: CharacterFlow, name: string, subject
 
 async function duplicateCommandCharacter(flow: CharacterFlow, parent: SourceCharacter, name: string, subjects: CommandSubjects): Promise<SourceCharacter> {
   await (await characterCommandMenu(flow)).getByRole("menuitem", { name: CHARACTER_ACTIONS.duplicate.label, exact: true }).click();
-  const confirm = flow.page.getByRole("alertdialog", { name: "Duplicate this character?", exact: true });
+  const confirm = flow.page.getByRole("alertdialog", { name: CHARACTER_DUPLICATE_TITLE, exact: true });
   await record(flow, "commands-duplicate-confirm", confirm, [confirm.getByRole("button", { name: CHARACTER_ACTIONS.duplicate.label, exact: true })]);
   await flow.action("characters-commands-duplicate", {
     action: async (): Promise<void> => {
@@ -929,8 +864,8 @@ async function duplicateCommandCharacter(flow: CharacterFlow, parent: SourceChar
   }
   subjects.characters.add(copy.id);
   expect(copy.handle).not.toBe(parent.handle);
-  const form = flow.page.getByRole("form", { name: EDITOR_NAME, exact: true });
-  await closeOverlay(flow.page);
+  const form = flow.page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true });
+  await dismissContext(flow);
   await flow.action("characters-commands-copy-identity-save", {
     action: async (): Promise<void> => {
       await form.getByRole("textbox", { name: "Name", exact: true }).fill(name);
@@ -955,8 +890,8 @@ async function duplicateCommandCharacter(flow: CharacterFlow, parent: SourceChar
 
 async function selectCommandCards(flow: CharacterFlow, search: string, names: readonly string[]): Promise<Locator> {
   const list = await openList(flow);
-  await list.getByRole("textbox", { name: "Search characters", exact: true }).fill(search);
-  const select = list.getByRole("button", { name: "Select multiple", exact: true });
+  await list.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true }).fill(search);
+  const select = list.getByRole("button", { name: CHARACTER_SELECT_MULTIPLE_NAME, exact: true });
   if ((await select.getAttribute("aria-pressed")) !== "true") {
     await select.click();
   }
@@ -979,7 +914,7 @@ async function tagCommandCharacters(
     cards.map(({ name }) => name),
   );
   await list.getByRole("button", { name: CHARACTER_ACTIONS.tag.label, exact: true }).click();
-  const dialog = flow.page.getByRole("dialog", { name: `Tag ${cards.length} characters`, exact: true });
+  const dialog = flow.page.getByRole("dialog", { name: characterBulkTagTitle(cards.length), exact: true });
   await dialog.getByRole("combobox", { name: "Tag name", exact: true }).fill(tagName);
   const submit = dialog.getByRole("button", { name: `Create "${tagName}"`, exact: true });
   await record(flow, "commands-bulk-tag-create", dialog, [submit]);
@@ -999,7 +934,7 @@ async function tagCommandCharacters(
     throw new Error("Native tagging persisted no named tag identity");
   }
   subjects.tags.add(tag.id);
-  await list.getByRole("button", { name: "Select multiple", exact: true }).click();
+  await list.getByRole("button", { name: CHARACTER_SELECT_MULTIPLE_NAME, exact: true }).click();
   const form = await openCard(flow, copy.name);
   const chip = form.getByRole("button", { name: `Edit tag ${tagName}`, exact: true });
   await chip.scrollIntoViewIfNeeded();
@@ -1060,7 +995,7 @@ async function archiveCommandCharacters(flow: CharacterFlow, parent: SourceChara
   if (await disclosure.isVisible()) {
     await disclosure.click();
   }
-  const archived = library.getByRole("button", { name: "Show archived characters", exact: true });
+  const archived = library.getByRole("button", { name: CHARACTER_SHOW_ARCHIVED_NAME, exact: true });
   if ((await archived.getAttribute("aria-pressed")) === "true") {
     await archived.click();
   }
@@ -1077,7 +1012,7 @@ async function archiveCommandCharacters(flow: CharacterFlow, parent: SourceChara
     },
   });
   await archived.click();
-  await list.getByRole("button", { name: "Select multiple", exact: true }).click();
+  await list.getByRole("button", { name: CHARACTER_SELECT_MULTIPLE_NAME, exact: true }).click();
   await openCard(flow, copy.name);
   const menu = await characterCommandMenu(flow);
   const unarchiveLabel = CHARACTER_ACTIONS.archive.toggledLabel;
@@ -1156,7 +1091,7 @@ async function convertCommandCharacter(flow: CharacterFlow, card: SourceCharacte
 
 async function deleteCommandCharacters(flow: CharacterFlow, parent: SourceCharacter, copy: SourceCharacter, subjects: CommandSubjects): Promise<void> {
   await (await characterCommandMenu(flow)).getByRole("menuitem", { name: CHARACTER_ACTIONS.delete.label, exact: true }).click();
-  const single = flow.page.getByRole("alertdialog", { name: "Delete this character?", exact: true });
+  const single = flow.page.getByRole("alertdialog", { name: CHARACTER_DELETE_TITLE, exact: true });
   await record(flow, "commands-delete-single-confirm", single, [single.getByRole("button", { name: CHARACTER_ACTIONS.delete.label, exact: true })]);
   await flow.action("characters-commands-delete-single", {
     action: async (): Promise<void> => {
@@ -1165,13 +1100,13 @@ async function deleteCommandCharacters(flow: CharacterFlow, parent: SourceCharac
     ready: async (): Promise<void> => {
       await expect(single).toBeHidden();
       await expect.poll(async () => (await flow.client.character.list.query({ search: copy.name })).items.some(({ id }) => id === copy.id)).toBe(false);
-      await expect(flow.page.getByRole("form", { name: EDITOR_NAME, exact: true })).toHaveCount(0);
+      await expect(flow.page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true })).toHaveCount(0);
     },
   });
   subjects.nativeDeleted.add(copy.id);
   const list = await selectCommandCards(flow, parent.name, [parent.name]);
   await list.getByRole("button", { name: CHARACTER_ACTIONS.delete.label, exact: true }).click();
-  const bulk = flow.page.getByRole("alertdialog", { name: "Delete 1 character?", exact: true });
+  const bulk = flow.page.getByRole("alertdialog", { name: characterBulkDeleteTitle(1), exact: true });
   const confirm = bulk.getByRole("button", { name: CHARACTER_ACTIONS.delete.label, exact: true });
   await record(flow, "commands-delete-bulk-confirm", bulk, [confirm]);
   await flow.action("characters-commands-delete-bulk", {
@@ -1275,22 +1210,13 @@ async function disposableArea(flow: CharacterFlow, area: DisposableArea, origina
   await withDisposableCharacter(flow, original, async ({ id, name, form }): Promise<void> => {
     const journeys: Record<DisposableArea, () => Promise<void>> = {
       editor: async (): Promise<void> => {
-        for (const facet of CHARACTER_CARD_FACETS) {
-          expectSubject(flow, facet.id, "facet");
-        }
-        await tagsJourney(flow, form, id);
-        await greetingJourney(flow, form);
-        await facetJourney(flow, form);
+        await editorWalk(flow, form, id);
       },
       greeting: async (): Promise<void> => {
         await greetingGenerationJourney(flow, form, id, original.id);
       },
       relations: async (): Promise<void> => {
-        const overview = await contextTab(flow, "Overview");
-        await record(flow, "overview-resting", overview, [overview.getByRole("group", { name: "Source", exact: true })]);
-        const chats = await contextTab(flow, "Chats");
-        await recordState(flow, "chats-empty-copy", chats, { witnesses: [chats.getByRole("button", { name: "New chat", exact: true })], state: "empty" });
-        await relationsJourney(flow, id);
+        await contextWalk(flow, "copy");
       },
       look: async (): Promise<void> => {
         await lookJourney(flow, id);
@@ -1310,7 +1236,6 @@ async function disposableArea(flow: CharacterFlow, area: DisposableArea, origina
           expectSubject(flow, action, "action");
           flow.observations.push({ id: action, kind: "action", ...ACTION_DISPOSITIONS[action] });
         }
-        await trustJourney(flow);
         expectSubject(flow, "openGallery", "action");
         await actionsJourney(flow, id);
         await rowAndBulkJourney(flow, name);
@@ -1325,7 +1250,7 @@ async function disposableArea(flow: CharacterFlow, area: DisposableArea, origina
 
 /** Run one independently collected Character scope against source provenance and disposable writes. */
 export async function walkCharacterArea(input: SurfaceFlow, area: CharacterWalkArea): Promise<void> {
-  const flow: CharacterFlow = { ...input, area, expected: new Map(), observations: [], provenance: {} };
+  const flow: CharacterFlow = { ...createSurfaceWalk(input), area, provenance: {} };
   expectSubject(flow, area, "area");
   try {
     const original = await sourceCharacter(flow);
@@ -1333,7 +1258,7 @@ export async function walkCharacterArea(input: SurfaceFlow, area: CharacterWalkA
     const rowName = original.nameIsAmbiguous ? `${original.name} · ${original.handle}` : original.name;
     if (area === "library") {
       await listJourney(flow, original.name, rowName);
-      await creationDialogs(flow);
+      await libraryWalk(flow);
       await createRefusalJourney(flow);
     } else if (area === "source-context") {
       const form = await openCard(flow, original.name, rowName);
@@ -1349,11 +1274,11 @@ export async function walkCharacterArea(input: SurfaceFlow, area: CharacterWalkA
     flow.observations.push({ id: area, kind: "area", disposition: "failed", reason: error instanceof Error ? error.message : String(error) });
     throw error;
   } finally {
-    const inventory = { name: `Characters ${area}`, expected: [...flow.expected.values()], observations: flow.observations };
     await attachNativeFile(flow.info, flow.info, "characters-itinerary-boundary", {
       body: JSON.stringify(
         {
-          ...inventory,
+          expected: flow.expected,
+          observations: flow.observations,
           provenance: flow.provenance,
           originalMutations: "excluded",
           externalExecution: area === "greeting" ? "run-owned bounded text peer for native Greeting Studio only" : "not requested",
@@ -1364,6 +1289,6 @@ export async function walkCharacterArea(input: SurfaceFlow, area: CharacterWalkA
       ),
       contentType: "application/json",
     });
-    await publishSurfaceInventory(flow.info, inventory);
+    await publishWalk(flow, `Characters ${area}`);
   }
 }

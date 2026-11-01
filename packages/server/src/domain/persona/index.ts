@@ -4,9 +4,7 @@
 
 export type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "./contract/default-seed.ts";
 
-export type { ResolvePersonasForParticipants } from "./contract/ops.ts";
-
-export type { PersonaAssemblyContext as PersonaContext, PersonaService } from "./contract/service.ts";
+export type { PersonaAssemblyContext, PersonaService } from "./contract/service.ts";
 
 export { createBulkImportPersonas } from "./persistence/import-write.ts";
 // R6 — the `(ownerId, name)` lookup the orb-native chat bundle re-links its anchor + per-turn personas

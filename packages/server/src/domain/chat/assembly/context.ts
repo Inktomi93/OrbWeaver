@@ -10,6 +10,7 @@ import type {
   AssemblePersona,
   AssembleWorldEntry,
   ChatInjection,
+  GuidedSteer,
   MacroFreezeRecord,
   MemoryRecallSlice,
   RoomOverrides,
@@ -37,7 +38,6 @@ import type { ChatContext } from "../contract/context.ts";
 import type { ApplyRegexReplaceOp } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { ResolvedPersonas } from "../contract/foreign.ts";
-import type { GuidedSteer } from "../contract/params.ts";
 import { BEFORE_HISTORY_DEPTH, renderInjection } from "./injections.ts";
 import { buildTurnMacroContext, freezeVolatileMacros, renderMacros, resolveGuidedActionText } from "./macros.ts";
 import { hasActiveMarker } from "./sections.ts";

@@ -44,8 +44,6 @@ import type { AnalysisConfirmAct } from "./analysis.ts";
 import type { CreateRuleParams } from "./params.ts";
 import type { NewSuggestionId } from "./suggestion-id.ts";
 
-export type { ExecutePluginSuggestion } from "@orb/contracts/plugin";
-
 // domain/automation/contract/ops — the injected cross-feature op TYPES (domain-no-cross-feature; wired at
 // entry/compose) + the dispatch seam the arm executors plug into. `AutomationOps` declares the READ ops the
 // watcher/fact-resolver/CEL-env need (chat-owned projections — turn origin, the selected-variant message

@@ -1,5 +1,5 @@
 // verb: importFile — the SINGLE-preset import door (redesign §16.1 G6), and nothing more than a door. It
-// DELEGATES to `createImport` (verbs/import.ts), the same `ImportPreset` arm the whole-profile portability
+// DELEGATES to `createImportPresets` (verbs/import.ts), the same `ImportPreset` arm the whole-profile portability
 // bundle uses, so the single-file path inherits the bundle's semantics BY CONSTRUCTION rather than restating
 // them: strict parse with a contained per-file error, additive by content (an equal preset is reused, a
 // same-named different one lands beside it under kind `roleplay`), lift-walk from the file's own schemaVersion, and the
@@ -13,7 +13,7 @@ import type { ImportPresetFileParams } from "../contract/params.ts";
 import type { PresetService } from "../contract/service.ts";
 
 /** `importPreset` is INJECTED (verb-to-verb value imports are the banned edge — `domain-no-cross-verb`):
- *  service.ts builds `createImport(ctx)` once and hands it here, which is also what makes "the door owns no
+ *  service.ts builds `createImportPresets(ctx)` once and hands it here, which is also what makes "the door owns no
  *  semantics" structural rather than a claim. */
 export function createImportFile(deps: { readonly importPreset: ImportPreset }): Pick<PresetService, "importFile"> {
   function importFile(params: ImportPresetFileParams): Promise<PresetImportOutcome> {

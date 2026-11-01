@@ -4,8 +4,6 @@ import type { CardTextStoreInput, DocumentChunkStoreInput, EmbeddingTask } from 
 
 import type { AssetId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 
-export type { PruneMemoryBlocksParams } from "@orb/contracts/embeddings";
-
 // Store params: a discriminated union on `lens`. `ownerId` is the entity OWNER — the FUNDER whose embed
 // connection produces the vector and whose binding defines the space (inference program §7.5-2, a vector task
 // is `scope: "owner"`). Vector rows still FK to their producer only; owner-scope at search time derives from

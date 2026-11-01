@@ -25,8 +25,8 @@
 // resolver), `entry/compose/imagery.ts`, `entry/compose/search-discovery.ts` — plus this file's own
 // unknown-id `?? "user"`. Inventing the floor DENIES; only inventing a grant is the defect (D135 clause E).
 //
-// CSRF is a SIGNAL here, not a gate: the seam surfaces `csrfHeaderPresent` + `via`; the transport ladder
-// enforces it.
+// CSRF is not decided here: the seam surfaces `via`, and each route gate reads the request's own header
+// (`hasCsrfHeader`, spine invariant 9).
 //
 // The seam also owns ONE verdict beside the mint: `debugGateAdmits` — whether the /api/_debug door opens for
 // the principal this file already minted for the request. It RESOLVES NOTHING (#1193): a second, peer-less
@@ -41,21 +41,20 @@ import { castId } from "@orb/kit/ids";
 import { isOwner } from "#domain/admin";
 import type { SessionsService } from "#domain/sessions";
 import type { Logger } from "#foundation/observability";
-import type { AllowedHostsReader, AuthConfig, ForwardJwtVerifier, IdentityResolution, OidcTransactionStore, RelayedFallbackNotice } from "#infra/auth";
-import { hasCsrfHeader, readRequestCookie, resolve, selectSignedForwardJwt, sessionCookieFor } from "#infra/auth";
+import type { AllowedHostsReader, AuthConfig, ForwardJwtVerifier, IdentityResolution, RelayedFallbackNotice } from "#infra/auth";
+import { readRequestCookie, resolve, selectSignedForwardJwt, sessionCookieFor } from "#infra/auth";
 import { captureUserRole } from "#primitives/role-data";
 import type { LiveBuses } from "#transport/trpc";
 import { mintPrincipal } from "./principal-mint.ts";
 
 /** The boot-time deps the seam binds once. `config` is the root's one `AuthConfig` (`authConfigFromEnv` over its
- *  parsed env record). `verifyForwardJwt`/`oidcStore` are the ports the SSO paths need; absent ⇒ that layer is
+ *  parsed env record). `verifyForwardJwt` is the port the signed forward-header path needs; absent ⇒ that layer is
  *  inert (fail-closed). */
 export interface AuthSeamDeps {
   readonly logger: Logger;
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
   readonly sessions: SessionsService;
   readonly verifyForwardJwt?: ForwardJwtVerifier;
-  readonly oidcStore?: OidcTransactionStore;
   readonly config: AuthConfig;
   /**
    * Does THIS deployment's un-credentialed loopback owner fallback count as the operator's credential at the
@@ -86,8 +85,7 @@ export interface PerRequestSeamDeps {
   readonly transport: RequestTransport;
 }
 
-/** The seam output: the immutable `Principal` (or `null` for anonymous/disabled → transport 401) plus the
- *  CSRF-header signal the transport ladder keys on. */
+/** The seam output: the immutable `Principal` (or `null` for anonymous/disabled → transport 401). */
 export interface AuthSeamResolution {
   readonly principal: Principal | null;
   /**
@@ -100,7 +98,6 @@ export interface AuthSeamResolution {
    * request context to exactly one consumer, `stream.connect`'s cell stamp. Nothing authorizes on it.
    */
   readonly sessionId: SessionId | null;
-  readonly csrfHeaderPresent: boolean;
 }
 
 /** The constructed seam — bound at boot, called per request. `debugGateAdmits` is the DEBUG-GATE verdict
@@ -352,12 +349,10 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
   const resolveFallbackPrincipal = createFallbackPrincipalResolver(deps.sessions);
 
   async function resolvePrincipal(headers: Headers, req: PerRequestSeamDeps): Promise<AuthSeamResolution> {
-    const csrfHeaderPresent = hasCsrfHeader(headers);
-
     if (isCookieMode) {
       const admitted = await resolveCookiePrincipal(deps.sessions, headers, req);
       if (admitted !== null) {
-        return { principal: admitted.principal, sessionId: admitted.sessionId, csrfHeaderPresent };
+        return { principal: admitted.principal, sessionId: admitted.sessionId };
       }
     }
 
@@ -365,7 +360,6 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
       config,
       log: deps.logger,
       ...(deps.verifyForwardJwt !== undefined && { verifyForwardJwt: deps.verifyForwardJwt }),
-      ...(deps.oidcStore !== undefined && { oidcStore: deps.oidcStore }),
       ...(deps.relayedFallbackNotice !== undefined && { relayedFallbackNotice: deps.relayedFallbackNotice }),
       ...(deps.relayHosts !== undefined && { relayHosts: deps.relayHosts }),
       ...(req.peerIp !== undefined && { peerIp: req.peerIp }),
@@ -374,7 +368,7 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
     // No session id on these arms BY CONSTRUCTION: neither the peer-gated owner fallback nor an SSO header
     // mints a `sessions` row, so there is nothing for a per-session logout to end (their sockets are reached
     // by `evictUser` — the admin/disable arm — instead).
-    return { principal, sessionId: null, csrfHeaderPresent };
+    return { principal, sessionId: null };
   }
 
   /**

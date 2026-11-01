@@ -10,8 +10,9 @@
 
 import type { TokenProvenance } from "@orb/contracts/chat";
 import { combineTokenProvenance } from "@orb/contracts/chat";
+import type { ModelRoutingRow } from "@orb/contracts/discovery";
 import type { UserId } from "@orb/kit/ids";
-import type { ForgottenGem, ModelRoutingRow } from "../contract/results.ts";
+import type { ForgottenGem } from "../contract/results.ts";
 import type { DiscoveryContext, DiscoveryService } from "../contract/service.ts";
 import { readForgottenGemCandidates } from "../persistence/message-reads.ts";
 import { readOwnedCardFacets } from "../persistence/summary-reads.ts";

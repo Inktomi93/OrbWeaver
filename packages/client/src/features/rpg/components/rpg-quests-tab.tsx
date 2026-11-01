@@ -23,7 +23,7 @@ import type { RpgQuestView } from "@orb/contracts/rpg";
 import { Card } from "@orb/ui/card";
 import { Checkbox } from "@orb/ui/checkbox";
 import { GlyphButton } from "@orb/ui/glyph-button";
-import { Icon, Plus, Trash2, X } from "@orb/ui/icons";
+import { Icon, Plus, Trash, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { SegmentedClock } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
@@ -142,7 +142,7 @@ function DeleteQuestAction({ quest, onDelete }: { readonly quest: RpgQuestView; 
       onConfirm={(): void => onDelete(quest)}
       trigger={
         <GlyphButton aria-label={`Delete quest: ${quest.name}`} variant="ghost" glyph="sm">
-          <Icon icon={Trash2} size="xs" />
+          <Icon icon={Trash} size="xs" />
         </GlyphButton>
       }
     />

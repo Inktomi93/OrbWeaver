@@ -11,7 +11,7 @@ import { buildWorldBookFile } from "#primitives/serde/world-info";
 import type { WorldInfoExportContext } from "../contract/export.ts";
 import { listBookEntries, loadOwnedBook } from "../persistence/queries.ts";
 
-export function createExport(input: DbAssemblyInput<WorldInfoExportContext>): ExportWorldBook {
+export function createExportWorldBook(input: DbAssemblyInput<WorldInfoExportContext>): ExportWorldBook {
   const ctx: WorldInfoExportContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, bookId }): Promise<PortableFile | null> => {
     const book = await loadOwnedBook(ctx.db, ownerId, bookId);

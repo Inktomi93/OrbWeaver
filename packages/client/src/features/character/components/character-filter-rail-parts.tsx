@@ -20,6 +20,7 @@ import { useRovingChipFocus } from "../hooks/use-roving-chip-focus.ts";
 
 import type { LibraryChipTag } from "../lib/character-library-lens.ts";
 import { vocabularyPanelTags } from "../lib/character-library-lens.ts";
+import { CHARACTER_FEWER_TAGS_NAME, CHARACTER_FILTER_TAGS_NAME, CHARACTER_TAG_VOCABULARY_NAME } from "../lib/character-names.ts";
 
 /** THE tag chip's own spelling — the state attribute each chip carries, which is also what the CTs address
  *  them by. One const, so the roving group and the markup can never name two different things. */
@@ -116,7 +117,7 @@ export function TagVocabularyPanel({
     <>
       <Row gap="field">
         <Input
-          aria-label="Filter tags"
+          aria-label={CHARACTER_FILTER_TAGS_NAME}
           aria-controls={panelId}
           className="flex-1 min-inline-0"
           onValueChange={setQuery}
@@ -124,7 +125,7 @@ export function TagVocabularyPanel({
           type="search"
           value={query}
         />
-        <RailAction accessibleName="Show fewer tags" controls={panelId} expanded={true} label="Show fewer" onClick={onCollapse} />
+        <RailAction accessibleName={CHARACTER_FEWER_TAGS_NAME} controls={panelId} expanded={true} label="Show fewer" onClick={onCollapse} />
       </Row>
       {/* THE VIEWPORT IS A NAMED REGION. Base UI makes an overflowing viewport
           `tabindex=0`, and correctly so — a scroll region a keyboard user cannot reach is a trap — but an
@@ -134,7 +135,11 @@ export function TagVocabularyPanel({
           the SCROLLER is the thing that scrolls. The name is deliberately not the toolbar's
           ("Tag filter vocabulary"): a region and the toolbar inside it announcing the same words is the
           host-duplicates-its-body defect one pane over. */}
-      <ScrollArea viewportClassName="max-block-(--height-scroll-md)" viewportProps={{ role: "region", "aria-label": "Tag vocabulary" }} wrapContent={true}>
+      <ScrollArea
+        viewportClassName="max-block-(--height-scroll-md)"
+        viewportProps={{ role: "region", "aria-label": CHARACTER_TAG_VOCABULARY_NAME }}
+        wrapContent={true}
+      >
         {/* `pe-row` is the SCROLLBAR's own width token (`scrollbar: w-row` in the primitive's variants):
             Base UI's scrollbar is positioned over the content, so without the inline-end gutter the last
             chip of every line renders underneath the thumb. */}

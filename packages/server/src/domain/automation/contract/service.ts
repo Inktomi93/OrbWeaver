@@ -22,6 +22,7 @@ import type {
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Can, ResolveHostPrincipalOp, ResolveUserEnabled } from "@orb/contracts/identity";
+import type { ExecutePluginSuggestion } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import type { AutomationFireId, AutomationRuleId, IdSource } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
@@ -33,7 +34,6 @@ import type {
   ArmDispatch,
   AutomationOps,
   EnabledRuleIndex,
-  ExecutePluginSuggestion,
   IsPluginLive,
   ListRuleTools,
   PromptTransformIndex,

@@ -14,7 +14,7 @@
 
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { GlyphButton } from "@orb/ui/glyph-button";
-import { Icon, Trash2 } from "@orb/ui/icons";
+import { Icon, Trash } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
@@ -94,7 +94,7 @@ export function BeatRow({ beat, edit }: BeatRowProps): ReactElement {
           onConfirm={(): void => edit.onDelete(beat.key)}
           trigger={
             <GlyphButton aria-label={`Delete entry: ${beat.title}`} variant="ghost" glyph="sm">
-              <Icon icon={Trash2} size="xs" />
+              <Icon icon={Trash} size="xs" />
             </GlyphButton>
           }
         />

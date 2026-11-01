@@ -97,7 +97,8 @@ export async function runCorpusSnapConsumer(
         .map(errorMessage)
         .join("; "),
     );
-    return 2;
+    // The clone stays; the run's own failing code is kept, and only a pass is turned into an incomplete.
+    return code === 0 ? 2 : code;
   }
   await resource[Symbol.asyncDispose]();
   if (executionFailure !== undefined) {

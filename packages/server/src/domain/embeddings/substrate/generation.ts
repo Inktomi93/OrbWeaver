@@ -1,6 +1,6 @@
 // Immutable encoder generations and the authoritative per-owner migration target.
 
-import type { EmbeddingTask, VectorScope } from "@orb/contracts/embeddings";
+import type { EmbeddingTask, GenerationReceipt, VectorScope } from "@orb/contracts/embeddings";
 import { embedDimsOf, embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
 import { embedGenerations, embedGenerationTargets } from "@orb/db";
 import type { VectorWidthMismatch } from "@orb/inference";
@@ -11,7 +11,6 @@ import type { SQL } from "drizzle-orm";
 import { and, eq } from "drizzle-orm";
 import { connectionFingerprint, generationIdOf, vectorSpaceFingerprint } from "#primitives/embedding-generation";
 import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
-import type { GenerationReceipt } from "../contract/generation.ts";
 import type { EmbeddingConnectionSnapshot, EmbeddingsContext, PinnedGeneration, PinnedImageSpace } from "../contract/service.ts";
 import { markGenerationComplete, switchTargetGeneration } from "../persistence/space-state.ts";
 import { resolveImageSpace } from "./task-model.ts";

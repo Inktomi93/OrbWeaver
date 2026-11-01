@@ -47,16 +47,16 @@ import {
   createUpdateEntry,
   createUpsertEntries,
 } from "./verbs/entries/index.ts";
-import { createExport } from "./verbs/export.ts";
-import { createImport } from "./verbs/import.ts";
+import { createExportWorldBook } from "./verbs/export.ts";
+import { createImportWorldBook } from "./verbs/import.ts";
 
 export function createWorldInfoService(input: DbAssemblyInput<WorldInfoContext>): WorldInfoService {
   const ctx: WorldInfoContext = { ...input, db: databaseForOwner(input.db) };
   // The two single-book DOORS are thin arms over the SAME two verbs the bundle descriptor composes (the
   // ratified thin-arm law): one producer, one parser, so a book shared one-at-a-time and a book inside a
   // backup zip can never diverge. Both factories are pure over this same DI bundle.
-  const exportBook = createExport(input);
-  const importBook = createImport({ importStandalone: createImportStandaloneLorebook(input) });
+  const exportBook = createExportWorldBook(input);
+  const importBook = createImportWorldBook({ importStandalone: createImportStandaloneLorebook(input) });
   return {
     exportBook: ({ principal, bookId }) => exportBook({ ownerId: principal.userId, bookId }),
     importFile: ({ principal, fileText, filename }) =>

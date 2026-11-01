@@ -6,7 +6,7 @@ import type { GetEntryParams } from "#src/domain/world-info/contract/params.ts";
 import type { WorldInfoContext, WorldInfoService } from "#src/domain/world-info/contract/service.ts";
 import { loadOwnedEntry, toEntryView } from "#src/domain/world-info/persistence/queries.ts";
 
-export function createGet(ctx: WorldInfoContext): WorldInfoService["getEntry"] {
+export function createGetEntry(ctx: WorldInfoContext): WorldInfoService["getEntry"] {
   return async ({ principal, entryId }: GetEntryParams) => {
     const row = await loadOwnedEntry(ctx.db, principal.userId, entryId);
     if (row === undefined) {

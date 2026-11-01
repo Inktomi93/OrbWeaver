@@ -82,6 +82,7 @@ import { useCharacterTagGroups } from "../hooks/use-character-tag-groups.ts";
 import type { LibraryScopeArgs } from "../hooks/use-library-scope.ts";
 import { useLibraryScope } from "../hooks/use-library-scope.ts";
 import { CHARACTER_SEARCH_DEBOUNCE_MS, loadedProgressLabel, resultCountLabel } from "../lib/character-library-lens.ts";
+import { CHARACTER_LIBRARY_NAME, CHARACTER_SEARCH_NAME } from "../lib/character-names.ts";
 
 /** How many favorites the strip reads. Its own bounded page, UNFILTERED by the pane's lenses. */
 const FAVORITES_STRIP_LIMIT = 24;
@@ -280,7 +281,7 @@ export function CharacterLibrarySurface(): ReactElement {
       ref={surfaceRef}
       search={
         <Input
-          aria-label="Search characters"
+          aria-label={CHARACTER_SEARCH_NAME}
           className="flex-1 min-inline-(--width-field-floor)"
           onValueChange={setCharacterSearch}
           placeholder="Search characters…"
@@ -292,7 +293,7 @@ export function CharacterLibrarySurface(): ReactElement {
     >
       <Stack className="flex-1 min-block-(--height-scroll-md)">
         <CharacterLibraryBody
-          ariaLabel="Character library"
+          ariaLabel={CHARACTER_LIBRARY_NAME}
           categorized={viewMode === "categorized"}
           error={collection.error}
           filtered={items}

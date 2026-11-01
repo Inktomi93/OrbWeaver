@@ -21,7 +21,7 @@ import { stagedOwnerRoot } from "@orb/server/domain/import";
 import type { SessionsRolePolicy } from "@orb/server/domain/sessions";
 import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
 import type { ShareGraph, ShareGraphOptions } from "@orb/server/domain/share";
-import type { WorkloadRunnerDeps } from "@orb/server/domain/workloads";
+import type { WorkloadRunnerAssemblyDeps } from "@orb/server/domain/workloads";
 import { loadWorkload, runWorkload, tickWorkloadSchedules } from "@orb/server/domain/workloads";
 import { authConfigFromEnv, createHostPrincipalResolver } from "@orb/server/entry/auth";
 import type { BootOwner } from "@orb/server/entry/boot";
@@ -81,6 +81,8 @@ export interface ServerHarnessOptions extends EnvSeamOptions, Partial<Pick<Servi
   readonly sdkQuery?: AgentSdkQuery;
   readonly sdkSpawn?: AgentSdkSpawn;
   readonly sdkNative?: AgentSdkNativeOptions;
+  /** Variables laid over the root's fixed host env, so a test can plant what the agent child's allowlist must refuse. */
+  readonly hostEnv?: Readonly<Record<string, string>>;
   readonly runtimeSpan?: NonNullable<ServicesDeps["providerSeams"]>["span"];
   readonly modelKernelModule?: NonNullable<NonNullable<ServicesDeps["providerSeams"]>["localLight"]>["kernelModule"];
   readonly allowRemoteModels?: NonNullable<NonNullable<ServicesDeps["providerSeams"]>["localLight"]>["allowRemoteModels"];
@@ -230,7 +232,7 @@ export interface ServerTestHarness extends ComposedServerRoot, AsyncDisposable {
   readonly settleBackground: ServicesResult["settleBackground"];
   readonly workloadExecutionSignal?: ServerHarnessOptions["workloadExecutionSignal"];
   /** The runner deps this root's own workload driver uses, so a suite runs one admitted row the way it does. */
-  readonly workloadExecution: WorkloadRunnerDeps;
+  readonly workloadExecution: WorkloadRunnerAssemblyDeps;
   readonly runAdmittedWorkload?: (id: WorkloadId, signal: AbortSignal) => Promise<void>;
   readonly tickWorkloadSchedules?: () => Promise<void>;
   readonly settleSharing: ShareGraph["settle"];
@@ -578,7 +580,7 @@ function shareInputsFor(options: ServerHarnessOptions | UnclaimedServerHarnessOp
 // decides which admitted row runs and when. It calls the production front doors with deps bound to their type.
 function workloadsFor(
   app: ServicesResult,
-  execution: WorkloadRunnerDeps,
+  execution: WorkloadRunnerAssemblyDeps,
   shutdown: AbortSignal,
   startJobs: ServerHarnessOptions["startJobs"],
 ): Pick<ServerTestHarness, "runAdmittedWorkload" | "tickWorkloadSchedules"> {
@@ -678,7 +680,7 @@ export async function createServerHarness(
     logger,
     rings,
     audit,
-    hostEnvAllowlist: noHostEnv,
+    hostEnvAllowlist: () => ({ ...noHostEnv(), ...options.hostEnv }),
     authModeSource: authModeSourceOf(options),
     authConfig,
     rolePolicy,
@@ -718,7 +720,7 @@ export async function createServerHarness(
     audit: audit.log,
     emitEvent: app.workloadEvents.emitWorkloadEvent,
     scheduleInterval: timers.interval,
-  } satisfies WorkloadRunnerDeps;
+  } satisfies WorkloadRunnerAssemblyDeps;
   const principalFor = createHostPrincipalResolver(app.sessions);
   const credentialsKeyOk = await app.services.credentials.probeKeyDecrypt();
   const configuredOidc = await configuredOidcFor(app, { ...inputs, db: wiringDb, secretsDir });
