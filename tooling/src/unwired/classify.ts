@@ -113,6 +113,9 @@ function roleOf(node: ts.Node | undefined): SyntaxRole {
     return "type";
   }
   if (ts.isStringLiteralLike(node)) {
+    if (ts.isBinaryExpression(parent) && parent.left === node && parent.operatorToken.kind === ts.SyntaxKind.InKeyword) {
+      return "read";
+    }
     return ts.isElementAccessExpression(parent) && parent.argumentExpression === node ? accessRole(parent) : "type";
   }
   if (TYPE_PARENTS.has(parent.kind) || ts.isExpressionWithTypeArguments(parent)) {

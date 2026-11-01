@@ -6,7 +6,7 @@
 import type { ToolCapability, ToolSource } from "@orb/contracts/tool-use";
 import type { UserId } from "@orb/kit/ids";
 import type { ZodRawShape } from "zod";
-import type { ToolExecutionContext } from "./params.ts";
+import type { ChatToolExecutionContext, ToolExecutionContext } from "./params.ts";
 
 /** One erased call's terminal shape. */
 export type RunOutcome =
@@ -16,8 +16,9 @@ export type RunOutcome =
   | { readonly kind: "threw"; readonly message: string };
 
 /** One erased registry entry: identity/ceiling columns + the cached JSON-schema projection + the fused
- *  parse→gate→invoke closure. */
-export interface RegisteredTool {
+ *  parse→gate→invoke closure. `E` is the execution context `run` requires: an entry that accepts any context also
+ *  runs on a chat turn, never the reverse. */
+export interface RegisteredTool<E extends ToolExecutionContext = ChatToolExecutionContext> {
   readonly name: string;
   readonly displayName?: string;
   readonly replayHistory?: boolean;
@@ -41,8 +42,22 @@ export interface RegisteredTool {
    *  at registration. */
   readonly argShape: ZodRawShape;
   /** Parse the args, call gate (deny maps to "denied"), invoke the handler. Never rejects. */
-  readonly run: (parsedJson: unknown, exec: ToolExecutionContext, gate: () => void) => Promise<RunOutcome>;
+  readonly run: (parsedJson: unknown, exec: E, gate: () => void) => Promise<RunOutcome>;
 }
+
+/** A first-party entry: its handler needs a chat turn, and `owner: null` keeps it off every direct-drive shelf. */
+export interface BuiltinRegisteredTool extends RegisteredTool {
+  readonly source: "builtin";
+  readonly owner: null;
+}
+
+/** A contributor entry: it runs on a chat turn or off one, resolving its own invocation-chat scope. */
+export interface PluginRegisteredTool extends RegisteredTool<ToolExecutionContext> {
+  readonly source: "plugin";
+  readonly owner: UserId;
+}
+
+export type ToolRegistryEntry = BuiltinRegisteredTool | PluginRegisteredTool;
 
 declare const toolRegistryKeyBrand: unique symbol;
 
@@ -59,10 +74,14 @@ export type ToolRegistryKey = string & { readonly [toolRegistryKeyBrand]: true }
  *  Keyed by {@link ToolRegistryKey}, NOT by name: the same namespaced plugin tool name legitimately exists once
  *  per installing user (`substrate/partition.ts` carries the why). Iteration order stays insertion order, so
  *  `listDrivableToolNames` still reports registration order within an owner. */
-export type ToolRegistry = Map<ToolRegistryKey, RegisteredTool>;
+export type ToolRegistry = Map<ToolRegistryKey, ToolRegistryEntry>;
 
 /** The opaque ordered set resolveTools returns and both projections + executeToolCalls accept — resolving
- *  once per turn guarantees the tools the model saw are exactly the tools that can run. */
-export interface ResolvedToolSet {
-  readonly entries: readonly RegisteredTool[];
+ *  once per turn guarantees the tools the model saw are exactly the tools that can run. `E` ties a set to the
+ *  context that may execute it, so an off-turn driver cannot hand a first-party entry a null chat. */
+export interface ResolvedToolSet<E extends ToolExecutionContext = ChatToolExecutionContext> {
+  readonly entries: readonly RegisteredTool<E>[];
 }
+
+/** The set an off-turn driver holds: contributor entries only, runnable under any execution context. */
+export type DrivableToolSet = ResolvedToolSet<ToolExecutionContext>;

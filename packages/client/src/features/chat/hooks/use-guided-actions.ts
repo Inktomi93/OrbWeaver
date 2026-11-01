@@ -45,7 +45,7 @@ interface ActiveImpersonation {
   readonly cancel: () => void;
 }
 
-const useGuidedGenerateMutation = createEntityMutation<GuidedTurnVars, unknown>({
+const useGuidedGenerateMutation = createEntityMutation<inferInput<Trpc["chat"]["generate"]>, unknown>({
   options: (trpc) => trpc.chat.generate.mutationOptions(),
   busDriven: true,
   errorToast: (error) => turnMutationToast(error, "Couldn't generate a guided response."),

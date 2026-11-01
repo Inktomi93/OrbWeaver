@@ -36,7 +36,7 @@
 // mounted yet, and the ladder correctly degrades to rung 2.
 
 import type { ChatId, Handle } from "@orb/kit/ids";
-import { notify, onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight, sessionDocument } from "#lib";
+import { notify, onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight, sessionDocument, trpcErrorCode } from "#lib";
 import { fetchAuthMe } from "./auth-bootstrap.ts";
 import { fetchAuthConfig } from "./auth-config.ts";
 import { markSessionFresh } from "./session-freshness.ts";
@@ -81,11 +81,10 @@ export type ReauthOutcome = (typeof REAUTH_OUTCOMES)[number];
  *  authz refusals are FORBIDDEN or the leak-free NOT_FOUND, never this — so keying on it is precisely "the
  *  session is stale", not "this one call was denied".
  *
- *  The `?.` on the CAST is load-bearing: the QueryCache `onError` hands us whatever was thrown, and `unknown`
- *  includes `null`/`undefined`. A bare `.data` read on those throws a TypeError INSIDE the cache callback —
- *  taking down the always-on recovery belt on exactly the errors it exists to survive. */
+ *  `trpcErrorCode` accepts any value: the QueryCache `onError` hands us whatever was thrown, including
+ *  `null`/`undefined`, and a throw INSIDE the cache callback would take down the always-on recovery belt. */
 function isUnauthorized(error: unknown): boolean {
-  return (error as { data?: { code?: string } } | null | undefined)?.data?.code === "UNAUTHORIZED";
+  return trpcErrorCode(error) === "UNAUTHORIZED";
 }
 
 function canNavigate(): boolean {

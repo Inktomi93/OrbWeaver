@@ -1,7 +1,7 @@
 // Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
-import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { Theme, ThemeBackground } from "#theme";
@@ -58,7 +58,7 @@ const logLevelSchema = z.enum(LOG_LEVELS) satisfies z.ZodType<LogLevel>;
 // AppSettings — the admin-runtime override tier. Every field nullable+optional (null=CLEAR).
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
-export const APP_SETTINGS_SCHEMA_VERSION = 10;
+export const APP_SETTINGS_SCHEMA_VERSION = 11;
 
 const SCORE_FLOOR = 0;
 const SCORE_CEIL = 1;
@@ -229,7 +229,6 @@ export const PROMPT_CACHE_MIN_DEPTH_CEIL = PROMPT_CACHE_DEPTH_CEIL;
 // Every field `.nullable()` AS WELL AS `.optional().catch(undefined)`: null is the CLEAR sentinel.
 const appSettingsShape = {
   corpusAutoindex: z.boolean().nullable().optional().catch(undefined),
-  importSkipCharacters: z.array(z.string()).nullable().optional().catch(undefined),
   logLevel: logLevelSchema.nullable().optional().catch(undefined),
   forbidExternalMedia: z.boolean().nullable().optional().catch(undefined),
   trustHtml: z.boolean().nullable().optional().catch(undefined),
@@ -328,6 +327,11 @@ const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Re
   9: (config) => {
     const { memorySummarizer: _summarizer, engineLaunch: _engineLaunch, vllmConcurrency: _vllmConcurrency, ...rest } = config;
     return { ...rest, schemaVersion: 10 };
+  },
+  // v10→v11: the admin import-skip list is deleted; dropping the key rewrites the stored blob clean at the next write.
+  10: (config) => {
+    const { importSkipCharacters: _importSkipCharacters, ...rest } = config;
+    return { ...rest, schemaVersion: 11 };
   },
 };
 
@@ -886,7 +890,6 @@ export interface ResolvedRateLimits {
 
 export interface EffectiveAppConfig {
   corpusAutoindex: boolean;
-  importSkipCharacters: string[];
   logLevel: LogLevel;
   forbidExternalMedia: boolean;
   trustHtml: boolean;
@@ -916,12 +919,9 @@ export interface AppSettingsView {
   readonly overrides: AppSettings;
 }
 
-/** A never-touched account reads defaults with updatedAt: 0 and no row written. */
+/** A never-touched account reads defaults and no row is written. */
 export interface UserSettingsView {
-  userId: UserId;
-  schemaVersion: number;
   config: UserSettings;
-  updatedAt: number;
   /**
    * WHY THE `config` ABOVE MAY NOT BE THIS USER'S (#1716) — `null` ⇒ the stored blob was read faithfully
    * (and, for a never-written account, there is nothing to fail to read: absence is not corruption);
@@ -951,7 +951,6 @@ const resolvedRateLimitsSchema = z.strictObject({
 }) satisfies z.ZodType<ResolvedRateLimits>;
 export const effectiveAppConfigSchema = z.strictObject({
   corpusAutoindex: z.boolean(),
-  importSkipCharacters: z.array(z.string()),
   logLevel: logLevelSchema,
   forbidExternalMedia: z.boolean(),
   trustHtml: z.boolean(),
@@ -1009,10 +1008,7 @@ export const appSettingsViewSchema = z.strictObject({
 }) satisfies z.ZodType<AppSettingsView>;
 
 export const userSettingsViewSchema = z.strictObject({
-  userId: brandedId("UserId"),
-  schemaVersion: z.number(),
   config: userSettingsOutputSchema,
-  updatedAt: z.number(),
   configUnreadable: z.enum(VERSIONED_PARSE_FAILURES).nullable(),
 }) satisfies z.ZodType<UserSettingsView>;
 export const globalSettingViewSchema = z.strictObject({
@@ -1027,8 +1023,6 @@ export const themeViewSchema = z.strictObject({
   css: z.string().nullable(),
   isSeed: z.boolean(),
   isDefault: z.boolean(),
-  createdAt: z.number(),
-  updatedAt: z.number(),
 }) satisfies z.ZodType<Theme>;
 
 export type { ImportedAppearance, ImportedAppearanceOutcome, ImportedThemeLanding, SettingsImportOutcome } from "./import-results.ts";

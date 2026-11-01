@@ -78,7 +78,6 @@ export async function inspectChatState(db: Db, chatId: ChatId): Promise<ChatInsp
       startedAt: chatRow.startedAt,
       parentChatId: chatRow.parentChatId,
       forkedAt: chatRow.forkedAt,
-      streamSeq: chatRow.streamSeq,
       createdAt: chatRow.createdAt,
       updatedAt: chatRow.updatedAt,
     },

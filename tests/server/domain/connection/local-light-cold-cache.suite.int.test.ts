@@ -48,7 +48,6 @@ test("the first rerank on an empty model cache downloads the seeded model and se
     expect(resolved?.model).toBe(SEEDED_RERANKER);
 
     const first = await clients.rerank(SANITY_QUERY, SANITY_DOCUMENTS);
-    expect(first.model).toBe(SEEDED_RERANKER);
     expect(await cachedBytes(harness.modelCacheDir)).toBeGreaterThan(0);
     // The served model is correct, not only present: it ranks the document that answers the query first.
     expect(first.hits.toSorted((a, b) => b.score - a.score)[0]?.id).toBe("mars");

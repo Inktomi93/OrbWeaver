@@ -13,7 +13,7 @@ import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { createChatBus, createChatPublication } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createTestLogger } from "@orb/testkit/node/composed";
+import { createTestLogger, refuseWrites } from "@orb/testkit/node/composed";
 import { seedChatRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
@@ -103,4 +103,30 @@ test("quiet entity churn may coalesce but a terminal delete remains live and app
   expect(quiet).toHaveBeenCalledTimes(1);
   expect(publish).toHaveBeenCalledWith({ seq: null, event: { type: "chatDeleted", chatId: room.id } });
   expect(await db.select().from(chatEvents)).toEqual(before);
+});
+
+test("a room deleted mid-turn leaves the bus holding no open turn for it", async ({ harness, db, clock, ids }): Promise<void> => {
+  const { room } = await hostedRoom(harness);
+  const bus = createChatBus({ db: databaseHandle(db), logger: createTestLogger(), now: clock.now, newEventId: () => ids.typeId(ID_PREFIX.chatEvent) });
+  const turnId = ids.typeId(ID_PREFIX.chatTurn);
+  await bus.emit({ type: "turnAccepted", chatId: room.id, turnId, intent: "send", speakerCharacterId: null, targetMessageId: null });
+  expect([...bus.openTurns(room.id).keys()]).toEqual([turnId]);
+  await db.delete(chats).where(eq(chats.id, room.id));
+  expect(await bus.emit({ type: "turnAborted", chatId: room.id, turnId, intent: "send", reason: "user", automationDepth: 0 })).toBeNull();
+  expect(bus.openTurns(room.id).size).toBe(0);
+});
+
+test("a terminal whose append is lost still closes its turn on the bus", async ({ harness, db, clock, ids }): Promise<void> => {
+  const { room } = await hostedRoom(harness);
+  const bus = createChatBus({ db: databaseHandle(db), logger: createTestLogger(), now: clock.now, newEventId: () => ids.typeId(ID_PREFIX.chatEvent) });
+  const turnId = ids.typeId(ID_PREFIX.chatTurn);
+  await bus.emit({ type: "turnAccepted", chatId: room.id, turnId, intent: "send", speakerCharacterId: null, targetMessageId: null });
+  await using _refusal = await refuseWrites(harness.db, {
+    table: chatEvents,
+    event: "INSERT",
+    when: `NEW."type" = 'turnAborted'`,
+    message: "controlled terminal refusal",
+  });
+  expect(await bus.emit({ type: "turnAborted", chatId: room.id, turnId, intent: "send", reason: "error", automationDepth: 0 })).toBeNull();
+  expect(bus.openTurns(room.id).size).toBe(0);
 });

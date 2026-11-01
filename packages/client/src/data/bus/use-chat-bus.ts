@@ -21,14 +21,14 @@
 // THE ATTACH CURSOR FLOOR (R3 — the fresh-context verifier's R1-2, a real message-loss window).
 //
 // The resume thunk below used to be the applied high-water mark ALONE, which is `null` until this client has
-// applied its first durable frame — and a null cursor requests NO replay at all
-// (`stream/sources/chat.ts`: `if (resumeSeq === null) return`). So: open a room → the SSE dies while HTTP
+// applied its first durable frame — and a null cursor requests no replay of settled turns
+// (`stream/sources/chat.ts`). So: open a room → the SSE dies while HTTP
 // lives (an eviction, a proxy idle-timeout, a backgrounded tab) → send → the server commits the whole turn →
 // the socket reconnects with a null cursor → nothing replays, and the turn is INVISIBLE until a reload.
 //
 // THE FLOOR IS THE ROOM'S EVENT HIGH-WATER AT ATTACH, AND THE SERVER STATES IT: on a cursor-less attach the
-// synthesis stamps its `chatOpened` frame with `bounds.maxSeq` (`transport/trpc/stream/sources/chat.ts`), and
-// this hook adopts that seq. NOT the canon read's `messages.seq`, which is the obvious-looking source and is
+// synthesis stamps its `chatOpened` frame with `bounds.maxSeq`, or just below a turn in flight so a drop before
+// its replay frames still replays it (`transport/trpc/stream/sources/chat.ts`), and this hook adopts that seq. NOT the canon read's `messages.seq`, which is the obvious-looking source and is
 // WRONG: `messages.seq` is the per-chat CANON ordinal while the resume cursor is the per-chat
 // `chat_events.seq` — two independent sequences (packages/db/src/schema/chat.ts:244 vs :646), so using one as
 // the other would ask for replay from an arbitrary point. And not a client-side `chatEventBounds` read

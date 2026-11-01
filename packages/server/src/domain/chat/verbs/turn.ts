@@ -298,14 +298,14 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId, anchorPersonaId: Perso
   const humanSeats = humanSeatPersonasOf(participants, presentHumanUserIds);
 
   const charCandidates: ArbiterCandidate[] = charRows.map((r) => ({
-    ref: { kind: "character", characterId: r.characterId },
+    ref: { characterId: r.characterId },
     talkativeness: r.talkativeness,
     disabled: r.disabled,
     leftSeq: r.leftSeq,
   }));
 
   const charSpeakerCandidates: SpeakerCandidate[] = charRows.map((r, i) => ({
-    ref: { kind: "character", characterId: r.characterId },
+    ref: { characterId: r.characterId },
     name: cards[i]?.name ?? "",
   }));
   const candidates: ArbiterCandidate[] = [...charCandidates];
@@ -377,7 +377,7 @@ function lastSpeakerRef(row: { readonly characterId: CharacterId | null; readonl
     return null;
   }
   if (row.characterId !== null) {
-    return { kind: "character", characterId: row.characterId };
+    return { characterId: row.characterId };
   }
   return null;
 }
@@ -982,7 +982,7 @@ async function arbitrate(
   // and returns exactly that intersection — so a returned speaker who is a forced target proves it. The
   // converse is safe too: when no forced id is eligible the result is policy-derived off the eligible pool,
   // which is disjoint from the (ineligible) forced ids.
-  const forcedKeys = new Set(forced.map((characterId) => speakerKey({ kind: "character", characterId })));
+  const forcedKeys = new Set(forced.map((characterId) => speakerKey({ characterId })));
   const forcedOverride = speakers.some((c) => forcedKeys.has(speakerKey(c.ref)));
   return { speakers, aborted: false, forcedOverride };
 }
@@ -1113,28 +1113,31 @@ async function runChain(
       const turnId = ctx.newChatTurnId();
       chainTurnId = turnId;
       await deps.emit({ type: "turnAccepted", chatId: args.base.chatId, turnId, intent: chainIntent, speakerCharacterId: null, targetMessageId: null });
-      const facts = await canonFacts(ctx, args.base.chatId);
       // RECORDED TWIN (#1767), not a fold: `runAiRound`'s own arbitrate call below shares this room plumbing
       // and then DIVERGES on the fields that decide the answer — that one passes the caller's `forcedIds` and
       // an origin `lastSpeaker`, this chain pass deliberately passes neither (a chained beat has no forced
       // pick, and it re-reads `facts` because the previous beat just committed). Two sites, and the shared
       // half is the room's candidate lists — a builder for them would hide exactly the arguments that differ.
-      const arbitration = await arbitrate(ctx, deps, {
-        chatId: args.base.chatId,
-        funderUserId: args.base.funderUserId,
-        group: args.group,
-        candidates: args.room.candidates,
-        speakerCandidates: args.room.speakerCandidates,
-        characterLines: args.room.characterLines,
-        assembled: args.base.assembleContext,
-        // `allowSelfResponses` lifts the BAN, nothing else: `last` still rides as the arbitration's rotation
-        // origin, or `pooled` (the "Round-robin" room) re-picks the first roster seat every beat and the
-        // chain becomes one character monologuing under a control that promises a rotation.
-        lastSpeaker: last,
-        banLast: banLastFor(args.group, false),
-        recentRows: facts.recentRows,
-        maxSpeakers: 1,
-        signal: args.signal,
+      const closes = { chatId: args.base.chatId, turnId, kind: "auto", automationDepth: args.base.automationDepth } as const;
+      const arbitration = await closeSlotOnThrow(deps, closes, async () => {
+        const facts = await canonFacts(ctx, args.base.chatId);
+        return await arbitrate(ctx, deps, {
+          chatId: args.base.chatId,
+          funderUserId: args.base.funderUserId,
+          group: args.group,
+          candidates: args.room.candidates,
+          speakerCandidates: args.room.speakerCandidates,
+          characterLines: args.room.characterLines,
+          assembled: args.base.assembleContext,
+          // `allowSelfResponses` lifts the BAN, nothing else: `last` still rides as the arbitration's rotation
+          // origin, or `pooled` (the "Round-robin" room) re-picks the first roster seat every beat and the
+          // chain becomes one character monologuing under a control that promises a rotation.
+          lastSpeaker: last,
+          banLast: banLastFor(args.group, false),
+          recentRows: facts.recentRows,
+          maxSpeakers: 1,
+          signal: args.signal,
+        });
       });
       // A cancelled arbitration yields no speaker, which stops the chain. CLOSE the slot this
       // iteration opened with `turnAborted` (the user's Stop mid-chain-arbitration), mirroring the primary window.
@@ -1204,8 +1207,8 @@ async function runAiRound(
   // client's turn slot stayed idle through that hang, so the user had no Stop affordance while the turn was in
   // fact live and abortable (the abort signal already threads into arbitration). `turnAccepted` opens the slot
   // now; every exit below is TOTAL — it resolves that slot (turnStarted→terminal on the speaking path,
-  // turnAborted on a cancelled arbitration, turnCompleted on a no-eligible round, turnAborted from the engine
-  // on a pre-start refusal — see the `acceptedTurnId` base below). `speakerCharacterId` is null
+  // turnAborted on a cancelled arbitration or a throw before the engine, turnCompleted on a no-eligible round,
+  // turnAborted from the engine on a pre-start refusal — see the `acceptedTurnId` base below). `speakerCharacterId` is null
   // (arbitration has not picked yet); the later `turnStarted` re-opens the slot with the resolved speaker.
   const intent = KIND_TO_INTENT[args.base.kind];
   const turnId = ctx.newChatTurnId();
@@ -1217,21 +1220,24 @@ async function runAiRound(
   // last event the room ever saw for this turn.
   const base: RoundBase = { ...args.base, acceptedTurnId: turnId };
 
-  const facts = await canonFacts(ctx, args.base.chatId);
-  const arbitration = await arbitrate(ctx, deps, {
-    chatId: args.base.chatId,
-    funderUserId: args.base.funderUserId,
-    group: args.group,
-    candidates: args.room.candidates,
-    speakerCandidates: args.room.speakerCandidates,
-    characterLines: args.room.characterLines,
-    assembled: args.base.assembleContext,
-    forcedIds: args.forcedIds,
-    mentionedIds: args.mentionedIds,
-    lastSpeaker: facts.lastSpeaker,
-    banLast: args.banLast,
-    recentRows: facts.recentRows,
-    signal: args.signal,
+  const closes = { chatId: args.base.chatId, turnId, kind: args.base.kind, automationDepth: args.base.automationDepth } as const;
+  const arbitration = await closeSlotOnThrow(deps, closes, async () => {
+    const facts = await canonFacts(ctx, args.base.chatId);
+    return await arbitrate(ctx, deps, {
+      chatId: args.base.chatId,
+      funderUserId: args.base.funderUserId,
+      group: args.group,
+      candidates: args.room.candidates,
+      speakerCandidates: args.room.speakerCandidates,
+      characterLines: args.room.characterLines,
+      assembled: args.base.assembleContext,
+      forcedIds: args.forcedIds,
+      mentionedIds: args.mentionedIds,
+      lastSpeaker: facts.lastSpeaker,
+      banLast: args.banLast,
+      recentRows: facts.recentRows,
+      signal: args.signal,
+    });
   });
   // CANCELLED mid-arbitration: the caller stopped the turn while the `smart` side-LLM was deciding. End here
   // — no narrator mint, no round, no generation on a turn nobody is waiting for. Nothing committed, so the
@@ -1255,10 +1261,12 @@ async function runAiRound(
   const groupCharacterId =
     args.group.output === "narrator"
       ? (
-          await ctx.mintSyntheticGroupCharacter({
-            ownerId: args.base.runAsUserId,
-            chatId: args.base.chatId,
-          })
+          await closeSlotOnThrow(deps, closes, () =>
+            ctx.mintSyntheticGroupCharacter({
+              ownerId: args.base.runAsUserId,
+              chatId: args.base.chatId,
+            }),
+          )
         ).characterId
       : null;
   const narratorSpeakerName = joinedCandidateName(args.room.speakerCandidates);
@@ -2086,7 +2094,7 @@ function speakerShapeFor(room: Room, characterId: CharacterId | null): TurnPrep[
     cardScope: "merged",
     scopedTargetId: null,
     speakerName: name,
-    speakerRef: { kind: "character", characterId },
+    speakerRef: { characterId },
   };
 }
 
@@ -2153,13 +2161,20 @@ async function withAcceptedSlot<T>(
  *  resolve (generate's speaker arbitration). */
 async function closeSlotOnThrow<T>(
   deps: TurnDeps,
-  slot: { readonly chatId: ChatId; readonly turnId: ChatTurnId; readonly kind: TurnKind },
+  slot: { readonly chatId: ChatId; readonly turnId: ChatTurnId; readonly kind: TurnKind; readonly automationDepth?: number | undefined },
   work: () => Promise<T>,
 ): Promise<T> {
   try {
     return await work();
   } catch (err) {
-    await deps.emit({ type: "turnAborted", chatId: slot.chatId, turnId: slot.turnId, intent: KIND_TO_INTENT[slot.kind], reason: "error", automationDepth: 0 });
+    await deps.emit({
+      type: "turnAborted",
+      chatId: slot.chatId,
+      turnId: slot.turnId,
+      intent: KIND_TO_INTENT[slot.kind],
+      reason: "error",
+      automationDepth: slot.automationDepth ?? 0,
+    });
     throw err;
   }
 }

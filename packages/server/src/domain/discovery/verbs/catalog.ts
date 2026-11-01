@@ -1,5 +1,5 @@
 // domain/discovery/verbs/catalog — distill-powered catalog analytics (owner-scoped reads; cheap SQL, no
-// LLM) over character_summaries. catalog = per-facet card counts + top tags + co-tagged pairs;
+// LLM) over character_summaries. catalog = per-facet card counts + top tags;
 // compareCharacters = a facet diff of two cards. Owner scope derives via a characters join
 // (character_summaries keeps no ownerId), never a caller-supplied owner — through the ONE
 // `ownedRealCharacters` belt, so the per-room synthetic group cards never count as library cards (#1467).
@@ -8,13 +8,11 @@ import type { Db } from "@orb/db";
 import { characterSummaries, characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
-import type { CatalogStats, CharacterComparison, ComparedCharacter, FacetCount, TagCount, TagPair } from "../contract/results.ts";
+import type { CatalogStats, CharacterComparison, ComparedCharacter, FacetCount, TagCount } from "../contract/results.ts";
 import type { DiscoveryContext, DiscoveryService } from "../contract/service.ts";
 import { ownedRealCharacters } from "../persistence/character-scope.ts";
 
 const TOP_TAGS_LIMIT = 40;
-const TAG_PAIRS_LIMIT = 30;
-const TAG_PAIR_MIN = 2;
 
 export function createCatalog(ctx: DiscoveryContext): Pick<DiscoveryService, "catalog" | "compareCharacters"> {
   return {
@@ -47,14 +45,6 @@ async function catalog(db: Db, ownerId: UserId): Promise<CatalogStats> {
     WHERE ${ownedRealCharacters(ownerId)}
     GROUP BY lower(je.value) ORDER BY count DESC, tag LIMIT ${TOP_TAGS_LIMIT}
   `);
-  const tagPairs = await db.all<TagPair>(sql`
-    SELECT lower(a.value) AS a, lower(b.value) AS b, COUNT(*) AS count
-    FROM ${characterSummaries} cs
-    JOIN ${characters} ON ${characters.id} = cs.character_id, json_each(cs.tags) a, json_each(cs.tags) b
-    WHERE ${ownedRealCharacters(ownerId)} AND lower(a.value) < lower(b.value)
-    GROUP BY lower(a.value), lower(b.value)
-    HAVING COUNT(*) >= ${TAG_PAIR_MIN} ORDER BY count DESC, a, b LIMIT ${TAG_PAIRS_LIMIT}
-  `);
   const totalRows = await db
     .select({ count: sql<number>`count(*)` })
     .from(characterSummaries)
@@ -63,13 +53,12 @@ async function catalog(db: Db, ownerId: UserId): Promise<CatalogStats> {
   // totalCharacters uses the same owner scope as the distilled join, so totalDistilled ≤ totalCharacters
   // and the surface can state the denominator without a second heavier read.
   const ownedRows = await db.select({ count: sql<number>`count(*)` }).from(characters).where(ownedRealCharacters(ownerId));
-  return { genres, tones, topTags, tagPairs, totalDistilled: totalRows[0]?.count ?? 0, totalCharacters: ownedRows[0]?.count ?? 0 };
+  return { genres, tones, topTags, totalDistilled: totalRows[0]?.count ?? 0, totalCharacters: ownedRows[0]?.count ?? 0 };
 }
 
 async function comparedCard(db: Db, ownerId: UserId, characterId: CharacterId): Promise<{ card: ComparedCharacter; tags: Set<string> } | undefined> {
   const rows = await db
     .select({
-      characterId: characterSummaries.characterId,
       name: characters.name,
       genre: characterSummaries.genre,
       tone: characterSummaries.tone,
@@ -86,7 +75,6 @@ async function comparedCard(db: Db, ownerId: UserId, characterId: CharacterId): 
   }
   return {
     card: {
-      characterId: r.characterId,
       name: r.name,
       genre: r.genre,
       tone: r.tone,

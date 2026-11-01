@@ -5,7 +5,7 @@ import type { ReactAsCharacterOp } from "./results.ts";
 
 export interface ReactToolHandlerContext {
   readonly principal: Principal;
-  readonly chatId: ChatId | null;
+  readonly chatId: ChatId;
 }
 export interface ReactToolHandlerDeps {
   readonly reactAsCharacter: ReactAsCharacterOp;

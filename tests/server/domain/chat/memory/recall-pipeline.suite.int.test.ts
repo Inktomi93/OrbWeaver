@@ -77,7 +77,6 @@ test("a retrieval mode surfaces its admitted blocks and reports the count it sur
   expect(admitted(run.trace)[0]).toBe(blockOf("duel"));
   expect(run.trace.surfaced).toBe(admitted(run.trace).length);
   expect(run.trace.surfaced).toBeGreaterThan(0);
-  expect(run.trace.candidates.find((candidate) => candidate.verdict === "admitted")?.score).toBeDefined();
 });
 
 test("minScore is a graded floor, and a query on an axis no digest holds surfaces nothing", async () => {

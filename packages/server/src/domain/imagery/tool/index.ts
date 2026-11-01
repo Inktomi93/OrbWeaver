@@ -15,7 +15,7 @@
 //   • `useAvatarReference` — inert without a `subjectCharacterId` (B3 needs a subject), so it rides the arm too.
 
 import { DEFAULT_ACTION_MODE, generateImageActionArgsSchema, IMAGERY_GENERATE_IMAGE_TOOL_DESCRIPTION, promptTemplateModeSchema } from "@orb/contracts/imagery";
-import type { ToolExecutionData, ToolHandlerDefinition, ToolHandlerResult } from "@orb/contracts/tool-use";
+import type { ToolHandlerDefinition, ToolHandlerResult } from "@orb/contracts/tool-use";
 import type { GeneratePictureParams } from "../contract/params.ts";
 import type { ImageryService } from "../contract/service.ts";
 
@@ -44,10 +44,7 @@ export function imageryToolDefinitions(deps: ImageryToolDeps): readonly ToolHand
       argsSchema: generateImageToolArgsSchema,
       capability: null,
       source: "builtin",
-      handler: async (args, exec: ToolExecutionData): Promise<ToolHandlerResult> => {
-        if (exec.chatId === null) {
-          return { ok: false, error: "generate_image requires a chat context" };
-        }
+      handler: async (args, exec): Promise<ToolHandlerResult> => {
         const p = generateImageActionArgsSchema.parse(args);
         const params: GeneratePictureParams = {
           caller: exec.principal,

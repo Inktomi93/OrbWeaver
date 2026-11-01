@@ -76,7 +76,6 @@ function staleRulings(
 /** Local `as const` storage tuples: each adds to or narrows a contracts vocabulary, or has no contracts home. */
 const LOCAL_STORAGE_TUPLES = {
   "automation_fires.outcome": "AUTOMATION_FIRE_STORAGE_OUTCOMES: the contracts fire outcomes plus the storage-only reserved member",
-  "chat_stream_events.kind": "STREAM_DELTA_KINDS: the two delta kinds a stream event persists, narrower than the contracts delta kinds",
   "provider_rows.originKind": "PROVIDER_ROW_ORIGINS: the db-owned origin of a provider row, with no contracts home",
   "user_connections.api": "CONNECTION_APIS: the contracts chat APIs plus the db-only auto member",
 } as const satisfies Readonly<Record<string, string>>;

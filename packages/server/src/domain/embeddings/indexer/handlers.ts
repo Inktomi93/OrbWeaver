@@ -31,7 +31,6 @@ export async function onCharacterUpdated(ctx: EmbeddingsIndexerContext, event: C
     return;
   }
   const result = await ctx.store({
-    kind: "card",
     lens: "card-text",
     ownerId,
     characterId: event.characterId,

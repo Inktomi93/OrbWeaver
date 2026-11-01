@@ -221,11 +221,7 @@ for (const [operation, unselected] of [
       expect(await root.db.select().from(ownerStats).where(eq(ownerStats.ownerId, actors.owner.userId))).toMatchObject([
         { assistantTurns: expected.assistantTurns, tokensIn: expected.tokensIn, tokensOut: expected.tokensOut },
       ]);
-      expect(current).toMatchObject(
-        expected.generations === 0
-          ? []
-          : [{ characterId: character.id, generations: expected.generations, tokensIn: expected.tokensIn, tokensOut: expected.tokensOut }],
-      );
+      expect(current).toMatchObject(expected.generations === 0 ? [] : [{ characterId: character.id, tokensOut: expected.tokensOut }]);
       expect(physical.requests.filter((request) => request === "POST /v1/chat/completions")).toHaveLength(2);
     } finally {
       roundReleased.resolve();

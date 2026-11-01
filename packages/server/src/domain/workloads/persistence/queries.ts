@@ -454,7 +454,7 @@ async function failOrphanedQueuedRow(input: QueueScanInput, row: WorkloadTextRow
   if (row.ownerId !== null || row.admissionSystem) {
     return false;
   }
-  const error: WorkloadError = { kind: "runtime", message: "the workload's owner no longer exists" };
+  const error: WorkloadError = { message: "the workload's owner no longer exists" };
   if (await failQueuedRow(input.db, row.id, error.message, input.now)) {
     input.onFailure({ workloadId: row.id, kind: row.kind, error });
   }
@@ -485,10 +485,7 @@ async function evaluateQueuedRow(input: QueueScanInput, row: WorkloadTextRow): P
     view = null;
   }
   if (view === null || view.poison) {
-    const error: WorkloadError = {
-      kind: "runtime",
-      message: `unrecognized or malformed workload data: ${row.kind}`,
-    };
+    const error: WorkloadError = { message: `unrecognized or malformed workload data: ${row.kind}` };
     if (await failQueuedRow(input.db, row.id, error.message, input.now)) {
       input.onFailure({ workloadId: row.id, kind: row.kind, error });
     }
@@ -509,10 +506,7 @@ async function evaluateQueuedRow(input: QueueScanInput, row: WorkloadTextRow): P
   if (gate === "ready") {
     return view;
   }
-  const error: WorkloadError = {
-    kind: "dependency_failed",
-    message: DEPENDENCY_FAILED_MESSAGE,
-  };
+  const error: WorkloadError = { message: DEPENDENCY_FAILED_MESSAGE };
   if (await failQueuedRow(input.db, view.id, error.message, input.now)) {
     input.onFailure({ workloadId: view.id, kind: view.kind, error });
   }

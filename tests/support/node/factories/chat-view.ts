@@ -127,7 +127,6 @@ export function makeChatSummaryView(overrides: Partial<ChatSummaryWire> = {}): C
     participantNames: [],
     participantPortraits: [],
     viewerRole: "host",
-    createdAt: FROZEN_AT_MS,
     updatedAt: FROZEN_AT_MS,
     ...overrides,
   });

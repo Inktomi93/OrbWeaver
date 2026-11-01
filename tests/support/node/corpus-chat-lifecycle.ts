@@ -81,7 +81,6 @@ interface HeldTurnCapture extends NativeRoom {
   readonly foreignRefusal: string | undefined;
   readonly turn: NativeTurn;
   readonly completed: NativeReplay;
-  readonly stream: Awaited<ReturnType<ChatService["replayStreamEvents"]>>;
   readonly events: Awaited<ReturnType<ChatService["replayChatEvents"]>>;
   readonly canon: Awaited<ReturnType<ChatService["listMessages"]>>;
 }
@@ -265,11 +264,10 @@ async function heldTurn(root: ServerTestHarness, wire: ChatWire, memberUserId: S
   const turn = await sending;
   const memberCompleted = await captureCorpusMemberMessages(root, memberUserId, chatId);
   const completed = await captureChatReplayRows(root.db, chatId);
-  const stream = await root.services.chat.replayStreamEvents({ principal, chatId, afterSeq: 0 });
   const events = await root.services.chat.replayChatEvents({ principal, chatId, afterSeq: 0 });
   const canon = await root.services.chat.listMessages({ principal, chatId });
   await root.services.chat.abort({ principal, chatId });
-  return { ...source, invite, during, memberDuring, memberCompleted, foreignRefusal, turn, completed, stream, events, canon };
+  return { ...source, invite, during, memberDuring, memberCompleted, foreignRefusal, turn, completed, events, canon };
 }
 
 async function deferAndHandoff(

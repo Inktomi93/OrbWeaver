@@ -23,12 +23,12 @@ export interface AutomationRuntimeDeps<TSet> {
   readonly toolUse: {
     readonly isToolDrivableBy: IsToolDrivableByOp;
     readonly listDrivableToolNames: ListDrivableToolNamesOp;
-    readonly resolveTools: ResolveToolsOp<TSet>;
+    readonly resolveDrivableTools: ResolveToolsOp<TSet>;
     readonly toToolDefinitions: (set: TSet) => readonly ChatToolDefinition[];
     readonly executeToolCalls: (
       set: TSet,
       calls: readonly ToolCallInput[],
-      exec: { readonly principal: Principal; readonly triggeredBy: UserId; readonly chatId: ChatId | null; readonly turnId: null; readonly membership: null },
+      exec: { readonly principal: Principal; readonly chatId: ChatId | null; readonly turnId: null; readonly membership: null },
     ) => Promise<readonly ToolCallRecord[]>;
   };
   readonly roleClientsFor: (funderUserId: UserId, actor?: BindingActor) => Promise<RoleClientsWithSignal>;

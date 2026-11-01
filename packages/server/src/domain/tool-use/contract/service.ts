@@ -8,7 +8,7 @@ import type { IsToolDrivableByOp, ListDrivableToolNamesOp, PluginToolHandle, Res
 import type { ChatToolDefinition } from "@orb/inference";
 import type { Clock } from "@orb/kit/time";
 import type { PluginToolSpec, ToolCallBatch, ToolDefinition, ToolExecutionContext } from "./params.ts";
-import type { ResolvedToolSet } from "./results.ts";
+import type { DrivableToolSet, ResolvedToolSet } from "./results.ts";
 
 export interface ToolUseContext {
   readonly can: Can;
@@ -35,11 +35,15 @@ export interface ToolUseService {
   readonly listDrivableToolNames: ListDrivableToolNamesOp;
   /** Resolve caller-supplied names against `driverUserId`'s view of the registry — their own contributor tools
    *  plus the first-party ones, never another user's (#677; `substrate/partition.ts`). The driver is the turn
-   *  HOST for a chat attach (the identity `listDrivableToolNames` enumerated from) and the rule AUTHOR for the
-   *  `run_tool` arm. Unknown name throws (our wiring bug). */
+   *  HOST for a chat attach (the identity `listDrivableToolNames` enumerated from). Unknown name throws (our
+   *  wiring bug). */
   readonly resolveTools: ResolveToolsOp<ResolvedToolSet>;
-  /** Run model-emitted calls sequentially, in array order; never throws for a per-call failure. */
-  readonly executeToolCalls: (set: ResolvedToolSet, calls: ToolCallBatch, exec: ToolExecutionContext) => Promise<readonly ToolCallRecord[]>;
+  /** The off-turn resolve: the rule AUTHOR's own contributor tools, for the `run_tool` arm and its listing. A name
+   *  that resolves to anything else throws as unknown, so no first-party entry reaches a non-chat execution. */
+  readonly resolveDrivableTools: ResolveToolsOp<DrivableToolSet>;
+  /** Run model-emitted calls sequentially, in array order; never throws for a per-call failure. A first-party set
+   *  demands a chat-turn `exec`; only a {@link DrivableToolSet} runs under a nullable one. */
+  readonly executeToolCalls: <E extends ToolExecutionContext>(set: ResolvedToolSet<E>, calls: ToolCallBatch, exec: E) => Promise<readonly ToolCallRecord[]>;
   /** The resolved set as backend-neutral definitions (the cached JSON schema + the zod shape it came from).
    *  `@orb/inference` projects them onto whichever wire the turn rides — an array wire's `tools[]`, or the Agent
    *  SDK's in-process MCP server whose every invocation still funnels back through `executeToolCalls` (via the

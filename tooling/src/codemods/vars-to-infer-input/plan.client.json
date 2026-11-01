@@ -1,0 +1,55 @@
+{
+  "sites": [
+    { "file": "data/use-start-chat.ts", "type": "StartChatVars" },
+    { "file": "features/chat/lib/reaction-mutations.ts", "type": "ToggleReactionVars" },
+    { "file": "features/chat/hooks/use-send-message.ts", "type": "SendVars" },
+    { "file": "features/chat/hooks/use-chat-row-mutations.ts", "type": "UpdateTitleVars" },
+    { "file": "features/chat/hooks/use-chat-row-mutations.ts", "type": "StarChatVars" },
+    { "file": "features/chat/hooks/use-chat-row-mutations.ts", "type": "ArchiveChatVars" },
+    { "file": "features/chat/hooks/use-chat-row-mutations.ts", "type": "DeleteChatVars" },
+    { "file": "features/chat/hooks/use-guided-actions.ts", "type": "GuidedTurnVars" },
+    { "file": "features/config/hooks/use-theme-mutations.ts", "type": "CreateThemeInput" },
+    { "file": "features/character/hooks/use-promote-theme.ts", "type": "PromoteThemeInput" },
+    { "file": "features/user-admin/hooks/use-share-mutations.ts", "type": "IpCertificateSetting" },
+    { "file": "features/discovery/hooks/use-readiness-passes.ts", "type": "StartWorkloadWire" },
+    { "file": "features/discovery/hooks/use-understanding-pass.ts", "type": "StartWorkloadWire" }
+  ],
+  "skip": [
+    {
+      "type": "SectionPatchVars",
+      "reason": "Narrows the router's section union to one section and types its patch; data/section-patch-vars.ts is the wrong-key guard the router input lacks."
+    },
+    {
+      "type": "RuleActionVars",
+      "reason": "Carries a client-only chatId for the settle invalidate; the options call maps it to the procedure input through withProcedureInput."
+    },
+    {
+      "type": "DuplicateVars",
+      "reason": "Hand-written interface; the type-level equality check against chat.duplicateMessage input failed."
+    },
+    {
+      "type": "ReattributeVoiceVars",
+      "reason": "Hand-written interface (mutable messageIds); the equality check against chat.reattributeMessages input failed."
+    },
+    {
+      "type": "SetChatDocumentVisibilityVars",
+      "reason": "Hand-written interface; the equality check against chat.setChatDocumentVisibility input failed."
+    },
+    {
+      "type": "SetUserMacroValuesVars",
+      "reason": "Hand-written interface; the equality check against chat.setUserMacroValues input failed."
+    },
+    {
+      "type": "SetVariablesVars",
+      "reason": "Hand-written interface; the equality check against chat.setVariables input failed."
+    },
+    {
+      "type": "SetChatInjectionVars",
+      "reason": "Intersection of ChatInjectionInput and chatId; the equality check against chat.setChatInjection input failed."
+    },
+    {
+      "type": "SetChatBackgroundVars",
+      "reason": "Hand-written interface; the equality check against chat.setChatBackground input failed."
+    }
+  ]
+}

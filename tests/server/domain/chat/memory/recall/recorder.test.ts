@@ -12,7 +12,7 @@ const roomB = ids.typeId(ID_PREFIX.chat);
 const bucket = ids.typeId(ID_PREFIX.character);
 
 function slice(surfaced: number): MemoryRecallSlice {
-  return { mode: "mixA", queryText: null, queryEmbedded: false, poolSize: surfaced, candidateCount: surfaced, surfaced, ms: 1, note: null, candidates: [] };
+  return { mode: "mixA", queryText: null, queryEmbedded: false, poolSize: surfaced, candidateCount: surfaced, surfaced, note: null, candidates: [] };
 }
 
 test("the recorder stamps its own sequence and the injected clock, and keeps only the newest records past its depth", () => {

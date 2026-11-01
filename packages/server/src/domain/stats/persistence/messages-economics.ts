@@ -25,16 +25,10 @@ import { ownerChatIds } from "./owner-chat-scope.ts";
 // The raw aggregated row as it comes back from the untyped `sql`` boundary — module-private.
 interface EconomicsRow {
   readonly characterId: CharacterId;
-  readonly generations: number;
-  readonly tokensIn: number;
-  readonly tokensInMeasuredSamples: number;
-  readonly tokensInEstimatedSamples: number;
   /** NULL when no selected variant of this character recorded a `tokens_out` at all — see the read. */
   readonly tokensOut: number | null;
   readonly tokensOutMeasuredSamples: number;
   readonly tokensOutEstimatedSamples: number;
-  readonly cacheReadTokens: number;
-  readonly cacheWriteTokens: number;
 }
 
 interface ModelEconomicsRow {
@@ -93,22 +87,15 @@ async function readSelectedCostSamples(db: Db, ownerId: UserId): Promise<Selecte
  *
  *  `tokensOut`'s never-recorded signal lives in `tokensOutMeasuredSamples`/`tokensOutEstimatedSamples`, not
  *  in the SQL sum: `recordedTokens` (substrate/rates.ts) returns `null` whenever both sample counters are
- *  zero, regardless of the coalesced total, so the mapper can safely `?? 0` the sum before calling it. The
- *  other sums keep their COALESCE: a missing cache count on a local-model turn genuinely IS zero. Cost has
+ *  zero, regardless of the coalesced total, so the mapper can safely `?? 0` the sum before calling it. Cost has
  *  its own sample count: compatible available prices form a partial subtotal, and missing prices are omitted. */
 export async function readCharacterEconomics(db: Db, ownerId: UserId): Promise<CharacterEconomics[]> {
   const costSamples = (await readSelectedCostSamples(db, ownerId)).characters;
   const rows = await db.all<EconomicsRow>(sql`
     SELECT m.character_id AS characterId,
-           COUNT(*) AS generations,
-           COALESCE(SUM(v.tokens_in), 0) AS tokensIn,
            SUM(v.tokens_out) AS tokensOut,
-           SUM(CASE WHEN v.tokens_in IS NOT NULL AND v.token_provenance = 'measured' THEN 1 ELSE 0 END) AS tokensInMeasuredSamples,
-           SUM(CASE WHEN v.tokens_in IS NOT NULL AND v.token_provenance = 'estimated' THEN 1 ELSE 0 END) AS tokensInEstimatedSamples,
            SUM(CASE WHEN v.tokens_out IS NOT NULL AND v.token_provenance = 'measured' THEN 1 ELSE 0 END) AS tokensOutMeasuredSamples,
-           SUM(CASE WHEN v.tokens_out IS NOT NULL AND v.token_provenance = 'estimated' THEN 1 ELSE 0 END) AS tokensOutEstimatedSamples,
-           COALESCE(SUM(v.cache_read_tokens), 0) AS cacheReadTokens,
-           COALESCE(SUM(v.cache_write_tokens), 0) AS cacheWriteTokens
+           SUM(CASE WHEN v.tokens_out IS NOT NULL AND v.token_provenance = 'estimated' THEN 1 ELSE 0 END) AS tokensOutEstimatedSamples
     FROM messages m
     JOIN characters c ON c.id = m.character_id
     JOIN message_variants v ON v.id = m.selected_variant_id
@@ -119,15 +106,10 @@ export async function readCharacterEconomics(db: Db, ownerId: UserId): Promise<C
     // Raw-SQL boundary mint: `m.character_id` is the branded characters.id column; sql`` rows come back
     // untyped.
     characterId: castId<CharacterId>(r.characterId),
-    generations: r.generations,
-    tokensIn: recordedTokens(r.tokensIn, r.tokensInMeasuredSamples, r.tokensInEstimatedSamples),
-    tokensInProvenance: aggregateTokenProvenance(r.tokensInMeasuredSamples, r.tokensInEstimatedSamples),
     // The sample counters, not this sum, decide recorded-vs-null (see recordedTokens) — coalescing here is safe.
     tokensOut: recordedTokens(r.tokensOut ?? 0, r.tokensOutMeasuredSamples, r.tokensOutEstimatedSamples),
     tokensOutProvenance: aggregateTokenProvenance(r.tokensOutMeasuredSamples, r.tokensOutEstimatedSamples),
     costUsd: costOfSamples(costSamples.get(r.characterId)),
-    cacheReadTokens: r.cacheReadTokens,
-    cacheWriteTokens: r.cacheWriteTokens,
   }));
 }
 

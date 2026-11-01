@@ -30,7 +30,8 @@ test("one value and target shape is reflected once, and each differing shape on 
   using world = NativeWorld.open(root, WORLD);
   const properties = vi.spyOn(world.checker.getPropertiesOfType, "gen");
   propertyIndex(world);
-  expect(properties).toHaveBeenCalledTimes(2);
+  // Three sites spread two shapes: each shape is reflected once and compared with its target once, not once per site.
+  expect(properties).toHaveBeenCalledTimes(4);
 });
 
 test("a request repeated in one round or a later batch crosses to the compiler once", { timeout: 120_000 }, async ({ plantedTree }) => {

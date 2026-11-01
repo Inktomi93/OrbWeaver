@@ -5,7 +5,7 @@
 // post-settle. The queue ride buys the all-owners BULK sweep its single-active lock + run history; the
 // singular arm is queue-optional by construction, and that is fine — the op has one home either way.
 
-import type { ReconcileStatsWorkloadResult } from "@orb/contracts/stats";
+import type { ReconcileStatsResult } from "@orb/contracts/stats";
 import { emptyWorkloadParams } from "@orb/contracts/workloads";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { WorkloadContribution } from "#domain/workloads";
@@ -23,7 +23,7 @@ export function createStatsWorkloadContributions(deps: StatsWorkloadDeps): reado
       lane: "sweep",
       // A full rebuild from canon — re-running it converges on the same rollups.
       resume: "idempotent-restart",
-      run: async (ctx, _params, report, signal): Promise<ReconcileStatsWorkloadResult> => {
+      run: async (ctx, _params, report, signal): Promise<ReconcileStatsResult> => {
         report({ message: "reconciling stats from canon" });
         const result = await reconcileStats(db, {
           now: deps.now,
@@ -31,7 +31,7 @@ export function createStatsWorkloadContributions(deps: StatsWorkloadDeps): reado
           signal,
           ...(ctx.ownerId !== null ? { ownerId: ctx.ownerId } : {}),
         });
-        return { owners: result.owners, characters: result.characters };
+        return result;
       },
     },
   ];

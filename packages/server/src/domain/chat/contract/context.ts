@@ -61,6 +61,7 @@ import type {
   ChatInjectionId,
   ChatInviteId,
   ChatParticipantId,
+  ChatTurnId,
   CompactionSpendId,
   Handle,
   MessageId,
@@ -743,6 +744,8 @@ export interface ChatServiceDeps {
   /** The same durable-first emit with its append verdict preserved. Roster handoff alone supplies a claim:
    * its marker owns one append, a losing retry converges, and an append failure rolls the claim back. */
   readonly emitChecked: (event: DurableChatBusEvent, claimStatement?: StatementToken) => Promise<boolean>;
+  /** Where each turn still open in the chat entered the durable log, by `seq`. */
+  readonly openTurns: (chatId: ChatId) => ReadonlyMap<ChatTurnId, number>;
   /** Prepare the new room's first durable event for the creation batch, then fan that already-committed row
    * without a second append. Restricted to chatCreated because only birth proves seq=1 by construction. */
   readonly prepareCreationEvent: (event: Extract<DurableChatBusEvent, { readonly type: "chatCreated" }>) => {

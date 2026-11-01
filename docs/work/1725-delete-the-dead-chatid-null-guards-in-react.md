@@ -11,16 +11,16 @@ plan: unwired-code
 
 ## What
 
-Left open and not deleted: the guards are the type narrowing, not defensive code.
+First-party tool handlers receive a chat-turn execution context with non-null `chatId` and `turnId`, so the null guards in the react, rpg and imagery tools are gone.
 
 ## Why
 
-At runtime both are unreachable: `ChatToolExecFrame` in `packages/server/src/domain/chat/contract/engine-context.ts` carries a non-null `chatId` and `turnId`, and builtin tools are not direct-drivable from automation (`packages/server/src/domain/tool-use/substrate/reachability.ts`). The type still allows null: `ToolHandler` receives `ToolExecutionContext`, whose `chatId` is `ChatId | null` for the automation and plugin callers. Deleting a guard needs a cast or a handler param that narrows, which a function-typed `ToolHandler` rejects. The rpg guard also checks `turnId`.
+Owner ruling: chat-scoped tools get an execution type with non-null `chatId` and `turnId`, then the guards delete. No off-turn path reaches a builtin, because `isDirectDrivableBy` admits contributor tools alone, so the guards could never fire.
 
 ## Done when
 
-The owner decides whether chat-scoped tools get an exec type with a non-null `chatId` and `turnId` (a scope split on `ToolDefinition`). After that the guards delete without a cast.
+`ToolHandler` takes `ChatToolExecutionContext`. Automation resolves through `resolveDrivableTools`, and handing `executeToolCalls` a first-party set with a nullable context fails to compile. Tool behavior is unchanged.
 
 ## Evidence
 
-No change landed.
+`tests/server/domain/automation/contract/chat-tool-scope.test-d.ts` holds the type contract; weakening the `ResolvedToolSet` default makes its `@ts-expect-error` lines report unused. The lane report lists the floor commands.

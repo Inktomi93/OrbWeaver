@@ -127,7 +127,6 @@ export interface RosterPresetView {
   readonly members: readonly RosterPresetMemberView[];
   /** B10's rules rider — capture order (= apply order). Empty = the roster carries no rules. */
   readonly rules: readonly RosterPresetRuleView[];
-  readonly createdAt: number;
   readonly updatedAt: number;
 }
 
@@ -152,8 +151,7 @@ export interface RosterPresetSummary {
 }
 
 /** `applyToChat`'s outcome — additive + idempotent: `added` minted fresh seats, `alreadyPresent` seats
- *  the room already held (knobs re-stamped either way), `configApplied` whether the preset carried a
- *  `groupConfig` that landed. `skipped` is the PRE-DRIVE re-verify arm only: members whose character no
+ *  the room already held (knobs re-stamped either way). `skipped` is the PRE-DRIVE re-verify arm only: members whose character no
  *  longer resolves under the owner when the apply re-checks (the FK CASCADE makes this a
  *  delete-between-read-and-verify race, not a steady state) are dropped from the drive and reported
  *  here. A failure INSIDE the drive (an injected chat verb throwing — e.g. the sub-verify deletion
@@ -173,7 +171,6 @@ export interface ApplyRosterPresetResult {
   readonly added: readonly CharacterId[];
   readonly alreadyPresent: readonly CharacterId[];
   readonly skipped: readonly CharacterId[];
-  readonly configApplied: boolean;
   /** B10's rules rider — rule presets minted fresh into the room (INCLUDING a re-mint that replaced a
    *  knob-drifted or incomplete earlier mint), then enabled: the apply is the host's consent act for
    *  the target room (build record §6.5). */
@@ -209,11 +206,10 @@ export const rosterPresetViewSchema = z.strictObject({
   game: rpgGameTemplateSchema.strict().nullable(),
   members: z.array(rosterPresetMemberViewSchema).readonly(),
   rules: z.array(rosterPresetRuleViewSchema).readonly(),
-  createdAt: z.number(),
   updatedAt: z.number(),
 }) satisfies z.ZodType<RosterPresetView>;
 
-export const rosterPresetSummarySchema = rosterPresetViewSchema.omit({ groupConfig: true, createdAt: true }).extend({
+export const rosterPresetSummarySchema = rosterPresetViewSchema.omit({ groupConfig: true }).extend({
   characterCount: z.number(),
   hasGroupConfig: z.boolean(),
 }) satisfies z.ZodType<RosterPresetSummary>;
@@ -227,7 +223,6 @@ export const applyRosterPresetResultSchema = z.strictObject({
   added: z.array(typeIdSchema(ID_PREFIX.character)).readonly(),
   alreadyPresent: z.array(typeIdSchema(ID_PREFIX.character)).readonly(),
   skipped: z.array(typeIdSchema(ID_PREFIX.character)).readonly(),
-  configApplied: z.boolean(),
   rulesMinted: z.array(rulePresetIdSchema).readonly(),
   rulesAlreadyPresent: z.array(rulePresetIdSchema).readonly(),
   rulesSkipped: z.array(rosterPresetRuleSkipSchema).readonly(),

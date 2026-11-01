@@ -50,9 +50,7 @@ test("default-grid canon produces real arc themes and selected reroll hotspots w
   expect(assignments.every((row) => row.msgMidAt !== null && storyTimes.includes(row.msgMidAt))).toBe(true);
   expect(assignments.every((row) => row.msgMidAt !== row.computedAt)).toBe(true);
   expect(result.singleTake).toEqual([]);
-  expect(result.firstHotspot).toMatchObject([
-    { messageId: result.slot.id, characterId: result.character.id, variantCount: 2, snippet: CORPUS_KNOWLEDGE_SWIPE_TAKES[1] },
-  ]);
+  expect(result.firstHotspot).toMatchObject([{ messageId: result.slot.id, variantCount: 2, snippet: CORPUS_KNOWLEDGE_SWIPE_TAKES[1] }]);
   expect(result.secondHotspot).toMatchObject([{ messageId: result.slot.id, variantCount: 3, snippet: CORPUS_KNOWLEDGE_SWIPE_TAKES[2] }]);
   expect(result.selectedHotspot).toMatchObject([{ messageId: result.slot.id, variantCount: 3, snippet: CORPUS_KNOWLEDGE_SWIPE_TAKES[0] }]);
   expect(result.variants.map((variant) => variant.content)).toEqual([...CORPUS_KNOWLEDGE_SWIPE_TAKES]);

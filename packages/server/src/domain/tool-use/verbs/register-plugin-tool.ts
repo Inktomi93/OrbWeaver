@@ -28,7 +28,7 @@ import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
 import { ToolNameCollisionError } from "../contract/errors.ts";
 import type { PluginToolSpec, ToolExecutionContext } from "../contract/params.ts";
 import { TOOL_NAME_RE } from "../contract/params.ts";
-import type { RegisteredTool, RunOutcome, ToolRegistry } from "../contract/results.ts";
+import type { PluginRegisteredTool, RunOutcome, ToolRegistry } from "../contract/results.ts";
 import { toolRegistryKey } from "../substrate/partition.ts";
 
 /** Resolve the resident handler's invocation-chat scope, as the INSTALLING principal (PL-C). `"denied"` = the
@@ -89,7 +89,7 @@ export function createRegisterPluginTool(registry: ToolRegistry): (spec: PluginT
     // Untrusted guest JSON Schema → zod (throws JsonSchemaLiftError on an unsupported construct — activation-fatal).
     const argsSchema = liftJsonSchema(spec.parameters);
 
-    const registered: RegisteredTool = {
+    const registered: PluginRegisteredTool = {
       name: spec.name,
       ...(spec.displayName === undefined ? {} : { displayName: spec.displayName }),
       ...(spec.replayHistory === undefined ? {} : { replayHistory: spec.replayHistory }),

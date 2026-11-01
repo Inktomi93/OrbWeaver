@@ -57,7 +57,6 @@ export function createToolUseTeachingContributions(deps: {
 }): readonly TeachingContribution[] {
   return [
     {
-      id: "tool-use.plugin-tools",
       order: PLUGIN_TOOL_ATTACH_ORDER,
       collect: (tctx: TeachingContext): Promise<TeachingCollection> =>
         // Async by contract, synchronous in fact — a Map filter. Kept off `async` so it adds no microtask to

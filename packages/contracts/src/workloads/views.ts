@@ -11,7 +11,7 @@ import { analyticsResultSchema, computeThemesWorkloadParams, findDuplicatesWorkl
 import { embedPassResultSchema } from "../embeddings/index.ts";
 import { catalogRefreshResultSchema } from "../inference/catalog.ts";
 import { refineryScoreSweepResultSchema, refineScoreSweepWorkloadParams } from "../refinery/index.ts";
-import { reconcileStatsWorkloadResultSchema } from "../stats/index.ts";
+import { reconcileStatsResultSchema } from "../stats/index.ts";
 import type { WorkloadKind, WorkloadMode, WorkloadStatus } from "./axes.ts";
 import { scheduleCadenceSchema, workloadKindSchema, workloadModeSchema, workloadStatusSchema } from "./axes.ts";
 import type { WorkloadLane, WorkloadProgress } from "./execution.ts";
@@ -112,7 +112,7 @@ const workloadOutputShapes = {
   "import-st": { params: importStWorkloadParams.strict(), result: maintenanceResultSchema },
   "import-token-usage-backfill": { params: maintenanceWorkloadParams.strict(), result: importTokenUsageBackfillResultSchema },
   "import-bundle": { params: importBundleWorkloadParams.strict(), result: bundleImportWorkloadResultSchema },
-  "reconcile-stats": { params: emptyWorkloadParams.strict(), result: reconcileStatsWorkloadResultSchema },
+  "reconcile-stats": { params: emptyWorkloadParams.strict(), result: reconcileStatsResultSchema },
   "refresh-model-catalog": { params: emptyWorkloadParams.strict(), result: catalogRefreshResultSchema },
   "reconcile-world-state": { params: emptyWorkloadParams.strict(), result: deferredResultSchema },
   "databank-ingest": { params: databankIngestWorkloadParams.strict(), result: ingestRunResultSchema },
@@ -293,8 +293,6 @@ export const workloadScheduleViewSchema = z.strictObject({
 export const workloadListInputSchema = z
   .strictObject({
     kind: workloadKindSchema.optional(),
-    status: workloadStatusSchema.optional(),
-    since: z.number().optional(),
     limit: z.int().min(1).max(WORKLOAD_LIST_MAX_LIMIT).optional(),
   })
   .optional();

@@ -7,7 +7,7 @@
 
 import type { Query } from "@tanstack/react-query";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
-import { notify } from "#lib";
+import { notify, trpcErrorCode } from "#lib";
 import { recoverIfStaleSession } from "./stale-session.ts";
 
 // Per-query/mutation meta — the sanctioned v5 carrier for global-handler config.
@@ -28,12 +28,6 @@ declare module "@tanstack/react-query" {
 
 const GC_TIME_MS = 300_000; // 5 minutes
 const QUERY_RETRIES = 2;
-
-/** A tRPC error's structured code (`CONFLICT`, `BAD_REQUEST`, …), or undefined for any other value. Callers key
- *  on the code, never on message text. */
-export function trpcErrorCode(error: unknown): string | undefined {
-  return (error as { data?: { code?: string } } | null | undefined)?.data?.code;
-}
 
 // Repeating refused input cannot recover; other failures keep the shared retry schedule.
 function retryUnlessBadRequest(failureCount: number, error: unknown): boolean {

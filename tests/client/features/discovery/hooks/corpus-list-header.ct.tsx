@@ -4,7 +4,7 @@ import { routeTrpc } from "@orb/testkit/ct";
 import { expect, test } from "@playwright/test";
 import type { CorpusListHeaderStory } from "./_list-header-stories.tsx";
 
-const PARTLY_DISTILLED: TrpcWireOutput<"discovery.catalog"> = { genres: [], tones: [], topTags: [], tagPairs: [], totalDistilled: 12, totalCharacters: 20 };
+const PARTLY_DISTILLED: TrpcWireOutput<"discovery.catalog"> = { genres: [], tones: [], topTags: [], totalDistilled: 12, totalCharacters: 20 };
 
 test("the Corpus band states the distilled count against the library it is drawn from", async ({ mount, page }) => {
   await routeTrpc(page, { "discovery.catalog": () => PARTLY_DISTILLED });

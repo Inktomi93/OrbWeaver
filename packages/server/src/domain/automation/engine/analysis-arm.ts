@@ -63,7 +63,6 @@ import type {
   AnalysisPromptInputs,
   AnalysisRoutes,
   AnalysisWindowRow,
-  RuleLoreWriteArgs,
   RunAnalysisAction,
 } from "../contract/analysis.ts";
 import {
@@ -216,7 +215,7 @@ interface PassResolution {
   readonly payload: AnalysisPayload;
   readonly action: RunAnalysisAction;
   /** Coverage/title bounds and actual read provenance differ on a capped cold start. */
-  readonly span: { readonly start: number; readonly end: number; readonly provenance: NonNullable<RuleLoreWriteArgs["entries"][number]["span"]> } | null;
+  readonly span: { readonly start: number; readonly end: number } | null;
   /** C3 — the reply this pass audited (`null` = no rewrite route, or nothing auditable). Carried onto the
    *  RESOLUTION rather than re-read at apply time on purpose: the card must pin the variant the MODEL saw,
    *  not whatever is selected by the time the applier runs. */
@@ -277,7 +276,6 @@ const ROUTE_APPLIERS: Record<AnalysisOutputClass, RouteApplier> = {
       entryKey: spanStampedKey(span.start, neutralizeMacros(entry.key)),
       keys: entry.keys.map((k) => neutralizeMacros(k)),
       content: neutralizeMacros(entry.content),
-      span: span.provenance,
     }));
     if (route.apply === "confirm") {
       raiseAnalysisCard(deps, frame, {
@@ -443,17 +441,8 @@ async function readPassInputs(deps: ArmExecutorDeps, action: RunAnalysisAction, 
     limit: ANALYSIS_SETTLED_SLICE_MAX,
     slice: cold ? "newest" : "earliest",
   });
-  const firstRead = settled[0];
   const lastRead = settled.at(-1);
-  // The exclusive lower bound describes returned rows, not the coverage cursor or contiguous seqs.
-  const span =
-    firstRead === undefined || lastRead === undefined
-      ? null
-      : {
-          start: state.settledThroughSeq ?? COLD_SPAN_KEY_START,
-          end: cold ? through : lastRead.seq,
-          provenance: { fromSeq: firstRead.seq - 1, toSeq: lastRead.seq },
-        };
+  const span = lastRead === undefined ? null : { start: state.settledThroughSeq ?? COLD_SPAN_KEY_START, end: cold ? through : lastRead.seq };
   return { state, fresh, settled, span, audited };
 }
 

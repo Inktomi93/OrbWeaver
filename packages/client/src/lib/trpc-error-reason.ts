@@ -14,6 +14,14 @@ export function trpcErrorReason(error: unknown): string {
     : "";
 }
 
+/** The tRPC error code (`CONFLICT`, `BAD_REQUEST`, …) off `data.code`, else `undefined` for any other value. */
+export function trpcErrorCode(error: unknown): string | undefined {
+  const data = errorData(error);
+  return typeof data === "object" && data !== null && "code" in data && typeof (data as { code: unknown }).code === "string"
+    ? (data as { code: string }).code
+    : undefined;
+}
+
 function detailValue(error: unknown, key: string): unknown {
   const data = errorData(error);
   const detail = typeof data === "object" && data !== null && "detail" in data ? (data as { detail: unknown }).detail : null;

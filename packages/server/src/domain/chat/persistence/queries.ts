@@ -16,6 +16,7 @@ import type {
   ChatMetadata,
   ChatReasoningPart,
   ContentSignatures,
+  DurableChatBusEvent,
   HandoffOffer,
   HistoryFloorSeq,
   JoinHistoryVisibility,
@@ -46,7 +47,7 @@ import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { UserMacroValues } from "@orb/contracts/preset";
 import { userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import { characters, chatEvents, chatInjections, chatParticipants, chatStreamEvents, chats, messages, messageVariants } from "@orb/db";
+import { characters, chatEvents, chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
 import { chatRecencyExpr, immutableCollection, memberVisibleChatScope, rowTuple } from "@orb/db/query";
 import { HIDDEN_TAGS } from "@orb/kit/content";
 import type { CharacterId, ChatEventId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
@@ -60,7 +61,7 @@ import type { ContinueSnapshot } from "../contract/continuation.ts";
 import type { RetainedCanonContributions } from "../contract/generation-observation.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
 import type { DeliveredCue } from "../contract/results.ts";
-import type { ChatStreamReplayEvent, StreamEventBounds } from "../contract/views.ts";
+import type { ChatEventBounds } from "../contract/views.ts";
 import { historyFloorFollowsJoin } from "../substrate/auth/index.ts";
 import { continuationToolsAreUndone, signaturesForContent } from "../substrate/content-signatures.ts";
 
@@ -93,7 +94,7 @@ interface ChatRow {
 }
 
 /** One durable chat-bus log row — the cursor + the full room-public event. */
-interface ChatEventLogRow {
+export interface ChatEventLogRow {
   seq: number;
   payload: ChatBusEvent;
 }
@@ -933,51 +934,30 @@ export async function loadMessagesPage(
 
 // ── stream-log / bus-log replay + cursor reads ─────────────────────────────────
 
-/** Resume the resumable SSE token log — every row strictly after `afterSeq` (absent ⇒ from the retained
- *  window start), oldest-first, clamped to the caller's D16 join-history `floorSeq`.
- *
- *  A stream row is raw transcript text; its only canon anchor is the nullable `messageId` column. A clamped
- *  caller (`floorSeq > 0`) therefore gets an INNER JOIN to `messages` with `seq >= floorSeq` — the row-level
- *  equivalent of the `slotSeq` compare `substrate/auth::isBelowHistoryFloor` runs on a `delta` bus event. The
- *  join by construction also drops turn-level rows whose slot had not committed yet (`messageId IS NULL` —
- *  anchorless HERE, unlike the bus `delta`, whose anchor is stamped by the emit site rather than read back
- *  from a column, so those stay conservatively withheld).
- *  An unclamped caller takes the plain read (no join, byte-identical to before). */
-export async function loadStreamReplay(db: Db, chatId: ChatId, afterSeq: number | undefined, floorSeq: HistoryFloorSeq): Promise<ChatStreamReplayEvent[]> {
-  const selection = {
-    seq: chatStreamEvents.seq,
-    messageId: chatStreamEvents.messageId,
-    generationId: chatStreamEvents.generationId,
-    kind: chatStreamEvents.kind,
-    delta: chatStreamEvents.delta,
-  } as const;
-  const where = and(eq(chatStreamEvents.chatId, chatId), afterSeq === undefined ? undefined : gt(chatStreamEvents.seq, afterSeq));
-  if (floorSeq <= 0) {
-    return await db.select(selection).from(chatStreamEvents).where(where).orderBy(asc(chatStreamEvents.seq));
-  }
+/** One page of the durable chat-bus log after `afterSeq`, oldest-first, the full room-public payload. `only`
+ *  narrows it to a bounded window of named event types. */
+export async function loadChatEventPage(
+  db: Db,
+  chatId: ChatId,
+  page: {
+    readonly afterSeq: number;
+    readonly limit: number;
+    readonly only?: { readonly throughSeq: number; readonly types: readonly DurableChatBusEvent["type"][] };
+  },
+): Promise<ChatEventLogRow[]> {
+  const { afterSeq, limit, only } = page;
   return await db
-    .select(selection)
-    .from(chatStreamEvents)
-    .innerJoin(messages, eq(messages.id, chatStreamEvents.messageId))
-    .where(and(where, gte(messages.seq, floorSeq)))
-    .orderBy(asc(chatStreamEvents.seq));
-}
-
-/** The resumable SSE log's replay cursor bounds — min/max `seq` (null/null when empty). */
-export async function loadStreamBounds(db: Db, chatId: ChatId): Promise<StreamEventBounds> {
-  const rows = await db
-    .select({ minSeq: min(chatStreamEvents.seq), maxSeq: max(chatStreamEvents.seq) })
-    .from(chatStreamEvents)
-    .where(eq(chatStreamEvents.chatId, chatId));
-  const r = rows.at(0);
-  return { minSeq: r?.minSeq ?? null, maxSeq: r?.maxSeq ?? null };
-}
-
-/** Replay the durable chat-bus log — every row strictly after `afterSeq` (absent ⇒ from the start),
- *  oldest-first, the full room-public payload. */
-export async function loadChatEventReplay(db: Db, chatId: ChatId, afterSeq?: number): Promise<ChatEventLogRow[]> {
-  const where = afterSeq === undefined ? eq(chatEvents.chatId, chatId) : and(eq(chatEvents.chatId, chatId), gt(chatEvents.seq, afterSeq));
-  return await db.select({ seq: chatEvents.seq, payload: chatEvents.payload }).from(chatEvents).where(where).orderBy(asc(chatEvents.seq));
+    .select({ seq: chatEvents.seq, payload: chatEvents.payload })
+    .from(chatEvents)
+    .where(
+      and(
+        eq(chatEvents.chatId, chatId),
+        gt(chatEvents.seq, afterSeq),
+        only === undefined ? undefined : and(lte(chatEvents.seq, only.throughSeq), inArray(chatEvents.type, only.types)),
+      ),
+    )
+    .orderBy(asc(chatEvents.seq))
+    .limit(limit);
 }
 
 /** The durable log row minted under ONE event id — its cursor plus the payload AS STORED, or undefined when
@@ -991,7 +971,7 @@ export async function loadChatEventById(db: Db, id: ChatEventId): Promise<ChatEv
 
 /** The durable chat-bus log's cursor bounds — min/max `seq` (null/null when empty); `maxSeq` is the
  *  `lastEventId` a fresh subscriber resumes from. */
-export async function loadChatEventBounds(db: Db, chatId: ChatId): Promise<StreamEventBounds> {
+export async function loadChatEventBounds(db: Db, chatId: ChatId): Promise<ChatEventBounds> {
   const rows = await db
     .select({ minSeq: min(chatEvents.seq), maxSeq: max(chatEvents.seq) })
     .from(chatEvents)

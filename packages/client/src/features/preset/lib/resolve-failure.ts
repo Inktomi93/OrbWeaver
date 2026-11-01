@@ -23,7 +23,7 @@
 // The code is read off `error.data.code`, the structured field, never message text (the `invite-dialog` /
 // `rpg-error-state` discrimination precedent).
 
-import { MODEL_ROLES_PATH_TEXT } from "#lib";
+import { MODEL_ROLES_PATH_TEXT, trpcErrorCode } from "#lib";
 
 /** A THROWN read, as a failure band's prop takes it: the message it may quote plus the structured code it
  *  discriminates on. Deliberately structural rather than `Error` — `useQuery().error` is a
@@ -83,10 +83,7 @@ const RESOLVE_FAILURE_COPY: Record<ResolveFailureCause, ResolveFailureCopy> = {
  *  gate keeps its own deck-context COPY (its failure is about the knobs, not the assembled turn), so it reads
  *  the CAUSE here and not `resolveFailureCopy`, whose words name the preset/turn. */
 export function failureCause(error: unknown): ResolveFailureCause {
-  if (typeof error !== "object" || error === null || !("data" in error)) {
-    return "unknown";
-  }
-  const code = (error as { data?: { code?: string } }).data?.code;
+  const code = trpcErrorCode(error);
   if (code === "NOT_FOUND") {
     return "not-found";
   }

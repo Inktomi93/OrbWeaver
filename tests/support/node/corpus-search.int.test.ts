@@ -76,9 +76,7 @@ function assertRoutedArms(
     expect(hit).toMatchObject({
       documentId: libraries.document.id,
       documentName: libraries.document.name,
-      chunkIdx: row?.chunkIdx,
       content: row?.content,
-      contentHash: row?.contentHash,
     });
   }
   for (const output of result.reads.outputs.filter((row) => row.over === "images")) {
