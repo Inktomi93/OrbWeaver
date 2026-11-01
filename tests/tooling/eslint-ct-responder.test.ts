@@ -7,6 +7,7 @@ import { ESLint, Linter } from "eslint";
 import ts from "typescript";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const RULE = "orb/ct-responder-reads-input";
@@ -63,18 +64,18 @@ function programFor(fileName: string, source: string): ts.Program {
 async function findings(body: string, header = "", spec = SPEC): Promise<readonly Linter.LintMessage[]> {
   const fileName = join(ROOT, spec);
   const source = `${header}${PRELUDE}\nexport async function probe(): Promise<void> {\n${body}\n}\n`;
-  const config = await eslint.calculateConfigForFile(fileName);
+  const config = await resolvedConfig(eslint, fileName);
   const found = new Linter({ cwd: ROOT }).verify(
     source,
     {
       files: ["**/*.{ts,tsx}"],
-      plugins: config?.plugins ?? {},
+      plugins: config.plugins,
       languageOptions: {
         parser: tseslint.parser,
         parserOptions: { project: false, projectService: false, programs: [programFor(fileName, source)], ecmaFeatures: { jsx: true } },
       },
       linterOptions: { reportUnusedDisableDirectives: "error" },
-      rules: { [RULE]: config?.rules?.[RULE] ?? "off" },
+      rules: { [RULE]: config.rules[RULE] ?? "off" },
     },
     { filename: fileName },
   );

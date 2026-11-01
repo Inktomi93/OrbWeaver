@@ -11,7 +11,9 @@ import { processEnvValue } from "../../floor/process/process-env.ts";
 const DEFAULT_SLOW_DB_MS = 100;
 const SLOW_DB_MS = Number(processEnvValue("SLOW_DB_MS") ?? DEFAULT_SLOW_DB_MS);
 
-const tty = process.stdout.isTTY === true;
+// Node types `isTTY` as boolean but leaves it undefined when the stream is piped.
+const stdout: { readonly isTTY?: boolean | undefined } = process.stdout;
+const tty = stdout.isTTY === true;
 const identity = (s: string): string => s;
 const ANSI = {
   bold: tty ? (s: string): string => `\x1b[1m${s}\x1b[0m` : identity,

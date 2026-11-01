@@ -31,23 +31,25 @@ function mergeGeneration(base: GenerationCapability, patch: GenerationPatch | Pa
   if (patch === undefined) {
     return base;
   }
-  const merged: Record<string, unknown> = { ...base };
+  const stated: Record<string, unknown> = { ...base };
+  const cleared = new Set<string>();
   for (const [key, value] of Object.entries(patch)) {
     if (value === undefined) {
       continue;
     }
     // A stated absence (`tools: null`, the one nullable leaf of the override schema) removes the block.
     if (value === null) {
-      delete merged[key];
+      cleared.add(key);
       continue;
     }
     if ((NESTED_GENERATION_KEYS as readonly string[]).includes(key) && typeof value === "object" && !Array.isArray(value)) {
-      const existing = merged[key];
-      merged[key] = { ...(typeof existing === "object" && existing !== null ? existing : {}), ...value };
+      const existing = stated[key];
+      stated[key] = { ...(typeof existing === "object" && existing !== null ? existing : {}), ...value };
       continue;
     }
-    merged[key] = value;
+    stated[key] = value;
   }
+  const merged: Record<string, unknown> = Object.fromEntries(Object.entries(stated).filter(([key]) => !cleared.has(key)));
   mergeStructuredLimits(merged, base, patch);
   // A patch may open `turns` without every required cell: fill from the floor so the shape stays total.
   const turns = merged["turns"];

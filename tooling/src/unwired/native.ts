@@ -37,7 +37,8 @@ interface Pending {
 const isAll = (request: Request): request is Extract<Request, { readonly method: "__all" }> => "method" in request && request.method === "__all";
 
 function* ask(request: Request): APIRequestGenerator<unknown> {
-  return yield request;
+  const answer: unknown = yield request;
+  return answer;
 }
 
 const pageStarts = (size: number): readonly number[] => Array.from({ length: Math.ceil(size / BATCH) }, (_, page) => page * BATCH);

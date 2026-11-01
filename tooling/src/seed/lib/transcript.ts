@@ -86,7 +86,7 @@ export function buildTranscript(args: { readonly title: string; readonly message
   const { title, messageCount, characterNames } = args;
   // The ST keys are a FOREIGN wire vocabulary (snake_case), spelled as array-literal pairs so the shape
   // stays verbatim without a naming-convention suppression.
-  const header = Object.fromEntries([
+  const header = Object.fromEntries<unknown>([
     ["user_name", "You"],
     ["character_name", characterNames[0] ?? "Character 1"],
     ["create_date", sendDate(0)],
@@ -100,7 +100,7 @@ export function buildTranscript(args: { readonly title: string; readonly message
     const mes = isUser ? `${label} user line ${seq} — asking about item ${seq}.` : `${label} ${speaker} replies to line ${seq}.`;
     lines.push(
       JSON.stringify(
-        Object.fromEntries([
+        Object.fromEntries<unknown>([
           ["name", speaker],
           ["is_user", isUser],
           ["is_system", false],

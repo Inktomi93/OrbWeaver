@@ -128,7 +128,7 @@ test.describe("desktop", () => {
   test("ripple draws a rule under its header and fades its portrait into the card; no other skin does", async ({ corpus, mount, page }) => {
     const ruled: string[] = [];
     for (const chatStyle of THEME_CHAT_STYLES) {
-      if (MESSAGE_ROW_SKINS[chatStyle].actionsRow.identity === false) {
+      if (!MESSAGE_ROW_SKINS[chatStyle].actionsRow.identity) {
         continue;
       }
       await openReadingStyle(page, corpus, chatStyle);

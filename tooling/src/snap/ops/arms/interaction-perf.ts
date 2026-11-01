@@ -170,7 +170,7 @@ async function collectPerfEvidence(
       continue;
     }
     for (const page of context.pages) {
-      const rawPageData = await page.evaluate(() => Reflect.get(globalThis, "__perfMeter"));
+      const rawPageData = await page.evaluate((): unknown => Reflect.get(globalThis, "__perfMeter"));
       const pageData = parseMeterData(rawPageData);
       if (rawPageData === undefined) {
         gaps.push(meterApparatusGap(page.url()));
@@ -342,11 +342,11 @@ export const INTERACTION_PERF_ARM = {
           const index = nextStep++;
           await ctx.page.evaluate(
             ([idx, text]) => {
-              const meter = Reflect.get(globalThis, "__perfMeter");
+              const meter: unknown = Reflect.get(globalThis, "__perfMeter");
               if (typeof meter !== "object" || meter === null) {
                 return;
               }
-              const markStep = Reflect.get(meter, "markStep");
+              const markStep: unknown = Reflect.get(meter, "markStep");
               if (typeof markStep === "function") {
                 Reflect.apply(markStep, meter, [idx, text]);
               }

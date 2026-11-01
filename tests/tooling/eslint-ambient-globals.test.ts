@@ -4,6 +4,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
+import { resolvedConfig } from "./_eslint-config.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
@@ -27,7 +28,7 @@ beforeAll(async () => {
 
 async function findings(rule: string, path: string, source: string, forced?: Linter.RuleSeverity): Promise<readonly Linter.LintMessage[]> {
   const filename = join(ROOT, path);
-  const config = await eslint.calculateConfigForFile(filename);
+  const config = await resolvedConfig(eslint, filename);
   expect(config, path).toBeDefined();
   const messages = new Linter().verify(
     source,

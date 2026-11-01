@@ -2,7 +2,6 @@
 // doors. The page plants every source we promise to agents; zero records is never a passing control.
 import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { basename, join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/tooling";
@@ -19,6 +18,7 @@ import { chromium } from "@playwright/test";
 import { vi } from "vitest";
 import { parseDiagnosticQuery, queryDiagnostics } from "../../../../tooling/src/snap/ops/diagnostics.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { listeningAddress } from "../../_server-address.ts";
 
 vi.setConfig({ testTimeout: scaledBudget(120_000, 4), hookTimeout: scaledBudget(120_000, 4) });
 
@@ -101,7 +101,7 @@ test("real Chromium retains console, uncaught, Log, Audits, page identity, filte
     response.end(FORM_AND_LOG_PLANT);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const port = (server.address() as AddressInfo).port;
+  const port = listeningAddress(server).port;
   const session = await launchProbeSession({
     headless: true,
     viewport: { width: 640, height: 480 },
@@ -198,7 +198,10 @@ test("the full orb console ring retains subtypes, windows, reset, and explicit c
     expect(ring.filter((record) => record.origin === "orb-console-ring").map((record) => record.category)).toEqual(
       expect.arrayContaining(["console", "uncaught", "rejection"]),
     );
-    expect(ring.find((record) => record.text.includes("orb-uncaught-unique"))?.details).toMatchObject({ route: expect.any(String), subtype: "uncaught" });
+    expect(ring.find((record) => record.text.includes("orb-uncaught-unique"))?.details).toMatchObject({
+      route: expect.any(String),
+      subtype: "uncaught",
+    });
 
     await page.evaluate("for (let index = 0; index < 130; index += 1) console.error('orb-overflow-' + index)");
     const gap = await collectOrbConsoleDiagnostics(page, diagnosticRing, completenessRing, false);

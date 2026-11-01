@@ -7,6 +7,7 @@ import { pixelSurface, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
+import { keysOf } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
@@ -17,7 +18,7 @@ import { RAMP_CONTEXT, RAMP_SURFACES } from "./ramp-surfaces.ts";
 
 const STORY = "tests/client/features/app-shell/_surface-stories/SectionShellStory";
 const BADGE_STORY = "tests/client/features/app-shell/surfaces/_ramp-badge-stories/RampBadgeShellStory";
-const SEEDS = [undefined, ...(Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[])] as const;
+const SEEDS = [undefined, ...keysOf(SEED_THEME_VALUE_SETS)] as const;
 // A custom scope's page colour: a case input that sits between the seeds' dark and light polarities.
 const CUSTOM_BACKGROUND = "oklch(0.6 0 0)";
 const DOCKED = { activeSection: "chats", panelOverrides: { chats: { list: "docked", context: "docked" } } } as const;

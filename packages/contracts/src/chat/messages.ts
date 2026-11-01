@@ -656,5 +656,5 @@ export function isReattributableReply(view: Pick<MessageView, "role" | "kind" | 
 export function isSeededGreetingRow<T extends Pick<MessageView, "role" | "characterId" | "hasGeneratedVariant">>(
   view: T,
 ): view is T & { readonly characterId: NonNullable<T["characterId"]> } {
-  return view.role === "assistant" && view.characterId !== null && view.hasGeneratedVariant === false;
+  return view.role === "assistant" && view.characterId !== null && !view.hasGeneratedVariant;
 }

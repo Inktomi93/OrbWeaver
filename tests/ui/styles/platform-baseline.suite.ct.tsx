@@ -18,7 +18,11 @@ test("native controls take the primary colour", async ({ page }) => {
     document.body.append(probe);
     const primary = getComputedStyle(probe).color;
     probe.remove();
-    return { primary, accent: getComputedStyle(document.querySelector('input[type="checkbox"]') as Element).accentColor };
+    const checkbox = document.querySelector('input[type="checkbox"]');
+    if (checkbox === null) {
+      throw new Error("The baseline story renders no checkbox");
+    }
+    return { primary, accent: getComputedStyle(checkbox).accentColor };
   }, TOKENS["color.primary"].cssVar);
   expect(read.accent).toBe(read.primary);
 });

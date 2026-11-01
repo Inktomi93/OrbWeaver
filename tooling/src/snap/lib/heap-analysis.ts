@@ -141,7 +141,9 @@ function detachedProblem(receipt: Pick<HeapSnapshotReceipt, "detached">): readon
 async function hashPath(path: string): Promise<{ readonly sha256: string; readonly bytes: number }> {
   const hash = createHash("sha256");
   let bytes = 0;
-  for await (const chunk of createReadStream(path)) {
+  // Without an encoding a file stream yields Buffers; its async iterator is declared `any`.
+  const chunks: AsyncIterable<Buffer> = createReadStream(path);
+  for await (const chunk of chunks) {
     hash.update(chunk);
     bytes += chunk.length;
   }

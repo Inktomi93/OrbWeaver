@@ -8,7 +8,6 @@
 // the real request denominator, never a silent omission.
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/tooling";
@@ -22,6 +21,7 @@ import { parseSnapArgs } from "../../../../../tooling/src/snap/ops/parse.ts";
 import { installRequestRing, requestRingFor } from "../../../../../tooling/src/snap/ops/request-ring.ts";
 import { finishSession, launchSnapSession } from "../../../../../tooling/src/snap/ops/session.ts";
 import { scaledBudget } from "../../../_load-budget.ts";
+import { listeningAddress } from "../../../_server-address.ts";
 
 const CLI_TIMEOUT_MS = scaledBudget(120_000);
 vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
@@ -65,7 +65,7 @@ async function requestServer(): Promise<{ readonly base: string; readonly close:
     response.end(PAGE);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address() as AddressInfo;
+  const address = listeningAddress(server);
   return {
     base: `http://127.0.0.1:${String(address.port)}`,
     close: async () => await new Promise<void>((resolve, reject) => server.close((error) => (error === undefined ? resolve() : reject(error)))),

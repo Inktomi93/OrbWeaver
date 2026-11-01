@@ -121,7 +121,11 @@ function faultInjectedSession(session: CDPSession, gate: (method: string) => voi
         };
       }
       const value: unknown = Reflect.get(target, property, target);
-      return typeof value === "function" ? value.bind(target) : value;
+      if (typeof value !== "function") {
+        return value;
+      }
+      const bound: unknown = value.bind(target);
+      return bound;
     },
   });
 }
@@ -329,14 +333,14 @@ export async function attachProbeSession(endpoint: string, environment: ProbeAtt
  *  session's context is not ours to close (`owned: false`); closing its `browser` handle is a disconnect. */
 export async function closeProbeSession(session: ProbeResourceOwner): Promise<void> {
   const contextResults = await Promise.allSettled(session.contexts.filter(({ owned }) => owned !== false).map(({ context }) => context.close()));
-  const failures = contextResults.flatMap((result) => (result.status === "rejected" ? [result.reason] : []));
+  const failures = contextResults.flatMap((result): unknown[] => (result.status === "rejected" ? [result.reason] : []));
   try {
     await session.browser.close();
   } catch (error) {
     failures.push(error);
   }
   const cleanupResults = await Promise.allSettled((session.cleanup ?? []).map((close) => close()));
-  failures.push(...cleanupResults.flatMap((result) => (result.status === "rejected" ? [result.reason] : [])));
+  failures.push(...cleanupResults.flatMap((result): unknown[] => (result.status === "rejected" ? [result.reason] : [])));
   if (failures.length === 1) {
     throw failures[0];
   }

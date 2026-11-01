@@ -75,7 +75,6 @@ export type { CorpusRead } from "./corpus-read.ts";
 
 /** The finite corpus requests, not a replacement for the production routers' input parsers. */
 export const corpusReadInput = {
-  absent: (): undefined => undefined,
   notificationInbox: (): CorpusRead<"notifications.list">["input"] => ({}),
   documentList: (): CorpusRead<"databank.list">["input"] => ({}),
   ownerLatency: (): CorpusRead<"stats.latency">["input"] => ({ kind: "owner" }),
@@ -245,7 +244,7 @@ export function hydrateCorpusWire(input: CorpusWireInput): CorpusWire {
 }
 
 function inputless<T>(output: T): { readonly input: undefined; readonly output: T } {
-  return { input: corpusReadInput.absent(), output };
+  return { input: undefined, output };
 }
 
 function publishInbox(section: CorpusNotificationInbox): z.output<typeof notificationInboxSchema> {

@@ -34,7 +34,7 @@ export interface SpanAttrs {
 
 export type SpanFn = <T>(name: string, fn: () => Promise<T> | T, attrs?: SpanAttrs) => Promise<T>;
 
-type SuperviseDetached = (name: string, attrs: SpanAttrs, operation: () => Promise<unknown> | unknown) => void;
+type SuperviseDetached = (name: string, attrs: SpanAttrs, operation: () => unknown) => void;
 
 export type AddSpanEvent = (name: string, attrs: Readonly<Record<string, string | number | boolean>>) => void;
 

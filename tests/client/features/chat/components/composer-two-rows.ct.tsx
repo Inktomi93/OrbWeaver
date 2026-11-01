@@ -14,6 +14,7 @@ import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const SETTINGS_READS = [
   "chat.getGroupConfig",
+  "chat.listForks",
   "chat.listChatInjections",
   "databank.listActiveForChat",
   "worldInfo.listForChat",
@@ -365,6 +366,10 @@ for (const unavailable of [false, true]) {
       if (viewport === null || card === null || lower === null || upper === null) {
         throw new Error("Missing visible viewport or composer card");
       }
+      // A DOMRect crosses the evaluate boundary as its own fields; `toJSON()` is typed `any`.
+      function rectOf(box: DOMRect): Pick<DOMRectReadOnly, "x" | "y" | "top" | "bottom" | "left" | "right" | "width" | "height"> {
+        return { x: box.x, y: box.y, top: box.top, bottom: box.bottom, left: box.left, right: box.right, width: box.width, height: box.height };
+      }
       // Button's centered ::before owns glyph and inline hit regions (selection-control.ts).
       function hitBox(button: HTMLButtonElement): Pick<DOMRectReadOnly, "top" | "bottom" | "left" | "right" | "width" | "height"> {
         const box = button.getBoundingClientRect();
@@ -380,7 +385,7 @@ for (const unavailable of [false, true]) {
           height,
         };
       }
-      const buttons = Array.from(card.querySelectorAll("button"), (button) => ({ paint: button.getBoundingClientRect().toJSON(), hit: hitBox(button) }));
+      const buttons = Array.from(card.querySelectorAll("button"), (button) => ({ paint: rectOf(button.getBoundingClientRect()), hit: hitBox(button) }));
       const hits = [...buttons.map((button) => button.hit), ...Array.from(refusal?.querySelectorAll("button") ?? [], hitBox)];
       const targets = [...hits, element.getBoundingClientRect()];
       const overlaps = targets.flatMap((box, index) =>
@@ -395,14 +400,14 @@ for (const unavailable of [false, true]) {
         viewportBottom: viewport.offsetTop + viewport.height,
         viewportTop: viewport.offsetTop,
         layoutHeight: innerHeight,
-        card: card.getBoundingClientRect().toJSON(),
-        field: element.getBoundingClientRect().toJSON(),
-        lower: lower.getBoundingClientRect().toJSON(),
-        upper: upper.getBoundingClientRect().toJSON(),
+        card: rectOf(card.getBoundingClientRect()),
+        field: rectOf(element.getBoundingClientRect()),
+        lower: rectOf(lower.getBoundingClientRect()),
+        upper: rectOf(upper.getBoundingClientRect()),
         buttons,
         hits,
         collisions: overlaps.filter(Boolean).length,
-        refusal: refusal?.getBoundingClientRect().toJSON(),
+        refusal: refusal === null ? undefined : rectOf(refusal.getBoundingClientRect()),
         refusalOverlap:
           refusal === null ? 0 : Math.max(card.getBoundingClientRect().bottom, lower.getBoundingClientRect().bottom) - refusal.getBoundingClientRect().top,
         cardPadding: getComputedStyle(card).padding,

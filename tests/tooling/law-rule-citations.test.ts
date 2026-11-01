@@ -7,6 +7,7 @@ import { ESLint } from "eslint";
 import dependencyCruiser from "../../.dependency-cruiser.ts";
 import eslintConfig from "../../eslint.config.ts";
 import stylelintConfig from "../../stylelint.config.ts";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const LAW_FILES = [...globSync("docs/law/**/*.md", { cwd: ROOT }), ...globSync(".claude/rules/**/*.md", { cwd: ROOT })].toSorted();
@@ -87,8 +88,8 @@ const enabledStylelintRules = (): Set<string> => {
 
 test("every orb/ rule a law or rule file cites is registered and enabled in a config block", { timeout: 120_000 }, async () => {
   const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
-  const config = await eslint.calculateConfigForFile(join(ROOT, CLIENT_PROBE));
-  const registered = Object.keys(config?.plugins?.["orb"]?.rules ?? {}).map((id) => `orb/${id}`);
+  const config = await resolvedConfig(eslint, join(ROOT, CLIENT_PROBE));
+  const registered = Object.keys(config.plugins?.["orb"]?.rules ?? {}).map((id) => `orb/${id}`);
   const plugins: readonly unknown[] = [stylelintConfig.plugins].flat();
   const stylelintRegistered = plugins.flatMap((plugin) =>
     typeof plugin === "object" && plugin !== null && "ruleName" in plugin && typeof plugin.ruleName === "string" ? [plugin.ruleName] : [],

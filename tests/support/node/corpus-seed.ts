@@ -367,7 +367,7 @@ interface CorpusReadIdentities {
 
 /** Capture the current completed graph state using genuine operation-returned identities. */
 export async function captureCorpusReads(root: ServerHarness, identities: CorpusReadIdentities): Promise<CorpusPlayback["reads"]> {
-  const absentInput = corpusReadInput.absent();
+  const absentInput = undefined;
   const soloInput = corpusReadInput.chat({ id: identities.soloChatId });
   const groupInput = corpusReadInput.chat({ id: identities.groupChatId });
   const documentInput = corpusReadInput.document({ id: identities.documentId });

@@ -209,8 +209,8 @@ test("literal registrations retain action ids and typed required and optional co
     onRun: ({ values }) => {
       expectTypeOf(values.count).toEqualTypeOf<number>();
       expectTypeOf(values.mode).toEqualTypeOf<"add" | "replace" | undefined>();
-      // @ts-expect-error Undeclared argument names are absent from the literal values bag.
-      void values.unlisted;
+      // Undeclared argument names are absent from the literal values bag.
+      expectTypeOf(values).not.toHaveProperty("unlisted");
     },
   });
   // @ts-expect-error Author-time enum declarations require their admitted values.

@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const RULE = "orb/turn-identity-name";
@@ -49,7 +50,7 @@ test.for([
   },
 ] as const)("native turn identity judges $name", async (row) => {
   const path = "path" in row ? row.path : ENGINE;
-  const config = await eslint.calculateConfigForFile(join(ROOT, path));
+  const config = await resolvedConfig(eslint, join(ROOT, path));
   const rule = config.rules[RULE];
   const messages = new Linter().verify(
     row.source,

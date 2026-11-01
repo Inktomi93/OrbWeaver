@@ -23,7 +23,7 @@ import {
   imageEmbeddings,
   imageIndexSkips,
 } from "@orb/db";
-import type { BatchStmt } from "@orb/db/query";
+import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt } from "@orb/db/query";
 import type {
   AssetId,
@@ -476,7 +476,8 @@ export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promis
     .returning({ id: chatDigests.id });
   statements.push(batchStmt(refuse));
   const results = await db.batch(batchMany(statements));
-  return landed("chat_digests", input.generationId, results.at(-1) ?? [], input.logger);
+  const refused = results.at(-1);
+  return landed("chat_digests", input.generationId, Array.isArray(refused) ? refused : [], input.logger);
 }
 
 /** The stored `content_hash` for a document chunk `(documentId, chunkIdx, model)`, or `undefined` when no row
@@ -596,7 +597,7 @@ function assertNever(value: never): never {
 
 /** The `(id, model)`-keyed UPDATE for one row. Exhaustive over {@link VectorTable}: a new table fails tsc until
  *  its arm is added. */
-function hubScoreStatement(db: Db, table: VectorTable, u: HubScoreUpdate): BatchStmt {
+function hubScoreStatement(db: Db, table: VectorTable, u: HubScoreUpdate): AwaitableBatchStmt<readonly { readonly id: string }[]> {
   switch (table) {
     case "character_embeddings":
       return batchStmt(

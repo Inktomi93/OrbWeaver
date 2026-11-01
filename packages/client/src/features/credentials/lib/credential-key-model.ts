@@ -58,10 +58,12 @@ function revokedReasonCopy(reason: CredRevokedReason): string | null {
       return "Revoked — the endpoint stopped responding";
     case "user":
       return "Revoked by you";
-    default: {
-      const unhandled: never = reason;
-      void unhandled;
-      return null;
-    }
+    default:
+      return unreadableReasonCopy(reason);
   }
+}
+
+// `never` parameter: a new CredRevokedReason member stops compiling at the call above.
+function unreadableReasonCopy(_reason: never): null {
+  return null;
 }

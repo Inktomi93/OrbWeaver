@@ -11,6 +11,7 @@ import {
   OWNER_GROUP_KEY,
 } from "@orb/contracts/identity";
 import { users } from "@orb/db";
+import { errorMessage } from "@orb/kit/error-message";
 import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
@@ -20,6 +21,7 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, createTestEnv } from "@orb/testkit/node/composed";
 import type { SQL } from "drizzle-orm";
 import { eq } from "drizzle-orm";
+import { vi } from "vitest";
 import { ADMIN_OP_CODES } from "#server/domain/admin/contract/errors.ts";
 
 const OWNER_GROUP = "identity-owners";
@@ -80,6 +82,26 @@ test("the admin link claim binds an unbound row once and refuses a rebind or a h
   });
   expect(await storedSubject(root, eq(users.id, member.id))).toEqual([bound]);
   expect(await storedSubject(root, eq(users.id, other.id))).toEqual([null]);
+});
+
+test("an unexplained link rejection keeps its Error, and a non-Error value stays out of the message", async () => {
+  await using root = await createServerHarness();
+  const owner = await root.principalFor(root.ownerId);
+  const member = await root.actor();
+  const link = (): Promise<unknown> => root.services.admin.linkSsoIdentity({ principal: owner, userId: member.id, externalId: subject("identity-link-fault") });
+  using batch = vi.spyOn(root.db, "batch");
+
+  const fault = new Error("controlled batch fault");
+  batch.mockRejectedValueOnce(fault);
+  await expect(link()).rejects.toBe(fault);
+
+  const unreviewed = "controlled non-Error rejection";
+  batch.mockRejectedValueOnce(unreviewed);
+  const refused: unknown = await link().catch((error: unknown) => error);
+  expect(refused).toBeInstanceOf(Error);
+  expect(refused).toMatchObject({ cause: unreviewed });
+  expect(errorMessage(refused)).not.toContain(unreviewed);
+  expect(await storedSubject(root, eq(users.id, member.id))).toEqual([null]);
 });
 
 test("two concurrent admin links with different subjects bind exactly one", async () => {

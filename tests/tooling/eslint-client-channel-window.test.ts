@@ -3,6 +3,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
+import { levelOf, resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const CHANNEL = "orb/session-channel-boundary";
@@ -16,15 +17,15 @@ beforeAll(async () => {
 }, 120_000);
 
 async function findings(rule: string, source: string, path = FEATURE): Promise<readonly Linter.LintMessage[]> {
-  const config = await eslint.calculateConfigForFile(join(ROOT, path));
+  const config = await resolvedConfig(eslint, join(ROOT, path));
   const found = new Linter({ cwd: ROOT }).verify(
     source,
     {
       files: ["**/*.{ts,tsx}"],
-      plugins: config?.plugins ?? {},
+      plugins: config.plugins,
       // The client program's DOM lib declares BroadcastChannel as a scope variable, as the real typed parse does.
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null, lib: ["esnext", "dom"] } },
-      rules: { [rule]: config?.rules?.[rule] ?? "off" },
+      rules: { [rule]: config.rules[rule] ?? "off" },
     },
     { filename: join(ROOT, path) },
   );
@@ -36,8 +37,8 @@ async function findings(rule: string, source: string, path = FEATURE): Promise<r
 }
 
 async function inScope(rule: string, path: string): Promise<boolean> {
-  const config = await eslint.calculateConfigForFile(join(ROOT, path));
-  return config?.rules?.[rule]?.[0] === 2;
+  const config = await resolvedConfig(eslint, join(ROOT, path));
+  return levelOf(config.rules[rule]) === 2;
 }
 
 test.for([

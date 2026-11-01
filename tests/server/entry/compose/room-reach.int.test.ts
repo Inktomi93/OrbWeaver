@@ -112,7 +112,10 @@ test("a failed regex reach capture is logged and cannot fault the confirmed dele
       affected: 1,
     });
     expect(warn).toHaveBeenCalledWith(
-      expect.objectContaining({ err: expect.objectContaining({ cause: expect.objectContaining({ code: "SQLITE_ERROR" }) }), entity: "regex" }),
+      expect.objectContaining({
+        err: expect.objectContaining({ cause: expect.objectContaining({ code: "SQLITE_ERROR" }) }),
+        entity: "regex",
+      }),
       "room-reach: pre-write delete capture failed; the delete proceeds unannounced",
     );
     expect(frames).toEqual([]);

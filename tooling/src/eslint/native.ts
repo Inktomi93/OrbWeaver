@@ -1,5 +1,6 @@
 import type { RuleVisitor } from "@eslint/core";
 import type { ParserServicesWithTypeInformation, TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import ts from "typescript";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 import { baseUiBindings } from "./ui-composition.ts";
@@ -336,7 +337,7 @@ export const nativeTitleRule: OrbRule = {
     const native = nativeDeclarationContext(context);
     // The attribute names bind to transient symbols; the props type the element expects names the declaration.
     const targetIsNative = (opening: TSESTree.JSXOpeningElement): boolean => {
-      if (opening.name.type === "JSXIdentifier" && NATIVE_TITLE_OWNERS.has(opening.name.name)) {
+      if (opening.name.type === AST_NODE_TYPES.JSXIdentifier && NATIVE_TITLE_OWNERS.has(opening.name.name)) {
         return false;
       }
       const attributes = (native.esTreeNodeToTSNodeMap.get(opening) as ts.JsxOpeningLikeElement).attributes;
@@ -347,9 +348,9 @@ export const nativeTitleRule: OrbRule = {
     const intrinsicFactoryProps = (object: TSESTree.Node): boolean => {
       const call = object.parent;
       return (
-        call?.type === "CallExpression" &&
+        call?.type === AST_NODE_TYPES.CallExpression &&
         call.arguments[1] === object &&
-        call.arguments[0]?.type === "Literal" &&
+        call.arguments[0]?.type === AST_NODE_TYPES.Literal &&
         typeof call.arguments[0].value === "string" &&
         /^(?:createElement|cloneElement|jsxs?|jsxDEV)$/u.test(context.sourceCode.getText(call.callee).split(".").pop() ?? "")
       );
@@ -373,8 +374,8 @@ export const nativeTitleRule: OrbRule = {
         },
       "AssignmentExpression > MemberExpression.left": (left: TSESTree.MemberExpression): void => {
         const named = left.computed
-          ? left.property.type === "Literal" && left.property.value === "title"
-          : left.property.type === "Identifier" && left.property.name === "title";
+          ? left.property.type === AST_NODE_TYPES.Literal && left.property.value === "title"
+          : left.property.type === AST_NODE_TYPES.Identifier && left.property.name === "title";
         const type = native.checker.getTypeAtLocation(native.esTreeNodeToTSNodeMap.get(left.object));
         if (named && fromReactTypes(type.getProperty("title")?.declarations)) {
           context.report({ node: left.property, message: NATIVE_TITLE_MESSAGE });

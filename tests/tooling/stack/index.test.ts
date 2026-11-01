@@ -328,7 +328,10 @@ test("a healthy port is NOT identity — a stale incumbent on our port classifie
 });
 
 test("`up` on a verified-healthy instance ADOPTS in place — never a second spawn", () => {
-  expect(decideUp(classifyInstance({ record: RECORD, observed: OBSERVED, recordProcessAlive: true }))).toEqual({ action: "adopt", reason: expect.any(String) });
+  expect(decideUp(classifyInstance({ record: RECORD, observed: OBSERVED, recordProcessAlive: true }))).toEqual({
+    action: "adopt",
+    reason: expect.any(String),
+  });
 });
 
 test("an empty port with a stale pidfile is `absent` — spawn, and stop is a no-op", () => {

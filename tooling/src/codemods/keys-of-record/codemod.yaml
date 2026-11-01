@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "keys-of-record"
+version: "0.1.0"
+description: "Replace Object.keys(R) as (keyof typeof R)[] with the testkit keysOf reader."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript", "tsx"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

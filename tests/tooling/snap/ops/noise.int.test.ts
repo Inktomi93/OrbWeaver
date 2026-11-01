@@ -1,12 +1,12 @@
 // A request a harness navigation discards is not an app failure; a failure on the kept document still is.
 import type { ServerResponse } from "node:http";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { expect, test } from "@orb/testkit/tooling";
 import { launchProbeSession, withProbeSession } from "@orb/tooling/floor/browser/browser";
 import { vi } from "vitest";
 import { partitionFailedRequests } from "../../../../tooling/src/snap/ops/noise.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { listeningAddress } from "../../_server-address.ts";
 
 vi.setConfig({ testTimeout: scaledBudget(60_000, 4), hookTimeout: scaledBudget(60_000, 4) });
 
@@ -43,7 +43,7 @@ test("aborts from a document the harness navigated away from leave the verdict; 
     response.end(url === "/kept" ? KEPT_PAGE : STREAM_PAGE);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const origin = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+  const origin = `http://127.0.0.1:${String(listeningAddress(server).port)}`;
   const session = await launchProbeSession({
     headless: true,
     viewport: { width: 640, height: 480 },
@@ -103,7 +103,7 @@ test.each(["download", "no-content"] as const)("a %s navigation keeps the page, 
     response.end(STAYING_PAGE);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const origin = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+  const origin = `http://127.0.0.1:${String(listeningAddress(server).port)}`;
   const session = await launchProbeSession({
     headless: true,
     viewport: { width: 640, height: 480 },

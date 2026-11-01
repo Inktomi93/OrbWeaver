@@ -12,8 +12,8 @@ test("StackVerb derives from the tuple — one axis, no re-spell", () => {
 });
 
 test("a failed parse cannot be read as an invocation", () => {
-  // @ts-expect-error — `invocation` exists only on the ok:true arm; the shell must narrow first.
-  void parsed.invocation;
+  // `invocation` exists only on the ok:true arm; the shell must narrow first.
+  expectTypeOf(parsed).not.toHaveProperty("invocation");
   expectTypeOf<Extract<StackParse, { ok: true }>["invocation"]["verb"]>().toEqualTypeOf<StackVerb>();
 });
 

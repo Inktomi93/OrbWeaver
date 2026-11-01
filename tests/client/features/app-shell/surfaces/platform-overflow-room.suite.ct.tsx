@@ -53,7 +53,9 @@ async function triggersAgainst(
   const boxes = await page
     .locator(TRIGGER)
     .evaluateAll((elements) =>
-      elements.filter((element) => element.checkVisibility()).map((element) => element.getBoundingClientRect().toJSON() as { left: number; right: number }),
+      elements
+        .filter((element) => element.checkVisibility())
+        .map((element) => ({ left: element.getBoundingClientRect().left, right: element.getBoundingClientRect().right })),
     );
   return { shown: boxes.length, off: boxes.filter((box) => box.left < -SUBPIXEL || box.right > width + SUBPIXEL) };
 }

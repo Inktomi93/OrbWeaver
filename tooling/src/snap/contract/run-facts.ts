@@ -6,6 +6,7 @@ import { artifactRefSchema, factBatchIdSchema, instrumentCurrentScopeSchema } fr
 import type { DiagnosticRetentionSummary } from "../../floor/browser/browser-evidence-ring.ts";
 import { browserEvidenceRetentionBatchSchema, diagnosticRetentionSummary } from "../../floor/browser/browser-evidence-ring.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
+import { readMember } from "../../floor/instrument/member.ts";
 import { DESIGN_AUDIT_SEVERITIES } from "../../ui-audit/index.ts";
 import type { Arm } from "./arm-vocabulary.ts";
 import { snapRatePostureSchema } from "./rate-posture.ts";
@@ -355,11 +356,11 @@ function parseSnapArmFact(value: unknown): SnapArmFact {
     return snapArmFactSchema.parse(value);
   } catch (error) {
     const record = typeof value === "object" && value !== null ? value : {};
-    const arm = Reflect.get(record, "arm");
-    const schema = Reflect.get(record, "schema");
-    const expected = typeof arm === "string" ? Reflect.get(ARM_FACT_SCHEMA_IDS, arm) : undefined;
+    const arm = readMember(record, "arm");
+    const schema = readMember(record, "schema");
+    const expected = typeof arm === "string" ? readMember(ARM_FACT_SCHEMA_IDS, arm) : undefined;
     const prefix =
-      expected !== undefined && schema !== expected ? `unknown ${arm} fact schema ${JSON.stringify(schema)}` : `malformed ${String(arm)} fact data`;
+      expected !== undefined && schema !== expected ? `unknown ${String(arm)} fact schema ${JSON.stringify(schema)}` : `malformed ${String(arm)} fact data`;
     throw new Error(`${prefix}: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
 }

@@ -3,7 +3,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -18,6 +17,7 @@ import type { SnapArmFact } from "../../../../tooling/src/snap/contract/run-fact
 import type { SnapRunIndex } from "../../../../tooling/src/snap/contract/run-index.ts";
 import { parseSnapArgs, SNAP_HELP, snapFlagDescriptors } from "../../../../tooling/src/snap/index.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { listeningAddress } from "../../_server-address.ts";
 
 const CLI_TIMEOUT_MS = scaledBudget(120_000, 4);
 const READY_ATTEMPTS = 100;
@@ -91,7 +91,7 @@ async function startPageServer(): Promise<{ readonly base: string; readonly clos
     response.end(PAGE);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address() as AddressInfo;
+  const address = listeningAddress(server);
   return {
     base: `http://127.0.0.1:${String(address.port)}`,
     close: async () => await new Promise<void>((resolve, reject) => server.close((error) => (error === undefined ? resolve() : reject(error)))),

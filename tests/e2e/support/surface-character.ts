@@ -8,7 +8,7 @@ import type { DistributiveOmit } from "@orb/testkit/browser/spec";
 import { controlledPanel, markExpectedSurfaceHttpFailure } from "@orb/testkit/browser/spec";
 import type { SurfaceAuditRequest } from "@orb/testkit/ct";
 import type { SurfaceCoverageInventory } from "@orb/testkit/iso";
-import { parseSurfaceProviderEvidence } from "@orb/testkit/iso";
+import { keysOf, parseSurfaceProviderEvidence } from "@orb/testkit/iso";
 import { abortProcedure, attachNativeFile, isTrpcRequestFor, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
@@ -1232,7 +1232,7 @@ async function disposableArea(flow: CharacterFlow, area: DisposableArea, origina
         await lookFailureJourney(flow, id);
       },
       "trust-actions": async (): Promise<void> => {
-        for (const action of Object.keys(ACTION_DISPOSITIONS) as (keyof typeof ACTION_DISPOSITIONS)[]) {
+        for (const action of keysOf(ACTION_DISPOSITIONS)) {
           expectSubject(flow, action, "action");
           flow.observations.push({ id: action, kind: "action", ...ACTION_DISPOSITIONS[action] });
         }

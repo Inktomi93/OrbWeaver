@@ -11,9 +11,11 @@ declare const chatId: ChatId;
 declare const target: TagTargetRef;
 
 test("suggestion mutation callbacks preserve branded target correlation before serialization", () => {
-  expectTypeOf(accept.mutate({ tagId, ...target })).toEqualTypeOf<void>();
-  expectTypeOf(reject.mutate({ tagId, ...target })).toEqualTypeOf<void>();
-  expectTypeOf(accept.mutate({ tagId, targetType: "character", targetId: characterId, status: "accepted" })).toEqualTypeOf<void>();
+  expectTypeOf(accept.mutate).returns.toEqualTypeOf<void>();
+  expectTypeOf(reject.mutate).returns.toEqualTypeOf<void>();
+  accept.mutate({ tagId, ...target });
+  reject.mutate({ tagId, ...target });
+  accept.mutate({ tagId, targetType: "character", targetId: characterId, status: "accepted" });
 
   // @ts-expect-error the wire's raw string input does not erase the client callback's character id
   accept.mutate({ tagId, targetType: "character", targetId: chatId });

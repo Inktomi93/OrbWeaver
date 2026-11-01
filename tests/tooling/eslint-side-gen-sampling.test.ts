@@ -3,6 +3,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
+import { levelOf, resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const RULE = "orb/no-hardcoded-side-gen-sampling";
@@ -15,14 +16,14 @@ beforeAll(async () => {
 }, 120_000);
 
 async function findings(source: string, path = VERB): Promise<readonly string[]> {
-  const config = await eslint.calculateConfigForFile(join(ROOT, path));
+  const config = await resolvedConfig(eslint, join(ROOT, path));
   const found = new Linter({ cwd: ROOT }).verify(
     source,
     {
       files: ["**/*.{ts,tsx}"],
-      plugins: config?.plugins ?? {},
+      plugins: config.plugins,
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null } },
-      rules: { [RULE]: config?.rules?.[RULE] ?? "off" },
+      rules: { [RULE]: config.rules[RULE] ?? "off" },
     },
     { filename: join(ROOT, path) },
   );
@@ -34,8 +35,8 @@ async function findings(source: string, path = VERB): Promise<readonly string[]>
 }
 
 async function inScope(path: string): Promise<boolean> {
-  const config = await eslint.calculateConfigForFile(join(ROOT, path));
-  return config?.rules?.[RULE]?.[0] === 2;
+  const config = await resolvedConfig(eslint, join(ROOT, path));
+  return levelOf(config.rules[RULE]) === 2;
 }
 
 test.for([

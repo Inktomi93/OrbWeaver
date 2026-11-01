@@ -46,7 +46,7 @@ function rawWordsOf(text: string): string[] {
 }
 
 function startsUpper(word: string): boolean {
-  const first = [...word][0] ?? "";
+  const first = Array.from(word)[0] ?? "";
   return first !== first.toLowerCase();
 }
 
@@ -90,7 +90,7 @@ const NAME_STOPWORDS = [
 // A one-letter name word never names on its own either: an apostrophe splits `T'Pol` into `t` + `pol` and
 // `don't` into `don` + `t`, so `t` would make every "don't" name T'Pol.
 function isNonNaming(word: string): boolean {
-  return [...word].length === 1 || NAME_STOPWORDS.some((s) => s === word);
+  return Array.from(word).length === 1 || NAME_STOPWORDS.some((s) => s === word);
 }
 
 /** Where `seq` first occurs as consecutive words of `words`, or -1. */

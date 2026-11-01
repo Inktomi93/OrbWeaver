@@ -1,5 +1,6 @@
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import { staticTextValue, unwrapTsValue } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 import { calledMember, effectiveArguments } from "./ui-dom.ts";
@@ -21,7 +22,7 @@ function argumentText(context: OrbRuleContext, node: TSESTree.Node): string | un
     return value;
   }
   const expression = unwrapTsValue(node);
-  return expression.type === "TemplateLiteral" ? expression.quasis.map((quasi) => quasi.value.cooked ?? "").join("\u0000") : undefined;
+  return expression.type === AST_NODE_TYPES.TemplateLiteral ? expression.quasis.map((quasi) => quasi.value.cooked ?? "").join("\u0000") : undefined;
 }
 
 /** Judges selector-shaped strings and DOM selector arguments; prose may name a vendor without addressing its DOM. */

@@ -1,9 +1,9 @@
 import type { Server } from "node:http";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { expect, test } from "@orb/testkit/tooling";
 import { afterEach, beforeEach } from "vitest";
 import { provisionRatedStageThemes } from "../../../../tooling/src/floor/appearance/rated-theme-fixture.ts";
+import { listeningAddress } from "../../_server-address.ts";
 
 interface StoredTheme {
   readonly id: string;
@@ -78,7 +78,7 @@ beforeEach(async () => {
     });
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  baseUrl = `http://127.0.0.1:${listeningAddress(server).port}`;
 });
 
 afterEach(async () => {

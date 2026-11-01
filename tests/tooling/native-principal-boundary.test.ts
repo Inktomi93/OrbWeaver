@@ -5,6 +5,7 @@ import { dirname, join, relative } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
+import { resolvedConfig } from "./_eslint-config.ts";
 import { cruiseRules, fires, unresolvable } from "./_native-cruise.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
@@ -30,7 +31,7 @@ await ordinary.calculateConfigForFile(join(ROOT, VERB));
 
 /** Runs one configured rule without building a TypeScript program for the deliberately invalid snippets. */
 async function findings(path: string, source: string, ruleId: string): Promise<readonly (string | null)[]> {
-  const config = await ordinary.calculateConfigForFile(join(ROOT, path));
+  const config = await resolvedConfig(ordinary, join(ROOT, path));
   const rule = config.rules[ruleId];
   const messages = new Linter({ cwd: ROOT }).verify(
     source,
@@ -751,7 +752,7 @@ test.for([
   { name: "seam wrapper export", path: `${SERVER}/entry/auth/seam.ts`, source: "export const forge = mintPrincipal;" },
   { name: "bridge re-export", path: `${SERVER}/entry/compose/chat.ts`, source: 'export { mintPrincipal as hostMint } from "../auth/principal-mint.ts";' },
 ] as const)("an allowed mint importer cannot republish the mint: $name", async (row) => {
-  const config = await ordinary.calculateConfigForFile(join(ROOT, row.path));
+  const config = await resolvedConfig(ordinary, join(ROOT, row.path));
   const surfaces = Object.keys(config.rules).filter((id) => id.startsWith("orb/role-data-export-surface-"));
   expect(surfaces).toHaveLength(1);
   const [surface] = surfaces;
@@ -764,7 +765,7 @@ test.for([
   { name: "the mint home", path: MINT, off: [SYNTHETIC] },
   { name: "inference package", path: "packages/inference/src/principal-probe.ts", off: [] },
 ] as const)("the normal config enables the Principal construction rules: $name", async (row) => {
-  const rules = (await ordinary.calculateConfigForFile(join(ROOT, row.path))).rules;
+  const { rules } = await resolvedConfig(ordinary, join(ROOT, row.path));
   expect(PRINCIPAL_RULES.filter((rule) => rules[rule] === undefined)).toEqual(row.off);
 });
 

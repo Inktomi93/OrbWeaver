@@ -10,6 +10,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { loadAppearancePreset } from "@orb/testkit/node/helpers";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { z } from "zod";
 import type { AppShellListDockStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -424,7 +425,9 @@ test.describe("on a wide desktop", () => {
     await mount<typeof AppShellStory>(STORY, {});
     const list = page.locator(LIST);
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
-    const boot = await page.evaluate(() => (Reflect.get(globalThis, "__bootGrid") as { cols: string; list: string | null }[])[0]);
+    const boot = z
+      .array(z.object({ cols: z.string(), list: z.string().nullable() }))
+      .parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__bootGrid")))[0];
     expect(boot?.list).toBe("docked");
     const bootList = Number.parseFloat((boot?.cols ?? "").split(" ")[1] ?? "0");
     expect(bootList).toBeGreaterThan(0);

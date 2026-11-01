@@ -14,7 +14,10 @@ const SLACK = 1;
 /** The box the native arm gives the same text: a sibling clone with the property forced on and no height set. */
 function nativeHeight(field: Locator): Promise<number> {
   return field.evaluate((element: HTMLTextAreaElement) => {
-    const clone = element.cloneNode(true) as HTMLTextAreaElement;
+    const clone = element.cloneNode(true);
+    if (!(clone instanceof HTMLTextAreaElement)) {
+      throw new Error("A textarea clone is not a textarea");
+    }
     clone.style.height = "";
     clone.style.setProperty("field-sizing", "content", "important");
     clone.value = element.value;
@@ -35,7 +38,13 @@ test.describe("without field-sizing support", () => {
       // Firefox 138 to 151 has neither the property nor the typed style map, so the script arm may use only getComputedStyle.
       Reflect.deleteProperty(Element.prototype, "computedStyleMap");
       const supports = CSS.supports.bind(CSS);
-      CSS.supports = (...args: [string, string?]): boolean => (args[0] === "field-sizing" ? false : supports(...(args as [string])));
+      CSS.supports = (...args: [string, string?]): boolean => {
+        const [property, value] = args;
+        if (property === "field-sizing") {
+          return false;
+        }
+        return value === undefined ? supports(property) : supports(property, value);
+      };
       // The skin's class still asks for the property and this browser has it, so it is switched off to leave the script alone.
       document.addEventListener("DOMContentLoaded", () => {
         const style = document.createElement("style");

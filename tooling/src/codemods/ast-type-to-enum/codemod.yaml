@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "ast-type-to-enum"
+version: "0.1.0"
+description: "Rewrite string comparisons against an ESTree node, token, definition or scope type into the typescript-eslint enum member."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

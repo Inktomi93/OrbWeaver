@@ -95,7 +95,7 @@ export function FirstModelSetup({
   const others = connections.filter((connection) => connection.id !== chat.id && connection.tasks.includes(UTILITY_TASK));
   const canUseSame = chat.tasks.includes(UTILITY_TASK);
   const [choice, setChoice] = useState<UtilityChoice>(initialChoice(picked, subscription, canUseSame));
-  const [otherId, setOtherId] = useState<string>(picked ?? others[0]?.id ?? "");
+  const [otherId, setOtherId] = useState<ConnectionListItem["id"] | null>(picked ?? others[0]?.id ?? null);
   const [failure, setFailure] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [chatState, setChatState] = useState<{ readonly pending: boolean; readonly failure: string | null }>({ pending: true, failure: null });
@@ -209,7 +209,7 @@ export function FirstModelSetup({
         <Select
           aria-label="Utility model connection to use"
           disabled={saving}
-          items={others.map((row) => ({ label: connectionSummary(row), value: row.id as string }))}
+          items={others.map((row) => ({ label: connectionSummary(row), value: row.id }))}
           onValueChange={(value): void => {
             if (value !== null) {
               setOtherId(value);

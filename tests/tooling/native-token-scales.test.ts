@@ -9,6 +9,7 @@ import { generateArtifacts } from "@orb/ui/tokens-build";
 import { ESLint, Linter } from "eslint";
 import { __unstable__loadDesignSystem } from "tailwindcss";
 import tseslint from "typescript-eslint";
+import { levelOf, resolvedConfig } from "./_eslint-config.ts";
 
 const RULE = "better-tailwindcss/no-unknown-classes";
 const RESTRICTED_RULE = "better-tailwindcss/no-restricted-classes";
@@ -218,8 +219,8 @@ test("effective UI/client native rules reject stock classes in real class carrie
     ["packages/client/src/features/native-token-control.tsx", "packages/client/src/styles/globals.css", CLIENT_AUTHORED_CLASS, 1],
     ["packages/client/src/features/native-token-control.ts", "packages/client/src/styles/globals.css", CLIENT_AUTHORED_CLASS, 1],
   ] as const) {
-    const config = await eslint.calculateConfigForFile(join(repoRoot, path));
-    expect(config.rules[RULE]?.[0], path).toBe(2);
+    const config = await resolvedConfig(eslint, join(repoRoot, path));
+    expect(levelOf(config.rules[RULE]), path).toBe(2);
     expect(config.settings["better-tailwindcss"]).toEqual({ entryPoint: join(repoRoot, entryPoint) });
     const plugin = config.plugins["better-tailwindcss"];
     expect(plugin).toBeDefined();
@@ -248,7 +249,7 @@ test("effective UI/client native rules reject stock classes in real class carrie
       return messages.map(({ message }) => message);
     };
     const lint = (source: string): readonly string[] => lintWith(RULE, source);
-    expect(config.rules[RESTRICTED_RULE]?.[0], path).toBe(2);
+    expect(levelOf(config.rules[RESTRICTED_RULE]), path).toBe(2);
     expect(RESTRICTED.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length)).toEqual(RESTRICTED.map(() => 1));
     expect(lintWith(RESTRICTED_RULE, `cn("${STRUCTURAL_ARBITRARY}");`)).toEqual([]);
     expect(lintWith(RESTRICTED_RULE, `cn("${OPAQUE_TONE_ROLES}");`)).toEqual([]);

@@ -8,7 +8,7 @@ import { z } from "zod";
 
 import { ProviderError } from "#contract";
 import type { NativeThink } from "../../contract/openai-backend.ts";
-import { serverRootOf } from "../http/fetch-json.ts";
+import { bodyByteReader, serverRootOf } from "../http/fetch-json.ts";
 import { encodeSseData, SSE_DONE_LINE } from "../http/sse.ts";
 
 const CHAT_COMPLETIONS_SUFFIX = "/chat/completions";
@@ -452,7 +452,7 @@ async function cappedText(res: Response): Promise<string> {
   if (res.body === null) {
     return "";
   }
-  const reader = res.body.getReader();
+  const reader = bodyByteReader(res.body);
   const decoder = new TextDecoder();
   let out = "";
   for (;;) {

@@ -7,6 +7,7 @@ import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_TOAST_COOLDOWN_SECONDS,
 import type { ChatId } from "@orb/kit/ids";
 import { MS_PER_SECOND } from "@orb/kit/time";
 import { seedShellState } from "@orb/testkit/browser/spec";
+import type { TrpcRecorder } from "@orb/testkit/ct";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
@@ -44,7 +45,7 @@ async function openRoom(
   { root, corpus, page, show }: Scene,
   registrations: readonly Registration[],
   viewport: { readonly width: number; readonly height: number },
-): Promise<Awaited<ReturnType<typeof routeTrpc>>> {
+): Promise<TrpcRecorder> {
   const caller = await root.internalCallerFor(root.ownerId);
   const room = (await caller.chat.listChats({ limit: 1 })).items[0];
   if (room === undefined) {

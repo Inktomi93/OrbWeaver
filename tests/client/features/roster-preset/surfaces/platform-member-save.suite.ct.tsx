@@ -2,6 +2,7 @@ import { rulePresetKnobBagToInputs } from "@orb/contracts/automation";
 import { createRosterPresetSchema } from "@orb/contracts/roster-preset";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { StreamFrame } from "@orb/contracts/stream";
+import type { ServedHold, TrpcRecorder } from "@orb/testkit/ct";
 import { holdServed, routeOrbSocket, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -62,8 +63,8 @@ async function routeMember(
   root: Root,
   options: { readonly resources: AsyncDisposableStack; readonly delayed?: boolean },
 ): Promise<{
-  readonly calls: Awaited<ReturnType<typeof routeTrpc>>;
-  readonly held: ReturnType<typeof holdServed>;
+  readonly calls: TrpcRecorder;
+  readonly held: ServedHold;
   readonly listening: Promise<void>;
 }> {
   const held = holdServed();

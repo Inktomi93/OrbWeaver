@@ -1,5 +1,6 @@
 import type { RuleVisitor } from "@eslint/core";
-import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
+import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import { contextLiteral } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext, Source } from "./syntax.ts";
 
@@ -9,10 +10,10 @@ const CT_NARRATION_CALLEES = new Set(["test", "it", "describe", "suite", "bench"
 
 const calleeRoot = (callee: TSESTree.Node): string | undefined => {
   let node = callee;
-  while (node.type === "MemberExpression" && !node.computed) {
+  while (node.type === AST_NODE_TYPES.MemberExpression && !node.computed) {
     node = node.object;
   }
-  return node.type === "Identifier" ? node.name : undefined;
+  return node.type === AST_NODE_TYPES.Identifier ? node.name : undefined;
 };
 
 const narrationArgIndex = (root: string | undefined): 1 | 0 | -1 => {
@@ -32,9 +33,9 @@ export const uiCtColorRule: OrbRule = {
         call: TSESTree.CallExpression & { callee: TSESTree.MemberExpression & { computed: false; property: TSESTree.Identifier } },
       ): void {
         const arg = call.arguments[narrationArgIndex(calleeRoot(call.callee))];
-        if (arg?.type === "Literal" && typeof arg.value === "string") {
+        if (arg?.type === AST_NODE_TYPES.Literal && typeof arg.value === "string") {
           blanked.push(arg.range);
-        } else if (arg?.type === "TemplateLiteral") {
+        } else if (arg?.type === AST_NODE_TYPES.TemplateLiteral) {
           blanked.push(...arg.quasis.map(({ range }) => range));
         }
       },
@@ -60,8 +61,8 @@ export const typedTestIdRule = (message: string): OrbRule => ({
     return {
       "JSXAttribute[name.type='JSXIdentifier'][name.name='data-testid']"(node: TSESTree.JSXAttribute): void {
         const value = node.value;
-        const literal = value?.type === "Literal" && typeof value.value === "string";
-        if (literal || (value?.type === "JSXExpressionContainer" && contextLiteral(value.expression) !== undefined)) {
+        const literal = value?.type === AST_NODE_TYPES.Literal && typeof value.value === "string";
+        if (literal || (value?.type === AST_NODE_TYPES.JSXExpressionContainer && contextLiteral(value.expression) !== undefined)) {
           context.report({ node: node.name, message });
         }
       },
@@ -79,12 +80,16 @@ function moduleScopeIntervalsObject(sourceCode: Source, identifier: TSESTree.Ide
       continue;
     }
     const [definition] = variable.defs;
-    const init = variable.defs.length === 1 && definition?.type === "Variable" ? definition.node.init : null;
+    const init = variable.defs.length === 1 && definition?.type === TSESLint.Scope.DefinitionType.Variable ? definition.node.init : null;
     return (
-      (scope.type === "module" || scope.type === "global") &&
-      init?.type === "ObjectExpression" &&
+      (scope.type === TSESLint.Scope.ScopeType.module || scope.type === TSESLint.Scope.ScopeType.global) &&
+      init?.type === AST_NODE_TYPES.ObjectExpression &&
       init.properties.some(
-        (property) => property.type === "Property" && !property.computed && property.key.type === "Identifier" && property.key.name === "intervals",
+        (property) =>
+          property.type === AST_NODE_TYPES.Property &&
+          !property.computed &&
+          property.key.type === AST_NODE_TYPES.Identifier &&
+          property.key.name === "intervals",
       )
     );
   }
@@ -96,24 +101,24 @@ export const ctPollIntervalsSharedRule: OrbRule = {
   create(context: OrbRuleContext): RuleVisitor {
     const report = (node: TSESTree.Node) => context.report({ node, message: POLL_SCHEDULE_MESSAGE });
     const judgeProperty = (property: TSESTree.Property | TSESTree.SpreadElement) => {
-      if (property.type === "SpreadElement") {
-        if (property.argument.type === "Identifier" && moduleScopeIntervalsObject(context.sourceCode, property.argument)) {
+      if (property.type === AST_NODE_TYPES.SpreadElement) {
+        if (property.argument.type === AST_NODE_TYPES.Identifier && moduleScopeIntervalsObject(context.sourceCode, property.argument)) {
           report(property.argument);
         }
-      } else if (!property.computed && property.key.type === "Identifier" && property.key.name === "intervals") {
+      } else if (!property.computed && property.key.type === AST_NODE_TYPES.Identifier && property.key.name === "intervals") {
         if (property.shorthand) {
           report(property);
-        } else if (property.value.type === "Identifier") {
+        } else if (property.value.type === AST_NODE_TYPES.Identifier) {
           report(property.value);
         }
       }
     };
     const judgeOptions = (options: TSESTree.CallExpressionArgument | undefined) => {
-      if (options?.type === "Identifier") {
+      if (options?.type === AST_NODE_TYPES.Identifier) {
         if (moduleScopeIntervalsObject(context.sourceCode, options)) {
           report(options);
         }
-      } else if (options?.type === "ObjectExpression") {
+      } else if (options?.type === AST_NODE_TYPES.ObjectExpression) {
         options.properties.forEach(judgeProperty);
       }
     };
@@ -124,7 +129,7 @@ export const ctPollIntervalsSharedRule: OrbRule = {
         const { callee } = call;
         if (callee.property.name === "toPass") {
           judgeOptions(call.arguments[0]);
-        } else if (callee.property.name === "poll" && callee.object.type === "Identifier" && callee.object.name === "expect") {
+        } else if (callee.property.name === "poll" && callee.object.type === AST_NODE_TYPES.Identifier && callee.object.name === "expect") {
           judgeOptions(call.arguments[1]);
         }
       },
@@ -137,18 +142,18 @@ const EVALUATE_METHODS = new Set(["evaluate", "evaluateAll"]);
 export const FUNCTION_NODES = new Set(["FunctionDeclaration", "ArrowFunctionExpression", "FunctionExpression"]);
 
 function evaluateMethodName(callee: TSESTree.Node): string {
-  if (callee.type !== "MemberExpression") {
+  if (callee.type !== AST_NODE_TYPES.MemberExpression) {
     return "";
   }
   if (callee.computed) {
-    return callee.property.type === "Literal" ? String(callee.property.value) : "";
+    return callee.property.type === AST_NODE_TYPES.Literal ? String(callee.property.value) : "";
   }
-  return callee.property.type === "Identifier" ? callee.property.name : "";
+  return callee.property.type === AST_NODE_TYPES.Identifier ? callee.property.name : "";
 }
 
 function isModuleScoped(scope: TSESLint.Scope.Scope): boolean {
   for (let current: TSESLint.Scope.Scope | null = scope; current !== null; current = current.upper) {
-    if (current.type === "function" || current.type === "function-expression-name") {
+    if (current.type === TSESLint.Scope.ScopeType.function || current.type === TSESLint.Scope.ScopeType.functionExpressionName) {
       return false;
     }
   }
@@ -174,7 +179,7 @@ export const evaluateNoScopeCaptureRule: OrbRule = {
     };
     const captureWithin = (fn: TSESTree.Node, self: TSESLint.Scope.Variable | null | undefined) => {
       for (const reference of sourceCode.getScope(fn).through.filter((candidate) => isModuleCapture(candidate, self))) {
-        if (!sourceCode.getAncestors(reference.identifier).some(({ type }) => type === "TSTypeQuery")) {
+        if (!sourceCode.getAncestors(reference.identifier).some(({ type }) => type === AST_NODE_TYPES.TSTypeQuery)) {
           context.report({
             node: reference.identifier,
             message: `The .evaluate() callback references the module-scope binding \`${(reference.resolved as TSESLint.Scope.Variable).name}\`, which does not exist in the page. Thread it through the evaluate argument or move it inside the callback.`,
@@ -187,7 +192,7 @@ export const evaluateNoScopeCaptureRule: OrbRule = {
     const judgeReference = (arg: TSESTree.Identifier) => {
       const variable = lookup(sourceCode.getScope(arg), arg.name);
       for (const def of variable?.defs ?? []) {
-        const fn = def.type === "FunctionName" ? def.node : (def.node as TSESTree.VariableDeclarator).init;
+        const fn = def.type === TSESLint.Scope.DefinitionType.FunctionName ? def.node : (def.node as TSESTree.VariableDeclarator).init;
         if (FUNCTION_NODES.has(fn?.type as string)) {
           captureWithin(fn as TSESTree.Node, variable);
         }
@@ -202,9 +207,9 @@ export const evaluateNoScopeCaptureRule: OrbRule = {
       },
       "Program:exit"(): void {
         for (const arg of callbacks) {
-          if (arg.type === "ArrowFunctionExpression" || arg.type === "FunctionExpression") {
+          if (arg.type === AST_NODE_TYPES.ArrowFunctionExpression || arg.type === AST_NODE_TYPES.FunctionExpression) {
             captureWithin(arg, null);
-          } else if (arg.type === "Identifier") {
+          } else if (arg.type === AST_NODE_TYPES.Identifier) {
             judgeReference(arg);
           }
         }

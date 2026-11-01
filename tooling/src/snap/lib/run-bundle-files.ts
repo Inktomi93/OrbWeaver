@@ -9,6 +9,7 @@ import { instrumentArtifactDeclarationSchema } from "../../floor/artifacts/artif
 import { artifactRef, instrumentLegacyScopeSchema } from "../../floor/artifacts/artifact-scope.ts";
 import { checkoutName } from "../../floor/artifacts/artifacts.ts";
 import { runGit } from "../../floor/git/git.ts";
+import { readMember } from "../../floor/instrument/member.ts";
 import type { Arm } from "../contract/arm-vocabulary.ts";
 import { ARMS } from "../contract/arm-vocabulary.ts";
 import type { SnapRunArtifact, SnapRunIndex } from "../contract/run-index.ts";
@@ -129,7 +130,7 @@ export async function readSnapRunStartedAt(slotDir: string): Promise<string> {
   try {
     const marker: unknown = JSON.parse(await readFile(join(slotDir, ".inflight"), "utf8"));
     if (typeof marker === "object" && marker !== null) {
-      const startedAt = Reflect.get(marker, "startedAt");
+      const startedAt = readMember(marker, "startedAt");
       if (typeof startedAt === "string") {
         return startedAt;
       }
@@ -156,7 +157,7 @@ interface SnapArtifactDeclaration extends Omit<InstrumentArtifactDeclaration, "p
 }
 
 function errorCode(error: unknown): unknown {
-  return typeof error === "object" && error !== null ? Reflect.get(error, "code") : null;
+  return typeof error === "object" && error !== null ? readMember(error, "code") : null;
 }
 
 async function readArtifactDeclarations(slotDir: string): Promise<ReadonlyMap<string, SnapArtifactDeclaration>> {

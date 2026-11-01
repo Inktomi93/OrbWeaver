@@ -95,11 +95,7 @@ function QuestObjectives({ quest, dim, edit }: { readonly quest: RpgQuestView; r
       {quest.objectives.map((o) => (
         <Row key={o.id} gap="field" align="center">
           {editable ? (
-            <Checkbox
-              checked={o.completed}
-              onCheckedChange={(next): void => edit.onToggleObjective(quest, o.id, next === true)}
-              aria-label={`${o.text} — completed`}
-            />
+            <Checkbox checked={o.completed} onCheckedChange={(next): void => edit.onToggleObjective(quest, o.id, next)} aria-label={`${o.text} — completed`} />
           ) : null}
           <Text as="span" voice="label" ink={o.completed ? "muted" : undefined} strike={o.completed} className="flex-1 min-inline-0">
             {o.text}
