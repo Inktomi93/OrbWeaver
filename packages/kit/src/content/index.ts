@@ -389,6 +389,10 @@ function scanLooseHiddenOpen(content: string, start: number): TagScanOutcome {
   if (name === null) {
     return key < content.length ? TAG_MALFORMED : { kind: "truncated", tag };
   }
+  // SECURITY: a word that fills the window may run past it, and the bytes past a bound cannot prove prose.
+  if (name[0].length === IDENT_WINDOW) {
+    return { kind: "loose", tag };
+  }
   const equals = skipAttrGap(content, key + name[0].length);
   if (equals >= content.length) {
     return { kind: "truncated", tag };
@@ -829,7 +833,9 @@ function scanTags(text: string, brokenHidden: BrokenHiddenPosture): Expanded[] {
       return out;
     }
     const span = outcome.kind === "tag" ? classifyTag(outcome.scan, text.slice(i, outcome.scan.end)) : null;
-    if (outcome.kind !== "tag" || span === null) {
+    // SECURITY: on the hidden scan only a hidden tag owns its bytes. Another tag's quoted value is text a member receives,
+    // so a tag inside it, and a close that lands inside a hidden tag's value, are read like any others (D285).
+    if (outcome.kind !== "tag" || span === null || (brokenHidden === "body" && span.kind !== "hidden")) {
       i = text.indexOf("<", i + 1);
       continue;
     }
@@ -1079,9 +1085,10 @@ export function relinkContentAssets(content: string, relink: ReadonlyMap<AssetId
 export type HiddenContentSpan = Extract<ContentSpan, { kind: "hidden" }>;
 
 /** One pass of THE §3.6 HIDDEN SCAN: the tag walker over the whole text, and nothing else. No directive fence swallows a
- *  tag into an opaque `raw`, no code block leaves one literal, and no line split cuts one in two, so the strip, the reveal
- *  and the stream all read one grammar. SECURITY: the render grammar's fence rules are a question of how a reader sees a
- *  document, and a member must never receive these bytes however a document reads. */
+ *  tag into an opaque `raw`, no code block leaves one literal, no other tag shelters one in a quoted value, and no line
+ *  split cuts one in two, so the strip, the reveal and the stream all read one grammar. SECURITY: the render grammar's
+ *  fence rules are a question of how a reader sees a document, and a member must never receive these bytes however a
+ *  document reads. */
 function scanHiddenLayer(text: string): LocatedHiddenSpan[] {
   let cursor = 0;
   return scanTags(text, "body").flatMap((part) => {
@@ -1214,10 +1221,15 @@ export function projectHiddenSpans(
   };
 }
 
-/** Did the strip lose the rest of this body to a hidden tag that broke the grammar, as opposed to one the input cut
- *  short? */
-export function concealsBrokenHiddenTag(content: string): boolean {
-  return scanHiddenSpans(content).some((span) => scanSelfClosingTag(span.raw, 0).kind === "loose");
+/** Did the strip lose the rest of this body to a hidden tag? A tag that broke the grammar counts always. A tag left
+ *  unfinished, one past the scan bound, and a nest past the pass bound count unless `cutOff` says the output stopped
+ *  there: an unfinished tag is then the cut itself, and nothing was written after it. A span whose raw outruns its tag is
+ *  the pass bound's conceal. */
+export function concealsBrokenHiddenTag(content: string, cutOff: boolean): boolean {
+  return scanHiddenSpans(content).some((span) => {
+    const verdict = scanSelfClosingTag(span.raw, 0);
+    return verdict.kind === "loose" || (!cutOff && (verdict.kind !== "tag" || verdict.scan.end < span.raw.length));
+  });
 }
 
 /** The STRIP'S TWIN (§3.6): every hidden-class span in a body, in document order — what the host-reveal eye
@@ -1270,7 +1282,8 @@ function endsInsideHiddenName(text: string, lt: number): boolean {
 /** Where a hold must start for an open forming at `lt`, and how many fragments it reaches back through. SECURITY: bytes
  *  ahead of the open may be the start of a tag that the open's removal will rejoin, and bytes once released cannot rejoin
  *  anything, so a member would read the far side of the tag. Past {@link MAX_FRAGMENT_CHAIN} the turn conceals. `floor` is
- *  the end of the last complete tag: a `<` before it may sit inside that tag's quoted value, and a cut there splits the tag. */
+ *  the end of the last complete hidden tag: a `<` before it may sit inside that tag's quoted value, and a cut there splits
+ *  the tag. */
 function fragmentChain(text: string, lt: number, floor: number): { readonly from: number; readonly depth: number } {
   let from = lt;
   let depth = 0;
@@ -1309,13 +1322,17 @@ function cutAtIncompleteOpen(text: string): StreamCut {
   let lt = text.indexOf("<");
   let floor = 0;
   while (lt !== -1) {
-    // A COMPLETE self-closing tag (hidden OR not) is consumed WHOLE: skip PAST its `/>` so an inner `<` in its
-    // attr value is never mistaken for a new open (the D106 mid-stream leak). `settleDelta` on the released
-    // `safe` prefix drops it if it was hidden; a non-hidden complete tag stays literal — both handled downstream.
+    // A COMPLETE hidden tag is consumed WHOLE: skip PAST its `/>` so an inner `<` in its attr value is never mistaken for
+    // a new open (the D106 mid-stream leak), and `settleDelta` drops it from the released `safe` prefix. Any other complete
+    // tag owns nothing, as on the strip: a tag inside its quoted value is still a tag (D285).
     const outcome = scanSelfClosingTag(text, lt);
     if (outcome.kind === "tag") {
-      floor = outcome.scan.end;
-      lt = text.indexOf("<", floor);
+      if (isHiddenTagName(outcome.scan.tag)) {
+        floor = outcome.scan.end;
+        lt = text.indexOf("<", floor);
+      } else {
+        lt = text.indexOf("<", lt + 1);
+      }
       continue;
     }
     // Not a complete tag. A hidden open whose close hasn't arrived, or a name still arriving, HOLDS the whole run

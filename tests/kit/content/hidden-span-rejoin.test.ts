@@ -83,8 +83,8 @@ test("tags side by side are one run: nothing a writer places can land between th
 });
 
 test("a broken tag behind a seam is reported as broken", () => {
-  expect(concealsBrokenHiddenTag(`a <l${INNER}ie truth=${SECRET} b`)).toBe(true);
-  expect(concealsBrokenHiddenTag(REJOINED)).toBe(false);
+  expect(concealsBrokenHiddenTag(`a <l${INNER}ie truth=${SECRET} b`, false)).toBe(true);
+  expect(concealsBrokenHiddenTag(REJOINED, false)).toBe(false);
 });
 
 test.each([
