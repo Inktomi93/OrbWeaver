@@ -8,6 +8,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatBusEvent, SendContentBlock } from "@orb/contracts/chat";
 import { contentSpansToBlocks, SEND_BLOCK_LIMITS } from "@orb/contracts/chat";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
+import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
 import { tokenizeContent } from "@orb/kit/content";
 import type { AssetId, ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -399,6 +400,7 @@ test("a regex-made card that would swallow a picture refuses before anything com
 test.for([
   { name: "removes", findRegex: "/[\\s\\S]+/g", replaceString: "gone" },
   { name: "duplicates", findRegex: "/[\\s\\S]+/g", replaceString: "$&$&" },
+  { name: "strips as non-ASCII", findRegex: "/[^\\x00-\\x7F]/g", replaceString: "" },
 ])("a transform that $name a picture placeholder refuses", async ({ findRegex, replaceString }) => {
   const box = await openBox();
   await hostRegex(box, findRegex, replaceString);
@@ -466,6 +468,51 @@ test("one send's freezes draw independently across blocks and the authored body 
   expect(wire.rawContent).toContain(`![${ALT}](asset:${assetId})`);
   expect(wire.rawContent).toContain("{{roll:1d1000}}");
   expect(wire.macroFreezes).toHaveLength(rolls.length);
+});
+
+const PLACEHOLDER = String.fromCodePoint(0xe0_00);
+
+test("{{input}} reads the block text, as on an attachment send, and no placeholder reaches the provider", async () => {
+  const box = await openBox();
+  const character = await box.root.services.character.create({
+    principal: box.host,
+    input: createCharacterSchema.parse({ handle: "input-echo", name: "Echo", description: "INPUT<{{input}}>" }),
+  });
+  const room = await box.root.services.chat.startChat({ principal: box.host, characterIds: [character.id], opening: "none" });
+  const assetId = await storePicture(box, box.host);
+
+  await box.caller.chat.send({ chatId: room.chat.id, content: "", blocks: mixedBlocks(assetId), timeZone: UTC_TIME_ZONE });
+
+  expect(lastRequest(box)).toContain(JSON.stringify(`INPUT<${BEFORE}\n\n${AFTER}>`).slice(1, -1));
+  expect(box.chatBodies.join()).not.toContain(PLACEHOLDER);
+});
+
+test("a world-info key never matches a picture placeholder", async () => {
+  const box = await openBox();
+  const book = await box.root.services.worldInfo.createBook({ principal: box.host, input: createBookSchema.parse({ name: "Scan" }) });
+  await box.root.services.worldInfo.createEntry({
+    principal: box.host,
+    bookId: book.id,
+    input: createEntrySchema.parse({ title: "Scan", content: "SCAN-FIRED", keys: [PLACEHOLDER] }),
+  });
+  await box.root.services.worldInfo.attachToChat({ principal: box.host, chatId: box.chatId, bookId: book.id });
+
+  await sendBlocks(box, mixedBlocks(await storePicture(box, box.host)));
+
+  expect(lastRequest(box)).not.toContain("SCAN-FIRED");
+});
+
+test("a macro that spans a picture stores the ref, never a placeholder, in its freeze record", async () => {
+  const box = await openBox();
+  const assetId = await storePicture(box, box.host);
+
+  await sendBlocks(box, [MARKDOWN("{{random::"), IMAGE_BLOCK(assetId), MARKDOWN("}}")]);
+
+  const [message] = (await box.caller.chat.listMessages({ chatId: box.chatId })).messages;
+  expect(message?.content).toContain(`![${ALT}](asset:${assetId})`);
+  const wire = await box.caller.chat.getVariantWire({ chatId: box.chatId, variantId: message?.selectedVariantId ?? ("" as never) });
+  expect(JSON.stringify(wire.macroFreezes)).toContain(`asset:${assetId}`);
+  expect(JSON.stringify([message?.content, wire.rawContent, wire.macroFreezes])).not.toContain(PLACEHOLDER);
 });
 
 test("a repeated picture places once per occurrence with one link", async () => {

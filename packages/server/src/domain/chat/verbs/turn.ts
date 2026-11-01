@@ -33,10 +33,12 @@ import {
   buildIdentityNameContext,
   composeSendBody,
   DEFAULT_GROUP_CONFIG,
+  fillSendPictures,
   isAiDriven,
   picturesPlaceExactlyOnce,
   placeSendPictures,
   sendBlockDraft,
+  sendBlockText,
   speakerKey,
 } from "@orb/contracts/chat";
 import type { ParticipantRoleState, Principal } from "@orb/contracts/identity";
@@ -673,6 +675,7 @@ async function buildTurnContext(
      *  human states `{kind:"none"}`. */
     readonly trigger: TurnTrigger;
     readonly pendingUserText?: string | undefined;
+    readonly sendDraft?: string | undefined;
     /** D58 slot-adjacency: is this turn (re)generating the assistant slot that DIRECTLY responds
      *  to the latest user message (send / deferred-drain / swipe-of-that-slot)? Drives the rpg dice feed-forward
      *  flag + eligibility so a later GM/auto round never re-feeds a stale die. Absent ⇒ false (ineligible). */
@@ -801,6 +804,7 @@ async function buildTurnContext(
       choicePicks: "random",
       timeZone: args.timeZone,
       ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText } : {}),
+      ...(args.sendDraft !== undefined ? { sendDraft: args.sendDraft } : {}),
       ...(args.guided !== undefined ? { guided: args.guided } : {}),
       // The rpg gather-args: macro feed + the game turn's `{{expr::…}}` CEL activation (parity-plus §12), each
       // omitted when absent so a non-game turn / a lite gather that stages none stays byte-identical (⇒
@@ -1395,6 +1399,15 @@ async function freezeGreetingVolatiles(
   }
 }
 
+/** A macro that spanned a picture froze the placeholder; the record stores the ref, so it replays the stored body. */
+function placedFreezes(blocks: NonNullable<SendParams["blocks"]>, freezes: MacroFreezeRecord): MacroFreezeRecord {
+  return freezes.map(({ args, value, ...freeze }) => ({
+    ...freeze,
+    ...(args === undefined ? {} : { args: fillSendPictures(blocks, args) }),
+    value: fillSendPictures(blocks, value),
+  }));
+}
+
 /** The last step of a structured send: replace the transformed draft's placeholders with picture refs, then run
  *  the wire's macro pass and tokenizer over the result. A picture that would not reach the model exactly as
  *  authored refuses here, before the row commits. */
@@ -1707,6 +1720,7 @@ async function commitUserTurn(
       anchorPersonaId: membership.chat.anchorPersonaId,
       trigger: humanTrigger(principal.userId, personaId !== undefined ? personaId : membership.activePersonaId),
       pendingUserText: content,
+      ...(blocks === undefined ? {} : { sendDraft: sendBlockDraft(blocks) }),
       // A send's AI response directly responds to the just-committed user message (D58): the
       // player's queued d20 feeds its first skill check. Always true for a send.
       respondsToLatestUserTurn: true,
@@ -1743,7 +1757,7 @@ async function commitUserTurn(
     // USER_INPUT regex and the attachment compose; `rawContent` is what the human actually typed. The writer
     // collapses it to NULL whenever none of those legs changed a byte.
     rawContent: blocks === undefined ? content : composeSendBody(blocks),
-    macroFreezes: sendOut.sendMacroFreezes ?? [],
+    macroFreezes: blocks === undefined ? (sendOut.sendMacroFreezes ?? []) : placedFreezes(blocks, sendOut.sendMacroFreezes ?? []),
     authorUserId: principal.userId,
     // An omitted personaId stamps the acting participant's active persona; an explicit id (or null) wins.
     personaId: stampedPersonaId,
@@ -1775,8 +1789,8 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
     guided,
     timeZone,
   }: SendParams): Promise<TurnOutcome> => {
-    // The draft holds placeholders, so the mention resolvers below never read an alt.
-    const content = blocks === undefined ? plainContent : sendBlockDraft(blocks);
+    // Block text only, as an attachment send's text reads: the mention resolvers below never see an alt.
+    const content = blocks === undefined ? plainContent : sendBlockText(blocks);
     const { membership, room, identity, connection, group, userView, built } = await commitUserTurn(ctx, deps, {
       principal,
       chatId,

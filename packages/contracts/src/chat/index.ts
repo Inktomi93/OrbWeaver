@@ -133,12 +133,15 @@ export type { CardTrust, ContentSpansToBlocksOptions, MessageContentBlock, SendC
 export {
   composeSendBody,
   contentSpansToBlocks,
+  fillSendPictures,
   messageContentBlockSchema,
   picturesPlaceExactlyOnce,
   placeSendPictures,
   SEND_BLOCK_LIMITS,
   sendBlockDraft,
+  sendBlockText,
   sendContentBlocksSchema,
+  stripSendPlaceholders,
 } from "./content-blocks.ts";
 
 export type { AnchorState, ChatDetail, RedeemInviteResult } from "./detail.ts";

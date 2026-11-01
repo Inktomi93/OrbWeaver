@@ -123,16 +123,42 @@ export function sendBlockDraft(blocks: readonly SendContentBlock[]): string {
   return blocks.map((block) => (block.kind === "markdown" ? block.md : placeholderFor(picture++))).join(SEND_BLOCK_SEPARATOR);
 }
 
-/** The transformed draft with its placeholders replaced by picture refs, or `null` when a transform removed,
- *  repeated or invented one. */
-export function placeSendPictures(blocks: readonly SendContentBlock[], text: string): string | null {
+/** A send's block text alone, as an attachment send's text reads: what every reader past the transforms gets. */
+export function sendBlockText(blocks: readonly SendContentBlock[]): string {
+  return blocks.flatMap((block) => (block.kind === "markdown" ? [block.md] : [])).join(SEND_BLOCK_SEPARATOR);
+}
+
+/** The transformed draft without its placeholders, or the paragraph a placeholder had alone: what the world-info
+ *  scan and `{{input}}` read, shaped like the same text on an attachment send. */
+export function stripSendPlaceholders(text: string): string {
+  const placeholders = new RegExp(SEND_PICTURE_PLACEHOLDERS, "gu");
+  return text
+    .split(SEND_BLOCK_SEPARATOR)
+    .flatMap((paragraph) => {
+      const stripped = paragraph.replace(placeholders, "");
+      return stripped.length === 0 && paragraph.length > 0 ? [] : [stripped];
+    })
+    .join(SEND_BLOCK_SEPARATOR);
+}
+
+/** `text` with each placeholder replaced by its picture ref. An unknown placeholder drops. */
+export function fillSendPictures(blocks: readonly SendContentBlock[], text: string): string {
   const refs = sendPictures(blocks).map(pictureRef);
-  const refOf = (placeholder: string): string | undefined => refs[(placeholder.codePointAt(0) ?? 0) - SEND_PICTURE_PLACEHOLDER_BASE];
+  return text.replace(
+    new RegExp(SEND_PICTURE_PLACEHOLDERS, "gu"),
+    (placeholder) => refs[(placeholder.codePointAt(0) ?? 0) - SEND_PICTURE_PLACEHOLDER_BASE] ?? "",
+  );
+}
+
+/** The transformed draft with its pictures placed, or `null` when a transform removed, repeated or invented one. */
+export function placeSendPictures(blocks: readonly SendContentBlock[], text: string): string | null {
+  const count = sendPictures(blocks).length;
   const found = text.match(new RegExp(SEND_PICTURE_PLACEHOLDERS, "gu")) ?? [];
-  if (found.length !== refs.length || new Set(found).size !== refs.length || found.some((placeholder) => refOf(placeholder) === undefined)) {
+  const indexes = new Set(found.map((placeholder) => (placeholder.codePointAt(0) ?? 0) - SEND_PICTURE_PLACEHOLDER_BASE));
+  if (found.length !== count || indexes.size !== count || [...indexes].some((index) => index >= count)) {
     return null;
   }
-  return text.replace(new RegExp(SEND_PICTURE_PLACEHOLDERS, "gu"), (placeholder) => refOf(placeholder) ?? "");
+  return fillSendPictures(blocks, text);
 }
 
 /** The body as authored, before any transform: what `rawContent` keeps. */
