@@ -23,6 +23,7 @@ import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import type { RowDestructiveAction } from "#components";
 import { RowActionsMenu } from "#components";
+import { DIALOG_VERBS } from "#lib";
 import { themeActionsName } from "../lib/theme-row-names.ts";
 
 export interface ThemeRowMenuProps {
@@ -43,7 +44,7 @@ export function ThemeRowMenu({ theme, onApply, onEdit, onDuplicate, onExport, on
     <>
       <MenuItem onClick={onApply}>
         <Icon icon={Check} size="sm" />
-        Apply
+        {DIALOG_VERBS.apply}
       </MenuItem>
       {theme.isSeed ? null : (
         <MenuItem onClick={onEdit}>

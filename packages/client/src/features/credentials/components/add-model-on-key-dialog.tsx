@@ -20,7 +20,7 @@ import { FormDialog, QueryBoundary } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { peekQueryData, useSuspenseQuery } from "#data";
 import { touchedFieldError } from "#forms/editor";
-import { connectionHost, notify } from "#lib";
+import { connectionHost, DIALOG_VERBS, notify } from "#lib";
 import { pushRecentModel } from "#state";
 import { useAddModelOnKeyForm } from "../hooks/use-add-model-on-key-form.ts";
 import { useCreateConnection } from "../hooks/use-connections-mutations.ts";
@@ -152,7 +152,7 @@ function AddModelOnKeyBody({
             )}
           </form.AppField>
           <DialogFooter>
-            <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+            <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
             <form.SubmitButton>{CONNECTION_FORM_COPY.submit}</form.SubmitButton>
           </DialogFooter>
         </Stack>

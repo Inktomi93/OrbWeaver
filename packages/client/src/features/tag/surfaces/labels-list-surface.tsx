@@ -14,7 +14,7 @@ import { selectLabelFromList, setLabelFilter, setTagPruneConfirmOpen, useLabelFi
 import { TagCollectionRows } from "../components/tag-collection-rows.tsx";
 import { useTagCensus, useTagSortControl } from "../hooks/use-tag-library.ts";
 import { LABELS_FINDER_SLOT } from "../lib/labels-focus-targets.ts";
-import { TAG_FILTER_NAME } from "../lib/tag-list-name.ts";
+import { TAG_FILTER_NAME, TAG_MORE_ACTIONS_NAME, TAG_PRUNE_NAME } from "../lib/tag-list-name.ts";
 
 export function LabelsListSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -76,7 +76,7 @@ function LabelsOverflow(): ReactElement {
     <Menu>
       <MenuTrigger
         render={
-          <Button aria-label="More tag actions" variant="ghost" size="sm" square={true}>
+          <Button aria-label={TAG_MORE_ACTIONS_NAME} variant="ghost" size="sm" square={true}>
             <Icon icon={EllipsisVertical} size="sm" />
           </Button>
         }
@@ -84,7 +84,7 @@ function LabelsOverflow(): ReactElement {
       <MenuPopup align="end">
         <MenuItem onClick={(): void => setTagPruneConfirmOpen(true)}>
           <Icon icon={Trash} size="sm" />
-          Prune unused tags
+          {TAG_PRUNE_NAME}
         </MenuItem>
       </MenuPopup>
     </Menu>

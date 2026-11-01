@@ -21,7 +21,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { trpcErrorCode } from "#lib";
+import { DIALOG_VERBS, trpcErrorCode } from "#lib";
 import { useDetachDanglingPointer } from "../hooks/use-rpg-mutations.ts";
 
 export interface RpgErrorStateProps {
@@ -54,7 +54,7 @@ export function RpgErrorState({ chatId, isHost, error, onRetry }: RpgErrorStateP
     <Row role="alert" align="center" justify="center" gap="block" padding="section">
       <Text>Couldn't load the scene.</Text>
       <Button variant="outline" size="sm" onClick={onRetry}>
-        Retry
+        {DIALOG_VERBS.retry}
       </Button>
     </Row>
   );

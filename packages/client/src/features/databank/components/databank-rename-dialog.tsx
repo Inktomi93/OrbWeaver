@@ -6,6 +6,8 @@ import { Input } from "@orb/ui/input";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog } from "#components";
+import { DIALOG_VERBS } from "#lib";
+import { DATABANK_DOCUMENT_NAME_FIELD_NAME, DATABANK_RENAME_NAME } from "../lib/databank-names.ts";
 
 export interface DatabankRenameDialogProps {
   readonly open: boolean;
@@ -31,16 +33,16 @@ export function DatabankRenameDialog({ open, onOpenChange, currentName, onRename
       }}
       open={open}
       submit={{
-        label: "Save",
+        label: DIALOG_VERBS.save,
         disabled: !canSave,
         onSubmit: (): void => {
           onRename(trimmed);
           onOpenChange(false);
         },
       }}
-      title="Rename document"
+      title={DATABANK_RENAME_NAME}
     >
-      <Input aria-label="Document name" onValueChange={setName} placeholder="Document name" value={name} />
+      <Input aria-label={DATABANK_DOCUMENT_NAME_FIELD_NAME} onValueChange={setName} placeholder="Document name" value={name} />
     </FormDialog>
   );
 }

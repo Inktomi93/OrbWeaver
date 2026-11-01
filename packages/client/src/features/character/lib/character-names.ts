@@ -83,3 +83,6 @@ export const CHARACTER_SNAPSHOT_NOW_NAME = "Snapshot now";
 
 /** The tags row's door to the tag picker. */
 export const CHARACTER_ADD_TAG_NAME = "Add tag";
+
+/** The facet editor's toggle that opens the full editor. */
+export const CHARACTER_EXPAND_TO_EDIT_NAME = "Expand to edit";

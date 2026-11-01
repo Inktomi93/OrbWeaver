@@ -17,7 +17,7 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { useColorQuotedSpeech, useInvalidation, useTRPC } from "#data";
-import { viewerTimeZone } from "#lib";
+import { DIALOG_VERBS, viewerTimeZone } from "#lib";
 import { useGenerateGreetingMutation, useRewriteGreetingMutation } from "../hooks/use-character-mutations.ts";
 
 export interface GreetingStudioProps {
@@ -117,7 +117,7 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
             }}
           >
             <Icon icon={X} size="sm" />
-            Discard
+            {DIALOG_VERBS.discard}
           </Button>
           <Button
             size="sm"
@@ -127,7 +127,7 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
             }}
           >
             <Icon icon={Check} size="sm" />
-            Accept
+            {DIALOG_VERBS.accept}
           </Button>
         </Row>
       </Stack>

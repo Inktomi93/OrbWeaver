@@ -25,6 +25,7 @@ import { useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
 import { clearRefineryWorkbenchDoor, useRefineryRequestedDoor } from "#state";
 import { useUpdateRefinerySession } from "../hooks/use-refinery-mutations.ts";
+import { REFINERY_HAND_EDIT_NAME, REFINERY_ITERATE_NAME } from "../lib/refinery-names.ts";
 
 interface RunControlsCardProps {
   readonly sessionId: RefinerySessionId;
@@ -83,13 +84,13 @@ export function RunControlsCard({ sessionId, guidance, running, canIterate, onMa
         </Field>
         <Row align="center" className="flex-wrap" gap="row" justify="end">
           <Button disabled={running} variant="ghost" onClick={onManualOpen} size="sm">
-            Hand-edit
+            {REFINERY_HAND_EDIT_NAME}
           </Button>
           {/* Iterate is a SECONDARY here. The bar's one primary is the terminal apply the caller supplies —
               two filled buttons in one cluster is the inverted-hierarchy defect P1-11 named, and applying
               is the act that ends the session. */}
           <Button aria-busy={running} disabled={running || !canIterate} variant="outline" onClick={onIterate} size="sm">
-            Iterate
+            {REFINERY_ITERATE_NAME}
           </Button>
           {apply}
         </Row>

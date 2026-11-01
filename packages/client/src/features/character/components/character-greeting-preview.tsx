@@ -23,7 +23,7 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { useColorQuotedSpeech, usePromptMacroSuggestions } from "#data";
 import type { AppFormInstance } from "#forms/editor";
-import { notify } from "#lib";
+import { DIALOG_VERBS, notify } from "#lib";
 import { useRovingChipFocus } from "../hooks/use-roving-chip-focus.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
 import {
@@ -309,7 +309,7 @@ function GreetingActions({
         </Button>
         <Toggle size="sm" pressed={editing} onPressedChange={onToggleEdit}>
           <Icon icon={Pencil} size="sm" />
-          {editing ? "Done" : "Edit"}
+          {editing ? DIALOG_VERBS.done : "Edit"}
         </Toggle>
         <Toggle size="sm" pressed={studioOpen} onPressedChange={setStudioOpen}>
           <Icon icon={WandSparkles} size="sm" />

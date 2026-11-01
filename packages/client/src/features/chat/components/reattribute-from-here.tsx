@@ -14,6 +14,7 @@ import { useId } from "react";
 import { ConfirmDialog } from "#components";
 import { useInvalidation, useReattributePersona, useTRPC } from "#data";
 import type { ReattributeTarget } from "../hooks/use-reattribute-target.ts";
+import { CHAT_REATTRIBUTE_CONFIRM_NAME, CHAT_REATTRIBUTE_CONFIRM_TITLE } from "../lib/chat-surface-names.ts";
 import { MESSAGE_REATTRIBUTE_NAME } from "../lib/message-action-names.ts";
 
 const NO_PERSONA_REASON = "Pick a persona for this chat first.";
@@ -97,7 +98,7 @@ function ReattributeConfirmDialog({
   return (
     <ConfirmDialog
       confirmTone="primary"
-      confirmLabel="Reattribute"
+      confirmLabel={CHAT_REATTRIBUTE_CONFIRM_NAME}
       confirmLoading={reattribute.isPending}
       description={`Restamps your own lines from this message onward to "${name}". Earlier lines keep their names. What you wrote is untouched; replies keep the names they were written with.`}
       onConfirm={async (): Promise<void> => {
@@ -105,7 +106,7 @@ function ReattributeConfirmDialog({
       }}
       onOpenChange={onOpenChange}
       open={true}
-      title="Reattribute from here?"
+      title={CHAT_REATTRIBUTE_CONFIRM_TITLE}
     />
   );
 }

@@ -22,7 +22,7 @@ import { useEffect, useRef, useState } from "react";
 import { FlowDialog } from "#components";
 import type { Trpc } from "#data";
 import { notifyNewRoomPersona, useInvalidation, useTRPC } from "#data";
-import { DEAD_INVITE_SENTENCE, inviteRoomSentence, testId } from "#lib";
+import { DEAD_INVITE_SENTENCE, DIALOG_VERBS, inviteRoomSentence, testId } from "#lib";
 import { selectChat, setActiveSection } from "#state";
 import { usePreviewInvite, useRedeemInvite } from "../hooks/use-invite-mutations.ts";
 
@@ -113,7 +113,7 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
           <DialogDescription>{DEAD_INVITE_SENTENCE}</DialogDescription>
           <DialogFooter>
             <Button variant="outline" onClick={onDone} ref={primaryRef}>
-              Close
+              {DIALOG_VERBS.close}
             </Button>
           </DialogFooter>
         </>

@@ -6,6 +6,7 @@
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import type { ReactElement, ReactNode } from "react";
+import { DIALOG_VERBS } from "#lib";
 import { useFormContext } from "../contexts.ts";
 import { fieldErrorText } from "./field-error.ts";
 
@@ -19,7 +20,7 @@ export function SubmitButton({ children }: SubmitButtonProps): ReactElement {
     <form.Subscribe selector={(s): readonly [boolean, boolean] => [s.canSubmit, s.isSubmitting] as const}>
       {([canSubmit, isSubmitting]): ReactElement => (
         <Button type="submit" disabled={!canSubmit || isSubmitting} loading={isSubmitting}>
-          {children ?? "Save"}
+          {children ?? DIALOG_VERBS.save}
         </Button>
       )}
     </form.Subscribe>

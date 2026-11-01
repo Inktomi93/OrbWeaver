@@ -29,7 +29,7 @@ import { useDeferredValue, useRef } from "react";
 import { LibraryListRows, LibrarySurfaceShell, ListPage, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQueries, useTRPC, useTRPCClient } from "#data";
 import { downloadJson, notify, rowQualifiers, slugifyFilename, timeLib, useFocusListArrival } from "#lib";
-import { selectPreset, setPresetSearchQuery, usePresetSearchQuery, useSelectedPresetId } from "#state";
+import { getSelectedPresetId, presetSectionSelection, selectPreset, setPresetSearchQuery, usePresetSearchQuery, useSelectedPresetId } from "#state";
 import { PresetLibraryRow } from "../components/preset-library-row.tsx";
 import { useCreatePreset, useRemovePreset, useSetDefaultPreset } from "../hooks/use-preset-mutations.ts";
 import { notifyActivePreset } from "../lib/active-preset-notice.ts";
@@ -169,11 +169,17 @@ function PresetList({
       .catch(() => notify.error("Couldn't duplicate the preset."));
   };
 
-  const onDelete = (id: PresetId): void => {
+  const onDelete = (id: PresetId): Promise<void> => {
     if (activeId === id) {
       setDefault.mutate({ section: "seeds", patch: { defaultPresetId: null } });
     }
-    remove.mutate({ id });
+    // Not a per-`mutate` callback: a second Delete on this hook drops it. The open editor reads this id, and left
+    // selected, every refetch answers 404.
+    return remove.mutateAsync({ id }).then((): void => {
+      if (getSelectedPresetId() === id) {
+        presetSectionSelection.clear();
+      }
+    });
   };
 
   const qualifiers = rowQualifiers(

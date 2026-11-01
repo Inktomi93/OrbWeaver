@@ -30,6 +30,7 @@ import { clearCollectionSelection, clearWorldEntrySelection, selectWorldEntry, u
 import { BookDetailsDialog } from "../components/book-details-dialog.tsx";
 import { EntryEditor } from "../components/entry-editor.tsx";
 import { useApplyEntryOrder, useBackfillWorldTitles, useCreateWorldEntry, useUpdateWorldBook } from "../hooks/use-world-info-mutations.ts";
+import { WORLD_INFO_EDIT_DETAILS_NAME } from "../lib/world-info-names.ts";
 
 const NEW_ENTRY_TITLE = "New entry";
 const NEW_ENTRY_CONTENT = "New lore.";
@@ -128,7 +129,7 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
           <>
             <Button variant="outline" onClick={(): void => setDetailsOpen(true)} size="sm">
               <Icon icon={Pencil} size="sm" />
-              Edit details
+              {WORLD_INFO_EDIT_DETAILS_NAME}
             </Button>
             {/* `secondary`, NOT `ghost` (side-eye 2026-08-19 P2, the zero-resting-affordance class): at
                   ghost this is a transparent, borderless accent word sitting 8px from a filled primary, so

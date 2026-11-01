@@ -248,6 +248,7 @@ export const UI_FEATURE_RESTRICTIONS = [
           ":not(:has(JSXOpeningElement[name.name=/^(FormSubmitButton|DialogClose|AlertDialogClose|ContentDialogClose)$/]))",
           ":not(:has(JSXOpeningElement > JSXAttribute[name.name=/^(submit|dismissLabel|closeButton|footer|headerActions)$/]))",
           ":not(:has(JSXElement[openingElement.name.name='Button'] > JSXText[value=/^\\s*(Cancel|Close|Done|Back|Dismiss|Discard|Keep editing)\\s*$/]))",
+          ":not(:has(JSXElement[openingElement.name.name='Button'] > JSXExpressionContainer > MemberExpression[object.name='DIALOG_VERBS'][property.name=/^(cancel|close|done)$/]))",
         ].join(""),
         message:
           "A dialog needs a dismiss path: a `dismissLabel`, a `submit` footer (it carries Cancel), a `FormSubmitButton`, a `DialogClose`, or a Cancel or Close button.",

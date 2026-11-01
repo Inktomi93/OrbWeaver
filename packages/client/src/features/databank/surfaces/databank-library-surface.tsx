@@ -59,6 +59,7 @@ import {
 } from "../hooks/use-databank-mutations.ts";
 import { DATABANK_INGEST_GLOSS } from "../lib/databank-copy.ts";
 import { ingestBadge, ingestPollInterval } from "../lib/databank-model.ts";
+import { DATABANK_SEARCH_NAME } from "../lib/databank-names.ts";
 
 const SKELETON_ROW_COUNT = 6;
 /** Initial row-height guess; `<VirtualList>` re-measures every row after mount. A two-line entity row. */
@@ -142,7 +143,7 @@ export function DatabankLibrarySurface(): ReactElement {
         </>
       }
       ref={surfaceRef}
-      search={<Input aria-label="Search documents" onValueChange={setQuery} placeholder="Search documents…" value={query} />}
+      search={<Input aria-label={DATABANK_SEARCH_NAME} onValueChange={setQuery} placeholder="Search documents…" value={query} />}
       skipTo="Skip to documents"
     >
       <LibrarySurfaceShell errorLabel="your documents" loadingLabel="Loading your documents…">

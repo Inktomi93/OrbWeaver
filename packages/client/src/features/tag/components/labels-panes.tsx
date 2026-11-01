@@ -13,7 +13,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { MemberDrillHeader, QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
-import { CORPUS_MODE_LABELS, tagUsageLabel, USAGE_KIND_TITLES } from "#lib";
+import { CORPUS_MODE_LABELS, DIALOG_VERBS, tagUsageLabel, USAGE_KIND_TITLES } from "#lib";
 import { clearLabelSelection, useSelectedLabelId } from "#state";
 import { useTagName } from "../hooks/use-tag-library.ts";
 import { LabelsLandingSurface } from "../surfaces/labels-landing-surface.tsx";
@@ -48,7 +48,7 @@ export function LabelsContent(): ReactElement {
                   <Stack gap="block">
                     {exit}
                     <Button variant="ghost" onClick={refetch}>
-                      Retry
+                      {DIALOG_VERBS.retry}
                     </Button>
                   </Stack>
                 )}

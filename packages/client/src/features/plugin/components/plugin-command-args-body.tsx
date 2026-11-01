@@ -20,6 +20,7 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { DIALOG_VERBS } from "#lib";
 import { clearPluginCommandArgs, closeModal, usePluginCommandArgsSubject } from "#state";
 import { usePluginCommandRunner, usePluginCommands } from "../hooks/use-plugin-commands.ts";
 import { humanizeId, pluginCommandActionLabel, pluginCommandAttribution } from "../lib/plugin-command-copy.ts";
@@ -175,7 +176,7 @@ export function PluginCommandArgsBody(): ReactElement {
       )}
       <DialogFooter>
         <Button disabled={submitting} variant="ghost" onClick={(): void => closeModal()} size="sm">
-          Cancel
+          {DIALOG_VERBS.cancel}
         </Button>
         <Button loading={submitting} onClick={onSubmit} size="sm">
           {pluginCommandActionLabel(subject.name)}

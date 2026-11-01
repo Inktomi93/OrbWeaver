@@ -16,6 +16,7 @@ import { useSuspenseQueries, useTRPC } from "#data";
 import { useStartRoster } from "../hooks/use-start-roster.ts";
 import { rosterCountsSuffix } from "../lib/roster-copy.ts";
 import { rosterScent } from "../lib/roster-model.ts";
+import { ROSTER_SAVED_NAME } from "../lib/roster-names.ts";
 
 // Faces a row spends before the "+N" chip: the chat rows' budget, so a roster and its room match.
 const STACK_SLOTS = 4;
@@ -88,7 +89,7 @@ export function HomeRostersTileBody(): ReactElement {
         gap="tight"
         itemKey={(roster): string => roster.id}
         items={rosters}
-        label="Saved rosters"
+        label={ROSTER_SAVED_NAME}
         renderItem={(roster): ReactElement => <RosterStartRow busy={start.isPending} leadingSlots={leadingSlots} onStart={start.startRoster} roster={roster} />}
       />
     </Stack>

@@ -26,6 +26,8 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { FormDialog } from "#components";
+import { DIALOG_VERBS } from "#lib";
+import { PRESET_IMPORT_NAME } from "../lib/preset-names.ts";
 
 /** The `.json` extension, stripped off the picked filename to seed the preset name (ST arm only — an
  *  orb.preset file carries its own name, and that name IS the merge key). */
@@ -213,9 +215,9 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
       </Stack>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+        <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
         <Button disabled={parsed === null || busy} onClick={onConfirm}>
-          Import preset
+          {PRESET_IMPORT_NAME}
         </Button>
       </DialogFooter>
     </FormDialog>

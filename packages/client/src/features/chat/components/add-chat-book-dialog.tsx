@@ -35,6 +35,7 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { FormDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { DIALOG_VERBS } from "#lib";
 import { useAttachBookToChat } from "../hooks/use-chat-book-mutations.ts";
 import { attachableBooks } from "../lib/chat-books-model.ts";
 
@@ -76,7 +77,7 @@ export function AddChatBookDialog({ chatId, open, onOpenChange, attachedIds }: A
   return (
     <FormDialog
       closeButton={true}
-      dismissLabel="Cancel"
+      dismissLabel={DIALOG_VERBS.cancel}
       description="Its entries can fire in this room's prompts for everyone here — and an automation rule in this room can write new entries into it. Attaching is what grants that write reach; you can take it back out here at any time."
       onOpenChange={(next): void => {
         if (next || !ownedRef.current) {
@@ -124,7 +125,7 @@ function PickerList({ attachedIds, failure, isOwned, onAttach }: PickerBodyProps
       <EmptyState
         // The only next action REACHABLE from inside a modal is leaving it — the library lives behind the
         // rail, which this dialog is covering. Naming that honestly beats a CTA that cannot fire.
-        action={<DialogClose render={<Button variant="outline">Close</Button>} />}
+        action={<DialogClose render={<Button variant="outline">{DIALOG_VERBS.close}</Button>} />}
         description={
           books.length === 0
             ? "Make one in World info — a book of entries that fire on the keywords you give them — and it can feed this chat."

@@ -37,7 +37,7 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { FormDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { useDebouncedValue } from "#lib";
+import { DIALOG_VERBS, useDebouncedValue } from "#lib";
 import { useAttachDocumentToChat } from "../hooks/use-chat-document-mutations.ts";
 import { attachableDocuments } from "../lib/chat-documents-model.ts";
 
@@ -82,7 +82,7 @@ export function AddChatDocumentDialog({ chatId, open, onOpenChange, activeIds }:
   return (
     <FormDialog
       closeButton={true}
-      dismissLabel="Cancel"
+      dismissLabel={DIALOG_VERBS.cancel}
       description="Its indexed passages join what this chat can pull from — for everyone in the room. You can take it back out here at any time."
       onOpenChange={(next): void => {
         if (next || !ownedRef.current) {
@@ -179,7 +179,7 @@ function PickerCandidates({
       <EmptyState
         // The only next action REACHABLE from inside a modal is leaving it — the library lives behind the
         // rail, which this dialog is covering. Naming that honestly beats a CTA that cannot fire.
-        action={<DialogClose render={<Button variant="outline">Close</Button>} />}
+        action={<DialogClose render={<Button variant="outline">{DIALOG_VERBS.close}</Button>} />}
         description={
           bankIsEmpty
             ? "Add one in Databank — upload a file, paste text, or pull in a page — and it can feed this chat."

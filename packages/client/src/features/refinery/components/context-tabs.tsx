@@ -25,9 +25,10 @@ import { ConfirmDialog, ContextTabBody } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import type { RefineryContextState } from "#lib";
-import { testId } from "#lib";
+import { DIALOG_VERBS, testId } from "#lib";
 import type { RefineryWorkbenchDoor } from "#state";
 import { useRestoreCharacterSnapshot, useSnapshotCharacterNow } from "../hooks/use-refinery-snapshots.ts";
+import { refineryCompareToggleName } from "../lib/refinery-names.ts";
 import { SETUP_SCHEMA_ROWS, schemaDoorActionOf } from "../lib/setup-door-names.ts";
 import { verdictToneOf, verdictWordOf } from "../lib/verdict.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
@@ -343,17 +344,17 @@ export function VersionsTab({ state, liveDescription }: { state: RefineryContext
               </Row>
               <Row className="flex-wrap" gap="field">
                 <Button variant="ghost" onClick={(): void => setCompareId(compareId === snapshot.id ? null : snapshot.id)} size="sm">
-                  {compareId === snapshot.id ? "Hide compare" : "Compare"}
+                  {refineryCompareToggleName(compareId === snapshot.id)}
                 </Button>
                 <ConfirmDialog
-                  confirmLabel="Restore"
+                  confirmLabel={DIALOG_VERBS.restore}
                   confirmTone="primary"
                   description="This replaces the live card with this version. The current card is snapshotted first, so you can undo it."
                   onConfirm={(): void => restore.mutate({ characterId: state.characterId, snapshotId: snapshot.id })}
                   title="Restore this snapshot?"
                   trigger={
                     <Button variant="ghost" size="sm">
-                      Restore
+                      {DIALOG_VERBS.restore}
                     </Button>
                   }
                 />

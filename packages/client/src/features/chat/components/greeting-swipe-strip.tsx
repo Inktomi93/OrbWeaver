@@ -27,6 +27,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { useSetSeededGreeting } from "../hooks/use-message-mutations.ts";
+import { CHAT_NEXT_GREETING_NAME } from "../lib/chat-surface-names.ts";
 import { variantCountName } from "../lib/message-action-names.ts";
 import type { SwipeFoot } from "../lib/pager-chrome.ts";
 import { SwipeFootRow } from "./swipe-strip.tsx";
@@ -94,7 +95,7 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current, foot 
           glyph="lg"
           disabled={!canNext || step.isPending}
           loading={step.isPending}
-          aria-label="Next greeting"
+          aria-label={CHAT_NEXT_GREETING_NAME}
           onClick={(): void => pick(nextIdx)}
         >
           <Icon icon={ChevronRight} size="sm" />

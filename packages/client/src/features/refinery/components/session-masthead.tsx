@@ -11,6 +11,7 @@ import type { ReactElement } from "react";
 import { DetailHeader } from "#components";
 import { testId, timeLib } from "#lib";
 import { selectCharacter, setActiveSection } from "#state";
+import { REFINERY_SESSION_STATE_NAME } from "../lib/refinery-names.ts";
 import { scopeChipLabelOf } from "../lib/render-plan.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
 
@@ -71,7 +72,7 @@ export function SessionMasthead({
           <>
             {/* The chips are one named cluster: read out of context they ran together into one string. They wrap,
                 because the draft chip is a whole sentence. */}
-            <Row align="baseline" aria-label="Session state" className="flex-wrap max-inline-full min-inline-0" gap="field" role="group">
+            <Row align="baseline" aria-label={REFINERY_SESSION_STATE_NAME} className="flex-wrap max-inline-full min-inline-0" gap="field" role="group">
               <RefineryChip tone={status === "active" ? "accent" : "neutral"}>{status}</RefineryChip>
               <RefineryChip tone="neutral" wrap={true}>
                 {applied ? "Applied · snapshot taken" : "Draft — the live card is untouched"}

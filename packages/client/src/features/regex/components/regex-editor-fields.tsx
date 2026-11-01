@@ -30,6 +30,7 @@ import type { ChangeEvent, ReactElement } from "react";
 import { lazy, Suspense, useId } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import { REGEX_PLACEMENT_ITEMS } from "#lib";
+import { REGEX_FIND_PATTERN_NAME, REGEX_REPLACE_WITH_NAME } from "../lib/regex-names.ts";
 import { RegexPipelinePanel } from "./regex-pipeline-panel.tsx";
 import { RegexTestPanel } from "./regex-test-panel.tsx";
 
@@ -155,14 +156,14 @@ export function RegexEditorFields({ form, scriptId }: RegexEditorFieldsProps): R
       <form.AppField name="findRegex">
         {(field): ReactElement => (
           <Field
-            label="Find pattern"
+            label={REGEX_FIND_PATTERN_NAME}
             labelFor={patternId}
             name={field.name}
             description="A regular expression — bare (ooc:.*) or slash-delimited with flags (/ooc:.*/gi)."
           >
             <Suspense fallback={null}>
               <CodeEditor
-                ariaLabel="Find pattern"
+                ariaLabel={REGEX_FIND_PATTERN_NAME}
                 contentId={patternId}
                 onChange={(next): void => field.handleChange(next)}
                 setup="line"
@@ -174,7 +175,7 @@ export function RegexEditorFields({ form, scriptId }: RegexEditorFieldsProps): R
       </form.AppField>
 
       <form.AppField name="replaceString">
-        {(field): ReactElement => <field.TextareaField label="Replace with" description="What each match becomes (macros allowed)." rows={3} />}
+        {(field): ReactElement => <field.TextareaField label={REGEX_REPLACE_WITH_NAME} description="What each match becomes (macros allowed)." rows={3} />}
       </form.AppField>
 
       <form.AppField name="trimStrings">

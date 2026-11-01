@@ -12,6 +12,7 @@ import { DialogBody, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { DIALOG_VERBS } from "#lib";
 
 /** One related/available entity in a relation section — the ListRow projection (id keeps its brand). */
 export interface RelationManagerItem<TId extends string = string> {
@@ -110,7 +111,7 @@ export function RelationManagerSection<TId extends string>({
               </Stack>
             )}
             <DialogFooter>
-              <DialogClose render={<Button variant="ghost">Done</Button>} />
+              <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.done}</Button>} />
             </DialogFooter>
           </DialogBody>
         </DialogPopup>

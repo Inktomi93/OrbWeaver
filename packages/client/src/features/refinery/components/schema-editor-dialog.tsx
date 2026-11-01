@@ -40,7 +40,7 @@ import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
 import { ConfirmDialog, FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { testId } from "#lib";
+import { DIALOG_VERBS, testId } from "#lib";
 import { useCreateRefinerySchema, useGenerateRefinerySchema, useRefineRefinerySchema, useUpdateRefinerySchema } from "../hooks/use-refinery-schemas.ts";
 import { buildRenderPlan } from "../lib/render-plan.ts";
 import { RefusalNote } from "./refusal-note.tsx";
@@ -395,7 +395,7 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
               SEE how to leave it without saving. It rides `requestClose`, so Cancel and Escape are one
               behaviour rather than two that drift. */}
           <Button variant="ghost" onClick={requestClose} size="sm" type="button">
-            Cancel
+            {DIALOG_VERBS.cancel}
           </Button>
           <Button
             disabled={busy || schema === null || !nameFilled}

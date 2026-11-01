@@ -506,81 +506,124 @@ export async function controlIdentity(element: Locator): Promise<string> {
   return `${scrollTarget} [data-slot="${VIRTUAL_ROW_SLOT}"][data-index=${JSON.stringify(index)}]${target.slice(rowTarget.length)}`;
 }
 
-/** Why a matched element is not a user-facing control here, or null when it is one. */
-async function unavailableControl(element: Locator): Promise<string | null> {
-  const pointer = await element.evaluate(
-    (node, { hidden, coarse, fine }) => {
-      const coarseArm = node.closest(`.${CSS.escape(hidden.coarse)}`);
-      if (matchMedia(coarse).matches && coarseArm !== null && getComputedStyle(coarseArm).display === "none") {
-        return "The production hiddenAt=coarse arm is absent for this actual coarse pointer; its alternative remains in the control census.";
-      }
-      const fineArm = node.closest(`.${CSS.escape(hidden.fine)}`);
-      if (matchMedia(fine).matches && fineArm !== null && getComputedStyle(fineArm).display === "none") {
-        return "The production hiddenAt=fine arm is absent for this actual fine pointer; its alternative remains in the control census.";
-      }
-      return null;
-    },
-    { hidden: HIDDEN_AT, coarse: MEDIA_QUERIES["pointer-coarse"], fine: MEDIA_QUERIES["pointer-fine"] },
-  );
-  return (
-    pointer ??
-    (await element.evaluate((node, censusSelector) => {
-      function pairedControl(input: HTMLInputElement): Element | null {
-        let owner = input.previousElementSibling;
-        while (owner?.matches('input[type="hidden"]')) {
-          owner = owner.previousElementSibling;
-        }
-        if (owner === null) {
-          return null;
-        }
-        const selector = [
-          ["radio", '[role="radio"]'],
-          ["checkbox", '[role="switch"]'],
-          ["number", '[data-slot="number-field-input"]'],
-          ["text", '[role="combobox"]'],
-        ].find(([type]) => type === input.type)?.[1];
-        if (selector === undefined) {
-          return null;
-        }
-        return owner.matches(selector) ? owner : owner.querySelector(selector);
-      }
-      if (node instanceof HTMLInputElement && node.type === "file" && node.closest('[data-slot="file-trigger"]') !== null) {
-        return "Hidden file transport behind its visible trigger.";
-      }
-      if (!(node instanceof HTMLInputElement && node.matches('[aria-hidden="true"][tabindex="-1"]'))) {
-        return null;
-      }
-      const control = pairedControl(node);
-      if (control === null || !control.matches(censusSelector)) {
-        return null;
-      }
-      const box = control.getBoundingClientRect();
-      return box.width * box.height > 0
-        ? "Native aria-hidden, non-tabstop form transport paired with a rendered radio/switch/number field/combobox; the actual accessible control remains in the census."
-        : null;
-    }, CONTROL_SELECTOR))
-  );
+interface CensusInput {
+  readonly hidden: typeof HIDDEN_AT;
+  readonly coarse: string;
+  readonly fine: string;
+  readonly census: string;
+  readonly rowSlot: string;
+  readonly scrollSlot: string;
 }
 
-/** Inventory every control under `scope` by accessible name; a hidden one stays listed and never counts as witnessed. */
+interface CensusedControl {
+  readonly target: string;
+  readonly unavailable: string | null;
+  readonly visible: boolean;
+  readonly label: string;
+}
+
+// Runs in the page. It reads the whole list in one pass: a list that re-renders mid-census cannot leave a stale index,
+// and a surface with many repeated censuses spends one call each, not several per control.
+function readControls(nodes: readonly Element[], input: CensusInput, targetOf: (node: Node | null) => string): CensusedControl[] {
+  const { hidden, coarse, fine, census, rowSlot, scrollSlot } = input;
+  function pairedControl(field: HTMLInputElement): Element | null {
+    let owner = field.previousElementSibling;
+    while (owner?.matches('input[type="hidden"]')) {
+      owner = owner.previousElementSibling;
+    }
+    if (owner === null) {
+      return null;
+    }
+    const selector = [
+      ["radio", '[role="radio"]'],
+      ["checkbox", '[role="switch"]'],
+      ["number", '[data-slot="number-field-input"]'],
+      ["text", '[role="combobox"]'],
+    ].find(([type]) => type === field.type)?.[1];
+    if (selector === undefined) {
+      return null;
+    }
+    return owner.matches(selector) ? owner : owner.querySelector(selector);
+  }
+  function pointerArm(node: Element): string | null {
+    const coarseArm = node.closest(`.${CSS.escape(hidden.coarse)}`);
+    if (matchMedia(coarse).matches && coarseArm !== null && getComputedStyle(coarseArm).display === "none") {
+      return "The production hiddenAt=coarse arm is absent for this actual coarse pointer; its alternative remains in the control census.";
+    }
+    const fineArm = node.closest(`.${CSS.escape(hidden.fine)}`);
+    if (matchMedia(fine).matches && fineArm !== null && getComputedStyle(fineArm).display === "none") {
+      return "The production hiddenAt=fine arm is absent for this actual fine pointer; its alternative remains in the control census.";
+    }
+    return null;
+  }
+  function transport(node: Element): string | null {
+    if (node instanceof HTMLInputElement && node.type === "file" && node.closest('[data-slot="file-trigger"]') !== null) {
+      return "Hidden file transport behind its visible trigger.";
+    }
+    if (!(node instanceof HTMLInputElement && node.matches('[aria-hidden="true"][tabindex="-1"]'))) {
+      return null;
+    }
+    const control = pairedControl(node);
+    if (control === null || !control.matches(census)) {
+      return null;
+    }
+    const box = control.getBoundingClientRect();
+    return box.width * box.height > 0
+      ? "Native aria-hidden, non-tabstop form transport paired with a rendered radio/switch/number field/combobox; the actual accessible control remains in the census."
+      : null;
+  }
+  // The same address controlIdentity gives a control, so a journey's settled control and the census meet on one key.
+  function identity(node: Element): string {
+    const target = targetOf(node);
+    const row = node.closest(`[data-slot="${rowSlot}"]`);
+    const index = row?.getAttribute("data-index") ?? null;
+    if (row === null || index === null) {
+      return target;
+    }
+    return `${targetOf(node.closest(`[data-slot="${scrollSlot}"]`))} [data-slot="${rowSlot}"][data-index=${JSON.stringify(index)}]${target.slice(targetOf(row).length)}`;
+  }
+  return nodes.map((node) => {
+    const box = node.getBoundingClientRect();
+    return {
+      target: identity(node),
+      unavailable: pointerArm(node) ?? transport(node),
+      visible: box.width > 0 && box.height > 0 && node.checkVisibility({ visibilityProperty: true }),
+      label: `${node.getAttribute("role") ?? node.tagName.toLowerCase()} ${JSON.stringify(node.getAttribute("aria-label") ?? node.textContent.trim())}`,
+    };
+  });
+}
+
+// `diagnosticTarget` is a module function, which a serialized page function cannot close over.
+const READ_CONTROLS = `(nodes, input) => {
+  ${diagnosticTarget.toString()}
+  return (${readControls.toString()})(nodes, input, diagnosticTarget);
+}`;
+
+/** Inventory every control under `scope`; a hidden one stays listed and never counts as witnessed. */
 async function controlCensus(walk: SurfaceWalk, scope: Locator, prefix: string): Promise<void> {
   await attachNativeFile(walk.info, walk.info, `${prefix}-controls`, { body: await scope.ariaSnapshot(), contentType: "text/plain" });
-  for (const element of await scope.locator(CONTROL_SELECTOR).all()) {
-    // A list that re-renders between listing and reading leaves this index empty; its locator would wait forever.
-    if ((await element.count()) === 0) {
-      continue;
-    }
-    const target = await controlIdentity(element);
+  const input: CensusInput = {
+    hidden: HIDDEN_AT,
+    coarse: MEDIA_QUERIES["pointer-coarse"],
+    fine: MEDIA_QUERIES["pointer-fine"],
+    census: CONTROL_SELECTOR,
+    rowSlot: VIRTUAL_ROW_SLOT,
+    scrollSlot: VIRTUAL_SCROLL_SLOT,
+  };
+  // A string page function is evaluated, never called, so the census calls the evaluated handle itself.
+  const read = await walk.page.evaluateHandle<(nodes: readonly Element[], census: CensusInput) => CensusedControl[]>(READ_CONTROLS);
+  const controls = await scope.locator(CONTROL_SELECTOR).evaluateAll((nodes, handles) => handles.read(nodes, handles.input), { read, input });
+  await read.dispose();
+  for (const { target, unavailable, visible, label } of controls) {
     if (walk.seenControls.has(target)) {
       continue;
     }
-    const unavailable = await unavailableControl(element);
     if (unavailable !== null) {
       walk.seenControls.add(target);
       recordSubject(walk, { id: target, kind: "control" }, { disposition: "not-applicable", reason: unavailable });
-    } else if (await element.isVisible()) {
+    } else if (visible) {
       walk.seenControls.add(target);
-      recordSubject(walk, { id: target, kind: "control" }, { disposition: "observed", reason: `${prefix}: ${await element.ariaSnapshot()}` });
+      recordSubject(walk, { id: target, kind: "control" }, { disposition: "observed", reason: `${prefix}: ${label}` });
     } else {
       recordSubject(
         walk,

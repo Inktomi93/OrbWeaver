@@ -29,7 +29,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { notify } from "#lib";
+import { DIALOG_VERBS, notify } from "#lib";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, toBundleBase64 } from "../lib/plugin-bundle.ts";
 import { PLUGIN_DISTRIBUTE_SUBCATEGORY } from "../lib/plugin-distribute-nav.ts";
@@ -178,7 +178,7 @@ function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): Reac
                   setState({ step: "pick" });
                 }}
               >
-                Cancel
+                {DIALOG_VERBS.cancel}
               </Button>
             </Row>
           </Stack>
