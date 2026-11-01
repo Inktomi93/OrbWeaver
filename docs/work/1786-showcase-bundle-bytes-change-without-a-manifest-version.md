@@ -1,13 +1,12 @@
 ---
-kind: work
+kind: bug
 status: open
 updated: 2026-11-01
-priority: P2
-area: ui
-plan: cross-surface-consistency
+priority: P3
+area: plugins
 ---
 
-# Delete unused ui variant values after checking the spread sites
+# Showcase bundle bytes change without a manifest version bump, so seeded installs keep the old bytes
 
 ## What
 
