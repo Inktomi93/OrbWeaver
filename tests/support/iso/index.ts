@@ -19,7 +19,6 @@ export { makePromptConfig } from "./preset-config.ts";
 export { makePluginProviderRow, makeProviderRow, pluginProviderId } from "./provider-rows.ts";
 export { makeRpgActorIdentity, makeRpgActorVolatile } from "./rpg-state.ts";
 export type { SurfaceCoverageInventory, SurfaceSkipReason, SurfaceWitnessDisposition } from "./surface-coverage.ts";
-export { surfaceCoverageKey } from "./surface-coverage.ts";
 export type { SurfaceProviderEvidence } from "./surface-data.ts";
 export { parseSurfaceProviderEvidence, SURFACE_DATA_MODES } from "./surface-data.ts";
 export type { SurfacePass } from "./surface-pass.ts";

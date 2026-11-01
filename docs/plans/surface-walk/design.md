@@ -174,13 +174,23 @@ Write bespoke driver code only for an action with an outcome to assert: create, 
 
 `tests/e2e/support/surface-walker.ts` owns one case's coverage and the generic traversal.
 
-- Create a `SurfaceWalk` with `createSurfaceWalk`, record with `expectSubject` and `observe`, and end with `publishWalk`.
+- Create a `SurfaceWalk` with `createSurfaceWalk`, record with `expectSubject`, `observe` and `skip`, and end with `publishWalk`.
+- Use `recordAs` when one id is expected under two kinds; `observe` files the outcome under the first kind expected for the id.
 - Call `walkScope` on any rendered scope. It walks disclosures, tabs, selects, menus, `aria-haspopup="dialog"` doors, scroll windows and the control census.
 - Call `walkDoor` for a body opened by a plain button. Pass its trigger, body and exit from a data table, not a function per door.
 - Use `checkpoint` for one loaded witness and `checkpointState` for a declared empty or error state or several witnesses.
 - Use `SurfaceWalkHooks` only for a surface that needs its own menu traversal or settles menu leaves against operation proofs.
 
-The walker opens, reads and dismisses. It never activates a menu leaf or submits a form, and it records unactivated leaves as `skipped`. It opens one row menu per list and records its siblings as `skipped`. It lists a hidden control as `skipped`, never as witnessed.
+The walker opens, reads and dismisses. It never activates a menu leaf or submits a form. It records each menu leaf it reads as its own `skipped` row. It opens one row menu per list and records its siblings as `skipped`. It lists a hidden control as `skipped`, never as witnessed.
+
+### Skip reasons
+
+A `skipped` observation names one reason from `SURFACE_SKIP_REASONS` in `tests/support/iso/surface-coverage.ts`, plus its detail.
+
+- `publishSurfaceInventory` fails the case on a skip without a listed reason.
+- `auditSurfaceInventory` names each such skip by subject.
+- The walk report prints the reason legend, the run's skip total, and every skipped subject of each case.
+- A later observation of the same subject supersedes the skip, so a journey settles what the walk only read.
 
 ## Driver handover
 
@@ -191,31 +201,36 @@ Follow "Journey authoring method" per file. Run `pnpm e2e:surface --data=synthet
 1. Replace `inspectMenu`, `inspectTrigger`, `menuTerminal` and `dismissMenu` with `walkMenuTrigger`, using a `menuLeaves` hook for `accountMessageLeaves`.
 2. Replace `contextCells` and the context walk with `walkScope` over the Context pane.
 3. Replace `closeContextOverlay` with `dismissContext` where no action window is asserted.
-4. Fix the `reachMessage` progress wait for the bubble, document and tide styles. Read its `reading-progress-failure` attachment first.
+4. Fix the `reachMessage` progress wait for the bubble and document styles; tide passes. The failing poll never turns true while the retained geometry shows forward progress, so check each poll locator for a strict-mode double match before blaming load.
 5. Move names to production copy modules.
 
 ### tests/e2e/support/surface-config.ts
 
-1. Replace `Visit` with `SurfaceWalk`. Keep the rule that a later scroll window cannot undo an earlier witness.
-2. Replace `inspectControls`, `inspectMenus`, `inspectSelects`, `scroll`, `nestedScroll`, `neutralDialogs` and `teacher` with `walkScope` and `walkDoor`.
-3. Keep `disclosures` until the walker opens non-collapsible `aria-expanded` buttons, or extend `walkDisclosures` for them first.
-4. Bound the plugins category; it exceeds the case budget in the per-control census.
-5. Move names to production copy modules.
+1. Move names to production copy modules.
+2. Keep `disclosures` until the walker opens non-collapsible `aria-expanded` buttons. It opens them and leaves them open; the group's one `walkScope` reads their bodies.
 
 ### tests/e2e/support/surface-sections.ts
 
-1. Delete the remaining navigation functions: `presetViews`, `homeSectionDoor` where a door serves, `databankAdd`, `refinerySetup`, `refineryVersions` and `dialogDoor`.
-2. Add a witness for the Home Databank document rows.
-3. Run the Corpus semantic target queries against the synthetic embedding, or record their boundary.
-4. Decide `databank/maintenance` and `refinery/runs`: run them on a disposable subject, or record the policy boundary as `excluded`.
-5. Explain the Presets `preset.get` 404 after deletion: a product finding or an expected refusal.
-6. Move names to production copy modules.
+1. Add a witness for the Home Databank document rows.
+2. Run the Corpus semantic target queries against the synthetic embedding, or record their boundary.
+3. Explain the Presets `preset.get` 404 after deletion: a product finding or an expected refusal.
+4. Move names to production copy modules.
+
+Keep these functions; the walker cannot reach what they drive:
+
+| Function | Reason |
+| - | - |
+| `presetViews` | It runs the rack drills and the Context readout under each selected tab; `walkScope` has no per-tab hook. |
+| `homeSectionDoor` | Each Home jump is a registered Home operation with an `aria-current` witness. |
+| `databankAdd` | It steps the add-method choices inside the open dialog. |
+| `refineryVersions` | Compare is a label-swapping toggle with no `aria-expanded` or `aria-haspopup`. |
+| `refineryDoors` | The workbench and Setup dialogs open from plain buttons; it is one door table. |
 
 ### Shared and surface-character.ts
 
-1. Build `features/character` copy modules and rewrite the outcome journeys to them.
+1. Move the remaining hand-typed names in `surface-character.ts` to production copy. Shared dialog verbs (Cancel, Close, Done, Retry, Save, Create) need one shared home read by `packages/client/src/components/confirm-dialog.tsx`, `packages/client/src/components/form-dialog.tsx` and each dialog that prints them.
 2. Replace the `dismissContext` name pattern with a production name.
-3. Build the layout-stability matrix and the shared audit run.
+3. Build the layout-stability matrix and the shared audit run. The matrix needs a post-ready movement measure that WebKit can take: it has no `layout-shift` entries, so sample the checkpoint witnesses' boxes across a settle window after `readyAt`, and prove it with a planted shifting fixture.
 
 ## Runner configuration
 

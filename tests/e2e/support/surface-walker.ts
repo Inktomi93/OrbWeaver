@@ -25,8 +25,7 @@ const QUERY_ERROR = '[data-slot="query-error"]:visible';
 const VIRTUAL_ROW_SLOT = "virtual-list-row";
 const ROW = `[data-slot="${VIRTUAL_ROW_SLOT}"], [data-slot="list-row-root"]`;
 const VIRTUAL_SCROLL_SLOT = "virtual-list-scroll";
-export const CONTROL_SELECTOR =
-  'button, input:not([type="hidden"]), textarea, [role="radio"], [role="combobox"], [role="switch"], [role="checkbox"], select, a[href]';
+const CONTROL_SELECTOR = 'button, input:not([type="hidden"]), textarea, [role="radio"], [role="combobox"], [role="switch"], [role="checkbox"], select, a[href]';
 
 /** A surface a walk meets that needs its own traversal rather than the generic one. */
 export interface SurfaceWalkHooks {
@@ -68,6 +67,12 @@ function recordSubject(walk: SurfaceWalk, subject: SurfaceWalk["expected"][numbe
 
 export function observe(walk: SurfaceWalk, id: string, disposition: SurfaceWitnessDisposition, reason: string): void {
   recordSubject(walk, { id, kind: "surface" }, { disposition, reason });
+}
+
+/** Record an outcome under exactly this kind; {@link observe} infers the kind from the first subject expected under the id. */
+export function recordAs(walk: SurfaceWalk, subject: SurfaceWalk["expected"][number], outcome: Outcome): void {
+  expectSubject(walk, subject.id, subject.kind);
+  walk.observations.push({ ...subject, ...outcome });
 }
 
 /** Leave an available subject unexercised for a listed reason; the walk report counts and lists every skip. */
@@ -187,7 +192,7 @@ export function disclosureHooks(walk: SurfaceWalk): DisclosureWalkHooks {
 }
 
 /** What sits inside a body the walk has already opened and checkpointed. */
-export async function walkOpenBody(walk: SurfaceWalk, scope: Locator, id: string, depth = 0): Promise<void> {
+async function walkOpenBody(walk: SurfaceWalk, scope: Locator, id: string, depth = 0): Promise<void> {
   await walkSelects(walk, scope, id);
   await walkMenus(walk, scope, id);
   await walkDialogs(walk, scope, id, depth);
@@ -502,7 +507,7 @@ export async function controlIdentity(element: Locator): Promise<string> {
 }
 
 /** Why a matched element is not a user-facing control here, or null when it is one. */
-export async function unavailableControl(element: Locator): Promise<string | null> {
+async function unavailableControl(element: Locator): Promise<string | null> {
   const pointer = await element.evaluate(
     (node, { hidden, coarse, fine }) => {
       const coarseArm = node.closest(`.${CSS.escape(hidden.coarse)}`);
@@ -561,6 +566,10 @@ export async function unavailableControl(element: Locator): Promise<string | nul
 async function controlCensus(walk: SurfaceWalk, scope: Locator, prefix: string): Promise<void> {
   await attachNativeFile(walk.info, walk.info, `${prefix}-controls`, { body: await scope.ariaSnapshot(), contentType: "text/plain" });
   for (const element of await scope.locator(CONTROL_SELECTOR).all()) {
+    // A list that re-renders between listing and reading leaves this index empty; its locator would wait forever.
+    if ((await element.count()) === 0) {
+      continue;
+    }
     const target = await controlIdentity(element);
     if (walk.seenControls.has(target)) {
       continue;

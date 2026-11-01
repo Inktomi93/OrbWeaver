@@ -16,6 +16,7 @@ import { selectLabelFromList, setLabelFilter, setTagPruneConfirmOpen, useLabelFi
 import { TagCollectionRows } from "../components/tag-collection-rows.tsx";
 import { useTagCensus, useTagSortControl } from "../hooks/use-tag-library.ts";
 import { LABELS_FINDER_SLOT } from "../lib/labels-focus-targets.ts";
+import { TAG_FILTER_NAME } from "../lib/tag-list-name.ts";
 
 export function LabelsListSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -37,7 +38,7 @@ export function LabelsListSurface(): ReactElement {
         ) : null
       }
       ref={surfaceRef}
-      search={<Input aria-label="Filter tags" onValueChange={setLabelFilter} placeholder="Filter tags…" value={filter} />}
+      search={<Input aria-label={TAG_FILTER_NAME} onValueChange={setLabelFilter} placeholder={`${TAG_FILTER_NAME}…`} value={filter} />}
       searchAside={
         <>
           <LabelsSortSelect />

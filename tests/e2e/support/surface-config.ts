@@ -24,9 +24,9 @@ import {
   expectSubject,
   observe,
   publishWalk,
+  recordAs,
   skip,
   checkpoint as walkCheckpoint,
-  walkOpenBody,
   walkScope,
 } from "./surface-walker.ts";
 
@@ -39,7 +39,8 @@ const CONTEXT = '.shell-panel[data-panel-side="context"]';
 const LIST = '[data-slot="config-list"]';
 const EDITOR = '[data-slot="world-info-member-editor"]';
 
-type ConfigSubjectKind = "category" | "subsection" | "disclosure" | "control" | "action";
+const CONFIG_SUBJECT_KINDS = ["category", "subsection", "disclosure", "control", "action"] as const;
+type ConfigSubjectKind = (typeof CONFIG_SUBJECT_KINDS)[number];
 
 /** Expect a Config subject under its own kind, then record what happened to it. */
 function note(
@@ -48,8 +49,7 @@ function note(
   disposition: SurfaceWitnessDisposition,
   reason: string,
 ): void {
-  expectSubject(walk, id, kind);
-  observe(walk, id, disposition, reason);
+  recordAs(walk, { id, kind }, { disposition, reason });
 }
 
 // Config bodies also report pending saves through aria-busy, which the walker's skeleton wait does not read.
@@ -278,10 +278,9 @@ async function disclosures(flow: SurfaceWalk, name: string, scope: Locator): Pro
     await next.scrollIntoViewIfNeeded();
     await next.click();
     await expect(next).toHaveAttribute("aria-expanded", "true");
-    const id = `config/${name}/disclosure-${String(seen.size)}`;
     await checkpoint(flow, `${name}/disclosure-${String(seen.size)}`, scope, next);
-    await walkOpenBody(flow, scope, id);
-    note(flow, { id: target, kind: "disclosure" }, "visited", `${name}: opened and its body walked`);
+    // It stays open, so the walk of the whole scope that follows reads its body once rather than once per disclosure.
+    note(flow, { id: target, kind: "disclosure" }, "visited", `${name}: opened and left open for the scope walk`);
   }
 }
 

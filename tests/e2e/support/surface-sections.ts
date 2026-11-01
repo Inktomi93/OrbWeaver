@@ -33,8 +33,10 @@ import { PRESETS_SECTION_LABEL } from "#client/features/preset/lib/presets-secti
 import { REFINERY_SECTION_LABEL } from "#client/features/refinery/lib/refinery-section-label.ts";
 import { homeRostersVisible } from "#client/features/roster-preset/lib/home-rosters-visibility.ts";
 import { rosterCountsSuffix } from "#client/features/roster-preset/lib/roster-copy.ts";
+import { ANALYTICS_SEARCH_NAME } from "#client/features/stats/lib/analytics-names.ts";
 import { ANALYTICS_DEFAULT_SORT, ANALYTICS_SORT_OPTIONS } from "#client/features/stats/lib/analytics-view-model.ts";
 import { LEADERBOARD_ROW_ATTR } from "#client/features/stats/lib/leaderboard-row-attr.ts";
+import { TAG_FILTER_NAME } from "#client/features/tag/lib/tag-list-name.ts";
 import { BLANK_CHAT_NAME, START_TEMP_CHAT_NAME } from "#client/lib/chat-launch-names.ts";
 import { deriveChatTitle } from "#client/lib/chat-title.ts";
 import { CORPUS_MODE_LABELS, CORPUS_MODES } from "#client/lib/corpus-modes.ts";
@@ -141,7 +143,7 @@ async function labelMenus(journey: Journey, scope: Locator, prefix: string): Pro
     contentType: "application/json",
   });
   const tags = await journey.client.tag.listTagsWithUsage.query();
-  const filter = scope.getByRole("textbox", { name: "Filter tags", exact: true });
+  const filter = scope.getByRole("textbox", { name: TAG_FILTER_NAME, exact: true });
   const priorFilter = await filter.inputValue();
   for (const index of roster.keys()) {
     expectSubject(journey, `${prefix}/menu-${String(index)}`, "menu");
@@ -217,7 +219,7 @@ async function disposableLabelDelete(journey: Journey, scope: Locator, prefix: s
   const tag = await journey.client.tag.createTag.mutate({ input: { name: `Surface menu ${crypto.randomUUID()}` } });
   expect(journey.run.subjects.tags.some(({ id }) => id === tag.id)).toBe(false);
   try {
-    await scope.getByRole("textbox", { name: "Filter tags", exact: true }).fill(tag.name);
+    await scope.getByRole("textbox", { name: TAG_FILTER_NAME, exact: true }).fill(tag.name);
     const row = scope.locator(`[data-label-row=${JSON.stringify(tag.id)}]`);
     await expect(row).toBeVisible();
     await row.hover();
@@ -832,7 +834,7 @@ async function corpusMember(journey: Journey, mode: (typeof CORPUS_MODES)[number
       return;
     }
     await reveal(journey, "list");
-    const filter = pane(journey, "list").getByRole("textbox", { name: "Filter tags", exact: true });
+    const filter = pane(journey, "list").getByRole("textbox", { name: TAG_FILTER_NAME, exact: true });
     const row = pane(journey, "list").locator(`[data-label-row=${JSON.stringify(subject.id)}]`);
     await journey.action(`corpus/labels/member/${subject.id}/reveal-original`, {
       action: async () => {
@@ -875,7 +877,7 @@ async function corpusMember(journey: Journey, mode: (typeof CORPUS_MODES)[number
   if (subject === undefined) {
     throw new Error("The actual leaderboard page has no admitted original character identity");
   }
-  const search = pane(journey, "list").getByRole("textbox", { name: "Search characters", exact: true });
+  const search = pane(journey, "list").getByRole("textbox", { name: ANALYTICS_SEARCH_NAME, exact: true });
   const row = pane(journey, "list").locator(`[${LEADERBOARD_ROW_ATTR}=${JSON.stringify(subject.characterId)}]`);
   await journey.action(`corpus/insights/character/${subject.characterId}/reveal-original`, {
     action: async () => {
@@ -1830,7 +1832,12 @@ async function databank(journey: Journey): Promise<void> {
   );
   await context(journey, `databank/${subject.id}`);
   await journey.requestPanes();
-  observe(journey, "databank/maintenance", "unvisited", "Reindex/re-extract, feed-everywhere and destructive original-document operations are not invoked");
+  observe(
+    journey,
+    "databank/maintenance",
+    "excluded",
+    "Reindex/re-extract, feed-everywhere and destructive operations would rewrite admitted original documents; their confirmations are opened and cancelled",
+  );
 }
 
 async function refinery(journey: Journey): Promise<void> {
@@ -1891,8 +1898,8 @@ async function refineryWorkbench(journey: Journey, row: Locator, prefix: string)
   observe(
     journey,
     "refinery/runs",
-    "unvisited",
-    "Score/rewrite/analyze, iterate/apply/copy and original session/card mutation are not invoked; existing run payloads are read only",
+    "excluded",
+    "Stage runs, iterate, apply and copy would mutate an admitted original session and card; the Refinery disposable stage execution case runs them on its own subject",
   );
 }
 
@@ -2382,7 +2389,7 @@ function sectionJourney(flow: SurfaceFlow, section: OwnedSection): Journey {
   const journey: Journey = {
     ...createSurfaceWalk(flow, [{ id: section, kind: "rail" }], {
       menus: async (scope, prefix) => {
-        if (!prefix.startsWith("corpus/labels") || (await scope.getByRole("textbox", { name: "Filter tags", exact: true }).count()) !== 1) {
+        if (!prefix.startsWith("corpus/labels") || (await scope.getByRole("textbox", { name: TAG_FILTER_NAME, exact: true }).count()) !== 1) {
           return false;
         }
         await labelMenus(journey, scope, prefix);

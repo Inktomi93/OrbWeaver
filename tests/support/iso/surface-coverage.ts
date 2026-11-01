@@ -2,11 +2,12 @@ import { z } from "zod";
 
 /** Observed means rendered evidence only; visited means the named operation or surface traversal completed. */
 const SURFACE_WITNESS_DISPOSITIONS = ["visited", "observed", "failed", "excluded", "unvisited", "not-applicable"] as const;
-const SURFACE_COVERAGE_DISPOSITIONS = [...SURFACE_WITNESS_DISPOSITIONS, "skipped"] as const;
 
-/** Skipped records an available but unexecuted case; excluded records an explicit policy boundary. Neither establishes exercised coverage. */
-export type SurfaceCoverageDisposition = (typeof SURFACE_COVERAGE_DISPOSITIONS)[number];
-/** Every disposition except `skipped`, which carries a {@link SurfaceSkipReason} instead of free text alone. */
+/**
+ * Every disposition except `skipped`, which carries a {@link SurfaceSkipReason} instead of free text alone.
+ *
+ * @remarks Skipped records an available but unexecuted case; excluded records an explicit policy boundary. Neither establishes exercised coverage.
+ */
 export type SurfaceWitnessDisposition = (typeof SURFACE_WITNESS_DISPOSITIONS)[number];
 
 /** The closed list of reasons a walk may leave an available subject unexercised. A skip outside it fails the walk. */
@@ -44,18 +45,18 @@ export const surfaceCoverageInventorySchema = z.strictObject({
 });
 export type SurfaceCoverageInventory = z.output<typeof surfaceCoverageInventorySchema>;
 type Subject = z.output<typeof subjectSchema>;
-export type SurfaceCoverageObservation = z.output<typeof observationSchema>;
-export type SurfaceSkippedObservation = z.output<typeof skipSchema>;
+type SurfaceCoverageObservation = z.output<typeof observationSchema>;
+type SurfaceSkippedObservation = z.output<typeof skipSchema>;
 
 /** Preserve subject identity even when either component contains a delimiter. */
-export function surfaceCoverageKey(subject: Subject): string {
+function surfaceCoverageKey(subject: Subject): string {
   return JSON.stringify([subject.kind, subject.id]);
 }
 
 export const SURFACE_INVENTORY_ATTACHMENT = "surface-inventory";
 
 /** A skipped observation whose reason is missing or outside {@link SURFACE_SKIP_REASONS}. */
-export interface SurfaceUnlistedSkip {
+interface SurfaceUnlistedSkip {
   readonly id: string;
   readonly kind: string;
   readonly issue: string;

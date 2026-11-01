@@ -39,7 +39,7 @@ Phase B runs beside steps 2 to 6 of `docs/plans/cross-surface-consistency/design
 
 ### Known state
 
-- `tests/e2e/support/surface-walker.ts` owns coverage bookkeeping and the generic walk. Sections, chat and character publish through it. Config still keeps its own `Visit` bookkeeping.
+- `tests/e2e/support/surface-walker.ts` owns coverage bookkeeping and the generic walk. Every driver publishes through it. A skip names a reason from `SURFACE_SKIP_REASONS`; a skip without one fails the case.
 - Character navigation is deleted. Its outcome journeys still hand-type names; production copy modules for them are not built.
 - On a phone, the bottom navigation stays focusable under the full-screen context sheet; board it with the phase A findings.
 
@@ -63,22 +63,22 @@ Source: synthetic `desktop-1440-all-panes-measurement` runs of the walker branch
 
 | Surface | Driver file | Executes | Open work |
 | - | - | - | - |
-| Characters library, source-context, editor, relations, trust-actions | `surface-character.ts` | pass | names from production |
-| Characters greeting, look, history and recovery cases, commands | `surface-character.ts` | not re-run on the walker branch | re-run; names from production |
+| Characters library, source-context, editor, relations, look, history, trust-actions | `surface-character.ts` | pass | names from production |
+| Characters greeting, history-recovery, look-recovery, commands, library-recovery | `surface-character.ts` | not re-run on the walker branch | re-run; names from production |
 | Chat polish, oracle, arcade | `surface-chat.ts` | pass with real journeys | none |
 | Chat generation and cancel | `surface-chat.ts` | pass | none |
 | Chat message operations | `surface-chat.ts` | pass | none |
-| Chat reading styles | `surface-chat.ts` | every style reached; flat, echo, whisper, hush and ripple pass | bubble, document and tide fail in `reachMessage`'s progress wait |
+| Chat reading styles | `surface-chat.ts` | every style reached; flat, echo, whisper, hush, ripple and tide pass | bubble and document fail in `reachMessage`'s progress wait |
 | Chat list, Context, group, game, arrival, lifecycle commands, media | `surface-chat.ts` | not re-run on the walker branch | re-run; replace `inspectMenu` with the walker |
-| Config about, admin, appearance, automation, backup, chat-behavior, connections, personas, regex, rosterPreset, workloads, worldInfo | `surface-config.ts` | pass | move to `SurfaceWalk` |
-| Config plugins | `surface-config.ts` | timed out at the case budget | bound the per-control census |
+| Config appearance, connections, personas, plugins | `surface-config.ts` | pass on `SurfaceWalk` | names from production |
+| Config about, admin, automation, backup, chat-behavior, regex, rosterPreset, workloads, worldInfo, map, recovery, settings | `surface-config.ts` | not re-run on `SurfaceWalk` | re-run; names from production |
 | Refinery execution | `surface-sections.ts` | pass | none |
 | Extensions rail | `surface-sections.ts` | pass | none |
 | Home rail | `surface-sections.ts` | reached | Databank tile document rows need a witness |
 | Corpus rail | `surface-sections.ts` | reached | semantic target queries unexercised |
-| Databank rail | `surface-sections.ts` | reached | `databank/maintenance` stays unvisited |
+| Databank rail | `surface-sections.ts` | reached | none; `databank/maintenance` is `excluded` on original documents |
 | Presets rail | `surface-sections.ts` | reached | an unexpected 404 on `preset.get` after deletion |
-| Refinery rail | `surface-sections.ts` | reached | `refinery/runs` stays unvisited on an original session |
+| Refinery rail | `surface-sections.ts` | pass | none; `refinery/runs` is `excluded` on an original session |
 | Boot diagnostic, multi-human admission | spec | pass | none |
 
 World Info, Regex, Rosters, admin and plugin management are Config categories, not rails. Tags live in Characters. Insights live in Corpus modes.
@@ -353,6 +353,12 @@ Classes: (a) navigation the generic walker already covers: delete; (b) outcome a
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+### Phase B: typed skips, Config on the shared walker
+
+- `pnpm test tests/support/iso/surface-coverage.test.ts tests/support/node/surface-index-reporter.test.ts`: 16 pass. A probe against the previous `tests/support/iso/surface-coverage.ts` accepted the planted unlisted skip.
+- Synthetic `desktop-1440-all-panes-measurement` run: Characters editor, relations, look, history; Config appearance, plugins; Refinery rail. All pass, 113 skips, none unlisted. Config plugins takes about 37 seconds; it had exceeded the 600-second case budget.
+- The run before it passed Config personas, connections and Chat reading tide. It failed bubble and document in `reachMessage`, Config appearance on a disclosure filed under the census's `control` kind, Config plugins at the case budget, and the Refinery rail on `refinery/runs`.
 
 ### Phase B step 2: accessible names from production copy (lane cb-walk-names)
 
