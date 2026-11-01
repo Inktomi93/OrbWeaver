@@ -9,6 +9,7 @@ import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
+  CORPUS_PROVIDER_ENDPOINT,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
@@ -18,12 +19,21 @@ import {
 import { z } from "zod";
 
 const QUERY = "a silver-haired archivist";
+const RERANK_MODEL = "image-rerank-model";
+const rerankBodySchema = z.object({ query: z.string() });
 const conversationSchema = z.array(z.object({ role: z.string(), content: z.array(z.object({ type: z.string(), text: z.string().optional() })) }));
 
-async function imageSearch(instructionAware: boolean): Promise<{ readonly system: string | undefined; readonly stored: readonly (string | undefined)[] }> {
+interface ImageSearchWire {
+  readonly system: string | undefined;
+  readonly stored: readonly (string | undefined)[];
+  readonly rerankQueries: readonly string[];
+}
+
+async function imageSearch(instructionAware: boolean, rerank = false): Promise<ImageSearchWire> {
+  const rerankQueries: string[] = [];
   const conversations: z.infer<typeof conversationSchema>[] = [];
   const wire = createCorpusProviderExecution({
-    modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
+    modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL, RERANK_MODEL],
     embedding: (input) => {
       conversations.push(conversationSchema.parse(JSON.parse(input)));
       return CORPUS_EMBEDDING_VECTOR;
@@ -32,9 +42,32 @@ async function imageSearch(instructionAware: boolean): Promise<{ readonly system
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
   });
-  await using root = await createServerHarness({ providerFetch: wire.execute });
+  await using root = await createServerHarness({
+    providerFetch: async (input, init) => {
+      const request = new Request(input, init);
+      if (new URL(request.url).pathname !== "/v1/rerank") {
+        return await wire.execute(request);
+      }
+      rerankQueries.push(rerankBodySchema.parse(await request.json()).query);
+      return Response.json({ results: [{ index: 0, ["relevance_score"]: 1 }] });
+    },
+  });
   const principal = await root.principalFor(root.ownerId);
   const { embed } = await seedCorpusConnections(root, principal);
+  const reranker = await root.services.connection.create({
+    principal,
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: CORPUS_PROVIDER_ENDPOINT,
+    model: RERANK_MODEL,
+    allowBackground: true,
+    declared: {
+      kind: "rerank",
+      rerank: { maxInputTokens: 8192, input: ["text"], instructionAware: false },
+      features: { detectServer: false, rerankPath: "/rerank" },
+    },
+  });
+  await root.services.connection.setBinding({ principal, task: "rerank", connectionId: reranker.id });
   await root.services.connection.update({
     principal,
     connectionId: embed.id,
@@ -56,11 +89,11 @@ async function imageSearch(instructionAware: boolean): Promise<{ readonly system
   await root.app.embeddings.indexAsset(avatar.assetId, { force: true });
   await root.app.embeddings.embedAssets({ ownerId: principal.userId, force: false, signal: new AbortController().signal });
   await root.settleBackground();
-  const hits = await root.services.search.images({ ownerId: principal.userId, query: QUERY, topN: 1, lens: "image-raw" });
+  const hits = await root.services.search.images({ ownerId: principal.userId, query: QUERY, topN: 1, lens: rerank ? "image-captioned" : "image-raw", rerank });
   expect(hits).toHaveLength(1);
   const isQuery = (conversation: z.infer<typeof conversationSchema>): boolean => conversation.at(-1)?.content.some((part) => part.text === QUERY) === true;
   const systemOf = (conversation: z.infer<typeof conversationSchema> | undefined): string | undefined => conversation?.[0]?.content[0]?.text;
-  return { system: systemOf(conversations.find(isQuery)), stored: conversations.filter((conversation) => !isQuery(conversation)).map(systemOf) };
+  return { system: systemOf(conversations.find(isQuery)), stored: conversations.filter((conversation) => !isQuery(conversation)).map(systemOf), rerankQueries };
 }
 
 test("an instruction-aware embedder receives a scope instruction in place of the wire default, and stored images keep theirs", async () => {
@@ -72,4 +105,11 @@ test("an instruction-aware embedder receives a scope instruction in place of the
   expect(aware.stored).toEqual(unaware.stored);
   expect(aware.stored.length).toBeGreaterThan(0);
   expect(aware.stored).not.toContain(aware.system);
+});
+
+test("a reranked image search leads the cross-encoder query with a scope instruction, as every other search verb does", async () => {
+  const { rerankQueries } = await imageSearch(false, true);
+  expect(rerankQueries).toHaveLength(1);
+  expect(rerankQueries[0]?.endsWith(`\n${QUERY}`)).toBe(true);
+  expect(rerankQueries[0]?.length).toBeGreaterThan(QUERY.length + 1);
 });

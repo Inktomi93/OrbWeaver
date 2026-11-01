@@ -302,7 +302,7 @@ export function planStructuredFor(connection: Resolved, ask: StructuredAsk): Str
 }
 
 /** Side-generation preview with the same role parameters and reasoning posture as the request. */
-export function structuredFitFor(connection: Resolved, format: ResponseFormat, params: RolePresetParams): StructuredFit {
+export function structuredFitFor(connection: Resolved, format: Pick<ResponseFormat, "name" | "schema">, params: RolePresetParams): StructuredFit {
   const reasoningOff =
     connection.capability.kind === "generation" &&
     resolveChat(params, connection.capability.generation, { posture: "side-gen", wire: connection.wire }).reasoning.offChosen === true;

@@ -59,7 +59,10 @@ export function createImages(ctx: SearchContext): SearchService["images"] {
         score: r.distance,
       }));
 
-      const ordered = params.rerank === true ? await applyRerank(query, rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN), rc.rerank, topN) : ranked;
+      const ordered =
+        params.rerank === true
+          ? await applyRerank(`${SCOPE_INSTRUCTIONS.images.rerank}\n${query}`, rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN), rc.rerank, topN)
+          : ranked;
 
       // A HIT IS A PICTURE AND A PLACE (side-eye corpus re-pass U4). The hash makes the result renderable; the
       // avatar owner makes it navigable. Resolved AFTER the slice, so the enrichment join is sized by what is

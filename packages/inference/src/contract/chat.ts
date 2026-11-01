@@ -93,7 +93,7 @@ export interface ChatToolExecution {
  *  every decision about what happens after a call, whichever side drives the loop. */
 export interface ChatToolOffer {
   readonly definitions: readonly ChatToolDefinition[];
-  readonly execute: (call: ToolCallInput) => Promise<ChatToolExecution>;
+  readonly execute: (call: Pick<ToolCallInput, "toolCallId" | "name" | "arguments">) => Promise<ChatToolExecution>;
   /** The round ceiling a backend that owns the loop enforces. A caller-owned loop enforces its own. */
   readonly turnLimit: number;
 }
