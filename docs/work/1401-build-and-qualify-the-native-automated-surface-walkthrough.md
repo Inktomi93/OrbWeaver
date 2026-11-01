@@ -68,7 +68,7 @@ Source: synthetic `desktop-1440-all-panes-measurement` runs of the walker branch
 | Chat polish, oracle, arcade | `surface-chat.ts` | pass with real journeys | none |
 | Chat generation and cancel | `surface-chat.ts` | pass | none |
 | Chat message operations | `surface-chat.ts` | pass | none |
-| Chat reading styles | `surface-chat.ts` | every style reached; flat, echo, whisper, hush, ripple and tide pass | bubble and document fail in `reachMessage`'s progress wait |
+| Chat reading styles | `surface-chat.ts` | every style reached; whisper and ripple pass in the whole walk | the `reachMessage` progress poll fails in bubble, flat, document, hush and tide; echo fails on a `chat.listMessages` 404 for a deleted chat |
 | Chat list, Context, group, game, arrival, lifecycle commands, media | `surface-chat.ts` | not re-run on the walker branch | re-run; replace `inspectMenu` with the walker |
 | Config appearance, connections, personas, plugins | `surface-config.ts` | pass on `SurfaceWalk` | names from production |
 | Config about, admin, automation, backup, chat-behavior, regex, rosterPreset, workloads, worldInfo, map, recovery, settings | `surface-config.ts` | not re-run on `SurfaceWalk` | re-run; names from production |
@@ -77,7 +77,7 @@ Source: synthetic `desktop-1440-all-panes-measurement` runs of the walker branch
 | Home rail | `surface-sections.ts` | reached | Databank tile document rows need a witness |
 | Corpus rail | `surface-sections.ts` | reached | semantic target queries unexercised |
 | Databank rail | `surface-sections.ts` | reached | none; `databank/maintenance` is `excluded` on original documents |
-| Presets rail | `surface-sections.ts` | reached | an unexpected 404 on `preset.get` after deletion |
+| Presets rail | `surface-sections.ts` | timed out in the control census | census a re-rendering list through element handles, not `nth` locators; explain the `preset.get` 404 after deletion |
 | Refinery rail | `surface-sections.ts` | pass | none; `refinery/runs` is `excluded` on an original session |
 | Boot diagnostic, multi-human admission | spec | pass | none |
 
@@ -358,6 +358,7 @@ Filled at landing: what ran and where its output is.
 
 - `pnpm test tests/support/iso/surface-coverage.test.ts tests/support/node/surface-index-reporter.test.ts`: 16 pass. A probe against the previous `tests/support/iso/surface-coverage.ts` accepted the planted unlisted skip.
 - Synthetic `desktop-1440-all-panes-measurement` run: Characters editor, relations, look, history; Config appearance, plugins; Refinery rail. All pass, 113 skips, none unlisted. Config plugins takes about 37 seconds; it had exceeded the 600-second case budget.
+- Whole synthetic walk on `desktop-1440-all-panes-measurement`: 56 cases completed in 4900 seconds, inside the 90-minute native budget. The 1-minute load was 22.9 on 24 cores at start. 46 pass, 1 skipped, 9 fail: Home and Corpus on their open handover items, Presets on the census timeout, and six reading styles. No skip was unlisted.
 - The run before it passed Config personas, connections and Chat reading tide. It failed bubble and document in `reachMessage`, Config appearance on a disclosure filed under the census's `control` kind, Config plugins at the case budget, and the Refinery rail on `refinery/runs`.
 
 ### Phase B step 2: accessible names from production copy (lane cb-walk-names)

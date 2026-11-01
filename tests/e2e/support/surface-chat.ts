@@ -41,7 +41,7 @@ import { ROW_DELETE_NAME, ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts"
 import { gotoChatsList, messageRow, openChatsList, openDetailPanel, waitForAppReady } from "./chat-room.ts";
 import type { SurfaceFlow } from "./surface-flow.ts";
 import type { SurfaceWalk } from "./surface-walker.ts";
-import { checkpoint, createSurfaceWalk, disclosureHooks, expectSubject, observe, publishWalk } from "./surface-walker.ts";
+import { checkpoint, createSurfaceWalk, disclosureHooks, expectSubject, observe, publishWalk, skip } from "./surface-walker.ts";
 import { holdTrpcProcedure } from "./trpc.ts";
 
 // The showcase plugins the walks drive; `satisfies` makes a renamed or retired slug a `tsc` error here.
@@ -303,14 +303,21 @@ async function accountMessageLeaves(flow: Journey, menu: Locator, name: string, 
         candidate.viewerIsHost === chat.viewerIsHost &&
         (label !== MESSAGE_REATTRIBUTE_NAME || (candidate.viewerOwnsMessage && message.authorUserId === chat.viewerUserId)),
     );
-    observe(
-      flow,
-      id,
-      proof === undefined ? "unvisited" : "observed",
-      proof === undefined
-        ? `Enabled ${message.role} leaf has no same-case operation proof for this role and authority; original ${message.id} remains untouched`
-        : `Original ${message.id} observed only; same-case ${proof.message.role} operation on disposable ${proof.message.chatId}/${proof.message.id}: ${proof.detail}`,
-    );
+    if (proof === undefined) {
+      skip(
+        flow,
+        id,
+        "not-activated",
+        `Enabled ${message.role} leaf has no same-case operation proof for this role and authority; original ${message.id} remains untouched`,
+      );
+    } else {
+      observe(
+        flow,
+        id,
+        "observed",
+        `Original ${message.id} observed only; same-case ${proof.message.role} operation on disposable ${proof.message.chatId}/${proof.message.id}: ${proof.detail}`,
+      );
+    }
   }
 }
 
@@ -353,10 +360,10 @@ async function inspectMenu(
     await accountMessageLeaves(flow, menu, name, message);
     return;
   }
-  observe(
+  skip(
     flow,
     `${name}-activation`,
-    "unvisited",
+    "not-activated",
     "Leaf commands inspected and terminal focus proved; activation may generate, mutate canon, export private data, or invoke an owner plugin",
   );
 }
@@ -666,11 +673,11 @@ async function composerMenus(flow: Journey, room: ChatSummary): Promise<void> {
     await input.fill(original);
     await expect(input).toHaveValue(original);
   }
-  observe(
+  skip(
     flow,
     "generation-and-plugin-invocation",
-    "unvisited",
-    "Generation, arbitrary contributed commands and canon-editing leaf actions are not executed against owner subjects",
+    "another-case",
+    "Generation, contributed commands and canon edits run in the disposable generation, oracle, arcade and message-operation cases, never on owner subjects",
   );
 }
 
@@ -864,11 +871,11 @@ async function inspectPlugins(flow: Journey, plugins: Locator, room: ChatSummary
     "observed",
     `${String(surfaces.filter((surface) => surface.anchor === "chat-flank").length)} actual registered chat-flank surfaces; visibility/publication remains the product's decision`,
   );
-  observe(
+  skip(
     flow,
     `plugin-${room.id}-guest-execution`,
-    "unvisited",
-    "Host Context/sidecar chrome is traversed; a registered plugin's external guest startup is not independently established by its attribution shell",
+    "another-case",
+    "Host Context/sidecar chrome is traversed here; guest startup runs in the maintained arcade guest case",
   );
 }
 
@@ -890,10 +897,10 @@ async function context(flow: Journey, room: ChatSummary): Promise<void> {
   if (await plugins.isVisible()) {
     await inspectPlugins(flow, plugins, room);
   }
-  observe(
+  skip(
     flow,
     `context-${room.id}-leaf-operations`,
-    "unvisited",
+    "not-activated",
     "Context navigation/disclosures are inspected without changing room configuration, generating previews that spend, managing memberships, or editing canon",
   );
   await flow.requestPanes();
