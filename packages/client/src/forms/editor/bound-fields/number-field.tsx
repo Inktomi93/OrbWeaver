@@ -4,22 +4,17 @@
 
 import { Field } from "@orb/ui/field";
 import { NumberField as UiNumberField } from "@orb/ui/number-field";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
+import type { BoundFieldShellProps } from "./use-bound-field.ts";
 import { useBoundField } from "./use-bound-field.ts";
 
-export interface BoundNumberFieldProps {
-  readonly label: ReactNode;
-  readonly description?: ReactNode;
-  /** A hover-tip explainer beside the label (`@orb/ui/field` `hint`) — for copy that doesn't need to
-   *  stay always-visible. */
-  readonly hint?: ReactNode;
+export interface BoundNumberFieldProps extends BoundFieldShellProps {
   /** Empty-state text — for a blank-means-the-default field, the EFFECTIVE default (e.g. `"2048 (default)"`)
    *  so an unset knob reads as configured-by-default instead of broken. Never writes the value. */
   readonly placeholder?: string;
   readonly min?: number;
   readonly max?: number;
   readonly step?: number;
-  readonly disabled?: boolean;
 }
 
 export function BoundNumberField(props: BoundNumberFieldProps): ReactElement {

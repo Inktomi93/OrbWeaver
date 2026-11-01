@@ -81,7 +81,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
   // LABELS the stored bag's gloss is built from. Shared with the picker and the start door through the one
   // hook (one query key). A stored id the catalogue no longer offers falls back to the raw id — degraded
   // but visible, matching the apply's reported skip.
-  const { presetOf } = useRulePresetCatalogue(true);
+  const { presetOf } = useRulePresetCatalogue();
   const update = useUpdateRosterPreset({ trpc, invalidation });
   const start = useStartRoster();
   // Focus lands on the surface wrapper at mount (orb/surface-a11y-focus — the tag-member-surface idiom).

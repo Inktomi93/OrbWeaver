@@ -50,10 +50,10 @@ function tallyIfAny(value: unknown, label: string): string | null {
   return value === 0 ? null : tally(value, label);
 }
 
-/** Read one field of a NESTED blob object without trusting it to be there — an older shape must degrade to
- *  the fallback, never throw inside a render. */
-function field(source: unknown, key: string): unknown {
-  return typeof source === "object" && source !== null ? (source as Record<string, unknown>)[key] : undefined;
+/** Read the `changed` field of a NESTED blob object without trusting it to be there — an older shape must
+ *  degrade to the fallback, never throw inside a render. */
+function changedOf(source: unknown): unknown {
+  return typeof source === "object" && source !== null ? (source as Record<string, unknown>)["changed"] : undefined;
 }
 
 /** Join the phrases a renderer could actually build; NO readable phrase means no summary (→ the fallback). */
@@ -103,8 +103,8 @@ const backfillSummary: WorkloadResultRenderer<"group-character-backfill"> = (res
 /** The memory sweep reports two passes plus the chats it isolated and skipped. */
 const memoryBackfillSummary: WorkloadResultRenderer<"memory-backfill"> = (result) =>
   summarize([
-    count(field(result.segments, "changed"), "segment"),
-    count(field(result.digests, "changed"), "digest"),
+    count(changedOf(result.segments), "segment"),
+    count(changedOf(result.digests), "digest"),
     countIfAny(result.failed, "chat skipped", "chats skipped"),
   ]);
 

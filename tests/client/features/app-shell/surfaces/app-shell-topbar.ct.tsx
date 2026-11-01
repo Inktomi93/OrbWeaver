@@ -431,7 +431,6 @@ test.describe("an open named group room", () => {
     const trail = page.locator(".shell-topbar-trail");
     await expect(trail.getByRole("button", { name: /^Notifications/u })).toBeVisible();
     await expect(trail.getByRole("button", { name: "Report a bug", exact: true })).toBeVisible();
-    await expect(trail.getByRole("button", { name: "Plugin commands", exact: true })).toBeVisible();
     await expect(page.locator(MEMBERS_CHIP)).toBeVisible();
     await expect(page.locator(MEMORY_CHIP)).toBeVisible();
     await expect(page.locator(`${MEMBERS_CHIP} .shell-chat-chip-count`)).toBeHidden();

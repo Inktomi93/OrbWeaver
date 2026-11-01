@@ -5,7 +5,6 @@
 import type { Change } from "diff";
 import { diffChars, diffLines, diffWords } from "diff";
 import type { ReactElement } from "react";
-import { cn } from "#lib";
 import { diffSegmentVariants } from "./variants.ts";
 
 const DIFF_MODES = ["chars", "words", "lines"] as const;
@@ -34,11 +33,10 @@ export interface DiffViewProps {
   readonly after: string;
   /** @defaultValue "chars" */
   readonly mode?: DiffMode;
-  readonly className?: string;
 }
 
 /** The jsdiff seal — renders the before/after change stream as inline segments. */
-export function DiffView({ before, after, mode = "chars", className }: DiffViewProps): ReactElement {
+export function DiffView({ before, after, mode = "chars" }: DiffViewProps): ReactElement {
   const changes = DIFF_BY_MODE[mode](before, after);
   const segments: ReactElement[] = [];
   // Keyed by the running text offset — stable and unique, unlike an array index across recomputed diffs.
@@ -52,5 +50,5 @@ export function DiffView({ before, after, mode = "chars", className }: DiffViewP
     );
     offset += change.value.length;
   }
-  return <pre className={cn("font-mono text-code leading-label-relaxed whitespace-pre-wrap", className)}>{segments}</pre>;
+  return <pre className="font-mono text-code leading-label-relaxed whitespace-pre-wrap">{segments}</pre>;
 }

@@ -4,16 +4,15 @@
 // (real orbweaver posture).
 //
 // CHARACTER is one preset object threaded through everything she does —
-// how hard she bursts on a walk, how fast her legs go, how quickly she turns, how fast she pounces,
-// how long she inspects, and whether she twitches at rest. `calm` is the SHIPPED motion (the owner
-// ruled the mock "turbo" and the timeline was calmed to match — see the turnRate note below), so a
-// host that never passes `character` sees exactly the weave it saw before this module grew presets.
+// how fast her legs go, how quickly she turns, how fast she pounces and how long she inspects.
+// `CALM_CHARACTER` is the SHIPPED motion (the owner ruled the mock "turbo" and the timeline was calmed
+// to match — see the turnRate note below).
 
 import type { CharacterPreset, SpiderPose } from "./web-weave-character.ts";
-import { burstEase, HEAD_DOWN } from "./web-weave-character.ts";
+import { HEAD_DOWN } from "./web-weave-character.ts";
 import type { SpiderLeg, WeaveState, WeaveStrand, WovenWeb } from "./web-weave-geometry.ts";
 import type { WeavePoint } from "./web-weave-math.ts";
-import { clamp01, easeInOutQuad, easeOutCubic, pointAtFraction, weaveJitter, wrapToPi } from "./web-weave-math.ts";
+import { clamp01, easeInOutQuad, easeOutCubic, pointAtFraction, wrapToPi } from "./web-weave-math.ts";
 import type { PreyState } from "./web-weave-prey.ts";
 import { preyPose } from "./web-weave-prey.ts";
 import { BRIDGE_WALK_START, WEAVE_TIMELINE } from "./web-weave-timeline.ts";
@@ -33,12 +32,6 @@ const REST_BOB_PX = 0.9;
 const REST_BOB_HZ = 0.0009;
 /** Squared px a pose must move per frame before the heading re-aims (kills jitter at rest). */
 const HEADING_MIN_MOVE_SQ = 0.05;
-/** Idle twitches are scheduled in slots this long; a hash decides which slots fire, and the twitch
- *  plays in the last fraction of its slot (so it lands at an unpredictable-looking moment). */
-const TWITCH_SLOT_MS = 2600;
-const TWITCH_CHANCE = 0.55;
-const TWITCH_TAIL = 0.8;
-const CH_TWITCH = 5;
 
 /** Last spiral sample born by `t` (binary search over the per-point birth times). Shared with the
  *  render module — the drawn extent and the laying tip must agree by construction. */
@@ -83,17 +76,6 @@ export interface SpiderTracker {
   prev: { x: number; y: number; angle: number } | null;
 }
 
-/** How far through an idle twitch she is (0 = none). Hash-scheduled per slot, so it is deterministic
- *  per seed and never lands on a metronome. */
-export function idleTwitchPhase(now: number, seed: number): number {
-  const slot = Math.floor(now / TWITCH_SLOT_MS);
-  if (weaveJitter(slot, CH_TWITCH, seed) <= TWITCH_CHANCE) {
-    return 0;
-  }
-  const through = (now % TWITCH_SLOT_MS) / TWITCH_SLOT_MS;
-  return through > TWITCH_TAIL ? (through - TWITCH_TAIL) / (1 - TWITCH_TAIL) : 0;
-}
-
 /** The A9 handoff pose — riding the strand-out line; null once she's off-screen. */
 function strandOutPose(scene: SpiderScene): SpiderPose | null {
   const strandOut = scene.strandOut as NonNullable<SpiderScene["strandOut"]>;
@@ -107,7 +89,7 @@ function strandOutPose(scene: SpiderScene): SpiderPose | null {
   return { ...pos, angle: Math.atan2(b.y - a.y, b.x - a.x), moving: true, sprinting: false, tap: 0 };
 }
 
-function spiderLegPosition(web: WovenWeb, leg: SpiderLeg, t: number, character: CharacterPreset): WeavePoint {
+function spiderLegPosition(web: WovenWeb, leg: SpiderLeg, t: number): WeavePoint {
   const p = clamp01((t - leg.t0) / (leg.t1 - leg.t0));
   if (leg.tip !== undefined) {
     // The laying tip, CONTINUOUSLY: a spiral's per-point birth times are linear in its sample index, so
@@ -117,7 +99,7 @@ function spiderLegPosition(web: WovenWeb, leg: SpiderLeg, t: number, character: 
     const strand = leg.tip === "aux" ? web.aux : web.capture;
     return pointAtFraction(strand.pts, p);
   }
-  return pointAtFraction(leg.pts, leg.from + (leg.to - leg.from) * burstEase(easeInOutQuad(p), character.burst));
+  return pointAtFraction(leg.pts, leg.from + (leg.to - leg.from) * easeInOutQuad(p));
 }
 
 /** Swing the heading a fraction of the way toward the direction of travel — bounded, and held through
@@ -139,7 +121,7 @@ function itineraryPose(scene: SpiderScene, tracker: SpiderTracker): SpiderPose |
   const { web, t, character } = scene;
   for (const leg of web.itinerary) {
     if (t >= leg.t0 && t <= leg.t1) {
-      const pos = spiderLegPosition(web, leg, t, character);
+      const pos = spiderLegPosition(web, leg, t);
       const angle = turnToward(tracker.prev, pos, character.turnRate);
       tracker.prev = { x: pos.x, y: pos.y, angle };
       return { ...pos, angle, moving: true, sprinting: false, tap: 0 };

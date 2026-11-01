@@ -99,13 +99,6 @@ function resolveSpliceRole(
   };
 }
 
-/** A depth-0 in_chat injection whose effective wire role is user (user, or system folded to user).
- *  depth 0 = after the new user turn. Assistant-role depth-0 is not a tail injection (a trailing
- *  assistant message is response prefill; the splice normalizes it to depth 1). */
-function isPromptTailInjection(inj: ChatInjection): boolean {
-  return inj.position === "in_chat" && inj.depth === 0 && inj.role !== "assistant";
-}
-
 const DEFAULT_INJECTION_ORDER = 100;
 
 /** The splice order. Primary: depth desc (deepest splices first). Then the new-chat marker: it is always the first
@@ -136,9 +129,6 @@ export function spliceInChatInjections<T extends { role: MessageRole; content: s
   // that pass plain content unaffected.
   resolveContent: (content: string) => string = (c) => c,
   opts: {
-    /** agent-sdk seed shaping: leave the prompt-tail set (depth-0 user-effective) out of the splice —
-     *  the dispatcher appends those to the `prompt:` param instead. */
-    excludePromptTail?: boolean;
     /** The resolved `turns.assistantPrefill`. `true` ⇒ keep an assistant\@depth-0 injection at depth 0
      *  (the trailing-assistant prefill the model honors); `false`/absent ⇒ floor it to depth 1. */
     allowAssistantPrefill?: boolean;
@@ -169,7 +159,7 @@ export function spliceInChatInjections<T extends { role: MessageRole; content: s
   if (injections === undefined || injections.length === 0) {
     return [...history];
   }
-  const inChat = injections.filter((i) => i.position === "in_chat" && !(opts.excludePromptTail === true && isPromptTailInjection(i)));
+  const inChat = injections.filter((i) => i.position === "in_chat");
   if (inChat.length === 0) {
     return [...history];
   }

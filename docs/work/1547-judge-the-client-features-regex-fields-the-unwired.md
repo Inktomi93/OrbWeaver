@@ -27,4 +27,8 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+1 row: 0 deleted, 1 derived, 0 kept, 0 handed off, 0 owner questions.
+
+`RegexBulkArgs.scriptIds` was not dead: each bulk mutation sends its variables whole to tRPC, so the server reads the field. The four bulk hooks in `use-regex-library.ts` now take `inferInput<Trpc["regex"]["bulkSetEnabled"]>`, `bulkSetGlobal`, `bulkSetPlacement` and `bulkRemove`; `RegexBulkArgs` is gone, and so is the `RegexPlacement` import.
+
+Survey: `codegraph_explore` on `RegexBulkArgs scriptIds use-regex-library regex-bulk-bar`; ast-grep (`-l ts` 5904, `-l tsx` 1522 files) on `useBulkSetRegexPlacement($$$)` (1 caller, `regex-bulk-bar.tsx`). Typecheck: `pnpm typecheck packages/client/tsconfig.json tsconfig.tests-dom.json` exit 0, which checks the branded `scriptIds` and `placement` arrays against the router input. No CT mounts `RegexBulkBar`; the typecheck is the proof of the derived type.

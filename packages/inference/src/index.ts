@@ -42,7 +42,6 @@ import { checkAvailability, loadVerdict } from "./resolve/availability.ts";
 import { behaveAs, detectionUrl } from "./resolve/behave-as.ts";
 import { embeddingExecution } from "./resolve/operation-capabilities.ts";
 import {
-  cachedKind,
   connectionNotFoundMessage,
   discoveredKind,
   endpointMirrorTenant,
@@ -355,13 +354,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     resolve: (args) => resolveTask(ctx, args),
     availability: (args) => checkAvailability(ctx, built.registry, { probe, loadFailed: built.localLight.loadFailed }, args),
     loadVerdict: (resolved) => loadVerdict(built.localLight.loadFailed, resolved),
-    modelKind: async (connection, options): Promise<ModelKind> => {
-      if (options?.cachedFacts !== true) {
-        return (await discoveredKind(ctx, connection)) ?? DEFAULT_MODEL_KIND;
-      }
-      const { kind, held } = await cachedKind(ctx, connection);
-      return (held ? undefined : options.coldAs) ?? kind ?? DEFAULT_MODEL_KIND;
-    },
+    modelKind: async (connection): Promise<ModelKind> => (await discoveredKind(ctx, connection)) ?? DEFAULT_MODEL_KIND,
     executor,
     embeddingExecution,
     modelTasks: (connection, options) => modelTasks(ctx, connection, options),

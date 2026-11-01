@@ -31,11 +31,11 @@ const PROBES = [
 /** One GET: the JSON body of a 2xx, `null` for any other answer, and a throw only when nothing answered. A
  *  redirect is never followed (host pin #25): it would carry the transport headers to another origin, and that
  *  origin's answer would decide the shared detect cache. */
-async function answer(args: DetectArgs, path: string): Promise<unknown> {
+async function answer(args: DetectArgs & { readonly signal: AbortSignal }, path: string): Promise<unknown> {
   const res = await args.fetch(`${serverRootOf(args.baseUrl)}${path}`, {
     headers: authHeaders(args.secret, args.headers),
     redirect: "manual",
-    ...(args.signal !== undefined ? { signal: args.signal } : {}),
+    signal: args.signal,
   });
   if (!res.ok || isRedirect(res)) {
     return null;
@@ -59,7 +59,7 @@ async function answer(args: DetectArgs, path: string): Promise<unknown> {
  * matched none is `null`, which is cached like a match.
  */
 export async function detectServer(args: DetectArgs): Promise<DetectedServer> {
-  const deadline = deadlineSignal(args.signal, SERVER_READ_TIMEOUT_MS, args.scheduleTimeout);
+  const deadline = deadlineSignal(undefined, SERVER_READ_TIMEOUT_MS, args.scheduleTimeout);
   try {
     for (const probe of PROBES) {
       if (probe.schema.safeParse(await answer({ ...args, signal: deadline.signal }, probe.path)).success) {

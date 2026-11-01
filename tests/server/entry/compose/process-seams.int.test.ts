@@ -2,11 +2,11 @@
 // The harness root's seeded nonce, not an ambient UUID, names the supervised work the composed graph starts.
 
 import { readdir } from "node:fs/promises";
+import { createCharacterSchema } from "@orb/contracts/character";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { streamConnectInputSchema } from "@orb/contracts/stream";
-import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -43,7 +43,11 @@ function mintedWithin(after: number, through: number): (counter: number | null) 
 test("a domain event's bus dispatch and automation watcher name their supervised work with the root's seeded nonce", async ({ harness }) => {
   const before = traceIds(harness);
   const minted = harness.ids.snapshot();
-  harness.app.eventBus.emit({ type: "character.updated", characterId: harness.idSource.typeId(ID_PREFIX.character), contentChanged: false });
+  // Creating a card is a production write that raises `character.updated` on the domain bus.
+  await harness.services.character.create({
+    principal: await harness.principalFor(harness.ownerId),
+    input: createCharacterSchema.parse({ handle: "seam-witness", name: "Seam witness", description: "Raises one domain event." }),
+  });
   await harness.settleBackground();
   const inWindow = mintedWithin(minted, harness.ids.snapshot());
   for (const prefix of ["domain-event:character.updated:", "automation:domain:character.updated:"]) {

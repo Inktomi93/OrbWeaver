@@ -20,7 +20,6 @@ import {
   pluginChatFlankSurface,
   pluginChatSettingsSection,
   pluginCommandPaletteSource,
-  pluginCommandsChrome,
   pluginComposerActionSurface,
   pluginComposerMediaSurface,
   pluginComposerPanelsSurface,
@@ -28,6 +27,7 @@ import {
   pluginSlashCommands,
   pluginSnippetConsoleSection,
   pluginToolRenderer,
+  pluginTopbarChrome,
 } from "#features/plugin";
 import { rpgDiceComposerMediaSurface, rpgDiceToolRenderer, rpgTurnToolCallsSurface } from "#features/rpg";
 import { insightsContextTabs } from "#features/stats";
@@ -150,7 +150,7 @@ export const commandPaletteSources = createContributorRegistry<CommandPaletteSou
 export const corpusContextTabs = createContributorRegistry<ContextTabDef<CorpusContextState>>("corpus-context", [...insightsContextTabs, ...labelsContextTabs]);
 
 // The WIDGET entries `assembleChrome` combines with the derived rail and modal-trigger entries.
-// U5 (#679, §4.5): the "Plugins" wand — SILENT when a person's plugins register no commands.
+// `pluginTopbarChrome` renders only the commands a plugin placed at `topbar`, and nothing when none did.
 // `bugReportChrome` is visible in every build ("Report a bug"); only its developer capture is dev-gated,
 // inside the form.
 // `characterCreateChrome` (#1669) is the first SECTION-scoped trail entry: the Characters pane's primary,
@@ -160,7 +160,7 @@ export const chromeWidgets: readonly ChromeEntry[] = [
   notificationsChrome,
   chatMembersChrome,
   chatMemoryChrome,
-  pluginCommandsChrome,
+  pluginTopbarChrome,
   characterCreateChrome,
   contextToggleChrome,
   personaChrome,

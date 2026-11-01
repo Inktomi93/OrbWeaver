@@ -31,8 +31,6 @@ import type { Tone } from "#tokens";
 export const compareBlocksVariants = tv({
   slots: {
     root: "flex flex-col gap-block",
-    acceptAllRow: "flex cursor-pointer items-center gap-row rounded-control border border-border bg-muted px-block py-row",
-    acceptAllLabel: "text-label leading-label font-medium text-foreground",
     // Padded so the label sits INSIDE the box the decision border draws, never on the border itself.
     block: "flex flex-col gap-field rounded-base border border-transparent p-block",
     blockHeader: "flex items-center gap-row",
@@ -45,8 +43,6 @@ export const compareBlocksVariants = tv({
     sideHeader: "flex items-center gap-field",
     text: "text-body leading-body whitespace-pre-wrap",
     stateNote: "text-label leading-label text-muted-foreground",
-    acceptRow: "flex cursor-pointer items-center gap-row",
-    acceptLabel: "text-label leading-label text-muted-foreground",
     verbRow: "flex items-center gap-row",
     collapsedRow: "flex cursor-pointer items-center gap-row rounded-control bg-muted px-block py-row text-start inline-full min-block-(--size-touch-target)",
     srOnly: "sr-only",

@@ -2,7 +2,7 @@
 // Its renderer stays lazy so number-only metric tiles never load the chart runtime.
 import type { ReactElement } from "react";
 import { lazy, Suspense } from "react";
-import { cn, usePrefersReducedMotion } from "#lib";
+import { usePrefersReducedMotion } from "#lib";
 import { WebSpinner } from "#primitives/spinner";
 import type { ChartProps } from "./contract.ts";
 import { mergeChartOption } from "./merge-option.ts";
@@ -36,7 +36,7 @@ function isPercentHeight(height: number | string): boolean {
 }
 
 /** Apply shared chart policy while retaining the host geometry during renderer loading. */
-export function Chart({ option, label, height, className, onChartReady, onEvents }: ChartProps): ReactElement {
+export function Chart({ option, label, height, onChartReady, onEvents }: ChartProps): ReactElement {
   const reducedMotion = usePrefersReducedMotion();
   const theme = useChartTheme();
   const resolvedHeight = height ?? theme.metrics.height;
@@ -51,7 +51,7 @@ export function Chart({ option, label, height, className, onChartReady, onEvents
   );
 
   return (
-    <div className={cn(slots.root(), className)} data-slot="chart">
+    <div className={slots.root()} data-slot="chart">
       <Suspense
         fallback={
           <div className={slots.loading()} data-slot="chart-loading" style={{ height: fill ? "100%" : resolvedHeight, width: "100%" }}>

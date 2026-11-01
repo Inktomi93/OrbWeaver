@@ -10,6 +10,7 @@ import { installKind } from "@orb/server/foundation/env";
 import { captureAccountViews } from "./corpus-auth.ts";
 import { captureNotificationViews } from "./factories/notification.ts";
 import { expect, test } from "./fixtures.ts";
+import { connectDevice } from "./presence.ts";
 import { createServerHarness } from "./server.ts";
 import { captureShareViews } from "./share.ts";
 
@@ -91,8 +92,8 @@ test("native notification snapshots distinguish offline and unknown IDs from una
   const ownerDevice = new AbortController();
   const otherDevice = new AbortController();
   try {
-    root.app.presence.connect(root.ownerId, ownerDevice.signal);
-    root.app.presence.connect(other.id, otherDevice.signal);
+    await connectDevice(root, root.ownerId, ownerDevice.signal);
+    await connectDevice(root, other.id, otherDevice.signal);
     const connected = await captureNotificationViews(root, reader.id, asked);
     expect(connected.inbox).toEqual(empty.inbox);
     expect(connected.presence).toEqual({ onlineUserIds: [other.id, root.ownerId] });
@@ -101,7 +102,6 @@ test("native notification snapshots distinguish offline and unknown IDs from una
     });
     otherDevice.abort();
     root.clock.advance(60_000);
-    expect(root.app.presence.read(other.id)).toMatchObject({ online: false, lastSeenAt: root.clock.frozenAt });
     const departed = await captureNotificationViews(root, reader.id, asked);
     expect(departed.presence).toEqual({ onlineUserIds: [root.ownerId] });
     expect(JSON.stringify(departed.presence)).not.toContain("lastSeenAt");

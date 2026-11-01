@@ -35,7 +35,7 @@ orb-plugin support --format json
 ```
 
 The registry lists the supported capabilities, host calls by runtime, event hooks, transform points, surface
-mounts, tiers, and composer placements. Orbweaver derives its growing members from the executable application
+mounts, tiers, and command placements. Orbweaver derives its growing members from the executable application
 contracts before packaging the standalone toolchain. Template guides link to the generated file instead of
 copying those lists.
 

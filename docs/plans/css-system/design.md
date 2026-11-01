@@ -518,6 +518,8 @@ The UI law owns placement, density, reading geometry, motion and theme compositi
 
 The source-owner table identifies generators and retained checks. The restoration register and item 1299 retain unfinished application and qualification work.
 
+[theme-color-validators.md](theme-color-validators.md) explains why the wire and render theme schemas validate colors with different kit predicates, and recommends keeping the layering.
+
 ## Test plan
 
 - Run affected token, generator, class-merge and owner-styling tests through their maintained native entries.

@@ -73,4 +73,13 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Forty-seven rows: forty-seven applied, none kept, none handed off, no owner questions.
+
+| Rows | Result |
+| - | - |
+| `AdminOverrideSelect.#0.disabled` (1) | applied in `packages/client/src/features/user-admin/components/admin-override-field.tsx`; the two selects (`operations-section.tsx:77`, `memory-tuning-section.tsx:178`) pass none. `AdminOverrideField` and `AdminOverrideSwitch` keep `disabled` (not reported) |
+| `write.partial.*` in `governance-sections.tsx:84` (16) | applied: `Pick<AppSettings, "localMultiUser" \| "discreetLogin">`, the keys of its two calls |
+| `write.partial.*` in `media-trust-section.tsx:90` (14) | applied: `Pick<AppSettings, "forbidExternalMedia" \| "trustHtml" \| "allowInteractiveCards" \| "maxImageBytes">` |
+| `write.partial.*` in `operations-section.tsx:58` (16) | applied: `Pick<AppSettings, "corpusAutoindex" \| "logLevel">` |
+
+Each section's Reset path calls `save.mutateAsync` directly with its own keys and does not go through `write`. Proof: client typecheck clean; `platform-admin-action-groups.suite.ct.tsx` result in the lane report.

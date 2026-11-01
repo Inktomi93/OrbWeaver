@@ -19,7 +19,6 @@ export interface SegmentedClockProps extends Omit<VariantProps<typeof segmentedC
   hidden?: boolean;
   /** Accessible name (aria-label). */
   label?: string;
-  className?: string;
 }
 
 // Clock geometry (SVG viewBox units — named per biome noMagicNumbers).
@@ -55,7 +54,7 @@ function segmentPath(index: number, count: number): string {
 }
 
 /** Progress-clock display — `filled` of `segments` wedges. Pure count display: knows nothing of fronts. */
-export function SegmentedClock({ segments, filled, completed, hidden, label, size, tone, className }: SegmentedClockProps): ReactElement {
+export function SegmentedClock({ segments, filled, completed, hidden, label, size, tone }: SegmentedClockProps): ReactElement {
   const count = Math.max(MIN_SEGMENTS, Math.trunc(segments));
   const filledCount = Math.min(count, Math.max(0, Math.trunc(filled)));
   const isComplete = completed === true;
@@ -96,7 +95,7 @@ export function SegmentedClock({ segments, filled, completed, hidden, label, siz
       // STAMP SITE (#1097): the svg ROOT — the only slot `size` sizes, and the element the meter's own
       // role/geometry census targets (`segment`/`completedDot` are its interior geometry).
       {...variantAttrs(segmentedClockVariants, { size })}
-      className={slots.root({ className })}
+      className={slots.root()}
     >
       <title>{label}</title>
       {Array.from({ length: count }, (_, index) => {

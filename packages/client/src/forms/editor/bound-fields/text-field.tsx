@@ -8,18 +8,13 @@ import { GlyphButton } from "@orb/ui/glyph-button";
 import { Eye, EyeOff, Icon } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row } from "@orb/ui/layout";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import { useState } from "react";
+import type { BoundFieldShellProps } from "./use-bound-field.ts";
 import { useBoundField } from "./use-bound-field.ts";
 
-export interface TextFieldProps {
-  readonly label: ReactNode;
-  readonly description?: ReactNode;
-  /** A hover-tip explainer beside the label (`@orb/ui/field` `hint`) — for copy that doesn't need to
-   *  stay always-visible. */
-  readonly hint?: ReactNode;
+export interface TextFieldProps extends BoundFieldShellProps {
   readonly placeholder?: string;
-  readonly disabled?: boolean;
   /** Input rendering mode — `password` masks (the admin create/reset-password fields). Text-shaped
    *  values only; a number wants `NumberField`, not a widened `type` here. @defaultValue "text" */
   readonly type?: "text" | "password";

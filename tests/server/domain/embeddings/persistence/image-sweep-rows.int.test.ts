@@ -14,6 +14,7 @@ import {
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  casOf,
   createCorpusProviderExecution,
   createServerHarness,
   refuseWrites,
@@ -174,7 +175,7 @@ test("an avatar whose stored file is gone fails alone: the rest embed and the ru
   if (ref === undefined) {
     throw new Error("the stored avatar must have a CAS reference");
   }
-  await root.app.cas.remove(ref.ownerId, ref.hash);
+  await casOf(root).remove(ref.ownerId, ref.hash);
   const positions: [number, number][] = [];
 
   const result = await root.app.embeddings.embedAssets({

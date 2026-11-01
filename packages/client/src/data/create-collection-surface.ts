@@ -30,8 +30,6 @@ export interface CollectionSurfaceConfig<TItem, TPage, TParams, TPageParam, TErr
    *  meaning "how many there are" is the lie this seam exists to prevent — so the absence is `null`, never
    *  a plausible-looking count. */
   readonly totalOf?: (page: TPage) => number;
-  /** Rows-from-the-tail threshold that triggers the next-page fetch. @defaultValue 12 */
-  readonly endApproachRows?: number;
 }
 
 interface CollectionSelection {
@@ -75,7 +73,8 @@ export interface CollectionSurface<TItem> {
   };
 }
 
-const DEFAULT_END_APPROACH_ROWS = 12;
+/** Rows-from-the-tail threshold that triggers the next-page fetch. */
+const END_APPROACH_ROWS = 12;
 
 export function createCollectionSurface<TItem, TPage, TParams, TPageParam = unknown, TError = DefaultError, TKey extends QueryKey = QueryKey>(
   config: CollectionSurfaceConfig<TItem, TPage, TParams, TPageParam, TError, TKey>,
@@ -145,7 +144,7 @@ export function createCollectionSurface<TItem, TPage, TParams, TPageParam = unkn
       listProps: {
         getItemKey: (item) => config.idOf(item),
         onEndApproach,
-        endApproachRows: config.endApproachRows ?? DEFAULT_END_APPROACH_ROWS,
+        endApproachRows: END_APPROACH_ROWS,
       },
     };
   };
