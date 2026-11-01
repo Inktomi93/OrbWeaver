@@ -143,6 +143,8 @@ export interface HoverForcedReadRow {
   readonly color: Rgb | null;
   readonly backdrop: Backdrop;
   readonly opacity: number;
+  /** Viewport box of the candidate while held, so an unresolved backdrop can be read from pixels. */
+  readonly box?: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
 }
 
 /** What one group read returns: the contrast reads plus the glow rows the forced state ADDED over the

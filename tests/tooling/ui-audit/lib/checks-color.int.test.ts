@@ -231,7 +231,7 @@ describe("design-audit contrast — #624: ONE classifier, shared with snap", () 
   });
 });
 
-describe("design-audit contrast — #1078 (orb-ui audit F6): a masked foreground is WITHHELD, never resolved flat", () => {
+describe("design-audit contrast — #1078 (orb-ui audit F6): a masked foreground is EXCLUDED, never resolved flat", () => {
   // A failing ratio that would otherwise file a P1 — proves withholding is not merely "declines to fire
   // on a passing sample" but genuinely REFUSES a verdict this rule would otherwise reach.
   const failingMasked = sample({ foregroundMasked: true, inactive: "none" });
@@ -240,11 +240,12 @@ describe("design-audit contrast — #1078 (orb-ui audit F6): a masked foreground
     expect(checkContrast(failingMasked)).toBeNull();
   });
 
-  test("the masked sample is WITHHELD, not silently excluded or judged-clean", () => {
+  test("the masked sample is EXCLUDED as measured inapplicability, so it never voids the run", () => {
     const rows = colorTextPopulations([failingMasked]);
-    expect(rows.contrast).toMatchObject({ candidates: 1, judged: 0, withheld: { maskedForeground: 1 }, excluded: {} });
-    expect(rows["text-over-art"]).toMatchObject({ candidates: 1, judged: 0, withheld: { maskedForeground: 1 } });
-    expect(rows["inactive-control-legibility"]).toMatchObject({ candidates: 1, judged: 0, withheld: { maskedForeground: 1 } });
+    expect(rows.contrast).toMatchObject({ candidates: 1, judged: 0, withheld: {}, excluded: { maskedForeground: 1 } });
+    expect(rows["text-over-art"]).toMatchObject({ candidates: 1, judged: 0, withheld: {}, excluded: { maskedForeground: 1 } });
+    expect(rows["inactive-control-legibility"]).toMatchObject({ candidates: 1, judged: 0, withheld: {}, excluded: { maskedForeground: 1 } });
+    expect(populationEvidenceGap(rows)).toBeNull();
   });
 
   test("an UNMASKED sibling at the identical failing ratio is still judged and still REDs", () => {

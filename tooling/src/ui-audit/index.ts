@@ -114,7 +114,8 @@ export {
   walkFailureGap,
 } from "./lib/evidence.ts";
 export { viewportFrameGap } from "./lib/evidence-viewport-frame.ts";
-export { populationEvidenceGap } from "./lib/population.ts";
+export type { PopulationRuleVerdict } from "./lib/population.ts";
+export { populationEvidenceGap, populationRuleVerdicts } from "./lib/population.ts";
 export { partitionedFindings } from "./lib/population-strategies.ts";
 export { INTERACTIVE_TEXT_FLOOR_PX, LEADING_FLOOR, LEADING_FLOOR_EPSILON, RAMP_FONT_FACES, TEXT_MICRO_PX } from "./lib/ramp.ts";
 export { reachRows, surfaceStateRows } from "./lib/result-rows.ts";

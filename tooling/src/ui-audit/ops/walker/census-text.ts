@@ -119,6 +119,34 @@ export const WALKER_CENSUS_TEXT = `
     return carrier ? carrier.getAttribute("data-voice") || "" : "";
   };
 
+  // THE BOX OF THE GLYPHS ITSELF. An element box can be far larger than its text (a letter centred in a
+  // feathered tile), and a ring taken at the element's edge then reads the tile's edge, not what sits
+  // behind the letter. Null when the text fills the element, so the element box stays the sample.
+  var INK_BOX_MIN_SLACK_PX = 8;
+  var inkRange = document.createRange();
+  var inkBoxOf = function (element, elementRect) {
+    var left = Infinity;
+    var top = Infinity;
+    var right = -Infinity;
+    var bottom = -Infinity;
+    for (var inkIndex = 0; inkIndex < element.childNodes.length; inkIndex += 1) {
+      var inkChild = element.childNodes[inkIndex];
+      if (inkChild.nodeType !== 3 || !inkChild.textContent || inkChild.textContent.trim().length === 0) continue;
+      inkRange.selectNodeContents(inkChild);
+      var inkRect = inkRange.getBoundingClientRect();
+      if (inkRect.width <= 0 || inkRect.height <= 0) continue;
+      left = Math.min(left, inkRect.left);
+      top = Math.min(top, inkRect.top);
+      right = Math.max(right, inkRect.right);
+      bottom = Math.max(bottom, inkRect.bottom);
+    }
+    if (left === Infinity) return null;
+    var slackX = elementRect.width - (right - left);
+    var slackY = elementRect.height - (bottom - top);
+    if (slackX < INK_BOX_MIN_SLACK_PX && slackY < INK_BOX_MIN_SLACK_PX) return null;
+    return { x: left, y: top, width: right - left, height: bottom - top };
+  };
+
   var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   var node;
   while ((node = walker.nextNode())) {
@@ -157,7 +185,9 @@ export const WALKER_CENSUS_TEXT = `
       // carried on every text sample rather than only the unresolved ones so the sample shape stays uniform.
       var textRect = el.getBoundingClientRect();
       var textBackdrop = resolveBackdrop(el);
+      var textInkBox = textBackdrop.kind === "unresolved" ? inkBoxOf(el, textRect) : null;
       texts.push({
+        inkBox: textInkBox === null ? undefined : textInkBox,
         selector: describe(el),
         color: { r: color.r, g: color.g, b: color.b },
         backdrop: textBackdrop,

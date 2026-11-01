@@ -51,6 +51,24 @@ export function ringBackdropOfRegion(
   channels: number,
   region: { left: number; top: number; width: number; height: number },
 ): Rgb {
+  const ring = ringPixels(data, imageWidth, channels, region);
+  return { r: medianChannel(ring.rs), g: medianChannel(ring.gs), b: medianChannel(ring.bs) };
+}
+
+/** The widest p90:p10 luminance ratio a ring may show and still be ONE backdrop. A ring that spans a
+ *  feathered edge or two tiles has no single colour, so its median is a number nothing on screen has. */
+export const RING_MAX_SPREAD_RATIO = 1.5;
+const RING_SPREAD_LOW_QUANTILE = 0.1;
+const RING_SPREAD_HIGH_QUANTILE = 0.9;
+/** WCAG's flare term, so a near-black ring does not read as a huge ratio over a rounding step. */
+const LUMINANCE_FLARE = 0.05;
+
+function ringPixels(
+  data: Buffer | Uint8Array,
+  imageWidth: number,
+  channels: number,
+  region: { left: number; top: number; width: number; height: number },
+): { rs: number[]; gs: number[]; bs: number[] } {
   const ring = Math.max(1, Math.min(SAMPLE_RING_MAX_PX, Math.floor(Math.min(region.width, region.height) * SAMPLE_RING_FRAC)));
   const rs: number[] = [];
   const gs: number[] = [];
@@ -67,7 +85,30 @@ export function ringBackdropOfRegion(
       bs.push(data[i + 2] ?? 0);
     }
   }
+  return { rs, gs, bs };
+}
+
+/** `ringBackdropOfRegion`, or `null` when the ring is not one backdrop (p90:p10 luminance spread over
+ *  {@link RING_MAX_SPREAD_RATIO}). The caller must report the measurement unresolved, never the median. */
+export function uniformRingBackdropOfRegion(
+  data: Buffer | Uint8Array,
+  imageWidth: number,
+  channels: number,
+  region: { left: number; top: number; width: number; height: number },
+): Rgb | null {
+  const { rs, gs, bs } = ringPixels(data, imageWidth, channels, region);
+  const luminances = rs.map((r, i) => relativeLuminance({ r, g: gs[i] ?? 0, b: bs[i] ?? 0 })).sort((a, b) => a - b);
+  const low = percentile(luminances, RING_SPREAD_LOW_QUANTILE);
+  const high = percentile(luminances, RING_SPREAD_HIGH_QUANTILE);
+  if ((high + LUMINANCE_FLARE) / (low + LUMINANCE_FLARE) > RING_MAX_SPREAD_RATIO) {
+    return null;
+  }
   return { r: medianChannel(rs), g: medianChannel(gs), b: medianChannel(bs) };
+}
+
+/** The whole-buffer arm of {@link uniformRingBackdropOfRegion}. */
+export function uniformRingBackdrop(data: Buffer | Uint8Array, width: number, height: number, channels: number): Rgb | null {
+  return uniformRingBackdropOfRegion(data, width, channels, { left: 0, top: 0, width, height });
 }
 
 /** The whole-buffer arm: the buffer IS the element's shot (snap's per-element `clip` screenshot). */
