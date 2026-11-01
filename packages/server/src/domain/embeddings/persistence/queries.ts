@@ -594,82 +594,62 @@ function assertNever(value: never): never {
   throw new Error(`writeHubScoreRows: unhandled vector table ${String(value)}`);
 }
 
-/** Batch-UPDATE `hub_score` keyed `(id, model)` on the given table, in one `db.batch` round-trip. Returns
- *  the count of rows actually touched. Exhaustive over {@link VectorTable} — a new table fails tsc until
+/** The `(id, model)`-keyed UPDATE for one row. Exhaustive over {@link VectorTable}: a new table fails tsc until
  *  its arm is added. */
+function hubScoreStatement(db: Db, table: VectorTable, u: HubScoreUpdate): BatchStmt {
+  switch (table) {
+    case "character_embeddings":
+      return batchStmt(
+        db
+          .update(characterEmbeddings)
+          .set({ hubScore: u.hubScore })
+          .where(and(eq(characterEmbeddings.id, castId<CharacterEmbeddingId>(u.id)), eq(characterEmbeddings.model, u.model)))
+          .returning({ id: characterEmbeddings.id }),
+      );
+    case "image_embeddings":
+      return batchStmt(
+        db
+          .update(imageEmbeddings)
+          .set({ hubScore: u.hubScore })
+          .where(and(eq(imageEmbeddings.id, castId<ImageEmbeddingId>(u.id)), eq(imageEmbeddings.model, u.model)))
+          .returning({ id: imageEmbeddings.id }),
+      );
+    case "chat_digests":
+      return batchStmt(
+        db
+          .update(chatDigests)
+          .set({ hubScore: u.hubScore })
+          .where(and(eq(chatDigests.id, castId<ChatDigestId>(u.id)), eq(chatDigests.model, u.model)))
+          .returning({ id: chatDigests.id }),
+      );
+    case "chat_segments":
+      return batchStmt(
+        db
+          .update(chatSegments)
+          .set({ hubScore: u.hubScore })
+          .where(and(eq(chatSegments.id, castId<ChatSegmentId>(u.id)), eq(chatSegments.model, u.model)))
+          .returning({ id: chatSegments.id }),
+      );
+    case "document_chunks":
+      // Discovery has no document-hubness pass yet; the arm keeps the dispatch exhaustive.
+      return batchStmt(
+        db
+          .update(documentChunks)
+          .set({ hubScore: u.hubScore })
+          .where(and(eq(documentChunks.id, castId<DocumentChunkId>(u.id)), eq(documentChunks.model, u.model)))
+          .returning({ id: documentChunks.id }),
+      );
+    default:
+      return assertNever(table);
+  }
+}
+
+/** Batch-UPDATE `hub_score` keyed `(id, model)` on the given table, in one `db.batch` round-trip. Returns the
+ *  count of rows actually touched. The caller bounds `updates` (see `write-hub-scores.ts`). */
 export async function writeHubScoreRows(db: Db, table: VectorTable, updates: readonly HubScoreUpdate[]): Promise<number> {
   if (updates.length === 0) {
     return 0;
   }
-  switch (table) {
-    case "character_embeddings": {
-      const stmts = updates.map((u) =>
-        batchStmt(
-          db
-            .update(characterEmbeddings)
-            .set({ hubScore: u.hubScore })
-            .where(and(eq(characterEmbeddings.id, castId<CharacterEmbeddingId>(u.id)), eq(characterEmbeddings.model, u.model)))
-            .returning({ id: characterEmbeddings.id }),
-        ),
-      );
-      const results = await db.batch(batchMany(stmts));
-      return results.reduce((sum, r) => sum + r.length, 0);
-    }
-    case "image_embeddings": {
-      const stmts = updates.map((u) =>
-        batchStmt(
-          db
-            .update(imageEmbeddings)
-            .set({ hubScore: u.hubScore })
-            .where(and(eq(imageEmbeddings.id, castId<ImageEmbeddingId>(u.id)), eq(imageEmbeddings.model, u.model)))
-            .returning({ id: imageEmbeddings.id }),
-        ),
-      );
-      const results = await db.batch(batchMany(stmts));
-      return results.reduce((sum, r) => sum + r.length, 0);
-    }
-    case "chat_digests": {
-      const stmts = updates.map((u) =>
-        batchStmt(
-          db
-            .update(chatDigests)
-            .set({ hubScore: u.hubScore })
-            .where(and(eq(chatDigests.id, castId<ChatDigestId>(u.id)), eq(chatDigests.model, u.model)))
-            .returning({ id: chatDigests.id }),
-        ),
-      );
-      const results = await db.batch(batchMany(stmts));
-      return results.reduce((sum, r) => sum + r.length, 0);
-    }
-    case "chat_segments": {
-      const stmts = updates.map((u) =>
-        batchStmt(
-          db
-            .update(chatSegments)
-            .set({ hubScore: u.hubScore })
-            .where(and(eq(chatSegments.id, castId<ChatSegmentId>(u.id)), eq(chatSegments.model, u.model)))
-            .returning({ id: chatSegments.id }),
-        ),
-      );
-      const results = await db.batch(batchMany(stmts));
-      return results.reduce((sum, r) => sum + r.length, 0);
-    }
-    case "document_chunks": {
-      // v1: discovery has no document-hubness pass, so this arm is unexercised today — it exists so the
-      // VectorTable dispatch stays exhaustive (a future discovery document pass writes hub_score the same way).
-      const stmts = updates.map((u) =>
-        batchStmt(
-          db
-            .update(documentChunks)
-            .set({ hubScore: u.hubScore })
-            .where(and(eq(documentChunks.id, castId<DocumentChunkId>(u.id)), eq(documentChunks.model, u.model)))
-            .returning({ id: documentChunks.id }),
-        ),
-      );
-      const results = await db.batch(batchMany(stmts));
-      return results.reduce((sum, r) => sum + r.length, 0);
-    }
-    default:
-      return assertNever(table);
-  }
+  const results = await db.batch(batchMany(updates.map((u) => hubScoreStatement(db, table, u))));
+  return results.reduce((sum, r) => sum + r.length, 0);
 }

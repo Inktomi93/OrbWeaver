@@ -38,6 +38,7 @@ export {
   Command,
   Compass,
   Copy,
+  CopyPlus,
   Cpu,
   Crosshair,
   Database,

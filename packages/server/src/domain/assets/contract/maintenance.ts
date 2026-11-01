@@ -86,4 +86,21 @@ export interface FsckResult {
 export interface RebuildOptions {
   readonly kind: AssetKind;
   readonly signal?: AbortSignal;
+  /** Called after each owner folder is walked or skipped, so a long walk can report where it is. */
+  readonly onOwner?: (progress: RebuildProgress) => void;
+}
+
+/** Where a rebuild walk stands after one owner folder. */
+export interface RebuildProgress {
+  readonly ownersWalked: number;
+  readonly scanned: number;
+  readonly rebuilt: number;
+}
+
+/** `rebuildFromTree` outcome: blobs walked vs index rows newly created for blobs no row named. An owner folder
+ *  with no user is skipped whole and listed by its folder name; the rest of the walk still runs. */
+export interface RebuildResult {
+  readonly scanned: number;
+  readonly rebuilt: number;
+  readonly skippedOwners: readonly UserId[];
 }

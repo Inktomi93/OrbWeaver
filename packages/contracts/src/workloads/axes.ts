@@ -23,6 +23,8 @@ export const WORKLOAD_KINDS = [
   "assets-backfill",
   "assets-gc",
   "assets-fsck",
+  // Disaster recovery: re-derives index rows for blobs on disk that no row names, one asset kind per run.
+  "assets-rebuild-index",
   "import-st",
   "import-token-usage-backfill",
   // Distinct from `import-st`: reads ONE staged bundle-zip via the entity-agnostic `runBundleImport`.
@@ -94,6 +96,7 @@ export const WORKLOAD_KIND_MODES = {
   "assets-backfill": { singular: true, bulk: true, bulkRequiresTarget: false, stub: false },
   "assets-gc": { singular: false, bulk: true, bulkRequiresTarget: false, stub: false },
   "assets-fsck": { singular: false, bulk: true, bulkRequiresTarget: false, stub: false },
+  "assets-rebuild-index": { singular: false, bulk: true, bulkRequiresTarget: false, stub: false },
   "import-st": { singular: true, bulk: true, bulkRequiresTarget: true, stub: false },
   "import-token-usage-backfill": { singular: true, bulk: true, bulkRequiresTarget: false, stub: false },
   // Singular only: a bundle is one user's own upload, never an all-owners sweep or a mint-into-X.

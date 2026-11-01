@@ -36,14 +36,14 @@
 // the host's own payload. Strip the return; emit the truth.
 
 import type { ClaimChatOp, HostTierRegexAllow, MessageView, ReattributeScope } from "@orb/contracts/chat";
-import { isSeededGreetingRow, macroFreezeRecordSchema, parseVariantMetadata } from "@orb/contracts/chat";
+import { isReattributableReply, isSeededGreetingRow, macroFreezeRecordSchema, parseVariantMetadata } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import { assetIdsInContent } from "@orb/kit/content";
-import type { ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, RandomSource } from "@orb/kit/macro";
 import type { RegexPlacement } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
@@ -85,8 +85,10 @@ import {
   freezeVariantContentStatement,
   insertCanonMessageStatements,
   insertMessageAssetStatements,
+  presentCharacterSeatFence,
   reattributeMessagesStatement,
   reattributePersonaStatement,
+  retryLostCanonHead,
   selectActiveVariantStatement,
   setMessageHiddenStatement,
   setMessageSeqStatement,
@@ -99,11 +101,10 @@ import {
 } from "../persistence/generation-observation.ts";
 import { loadMessageAssetLinks } from "../persistence/message-asset-links.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
-import { loadParticipants } from "../persistence/participants-read.ts";
+import { isCharacterSeated, loadParticipants } from "../persistence/participants-read.ts";
 import {
   loadAuthoredUserMessageIds,
   loadHasUserMessage,
-  loadMaxMessageSeq,
   loadMessageSeqs,
   loadMessageView,
   loadSlotTarget,
@@ -1086,11 +1087,15 @@ function createMoveMessage(ctx: ChatContext, emit: EmitDurableChatEventOp, activ
 }
 
 /** `duplicateMessage` — author-or-host. Copies the slot's attribution + its selected variant's content/
- *  economics to a fresh tail slot. Emits messageCommitted. */
-function createDuplicateMessage(ctx: ChatContext, emit: EmitDurableChatEventOp): ChatService["duplicateMessage"] {
+ *  economics to a fresh tail slot. Refused (`locked`) while a turn is in flight: the copy would land inside the
+ *  live turn's output and the room would read it as that turn's reply. Emits messageCommitted. */
+function createDuplicateMessage(ctx: ChatContext, emit: EmitDurableChatEventOp, activeTurns: ActiveTurns): ChatService["duplicateMessage"] {
   return async ({ principal, chatId, messageId }: DuplicateMessageParams) => {
     const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
+    if (activeTurns.countActive(chatId) > 0) {
+      throw new ChatOperationError(CHAT_OP_CODES.locked, `chat ${chatId}: a turn is in flight; wait for it to finish before duplicating`);
+    }
     const source = selectedVariantOf(slot);
     const sourceMetadata = parseVariantMetadata(source.metadata);
     const metadata =
@@ -1100,116 +1105,169 @@ function createDuplicateMessage(ctx: ChatContext, emit: EmitDurableChatEventOp):
             ...(sourceMetadata.usageLegs === undefined ? {} : { usageLegs: sourceMetadata.usageLegs }),
             ...(sourceMetadata.providerMetadata === undefined ? {} : { providerMetadata: sourceMetadata.providerMetadata }),
           };
-    const seq = (await loadMaxMessageSeq(ctx.db, chatId)) + 1;
-    const params = {
-      messageId: ctx.newMessageId(),
-      variantId: ctx.newMessageVariantId(),
-      chatId,
-      seq,
-      role: slot.role,
-      authorUserId: slot.authorUserId,
-      characterId: slot.characterId,
-      personaId: slot.personaId,
-      excludedFromPrompt: slot.excludedFromPrompt,
-      now: ctx.now(),
-      variant: {
-        content: slot.content,
-        reasoning: slot.reasoning,
-        model: slot.model,
-        provider: slot.provider,
-        tokensIn: slot.tokensIn,
-        tokensOut: slot.tokensOut,
-        tokenProvenance: slot.tokenProvenance,
-        cacheReadTokens: slot.cacheReadTokens,
-        cacheWriteTokens: slot.cacheWriteTokens,
-        costUsd: slot.costUsd,
-        costProvenance: source.costProvenance,
-        costDetails: source.costDetails,
-        servedModel: source.servedModel,
-        tokenDetails: source.tokenDetails,
-        responseCache: source.responseCache ?? undefined,
-        metadata,
-        contextWindow: slot.contextWindow,
-        genStartedAt: source.genStartedAt,
-        genFinishedAt: source.genFinishedAt,
-        ttftMs: slot.ttftMs,
-        finishReason: slot.finishReason,
-        stopReason: slot.stopReason,
-        terminalReason: slot.terminalReason,
-      },
-    };
-    // The dup is a fresh single-variant tail slot whose economics are copied from the source's selected
-    // variant, so a rebuild folds the copy too; mirrored live to keep live == rebuild.
-    const statsDeltas: StatsDelta[] = [];
-    const statements = insertCanonMessageStatements(ctx.db, params);
-    // The copy carries the source slot's links for the pictures its copied body cites: they are the render
-    // grant for members and the room's placement of the picture for the model.
-    const cited = assetIdsInContent(slot.content);
-    const links = (await loadMessageAssetLinks(ctx.db, chatId, [slot.id])).filter((link) => cited.includes(link.assetId));
-    for (const [origin, rows] of Map.groupBy(links, (link) => link.origin)) {
-      const copies = rows.map((link) => ({ id: ctx.newMessageAssetId(), messageId: params.messageId, assetId: link.assetId }));
-      statements.push(...insertMessageAssetStatements(ctx.db, { rows: copies, origin, now: params.now }));
-    }
-    const ownerId = principal.userId;
-    statsDeltas.push(
-      ...canonMessageDelta({
-        ownerId,
-        sign: 1,
-        now: params.now,
-        row: {
-          characterId: slot.characterId,
-          role: slot.role,
-          createdAt: params.now,
+    // Two concurrent duplicates read the same head; the loser re-allocates its seq and mints fresh ids.
+    const view = await retryLostCanonHead(ctx.db, chatId, async (seq) => {
+      const params = {
+        messageId: ctx.newMessageId(),
+        variantId: ctx.newMessageVariantId(),
+        chatId,
+        seq,
+        role: slot.role,
+        // The kind decides whether the row reaches the prompt and how a narrator row renders.
+        kind: slot.kind,
+        authorUserId: slot.authorUserId,
+        characterId: slot.characterId,
+        personaId: slot.personaId,
+        excludedFromPrompt: slot.excludedFromPrompt,
+        now: ctx.now(),
+        variant: {
           content: slot.content,
+          reasoning: slot.reasoning,
+          model: slot.model,
+          provider: slot.provider,
           tokensIn: slot.tokensIn,
           tokensOut: slot.tokensOut,
           tokenProvenance: slot.tokenProvenance,
-          costUsd: slot.costUsd,
           cacheReadTokens: slot.cacheReadTokens,
           cacheWriteTokens: slot.cacheWriteTokens,
-          contextWindow: slot.contextWindow,
-          genStartedAt: params.variant.genStartedAt,
-          genFinishedAt: params.variant.genFinishedAt,
-          model: slot.model,
-          provider: slot.provider,
-          reasoning: slot.reasoning,
+          costUsd: slot.costUsd,
+          costProvenance: source.costProvenance,
+          costDetails: source.costDetails,
+          servedModel: source.servedModel,
+          tokenDetails: source.tokenDetails,
+          responseCache: source.responseCache ?? undefined,
           metadata,
-          selectedIdx: 0,
-          variantCount: 1,
+          contextWindow: slot.contextWindow,
+          genStartedAt: source.genStartedAt,
+          genFinishedAt: source.genFinishedAt,
+          ttftMs: slot.ttftMs,
+          finishReason: slot.finishReason,
+          stopReason: slot.stopReason,
+          terminalReason: slot.terminalReason,
         },
-      }),
-    );
-    await commitRetainedCanonStats(ctx, chatId, statements, { deltas: statsDeltas, sources: [slot], contributions: [slot.contributions] });
-    const view = buildCommittedMessageView(params);
+      };
+      // The dup is a fresh single-variant tail slot whose economics are copied from the source's selected
+      // variant, so a rebuild folds the copy too; mirrored live to keep live == rebuild.
+      const statsDeltas: StatsDelta[] = [];
+      const statements = insertCanonMessageStatements(ctx.db, params);
+      // The copy carries the source slot's links for the pictures its copied body cites: they are the render
+      // grant for members and the room's placement of the picture for the model.
+      const cited = assetIdsInContent(slot.content);
+      const links = (await loadMessageAssetLinks(ctx.db, chatId, [slot.id])).filter((link) => cited.includes(link.assetId));
+      for (const [origin, rows] of Map.groupBy(links, (link) => link.origin)) {
+        const copies = rows.map((link) => ({ id: ctx.newMessageAssetId(), messageId: params.messageId, assetId: link.assetId }));
+        statements.push(...insertMessageAssetStatements(ctx.db, { rows: copies, origin, now: params.now }));
+      }
+      const ownerId = principal.userId;
+      statsDeltas.push(
+        ...canonMessageDelta({
+          ownerId,
+          sign: 1,
+          now: params.now,
+          row: {
+            characterId: slot.characterId,
+            role: slot.role,
+            createdAt: params.now,
+            content: slot.content,
+            tokensIn: slot.tokensIn,
+            tokensOut: slot.tokensOut,
+            tokenProvenance: slot.tokenProvenance,
+            costUsd: slot.costUsd,
+            cacheReadTokens: slot.cacheReadTokens,
+            cacheWriteTokens: slot.cacheWriteTokens,
+            contextWindow: slot.contextWindow,
+            genStartedAt: params.variant.genStartedAt,
+            genFinishedAt: params.variant.genFinishedAt,
+            model: slot.model,
+            provider: slot.provider,
+            reasoning: slot.reasoning,
+            metadata,
+            selectedIdx: 0,
+            variantCount: 1,
+          },
+        }),
+      );
+      await commitRetainedCanonStats(ctx, chatId, statements, { deltas: statsDeltas, sources: [slot], contributions: [slot.contributions] });
+      return buildCommittedMessageView(params);
+    });
     await emit({ type: "messageCommitted", chatId, messageId: view.id, view });
     await ctx.emitChatChanged(chatId);
     return await projectEditReturn(ctx, view, membership);
   };
 }
 
-/** `reattributeMessages` — host-only. Re-voices a set of slots to a characterId. Emits one messageEdited
- *  per slot. An empty set is a no-op. */
-function createReattributeMessages(ctx: ChatContext, emit: EmitDurableChatEventOp): ChatService["reattributeMessages"] {
+// One slot's signed contribution under a voice: the owner, timeline and model grains cancel across the two signs,
+// so only the character grain moves.
+function voicedSlotDeltas(
+  args: { readonly ownerId: UserId; readonly slot: MessageView; readonly variants: readonly VariantRow[]; readonly now: number },
+  characterId: CharacterId | null,
+  sign: 1 | -1,
+): readonly StatsDelta[] {
+  const { ownerId, slot, variants, now } = args;
+  const voiced = { ...slot, characterId };
+  const selected = variants.find((variant) => variant.id === slot.selectedVariantId) ?? null;
+  return [
+    ...canonMessageDelta({ ownerId, sign, now, row: canonRowOf(voiced, selected, variants.length) }),
+    ...variants.filter((variant) => variant !== selected).flatMap((variant) => swipeVariantDelta({ ownerId, sign, now, row: swipeRowOf(voiced, variant) })),
+  ];
+}
+
+/**
+ * `reattributeMessages` — host-only. Re-voices ordinary assistant replies onto a character holding a PRESENT seat of
+ * this room. Emits one messageEdited per slot that changed voice; a repeated id or an unchanged voice is no extra work.
+ *
+ * SECURITY: every name and avatar producer resolves a stamped id without a roster check, so a stamp this verb accepts
+ * publishes that card's identity to the room. A stranger's id, a nonexistent id and a removed seat therefore get one
+ * leak-free NOT_FOUND. A removed seat is refused until the host re-adds it; a slot may still leave a removed voice.
+ * The read below only picks that refusal: the gate is the fence term, in the same batch as the stamp, so a seat
+ * removed after this read refuses the write as a stale capture.
+ */
+function createReattributeMessages(ctx: ChatContext, emit: EmitDurableChatEventOp, activeTurns: ActiveTurns): ChatService["reattributeMessages"] {
   return async ({ principal, chatId, messageIds, characterId }: ReattributeMessagesParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
+    // A regenerate in flight was voiced before this stamp and would commit its variant onto the re-voiced slot.
+    if (activeTurns.countActive(chatId) > 0) {
+      throw new ChatOperationError(CHAT_OP_CODES.locked, `chat ${chatId}: a turn is in flight; wait for it to finish before re-voicing`);
+    }
     if (messageIds.length === 0) {
       return;
     }
-    const slots = await Promise.all(messageIds.map((id) => loadMessageView(ctx.db, id)));
-    for (const slot of slots) {
-      if (slot === undefined || slot.chatId !== chatId) {
-        throw new ChatNotFoundError(chatId);
-      }
+    if (!(await isCharacterSeated(ctx.db, chatId, characterId))) {
+      throw new ChatNotFoundError(chatId);
     }
     const contributions = await readRetainedCanonContributions(ctx.db, chatId, messageIds);
-    const statements = [reattributeMessagesStatement(ctx.db, chatId, messageIds, characterId)];
-    await commitRetainedCanonStats(ctx, chatId, statements, {
-      deltas: [],
-      sources: slots.filter((slot) => slot !== undefined),
-      contributions: [contributions],
+    const { views } = contributions;
+    if (views.length !== new Set(messageIds).size) {
+      throw new ChatNotFoundError(chatId);
+    }
+    if (!views.every(isReattributableReply)) {
+      throw new ChatOperationError(CHAT_OP_CODES.notReattributableMessage, `chat ${chatId}: only an ordinary assistant reply takes a character voice`);
+    }
+    const moved = views.filter((slot) => slot.characterId !== characterId);
+    if (moved.length === 0) {
+      return;
+    }
+    const now = ctx.now();
+    const deltas = moved.flatMap((slot) => {
+      const args = { ownerId: principal.userId, slot, variants: contributions.variants.filter((variant) => variant.messageId === slot.id), now };
+      return [...voicedSlotDeltas(args, slot.characterId, -1), ...voicedSlotDeltas(args, characterId, 1)];
     });
-    const views = await Promise.all(messageIds.map((id) => loadMessageView(ctx.db, id)));
-    await Promise.all(views.flatMap((view) => (view !== undefined ? [emit({ type: "messageEdited", chatId, messageId: view.id, view })] : [])));
+    const statements = [
+      reattributeMessagesStatement(
+        ctx.db,
+        chatId,
+        moved.map((slot) => slot.id),
+        characterId,
+      ),
+    ];
+    await commitRetainedCanonStats(ctx, chatId, statements, {
+      deltas,
+      sources: moved,
+      contributions: [contributions],
+      admission: presentCharacterSeatFence(chatId, characterId),
+    });
+    const reloaded = await Promise.all(moved.map((slot) => loadMessageView(ctx.db, slot.id)));
+    await Promise.all(reloaded.flatMap((view) => (view !== undefined ? [emit({ type: "messageEdited", chatId, messageId: view.id, view })] : [])));
   };
 }
 
@@ -1309,8 +1367,8 @@ export function createEdit(ctx: ChatContext, deps: EditDeps): EditVerbs {
     editReasoning: claim(createEditReasoning(ctx, emit)),
     clearReasoning: claim(createClearReasoning(ctx, emit)),
     moveMessage: claim(createMoveMessage(ctx, emit, deps.activeTurns)),
-    duplicateMessage: claim(createDuplicateMessage(ctx, emit)),
-    reattributeMessages: claim(createReattributeMessages(ctx, emit)),
+    duplicateMessage: claim(createDuplicateMessage(ctx, emit, deps.activeTurns)),
+    reattributeMessages: claim(createReattributeMessages(ctx, emit, deps.activeTurns)),
     reattributePersona: claim(createReattributePersona(ctx, emit)),
   };
 }

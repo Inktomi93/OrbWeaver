@@ -589,6 +589,9 @@ export const reattributeScopeSchema = z.discriminatedUnion("kind", [
 
 export type ReattributeScope = z.infer<typeof reattributeScopeSchema>;
 
+/** The most slots one `reattributeMessages` call may re-voice. Each slot writes per-variant rollup deltas in one batch. */
+export const REATTRIBUTE_MESSAGES_MAX = 100;
+
 // The STATE-ANCHOR selectors (`isStateAnchorSlot` / `lastVisibleRow` / `lastVisibleAssistant`) are GONE
 // (D124). They existed because rpg minted empty-body assistant slots to key hand-written snapshots, so
 // "the tail" and "the last assistant" had to mean "skipping the rows that are not messages". Those rows no
@@ -639,6 +642,13 @@ export const messageViewSchema = z.strictObject({
   connectionId: typeIdSchema(ID_PREFIX.userConnection).nullable(),
   toolCalls: z.array(toolCallRecordOutputSchema).readonly(),
 }) satisfies z.ZodType<MessageView>;
+
+/** A slot a host may re-voice onto another character: an ordinary assistant reply. A user line and an agent's reply
+ *  cannot carry a character stamp (`messages_attribution_shape`). A narrator row voices the whole cast, so one
+ *  character's stamp would mislabel it, and a comment is not prompt canon. */
+export function isReattributableReply(view: Pick<MessageView, "role" | "kind" | "authorUserId">): boolean {
+  return view.role === "assistant" && view.kind === "standard" && view.authorUserId === null;
+}
 
 /** A character-voiced assistant slot with no recorded generation window on any variant.
  *  Unstamped imported or authored text remains eligible, but a card step preserves it as a swipe.

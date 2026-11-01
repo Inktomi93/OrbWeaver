@@ -359,6 +359,7 @@ export function MessageRow({
             messageActions={actionsReveal}
             greetingBound={greeting !== undefined}
             viewerIsHost={viewerIsHost}
+            characterSeats={[...(participants?.values() ?? [])]}
             generationCredit={generationCredit}
             characterNames={[...speakerThemes.keys()]}
             chip={skin.actionsRow.chip}
