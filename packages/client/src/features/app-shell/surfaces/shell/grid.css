@@ -91,6 +91,11 @@
     --shell-main-flip-from: calc(var(--list-track-was) - var(--list-track));
     /* The signed width change of `.shell-main` (positive = it narrowed): what the two tracks gained. */
     --shell-track-shrink: calc(var(--list-track) + var(--context-track) - var(--list-track-was) - var(--context-track-was));
+    /* The topbar trail's width change within a step: its own width (a percentage in `translate` resolves against its
+     * own box) less the width it had at the stamp. `use-shell-track-flip.ts` writes `was` as a length for the flip's
+     * duration; at rest it equals the live width, so the difference is 0. */
+    --shell-trail-self: 100%;
+    --shell-trail-was: var(--shell-trail-self);
     /* The content track's width as arithmetic: the centred counter needs the parent width, and a percentage in
      * `translate` resolves against the element's own box. The premise is that the grid's box is the viewport's
      * width (app-shell-motion.ct.tsx reads the first painted frame of every door). */

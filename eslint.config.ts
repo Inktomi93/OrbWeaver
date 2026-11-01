@@ -863,6 +863,14 @@ export const DOM_LOOKUP_HOMES = [
     reason: "the focus return finds the rendered rail or topbar trigger that opened the modal, which the shell chrome draws",
   },
   {
+    file: "packages/client/src/features/app-shell/hooks/use-shell-track-flip.ts",
+    function: "holdTrailWidth",
+    method: "querySelector",
+    receiver: "grid",
+    selector: ".shell-topbar-trail",
+    reason: "the FLIP records the topbar trail row's width at the stamp, from its inline claim; the row publishes no handle",
+  },
+  {
     file: "packages/client/src/features/app-shell/lib/bug-report-capture.ts",
     function: "readRoute",
     method: "querySelector",
