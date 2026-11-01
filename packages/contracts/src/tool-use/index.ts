@@ -31,11 +31,18 @@ export interface ToolExecutionData {
   readonly membership: ChatMembership | null;
 }
 
+/** What a first-party handler receives. Every builtin runs inside a chat turn, which `resolveDrivableTools`
+ *  enforces by refusing them to every off-turn driver. */
+export interface ChatToolExecutionData extends ToolExecutionData {
+  readonly chatId: ChatId;
+  readonly turnId: ChatTurnId;
+}
+
 /** What a handler returns: `ok:false` is a legality result the model narrates, distinct from a genuine bug
  *  (a throw, caught by execute). `value` must be JSON-serializable. */
 export type ToolHandlerResult = { readonly ok: true; readonly value: unknown } | { readonly ok: false; readonly error: string };
 
-/** A registered tool's declared data: everything but its handler. */
+/** A compose-time tool's declared data: everything but its handler. Plugin tools arrive as {@link PluginToolSpecData}. */
 export interface ToolDescriptor<A = unknown> {
   /** Registry key + the wire `function.name`. */
   readonly name: string;
@@ -45,13 +52,13 @@ export interface ToolDescriptor<A = unknown> {
   readonly argsSchema: z.ZodType<A>;
   /** The can() ceiling; `null` = member floor (see {@link ToolCapability}). */
   readonly capability: ToolCapability | null;
-  readonly source: ToolSource;
+  readonly source: Extract<ToolSource, "builtin">;
 }
 
 /** A descriptor plus a handler that needs only the signal-free execution data. A registrant that never reads the
  *  turn's cancellation (rpg, imagery) types its tools with this; tool-use runs them through its own `ToolDefinition`. */
 export interface ToolHandlerDefinition<A = unknown> extends ToolDescriptor<A> {
-  readonly handler: (args: A, exec: ToolExecutionData) => Promise<ToolHandlerResult>;
+  readonly handler: (args: A, exec: ChatToolExecutionData) => Promise<ToolHandlerResult>;
 }
 
 /** A RUNTIME plugin-tool registration, less the guest `invoke` closure (it takes an `AbortSignal`, so the

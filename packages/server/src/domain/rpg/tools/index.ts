@@ -30,7 +30,7 @@ import {
   updateSceneArgsSchema,
   upsertQuestArgsSchema,
 } from "@orb/contracts/rpg";
-import type { ToolExecutionData, ToolHandlerDefinition, ToolHandlerResult } from "@orb/contracts/tool-use";
+import type { ChatToolExecutionData, ToolHandlerDefinition, ToolHandlerResult } from "@orb/contracts/tool-use";
 import type { ChatTurnId } from "@orb/kit/ids";
 import { createRpgContext } from "../context.ts";
 import type { ActorRefIndex } from "../contract/params.ts";
@@ -59,23 +59,19 @@ function rpgTool<A, const Name extends RpgToolName>(def: ToolHandlerDefinition<A
 }
 
 /** The turn context a stateful tool needs — the game + the turn's ephemeral id. Resolved once per invocation
- *  from the exec context; `null` when the tool fired off-chat or on a non-game chat (an errors-as-data denial,
- *  never a crash). */
+ *  from the exec context. */
 interface ToolTurn {
   readonly game: RpgGameRow;
   readonly turnId: ChatTurnId;
 }
 
 /** Resolve the game + turn for a stateful tool invocation. Returns an `ok:false` legality result the model
- *  narrates when there is no chat, no turn correlation, or no game on the chat. */
+ *  narrates when the chat holds no game. */
 async function resolveToolTurn(
   ctx: RpgContext,
-  exec: ToolExecutionData,
+  exec: ChatToolExecutionData,
   tool: string,
 ): Promise<{ ok: true; turn: ToolTurn } | { ok: false; result: ToolHandlerResult }> {
-  if (exec.chatId === null || exec.turnId === null) {
-    return { ok: false, result: { ok: false, error: `${tool} requires a chat turn context` } };
-  }
   const game = await findGameByChat(ctx.db, exec.chatId);
   if (game === undefined) {
     return { ok: false, result: { ok: false, error: `${tool}: this chat is not an rpg game` } };

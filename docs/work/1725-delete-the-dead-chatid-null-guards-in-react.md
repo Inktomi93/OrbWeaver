@@ -11,16 +11,16 @@ plan: unwired-code
 
 ## What
 
-The change, in a sentence.
+First-party tool handlers receive a chat-turn execution context with non-null `chatId` and `turnId`, so the null guards in the react, rpg and imagery tools are gone.
 
 ## Why
 
-The symptom or the ruling behind it.
+Owner ruling: chat-scoped tools get an execution type with non-null `chatId` and `turnId`, then the guards delete. No off-turn path reaches a builtin, because `isDirectDrivableBy` admits contributor tools alone, so the guards could never fire.
 
 ## Done when
 
-The observable bar a verifier can check.
+`ToolHandler` takes `ChatToolExecutionContext`. Automation resolves through `resolveDrivableTools`, and handing `executeToolCalls` a first-party set with a nullable context fails to compile. Tool behavior is unchanged.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+`tests/server/domain/automation/contract/chat-tool-scope.test-d.ts` holds the type contract; weakening the `ResolvedToolSet` default makes its `@ts-expect-error` lines report unused. The lane report lists the floor commands.

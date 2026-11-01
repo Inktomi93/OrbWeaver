@@ -11,7 +11,7 @@ import { createIsToolDrivableBy } from "./verbs/is-tool-drivable-by.ts";
 import { createListDrivableToolNames } from "./verbs/list-drivable-tool-names.ts";
 import { createRegister } from "./verbs/register.ts";
 import { createRegisterPluginTool } from "./verbs/register-plugin-tool.ts";
-import { createResolveTools } from "./verbs/resolve-tools.ts";
+import { createResolveDrivableTools, createResolveTools } from "./verbs/resolve-tools.ts";
 import { createToToolDefinitions } from "./verbs/to-tool-definitions.ts";
 
 export function createToolUseService(ctx: ToolUseContext): ToolUseService {
@@ -23,6 +23,7 @@ export function createToolUseService(ctx: ToolUseContext): ToolUseService {
     isToolDrivableBy: createIsToolDrivableBy(registry),
     listDrivableToolNames: createListDrivableToolNames(registry),
     resolveTools: createResolveTools(registry),
+    resolveDrivableTools: createResolveDrivableTools(registry),
     executeToolCalls,
     toToolDefinitions: createToToolDefinitions(),
   };
