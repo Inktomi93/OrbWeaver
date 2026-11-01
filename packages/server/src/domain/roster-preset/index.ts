@@ -5,7 +5,7 @@
 
 export type { RosterSeedStepDeps, SeedRosterPreset } from "./contract/seed.ts";
 export type {
-  RosterPresetAssemblyContext as RosterPresetContext,
+  RosterPresetAssemblyContext,
   RosterPresetService,
 } from "./contract/service.ts";
 export { createRosterPresetService } from "./service.ts";

@@ -42,4 +42,9 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 16 rows = 16 applied. 0 kept, 0 handed off, 0 owner questions.
+
+- `PluginWorldInfoReads` reexport-chain: applied. The `contract/plugin-reads.ts` re-export is deleted; its importer takes the type from `@orb/contracts/plugin` (`packages/contracts/src/plugin/` is untouched).
+- `WorldInfoExportContext` / `WorldInfoExportAssemblyContext` renamed-reexport: applied. The door exports the declared name; 2 importer files renamed.
+- `createExportWorldBook` / `createExport` and `createImportWorldBook` / `createImport`, and the twelve grouped verb factories in `verbs/books/index.ts` and `verbs/entries/index.ts` (`createCreateBook`, `createDuplicateBook`, `createGetBook`, `createListBooks`, `createListBooksWithUsage`, `createRemoveBook`, `createUpdateBook`, `createCreateEntry`, `createGetEntry`, `createListEntries`, `createRemoveEntry`, `createUpdateEntry`): applied by naming each factory once at its declaration, as the item says. The barrels and the door export the declared names; `service.ts` and a contract comment use them. Importer scan: ast-grep ts 5949 / tsx 1525 tracked files, rg across `packages` and `tests`: no user of the old names outside `verbs/` and `service.ts`. The barrel comments that cited a "verb-naming gate" are rewritten: no gate rule exists in `tooling/src/eslint` or `tests/tooling`.
+- Check: `pnpm typecheck packages/server/tsconfig.json` exit 0.

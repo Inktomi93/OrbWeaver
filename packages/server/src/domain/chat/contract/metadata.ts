@@ -14,8 +14,6 @@ import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { stripUndefined } from "@orb/kit/objects";
 import { z } from "zod";
 
-export type { ChatMetadata } from "@orb/contracts/chat";
-
 export const TOOL_RECURSE_LIMIT_DEFAULT = 5;
 export const TOOL_RECURSE_LIMIT_MIN = 1;
 export const TOOL_RECURSE_LIMIT_MAX = 20;

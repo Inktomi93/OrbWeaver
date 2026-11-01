@@ -13,7 +13,7 @@ import type { RemoveEntryParams } from "#src/domain/world-info/contract/params.t
 import type { WorldInfoContext, WorldInfoService } from "#src/domain/world-info/contract/service.ts";
 import { listChatIdsForBook } from "#src/domain/world-info/persistence/queries.ts";
 
-export function createRemove(ctx: WorldInfoContext): WorldInfoService["removeEntry"] {
+export function createRemoveEntry(ctx: WorldInfoContext): WorldInfoService["removeEntry"] {
   return async ({ principal, entryId }: RemoveEntryParams) => {
     const ownerId = principal.userId;
     const ownedBooks = ctx.db.select({ id: worldBooks.id }).from(worldBooks).where(eq(worldBooks.ownerId, ownerId));

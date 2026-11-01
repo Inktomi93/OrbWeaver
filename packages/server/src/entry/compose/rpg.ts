@@ -19,7 +19,7 @@ import type { Clock, ScheduleOp } from "@orb/kit/time";
 import { can } from "#domain/admin";
 import { isCharacterHandleConflict } from "#domain/character";
 import type { PostNarratorMessage } from "#domain/chat";
-import type { RpgContext, RpgPostNarratorMessage, RpgResolveViewerVisibility, RpgRoundsDeps, RpgService } from "#domain/rpg";
+import type { RpgAssemblyContext, RpgPostNarratorMessage, RpgResolveViewerVisibility, RpgRoundsAssemblyDeps, RpgService } from "#domain/rpg";
 import {
   buildFoldedTurnBuilder,
   buildFoldTurnToolCalls,
@@ -43,11 +43,11 @@ import { minter } from "./minter.ts";
 
 /** What the rpg seam needs from the composition root: the rounds' own DI bundle (minus the handle-conflict
  *  classifier, wired here off character's front door) plus the ops only `RpgContext` itself consumes. */
-export interface RpgComposeDeps extends Omit<RpgRoundsDeps, "rpgChatOps" | "isHandleConflict"> {
-  readonly emitRpgEvent: RpgContext["emitBus"];
+export interface RpgComposeDeps extends Omit<RpgRoundsAssemblyDeps, "rpgChatOps" | "isHandleConflict"> {
+  readonly emitRpgEvent: RpgAssemblyContext["emitBus"];
   readonly idSource: IdSource;
   readonly scheduleTimeout: ScheduleOp;
-  readonly randomInt: RpgContext["randomInt"];
+  readonly randomInt: RpgAssemblyContext["randomInt"];
   readonly now: Clock;
   /** chat's rpg-facing ops (getMembership/postNarratorMessage/setRpgPointer/resolveRpgParticipants) — off chat's
    *  compose result (chat composes first). rpg closes over these; chat learns nothing rpg-shaped. */
@@ -83,14 +83,14 @@ function createRpgRestorePost(post: PostNarratorMessage): RpgPostNarratorMessage
 
 export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
   const { idSource } = deps;
-  const rounds: RpgRoundsDeps = { ...deps, isHandleConflict: isCharacterHandleConflict };
+  const rounds: RpgRoundsAssemblyDeps = { ...deps, isHandleConflict: isCharacterHandleConflict };
   const lifetime = new AsyncDisposableStack();
   // biome-ignore lint/nursery/useDisposables: the returned RPG graph owns writes shared by its service, tools and chat hooks.
   const handWrites = lifetime.use(createRpgHandWrites());
   const observers = createRpgRoundObservers(deps.trace, deps.scheduleTimeout, deps.emitRpgEvent, deps.logger);
   // Rounds can reconcile through handWrites while settling; close their owner first.
   lifetime.use(observers.flushBarrier);
-  const ctx: RpgContext = {
+  const ctx: RpgAssemblyContext = {
     idSource,
     db: deps.db,
     now: deps.now,

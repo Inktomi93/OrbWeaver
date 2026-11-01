@@ -8,8 +8,6 @@ import type { UserId } from "@orb/kit/ids";
 import type { ZodRawShape } from "zod";
 import type { ToolExecutionContext } from "./params.ts";
 
-export type { ToolCallRecord } from "@orb/contracts/chat";
-
 /** One erased call's terminal shape. */
 export type RunOutcome =
   | { readonly kind: "invalid"; readonly issues: string }

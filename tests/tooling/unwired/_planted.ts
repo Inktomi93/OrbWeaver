@@ -15,3 +15,17 @@ export const JSX_NAMESPACE = [
   "  interface ElementChildrenAttribute { children: {} }",
   "}",
 ].join("\n");
+
+/** A minimal `z`: its object schemas keep their keys and infer a value type the way zod does. */
+export const ZOD_STUB = [
+  "export interface Schema<V> { readonly value?: V; optional(): Schema<V | undefined> }",
+  "const schema = <V>(): Schema<V> => ({ optional: () => schema<V | undefined>() });",
+  "export type Infer<S> = S extends { readonly shape: infer T } ? { [K in keyof T]: T[K] extends Schema<infer V> ? V : never } : never;",
+  "export const z = {",
+  "  object: <T>(shape: T): { readonly shape: T } => ({ shape }),",
+  "  discriminatedUnion: <T>(key: string, options: T): { readonly shape: T } => ({ shape: options }),",
+  "  lazy: <T>(make: () => T): T => make(),",
+  "  string: (): Schema<string> => schema<string>(),",
+  "};",
+  "export type Checked<T> = { readonly shape: unknown } & { readonly checked?: T };",
+].join("\n");

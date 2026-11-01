@@ -24,21 +24,8 @@
 // `applyDistributedPlugins` is the self-scoped new-user half. Enabling remains each owner's own act, and the
 // admin verbs mint nothing that runs.
 
-// Canonical wire shapes live in @orb/contracts/plugin; retained aliases serve existing public consumers.
+// Wire shapes live in @orb/contracts/plugin; callers import them from there, not through this door.
 
-export type { PluginLogView } from "@orb/contracts/plugin";
-export {
-  distributedPluginViewSchema,
-  pluginBundleAssetViewSchema,
-  pluginCommandViewSchema,
-  pluginDisplayTransformViewSchema,
-  pluginFanoutResultSchema,
-  pluginLogViewSchema,
-  pluginSurfaceStateSchema,
-  pluginSurfaceViewSchema,
-  pluginViewSchema,
-  snippetResultSchema,
-} from "@orb/contracts/plugin";
 export { PLUGIN_CRASH_DISABLE_THRESHOLD } from "./activation/crash-policy.ts";
 export type { DistributedPluginApplier } from "./contract/distributed-seed.ts";
 export {

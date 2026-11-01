@@ -30,6 +30,7 @@
 // This file imports no domain and no fs: the bytes, the CAS write, the settings read/patch and the three
 // raw-JSON rewrites all arrive as injected closures the composition root builds.
 
+import type { SeededPlateAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import type { ThemeBackground } from "@orb/contracts/theme";
@@ -37,7 +38,7 @@ import { canonicalBackgroundSource } from "@orb/contracts/theme";
 import { errorMessage } from "@orb/kit/error-message";
 import type { UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { DefaultBackgroundSeeder, DefaultBackgroundSeederDeps, SeededPlateAsset } from "../contract/seeder.ts";
+import type { DefaultBackgroundSeeder, DefaultBackgroundSeederDeps } from "../contract/seeder.ts";
 
 /** One stored plate as a carried background SOURCE. Built through the canonicalizer every other carried
  *  background write path runs, so the seeded refs are byte-identical in shape to a hand-picked one. */

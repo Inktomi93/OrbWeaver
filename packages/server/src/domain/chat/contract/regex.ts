@@ -80,5 +80,3 @@ export interface PromptHistoryRegexEnv {
    *  pass (its header states why history length must never multiply a watchdog trip). */
   readonly onScriptFailure: (err: unknown, script: RegexScriptInput) => void;
 }
-
-export type { HostTierRegexAllow } from "@orb/contracts/chat";

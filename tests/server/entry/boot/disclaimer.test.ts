@@ -11,7 +11,8 @@ import {
   OIDC_REDIRECT_URIS_KEY,
 } from "@orb/contracts/identity";
 import { composeBootDisclaimer } from "@orb/server/entry/boot";
-import { bindPostureInput, ownerFallbackPeerInput, resolveBindPosture, resolveOwnerFallbackPeers } from "@orb/server/foundation/env/record";
+import { resolveBindPosture } from "@orb/server/foundation/env";
+import { bindPostureInput, ownerFallbackPeerInput, resolveOwnerFallbackPeers } from "@orb/server/foundation/env/record";
 import { expect, test } from "@orb/testkit/node";
 import { createTestEnv } from "@orb/testkit/node/helpers";
 import { BOOT_DISCLAIMER_TOPICS } from "#server/entry/boot/disclaimer.ts";

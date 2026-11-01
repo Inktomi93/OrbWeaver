@@ -29,7 +29,13 @@ import type { CopyPresetToUser, PresetReadable } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type {
   CancelStateRoundsOp,
+  CreateGameResult,
   EmitRpgEvent,
+  HandDoorResult,
+  PopulateResult,
+  PromoteActorResult,
+  ResyncResult,
+  RollDiceResult,
   RpgCheckpointView,
   RpgConfigView,
   RpgDeliveryPath,
@@ -98,7 +104,6 @@ import type {
   UpdateConfigParams,
   UpsertQuestParams,
 } from "./params.ts";
-import type { CreateGameResult, HandDoorResult, PopulateResult, PromoteActorResult, ResyncResult, RollDiceResult } from "./results.ts";
 
 export type RpgGameRow = typeof rpgGames.$inferSelect;
 export type NewRpgGame = typeof rpgGames.$inferInsert;

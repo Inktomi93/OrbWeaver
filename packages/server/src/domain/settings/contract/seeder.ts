@@ -18,8 +18,6 @@ import type { SeedBackgroundPlate } from "@orb/default-content";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
 
-export type { SeededPlateAsset } from "@orb/contracts/assets";
-
 export interface DefaultBackgroundSeederDeps {
   readonly logger: Logger;
   /** The shipped pack, in the order the library entries are appended. */

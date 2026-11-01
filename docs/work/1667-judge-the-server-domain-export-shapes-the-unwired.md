@@ -28,4 +28,6 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 2 rows = 2 applied. 0 kept, 0 handed off, 0 owner questions.
+
+- `ExportCardFormat`, `ExportChatFormat` reexport-chain: applied. `domain/export/index.ts` exports both from their home `contract/params.ts`; the `contract/service.ts` re-export (and its comment) is deleted. ast-grep over ts 5949 and tsx 1525 tracked files shows the only users are `contract/params.ts`, the door, and `entry/http/export.ts`, which imports through the door, so no importer changed.

@@ -17,7 +17,7 @@ import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
-import { AlertTriangle, Icon } from "@orb/ui/icons";
+import { Icon, TriangleAlert } from "@orb/ui/icons";
 import { Row, Stack, Surface } from "@orb/ui/layout";
 import type { SortableItemKey } from "@orb/ui/sortable";
 import { SortableList } from "@orb/ui/sortable";
@@ -116,7 +116,7 @@ export function AssemblyRack({
               {zones.missingPivot ? (
                 <Card tone="warning" variant="soft">
                   <Row align="center" gap="row">
-                    <Icon icon={AlertTriangle} size="sm" tone="warning" />
+                    <Icon icon={TriangleAlert} size="sm" tone="warning" />
                     <Text className="flex-1" voice="label">
                       No chat history marker — the conversation has nowhere to splice in.
                     </Text>
@@ -129,7 +129,7 @@ export function AssemblyRack({
               {cacheBusters.length > 0 ? (
                 <Card tone="warning" variant="soft">
                   <Row align="center" gap="row">
-                    <Icon icon={AlertTriangle} size="sm" tone="warning" />
+                    <Icon icon={TriangleAlert} size="sm" tone="warning" />
                     <Text data-slot="prompt-cache-warning" voice="label">
                       {`Content that can change between turns above Chat History invalidates the history cache. Move ${cacheBusters
                         .map(sectionName)

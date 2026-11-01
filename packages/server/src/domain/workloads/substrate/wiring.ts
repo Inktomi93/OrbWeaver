@@ -1,4 +1,6 @@
 // Drivers retain inert DB identity; the workload owner alone opens its existing query context.
+
+import type { WorkloadRowAnyKind, WorkloadRunnableRow } from "@orb/contracts/workloads";
 import type { BootDatabaseHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
 import { bootDatabaseForOwner, databaseForOwner } from "@orb/db/wiring-owner";
 import type { WorkloadId } from "@orb/kit/ids";
@@ -12,7 +14,7 @@ import type {
   ReapWorkloadsArgs,
   WorkloadRunnerDeps,
 } from "../contract/service.ts";
-import type { AuthorizeWorkloadRead, WorkloadRowAnyKind, WorkloadRunnableRow } from "../contract/workload-row.ts";
+import type { AuthorizeWorkloadRead } from "../contract/workload-row.ts";
 import { reclaimInFlightOnBoot as reclaim } from "../engine/boot-reclaim.ts";
 import { createNextRunnableWorkload as bindNextRunnable } from "../engine/next-runnable.ts";
 import { reapOrphanedWorkloads as reap } from "../engine/reaper.ts";

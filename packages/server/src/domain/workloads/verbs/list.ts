@@ -5,9 +5,9 @@
 // supplied `ownerId` is ignored — a user only ever lists its own workloads). An admin (or a `null` system
 // caller) keeps the requested filter: undefined = the deployment-wide view across all owners, or narrow to one.
 
+import type { WorkloadRowAnyKind } from "@orb/contracts/workloads";
 import type { ListWorkloadsParams } from "../contract/params.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
-import type { WorkloadRowAnyKind } from "../contract/workload-row.ts";
 import { listWorkloads } from "../persistence/queries.ts";
 import { resolveListOwnerFilter } from "../substrate/authorize.ts";
 

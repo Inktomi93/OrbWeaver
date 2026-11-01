@@ -37,4 +37,6 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 11 rows = 11 applied. 0 kept, 0 handed off, 0 owner questions.
+
+- `PluginLogView` and ten view and result schemas (`distributedPluginViewSchema`, `pluginBundleAssetViewSchema`, `pluginCommandViewSchema`, `pluginDisplayTransformViewSchema`, `pluginFanoutResultSchema`, `pluginLogViewSchema`, `pluginSurfaceStateSchema`, `pluginSurfaceViewSchema`, `pluginViewSchema`, `snippetResultSchema`) reexport-chain: applied. `domain/plugin/index.ts` no longer re-exports them; the one importer through the door, `transport/trpc/routers/plugin.ts` (ast-grep ts 5949 / tsx 1525 tracked files), takes them from `@orb/contracts/plugin`. `packages/contracts/src/plugin/` and `packages/plugin-sdk/` are untouched: only the server door's copy is removed. A test-tree scan over the same files found no importer through the door.

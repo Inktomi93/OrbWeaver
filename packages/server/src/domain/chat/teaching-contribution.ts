@@ -15,6 +15,7 @@ import type { ChatInjection, ReactionEmoji, TeachingCollection, TeachingContext,
 import {
   CHAT_REACT_TOOL_NAME,
   isNarratorVoiced,
+  NO_HISTORY_FLOOR,
   REACTION_ATTRIBUTION_CONTENT_CAP,
   REACTION_ATTRIBUTION_MAX_PER_MESSAGE,
   REACTION_ATTRIBUTION_SLOT_WINDOW,
@@ -30,7 +31,6 @@ import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { resolveSegmentAnchor, segmentSnippet } from "@orb/kit/speaker-label";
 import type { ChatTeachingRegistry } from "./contract/context.ts";
 import { listAttributionReactions, loadPresentCharacterNames } from "./persistence/reactions.ts";
-import { NO_HISTORY_FLOOR } from "./substrate/auth/index.ts";
 import { REACTION_ANONYMOUS_REACTOR, REACTION_WHOLE_MESSAGE_TARGET, reactionNote } from "./substrate/reaction-note.ts";
 
 /** Contributor #0 — the rpg gather's injections + tool names, projected onto the teaching contract.

@@ -31,10 +31,6 @@ export interface ExportContext {
   readonly cardPngIdentity: (bytes: Uint8Array) => Promise<SeatCardIdentity | null>;
 }
 
-// The chat transcript format union's declaration home is params.ts (keeps contract/ acyclic); the
-// canonical import surface stays here + the front door.
-export type { ExportCardFormat, ExportChatFormat } from "./params.ts";
-
 export interface ExportService {
   /** Read the owner's live character card and emit it in the requested container: `png` (default) welds
    *  the card JSON into the avatar as `chara`(V2)+`ccv3`(V3) tEXt chunks (a 256×256 placeholder when there

@@ -34,4 +34,8 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 2 rows = 2 applied. 0 kept, 0 handed off, 0 owner questions.
+
+- `ResolvePersonasForParticipants` reexport-chain: applied. Home is `@orb/contracts/persona`. The `contract/ops.ts` re-export and the door's line are deleted; 4 importers (compose files and `ops.ts` users, plan from importers of both modules; ast-grep ts 5949 / tsx 1525 tracked files) import it from `@orb/contracts/persona`.
+- `PersonaContext` / `PersonaAssemblyContext` renamed-reexport: applied. The door exports the declared name; the one importer is renamed. The inner `PersonaContext` is a different type.
+- Check: `pnpm typecheck packages/server/tsconfig.json` exit 0 (covers 1667 to 1670).

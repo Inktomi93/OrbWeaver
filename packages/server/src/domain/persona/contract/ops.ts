@@ -1,8 +1,6 @@
 import type { LoadUserSettings } from "@orb/contracts/settings";
 import type { Handle, UserId } from "@orb/kit/ids";
 
-export type { ResolvePersonasForParticipants } from "@orb/contracts/persona";
-
 // domain/persona/contract/ops — the PRINCIPAL-LESS injected ops this domain hands OUT (the standalone
 // compose-built factory shape, `ExtractQuiet`/`postNarratorMessage` precedent — never a `PersonaService`
 // verb, never a tRPC procedure). A `PersonaService` verb resolves authority from ONE Principal, which is

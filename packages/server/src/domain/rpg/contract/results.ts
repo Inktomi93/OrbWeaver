@@ -3,8 +3,6 @@
 
 import type { RpgActorEntry } from "@orb/contracts/rpg";
 
-export type { CreateGameResult, HandDoorResult, PopulateResult, PromoteActorResult, ResyncResult, RollDiceResult } from "@orb/contracts/rpg";
-
 /** What the PURE actor-op applier returns (`substrate/actor-ops.ts`): the next row, the FINE lock paths its
  *  ops earned and the pin PREFIXES its removals give back, or an errors-as-data refusal (an op naming an
  *  item/condition the actor does not carry). Homed here because a domain type has no home in the substrate

@@ -53,6 +53,9 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 27 rows = 8 applied, 19 kept with reason. 0 owner questions.
 
-The `authConfigFromEnv`, `oidcPendingJoinCookieFor` and `readRequestCookie` rows: [1698](1698-judge-the-unwired-auth-members-authseamresolution-csrfheaderpresent-identityresolution.md).
+- Judged in [1698](1698-judge-the-unwired-auth-members-authseamresolution-csrfheaderpresent-identityresolution.md), kept: `authConfigFromEnv`, `oidcPendingJoinCookieFor`, `readRequestCookie` reexport-chain in `packages/server/src/entry/auth/index.ts`. They are auth config and session-cookie readers, `@orb/server/entry/auth` is a package export that `scripts/generate-seed-vectors.ts` and `tests/support` read, and `infra/auth` has no package export.
+- Applied: `ExamplePluginSeeder` (`entry/boot/seed-example-plugins.ts`) and `UserContentSeeder` (`entry/boot/seed-user-content.ts`) re-exports deleted, importers take them from `#domain/plugin` and `#domain/settings`. `importStagedArchive`, `runBundleImport`, `createNodeFsImportPort` and `ImportFile` removed from `entry/import/index.ts`; the `ImportFile` re-export in `run-profile-import.ts` is gone; importers take them from `#domain/import` and `#infra/storage`. `PortabilityTableName` / `SchemaTableName`: `entry/contract/portability.ts` no longer renames it; the compose importer and `tests/server/entry/compose/lifecycle-portability.test-d.ts` use `SchemaTableName` from `@orb/db/wiring`. Plan built from importers (`move-import-names`; ast-grep ts 5949 / tsx 1525 tracked files, rg over `packages`, `tests`, `tooling`, `scripts`).
+- Kept (16 restated `…Deps` pairs among `BackfillPluginProvenanceOnBootDeps`, `HealLegacyBackgroundPinsDeps`, `MigrateHandoffOfferVocabDeps`, `MigratePluginToolWireNamesDeps`, `MigrateProseSlotVocabDeps`, `RepairStaleJoinSeqDeps`, `SeedExamplePluginsDeps`, `SeedUserContentDeps`): each boot step declares its own `{ db, logger }`-shaped deps. They match by coincidence, not by concept: boot ordering lives in lifecycle and each step's deps grow on their own (the seed steps add policy and manifest ports). One shared type would couple unrelated steps so that widening one widens all.
+- Check: `pnpm typecheck packages/server/tsconfig.json` exit 0.

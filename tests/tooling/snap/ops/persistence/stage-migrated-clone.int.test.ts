@@ -83,8 +83,8 @@ test("a divergent recorded baseline refuses a migrated clone without changing it
   }
   const before = await readFile(path);
   const target = resolveDataLayout({ ["DATA_DIR"]: join(scratch, "refused") });
-  await expect(cloneMigratedStageDb(path, { databaseUrl: target.databaseUrl, assetsDir: target.assets })).rejects.toThrow(
-    "refusing to auto-wipe a launched db",
-  );
+  await expect(cloneMigratedStageDb(path, { databaseUrl: target.databaseUrl, assetsDir: target.assets })).rejects.toMatchObject({
+    code: "boot_migration_diverged",
+  });
   expect((await readFile(path)).equals(before)).toBe(true);
 });

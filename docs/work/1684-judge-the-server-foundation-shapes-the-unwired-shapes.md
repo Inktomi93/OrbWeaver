@@ -56,6 +56,9 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 30 rows = 30 applied. 0 kept, 0 owner questions.
 
-The `ownerFallbackPeerWarnings` and `resolveOwnerFallbackPeers` rows: [1698](1698-judge-the-unwired-auth-members-authseamresolution-csrfheaderpresent-identityresolution.md).
+- Judged in [1698](1698-judge-the-unwired-auth-members-authseamresolution-csrfheaderpresent-identityresolution.md), applied: `ownerFallbackPeerWarnings` and `resolveOwnerFallbackPeers`. `packages/server/src/entry/lifecycle.ts` imports them from `#foundation/env/record`, and `packages/server/src/foundation/env/index.ts` no longer re-exports them.
+- Applied (door exports from the home file, no consumer changes, since the door's names are unchanged): `env/index.ts` exports `bindPostureWarnings`, `loopbackCompanion`, `resolveBindPosture` from `bind.ts`, `resolveAllowedHosts` from `allowed-hosts.ts`, `diagnosticsPostureWarnings`, `resolveDiagnosticsPosture` from `diagnostics.ts`. `observability/index.ts` exports `AuditEntry`, `Logger`, `ObservabilityRings`, `DetachedSupervision`, `RequestTrace`, `SerializedSpan`, `SpanAttrs`, `TraceRing`, `MemoryRecallInspector`, `RpgTraceInspector` and `WireOutcome` from `contract/*`, and `registerDebugRoutes` and the wire-capture functions and `WireCaptureSpill` from `debug/routes.ts` and `debug/wire-capture.ts`. `debug/index.ts` had `observability/index.ts` as its only importer (rg over packages, tests, tooling and docs: 0 others) and is deleted, which resolves its three rows (`MemoryRecallInspector`, `RpgTraceInspector`, `WireOutcome`).
+- `ClientErrorReport` reexport-chain: applied. The `client-error.ts` re-export is deleted; no file imported it from there (ast-grep ts 5949 / tsx 1525 tracked files).
+- Check: `pnpm typecheck packages/server/tsconfig.json` exit 0.

@@ -15,7 +15,7 @@ function bookNameFor(filename: string | undefined): string {
   return stem.length > 0 ? stem : UNNAMED_BOOK;
 }
 
-export function createImport(ctx: ImportWorldBookContext): ImportWorldBook {
+export function createImportWorldBook(ctx: ImportWorldBookContext): ImportWorldBook {
   return async ({ ownerId, bytes, filename }): Promise<ImportWorldBookOutcome> => {
     const parsed = parseWorldBookFile(bytes, bookNameFor(filename));
     if (!parsed.ok) {
