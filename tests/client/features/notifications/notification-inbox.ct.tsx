@@ -437,10 +437,9 @@ test("a list invalidate during a pressed page still ends in that page", async ({
   await routeTrpc(
     page,
     serveCorpusProcedures(rpc, INBOX_PROCEDURES, (input) => {
-      if (armed && input !== undefined && "cursor" in input) {
-        armed = false;
-        return hold;
-      }
+      const held = armed && input !== undefined && "cursor" in input;
+      armed &&= !held;
+      return held ? hold : undefined;
     }),
   );
   await mount<typeof NotificationInboxStory>(STORY, {});
@@ -473,10 +472,9 @@ test("the dismissed list takes the same press: an invalidate cannot drop its pag
   await routeTrpc(
     page,
     serveCorpusProcedures(rpc, INBOX_PROCEDURES, (input) => {
-      if (armed && input !== undefined && "cursor" in input && input.state === "dismissed") {
-        armed = false;
-        return hold;
-      }
+      const held = armed && input !== undefined && "cursor" in input && input.state === "dismissed";
+      armed &&= !held;
+      return held ? hold : undefined;
     }),
   );
   await mount<typeof NotificationInboxStory>(STORY, {});

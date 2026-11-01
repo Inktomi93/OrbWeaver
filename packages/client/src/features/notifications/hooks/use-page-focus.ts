@@ -3,11 +3,11 @@
 
 import type { RefCallback } from "react";
 import { useState } from "react";
+import type { CollectionSurface } from "#data";
 
 interface PageFocusArgs {
   readonly rowCount: number;
-  /** Resolves whether the press added rows. */
-  readonly loadMore: () => Promise<boolean>;
+  readonly loadMore: CollectionSurface<unknown>["loadMore"];
   /** A row to land on as soon as it mounts, for a list that opens on a reader's press. */
   readonly firstRow?: number;
 }
@@ -25,11 +25,13 @@ export function usePageFocus({ rowCount, loadMore, firstRow }: PageFocusArgs): P
       setLanding(rowCount);
       // A press that added no row must disarm here: the landing row may never mount, and a later refetch that
       // puts a row at this index would then pull focus with no press behind it.
-      void loadMore().then((added) => {
-        if (!added) {
-          setLanding(null);
-        }
-      });
+      loadMore()
+        .then((added) => {
+          if (!added) {
+            setLanding(null);
+          }
+        })
+        .catch(() => setLanding(null));
     },
     rowRef: (index) =>
       index === landing

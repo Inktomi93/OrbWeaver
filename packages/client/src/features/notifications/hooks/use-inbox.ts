@@ -6,7 +6,7 @@
 
 import type { InboxState } from "@orb/contracts/notifications";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
-import type { Trpc } from "#data";
+import type { CollectionSurface, Trpc } from "#data";
 import { createCollectionSurface, createEntityMutation, useTRPC } from "#data";
 
 /** One `notifications.list` page. */
@@ -48,7 +48,7 @@ export interface InboxRead {
   readonly readFailed: boolean;
   /** The reader's last Load more press failed. */
   readonly loadMoreFailed: boolean;
-  readonly loadMore: () => Promise<boolean>;
+  readonly loadMore: CollectionSurface<unknown>["loadMore"];
   readonly retry: () => void;
 }
 
