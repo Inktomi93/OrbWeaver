@@ -92,3 +92,50 @@ for (const { locale, typed } of LOCALES) {
     });
   });
 }
+
+// Real keystrokes, not `fill`: each keystroke is its own change, so a group stripped early must not stop the next one.
+const KEYED = [
+  {
+    locale: "en-US",
+    keyed: [
+      ["2,592,000", "2592000"],
+      ["1,234,567.5", "1234567.5"],
+    ],
+    pasted: [["  8,443 ", "8443"]],
+  },
+  { locale: "en-IN", keyed: [["1,00,000", "100000"]], pasted: [["1,00,000", "100000"]] },
+  { locale: "de-DE", keyed: [["2.592.000", "2592000"]], pasted: [[" 8.443 ", "8443"]] },
+] as const;
+
+for (const { locale, keyed, pasted } of KEYED) {
+  test.describe(`keystrokes and pastes in ${locale}`, () => {
+    test.use({ locale });
+
+    test("read the whole grouped number", async ({ mount, page }) => {
+      await using root = await createServerHarness({ startJobs: false });
+      const caller = await root.internalCallerFor(root.ownerId);
+      const appearance = appearanceSettingsSchema.parse({});
+      await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });
+      await routeTrpc(page, serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "settings.getAppSettingsWithOverrides"]));
+      await mount<typeof AdminActionGroupsStory>(STORY, { width: 960, appearance });
+      const field = page.getByRole("textbox", { name: DEADLINE_LABEL, exact: true });
+      for (const [text, digits] of keyed) {
+        await field.fill("");
+        await field.pressSequentially(text);
+        await field.press("Tab");
+        await expect(field).toHaveValue(digits);
+      }
+      for (const [text, digits] of pasted) {
+        await field.fill("");
+        await field.focus();
+        await field.evaluate((input, clipboard) => {
+          const data = new DataTransfer();
+          data.setData("text/plain", clipboard);
+          input.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+        }, text);
+        await field.press("Tab");
+        await expect(field).toHaveValue(digits);
+      }
+    });
+  });
+}
