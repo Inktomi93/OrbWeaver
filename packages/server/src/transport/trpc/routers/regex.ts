@@ -39,7 +39,6 @@ import {
   regexScriptIdInputSchema,
   regexScriptUsageSchema,
   regexScriptViewSchema,
-  removeResultSchema,
   reorderResultSchema,
   updateRegexScriptSchema,
 } from "@orb/contracts/regex";
@@ -74,7 +73,7 @@ export const regexRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.regex.updateScript({ principal: ctx.auth, scriptId: input.scriptId, input: input.input })),
 
   removeScript: authedProcedure
-    .output(removeResultSchema)
+    .output(z.void())
     .input(regexScriptIdInputSchema)
     .mutation(({ ctx, input }) => ctx.services.regex.removeScript({ principal: ctx.auth, scriptId: input.scriptId })),
 

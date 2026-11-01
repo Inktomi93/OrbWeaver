@@ -15,7 +15,6 @@ import type {
   ImportScriptFileResult,
   RegexScriptRow,
   RegexScriptUsage,
-  RemoveResult,
   ReorderResult,
   ResolveRoomDisplayPolicyOp,
 } from "@orb/contracts/regex";
@@ -102,7 +101,7 @@ export interface RegexService {
   readonly createScript: (params: CreateScriptParams) => Promise<RegexScriptRow>;
   readonly updateScript: (params: UpdateScriptParams) => Promise<RegexScriptRow>;
   /** DB CASCADE clears every junction row. */
-  readonly removeScript: (params: RemoveScriptParams) => Promise<RemoveResult>;
+  readonly removeScript: (params: RemoveScriptParams) => Promise<void>;
   /** Copies a script into a fresh "<name> (copy)" row, unattached at every scope. */
   readonly duplicateScript: (params: DuplicateScriptParams) => Promise<RegexScriptRow>;
   /** The REVERSE rosters — which presets/characters/rooms attach ONE owned script (the library context

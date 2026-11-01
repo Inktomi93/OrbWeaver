@@ -1679,7 +1679,7 @@ function fireRpgUserCommit(ctx: ChatContext, chatId: ChatId, messageId: MessageI
     const settled = withRequestSpan({ traces: ctx.traces, requestId: rpgUserCommitRequestId(messageId) }, RPG_USER_COMMIT_SPAN, { chatId, messageId }, () =>
       rpg.onUserCommit(chatId, messageId),
     ).catch(() => undefined);
-    ctx.trackBackground?.(settled, chatId);
+    ctx.trackBackground(settled, chatId);
   }
 }
 
@@ -2588,7 +2588,7 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
       .then(() => undefined)
       .finally(() => bridge.close());
     // The consumer still receives/logs the original fault below; root and handoff join its settlement.
-    ctx.trackBackground?.(
+    ctx.trackBackground(
       run.then(
         () => undefined,
         () => undefined,
