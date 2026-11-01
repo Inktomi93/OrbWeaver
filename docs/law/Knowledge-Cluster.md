@@ -44,7 +44,7 @@ of truth), and **building it never blocks a reply** (post-commit fire-and-forget
    Four files in the same directory are the named exceptions, each a write the store verbs do not cover:
 
    - `clear.ts` prunes digests, segments and document chunks that canon no longer produces.
-   - `space-state.ts` deletes the vectors of a retired generation when the owner's target moves.
+   - `space-state.ts` deletes the vectors of a replaced generation when the owner's target moves.
    - `image-analysis.ts` deletes an asset's captioned image vectors when a new image analysis lands.
    - `handoff-restamp.ts` re-keys digests and their speaker rows for the host-handoff copy.
 2. **Two cosine access patterns, two owners — never mixed.** Top-k retrieval = `search` only (the
