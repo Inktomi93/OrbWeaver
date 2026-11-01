@@ -501,32 +501,32 @@
       "sha256": "ef9578d2f272fb757d426644c8765a456f5597ffc22e5bc2bfabc5985ceee778"
     },
     "rpg.extract.tool.updateParty": {
-      "version": 1,
-      "sha256": "73e3b3cb69afd40e1c2592cbc712cf90b49c40abdc1aaf38341e7bab64ae6838"
+      "version": 2,
+      "sha256": "1cccd94b55d2e610c49b14f5e15991ddb4a1aededcf2aefd5ef4a4b7bb9622d6"
     },
     "rpg.extract.tool.partyExample": {
       "version": 1,
       "sha256": "841fa81ee5043a49bcc6126c8d1481290ce016cd8b6131a3f064231b70703e67"
     },
     "rpg.extract.tool.updateInventory": {
-      "version": 5,
-      "sha256": "a3af6d6431144c3149b50a0323112f23dd6f67474f00d4b919d417e675852077"
+      "version": 7,
+      "sha256": "2dde62b3ad6477d23b8607dcf903433b9e29c1978f128fd276ebe82a2752d776"
     },
     "rpg.extract.tool.updateScene": {
       "version": 1,
       "sha256": "a69b69203573b2e529c1137d2998e8af7faa889386ca9763cf6664a18d4702f5"
     },
     "rpg.extract.tool.setTracker": {
-      "version": 1,
-      "sha256": "7dc5c7375c160e859519c3c7435b806cb266d6e92718f39bf286a92f8ef9c283"
+      "version": 2,
+      "sha256": "6fa8e335400fb9d915cf089a192d2000378080fde3b4b2ef202051c6a2832f6c"
     },
     "rpg.extract.tool.upsertQuest": {
-      "version": 1,
-      "sha256": "4689da8fbdeeaec101a0b1e8d430ec484a1acbbb1ab0f3245e59064930d86406"
+      "version": 2,
+      "sha256": "0a0ca116ea012a3872ea9e3dc0b68bf1bcc315767b09b1d64459cd2b18668b8c"
     },
     "rpg.extract.tool.addJournalEntry": {
-      "version": 1,
-      "sha256": "5390eee5906750c71fdd2e40d6b7daddb12341bfd71941b2360ff5b151cb785f"
+      "version": 2,
+      "sha256": "0d7577fdb96888991763a2dfcd2bb754a22738d3cb2943bbeb154ba9bbb68195"
     },
     "rpg.extract.tool.noChanges": {
       "version": 2,
@@ -619,6 +619,10 @@
     "rpg.populate.targetLine": {
       "version": 1,
       "sha256": "b1f301a87c5fdf4992b4c3f6426bc695be0c1062a18d15bae6cc0bec08b7198c"
+    },
+    "rpg.extract.toolRoundUserLine": {
+      "version": 1,
+      "sha256": "218b9ad2829e7d683ea5f3410468017bd69352febeeb110856ff311ddc551cd4"
     }
   }
 }

@@ -147,6 +147,7 @@ export {
   composePlaneTeaching,
   composePopulateTeaching,
   RPG_BASELINE_TOOL_DESCRIPTIONS,
+  withStateToolExamples,
 } from "./extraction-prompt.ts";
 export type { RpgAddJournalEntryInput } from "./inputs.ts";
 export {
