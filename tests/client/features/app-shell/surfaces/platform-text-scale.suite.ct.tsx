@@ -689,6 +689,72 @@ for (const [viewport, scale] of QUALIFIED.newChat) {
   });
 }
 
+// The footer is pinned in view at 200% on every phone width and scrolls with the list at 300% on 390 and 430: the dialog's
+// own container is 8.4rem at 320px and 200%, and 6.6 to 7.4rem at 300%, which the cq-8 step separates.
+const PHONE_WIDTHS = [
+  { name: "320 phone", touch: true, size: { width: 320, height: 568 } },
+  { name: "360 phone", touch: true, size: { width: 360, height: 800 } },
+  PHONE,
+  { name: "430 phone", touch: true, size: { width: 430, height: 932 } },
+] as const;
+const SCROLLING_FOOTER_CELLS = [
+  [PHONE_WIDTHS[2], LAYOUT_300],
+  [PHONE_WIDTHS[3], LAYOUT_300],
+] as const;
+const FOOTER_CELLS = [
+  ...PHONE_WIDTHS.map((viewport) => [viewport, TEXT_200, "sticky"] as const),
+  ...SCROLLING_FOOTER_CELLS.map(([viewport, scale]) => [viewport, scale, "static"] as const),
+];
+
+for (const [viewport, scale, position] of FOOTER_CELLS) {
+  test.describe(`New chat footer at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    test(`is ${position === "sticky" ? "pinned in view" : "in the list and still reachable"}`, async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: "chats" });
+      await mount<typeof AppShellModalStory>(`${SHELL_STORIES}/AppShellModalStory`, { modalId: "newChat" });
+      const dialog = page.getByRole("dialog");
+      await expect(dialog).toBeVisible();
+      await scaleRoot(page, scale.factor);
+      const blank = dialog.getByRole("button", { name: BLANK_CHAT_NAME, exact: true });
+      const footerPosition = await blank.evaluate((button) => getComputedStyle(button.parentElement ?? button).position);
+      expect(footerPosition).toBe(position);
+      // Pinned means in view without scrolling; a footer in the list may sit below the fold of a scrolling dialog, and
+      // reaching it by scrolling is reaching it.
+      if (position === "static") {
+        await blank.scrollIntoViewIfNeeded();
+      }
+      const frame = await dialog.boundingBox();
+      const footer = await blank.boundingBox();
+      expect(frame === null || footer === null ? false : footer.y + footer.height <= frame.y + frame.height + SUBPIXEL).toBe(true);
+    });
+  });
+}
+
+// At 300% the scrolling footer is what leaves the list a window: a whole character row sits above it.
+for (const [viewport, scale] of SCROLLING_FOOTER_CELLS) {
+  test.describe(`New chat list window at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    test("leaves a whole character row in view above the footer", async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: "chats" });
+      await mount<typeof AppShellModalStory>(`${SHELL_STORIES}/AppShellModalStory`, { modalId: "newChat" });
+      const dialog = page.getByRole("dialog");
+      await expect(dialog).toBeVisible();
+      await scaleRoot(page, scale.factor);
+      const blank = dialog.getByRole("button", { name: BLANK_CHAT_NAME, exact: true });
+      await dialog.getByRole("option").first().scrollIntoViewIfNeeded();
+      const footerTop = await blank.evaluate((button) => (button.parentElement ?? button).getBoundingClientRect().top);
+      await expect
+        .poll(async () => {
+          const boxes = await dialog.getByRole("option").evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect()));
+          return boxes.some((row) => row.top >= 0 && row.bottom <= footerTop);
+        })
+        .toBe(true);
+    });
+  });
+}
+
 for (const [viewport, scale] of QUALIFIED.listPanel) {
   test.describe(`list panel at ${scale.name} on the ${viewport.name}`, () => {
     test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });

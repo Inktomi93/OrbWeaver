@@ -129,6 +129,14 @@ export interface LibraryRowProps {
   readonly stateToggle?: ReactNode;
   /** The trailing actions menu. Omit for a row that can't be renamed/duplicated/deleted (e.g. a built-in). */
   readonly actions?: LibraryRowActions;
+  /**
+   * A read-only datum at the row's trailing end (a count, a total). It is in flow and visible at rest, so a row
+   * that passes it never floats its cluster; it sits before the state toggle and menu.
+   */
+  readonly trailing?: ReactNode;
+  /** The row body's ref, so a list can move focus to it by key (`useRowDeleteFocus`). */
+  readonly bodyRef?: NonNullable<ListRowProps["bodyRef"]>;
+  readonly "data-testid"?: string;
 }
 
 /** The §12.2 cluster's HARD CAP — state toggle · inline verb · kebab. It is a property of this composite
@@ -184,15 +192,24 @@ function optionalSlots({
   };
 }
 
+/** The two optional pass-throughs to the row body: its ref, and its test id. */
+function passthrough({ bodyRef, "data-testid": testId }: LibraryRowProps): {
+  readonly bodyRef?: NonNullable<ListRowProps["bodyRef"]>;
+  readonly "data-testid"?: string;
+} {
+  return { ...(bodyRef === undefined ? {} : { bodyRef }), ...(testId === undefined ? {} : { "data-testid": testId }) };
+}
+
 /** One entity-library row: title/subtitle + title-line status markers · state toggle · Rename/Duplicate/
  *  Delete menu. */
 export function LibraryRow(props: LibraryRowProps): ReactElement {
   // UNION (merge 2026-08-03): DBANK's props-object shape (optionalSlots needs the whole bag) + NIGHTFIX's
   // NUMERIC `actionsReserved` (the LIST's §12.2 slot count, not a boolean — a row reserves what its list
   // declares, so a 1-verb list stops reserving three slots' worth of dead width).
-  const { title, selected, onSelect, stateToggle, actions, actionsReserved } = props;
-  const reserved = actionsReserved !== undefined;
-  const hasCluster = stateToggle !== undefined || actions !== undefined;
+  const { title, selected, onSelect, stateToggle, actions, actionsReserved, trailing } = props;
+  // A trailing datum shows at rest, so it needs the in-flow strip as much as a rest-visible control does.
+  const reserved = actionsReserved !== undefined || trailing !== undefined;
+  const hasCluster = stateToggle !== undefined || actions !== undefined || trailing !== undefined;
   // What this row actually renders into the §12.2 cluster: the toggle, the optional inline verb, the kebab.
   const renderedSlots =
     (stateToggle === undefined ? 0 : 1) + (actions === undefined ? 0 : (actions.inlineVerb === undefined || actions.onDuplicate === undefined ? 0 : 1) + 1);
@@ -212,11 +229,13 @@ export function LibraryRow(props: LibraryRowProps): ReactElement {
       onClick={onSelect}
       data-selected={selected ? "" : undefined}
       title={title}
+      {...passthrough(props)}
       {...optionalSlots(props)}
       {...(hasCluster
         ? {
             actions: (
               <>
+                {trailing}
                 {stateToggle}
                 {actions === undefined ? null : <LibraryRowActionsMenu {...actions} />}
                 {/* Only the RESERVED arm pads: a FLOATED cluster is out of flow at the row's end and

@@ -36,7 +36,55 @@ export const SURFACE_SELECTORS = [
 // The centered editor column: the cap token beside `mx-auto`, in either order. A cap alone is a start-aligned measure.
 const EDITOR_COLUMN = String.raw`/mx-auto.*max-inline-\(--width-content-col\)|max-inline-\(--width-content-col\).*mx-auto/`;
 
+// A control that destroys data (docs/law/client-architecture-state-and-gates.md §14, "Destructive confirms") needs a confirm or an undo in its file.
+// The word list is the one `pnpm ui-facts` reads; a search or filter clear is not data.
+const DESTRUCTIVE_VERB = String.raw`/^\s*(Restore|Delete|Remove|Reset|Discard|Clear|Revert|Drop|Wipe|Erase|Overwrite|Replace)\b(?![^]*\b(search|filters?)\b)/i`;
+const ACTION_TAG = "/^(Button|GlyphButton|InlineAction|MenuItem)$/";
+// Evidence in the same file: a confirm, a dialog whose Cancel throws the edit away, or an Undo action.
+const CONFIRM_IN_FILE = "JSXOpeningElement[name.name=/^(ConfirmDialog|AlertDialog|RowActionsMenu|ModelRunConfirmDialog|FormDialog|ContentDialog|FlowDialog)$/]";
+const UNDO_IN_FILE = "Property[key.name='label'][value.value='Undo']";
+// An inline confirm step: the destructive control sits after a Keep or Cancel button in the same parent.
+const KEEP_BESIDE = String.raw`JSXElement:has(> JSXText[value=/^\s*(Cancel|Keep)\s*$/])`;
+const NOT_CONFIRMED_IN_FILE = `:not(Program:has(${CONFIRM_IN_FILE}) *):not(Program:has(${UNDO_IN_FILE}) *)`;
+const DESTRUCTIVE_MESSAGE =
+  "A control that destroys data needs a ConfirmDialog or an undo (docs/law/client-architecture-state-and-gates.md §14). Wrap it in a ConfirmDialog trigger, or offer Undo.";
+
+// Files exempt from `destructive-needs-confirm`, each with the owner-delegated call that permits it
+// (docs/law/client-architecture-state-and-gates.md §14, "Destructive confirms"). `pnpm ui-facts` reads the same list.
+export const DESTRUCTIVE_EXEMPT: readonly { readonly path: string; readonly reason: string }[] = [
+  { path: "packages/client/src/features/automation/components/rule-*-fields.tsx", reason: "rule editor: removes an optional field from the form being edited" },
+  {
+    path: "packages/client/src/features/automation/components/rule-editor-settings.tsx",
+    reason: "rule editor: removes an optional field from the form being edited",
+  },
+  { path: "packages/client/src/features/chat/components/injections-manager.tsx", reason: "injection rows are re-added in one step" },
+  { path: "packages/client/src/features/chat/components/room-overrides-form.tsx", reason: "clears a field of the override form being edited" },
+  { path: "packages/client/src/features/persona/components/persona-room-block.tsx", reason: "Clear pin is one click to undo: re-pin" },
+  { path: "packages/client/src/features/persona/components/persona-editor.tsx", reason: "asks the caller to delete; the caller owns the confirm" },
+  { path: "packages/client/src/features/character/components/greeting-studio.tsx", reason: "discards a generated preview that was never saved" },
+  { path: "packages/client/src/features/refinery/components/accept-review.tsx", reason: "discards a rewrite that was never applied" },
+  { path: "packages/client/src/features/refinery/components/apply-outcome.tsx", reason: "discards a refused rewrite that was never applied" },
+  { path: "packages/client/src/features/preset/components/staleness-row.tsx", reason: "Clear removes stored values the model ignores, so they are inert" },
+  {
+    path: "packages/client/src/features/config/components/config-teacher.tsx",
+    reason: "resets one setting to the default its row shows; a list or object value gets an Undo toast",
+  },
+];
+
 export const UI_FEATURE_RESTRICTIONS = [
+  {
+    id: "destructive-needs-confirm",
+    selectors: [
+      {
+        selector: `JSXElement[openingElement.name.name=${ACTION_TAG}]:has(> JSXText[value=${DESTRUCTIVE_VERB}])${NOT_CONFIRMED_IN_FILE}:not(${KEEP_BESIDE} ~ JSXElement)`,
+        message: DESTRUCTIVE_MESSAGE,
+      },
+      {
+        selector: `JSXOpeningElement[name.name=${ACTION_TAG}]:has(> JSXAttribute[name.name='tone'][value.value='destructive'])${NOT_CONFIRMED_IN_FILE}:not(${KEEP_BESIDE} ~ JSXElement > JSXOpeningElement)`,
+        message: DESTRUCTIVE_MESSAGE,
+      },
+    ],
+  },
   {
     id: "no-layout-context-props",
     selectors: [
@@ -177,14 +225,75 @@ export const UI_FEATURE_RESTRICTIONS = [
     id: "no-raw-interactive-intrinsics",
     selectors: [
       {
-        selector: `JSXOpeningElement[name.type='JSXIdentifier'][name.name=${alternation(["button", "input", "select", "textarea"])}]`,
+        selector: `JSXOpeningElement[name.type='JSXIdentifier'][name.name=${alternation(["button", "input", "select", "textarea", "ul", "ol", "label", "hr", "h1", "h2", "h3", "h4", "h5", "h6", "dialog", "table"])}]`,
         message:
-          "A raw interactive intrinsic in a feature (D62) — interactivity comes from an @orb/ui primitive (Button, TextField, Select, TextArea, Link), never a hand-rolled <button>/<input>/<select>/<textarea>.",
+          "A raw interactive or structural intrinsic in a feature (D62) — it comes from an @orb/ui primitive (Button, Input, Select, Textarea, Link, Field, Heading, Separator, Table), never a hand-rolled <button>, <input>, <select>, <textarea>, <label>, <ul>, <ol>, <hr>, <h1>-<h6>, <dialog> or <table>.",
       },
       {
         // An `<a>` with no href is an anchor TARGET, not a control.
         selector: "JSXOpeningElement[name.type='JSXIdentifier'][name.name='a']:has(> JSXAttribute[name.name='href'])",
         message: "A raw `<a href>` in a feature (D62) — use the @orb/ui Link primitive.",
+      },
+    ],
+  },
+  {
+    // The dialogs that build their own footer. ConfirmDialog, ViewerDialog and PickerDialog carry a built-in dismiss.
+    id: "dialog-needs-dismiss",
+    selectors: [
+      {
+        selector: [
+          "JSXElement[openingElement.name.name=/^(FormDialog|ContentDialog|FlowDialog)$/][openingElement.selfClosing=false]",
+          // A dialog that mounts a `...Body` component hands it the footer; that file is read as a whole by `pnpm ui-facts`.
+          ":not(:has(JSXOpeningElement[name.name=/Body$/]))",
+          ":not(:has(JSXOpeningElement[name.name=/^(FormSubmitButton|DialogClose|AlertDialogClose|ContentDialogClose)$/]))",
+          ":not(:has(JSXOpeningElement > JSXAttribute[name.name=/^(submit|dismissLabel|closeButton|footer|headerActions)$/]))",
+          ":not(:has(JSXElement[openingElement.name.name='Button'] > JSXText[value=/^\\s*(Cancel|Close|Done|Back|Dismiss|Discard|Keep editing)\\s*$/]))",
+        ].join(""),
+        message:
+          "A dialog needs a dismiss path: a `dismissLabel`, a `submit` footer (it carries Cancel), a `FormSubmitButton`, a `DialogClose`, or a Cancel or Close button.",
+      },
+    ],
+  },
+  {
+    // The files where a factory may be called are the config block's `ignores`; a component or surface imports the hook.
+    id: "mutation-factory-in-hooks-file",
+    selectors: [
+      {
+        selector: "CallExpression[callee.name='createEntityMutation']",
+        message: "A `createEntityMutation` call lives in a hooks file (`hooks/`, `*-mutations.ts` or `data/`); the component imports the hook it makes.",
+      },
+    ],
+  },
+  {
+    id: "copy-ellipsis",
+    selectors: [
+      {
+        selector: ":matches(JSXAttribute[name.name='placeholder'] > Literal, JSXText)[value=/\\.\\.\\./]",
+        message: "Write the ellipsis as one character `…`, never three dots.",
+      },
+      {
+        selector: "JSXAttribute[name.name='placeholder'] > Literal[value=/^(Search|Filter)\\b/]:not([value=/…$/])",
+        message: "A search or filter placeholder ends in `…`.",
+      },
+    ],
+  },
+  {
+    id: "library-surface-row",
+    selectors: [
+      {
+        selector: "JSXOpeningElement[name.name='ListRow']",
+        message:
+          "A list or library surface composes `LibraryRow` (`#components`); its `leading`, `markers`, `trailing` and `actions` slots cover a row's anatomy.",
+      },
+    ],
+  },
+  {
+    id: "no-single-row-textarea",
+    selectors: [
+      {
+        selector:
+          "JSXOpeningElement[name.name='Textarea']:has(> JSXAttribute[name.name='rows'][value.expression.value=1]):not(:has(> JSXAttribute[name.name='maxRows']))",
+        message: "A one-row Textarea with no `maxRows` is an Input's job: use Input, or name the ceiling it grows to with `maxRows`.",
       },
     ],
   },

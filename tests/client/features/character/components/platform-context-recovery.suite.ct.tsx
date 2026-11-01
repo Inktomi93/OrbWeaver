@@ -347,3 +347,30 @@ for (const regime of REGIMES) {
     });
   });
 }
+
+test("Look's Reset all to Inherit asks first: Cancel writes nothing, Reset writes once", async ({ page, corpus, mount }) => {
+  await using root = await createCorpusHarness(undefined, { startJobs: false });
+  const { caller, card, reads } = await prepare(root, page, corpus);
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await caller.character.update({ characterId: card.id, input: { themeOverride: { font: FONT } } });
+  const calls = await routeTrpc(page, { ...reads, ...serveCorpusProcedures(caller, ["character.update"]) });
+  await mount<typeof ShellAmbientStory>(STORY, {});
+  await openCharacterContext(page, "Look");
+  const context = page.locator('.shell-panel[data-panel-side="context"]');
+  const font = context.getByRole("combobox", { name: "Font", exact: true });
+  await expect(font).toHaveText(FONT);
+
+  await context.getByRole("button", { name: "Reset all to Inherit", exact: true }).click();
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toBeVisible();
+  await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(confirm).toHaveCount(0);
+  expect(calls.inputs("character.update")).toEqual([]);
+  await expect(font).toHaveText(FONT);
+
+  await context.getByRole("button", { name: "Reset all to Inherit", exact: true }).click();
+  await confirm.getByRole("button", { name: "Reset all", exact: true }).click();
+  await expect(font).toHaveText("Inherit");
+  await expect.poll(() => calls.inputs("character.update").length).toBe(1);
+  expect((await caller.character.get({ characterId: card.id })).themeOverride).toBeNull();
+});

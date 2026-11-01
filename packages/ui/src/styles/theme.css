@@ -273,6 +273,7 @@
   --leading-label-relaxed: round(up, 1.25rem, 1px);
   --leading-code-field: round(up, max(1.5rem, 24px), 1px);
   --leading-micro: round(up, 0.8125rem, 1px);
+  --container-cq-8: 8rem;
   --container-cq-16: 16rem;
   --container-cq-20: 20rem;
   --container-cq-24: 24rem;

@@ -85,7 +85,8 @@ function textareaSites(source: Source, elem: Elem): readonly Site[] {
   const rows = elem.attrs.get("rows")?.initializer;
   const single =
     rows !== undefined && ts.isJsxExpression(rows) && rows.expression !== undefined && ts.isNumericLiteral(rows.expression) && rows.expression.text === "1";
-  return elem.kind === "ui" && elem.tag === "Textarea" && single
+  // A maxRows ceiling says the box grows, which an Input cannot do.
+  return elem.kind === "ui" && elem.tag === "Textarea" && single && !elem.attrs.has("maxRows")
     ? [siteOn(source, elem, { line: elem.line, kind: "textarea-single-row", detail: "Textarea rows={1}" })]
     : [];
 }

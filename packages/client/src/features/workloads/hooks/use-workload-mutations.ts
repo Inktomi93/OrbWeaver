@@ -1,10 +1,10 @@
+import type { inferInput } from "@trpc/tanstack-react-query";
+import type { SectionPatchVars, Trpc } from "#data";
+import { createEntityMutation } from "#data";
+
 // The Workloads pane's mutations, one createEntityMutation per verb. None are busDriven: the workload
 // verbs emit on the workloads progress bus (the `workloads` ROOM on the tab's one socket), not either mapped invalidation
 // bus, so each self-invalidates the workloads.list read on settle.
-
-import type { inferInput } from "@trpc/tanstack-react-query";
-import type { Trpc } from "#data";
-import { createEntityMutation } from "#data";
 
 /** Enqueue a run. The realistic refusal is the single-active-per-kind lock (`CONFLICT`). */
 export const useStartWorkload = createEntityMutation<inferInput<Trpc["workloads"]["start"]>, unknown>({
@@ -53,4 +53,10 @@ export const useDeleteSchedule = createEntityMutation<inferInput<Trpc["workloads
   options: (trpc) => trpc.workloads.deleteSchedule.mutationOptions(),
   invalidates: (trpc) => [trpc.workloads.listSchedules.pathFilter()],
   errorToast: "Couldn't delete the schedule.",
+});
+
+export const useUpdateWorkloadsTuning = createEntityMutation<SectionPatchVars<"workloads">, unknown>({
+  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
+  busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
+  errorToast: "Couldn't save your analysis-tuning settings.",
 });

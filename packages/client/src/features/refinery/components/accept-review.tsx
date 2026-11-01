@@ -79,7 +79,7 @@ function blockOf(review: ReviewEntry): CompareBlock {
         <Stack gap="tight">
           <Row align="center" className="flex-wrap" gap="field">
             <RefineryChip tone="warn" wrap={true}>
-              changed since the session started
+              Changed since the session started
             </RefineryChip>
             <Text className="flex-1 basis-(--width-field-floor) max-inline-(--reading-measure-prose) min-inline-0" voice="gloss">
               re-confirm which version wins — Keep uses the rewrite, Discard keeps the live text
@@ -125,7 +125,7 @@ const QUEUE_STATES = ["open", "kept", "discarded", "undecided"] as const;
 type QueueState = (typeof QUEUE_STATES)[number];
 
 /** A queue row's REACT KEY — the entry's own address, never its ordinal. `targetLabel` alone collides on a
- *  round that appends two greetings (both read "greetings [new]"), so the append ordinal joins it; every
+ *  round that appends two greetings (both read "new greeting"), so the append ordinal joins it; every
  *  other arm is already unique by field + greeting slot. */
 function queueKeyOf(review: ReviewEntry): string {
   return `${reviewTargetLabel(review.entry)}#${review.appendIndex ?? ""}`;
@@ -193,15 +193,15 @@ function QueueRow({
       )}
       {review.diverged && state !== "open" ? (
         <RefineryChip tone="warn" wrap={true}>
-          changed since the session started
+          Changed since the session started
         </RefineryChip>
       ) : null}
-      {state === "open" ? <RefineryChip tone="neutral">open — deciding</RefineryChip> : null}
+      {state === "open" ? <RefineryChip tone="neutral">Open — deciding</RefineryChip> : null}
       {state === "kept" || state === "discarded" ? (
         <>
-          <RefineryChip tone={state === "kept" ? "good" : "bad"}>{state}</RefineryChip>
+          <RefineryChip tone={state === "kept" ? "good" : "bad"}>{state === "kept" ? "Kept" : "Discarded"}</RefineryChip>
           <Button variant="ghost" onClick={onOpen} size="sm" wrap={true}>
-            reopen
+            Reopen
             <Text as="span" className="sr-only">
               {" "}
               {label}

@@ -24,6 +24,7 @@ import { useUpdateRefinerySession } from "../hooks/use-refinery-mutations.ts";
 import { useRefinerySchemas } from "../hooks/use-refinery-schemas.ts";
 import { useRefineryRuns, useRefinerySession } from "../hooks/use-refinery-sessions.ts";
 import { scopeChipLabelOf } from "../lib/render-plan.ts";
+import { BUILT_IN_SCHEMA_LINE } from "../lib/schema-line.ts";
 import { RunsTab, SetupTab, VersionsTab } from "./context-tabs.tsx";
 import { OriginalCardDialog } from "./original-card-dialog.tsx";
 import type { SchemaEditorDialogProps } from "./schema-editor-dialog.tsx";
@@ -63,7 +64,7 @@ function customNameOf(config: SessionView["stageConfig"]["score"] | SessionView[
  *  (each has its own Setup row + editor door); the old combined `score: X · analyze: Y` string could only
  *  read out, never route the two verbs to their stages. */
 function stageSchemaLineOf(customName: string | null): string {
-  return customName ?? "Fixed (built-in)";
+  return customName ?? BUILT_IN_SCHEMA_LINE;
 }
 
 /** Resolve the EDITING target for a stage: the saved library row behind a `custom` config (so the editor

@@ -36,6 +36,7 @@ import { Globe, Icon, RefreshCw } from "@orb/ui/icons";
 import { InlineToken } from "@orb/ui/inline-token";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
+import type { RowDeleteFocus } from "#components";
 import { LibraryRow, RowToggleAction } from "#components";
 import { documentSubtitle, ingestBadge, ingestEmptyHint, ingestStallHint, showsPhaseChip } from "../lib/databank-model.ts";
 
@@ -53,6 +54,8 @@ export interface DatabankLibraryRowProps {
   readonly onDelete: (id: DocumentId) => void;
   /** Flip the global attach — the surface owns which of the two mutations that means. */
   readonly onToggleGlobal: (id: DocumentId, next: boolean) => void;
+  /** Where focus goes when this row is deleted (`useRowDeleteFocus`). */
+  readonly rowFocus: RowDeleteFocus;
 }
 
 export function DatabankLibraryRow({
@@ -65,6 +68,7 @@ export function DatabankLibraryRow({
   onReindex,
   onDelete,
   onToggleGlobal,
+  rowFocus,
 }: DatabankLibraryRowProps): ReactElement {
   const phase = ingestPhase(document, nowMs);
   const badge = ingestBadge(phase);
@@ -73,12 +77,13 @@ export function DatabankLibraryRow({
   // arithmetic (`empty` is terminal, so it can never be the stall overlay), so one `??` is the whole rule.
   const remedy = ingestStallHint(document, nowMs) ?? ingestEmptyHint(document);
   // ONE name for the inline toggle in both states: `aria-pressed` carries the state, so a name that also
-  // flipped would announce the opposite of what is on ("Stop feeding…, pressed").
+  // flipped would announce the opposite of what is on ("Stop using…, pressed").
   const everywhereName = `Use ${document.name} in every chat`;
   const toggleGlobal = (): void => onToggleGlobal(document.id, !global);
 
   return (
     <LibraryRow
+      bodyRef={rowFocus.bodyRef(document.id)}
       // The pressed Everywhere globe is REST-VISIBLE (D11 `when-on`), so the cluster stays in flow: a
       // rest-visible control inside the floated arm is inert and sits on top of the title text.
       // The LIST's §12.2 slot count (numeric since the nightly fix-all): every databank row renders the same
@@ -87,7 +92,7 @@ export function DatabankLibraryRow({
       actions={{
         name: document.name,
         onRename: (): void => onRename(document.id),
-        onDelete: (): void => onDelete(document.id),
+        ...rowFocus.delete(document.id, (): void => onDelete(document.id)),
         deleteDescription: "Its indexed passages stop feeding every chat and character it reaches. This cannot be undone from here.",
         // N3 mirror parity: the kebab retains EVERY action the row offers, including the inline state
         // toggle — the inline control is a shortcut, never the only path (and on a coarse pointer the
@@ -95,7 +100,7 @@ export function DatabankLibraryRow({
         menuItemsBefore: (
           <MenuItem onClick={toggleGlobal}>
             <Icon icon={Globe} size="sm" />
-            {global ? "Stop feeding every chat" : "Feed every chat"}
+            {global ? "Stop using in every chat" : "Use in every chat"}
           </MenuItem>
         ),
         menuItemsAfter: (
@@ -131,6 +136,7 @@ export function DatabankLibraryRow({
       // still first and still intact at the 320px floor; the remedy is what clips, and it clips into the
       // subtitle's own `title=` (ListRow) and into the row's `aria-describedby`, where a clip is not a loss.
       subtitle={remedy === null ? documentSubtitle(document) : `${documentSubtitle(document)} · ${remedy}`}
+      subtitleStep="label"
       title={document.name}
       {...(showsPhaseChip(phase)
         ? {

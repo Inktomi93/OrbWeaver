@@ -23,47 +23,47 @@ export interface DropReasonCopy {
 
 export const DROP_REASON_COPY: Record<ApplyDropReason, DropReasonCopy> = {
   not_in_rewrite: {
-    chip: "not in this rewrite",
+    chip: "Not in this rewrite",
     why: "The chosen rewrite run produced no entry for it. Re-run rewrite, or apply from the run that did.",
     tone: "warn",
   },
   not_selected: {
-    chip: "outside your scope",
+    chip: "Outside your scope",
     why: "This session never put the field in scope — the model was never given it to rewrite, so an entry for it is invented.",
     tone: "bad",
   },
   greeting_index_missing: {
-    chip: "malformed accept",
+    chip: "Malformed accept",
     why: "A greetings accept arrived without its slot number — this looks like a bug; the run record has the details.",
     tone: "bad",
   },
   greeting_index_invalid: {
-    chip: "slot no longer exists",
+    chip: "Slot no longer exists",
     why: "That greeting was deleted from the card after this session started. A rewrite is never re-created as a new greeting by index.",
     tone: "warn",
   },
   greeting_index_forbidden: {
-    chip: "malformed accept",
+    chip: "Malformed accept",
     why: "A slot number arrived on a non-greetings field — this looks like a bug; the run record has the details.",
     tone: "bad",
   },
   not_applicable: {
-    chip: "no longer applicable",
+    chip: "No longer applicable",
     why: "The card's depth note has been removed. The rewrite only carries the note's text — it cannot invent the depth/role directive.",
     tone: "warn",
   },
   would_leave_no_greeting: {
-    chip: "last greeting",
+    chip: "Last greeting",
     why: "Clearing this slot would leave the card with no first message — the last surviving greeting refuses to be emptied away.",
     tone: "warn",
   },
   greeting_cap_reached: {
-    chip: "no room for another greeting",
+    chip: "No room for another greeting",
     why: "This card already holds the maximum number of greetings. Remove one first, or keep this text somewhere else.",
     tone: "warn",
   },
   diverged_since_session: {
-    chip: "changed since the session started",
+    chip: "Changed since the session started",
     why: "The live card's text moved under this session. Re-open the block and confirm which version wins — nothing is overwritten blind.",
     tone: "warn",
   },

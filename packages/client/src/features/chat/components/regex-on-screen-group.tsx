@@ -87,7 +87,7 @@ function DisplayScriptRow({ isYours, script }: { readonly isYours: boolean; read
   const name = regexScriptTitle(script);
   return (
     <ListRow
-      markers={script.enabled ? null : <InlineToken>OFF</InlineToken>}
+      markers={script.enabled ? null : <InlineToken>Off</InlineToken>}
       {...(isYours
         ? {
             actions: (

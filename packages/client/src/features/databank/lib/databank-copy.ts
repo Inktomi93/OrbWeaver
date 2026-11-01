@@ -30,7 +30,7 @@ export const DATABANK_INGEST_GLOSS =
  *  pay it. */
 export const DATABANK_CONTEXT_EMPTY = {
   title: "Where a document fires",
-  description: "Open a document to switch it on everywhere, and to see which chats and characters it already feeds.",
+  description: "Open a document to use it in every chat, and to see which chats and characters it already feeds.",
 } as const;
 
 /** Why the owner-wide sweeps are closed over an empty bank: the maintenance group label. */

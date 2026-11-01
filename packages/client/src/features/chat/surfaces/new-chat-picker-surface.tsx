@@ -196,8 +196,11 @@ export function NewChatPicker(): ReactElement {
       />
       {/* PERSISTENT ACTION FOOTER (#334). Below the picker's own scrolling list, so a pick made deep in the
           list still has the Start action in view. `sticky bottom-0` keeps it pinned when the modal body
-          scrolls; `bg-popover` matches the modal surface so scrolled rows don't bleed through. */}
-      <Row align="center" className="sticky inset-be-0 flex-wrap" divider="top" gap="field" ground="popover" justify="end" padding="block">
+          scrolls; `bg-popover` matches the modal surface so scrolled rows don't bleed through. Below the `cq-8` step
+          (the dialog measures 6.6 to 7.4rem on a 390 to 430px phone at 300% text) the stacked buttons would take the
+          whole dialog and leave no list, so there the footer scrolls with the list instead. At 200% the dialog measures
+          8.4rem (320px) to 11.9rem (430px), so the footer stays pinned. */}
+      <Row align="center" className="sticky inset-be-0 flex-wrap @max-cq-8:static" divider="top" gap="field" ground="popover" justify="end" padding="block">
         <Text as="span" className="sr-only" role="status">
           {selectionStatusFor(selectedCount)}
         </Text>
