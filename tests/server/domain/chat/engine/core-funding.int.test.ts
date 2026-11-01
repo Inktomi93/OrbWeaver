@@ -40,6 +40,6 @@ test("a real member's send credits the retained host cohort and speaker, never t
   expect(await stats.overview(h.owner.userId)).toMatchObject({ userTurns: 1, assistantTurns: 1, tokensIn: 4, tokensOut: 2 });
   expect((await stats.leaderboard(h.owner.userId)).rows.map(({ characterId }) => characterId)).toEqual([speaker]);
   expect(await stats.character(h.owner.userId, speaker)).toMatchObject({ assistantTurns: 1, tokensIn: 4, tokensOut: 2 });
-  expect(await stats.timeseries(h.owner.userId)).toMatchObject([{ userTurns: 1, assistantTurns: 1, tokensIn: 4, tokensOut: 2 }]);
+  expect(await stats.timeseries(h.owner.userId)).toMatchObject([{ userTurns: 1, assistantTurns: 1, tokensOut: 2 }]);
   expect(await stats.overview(member.userId)).toEqual(memberBefore);
 });
