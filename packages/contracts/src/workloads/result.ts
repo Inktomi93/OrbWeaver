@@ -23,8 +23,9 @@ export interface MaintenanceResult {
   readonly scanned: number;
   readonly changed: number;
   readonly dryRun: boolean;
-  /** import-st only: cards skipped by per-card isolation (a single card's defect never aborts the batch).
-   *  Optional — other maintenance kinds have no per-item failure plane. */
+  /** import-st: cards skipped by per-card isolation (a single card's defect never aborts the batch).
+   *  assets-rebuild-index: owner folders skipped because no user owns them. Optional — other maintenance kinds
+   *  have no per-item failure plane. */
   readonly failed?: number;
   /** import-st only: path to the written import report (what landed / what didn't). Absent on a dry run. */
   readonly reportPath?: string;
@@ -86,6 +87,7 @@ export interface WorkloadResultByKind {
   "assets-backfill": MaintenanceResult;
   "assets-gc": MaintenanceResult;
   "assets-fsck": FsckReport;
+  "assets-rebuild-index": MaintenanceResult;
   "import-st": MaintenanceResult;
   "import-token-usage-backfill": ImportTokenUsageBackfillResult;
   "import-bundle": BundleImportWorkloadResult;

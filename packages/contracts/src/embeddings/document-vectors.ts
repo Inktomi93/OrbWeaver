@@ -23,15 +23,13 @@ export interface DocumentChunkStoreInput {
 }
 
 /** `pruneDocumentChunks` input — the reindex-shrink seam. After the ingest upserts every current chunk
- *  (hash-gated no-ops keep it cheap), this deletes the strays: tail rows (`chunkIdx >= keepCount`, a shrunk chunk
- *  set) AND rows in a retired `(model)` space (`model != model`). The delete lives in the table owner because
+ *  (hash-gated no-ops keep it cheap), this deletes the tail rows (`chunkIdx >= keepCount`, a shrunk chunk
+ *  set) of the owner's active embed generation. Retired spaces are reclaimed when the generation moves, not here. The delete lives in the table owner because
  *  databank never touches `document_chunks` directly (the single-write-path invariant). */
 export interface PruneDocumentChunksParams {
   readonly documentId: DocumentId;
   /** Delete rows with `chunkIdx >= keepCount` (the shrunk-tail reclaim). */
   readonly keepCount: number;
-  /** … and ALL rows whose `model !== model` (retired-space cleanup). */
-  readonly model: string;
 }
 
 /** The databank chunk-count read (the DocumentView `chunkCount`/`embeddedCount` derivation). */

@@ -2,7 +2,7 @@
 // indexer analogue. Called by the databank-ingest/reindex runners through the injected workload env;
 // idempotent end to end. The ONE core `ingestOne` both kinds share: load canon → chunk (pure @orb/kit/chunk)
 // → store each chunk via the injected `embeddingsStore` (the ONE vector write path — a matched content_hash
-// is a free 'noop') → prune the strays (shrunk tail + retired space) via the injected `pruneDocumentChunks`.
+// is a free 'noop') → prune the strays (the shrunk tail) via the injected `pruneDocumentChunks`.
 // databank NEVER inserts a `document_chunks` row itself (single-write-path invariant).
 //
 // Idempotency: `contentHash` no-ops dedup the vector layer, the prune bounds the set — running `ingestOne`
@@ -122,7 +122,7 @@ async function ingestOne(ctx: DatabankContext, doc: LoadedDocument, signal: Abor
   if (isAborted(signal)) {
     return { chunksUpserted, chunksNoop, chunksPruned: 0 };
   }
-  const { rowsDeleted } = await ctx.pruneDocumentChunks({ documentId: doc.id, keepCount: chunks.length, model: space.model });
+  const { rowsDeleted } = await ctx.pruneDocumentChunks({ documentId: doc.id, keepCount: chunks.length });
   return { chunksUpserted, chunksNoop, chunksPruned: rowsDeleted };
 }
 

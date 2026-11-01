@@ -39,7 +39,7 @@ export function createResolveDrivableTools(registry: ToolRegistry): (driverUserI
     const entries: PluginRegisteredTool[] = [];
     for (const name of names) {
       const entry = lookupForDriver(registry, driverUserId, name);
-      if (entry === undefined || !isDirectDrivableBy(entry, driverUserId)) {
+      if (entry === undefined || entry.source !== "plugin" || !isDirectDrivableBy(entry, driverUserId)) {
         throw new ToolNotFoundError(name);
       }
       entries.push(entry);

@@ -31,7 +31,7 @@
 // nullable context, not a new arm and not a new registry.
 
 import type { UserId } from "@orb/kit/ids";
-import type { PluginRegisteredTool, ToolRegistryEntry } from "../contract/results.ts";
+import type { ToolRegistryEntry } from "../contract/results.ts";
 
 /** May `userId` DIRECTLY drive `entry` — name it in a rule arm, or attach it to a turn they host?
  *
@@ -39,6 +39,6 @@ import type { PluginRegisteredTool, ToolRegistryEntry } from "../contract/result
  *  owner check are each independently sufficient. Both are written anyway — the source check states the
  *  first-party narrowing, the owner check states the per-installer partition, and a future third `ToolSource`
  *  must satisfy both to pass rather than inheriting an accident. */
-export function isDirectDrivableBy(entry: ToolRegistryEntry, userId: UserId): entry is PluginRegisteredTool {
+export function isDirectDrivableBy(entry: ToolRegistryEntry, userId: UserId): boolean {
   return entry.source === "plugin" && entry.owner === userId;
 }

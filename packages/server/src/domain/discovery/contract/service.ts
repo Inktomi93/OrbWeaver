@@ -253,7 +253,7 @@ export interface DiscoveryService {
   /** The cluster-naming model calls a {@link computeThemes} over the same scope and `k` would make. Reads only. */
   readonly countThemeNameCalls: (opts: ThemeNameEstimateOptions) => Promise<number>;
   /** Idempotently stamp `digest_theme_assignments.msgMidAt` for the owner, or every owner when omitted. */
-  readonly backfillDigestStoryTime: (scope: WorkloadRunScope) => Promise<void>;
+  readonly backfillDigestStoryTime: (scope: WorkloadRunScope, signal?: AbortSignal) => Promise<void>;
 
   // ── insights (pure-semantics half; owner-scoped reads) ──────────────────────
   /** How the owner's themes shift over STORY time — per-month prevalence (drift), `level` default `scene`. */
@@ -330,6 +330,10 @@ export interface DiscoveryWorkloadDeps {
     | "computeDuplicatePairs"
     | "computeChatDuplicatePairs"
     | "computeCharacterHubScores"
+    | "computeDigestHubScores"
+    | "computeSegmentHubScores"
+    | "computeImageHubScores"
+    | "backfillDigestStoryTime"
   >;
   readonly loadUserSettings: LoadUserSettings;
   /**

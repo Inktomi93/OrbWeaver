@@ -64,6 +64,13 @@
       "when": 1793491959106,
       "tag": "0008_assets-rebuild-index-kind",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1793501715533,
+      "tag": "0009_assets-rebuild-index-kind-checks",
+      "breakpoints": true
     }
   ]
 }

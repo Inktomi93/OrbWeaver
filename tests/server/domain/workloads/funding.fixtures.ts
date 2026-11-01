@@ -85,16 +85,16 @@ export function physicalWire(): FundingWire {
   return { ...physical, execute, funders, bodies };
 }
 
-export async function executeAdmitted(root: ServerTestHarness, id: WorkloadId): Promise<void> {
+export async function executeAdmitted(root: ServerTestHarness, id: WorkloadId, signal: AbortSignal = new AbortController().signal): Promise<void> {
   const row = await root.services.workloads.get({ caller: null, id });
   if (row.poison) {
     throw new Error("admitted workload has malformed params");
   }
-  await executeRow(root, row);
+  await executeRow(root, row, signal);
 }
 
-export async function executeRow(root: ServerTestHarness, row: WorkloadRunnableRow): Promise<void> {
-  await runWorkload({ ...root.workloadExecution, heartbeatMs: 0, cancelPollMs: 0 }, row, new AbortController().signal);
+export async function executeRow(root: ServerTestHarness, row: WorkloadRunnableRow, signal: AbortSignal = new AbortController().signal): Promise<void> {
+  await runWorkload({ ...root.workloadExecution, heartbeatMs: 0, cancelPollMs: 0 }, row, signal);
 }
 
 export async function observeQueued(root: ServerTestHarness, id: WorkloadId): Promise<WorkloadRunnableRow> {

@@ -12,7 +12,7 @@
 //
 // Both carry an `errorToast` because both have a REAL refusal path a host must see: take-once (someone
 // already answered this card — possibly the host's own second click), TTL-swept, and the two typed
-// re-check refusals (the rule was disabled; its author no longer hosts the room). A card that silently
+// re-check refusals (the rule was disabled; its author no longer hosts the room) plus a confirmed act that fails. A card that silently
 // does nothing on click is the failure mode this toast exists to prevent.
 
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
@@ -25,7 +25,7 @@ export const useConfirmSuggestion = createEntityMutation<
 >({
   options: (trpc) => trpc.automation.confirmSuggestion.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't run that — the suggestion is no longer available.",
+  errorToast: "Couldn't run that suggestion.",
 });
 
 export const useDismissSuggestion = createEntityMutation<

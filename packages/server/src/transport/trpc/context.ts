@@ -25,7 +25,6 @@ import type { RegexService } from "#domain/regex";
 import type { RosterPresetService } from "#domain/roster-preset";
 import type { RpgService } from "#domain/rpg";
 import type { SearchService } from "#domain/search";
-import type { SessionsService } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
 import type { ShareService } from "#domain/share";
 import type { StatsService } from "#domain/stats";
@@ -64,7 +63,6 @@ export interface Services {
   /** The rpg (lite-rpg) verb surface — carried for the W2 `rpg` router; no transport consumer until then. */
   readonly rpg: RpgService;
   readonly search: SearchService;
-  readonly sessions: SessionsService;
   readonly settings: SettingsService;
   /** The owner's in-app share: one relay, its state, and the live socket count. */
   readonly share: ShareService;

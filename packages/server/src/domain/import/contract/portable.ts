@@ -22,6 +22,7 @@ export interface OwnerImportDeps {
     | "attachChatTagByName"
     | "importRpgGame"
     | "findOwnedAssetIdsByHash"
+    | "adoptDefaultPersona"
   >;
 }
 export interface PortableImportDeps extends OwnerImportDeps {

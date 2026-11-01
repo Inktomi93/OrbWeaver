@@ -6,6 +6,7 @@
 // within the span (NOT the time-interval midpoint — schema/discovery.ts column comment). Idempotent plain
 // UPDATE, no id/clock.
 
+import { setImmediate as yieldToEventLoop } from "node:timers/promises";
 import type { Tier0RangeOp } from "@orb/contracts/search";
 import type { WorkloadRunScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
@@ -15,6 +16,9 @@ import { batchMany } from "@orb/db/query";
 import type { ChatDigestId, ChatId } from "@orb/kit/ids";
 import { asc, eq, inArray } from "drizzle-orm";
 import { readSegmentBlockSpans, readTier0DigestSpans, readTierKDigestSpans } from "../persistence/embed-store-reads.ts";
+
+/** Stamps per `db.batch`: a whole corpus in one batch holds the event loop for the length of the write. */
+const STAMP_WRITE_CHUNK = 500;
 
 interface SeqSpan {
   readonly seqStart: number;
@@ -89,7 +93,7 @@ function tierKSeqSpan(
  * span, tier-k via the injected tier-grid fold. Idempotent (recomputes the same immutable stamp). Standalone `(db, tier0RangeOf, ownerId?)` so the service factory and
  * `computeThemes` both drive it with the ctx-bound grid op.
  */
-export async function backfillMsgMidAt(db: Db, tier0RangeOf: Tier0RangeOp, scope: WorkloadRunScope): Promise<void> {
+export async function backfillMsgMidAt(db: Db, tier0RangeOf: Tier0RangeOp, scope: WorkloadRunScope, signal?: AbortSignal): Promise<void> {
   const [tier0Spans, tierKDigests] = await Promise.all([readTier0DigestSpans(db, scope), readTierKDigestSpans(db, scope)]);
   if (tier0Spans.length === 0 && tierKDigests.length === 0) {
     return;
@@ -127,7 +131,11 @@ export async function backfillMsgMidAt(db: Db, tier0RangeOf: Tier0RangeOp, scope
     }
     updates.push(db.update(digestThemeAssignments).set({ msgMidAt: at }).where(eq(digestThemeAssignments.digestId, digestId)));
   }
-  if (updates.length > 0) {
-    await db.batch(batchMany(updates));
+  for (let start = 0; start < updates.length; start += STAMP_WRITE_CHUNK) {
+    if (start > 0) {
+      await yieldToEventLoop();
+      signal?.throwIfAborted();
+    }
+    await db.batch(batchMany(updates.slice(start, start + STAMP_WRITE_CHUNK)));
   }
 }

@@ -22,7 +22,7 @@ import type { AssetId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { ImageAdapter } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
-import type { BackfillParams, BackfillResult, FsckOptions, FsckResult, GcOptions, GcResult, RebuildOptions } from "./maintenance.ts";
+import type { BackfillParams, BackfillResult, FsckOptions, FsckResult, GcOptions, GcResult, RebuildOptions, RebuildResult } from "./maintenance.ts";
 import type { GalleryAddParams, GalleryListParams, GetMetadataParams, ListOwnedParams, RemoveFromGalleryParams, ResolveVariantParams } from "./params.ts";
 import type { AssetMetadata } from "./results.ts";
 
@@ -106,16 +106,16 @@ export interface AssetsService {
   /** Read-only integrity report: dangling rows, corrupt blobs, orphan blobs. Mutates nothing. */
   readonly fsck: (options?: FsckOptions) => Promise<FsckResult>;
   /** Disaster recovery: re-derive index rows for orphan blobs by walking + hashing the per-user tree. */
-  readonly rebuildFromTree: (options: RebuildOptions) => Promise<void>;
+  readonly rebuildFromTree: (options: RebuildOptions) => Promise<RebuildResult>;
 }
 
-/** What the domain's `WorkloadContribution` factory needs from the composition root (the three CAS
+/** What the domain's `WorkloadContribution` factory needs from the composition root (the CAS
  *  maintenance kinds). `db` + `cas` are here because the `assets-backfill` GATHER (the staged-card scan +
  *  per-row CAS probe) belongs in this domain — it used to run at the entry tier. */
 export interface AssetsWorkloadDeps {
   readonly db: Db;
   readonly cas: Cas;
-  readonly assets: Pick<AssetsService, "backfillAvatars" | "collectGarbage" | "fsck">;
+  readonly assets: Pick<AssetsService, "backfillAvatars" | "collectGarbage" | "fsck" | "rebuildFromTree">;
 }
 
 export type AssetsAssemblyContext = DbAssemblyInput<AssetsContext>;

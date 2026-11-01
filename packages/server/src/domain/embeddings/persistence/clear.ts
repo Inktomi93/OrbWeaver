@@ -139,8 +139,8 @@ export async function pruneChatSegments(
 }
 
 /** the reindex-shrink seam. After the ingest upserts a document's current chunks
- *  (hash-gated no-ops keep it cheap), this reclaims the strays: tail rows (`chunkIdx >= keepCount`, a shrunk
- *  chunk set) AND rows in a retired `(model)` space (`model != activeModel`), scoped to the one document.
+ *  (hash-gated no-ops keep it cheap), this reclaims the tail rows (`chunkIdx >= keepCount`, a shrunk
+ *  chunk set) of the ONE active generation, scoped to the one document.
  *  Returns the count deleted. Store-then-prune (never clear-then-store) preserves the no-op economy — a
  *  re-extract with unchanged text re-embeds nothing; the prune is one bounded DELETE. */
 export async function pruneDocumentChunks(db: Db, documentId: DocumentId, keepCount: number, generationId: EmbedGenerationId): Promise<number> {

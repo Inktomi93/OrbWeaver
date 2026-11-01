@@ -5,7 +5,7 @@
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import type { WorkloadRunValues } from "../lib/workloads-model.ts";
-import { INDEX_SOURCE_ITEMS, isRunnableWorkloadKind, WORKLOAD_PARAM_SHAPE_BY_KIND } from "../lib/workloads-model.ts";
+import { ASSET_KIND_ITEMS, INDEX_SOURCE_ITEMS, isStartableWorkloadKind, WORKLOAD_PARAM_SHAPE_BY_KIND } from "../lib/workloads-model.ts";
 
 /** The active kind's param controls, shared byte-for-byte between the run and schedule dialogs. */
 export function WorkloadParamFields<TValues extends WorkloadRunValues & { readonly kind: string }>({
@@ -16,7 +16,7 @@ export function WorkloadParamFields<TValues extends WorkloadRunValues & { readon
   return (
     <form.Subscribe selector={(state): string => state.values.kind}>
       {(kind): ReactElement | null => {
-        const shape = isRunnableWorkloadKind(kind) ? WORKLOAD_PARAM_SHAPE_BY_KIND[kind] : "none";
+        const shape = isStartableWorkloadKind(kind) ? WORKLOAD_PARAM_SHAPE_BY_KIND[kind] : "none";
         if (shape === "index") {
           return (
             <>
@@ -47,6 +47,13 @@ export function WorkloadParamFields<TValues extends WorkloadRunValues & { readon
           return (
             <form.AppField name="dryRun">
               {(field): ReactElement => <field.SwitchField label="Dry run" description="Report what the pass would do without changing anything." />}
+            </form.AppField>
+          );
+        }
+        if (shape === "assetKind") {
+          return (
+            <form.AppField name="assetKind">
+              {(field): ReactElement => <field.SelectField label="What to rebuild" items={ASSET_KIND_ITEMS} placeholder="Choose what to rebuild…" />}
             </form.AppField>
           );
         }

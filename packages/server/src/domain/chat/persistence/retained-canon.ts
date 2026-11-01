@@ -54,7 +54,7 @@ export async function commitRetainedCanonStats(
   mutation: RetainedCanonMutation,
 ): Promise<void> {
   const prepared = await prepareRetainedCanonStats(ctx, chatId, mutation.deltas, mutation);
-  const selection = sql`select ${chats.id} from ${chats} where ${and(eq(chats.id, chatId), prepared.predicate)}`;
+  const selection = sql`select ${chats.id} from ${chats} where ${and(eq(chats.id, chatId), prepared.predicate, mutation.admission)}`;
   statements.unshift(retainedChatFenceStatement(ctx.db, selection));
   appendStatsDeltas(ctx, statements, prepared.deltas);
   if (mutation.deltas.length === 0) {

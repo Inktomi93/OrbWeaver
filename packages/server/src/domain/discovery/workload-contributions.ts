@@ -190,13 +190,13 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
       // Both dedup arms run in the one pass; counts are summed. The user/param `threshold` is a raw-COSINE
       // floor — it drives the CHARACTER arm only. The chat arm is Jaccard of segment content-hash sets (a
       // set-overlap fraction, not a cosine), an incompatible scale, so it keeps its own floor internally.
-      run: async (ctx, params, report, _signal): Promise<AnalyticsResult> => {
+      run: async (ctx, params, report, signal): Promise<AnalyticsResult> => {
         try {
           const settings = await deps.loadUserSettings(ctx.userId);
           const threshold = params.threshold ?? settings.workloads.dupThreshold;
           report({ message: "finding duplicate pairs" });
           const [chars, chatPairs] = await Promise.all([
-            deps.discovery.computeDuplicatePairs({ ...ctx, ...(threshold !== undefined ? { threshold } : {}) }),
+            deps.discovery.computeDuplicatePairs({ ...ctx, signal, ...(threshold !== undefined ? { threshold } : {}) }),
             deps.discovery.computeChatDuplicatePairs(ctx),
           ]);
           const scanned = chars.charactersScanned + chatPairs.chatsScanned;
@@ -224,19 +224,36 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
       lane: "sweep",
       resume: "idempotent-restart",
       // discovery COMPUTES the CSLS hub scores then writes them back through `embeddings.writeHubScores`
-      // (the column owner) internally — one op, and the queue never touches the embeddings rows.
-      run: async (ctx, _params, report, _signal): Promise<AnalyticsResult> => {
+      // (the column owner) internally — one op, and the queue never touches the embeddings rows. Search ranks
+      // cards, digests, segments and images on these columns, so one run scores all four kinds; the digest
+      // story-time backfill rides along because it stamps rows the same corpus pass reads.
+      run: async (ctx, _params, report, signal): Promise<AnalyticsResult> => {
         try {
-          report({ message: "computing hub scores (CSLS)" });
-          const stats = await deps.discovery.computeCharacterHubScores(ctx);
-          // `rowsScored` IS the read census (every vector the pass loads gets exactly one hub update), so zero
-          // means the character-embedding table was empty — never that the calibration found nothing to say.
+          // The abort is checked between passes and, inside each pass, at every yield of the hub math.
+          const scope = { ...ctx, signal };
+          report({ message: "computing character hub scores (CSLS)" });
+          const characters = await deps.discovery.computeCharacterHubScores(scope);
+          signal.throwIfAborted();
+          report({ message: "computing digest hub scores (CSLS)" });
+          const digests = await deps.discovery.computeDigestHubScores(scope);
+          signal.throwIfAborted();
+          report({ message: "computing segment hub scores (CSLS)" });
+          const segments = await deps.discovery.computeSegmentHubScores(scope);
+          signal.throwIfAborted();
+          report({ message: "computing image hub scores (CSLS)" });
+          const images = await deps.discovery.computeImageHubScores(scope);
+          signal.throwIfAborted();
+          report({ message: "stamping digest story times" });
+          await deps.discovery.backfillDigestStoryTime(ctx, signal);
+          // `rowsScored` IS the read census (every vector a pass loads gets exactly one hub update), so a zero
+          // total means no embeddings of any kind exist, never that the calibration found nothing to say.
           // Rendered as "0 rows · 0 written" the two were the same sentence (issue #561).
-          if (stats.rowsScored === 0) {
-            report({ message: "no character embeddings to score — run the embeddings index first" });
+          const scored = characters.rowsScored + digests + segments + images;
+          if (scored === 0) {
+            report({ message: "no embeddings to score — run the embeddings index first" });
             return { scanned: 0, written: 0, emptyReason: "no-embeddings" };
           }
-          return { scanned: stats.rowsScored, written: stats.rowsScored };
+          return { scanned: scored, written: scored };
         } finally {
           await announceCorpus(deps, ctx);
         }

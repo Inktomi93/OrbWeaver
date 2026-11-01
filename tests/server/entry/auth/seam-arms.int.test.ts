@@ -255,12 +255,34 @@ test("a disabled SSO row is gated to null (disable takes effect next request, no
   expect(await authMe(root, { [FORWARD_USER_HEADER]: "dave" })).toEqual(ANONYMOUS);
 });
 
-test("the CSRF header presence is surfaced as a signal (the ladder gates, not the seam)", async () => {
+test("the route ladder gates CSRF on the request's own header: the byte ingest on the fallback arm", async () => {
   await using root = await single();
   const withHeader = await root.http.request(BUNDLE_ROUTE, { method: "POST", headers: { [CSRF_HEADER]: "1" } });
   const without = await root.http.request(BUNDLE_ROUTE, { method: "POST" });
   await Promise.all([withHeader.arrayBuffer(), without.arrayBuffer()]);
   expect({ withHeader: withHeader.status, without: without.status }).toEqual({ withHeader: 400, without: 403 });
+});
+
+test("the tRPC mount refuses a cookie mutation with no CSRF header before it runs, and the same call with the header runs", async () => {
+  await using root = await local();
+  const cookie = await claimedOwnerCookie(root);
+  const principal = await root.principalFor(root.ownerId);
+  const tag = await root.services.tag.createTag({ principal, input: { name: "csrf-survivor" } });
+  const prune = async (headers: Record<string, string>): Promise<number> => {
+    const response = await root.http.request(PRUNE_ROUTE, {
+      method: "POST",
+      headers: { cookie, "content-type": "application/json", ...headers },
+      body: "null",
+    });
+    await response.arrayBuffer();
+    return response.status;
+  };
+  const tagIds = async (): Promise<readonly string[]> => (await root.services.tag.listTags({ principal })).map(({ id }) => id);
+
+  expect(await prune({})).toBe(403);
+  expect(await tagIds()).toContain(tag.id);
+  expect(await prune({ [CSRF_HEADER]: "1" })).toBe(200);
+  expect(await tagIds()).not.toContain(tag.id);
 });
 
 test("debugGateAdmits requires a CREDENTIAL as well as the OWNER role", async () => {
