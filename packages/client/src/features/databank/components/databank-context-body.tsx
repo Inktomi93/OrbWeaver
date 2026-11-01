@@ -204,7 +204,7 @@ function EverywhereSection({ documentId, name }: { readonly documentId: Document
           so the name never flips with it. */}
       <SettingSwitchRow
         checked={isGlobal}
-        description="Feed this document to every chat, on top of any per-chat or per-character attachments."
+        description="Use this document in every chat, on top of any per-chat or per-character attachments."
         disabled={isPending}
         label="Use in every chat"
         onChange={(on): void => {
@@ -217,7 +217,7 @@ function EverywhereSection({ documentId, name }: { readonly documentId: Document
       />
       {isPending ? (
         <Text role="status" voice="gloss">
-          {isGlobal ? `Stopping ${name} everywhere…` : `Feeding ${name} everywhere…`}
+          {isGlobal ? `Stopping use of ${name} in every chat…` : `Using ${name} in every chat…`}
         </Text>
       ) : null}
     </Section>

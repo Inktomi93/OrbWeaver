@@ -67,6 +67,14 @@ for (const regime of REGIMES) {
       await expect(reset).toBeFocused();
       await testInfo.attach(`admin-reset-names-${regime.name}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
       await page.keyboard.press("Enter");
+      const confirm = page.getByRole("alertdialog");
+      await expect(confirm).toBeVisible();
+      await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+      await expect(confirm).toHaveCount(0);
+      expect(calls.inputs("settings.updateAppSettings")).toEqual([]);
+      await reset.focus();
+      await page.keyboard.press("Enter");
+      await confirm.getByRole("button", { name: "Reset to defaults", exact: true }).click();
       await expect(reset).toHaveCount(0);
       const after = await caller.settings.getAppSettingsWithOverrides();
       const cleared = {
@@ -83,6 +91,7 @@ for (const regime of REGIMES) {
       await rateReset.scrollIntoViewIfNeeded();
       await rateReset.focus();
       await page.keyboard.press("Enter");
+      await confirm.getByRole("button", { name: "Reset to defaults", exact: true }).click();
       await expect(rateReset).toHaveCount(0);
       expect((await caller.settings.getAppSettingsWithOverrides()).overrides).toEqual({ ...seeded.overrides, ...cleared, rateLimits: null });
       expect(calls.inputs("settings.updateAppSettings")).toEqual([{ partial: cleared }, { partial: { rateLimits: null } }]);

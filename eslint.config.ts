@@ -8,6 +8,7 @@ import {
   baseUiDoors,
   classClassifier,
   createOrbPlugin,
+  DESTRUCTIVE_EXEMPT,
   exportedLabels,
   exportedProductionValues,
   shellOwnedSlots,
@@ -179,6 +180,13 @@ const POINTER_CLASSES = {
 const WIDTH_CLASSES = {
   pattern: String.raw`^(?:[^\s]*:)?(?:(?:max-|min-)?(?:w|inline)-\[[^\s\]]+\]|(?:max-)?(?:w|inline)-(?:[1-9]\d*|\d+\.\d+))$`,
   message: "Raw content widths bypass the container scale; use Container size or a max-w-cq-* token utility.",
+};
+
+/** Paint the client spells in a class instead of taking it from a primitive prop or variant. */
+const PAINT_CLASSES = {
+  pattern: String.raw`^(?:[^\s]*:)?!?-?(?:rounded-(?:[xytrbsel]{1,2}-)?(?:none|xs|sm|md|lg|xl|2xl|3xl)|shadow-(?:xs|sm|md|lg|xl|2xl|inner|none)|border-(?:[xytrbse]-)?\d+|border-[xytrbse]|(?:ring|outline)-\d+|opacity-\d+|z-(?:\d+|auto)|(?:translate-[xyz]|rotate|scale(?:-[xy])?|skew-[xy])-(?:\d+(?:\/\d+)?|px|full)|clip-[^\s]+|bg-(?:gradient|linear|radial|conic)-[^\s]+)$`,
+  message:
+    "A raw radius, shadow, border, opacity, z-index, gradient, transform or clip class in the client; take it from a primitive prop or variant, or add the variant in @orb/ui.",
 };
 
 const REACT_SOURCE = ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"];
@@ -723,18 +731,18 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
       },
       { name: "ui", files: ["packages/ui/src/layout/**/*.{ts,tsx}", "packages/ui/src/markdown/**/*.{ts,tsx}"], ignores: [], restrict: [VIEWPORT_CLASSES] },
       // The app shell is the one home of viewport and pointer variants.
-      { name: "client", files: ["packages/client/src/features/app-shell/**/*.{ts,tsx}"], ignores: [], restrict: [WIDTH_CLASSES] },
+      { name: "client", files: ["packages/client/src/features/app-shell/**/*.{ts,tsx}"], ignores: [], restrict: [WIDTH_CLASSES, PAINT_CLASSES] },
       {
         name: "client",
         files: ["packages/client/src/features/**/*.{ts,tsx}"],
         ignores: ["packages/client/src/features/app-shell/**"],
-        restrict: [VIEWPORT_CLASSES, POINTER_CLASSES, WIDTH_CLASSES],
+        restrict: [VIEWPORT_CLASSES, POINTER_CLASSES, WIDTH_CLASSES, PAINT_CLASSES],
       },
       {
         name: "client",
         files: ["packages/client/src/**/*.{ts,tsx}"],
         ignores: ["packages/client/src/features/**"],
-        restrict: [VIEWPORT_CLASSES, WIDTH_CLASSES],
+        restrict: [VIEWPORT_CLASSES, WIDTH_CLASSES, PAINT_CLASSES],
       },
     ] as const
   ).map(({ name, files, ignores, restrict }): FlatConfig.Config => {
@@ -1518,6 +1526,25 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     { files: ["packages/client/src/features/**/*.tsx"], rules: { "orb/dialog-via-composite": "error" } },
     { files: ["packages/client/src/features/**/*.{ts,tsx}"], rules: { "orb/page-template-shapes": "error" } },
+    { files: ["packages/client/src/**/*.tsx"], rules: { "orb/no-single-row-textarea": "error", "orb/copy-ellipsis": "error" } },
+    { files: ["packages/client/src/features/**/surfaces/*-{list,library}-surface.tsx"], rules: { "orb/library-surface-row": "error" } },
+    {
+      files: ["packages/client/src/**/*.tsx"],
+      // Each exempt file names its reason in DESTRUCTIVE_EXEMPT (docs/law/client-architecture-state-and-gates.md §14).
+      ignores: DESTRUCTIVE_EXEMPT.map(({ path }) => path),
+      rules: { "orb/destructive-needs-confirm": "error" },
+    },
+    {
+      files: ["packages/client/src/**/*.{ts,tsx}"],
+      ignores: ["packages/client/src/**/hooks/**", "packages/client/src/**/*-mutations.ts", "packages/client/src/data/**"],
+      rules: { "orb/mutation-factory-in-hooks-file": "error" },
+    },
+    {
+      files: ["packages/client/src/**/*.tsx"],
+      // The first-run persona ask is the forced dialog D70 sanctions (docs/adr/0330-multi-human-persona-resolution-and-first-run-seed-opt-out.md): it has no dismiss by design.
+      ignores: ["packages/client/src/features/persona/anchors/first-run-persona-dialog.tsx"],
+      rules: { "orb/dialog-needs-dismiss": "error" },
+    },
     {
       files: ["packages/client/src/features/**/*.tsx"],
       ignores: ["packages/client/src/features/app-shell/surfaces/app-shell.tsx"],

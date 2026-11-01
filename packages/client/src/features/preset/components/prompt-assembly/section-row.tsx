@@ -117,7 +117,7 @@ function SectionCues({ section }: { readonly section: PromptSection }): ReactEle
           <Icon icon={Lock} size="xs" />
         </Badge>
       ) : null}
-      {hasCustomTemplate(section) ? <Badge size="sm">custom</Badge> : null}
+      {hasCustomTemplate(section) ? <Badge size="sm">Custom</Badge> : null}
       {section.role === "system" ? null : <Badge size="sm">{section.role === "user" ? "U" : "A"}</Badge>}
     </>
   );

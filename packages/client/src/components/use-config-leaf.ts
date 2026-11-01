@@ -19,14 +19,13 @@
 import type { UserSettings, UserSettingsSection } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { useQuery } from "@tanstack/react-query";
-import type { inferInput } from "@trpc/tanstack-react-query";
 import { use } from "react";
-import type { Trpc } from "#data";
-import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useTRPC } from "#data";
 import type { ContributorRegistry } from "#lib";
 import { settingsValueAtPath, settingsValueDiffers } from "#lib";
 import type { ConfigSectionContribution, ConfigSettingRef } from "#state";
 import { configSectionRegistryContext } from "#state";
+import { useResetLeaf } from "./use-config-leaf-mutations.ts";
 
 /** What a bound leaf READS — the raw stored pair (`unknown`; the consumer formats) and the `@modified`
  *  compare at leaf grain. The half with no write in it, so the roster (which resolves MANY leaves at once
@@ -49,12 +48,6 @@ export interface ConfigLeafValue extends ConfigLeafReading {
 export function configLeafKey(address: { readonly sub: string; readonly setting: string }): string {
   return `${address.sub}/${address.setting}`;
 }
-
-const useResetLeaf = createEntityMutation<inferInput<Trpc["settings"]["updateUserSettingsSection"]>, unknown>({
-  options: (trpc: Trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
-  errorToast: "Couldn't reset the setting.",
-});
 
 /**
  * Resolve one leaf's value seam, or `null` when the address is null, the registry is absent, the leaf

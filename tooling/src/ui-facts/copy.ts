@@ -7,6 +7,25 @@ import { attrString, childrenText, lineOf, visit } from "./source.ts";
 
 const SMALL_WORDS = new Set(["a", "an", "the", "of", "to", "in", "on", "for", "and", "or", "with", "from", "by", "at", "as"]);
 
+// Names of sections and products, capitalised inside a sentence. The first five are in docs/law/vocabulary-map.md; the rest
+// are section and brand names that file does not list.
+const PRODUCT_NOUNS = new Set([
+  "Chats",
+  "Jobs",
+  "Looks",
+  "Plugins",
+  "Settings",
+  "Chat",
+  "Corpus",
+  "Explore",
+  "Refinery",
+  "Score",
+  "Memory",
+  "Inherit",
+  "OpenRouter",
+  "GitHub",
+]);
+
 function ellipsisOf(text: string): string {
   if (text.endsWith("…")) {
     return "…";
@@ -24,7 +43,8 @@ function singleWordCase(word: string): string {
 
 /** The case form of a string: how a reader would name its capitalisation. */
 function caseOf(text: string): string {
-  const words = text
+  // Only the first sentence sets the case; a later sentence opens with a capital by rule.
+  const words = (text.split(/(?<=[a-z]{2})[.!?]\s/u)[0] ?? text)
     .replace(/(?:…|\.\.\.|[.:?!])+$/u, "")
     .split(/\s+/u)
     .filter((word) => /[A-Za-z]/u.test(word));
@@ -44,7 +64,7 @@ function caseOf(text: string): string {
   if (first === first.toLowerCase()) {
     return "lower";
   }
-  const rest = words.slice(1).filter((word) => !SMALL_WORDS.has(word.toLowerCase()));
+  const rest = words.slice(1).filter((word) => !(SMALL_WORDS.has(word.toLowerCase()) || PRODUCT_NOUNS.has(word) || /^[A-Z]{2,}$/u.test(word)));
   if (rest.length > 0 && rest.every((word) => /^[A-Z]/u.test(word))) {
     return "Title Case";
   }

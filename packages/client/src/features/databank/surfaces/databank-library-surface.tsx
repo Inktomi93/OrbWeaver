@@ -45,7 +45,7 @@ import { useRef, useState } from "react";
 import { LibraryListRows, LibrarySurfaceShell, ListPage } from "#components";
 import type { Trpc } from "#data";
 import { createCollectionSurface, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { timeLib, useDebouncedValue, useFocusOnMount } from "#lib";
+import { timeLib, useDebouncedValue, useFocusListArrival } from "#lib";
 import { clearDatabankPhaseFilter, clearDocumentSelection, openModal, selectDocumentFromList, useDatabankPhaseFilter, useSelectedDocumentId } from "#state";
 import { DatabankLibraryRow } from "../components/databank-library-row.tsx";
 import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
@@ -124,7 +124,7 @@ const useDatabankCollection = createCollectionSurface({
 
 export function DatabankLibrarySurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
+  useFocusListArrival(surfaceRef);
   // The search is pane chrome above the boundary, so it stays on screen while the read is in flight.
   const [query, setQuery] = useState("");
   const phaseFilter = useDatabankPhaseFilter();
@@ -142,7 +142,8 @@ export function DatabankLibrarySurface(): ReactElement {
         </>
       }
       ref={surfaceRef}
-      search={<Input aria-label="Search documents" onValueChange={setQuery} placeholder="Search documents" value={query} />}
+      search={<Input aria-label="Search documents" onValueChange={setQuery} placeholder="Search documents…" value={query} />}
+      skipTo="Skip to documents"
     >
       <LibrarySurfaceShell errorLabel="your documents" loadingLabel="Loading your documents…">
         <DatabankList onClearSearch={(): void => setQuery("")} phaseFilter={phaseFilter} query={query} />

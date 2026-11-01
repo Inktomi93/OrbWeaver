@@ -3,7 +3,7 @@
 
 import type { MessageView, ParticipantView } from "@orb/contracts/chat";
 import { isReattributableReply } from "@orb/contracts/chat";
-import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
+import type { CharacterId } from "@orb/kit/ids";
 import { Icon, Users } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { MenuItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
@@ -11,27 +11,10 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import { DescribedMenuItem } from "#components";
-import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useTRPC } from "#data";
 import { isLiveTurnPhase, useTurnPhase } from "#state";
-import {
-  MESSAGE_REATTRIBUTE_GENERATING,
-  MESSAGE_REATTRIBUTE_NO_OTHER_SEAT,
-  MESSAGE_REATTRIBUTE_VOICE_FAILED,
-  MESSAGE_REATTRIBUTE_VOICE_NAME,
-} from "../lib/message-action-names.ts";
-
-interface ReattributeVoiceVars {
-  readonly chatId: ChatId;
-  readonly messageIds: MessageId[];
-  readonly characterId: CharacterId;
-}
-
-// The verb emits `messageEdited` for the row, so the transcript follows the bus.
-const useReattributeVoice = createEntityMutation<ReattributeVoiceVars, unknown>({
-  options: (trpc) => trpc.chat.reattributeMessages.mutationOptions(),
-  busDriven: true,
-  errorToast: MESSAGE_REATTRIBUTE_VOICE_FAILED,
-});
+import { useReattributeVoice } from "../hooks/use-message-mutations.ts";
+import { MESSAGE_REATTRIBUTE_GENERATING, MESSAGE_REATTRIBUTE_NO_OTHER_SEAT, MESSAGE_REATTRIBUTE_VOICE_NAME } from "../lib/message-action-names.ts";
 
 interface VoiceSubmenuProps {
   readonly message: MessageView;

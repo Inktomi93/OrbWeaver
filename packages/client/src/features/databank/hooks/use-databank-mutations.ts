@@ -81,9 +81,10 @@ export const useReindexDocuments = createEntityMutation<inferInput<Trpc["databan
   options: (trpc) => trpc.databank.reindex.mutationOptions(),
   busDriven: true,
   // The queue's single-active refusal is NOT a failure: the run the user asked for is already happening, and
-  // "Couldn't start the reindex." is a lie about it. Name the state instead. Every other error keeps the
+  // "Couldn't start the search index rebuild." is a lie about it. Name the state instead. Every other error keeps the
   // generic copy — it IS a failure, and there is nothing more specific to say about a 500.
-  errorToast: (error) => (isReindexAlreadyRunning(error) ? "That reindex is already running — its counts move as it works." : "Couldn't start the reindex."),
+  errorToast: (error) =>
+    isReindexAlreadyRunning(error) ? "That search index rebuild is already running — its counts move as it works." : "Couldn't start the search index rebuild.",
 });
 
 /** The workloads admission refusal (`DomainConflictError` → CONFLICT): this exact unit — this document, or
@@ -100,14 +101,14 @@ function isReindexAlreadyRunning(error: unknown): boolean {
 export const useAttachDocumentGlobal = createEntityMutation<inferInput<Trpc["databank"]["attachGlobal"]>, unknown>({
   options: (trpc) => trpc.databank.attachGlobal.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't make the document global.",
+  errorToast: "Couldn't switch the document on for every chat.",
 });
 
 /** Stop a document feeding every chat (its per-chat/per-character attachments are untouched). */
 export const useDetachDocumentGlobal = createEntityMutation<inferInput<Trpc["databank"]["detachGlobal"]>, unknown>({
   options: (trpc) => trpc.databank.detachGlobal.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't change the document's scope.",
+  errorToast: "Couldn't switch the document off for every chat.",
 });
 
 /** Feed a document to every chat that includes one of the owner's selected characters. */

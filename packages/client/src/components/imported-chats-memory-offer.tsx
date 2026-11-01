@@ -3,17 +3,15 @@
 // paid build itself; without a yes, each chat builds at its next reply. Renders nothing while Memory is off or nothing landed.
 
 import type { ImportWindow } from "@orb/contracts/chat";
-import type { WorkloadId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
-import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import type { Trpc } from "#data";
-import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { testId, trpcErrorCode } from "#lib";
+import { useInvalidation, useTRPC } from "#data";
+import { testId } from "#lib";
+import { isAlreadyRunning, useStartImportedChatsMemory } from "./imported-chats-memory-offer-mutations.ts";
 import { ModelRunConfirmDialog } from "./model-run-confirm-dialog.tsx";
 import { useModelRunConfirm } from "./use-model-run-confirm.ts";
 
@@ -21,18 +19,6 @@ const OFFER_LABEL = "Build memory for imported chats";
 const OFFER_NOTE = "The chats you imported build their memory at their next reply, or you can build it for all of them now.";
 const STARTED_NOTE = "Memory for the imported chats is building in the background. Its progress is under Jobs.";
 const ALREADY_RUNNING_NOTE = "Memory for these imported chats is already building. Its progress is under Jobs.";
-
-/** The server's single-active lock already holds this scope's build (`DomainConflictError` → CONFLICT). */
-function isAlreadyRunning(error: unknown): boolean {
-  return trpcErrorCode(error) === "CONFLICT";
-}
-
-// A conflict is not a failure here: the offer says the build is already running instead of toasting.
-const useStartImportedChatsMemory = createEntityMutation<inferInput<Trpc["workloads"]["start"]>, { readonly id: WorkloadId }>({
-  options: (trpc) => trpc.workloads.start.mutationOptions(),
-  invalidates: (trpc) => [trpc.workloads.list.pathFilter()],
-  errorToast: (error) => (isAlreadyRunning(error) ? null : "Memory for the imported chats didn't start. Run Memory backfill under Jobs."),
-});
 
 function scopeKey(scope: ImportWindow): string {
   return `${String(scope.from)}-${String(scope.to)}`;

@@ -16,7 +16,7 @@ const REWRITE = "The rewrite preserves a quieter observatory keeper.";
 const NOTE = "Creator notes that must survive a discarded clear.";
 const GREETING = "Welcome to the observatory.";
 const RECONFIRM = "re-confirm which version wins — Keep uses the rewrite, Discard keeps the live text";
-const DIVERGENCE_LABEL = "changed since the session started";
+const DIVERGENCE_LABEL = "Changed since the session started";
 const REGIMES = [
   { name: "wide desktop", width: 960, viewport: { width: 1280, height: 900 }, coarse: false, appearance: DEFAULT_APPEARANCE_SETTINGS },
   { name: "narrow desktop enlarged", width: 300, viewport: { width: 1280, height: 900 }, coarse: false, appearance: ENLARGED_APPEARANCE_SETTINGS },
@@ -82,7 +82,7 @@ for (const regime of REGIMES) {
       }
       await review.getByRole("button", { name: "Discard description", exact: true }).click();
       await expect(review.getByRole("button", { name: "Keep (empties field) creatorNotes", exact: true })).toBeVisible();
-      await review.getByRole("button", { name: "reopen description", exact: true }).click();
+      await review.getByRole("button", { name: "Reopen description", exact: true }).click();
       await review.getByRole("button", { name: "Keep description", exact: true }).click();
       const queued = review.getByTestId(testId("refineryQueueRow")).filter({ hasText: DIVERGENCE_LABEL });
       const queuedWarning = queued.getByTestId(testId("refineryChip")).filter({ hasText: DIVERGENCE_LABEL });
@@ -95,7 +95,7 @@ for (const regime of REGIMES) {
       await review.getByRole("button", { name: "Discard greetings [new]", exact: true }).click();
       await expect.poll(async () => (await caller.refinery.getSession({ sessionId: session.id })).rewriteDecisions[run.id]).toEqual([true, false, false]);
       expect((await caller.character.get({ characterId: card.id })).description).toBe(LIVE);
-      await review.getByRole("button", { name: "reopen description", exact: true }).click();
+      await review.getByRole("button", { name: "Reopen description", exact: true }).click();
       const warning = review.getByText(RECONFIRM, { exact: true });
       const row = warning.locator("..");
       const chip = row.getByTestId(testId("refineryChip"));

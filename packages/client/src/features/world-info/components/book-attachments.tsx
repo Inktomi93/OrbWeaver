@@ -136,7 +136,7 @@ function CharacterPicker(props: AttachmentSectionProps): ReactElement {
   const needle = useDebouncedValue(term.trim(), SEARCH_DEBOUNCE_MS);
   return (
     <Stack gap="row">
-      <Input aria-label="Search characters" onValueChange={setTerm} placeholder="Search characters" value={term} />
+      <Input aria-label="Search characters" onValueChange={setTerm} placeholder="Search characters…" value={term} />
       <QueryBoundary
         fallback={<SkeletonRows count={PICKER_SKELETON_ROWS} shape="avatar-row" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="characters" onRetry={retry} />}
