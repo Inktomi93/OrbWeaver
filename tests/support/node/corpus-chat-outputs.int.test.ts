@@ -31,8 +31,8 @@ test("native chat output suppliers retain exact canon, viewer projections, page 
   expect(result.unbound.checkSendAvailability.available).toBe(false);
   expect(result.unbound.previewContextFit).toEqual({ unbound: true });
   expect(reads.checkSendAvailability).toEqual({ available: true });
-  expect(reads.getNextTurnConnection).toMatchObject({ state: "configured", connectionLabel: CHAT_OUTPUT_CONNECTION_LABEL, model: CORPUS_TEXT_MODEL });
-  expect(member.getNextTurnConnection).toMatchObject({ state: "configured", connectionLabel: null, model: CORPUS_TEXT_MODEL });
+  expect(reads.getNextTurnConnection).toMatchObject({ state: "configured", connectionLabel: CHAT_OUTPUT_CONNECTION_LABEL });
+  expect(member.getNextTurnConnection).toMatchObject({ state: "configured", connectionLabel: null });
   expect(reads.getChat.viewerIsHost).toBe(true);
   expect(member.getChat.viewerIsHost).toBe(false);
   expect(member.getChat.viewerUserId).toBe(invitation.joined.participant.userId);

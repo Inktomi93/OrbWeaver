@@ -83,7 +83,6 @@ function resolveRateLimits(o: RateLimits | null | undefined, floor: SettingsEnvF
 export function layer(overrides: AppSettings, floor: SettingsEnvFloor): EffectiveAppConfig {
   return {
     corpusAutoindex: overrides.corpusAutoindex ?? floor.CORPUS_AUTOINDEX,
-    importSkipCharacters: overrides.importSkipCharacters ?? splitCsv(floor.IMPORT_SKIP_CHARACTERS),
     logLevel: overrides.logLevel ?? floor.LOG_LEVEL,
     forbidExternalMedia: overrides.forbidExternalMedia ?? FORBID_EXTERNAL_MEDIA_FLOOR,
     trustHtml: overrides.trustHtml ?? TRUST_HTML_FLOOR,

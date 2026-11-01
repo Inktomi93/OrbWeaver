@@ -5225,7 +5225,6 @@
               }
             ],
             "viewerRole": "host",
-            "createdAt": 1750003795001,
             "updatedAt": 1750003795001
           },
           {
@@ -5245,7 +5244,6 @@
               { "characterId": "character_000000000000000000000005nz", "name": "Native roster witness", "avatarHash": null }
             ],
             "viewerRole": "host",
-            "createdAt": 1750003791001,
             "updatedAt": 1750003791001
           },
           {
@@ -5262,7 +5260,6 @@
             "participantNames": ["Native account witness"],
             "participantPortraits": [{ "characterId": "character_000000000000000000000005h3", "name": "Native account witness", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750003791001,
             "updatedAt": 1750003791001
           },
           {
@@ -5285,7 +5282,6 @@
               }
             ],
             "viewerRole": "host",
-            "createdAt": 1750003777001,
             "updatedAt": 1750003777001
           },
           {
@@ -5305,7 +5301,6 @@
               { "characterId": "character_000000000000000000000004hp", "name": "Search co-star second", "avatarHash": null }
             ],
             "viewerRole": "host",
-            "createdAt": 1750003777001,
             "updatedAt": 1750003777001
           },
           {
@@ -5322,7 +5317,6 @@
             "participantNames": ["Corpus round keeper", "companion"],
             "participantPortraits": [{ "characterId": "character_0000000000000000000000046w", "name": "Corpus round keeper", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750003769001,
             "updatedAt": 1750003769001
           },
           {
@@ -5339,7 +5333,6 @@
             "participantNames": ["Corpus round keeper", "companion"],
             "participantPortraits": [{ "characterId": "character_00000000000000000000000432", "name": "Corpus round keeper", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750003769001,
             "updatedAt": 1750003769001
           },
           {
@@ -5356,7 +5349,6 @@
             "participantNames": ["Corpus recursive keeper"],
             "participantPortraits": [{ "characterId": "character_000000000000000000000003x1", "name": "Corpus recursive keeper", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750003769001,
             "updatedAt": 1750003769001
           }
         ],
@@ -6889,7 +6881,6 @@
       "appSettings": {
         "resolved": {
           "corpusAutoindex": false,
-          "importSkipCharacters": [],
           "logLevel": "silent",
           "forbidExternalMedia": true,
           "trustHtml": false,
@@ -10782,7 +10773,6 @@
               }
             ],
             "viewerRole": "host",
-            "createdAt": 1750003795001,
             "updatedAt": 1750003795001
           },
           {
@@ -10802,7 +10792,6 @@
               { "characterId": "character_000000000000000000000005nz", "name": "Native roster witness", "avatarHash": null }
             ],
             "viewerRole": "host",
-            "createdAt": 1750003791001,
             "updatedAt": 1750003791001
           },
           {
@@ -10819,7 +10808,6 @@
             "participantNames": ["Native account witness"],
             "participantPortraits": [{ "characterId": "character_000000000000000000000005h3", "name": "Native account witness", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750003791001,
             "updatedAt": 1750003791001
           },
           {
@@ -10842,7 +10830,6 @@
               }
             ],
             "viewerRole": "host",
-            "createdAt": 1750003777001,
             "updatedAt": 1750003777001
           },
           {
@@ -10862,7 +10849,6 @@
               { "characterId": "character_000000000000000000000004hp", "name": "Search co-star second", "avatarHash": null }
             ],
             "viewerRole": "host",
-            "createdAt": 1750003777001,
             "updatedAt": 1750003777001
           },
           {
@@ -10879,7 +10865,6 @@
             "participantNames": ["Corpus round keeper", "companion"],
             "participantPortraits": [{ "characterId": "character_0000000000000000000000046w", "name": "Corpus round keeper", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750003769001,
             "updatedAt": 1750003769001
           },
           {
@@ -10896,7 +10881,6 @@
             "participantNames": ["Corpus round keeper", "companion"],
             "participantPortraits": [{ "characterId": "character_00000000000000000000000432", "name": "Corpus round keeper", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750003769001,
             "updatedAt": 1750003769001
           },
           {
@@ -10913,7 +10897,6 @@
             "participantNames": ["Corpus recursive keeper"],
             "participantPortraits": [{ "characterId": "character_000000000000000000000003x1", "name": "Corpus recursive keeper", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750003769001,
             "updatedAt": 1750003769001
           },
           {
@@ -10930,7 +10913,6 @@
             "participantNames": ["Corpus recursive keeper"],
             "participantPortraits": [{ "characterId": "character_000000000000000000000003x1", "name": "Corpus recursive keeper", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750003769001,
             "updatedAt": 1750003769001
           },
           {
@@ -10947,7 +10929,6 @@
             "participantNames": ["Corpus recursive keeper", "companion"],
             "participantPortraits": [{ "characterId": "character_0000000000000000000000041s", "name": "Corpus recursive keeper", "avatarHash": null }],
             "viewerRole": "member",
-            "createdAt": 1750003769001,
             "updatedAt": 1750003769001
           },
           {
@@ -10964,7 +10945,6 @@
             "participantNames": ["Portrait witness"],
             "participantPortraits": [{ "characterId": "character_000000000000000000000003t4", "name": "Portrait witness", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750003769000,
             "updatedAt": 1750003769000
           },
           {
@@ -10981,7 +10961,6 @@
             "participantNames": ["Lifecycle witness", "companion"],
             "participantPortraits": [{ "characterId": "character_000000000000000000000003sc", "name": "Lifecycle witness", "avatarHash": null }],
             "viewerRole": "member",
-            "createdAt": 1750003769000,
             "updatedAt": 1750003769000
           },
           {
@@ -10998,7 +10977,6 @@
             "participantNames": ["Lifecycle witness", "companion"],
             "participantPortraits": [{ "characterId": "character_000000000000000000000003p5", "name": "Lifecycle witness", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750003769000,
             "updatedAt": 1750003769000
           },
           {
@@ -11015,7 +10993,6 @@
             "participantNames": ["Lifecycle witness", "companion"],
             "participantPortraits": [{ "characterId": "character_000000000000000000000003md", "name": "Lifecycle witness", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750003769000,
             "updatedAt": 1750003769000
           },
           {
@@ -11032,7 +11009,6 @@
             "participantNames": ["Lifecycle witness"],
             "participantPortraits": [{ "characterId": "character_000000000000000000000003ka", "name": "Lifecycle witness", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750003769000,
             "updatedAt": 1750003769000
           },
           {
@@ -11049,7 +11025,6 @@
             "participantNames": ["Lifecycle witness"],
             "participantPortraits": [{ "characterId": "character_000000000000000000000003jc", "name": "Lifecycle witness", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750003769000,
             "updatedAt": 1750003769000
           },
           {
@@ -11066,7 +11041,6 @@
             "participantNames": ["Lifecycle witness"],
             "participantPortraits": [{ "characterId": "character_000000000000000000000003fw", "name": "Lifecycle witness", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750003769000,
             "updatedAt": 1750003769000
           },
           {
@@ -11083,7 +11057,6 @@
             "participantNames": ["Lifecycle witness"],
             "participantPortraits": [{ "characterId": "character_000000000000000000000003fw", "name": "Lifecycle witness", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750003769000,
             "updatedAt": 1750003769000
           },
           {
@@ -11100,7 +11073,6 @@
             "participantNames": ["Arc ledger traveller"],
             "participantPortraits": [{ "characterId": "character_00000000000000000000000299", "name": "Arc ledger traveller", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750003684000,
             "updatedAt": 1750003684000
           },
           {
@@ -11117,7 +11089,6 @@
             "participantNames": ["Corpus provider traveller"],
             "participantPortraits": [{ "characterId": "character_00000000000000000000000264", "name": "Corpus provider traveller", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750003684000,
             "updatedAt": 1750003684000
           },
           {
@@ -11134,7 +11105,6 @@
             "participantNames": ["Loom traveller"],
             "participantPortraits": [{ "characterId": "character_00000000000000000000000229", "name": "Loom traveller", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750000022000,
             "updatedAt": 1750000022000
           },
           {
@@ -11151,7 +11121,6 @@
             "participantNames": ["The ledger archivist"],
             "participantPortraits": [{ "characterId": "character_0000000000000000000000014j", "name": "The ledger archivist", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750000000000,
             "updatedAt": 1750003791001
           },
           {
@@ -11168,7 +11137,6 @@
             "participantNames": ["Funding control"],
             "participantPortraits": [{ "characterId": "character_0000000000000000000000017d", "name": "Funding control", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750000006000,
             "updatedAt": 1750000006000
           },
           {
@@ -11185,7 +11153,6 @@
             "participantNames": ["Funding control"],
             "participantPortraits": [{ "characterId": "character_0000000000000000000000017d", "name": "Funding control", "avatarHash": null }],
             "viewerRole": "host",
-            "createdAt": 1750000000000,
             "updatedAt": 1750000000000
           },
           {
@@ -11218,7 +11185,6 @@
               }
             ],
             "viewerRole": "host",
-            "createdAt": 1750000000000,
             "updatedAt": 1750000000000
           },
           {
@@ -11241,7 +11207,6 @@
               }
             ],
             "viewerRole": "host",
-            "createdAt": 1750000000000,
             "updatedAt": 1750000000000
           },
           {
@@ -11258,7 +11223,6 @@
             "participantNames": ["Corpus OIDC explorer"],
             "participantPortraits": [],
             "viewerRole": "host",
-            "createdAt": 1750000000000,
             "updatedAt": 1750000000000
           }
         ],

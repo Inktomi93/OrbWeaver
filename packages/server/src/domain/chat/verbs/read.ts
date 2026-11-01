@@ -349,7 +349,6 @@ function toChatSummary({ row, stat, viewerLastTurnAt, participants, viewerUserId
     // caller is a present member on every listing path (membership-gated), so the `find` resolves; fail to
     // the least-privileged `member` on the impossible miss (never grant host by default).
     viewerRole: participants.find((p) => p.userId === viewerUserId)?.role ?? captureParticipantRole("member"),
-    createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
 }

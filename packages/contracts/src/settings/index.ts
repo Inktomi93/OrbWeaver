@@ -58,7 +58,7 @@ const logLevelSchema = z.enum(LOG_LEVELS) satisfies z.ZodType<LogLevel>;
 // AppSettings — the admin-runtime override tier. Every field nullable+optional (null=CLEAR).
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
-export const APP_SETTINGS_SCHEMA_VERSION = 10;
+export const APP_SETTINGS_SCHEMA_VERSION = 11;
 
 const SCORE_FLOOR = 0;
 const SCORE_CEIL = 1;
@@ -229,7 +229,6 @@ export const PROMPT_CACHE_MIN_DEPTH_CEIL = PROMPT_CACHE_DEPTH_CEIL;
 // Every field `.nullable()` AS WELL AS `.optional().catch(undefined)`: null is the CLEAR sentinel.
 const appSettingsShape = {
   corpusAutoindex: z.boolean().nullable().optional().catch(undefined),
-  importSkipCharacters: z.array(z.string()).nullable().optional().catch(undefined),
   logLevel: logLevelSchema.nullable().optional().catch(undefined),
   forbidExternalMedia: z.boolean().nullable().optional().catch(undefined),
   trustHtml: z.boolean().nullable().optional().catch(undefined),
@@ -328,6 +327,11 @@ const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Re
   9: (config) => {
     const { memorySummarizer: _summarizer, engineLaunch: _engineLaunch, vllmConcurrency: _vllmConcurrency, ...rest } = config;
     return { ...rest, schemaVersion: 10 };
+  },
+  // v10→v11: the admin import-skip list is deleted; dropping the key rewrites the stored blob clean at the next write.
+  10: (config) => {
+    const { importSkipCharacters: _importSkipCharacters, ...rest } = config;
+    return { ...rest, schemaVersion: 11 };
   },
 };
 
@@ -886,7 +890,6 @@ export interface ResolvedRateLimits {
 
 export interface EffectiveAppConfig {
   corpusAutoindex: boolean;
-  importSkipCharacters: string[];
   logLevel: LogLevel;
   forbidExternalMedia: boolean;
   trustHtml: boolean;
@@ -948,7 +951,6 @@ const resolvedRateLimitsSchema = z.strictObject({
 }) satisfies z.ZodType<ResolvedRateLimits>;
 export const effectiveAppConfigSchema = z.strictObject({
   corpusAutoindex: z.boolean(),
-  importSkipCharacters: z.array(z.string()),
   logLevel: logLevelSchema,
   forbidExternalMedia: z.boolean(),
   trustHtml: z.boolean(),
