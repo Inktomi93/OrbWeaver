@@ -2,12 +2,12 @@
 kind: bug
 status: open
 updated: 2026-11-01
-priority: P1
-area: ui
-plan: cross-surface-consistency
+priority: P2
+area: client
+plan: css-system
 ---
 
-# Mid-grey custom themes: select values 4.32:1 on the field fill, slider track solved to alpha 0.001, muted/accent/secondary/popover collapse to one value, card reading ink 4.36:1 (step-4 review P2s)
+# New chat list window at phone 300% text
 
 ## What
 

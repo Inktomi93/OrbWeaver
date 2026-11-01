@@ -1,5 +1,6 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // @subject packages/server/src/domain/rpg/chat-ops/index.ts
+import { resolveProseText } from "@orb/contracts/prose";
 import { closeDb } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { freshCountedDb } from "@orb/testkit/node/composed";
@@ -89,4 +90,44 @@ test("the post-commit state round's provider request carries the turn's own repl
   await h.root.settleBackground();
   expect(stateRound).toHaveLength(1);
   expect(stateRound[0]).toContain(reply);
+});
+
+test("the cheap tool round's user message ends on the state-tool cue; the folded narrator prompt and the host resync do not carry it", async () => {
+  const cue = resolveProseText("rpg.extract.toolRoundUserLine", {});
+  const wire: Record<"cheap" | "folded" | "resync", string[]> = { cheap: [], folded: [], resync: [] };
+  for (const mode of ["cheap", "folded"] as const) {
+    await using h = await turnRpgRoom(
+      [
+        async (request): Promise<Response> => {
+          wire[mode].push(JSON.stringify(await turnWireBody(request)));
+          const prose = "The keeper reaches the registered beat.";
+          // A folded narrator turn co-emits its state call, so no second request follows it.
+          return mode === "folded"
+            ? turnRpgReply(prose, "Registered observatory")
+            : coreSse([coreFrame({ choices: [{ delta: { content: prose } }] }), terminalSseLine({ usage: { promptTokens: 12, completionTokens: 8 } })]);
+        },
+        async (request): Promise<Response> => {
+          wire[mode].push(JSON.stringify(await turnWireBody(request)));
+          return turnRpgReply("", "Registered observatory");
+        },
+        async (request): Promise<Response> => {
+          wire.resync.push(JSON.stringify(await turnWireBody(request)));
+          return turnRpgReply("", "Resynced observatory");
+        },
+      ],
+      {},
+      mode,
+    );
+    await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Reach the registered beat." });
+    await h.root.settleBackground();
+    if (mode === "cheap") {
+      await h.root.services.rpg.resyncFromStory({ principal: h.owner, chatId: h.chatId });
+    }
+  }
+  expect(wire.cheap).toHaveLength(2);
+  expect(wire.cheap[0]).not.toContain(cue);
+  expect(wire.cheap[1]).toContain(cue);
+  expect(wire.folded.join("")).not.toContain(cue);
+  expect(wire.resync).toHaveLength(1);
+  expect(wire.resync[0]).not.toContain(cue);
 });
