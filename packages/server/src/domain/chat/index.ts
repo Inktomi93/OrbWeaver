@@ -9,7 +9,6 @@ export type { ChatBoundBackfillOps } from "./contract/bound-backfill.ts";
 export type {
   ChatServiceDeps,
   ExtractQuietDeps,
-  GetPendingUserText,
   PostNarratorMessage,
   PresenceReadOp,
   PromptTransformRegistry,
@@ -100,6 +99,7 @@ export { buildChatToolOps } from "./verbs/create-tool-ops.ts";
 // root; each is principal-free (rpg gates game authority) and teaches chat nothing rpg-shaped.
 // The `chatsChanged` member fan wired onto `ChatContext.emitChatChanged`; compose injects the user bus.
 export { createEmitChatChanged } from "./verbs/emit-chat-changed.ts";
+export { emitPictureWarnings } from "./verbs/generate-image.ts";
 export { createGenerationObservationSink } from "./verbs/generation-observation-sink.ts";
 export { createGetMembership } from "./verbs/get-membership.ts";
 export { createGetPendingUserText } from "./verbs/get-pending-user-text.ts";

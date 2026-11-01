@@ -18,6 +18,9 @@ export const WARNING_CODE = {
   verbosityDropped: "verbosity_dropped",
   dynamicContextDemoted: "dynamic_context_demoted",
   imageEditDropped: "image_edit_dropped",
+  // The image wire has no channel for the knob: it returned fewer pictures, or its own shape, than asked.
+  imageCountDropped: "image_count_dropped",
+  imageSizeDropped: "image_size_dropped",
   // An effort-`none`/absent intent on a MANDATORY-reasoning model was clamped UP to the lowest supported
   // effort (the model rejects `effort:'none'` — an honest visible degrade, never a silent 400).
   reasoningMandatoryClamp: "reasoning_mandatory_clamp",

@@ -1602,6 +1602,14 @@ export const TEMPLATE_DEFS = [
     caps: [{ kind: "tokens", tokens: ["{{user}}", "{{char}}"] }],
     defaultSlot: "rpg.reminder.cyoaTeach",
   },
+  {
+    id: "rpg.reminder.playerRolledDice",
+    kind: "teach",
+    label: "Player roll note",
+    fires: "A game turn answering a player message that carries a dice stamp",
+    caps: [{ kind: "tokens", tokens: ["{{user}}", "{{char}}"] }],
+    defaultSlot: "rpg.reminder.playerRolledDice",
+  },
   // The frame around the whole reminder. Its one token carries the entire reminder, so it is a carrier row.
   {
     id: "rpg.reminder.frame",

@@ -334,6 +334,7 @@ const SERVER_DOORS = [`${SRV}[^/]+/[^/]+/index\\.ts$`, ...exportedDoors("server"
 // A suite of another module still needs its reach line below.
 const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/character/contract/errors.ts": "CharacterNotFoundError: the refusal class greeting suites assert",
+  "packages/server/src/domain/imagery/substrate/size.ts": "SIZE_PRESETS: the dimensions a size preset puts on the provider request",
   "packages/server/src/domain/chat/contract/errors.ts": "CHAT_OP_CODES and ChatNotFoundError: the refusal codes and class chat suites assert",
   "packages/server/src/domain/admin/contract/errors.ts": "ADMIN_OP_CODES: the refusal codes admin and sessions suites assert",
   "packages/server/src/domain/credentials/contract/errors.ts": "CREDENTIALS_OP_CODES: the refusal codes credentials suites assert",
@@ -433,6 +434,10 @@ const TEST_CONSTANT_HOME_PATHS = Object.keys(TEST_CONSTANT_HOMES).map((path) => 
 // The suites that import a production constant or verb from another module's door (Spine-Testing §9 imports constants
 // from their home): each line names what it imports and why the suite needs it. No wire carries any of them.
 const SERVER_TEST_REACHES = {
+  // A rule's image size must reach the provider as the preset's dimensions, which imagery owns.
+  "tests/server/domain/automation/engine/dispatch.int.test.ts": {
+    "domain/imagery": "SIZE_PRESETS: the dimensions a size preset puts on the provider request",
+  },
   // Each cross-owner boot verb must refuse a plain handle cast to the boot grant before a row moves (D335).
   "tests/server/entry/boot/persistence/forged-boot-grant.int.test.ts": {
     "domain/automation": "migratePluginToolWireNames: a cross-owner boot verb",

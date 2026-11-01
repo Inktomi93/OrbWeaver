@@ -15,6 +15,7 @@ import type {
   AssembleContext,
   ChatMetadata,
   ClaimChatOp,
+  GatherTurnContextArgs,
   GroupConfig,
   GuidedSteer,
   ImpersonateStreamDelta,
@@ -93,6 +94,7 @@ import {
 } from "../persistence/canon-write.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { claimPendingTurn, insertPendingTurn, loadPendingTurns, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites.ts";
+import { loadTailIsUserMessage } from "../persistence/message-window.ts";
 import { classifyParticipant, isArbiterEligible } from "../persistence/participant.ts";
 import { loadParticipants, loadPresentRole } from "../persistence/participants-read.ts";
 import {
@@ -111,6 +113,7 @@ import { prepareContinueRestoreForRoleData } from "../persistence/role-encoding.
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import { buildTurnUserMacros, freezeVolatileMacros, renderHistoryMacros, resolveNudgeText } from "../substrate/assembly-access.ts";
 import { isBelowHistoryFloor } from "../substrate/auth/index.ts";
+import { stampGameState, swapGameState } from "../substrate/game-state-injections.ts";
 import { refuseHandoffAdmission } from "../substrate/handoff-barrier.ts";
 import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
 import { createViewerTextScrub, projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
@@ -398,6 +401,9 @@ function lastSpeakerRef(row: { readonly characterId: CharacterId | null; readonl
  *  truth, the same value recall reads. */
 interface BuiltTurnContext {
   readonly assembleContext: AssembleContext;
+  /** `assembleContext` as an auto-mode beat reads it: the game's roll note, which answers the player's own stamp,
+   *  is left out because a chained beat answers another character. `undefined` when the two are the same. */
+  readonly chainAssembleContext?: AssembleContext | undefined;
   readonly memoryConfig: MemoryConfig | null | undefined;
   /** The round-level recall inputs staged for the engine's per-speaker witnessed re-run (D6); `null` when
    *  there is no character to key on (memory off / an empty roster) ⇒ the engine keeps round-level `memory`. */
@@ -736,25 +742,23 @@ async function buildTurnContext(
   // bytes or the choices-teach containment check below cannot see a game's teach (`teaching-contribution.ts`).
   const turnProse = composeProse({ preset: foreign.promptConfig.prose });
   const teachIdentity = { user: foreign.personas.active?.name, char: args.candidateCharForHostRow };
-  const rpg =
-    ctx.rpg !== null
-      ? await ctx.rpg.gatherTurnContext({
-          chatId: args.chatId,
-          funderUserId: args.funderUserId,
-          pendingUserText: args.pendingUserText,
-          respondsToLatestUserTurn: args.respondsToLatestUserTurn ?? false,
-          steerIdentity: teachIdentity,
-          // The swipe/reroll target (VER-1b): rpg resolves the turn's tracked state as of BEFORE this slot, the
-          // same cut this turn's canon context takes, so a reroll is never told the abandoned variant's beats.
-          regenSlotMessageId: args.regenSlotMessageId,
-          // PROSE-1 — the reminder's teach/heading overrides, PRESET-homed. Composed
-          // by home for the same no-cascade reason `buildAssembleContext` does it: a key only survives from the
-          // storage its slot actually homes in, so a stale key in the blob is inert rather than authoritative.
-          // `foreign.promptConfig` is the REDIRECTED preset on a game turn (`presetOverride`, resolved above), so
-          // the teaches a table authored on its GM preset are the ones the reminder gets.
-          prose: turnProse,
-        })
-      : null;
+  const gatherArgs: GatherTurnContextArgs = {
+    chatId: args.chatId,
+    funderUserId: args.funderUserId,
+    pendingUserText: args.pendingUserText,
+    respondsToLatestUserTurn: args.respondsToLatestUserTurn ?? false,
+    steerIdentity: teachIdentity,
+    // The swipe/reroll target (VER-1b): rpg resolves the turn's tracked state as of BEFORE this slot, the
+    // same cut this turn's canon context takes, so a reroll is never told the abandoned variant's beats.
+    regenSlotMessageId: args.regenSlotMessageId,
+    // PROSE-1 — the reminder's teach/heading overrides, PRESET-homed. Composed
+    // by home for the same no-cascade reason `buildAssembleContext` does it: a key only survives from the
+    // storage its slot actually homes in, so a stale key in the blob is inert rather than authoritative.
+    // `foreign.promptConfig` is the REDIRECTED preset on a game turn (`presetOverride`, resolved above), so
+    // the teaches a table authored on its GM preset are the ones the reminder gets.
+    prose: turnProse,
+  };
+  const rpg = ctx.rpg !== null ? await ctx.rpg.gatherTurnContext(gatherArgs) : null;
   // THE S2 TEACHING COLLECTION — the ONE assembly of "what this chat's model is told it can do", collected
   // right after the gather so contributor #0 (chat's own rpg projection) sees THIS turn's gather. Its
   // `injections` ride the one prose-steering channel to assembly; its `toolNames` are the turn's wire attach
@@ -819,8 +823,10 @@ async function buildTurnContext(
     foreign,
     sink,
   );
+  const reminder = await settleRpgReminder(ctx, { gatherArgs, rpg, sendUserText: sink.sendUserText, assembled: assembleContext });
   return {
-    assembleContext,
+    assembleContext: reminder.assembled,
+    chainAssembleContext: reminder.chain,
     memoryConfig: foreign.memoryConfig,
     memoryRecall: sink.memoryRecall ?? null,
     chatBehavior: foreign.chatBehavior ?? DEFAULT_CHAT_BEHAVIOR,
@@ -835,6 +841,31 @@ async function buildTurnContext(
     cardKeepLastX: rpg?.cardKeepLastX,
     ...userMacroFields(userMacros),
   };
+}
+
+/** Settles the game's reminder against the line the player's message became, and splits out the form an auto-mode beat
+ *  reads. The gather runs before assembly, so it saw the draft; the USER_INPUT regex and the volatile freeze rewrite it
+ *  inside assembly, and the stored line is their output, so a rewritten send asks the gather again about that text.
+ *  Only a reminder that actually differs is swapped in: a stampless turn keeps its bytes. */
+async function settleRpgReminder(
+  ctx: ChatContext,
+  args: {
+    readonly gatherArgs: GatherTurnContextArgs;
+    readonly rpg: ChatRpgGatherResult | null;
+    readonly sendUserText: string | undefined;
+    readonly assembled: AssembleContext;
+  },
+): Promise<{ readonly assembled: AssembleContext; readonly chain: AssembleContext | undefined }> {
+  const { gatherArgs, rpg, sendUserText } = args;
+  if (ctx.rpg === null || rpg === null) {
+    return { assembled: args.assembled, chain: undefined };
+  }
+  const rewritten = gatherArgs.pendingUserText !== undefined && sendUserText !== undefined && sendUserText !== gatherArgs.pendingUserText;
+  const settled = rewritten ? ((await ctx.rpg.gatherTurnContext({ ...gatherArgs, pendingUserText: sendUserText })) ?? rpg) : rpg;
+  const assembled = settled === rpg ? args.assembled : swapGameState(args.assembled, stampGameState(rpg.injections), stampGameState(settled.injections));
+  const chain =
+    settled.chainInjections === undefined ? undefined : swapGameState(assembled, stampGameState(settled.injections), stampGameState(settled.chainInjections));
+  return { assembled, chain };
 }
 
 /** Persists a user message (a fresh slot + its one variant) and emits `messageCommitted`. Persists exactly
@@ -1098,6 +1129,8 @@ async function runChain(
   deps: TurnDeps,
   args: {
     readonly base: RoundBase;
+    /** The assemble ctx the chained beats read: the round's own, minus whatever answers only the human's message. */
+    readonly chainContext: AssembleContext | undefined;
     readonly group: GroupConfig;
     readonly room: Room;
     readonly groupCharacterId: CharacterId | null;
@@ -1177,7 +1210,7 @@ async function runChain(
     runTurn: async (speaker) =>
       await driveRoundVia({
         engine: deps.engine,
-        base: { ...args.base, kind: "auto", acceptedTurnId: chainTurnId },
+        base: { ...args.base, assembleContext: args.chainContext ?? args.base.assembleContext, kind: "auto", acceptedTurnId: chainTurnId },
         group: args.group,
         speakers: [speaker],
         groupCharacterId: args.groupCharacterId,
@@ -1199,6 +1232,8 @@ async function runAiRound(
   deps: TurnDeps,
   args: {
     readonly base: RoundBase;
+    /** The ctx the auto-mode chain's beats read — see {@link runChain}. Absent ⇒ they read `base`'s. */
+    readonly chainContext?: AssembleContext | undefined;
     readonly group: GroupConfig;
     readonly room: Room;
     readonly signal: AbortSignal;
@@ -1309,6 +1344,7 @@ async function runAiRound(
   if (args.group.autoMode && (args.chain ?? true)) {
     const auto = await runChain(ctx, deps, {
       base,
+      chainContext: args.chainContext,
       group: args.group,
       room: args.room,
       groupCharacterId,
@@ -1837,6 +1873,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
 
     const round = await runAiRound(ctx, deps, {
       base,
+      chainContext: built.chainAssembleContext,
       group,
       room,
       signal: handle.signal,
@@ -2648,6 +2685,8 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
   return async ({ principal, chatId, speakerCharacterId, intent, guided, afterAssistant, timeZone }: GenerateParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const slot = { chatId, turnId: ctx.newChatTurnId(), kind: "generate", speakerCharacterId: null, targetMessageId: null } as const;
+    // A reply generated onto a user line answers it, so a dice stamp there is the roll this reply is told about.
+    const respondsToLatestUserTurn = await loadTailIsUserMessage(ctx.db, chatId);
     // ACCEPTED: a member asked for a reply, so the client's slot opens before the multi-second resolve. NO
     // `targetMessageId` (a fresh slot, nothing to ghost over) and NO speaker: the requested id is still
     // UNVALIDATED here, and an unvalidated foreign CharacterId must never ride the bus (see the refusal below);
@@ -2661,6 +2700,7 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
         anchorPersonaId: membership.chat.anchorPersonaId,
         chatMetadata: membership.chat.metadata,
         trigger: humanTrigger(principal.userId, membership.activePersonaId),
+        respondsToLatestUserTurn,
         guided,
         timeZone,
       });
@@ -2857,7 +2897,7 @@ async function runDeferredRound(
     signal: handle.signal,
   };
   // A drain answers a human send, but nobody is live to name a speaker: it bans like an AI-chained round.
-  return await runAiRound(ctx, deps, { base, group, room, signal: handle.signal, banLast: banLastFor(group, false) });
+  return await runAiRound(ctx, deps, { base, chainContext: built.chainAssembleContext, group, room, signal: handle.signal, banLast: banLastFor(group, false) });
 }
 
 /** Process ONE queued row: CLAIM it atomically (the exactly-once serializer), then RUN it · DROP it on a

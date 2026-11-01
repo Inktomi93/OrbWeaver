@@ -8,6 +8,7 @@
 import type {
   ClaimChatOp,
   GetMembership,
+  GetPendingUserText,
   RequestTurnOp,
   ResolveCanonWindow,
   ResolveRegexSources,
@@ -42,7 +43,6 @@ import type {
   ChatServiceDeps,
   ChatWorkloadDeps,
   EmitDurableChatEventOp,
-  GetPendingUserText,
   ImageRefAssets,
   MemoryRecallRecorder,
   PostNarratorMessage,

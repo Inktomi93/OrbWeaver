@@ -1,12 +1,11 @@
-// The pending-user-text read op (D58): the text of the latest user-role message
-// the AI GM turn is responding to. Homed in chat because messages have ONE loader here (the canon read
-// chokepoint); a STANDALONE compose-built factory (not a `ChatService` verb: it takes no principal — rpg gates
-// the game turn's authority before its `skill_check` re-reads the roll), the `createGetMembership` precedent.
-// `null` = no user message yet; the check then rolls normally (no queued die to feed).
+// The latest user-role message's text, read by the rpg gather for a turn that carries no text of its own (D58).
+// Homed in chat because messages have ONE loader here. A STANDALONE compose-built factory, not a `ChatService`
+// verb: it takes no principal because chat gated the turn, the `createGetMembership` precedent.
 
+import type { GetPendingUserText } from "@orb/contracts/chat";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { ChatContext, GetPendingUserText } from "../contract/context.ts";
+import type { ChatContext } from "../contract/context.ts";
 import { loadPendingUserText } from "../persistence/queries.ts";
 
 export function createGetPendingUserText(input: DbAssemblyInput<Pick<ChatContext, "db">>): GetPendingUserText {

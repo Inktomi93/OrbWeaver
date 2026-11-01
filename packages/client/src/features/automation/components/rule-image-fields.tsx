@@ -1,5 +1,5 @@
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
-import { MULTIMODAL_MODES, PROMPT_TEMPLATE_MODES, reusePolicySchema, SIZE_PRESET_NAMES } from "@orb/contracts/imagery";
+import { MAX_IMAGE_COUNT, MIN_IMAGE_COUNT, MULTIMODAL_MODES, PROMPT_TEMPLATE_MODES, reusePolicySchema, SIZE_PRESET_NAMES } from "@orb/contracts/imagery";
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { ChevronRight, Icon } from "@orb/ui/icons";
@@ -74,7 +74,9 @@ export function RuleImageFields({
           )
         }
       </form.AppField>
-      <form.AppField name={`actions[${index}].n`}>{(field): ReactElement => <field.NumberField label="Image count" />}</form.AppField>
+      <form.AppField name={`actions[${index}].n`}>
+        {(field): ReactElement => <field.NumberField label="Image count" min={MIN_IMAGE_COUNT} max={MAX_IMAGE_COUNT} />}
+      </form.AppField>
       <form.AppField name={`actions[${index}].size`}>
         {(field): ReactElement =>
           field.state.value === undefined ? (
@@ -86,7 +88,7 @@ export function RuleImageFields({
             <Stack gap="tight">
               <field.SelectField label="Image size" items={SIZE_PRESET_NAMES.map((value) => ({ value, label: value }))} />
               <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange(undefined)}>
-                Use connection's image size
+                Use the image mode's default size
               </Button>
             </Stack>
           )

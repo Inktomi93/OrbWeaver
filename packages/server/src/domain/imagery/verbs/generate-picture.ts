@@ -132,6 +132,10 @@ function reusedResult(mode: GeneratePictureParams["mode"], hits: readonly ReuseR
   };
 }
 
+function customizesPicture(p: GeneratePictureParams): boolean {
+  return (p.n ?? DEFAULT_IMAGE_COUNT) > DEFAULT_IMAGE_COUNT || p.size !== undefined || (p.negative?.trim() ?? "").length > 0;
+}
+
 /** Step 2 (doc 03 §4.4): the B2 reuse gate + the identity hash the miss path stores. Runs only for a portrait
  *  mode with a subject and no prompt override. Returns the hit picture (short-circuit) or null, plus the
  *  `identityHash` the new rows store so the NEXT prefer-call hits. */
@@ -142,7 +146,9 @@ async function reuseGate(
   subjectCharacterId: CharacterId | null,
 ): Promise<{ readonly identityHash: string | null; readonly hit: GeneratedPicture | null }> {
   const hasPromptOverride = (p.prompt?.trim() ?? "").length > 0;
-  if (subjectCharacterId === null || hasPromptOverride) {
+  // The identity hash covers none of these knobs. A customized picture neither reads nor seeds the reuse rows,
+  // or a plain request would later receive it.
+  if (subjectCharacterId === null || hasPromptOverride || customizesPicture(p)) {
     return { identityHash: null, hit: null };
   }
   const card = await ctx.getCard(p.caller, subjectCharacterId);
@@ -249,7 +255,8 @@ export function createGeneratePicture(ctx: ImageryContext, deps: { readonly reso
       costUsd: sumCost(resolved.costUsd, outcome.costUsd),
       reused: false,
       // B3's drop warning + any runner edit-strip belt warning that flowed up (doc 03 §2).
-      warnings: [...reference.warnings, ...outcome.warnings],
+      // Every request carries a size, so a dropped size matters only when the caller chose it.
+      warnings: [...reference.warnings, ...outcome.warnings.filter((warning) => p.size !== undefined || warning.code !== "image_size_dropped")],
     });
   };
 }

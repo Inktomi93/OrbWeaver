@@ -30,6 +30,8 @@ function cadenceOf(code: ChatWarningCode): Cadence {
     case "retrieval_index_unavailable":
     case "prompt_transform_skipped":
     case "image_edit_dropped":
+    case "image_count_dropped":
+    case "image_size_dropped":
     case "compaction_failed":
     case "context_trimmed_no_summary":
     case "provider_refused":

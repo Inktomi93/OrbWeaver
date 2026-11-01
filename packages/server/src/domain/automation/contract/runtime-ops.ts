@@ -19,6 +19,8 @@ export interface AutomationRuntimeDeps<TSet> {
     options?: { readonly initiator: TurnInitiator; readonly automationDepth: number } | undefined,
   ) => Promise<{ readonly messageId: MessageId; readonly variantId: MessageVariantId }>;
   readonly imagery: { readonly generatePicture: GeneratePicture };
+  /** Raise a picture's dropped-knob warnings in its room, the notices the explicit generate verb raises. */
+  readonly emitPictureWarnings: (chatId: ChatId, warnings: readonly { readonly code: string }[]) => Promise<void>;
   readonly settings: { readonly getUserSettings: GetUserSettingsOp };
   readonly toolUse: {
     readonly isToolDrivableBy: IsToolDrivableByOp;

@@ -281,20 +281,25 @@ async function runPostNotification(
 }
 
 // ── 1.7 generate_image (the /imagine engine) ───────────────────────────────────────────────────────────
+function renderImageTemplate(deps: ArmExecutorDeps, frame: DispatchFrame, template: string | undefined): ReturnType<typeof renderArmTemplate> {
+  return renderArmTemplate({ env: frame.env, chatScoped: frame.chatId !== null, nowMs: frame.now, prng: deps.prng, template: template ?? "" });
+}
+
 async function runGenerateImage(
   deps: ArmExecutorDeps,
   action: Extract<AutomationAction, { type: "generate_image" }>,
   frame: DispatchFrame,
 ): Promise<ArmOutcome> {
-  // The prompt is a template like every arm field; absent ⇒ imagery extracts from chat (a portrait mode).
-  let prompt: string | undefined;
-  if (action.prompt !== undefined) {
-    const rendered = renderArmTemplate({ env: frame.env, chatScoped: frame.chatId !== null, nowMs: frame.now, prng: deps.prng, template: action.prompt });
-    if (rendered.error !== undefined) {
-      return armError(rendered.error);
-    }
-    prompt = rendered.text.length > 0 ? rendered.text : undefined;
+  // Both texts are templates like every arm field; an absent prompt means imagery extracts from chat.
+  const renderedPrompt = renderImageTemplate(deps, frame, action.prompt);
+  if (renderedPrompt.error !== undefined) {
+    return armError(renderedPrompt.error);
   }
+  const renderedNegative = renderImageTemplate(deps, frame, action.negative);
+  if (renderedNegative.error !== undefined) {
+    return armError(renderedNegative.error);
+  }
+  const prompt = renderedPrompt.text.length > 0 ? renderedPrompt.text : undefined;
   // THE SUBJECT, and where it comes from when the arm did not name one. An arm's `subjectCharacterId` is a
   // literal fixed at authoring, which is fine for a room rule pointed at one character — and useless to the
   // owner-global lane, whose whole point is "illustrate WHICHEVER character just changed". So an arm with no
@@ -320,7 +325,7 @@ async function runGenerateImage(
     // `messageCommitted` fact rides at depth ≥ 1 and a non-opted re-fire is cascade-suppressed.
     automationDepth: frame.origin.automationDepth,
     ...promptArgs,
-    ...(action.negative !== undefined ? { negative: action.negative } : {}),
+    ...(renderedNegative.text.length > 0 ? { negative: renderedNegative.text } : {}),
     n: action.n,
     ...(action.size !== undefined ? { size: action.size } : {}),
     ...(subjectCharacterId !== undefined ? { subjectCharacterId } : {}),

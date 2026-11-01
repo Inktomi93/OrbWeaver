@@ -4,12 +4,9 @@ import type { RpgGameId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
-/** `createGame`'s result — the birth summary. `trackersReadOnly` is the honest-arms verdict AT BIRTH (§4.4):
- *  the create succeeds on a non-tool connection but says so, so the client shows the read-only pill from turn
- *  one. `chatId` echoes the pointer target the create wrote. */
+/** `createGame`'s result — the birth summary: the new game's id. The read-only verdict is the tracker view's. */
 export interface CreateGameResult {
   readonly gameId: RpgGameId;
-  readonly trackersReadOnly: boolean;
 }
 
 /** THE HAND-DOOR VERDICT — the ERRORS-AS-DATA channel the input contract promises ("a bad path is
@@ -75,7 +72,6 @@ export interface RollDiceResult {
 const handDoorRefusalSchema = z.strictObject({ ok: z.literal(false), reason: z.string() });
 export const createGameResultSchema = z.strictObject({
   gameId: typeIdSchema(ID_PREFIX.rpgGame),
-  trackersReadOnly: z.boolean(),
 }) satisfies z.ZodType<CreateGameResult>;
 export const handDoorResultSchema = z.discriminatedUnion("ok", [
   z.strictObject({ ok: z.literal(true) }),
