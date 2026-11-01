@@ -81,6 +81,10 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
       return { description: "It errored or ran too long, so your message was sent unchanged.", title: "A prompt rule was skipped" };
     case "image_edit_dropped":
       return { description: "This model can't edit images, so the picture was generated without your reference.", title: "Your reference image was ignored" };
+    case "image_count_dropped":
+      return { description: "This connection makes one image per request, so only one was made.", title: "Fewer images were made than asked for" };
+    case "image_size_dropped":
+      return { description: "This connection chooses its own image size, so the requested size wasn't used.", title: "The image size was ignored" };
     case "compaction_failed":
       return { description: "Your reply is unaffected — only the running summary missed this turn.", title: "The conversation summary couldn't update" };
     case "context_trimmed_no_summary":

@@ -210,6 +210,12 @@ async function runChatModalities(req: ImageGenerateRequest, deps: ImagesDeps, ca
       message: `${req.connection.model}: the chat-completions image wire has no inpaint-mask channel; the mask was dropped`,
     });
   }
+  if (req.n !== undefined && req.n > 1) {
+    warnings.push({ code: "image_count_dropped", message: `${req.connection.model}: the chat-completions image wire has no count channel; n was ignored` });
+  }
+  if (req.size !== undefined) {
+    warnings.push({ code: "image_size_dropped", message: `${req.connection.model}: the chat-completions image wire has no size channel; size was ignored` });
+  }
   const urls = await Promise.all(sources.map((image) => toImageUrl(image, deps.normalize)));
   const model = languageModelFor({ ...call, replyImages: true });
   const result = await model.doGenerate({
