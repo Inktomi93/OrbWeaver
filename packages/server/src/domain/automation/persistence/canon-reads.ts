@@ -7,6 +7,7 @@
 import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { assets, characters, chatBooks, chatParticipants, chats, messages, messageVariants, personas, rpgGames, worldBooks, worldEntries } from "@orb/db";
+import { projectBodyForSummary } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatId, PersonaId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, asc, desc, eq, gt, isNull, lte, sql } from "drizzle-orm";
@@ -192,7 +193,9 @@ export async function listAnalysisWindow(
     .where(and(...bounds))
     .orderBy(earliest ? asc(messages.seq) : desc(messages.seq))
     .limit(opts.limit);
-  return earliest ? rows : rows.reverse();
+  // D285: a side model reads what quiet extraction reads, never a hidden span the room's members cannot.
+  const projected = rows.map((row) => ({ ...row, content: projectBodyForSummary(row.content) }));
+  return earliest ? projected : projected.reverse();
 }
 
 /** The chat's newest VISIBLE seq (the settled-span upper bound derives from it: `maxSeq − protectTail`).

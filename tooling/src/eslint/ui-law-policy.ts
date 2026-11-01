@@ -1,6 +1,7 @@
 // Client and @orb/ui law gates that were review-only: manual memoization and `use()` on a thenable.
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 
 // The React Compiler skips any module that imports the virtualizer (the installed compiler's own denylist;
@@ -12,7 +13,7 @@ const MEMO_MESSAGE =
   "Manual memoization: the React Compiler memoizes this file (UI-Architecture-and-Layout.md §4a). Delete it; only a file that imports @tanstack/react-virtual, which the compiler skips, may keep one.";
 
 function importedName(specifier: TSESTree.ImportSpecifier): string {
-  return specifier.imported.type === "Identifier" ? specifier.imported.name : specifier.imported.value;
+  return specifier.imported.type === AST_NODE_TYPES.Identifier ? specifier.imported.name : specifier.imported.value;
 }
 
 /** How a file reaches React's exports: through a namespace (`import * as R`, `import R`) or by a bound name. */
@@ -26,11 +27,11 @@ interface ReactBindings {
 function reactBindings(context: OrbRuleContext): ReactBindings {
   const bindings: ReactBindings = { namespaces: new Set(["React"]), names: new Map() };
   for (const statement of context.sourceCode.ast.body) {
-    if (statement.type !== "ImportDeclaration" || statement.source.value !== "react") {
+    if (statement.type !== AST_NODE_TYPES.ImportDeclaration || statement.source.value !== "react") {
       continue;
     }
     for (const specifier of statement.specifiers) {
-      if (specifier.type === "ImportSpecifier") {
+      if (specifier.type === AST_NODE_TYPES.ImportSpecifier) {
         bindings.names.set(specifier.local.name, importedName(specifier));
       } else {
         bindings.namespaces.add(specifier.local.name);
@@ -42,18 +43,21 @@ function reactBindings(context: OrbRuleContext): ReactBindings {
 
 /** The React export a `Namespace.name` member reads, or undefined for any other member. */
 function namespaceMember(node: TSESTree.MemberExpression, bindings: ReactBindings): string | undefined {
-  return !node.computed && node.object.type === "Identifier" && bindings.namespaces.has(node.object.name) && node.property.type === "Identifier"
+  return !node.computed &&
+    node.object.type === AST_NODE_TYPES.Identifier &&
+    bindings.namespaces.has(node.object.name) &&
+    node.property.type === AST_NODE_TYPES.Identifier
     ? node.property.name
     : undefined;
 }
 
 /** The `{ key: local }` pairs of `const { key: local } = Namespace`, or none for any other declarator. */
 function destructuredFromNamespace(node: TSESTree.VariableDeclarator, bindings: ReactBindings): { property: TSESTree.Property; key: string; local: string }[] {
-  if (node.id.type !== "ObjectPattern" || node.init?.type !== "Identifier" || !bindings.namespaces.has(node.init.name)) {
+  if (node.id.type !== AST_NODE_TYPES.ObjectPattern || node.init?.type !== AST_NODE_TYPES.Identifier || !bindings.namespaces.has(node.init.name)) {
     return [];
   }
   return node.id.properties.flatMap((property) =>
-    property.type === "Property" && property.key.type === "Identifier" && property.value.type === "Identifier"
+    property.type === AST_NODE_TYPES.Property && property.key.type === AST_NODE_TYPES.Identifier && property.value.type === AST_NODE_TYPES.Identifier
       ? [{ property, key: property.key.name, local: property.value.name }]
       : [],
   );
@@ -61,17 +65,17 @@ function destructuredFromNamespace(node: TSESTree.VariableDeclarator, bindings: 
 
 /** The React export a callee names: a bound name, a `Namespace.name` member, or neither. */
 function reactExportCalled(callee: TSESTree.Expression, bindings: ReactBindings): string | undefined {
-  if (callee.type === "Identifier") {
+  if (callee.type === AST_NODE_TYPES.Identifier) {
     return bindings.names.get(callee.name);
   }
-  return callee.type === "MemberExpression" ? namespaceMember(callee, bindings) : undefined;
+  return callee.type === AST_NODE_TYPES.MemberExpression ? namespaceMember(callee, bindings) : undefined;
 }
 
 export const noManualMemoRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
     const skippedByCompiler = context.sourceCode.ast.body.some(
-      (statement) => statement.type === "ImportDeclaration" && statement.source.value === COMPILER_DENYLISTED_IMPORT,
+      (statement) => statement.type === AST_NODE_TYPES.ImportDeclaration && statement.source.value === COMPILER_DENYLISTED_IMPORT,
     );
     if (skippedByCompiler) {
       return {};
@@ -83,7 +87,7 @@ export const noManualMemoRule: OrbRule = {
           return;
         }
         for (const specifier of node.specifiers) {
-          if (specifier.type === "ImportSpecifier" && MEMO_APIS.has(importedName(specifier))) {
+          if (specifier.type === AST_NODE_TYPES.ImportSpecifier && MEMO_APIS.has(importedName(specifier))) {
             context.report({ node: specifier, message: MEMO_MESSAGE });
           }
         }

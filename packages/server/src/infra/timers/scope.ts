@@ -1,3 +1,4 @@
+import { toError } from "@orb/kit/error-message";
 import type { ScheduleOp, TimerScheduler } from "@orb/kit/time";
 import type { ScopedTimers } from "./contract/scope.ts";
 
@@ -54,13 +55,13 @@ export function createScopedTimers(execution: TimerScheduler): ScopedTimers {
 /** Wait on an injected timer; cancellation tears down the timer and its signal listener together. */
 export function waitForTimer(ms: number, schedule: ScheduleOp, signal?: AbortSignal): Promise<void> {
   if (signal?.aborted === true) {
-    return Promise.reject(signal.reason);
+    return Promise.reject(toError(signal.reason));
   }
   return new Promise((resolve, reject) => {
     const onAbort = (): void => {
       cancel();
       signal?.removeEventListener("abort", onAbort);
-      reject(signal?.reason);
+      reject(toError(signal?.reason));
     };
     const cancel = schedule(() => {
       signal?.removeEventListener("abort", onAbort);

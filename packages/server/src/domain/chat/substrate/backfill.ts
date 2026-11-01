@@ -266,7 +266,7 @@ async function summarizeAllPending(ctx: ChatContext, funderUserId: UserId, plans
   }
   const order = flat.map((_, i) => i).sort((a, b) => inputLen(flat[a]?.input) - inputLen(flat[b]?.input));
   const sortedTexts = await summarizeDigestBatch(ctx, funderUserId, orderedInputs(flat, order));
-  const flatTexts: (string | null)[] = new Array(flat.length).fill(null);
+  const flatTexts: (string | null)[] = new Array<string | null>(flat.length).fill(null);
   order.forEach((origIdx, k) => {
     flatTexts[origIdx] = sortedTexts[k] ?? null;
   });
@@ -385,7 +385,7 @@ async function summarizeAndStoreTier(ctx: ChatContext, collected: readonly Colle
   });
   const order = flat.map((_, i) => i).sort((a, b) => inputLen(flat[a]?.input) - inputLen(flat[b]?.input));
   const sortedTexts = await summarizeConsolidationBatch(ctx, state.funderUserId, orderedInputs(flat, order));
-  const flatTexts: (string | null)[] = new Array(flat.length).fill(null);
+  const flatTexts: (string | null)[] = new Array<string | null>(flat.length).fill(null);
   order.forEach((origIdx, k) => {
     flatTexts[origIdx] = sortedTexts[k] ?? null;
   });

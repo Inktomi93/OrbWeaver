@@ -127,6 +127,12 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
         description: "The words came through, but the picture didn't save. Swiping again usually redraws it.",
         title: "A picture in this reply couldn't be saved",
       };
+    // Host-only by delivery: the reply stands, and members stop reading at the broken tag until the host mends it.
+    case "hidden_tag_broken":
+      return {
+        description: "Members see this reply only up to a hidden tag the model wrote badly. Fix the tag or swipe to show them the rest.",
+        title: "Part of this reply is hidden from members",
+      };
     default:
       return assertNeverCode(code);
   }

@@ -14,7 +14,7 @@ import { fetchEndpointModels, fetchOpenRouterCatalog } from "#catalog";
 import type { DiagnosticRequestCommon, GenerationCostRequest, ListModelsRequest, ProviderScrubSet, Resolved } from "#contract";
 import { ProviderError } from "#contract";
 import type { DiagnosticsDeps, InspectDeps } from "../../contract/openai-backend.ts";
-import { authHeaders, fetchJson, openAiPath } from "../http/fetch-json.ts";
+import { authHeaders, bodyByteReader, fetchJson, openAiPath } from "../http/fetch-json.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
 import { bareCatalogEntry, failedListing, listingOf } from "../wire/model-listing.ts";
@@ -154,7 +154,7 @@ async function readBodyPreview(res: Response, overhang: number): Promise<string>
     return "";
   }
   const budget = BODY_PREVIEW_LIMIT + overhang;
-  const reader = res.body.getReader();
+  const reader = bodyByteReader(res.body);
   const decoder = new TextDecoder();
   let out = "";
   try {

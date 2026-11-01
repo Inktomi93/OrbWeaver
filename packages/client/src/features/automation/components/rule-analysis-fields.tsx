@@ -25,11 +25,12 @@ export function RuleAnalysisFields({
   readonly action: Extract<RuleEditorValues["actions"][number], { type: "run_analysis" }>;
   readonly chatId: ChatId | null;
 }): ReactElement {
-  const confirmations =
-    Number(action.routes.steer?.apply === "confirm") +
-    Number(action.routes.lore?.apply === "confirm") +
-    Number(action.routes.suggest !== undefined) +
-    Number(action.routes.rewrite !== undefined);
+  const confirming = [
+    action.routes.steer?.apply === "confirm" ? "Guidance" : null,
+    action.routes.lore?.apply === "confirm" ? "World book" : null,
+    action.routes.suggest === undefined ? null : "Suggested turns",
+    action.routes.rewrite === undefined ? null : "Rewrite suggestions",
+  ].filter((name) => name !== null);
   return (
     <Stack gap="block">
       <form.AppField name={`actions[${index}].brief`}>{(field): ReactElement => <field.MacroField label="Analysis brief" suggestions={[]} />}</form.AppField>
@@ -53,7 +54,6 @@ export function RuleAnalysisFields({
       <Text voice="gloss">
         Enable at least one output route. Only one route may ask for confirmation. Analysis is unavailable while this chat has an active game.
       </Text>
-      {confirmations > 1 ? <Text role="alert">More than one route asks for confirmation. Choose only one.</Text> : null}
       <Stack gap="block" role="group" aria-label="Outputs">
         <Text voice="label">Outputs</Text>
         <form.AppField name={`actions[${index}].routes.steer`}>
@@ -138,6 +138,11 @@ export function RuleAnalysisFields({
             )}
           </form.AppField>
         )}
+        {confirming.length > 1 ? (
+          <Text tone="destructive" role="alert">
+            {confirming.join(" and ")} each ask for confirmation. Only one route may.
+          </Text>
+        ) : null}
       </Stack>
     </Stack>
   );

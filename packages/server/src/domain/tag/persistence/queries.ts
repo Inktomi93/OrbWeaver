@@ -296,7 +296,7 @@ async function countByTag(db: Db, table: SQLiteTable, tagCol: SQLiteColumn, ids:
     .from(table)
     .where(inArray(tagCol, [...ids]))
     .groupBy(tagCol);
-  return Object.fromEntries(rows.map((r) => [r.tagId, r.n]));
+  return Object.fromEntries(rows.map((r): [string, number] => [String(r.tagId), r.n]));
 }
 
 /** Count adopted character attachments; suggestions have their own review lifecycle. */

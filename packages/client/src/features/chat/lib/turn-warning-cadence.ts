@@ -34,6 +34,7 @@ function cadenceOf(code: ChatWarningCode): Cadence {
     case "context_trimmed_no_summary":
     case "provider_refused":
     case "reply_image_failed":
+    case "hidden_tag_broken":
       return "each";
     default:
       return assertNeverCode(code);

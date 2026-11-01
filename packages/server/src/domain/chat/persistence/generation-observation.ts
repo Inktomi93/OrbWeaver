@@ -116,7 +116,7 @@ export async function commitGenerationObservationRemoval(
   scope: GenerationObservationRemovalScope,
   groups: readonly GenerationObservationGroup[],
   statements: readonly BatchStmt[],
-): Promise<Awaited<ReturnType<GenerationObservationContext["db"]["batch"]>>> {
+): Promise<readonly unknown[]> {
   try {
     return await ctx.db.batch(batchMany(statements));
   } catch (error) {

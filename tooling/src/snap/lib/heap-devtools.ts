@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { readFile, rm } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { errorMessage } from "@orb/kit/error-message";
+import { readMember } from "../../floor/instrument/member.ts";
 import type {
   HeapClassSummary,
   HeapDominatorNode,
@@ -93,11 +94,11 @@ function optionalBoolean(value: unknown): boolean {
 }
 
 function errorCode(error: unknown): unknown {
-  return typeof error === "object" && error !== null ? Reflect.get(error, "code") : null;
+  return typeof error === "object" && error !== null ? readMember(error, "code") : null;
 }
 
 function managerCall(manager: object, method: string, args: readonly unknown[] = []): Promise<unknown> {
-  const candidate: unknown = Reflect.get(manager, method);
+  const candidate: unknown = readMember(manager, method);
   if (typeof candidate !== "function") {
     throw new Error(`HEAP PARSER COMPATIBILITY ERROR: HeapSnapshotManager omitted ${method}()`);
   }
@@ -105,7 +106,7 @@ function managerCall(manager: object, method: string, args: readonly unknown[] =
 }
 
 function disposeManager(manager: object): void {
-  const candidate: unknown = Reflect.get(manager, "dispose");
+  const candidate: unknown = readMember(manager, "dispose");
   if (typeof candidate !== "function") {
     throw new Error("HEAP PARSER COMPATIBILITY ERROR: HeapSnapshotManager omitted dispose()");
   }

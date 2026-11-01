@@ -201,13 +201,14 @@ async function writeOwnedHandState(ctx: RpgContext, game: RpgGameRow, derive: (h
     // Refused BEFORE any durable write — a rejected edit leaves no row behind.
     return { ok: false, reason: parsed.error.message };
   }
-  const nextLocks: RpgFieldLocks = { ...(head.locks ?? {}) };
+  const lockedPaths = new Map(Object.entries(head.locks ?? {}));
   for (const path of locks.lock ?? []) {
-    nextLocks[path] = true;
+    lockedPaths.set(path, true);
   }
   for (const path of locks.clear ?? []) {
-    delete nextLocks[path];
+    lockedPaths.delete(path);
   }
+  const nextLocks: RpgFieldLocks = Object.fromEntries(lockedPaths);
   if (head.inPlace !== null) {
     // In-place on the live UNcommitted variant (this turn's draft head — swipe-consistent).
     await updateSnapshotState(ctx.db, head.inPlace.variantId, { ...toColumns(nextState), fieldLocks: nextLocks });

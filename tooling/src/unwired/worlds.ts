@@ -38,9 +38,9 @@ const SOURCE_BRIDGE: Readonly<Record<string, string>> = { "@orb/server": "packag
 /** A world's `paths` with {@link SOURCE_BRIDGE} added, every target absolute. A `paths` target is relative to the config. */
 function bridgedPaths(root: string, config: string, parsed: ts.ParsedCommandLine): Record<string, string[]> {
   const base = dirname(join(root, config));
-  const own = Object.entries(parsed.options.paths ?? {}).map(([name, targets]) => [name, targets.map((target) => resolve(base, target))] as const);
-  const bridge = Object.entries(SOURCE_BRIDGE).map(([name, target]) => [name, [join(root, target)]] as const);
-  return Object.fromEntries([...own, ...bridge]);
+  const own = Object.entries(parsed.options.paths ?? {}).map(([name, targets]): [string, string[]] => [name, targets.map((target) => resolve(base, target))]);
+  const bridge = Object.entries(SOURCE_BRIDGE).map(([name, target]): [string, string[]] => [name, [join(root, target)]]);
+  return Object.fromEntries<string[]>([...own, ...bridge]);
 }
 
 /** One world's program as the reference scans load it: {@link loadWorld} with the source bridge. */

@@ -1,5 +1,6 @@
 import type { RuleVisitor } from "@eslint/core";
-import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
+import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import { AMBIENT_GLOBAL_RECEIVERS } from "./native.ts";
 import { isValueWrapper } from "./static-values.ts";
 import type { ChildNode, OrbRule, OrbRuleContext, Source } from "./syntax.ts";
@@ -43,11 +44,11 @@ function valueCarrier(node: ChildNode): ChildNode {
     const { parent } = carrier;
     const wraps =
       (isValueWrapper(parent) && parent.expression === carrier) ||
-      (parent.type === "ChainExpression" && parent.expression === carrier) ||
-      (parent.type === "AwaitExpression" && parent.argument === carrier) ||
-      (parent.type === "SequenceExpression" && parent.expressions.at(-1) === carrier) ||
-      (parent.type === "ConditionalExpression" && parent.test !== carrier) ||
-      parent.type === "LogicalExpression";
+      (parent.type === AST_NODE_TYPES.ChainExpression && parent.expression === carrier) ||
+      (parent.type === AST_NODE_TYPES.AwaitExpression && parent.argument === carrier) ||
+      (parent.type === AST_NODE_TYPES.SequenceExpression && parent.expressions.at(-1) === carrier) ||
+      (parent.type === AST_NODE_TYPES.ConditionalExpression && parent.test !== carrier) ||
+      parent.type === AST_NODE_TYPES.LogicalExpression;
     if (!wraps) {
       return carrier;
     }
@@ -56,20 +57,22 @@ function valueCarrier(node: ChildNode): ChildNode {
 }
 
 function staticSource(source: TSESTree.Node): string | null | undefined {
-  if (source.type === "Literal" && typeof source.value === "string") {
+  if (source.type === AST_NODE_TYPES.Literal && typeof source.value === "string") {
     return source.value;
   }
-  return source.type === "TemplateLiteral" && source.expressions.length === 0 ? (source.quasis[0] as TSESTree.TemplateElement).value.cooked : undefined;
+  return source.type === AST_NODE_TYPES.TemplateLiteral && source.expressions.length === 0
+    ? (source.quasis[0] as TSESTree.TemplateElement).value.cooked
+    : undefined;
 }
 
 function writtenKeyName(key: TSESTree.Node, computed: boolean): string | null | undefined {
-  if (key.type === "Literal") {
+  if (key.type === AST_NODE_TYPES.Literal) {
     return String(key.value);
   }
   if (!computed) {
-    return key.type === "Identifier" ? key.name : undefined;
+    return key.type === AST_NODE_TYPES.Identifier ? key.name : undefined;
   }
-  return key.type === "TemplateLiteral" && key.expressions.length === 0 ? (key.quasis[0] as TSESTree.TemplateElement).value.cooked : undefined;
+  return key.type === AST_NODE_TYPES.TemplateLiteral && key.expressions.length === 0 ? (key.quasis[0] as TSESTree.TemplateElement).value.cooked : undefined;
 }
 
 function memberKeyName(sourceCode: Source, member: TSESTree.MemberExpression): string | null | undefined {
@@ -78,28 +81,32 @@ function memberKeyName(sourceCode: Source, member: TSESTree.MemberExpression): s
 }
 
 function constKeyName(sourceCode: Source, key: TSESTree.Node, seen: Set<TSESTree.Identifier>): string | null | undefined {
-  if (key.type !== "Identifier" || seen.has(key)) {
+  if (key.type !== AST_NODE_TYPES.Identifier || seen.has(key)) {
     return;
   }
   const variable = referencedVariable(sourceCode, key);
   const [definition] = variable?.defs ?? [];
   // A pattern default (`const { K = "x" } = v`) takes the source's value first, so only `const K = …` names K.
-  const direct = variable?.defs.length === 1 && definition?.type === "Variable" && definition.parent.kind === "const" && definition.node.id === definition.name;
+  const direct =
+    variable?.defs.length === 1 &&
+    definition?.type === TSESLint.Scope.DefinitionType.Variable &&
+    definition.parent.kind === "const" &&
+    definition.node.id === definition.name;
   const value = direct && definition.node.init !== null ? unwrapValue(definition.node.init) : undefined;
   if (value === undefined) {
     return;
   }
-  if (value.type === "Literal") {
+  if (value.type === AST_NODE_TYPES.Literal) {
     return typeof value.value === "string" ? value.value : undefined;
   }
-  return value.type === "Identifier" ? constKeyName(sourceCode, value, new Set(seen).add(key)) : writtenKeyName(value, true);
+  return value.type === AST_NODE_TYPES.Identifier ? constKeyName(sourceCode, value, new Set(seen).add(key)) : writtenKeyName(value, true);
 }
 
 function patternTakes(pattern: TSESTree.Node, name: string): boolean {
   return (
-    pattern.type === "ObjectPattern" &&
+    pattern.type === AST_NODE_TYPES.ObjectPattern &&
     pattern.properties.some((property) => {
-      if (property.type === "RestElement") {
+      if (property.type === AST_NODE_TYPES.RestElement) {
         return true;
       }
       const key = writtenKeyName(property.key, property.computed);
@@ -109,15 +116,15 @@ function patternTakes(pattern: TSESTree.Node, name: string): boolean {
 }
 
 function isTypeofOperand(node: TSESTree.Node): boolean {
-  return node.parent?.type === "UnaryExpression" && node.parent.operator === "typeof";
+  return node.parent?.type === AST_NODE_TYPES.UnaryExpression && node.parent.operator === "typeof";
 }
 
 function inTypeQuery(node: TSESTree.Node): boolean {
   let parent = node.parent;
-  while (parent?.type === "TSQualifiedName") {
+  while (parent?.type === AST_NODE_TYPES.TSQualifiedName) {
     parent = parent.parent;
   }
-  return parent?.type === "TSTypeQuery";
+  return parent?.type === AST_NODE_TYPES.TSTypeQuery;
 }
 
 function declaredOnly(variable: TSESLint.Scope.Variable): boolean {
@@ -210,7 +217,7 @@ const OPAQUE_VALUES = new Set([
 
 function unwrapValue(node: TSESTree.Node): TSESTree.Node {
   let value = node;
-  while (isValueWrapper(value) || value.type === "ChainExpression") {
+  while (isValueWrapper(value) || value.type === AST_NODE_TYPES.ChainExpression) {
     value = value.expression;
   }
   return value;
@@ -218,8 +225,8 @@ function unwrapValue(node: TSESTree.Node): TSESTree.Node {
 
 function patternNames(pattern: TSESTree.Node, name: string): boolean {
   return (
-    pattern.type === "ObjectPattern" &&
-    pattern.properties.some((property) => property.type === "Property" && writtenKeyName(property.key, property.computed) === name)
+    pattern.type === AST_NODE_TYPES.ObjectPattern &&
+    pattern.properties.some((property) => property.type === AST_NODE_TYPES.Property && writtenKeyName(property.key, property.computed) === name)
   );
 }
 
@@ -235,36 +242,40 @@ function unknowablyReassigned(variable: TSESLint.Scope.Variable | null): boolean
   return writes.some(({ identifier, writeExpr }) => {
     const { parent } = identifier;
     const direct =
-      (parent.type === "VariableDeclarator" && parent.id === identifier) ||
-      (parent.type === "AssignmentExpression" && parent.left === identifier && ALIAS_ASSIGNMENTS.has(parent.operator));
+      (parent.type === AST_NODE_TYPES.VariableDeclarator && parent.id === identifier) ||
+      (parent.type === AST_NODE_TYPES.AssignmentExpression && parent.left === identifier && ALIAS_ASSIGNMENTS.has(parent.operator));
     return !direct || writeExpr === undefined || writeExpr === null || !FRESH_VALUES.has(unwrapValue(writeExpr).type);
   });
 }
 
 function unknowableValue(sourceCode: Source, expression: TSESTree.Node): boolean {
   const value = unwrapValue(expression);
-  if (value.type === "Identifier") {
+  if (value.type === AST_NODE_TYPES.Identifier) {
     const variable = referencedVariable(sourceCode, value);
     // The process and the global roots are followed precisely by the door judges.
     const ambient = isGlobalBinding(variable) && value.name !== PROCESS_GLOBAL && !AMBIENT_ROOTS.has(value.name);
     return ambient || unknowablyReassigned(variable);
   }
-  if (value.type === "MemberExpression") {
+  if (value.type === AST_NODE_TYPES.MemberExpression) {
     // An element index picks one of many values; only a named property is a static path.
     const { property } = value;
     const named =
-      (property.type === "Literal" && typeof property.value === "string") || (property.type === "TemplateLiteral" && property.expressions.length === 0);
+      (property.type === AST_NODE_TYPES.Literal && typeof property.value === "string") ||
+      (property.type === AST_NODE_TYPES.TemplateLiteral && property.expressions.length === 0);
     return (value.computed && !named) || unknowableValue(sourceCode, value.object);
   }
-  const namedModule = value.type === "AwaitExpression" && value.argument.type === "ImportExpression" && staticSource(value.argument.source) !== undefined;
+  const namedModule =
+    value.type === AST_NODE_TYPES.AwaitExpression &&
+    value.argument.type === AST_NODE_TYPES.ImportExpression &&
+    staticSource(value.argument.source) !== undefined;
   return OPAQUE_VALUES.has(value.type) && !namedModule;
 }
 
 function isReflectGet(sourceCode: Source, node: TSESTree.Node, target: TSESTree.Node): boolean {
-  const callee = node.type === "CallExpression" && node.arguments[0] === target ? node.callee : undefined;
+  const callee = node.type === AST_NODE_TYPES.CallExpression && node.arguments[0] === target ? node.callee : undefined;
   return (
-    callee?.type === "MemberExpression" &&
-    callee.object.type === "Identifier" &&
+    callee?.type === AST_NODE_TYPES.MemberExpression &&
+    callee.object.type === AST_NODE_TYPES.Identifier &&
     callee.object.name === REFLECT_GLOBAL &&
     isGlobalBinding(referencedVariable(sourceCode, callee.object)) &&
     memberKeyName(sourceCode, callee) === REFLECT_GET
@@ -293,27 +304,27 @@ function consumesValue(carrier: ChildNode): boolean {
   const { parent } = carrier;
   return (
     CONSUMING_PARENTS.has(parent.type) ||
-    (parent.type === "ConditionalExpression" && parent.test === carrier) ||
-    (parent.type === "SequenceExpression" && parent.expressions.at(-1) !== carrier) ||
-    (parent.type === "TemplateLiteral" && parent.parent.type !== "TaggedTemplateExpression")
+    (parent.type === AST_NODE_TYPES.ConditionalExpression && parent.test === carrier) ||
+    (parent.type === AST_NODE_TYPES.SequenceExpression && parent.expressions.at(-1) !== carrier) ||
+    (parent.type === AST_NODE_TYPES.TemplateLiteral && parent.parent.type !== AST_NODE_TYPES.TaggedTemplateExpression)
   );
 }
 
 function flowOf(sourceCode: Source, carrier: ChildNode): DoorFlow {
   const { parent } = carrier;
-  if (parent.type === "MemberExpression") {
+  if (parent.type === AST_NODE_TYPES.MemberExpression) {
     return parent.object === carrier ? { member: parent, name: memberKeyName(sourceCode, parent) } : {};
   }
   if (isReflectGet(sourceCode, parent, carrier)) {
     return { member: parent as TSESTree.CallExpression, name: reflectKeyName(sourceCode, parent as TSESTree.CallExpression) };
   }
-  if (parent.type === "AssignmentExpression") {
+  if (parent.type === AST_NODE_TYPES.AssignmentExpression) {
     return parent.left === carrier ? {} : assignmentFlow(sourceCode, parent);
   }
-  if (parent.type === "VariableDeclarator") {
+  if (parent.type === AST_NODE_TYPES.VariableDeclarator) {
     return declaratorFlow(sourceCode, parent);
   }
-  if (parent.type === "AssignmentPattern" && parent.right === carrier) {
+  if (parent.type === AST_NODE_TYPES.AssignmentPattern && parent.right === carrier) {
     return targetFlow(sourceCode, parent, parent.left, boundReads);
   }
   return inTypeQuery(carrier) || consumesValue(carrier) ? {} : { escape: parent };
@@ -332,17 +343,17 @@ function targetFlow(
   if (DESTRUCTURES.has(target.type)) {
     return { pattern: target };
   }
-  return target.type === "Identifier" ? { aliases: readsOf(sourceCode, target) } : { escape: parent };
+  return target.type === AST_NODE_TYPES.Identifier ? { aliases: readsOf(sourceCode, target) } : { escape: parent };
 }
 
 function declaratorFlow(sourceCode: Source, declarator: TSESTree.VariableDeclarator): DoorFlow {
   if (DESTRUCTURES.has(declarator.id.type)) {
     return { pattern: declarator.id };
   }
-  if (declarator.parent.parent.type === "ExportNamedDeclaration") {
+  if (declarator.parent.parent.type === AST_NODE_TYPES.ExportNamedDeclaration) {
     return { escape: declarator };
   }
-  return { aliases: declarator.id.type === "Identifier" ? aliasReads(sourceCode, declarator) : [] };
+  return { aliases: declarator.id.type === AST_NODE_TYPES.Identifier ? aliasReads(sourceCode, declarator) : [] };
 }
 
 function judgeDoorUses(sourceCode: Source, start: ChildNode, judge: DoorJudge): void {
@@ -415,7 +426,7 @@ export const browserNoNodeGlobalsRule = (browserNodeGlobals: ReadonlySet<string 
 });
 
 function moduleExportName(node: TSESTree.Identifier | TSESTree.StringLiteral): string {
-  return node.type === "Identifier" ? node.name : node.value;
+  return node.type === AST_NODE_TYPES.Identifier ? node.name : node.value;
 }
 
 function httpClientDoors(source: string): Set<string> | undefined {
@@ -423,11 +434,11 @@ function httpClientDoors(source: string): Set<string> | undefined {
 }
 
 function namesFetch(specifier: TSESTree.ImportClause): boolean {
-  return specifier.local.name === RAW_FETCH || (specifier.type === "ImportSpecifier" && moduleExportName(specifier.imported) === RAW_FETCH);
+  return specifier.local.name === RAW_FETCH || (specifier.type === AST_NODE_TYPES.ImportSpecifier && moduleExportName(specifier.imported) === RAW_FETCH);
 }
 
 function egressImportDoors(node: TSESTree.ImportDeclaration): TSESTree.ImportClause[] | TSESTree.ImportDeclaration[] {
-  const values = node.specifiers.filter((specifier) => specifier.type !== "ImportSpecifier" || specifier.importKind !== "type");
+  const values = node.specifiers.filter((specifier) => specifier.type !== AST_NODE_TYPES.ImportSpecifier || specifier.importKind !== "type");
   if (RAW_EGRESS_PACKAGES.test(node.source.value)) {
     return node.specifiers.length === 0 || values.length > 0 ? [node] : [];
   }
@@ -439,12 +450,13 @@ function processImportBindings(node: TSESTree.ImportDeclaration): {
   process: TSESTree.ImportClause[];
   namespace: TSESTree.ImportNamespaceSpecifier[];
 } {
-  const values = node.specifiers.filter((specifier) => specifier.type !== "ImportSpecifier" || specifier.importKind !== "type");
-  const exportOf = (specifier: TSESTree.ImportClause): string => (specifier.type === "ImportSpecifier" ? moduleExportName(specifier.imported) : MODULE_DEFAULT);
+  const values = node.specifiers.filter((specifier) => specifier.type !== AST_NODE_TYPES.ImportSpecifier || specifier.importKind !== "type");
+  const exportOf = (specifier: TSESTree.ImportClause): string =>
+    specifier.type === AST_NODE_TYPES.ImportSpecifier ? moduleExportName(specifier.imported) : MODULE_DEFAULT;
   return {
     env: values.filter((specifier) => exportOf(specifier) === ENV_MEMBER),
-    process: values.filter((specifier) => specifier.type !== "ImportNamespaceSpecifier" && exportOf(specifier) === MODULE_DEFAULT),
-    namespace: values.filter((specifier) => specifier.type === "ImportNamespaceSpecifier"),
+    process: values.filter((specifier) => specifier.type !== AST_NODE_TYPES.ImportNamespaceSpecifier && exportOf(specifier) === MODULE_DEFAULT),
+    namespace: values.filter((specifier) => specifier.type === AST_NODE_TYPES.ImportNamespaceSpecifier),
   };
 }
 
@@ -452,7 +464,7 @@ function reExportsDoor(node: TSESTree.ExportNamedDeclaration | TSESTree.ExportAl
   if (node.exportKind === "type") {
     return false;
   }
-  if (node.type === "ExportAllDeclaration") {
+  if (node.type === AST_NODE_TYPES.ExportAllDeclaration) {
     return true;
   }
   return node.specifiers.some(
@@ -490,7 +502,7 @@ export const rawEgressRule: OrbRule = {
         node: (TSESTree.ExportNamedDeclaration | TSESTree.ExportAllDeclaration) & { source: TSESTree.StringLiteral },
       ): void {
         const forwardsPackage = RAW_EGRESS_PACKAGES.test(node.source.value);
-        const forwardsFetch = node.type === "ExportNamedDeclaration" && node.specifiers.some(({ local }) => moduleExportName(local) === RAW_FETCH);
+        const forwardsFetch = node.type === AST_NODE_TYPES.ExportNamedDeclaration && node.specifiers.some(({ local }) => moduleExportName(local) === RAW_FETCH);
         if (node.exportKind !== "type" && (forwardsPackage || forwardsFetch)) {
           report(node);
         }
@@ -532,10 +544,10 @@ export const rawHttpClientRule: OrbRule = {
     return {
       "ImportDeclaration[importKind!='type']"(node: TSESTree.ImportDeclaration): void {
         const doors = httpClientDoors(node.source.value);
-        const values = node.specifiers.filter((specifier) => specifier.type !== "ImportSpecifier" || specifier.importKind !== "type");
+        const values = node.specifiers.filter((specifier) => specifier.type !== AST_NODE_TYPES.ImportSpecifier || specifier.importKind !== "type");
         for (const door of doors === undefined
           ? []
-          : values.filter((specifier) => specifier.type !== "ImportSpecifier" || doors.has(moduleExportName(specifier.imported)))) {
+          : values.filter((specifier) => specifier.type !== AST_NODE_TYPES.ImportSpecifier || doors.has(moduleExportName(specifier.imported)))) {
           report(door);
         }
       },
@@ -560,26 +572,26 @@ function destructureParts(
   target: TSESTree.Node,
   parts: { envKeys: TSESTree.Property[]; bound: TSESTree.Identifier[] } = { envKeys: [], bound: [] },
 ): { envKeys: TSESTree.Property[]; bound: TSESTree.Identifier[] } {
-  if (target.type === "Identifier") {
+  if (target.type === AST_NODE_TYPES.Identifier) {
     parts.bound.push(target);
-  } else if (target.type === "Property" && writtenKeyName(target.key, target.computed) === ENV_MEMBER) {
+  } else if (target.type === AST_NODE_TYPES.Property && writtenKeyName(target.key, target.computed) === ENV_MEMBER) {
     parts.envKeys.push(target);
   } else {
     let children: TSESTree.Node[];
     switch (target.type) {
-      case "AssignmentPattern":
+      case AST_NODE_TYPES.AssignmentPattern:
         children = [target.left];
         break;
-      case "RestElement":
+      case AST_NODE_TYPES.RestElement:
         children = [target.argument];
         break;
-      case "ArrayPattern":
+      case AST_NODE_TYPES.ArrayPattern:
         children = target.elements.filter((element) => element !== null);
         break;
-      case "ObjectPattern":
+      case AST_NODE_TYPES.ObjectPattern:
         children = target.properties;
         break;
-      case "Property":
+      case AST_NODE_TYPES.Property:
         children = [target.value];
         break;
       default:
@@ -679,7 +691,7 @@ export const soleEnvReaderRule: OrbRule = {
     return {
       "ImportDeclaration[importKind!='type']"(node: TSESTree.ImportDeclaration): void {
         if (!PROCESS_MODULE.test(node.source.value)) {
-          const values = node.specifiers.filter((specifier) => specifier.type !== "ImportSpecifier" || specifier.importKind !== "type");
+          const values = node.specifiers.filter((specifier) => specifier.type !== AST_NODE_TYPES.ImportSpecifier || specifier.importKind !== "type");
           for (const read of values.flatMap((specifier) => aliasReads(sourceCode, specifier))) {
             judgeDoorUses(sourceCode, read, fromImported);
           }
@@ -714,7 +726,7 @@ export const soleEnvReaderRule: OrbRule = {
       "VariableDeclarator[id.type='ObjectPattern'][init], AssignmentExpression[left.type='ObjectPattern']"(
         node: (TSESTree.VariableDeclarator & { init: TSESTree.Expression }) | TSESTree.AssignmentExpression,
       ): void {
-        const [pattern, source] = node.type === "VariableDeclarator" ? [node.id, node.init] : [node.left, node.right];
+        const [pattern, source] = node.type === AST_NODE_TYPES.VariableDeclarator ? [node.id, node.init] : [node.left, node.right];
         if (patternNames(pattern, ENV_MEMBER) && unknowableValue(sourceCode, source)) {
           report(pattern);
         }
@@ -747,7 +759,7 @@ export const sessionChannelBoundaryRule: OrbRule = {
       MemberExpression: (node: TSESTree.MemberExpression) => {
         const receiver = unwrapValue(node.object);
         if (
-          receiver.type === "Identifier" &&
+          receiver.type === AST_NODE_TYPES.Identifier &&
           AMBIENT_GLOBAL_RECEIVERS.has(receiver.name) &&
           isGlobalBinding(referencedVariable(sourceCode, receiver)) &&
           SESSION_CHANNEL_CONSTRUCTORS.has(memberKeyName(sourceCode, node) as string)

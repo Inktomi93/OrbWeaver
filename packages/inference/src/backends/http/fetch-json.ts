@@ -37,6 +37,12 @@ const REDIRECT_MIN = 300;
 const REDIRECT_MAX = 399;
 const JSON_CONTENT_TYPE = "application/json";
 
+/** `Response.body` types its chunks `any`; taking the stream as a `ReadableStream<Uint8Array>` parameter keeps
+ *  the byte type on every `read()` of the reader. */
+export function bodyByteReader(body: ReadableStream<Uint8Array>): ReadableStreamDefaultReader<Uint8Array> {
+  return body.getReader();
+}
+
 /** Read at most `limit` UTF-16 code units of the body, cancelling the stream past it. `limit` is the
  *  caller's display bound PLUS the #1820 scrub over-read — it is counted in code units because that is the
  *  unit `String.includes` matches in, so a byte-counted read against a code-unit slice would reopen the
@@ -45,7 +51,7 @@ async function readCapped(res: Response, limit: number): Promise<string> {
   if (res.body === null) {
     return "";
   }
-  const reader = res.body.getReader();
+  const reader = bodyByteReader(res.body);
   const decoder = new TextDecoder();
   let out = "";
   try {

@@ -2,6 +2,7 @@
 // owns data normalization; this file owns package provenance and the worker problem-report sink only.
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { readMember } from "../../floor/instrument/member.ts";
 import { withProcessEnv } from "../../floor/process/process-env.ts";
 import { HEAP_PARSER_PACKAGE, HEAP_PARSER_VERSION } from "../contract/heap.ts";
 
@@ -81,7 +82,7 @@ export async function loadHeapParserManager(): Promise<object> {
     throw new Error("HEAP PARSER COMPATIBILITY ERROR: HeapSnapshotManager constructor returned no object");
   }
   for (const method of REQUIRED_METHODS) {
-    if (typeof Reflect.get(manager, method) !== "function") {
+    if (typeof readMember(manager, method) !== "function") {
       throw new Error(`HEAP PARSER COMPATIBILITY ERROR: HeapSnapshotManager omitted ${method}()`);
     }
   }

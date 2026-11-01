@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import { accessedName, isStyleMember, staticTextValue, unwrapTsValue } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 
@@ -29,7 +30,11 @@ const FRAME_LOOP_MESSAGE =
 function enclosingFunction(node: TSESTree.Node): FunctionLike | undefined {
   // `Program.parent` is null at runtime, so the walk ends on a falsy parent.
   for (let current: TSESTree.Node | null | undefined = node.parent; current; current = current.parent) {
-    if (current.type === "ArrowFunctionExpression" || current.type === "FunctionDeclaration" || current.type === "FunctionExpression") {
+    if (
+      current.type === AST_NODE_TYPES.ArrowFunctionExpression ||
+      current.type === AST_NODE_TYPES.FunctionDeclaration ||
+      current.type === AST_NODE_TYPES.FunctionExpression
+    ) {
       return current;
     }
   }
@@ -37,23 +42,23 @@ function enclosingFunction(node: TSESTree.Node): FunctionLike | undefined {
 }
 
 function functionName(fn: FunctionLike): string | undefined {
-  if (fn.type !== "ArrowFunctionExpression" && fn.id !== null) {
+  if (fn.type !== AST_NODE_TYPES.ArrowFunctionExpression && fn.id !== null) {
     return fn.id.name;
   }
   const { parent } = fn;
-  return parent.type === "VariableDeclarator" && parent.id.type === "Identifier" ? parent.id.name : undefined;
+  return parent.type === AST_NODE_TYPES.VariableDeclarator && parent.id.type === AST_NODE_TYPES.Identifier ? parent.id.name : undefined;
 }
 
 function plainMemberName(member: TSESTree.MemberExpression): string | undefined {
-  return !member.computed && member.property.type === "Identifier" ? member.property.name : undefined;
+  return !member.computed && member.property.type === AST_NODE_TYPES.Identifier ? member.property.name : undefined;
 }
 
 function calleeName(context: OrbRuleContext, callee: TSESTree.Node): string | undefined {
   const target = unwrapTsValue(callee);
-  if (target.type === "Identifier") {
+  if (target.type === AST_NODE_TYPES.Identifier) {
     return target.name;
   }
-  return target.type === "MemberExpression" ? accessedName(context, target) : undefined;
+  return target.type === AST_NODE_TYPES.MemberExpression ? accessedName(context, target) : undefined;
 }
 
 interface StyleWrite {
@@ -61,7 +66,7 @@ interface StyleWrite {
 }
 
 function assignedStyle(context: OrbRuleContext, node: TSESTree.AssignmentExpression): StyleWrite | undefined {
-  if (node.left.type !== "MemberExpression" || !isStyleMember(context, node.left.object)) {
+  if (node.left.type !== AST_NODE_TYPES.MemberExpression || !isStyleMember(context, node.left.object)) {
     return undefined;
   }
   const property = accessedName(context, node.left);
@@ -69,7 +74,7 @@ function assignedStyle(context: OrbRuleContext, node: TSESTree.AssignmentExpress
 }
 
 function calledStyle(context: OrbRuleContext, node: TSESTree.CallExpression): StyleWrite | undefined {
-  if (node.callee.type !== "MemberExpression") {
+  if (node.callee.type !== AST_NODE_TYPES.MemberExpression) {
     return undefined;
   }
   const method = accessedName(context, node.callee);
@@ -86,12 +91,12 @@ function calledStyle(context: OrbRuleContext, node: TSESTree.CallExpression): St
 }
 
 function isForcedLayoutRead(context: OrbRuleContext, node: TSESTree.Node): boolean {
-  if (node.type === "CallExpression") {
+  if (node.type === AST_NODE_TYPES.CallExpression) {
     const name = calleeName(context, node.callee);
     return name !== undefined && FORCED_LAYOUT_CALLS.has(name);
   }
-  if (node.type === "MemberExpression") {
-    const written = node.parent.type === "AssignmentExpression" && node.parent.left === node;
+  if (node.type === AST_NODE_TYPES.MemberExpression) {
+    const written = node.parent.type === AST_NODE_TYPES.AssignmentExpression && node.parent.left === node;
     const name = accessedName(context, node);
     return !written && name !== undefined && FORCED_LAYOUT_READS.has(name);
   }
@@ -151,12 +156,12 @@ export const unruledFlipInversionRule: OrbRule = {
     };
     const noteFrameRequest = (call: TSESTree.CallExpression): void => {
       const callback = call.arguments[0] === undefined ? undefined : unwrapTsValue(call.arguments[0]);
-      if (callback?.type === "Identifier") {
+      if (callback?.type === AST_NODE_TYPES.Identifier) {
         frameCallbackNames.add(callback.name);
         if (reschedulesItself(call, callback.name)) {
           context.report({ node: call, message: FRAME_LOOP_MESSAGE });
         }
-      } else if (callback?.type === "ArrowFunctionExpression" || callback?.type === "FunctionExpression") {
+      } else if (callback?.type === AST_NODE_TYPES.ArrowFunctionExpression || callback?.type === AST_NODE_TYPES.FunctionExpression) {
         frameCallbacks.add(callback);
       }
     };
@@ -204,7 +209,7 @@ export const noRenderLayoutReadRule: OrbRule = {
       let fn = enclosingFunction(node);
       while (
         fn !== undefined &&
-        fn.parent.type === "CallExpression" &&
+        fn.parent.type === AST_NODE_TYPES.CallExpression &&
         ((fn.parent.arguments[0] === fn && ["useMemo", "useState", "useReducer"].includes(calleeName(context, fn.parent.callee) ?? "")) ||
           (fn.parent.arguments[2] === fn && calleeName(context, fn.parent.callee) === "useReducer"))
       ) {
@@ -231,30 +236,30 @@ const STAMPED_ATTRIBUTE_MESSAGE =
 
 function jsxRoot(name: TSESTree.JSXTagNameExpression): string | undefined {
   let current = name;
-  while (current.type === "JSXMemberExpression") {
+  while (current.type === AST_NODE_TYPES.JSXMemberExpression) {
     current = current.object;
   }
-  return current.type === "JSXIdentifier" ? current.name : undefined;
+  return current.type === AST_NODE_TYPES.JSXIdentifier ? current.name : undefined;
 }
 
 function hookName(callee: TSESTree.Expression): string | undefined {
-  if (callee.type === "Identifier") {
+  if (callee.type === AST_NODE_TYPES.Identifier) {
     return callee.name;
   }
-  return callee.type === "MemberExpression" ? plainMemberName(callee) : undefined;
+  return callee.type === AST_NODE_TYPES.MemberExpression ? plainMemberName(callee) : undefined;
 }
 
 /** The `className` attribute an identifier sits inside, as long as it is a read of a name rather than a key. */
 function classNameOwner(identifier: TSESTree.Identifier): TSESTree.JSXOpeningElement | undefined {
   const { parent } = identifier;
   if (
-    (parent.type === "Property" && parent.key === identifier && !parent.computed) ||
-    (parent.type === "MemberExpression" && plainMemberName(parent) === identifier.name)
+    (parent.type === AST_NODE_TYPES.Property && parent.key === identifier && !parent.computed) ||
+    (parent.type === AST_NODE_TYPES.MemberExpression && plainMemberName(parent) === identifier.name)
   ) {
     return undefined;
   }
   for (let current: TSESTree.Node | null | undefined = parent; current; current = current.parent) {
-    if (current.type === "JSXAttribute") {
+    if (current.type === AST_NODE_TYPES.JSXAttribute) {
       return current.parent;
     }
   }
@@ -262,15 +267,15 @@ function classNameOwner(identifier: TSESTree.Identifier): TSESTree.JSXOpeningEle
 }
 
 function lifecycleStateName(node: TSESTree.VariableDeclarator): string | undefined {
-  const [value] = node.id.type === "ArrayPattern" ? node.id.elements : [];
-  const hook = node.init?.type === "CallExpression" ? hookName(node.init.callee) : undefined;
-  return value?.type === "Identifier" && hook !== undefined && STATE_HOOKS.has(hook) && LIFECYCLE_STATE.test(value.name) ? value.name : undefined;
+  const [value] = node.id.type === AST_NODE_TYPES.ArrayPattern ? node.id.elements : [];
+  const hook = node.init?.type === AST_NODE_TYPES.CallExpression ? hookName(node.init.callee) : undefined;
+  return value?.type === AST_NODE_TYPES.Identifier && hook !== undefined && STATE_HOOKS.has(hook) && LIFECYCLE_STATE.test(value.name) ? value.name : undefined;
 }
 
 function handedLifecycleAttributes(opening: TSESTree.JSXOpeningElement): TSESTree.JSXAttribute[] {
   return opening.attributes.filter(
     (attribute): attribute is TSESTree.JSXAttribute =>
-      attribute.type === "JSXAttribute" && attribute.name.type === "JSXIdentifier" && LIFECYCLE_ATTRIBUTES.has(attribute.name.name),
+      attribute.type === AST_NODE_TYPES.JSXAttribute && attribute.name.type === AST_NODE_TYPES.JSXIdentifier && LIFECYCLE_ATTRIBUTES.has(attribute.name.name),
   );
 }
 
@@ -343,7 +348,7 @@ export const baseUiStateDataAttributesRule = (ui: BaseUiDoors): OrbRule => ({
           return;
         }
         for (const specifier of node.specifiers) {
-          if (specifier.type !== "ImportSpecifier" || specifier.importKind !== "type") {
+          if (specifier.type !== AST_NODE_TYPES.ImportSpecifier || specifier.importKind !== "type") {
             partRoots.add(specifier.local.name);
           }
         }

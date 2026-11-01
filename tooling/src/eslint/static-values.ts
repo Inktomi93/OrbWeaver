@@ -1,10 +1,16 @@
-import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
+import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import type { OrbRuleContext, Source } from "./syntax.ts";
 
 export function isValueWrapper(
   node: TSESTree.Node | undefined,
 ): node is TSESTree.TSAsExpression | TSESTree.TSSatisfiesExpression | TSESTree.TSNonNullExpression | TSESTree.TSTypeAssertion {
-  return node?.type === "TSAsExpression" || node?.type === "TSSatisfiesExpression" || node?.type === "TSNonNullExpression" || node?.type === "TSTypeAssertion";
+  return (
+    node?.type === AST_NODE_TYPES.TSAsExpression ||
+    node?.type === AST_NODE_TYPES.TSSatisfiesExpression ||
+    node?.type === AST_NODE_TYPES.TSNonNullExpression ||
+    node?.type === AST_NODE_TYPES.TSTypeAssertion
+  );
 }
 
 export const unwrapTsValue = (node: TSESTree.Node): TSESTree.Node => {
@@ -27,9 +33,9 @@ export function constantInitializer(context: OrbRuleContext, identifier: TSESTre
   const definition = variable?.defs.at(0);
   const declared =
     variable?.defs.length === 1 &&
-    definition?.type === "Variable" &&
+    definition?.type === TSESLint.Scope.DefinitionType.Variable &&
     STABLE_DECLARATION_KINDS.has(definition.parent.kind) &&
-    definition.node.id.type === "Identifier";
+    definition.node.id.type === AST_NODE_TYPES.Identifier;
   const unwritten = declared && variable.references.every((reference) => !reference.isWrite() || reference.init === true);
   return unwritten && definition.node.init ? definition.node.init : undefined;
 }
@@ -46,18 +52,18 @@ export function staticTextValue(context: OrbRuleContext, node: TSESTree.Node, de
   const expression = unwrapTsValue(node);
   const next = (child: TSESTree.Node): string | number | undefined => staticTextValue(context, child, depth + 1);
   switch (expression.type) {
-    case "Literal":
+    case AST_NODE_TYPES.Literal:
       return typeof expression.value === "string" || typeof expression.value === "number" ? expression.value : undefined;
-    case "TemplateLiteral":
+    case AST_NODE_TYPES.TemplateLiteral:
       return staticTemplateValue(expression, next);
-    case "UnaryExpression": {
+    case AST_NODE_TYPES.UnaryExpression: {
       const operand = next(expression.argument);
       const sign = SIGNED.get(expression.operator);
       return typeof operand === "number" && sign !== undefined ? sign(operand) : undefined;
     }
-    case "BinaryExpression":
+    case AST_NODE_TYPES.BinaryExpression:
       return staticBinaryValue(expression, next);
-    case "Identifier": {
+    case AST_NODE_TYPES.Identifier: {
       const initializer = depth >= STATIC_CONST_DEPTH ? undefined : constantInitializer(context, expression);
       return initializer === undefined ? undefined : next(initializer);
     }
@@ -71,14 +77,14 @@ const spelledName = (value: TSESTree.Literal["value"] | undefined): string | und
 export function accessedName(context: OrbRuleContext, member: TSESTree.MemberExpression): string | undefined {
   const { property } = member;
   if (!member.computed) {
-    return property.type === "Identifier" ? property.name : undefined;
+    return property.type === AST_NODE_TYPES.Identifier ? property.name : undefined;
   }
   return spelledName(staticTextValue(context, property));
 }
 
 export function isStyleMember(context: OrbRuleContext, node: TSESTree.Node): boolean {
   const member = unwrapTsValue(node);
-  return member.type === "MemberExpression" && accessedName(context, member) === "style";
+  return member.type === AST_NODE_TYPES.MemberExpression && accessedName(context, member) === "style";
 }
 
 export function staticKeyName(context: OrbRuleContext, property: TSESTree.Property): string | undefined {
@@ -86,15 +92,15 @@ export function staticKeyName(context: OrbRuleContext, property: TSESTree.Proper
   if (property.computed) {
     return spelledName(staticTextValue(context, key));
   }
-  return key.type === "Identifier" ? key.name : spelledName((key as TSESTree.Literal).value);
+  return key.type === AST_NODE_TYPES.Identifier ? key.name : spelledName((key as TSESTree.Literal).value);
 }
 
 function destructuredValues(context: OrbRuleContext, node: TSESTree.Identifier, seen: Set<TSESTree.Node>): readonly TSESTree.Node[] {
   const variable = variableNamed(context.sourceCode.getScope(node), node.name);
   const definition = variable?.defs[0];
   if (
-    definition?.type !== "Variable" ||
-    definition.node.id.type !== "ObjectPattern" ||
+    definition?.type !== TSESLint.Scope.DefinitionType.Variable ||
+    definition.node.id.type !== AST_NODE_TYPES.ObjectPattern ||
     definition.node.init === null ||
     !STABLE_DECLARATION_KINDS.has(definition.parent.kind) ||
     variable?.references.some((reference) => reference.isWrite() && reference.init !== true) === true
@@ -102,20 +108,20 @@ function destructuredValues(context: OrbRuleContext, node: TSESTree.Identifier, 
     return [];
   }
   const binding = definition.node.id.properties.find((property) => {
-    if (property.type !== "Property") {
+    if (property.type !== AST_NODE_TYPES.Property) {
       return false;
     }
-    const target = property.value.type === "AssignmentPattern" ? property.value.left : property.value;
-    return target.type === "Identifier" && target.name === node.name;
+    const target = property.value.type === AST_NODE_TYPES.AssignmentPattern ? property.value.left : property.value;
+    return target.type === AST_NODE_TYPES.Identifier && target.name === node.name;
   });
-  const key = binding?.type === "Property" ? staticKeyName(context, binding) : undefined;
-  if (key === undefined || binding?.type !== "Property") {
+  const key = binding?.type === AST_NODE_TYPES.Property ? staticKeyName(context, binding) : undefined;
+  if (key === undefined || binding?.type !== AST_NODE_TYPES.Property) {
     return [];
   }
   const selected = objectProperties(context, definition.node.init, seen)
     .filter((property) => staticKeyName(context, property) === key)
     .flatMap((property) => valueBranches(context, property.value, seen));
-  if (binding.value.type !== "AssignmentPattern") {
+  if (binding.value.type !== AST_NODE_TYPES.AssignmentPattern) {
     return selected;
   }
   const fallback = binding.value.right;
@@ -123,7 +129,8 @@ function destructuredValues(context: OrbRuleContext, node: TSESTree.Identifier, 
     return valueBranches(context, fallback, seen);
   }
   return selected.flatMap((value) => {
-    const absent = (value.type === "Identifier" && value.name === "undefined") || (value.type === "UnaryExpression" && value.operator === "void");
+    const absent =
+      (value.type === AST_NODE_TYPES.Identifier && value.name === "undefined") || (value.type === AST_NODE_TYPES.UnaryExpression && value.operator === "void");
     return absent ? valueBranches(context, fallback, new Set(seen)) : [value];
   });
 }
@@ -136,7 +143,7 @@ function valueBranches(context: OrbRuleContext, node: TSESTree.Node, seen: Set<T
   seen.add(value);
   const next = (child: TSESTree.Node): readonly TSESTree.Node[] => valueBranches(context, child, seen);
   switch (value.type) {
-    case "Identifier": {
+    case AST_NODE_TYPES.Identifier: {
       const initializer = constantInitializer(context, value);
       if (initializer !== undefined) {
         return next(initializer);
@@ -144,13 +151,13 @@ function valueBranches(context: OrbRuleContext, node: TSESTree.Node, seen: Set<T
       const values = destructuredValues(context, value, seen);
       return values.length === 0 ? [value] : values;
     }
-    case "ChainExpression":
+    case AST_NODE_TYPES.ChainExpression:
       return next(value.expression);
-    case "ConditionalExpression":
+    case AST_NODE_TYPES.ConditionalExpression:
       return [...next(value.consequent), ...next(value.alternate)];
-    case "LogicalExpression":
+    case AST_NODE_TYPES.LogicalExpression:
       return [...next(value.left), ...next(value.right)];
-    case "MemberExpression": {
+    case AST_NODE_TYPES.MemberExpression: {
       const key = accessedName(context, value);
       return objectProperties(context, value.object, seen)
         .filter((property) => key === undefined || staticKeyName(context, property) === key)
@@ -163,9 +170,9 @@ function valueBranches(context: OrbRuleContext, node: TSESTree.Node, seen: Set<T
 
 function objectProperties(context: OrbRuleContext, node: TSESTree.Node, seen: Set<TSESTree.Node>): readonly TSESTree.Property[] {
   return valueBranches(context, node, seen).flatMap((value) =>
-    value.type === "ObjectExpression"
+    value.type === AST_NODE_TYPES.ObjectExpression
       ? value.properties.flatMap((property) => {
-          if (property.type === "SpreadElement") {
+          if (property.type === AST_NODE_TYPES.SpreadElement) {
             return objectProperties(context, property.argument, seen);
           }
           return property.kind === "init" && !property.method ? [property] : [];
@@ -193,17 +200,17 @@ interface JsxProperty {
 /** Explicit JSX properties and the known properties of local static spreads share the same checks. */
 export function jsxProperties(context: OrbRuleContext, element: TSESTree.JSXOpeningElement): readonly JsxProperty[] {
   return element.attributes.flatMap((attribute): JsxProperty[] => {
-    if (attribute.type === "JSXSpreadAttribute") {
+    if (attribute.type === AST_NODE_TYPES.JSXSpreadAttribute) {
       return staticObjectProperties(context, attribute.argument).flatMap((property) => {
         const name = staticKeyName(context, property);
         return name === undefined ? [] : [{ name, node: property, value: property.value }];
       });
     }
-    if (attribute.name.type !== "JSXIdentifier") {
+    if (attribute.name.type !== AST_NODE_TYPES.JSXIdentifier) {
       return [];
     }
-    const expression = attribute.value?.type === "JSXExpressionContainer" ? attribute.value.expression : attribute.value;
-    return [{ name: attribute.name.name, node: attribute, value: expression?.type === "JSXEmptyExpression" ? null : expression }];
+    const expression = attribute.value?.type === AST_NODE_TYPES.JSXExpressionContainer ? attribute.value.expression : attribute.value;
+    return [{ name: attribute.name.name, node: attribute, value: expression?.type === AST_NODE_TYPES.JSXEmptyExpression ? null : expression }];
   });
 }
 
@@ -213,13 +220,13 @@ interface ImportedSymbol {
 }
 
 function importedSpecifierName(specifier: TSESTree.Node): string | undefined {
-  if (specifier.type === "ImportSpecifier") {
-    return specifier.imported.type === "Identifier" ? specifier.imported.name : specifier.imported.value;
+  if (specifier.type === AST_NODE_TYPES.ImportSpecifier) {
+    return specifier.imported.type === AST_NODE_TYPES.Identifier ? specifier.imported.name : specifier.imported.value;
   }
-  if (specifier.type === "ImportNamespaceSpecifier") {
+  if (specifier.type === AST_NODE_TYPES.ImportNamespaceSpecifier) {
     return "*";
   }
-  return specifier.type === "ImportDefaultSpecifier" ? "default" : undefined;
+  return specifier.type === AST_NODE_TYPES.ImportDefaultSpecifier ? "default" : undefined;
 }
 
 function destructuredImport(
@@ -228,30 +235,30 @@ function destructuredImport(
   local: string,
   seen: Set<TSESTree.Node>,
 ): ImportedSymbol | undefined {
-  if (declaration.id.type !== "ObjectPattern" || declaration.init === null) {
+  if (declaration.id.type !== AST_NODE_TYPES.ObjectPattern || declaration.init === null) {
     return;
   }
   const namespace = importedSymbol(context, declaration.init, seen);
   const property = declaration.id.properties.find(
-    (candidate) => candidate.type === "Property" && candidate.value.type === "Identifier" && candidate.value.name === local,
+    (candidate) => candidate.type === AST_NODE_TYPES.Property && candidate.value.type === AST_NODE_TYPES.Identifier && candidate.value.name === local,
   );
-  const name = property?.type === "Property" ? staticKeyName(context, property) : undefined;
+  const name = property?.type === AST_NODE_TYPES.Property ? staticKeyName(context, property) : undefined;
   return namespace?.name === "*" && name !== undefined ? { source: namespace.source, name } : undefined;
 }
 
 function importedIdentifier(context: OrbRuleContext, node: TSESTree.Identifier | TSESTree.JSXIdentifier, seen: Set<TSESTree.Node>): ImportedSymbol | undefined {
   const definition = variableNamed(context.sourceCode.getScope(node), node.name)?.defs[0];
-  if (definition?.type === "ImportBinding" && definition.parent.type === "ImportDeclaration") {
+  if (definition?.type === TSESLint.Scope.DefinitionType.ImportBinding && definition.parent.type === AST_NODE_TYPES.ImportDeclaration) {
     const name = importedSpecifierName(definition.node);
     return name === undefined ? undefined : { source: definition.parent.source.value, name };
   }
-  if (definition?.node.type === "TSTypeAliasDeclaration" && definition.node.typeAnnotation.type === "TSTypeReference") {
+  if (definition?.node.type === AST_NODE_TYPES.TSTypeAliasDeclaration && definition.node.typeAnnotation.type === AST_NODE_TYPES.TSTypeReference) {
     return importedSymbol(context, definition.node.typeAnnotation.typeName, seen);
   }
-  if (definition?.type !== "Variable") {
+  if (definition?.type !== TSESLint.Scope.DefinitionType.Variable) {
     return;
   }
-  if (definition.node.id.type === "Identifier") {
+  if (definition.node.id.type === AST_NODE_TYPES.Identifier) {
     const initializer = constantInitializer(context, definition.node.id);
     return initializer === undefined ? undefined : importedSymbol(context, initializer, seen);
   }
@@ -265,15 +272,15 @@ export function importedSymbol(context: OrbRuleContext, node: TSESTree.Node, see
     return;
   }
   seen.add(value);
-  if (value.type === "Identifier" || value.type === "JSXIdentifier") {
+  if (value.type === AST_NODE_TYPES.Identifier || value.type === AST_NODE_TYPES.JSXIdentifier) {
     return importedIdentifier(context, value, seen);
   }
-  if (value.type === "MemberExpression" || value.type === "JSXMemberExpression") {
+  if (value.type === AST_NODE_TYPES.MemberExpression || value.type === AST_NODE_TYPES.JSXMemberExpression) {
     const namespace = importedSymbol(context, value.object, seen);
-    const name = value.type === "JSXMemberExpression" ? value.property.name : accessedName(context, value);
+    const name = value.type === AST_NODE_TYPES.JSXMemberExpression ? value.property.name : accessedName(context, value);
     return namespace?.name === "*" && name !== undefined ? { source: namespace.source, name } : undefined;
   }
-  if (value.type === "TSQualifiedName") {
+  if (value.type === AST_NODE_TYPES.TSQualifiedName) {
     const namespace = importedSymbol(context, value.left, seen);
     return namespace?.name === "*" ? { source: namespace.source, name: value.right.name } : undefined;
   }
@@ -282,13 +289,19 @@ export function importedSymbol(context: OrbRuleContext, node: TSESTree.Node, see
 
 export function contextLiteral(node: TSESTree.Node | null | undefined): string | null | undefined {
   let value = node;
-  while (value?.type === "TSAsExpression" || value?.type === "TSSatisfiesExpression" || value?.type === "TSNonNullExpression") {
+  while (
+    value?.type === AST_NODE_TYPES.TSAsExpression ||
+    value?.type === AST_NODE_TYPES.TSSatisfiesExpression ||
+    value?.type === AST_NODE_TYPES.TSNonNullExpression
+  ) {
     value = value.expression;
   }
-  if (value?.type === "Literal" && typeof value.value === "string") {
+  if (value?.type === AST_NODE_TYPES.Literal && typeof value.value === "string") {
     return value.value;
   }
-  return value?.type === "TemplateLiteral" && value.expressions.length === 0 ? (value.quasis[0] as TSESTree.TemplateElement).value.cooked : undefined;
+  return value?.type === AST_NODE_TYPES.TemplateLiteral && value.expressions.length === 0
+    ? (value.quasis[0] as TSESTree.TemplateElement).value.cooked
+    : undefined;
 }
 
 export function contextDirectArgument(call: TSESTree.CallExpression, argument: TSESTree.CallExpressionArgument, sourceCode: Source): boolean {
@@ -300,16 +313,16 @@ export function contextDirectArgument(call: TSESTree.CallExpression, argument: T
 }
 
 export function staticMemberName(member: TSESTree.Node): string | null | undefined {
-  if (member.type !== "MemberExpression") {
+  if (member.type !== AST_NODE_TYPES.MemberExpression) {
     return;
   }
   if (!member.computed) {
-    return member.property.type === "Identifier" ? member.property.name : undefined;
+    return member.property.type === AST_NODE_TYPES.Identifier ? member.property.name : undefined;
   }
-  if (member.property.type === "Literal" && typeof member.property.value === "string") {
+  if (member.property.type === AST_NODE_TYPES.Literal && typeof member.property.value === "string") {
     return member.property.value;
   }
-  return member.property.type === "TemplateLiteral" && member.property.expressions.length === 0
+  return member.property.type === AST_NODE_TYPES.TemplateLiteral && member.property.expressions.length === 0
     ? (member.property.quasis[0] as TSESTree.TemplateElement).value.cooked
     : undefined;
 }

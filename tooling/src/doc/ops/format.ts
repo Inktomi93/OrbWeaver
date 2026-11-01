@@ -233,9 +233,8 @@ const processor = remark()
          * handler plus GFM's table escape, with one changed decision: the two actual endpoint nodes of an
          * accepted code / `${…}` / code triple keep a minimum two-tick delimiter. */
         // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: mirrors the installed upstream handler; splitting its stateful scan would obscure parity.
-        inlineCode: (node, parent, state) => {
-          const nodeValue: unknown = node.value;
-          let value = typeof nodeValue === "string" ? nodeValue : "";
+        inlineCode: (node: MarkdownNode, parent: MarkdownNode | undefined, state) => {
+          let value = typeof node.value === "string" ? node.value : "";
           let sequence = isAdjacentTemplateEndpoint(node, parent) ? "``" : "`";
           while (new RegExp(`(^|[^\`])${sequence}([^\`]|$)`, "u").test(value)) {
             sequence += "`";
@@ -261,7 +260,7 @@ const processor = remark()
           const serialized = `${sequence}${value}${sequence}`;
           return state.stack.includes("tableCell") ? serialized.replaceAll("|", "\\|") : serialized;
         },
-        text: (node, _parent, state, info) => dropInertEscapes(state.safe(node.value, info), info),
+        text: (node: MarkdownNode, _parent, state, info) => dropInertEscapes(state.safe(typeof node.value === "string" ? node.value : "", info), info),
       },
     },
   });
