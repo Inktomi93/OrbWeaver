@@ -3,6 +3,7 @@ import type { SettingsCompositionStory } from "@orb/testkit/browser";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { CHAT_PANEL_UNDO_LABEL } from "#client/features/plugin/lib/plugin-copy.ts";
 
 const STORY = "tests/support/browser/ct-settings-composition-stories/SettingsCompositionStory";
 const WRITE = "settings.updateUserSettingsSection";
@@ -21,14 +22,14 @@ test("a leaf holding a list or object resets with an Undo that restores what was
   await page.getByRole("button", { name: "Reset Custom stopping strings to its default", exact: true }).click();
   await expect.poll(() => calls.inputs(WRITE).length).toBe(1);
   expect((await caller.settings.getUserSettings()).config.chat.customStoppingStrings).toEqual([]);
-  await page.getByRole("button", { name: "Undo", exact: true }).last().click();
+  await page.getByRole("button", { name: CHAT_PANEL_UNDO_LABEL, exact: true }).last().click();
   await expect.poll(() => calls.inputs(WRITE).length).toBe(2);
   expect((await caller.settings.getUserSettings()).config.chat.customStoppingStrings).toEqual(STOPS);
 
   await page.getByRole("button", { name: "Reset Auto-swipe short replies to its default", exact: true }).click();
   await expect.poll(() => calls.inputs(WRITE).length).toBe(3);
   expect((await caller.settings.getUserSettings()).config.chat.autoSwipe.blacklist).toEqual([]);
-  await page.getByRole("button", { name: "Undo", exact: true }).last().click();
+  await page.getByRole("button", { name: CHAT_PANEL_UNDO_LABEL, exact: true }).last().click();
   await expect.poll(() => calls.inputs(WRITE).length).toBe(4);
   expect((await caller.settings.getUserSettings()).config.chat.autoSwipe.blacklist).toEqual(SWIPE.blacklist);
 });

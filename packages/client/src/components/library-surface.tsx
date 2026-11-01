@@ -14,6 +14,8 @@ import { QueryBoundary } from "./query-boundary.tsx";
 import { useRovingRadioGroup } from "./use-roving-radio-group.ts";
 
 const LIBRARY_LOADING_ROWS = 3;
+/** The first control of a row, where a removed neighbour's focus lands. */
+const FOCUSABLE = "button, a[href], [tabindex]:not([tabindex='-1'])";
 /** How long a removed row's focus hand-off waits for the confirm that removed it to close. */
 const FOCUS_WATCH_MS = 3000;
 
@@ -74,7 +76,13 @@ export interface LibraryListRowsProps {
  *  row (and the menu that opened its confirm), so the browser drops focus on the page body; this hands it to the row now
  *  at the same place, or the one before it. It acts only when focus was inside the rows and is now nowhere. */
 function useFocusAfterRowRemoved(rowsRef: RefObject<HTMLDivElement | null>): { readonly onFocus: (event: FocusEvent<HTMLElement>) => void } {
-  const seen = useRef({ index: -1, count: 0, root: null as HTMLElement | null, watch: null as MutationObserver | null });
+  const seen = useRef({
+    index: -1,
+    count: 0,
+    root: null as HTMLElement | null,
+    watch: null as MutationObserver | null,
+    giveUp: undefined as ReturnType<typeof globalThis.setTimeout> | undefined,
+  });
   useEffect(() => {
     const count = rowsRef.current?.children.length ?? 0;
     const shrank = seen.current.index >= 0 && count < seen.current.count;
@@ -87,9 +95,10 @@ function useFocusAfterRowRemoved(rowsRef: RefObject<HTMLDivElement | null>): { r
         return false;
       }
       const live = rowsRef.current;
-      const row = live?.children[Math.min(seen.current.index, (live?.children.length ?? 1) - 1)];
+      const last = (live?.children.length ?? 0) - 1;
+      const row = live?.children[Math.min(seen.current.index, last)];
       seen.current.index = -1;
-      (row?.querySelector<HTMLElement>("button, a[href], [tabindex]:not([tabindex='-1'])") ?? seen.current.root)?.focus();
+      (row?.querySelector<HTMLElement>(FOCUSABLE) ?? seen.current.root)?.focus();
       return true;
     };
     if (restore()) {
@@ -97,6 +106,7 @@ function useFocusAfterRowRemoved(rowsRef: RefObject<HTMLDivElement | null>): { r
     }
     // The confirm that deleted the row is still open and holds focus; it hands focus to the removed trigger as it closes.
     seen.current.watch?.disconnect();
+    globalThis.clearTimeout(seen.current.giveUp);
     const watch = new MutationObserver(() => {
       if (restore()) {
         watch.disconnect();
@@ -104,11 +114,12 @@ function useFocusAfterRowRemoved(rowsRef: RefObject<HTMLDivElement | null>): { r
     });
     watch.observe(document.body, { childList: true, subtree: true });
     seen.current.watch = watch;
-    globalThis.setTimeout(() => watch.disconnect(), FOCUS_WATCH_MS);
+    seen.current.giveUp = globalThis.setTimeout(() => watch.disconnect(), FOCUS_WATCH_MS);
   });
   useEffect(
     () => (): void => {
       seen.current.watch?.disconnect();
+      globalThis.clearTimeout(seen.current.giveUp);
     },
     [],
   );
