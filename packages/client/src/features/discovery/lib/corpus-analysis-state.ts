@@ -173,8 +173,8 @@ function spelledInline(count: number, one: string, many = `${one}s`): string {
 }
 
 /** `3 characters` / `1 character` — the DATUM form (rail rows, figures), always numeric. */
-function plural(count: number, one: string, many = `${one}s`): string {
-  return `${formatCount(count)} ${count === 1 ? one : many}`;
+function plural(count: number, one: string): string {
+  return `${formatCount(count)} ${count === 1 ? one : `${one}s`}`;
 }
 
 /**

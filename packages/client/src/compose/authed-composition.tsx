@@ -100,8 +100,6 @@ export function createAuthedComposition({ queryClient, trpcProxy }: Pick<ClientR
     sections,
     modals,
     chrome,
-    chatContextContributors,
-    chatContextRegions,
     configGroups,
     configSections,
     messageToolsRenderers,

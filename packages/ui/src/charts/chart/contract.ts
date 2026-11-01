@@ -12,7 +12,6 @@ export interface ChartProps {
   readonly option: OrbChartOption;
   readonly label: string;
   readonly height?: number | "100%" | undefined;
-  readonly className?: string;
   readonly onChartReady?: ((instance: OrbEChartsInstance) => void) | undefined;
   readonly onEvents?: Readonly<Record<string, (event: ChartEvent) => void>> | undefined;
 }

@@ -331,8 +331,8 @@ function jpegDimensions(b: Uint8Array): Dimensions {
 //
 // The dimensions are therefore read ONLY from an `ispe` FullBox reached by descending the boxes that are
 // allowed to contain it — `meta` → `iprp` → `ipco` (ISO/IEC 23008-12 §6.5.3) — and a file whose structure
-// cannot be validated yields NO dimensions, which the cap treats as a REJECT (`requireDimensions` defaults
-// true). Unknown dimensions must never read as "small enough".
+// cannot be validated yields NO dimensions, which the cap treats as a REJECT (the guard always
+// requires them). Unknown dimensions must never read as "small enough".
 
 /** Box header = size(4) + type(4). */
 const BOX_HEADER_LEN = 8;
@@ -462,7 +462,7 @@ function isAvif(bytes: Uint8Array): boolean {
  *
  *  THE CONSEQUENCES, stated because they are behaviour changes at two seams and both are the right way:
  *   • `infra/network/image-guard`'s `isAllowedImageBuffer` now REJECTS a 0-extent remote image as
- *     `dimensions-unknown` (its `requireDimensions` default is true), where before the 0s passed every cap
+ *     `dimensions-unknown` (the guard always requires dimensions), where before the 0s passed every cap
  *     comparison. More fail-closed at a network boundary, which is that guard's stated posture.
  *   • `domain/embeddings`'s `imageBelowFloor` no longer classifies a 0-extent image as below-floor (its
  *     documented rule is that unknown dimensions are NOT below-floor), so such an asset proceeds to embed

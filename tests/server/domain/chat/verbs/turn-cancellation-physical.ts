@@ -23,8 +23,7 @@ import {
   seedPluginGrant,
 } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
-import type { MockInstance } from "vitest";
-import { beforeAll, vi } from "vitest";
+import { beforeAll } from "vitest";
 import { z } from "zod";
 
 const MODES = ["stream", "headers", "retry", "complete"] as const;
@@ -111,7 +110,6 @@ interface CancellationRun {
   readonly retryScheduled: Promise<number>;
   readonly retries: () => readonly number[];
   readonly pendingTurnTimeouts: () => readonly number[];
-  readonly completed: MockInstance<ChatRoot["root"]["app"]["rpgChatOps"]["onTurnCompleted"]>;
   readonly start: () => Promise<TurnOutcome>;
   /** The witness key the tool handler writes, as the plugin's own storage reads it back. */
   readonly toolWrites: () => Promise<readonly string[]>;
@@ -293,7 +291,6 @@ async function cancellationRoom(): Promise<CancellationRoom> {
     const chatId = chat.id;
     current = state;
     let precedingTimeouts = new Set<symbol>();
-    using completed = vi.spyOn(h.root.app.rpgChatOps, "onTurnCompleted");
     const events: ChatBusEvent[] = [];
     const unsubscribe = h.root.app.liveBuses.chat.subscribeAllChatEvents(({ event }) => events.push(event));
     const settlements: Promise<PromiseSettledResult<TurnOutcome>[]>[] = [];
@@ -318,7 +315,6 @@ async function cancellationRoom(): Promise<CancellationRoom> {
         retryScheduled: state.retryScheduled.promise,
         retries: () => state.retries,
         pendingTurnTimeouts: () => [...pendingTimeouts].filter(([identity]) => !precedingTimeouts.has(identity)).map(([, ms]) => ms),
-        completed,
         start,
         toolWrites: async () => {
           const value = z

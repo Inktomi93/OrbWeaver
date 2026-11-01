@@ -120,12 +120,10 @@ async function resolveStagedPath(stagingRoot: string, stagedHandle: string): Pro
  * collapse to plain `O_RDONLY` and this belt's no-symlink half would vanish without a sound. There the open
  * is unguarded, and the atomicity is recovered AFTER the fact instead: `fstat` the open handle and `lstat`
  * the path, and refuse when they don't name the same inode — a symlink swapped in between the resolve and
- * the open changes the path's own identity out from under the already-open fd. `noFollowFlag` is a test
- * seam (real callers always take the host's own flag); it exists because `fs.constants` is not writable.
- * The seam is typed `number | null`, not `number | undefined` — a default parameter still fires when a
- * caller explicitly passes `undefined`, so `null` is the only value that reliably overrides the default.
+ * the open changes the path's own identity out from under the already-open fd.
  */
-async function openStagedFile(path: string, noFollowFlag: number | null = fsConstants.O_NOFOLLOW): Promise<FileHandle> {
+async function openStagedFile(path: string): Promise<FileHandle> {
+  const noFollowFlag: number | undefined = fsConstants.O_NOFOLLOW;
   if (typeof noFollowFlag === "number") {
     // biome-ignore lint/suspicious/noBitwiseOperators: OR-ing POSIX open() flag bits is the intended API (the zip + tree staging writers carry the same exemption).
     return await open(path, fsConstants.O_RDONLY | noFollowFlag);

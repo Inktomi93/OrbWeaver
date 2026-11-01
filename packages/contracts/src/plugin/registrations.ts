@@ -208,7 +208,7 @@ export type PluginSurfaceRegistration = PluginSurfaceRegistrationMeta & {
 
 /** A COMMAND the guest registered via `host.ui.registerCommand` — collected at activation
  *  (U5). Like a surface it needs NO external registrar: it is read directly off the resident instance by
- *  `plugin.listCommands` (which the `/plugin` dispatcher and the Plugins chrome menu both fan off) and re-entered
+ *  `plugin.listCommands` (which the `/plugin` dispatcher and the command palette both fan off) and re-entered
  *  by `plugin.invokeUiCommand` through the port's `invoke`. `onRun` is REQUIRED — unlike a surface, a command
  *  with nothing to run is not a display-only affordance, it is a dead menu row. */
 export type PluginCommandRegistration = PluginCommandRegistrationMeta & {

@@ -12,20 +12,18 @@ import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { CircleUser, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import { useRef, useState } from "react";
+import type { BoundFieldShellProps } from "./use-bound-field.ts";
 import { useBoundField } from "./use-bound-field.ts";
 
-export interface AvatarUploadFieldProps {
-  readonly label: ReactNode;
-  readonly description?: ReactNode;
+export interface AvatarUploadFieldProps extends BoundFieldShellProps {
   /** Upload one picked file, returning its `StoredAsset` identity. INJECTED — see the file header. */
   readonly upload: (file: File) => Promise<StoredAsset>;
   /** The bound `assetId`'s CURRENTLY KNOWN hash (e.g. the loaded entity's `avatarHash`) — preview-only,
    *  never round-tripped through form state (only `assetId` is the saved value). `null`/omitted ⇒ no
    *  existing avatar (a fresh create). Superseded the instant a new upload completes. */
   readonly initialHash?: string | null;
-  readonly disabled?: boolean;
   /** The client pre-check byte ceiling. forms/ can't reach `#data`, so the served image cap is INJECTED
    *  (like `upload`) — the consuming feature passes `useUploadCaps().image`. Omitted ⇒ the contract route
    *  cap (never a third invented number); the server re-caps + magic-checks regardless. */

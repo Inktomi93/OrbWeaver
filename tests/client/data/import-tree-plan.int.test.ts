@@ -184,6 +184,25 @@ test("a split profile seats a group with its member cards and transcript, and se
   expect(plan.skipped).toEqual([]);
 });
 
+test.each([
+  ["members only", { members: ["Aria.png", "Bram.png"], name: "Duo" }, [`${CHARACTERS}/Aria.png`, `${CHARACTERS}/Bram.png`]],
+  ["chats only", { chats: ["party"] }, [`${GROUP_CHATS}/party.jsonl`]],
+])("a split profile still seats a group definition with %s", async (_label, definition, seated) => {
+  const files = [
+    profileFile(ST_SETTINGS_FILE, "{}"),
+    profileFile(`${CHARACTERS}/Aria.png`, "x".repeat(UNIT)),
+    profileFile(`${CHARACTERS}/Bram.png`, "x".repeat(UNIT)),
+    profileFile(`${CHARACTERS}/Cora.png`, "x".repeat(UNIT)),
+    profileFile(`${GROUPS}/g1.json`, JSON.stringify(definition)),
+    profileFile(`${GROUP_CHATS}/party.jsonl`, "x".repeat(UNIT / 2)),
+    profileFile(`${CHATS}/Nobody/orphan.jsonl`, "x".repeat(UNIT / 2)),
+  ];
+  const plan = await planTreeImport(files, { ...SPLIT_CAPS, totalBytes: UNIT * 4 });
+  const batches = plan.batches.map(pathsOf);
+  expect(batches.length).toBeGreaterThan(1);
+  expect(batches.find((batch) => batch.includes(`${GROUPS}/g1.json`))).toEqual(expect.arrayContaining(seated));
+});
+
 test("the plan never sends a secrets.json at any depth, and reports foreign planes with the contract's reasons", async () => {
   const foreign = stProfileEntryDisposition(FOREIGN_PLANE, true);
   const secrets = stProfileEntryDisposition(ST_SECRETS_FILE, false);

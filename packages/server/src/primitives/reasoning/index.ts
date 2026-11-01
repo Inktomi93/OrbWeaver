@@ -7,12 +7,11 @@
 // there is no ReDoS surface.
 
 /** Options for {@link parseReasoningTags}. `prefix`/`suffix` are the literal open/close tags (host config —
- *  e.g. `<think>`/`</think>`); `strict` (default true) anchors the open tag at the START of the content
- *  (leading whitespace allowed) so a `<think>` buried mid-reply is NOT treated as a reasoning block. */
+ *  e.g. `<think>`/`</think>`). The open tag is anchored at the START of the content (leading whitespace
+ *  allowed) so a `<think>` buried mid-reply is NOT treated as a reasoning block. */
 export interface ReasoningParseOptions {
   readonly prefix: string;
   readonly suffix: string;
-  readonly strict?: boolean | undefined;
 }
 
 /** A successful split of a reply into its reasoning trace + the remaining visible content (both trimmed). */
@@ -20,8 +19,6 @@ export interface ParsedReasoning {
   readonly reasoning: string;
   readonly content: string;
 }
-
-const DEFAULT_STRICT = true;
 
 /**
  * Split an inline `<think>…</think>`-style reasoning block out of `content`. Returns `{ reasoning, content }`
@@ -33,9 +30,7 @@ export function parseReasoningTags(content: string, options: ReasoningParseOptio
   if (prefix.length === 0 || suffix.length === 0) {
     return null;
   }
-  const strict = options.strict ?? DEFAULT_STRICT;
-  const anchor = strict ? "^\\s*?" : "";
-  const pattern = new RegExp(`${anchor}${RegExp.escape(prefix)}(?<body>.*?)${RegExp.escape(suffix)}`, "su");
+  const pattern = new RegExp(`^\\s*?${RegExp.escape(prefix)}(?<body>.*?)${RegExp.escape(suffix)}`, "su");
   const match = pattern.exec(content);
   if (match === null) {
     return null;

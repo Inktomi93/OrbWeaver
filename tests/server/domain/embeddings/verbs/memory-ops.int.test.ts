@@ -3,7 +3,7 @@
 import type { StoreSegmentParams } from "@orb/contracts/chat";
 import { createMemoryEmbeddingOps } from "@orb/server/domain/embeddings";
 import { expect, test } from "@orb/testkit/node";
-import { seedChat } from "@orb/testkit/node/composed";
+import { presentHostOf, seedChat } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 
 test("a later foreign-owner segment refuses the entire flood; a departed host refuses before the store", async ({ harness, app }): Promise<void> => {
@@ -22,7 +22,7 @@ test("a later foreign-owner segment refuses the entire flood; a departed host re
   }
   const storeSegments = vi.fn(async () => []);
   const ops = createMemoryEmbeddingOps({
-    resolveChatHostUserId: app.crossFeatureOps.resolveChatHostUserId,
+    resolveChatHostUserId: presentHostOf(harness),
     embeddings: { resolveGeneration: async () => null, store: vi.fn(), storeSegments, pruneMemoryBlocks: vi.fn() },
   });
   const base: StoreSegmentParams = {

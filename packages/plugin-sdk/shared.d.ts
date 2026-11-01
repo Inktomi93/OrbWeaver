@@ -571,9 +571,9 @@ type PluginSurfaceNode =
 
 type PluginSurfaceSpec = PluginSurfaceNode;
 
-/** A host-owned composer target for a registered command. A command may name each target at most once;
+/** A host-owned target for a registered command. A command may name each target at most once;
  *  the host validates the bounded label and curated icon before exposing the affordance. */
-type PluginCommandPlacementTarget = "composer-action" | "composer-media";
+type PluginCommandPlacementTarget = "composer-action" | "composer-media" | "topbar";
 interface PluginCommandPlacement {
   readonly target: PluginCommandPlacementTarget;
   readonly label: string;
@@ -672,7 +672,7 @@ interface PluginHostV1 {
   };
 
   readonly chat: {
-    /** The invocation's admitted room. THROWS outside a chat scope (a domain fact, the chrome menu on a
+    /** The invocation's admitted room. THROWS outside a chat scope (a domain fact, the palette or top bar on a
      *  non-chat screen) — the honest answer, not a synthesized room. capability: chat.read */
     current: () => ChatHandle;
     /** Recent canon, oldest→newest, ≤ 50 (default 20), clamped to the installer's visibility.
@@ -903,8 +903,8 @@ interface PluginHostV1 {
     /** Publish the state your spec's `{ $state }` bindings resolve against (≤ 16 KiB, replaces whole).
      *  With `chat`: a PER-ROOM row (only that room sees it); without: one plugin-wide row. */
     setState: (surfaceId: string, state: Record<string, unknown>, chat?: ChatHandle) => Promise<void>;
-    /** Register a command: `/plugin <slug> <name> …`, the Plugins wand menu, the palette, and optional
-     *  host-owned composer placements. Declare typed `args` (≤ 16) and `values` arrives validated; the raw
+    /** Register a command: `/plugin <slug> <name> …`, the palette, and optional host-owned placements.
+     *  A command with no placement stays reachable through those two doors. Declare typed `args` (≤ 16) and `values` arrives validated; the raw
      *  remainder always arrives as `args`. Inside a room the command's invocation carries that room — reach
      *  it via `chat.current()`. */
     registerCommand: <const TArgs extends readonly PluginCommandArgDeclaration[] = readonly []>(

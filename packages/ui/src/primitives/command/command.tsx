@@ -49,7 +49,6 @@ export function Command({ className, onEscape, onKeyDown, elevated, ...rest }: C
 }
 
 export interface CommandInputProps extends Omit<ComponentProps<typeof BaseCommandInput>, "className"> {
-  className?: string;
   /**
    * Is a `<CommandList>` actually MOUNTED right now? Pass this from any caller that renders its list
    * conditionally; omit it when the list is always present (the omni-bar shape), where cmdk is already right.
@@ -64,7 +63,7 @@ export interface CommandInputProps extends Omit<ComponentProps<typeof BaseComman
 }
 
 /** The search box. The leading glyph is decorative — accessible name comes from aria-label. */
-export function CommandInput({ className, expanded, ref, ...rest }: CommandInputProps): ReactElement {
+export function CommandInput({ expanded, ref, ...rest }: CommandInputProps): ReactElement {
   const inputRef = useRef<HTMLInputElement>(null);
   // The caller's ref sees the same node the corrections below read, so a ref passed in never replaces them.
   useImperativeHandle(ref, () => inputRef.current as HTMLInputElement);
@@ -130,7 +129,7 @@ export function CommandInput({ className, expanded, ref, ...rest }: CommandInput
   return (
     <div className={slots.inputWrapper()} data-slot="command-input-wrapper">
       <Icon icon={Search} size="sm" />
-      <BaseCommandInput className={cn(slots.input(), className)} data-slot="command-input" ref={inputRef} {...rest} />
+      <BaseCommandInput className={slots.input()} data-slot="command-input" ref={inputRef} {...rest} />
     </div>
   );
 }

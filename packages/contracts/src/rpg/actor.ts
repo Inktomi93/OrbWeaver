@@ -215,11 +215,11 @@ const NAME_CLAMP_ELLIPSIS = "…";
  *  RECEIVING side's terms, applied at the mint, not baked into every npc's stored identity), and the
  *  caller (`promoteActor`) is the one place that both knows it is minting a card AND can report the
  *  truncation back to the host as data (`PromoteActorResult.issues`) instead of it vanishing silently. */
-export function clampActorCardName(name: string, maxLength: number = CARD_FACE_LIMITS.nameMax): { readonly value: string; readonly truncated: boolean } {
-  if (name.length <= maxLength) {
+export function clampActorCardName(name: string): { readonly value: string; readonly truncated: boolean } {
+  if (name.length <= CARD_FACE_LIMITS.nameMax) {
     return { value: name, truncated: false };
   }
-  const budget = maxLength - NAME_CLAMP_ELLIPSIS.length;
+  const budget = CARD_FACE_LIMITS.nameMax - NAME_CLAMP_ELLIPSIS.length;
   let out = "";
   for (const { segment } of NAME_CLAMP_SEGMENTER.segment(name)) {
     if (out.length + segment.length > budget) {

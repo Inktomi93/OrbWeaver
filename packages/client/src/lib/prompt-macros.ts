@@ -7,7 +7,7 @@
 //
 // DERIVED, NEVER AUTHORED (the three-home collapse, 2026-08-02). The ONE macro catalog is the kit
 // registry+metadata PAIR (`createDefaultRegistry` × `BUILTIN_MACRO_METADATA`, drift-proofed by D51's composed `volatile`). Every consumer is
-// a DERIVATION with a stated lens: the macro BROWSER is `queryMacros(registry, {})` verbatim (it documents
+// a DERIVATION with a stated lens: the macro BROWSER is `queryMacros(registry)` verbatim (it documents
 // the whole registry, user macros included), and this AUTOCOMPLETE is that same query put through the
 // CURATION below. A hand-maintained third list is what this module used to be — seven names, drifting, with
 // no `{{getvar}}` in a product that has ten variable macros. The contracts-side `PROMPT_MACROS` catalog (a
@@ -142,7 +142,7 @@ function toSuggestion(meta: MacroMetadata): DerivedSuggestion {
  *  invisible on the very surfaces that exist to author it. The builtins it displaces stay one keystroke of
  *  fuzzy search away, which is the same argument the lead const already makes for every non-lead builtin. */
 function curate(registry: MacroRegistry): readonly DerivedSuggestion[] {
-  const offered = queryMacros(registry, {}).filter((meta) => !EXCLUDED.has(meta.name.toLowerCase()));
+  const offered = queryMacros(registry).filter((meta) => !EXCLUDED.has(meta.name.toLowerCase()));
   const user = offered.filter((meta) => meta.category === "user");
   const builtin = offered.filter((meta) => meta.category !== "user");
   const lead = LEAD_MACROS.flatMap((name) => builtin.filter((meta) => meta.name === name));

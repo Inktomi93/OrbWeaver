@@ -8,7 +8,6 @@
 // the room exists from the creation click, so a send is a send. Two whole failure classes go with it: the
 // scope-key flip mid-send (the "first send doesn't clear the composer" bug) and the double-mint on a retry.
 
-import type { UserIntent } from "@orb/contracts/preset";
 import type { AssetId, ChatId } from "@orb/kit/ids";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import { useState } from "react";
@@ -30,7 +29,6 @@ const useSendMutation = createEntityMutation<SendVars, unknown>({
 
 export interface UseSendMessageOptions {
   readonly chatId: ChatId;
-  readonly intent?: Partial<UserIntent> | undefined;
   /** Fires once the bus confirms the caller's own user row committed — the composer clears its draft
    *  here, never optimistically on submit, so a failed send leaves the draft intact for retry. */
   readonly onDraftCommitted?: (() => void) | undefined;
@@ -66,12 +64,10 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
     const attachmentAssetIds = await uploadAttachments(upload, attachments);
     const unsubscribe = subscribeUserMessageCommitted(opts.chatId, () => opts.onDraftCommitted?.());
     try {
-      const hasIntent = opts.intent !== undefined && Object.keys(opts.intent).length > 0;
       await sendMutation.mutateAsync({
         chatId: opts.chatId,
         content: trimmed,
         timeZone: viewerTimeZone(),
-        ...(hasIntent ? { intent: opts.intent } : {}),
         ...(attachmentAssetIds.length > 0 ? { attachmentAssetIds } : {}),
       });
     } finally {

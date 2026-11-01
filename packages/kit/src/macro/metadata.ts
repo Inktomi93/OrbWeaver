@@ -4,7 +4,7 @@
 // file imports DOWN from types.ts only. Pure + isomorphic — the client bundles the same registry for
 // editor autocomplete, so nothing here touches server/node concerns.
 
-import type { MacroArgDef, MacroArgViolation, MacroCategory, MacroDiagnostic, MacroMetadata, MacroRegistry, MacroSpan } from "./types.ts";
+import type { MacroArgDef, MacroArgViolation, MacroDiagnostic, MacroMetadata, MacroRegistry, MacroSpan } from "./types.ts";
 
 // The {{if}} truthiness vocabulary (owner-ratified): a string is "off" when it is (after trim+lowercase)
 // empty or one of these literals — everything else is "on". Shared by {{if}}'s bare-predicate branch
@@ -136,23 +136,9 @@ export function macroArgDiagnostics(violations: readonly MacroArgViolation[], sp
   }));
 }
 
-/** Autocomplete / browser query. Name-or-alias prefix match + category filter over the registry's
- *  composed metadata, stable name-sorted. Pure + isomorphic — the editor calls this on every keystroke
- *  against the client registry and merges with a `macro.list` tRPC read of the server registry. */
-export function queryMacros(registry: MacroRegistry, q: { prefix?: string; category?: MacroCategory }): readonly MacroMetadata[] {
-  const prefix = q.prefix?.toLowerCase();
-  const out: MacroMetadata[] = [];
-  for (const meta of registry.allMetadata()) {
-    if (q.category !== undefined && meta.category !== q.category) {
-      continue;
-    }
-    if (prefix !== undefined && prefix !== "") {
-      const names = [meta.name, ...meta.aliases];
-      if (!names.some((n) => n.toLowerCase().startsWith(prefix))) {
-        continue;
-      }
-    }
-    out.push(meta);
-  }
-  return out.sort((a, b) => a.name.localeCompare(b.name));
+/** Autocomplete / browser query: the registry's composed metadata, stable name-sorted. Pure + isomorphic —
+ *  the editor calls this on every keystroke against the client registry and merges with a `macro.list` tRPC
+ *  read of the server registry. */
+export function queryMacros(registry: MacroRegistry): readonly MacroMetadata[] {
+  return [...registry.allMetadata()].sort((a, b) => a.name.localeCompare(b.name));
 }

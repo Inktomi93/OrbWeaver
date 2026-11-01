@@ -1,5 +1,5 @@
 import { expect, test } from "@orb/testkit/node";
-import { WEAVE_CHARACTER_PRESETS } from "#ui/art/web-weave/web-weave-character.ts";
+import { CALM_CHARACTER } from "#ui/art/web-weave/web-weave-character.ts";
 import type { WeaveStrand } from "#ui/art/web-weave/web-weave-geometry.ts";
 import { buildWeb } from "#ui/art/web-weave/web-weave-geometry.ts";
 import { createPreyState, disturbPrey, preyPose } from "#ui/art/web-weave/web-weave-prey.ts";
@@ -10,7 +10,7 @@ test("prey retargets a chase and returns to rest without replacing its mounted i
   const hub = { x: 50, y: 50 };
   const initialTarget = { x: 150, y: 50 };
   const nextTarget = { x: 180, y: 80 };
-  const input = { hub, still: true, character: WEAVE_CHARACTER_PRESETS.calm };
+  const input = { hub, still: true, character: CALM_CHARACTER };
   preyPose(state, { ...input, now: 0, dt: 0 });
   disturbPrey(state, initialTarget, hub, 1);
   const alertEnds = state.until;

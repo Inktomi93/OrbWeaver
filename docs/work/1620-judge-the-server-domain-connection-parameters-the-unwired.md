@@ -27,4 +27,9 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+1 row: applied 1, kept 0, handed off 0, owner questions 0.
+
+Applied: `vectorSpaceOf.connectionId`. The only caller, `vectorSpacesOf` in the same file (`embed-space.ts:30`), omits it; `vectorResolutionOf` keeps its own `connectionId` through-option, which the preview verbs supply.
+
+Survey: codegraph_explore on vectorSpaceOf, SpaceResolveCtx; ast-grep `vectorSpaceOf($$$)` on -l ts and -l tsx over packages, tests, tooling, scripts (5929 .ts, 1524 .tsx): 1 call; literal `rg` for vectorSpaceOf: same hit.
+Ran: `pnpm typecheck packages/server/tsconfig.json tsconfig.node.json` exit 0; `pnpm test tests/server/domain/connection/verbs/embed-space-rebuild.int.test.ts` 4 passed.

@@ -8,7 +8,8 @@ import { ColorField as UiColorField } from "@orb/ui/color-field";
 import { Field } from "@orb/ui/field";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
+import type { BoundFieldShellProps } from "./use-bound-field.ts";
 import { useBoundField } from "./use-bound-field.ts";
 
 /** What an EMPTY colour reads as — the one word this app's fallback story uses everywhere. */
@@ -40,11 +41,7 @@ function colorReadout(value: string): string {
   return HEX_RE.test(value) ? value.toLowerCase() : CUSTOM_LABEL;
 }
 
-export interface BoundColorFieldProps {
-  readonly label: ReactNode;
-  readonly description?: ReactNode;
-  readonly disabled?: boolean;
-}
+export type BoundColorFieldProps = BoundFieldShellProps;
 
 /**
  * A bound colour picker — the swatch trigger PLUS its value in words.

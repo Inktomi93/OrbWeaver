@@ -5,7 +5,7 @@ import type { UserId } from "@orb/kit/ids";
 import { createTurnPersonaResolver } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { seedChat, seedPersona } from "@orb/testkit/node/composed";
+import { personasForParticipantsOf, seedChat, seedPersona } from "@orb/testkit/node/composed";
 
 async function seededPersona(harness: ServerTestHarness, ownerId: UserId, name: string): Promise<Awaited<ReturnType<typeof seedPersona>>["view"]> {
   const principal = await harness.principalFor(ownerId);
@@ -26,7 +26,7 @@ test("a trigger with no seat persona cannot borrow the room's anchor identity", 
   const member = await harness.actor();
   const anchor = await seededPersona(harness, host.id, "Anchor");
   const room = await anchoredRoom(harness, host.id, anchor.id);
-  const resolve = createTurnPersonaResolver(harness.app.crossFeatureOps.resolvePersonasForParticipants);
+  const resolve = createTurnPersonaResolver(personasForParticipantsOf(harness));
 
   const result = await resolve({
     chatId: room.id,
@@ -55,7 +55,7 @@ test("a held departed-owner pin remains the card identity but cannot authorize a
   const foreign = await seededPersona(harness, stranger.id, "Private stranger");
   // The pin's owner founded the room; production refuses an anchor the starter does not own.
   const room = await anchoredRoom(harness, departed.id, pin.id);
-  const resolve = createTurnPersonaResolver(harness.app.crossFeatureOps.resolvePersonasForParticipants);
+  const resolve = createTurnPersonaResolver(personasForParticipantsOf(harness));
 
   const result = await resolve({
     chatId: room.id,
@@ -80,7 +80,7 @@ test("canon follows the anchor owner's current seat while impersonation follows 
   const current = await seededPersona(harness, host.id, "Host current");
   const memberPersona = await seededPersona(harness, member.id, "Member current");
   const room = await anchoredRoom(harness, host.id, anchor.id);
-  const resolve = createTurnPersonaResolver(harness.app.crossFeatureOps.resolvePersonasForParticipants);
+  const resolve = createTurnPersonaResolver(personasForParticipantsOf(harness));
   const args = {
     chatId: room.id,
     runAsUserId: host.id,

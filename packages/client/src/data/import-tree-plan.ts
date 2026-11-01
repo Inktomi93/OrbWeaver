@@ -16,6 +16,7 @@ import type { StProfileHandledEntry, TreeLayoutDeclaration } from "@orb/contract
 import { admitTreeBatch, chatDirCardCandidates, isStSecretsFile, ST_SECRETS_FILE, ST_SETTINGS_FILE, stProfileEntryDisposition } from "@orb/contracts/import";
 import { PORTABLE_DIRECTORIES, PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
 import { slugifyHandle } from "@orb/kit/slug";
+import { z } from "zod";
 import { relativePathOf } from "./import-tree.ts";
 import { UploadPacker } from "./import-tree-packer.ts";
 
@@ -95,20 +96,19 @@ interface GroupShape {
   readonly chats: readonly string[];
 }
 
+// Only the two lists the plan reads, each optional like the server's parse; a non-object definition fails the parse and plans as an empty group.
+const GROUP_DEFINITION = z.object({ members: z.unknown().optional(), chats: z.unknown().optional() });
+
 function stringList(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
 }
 
-async function readGroupShape(file: File, readText: (file: File) => Promise<string>): Promise<GroupShape> {
+async function readGroupShape(file: File): Promise<GroupShape> {
   // the group definition is still packed and sent (`planTreeImport`'s `packer.add`), and the server parse
   // (`collectGroups` in loader/collect.ts) lists it in `unreadableGroups`, which the import report prints. Ends if the server stops reporting unreadable groups.
   try {
-    const raw: unknown = JSON.parse(await readText(file));
-    if (typeof raw !== "object" || raw === null) {
-      return { members: [], chats: [] };
-    }
-    const record = raw as Record<string, unknown>;
-    return { members: stringList(record["members"]), chats: stringList(record["chats"]) };
+    const record = GROUP_DEFINITION.parse(JSON.parse(await file.text()));
+    return { members: stringList(record.members), chats: stringList(record.chats) };
   } catch {
     return { members: [], chats: [] };
   }
@@ -314,14 +314,11 @@ function classifySt(planned: readonly PlannedFile[], caps: TreeImportCaps): StCl
   return out;
 }
 
-async function groupUnits(
-  classified: StClassification,
-  readText: (file: File) => Promise<string>,
-): Promise<{ readonly groups: GroupUnit[]; readonly unclaimedGroupChats: PlannedFile[] }> {
+async function groupUnits(classified: StClassification): Promise<{ readonly groups: GroupUnit[]; readonly unclaimedGroupChats: PlannedFile[] }> {
   const claimed = new Set<string>();
   const groups: GroupUnit[] = [];
   for (const definition of classified.groupFiles) {
-    const shape = await readGroupShape(definition.file, readText);
+    const shape = await readGroupShape(definition.file);
     const chats: PlannedFile[] = [];
     for (const leaf of shape.chats) {
       const chat = classified.groupChats.get(leaf);
@@ -337,15 +334,9 @@ async function groupUnits(
 }
 
 /** Plan a picked folder's uploads against the served caps, charging each upload `framing` on top of its file
- *  bytes. `readText` reads a group definition's text (the default is `File.text`); it is injectable so a node
- *  test can plan without a DOM `File`.
+ *  bytes.
  *  @throws Error when the folder has no supported layout, or the caps leave no room for any file. */
-export async function planTreeImport(
-  files: readonly File[],
-  caps: TreeImportCaps,
-  framing: TreeUploadFraming = NO_FRAMING,
-  readText: (file: File) => Promise<string> = (f) => f.text(),
-): Promise<TreeImportPlan> {
+export async function planTreeImport(files: readonly File[], caps: TreeImportCaps, framing: TreeUploadFraming = NO_FRAMING): Promise<TreeImportPlan> {
   const rawPaths = files.map(relativePathOf);
   const wrapper = commonWrapper(rawPaths);
   const planned: PlannedFile[] = files.map((file, i) => {
@@ -365,7 +356,7 @@ export async function planTreeImport(
   }
   const inProfile = layout.stagePrefix === "" ? planned.map((f) => ({ ...f, segments: f.segments.slice(1) })) : planned;
   const classified = classifySt(inProfile, caps);
-  const { groups, unclaimedGroupChats } = await groupUnits(classified, readText);
+  const { groups, unclaimedGroupChats } = await groupUnits(classified);
 
   const packer = packerFor(caps, framing, classified.shared);
   // Base plane first: presets, themes, backgrounds, orphan chats, unclaimed group chats.

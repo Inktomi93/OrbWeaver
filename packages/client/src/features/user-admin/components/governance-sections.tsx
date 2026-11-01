@@ -81,7 +81,7 @@ function MultiUserBody({ anchorId, sectionId }: { readonly anchorId: string; rea
   const clearable: AppSettings = isOwner ? { localMultiUser: null, discreetLogin: null, privateEndpointAllowlist: null } : { discreetLogin: null };
   const anyOverridden = (isOwner && (multiUserOverridden || allowlistOverridden)) || discreetOverridden;
 
-  const write = (partial: AppSettings): void => {
+  const write = (partial: Pick<AppSettings, "localMultiUser" | "discreetLogin">): void => {
     save.mutateAsync({ partial }).catch(() => undefined); // the sticky save.error slot surfaces the failure
   };
   const saveAllowlist = (): void => {

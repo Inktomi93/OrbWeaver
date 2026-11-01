@@ -25,7 +25,7 @@ export async function onCharacterUpdated(ctx: EmbeddingsIndexerContext, event: C
   if (ownerId === null) {
     return;
   }
-  const embedModel = await requireTaskModel(ctx, ownerId, "embed");
+  const embedModel = await requireTaskModel(ctx, ownerId);
   if (embedModel === null) {
     getLog(ctx.logger).debug({ characterId: event.characterId, ownerId }, "embeddings indexer: the owner has no embed connection — skipped");
     return;

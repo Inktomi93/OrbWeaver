@@ -29,4 +29,8 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+3 rows: 3 deleted. 0 derived, 0 kept, 0 handed off, 0 owner questions.
+
+`StageWarn.outputOver`, `.inputOver` and `WorkbenchLanes.rewriteRunId` are gone with their writes. `lane-run-control.tsx:140-189` reads only `warn.message`; `refinery-content-surface.tsx:141-310` reads lanes by name and builds its own `rewriteRunId` from `lanes.rewriteRun`.
+
+Survey: `codegraph_explore` on `StageWarn preflight-warn.ts WorkbenchLanes rewriteRunId workbench-lanes.ts`; ast-grep (`-l ts` 5904, `-l tsx` 1522 files) on `stageWarnOf($$$)` (2 hits), `workbenchLanesOf($$$)` (1), `$X.rewriteRunId` (6, all wire inputs of other types), `$X.outputOver` (0). Typecheck: `pnpm typecheck packages/client/tsconfig.json tsconfig.tests-dom.json` exit 0. CT: refinery `platform-action-groups` mounts the lane run control; with the other item suites, 48 passed, 1 skipped.

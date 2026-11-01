@@ -20,6 +20,7 @@ import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/
 import {
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_PROVIDER_ENDPOINT,
+  casOf,
   createCorpusProviderExecution,
   createServerHarness,
   makeAssetBytes,
@@ -38,7 +39,7 @@ const COVER_ADDRESS = "93.184.215.14";
 
 export interface GcBox {
   readonly root: ServerTestHarness;
-  readonly cas: ServerTestHarness["app"]["cas"];
+  readonly cas: ReturnType<typeof casOf>;
   readonly principal: Principal;
   readonly images: Uint8Array[];
 }
@@ -97,7 +98,7 @@ export async function openBox(db?: Db, options: { readonly loopbackOwner?: boole
   await root.services.settings.updateAppSettings({ principal, partial: { privateEndpointAllowlist: [new URL(CORPUS_PROVIDER_ENDPOINT).hostname] } });
   // A committed message resolves the room's chat connection even when nothing generates; nothing here calls it.
   await seedCorpusConnections(root, principal);
-  return { root, cas: root.app.cas, principal, images };
+  return { root, cas: casOf(root), principal, images };
 }
 
 /** An asset a production writer stored on its own, resolved to the `(id, hash)` the sweep keys on. */

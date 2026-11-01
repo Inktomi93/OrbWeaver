@@ -17,7 +17,7 @@ import type { WeavePoint } from "./web-weave-math.ts";
 import { clamp01, easeOutCubic } from "./web-weave-math.ts";
 import type { PreyState } from "./web-weave-prey.ts";
 import type { SpiderTracker } from "./web-weave-spider.ts";
-import { idleTwitchPhase, STRAND_OUT_MS, spiderPose, spiralUpTo } from "./web-weave-spider.ts";
+import { STRAND_OUT_MS, spiderPose, spiralUpTo } from "./web-weave-spider.ts";
 import { drawSpiderBody } from "./web-weave-spider-body.ts";
 import type { WeavePluckMap, WeaveSway, WeaveWeather } from "./web-weave-sway.ts";
 import { strandPoint, swayPt } from "./web-weave-sway.ts";
@@ -45,10 +45,9 @@ export interface WeaveFrameInput {
   readonly dim: number;
   /** Static frame (reduced motion): no sway, dew at rest alpha, no glint, no float. */
   readonly still: boolean;
-  readonly spider: boolean;
   /** The A9 handoff line + its start wall-clock time; null unless state === "strand-out". */
   readonly strandOut: { readonly pts: readonly WeavePoint[]; readonly t0: number } | null;
-  /** The weather dials (weave-lab §1). `{ wind: 0, shiver: 0 }` is the shipped ambient sway exactly. */
+  /** The weather dials (weave-lab §1). `{ shiver: 0 }` is the shipped ambient sway exactly. */
   readonly weather: WeaveWeather;
   /** Frame delta (ms) — the prey machine moves her in px/ms, not px/frame. */
   readonly dt: number;
@@ -305,15 +304,11 @@ function drawStrandOut(ctx: CanvasRenderingContext2D, input: WeaveFrameInput, sw
 /** The weaver, painted at her pose moved onto the swaying silk (the pose itself stays in web space —
  *  the tracker's heading must not be perturbed by the ambient breath). */
 function paintSpider(ctx: CanvasRenderingContext2D, input: WeaveFrameInput, tracker: SpiderTracker, sway: WeaveSway): void {
-  if (!input.spider) {
-    return;
-  }
   const pose = spiderPose(input, tracker);
   if (pose === null) {
     return;
   }
-  // Sprinting blurs her legs regardless of character; twitches only play when she is genuinely idle.
-  const idle = !pose.moving && pose.tap === 0 && input.character.twitch && !input.still;
+  // Sprinting blurs her legs regardless of character.
   ctx.globalAlpha = input.dim;
   drawSpiderBody(ctx, {
     palette: input.palette,
@@ -323,7 +318,6 @@ function paintSpider(ctx: CanvasRenderingContext2D, input: WeaveFrameInput, trac
       gaitHz: pose.sprinting ? SPRINT_GAIT.gaitHz : input.character.gaitHz,
       gaitAmp: pose.sprinting ? SPRINT_GAIT.gaitAmp : input.character.gaitAmp,
       restAmp: REST_GAIT_AMP,
-      twitchPhase: idle ? idleTwitchPhase(input.now, input.web.seed) : 0,
     },
   });
 }

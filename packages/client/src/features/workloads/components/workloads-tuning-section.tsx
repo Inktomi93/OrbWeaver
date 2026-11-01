@@ -11,8 +11,10 @@
 // which owns containment + focus).
 
 import { Row, Section, Stack } from "@orb/ui/layout";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, SettingRowGroup, SettingTrackRow, useFirstBootBox } from "#components";
+import type { Trpc } from "#data";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
@@ -32,11 +34,7 @@ import {
 } from "../lib/workloads-tuning-model.ts";
 import { WORKLOADS_TUNING_SUBCATEGORY } from "../lib/workloads-tuning-nav.ts";
 
-interface UpdateWorkloadsVars {
-  readonly section: "workloads";
-  readonly patch: Record<string, unknown>;
-}
-const useUpdateWorkloadsTuning = createEntityMutation<UpdateWorkloadsVars, unknown>({
+const useUpdateWorkloadsTuning = createEntityMutation<inferInput<Trpc["settings"]["updateUserSettingsSection"]>, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
   errorToast: "Couldn't save your analysis-tuning settings.",

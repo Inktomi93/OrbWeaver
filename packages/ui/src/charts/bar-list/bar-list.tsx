@@ -33,7 +33,6 @@ export interface BarListProps {
    */
   readonly valueMax?: number | undefined;
   readonly height?: number | "100%";
-  readonly className?: string;
   readonly onChartReady?: ((instance: OrbEChartsInstance) => void) | undefined;
 }
 
@@ -51,7 +50,6 @@ export function BarList({
   intent = "accent",
   valueMax,
   height,
-  className,
   onChartReady,
 }: BarListProps): ReactElement {
   // Called unconditionally (before the empty-state branch) to satisfy rules-of-hooks.
@@ -62,7 +60,6 @@ export function BarList({
 
   return (
     <LabeledChartFrame
-      className={className}
       isEmpty={isEmpty}
       label={label}
       ref={frameRef}
