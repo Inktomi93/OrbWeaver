@@ -43,7 +43,7 @@ function imageExecution(): ImageExecution {
 
 async function hostedSubject(
   root: Awaited<ReturnType<typeof createServerHarness>>,
-): Promise<Pick<GeneratePictureParams, "caller" | "chatId" | "subjectCharacterId" | "n"> & { readonly mode: "character" }> {
+): Promise<Pick<GeneratePictureParams, "caller" | "chatId" | "subjectCharacterId"> & { readonly mode: "character" }> {
   const principal = await root.principalFor(root.ownerId);
   const character = await root.services.character.create({
     principal,
@@ -67,13 +67,13 @@ async function hostedSubject(
   await root.services.connection.setBinding({ principal, task: "generateImage", connectionId: connection.id });
   await root.services.connection.setBinding({ principal, task: "chat", connectionId: connection.id });
   await root.services.chat.commitMessage({ principal, chatId: chat.id, content: "The traveller stands beside the loom and waits." });
-  return { caller: principal, chatId: chat.id, subjectCharacterId: character.id, mode: "character" as const, n: 2 };
+  return { caller: principal, chatId: chat.id, subjectCharacterId: character.id, mode: "character" as const };
 }
 
 test("equal-clock reuse returns one exact real call cohort without another provider request", async () => {
   const wire = imageExecution();
   await using root = await createServerHarness({ providerFetch: wire.execute });
-  wire.images.push(...Array.from({ length: 4 }, () => makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))));
+  wire.images.push(...Array.from({ length: 2 }, () => makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))));
   const params = await hostedSubject(root);
   const first = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
   const second = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
@@ -92,7 +92,7 @@ test("equal-clock reuse returns one exact real call cohort without another provi
 test("later-clock reuse returns the newest complete real cohort without another provider request", async () => {
   const wire = imageExecution();
   await using root = await createServerHarness({ providerFetch: wire.execute });
-  wire.images.push(...Array.from({ length: 4 }, () => makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))));
+  wire.images.push(...Array.from({ length: 2 }, () => makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))));
   const params = await hostedSubject(root);
   const first = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
   root.clock.advance(1);
@@ -111,7 +111,7 @@ test("a real native export/import records one actual call claim without duplicat
   await using root = await createServerHarness({ providerFetch: wire.execute });
   wire.images.push(...Array.from({ length: 2 }, () => makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))));
   const params = await hostedSubject(root);
-  const native = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
+  const native = await seedImageryGenerationsRows(root, { ...params, n: 2, reuse: "never" });
   const callId = native.generations[0]?.callId;
   const descriptor = root.app.portability.find((entity) => entity.kind === "imagery");
   if (callId === null || callId === undefined || descriptor === undefined) {
