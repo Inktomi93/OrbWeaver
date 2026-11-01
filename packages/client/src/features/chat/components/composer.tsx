@@ -43,6 +43,9 @@ import { ComposerNextTurnLine } from "./composer-next-turn-line.tsx";
 import { ComposerSendControl } from "./composer-send-control.tsx";
 import { ComposerSlashStrip } from "./composer-slash-strip.tsx";
 
+// The draft grows to this many lines, then scrolls inside the box (about the old 16rem cap).
+const COMPOSER_MAX_ROWS = 10;
+
 // Teach the empty-Enter action in the placeholder, including the adjacent Response icon when it generates.
 function resolvePlaceholder(emptyAction: "continue" | "generate" | null): string {
   if (emptyAction === "continue") {
@@ -376,7 +379,8 @@ export function Composer({
               onPaste={mediaDrop.onPaste}
               disabled={sendMessage.isPending}
               chrome="bare"
-              className="flex-auto resize-none overflow-y-auto overscroll-contain px-0 max-block-(--height-scroll-md) min-inline-0"
+              className="flex-auto resize-none overflow-y-auto overscroll-contain px-0 min-inline-0"
+              maxRows={COMPOSER_MAX_ROWS}
               rows={1}
               size="compact"
             />

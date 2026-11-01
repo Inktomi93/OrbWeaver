@@ -60,9 +60,12 @@ for (const regime of REGIMES) {
         ]),
       );
       await mount<typeof RefineryActionGroupsStory>(STORY, { sessionId: session.id, width: regime.width, appearance: regime.appearance });
-      const keep = page.getByRole("button", { name: "Keep (empties field) postHistoryInstructions", exact: true });
-      const discard = page.getByRole("button", { name: "Discard postHistoryInstructions", exact: true });
-      const opener = page.getByRole("button", { name: "postHistoryInstructions — show this change", exact: true });
+      // The queue names its targets in its own words; the buttons are found by those words, read from the page.
+      await expect(page.getByRole("button", { name: / — show this change$/u }).first()).toBeVisible();
+      const target = ((await page.getByRole("button", { name: /^Keep \(empties field\) /u }).textContent()) ?? "").replace(/^Keep \(empties field\) /u, "");
+      const keep = page.getByRole("button", { name: `Keep (empties field) ${target}`, exact: true });
+      const discard = page.getByRole("button", { name: `Discard ${target}`, exact: true });
+      const opener = page.getByRole("button", { name: `${target} — show this change`, exact: true });
       const row = keep.locator("..");
       await expect(row.getByText(DROP_REASON_COPY.diverged_since_session.chip, { exact: true })).toBeVisible();
       const geometry = await actionGroupGeometry(row, [opener, discard, keep]);
@@ -79,13 +82,13 @@ for (const regime of REGIMES) {
       await page.keyboard.press("Tab");
       await expect(keep).toBeFocused();
       await page.keyboard.press("Enter");
-      const reopen = page.getByRole("button", { name: "reopen postHistoryInstructions", exact: true });
+      const reopen = page.getByRole("button", { name: `Reopen ${target}`, exact: true });
       await expect(reopen).toBeVisible();
       expect((await actionGroupGeometry(reopen.locator(".."), [opener, reopen])).inlineOverflow).toBeLessThanOrEqual(1);
       await expect.poll(async () => (await caller.refinery.getSession({ sessionId: session.id })).rewriteDecisions[run.id]).toEqual([null, true]);
       await reopen.focus();
       await page.keyboard.press("Enter");
-      await expect(page.getByRole("heading", { name: "postHistoryInstructions", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: target, exact: true })).toBeVisible();
       await expect(page.getByText("The live instruction changed after the pin.", { exact: true })).toBeVisible();
       await expect(keep).toHaveAttribute("aria-pressed", "true");
       expect((await caller.character.get({ characterId: card.id })).postHistoryInstructions).toBe("The live instruction changed after the pin.");

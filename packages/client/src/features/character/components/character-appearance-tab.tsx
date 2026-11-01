@@ -20,7 +20,7 @@
 // style + Density selects were struck as dead switches — nothing read what they wrote), and the subset
 // projection is what keeps a theme's `density` from riding back in through the inverse door.
 
-import type { Theme, ThemeBackground, ThemeOverride, ThemeRadius } from "@orb/contracts/theme";
+import type { Theme, ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
 import { cardEmbeddableSubset, THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/contracts/theme";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
@@ -34,11 +34,11 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import { ThemePreviewPane, ThemeSwatchStrip } from "@orb/ui/theme-swatch";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { BackgroundSourceField, CORNER_RADIUS_NAME, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
+import { BackgroundSourceField, CORNER_RADIUS_NAME, ConfirmDialog, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { AutosaveStatus } from "#forms/editor";
-import { notify } from "#lib";
+import { notify, THEME_RADIUS_LABELS } from "#lib";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { CharacterThemeForm } from "../hooks/use-character-theme-form.ts";
 import { usePromoteTheme } from "../hooks/use-promote-theme.ts";
@@ -59,15 +59,9 @@ export interface CharacterAppearanceTabProps {
 // value at all beside the swatches. The word is INHERIT, everywhere: the select item, every colour's own
 // readout (`BoundColorField`), the helper sentence, and the cluster-wide verb below.
 const INHERIT_ITEM = { value: THEME_INHERIT, label: "Inherit" } as const;
-const RADIUS_LABELS: Record<ThemeRadius, string> = {
-  base: "Base",
-  control: "Tight",
-  card: "Card",
-  full: "Round",
-};
 // `labelStyle` — each font option renders in its own typeface, derived from the value (#866 §7.8).
 const FONT_ITEMS: SelectItems<string> = [INHERIT_ITEM, ...THEME_FONT_ALLOWLIST.map((value) => ({ value, label: value, labelStyle: { fontFamily: value } }))];
-const RADIUS_ITEMS: SelectItems<string> = [INHERIT_ITEM, ...THEME_RADII.map((value) => ({ value, label: RADIUS_LABELS[value] }))];
+const RADIUS_ITEMS: SelectItems<string> = [INHERIT_ITEM, ...THEME_RADII.map((value) => ({ value, label: THEME_RADIUS_LABELS[value] }))];
 
 const THEME_FIELD_NAMES = Object.keys(EMPTY_CHARACTER_THEME_FORM) as (keyof CharacterThemeFormValues)[];
 
@@ -208,9 +202,17 @@ function ThemeControlsBody({ characterName, session }: ThemeControlsBodyProps): 
             {(override): ReactElement => (
               <Row gap="field" align="center">
                 <SaveAsThemeButton characterName={characterName} override={override} />
-                <Button variant="ghost" disabled={override === null} onClick={resetToGlobal}>
-                  Reset all to Inherit
-                </Button>
+                <ConfirmDialog
+                  confirmLabel="Reset all"
+                  description="Every colour and style this character sets goes back to Inherit, so it follows your global theme."
+                  onConfirm={resetToGlobal}
+                  title="Reset this character's look to Inherit?"
+                  trigger={
+                    <Button variant="ghost" disabled={override === null}>
+                      Reset all to Inherit
+                    </Button>
+                  }
+                />
               </Row>
             )}
           </form.Subscribe>

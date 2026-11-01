@@ -124,9 +124,10 @@
     .shell-topbar-title {
     display: none;
   }
-  /* The rename field sizes to its content above a floor; the group caps it. */
+  /* The rename field sizes to its content above a floor; the group caps it, and the text scrolls inside the field. */
   .shell-topbar-rename {
-    flex: 1 0 auto;
+    flex: 1 1 auto;
+    max-inline-size: 100%;
     min-inline-size: calc(var(--dimension-shell-title-floor) * 2);
     field-sizing: content;
   }

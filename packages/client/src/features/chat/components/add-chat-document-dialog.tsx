@@ -122,7 +122,7 @@ function PickerBody({
     <Stack gap="row">
       {/* The box stays mounted through every body state — including "No matches", whose only way out is to
           edit or clear the term that produced it. */}
-      <Input aria-label="Search your documents" onValueChange={setQuery} placeholder="Search your documents" value={query} />
+      <Input aria-label="Search your documents" onValueChange={setQuery} placeholder="Search your documents…" value={query} />
       <PickerCandidates
         candidates={candidates}
         failure={failure}

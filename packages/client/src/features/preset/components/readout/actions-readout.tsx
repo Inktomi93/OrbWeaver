@@ -127,7 +127,7 @@ function MarkerDeliveryPath({ sections }: { readonly sections: readonly PromptSe
         <Row align="center" gap="field">
           <Text voice="label">Guided instruction</Text>
           <Badge tone="warning" variant="solid" size="sm">
-            absent
+            Absent
           </Badge>
         </Row>
         <Text voice="gloss">

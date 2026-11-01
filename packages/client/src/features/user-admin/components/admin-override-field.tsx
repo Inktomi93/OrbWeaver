@@ -24,12 +24,12 @@ import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { SettingTrackRow } from "#components";
+import { ConfirmDialog, SettingTrackRow } from "#components";
 
-/** The numeric row's floor formatter — the SAME default `Intl.NumberFormat` Base UI's NumberField formats
- *  its visible value with (locale + options both defaulted), so the floor sentence reads in the same
- *  grouping as the control above it ("1,024" can never sit over "Default: 1024."). */
-const NUMERIC_FLOOR_FORMAT = new Intl.NumberFormat();
+/** The numeric row's floor formatter — the SAME default format the NumberField primitive formats its visible
+ *  value with (locale defaulted, grouping off), so the floor sentence reads in the same digits as the control
+ *  above it ("1024" can never sit over "Default: 1,024."). */
+const NUMERIC_FLOOR_FORMAT = new Intl.NumberFormat(undefined, { useGrouping: false });
 
 /** The muted "Overridden / Using the default" line beneath every override control. A `null` floor means the
  *  caller CANNOT name it: `getAppSettingsWithOverrides` returns floor ⊕ override, so once an override is
@@ -54,7 +54,7 @@ export interface AdminOverrideFieldProps {
   readonly overridden: boolean;
   /** The floor NUMBER shown beneath the control ("Default: N") — the value an absent override falls to. A
    *  number, not a label: it is formatted here exactly as the NumberField formats the value above it, so
-   *  the row can't read "1,024" over "Default: 1024." (two different-looking numbers for one value).
+   *  the row can't read "1024" over "Default: 1,024." (two different-looking numbers for one value).
    *  `null` = the floor is UNNAMEABLE (an env-layered key whose stored override hides it): the row then
    *  points at Reset rather than naming a default it would be inventing. */
   readonly floorValue: number | null;
@@ -175,9 +175,17 @@ export function AdminOverrideResetRow({ sectionLabel, dirty, anyOverridden, savi
           </Button>
         )}
         {anyOverridden ? (
-          <Button aria-label={`Reset to defaults: ${sectionLabel}`} variant="outline" size="sm" disabled={saving} onClick={onReset}>
-            Reset to defaults
-          </Button>
+          <ConfirmDialog
+            confirmLabel="Reset to defaults"
+            description={`Every override in ${sectionLabel} is cleared and the built-in defaults apply again.`}
+            onConfirm={onReset}
+            title={`Reset ${sectionLabel} to defaults?`}
+            trigger={
+              <Button aria-label={`Reset to defaults: ${sectionLabel}`} variant="outline" size="sm" disabled={saving}>
+                Reset to defaults
+              </Button>
+            }
+          />
         ) : null}
       </Row>
       {errored ? (

@@ -24,23 +24,13 @@ import type { ChatId, MessageId } from "@orb/kit/ids";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import { ChevronLeft, ChevronRight, Icon } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
-import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import type { Trpc } from "#data";
-import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useTRPC } from "#data";
+import { useSetSeededGreeting } from "../hooks/use-message-mutations.ts";
 import { CHAT_NEXT_GREETING_NAME } from "../lib/chat-surface-names.ts";
 import { variantCountName } from "../lib/message-action-names.ts";
 import type { SwipeFoot } from "../lib/pager-chrome.ts";
 import { SwipeFootRow } from "./swipe-strip.tsx";
-
-// busDriven: in-place steps emit `messageEdited`; preserved prose emits `variantSelected`. Both invalidate canon —
-// the row re-renders from the SERVER's bytes, never from an optimistic local swap (the card is the source of
-// truth for what an alternate says, and it may have been edited since the seed).
-const useSetSeededGreeting = createEntityMutation<inferInput<Trpc["chat"]["setSeededGreeting"]>, unknown>({
-  options: (trpc) => trpc.chat.setSeededGreeting.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't switch to that greeting.",
-});
 
 export interface GreetingSwipeStripProps {
   readonly chatId: ChatId;

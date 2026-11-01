@@ -2,12 +2,12 @@
 kind: bug
 status: open
 updated: 2026-11-01
-priority: P2
+priority: P3
 area: client
-plan: css-system
+plan: cross-surface-consistency
 ---
 
-# Character editor reflows at enlarged text: the save bar overlays labels and facet rows scroll sideways
+# A failed delete on Databank and Preset moves focus to the neighbour because the sync wiring closes the dialog first
 
 ## What
 

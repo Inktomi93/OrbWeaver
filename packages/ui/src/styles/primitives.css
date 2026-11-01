@@ -97,7 +97,20 @@
   }
 }
 
+/* The `maxRows` ceiling a Textarea writes inline; `none` until it does. */
+@property --textarea-ceiling {
+  syntax: "<length> | none";
+  inherits: false;
+  initial-value: none;
+}
+
 @layer ui {
+  /* The ceiling rides a custom property, never an inline max-height. Declared in layer ui, it loses to any unlayered
+   * rule, so a regime rule (the app shell's short-room cap) can hold the field lower than the ceiling the component asks for. */
+  [data-slot="textarea-root"] {
+    max-block-size: var(--textarea-ceiling);
+  }
+
   .orb-art-band[data-art-image="false"] {
     --art-feather-start: 55%;
     --art-feather-end: 100%;

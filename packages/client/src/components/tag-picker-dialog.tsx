@@ -138,7 +138,7 @@ export function TagPickerDialog({ open, onOpenChange, title, description, confir
           open={true}
           // The field's PRIMARY job is finding a tag you already have; "e.g. adventure" invited inventing a
           // name in the one place where inventing one is the failure mode.
-          placeholder="Search or create a tag"
+          placeholder="Search or create a tag…"
           value={name}
         />
         <Row align="center" gap="field">

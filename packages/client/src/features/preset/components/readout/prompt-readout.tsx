@@ -170,7 +170,7 @@ function PromptReadoutBody({
         <Stack gap="tight">
           <Row align="center" gap="field">
             <Badge tone="info" size="sm">
-              SETUP
+              Setup
             </Badge>
             <Text voice="gloss">
               {zones.summaries.setup.enabledCount} on · {formatEstimate(zones.summaries.setup.tokenEstimate)}
@@ -178,7 +178,7 @@ function PromptReadoutBody({
           </Row>
           <Row align="center" gap="field">
             <Badge tone="warning" size="sm">
-              POST
+              Post
             </Badge>
             <Text voice="gloss">
               {zones.summaries.post.enabledCount} on · {formatEstimate(zones.summaries.post.tokenEstimate)}

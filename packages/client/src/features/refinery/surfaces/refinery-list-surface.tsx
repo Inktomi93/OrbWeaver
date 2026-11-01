@@ -1,7 +1,7 @@
 // The sessions LIST (delta 3 arm A, ruled: FLAT, newest first, the character as row identity — one
 // selection axis, one row shape; "sessions for X" is a SEARCH, not a structure). A bounded owner list
-// fetched whole ⇒ `useSuspenseQuery` + `ListPage` (the lockdown §14 adjudication; the paginated
-// factory is for unbounded browses). The genuine-empty state carries the start door — on a phone this pane IS
+// fetched whole ⇒ `useSuspenseQuery` inside a `LibrarySurfaceShell` under a `ListPage` (the lockdown §14
+// adjudication; the paginated factory is for unbounded browses). The genuine-empty state carries the start door — on a phone this pane IS
 // the screen (the one-shell rule), so a bare "no sessions" would be the whole product on first contact.
 //
 // ── ROW IDENTITY (side-eye 2026-08-09 P1-4/P1-5/P1-6) ────────────────────────────────────────────────
@@ -27,7 +27,6 @@
 // read already performs, so the list names EVERY session it lists and there is no second query here.
 
 import { blobUrl } from "@orb/contracts/assets";
-import type { RenderHintTone } from "@orb/contracts/refinery";
 import type { CharacterId, RefinerySessionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
@@ -35,28 +34,17 @@ import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Input } from "@orb/ui/input";
-import { ListRow } from "@orb/ui/list-row";
-import type { ReactElement } from "react";
+import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
-import { LibraryListRows, ListPage, RowActionsMenu } from "#components";
+import { LibraryListRows, LibraryRow, LibrarySurfaceShell, ListPage, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { timeLib, useFocusOnMount } from "#lib";
+import { timeLib, useFocusListArrival } from "#lib";
 import { refinerySectionSelection, requestRefineryLandingFocus, selectRefinerySessionFromList, useMobileViewport, useSelectedRefinerySessionId } from "#state";
 import { RefineryChip } from "../components/refinery-chip.tsx";
 import { StartSessionDoor } from "../components/start-session-door.tsx";
 import { useDeleteRefinerySession } from "../hooks/use-refinery-mutations.ts";
 import { REFINERY_SEARCH_SESSIONS_NAME } from "../lib/refinery-names.ts";
-
-const VERDICT_TONE: Record<string, RenderHintTone> = {
-  ACCEPT: "good",
-  NEEDS_REFINEMENT: "warn",
-  REGRESSION: "bad",
-};
-const VERDICT_WORD: Record<string, string> = {
-  ACCEPT: "Accept",
-  NEEDS_REFINEMENT: "Needs refinement",
-  REGRESSION: "Regression",
-};
+import { verdictToneOf, verdictWordOf } from "../lib/verdict.ts";
 
 interface ResolvedRow {
   readonly id: RefinerySessionId;
@@ -85,63 +73,67 @@ interface ResolvedRow {
  *  ANALYZE has not been run — and it wore the same filled, boxed, uppercase chip as `REGRESSION` on a
  *  session already scored 9.5/10, shouting louder than the character name that is the row's identity. A
  *  chip is for a verdict the model RETURNED; the absent arm has no chip at all and states itself in the
- *  subtitle beside the iteration and the stamp (`readoutSubtitleOf`), one register BELOW the row's title
+ *  subtitle beside the round and the stamp (`readoutSubtitleOf`), one register BELOW the row's title
  *  rather than above it. The WORD moved with it: "no verdict" named the wire field, "not analyzed" names
  *  the fact the row is reporting. */
 function verdictChipOf(row: ResolvedRow): ReactElement | undefined {
-  return row.latestVerdict === null ? undefined : (
-    <RefineryChip tone={VERDICT_TONE[row.latestVerdict] ?? "neutral"}>{VERDICT_WORD[row.latestVerdict] ?? row.latestVerdict}</RefineryChip>
-  );
+  return row.latestVerdict === null ? undefined : <RefineryChip tone={verdictToneOf(row.latestVerdict)}>{verdictWordOf(row.latestVerdict)}</RefineryChip>;
 }
 
-/** The subtitle: iteration + the session's START STAMP. The stamp is the same-card DISTINGUISHER — every
+/** The subtitle: round + the session's START STAMP. The stamp is the same-card DISTINGUISHER — every
  *  session on one card shares the character title and carries no name of its own, and `createdAt` is
  *  per-session, so an absolute start stamp differs the rows visually AND in the a11y tree (the ruled
  *  auto-label arm; no nameable-session affordance is added here). "Freshness" is already positional (the
  *  list is newest-updated first), so WHEN-STARTED is the fact that actually tells six sessions apart. A
  *  session that HAS a name leads with it. Rides `aria-describedby` with the verdict via the subtitle span.
  *  It also carries the NOT-ANALYZED state (finding c): a row with no verdict says so here, in the same
- *  quiet register as its iteration and stamp, instead of wearing a filled chip louder than its own name. */
+ *  quiet register as its round and stamp, instead of wearing a filled chip louder than its own name. */
 function readoutSubtitleOf(row: ResolvedRow): string {
   const stage = row.latestVerdict === null ? "not analyzed · " : "";
-  const readout = `${stage}iteration ${row.iterationCount} · started ${timeLib.formatDateTime(row.createdAt)}`;
+  const readout = `${stage}round ${row.iterationCount} · started ${timeLib.formatDateTime(row.createdAt)}`;
   return row.sessionName === null ? readout : `${row.sessionName} · ${readout}`;
 }
 
-/** The roster owns the session lifecycle door: deleting a session removes its full refinery run history,
- * while leaving the character itself untouched. The shared row composite keeps the destructive action
- * outside the clickable row body and puts the irreversible write behind the house confirmation. */
-function RefinerySessionRowActions({ row, selected }: { readonly row: ResolvedRow; readonly selected: boolean }): ReactElement {
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  const remove = useDeleteRefinerySession({ trpc, invalidation });
-  const started = timeLib.formatDateTime(row.createdAt);
-
-  const deleteSession = (): Promise<void> =>
-    remove.mutateAsync({ sessionId: row.id }).then((): void => {
-      // A successful delete cannot leave CONTENT drilled into the now-missing row. This is the same
-      // section-selection clear the shell's back door uses, so it also releases an open mobile roster.
-      if (selected) {
-        refinerySectionSelection.clear();
-      }
-    });
+export function RefineryListSurface(): ReactElement {
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useFocusListArrival(surfaceRef);
+  // The search is pane chrome above the boundary, so it stays on screen while the read is in flight.
+  const [search, setSearch] = useState("");
 
   return (
-    <RowActionsMenu
-      label={`Session actions for ${row.characterName}, started ${started}`}
-      reveal={true}
-      destructive={{
-        title: "Delete this refinery session?",
-        description: `This permanently deletes this session and all of its refinery runs. ${row.characterName}'s character card is unchanged.`,
-        onConfirm: deleteSession,
-      }}
-    />
+    <ListPage
+      body="bounded"
+      ref={surfaceRef}
+      search={<Input aria-label={REFINERY_SEARCH_SESSIONS_NAME} onValueChange={setSearch} placeholder="Search sessions…" value={search} />}
+      skipTo="Skip to sessions"
+    >
+      <LibrarySurfaceShell errorLabel="your sessions" loadingLabel="Loading your sessions…">
+        <RefineryList
+          listRootRef={surfaceRef}
+          onClearSearch={(): void => {
+            setSearch("");
+            surfaceRef.current?.focus();
+          }}
+          search={search}
+        />
+      </LibrarySurfaceShell>
+    </ListPage>
   );
 }
 
-export function RefineryListSurface(): ReactElement {
+function RefineryList({
+  search,
+  onClearSearch,
+  listRootRef,
+}: {
+  readonly search: string;
+  readonly onClearSearch: () => void;
+  readonly listRootRef: RefObject<HTMLElement | null>;
+}): ReactElement {
   const trpc = useTRPC();
+  const invalidation = useInvalidation();
   const sessions = useSuspenseQuery(trpc.refinery.listSessions.queryOptions());
+  const remove = useDeleteRefinerySession({ trpc, invalidation });
   const selectedId = useSelectedRefinerySessionId();
   const isMobile = useMobileViewport();
   // The SAME condition the header's `+` reads (#307): with nothing selected on a desktop, CONTENT mounts
@@ -150,9 +142,6 @@ export function RefineryListSurface(): ReactElement {
   // screen, `resolvePanelMode`'s `listIsScreen` arm) and with a session open CONTENT shows the pipeline, so
   // in both of those the CTA is the only door and stays the anchored picker popover.
   const contentShowsPicker = selectedId === null && !isMobile;
-  const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
-  const [search, setSearch] = useState("");
   const query = search.trim().toLowerCase();
 
   const resolved: ResolvedRow[] = sessions.data.map((session) => ({
@@ -175,6 +164,11 @@ export function RefineryListSurface(): ReactElement {
     (r) => query.length === 0 || r.characterName.toLowerCase().includes(query) || (r.sessionName ?? "").toLowerCase().includes(query),
   );
 
+  const rowFocus = useRowDeleteFocus(
+    listRootRef,
+    rows.map((row) => row.rawId),
+  );
+
   // A desktop landing focuses the existing CONTENT picker; the other regimes open the existing start door.
   const startDoor = contentShowsPicker ? (
     <Button variant="outline" onClick={requestRefineryLandingFocus} size="sm">
@@ -190,66 +184,66 @@ export function RefineryListSurface(): ReactElement {
     />
   );
 
+  // A successful delete cannot leave CONTENT drilled into the now-missing row. This is the same
+  // section-selection clear the shell's back door uses, so it also releases an open mobile roster.
+  const deleteSession = (row: ResolvedRow): Promise<void> =>
+    remove.mutateAsync({ sessionId: row.id }).then((): void => {
+      if (selectedId === row.rawId) {
+        refinerySectionSelection.clear();
+      }
+    });
+
   return (
-    <ListPage
-      body="bounded"
-      ref={surfaceRef}
-      search={<Input aria-label={REFINERY_SEARCH_SESSIONS_NAME} onValueChange={setSearch} placeholder="Search sessions" value={search} />}
+    <LibraryListRows
+      empty={
+        <EmptyState
+          action={
+            sessions.data.length > 0 ? (
+              <Button variant="outline" size="sm" type="button" onClick={onClearSearch}>
+                Clear search
+              </Button>
+            ) : (
+              startDoor
+            )
+          }
+          description={
+            sessions.data.length === 0
+              ? // NO "IN THE MAIN PANE" (side-eye 2026-08-19 P1-2). On a phone this pane IS the screen —
+                // there is no main pane to point at — and on a desktop the sentence was directing the user
+                // away from the button directly beneath it. The CTA opens the picker here, so the copy
+                // names the act rather than a place.
+                "A session pins a card as it is right now, then scores, rewrites and re-checks it against that pinned version. Pick a character to start."
+              : "No sessions match that search."
+          }
+          title={sessions.data.length === 0 ? "No refinery sessions yet" : "Nothing matches"}
+        />
+      }
+      isEmpty={rows.length === 0}
+      scroll={true}
     >
-      <LibraryListRows
-        empty={
-          <EmptyState
-            action={
-              sessions.data.length > 0 ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  type="button"
-                  onClick={(): void => {
-                    setSearch("");
-                    surfaceRef.current?.focus();
-                  }}
-                >
-                  Clear search
-                </Button>
-              ) : (
-                startDoor
-              )
-            }
-            description={
-              sessions.data.length === 0
-                ? // NO "IN THE MAIN PANE" (side-eye 2026-08-19 P1-2). On a phone this pane IS the screen —
-                  // there is no main pane to point at — and on a desktop the sentence was directing the user
-                  // away from the button directly beneath it. The CTA opens the picker here, so the copy
-                  // names the act rather than a place.
-                  "A session pins a card as it is right now, then scores, rewrites and re-checks it against that pinned version. Pick a character to start."
-                : "No sessions match that search."
-            }
-            title={sessions.data.length === 0 ? "No refinery sessions yet" : "Nothing matches"}
-          />
-        }
-        isEmpty={rows.length === 0}
-        scroll={true}
-      >
-        {rows.map((row) => (
-          <ListRow
-            actions={<RefinerySessionRowActions row={row} selected={selectedId === row.rawId} />}
-            actionsFloat={true}
-            clickable={true}
-            key={row.rawId}
-            leading={
-              <Avatar fallbackDelay={0} hueSeed={row.characterId} size="sm" {...(row.avatarHash === null ? {} : { src: blobUrl(row.avatarHash) })}>
-                {initialsFor(row.characterName)}
-              </Avatar>
-            }
-            onClick={(): void => selectRefinerySessionFromList(row.id)}
-            data-selected={selectedId === row.rawId ? "" : undefined}
-            subtitle={readoutSubtitleOf(row)}
-            subtitleLead={verdictChipOf(row)}
-            title={row.characterName}
-          />
-        ))}
-      </LibraryListRows>
-    </ListPage>
+      {rows.map((row) => (
+        <LibraryRow
+          bodyRef={rowFocus.bodyRef(row.rawId)}
+          actions={{
+            name: row.characterName,
+            qualifier: `started ${timeLib.formatDateTime(row.createdAt)}`,
+            ...rowFocus.delete(row.rawId, (): Promise<void> => deleteSession(row)),
+            deleteDescription: `This permanently deletes this session and all of its refinery runs. ${row.characterName}'s character card is unchanged.`,
+          }}
+          key={row.rawId}
+          leading={
+            <Avatar fallbackDelay={0} hueSeed={row.characterId} size="sm" {...(row.avatarHash === null ? {} : { src: blobUrl(row.avatarHash) })}>
+              {initialsFor(row.characterName)}
+            </Avatar>
+          }
+          onSelect={(): void => selectRefinerySessionFromList(row.id)}
+          selected={selectedId === row.rawId}
+          subtitle={readoutSubtitleOf(row)}
+          subtitleStep="label"
+          subtitleLead={verdictChipOf(row)}
+          title={row.characterName}
+        />
+      ))}
+    </LibraryListRows>
   );
 }

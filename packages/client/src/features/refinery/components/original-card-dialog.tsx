@@ -7,7 +7,7 @@ import { Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { ViewerDialog } from "#components";
-import { scopeChipLabelOf } from "../lib/render-plan.ts";
+import { scopeChipLabelOf, slotLabelOf } from "../lib/render-plan.ts";
 
 export function OriginalCardDialog({ card, onOpenChange }: { readonly card: CharacterCard; readonly onOpenChange: (open: boolean) => void }): ReactElement {
   return (
@@ -51,7 +51,7 @@ function OriginalGreetings({ greetings }: { readonly greetings: CharacterCard["g
         // biome-ignore lint/suspicious/noArrayIndexKey: greeting positions belong to the immutable session-start snapshot.
         <Stack gap="tight" key={index}>
           <Text voice="kicker">
-            Greeting {index + 1}
+            {slotLabelOf("greetings", index)}
             {greeting.groupOnly === true ? " · group only" : ""}
           </Text>
           <Text className="wrap-anywhere whitespace-pre-wrap max-inline-(--reading-measure-prose)" prose={true}>

@@ -74,3 +74,11 @@ test("an exception needs a cited ruling and then removes its site", ({ scratch }
   expect(facts.sites.filter((site) => site.kind === "raw-button")).toHaveLength(0);
   expect(facts.excepted).toHaveLength(1);
 });
+
+test("a one-row Textarea is an Input's job unless a maxRows ceiling says it grows", ({ scratch }) => {
+  const root = plantDir(scratch, "textarea");
+  plantClient(root, {
+    "components/rows.tsx": 'import { Textarea } from "@orb/ui/textarea";\nexport const A = () => <><Textarea rows={1} /><Textarea maxRows={6} rows={1} /></>;',
+  });
+  expect(sitesOf(root).filter((site) => site.kind === "textarea-single-row")).toHaveLength(1);
+});

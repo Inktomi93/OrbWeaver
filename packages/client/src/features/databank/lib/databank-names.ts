@@ -10,9 +10,6 @@ export const DATABANK_ALL_DOCUMENTS_NAME = "All documents";
 /** The library's search box. */
 export const DATABANK_SEARCH_NAME = "Search documents";
 
-/** The row menu item that feeds a document to every chat. */
-export const DATABANK_FEED_EVERY_CHAT_NAME = "Feed every chat";
-
 /** The context body's switch for the same act. */
 export const DATABANK_USE_IN_EVERY_CHAT_NAME = "Use in every chat";
 

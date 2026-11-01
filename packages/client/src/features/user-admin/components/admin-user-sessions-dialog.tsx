@@ -34,6 +34,7 @@ export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactEleme
   return (
     <FormDialog
       description="Revoking a session signs that device out on its next request."
+      dismissLabel="Close"
       onOpenChange={props.onOpenChange}
       open={props.open}
       size="lg"

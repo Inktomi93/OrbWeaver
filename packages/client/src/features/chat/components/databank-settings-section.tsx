@@ -14,10 +14,10 @@
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
-import type { SectionPatchVars } from "#data";
-import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
+import { useUpdateDatabank } from "../hooks/use-chat-settings-mutations.ts";
 import { DATABANK_SETTINGS_ENTITY_ID, DatabankSettingsAutosaveForm } from "../hooks/use-databank-settings-form.ts";
 import type { DatabankSettingsForm } from "../lib/databank-settings-model.ts";
 import {
@@ -31,12 +31,6 @@ import {
   toDatabankSectionPatch,
 } from "../lib/databank-settings-model.ts";
 import { DATABANK_SETTINGS_SUBCATEGORY } from "../lib/databank-settings-section-nav.ts";
-
-const useUpdateDatabank = createEntityMutation<SectionPatchVars<"databank">, unknown>({
-  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
-  errorToast: "Couldn't save your databank settings.",
-});
 
 /** The Databank section body — mounted at the chat-behavior pane's contributed-sections anchor. */
 export function DatabankSettingsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {

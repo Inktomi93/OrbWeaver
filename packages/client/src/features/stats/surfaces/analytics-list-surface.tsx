@@ -11,7 +11,6 @@ import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
-import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
@@ -20,7 +19,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { ListPage } from "#components";
+import { LibraryRow, ListPage } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
@@ -175,19 +174,18 @@ function LeaderboardBody({
       renderItem={(row, index): ReactElement => (
         // The wrapper names the row's character, so Back from its drill can hand focus back to it.
         <Stack {...{ [LEADERBOARD_ROW_ATTR]: row.characterId }}>
-          <ListRow
+          <LibraryRow
             data-testid={testId("analyticsLeaderboardRow")}
-            clickable={true}
-            data-selected={selectedId === row.characterId ? "" : undefined}
-            onClick={(): void => selectAnalyticsCharacterFromList(row.characterId)}
             leading={
               <Text voice="datum" ink="muted">
                 {index + 1}
               </Text>
             }
-            title={names[row.characterId] ?? row.name}
+            onSelect={(): void => selectAnalyticsCharacterFromList(row.characterId)}
+            selected={selectedId === row.characterId}
             subtitle={`${formatCompactNoun(row.assistantTurns, "reply", "replies")} · ${formatDurationMs(row.totalGenTimeMs)}`}
-            actions={
+            title={names[row.characterId] ?? row.name}
+            trailing={
               <Text voice="datumMono" className="whitespace-nowrap">
                 {formatTokens(row.tokensOut, row.tokensOutProvenance)}
               </Text>

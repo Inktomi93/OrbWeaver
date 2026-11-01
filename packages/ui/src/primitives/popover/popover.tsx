@@ -106,9 +106,7 @@ export function PopoverPopup(props: PopoverPopupProps): ReactElement {
   );
 }
 
-export interface PopoverViewportProps extends Omit<BaseViewportProps, "className"> {
-  className?: string;
-}
+export type PopoverViewportProps = Omit<BaseViewportProps, "className">;
 
 /**
  * OPTIONAL transition container — render it INSIDE `<PopoverPopup>`, wrapping the body, when ONE
@@ -118,17 +116,13 @@ export interface PopoverViewportProps extends Omit<BaseViewportProps, "className
  * A single-trigger popover needs nothing here — its children are already the popup body.
  */
 export function PopoverViewport(props: PopoverViewportProps): ReactElement {
-  const { className, ...rest } = props;
-  return <BasePopover.Viewport className={className} data-slot="popover-viewport" {...rest} />;
+  return <BasePopover.Viewport data-slot="popover-viewport" {...props} />;
 }
 
-export interface PopoverArrowProps extends Omit<BaseArrowProps, "className"> {
-  className?: string;
-}
+export type PopoverArrowProps = Omit<BaseArrowProps, "className">;
 
 export function PopoverArrow(props: PopoverArrowProps): ReactElement {
-  const { className, ...rest } = props;
-  return <BasePopover.Arrow className={slots.arrow({ className })} data-slot="popover-arrow" {...rest} />;
+  return <BasePopover.Arrow className={slots.arrow()} data-slot="popover-arrow" {...props} />;
 }
 
 export function PopoverClose(props: BaseCloseProps): ReactElement {
@@ -144,11 +138,8 @@ export function PopoverTitle(props: PopoverTitleProps): ReactElement {
   return <BasePopover.Title className={slots.title({ className })} {...rest} />;
 }
 
-export interface PopoverDescriptionProps extends Omit<BaseDescriptionProps, "className"> {
-  className?: string;
-}
+export type PopoverDescriptionProps = Omit<BaseDescriptionProps, "className">;
 
 export function PopoverDescription(props: PopoverDescriptionProps): ReactElement {
-  const { className, ...rest } = props;
-  return <BasePopover.Description className={slots.description({ className })} {...rest} />;
+  return <BasePopover.Description className={slots.description()} {...props} />;
 }

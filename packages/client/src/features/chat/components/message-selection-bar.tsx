@@ -19,22 +19,12 @@
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { SelectionBar } from "@orb/ui/selection-bar";
-import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog } from "#components";
-import type { Trpc } from "#data";
-import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useTRPC } from "#data";
 import { exitSelectionMode, readSelectedMessageIds, useSelectedCount, useSelectionActive } from "#state";
-
-// Module-scope factory (§13.1) — BUS-DRIVEN: `deleteMessages` emits messagesDeleted (→ chatReads) on the
-// OPEN chat, delivered by the active subscription → the seam refetches. `busDriven`; the removed
-// keys were a redundant backstop (the mutation-vs-bus rule, invalidation.ts).
-const useDeleteMessages = createEntityMutation<inferInput<Trpc["chat"]["deleteMessages"]>, unknown>({
-  options: (trpc) => trpc.chat.deleteMessages.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't delete the selected messages.",
-});
+import { useDeleteMessages } from "../hooks/use-message-mutations.ts";
 
 export interface MessageSelectionBarProps {
   readonly chatId: ChatId;

@@ -13,10 +13,10 @@
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { QueryBoundary, SettingRowGroup, SettingTrackRow, useFirstBootBox } from "#components";
-import type { SectionPatchVars } from "#data";
-import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
+import { useUpdateWorkloadsTuning } from "../hooks/use-workload-mutations.ts";
 import { WORKLOADS_TUNING_ENTITY_ID, WorkloadsTuningAutosaveForm } from "../hooks/use-workloads-tuning-form.ts";
 import type { WorkloadsTuningForm } from "../lib/workloads-tuning-model.ts";
 import {
@@ -32,12 +32,6 @@ import {
   toWorkloadsSectionPatch,
 } from "../lib/workloads-tuning-model.ts";
 import { WORKLOADS_TUNING_SUBCATEGORY } from "../lib/workloads-tuning-nav.ts";
-
-const useUpdateWorkloadsTuning = createEntityMutation<SectionPatchVars<"workloads">, unknown>({
-  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
-  errorToast: "Couldn't save your analysis-tuning settings.",
-});
 
 /** The Workloads analysis-tuning section body — mounted at the workloads pane's contributed-sections anchor. */
 export function WorkloadsTuningSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {

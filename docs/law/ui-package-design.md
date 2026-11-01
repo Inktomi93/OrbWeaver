@@ -434,12 +434,13 @@ non-generic wrap types the active trigger's payload `unknown` at every call site
 render-function `children` variant unusable. Drawer's handle is `createDrawerHandle`, the Base UI `createHandle`
 (`packages/ui/src/primitives/drawer/handle.ts`); the seal defines no handle class.
 
-## 15. `className` and `style` — the seal narrows one and passes the other (PENDING RATIFICATION)
+## 15. `className` and `style` — the seal narrows one and passes the other
 
 Base UI documents both props as `T | ((state) => T)` (Base UI's styling handbook, "CSS classes" /
 §"Style prop"). This package resolves them differently, on purpose:
 
-- **`className` is narrowed to `string`** on every seal (`Omit<BaseXProps, "className"> & { className?: string }`).
+- **`className` is narrowed to `string`** on every seal that takes one (`Omit<BaseXProps, "className"> & { className?: string }`).
+  A seal that no caller supplies a class to omits the prop, so an override fails to compile.
   A seal merges the caller's classes with its own `tv()` slot output through `cn()` (tailwind-merge),
   which resolves conflicts over class strings — it cannot take a function, and the seal has no state
   to call one with at the point it composes its slot. The state-driven styling channel is Base UI's
@@ -450,8 +451,8 @@ Base UI documents both props as `T | ((state) => T)` (Base UI's styling handbook
   spreads `{...rest}` onto its Base part, so the function form works on every seal that spreads.
   There is no merge layer on `style` to break.
 
-**Ruling (owner must ratify): keep the asymmetry.** `className: string` is seal law — widening it
-re-opens the merge hole. `style`'s native function form stays reachable. A caller needing
+**Ruling (ratified): keep the asymmetry, and take the prop only where a caller needs it.**
+`className: string` is seal law where a seal takes className — widening it re-opens the merge hole. `style`'s native function form stays reachable. A caller needing
 state-driven classes uses data attributes, or drops to the Base UI part directly inside its own
 primitive dir.
 

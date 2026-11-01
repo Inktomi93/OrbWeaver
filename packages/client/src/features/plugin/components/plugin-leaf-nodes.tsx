@@ -39,7 +39,7 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { Tone } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
-import { useId, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
 import { PLUGIN_ICON_GLYPHS } from "../lib/plugin-icon-glyphs.ts";
 import {
@@ -295,9 +295,8 @@ const PLUGIN_BADGE_TONE = {
   danger: "destructive",
 } as const satisfies Record<NonNullable<PluginBadgeNode["intent"]>, Tone>;
 
-/** A toggle's label rides beside its switch, not in a horizontal `Field`, whose control column docks to the
- *  row's far end and strands the switch across the page. Named statically (`aria-labelledby`), clickable through
- *  the label's `htmlFor`. */
+/** A toggle's label rides beside its switch in an `inline` `Field`; a horizontal one docks the control to the
+ *  row's far end and strands the switch across the page. */
 function ToggleLeaf({
   label,
   checked,
@@ -307,17 +306,10 @@ function ToggleLeaf({
   readonly checked: boolean;
   readonly onCheckedChange: (next: boolean) => void;
 }): ReactElement {
-  const switchId = useId();
-  const labelId = `${switchId}-label`;
   return (
-    <Row align="center" gap="row">
-      <label htmlFor={switchId}>
-        <Text as="span" id={labelId} voice="label">
-          {label}
-        </Text>
-      </label>
-      <Switch aria-labelledby={labelId} checked={checked} id={switchId} onCheckedChange={onCheckedChange} />
-    </Row>
+    <Field label={label} orientation="inline">
+      <Switch checked={checked} onCheckedChange={onCheckedChange} />
+    </Field>
   );
 }
 

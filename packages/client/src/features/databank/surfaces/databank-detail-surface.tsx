@@ -179,19 +179,19 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
     <EditorPage data-slot="databank-detail-editor" gap="section" inset="section">
       <DetailHeader
         actions={
-          <>
-            {/* The detail keeps its phase chip: here it answers the question the reader asked by opening the
-                  document. The act-now glyph rides it too, one chip anatomy in both panes. */}
-            <Badge tone={badge.tone} size="sm">
-              {badge.glyph === null ? null : <Icon icon={badge.glyph} size="xs" />}
-              {badge.label}
-            </Badge>
-            <Tip text={renameActionName(doc.name)}>
-              <Button aria-label={renameActionName(doc.name)} variant="ghost" onClick={(): void => setRenameOpen(true)} square={true}>
-                <Icon icon={Pencil} size="sm" />
-              </Button>
-            </Tip>
-          </>
+          <Tip text={renameActionName(doc.name)}>
+            <Button aria-label={renameActionName(doc.name)} variant="ghost" onClick={(): void => setRenameOpen(true)} square={true}>
+              <Icon icon={Pencil} size="sm" />
+            </Button>
+          </Tip>
+        }
+        // The detail keeps its phase chip: here it answers the question the reader asked by opening the
+        // document. State belongs in `meta`; the act-now glyph rides it too, one chip anatomy in both panes.
+        meta={
+          <Badge tone={badge.tone} size="sm">
+            {badge.glyph === null ? null : <Icon icon={badge.glyph} size="xs" />}
+            {badge.label}
+          </Badge>
         }
         title={doc.name}
       >

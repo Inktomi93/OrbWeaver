@@ -3,7 +3,7 @@ import type { PopoverRootProps as BasePopoverRootProps } from "@base-ui/react/po
 import type { ChangeEvent, ComponentProps, ReactElement } from "react";
 import { useId, useState } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { cn, isRenderableColor, variantAttrs } from "#lib";
+import { isRenderableColor, variantAttrs } from "#lib";
 import { Button } from "#primitives/button";
 import { Field } from "#primitives/field";
 import { Check, Icon } from "#primitives/icons";
@@ -60,7 +60,6 @@ export interface ColorFieldProps {
   success?: boolean;
   /** The control scale step (D336): the field's height, level with the controls of its row. @defaultValue "sm" */
   size?: VariantProps<typeof colorFieldVariants>["size"];
-  className?: string;
   /**
    * The clear button's label. It is a prop because the empty value means different things to different
    * consumers and each must say its OWN word: a theme field clears to `Inherit`, a tag colour clears to no
@@ -137,7 +136,6 @@ export function ColorField({
   loading = false,
   success = false,
   size,
-  className,
   resetLabel = "Reset to default",
   id,
   "aria-label": ariaLabel,
@@ -188,7 +186,7 @@ export function ColorField({
           <PopoverTrigger
             render={
               <button
-                className={cn(slots.swatchTrigger({ size }), className)}
+                className={slots.swatchTrigger({ size })}
                 {...variantAttrs(colorFieldVariants, { size })}
                 data-disabled={disabled ? "" : undefined}
                 data-loading={loading ? "" : undefined}

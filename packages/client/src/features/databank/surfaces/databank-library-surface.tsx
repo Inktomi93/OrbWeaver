@@ -40,12 +40,12 @@ import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { ReactElement } from "react";
+import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
-import { LibraryListRows, LibrarySurfaceShell, ListPage } from "#components";
+import { LibraryListRows, LibrarySurfaceShell, ListPage, useRowDeleteFocus } from "#components";
 import type { Trpc } from "#data";
 import { createCollectionSurface, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { timeLib, useDebouncedValue, useFocusOnMount } from "#lib";
+import { timeLib, useDebouncedValue, useFocusListArrival } from "#lib";
 import { clearDatabankPhaseFilter, clearDocumentSelection, openModal, selectDocumentFromList, useDatabankPhaseFilter, useSelectedDocumentId } from "#state";
 import { DatabankLibraryRow } from "../components/databank-library-row.tsx";
 import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
@@ -125,7 +125,7 @@ const useDatabankCollection = createCollectionSurface({
 
 export function DatabankLibrarySurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
+  useFocusListArrival(surfaceRef);
   // The search is pane chrome above the boundary, so it stays on screen while the read is in flight.
   const [query, setQuery] = useState("");
   const phaseFilter = useDatabankPhaseFilter();
@@ -143,10 +143,11 @@ export function DatabankLibrarySurface(): ReactElement {
         </>
       }
       ref={surfaceRef}
-      search={<Input aria-label={DATABANK_SEARCH_NAME} onValueChange={setQuery} placeholder="Search documents" value={query} />}
+      search={<Input aria-label={DATABANK_SEARCH_NAME} onValueChange={setQuery} placeholder="Search documents…" value={query} />}
+      skipTo="Skip to documents"
     >
       <LibrarySurfaceShell errorLabel="your documents" loadingLabel="Loading your documents…">
-        <DatabankList onClearSearch={(): void => setQuery("")} phaseFilter={phaseFilter} query={query} />
+        <DatabankList listRootRef={surfaceRef} onClearSearch={(): void => setQuery("")} phaseFilter={phaseFilter} query={query} />
       </LibrarySurfaceShell>
     </ListPage>
   );
@@ -157,9 +158,11 @@ interface DatabankListProps {
   readonly query: string;
   readonly phaseFilter: IngestPhase | null;
   readonly onClearSearch: () => void;
+  /** The pane root (the `ListPage` ref), where focus lands after the last neighbour row is gone. */
+  readonly listRootRef: RefObject<HTMLElement | null>;
 }
 
-function DatabankList({ query, phaseFilter, onClearSearch }: DatabankListProps): ReactElement {
+function DatabankList({ query, phaseFilter, onClearSearch, listRootRef }: DatabankListProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const selectedId = useSelectedDocumentId();
@@ -206,6 +209,11 @@ function DatabankList({ query, phaseFilter, onClearSearch }: DatabankListProps):
     remove.mutate({ id });
   };
 
+  const rowFocus = useRowDeleteFocus(
+    listRootRef,
+    documents.map((doc) => doc.id),
+  );
+
   const renameTarget = documents.find((doc) => doc.id === renameId) ?? null;
 
   // The rows no longer suspend (a paged collection is a live query, not a Suspense read), so this pane owns
@@ -248,6 +256,7 @@ function DatabankList({ query, phaseFilter, onClearSearch }: DatabankListProps):
               onRename={(id): void => setRenameId(id)}
               onSelect={selectDocumentFromList}
               onToggleGlobal={onToggleGlobal}
+              rowFocus={rowFocus}
               selected={doc.id === selectedId}
             />
           )}

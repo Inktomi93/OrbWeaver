@@ -9,8 +9,6 @@
 import { FlaskConical } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
-import { SkeletonRows } from "#data";
 import type { ContextTabDef, RefineryContextState } from "#lib";
 import { censusTitle, defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
@@ -79,8 +77,6 @@ function useRefinerySelectionTitle(): string | null {
   return censusTitle(REFINERY_SECTION_LABEL, census);
 }
 
-const REFINERY_LIST_SKELETON_ROWS = 6;
-
 export const refinerySection: SectionDefinition = {
   id: "refinery",
   rail: { label: REFINERY_SECTION_LABEL, icon: FlaskConical, group: "authoring", mobile: "sheet" },
@@ -93,9 +89,7 @@ export const refinerySection: SectionDefinition = {
   },
   list: (): ReactElement => (
     <RefineryListAnchor>
-      <QueryBoundary fallback={<SkeletonRows count={REFINERY_LIST_SKELETON_ROWS} />} reserveKey="refinery.list">
-        <RefineryListSurface />
-      </QueryBoundary>
+      <RefineryListSurface />
     </RefineryListAnchor>
   ),
   listSearch: "required",
@@ -105,7 +99,12 @@ export const refinerySection: SectionDefinition = {
   content: (): ReactElement => <RefineryContentSurface />,
   context: defineContextTabs<RefineryContextState>({
     useContextState: useRefineryContextState,
-    header: () => <Text voice="label">Refinery</Text>,
+    // `kicker`: a band's name is painted like the LIST band beside it, and it names the open subject.
+    header: () => (
+      <Text as="span" voice="kicker">
+        Session
+      </Text>
+    ),
     tabs: refineryContextTabs,
     empty: {
       title: "Refinery",

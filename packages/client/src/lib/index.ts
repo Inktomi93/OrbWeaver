@@ -254,6 +254,7 @@ export { DENSITY_ITEMS } from "./theme-appearance-items.ts";
 export { recordInputBorderFallback, recordToneFallback } from "./theme-fallback-ring.ts";
 export type { ThemeColorFields } from "./theme-override-form.ts";
 export { assignThemeColorFields } from "./theme-override-form.ts";
+export { THEME_RADIUS_LABELS } from "./theme-radius-labels.ts";
 export { timeLib, viewerTimeZone } from "./time.ts";
 export { createToastNotify } from "./toast-notify.ts";
 export { formatTrpcOp } from "./trpc-devlog.ts";
