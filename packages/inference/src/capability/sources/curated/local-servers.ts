@@ -179,7 +179,13 @@ export const localServerRows = [
       },
     },
     // `typical_p` is left out: Ollama deprecated it (api/types.go:578) and only warns while passing it on.
-    evidence: { tier: "curated", dated: DATED, cite: "ollama 42e911bc api/types.go Options (568-596) decoded by Options.FromMap (1022-1123)" },
+    // This set is what the options decoder accepts. Whether each key changes sampling depends on the model runner
+    // Ollama loads, which this tree neither reads nor measures; the set stays, scoped to the decoder.
+    evidence: {
+      tier: "curated",
+      dated: DATED,
+      cite: "ollama 42e911bc api/types.go Options (568-596) decoded by Options.FromMap (1022-1123): the server's options decoder, which runs before any model runner; that a given runner applies each key is unverified, and no evidence shows which runner a deployment uses",
+    },
   },
   {
     // The same server with its native route turned off (`nativeChat: none`): `/v1/chat/completions` converts only

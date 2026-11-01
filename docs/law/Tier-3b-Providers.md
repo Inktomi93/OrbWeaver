@@ -139,7 +139,7 @@ What each server says:
 | structured output | `/api/version` at or past `0.5.0`. | `/props` `build_info` at or past build `2480`. | `/api/extra/version` `version` at or past `1.90`. |
 | context window | The Modelfile `num_ctx`, capped at the trained maximum. Unpinned, the version's default floor lowered by a smaller loaded runner (`/api/ps`). | The row's `meta.n_ctx`, else `/props` `default_generation_settings.n_ctx`. | `/props` `n_ctx`, else `default_generation_settings.n_ctx`. |
 
-A version the reader cannot parse states no structured output. Parallel tool calls on Ollama, reasoning mode, sampling ranges and turn cells are not advertised by any of the three. They stay curated, measured or declared. The server floors live in `packages/inference/src/catalog/endpoint.ts`.
+A version the reader cannot parse states no structured output. Parallel tool calls on Ollama, reasoning mode, sampling ranges and turn cells are not advertised by any of the three. They stay curated, measured or declared. The server floors live in `packages/inference/src/catalog/endpoint.ts`. The curated Ollama sampling set states what Ollama's options decoder accepts. Whether a key changes sampling, and whether replayed `thinking` reaches the prompt, depends on the model runner Ollama loads. This tree does not read or measure the runner, so both stay unverified claims scoped to the decoder and the field the route takes.
 
 Rejected:
 
