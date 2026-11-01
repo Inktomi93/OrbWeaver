@@ -125,7 +125,7 @@ const QUEUE_STATES = ["open", "kept", "discarded", "undecided"] as const;
 type QueueState = (typeof QUEUE_STATES)[number];
 
 /** A queue row's REACT KEY — the entry's own address, never its ordinal. `targetLabel` alone collides on a
- *  round that appends two greetings (both read "greetings [new]"), so the append ordinal joins it; every
+ *  round that appends two greetings (both read "new greeting"), so the append ordinal joins it; every
  *  other arm is already unique by field + greeting slot. */
 function queueKeyOf(review: ReviewEntry): string {
   return `${reviewTargetLabel(review.entry)}#${review.appendIndex ?? ""}`;

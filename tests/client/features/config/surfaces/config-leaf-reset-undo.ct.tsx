@@ -1,6 +1,6 @@
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import type { SettingsCompositionStory } from "@orb/testkit/browser";
-import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { CHAT_PANEL_UNDO_LABEL } from "#client/features/plugin/lib/plugin-copy.ts";
@@ -57,4 +57,27 @@ test("the Undo toast still appears when the section unmounts while the reset wri
   hold.release();
   await page.getByRole("button", { name: CHAT_PANEL_UNDO_LABEL, exact: true }).click();
   await expect.poll(async () => (await caller.settings.getUserSettings()).config.chat.customStoppingStrings).toEqual(STOPS);
+});
+
+test("a rejected reset write says so once, leaves the value, and offers no Undo", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  await caller.settings.updateUserSettingsSection({ section: "appearance", patch: DEFAULT_APPEARANCE_SETTINGS });
+  await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
+  await caller.settings.updateUserSettingsSection({ section: "chat", patch: { customStoppingStrings: STOPS } });
+  await routeTrpc(
+    page,
+    serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", WRITE], (input) =>
+      typeof input === "object" && "patch" in input ? trpcError({ code: "INTERNAL_SERVER_ERROR" }) : undefined,
+    ),
+  );
+  await mount<typeof SettingsCompositionStory>(STORY, { sectionId: "chat-message-handling", width: 900 });
+  await page.getByRole("button", { name: "Reset Custom stopping strings to its default", exact: true }).click();
+  const notices = page.getByText("Couldn't reset the setting.");
+  await expect(notices.first()).toBeVisible();
+  await expect(page.getByRole("button", { name: CHAT_PANEL_UNDO_LABEL, exact: true })).toHaveCount(0);
+  expect((await caller.settings.getUserSettings()).config.chat.customStoppingStrings).toEqual(STOPS);
+  // One toast. The second text match is the page's alert live region, which mirrors the toast for screen readers.
+  await expect(page.locator('[data-slot="toast-root"]')).toHaveCount(1);
+  await expect(page.locator('[data-slot="toast-title"]').filter({ hasText: "Couldn't reset the setting." })).toHaveCount(1);
 });

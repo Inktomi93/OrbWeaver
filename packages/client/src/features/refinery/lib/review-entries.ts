@@ -8,7 +8,7 @@ import type { RefineryRewriteField, RefinerySelection } from "@orb/contracts/ref
 import { isAppendedRewrite } from "@orb/contracts/refinery";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { NEW_GREETING_LABEL, slotLabelOf } from "./render-plan.ts";
+import { NEW_GREETING_REVIEW_LABEL, reviewFieldLabel } from "./review-field-label.ts";
 
 /** One reviewable entry, resolved against the LIVE card and the ORIGINAL pin. */
 export interface ReviewEntry {
@@ -35,14 +35,14 @@ export interface ReviewEntry {
 /** The verb's applicability refusals the review can predict from the payload and the live card alone. */
 type ReviewRefusal = inferOutput<Trpc["refinery"]["applyFields"]>["dropped"][number]["reason"];
 
-/** The entry's target in words — `Greeting 3`, `New greeting` for an append, else the humanized field. */
+/** The entry's target in words, lowercase because a verb precedes it — `greeting 3`, `new greeting` for an append, else the humanized field. */
 export function reviewTargetLabel(entry: RefineryRewriteField): string {
   if (isAppendedRewrite(entry)) {
     // No slot number exists yet — the label says what the block DOES rather than inventing a position the
     // card does not have (and would not keep, since the slot lands at whatever the tail is at apply time).
-    return NEW_GREETING_LABEL;
+    return NEW_GREETING_REVIEW_LABEL;
   }
-  return slotLabelOf(entry.field, entry.greetingIndex);
+  return reviewFieldLabel(entry.field, entry.greetingIndex);
 }
 
 /** The applicability belts of the apply verb that depend only on the entry and the LIVE card. */
