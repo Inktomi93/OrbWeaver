@@ -34,4 +34,4 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 `BookDetailsPatch.name` and `.description` were not dead: `world-info-member-surface.tsx:187` sends the patch whole as `input: patch` to `updateBook`. `BookDetailsPatch` is now `inferInput<Trpc["worldInfo"]["updateBook"]>["input"]`. `UpdateWorldInfoVars.section` and `.patch` follow the `useSetWelcomeGreeter` precedent and take `inferInput<Trpc["settings"]["updateUserSettingsSection"]>`.
 
-Survey: `codegraph_explore` on `BookDetailsPatch book-details-dialog UpdateWorldInfoVars world-info-settings-section`; ast-grep (`-l ts` 5904, `-l tsx` 1522 files) found no other reader of either name. Typecheck exit 0. CT: `platform-world-info-member` mounts the member surface and its details dialog, passed within the 48-test run.
+Survey: `codegraph_explore` on `BookDetailsPatch book-details-dialog UpdateWorldInfoVars world-info-settings-section`; ast-grep (`-l ts` and `-l tsx`) found no other reader of either name. Typecheck exit 0. CT: `platform-world-info-member` mounts the member surface and its details dialog, passed within the 48-test run.

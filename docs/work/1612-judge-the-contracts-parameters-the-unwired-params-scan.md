@@ -34,7 +34,7 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 Applied 6 of 6 rows, kept 0, handed off 0, owner calls 0.
 
-- Survey: codegraph_explore on accepts, checkWireSchema, hintOf, clampActorCardName, constrainArrayItemRef. ast-grep (ts 5929 files, tsx 1524 files under packages, tests, tooling, scripts): every call site supplies the literal or omits the parameter (`checkWireSchema` test callers pass 3 args; `constrainArrayItemRef` 2 calls both "inventory"/"targetRef", renamed `constrainInventoryTargetRef`).
+- Survey: codegraph_explore on accepts, checkWireSchema, hintOf, clampActorCardName, constrainArrayItemRef. ast-grep (ts and tsx under packages, tests, tooling, scripts): every call site supplies the literal or omits the parameter (`checkWireSchema` test callers pass 3 args; `constrainArrayItemRef` 2 calls both "inventory"/"targetRef", renamed `constrainInventoryTargetRef`).
 - `pnpm typecheck packages/contracts/tsconfig.json tsconfig.tests-iso.json` exit 0.
 - `pnpm test tests/contracts/rpg/structured-patch-public-contract.contract.test.ts` 6 passed.
 

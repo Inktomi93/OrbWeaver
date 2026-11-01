@@ -33,4 +33,4 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 Applied: `buildCardEmbedText.userName` (now the named constant `USER_PLACEHOLDER_NAME`) and `buildCardEmbedText.maxTokens` (now the named `EMBED_WINDOW_TOKENS`). Both callers, `packages/server/src/domain/character/verbs/load-card-text.ts:19` and `scripts/generate-seed-vectors.ts:79`, pass the card only. The comment that said the caller passes the engine window was false and is gone.
 
 Survey: codegraph_explore on buildCardEmbedText; ast-grep `buildCardEmbedText($$$)` on -l ts and -l tsx over packages, tests, tooling, scripts (5929 .ts, 1524 .tsx): 2 call sites; literal `rg` for DEFAULT_EMBED_WINDOW_TOKENS, userName, maxTokens in the file's callers: no other reader.
-Ran: `pnpm typecheck packages/server/tsconfig.json tsconfig.node.json` exit 0; `pnpm test` card-embed-ledgers and encoder-route-snapshot: 2 files, 3 passed.
+Ran: `pnpm typecheck packages/server/tsconfig.json tsconfig.node.json` exit 0; `pnpm test` card-embed-ledgers and encoder-route-snapshot: passed.

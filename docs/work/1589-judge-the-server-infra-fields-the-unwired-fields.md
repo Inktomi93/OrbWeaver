@@ -51,7 +51,7 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 Counts: 23 rows = applied 5, derived 0, kept 10, handed off 5 (4 to item 1698, 1 test-only reader), owner questions 3.
 
-Method: codegraph on the infra symbols; compiler probe `pnpm typecheck tsconfig.node.json` exit 0 after the deletes; `ast-grep -l ts` (5890 files) and `-l tsx` (1526 files) for `$A.probe($B)`; suites `tests/server/entry/compose/share-acme.int.test.ts`, `tests/server/domain/chat/persistence/inline-reply-image-rows.suite.int.test.ts`, `tests/server/infra/plugin-host/process-runtime-lifecycle.int.test.ts` (25 passed).
+Method: codegraph on the infra symbols; compiler probe `pnpm typecheck tsconfig.node.json` exit 0 after the deletes; `ast-grep -l ts` and `-l tsx` for `$A.probe($B)`; suites `tests/server/entry/compose/share-acme.int.test.ts`, `tests/server/domain/chat/persistence/inline-reply-image-rows.suite.int.test.ts`, `tests/server/infra/plugin-host/process-runtime-lifecycle.int.test.ts` (25 passed).
 
 | Rows | Class | Reader or reason |
 | - | - | - |

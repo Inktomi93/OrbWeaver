@@ -39,4 +39,4 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 `MomentumRow.delta` was not in the table and stays (read at `analytics-view-model.ts:209` and in the sorts).
 
-Survey: `codegraph_explore` on `MomentumRow local-calendar-folds momentum`; ast-grep (`-l ts` 5904, `-l tsx` 1522 files) on `localMomentum($$$)` (1 caller). Typecheck exit 0 (same command as 1545). CT: `platform-accounting-coverage` mounts the stats components; it does not mount the overview surface, so the delete is proved by typecheck only.
+Survey: `codegraph_explore` on `MomentumRow local-calendar-folds momentum`; ast-grep (`-l ts` and `-l tsx`) on `localMomentum($$$)` (1 caller). Typecheck exit 0 (same command as 1545). CT: `platform-accounting-coverage` mounts the stats components; it does not mount the overview surface, so the delete is proved by typecheck only.

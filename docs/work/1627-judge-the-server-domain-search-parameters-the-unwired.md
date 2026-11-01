@@ -39,4 +39,4 @@ Kept: `SearchService.segments.params.candidates`. `SegmentsParams` is an alias o
 Owner question: `QueryEmbedConnection.imageEmbed.input.instruction`. Same shared `ImageEmbedInput.instruction` as the 1623 row (inference request shape).
 
 Survey: codegraph_explore on QueryEmbedConnection, SearchService segments, nearestDocumentChunks; ast-grep `nearestDocumentChunks($$$)` on -l ts and -l tsx over packages, tests, tooling, scripts (5929 .ts, 1524 .tsx): 1 call (tsx 0); literal `rg` for candidates, generationId, imageEmbed across the search domain.
-Ran: `pnpm typecheck packages/server/tsconfig.json tsconfig.tests-iso.json tsconfig.node.json` exit 0; `pnpm test` current-document-scope and rerank-consumers: 2 files, 14 passed.
+Ran: `pnpm typecheck packages/server/tsconfig.json tsconfig.tests-iso.json tsconfig.node.json` exit 0; `pnpm test` current-document-scope and rerank-consumers: passed.

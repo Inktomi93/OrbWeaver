@@ -37,7 +37,7 @@ Seven rows: 3 applied, 4 kept with a named reader, 0 owner questions.
 
 Applied:
 
-- `PostEventSourceInit.withCredentials`: deleted from `packages/client/src/data/bus/post-event-source.ts`. No caller supplies it (ast-grep pair scan, ts 5881 files and tsx 1514 files, plus a literal `rg`).
+- `PostEventSourceInit.withCredentials`: deleted from `packages/client/src/data/bus/post-event-source.ts`. No caller supplies it (ast-grep pair scan, `-l ts` and `-l tsx`, plus a literal `rg`).
 - `SkippedTreeFile.path` and `TreeImportPlan.bytes`: deleted with their writes in `packages/client/src/data/import-tree-plan.ts`. The test readers in `tests/client/data/import-tree-plan.int.test.ts` and `tests/e2e/sillytavern-folder-import.spec.ts` now assert the skipped count and the sent batches, since a skipped entry keeps only its reason.
 
 Kept:
@@ -45,6 +45,6 @@ Kept:
 - `AddressBar.location.pathname` and `.hash` (`packages/client/src/data/join-token.ts:18`): `addressBar().location` is handed whole to `withoutUrlSearchParam`, which reads `location.pathname` and `location.hash` at `packages/client/src/lib/url-search.ts:2,16`. The type is the structural twin of that parameter.
 - `Register.queryMeta` and `Register.mutationMeta` (`packages/client/src/data/query-client.ts:24,25`): TanStack reads them through `Register` module augmentation (`@tanstack/query-core` `hydration-Bf0oMcwO.d.ts:2442,3639`, `queryMeta: infer TQueryMeta`). The scanner cannot see a type-level read in `node_modules`.
 
-Ran: `pnpm typecheck packages/client/tsconfig.json tsconfig.tests-dom.json` (exit 0); `pnpm test tests/client/data/import-tree-plan.int.test.ts` (exit 0, 11 tests). The e2e spec is covered by the tests-dom typecheck only; the orchestrator owns e2e.
+Ran: `pnpm typecheck packages/client/tsconfig.json tsconfig.tests-dom.json` (exit 0); `pnpm test tests/client/data/import-tree-plan.int.test.ts` (exit 0). The e2e spec is covered by the tests-dom typecheck only; the orchestrator owns e2e.
 
 Reclass list: the four kept rows above (scan blind spots: whole object handed to a function typed on a wider twin type; module augmentation read by a dependency).

@@ -36,13 +36,13 @@ Six rows: six applied, none kept, none handed off, no owner questions.
 
 | Row | Result |
 | - | - |
-| `BackgroundSourceField.#0.readOnly` | applied: prop, the inert `onPick: null` branch and the `readOnly` arms removed in `packages/client/src/components/background-source-field.tsx` |
+| `BackgroundSourceField.#0.readOnly` | applied: prop, the inert `onPick: null` branch and the `readOnly` branches removed in `packages/client/src/components/background-source-field.tsx` |
 | `CharacterPicker.props.leadingGroup` | applied: prop, destructure and render slot removed in `packages/client/src/components/character-picker.tsx` |
 | `EntryListEditor.#0.removeDescription` | applied: prop and the confirm description slot removed in `packages/client/src/components/entry-list-editor.tsx` |
 | `EntryListEditor.#0.renderRowAction` | applied: prop and its render slot removed in the same file |
 | `FormSubmitButton.#0.cancelLabel` | applied: prop removed, label inlined as `Cancel` in `packages/client/src/components/form-dialog.tsx` (the separate `FormDialogSubmit.cancelLabel` and `ConfirmDialog.cancelLabel` are other props and stay) |
 | `TagPickerDialog.#0.placeholder` | applied: prop removed, literal inlined in `packages/client/src/components/tag-picker-dialog.tsx` |
 
-Survey: `codegraph_explore` on the six component symbols; `ast-grep` JSX scans for `BackgroundSourceField`, `CharacterPicker`, `EntryListEditor`, `FormSubmitButton`, `TagPickerDialog` over `packages tests tooling scripts` with `-l tsx` (1524 files) and `-l ts` (5929 files), no spread or `Pick`/`Omit` wrapper supplies any removed name. Literal `rg` for each removed name across the same roots: only the definition files and one comment hit (`new-chat-picker-surface.tsx` mentions `leadingGroup` in prose).
+Survey: `codegraph_explore` on the six component symbols; `ast-grep` JSX scans for `BackgroundSourceField`, `CharacterPicker`, `EntryListEditor`, `FormSubmitButton`, `TagPickerDialog` over `packages tests tooling scripts` with `-l tsx` and `-l ts`, no spread or `Pick`/`Omit` wrapper supplies any removed name. Literal `rg` for each removed name across the same roots: only the definition files and one comment hit (`new-chat-picker-surface.tsx` mentions `leadingGroup` in prose).
 
 Proof: `pnpm typecheck packages/client/tsconfig.json tsconfig.tests-dom.json` client program clean. CT `entry-list-consent`, `platform-form-dialog.suite`, `platform-tag-pill-height.suite` render the edited components: 4 passed. No CT mounts `BackgroundSourceField` or `CharacterPicker`; typecheck covers them.

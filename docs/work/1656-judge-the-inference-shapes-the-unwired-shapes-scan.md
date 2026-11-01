@@ -57,7 +57,7 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-31 rows: applied 23, kept 8, handed off 0, owner question 0. No request shaping, executor or wire code changed: only type re-export paths. Scan: a per-statement import and export scanner over 7437 ts and tsx files under `packages tests tooling` (`git ls-files`), plus ast-grep (`-l ts`, `-l tsx`, 5200 and 1450 files); the first scan filtered out server importers of `BindingActor` by mistake, which the server typecheck then caught, and I fixed it with the codemod below.
+31 rows: applied 23, kept 8, handed off 0, owner question 0. No request shaping, executor or wire code changed: only type re-export paths. Scan: a per-statement import and export scanner over every ts and tsx file under `packages tests tooling` (`git ls-files`), plus ast-grep (`-l ts`, `-l tsx`); the first scan filtered out server importers of `BindingActor` by mistake, which the server typecheck then caught, and I fixed it with the codemod below.
 
 Applied (23):
 

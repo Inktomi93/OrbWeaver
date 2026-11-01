@@ -35,6 +35,6 @@ Two rows: two applied, none kept, none handed off, no owner questions.
 | `TopbarIconButton.#0.pressed` | applied: prop and `aria-pressed` removed in `packages/client/src/features/app-shell/components/shell-topbar.tsx`. The two users are `shell-topbar.tsx` (back and list toggle) and `context-toggle.tsx`; neither passes it |
 | `captureBugReportBundle.input.now` | applied: `now` removed from `BugReportCaptureInput`; the window anchors on `captureClockMs()` in `packages/client/src/features/app-shell/lib/bug-report-capture.ts`. The only caller, `bug-report-button.tsx:161`, passes `note` and `windowMinutes` |
 
-Survey: `codegraph_explore` on `TopbarIconButton pressed shell-topbar captureBugReportBundle input now bug-report-capture`; ast-grep and literal `rg` for `TopbarIconButton`, `captureBugReportBundle`, `BugReportCaptureInput` over `packages tests tooling scripts` (`-l ts` 5929, `-l tsx` 1524 files); literal `rg pressed` across `app-shell` and its tests: only `aria-pressed` role queries in unrelated CTs.
+Survey: `codegraph_explore` on `TopbarIconButton pressed shell-topbar captureBugReportBundle input now bug-report-capture`; ast-grep and literal `rg` for `TopbarIconButton`, `captureBugReportBundle`, `BugReportCaptureInput` over `packages tests tooling scripts` (`-l ts` and `-l tsx`); literal `rg pressed` across `app-shell` and its tests: only `aria-pressed` role queries in unrelated CTs.
 
 Proof: client typecheck clean. No CT mounts `TopbarIconButton` directly; the shell CTs in `tests/client/features/app-shell` render `ShellTopbar`.

@@ -32,4 +32,4 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 Applied: `AutomationService.testRule.params.sampleEvent`. The tRPC `testRule` input never carried it (`transport/trpc/routers/automation.ts`), and a literal `rg` for `sampleEvent` across packages and tests finds no writer, so the row's "1 test call" note did not hold. The verb always synthesizes the fact from the rule's trigger.
 
 Survey: codegraph_explore on AutomationService testRule sampleEvent; ast-grep `testRule($$$)` on -l ts and -l tsx over packages, tests, tooling, scripts (5929 .ts, 1524 .tsx): the factory wrapper `tests/support/node/factories/automation.ts:70` forwards params only.
-Ran: `pnpm typecheck packages/server/tsconfig.json tsconfig.tests-iso.json tsconfig.node.json` exit 0; `pnpm test` automation-response-loss and run-now: 2 files, 3 passed.
+Ran: `pnpm typecheck packages/server/tsconfig.json tsconfig.tests-iso.json tsconfig.node.json` exit 0; `pnpm test` automation-response-loss and run-now: passed.

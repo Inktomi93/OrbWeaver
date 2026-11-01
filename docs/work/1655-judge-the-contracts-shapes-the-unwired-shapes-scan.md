@@ -111,7 +111,7 @@ Applied (3):
 
 - `ImageDuplicatePair` / `ArtPair`: `ArtPair` was a private structural copy of the wire pair in `client/src/features/discovery/lib/corpus-duplicate-groups.ts`. It is deleted; `groupIdenticalArt` bounds on `ImageDuplicatePair` from `@orb/contracts/discovery`. One concept: the pair the discovery query returns.
 - `BlockKey` / `RecallBlockKey`: one concept, the memory block identity, and the contract may import kit. `kit/src/recall/index.ts` now names it `BlockKey` (with the contract's field doc), and `contracts/src/search/index.ts` imports it for its own schemas without re-exporting it. The 5 other importers (`contracts/src/chat/owner-ops.ts` and four server files) import `BlockKey` from `@orb/kit/recall`, moved with `move-import-names` (dry run listed exactly those 5). The kit name `RecallBlockKey` and its test import are renamed. The contract's mutable fields became readonly; typecheck over kit, contracts, server, client and the three test worlds passes.
-- `Theme` / `ThemeView`: `ThemeView` was the same theme entity view (`themeViewSchema` is the strict wire schema for it). `ThemeView` is deleted; `themeViewSchema` now `satisfies z.ZodType<Theme>`; the 8 server settings files import `Theme` from `@orb/contracts/theme`, moved with `move-import-names` (dry run listed exactly the 8 files, equal to `rg -w ThemeView`). `contracts/settings` already imports down from `contracts/theme`. A test comment is updated.
+- `Theme` / `ThemeView`: `ThemeView` was the same theme entity view (`themeViewSchema` is the strict wire schema for it). `ThemeView` is deleted; `themeViewSchema` now `satisfies z.ZodType<Theme>`; the server settings files import `Theme` from `@orb/contracts/theme`, moved with `move-import-names` (dry run listed exactly those files, equal to `rg -w ThemeView`). `contracts/settings` already imports down from `contracts/theme`. A test comment is updated.
 
 Owner questions (2):
 
@@ -124,7 +124,7 @@ Kept with a reason (19):
 - `SeededPlateAsset` / `MaterializedBackgroundAsset` (2 rows, one pair): each is the result of its own op (`StoreSeedPlate`, `MaterializeBackgroundOp`) with its own producer and consumers; they match in three fields now and change with their op.
 - `CardDepthPrompt` / `AssembleDepthNote`: `contracts/src/chat/assemble.ts` re-homes the note slim so `chat` avoids a `chat` to `character` edge (its header says so); `docs/law/Core-0-Architecture-and-Structure.md` section 4 forbids sideways cross-feature imports.
 - `GeneratedGreeting` / `ExtractQuietResult`, `GeneratedGreeting` / `QuietGenerateResult` (2 rows): the first is the greeting verbs' wire result; the other two are server-side injected op results that also carry `costUsd`. A contract may not import server types.
-- `TurnOrigin` / `TurnOriginRead`: stale. `TurnOriginRead` does not exist (0 hits ts and tsx, and rg), and `contracts/src/automation/index.ts` already imports `TurnOrigin` from `../chat/bus.ts`.
+- `TurnOrigin` / `TurnOriginRead`: stale. `TurnOriginRead` does not exist (0 hits ts and tsx, and rg), and `contracts/src/automation/index.ts` already imports `TurnOrigin` from `packages/contracts/src/chat/bus.ts`.
 - `StandaloneVariableDelta` / `DeltaEntry`: `DeltaEntry` is the private substrate fold input for per-message and standalone deltas alike; the contract type is the standalone wire shape.
 - `ChatSeatPortrait` / `ArchetypeMember`, `ChatSeatPortrait` / `CardDisplayRow`, `ArchetypeMember` / `CardDisplayRow` (3 rows): two are wire views of different domains (chat seat, discovery archetype); `CardDisplayRow` is a server persistence row, the contract-versus-row seam. Merging would make the DB read change with the wire.
 - `DocumentCharacterRef` / `ConnectedCharacterView`, `DocumentCharacterRef` / `ArtCliqueMember` (2 rows): different relations in different domains (databank attachment, persona junction); the second follows the `ArtCliqueMember` owner question above.
@@ -133,7 +133,7 @@ Kept with a reason (19):
 - `ForgeTranspileDrop` / `SkippedTreeFile`: `{ path, reason }` shared by chance; a schema transpile drop and a skipped import file.
 - `CharacterCardHit` / `DossierNeighbor`: `contracts/src/discovery/index.ts` says "Deliberately NOT search's `CharacterCardHit`"; discovery owns its narrowed neighbour view and does not import search types.
 - `MemoryDefaults` / `MemoryConfig`: `server/src/domain/chat/contract/memory.ts` re-spells the knobs on purpose so the subsystem owns exactly what it consumes; one is the admin wire shape, the other the subsystem's tuning input.
-- `VersionedParseIssue` / `BeltIssue`: `{ path, message }` shared by chance; a versioned-config parse issue and a schema-authoring belt issue.
+- `VersionedParseIssue` / `BeltIssue`: `{ path, message }` shared by chance; a versioned-config parse issue and a schema-authoring guard issue.
 
 Kept as deliberate (42): every row whose both sides are a verb's `...Params` or `...Result` (automation, character, chat, and the other domains in the table): `docs/law/Core-0-Architecture-and-Structure.md` section 4 (`params.ts` and `results.ts`, "every verb's \*Params", "every verb's \*Result"). I checked each row's two names against that pattern; none is outside it.
 

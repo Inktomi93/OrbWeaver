@@ -54,7 +54,7 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 Counts: 26 rows = applied 5, derived 0, kept 21, handed off 0, owner questions 0.
 
-Method: codegraph on the serde symbols; compiler probe `pnpm typecheck tsconfig.node.json` exit 0; `ast-grep -l ts` (5890 files) and `-l tsx` (1526 files) for `$A.isBranch`, none outside the deleted writes; suites `tests/support/node/factories/chat-import.int.test.ts`, `tests/server/primitives/serde/chat-bundle/chat-bundle-serde.contract.test.ts`, `tests/server/domain/import/loader/library-planes.int.test.ts` (one timeout under load, passed solo), `tests/server/domain/rpg/persistence/portable-json-boundaries.int.test.ts`.
+Method: codegraph on the serde symbols; compiler probe `pnpm typecheck tsconfig.node.json` exit 0; `ast-grep -l ts` and `-l tsx` for `$A.isBranch`, none outside the deleted writes; suites `tests/support/node/factories/chat-import.int.test.ts`, `tests/server/primitives/serde/chat-bundle/chat-bundle-serde.contract.test.ts`, `tests/server/domain/import/loader/library-planes.int.test.ts` (one timeout under load, passed solo), `tests/server/domain/rpg/persistence/portable-json-boundaries.int.test.ts`.
 
 | Rows | Class | Reader or reason |
 | - | - | - |

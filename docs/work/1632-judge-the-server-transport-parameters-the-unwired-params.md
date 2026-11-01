@@ -35,4 +35,4 @@ Applied: `createFrameQueue.opts.capacity`. The one caller, `packages/server/src/
 Left and flagged (session cleanup scheduler, lane rule; 1698): `startOidcGcScheduler.deps.intervalMs` (`packages/server/src/transport/jobs/oidc-gc-scheduler.ts:59`). Not touched.
 
 Survey: codegraph_explore on createFrameQueue; ast-grep `createFrameQueue($$$)` on -l ts and -l tsx over packages, tests, tooling, scripts (5929 .ts, 1524 .tsx): 1 call (tsx 0); literal `rg` for capacity in tests/server/transport: no writer.
-Ran: `pnpm typecheck packages/server/tsconfig.json tsconfig.tests-iso.json tsconfig.node.json` exit 0; `pnpm test` recipient-isolation and live-bus-isolation: 2 files, 5 passed.
+Ran: `pnpm typecheck packages/server/tsconfig.json tsconfig.tests-iso.json tsconfig.node.json` exit 0; `pnpm test` recipient-isolation and live-bus-isolation: passed.

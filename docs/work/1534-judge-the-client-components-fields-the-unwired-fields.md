@@ -32,7 +32,7 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 All four rows applied (counts: 4 applied, 0 kept, 0 owner questions).
 
-- `FormDialogSubmit.cancelLabel` and `.tone`: deleted with their default branches in `packages/client/src/components/form-dialog.tsx`. An ast-grep pair scan for `cancelLabel` (ts 5881 files, tsx 1514) found no writer. A `tone` pair scan over `packages/client` and `tests/client` found only unrelated badge tables.
+- `FormDialogSubmit.cancelLabel` and `.tone`: deleted with their default branches in `packages/client/src/components/form-dialog.tsx`. An ast-grep pair scan for `cancelLabel` (`-l ts` and `-l tsx`) found no writer. A `tone` pair scan over `packages/client` and `tests/client` found only unrelated badge tables.
 - `ResetLeafVars`: replaced by `inferInput<Trpc["settings"]["updateUserSettingsSection"]>` in `packages/client/src/components/use-config-leaf.ts`.
 - Ran: `pnpm typecheck packages/client/tsconfig.json tsconfig.tests-dom.json` (exit 0); `pnpm test:ct tests/client/components/platform-form-dialog.suite.ct.tsx` (exit 0).
 - Reclass list: none.

@@ -79,7 +79,7 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 Counts: 51 rows = applied 1, derived 0, kept 49, handed off 1, owner questions 0.
 
-Method: codegraph on the inspect, tracing and logger symbols; `ast-grep -l ts` (5890 files) and `-l tsx` (1526 files) over packages, tests, tooling for `requestContext.getStore()`; `pnpm typecheck tsconfig.node.json` exit 0.
+Method: codegraph on the inspect, tracing and logger symbols; `ast-grep -l ts` and `-l tsx` over packages, tests, tooling for `requestContext.getStore()`; `pnpm typecheck tsconfig.node.json` exit 0.
 
 | Rows | Class | Reader or reason |
 | - | - | - |
