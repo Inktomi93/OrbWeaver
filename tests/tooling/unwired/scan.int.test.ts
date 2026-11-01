@@ -106,7 +106,7 @@ test("the unwired scan tells wired, builder-only, test-only, derived-port, cross
   const found = report.unwired.map(({ home, member, kind, tests }) => ({ at: `${home}.${member}`, kind, tests }));
   expect(found.toSorted((a, b) => a.at.localeCompare(b.at))).toEqual([
     { at: "Clock.implementedOnly", kind: "builder-only", tests: 0 },
-    { at: "Consumer.intoDeadSlot", kind: "unreferenced", tests: 0 },
+    { at: "Consumer.intoDeadSlot", kind: "builder-only", tests: 0 },
     { at: "Copy.unusedLine", kind: "builder-only", tests: 0 },
     { at: "ImplProps.spare", kind: "unreferenced", tests: 0 },
     { at: "IndexedPort.viaDeadIndex", kind: "unreferenced", tests: 0 },
@@ -119,9 +119,9 @@ test("the unwired scan tells wired, builder-only, test-only, derived-port, cross
     { at: "Service.viaDeadIndex", kind: "builder-only", tests: 0 },
   ]);
   expect(report.disagreements).toEqual([]);
-  // The owner's verb reaches production only through the consumer port the composition root hands it into. Engine one
-  // links a spread into a typed literal and an `Owner["m"]` member itself, so those never need the flow.
-  expect(report.reachedByFlow).toEqual([{ key: "packages/a/src/service.ts:Service.viaCompose", via: "packages/a/src/consumer.ts:Consumer.viaCompose" }]);
+  // Engine one follows the composition root's hand-off into the consumer port, a spread into a typed literal and an
+  // `Owner["m"]` member itself, so none of them needs the flow pass.
+  expect(report.reachedByFlow).toEqual([]);
 });
 
 test("a deliberate entry moves its member out of the unwired list with its reason", { timeout: 120_000 }, async ({ plantedTree }) => {

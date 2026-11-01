@@ -145,6 +145,16 @@ export function* constituents(type: Type): APIRequestGenerator<readonly Type[]> 
   return type.isUnionType() ? yield* type.getTypes.gen() : [type];
 }
 
+/** The properties named `name` on `type`, one per union member when the type is a union. */
+export function* propertiesNamed(checker: Checker, type: Type, name: string): APIRequestGenerator<(NativeSymbol | undefined)[]> {
+  const members = yield* constituents(type);
+  const found: (NativeSymbol | undefined)[] = [];
+  for (const member of members) {
+    found.push(yield* checker.getPropertyOfType.gen(member, name));
+  }
+  return found;
+}
+
 /** The keys a symbol's declarations go by: one occurrence counts toward every declaration it resolves to. */
 export function declarationKeys(symbol: NativeSymbol): readonly string[] {
   return symbol.declarations.map((handle) => `${handle.path}#${handle.index}`);

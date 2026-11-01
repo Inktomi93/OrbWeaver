@@ -329,7 +329,7 @@ function uniquelyKeyed(fields: readonly FieldDeclaration[]): readonly FieldDecla
 interface Tally {
   readonly field: FieldDeclaration;
   readonly sites: Map<string, Site>;
-  /** The sites that name the field itself. A link-borne write proves nothing about who fills its home. */
+  /** The sites that name the field and the writes carried into it. A link-borne write proves nothing about who fills its home. */
   readonly direct: Map<string, Site>;
 }
 
@@ -383,18 +383,20 @@ const namesOf = (field: FieldDeclaration): readonly Site[] => [field.site, ...fi
 function tallyWorld(tally: Map<string, Tally>, world: NativeWorld): number {
   const fields = declarations(world);
   const { index, direct } = propertyReferences(world);
+  // A schema key names a field; it writes no value, and a flow out of its schema must not carry it as one.
+  const declared = new Set(fields.flatMap(namesOf).map(siteKey));
+  const keep = (into: Map<string, Site>, sites: readonly Site[]): void => {
+    for (const site of sites) {
+      const key = siteKey(site);
+      if (!declared.has(key)) {
+        into.set(key, site);
+      }
+    }
+  };
   for (const field of fields) {
     const entry = tally.get(field.key) ?? { field, sites: new Map(), direct: new Map() };
-    for (const site of sitesOf(index, field.keys, field.site)) {
-      entry.sites.set(siteKey(site), site);
-    }
-    for (const site of sitesOf(direct, field.keys, field.site)) {
-      entry.direct.set(siteKey(site), site);
-    }
-    for (const name of field.mirrorSites) {
-      entry.sites.delete(siteKey(name));
-      entry.direct.delete(siteKey(name));
-    }
+    keep(entry.sites, sitesOf(index, field.keys, field.site));
+    keep(entry.direct, sitesOf(direct, field.keys, field.site));
     tally.set(field.key, entry);
   }
   return fields.length;

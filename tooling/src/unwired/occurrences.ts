@@ -16,6 +16,7 @@ import type {
   TypeNode,
 } from "@typescript/native/ast";
 import {
+  isBinaryExpression,
   isBindingElement,
   isCallExpression,
   isClassDeclaration,
@@ -50,12 +51,15 @@ import {
   isStringLiteral,
   isTypeQueryNode,
   isTypeReferenceNode,
+  SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { TypeFlags } from "@typescript/native/sync";
 import type { Site } from "./classify.ts";
+import type { Flow } from "./handoffs.ts";
+import { handoffFlows } from "./handoffs.ts";
 import type { NativeWorld } from "./native.ts";
-import { constituents, declarationKeys, hasFlag } from "./native.ts";
+import { constituents, declarationKeys, hasFlag, propertiesNamed } from "./native.ts";
 
 /** Declaration key to the sites that resolve to it. */
 export type ReferenceIndex = ReadonlyMap<string, readonly Site[]>;
@@ -120,6 +124,22 @@ function isDirectPropertySite(node: Node): boolean {
   return declares && parent.name === node;
 }
 
+// The names `classify.ts` calls writes, known here so a flow can carry writes and reads apart.
+function isWrittenName(node: Node): boolean {
+  const { parent } = node;
+  if (isNamedMember(parent, node) || (isJsxAttribute(parent) && parent.name === node)) {
+    return true;
+  }
+  const assigned = parent.parent;
+  return (
+    isPropertyAccessExpression(parent) &&
+    parent.name === node &&
+    isBinaryExpression(assigned) &&
+    assigned.left === parent &&
+    assigned.operatorToken.kind === SyntaxKind.EqualsToken
+  );
+}
+
 const isNamedMember = (parent: Node, node: Node): boolean =>
   (isPropertyAssignment(parent) ||
     isShorthandPropertyAssignment(parent) ||
@@ -151,16 +171,6 @@ function lookupsOf(world: NativeWorld, node: PropertyName): readonly Lookup[] {
   return own;
 }
 
-// The properties named `name` on `type`, one per union member when the type is a union.
-function* propertiesNamed(checker: Checker, type: Type, name: string): APIRequestGenerator<(NativeSymbol | undefined)[]> {
-  const members = yield* constituents(type);
-  const found: (NativeSymbol | undefined)[] = [];
-  for (const member of members) {
-    found.push(yield* checker.getPropertyOfType.gen(member, name));
-  }
-  return found;
-}
-
 // The value whose properties a spread, a computed key, a `for…in` or a reflective call reads, and the key's expression
 // for a computed element access.
 interface Reflection {
@@ -169,7 +179,16 @@ interface Reflection {
 }
 
 // Calls that read every property of their arguments by reflection, by the callee's text.
-const REFLECTIVE_CALLS: ReadonlySet<string> = new Set(["Object.entries", "Object.values", "Object.keys", "Object.assign", "JSON.stringify", "structuredClone"]);
+const REFLECTIVE_CALLS: ReadonlySet<string> = new Set([
+  "Object.entries",
+  "Object.values",
+  "Object.keys",
+  "Object.assign",
+  "JSON.stringify",
+  "structuredClone",
+  "nestedValue",
+  "c.json",
+]);
 
 // A literal key names one property, which a name already reports; any other key expression reads by its type.
 const isLiteralKey = (node: Node): boolean => isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node) || isNumericLiteral(node);
@@ -234,6 +253,7 @@ const shapeKey = ({ value, target, names }: ReflectedShape): string => `${value.
 interface Reflected {
   readonly reads: readonly NativeSymbol[];
   readonly links: readonly Link[];
+  readonly flows: readonly Flow[];
 }
 
 // The properties a reflection reads, and the links a spread into a typed literal makes instead. A spread member
@@ -242,19 +262,21 @@ function* reflected(world: NativeWorld, { value, target, names }: ReflectedShape
   const { checker } = world;
   const properties = yield* reflectedProperties(checker, value, names);
   if (target === undefined) {
-    return { reads: properties, links: [] };
+    return { reads: properties, links: [], flows: [] };
   }
   const reads: NativeSymbol[] = [];
   const links: Link[] = [];
+  const flows: Flow[] = [];
   for (const property of properties) {
     const into = (yield* propertiesNamed(checker, target, property.name)).filter((member) => member !== undefined);
     if (into.some((member) => member.declarations.every((handle) => world.fileOf(handle) === null))) {
       reads.push(property);
     } else if (into.length > 0) {
       links.push({ from: keysOf(into), to: declarationKeys(property) });
+      flows.push({ source: declarationKeys(property), sink: keysOf(into) });
     }
   }
-  return { reads, links };
+  return { reads, links, flows };
 }
 
 // Each distinct shape once, so a library props type spread at many sites lists its properties a single time.
@@ -373,7 +395,8 @@ function* redeclarations(checker: Checker, declaration: InterfaceDeclaration): A
   return links;
 }
 
-/** A world's property sites: `index` with every link applied, `direct` with only the sites that name each declaration. */
+/** A world's property sites: `index` joins every link and flow. `direct` holds the sites that name each declaration and
+ *  the writes a value carried in: a link says who uses a member, a flow says a value really arrived. */
 export interface PropertyReferences {
   readonly index: ReferenceIndex;
   readonly direct: ReferenceIndex;
@@ -385,16 +408,24 @@ export function propertyIndex(world: NativeWorld): ReferenceIndex {
   return propertyReferences(world).index;
 }
 
-/** {@link propertyIndex} beside the same sites before any link joined them. */
+/** {@link propertyIndex} beside the sites no link joined. */
 export function propertyReferences(world: NativeWorld): PropertyReferences {
   const lookups: Lookup[] = [];
   const extending: InterfaceDeclaration[] = [];
   const reflections: (Reflection & { readonly site: Site })[] = [];
   const indexed: { readonly member: Node; readonly owner: Node; readonly name: string }[] = [];
   const implementations: Signature[] = [];
+  const written = new Set<Site>();
+  const lookUp = (node: PropertyName): void => {
+    const named = lookupsOf(world, node);
+    lookups.push(...named);
+    for (const lookup of isWrittenName(node) ? named : []) {
+      written.add(lookup.site);
+    }
+  };
   walk(world, (node) => {
     if (isPropertyName(node)) {
-      lookups.push(...lookupsOf(world, node));
+      lookUp(node);
     }
     reflections.push(...reflectionsAt(node).map((reflection) => ({ ...reflection, site: world.siteOf(reflection.value) })));
     const member = indexedMember(node);
@@ -432,23 +463,34 @@ export function propertyReferences(world: NativeWorld): PropertyReferences {
   const redeclared = world.batch(extending.map((declaration) => redeclarations(checker, declaration)));
   const index = new Map<string, Site[]>();
   const links: Link[] = [...derived, ...overloaded.flat(), ...redeclared.flat()];
+  const flows: Flow[] = [...handoffFlows(world)];
   for (const [at, lookup] of lookups.entries()) {
     const { symbols, own } = found[at] ?? { symbols: [], own: undefined };
     for (const symbol of symbols) {
       credit(index, symbol, lookup.site);
     }
     if (own !== undefined) {
+      // An uncontextual literal's key is its own declaration, and the write a later hand-off carries on.
+      credit(index, own, lookup.site);
       links.push({ from: declarationKeys(own), to: keysOf(symbols) });
     }
   }
   for (const [at, reflection] of reflections.entries()) {
-    const { reads: symbols, links: spread } = reads[at] ?? { reads: [], links: [] };
+    const { reads: symbols, links: spread, flows: carried } = reads[at] ?? { reads: [], links: [], flows: [] };
     for (const symbol of symbols) {
       credit(index, symbol, reflection.site);
     }
     links.push(...spread);
+    flows.push(...carried);
   }
-  return { index: linked(index, links), direct: index };
+  const { down, up } = flowEdges(flows);
+  const isWrite = (site: Site): boolean => written.has(site);
+  const isOther = (site: Site): boolean => !written.has(site);
+  const joined = linked(index, links);
+  return {
+    index: withCarried(withCarried(joined, carriedAlong(joined, down, isWrite)), carriedAlong(joined, up, isOther)),
+    direct: withCarried(index, carriedAlong(index, down, isWrite)),
+  };
 }
 
 // The index with each link's `from` sites added to its `to` keys, read from the unlinked index so order cannot matter.
@@ -472,6 +514,66 @@ function linked(index: ReadonlyMap<string, readonly Site[]>, links: readonly Lin
       }
     }
     joined.set(key, [...sites]);
+  }
+  return joined;
+}
+
+function addEdge(edges: Map<string, Set<string>>, from: string, to: string): void {
+  edges.set(from, (edges.get(from) ?? new Set()).add(to));
+}
+
+// Each key's `carried` sites spread along `edges` until nothing grows, so a chain of hand-offs and a cycle both settle.
+function carriedAlong(
+  index: ReferenceIndex,
+  edges: ReadonlyMap<string, ReadonlySet<string>>,
+  carried: (site: Site) => boolean,
+): ReadonlyMap<string, Set<Site>> {
+  const held = new Map<string, Set<Site>>();
+  const holding = (key: string): Set<Site> => {
+    const sites = held.get(key) ?? new Set((index.get(key) ?? []).filter(carried));
+    held.set(key, sites);
+    return sites;
+  };
+  const queue = [...edges.keys()];
+  for (let key = queue.pop(); key !== undefined; key = queue.pop()) {
+    const sites = holding(key);
+    for (const next of edges.get(key) ?? []) {
+      const into = holding(next);
+      const before = into.size;
+      for (const site of sites) {
+        into.add(site);
+      }
+      if (into.size > before) {
+        queue.push(next);
+      }
+    }
+  }
+  return held;
+}
+
+interface FlowEdges {
+  readonly down: ReadonlyMap<string, ReadonlySet<string>>;
+  readonly up: ReadonlyMap<string, ReadonlySet<string>>;
+}
+
+function flowEdges(flows: readonly Flow[]): FlowEdges {
+  const down = new Map<string, Set<string>>();
+  const up = new Map<string, Set<string>>();
+  for (const { source, sink } of flows) {
+    for (const from of source) {
+      for (const to of sink.filter((key) => !source.includes(key))) {
+        addEdge(down, from, to);
+        addEdge(up, to, from);
+      }
+    }
+  }
+  return { down, up };
+}
+
+function withCarried(index: ReferenceIndex, carried: ReadonlyMap<string, ReadonlySet<Site>>): ReferenceIndex {
+  const joined = new Map(index);
+  for (const [key, sites] of carried) {
+    joined.set(key, [...new Set([...(joined.get(key) ?? []), ...sites])]);
   }
   return joined;
 }

@@ -2,22 +2,11 @@
 // never writes, and one it never names. Each read and write form the scan must see has a wired control beside it.
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { scanFields } from "../../../tooling/src/unwired/index.ts";
-import { LIB, WORLD } from "./_planted.ts";
+import { LIB, WORLD, ZOD_STUB } from "./_planted.ts";
 
 const TREE = {
   [WORLD]: plantedTsconfig({ lib: LIB }),
-  "packages/a/src/z.ts": [
-    "export interface Schema<V> { readonly value?: V; optional(): Schema<V | undefined> }",
-    "const schema = <V>(): Schema<V> => ({ optional: () => schema<V | undefined>() });",
-    "export type Infer<S> = S extends { readonly shape: infer T } ? { [K in keyof T]: T[K] extends Schema<infer V> ? V : never } : never;",
-    "export const z = {",
-    "  object: <T>(shape: T): { readonly shape: T } => ({ shape }),",
-    "  discriminatedUnion: <T>(key: string, options: T): { readonly shape: T } => ({ shape: options }),",
-    "  lazy: <T>(make: () => T): T => make(),",
-    "  string: (): Schema<string> => schema<string>(),",
-    "};",
-    "export type Checked<T> = { readonly shape: unknown } & { readonly checked?: T };",
-  ].join("\n"),
+  "packages/a/src/z.ts": ZOD_STUB,
   "packages/a/src/row.ts": [
     'import type { Checked, Infer } from "./z.ts";',
     'import { z } from "./z.ts";',
@@ -146,7 +135,7 @@ test("a field the deliberate list names leaves the unwired list with its reason"
 // role engine one lacks is, and that field leaves the findings.
 const AUDITED = {
   [WORLD]: plantedTsconfig({ lib: LIB }),
-  "packages/a/src/z.ts": TREE["packages/a/src/z.ts"],
+  "packages/a/src/z.ts": ZOD_STUB,
   "packages/a/src/audit.ts": [
     'import type { Infer } from "./z.ts";',
     'import { z } from "./z.ts";',
@@ -158,7 +147,7 @@ const AUDITED = {
     "export interface Card { readonly starred: boolean }",
     "export interface Detail extends Card { readonly starred: boolean }",
     "export const detail: Detail = { starred: true };",
-    "export const card: Card = detail;",
+    "export const card: Card = { starred: false };",
     "export const isStarred = card.starred;",
   ].join("\n"),
 };
@@ -175,7 +164,7 @@ test("engine two only audits: fewer sites contradict nothing, a site in a role e
 // only through the spread link, so `host` is no default the tree chose. `Written.extra` beside it is the found case.
 const LINK_WRITTEN = {
   [WORLD]: plantedTsconfig({ lib: LIB }),
-  "packages/a/src/z.ts": TREE["packages/a/src/z.ts"],
+  "packages/a/src/z.ts": ZOD_STUB,
   "packages/a/src/env.ts": [
     'import type { Infer } from "./z.ts";',
     'import { z } from "./z.ts";',
@@ -201,7 +190,7 @@ test("a write that reaches a home only through a link does not mark the home wri
 // declaration keeps the bare key.
 const OPTIONS = {
   [WORLD]: plantedTsconfig({ lib: LIB }),
-  "packages/a/src/z.ts": TREE["packages/a/src/z.ts"],
+  "packages/a/src/z.ts": ZOD_STUB,
   "packages/a/src/options.ts": [
     'import { z } from "./z.ts";',
     "export const Actor = z.discriminatedUnion('kind', [",
