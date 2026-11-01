@@ -31,4 +31,12 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+5 rows: 0 deleted, 4 derived, 1 kept. 0 handed off, 0 owner questions.
+
+| Row | Result |
+| - | - |
+| `NativeTransition.ready`, `.finished`, `.updateCallbackDone` | derived: the router hands the native transition whole to `observeViewTransition(transition: ViewTransitionSettlement)`, which reads the three members (`view-transition-settlement.ts`). `NativeTransition` is gone and `ViewTransitionSettlement` is exported |
+| `ViewTransitionDocument.visibilityState` | derived: `isDocumentHidden` reads it through `ViewTransitionVisibility`, now exported; the router's document type extends it |
+| `Register.router` | kept: TanStack reads `Register["router"]` in `RegisteredRouter` (`node_modules/.pnpm/@tanstack+router-core@1.171.38/node_modules/@tanstack/router-core/dist/esm/router.d.ts:29`); a module augmentation has no in-repo reader by design |
+
+Survey: `codegraph_explore` on the router view-transition names; ast-grep (`-l ts` 5904, `-l tsx` 1522 files) on `observeViewTransition($$$)` and `isDocumentHidden($$$)` (callers: `router-view-transition.ts`, `view-transition.ts`). Typecheck: `pnpm typecheck packages/client/tsconfig.json tsconfig.tests-dom.json` exit 0. CT: `core-lifecycle` and `section-swap-ready` patch `document.startViewTransition` and drive navigation, 8 passed. Lint: `pnpm lint:eslint` on the two files.

@@ -55,7 +55,7 @@ function OperationsBody({ anchorId, sectionId }: { readonly anchorId: string; re
   const autoindexOverridden = isOverridden(overrides.corpusAutoindex);
   const logLevelOverridden = isOverridden(overrides.logLevel);
 
-  const write = (partial: AppSettings): void => {
+  const write = (partial: Pick<AppSettings, "corpusAutoindex" | "logLevel">): void => {
     save.mutateAsync({ partial }).catch(() => undefined); // the sticky save.error slot surfaces the failure
   };
 

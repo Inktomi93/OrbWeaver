@@ -1,5 +1,4 @@
-// verb: testRule — the dry-run (host-only, 04 §2). Builds a TriggerFact from a host-supplied sample (or a
-// synthesized minimal fact from the rule's trigger), evaluates the predicate, and MACRO-RENDERS every arm's
+// verb: testRule — the dry-run (host-only, 04 §2). Builds a TriggerFact synthesized from the rule's trigger, evaluates the predicate, and MACRO-RENDERS every arm's
 // template — executing NOTHING (no injected op, no budget debit). Logs an `outcome:"test_run"` fire row for
 // provenance. The dry-run env has the author's own globals (automation owns the plane) + a chat message
 // count; live chat vars/choice are empty in A4 (the dispatch threads them in A5).
@@ -15,7 +14,7 @@ import { toRuleView } from "../persistence/rules.ts";
 import { emptyDryRunEnv, evaluatePredicate, renderArmPreview, ruleClock, synthFact } from "../substrate/dry-run.ts";
 
 export function createTestRule(ctx: AutomationContext): AutomationService["testRule"] {
-  return async ({ principal, ruleId, sampleEvent }: TestRuleParams): Promise<TestRunResult> => {
+  return async ({ principal, ruleId }: TestRuleParams): Promise<TestRunResult> => {
     const rule = await requireRuleAuthority(ctx, principal, ruleId);
     const view = toRuleView(rule);
     const nowMs = ctx.now();
@@ -30,7 +29,7 @@ export function createTestRule(ctx: AutomationContext): AutomationService["testR
       listGlobalVariables(ctx.db, principal.userId),
     ]);
     const global = Object.fromEntries(globalViews.map((v) => [v.key, v.value]));
-    const event = sampleEvent ?? synthFact(view.trigger, chatId);
+    const event = synthFact(view.trigger, chatId);
     const env = emptyDryRunEnv({ chatId, messageCount, global, event, clock: ruleClock(nowMs, rule.timeZone) });
 
     const predicate = evaluatePredicate(view.predicateCel, env, chatScoped);

@@ -33,7 +33,6 @@ export interface ConfigSearchMatch {
   readonly group: ConfigGroupId;
   readonly sub: string | null;
   readonly setting: string | null;
-  readonly memberId: string | null;
 }
 
 interface ConfigSearchState {

@@ -3,8 +3,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { TurnOutcome } from "@orb/contracts/chat";
 import type { OwnerStatsView } from "@orb/contracts/stats";
-import type { UserId } from "@orb/kit/ids";
-import { vi } from "vitest";
+import { connectDevice } from "@orb/testkit/node/composed";
 import { invitePerson } from "../persona-cache-physical.ts";
 import { saveSpeakerConnection, speakerRoom } from "./speaker-funding-physical.ts";
 
@@ -19,8 +18,6 @@ export interface MemberAutoBeats extends AsyncDisposable {
   readonly member: Person;
   readonly memberBefore: OwnerStatsView | null;
   readonly outcome: TurnOutcome;
-  /** The initiator each committed turn's RPG terminal hook received, in commit order. */
-  readonly triggeredBy: readonly (UserId | null)[];
 }
 
 /** A member's send with the host online starts a two-beat auto round that the host funds. */
@@ -36,16 +33,12 @@ export async function memberAutoBeats(): Promise<MemberAutoBeats> {
   const member = await invitePerson(h);
   const hostOnline = new AbortController();
   construction.defer(() => hostOnline.abort());
-  h.root.app.presence.connect(h.owner.userId, hostOnline.signal);
+  await connectDevice(h.root, h.owner.userId, hostOnline.signal);
   const memberBefore = await h.root.services.stats.overview(member.userId);
-  // Observe the real composed collaborator; the default spy calls the actual operation unchanged.
-  const completed = vi.spyOn(h.root.app.rpgChatOps, "onTurnCompleted");
-  construction.defer(() => completed.mockRestore());
   const outcome = await h.root.services.chat.send({ principal: member, chatId: h.chatId, content: "go" });
   await h.root.settleBackground();
-  const triggeredBy = completed.mock.calls.map(([params]) => params.turn.triggeredBy);
   const lifetime = construction.move();
-  return { room, member, memberBefore, outcome, triggeredBy, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
+  return { room, member, memberBefore, outcome, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }
 
 export interface TwoPartyHandoff extends AsyncDisposable {
@@ -74,7 +67,7 @@ export async function twoPartyHandoff(): Promise<TwoPartyHandoff> {
   for (const person of [h.owner, nextHost]) {
     const online = new AbortController();
     construction.defer(() => online.abort());
-    h.root.app.presence.connect(person.userId, online.signal);
+    await connectDevice(h.root, person.userId, online.signal);
   }
   const before = await h.root.services.chat.send({ principal: nextHost, chatId: h.chatId, content: "before" });
   await h.root.services.chat.nominateHostHandoff({

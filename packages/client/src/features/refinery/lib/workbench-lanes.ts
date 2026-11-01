@@ -92,7 +92,6 @@ export interface WorkbenchLanes {
   /** The rewrite run the ACCEPT work targets: the armed one (operate-back) wins over the lane's own. */
   readonly rewriteRun: RunView | null;
   readonly armedRewrite: RunView | null;
-  readonly rewriteRunId: string | null;
 }
 
 /** The latest run per stage, folded off the OLDEST-FIRST wire (the last write per stage wins). */
@@ -171,6 +170,5 @@ export function workbenchLanesOf(allRuns: readonly RunView[], pins: LanePins, fl
     analyze: { stage: "analyze", ...analyze, behind: analyzeNote, blocked: analyzeBlocked(latest.get("rewrite")), focal: false },
     rewriteRun: targetRewrite,
     armedRewrite,
-    rewriteRunId: targetRewrite === null ? null : targetRewrite.id,
   };
 }

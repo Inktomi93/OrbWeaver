@@ -205,15 +205,13 @@ export interface FormSubmitButtonProps {
   readonly disabled: boolean;
   readonly label: string;
   readonly onSubmit: () => void;
-  /** The visible dismissal paired with submit. @defaultValue "Cancel" */
-  readonly cancelLabel?: string;
 }
 
 /** The paired dismissal and primary submit footer for a FORM-body dialog. */
-export function FormSubmitButton({ testKey, disabled, label, onSubmit, cancelLabel = "Cancel" }: FormSubmitButtonProps): ReactElement {
+export function FormSubmitButton({ testKey, disabled, label, onSubmit }: FormSubmitButtonProps): ReactElement {
   return (
     <DialogFooter>
-      <DialogClose render={<Button variant="ghost">{cancelLabel}</Button>} />
+      <DialogClose render={<Button variant="ghost">Cancel</Button>} />
       <Button data-testid={testId(testKey)} disabled={disabled} onClick={onSubmit}>
         {label}
       </Button>

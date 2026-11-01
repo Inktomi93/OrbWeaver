@@ -216,18 +216,12 @@ export function workloadKindNeedsBulkTarget(kind: string): boolean {
 }
 
 /** The run dialog's form values. `kind` is a plain string; {@link isRunnableWorkloadKind} narrows at the save seam. */
-export interface RunWorkloadFormValues {
+export interface RunWorkloadFormValues extends WorkloadRunValues {
   readonly kind: string;
   /** Owner-only bulk toggle — a non-owner's dialog never renders the field, so it stays `false`. */
   readonly bulk: boolean;
   /** The bulk-create mint target (`""` = unpicked). */
   readonly targetOwnerId: string;
-  readonly force: boolean;
-  readonly dryRun: boolean;
-  /** Cluster count for `compute-themes`; `null` = use the server default. */
-  readonly k: number | null;
-  /** The `index` kind's embed source. Inert for every other kind. */
-  readonly source: IndexSource;
   /** Optional deferred-start datetime (a `datetime-local` string; `""` = run now). */
   readonly runAt: string;
   /** The DAG gate — workload ids this run must wait on; `[]` = no gate. */
@@ -246,15 +240,24 @@ export const RUN_WORKLOAD_FORM_DEFAULTS: RunWorkloadFormValues = {
   dependsOn: [],
 };
 
-/** The param slots {@link buildStartInput} reads — the form values satisfy this structurally. */
+/** The param slots {@link buildStartInput} reads — the run and schedule form values extend this. */
 export interface WorkloadRunValues {
   readonly force: boolean;
   readonly dryRun: boolean;
+  /** Cluster count for `compute-themes`; `null` = use the server default. */
   readonly k: number | null;
+  /** The `index` kind's embed source. Inert for every other kind. */
   readonly source: IndexSource;
 }
 
 type StartWorkloadWire = inferInput<Trpc["workloads"]["start"]>;
+type EstimateWorkloadWire = inferInput<Trpc["workloads"]["estimateModelCalls"]>;
+const RUN_SCOPE_KEYS = ["input", "mode", "targetOwnerId"] as const;
+type RunScopeKey = (typeof RUN_SCOPE_KEYS)[number];
+
+/** The run scope the dialog both estimates and starts: `Pick` from each router input, so a key either procedure
+ *  stops declaring fails tsc here instead of riding the payload into a strict refusal. */
+export type WorkloadRunScope = Pick<StartWorkloadWire, RunScopeKey> & Pick<EstimateWorkloadWire, RunScopeKey>;
 
 /** Assemble the wire `start.input` for a kind — the params object carries only the kind's own tunable. */
 export function buildStartInput(kind: WorkloadKind, values: WorkloadRunValues): StartWorkloadWire["input"] {

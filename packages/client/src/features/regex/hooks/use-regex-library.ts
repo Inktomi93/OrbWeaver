@@ -7,8 +7,7 @@
 
 import type { CreateRegexScriptInput, ImportScriptFileResult, RegexScriptRow, UpdateRegexScriptInput } from "@orb/contracts/regex";
 import type { RegexScriptId } from "@orb/kit/ids";
-import type { RegexPlacement } from "@orb/kit/regex";
-import type { inferOutput } from "@trpc/tanstack-react-query";
+import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
@@ -55,39 +54,33 @@ export const useDetachRegexGlobal = createEntityMutation<{ readonly scriptId: Re
 // for the whole batch, so a 20-script gesture repaints the library once instead of twenty times. Every one
 // answers `{affected}` — the count the server actually changed, which is what the toast says.
 
-// `scriptIds` is a MUTABLE array, matching the wire input tsc infers from the router's `z.array(brandedId)`
-// (the `applyScopeOrder` mutation's `orderedScriptIds` shape verbatim — a readonly array is not assignable
-// to it under this project's settings, and re-declaring the outcome by hand would fork the wire type).
-interface RegexBulkArgs {
-  readonly scriptIds: RegexScriptId[];
-}
-
 /** The batch verbs' shared answer, DERIVED from the wire rather than re-spelled. NOT exported (the house
  *  shape for a client-feature derived type): a consumer re-derives it from the same proc. */
 type RegexBulkOutcome = inferOutput<Trpc["regex"]["bulkRemove"]>;
 
-export const useBulkSetRegexEnabled = createEntityMutation<RegexBulkArgs & { readonly enabled: boolean }, RegexBulkOutcome>({
+// Each batch verb's variables DERIVE from its router input, so `scriptIds` (a mutable array on the wire) is
+// the server's own field rather than a hand-spelled twin.
+export const useBulkSetRegexEnabled = createEntityMutation<inferInput<Trpc["regex"]["bulkSetEnabled"]>, RegexBulkOutcome>({
   options: (trpc) => trpc.regex.bulkSetEnabled.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't switch those scripts.",
 });
 
-export const useBulkSetRegexGlobal = createEntityMutation<RegexBulkArgs & { readonly global: boolean }, RegexBulkOutcome>({
+export const useBulkSetRegexGlobal = createEntityMutation<inferInput<Trpc["regex"]["bulkSetGlobal"]>, RegexBulkOutcome>({
   options: (trpc) => trpc.regex.bulkSetGlobal.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't change those scripts' global scope.",
 });
 
-// `placement` is a MUTABLE array for the same reason `scriptIds` is (above) — it matches the wire input tsc
-// infers from the router's `z.array(z.enum(REGEX_PLACEMENTS))`. The tier flags + depth scope are NOT here:
-// the server re-derives them from this set (`@orb/kit/regex`), so the whole point is that no flag rides along.
-export const useBulkSetRegexPlacement = createEntityMutation<RegexBulkArgs & { readonly placement: RegexPlacement[] }, RegexBulkOutcome>({
+// The tier flags + depth scope are NOT in the placement input: the server re-derives them from the placement
+// set (`@orb/kit/regex`), so the whole point is that no flag rides along.
+export const useBulkSetRegexPlacement = createEntityMutation<inferInput<Trpc["regex"]["bulkSetPlacement"]>, RegexBulkOutcome>({
   options: (trpc) => trpc.regex.bulkSetPlacement.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't change where those scripts run.",
 });
 
-export const useBulkRemoveRegexScripts = createEntityMutation<RegexBulkArgs, RegexBulkOutcome>({
+export const useBulkRemoveRegexScripts = createEntityMutation<inferInput<Trpc["regex"]["bulkRemove"]>, RegexBulkOutcome>({
   options: (trpc) => trpc.regex.bulkRemove.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't delete those scripts.",

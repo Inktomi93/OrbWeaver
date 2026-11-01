@@ -22,6 +22,7 @@
 // compile-forced to handle (shipping it now would mint a dead `RpgLibraryNpcId` brand FK-ing a nonexistent
 // table). The arm is spelled `libraryNpc`, not `npc`, because #906 spends the bare word on the SCENE npc
 // above: a cross-game library ROW and a scene-only extra are two different addresses.
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs take the strict twin via `strictInput` (`@orb/kit/zod-schema`).
 
 import { stripHiddenSpans } from "@orb/kit/content";
 
@@ -214,11 +215,11 @@ const NAME_CLAMP_ELLIPSIS = "…";
  *  RECEIVING side's terms, applied at the mint, not baked into every npc's stored identity), and the
  *  caller (`promoteActor`) is the one place that both knows it is minting a card AND can report the
  *  truncation back to the host as data (`PromoteActorResult.issues`) instead of it vanishing silently. */
-export function clampActorCardName(name: string, maxLength: number = CARD_FACE_LIMITS.nameMax): { readonly value: string; readonly truncated: boolean } {
-  if (name.length <= maxLength) {
+export function clampActorCardName(name: string): { readonly value: string; readonly truncated: boolean } {
+  if (name.length <= CARD_FACE_LIMITS.nameMax) {
     return { value: name, truncated: false };
   }
-  const budget = maxLength - NAME_CLAMP_ELLIPSIS.length;
+  const budget = CARD_FACE_LIMITS.nameMax - NAME_CLAMP_ELLIPSIS.length;
   let out = "";
   for (const { segment } of NAME_CLAMP_SEGMENTER.segment(name)) {
     if (out.length + segment.length > budget) {
@@ -352,7 +353,7 @@ const RPG_ACTOR_IDENTITY_TEXT_FIELDS = ["name", "emoji", "mood", "appearance", "
  *  value schema (never a re-spell): an omitted datum keeps the actor's current one, so a max edit never blanks
  *  the reading beside it. `max: null` is the honest CLEAR of a per-carrier ceiling override
  *  (`resolveTrackerMaxOverride`), not "no max given". */
-const rpgTrackerValuePatchSchema = z.object({
+const rpgTrackerValuePatchSchema = z.strictObject({
   value: rpgTrackerValueSchema.shape.value.optional(),
   items: rpgTrackerValueSchema.shape.items.optional(),
   max: rpgTrackerValueSchema.shape.max.optional(),
@@ -371,18 +372,18 @@ export const rpgActorOpSchema = z.discriminatedUnion("op", [
   // The IDENTITY arms (R2) — an npc's own half. They REFUSE on an actor that carries no identity (a
   // participant: her name is chat's and her standing prose is the sheet's), which is errors-as-data,
   // not a silent no-op. `setIdentityText` on `name` is the RENAME the slug key was minted to make possible.
-  z.object({ op: z.literal("setIdentityText"), field: z.enum(RPG_ACTOR_IDENTITY_TEXT_FIELDS), text: z.string() }),
-  z.object({ op: z.literal("setRelationship"), relationship: rpgRelationshipSchema }),
-  z.object({ op: z.literal("setStatus"), status: rpgActorVolatileSchema.shape.status }),
-  z.object({ op: z.literal("setTracker"), key: z.string().min(1), value: rpgTrackerValuePatchSchema }),
-  z.object({ op: z.literal("addCondition"), condition: rpgConditionSchema.partial().extend({ name: rpgConditionSchema.shape.name }) }),
-  z.object({ op: z.literal("removeCondition"), name: z.string().min(1) }),
-  z.object({ op: z.literal("addItem"), item: rpgInventoryItemInputSchema }),
+  z.strictObject({ op: z.literal("setIdentityText"), field: z.enum(RPG_ACTOR_IDENTITY_TEXT_FIELDS), text: z.string() }),
+  z.strictObject({ op: z.literal("setRelationship"), relationship: rpgRelationshipSchema }),
+  z.strictObject({ op: z.literal("setStatus"), status: rpgActorVolatileSchema.shape.status }),
+  z.strictObject({ op: z.literal("setTracker"), key: z.string().min(1), value: rpgTrackerValuePatchSchema }),
+  z.strictObject({ op: z.literal("addCondition"), condition: rpgConditionSchema.partial().extend({ name: rpgConditionSchema.shape.name }) }),
+  z.strictObject({ op: z.literal("removeCondition"), name: z.string().min(1) }),
+  z.strictObject({ op: z.literal("addItem"), item: rpgInventoryItemInputSchema }),
   // The item ops address the element by its OWN `id` field — a blob-internal string (no table, no FK, no
   // brand: `rpgInventoryItemSchema.id` is the same plain string, and a per-item brand buys nothing at this
   // cardinality), which is also why the field is spelled `id` and not `itemId`.
-  z.object({ op: z.literal("patchItem"), id: rpgInventoryItemSchema.shape.id, patch: rpgInventoryItemInputSchema.partial() }),
-  z.object({ op: z.literal("removeItem"), id: rpgInventoryItemSchema.shape.id }),
-  z.object({ op: z.literal("setWalletAmount"), name: z.string().min(1), amount: z.int() }),
+  z.strictObject({ op: z.literal("patchItem"), id: rpgInventoryItemSchema.shape.id, patch: rpgInventoryItemInputSchema.partial() }),
+  z.strictObject({ op: z.literal("removeItem"), id: rpgInventoryItemSchema.shape.id }),
+  z.strictObject({ op: z.literal("setWalletAmount"), name: z.string().min(1), amount: z.int() }),
 ]);
 export type RpgActorOp = z.infer<typeof rpgActorOpSchema>;

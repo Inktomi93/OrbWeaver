@@ -71,7 +71,6 @@ async function clocks(room: Room): Promise<string[]> {
 test("the offline host's own send runs inline and never creates a deferred row", async () => {
   await using room = await speakerRoom({ chat: ["Aria answers inline."] }, { characters: [ARIA], group: LIST });
   const { h } = room;
-  expect(h.root.app.presence.read(h.owner.userId).online).toBe(false);
   const outcome = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "hi", timeZone: UTC_TIME_ZONE });
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages.map((m) => m.role)).toEqual(["user", "assistant"]);

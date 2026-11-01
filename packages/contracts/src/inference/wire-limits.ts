@@ -275,19 +275,14 @@ export function scrubViolations(scrub: ReturnType<typeof scrubWireSchema>, mode:
 
 /** Does one request's grammar-compiled schemas, scrubbed for `mode`, carry only what the mode expresses and fit
  *  `limits`? The planner's check, and the one a preflight runs over a connection's target. */
-export function checkWireSchema(
-  schemas: readonly Record<string, unknown>[],
-  mode: WireSchemaMode,
-  limits: WireSchemaLimits | undefined,
-  strictTools = 0,
-): WireSchemaCheck {
+export function checkWireSchema(schemas: readonly Record<string, unknown>[], mode: WireSchemaMode, limits: WireSchemaLimits | undefined): WireSchemaCheck {
   const reshapes = WIRE_SUBSETS[mode].requireAllAsNullable;
   const scrubs = schemas.map((schema) => scrubWireSchema(schema, mode));
   const violations = [
     ...scrubs.flatMap((scrub) => scrubViolations(scrub, mode, reshapes)),
     ...countWireSchemas(
       scrubs.map((scrub) => scrub.schema),
-      { mode, limits, strictTools },
+      { mode, limits, strictTools: 0 },
     ),
   ];
   return { fits: violations.length === 0, violations, wire: scrubs.map((scrub) => scrub.schema) };

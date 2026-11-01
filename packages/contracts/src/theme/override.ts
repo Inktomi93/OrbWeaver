@@ -3,11 +3,14 @@
 // as a color, fonts allowlist, enums enumerate. A failed field degrades to `undefined` (never a
 // whole-blob reject).
 // Deliberate two-copy: this wire schema and the ui-local render clamp (`@orb/ui`
-// `content/theme-scope/clamp.ts`) exist twice by design (the cake forbids either importing the other);
+// `content/theme-scope/clamp.ts`) exist twice by design (the cake forbids either importing the other).
+// They share the kit predicates but differ in one: this schema asks `isRenderableColor` (safe and parseable), the
+// render clamp asks `isSafeColor` only. Anything kept here is kept there.
 // The decorative background IMAGE lives as flat fields on the `appearance` settings namespace, not here
 // — only the base surface COLOR (`background`) stays a token (it feeds the neutral ramp).
 // Also home to the CARD-EMBEDDABLE partition (bottom of file): which of these keys a character card may
 // carry into a room, and which stay the viewer's.
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs take the strict twin via `strictInput` (`@orb/kit/zod-schema`).
 
 import { isDeterministicColor, isRenderableColor } from "@orb/kit/safe-color";
 import { z } from "zod";

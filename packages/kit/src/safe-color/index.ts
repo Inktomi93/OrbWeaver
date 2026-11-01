@@ -18,9 +18,10 @@ const HSL = /^hsla?\(\s*[0-9.,%/deg][0-9., %/deg]*\)$/iu;
 const OKL = /^okl(?:ch|ab)\(\s*[0-9.\-%/][0-9.\-% /]*\)$/iu;
 // A letters-only SHAPE check, NOT a CSS named-color allowlist: it admits any 3–20 letter word (so
 // `isSafeColor("notacolorxx") === true`). That is intentional and safe — an unknown bare word is an
-// INVALID CSS color the browser simply ignores (it can carry no url/fetch/escape: no separators or
-// parens). The point here is to reject payload SHAPES, not to enumerate the
-// ~150 CSS names; a browser-invalid word degrades to "property unset", never to a vector.
+// INVALID CSS color (it can carry no url/fetch/escape: no separators or parens). The point here is to
+// reject payload SHAPES, not to enumerate the ~150 CSS names. A direct declaration with such a word is
+// ignored; read through `var()` from a custom property it is invalid at computed-value time and takes the
+// property's initial or inherited value. Cosmetic, never a vector.
 const NAMED = /^[a-z]{3,20}$/iu; // transparent, currentColor, red, … AND any other bare letter-word.
 
 // Context-dependent colors do not denote one authored pixel: currentColor reads inherited ink, system

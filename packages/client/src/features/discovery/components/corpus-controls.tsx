@@ -18,24 +18,16 @@ export function ParamSelect({
   value,
   items,
   onValueChange,
-  testId,
 }: {
   readonly label: string;
   readonly value: string;
   readonly items: SelectItems<string>;
   readonly onValueChange: (value: string) => void;
-  readonly testId?: string;
 }): ReactElement {
   return (
     <Stack gap="field">
       <Text voice="kicker">{label}</Text>
-      <Select
-        items={items}
-        value={value}
-        onValueChange={(next): void => onValueChange(next as string)}
-        aria-label={label}
-        {...(testId === undefined ? {} : { "data-testid": testId })}
-      />
+      <Select items={items} value={value} onValueChange={(next): void => onValueChange(next as string)} aria-label={label} />
     </Stack>
   );
 }

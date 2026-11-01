@@ -12,7 +12,7 @@ async function roles(h: ChatRoot): Promise<MessageView["role"][]> {
   return (await readRoomCanon(h.root, h.owner, h.chatId)).map(({ role }) => role);
 }
 
-test("completed wire tool calls execute and launch the RPG completion hook in the same fixture", async () => {
+test("completed wire tool calls execute and complete the turn in the same fixture", async () => {
   await withPeer("complete", async (f) => {
     const outcome = await f.start();
     expect(outcome.aborted).toBe(false);
@@ -21,7 +21,7 @@ test("completed wire tool calls execute and launch the RPG completion hook in th
     const reply = outcome.messages.find(({ role }) => role === "assistant");
     expect(reply?.toolCalls).toEqual([expect.objectContaining({ name: f.toolName, result: "done", isError: false })]);
     expect(await f.toolWrites()).toEqual(["yes"]);
-    expect(f.completed).toHaveBeenCalledOnce();
+    expect(f.events.map(({ type }) => type)).toContain("turnCompleted");
     expect(await roles(f.h)).toEqual(["user", "assistant"]);
   });
 });
@@ -62,7 +62,6 @@ for (const phase of ["stream", "headers"] as const) {
       expect(f.events.map(({ type }) => type)).toContain("turnAborted");
       expect(f.events.map(({ type }) => type)).not.toContain("turnCompleted");
       expect(await f.toolWrites()).toEqual([]);
-      expect(f.completed).not.toHaveBeenCalled();
       await expect(f.h.root.services.chat.abort({ principal: f.h.owner, chatId: f.h.chatId })).resolves.toBeUndefined();
     });
   });
@@ -83,7 +82,6 @@ test("Stop during an actual HTTP 503 backoff prevents the queued retry and chain
     expect(await roles(f.h)).toEqual(["user"]);
     expect(f.events.map(({ type }) => type)).not.toContain("turnCompleted");
     expect(await f.toolWrites()).toEqual([]);
-    expect(f.completed).not.toHaveBeenCalled();
   });
 });
 
@@ -101,6 +99,5 @@ test("an already-cancelled public impersonation subscription dispatches no nativ
     expect(f.retries()).toEqual([]);
     expect(await roles(f.h)).toEqual([]);
     expect(await f.toolWrites()).toEqual([]);
-    expect(f.completed).not.toHaveBeenCalled();
   });
 });

@@ -5,7 +5,7 @@ import { expect, test } from "@orb/testkit/node";
 import { freshCountedDb } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { coreFrame, coreHeldReply, coreSse } from "../engine/core-physical.ts";
-import { turnRpgReply, turnRpgRoom } from "./turn-rpg-physical.ts";
+import { turnRpgReply, turnRpgRoom, turnWireBody } from "./turn-rpg-physical.ts";
 
 test("the actual post-commit RPG flush enters its physical game read before public turn completion", async () => {
   const counted = await freshCountedDb();
@@ -68,4 +68,25 @@ test("the actual post-commit RPG flush enters its physical game read before publ
     state.release();
     await h.root.settleBackground();
   }
+});
+
+test("the post-commit state round's provider request carries the turn's own reply", async () => {
+  const reply = "The keeper reaches the registered beat.";
+  const stateRound: string[] = [];
+  await using h = await turnRpgRoom(
+    [
+      (): Response => coreSse([coreFrame({ choices: [{ delta: { content: reply } }] }), terminalSseLine({ usage: { promptTokens: 12, completionTokens: 8 } })]),
+      async (request): Promise<Response> => {
+        stateRound.push(JSON.stringify(await turnWireBody(request)));
+        return turnRpgReply("", "Registered observatory");
+      },
+    ],
+    {},
+    "cheap",
+  );
+  const sent = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Reach the registered beat." });
+  expect(sent.aborted).toBe(false);
+  await h.root.settleBackground();
+  expect(stateRound).toHaveLength(1);
+  expect(stateRound[0]).toContain(reply);
 });

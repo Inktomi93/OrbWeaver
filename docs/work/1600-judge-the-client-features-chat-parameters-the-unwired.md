@@ -32,4 +32,17 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Six rows: six applied, none kept, none handed off, no owner questions.
+
+| Row | Result |
+| - | - |
+| `GhostMessageRow.#0.renderContext` | applied in `packages/client/src/features/chat/components/ghost-message-row.tsx`. Its only partner prop `rowCharacterId` was read only by that macro pass, so it goes too, with its one supplier `message-list-surface.tsx:318` (the unrendered macro path never ran: the single mount passed neither) |
+| `MessageEditTextarea.#0.onSave` | applied in `packages/client/src/features/chat/components/message-edit-textarea.tsx`; the sole mount `message-row-parts.tsx:104` passes `message` and `moveNeighbours` |
+| `renderRowAvatar.args.imageUrlFor` | applied in `packages/client/src/features/chat/components/message-row-avatar.tsx`; the owned-blob path is the only path left and `portraitSource` loses its `owned` flag |
+| `useSendMessage.opts.intent` | applied in `packages/client/src/features/chat/hooks/use-send-message.ts`; the three mounts (`composer.tsx:120`, `chat-controls-band.tsx:399`, `choice-send-provider.tsx:33`) pass `chatId` and `onDraftCommitted` only. The router's `chat.send` input is untouched, and no send ever carried `intent`, so the request body is unchanged |
+| `RowSkin.bubbleDecoration.args.imageUrlFor` | applied in `packages/client/src/features/chat/lib/art-decorations.ts` (`BubbleDecorationArgs` and `imageSource`) |
+| `recentFaces.cap` | applied in `packages/client/src/features/chat/lib/recent-faces.ts`; the one caller `chat-list-character-filter.tsx:63` passes only the chats |
+
+Survey: `codegraph_explore` on the six symbols; literal `rg` for `renderContext`, `rowCharacterId`, `onSave`, `imageUrlFor`, `intent`, `recentFaces` over `packages tests tooling scripts` read, with `-g '*.ts' -g '*.tsx'`; `bubbleDecoration` call sites in `tests/client/features/chat/components/*.ct.tsx` pass no `imageUrlFor`.
+
+Proof: client typecheck clean; chat CTs in the lane report.

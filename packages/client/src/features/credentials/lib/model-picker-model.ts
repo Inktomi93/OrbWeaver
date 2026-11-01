@@ -290,10 +290,9 @@ export function groupModelEntries<T extends PickerEntry>(
     readonly pinnedIds: readonly string[];
     /** Whether to section by vendor at all — {@link hasMultiModelVendor} over the whole catalog. */
     readonly sectioned: boolean;
-    readonly cap?: number;
   },
 ): GroupedModels<T> {
-  const cap = options.cap ?? MODEL_PICKER_RENDER_CAP;
+  const cap = MODEL_PICKER_RENDER_CAP;
   const pinned = new Set(options.pinnedIds.filter((id) => id !== ""));
 
   const buckets = new Map<string, T[]>();

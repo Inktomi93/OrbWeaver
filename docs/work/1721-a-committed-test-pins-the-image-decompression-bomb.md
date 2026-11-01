@@ -3,11 +3,11 @@ kind: work
 status: open
 updated: 2026-10-31
 priority: P3
-area: client
-plan: cross-surface-consistency
+area: tests
+plan: test-foundation
 ---
 
-# Rule editor audit leftovers: cohort-anatomy field-row heights and the caveat-outweighed autosave alert (keeps 0550 from its done line)
+# A committed test pins the image decompression-bomb caps through both doors
 
 ## What
 

@@ -62,7 +62,7 @@ const personaMetadataWriteSchema = z.record(z.string(), z.unknown()).superRefine
 
 // The FACE fields spread `cardFaceFields` (D137(E) — one home, reference-equality-pinned); the wraps
 // (`description` bare = REQUIRED, starred/avatarAssetId `.optional()`) are persona's write semantics.
-export const createPersonaSchema = z.object({
+export const createPersonaSchema = z.strictObject({
   name: cardFaceFields.name,
   /** Display subtitle for pickers/lists (ST persona "title") — never injected into the prompt. */
   title: z.string().max(TITLE_MAX_LENGTH).nullable().optional(),
@@ -91,8 +91,9 @@ export const updatePersonaSchema = createPersonaSchema.partial();
 export type UpdatePersonaInput = z.infer<typeof updatePersonaSchema>;
 
 // The export/import round-trip shape: `createPersonaSchema` minus `avatarAssetId` (a binary asset
-// reference can't travel in a JSON backup).
-export const personaBackupSchema = createPersonaSchema.omit({ avatarAssetId: true });
+// reference can't travel in a JSON backup). Strip mode on purpose: it reads an uploaded backup file, whose
+// envelope keys and fields from another build are dropped rather than refusing the whole import.
+export const personaBackupSchema = createPersonaSchema.omit({ avatarAssetId: true }).strip();
 
 /** One resolved persona to bulk-import. `isDefault` marks the profile's `power_user.default_persona`.
  *  `avatarAssetId` is set by the driver after storing the `User Avatars/<file>` bytes. */
@@ -211,9 +212,9 @@ export type ResolveDefaultPersonaOp = (userId: UserId) => Promise<PersonaId | nu
 /** The user's last-played persona (`seeds.currentPersonaId`) — the floor below the default. */
 export type ResolveCurrentPersonaOp = (userId: UserId) => Promise<PersonaId | null>;
 
-export const personaIdInputSchema = z.object({ personaId: typeIdSchema(ID_PREFIX.persona) });
+export const personaIdInputSchema = z.strictObject({ personaId: typeIdSchema(ID_PREFIX.persona) });
 
-export const personaCharacterInputSchema = z.object({ characterId: typeIdSchema(ID_PREFIX.character) });
+export const personaCharacterInputSchema = z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character) });
 
 /** A persona a profile upload would write, with the content hash of its avatar bytes — what the pre-commit
  *  review compares against the owner's personas. */

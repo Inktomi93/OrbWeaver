@@ -134,7 +134,10 @@ export type EndpointInspection = z.infer<typeof endpointInspectionSchema>;
 
 /** The authenticated account's identity/plan metadata — an SDK-free projection of the agent-sdk
  *  `accountInfo()` control response. Best-effort: omitted on any failure/timeout (the verify turn must
- *  never fail or delay on this). `apiProvider: "firstParty"` is the healthy Max-sub answer. */
+ *  never fail or delay on this). `apiProvider: "firstParty"` is the healthy Max-sub answer.
+ *
+ *  @remarks Strip mode on purpose: this parses the SDK's own response, so a field the SDK adds is dropped from
+ *  the projection instead of failing it. The wire result below re-reads it strictly. */
 export const verifyAuthAccountSchema = z.object({
   email: z.string().optional(),
   organization: z.string().optional(),
@@ -145,7 +148,7 @@ export const verifyAuthAccountSchema = z.object({
 });
 export type VerifyAuthAccount = z.infer<typeof verifyAuthAccountSchema>;
 
-export const verifyAuthResultSchema = z.object({
+export const verifyAuthResultSchema = z.strictObject({
   source: z.literal("max-pro-sub"),
   ok: z.boolean(),
   /** Which credential the spawned runtime used (`"none"` = the host login was active — the healthy
@@ -158,6 +161,6 @@ export const verifyAuthResultSchema = z.object({
   costUsd: z.number(),
   /** The authenticated account's identity/plan metadata (agent-sdk `accountInfo()`); ABSENT when the
    *  best-effort probe failed/timed out (never fails the verify turn). */
-  account: verifyAuthAccountSchema.optional(),
+  account: verifyAuthAccountSchema.strict().optional(),
 });
 export type VerifyAuthResult = z.infer<typeof verifyAuthResultSchema>;

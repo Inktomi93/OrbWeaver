@@ -2,7 +2,6 @@
 // (its box, its mask or feather, its fallback and the URL it asks for). The slot components render them
 // (components/art-slot.tsx); the skin table in message-row-variants.ts picks them per chat style.
 
-import type { VariantKind } from "@orb/contracts/assets";
 import { blobBannerUrl, blobPortraitUrl } from "@orb/contracts/assets";
 import { initialsFor } from "@orb/kit/initials";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -22,8 +21,6 @@ export interface BubbleDecorationArgs {
   readonly hueSeed: string;
   /** The row's role: whisper's band fades into the row's own bubble colour. */
   readonly role: MessageRole;
-  /** Static illustration consumers resolve their own art; absent keeps the owned-blob path. */
-  readonly imageUrlFor?: (variant: VariantKind, width?: number) => string;
   /** THE `appearance.showInChatAvatars` TOGGLE, threaded to the decorators (#212-6). It used to reach only
    *  `renderRowAvatar`, so the toggle meant three different things across the eight skins: six removed the
    *  chip, ripple lost its whole identity (its portrait IS an avatarTreatment), and echo/whisper ignored it
@@ -76,10 +73,6 @@ export function artRequestWidth(cssWidth: number): number {
 
 /** The URL builder for a speaker's art at a slot's CSS width (times the pixel ratio), or undefined with no image. */
 function imageSource(args: BubbleDecorationArgs, variant: "portrait" | "banner"): ((cssWidth: number) => string) | undefined {
-  if (args.imageUrlFor !== undefined) {
-    const imageUrlFor = args.imageUrlFor;
-    return (cssWidth) => imageUrlFor(variant, artRequestWidth(cssWidth));
-  }
   const hash = args.avatarHash;
   if (hash === null) {
     return;

@@ -63,7 +63,7 @@ function renderMarkdown(): string {
         `| ${code(tier)} | ${code(registrar)} | ${code(registrationWorld)} | ${code(executionWorld)} |`,
     ),
     "",
-    "## Composer placements",
+    "## Command placements",
     "",
     "| Target | Registration world |",
     "| - | - |",

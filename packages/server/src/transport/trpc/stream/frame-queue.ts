@@ -71,7 +71,6 @@ export interface FrameQueueOptions {
    * thrash it).
    */
   readonly onShed?: ((ref: StreamRoomRef) => void) | undefined;
-  readonly capacity?: number;
 }
 
 export interface FrameQueue {
@@ -102,7 +101,6 @@ function isPendingLagFor(item: QueuedFrame, key: string): boolean {
  * queue never reads a frame's payload beyond the routing fields (the byte-blind rule, §4.3).
  */
 export function createFrameQueue(opts: FrameQueueOptions): FrameQueue {
-  const capacity = opts.capacity ?? FRAME_QUEUE_CAPACITY;
   const items: QueuedFrame[] = [];
   let wake: (() => void) | null = null;
   let closed = false;
@@ -147,7 +145,7 @@ export function createFrameQueue(opts: FrameQueueOptions): FrameQueue {
       items[at] = { key, collapseKey, frame };
       return;
     }
-    if (items.length >= capacity) {
+    if (items.length >= FRAME_QUEUE_CAPACITY) {
       announceLag(ref, key);
       return;
     }
@@ -157,7 +155,7 @@ export function createFrameQueue(opts: FrameQueueOptions): FrameQueue {
 
   /** `lag`: on overflow shed THIS room's pending tail (never another room's), announce, keep the room. */
   function pushLagging(ref: StreamRoomRef, key: string, frame: StreamDataFrame): void {
-    if (items.length < capacity) {
+    if (items.length < FRAME_QUEUE_CAPACITY) {
       items.push({ key, collapseKey: null, frame });
       bump();
       return;

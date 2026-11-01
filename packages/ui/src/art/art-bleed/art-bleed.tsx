@@ -37,11 +37,10 @@ export interface ArtBleedProps {
    *  and it renders nothing at all, rather than this component painting an empty band where a picture
    *  was promised. */
   readonly src: string;
-  readonly className?: string;
 }
 
 /** A decorative art band on the host's inline-end edge. The host must be a positioned box (the band is
  *  absolute) and should cap its own content column at `--reading-measure`. */
-export function ArtBleed({ src, className }: ArtBleedProps): ReactElement {
-  return <div aria-hidden={true} className={artBleedVariants({ className })} data-slot="art-bleed" style={{ backgroundImage: `url("${src}")` }} />;
+export function ArtBleed({ src }: ArtBleedProps): ReactElement {
+  return <div aria-hidden={true} className={artBleedVariants()} data-slot="art-bleed" style={{ backgroundImage: `url("${src}")` }} />;
 }

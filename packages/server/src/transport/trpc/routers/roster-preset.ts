@@ -13,20 +13,21 @@ import {
   rosterPresetViewSchema,
 } from "@orb/contracts/roster-preset";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { strictInput } from "@orb/kit/zod-schema";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
 export const rosterPresetRouter = t.router({
   create: authedProcedure
     .output(rosterPresetViewSchema)
-    .input(z.object({ input: createRosterPresetSchema }))
+    .input(strictInput(z.strictObject({ input: createRosterPresetSchema })))
     .mutation(({ ctx, input }) => ctx.services.rosterPreset.create({ principal: ctx.auth, input: input.input })),
 
   update: authedProcedure
     .output(rosterPresetViewSchema)
     // `update` is a FULL REPLACE of the same authored fields, member list included — ONE schema object,
     // deliberately (a roster is small enough that patch semantics would only buy drift).
-    .input(z.object({ presetId: typeIdSchema(ID_PREFIX.rosterPreset), input: createRosterPresetSchema }))
+    .input(strictInput(z.strictObject({ presetId: typeIdSchema(ID_PREFIX.rosterPreset), input: createRosterPresetSchema })))
     .mutation(({ ctx, input }) => ctx.services.rosterPreset.update({ principal: ctx.auth, presetId: input.presetId, input: input.input })),
 
   remove: authedProcedure

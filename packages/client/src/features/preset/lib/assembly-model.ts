@@ -6,6 +6,7 @@ import type { GenerationType, MarkerType, PromptSection } from "@orb/contracts/p
 import { DEFAULT_MARKER_TEMPLATES, GENERATION_TYPES, MARKER_TYPES } from "@orb/contracts/preset";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Pencil } from "@orb/ui/icons";
+import type { SelectOption } from "@orb/ui/select";
 import { MARKER_COPY } from "../components/prompt-assembly/marker-copy.ts";
 
 /** The three section kinds the rack + inspector branch on (derived from a section, never stamped). */
@@ -138,12 +139,6 @@ export function hasRoleField(section: PromptSection): boolean {
   return !(section.type === "marker" && section.marker === "chat_history");
 }
 
-/** A `{value,label}` toggle item over a static vocabulary (the Triggers multi-toggle set). */
-interface ToggleItem {
-  readonly value: string;
-  readonly label: string;
-}
-
 /** The human label per turn-type (the multi-toggle chips + the row Triggers pill). */
 const GENERATION_TYPE_LABELS: Record<GenerationType, string> = {
   normal: "Normal",
@@ -154,7 +149,8 @@ const GENERATION_TYPE_LABELS: Record<GenerationType, string> = {
   quiet: "Quiet",
 };
 
-export const GENERATION_TYPE_ITEMS: readonly ToggleItem[] = GENERATION_TYPES.map((value) => ({
+/** The Triggers select's `{value,label}` items over the static turn-type vocabulary. */
+export const GENERATION_TYPE_ITEMS: readonly SelectOption<string>[] = GENERATION_TYPES.map((value) => ({
   value,
   label: GENERATION_TYPE_LABELS[value],
 }));
@@ -219,15 +215,9 @@ export const GUIDED_INPUT_TOKEN = "{{input}}";
  *  non-empty template that dropped the token (that steer really vanishes) — never the empty case, where the
  *  bare input IS exactly what lands (so the old "won't land anywhere" copy was false for it). */
 export interface GuidedFooterState {
-  readonly isEmpty: boolean;
-  readonly isDefault: boolean;
   readonly missingInputLint: boolean;
 }
-export function guidedFooterState(prompt: string, factoryDefault: string): GuidedFooterState {
+export function guidedFooterState(prompt: string): GuidedFooterState {
   const isEmpty = prompt.trim().length === 0;
-  return {
-    isEmpty,
-    isDefault: isEmpty || prompt === factoryDefault,
-    missingInputLint: isEmpty ? false : !prompt.includes(GUIDED_INPUT_TOKEN),
-  };
+  return { missingInputLint: isEmpty ? false : !prompt.includes(GUIDED_INPUT_TOKEN) };
 }

@@ -72,9 +72,13 @@ export interface CorpusAnalysisInput {
 const CORPUS_ANALYSIS_PHASES = ["empty", "unanalysed", "analysed"] as const;
 type CorpusAnalysisPhase = (typeof CORPUS_ANALYSIS_PHASES)[number];
 
+/** The readiness rail's rows, in rail order. Each one is a pass with its own door (`corpus-readiness-passes.ts`). */
+export const CORPUS_READINESS_STAGE_IDS = ["families", "distilled", "storyThemes", "keywords", "duplicates"] as const;
+export type CorpusReadinessStageId = (typeof CORPUS_READINESS_STAGE_IDS)[number];
+
 /** One row of the readiness rail — a pass, what it has produced, and whether it has produced anything. */
 export interface CorpusReadinessStage {
-  readonly id: "families" | "distilled" | "storyThemes" | "keywords" | "duplicates";
+  readonly id: CorpusReadinessStageId;
   readonly label: string;
   /** The right-hand mono reading. Always a MEASUREMENT or the honest `not run`, never a bare `0`. */
   readonly datum: string;
@@ -169,8 +173,8 @@ function spelledInline(count: number, one: string, many = `${one}s`): string {
 }
 
 /** `3 characters` / `1 character` — the DATUM form (rail rows, figures), always numeric. */
-function plural(count: number, one: string, many = `${one}s`): string {
-  return `${formatCount(count)} ${count === 1 ? one : many}`;
+function plural(count: number, one: string): string {
+  return `${formatCount(count)} ${count === 1 ? one : `${one}s`}`;
 }
 
 /**

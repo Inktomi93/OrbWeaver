@@ -84,7 +84,6 @@ interface NearestDocumentChunksParams {
   readonly queryVector: Float32Array;
   /** The space tag — same space the chunks were embedded in (invariant 6). */
   readonly model: string;
-  readonly generationId?: EmbedGenerationId | undefined;
   readonly generationFingerprint?: string | undefined;
   readonly limit: number;
 }
@@ -97,10 +96,10 @@ export async function nearestDocumentChunks(
 ): Promise<NearestDocumentChunk[]> {
   const currentScope = await resolveActiveDocumentScope(params.scope);
   const distance = sql<number>`vector_distance_cos(${documentChunks.embedding}, vector32(${toVectorBlob(params.queryVector)}))`;
-  let generationCondition = params.generationId === undefined ? undefined : eq(documentChunks.generationId, params.generationId);
-  if (params.generationFingerprint !== undefined) {
-    generationCondition = and(eq(embedGenerations.fingerprint, params.generationFingerprint), eq(embedSpaceState.activeGenerationId, embedGenerations.id));
-  }
+  const generationCondition =
+    params.generationFingerprint === undefined
+      ? undefined
+      : and(eq(embedGenerations.fingerprint, params.generationFingerprint), eq(embedSpaceState.activeGenerationId, embedGenerations.id));
   // databank's compose-injected resolveActiveDocumentScope supplies the independent current WHERE after query embedding; its shared junction subqueries preserve D85 room credits, and personal scope binds documents.ownerId. The gate cannot inspect this injected SQL. Ends if currentScope leaves the WHERE or the scope operation no longer comes from databank.
   // the generation is pinned to documents.ownerId, whose independent current databank WHERE admits the row before ranking; room credits may belong to another present member, not the query funder. Ends if currentScope or the owner match is dropped.
   // the active documents space is pinned to the same admitted document owner through embedGenerations.ownerId. Ends if currentScope or either owner match is dropped.

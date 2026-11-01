@@ -12,22 +12,15 @@ export interface FuzzySearchOptions<T> {
   readonly fields: readonly (keyof T & string)[];
   /** Optional per-call subset of `fields` to actually search. Omit = search ALL indexed fields. */
   readonly searchFields?: readonly (keyof T & string)[];
-  /** Fields returned with each match. Defaults to all `fields`. */
-  readonly storeFields?: readonly (keyof T & string)[];
   /** Per-field score boost (e.g. `{ name: 4 }` — name matches outrank description matches). */
   readonly boost?: Partial<Record<keyof T & string, number>>;
-  /** Fuzziness 0..1. @defaultValue 0.2 */
-  readonly fuzzy?: number;
-  /** @defaultValue true */
-  readonly prefix?: boolean;
   /** @defaultValue 100 */
   readonly limit?: number;
-  /** @defaultValue "AND" */
-  readonly combineWith?: "AND" | "OR";
 }
 
 const DEFAULT_LIMIT = 100;
-const DEFAULT_FUZZY = 0.2;
+// Typo tolerance 0..1; every search is prefix-matching and every term must hit (AND).
+const FUZZY = 0.2;
 const IDLE_WARMUP_TIMEOUT_MS = 2000;
 const WARMUP_FALLBACK_DELAY_MS = 500;
 
@@ -48,46 +41,37 @@ const resultCache = new WeakMap<readonly unknown[], Map<string, readonly unknown
 interface IndexArgs<T> {
   readonly items: readonly T[];
   readonly fieldsKey: string;
-  readonly storeFieldsKey: string;
   readonly fields: readonly (keyof T & string)[];
-  readonly storeFields: readonly (keyof T & string)[] | undefined;
 }
 
 function getOrBuildIndex<T extends { id: string }>(args: IndexArgs<T>): MiniSearch<T> {
-  const { items, fieldsKey, storeFieldsKey, fields, storeFields } = args;
+  const { items, fieldsKey, fields } = args;
   // `getOrInsertComputed` is not in the browser floor (Chrome 145, Firefox 144, Safari 26.2).
   const byConfig = indexCache.get(items) ?? new Map<string, MiniSearch<never>>();
   indexCache.set(items, byConfig);
-  const configKey = `${fieldsKey} ${storeFieldsKey}`;
-  const hit = byConfig.get(configKey);
+  const hit = byConfig.get(fieldsKey);
   if (hit !== undefined) {
     return hit as MiniSearch<T>;
   }
   const ms = new MiniSearch<T>({
     idField: "id",
     fields: fields as string[],
-    storeFields: (storeFields ?? fields) as string[],
+    storeFields: fields as string[],
   });
   ms.addAll(items as T[]);
-  byConfig.set(configKey, ms as MiniSearch<never>);
+  byConfig.set(fieldsKey, ms as MiniSearch<never>);
   return ms;
 }
 
-function rankedMatches<T extends { id: string }>(
-  items: readonly T[],
-  trimmed: string,
-  options: FuzzySearchOptions<T>,
-  keys: { readonly fieldsKey: string; readonly storeFieldsKey: string },
-): readonly T[] {
-  const { fields, storeFields } = options;
+function rankedMatches<T extends { id: string }>(items: readonly T[], trimmed: string, options: FuzzySearchOptions<T>, fieldsKey: string): readonly T[] {
   const searchOptions: SearchOptions = {
-    prefix: options.prefix ?? true,
-    fuzzy: options.fuzzy ?? DEFAULT_FUZZY,
-    combineWith: options.combineWith ?? "AND",
+    prefix: true,
+    fuzzy: FUZZY,
+    combineWith: "AND",
     ...(options.boost === undefined ? {} : { boost: options.boost as Record<string, number> }),
     ...(options.searchFields === undefined ? {} : { fields: options.searchFields as string[] }),
   };
-  const hits = getOrBuildIndex({ items, ...keys, fields, storeFields }).search(trimmed, searchOptions);
+  const hits = getOrBuildIndex({ items, fieldsKey, fields: options.fields }).search(trimmed, searchOptions);
   const limit = options.limit ?? DEFAULT_LIMIT;
   // Map back to the original item by id so callers keep their own type without widening.
   const byId = new Map(items.map((it) => [it.id, it]));
@@ -106,34 +90,23 @@ function rankedMatches<T extends { id: string }>(
 
 /** DOM-free core of {@link useFuzzySearch}: empty query → `items` unchanged; else ranked matches capped at `limit`. */
 export function fuzzySearch<T extends { id: string }>(items: readonly T[], query: string, options: FuzzySearchOptions<T>): readonly T[] {
-  const { fields, storeFields } = options;
+  const { fields } = options;
   const trimmed = query.trim();
   if (trimmed.length === 0) {
     return items;
   }
   const fieldsKey = fields.join(" ");
-  const storeFieldsKey = (storeFields ?? fields).join(" ");
   let byQuery = resultCache.get(items);
   if (byQuery === undefined) {
     byQuery = new Map();
     resultCache.set(items, byQuery);
   }
-  const resultKey = JSON.stringify([
-    trimmed,
-    fieldsKey,
-    storeFieldsKey,
-    options.searchFields,
-    options.boost,
-    options.combineWith,
-    options.fuzzy,
-    options.limit,
-    options.prefix,
-  ]);
+  const resultKey = JSON.stringify([trimmed, fieldsKey, options.searchFields, options.boost, options.limit]);
   const cached = byQuery.get(resultKey);
   if (cached !== undefined) {
     return cached as readonly T[];
   }
-  const out = rankedMatches(items, trimmed, options, { fieldsKey, storeFieldsKey });
+  const out = rankedMatches(items, trimmed, options, fieldsKey);
   if (byQuery.size >= MAX_CACHED_RESULTS) {
     byQuery.clear();
   }
@@ -142,18 +115,17 @@ export function fuzzySearch<T extends { id: string }>(items: readonly T[], query
 }
 
 export function useFuzzySearch<T extends { id: string }>(items: readonly T[], query: string, options: FuzzySearchOptions<T>): readonly T[] {
-  const { fields, storeFields } = options;
+  const { fields } = options;
   const fieldsKey = fields.join(" ");
-  const storeFieldsKey = (storeFields ?? fields).join(" ");
   // Idle warmup: pre-fill the index cache off the critical path so neither the mount commit nor the
   // first keystroke eats the full build.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: fields/storeFields ride their joined VALUE keys — inline array literals are fresh refs each render and would re-arm every render (the neo-measured keystroke-reindex hotspot).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fields rides its joined VALUE key — inline array literals are fresh refs each render and would re-arm every render (the neo-measured keystroke-reindex hotspot).
   useEffect(() => {
     if (items.length === 0) {
       return;
     }
     const warm = (): void => {
-      getOrBuildIndex({ items, fieldsKey, storeFieldsKey, fields, storeFields });
+      getOrBuildIndex({ items, fieldsKey, fields });
     };
     const g = globalThis as IdleGlobals;
     if (typeof g.requestIdleCallback === "function") {
@@ -167,7 +139,7 @@ export function useFuzzySearch<T extends { id: string }>(items: readonly T[], qu
       g.clearTimeout(id);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- value-keyed deps (see biome-ignore above)
-  }, [items, fieldsKey, storeFieldsKey]);
+  }, [items, fieldsKey]);
 
   return fuzzySearch(items, query, options);
 }

@@ -12,8 +12,10 @@
 
 import type { UserSettings } from "@orb/contracts/settings";
 import { Row, Section, Stack } from "@orb/ui/layout";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
+import type { Trpc } from "#data";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
@@ -24,11 +26,7 @@ import { WORLD_INFO_SETTINGS_SUBCATEGORY } from "../lib/world-info-settings-nav.
 // The form value IS the stored section shape — derived in place (no re-spelled alias; no-inline-types).
 type WorldInfoSettingsForm = UserSettings["worldInfo"];
 
-interface UpdateWorldInfoVars {
-  readonly section: "worldInfo";
-  readonly patch: Record<string, unknown>;
-}
-const useUpdateWorldInfoSettings = createEntityMutation<UpdateWorldInfoVars, unknown>({
+const useUpdateWorldInfoSettings = createEntityMutation<inferInput<Trpc["settings"]["updateUserSettingsSection"]>, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
   errorToast: "Couldn't save your world-info settings.",

@@ -1,5 +1,5 @@
 // The ONE client-side applier for a plugin round-trip's UI OUTCOME. Every
-// surface that can run guest code — a DSL button, a `/plugin` dispatch, the Plugins chrome menu — hands the
+// surface that can run guest code — a DSL button, a `/plugin` dispatch, a placed command — hands the
 // mutation's result here, and this file decides what a person sees.
 //
 // WHY IT IS ONE FUNCTION AND NOT A CALLBACK PER CALL SITE: the outcome is chrome (a toast, a modal), and chrome

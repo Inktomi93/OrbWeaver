@@ -37,4 +37,13 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+11 rows: 1 deleted, 10 derived, 0 kept, 0 handed off, 0 owner questions.
+
+| Row | Result |
+| - | - |
+| `UpdateWorkloadsVars.section`, `.patch` | derived: `useUpdateWorkloadsTuning` takes `inferInput<Trpc["settings"]["updateUserSettingsSection"]>` |
+| `BatchProgress.done` | deleted with its write (`use-library-import.ts`); `import-library-section.tsx` reads `batch.index` and `batch.total`, and the run total lives on `FolderRun.done` |
+| `RunWorkloadFormValues.force`, `.dryRun`, `.k`, `.source` | derived: `save` hands the whole form to `buildStartInput(kind, values: WorkloadRunValues)` (`run-workload-dialog.tsx:109`), which reads the four fields. The interface now extends `WorkloadRunValues` and the twin declarations are gone |
+| `CreateScheduleFormValues.force`, `.dryRun`, `.k`, `.source` | derived: same reader (`create-schedule-dialog.tsx:102`); the interface extends `WorkloadRunValues`, and the unused `IndexSource` import went |
+
+Survey: `codegraph_explore` on `UpdateWorkloadsVars … CreateScheduleFormValues`; ast-grep (`-l ts` 5904, `-l tsx` 1522 files) on `RunWorkloadFormValues` (2 files), `CreateScheduleFormValues` (2 files). Typecheck exit 0. CT: workloads `platform-action-groups` (run dialog and library import) and `platform-schedule-dialog-dismissal` (schedule form) passed within the 48-test run.

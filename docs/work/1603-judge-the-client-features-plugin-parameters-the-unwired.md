@@ -28,4 +28,8 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Two rows: two applied, none kept, none handed off, no owner questions.
+
+`inSheet` and `sidecar` moved from `PluginAnchoredSurfacesProps` to `PluginAnchoredSurfaceListProps` in `packages/client/src/features/plugin/components/plugin-anchored-surfaces.tsx`. The single `<PluginAnchoredSurfaces>` mount (`lib/chat-anchors.tsx:85`) never supplied them; the list component keeps them because `plugin-flank-sheet.tsx:37` supplies both. `PluginAnchoredSurfaces` no longer forwards `sidecar` to `useVisibleAnchoredSurfaces`, whose default is the same `false`.
+
+Survey: `codegraph_explore` on the component; literal `rg` for `inSheet`, `PluginAnchoredSurfaces` across `packages/client tests/client tests/support` read. Proof: client typecheck clean; `tests/client/features/plugin/components/context-panels.ct.tsx` result in the lane report.

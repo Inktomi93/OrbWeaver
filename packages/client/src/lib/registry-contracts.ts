@@ -293,11 +293,7 @@ export interface CharacterChatsProjectionView {
  *  `multiHumanCapable` (the deployment-capability flag, resolved via `#data`'s `useAuthConfig`). What
  *  `defineContextTabs<CommittedChatContext>` and every chat-context contributor are typed against. */
 export interface CommittedChatContext {
-  readonly phase: "committed";
   readonly chatId: ChatId;
-  /** The room's stored title, RAW (`ChatDetail.title` — null/blank until renamed) — the context band
-   *  renders it through `deriveChatTitle` with the character names, exactly as the topbar identity does. */
-  readonly title: string | null;
   readonly participants: readonly ParticipantView[];
   /** The room's member-gated CHAT IDENTITY producer (`ChatDetail.identities`, D137) — the ONE resolver a
    *  context tab has for turning a seat's `activePersonaId` into the persona name/portrait its row renders

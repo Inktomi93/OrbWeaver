@@ -72,7 +72,8 @@
     "./vector-math": "./src/vector-math/index.ts",
     "./version-identity": "./src/version-identity/index.ts",
     "./weather": "./src/weather/index.ts",
-    "./world-info": "./src/world-info/index.ts"
+    "./world-info": "./src/world-info/index.ts",
+    "./zod-schema": "./src/zod-schema/index.ts"
   },
   "imports": {
     "#*": "./src/*/index.ts",

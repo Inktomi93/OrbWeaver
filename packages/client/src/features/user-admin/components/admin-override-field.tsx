@@ -125,12 +125,11 @@ export interface AdminOverrideSelectProps {
   readonly overridden: boolean;
   readonly floorLabel: string | null;
   readonly onSet: (next: string) => void;
-  readonly disabled?: boolean;
 }
 
 /** An enum AppSettings-override row (immediate-write). Base UI's Select can emit `null`; ignore it (the
  *  control never clears to null — clear is the section reset). */
-export function AdminOverrideSelect({ label, hint, value, items, overridden, floorLabel, onSet, disabled }: AdminOverrideSelectProps): ReactElement {
+export function AdminOverrideSelect({ label, hint, value, items, overridden, floorLabel, onSet }: AdminOverrideSelectProps): ReactElement {
   return (
     <SettingTrackRow>
       <Field label={label} description={floorDescription(overridden, floorLabel)} orientation="horizontal" {...(hint === undefined ? {} : { hint })}>
@@ -143,7 +142,6 @@ export function AdminOverrideSelect({ label, hint, value, items, overridden, flo
               onSet(next);
             }
           }}
-          {...(disabled === true ? { disabled: true } : {})}
         />
       </Field>
     </SettingTrackRow>
