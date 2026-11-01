@@ -1,6 +1,6 @@
 // The composition cohorts (area C): which template, row composite, dialog anatomy, dismiss path and confirm each section uses.
 
-import { DESTRUCTIVE_EXEMPT } from "../eslint/ui-feature-policy.ts";
+import { DESTRUCTIVE_EXEMPT } from "../eslint/index.ts";
 import type { Cell, Cohort, Member } from "./compare.ts";
 import { NOT_APPLICABLE } from "./compare.ts";
 import type { FileFacts } from "./file-facts.ts";
