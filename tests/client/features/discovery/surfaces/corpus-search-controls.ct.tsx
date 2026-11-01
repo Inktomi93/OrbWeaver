@@ -1,7 +1,7 @@
 // @subject packages/client/src/features/discovery/surfaces/corpus-list-surface.tsx
 // The Corpus omnibox sends the rerank ask the owner makes, and offers it only when a Rerank model can serve it.
 
-import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { createShellAmbientReads, holdCorpusProcedure, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import {
   CORPUS_EMBED_MODEL,
@@ -112,4 +112,60 @@ test("without a Rerank model the switch is off and says why", async ({ mount, pa
   await expect(rerankSwitch).toBeDisabled();
   await expect(rerankSwitch).toHaveAccessibleDescription(/Rerank model/u);
   expect(asked.every((value) => value !== true)).toBe(true);
+});
+
+interface SentSearch {
+  readonly query: string;
+  readonly rerank: boolean | undefined;
+}
+
+/** The intercept that records each search request's query and rerank, and lets the server answer it. */
+function recordSearch(sent: SentSearch[]): (input: { readonly query: string; readonly rerank?: boolean | undefined } | undefined) => undefined {
+  return (input): undefined => {
+    if (input !== undefined) {
+      sent.push({ query: input.query, rerank: input.rerank });
+    }
+  };
+}
+
+test("typing with rerank on settles to one reranked search, not one per keystroke", async ({ mount, page, corpus }) => {
+  await using root = await seededHarness(true);
+  const caller = await root.internalCallerFor(root.ownerId);
+  const sent: SentSearch[] = [];
+  await routeTrpc(page, {
+    ...createShellAmbientReads(corpus, root.ownerId),
+    ...serveCorpusProcedures(caller, SERVED),
+    ...serveCorpusProcedures(caller, ["search.search"], recordSearch(sent)),
+  });
+  const component = await mount<typeof CorpusSearchControlsStory>(STORY, { query: "", targetId: "characters", rerank: true });
+  await expect(component.getByRole("switch")).toBeChecked();
+  const text = "orbital ledger";
+  await component.getByRole("combobox", { name: "Search your corpus", exact: true }).pressSequentially(text, { delay: 40 });
+  await expect.poll(() => sent.at(-1)?.query).toBe(text);
+  await expect(component.getByText("How search works")).toBeVisible();
+  const reranked = sent.filter((search) => search.rerank === true);
+  expect(sent.every((search) => search.rerank === true)).toBe(true);
+  expect(reranked.length).toBeLessThanOrEqual(2);
+});
+
+test("a stored rerank ask waits for the Rerank model read instead of searching twice", async ({ mount, page, corpus }) => {
+  await using root = await seededHarness(true);
+  const caller = await root.internalCallerFor(root.ownerId);
+  const sent: SentSearch[] = [];
+  const held = holdCorpusProcedure(caller, "connection.listBindings");
+  await routeTrpc(page, {
+    ...createShellAmbientReads(corpus, root.ownerId),
+    ...serveCorpusProcedures(
+      caller,
+      SERVED.filter((path) => path !== "connection.listBindings"),
+    ),
+    ...held.routes,
+    ...serveCorpusProcedures(caller, ["search.search"], recordSearch(sent)),
+  });
+  const component = await mount<typeof CorpusSearchControlsStory>(STORY, { query: "orbital ledger", targetId: "characters", rerank: true });
+  await held.requested;
+  expect(sent).toEqual([]);
+  held.release();
+  await expect(component.getByText("How search works")).toBeVisible();
+  expect(sent).toEqual([{ query: "orbital ledger", rerank: true }]);
 });

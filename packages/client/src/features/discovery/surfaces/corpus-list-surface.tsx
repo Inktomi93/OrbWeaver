@@ -24,7 +24,7 @@ import type { ReactElement, RefObject } from "react";
 import { useDeferredValue, useRef } from "react";
 import { ListPage, QueryBoundary, RerankModelDoor, SettingSwitchRow, useRerankModel } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { testId, useFocusOnMount } from "#lib";
+import { testId, useDebouncedValue, useFocusOnMount } from "#lib";
 import {
   setCorpusSearchQuery,
   setCorpusSearchRerank,
@@ -48,6 +48,7 @@ import {
 const DEFAULT_TARGET = CORPUS_SEARCH_TARGETS[0].id;
 const SKELETON_ROW_COUNT = 5;
 const MIN_SUGGEST_LEN = 2;
+const RERANK_SETTLE_MS = 400;
 const TARGET_ITEMS = CORPUS_SEARCH_TARGETS.map((target) => ({ label: target.label, value: target.id }));
 
 export function CorpusListSurface(): ReactElement {
@@ -71,8 +72,34 @@ export function CorpusListSurface(): ReactElement {
   const rerankAsked = useCorpusSearchRerank();
   // A stored ask the Rerank model can no longer serve is not sent: the switch shows off and says why.
   const rerank = rerankAsked && rerankModel.kind === "ready";
+  // The stored ask waits for the model read, so the first search carries it instead of a plain one followed by a reranked one.
+  const awaitingRerankModel = target.kind === "unified" && rerankAsked && rerankModel.kind === "unknown";
   const deferredQuery = useDeferredValue(query);
+  // Each reranked search is a model call, so typing settles before it fires; a plain search keeps its per-keystroke reads.
+  const settledQuery = useDebouncedValue(deferredQuery, RERANK_SETTLE_MS);
+  const searchQuery = rerank ? settledQuery : deferredQuery;
   const searching = deferredQuery.trim() !== "";
+
+  let pane: ReactElement;
+  if (!searching) {
+    pane = <CorpusRestState targetId={targetId} />;
+  } else if (awaitingRerankModel) {
+    pane = <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
+  } else {
+    pane = (
+      <CorpusSearchResults
+        query={searchQuery}
+        targetId={targetId}
+        rerank={rerank}
+        retainFinderScroll={true}
+        // The pressed button goes away with the paused state, so focus returns to the field the query is in.
+        onTextInstead={(): void => {
+          setCorpusSearchTarget(CORPUS_TEXT_TARGET_ID);
+          omniboxRef.current?.focus();
+        }}
+      />
+    );
+  }
 
   return (
     <ListPage
@@ -95,21 +122,7 @@ export function CorpusListSurface(): ReactElement {
       search={<SearchOmnibox inputRef={omniboxRef} query={query} deferredQuery={deferredQuery} onQuery={setCorpusSearchQuery} />}
       skipTo="Skip to results"
     >
-      {searching ? (
-        <CorpusSearchResults
-          query={deferredQuery}
-          targetId={targetId}
-          rerank={rerank}
-          retainFinderScroll={true}
-          // The pressed button goes away with the paused state, so focus returns to the field the query is in.
-          onTextInstead={(): void => {
-            setCorpusSearchTarget(CORPUS_TEXT_TARGET_ID);
-            omniboxRef.current?.focus();
-          }}
-        />
-      ) : (
-        <CorpusRestState targetId={targetId} />
-      )}
+      {pane}
     </ListPage>
   );
 }

@@ -13,9 +13,9 @@ plan: unwired-code
 
 Rerank is wired. The Corpus list pane has a Rerank results switch under the search box. It sends `rerank` on `search.search` for the Characters, Scenes, Memories and Images targets. The Text target has no switch. The ask lives in the corpus search store beside the query and target.
 
-The switch is disabled with the reason in its description while no Rerank model is running: unset, set but not running, or still loading. When the model is unset or blocked, the Model roles door sits beside it. A stored ask that no running model can serve is not sent.
+The switch is disabled with the reason in its description while no Rerank model is running: unset, set but not running, or still loading. When the model is unset or blocked, the Model roles door sits beside it. A stored ask that no running model can serve is not sent. A stored ask waits for the Rerank model read before the first search. Typing settles for 400 ms before a reranked search fires, because each one is a model call.
 
-`scopedCharacterId` is dropped. The key left the `chat` search scope in `packages/contracts/src/search/index.ts`, and the `chat` scope now carries only `chatId`. The `segments` unified target needed it, so the target left `SEARCH_TARGETS`, the result union and `dispatchSegments`. The `segments` verb stays: chat recall calls it directly. The corpus fixture in `tests/support/node/corpus-data` was republished without the segments read.
+`scopedCharacterId` is dropped. The key left the `chat` search scope in `packages/contracts/src/search/index.ts`, and the `chat` scope now carries only `chatId`. The `segments` unified target needed it, so the target left `SEARCH_TARGETS`, the result union and `dispatchSegments`. Nothing else called the `segments` search verb, so the verb, its params, its hit type, its scope instructions, the candidates filter of the segment scan and `SEARCH_SCOPE_REQUIRED` are deleted. The corpus fixture in `tests/support/node/corpus-data` was republished without the segments read.
 
 ## Why
 
