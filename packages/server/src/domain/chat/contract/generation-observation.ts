@@ -55,6 +55,8 @@ export interface RetainedCanonMutation {
   readonly deltas: readonly StatsDelta[];
   readonly sources: readonly RetainedCanonSource[];
   readonly contributions: readonly RetainedCanonContributions[];
+  /** A verb's own write-time condition, held by the same fence as the canon capture. */
+  readonly admission?: SQL | undefined;
 }
 
 export interface RetainedCanonCapturedView extends MessageView {

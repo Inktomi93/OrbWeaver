@@ -36,6 +36,7 @@ import {
   messageWindowSchema,
   nextTurnConnectionViewSchema,
   REACTION_SPEAKER_NAME_MAX,
+  REATTRIBUTE_MESSAGES_MAX,
   reactionEmojiSchema,
   reapResultSchema,
   reattributeScopeSchema,
@@ -274,6 +275,14 @@ const reattributePersonaSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
   scope: reattributeScopeSchema,
   personaId: typeIdSchema(ID_PREFIX.persona),
+});
+
+// `reattributeMessages` re-voices assistant rows onto a seated character. Host-only + the seat gate live INSIDE the
+// verb; the bound lives here, at the trust boundary. A persona restamp is `reattributePersona`, a different column.
+const reattributeMessagesSchema = z.strictObject({
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  messageIds: z.array(typeIdSchema(ID_PREFIX.message)).min(1).max(REATTRIBUTE_MESSAGES_MAX),
+  characterId: typeIdSchema(ID_PREFIX.character),
 });
 
 // `throughSeq`/`title` mirror `ForkChatParams` (D27 deep copy — throughSeq truncates the copy to a
@@ -706,6 +715,9 @@ export const chatRouter = t.router({
     .input(clearReasoningSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.clearReasoning({ principal: ctx.auth, ...input })),
   moveMessage: authedProcedure.input(moveMessageSchema).mutation(({ ctx, input }) => ctx.services.chat.moveMessage({ principal: ctx.auth, ...input })),
+  reattributeMessages: authedProcedure
+    .input(reattributeMessagesSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.reattributeMessages({ principal: ctx.auth, ...input })),
   reattributePersona: authedProcedure
     .input(reattributePersonaSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.reattributePersona({ principal: ctx.auth, ...input })),

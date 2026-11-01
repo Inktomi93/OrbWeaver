@@ -203,7 +203,7 @@ The block changes only on a join, a leave (`leftSeq`), a persona swap, a descrip
 
 ## 5. Reattribution (the only writer of a stamp)
 
-- `reattributeMessages` (host) — re-stamps a slot's `characterId` (the `{{char}}`/speaker axis). BUILT.
+- `reattributeMessages` (host; `chat.reattributeMessages` route) — re-stamps an ordinary assistant reply's `characterId` (the `{{char}}`/speaker axis). BUILT. The target must hold a present seat of this room, judged in the batch that writes the stamp. A stranger's card, a nonexistent id and a removed seat get one NOT_FOUND. A removed seat stays refused until the host re-adds it; a reply may still leave a removed voice. A narrator row, a comment, a user line and an agent's reply are refused by code. The client is the host's "Reattribute" submenu on a reply.
 - **persona reattribution** (author-or-host; re-stamp user messages' `personaId`, per-row) — BUILT
   (`createReattributePersona`, `packages/server/src/domain/chat/verbs/edit.ts`; `chat.reattributePersona` route). Its scope
   is either an explicit `messageIds` selection or the server-resolved `mine` case: every user row the
