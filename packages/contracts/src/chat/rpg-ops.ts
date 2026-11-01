@@ -71,8 +71,11 @@ export interface RpgCardCorpus {
  *  hostless room: the caller refuses the round. */
 export type ResolveRpgCardCorpus = (chatId: ChatId, characterId: CharacterId) => Promise<RpgCardCorpus | null>;
 
-/** The call args of a game turn's gather. `pendingUserText` and `respondsToLatestUserTurn` are the dice-feed
- *  inputs; `steerIdentity` is chat's resolved `{{user}}`/`{{char}}` pair for the host-authored steering note;
+/** The text of the latest user message, read for a turn that carries none of its own; `null` before any user message. */
+export type GetPendingUserText = (chatId: ChatId) => Promise<string | null>;
+
+/** The call args of a game turn's gather. `pendingUserText` and `respondsToLatestUserTurn` tell it whether this
+ *  turn answers a player's dice stamp; `steerIdentity` is chat's resolved `{{user}}`/`{{char}}` pair for the host-authored steering note;
  *  `regenSlotMessageId` is the assistant slot a swipe or reroll regenerates; `prose` is the turn preset's prose
  *  overrides, absent meaning every slot resolves to its shipped default. */
 export interface GatherTurnContextArgs {
@@ -92,6 +95,9 @@ export interface GatherTurnContextArgs {
 export interface ChatRpgGatherData {
   readonly macros: Readonly<Record<string, string>>;
   readonly injections: readonly ChatInjection[];
+  /** `injections` as an AI-to-AI beat should read them, present only when they differ: the note that answers the
+   *  player's own dice stamp is left out, because a chained beat answers another character. */
+  readonly chainInjections?: readonly ChatInjection[] | undefined;
   readonly tools: readonly string[];
   /** The `{{expr::...}}` activation a game turn contributes: a data-only `rpg` binding shaped as a tree of
    *  scalars, lists and maps. Absent means `{{expr::rpg...}}` renders empty (non-game). */

@@ -9,7 +9,8 @@ import type { ReactElement, ReactNode } from "react";
 import { Suspense, useState } from "react";
 
 /** The rpg context tabs the stories mount, by their production contribution id. */
-type RpgTabId = "rpg.status" | "rpg.scene";
+const RPG_TAB_IDS = ["rpg.status", "rpg.scene", "rpg.journal"] as const;
+type RpgTabId = (typeof RPG_TAB_IDS)[number];
 
 // Calls the section's resolver the way the shell's context host does: as a hook handed in by the definition.
 function ResolvedTab({ useResolved, tab }: { readonly useResolved: () => ResolvedContextTabs | null; readonly tab: RpgTabId }): ReactNode {

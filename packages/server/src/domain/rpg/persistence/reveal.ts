@@ -18,10 +18,10 @@ import type { RevealBodyRow } from "../contract/service.ts";
  *  not part of the visible transcript). Scoped to `chatId` — a foreign message never joins. */
 export async function listSelectedAssistantBodies(db: Db, chatId: ChatId): Promise<readonly RevealBodyRow[]> {
   const rows = await db
-    .select({ messageId: messages.id, content: messageVariants.content })
+    .select({ messageId: messages.id, createdAt: messages.createdAt, content: messageVariants.content })
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .where(and(eq(messages.chatId, chatId), eq(messages.role, "assistant"), eq(messages.excludedFromPrompt, false)))
     .orderBy(asc(messages.seq));
-  return rows.map((r) => ({ messageId: r.messageId, content: r.content }));
+  return rows.map((r) => ({ messageId: r.messageId, createdAt: r.createdAt, content: r.content }));
 }

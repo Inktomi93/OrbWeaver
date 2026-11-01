@@ -11,7 +11,7 @@
 // `ChatRpgGatherResult` chat already owns), and the gather's NON-injection outputs — macros, celBindings,
 // cardKeepLastX, terminalTools — are untouched by this seam and still ride `buildTurnContext` directly.
 
-import type { ChatInjection, ReactionEmoji, TeachingCollection, TeachingContext, TeachingContribution } from "@orb/contracts/chat";
+import type { ReactionEmoji, TeachingCollection, TeachingContext, TeachingContribution } from "@orb/contracts/chat";
 import {
   CHAT_REACT_TOOL_NAME,
   isNarratorVoiced,
@@ -31,11 +31,12 @@ import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { resolveSegmentAnchor, segmentSnippet } from "@orb/kit/speaker-label";
 import type { ChatTeachingRegistry } from "./contract/context.ts";
 import { listAttributionReactions, loadPresentCharacterNames } from "./persistence/reactions.ts";
+import { stampGameState } from "./substrate/game-state-injections.ts";
 import { REACTION_ANONYMOUS_REACTOR, REACTION_WHOLE_MESSAGE_TARGET, reactionNote } from "./substrate/reaction-note.ts";
 
 /** Contributor #0 — the rpg gather's injections + tool names, projected onto the teaching contract.
  *
- *  THE `game-state` STAMP LIVES HERE, and this is its one home. It used to sit at the injections merge
+ *  THE `game-state` STAMP is applied HERE (`stampGameState` is its one home). It used to sit at the injections merge
  *  (`substrate/assemble-gather.ts`), which was correct while rpg was the only contributor and became wrong
  *  the moment the merge went generic: a teaching contribution is not necessarily a game (C1's guidance line
  *  is authors-note register), so a merge-site stamp would mislabel every later contributor's budget
@@ -45,7 +46,7 @@ const rpgGatherProjection: TeachingContribution = {
   order: 0,
   collect: (tctx: TeachingContext): Promise<TeachingCollection> =>
     Promise.resolve({
-      injections: (tctx.rpgGather?.injections ?? []).map((injection): ChatInjection => ({ ...injection, origin: "game-state" })),
+      injections: stampGameState(tctx.rpgGather?.injections ?? []),
       // The gather's own `tools` — `[]` in every mode as built (the fold rides `terminalTools`, which is NOT
       // a registry attach), so today's union is empty and the turn is byte-identical. Projected rather than
       // hard-coded `[]` so an rpg mode that DOES contribute registry tools attaches them through the one

@@ -26,6 +26,7 @@ import type { ChatInjection, GatherTurnContextArgs } from "@orb/contracts/chat";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import { actorRefKey } from "@orb/contracts/rpg";
+import { tokenizeContent } from "@orb/kit/content";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import type { RpgGatherResult } from "../contract/chat-turn.ts";
 import type { RpgContext, RpgGameRow } from "../contract/service.ts";
@@ -60,6 +61,17 @@ async function buildFoldedTurnSafely(
     ctx.onFoldBuildFailed({ chatId: game.chatId, gameId: game.id, err });
     return null;
   }
+}
+
+/** Does the player message this turn answers carry a dice stamp? A swipe, a generate or a drained send has no pending
+ *  text, so it reads the stored message. A turn that does not answer that message is never told, so a stale die
+ *  cannot steer a later round. A stamp is authored text, not proof of a server roll; the flag only says one is there. */
+async function playerRolledDice(ctx: RpgContext, args: GatherTurnContextArgs): Promise<boolean> {
+  if (!args.respondsToLatestUserTurn) {
+    return false;
+  }
+  const userText = args.pendingUserText ?? (await ctx.getPendingUserText(args.chatId));
+  return userText !== null && tokenizeContent(userText).some((span) => span.kind === "dice");
 }
 
 /**
@@ -159,31 +171,35 @@ export async function gatherTurnContext(ctx: RpgContext, args: GatherTurnContext
   // tool DESCRIPTIONS teach the write surface (measured: a hosted strong model co-emits narrative AND 1–3
   // strict tool calls on 6/6 turns off the unchanged narrative prompt), so the prose is never asked to carry
   // bookkeeping instructions it might narrate back at the player.
-  const reminder = buildLiteReminder({
-    view,
-    steeringNote: game.config.lite.steeringNote,
-    steerMacros,
-    curSnapshot,
-    prevSnapshot,
-    // The attribute vocabulary (label + hint) the state block teaches once — the sheet's steering lever.
-    statProfile: game.config.statProfile,
-    features: game.config.features,
-    participantNames,
-    // P3 hidden-channel teaching gates (§3.3) — composed into the reminder only when the knob is on.
-    deception: game.config.features.deception,
-    omniscience: game.config.features.omniscience,
-    dateMode: game.config.dateMode, // #9 — narrated drops the day counter from the ambient line
-    // PROSE-1 — the preset's model-facing prose overrides, so the reminder's teaches/headings resolve any host
-    // edit (absent ⇒ shipped defaults, byte-identical to pre-PROSE-1).
-    prose,
-  });
-
+  const rolled = await playerRolledDice(ctx, args);
   // The reconcile-beat note rides the reminder ONLY on a folded turn (the post-commit rounds append their own
   // to their own system prompt). It is authored as WRITE-SURFACE guidance, not narration guidance, so a
   // reconcile beat re-states the panel without the character narrating a stocktake.
   const reconcileNote = folded?.reconcileNote ?? null;
-  const content = frameLiteReminder(reconcileNote !== null ? `${reminder}\n\n${reconcileNote}` : reminder, prose);
-  const injection: ChatInjection = { position: "in_chat", depth: 0, role: "system", content };
+  const injectionFor = (answersRoll: boolean): ChatInjection => {
+    const reminder = buildLiteReminder({
+      view,
+      steeringNote: game.config.lite.steeringNote,
+      steerMacros,
+      curSnapshot,
+      prevSnapshot,
+      // The attribute vocabulary (label + hint) the state block teaches once — the sheet's steering lever.
+      statProfile: game.config.statProfile,
+      features: game.config.features,
+      participantNames,
+      // P3 hidden-channel teaching gates (§3.3) — composed into the reminder only when the knob is on.
+      deception: game.config.features.deception,
+      omniscience: game.config.features.omniscience,
+      playerRolledDice: answersRoll,
+      dateMode: game.config.dateMode, // #9 — narrated drops the day counter from the ambient line
+      // PROSE-1 — the preset's model-facing prose overrides, so the reminder's teaches/headings resolve any host
+      // edit (absent ⇒ shipped defaults, byte-identical to pre-PROSE-1).
+      prose,
+    });
+    const content = frameLiteReminder(reconcileNote !== null ? `${reminder}\n\n${reconcileNote}` : reminder, prose);
+    return { position: "in_chat", depth: 0, role: "system", content };
+  };
+  const injection = injectionFor(rolled);
 
   // The macro + CEL feed (parity-plus §12) — populates `rpgSceneState`/`rpgCast`/`rpgQuests`/`rpgDelta` from the
   // SAME tracker view the reminder + panel read (one projection, three consumers), plus the data-only `rpg` CEL
@@ -207,6 +223,9 @@ export async function gatherTurnContext(ctx: RpgContext, args: GatherTurnContext
   return {
     macros: feed.macros,
     injections: [injection],
+    // Only a turn that answers a stamp has a second form: the chain's beats answer another character, so they read
+    // the same reminder without the roll note. A stampless turn has one form, byte-identical to before.
+    ...(rolled ? { chainInjections: [injectionFor(false)] } : {}),
     tools: [],
     celBindings: { rpg: feed.rpg },
     cardKeepLastX: game.config.features.cardKeepLastX,

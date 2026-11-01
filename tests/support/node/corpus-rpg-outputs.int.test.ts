@@ -7,7 +7,8 @@ import { createServerHarness } from "./server.ts";
 test("native RPG outputs preserve actor rekeying, disclosed name clamping, deterministic dice and selected-canon reveal", async () => {
   await using root = await createServerHarness({ random: () => 0.25 });
   const result = await seedCorpusRpgOutputs(root);
-  expect(result.created).toEqual({ gameId: result.born.id, trackersReadOnly: result.born.trackersReadOnly });
+  expect(result.created).toEqual({ gameId: result.born.id });
+  expect(result.born).not.toHaveProperty("trackersReadOnly");
   expect(result.born.chatId).toBe(result.room.chat.id);
   expect(result.born.mode).toBe("lite");
   expect(result.missing).toMatchObject({ ok: false, reason: expect.stringContaining("nothing to promote") });
@@ -37,6 +38,7 @@ test("native RPG outputs preserve actor rekeying, disclosed name clamping, deter
   expect(result.dice).toEqual({ notation: "2d6+3", rolls: [2, 2], modifier: 3, total: 7, stamp: "[dice: 2d6+3 → 7]" });
   const opening = result.room.opening?.messages[0];
   expect(result.reveal.messages.map((message) => message.messageId)).toEqual([opening?.id]);
+  expect(result.reveal.messages.map((message) => message.createdAt)).toEqual([opening?.createdAt]);
   expect(result.reveal.messages[0]?.spans[0]?.fields).toContainEqual({ key: "truth", value: RPG_OUTPUT_SECRET });
   expect(result.reveal.standingLies).toMatchObject([{ character: "Reveal witness", lies: [{ messageId: opening?.id, truth: RPG_OUTPUT_SECRET }] }]);
   expect(result.withheld).toEqual({ messages: [], standingLies: [] });
