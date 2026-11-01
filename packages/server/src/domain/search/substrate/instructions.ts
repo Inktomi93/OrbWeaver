@@ -28,10 +28,6 @@ export const SCOPE_INSTRUCTIONS = {
     query: "Retrieve the lived roleplay scene whose character has experienced moments like this.",
     rerank: "Given a query, retrieve the roleplay conversation moment whose character best fits the request.",
   },
-  segments: {
-    query: "Retrieve the verbatim roleplay conversation moment that best matches the request.",
-    rerank: "Given a query, retrieve the verbatim roleplay excerpt most relevant to it.",
-  },
   digests: {
     query: "Retrieve the roleplay scene or story-arc summary that best matches the request.",
     rerank: "Given a query, retrieve the roleplay scene or arc summary most relevant to it.",
@@ -48,5 +44,4 @@ export const SCOPE_INSTRUCTIONS = {
     query: "Retrieve the source-document passage that best answers the request.",
     rerank: "Given a query, retrieve the reference-document passage most relevant to it.",
   },
-  // The segments verb serves chat recall; it is not a unified search target.
-} as const satisfies Record<SearchTarget | "segments", ScopeInstructions>;
+} as const satisfies Record<SearchTarget, ScopeInstructions>;

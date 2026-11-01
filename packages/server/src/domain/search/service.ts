@@ -17,7 +17,6 @@ import { createFindCharacters } from "./verbs/find-characters.ts";
 import { createImages } from "./verbs/images.ts";
 import { createKnn } from "./verbs/knn.ts";
 import { createSearch } from "./verbs/search.ts";
-import { createSegments } from "./verbs/segments.ts";
 import { createSimilarArt } from "./verbs/similar-art.ts";
 import { createSimilarCharacters } from "./verbs/similar-characters.ts";
 import { createSourceState } from "./verbs/source-state.ts";
@@ -28,7 +27,6 @@ export function createSearchService(input: DbAssemblyInput<SearchContext>): Sear
   const knn = createKnn(ctx);
   const findCharacters = createFindCharacters(ctx, knn);
   const digests = createDigests(ctx);
-  const segments = createSegments(ctx);
   const coverage = createDigestSourceCoverage(ctx);
   const corpus = createCorpus(ctx, coverage);
   const images = createImages(ctx);
@@ -39,7 +37,6 @@ export function createSearchService(input: DbAssemblyInput<SearchContext>): Sear
     knn,
     findCharacters,
     digests,
-    segments,
     corpus,
     images,
     fields: createFields(ctx),

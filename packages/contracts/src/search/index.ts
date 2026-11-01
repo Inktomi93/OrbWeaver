@@ -159,13 +159,6 @@ export interface CharacterCardHit {
   readonly elevatorPitch: string | null;
 }
 
-/** blockKey.tier is 0 (segments are tier-0 verbatim blocks); scopedCharacterId is the caller's egocentric POV. */
-export interface SegmentSearchHit {
-  readonly blockKey: BlockKey;
-  readonly score: number;
-  readonly text: string;
-}
-
 /** A block that survived the joint digest+segment rerank, block-level dedupe, and content-hash collapse. */
 export interface CorpusHit {
   readonly source: CorpusSource;

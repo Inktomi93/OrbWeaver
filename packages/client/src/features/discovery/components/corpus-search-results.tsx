@@ -269,7 +269,7 @@ function NoMatches({ label, query, lexical }: { readonly label: string; readonly
 }
 
 /** One row per branch, discriminated on `over`. The corpus omnibox only asks for four targets; the wider
- *  union's remaining targets (entities/segments/corpus) are never requested here, so they fall to a note. */
+ *  union's remaining targets (entities/corpus/documents) are never requested here, so they fall to a note. */
 function ResultBranch({ data }: { readonly data: UnifiedResult }): ReactElement {
   if (data.over === "characters") {
     return (

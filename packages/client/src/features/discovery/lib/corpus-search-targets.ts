@@ -2,7 +2,7 @@
 // library through. Four ride the unified `search.search` (mapped to its `over` discriminant); one — the
 // lexical "Text" target — rides `search.fields` (BM25 over card fields), a different engine, so the axis
 // carries a `kind` discriminator the query builder + result renderer switch on. Deliberately a NARROW
-// subset: the corpus navigator never exposes the internal retrieval targets (`entities`/`segments`/`corpus`).
+// subset: the corpus navigator never exposes the internal retrieval targets (`entities`/`corpus`/`documents`).
 //
 // `lens` rides only the image target (imageLensSchema is required there). Keep this the ONE home for the
 // axis — the picker, the query builder, and the result renderer all read it.

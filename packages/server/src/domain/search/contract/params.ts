@@ -18,15 +18,12 @@ export interface KnnParams {
 // `findCharacters` hands its whole params to `knn`, so it takes exactly the `knn` shape.
 export type FindCharactersParams = KnnParams;
 
-// DigestsParams/SegmentsParams are ALIASES of the contracts shape — the derive, not a re-spell. Both verbs take
-// exactly the memory-recall query wire `@orb/contracts/search` owns; the named aliases exist only so a
+// DigestsParams is an ALIAS of the contracts shape — the derive, not a re-spell. The digests verb takes
+// exactly the memory-recall query wire `@orb/contracts/search` owns; the named alias exists only so the
 // SearchService signature says WHICH verb its argument belongs to. A structural-identity lens (`ast respell`)
-// reports them by construction — it cannot see that an alias already IS the one home — so the answer is this
+// reports it by construction — it cannot see that an alias already IS the one home — so the answer is this
 // comment, never a rename or a hand-written body.
 export type DigestsParams = MemoryQueryOptions;
-
-/** Requires scopedCharacterId (the verbatim lens has no character column) — else SearchError(SCOPE_REQUIRED). */
-export type SegmentsParams = MemoryQueryOptions;
 
 /** Ranking is raw cosine distance — hub_score is deliberately not CSLS-applied on this cross-modal path. */
 export interface ImagesParams {
