@@ -3,7 +3,7 @@
 
 import type { ReactElement, ReactNode } from "react";
 
-export type ChatStyleDiagramStyle = keyof typeof STYLE_DRAWINGS;
+type ChatStyleDiagramStyle = keyof typeof STYLE_DRAWINGS;
 
 type PreviewRole = "user" | "assistant";
 const PROSE_GEOMETRY = { step: 17, middleWidth: 0.8, tailWidth: 0.6 };
@@ -237,7 +237,7 @@ const STYLE_DRAWINGS = {
   ),
 } satisfies Record<string, ReactElement>;
 
-export interface ChatStyleDiagramProps {
+interface ChatStyleDiagramProps {
   readonly style: ChatStyleDiagramStyle;
   /** Where the style puts the message header; the card's art stamps it for the stylesheet and the audit. */
   readonly headerPlacement: string;
