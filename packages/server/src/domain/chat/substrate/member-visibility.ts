@@ -39,7 +39,9 @@
 // the secret's tail — and it is an ORACLE, not just a race: the withheld open makes the member's ghost
 // visibly stall, telling them exactly when to reconnect. The one home is on the WRITE side —
 // `createMemberDeltaStamper`, owned by `domain/chat/bus::createChatBus`, stamps every delta's member bytes onto
-// `ChatBusEvent.memberText` before the durable append, warm from the slot's first byte. Every read seam
+// `ChatBusEvent.memberText` before the durable append, warm from the slot's first byte. A continue's first byte
+// follows a stored body that may end inside a tag, so its scrubber reads that body before its first token, and a
+// turn the stamper cannot place stamps nothing. Every read seam
 // (`scrubDeltaEventForMember`, the durable `scrubChatEventReplayForMember`, the transport's live fan-out, a
 // future multiplexed room source) is now a STATELESS field read that has no state to be missing.
 //
@@ -60,12 +62,13 @@
 // and the fork copy (a non-host forker of a deception game must not launder a member→host reasoning leak).
 
 import type { ChatBusEvent, ChatDeltaEvent, DurableChatBusEvent, MemberCardView, MessageView } from "@orb/contracts/chat";
-import { projectViewForMember } from "@orb/contracts/chat";
+import { HIDDEN_TAG_BROKEN_CODE, projectViewForMember } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { HiddenSpanStreamScrubber } from "@orb/kit/content";
 import { createHiddenSpanStreamScrubber, stripHiddenSpans } from "@orb/kit/content";
 import type { ChatId, ChatTurnId } from "@orb/kit/ids";
 import { participantRoleValue } from "#primitives/role-data/decode";
+import type { EmitDurableChatEventOp } from "../contract/engine-context.ts";
 import type { ChatBusReplayEvent } from "../contract/views.ts";
 
 /** A caller's chat role — the §3.6 verdict axis (host reads unstripped; anyone else is a member). Matches the
@@ -208,6 +211,11 @@ export function stripChatEventForMember(event: ChatBusEvent, reasoningHostOnly =
   if (reasoningHostOnly && event.type === "reasoningStreamDone") {
     return null;
   }
+  // SECURITY: this warning says a span exists, which is the fact a member must not reason about. Live fan-out and the
+  // durable replay both land here, so one arm covers publication, replay and a late join.
+  if (event.type === "warning" && event.code === HIDDEN_TAG_BROKEN_CODE) {
+    return null;
+  }
   if (!isViewCarrying(event)) {
     return event;
   }
@@ -277,32 +285,64 @@ const MEMBER_DELTA_CHANNELS: { readonly [K in ChatDeltaEvent["kind"]]: MemberDel
  *  turn ends, so the state is warm from the slot's first byte and no reader ever has to reconstruct it. */
 interface MemberDeltaStamper {
   /** Stamp `memberText` onto a `delta` event (identity for every other member) — call ONCE per emitted event,
-   *  in emit order, BEFORE the durable append: the stored payload and the live fan must carry the same bytes. */
-  readonly stamp: (event: DurableChatBusEvent) => DurableChatBusEvent;
+   *  in emit order, BEFORE the durable append: the stored payload and the live fan must carry the same bytes.
+   *  `continuedBody` accompanies a continue's `turnStarted`; see {@link EmitDurableChatEventOp}. */
+  readonly stamp: (event: DurableChatBusEvent, continuedBody?: string) => DurableChatBusEvent;
 }
 
-/** The prefix of every scrub-state key one turn owns. */
+/** One open turn's scrub state, by the slot a delta streams into. The slot matters because a round's speakers share
+ *  a turn id; the turn matters because a `generate` streams into the seq of a locked send beside it. */
+type TurnScrub = (slotSeq: number) => HiddenSpanStreamScrubber;
+type OpenTurns = Map<string, TurnScrub>;
+
 function turnKey(chatId: ChatId, turnId: ChatTurnId): string {
-  return `${chatId}:${turnId}:`;
+  return `${chatId}:${turnId}`;
 }
 
-/** One streaming slot's scrub-state key — the turn plus the `messages.seq` the tokens are streaming INTO. The turn
- *  is part of the key because two turns can stream into one seq: a `generate` beside a locked send. */
-function slotKey(chatId: ChatId, turnId: ChatTurnId, slotSeq: number): string {
-  return `${turnKey(chatId, turnId)}${slotSeq}`;
+function freshSlots(): TurnScrub {
+  const slots = new Map<number, HiddenSpanStreamScrubber>();
+  return (slotSeq) => slots.getOrInsertComputed(slotSeq, () => createHiddenSpanStreamScrubber());
+}
+
+/** A scrubber that has read `body`, so a tag `body` left open is still open. Output for `body` itself is discarded. */
+function scrubberPast(body: string): HiddenSpanStreamScrubber {
+  const scrubber = createHiddenSpanStreamScrubber();
+  scrubber.push(body);
+  return scrubber;
+}
+
+/** The per-tick member projection of a text stream that bypasses the bus (the impersonation draft), one stream per
+ *  call. Identity for the host, who reads model text verbatim. An unclosed tail is dropped at stream end. */
+export function createViewerTextScrub(viewer: ViewerRole): (text: string) => string {
+  if (viewerReadsHidden(viewer)) {
+    return (text) => text;
+  }
+  const scrubber = createHiddenSpanStreamScrubber();
+  return (text) => scrubber.push(text);
+}
+
+/** Admit a turn to the stamper. SECURITY: a continue streams into a body that may end inside a hidden tag, and a clean
+ *  scrubber forwards that tag's tail as prose. A continue that arrives without its body stays unadmitted, so
+ *  {@link stampTextDelta} withholds its whole stream. A continue has one slot, so its scrubber serves any seq. */
+function openTurn(turns: OpenTurns, event: Extract<DurableChatBusEvent, { type: "turnStarted" }>, continuedBody: string | undefined): void {
+  if (continuedBody !== undefined) {
+    const scrubber = scrubberPast(continuedBody);
+    turns.set(turnKey(event.chatId, event.turnId), () => scrubber);
+  } else if (event.intent !== "continue") {
+    turns.set(turnKey(event.chatId, event.turnId), freshSlots());
+  }
 }
 
 /** The stamped `memberText` for ONE text delta, advancing that slot's scrubber. `null` = byte-identical to
- *  `delta.text` (the common tick — the durable row then keeps ONE copy of the token). */
-function stampTextDelta(scrubbers: Map<string, HiddenSpanStreamScrubber>, event: Extract<DurableChatBusEvent, { type: "delta" }>): string | null {
-  const key = slotKey(event.chatId, event.turnId, event.slotSeq);
-  const text = event.delta.text;
-  const existing = scrubbers.get(key);
-  const scrubber = existing ?? createHiddenSpanStreamScrubber();
-  if (existing === undefined) {
-    scrubbers.set(key, scrubber);
+ *  `delta.text` (the common tick — the durable row then keeps ONE copy of the token). SECURITY: a turn this stamper
+ *  never admitted has unknown scrub state, so it stamps `""` and the member reads nothing of it. */
+function stampTextDelta(turns: OpenTurns, event: Extract<DurableChatBusEvent, { type: "delta" }>): string | null {
+  const scrub = turns.get(turnKey(event.chatId, event.turnId));
+  if (scrub === undefined) {
+    return "";
   }
-  const safe = scrubber.push(text);
+  const text = event.delta.text;
+  const safe = scrub(event.slotSeq).push(text);
   return safe === text ? null : safe;
 }
 
@@ -310,31 +350,28 @@ function stampTextDelta(scrubbers: Map<string, HiddenSpanStreamScrubber>, event:
  *  chat. A sweep or a retire by `view.seq` hands that turn a cold scrubber, which stamps the rest of its secret
  *  safe: a refused send's user row lands on the very seq the live turn streams into, and its terminal lands
  *  mid-stream. */
-function retireTurnState(scrubbers: Map<string, HiddenSpanStreamScrubber>, event: DurableChatBusEvent): void {
-  if (event.type !== "turnCompleted" && event.type !== "turnAborted") {
-    return;
-  }
-  const prefix = turnKey(event.chatId, event.turnId);
-  for (const key of scrubbers.keys()) {
-    if (key.startsWith(prefix)) {
-      scrubbers.delete(key);
-    }
+function retireTurnState(turns: OpenTurns, event: DurableChatBusEvent): void {
+  if (event.type === "turnCompleted" || event.type === "turnAborted") {
+    turns.delete(turnKey(event.chatId, event.turnId));
   }
 }
 
 /** Build the per-process producer stamper. ONE instance, owned by `domain/chat/bus::createChatBus`. */
 export function createMemberDeltaStamper(): MemberDeltaStamper {
-  const scrubbers = new Map<string, HiddenSpanStreamScrubber>();
+  const turns: OpenTurns = new Map();
   return {
-    stamp(event: DurableChatBusEvent): DurableChatBusEvent {
+    stamp(event: DurableChatBusEvent, continuedBody?: string): DurableChatBusEvent {
+      if (event.type === "turnStarted") {
+        openTurn(turns, event, continuedBody);
+      }
       if (event.type !== "delta") {
-        retireTurnState(scrubbers, event);
+        retireTurnState(turns, event);
         return event;
       }
       // The reasoning channel carries no hidden-span grammar; its member verdict is the deception gate
       // (`reasoningHostOnly`), applied per-viewer at the read seam. Stamp `null` so it is never mistaken for
       // an UNSTAMPED event (which is withheld).
-      const memberText = event.delta.kind === "text" ? stampTextDelta(scrubbers, event) : null;
+      const memberText = event.delta.kind === "text" ? stampTextDelta(turns, event) : null;
       return { ...event, memberText };
     },
   };
