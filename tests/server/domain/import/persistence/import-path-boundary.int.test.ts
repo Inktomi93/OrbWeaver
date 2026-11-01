@@ -75,7 +75,7 @@ test("the preview answers the same for an outside file that exists and one that 
   expect(reasons.get(`${present}.jsonl`)).toBe(reasons.get(`${absent}.jsonl`));
 });
 
-test("a persona avatar that climbs out of the staged tree lands no art, and the skip names it", async () => {
+test("a persona avatar that climbs out of the staged tree lands no art, and the preview lists the persona without art", async () => {
   await using root = await harness();
   await mkdir(root.importStagingDir, { recursive: true });
   await writeFile(join(root.importStagingDir, `${OUTSIDE}.png`), cardPng(root, "Outside"));
@@ -83,7 +83,7 @@ test("a persona avatar that climbs out of the staged tree lands no art, and the 
   const files = profile(root, {}, { [hostile]: "Climber" });
 
   const preview = await dryRun(root, files);
-  expect(preview.skipped.items.map((item) => item.source)).toContain(hostile);
+  expect(preview.kinds.personas.items).toEqual([expect.objectContaining({ name: "Climber", withoutArt: true })]);
 
   await finish(root, await admit(root, files));
   expect(await avatarAsset(root, "Climber")).toBeNull();
