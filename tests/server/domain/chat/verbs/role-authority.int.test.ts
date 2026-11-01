@@ -88,8 +88,9 @@ test("real member reads, author checks and a sole-human fork preserve the hidden
   await root.services.chat.setMemberHistoryVisibility({ principal: host, chatId, userId: member.userId, visibility: "from-join" });
   const body = 'Visible <lie character="Witness" truth="hidden-role-secret"/>';
   const authored = await seedMessage(root, { principal: member, chatId, content: body });
-  const ownEdit = await root.services.chat.editMessage({ principal: member, chatId, messageId: authored.id, content: body });
-  expect(ownEdit.content).toBe("Visible ");
+  await expect(root.services.chat.editMessage({ principal: member, chatId, messageId: authored.id, content: body })).rejects.toMatchObject({
+    code: CHAT_OP_CODES.hiddenSpanEdit,
+  });
   await expect(root.services.chat.editMessage({ principal: member, chatId, messageId: boundary.id, content: "must-not-land" })).rejects.toMatchObject({
     code: CHAT_OP_CODES.notAuthor,
   });

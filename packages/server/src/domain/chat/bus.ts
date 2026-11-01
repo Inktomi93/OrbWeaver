@@ -87,7 +87,7 @@ interface ChatEmitted {
  *  `DurableChatBusEvent`, not the whole union: the live-only lane (`LIVE_ONLY_CHAT_EVENT_TYPES`, contracts
  *  §3.4) has no `chat_events` form, so handing one to this emit is a COMPILE error rather than a row the db
  *  CHECK would reject at runtime. Its fan surface is `entry/compose/services::emitChatEventLive`. */
-type EmitChatEvent = (event: DurableChatBusEvent) => Promise<ChatEmitted | null>;
+type EmitChatEvent = (event: DurableChatBusEvent, continuedBody?: string) => Promise<ChatEmitted | null>;
 
 /** `false` means another caller already consumed the claim: converged success, with nothing to publish. */
 type EmitChatEventAfterClaim = (event: DurableChatBusEvent, claimStatement: StatementToken) => Promise<ChatEmitted | false | null>;
@@ -307,10 +307,10 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
     };
   };
 
-  const emit: EmitChatEvent = async (raw) => {
+  const emit: EmitChatEvent = async (raw, continuedBody) => {
     // Stamped BEFORE the durable write and used for every downstream copy: the log row and the
     // composition root's live fan must both carry the identical member projection.
-    const event = stamper.stamp(raw);
+    const event = stamper.stamp(raw, continuedBody);
     // Durable-first: commit the INSERT before the live fan so a crash can never leave a
     // delivered-but-unlogged event.
     // FLAG[emit-is-total]: a failed durable write is classified, RETRIED on a live chat, and finally dropped —

@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/chat/substrate/member-visibility.ts
 // The producer stamps member bytes once, so a member resuming the durable log mid-span never reads the truth.
 import { createCharacterSchema } from "@orb/contracts/character";
+import { makePromptConfig } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
@@ -12,6 +13,7 @@ import {
   createServerHarness,
   seedCorpusActors,
 } from "@orb/testkit/node/composed";
+import { coreHttpRoom, coreProse } from "../engine/core-physical.ts";
 
 const TRUTH_HEAD = "stamp-truth-";
 const TRUTH_TAIL = "resumed-tail";
@@ -58,4 +60,24 @@ test("every durable resume cursor gives a member the stamped bytes, never the hi
     expect(bytes, `resume after seq ${String(cursors[index])}`).not.toContain(TRUTH_TAIL);
   }
   expect(JSON.stringify(resumes[0])).toContain("visible close");
+});
+
+test("a continue cut between attrs seeds its delimiter, so the stream conceals what the commit conceals", async () => {
+  const stored = 'Visible opening <lie character="Witness"';
+  await using h = await coreHttpRoom([(): Response => coreProse(stored), (): Response => coreProse(` truth="${TRUTH_HEAD}"/> A tail.`)], {
+    promptConfig: makePromptConfig({ continuePostfix: "newline" }),
+  });
+  const member = await h.root.principalFor((await h.root.actor()).id);
+  const invitation = await h.root.services.chat.createInvite({ principal: h.owner, chatId: h.chatId, input: { invitedHandle: member.handle } });
+  await h.root.services.chat.acceptInvite({ principal: member, inviteId: invitation.invite.id });
+  const target = (await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId })).messages[0];
+  if (target === undefined) {
+    throw new Error("the actual continuation has no selected target");
+  }
+  await h.root.services.chat.continueTurn({ principal: h.owner, chatId: h.chatId, messageId: target.id });
+  const hostLog = await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId });
+  const stamped = hostLog.flatMap(({ event }) => (event.type === "delta" && event.delta.kind === "text" ? [event.memberText ?? event.delta.text] : []));
+  expect(stamped.join("")).toBe("Visible opening ");
+  const { messages } = await h.root.services.chat.listMessages({ principal: member, chatId: h.chatId });
+  expect(messages.at(-1)?.content).toBe("Visible opening ");
 });

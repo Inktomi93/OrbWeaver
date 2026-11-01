@@ -82,6 +82,10 @@ export type ChatContentPart =
 //  type, so an `Exclude`-typed field makes it call every arm of the client's copy switch unreachable
 //  (`lint/suspicious/noUnnecessaryConditions`) while `tsc` is fine — the cross-module-union family. A tuple
 //  it can read keeps the switch legible to BOTH checkers.
+/** A committed reply holds a hidden tag so broken that members lose the rest of the body (D285). HOST-ONLY: unlike every
+ *  other warning it is about content a member may not reason about, so `stripChatEventForMember` withholds it. */
+export const HIDDEN_TAG_BROKEN_CODE = "hidden_tag_broken";
+
 const PLAIN_CHAT_WARNING_CODES = [
   // Image parts were stripped because the resolved model's `input.vision` isn't true (D45).
   "image_dropped",
@@ -170,6 +174,7 @@ const PLAIN_CHAT_WARNING_CODES = [
   // without it a captioned-but-pictureless reply reads as the model babbling about an image nobody sent.
   // COUNT-FREE like every other plain code — one notice per turn, not one per lost picture.
   "reply_image_failed",
+  HIDDEN_TAG_BROKEN_CODE,
 ] as const;
 export type PlainChatWarningCode = (typeof PLAIN_CHAT_WARNING_CODES)[number];
 

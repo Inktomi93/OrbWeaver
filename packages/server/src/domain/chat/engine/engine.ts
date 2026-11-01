@@ -29,7 +29,13 @@ import type {
   TurnAbortReason,
   VariantMetadata,
 } from "@orb/contracts/chat";
-import { buildIdentityNameContext, DEFAULT_MESSAGE_KIND, INLINE_REPLY_ORIGIN, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
+import {
+  buildIdentityNameContext,
+  DEFAULT_MESSAGE_KIND,
+  HIDDEN_TAG_BROKEN_CODE,
+  INLINE_REPLY_ORIGIN,
+  VARIANT_METADATA_REASONING_MS_KEY,
+} from "@orb/contracts/chat";
 import type { NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
 import { projectGenerationUsage } from "@orb/contracts/inference";
 import type { ContinuePostfix, UserIntent } from "@orb/contracts/preset";
@@ -49,6 +55,7 @@ import { isConstraintViolation } from "@orb/db/query";
 // `infra-below-domain` bans.
 import type { Resolved, ResolvedWarning } from "@orb/inference";
 import { GenerationObservationPersistenceError, generationOf, ProviderError, supportsManagedCompaction } from "@orb/inference";
+import { concealsBrokenHiddenTag } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, UserConnectionId } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
 import { getLog, withRequestSpan } from "#foundation/observability";
@@ -670,6 +677,11 @@ async function commitGeneration(args: {
   // `variantPayloadOf`; only the producer-state reset belongs here, and only on success.
   prep.assembleContext.opLog?.splice(0);
   await deps.emit({ type: "messageCommitted", chatId: prep.chatId, messageId: view.id, view, turnId: args.announcedTurnId });
+  // Decided here, not in the stream scrub: a turn commits one body, and it is the transformed text members actually read.
+  // A scrub sees every delta, sees bytes a receive transform may still rewrite, and sees turns that never commit.
+  if (concealsBrokenHiddenTag(view.content)) {
+    await deps.emit({ type: "warning", chatId: prep.chatId, code: HIDDEN_TAG_BROKEN_CODE });
+  }
   return view;
 }
 
@@ -1652,6 +1664,11 @@ async function closePreStartRefusal(deps: EngineDeps, prep: TurnPrep): Promise<v
   });
 }
 
+/** The bytes that precede a continue's first token in its committed body, delimiter included. */
+function continuedBodyOf(prep: TurnPrep, persist: TurnPersist, target: SlotTarget | null): string | undefined {
+  return persist.mode === "continue" && target !== null ? target.content + continuePostfixDelimiter(prep) : undefined;
+}
+
 /** The id the room knows this turn by. A round's speakers share their acceptance's, so it is not always `turnId`. */
 function announcedTurn(prep: TurnPrep, turnId: ChatTurnId): ChatTurnId {
   return prep.acceptedTurnId ?? turnId;
@@ -1683,17 +1700,20 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
   const announcedTurnId = announcedTurn(prep, turnId);
   const observations = createGenerationObservationSession(ctx, observationParentOf(prep.chatId, turnId, target));
   markRpgDiceEligible(ctx, prep, turnId);
-  await deps.emit({
-    type: "turnStarted",
-    chatId: prep.chatId,
-    turnId: announcedTurnId,
-    intent,
-    api: connection.api,
-    provider: connection.providerId,
-    model: connection.model,
-    speakerCharacterId: prep.speakerCharacterId,
-    targetMessageId: persist.mode === "new-slot" ? null : persist.targetMessageId,
-  });
+  await deps.emit(
+    {
+      type: "turnStarted",
+      chatId: prep.chatId,
+      turnId: announcedTurnId,
+      intent,
+      api: connection.api,
+      provider: connection.providerId,
+      model: connection.model,
+      speakerCharacterId: prep.speakerCharacterId,
+      targetMessageId: persist.mode === "new-slot" ? null : persist.targetMessageId,
+    },
+    continuedBodyOf(prep, persist, target),
+  );
 
   // `runTurnPipeline` invokes onDelta synchronously while durable chat emission is asynchronous. Keep the
   // tail outside the try so BOTH success and failure terminals must drain it; otherwise a partial stream that

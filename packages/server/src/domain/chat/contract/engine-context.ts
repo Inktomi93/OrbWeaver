@@ -33,8 +33,10 @@ export type PromptCacheMinDepthOp = () => number;
 /** The inter-turn delay the auto-mode chain waits on. */
 export type DelayOp = (ms: number) => Promise<void>;
 
-/** Durable-first chat-bus append; every collaborator that emits canon events takes this one shape. */
-export type EmitDurableChatEventOp = (event: DurableChatBusEvent) => Promise<void>;
+/** Durable-first chat-bus append; every collaborator that emits canon events takes this one shape.
+ *  `continuedBody` is the stored text a continue's `turnStarted` resumes. It warms the member stamper and is never
+ *  written or fanned: a continue's own stream can open inside a hidden tag that body left unclosed. */
+export type EmitDurableChatEventOp = (event: DurableChatBusEvent, continuedBody?: string) => Promise<void>;
 
 // Detail changes the room row; extra recipients include members just removed from its roster.
 interface EmitChatChangedOptions {

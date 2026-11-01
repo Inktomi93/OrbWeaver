@@ -1,11 +1,10 @@
 // Only committed/stamped bytes may fan; quiet mode never coalesces terminal or memory-phase events.
-import type { LiveOnlyChatEventType } from "@orb/contracts/chat";
+import type { ChatLivePublish, LiveOnlyChatEventType } from "@orb/contracts/chat";
 import type { ChatPublication, ChatPublicationDeps } from "../contract/publication.ts";
 
 const QUIET_COALESCABLE = { roomEntityChanged: true, chatDeleted: false, memoryRecall: false } as const satisfies Record<LiveOnlyChatEventType, boolean>;
 export function createChatPublication(deps: ChatPublicationDeps): ChatPublication {
-  const emitChecked: ChatPublication["emitChecked"] = async (event, claimStatement) => {
-    const logged = claimStatement === undefined ? await deps.bus.emit(event) : await deps.bus.emitAfterClaim(event, claimStatement);
+  const fan = (logged: ChatLivePublish | false | null): boolean => {
     if (logged === false) {
       return true;
     }
@@ -15,10 +14,12 @@ export function createChatPublication(deps: ChatPublicationDeps): ChatPublicatio
     }
     return false;
   };
+  const emitChecked: ChatPublication["emitChecked"] = async (event, claimStatement) =>
+    fan(claimStatement === undefined ? await deps.bus.emit(event) : await deps.bus.emitAfterClaim(event, claimStatement));
   return {
     emitChecked,
-    emit: async (event): Promise<void> => {
-      await emitChecked(event);
+    emit: async (event, continuedBody): Promise<void> => {
+      fan(await deps.bus.emit(event, continuedBody));
     },
     prepareCreationEvent: (event): ReturnType<ChatPublication["prepareCreationEvent"]> => {
       const prepared = deps.bus.prepareCreation(event);

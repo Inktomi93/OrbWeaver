@@ -848,7 +848,7 @@ function createRemoveCharacterFromChat(ctx: ChatContext, emit: EmitChatEvent, cl
  *  A miss (target not present) is a real caller error, never a silent no-op. Emits personaSwitched. */
 export async function setParticipantActivePersona(
   input: DatabaseHandle,
-  emit: EmitChatEvent,
+  emit: (event: DurableChatBusEvent) => Promise<unknown>,
   params: {
     readonly chatId: ChatId;
     readonly targetUserId: UserId;
