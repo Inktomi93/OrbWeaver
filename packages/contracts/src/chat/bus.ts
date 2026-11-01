@@ -617,7 +617,9 @@ export type ChatBusEvent =
   // ── Chat session open (subscription-synthesized at participant stream-attach, like `historyTruncated`;
   //    per-viewer, NOT a canon mutation, never logged — the ST CHAT_CHANGED automation trigger: "on chat
   //    open, set POV / run setup") ──
-  | { type: "chatOpened"; chatId: ChatId }
+  // `openTurnIds` is the room's turns in flight as of this attach, when the room stamps them. A device closes any
+  // live slot outside the set: the process that ran that turn is gone, and no terminal will ever arrive.
+  | { type: "chatOpened"; chatId: ChatId; openTurnIds?: readonly ChatTurnId[] }
   // ── Resume control (subscription-synthesized; never emitted by domain code, never logged) ──
   | { type: "historyTruncated"; chatId: ChatId }
   // ── Catch-all for low-payload chat-row changes (starred/archive/title/variables/injections/compact) ──

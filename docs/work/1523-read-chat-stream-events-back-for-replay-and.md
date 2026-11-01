@@ -31,4 +31,5 @@ A device attaching with no cursor mid-turn shows the turn so far at once and con
 - Red on the old pump: 6 of 6 fail with the catch-up disabled. Removing the floor and member scrub fails the member and floor cases.
 - Load with a 20,000-token live turn, verifier's figures: one replay 367 ms wall; 6 at once 82 ms gap p50; 30 at once 484 ms p50. Attaches have no bound. This is not user-felt at production size: the longest stored turn is 545 deltas. Noted, not built.
 - A refused send and a `generate` beside a send keep the ghost: every lifecycle event names its turn. `chatOpened` on a cursor-less attach stamps a floor below the turn in flight, so a drop before the replay frames replays the head.
+- A throw after accept closes the turn. `chatOpened` names the open turns, so a device closes a slot whose process died, and a resume drops a turn the log left open.
 - Owed: a rendered check of a reload mid-turn showing the ghost at once.

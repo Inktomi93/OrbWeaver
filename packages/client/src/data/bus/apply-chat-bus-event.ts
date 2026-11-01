@@ -140,8 +140,13 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
       deps.onChatDeleted?.(event.chatId);
       deps.invalidate(event);
       return;
-    case "chatCreated":
     case "chatOpened":
+      if (event.openTurnIds !== undefined) {
+        deps.stream.closeDeadTurn(event.chatId, event.openTurnIds);
+      }
+      deps.invalidate(event);
+      return;
+    case "chatCreated":
     case "historyTruncated":
     case "chatUpdated":
     // An entity this room renders was edited elsewhere in the box (the entity→room bridge). Invalidate-only,

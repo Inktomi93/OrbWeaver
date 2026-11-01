@@ -243,7 +243,7 @@ async function* attachSynthesesAndReplay(args: {
   const cursorSeq = resumeSeq ?? (liveHead === undefined ? (bounds.maxSeq ?? 0) : liveHead - 1);
   // `chatOpened` — the per-subscription attach synthesis (the client reducer invalidates). The
   // per-viewer automation tap (D81) fires off the SAME synthesis — it never rides the durable bus.
-  yield { channel: "chat", chatId, seq: cursorSeq, event: { type: "chatOpened", chatId } };
+  yield { channel: "chat", chatId, seq: cursorSeq, event: { type: "chatOpened", chatId, openTurnIds: bounds.openTurnIds } };
   args.notifyChatOpened(chatId, principal.userId);
 
   // A cursor-less attach has the canon from its own reads and needs only the turn in flight, if there is one.
@@ -260,7 +260,21 @@ async function* attachSynthesesAndReplay(args: {
   if (bounds.minSeq !== null && resumeSeq < bounds.minSeq - 1) {
     yield { channel: "chat", chatId, seq: cursorSeq, event: { type: "historyTruncated", chatId } };
   }
-  yield* replayFrames(chatId, await service.replayChatEvents({ principal, chatId, afterSeq: resumeSeq }));
+  yield* replayFrames(chatId, withoutDeadTurns(await service.replayChatEvents({ principal, chatId, afterSeq: resumeSeq }), bounds));
+}
+
+/** Drops a turn the log left open and the room no longer runs: its process died, so no terminal exists, and replaying
+ *  its accept would hand the device a slot nothing closes. Rows above the bounds read stay: they may be a turn that
+ *  opened after it. */
+function withoutDeadTurns(entries: readonly ChatBusReplayEvent[], bounds: ChatEventAttach): readonly ChatBusReplayEvent[] {
+  const closed = new Set(entries.flatMap(({ event }) => (event.type === "turnCompleted" || event.type === "turnAborted" ? [event.turnId] : [])));
+  const open = new Set(bounds.openTurnIds);
+  return entries.filter(({ seq, event }) => {
+    if (!("turnId" in event) || event.type === "messageCommitted" || seq > (bounds.maxSeq ?? 0)) {
+      return true;
+    }
+    return open.has(event.turnId) || closed.has(event.turnId);
+  });
 }
 
 /** Replay rows as frames, each run of same-slot same-channel tokens folded into one. A turn's log is thousands of

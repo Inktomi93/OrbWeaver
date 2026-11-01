@@ -12,6 +12,7 @@ import type {
   ChatSummary as WireChatSummary,
 } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
+import type { ChatTurnId } from "@orb/kit/ids";
 
 export type MessageWindowAnchor = Pick<MessageView, "id" | "seq">;
 export type MessageWindowResolution =
@@ -55,6 +56,8 @@ export interface ChatEventAttach extends ChatEventBounds {
    *  that member (reasoning deltas + `reasoningStreamDone` dropped, `view.reasoning` nulled). `false` for a
    *  non-game / non-deception chat — the pre-P3 live behavior (reasoning member-visible). Never client-supplied. */
   readonly reasoningHostOnly: boolean;
+  /** The room's turns in flight, which the attach's `chatOpened` hands the device. */
+  readonly openTurnIds: readonly ChatTurnId[];
   /** The subscriber's position for the probe's `positionOf` row; absent when the row is outside their history. */
   readonly messagePosition?: number;
 }

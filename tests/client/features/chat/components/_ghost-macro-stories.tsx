@@ -15,6 +15,9 @@ const TURN_ID = ids.typeId(ID_PREFIX.chatTurn);
 const REFUSED_TURN_ID = ids.typeId(ID_PREFIX.chatTurn);
 /** Plays what a send the lock refused puts on the bus while the story's turn streams. */
 const REFUSE_LABEL = "Refuse another send";
+/** Plays a reconnect to a process where the story's turn is gone, then the next turn's opening. */
+const RESTART_LABEL = "Restart, then stream the next turn";
+const NEXT_TURN_ID = ids.typeId(ID_PREFIX.chatTurn);
 
 function Transcript({
   chatId,
@@ -56,6 +59,15 @@ function Transcript({
         }}
       >
         {REFUSE_LABEL}
+      </Button>
+      <Button
+        onClick={(): void => {
+          busDeps.stream.closeDeadTurn(chatId, []);
+          busDeps.stream.beginTurn(chatId, { turnId: NEXT_TURN_ID, intent: "send", speakerCharacterId, targetMessageId: null });
+          busDeps.stream.appendDelta(NEXT_TURN_ID, { chatId, kind, text: nextText });
+        }}
+      >
+        {RESTART_LABEL}
       </Button>
       <MessageListSurface chatId={chatId} busDeps={busDeps} surfaceContributors={chatSurfaceContributors} toolRenderers={toolRenderers} />
     </>

@@ -53,6 +53,8 @@ export interface ChatStreamApi {
       targetMessageId: MessageId | null;
     },
   ) => void;
+  /** Close a live slot whose turn is not in the room's open set. */
+  readonly closeDeadTurn: (chatId: ChatId, openTurnIds: readonly ChatTurnId[]) => void;
   readonly appendDelta: (turnId: ChatTurnId, delta: ChatDeltaEvent) => void;
   readonly completeTurn: (chatId: ChatId, turnId: ChatTurnId, messageId: MessageId | null) => void;
   readonly abortTurn: (chatId: ChatId, turnId: ChatTurnId, reason: TurnAbortReason) => void;

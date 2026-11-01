@@ -265,17 +265,25 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
   const open = new Map<ChatId, Map<ChatTurnId, number>>();
   const noOpenTurns: ReadonlyMap<ChatTurnId, number> = new Map<ChatTurnId, number>();
 
+  // A terminal closes its turn even when its append was lost: the turn has ended either way, and a turn left open
+  // here would have its ghost replayed to every joiner with nothing to close it.
+  const closeTurn = (event: DurableChatBusEvent): void => {
+    if (event.type !== "turnCompleted" && event.type !== "turnAborted") {
+      return;
+    }
+    const turns = open.get(event.chatId);
+    turns?.delete(event.turnId);
+    if (turns?.size === 0) {
+      open.delete(event.chatId);
+    }
+  };
+
   const trackTurn = (seq: number, event: DurableChatBusEvent): void => {
     if (event.type === "turnAccepted" || event.type === "turnStarted") {
       const turns = open.getOrInsertComputed(event.chatId, () => new Map<ChatTurnId, number>());
       turns.set(event.turnId, turns.get(event.turnId) ?? seq);
-    } else if (event.type === "turnCompleted" || event.type === "turnAborted") {
-      const turns = open.get(event.chatId);
-      turns?.delete(event.turnId);
-      if (turns?.size === 0) {
-        open.delete(event.chatId);
-      }
     }
+    closeTurn(event);
   };
 
   const publishCommitted = (seq: number, event: DurableChatBusEvent): ChatEmitted => {
@@ -312,7 +320,12 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
     // ceiling (#1821) — and it mints ONE id for the whole retry outside its loop (#1537, see its own header
     // comment for why re-using the id is what makes the DB the arbiter of a duplicate-vs-lost commit).
     const outcome = await appendWithRetry(deps, deps.newEventId(), event);
-    if (outcome.kind === "gone" || outcome.kind === "dropped") {
+    if (outcome.kind === "gone") {
+      open.delete(event.chatId);
+      return null;
+    }
+    if (outcome.kind === "dropped") {
+      closeTurn(event);
       return null;
     }
     // #1821: `"recovered"` is the terminal-drop branch that PROVED its seq — publish it on the live fan with

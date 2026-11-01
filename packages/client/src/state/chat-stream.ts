@@ -201,6 +201,14 @@ export const chatStream: ChatStreamApi = {
     perfMark(turnStartMark(chatId));
     setSlot(chatId, { phase: "pending", committedMessageId: null, ...turn }, "turn/begin");
   },
+  closeDeadTurn: (chatId, openTurnIds) => {
+    const slot = slotOf(chatId);
+    if (isLiveTurnPhase(slot.phase) && "turnId" in slot && !openTurnIds.includes(slot.turnId)) {
+      pendingTokensByChat.delete(chatId);
+      scheduledChats.delete(chatId);
+      setSlot(chatId, IDLE_TURN, "turn/dead");
+    }
+  },
   appendDelta: (turnId, delta) => {
     const slot = slotOf(delta.chatId);
     if (heldByAnotherTurn(slot, turnId)) {

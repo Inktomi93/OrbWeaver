@@ -74,3 +74,14 @@ test("quiet entity churn may coalesce but a terminal delete remains live and app
   expect(publish).toHaveBeenCalledWith({ seq: null, event: { type: "chatDeleted", chatId: room.id } });
   expect(await db.select().from(chatEvents)).toEqual(before);
 });
+
+test("a room deleted mid-turn leaves the bus holding no open turn for it", async ({ harness, db, clock, ids }): Promise<void> => {
+  const { room } = await hostedRoom(harness);
+  const bus = createChatBus({ db: databaseHandle(db), logger: createTestLogger(), now: clock.now, newEventId: () => ids.typeId(ID_PREFIX.chatEvent) });
+  const turnId = ids.typeId(ID_PREFIX.chatTurn);
+  await bus.emit({ type: "turnAccepted", chatId: room.id, turnId, intent: "send", speakerCharacterId: null, targetMessageId: null });
+  expect([...bus.openTurns(room.id).keys()]).toEqual([turnId]);
+  await db.delete(chats).where(eq(chats.id, room.id));
+  expect(await bus.emit({ type: "turnAborted", chatId: room.id, turnId, intent: "send", reason: "user", automationDepth: 0 })).toBeNull();
+  expect(bus.openTurns(room.id).size).toBe(0);
+});

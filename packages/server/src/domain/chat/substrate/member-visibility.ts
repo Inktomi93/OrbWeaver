@@ -310,11 +310,11 @@ function stampTextDelta(scrubbers: Map<string, HiddenSpanStreamScrubber>, event:
  *  chat. A sweep or a retire by `view.seq` hands that turn a cold scrubber, which stamps the rest of its secret
  *  safe: a refused send's user row lands on the very seq the live turn streams into, and its terminal lands
  *  mid-stream. */
-function retireTurnState(scrubbers: Map<string, HiddenSpanStreamScrubber>, event: ChatBusEvent): void {
-  if (event.type !== "turnCompleted" && event.type !== "turnAborted" && event.type !== "chatDeleted") {
+function retireTurnState(scrubbers: Map<string, HiddenSpanStreamScrubber>, event: DurableChatBusEvent): void {
+  if (event.type !== "turnCompleted" && event.type !== "turnAborted") {
     return;
   }
-  const prefix = event.type === "chatDeleted" ? `${event.chatId}:` : turnKey(event.chatId, event.turnId);
+  const prefix = turnKey(event.chatId, event.turnId);
   for (const key of scrubbers.keys()) {
     if (key.startsWith(prefix)) {
       scrubbers.delete(key);

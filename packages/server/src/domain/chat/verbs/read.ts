@@ -83,7 +83,6 @@ import type { IanaTimeZone } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
 import { captureParticipantRole } from "#primitives/role-data";
-import type { ActiveTurns } from "../contract/active-turns.ts";
 import type { MacroRenderEnv } from "../contract/assembly-macros.ts";
 import type { ChatContext, ChatServiceDeps, LoadParticipantViewsBatchOp, LoadParticipantViewsOp } from "../contract/context.ts";
 import { ChatNotFoundError } from "../contract/errors.ts";
@@ -189,7 +188,6 @@ async function resolveReasoningHostOnly(ctx: ChatContext, chatId: ChatId): Promi
 
 /** The collaborators not on `ChatContext` (see the file header). */
 interface ReadDeps {
-  readonly activeTurns: ActiveTurns;
   readonly openTurns: ChatServiceDeps["openTurns"];
   readonly loadParticipantViewsBatch: LoadParticipantViewsBatchOp;
   readonly loadParticipantViews: LoadParticipantViewsOp;
@@ -1722,13 +1720,12 @@ const LIVE_TURN_EVENT_TYPES = ["turnAccepted", "turnStarted", "delta", "messageC
 /** `replayLiveTurn` — what a device attaching with no cursor is missing of the turns in flight, each from where it
  *  entered the log through `throughSeq` (the attach's own bounds read, so the rows above it are the live tail's).
  *  The log alone cannot say which turns those are: a refused send's terminal lands inside a running turn, and a
- *  crash leaves a turn open with no terminal. The bus's open set can, and `activeTurns` rules out a terminal that
- *  never logged, which would strand a ghost nothing closes. */
+ *  crash leaves a turn open with no terminal. The bus's open set can, and it is empty after a restart. */
 function createReplayLiveTurn(ctx: ChatContext, deps: ReadDeps): ChatService["replayLiveTurn"] {
   return async ({ principal, chatId, throughSeq }: ReplayLiveTurnParams): Promise<ChatBusReplayEvent[]> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const open = deps.openTurns(chatId);
-    if (open.size === 0 || deps.activeTurns.countActive(chatId) === 0) {
+    if (open.size === 0) {
       return [];
     }
     // One row below the head: a send commits its user row just before it accepts.
@@ -1755,7 +1752,7 @@ function createReplayLiveTurn(ctx: ChatContext, deps: ReadDeps): ChatService["re
  *  generator already runs keeps that ONE member-gated read per yield (no extra I/O) and keeps the policy
  *  per-CALLER — the floor is resolved from the SUBSCRIBER's own participant row at the chokepoint, never
  *  from anything the client sends. */
-function createChatEventBounds(ctx: ChatContext): ChatService["chatEventBounds"] {
+function createChatEventBounds(ctx: ChatContext, deps: ReadDeps): ChatService["chatEventBounds"] {
   return async ({ principal, chatId, positionOf }: ChatEventBoundsParams): Promise<ChatEventAttach> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     // `viewerIsHost` piggybacks on the same member-gated probe as the D16 floor (one read per yield): the
@@ -1777,6 +1774,7 @@ function createChatEventBounds(ctx: ChatContext): ChatService["chatEventBounds"]
       historyFloorSeq: membership.historyFloorSeq,
       viewerIsHost: readsHidden,
       reasoningHostOnly,
+      openTurnIds: [...deps.openTurns(chatId).keys()],
       ...(messagePosition === undefined ? {} : { messagePosition }),
     };
   };
@@ -1807,6 +1805,6 @@ export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
 
     replayLiveTurn: createReplayLiveTurn(ctx, deps),
     replayChatEvents: createReplayChatEvents(ctx),
-    chatEventBounds: createChatEventBounds(ctx),
+    chatEventBounds: createChatEventBounds(ctx, deps),
   };
 }

@@ -7,6 +7,7 @@
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
+import { vi } from "vitest";
 import { signedInMember } from "../../../entry/_auth-roots.ts";
 import {
   AFTER_JOIN,
@@ -193,11 +194,12 @@ test("a refused send during a turn leaves a joiner the whole ghost", async () =>
   const device = await openDevice(room.root, room.host.userId, room.hostCookie, room.chatId);
   try {
     await device.attach();
-    await device.waitFor((frames) => textOf(frames) === BEFORE_JOIN.join(""));
-    expect(typesOf(device.frames)).toContain("turnStarted");
+    await device.waitFor((frames) => typesOf(frames).includes("chatOpened"));
     room.reply().release();
     await turn;
-    await device.waitFor((frames) => textOf(frames) === FULL_TEXT);
+    await device.waitFor(ended);
+    expect(typesOf(device.frames)).toContain("turnStarted");
+    expect(textOf(device.frames)).toBe(FULL_TEXT);
   } finally {
     await device.close();
   }
@@ -257,6 +259,34 @@ test("a joiner gets the turn's user row even when its own list predates it", asy
     expect(commit).toMatchObject({ view: { role: "user" } });
     room.reply().release();
     await turn;
+  } finally {
+    await device.close();
+  }
+});
+
+test("a throw after a send's accept closes that turn, and the next turn's ghost reaches a joiner whole", async () => {
+  await using room = await openRoom();
+  await room.root.services.chat.setGroupConfig({ principal: room.host, chatId: room.chatId, config: { output: "narrator", policy: "list" } });
+  const mint = vi.spyOn(room.root.services.character, "mintSyntheticGroupCharacter").mockRejectedValueOnce(new Error("the scripted mint failed"));
+  await expect(room.send()).rejects.toThrow("the scripted mint failed");
+  mint.mockRestore();
+  const log = await room.root.services.chat.replayChatEvents({ principal: room.host, chatId: room.chatId });
+  expect(log.map(({ event }) => event.type).slice(-2)).toEqual(["turnAccepted", "turnAborted"]);
+
+  const turn = room.send();
+  await room.tokensLogged();
+  const device = await openDevice(room.root, room.host.userId, room.hostCookie, room.chatId);
+  try {
+    await device.attach();
+    await device.waitFor((frames) => typesOf(frames).includes("chatOpened"));
+    const started = (await room.root.services.chat.replayChatEvents({ principal: room.host, chatId: room.chatId })).findLast(
+      ({ event }) => event.type === "turnStarted",
+    );
+    expect(device.frames[0]?.event).toMatchObject({ type: "chatOpened", openTurnIds: [started?.event.type === "turnStarted" ? started.event.turnId : null] });
+    room.reply().release();
+    await turn;
+    await device.waitFor(ended);
+    expect(textOf(device.frames)).toBe(FULL_TEXT);
   } finally {
     await device.close();
   }
