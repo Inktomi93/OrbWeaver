@@ -147,6 +147,31 @@ test("spawnNicedTranscript: a wedged child settles AT the deadline, says so, and
   }
 });
 
+test("spawnNicedTranscript: a post-timeout sweep that rejects before the child closes is reported, not an unhandled rejection", async () => {
+  const unhandled: unknown[] = [];
+  const record = (reason: unknown): void => {
+    unhandled.push(reason);
+  };
+  process.on("unhandledRejection", record);
+  try {
+    const result = await spawnNicedTranscript(process.execPath, ["-e", "setInterval(() => undefined, 1e9)"], {
+      cwd: process.cwd(),
+      env: CAPTURE_ENV,
+      timeoutMs: 200,
+      teardown: {
+        arm: () => ({ dispose: () => undefined }),
+        afterTimeoutKill: () => Promise.reject(new Error("process completion metadata unavailable: /proc/42/environ")),
+      },
+    });
+    await sleep(100);
+    expect(unhandled, "a rejected sweep must be carried to the transcript, never escape as an unhandled rejection").toEqual([]);
+    expect(result.code).toBeNull();
+    expect(result.transcript).toContain("metadata unavailable: /proc/42/environ");
+  } finally {
+    process.off("unhandledRejection", record);
+  }
+});
+
 test("spawnNicedTranscript: a child that finishes inside its deadline is untouched (#1508 planted control)", async () => {
   // The other direction — the deadline must not truncate honest work, or every stage becomes a false red.
   const result = await spawnNicedTranscript(process.execPath, ["-e", "process.stdout.write('DONE'); process.exit(7);"], {

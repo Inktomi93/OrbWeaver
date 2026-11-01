@@ -362,6 +362,8 @@ async function runCorpusFixture(command: string, directory: string | undefined, 
     return escapedCompletion;
   };
   consumerCompleted = false;
+  let code = 2;
+  let sweepFailed = false;
   try {
     const result = await spawnNicedTranscript("pnpm", ["--config.verify-deps-before-run=false", "e2e", "--grep=@smoke", ...nativeArgs], {
       cwd: process.cwd(),
@@ -383,12 +385,19 @@ async function runCorpusFixture(command: string, directory: string | undefined, 
         process[stream].write(chunk);
       },
     });
-    return result.code ?? 2;
+    code = result.code ?? 2;
   } finally {
     // The runner's native close and its escaped marked children precede deletion of their writable clone.
-    await joinEscaped();
-    consumerCompleted = true;
+    // A sweep that cannot confirm completion keeps the clone and warns; it never replaces the run's own result.
+    try {
+      await joinEscaped();
+      consumerCompleted = true;
+    } catch (error) {
+      sweepFailed = true;
+      process.stderr.write(`Run-marker sweep failed (warning): ${String(error)}\n`);
+    }
   }
+  return sweepFailed && code === 0 ? 2 : code;
 }
 
 await runTool(async () => {
