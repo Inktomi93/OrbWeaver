@@ -26,7 +26,7 @@ import type { ServiceWorld } from "./language-service.ts";
 import { serviceReferences } from "./language-service.ts";
 import { constituents, declarationKeys, hasFlag, NativeWorld } from "./native.ts";
 import type { Reflection } from "./occurrences.ts";
-import { propertyIndex, REFLECTIVE_CALLS } from "./occurrences.ts";
+import { propertyReferences, REFLECTIVE_CALLS } from "./occurrences.ts";
 import type { ScanOptions } from "./scan.ts";
 import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
 import { typeMembers } from "./type-members.ts";
@@ -390,6 +390,8 @@ function serviceReflectedReads(world: ServiceWorld): ReadonlySet<string> {
 interface Tally {
   readonly field: FieldDeclaration;
   readonly sites: Map<string, Site>;
+  /** The sites that name the field itself. A link-borne write proves nothing about who fills its home. */
+  readonly direct: Map<string, Site>;
 }
 
 interface Roles {
@@ -441,14 +443,18 @@ const namesOf = (field: FieldDeclaration): readonly Site[] => [field.site, ...fi
 
 function tallyWorld(tally: Map<string, Tally>, world: NativeWorld): number {
   const fields = declarations(world);
-  const index = propertyIndex(world);
+  const { index, direct } = propertyReferences(world);
   for (const field of fields) {
-    const entry = tally.get(field.key) ?? { field, sites: new Map() };
+    const entry = tally.get(field.key) ?? { field, sites: new Map(), direct: new Map() };
     for (const site of sitesOf(index, field.keys, field.site)) {
       entry.sites.set(siteKey(site), site);
     }
+    for (const site of sitesOf(direct, field.keys, field.site)) {
+      entry.direct.set(siteKey(site), site);
+    }
     for (const name of field.mirrorSites) {
       entry.sites.delete(siteKey(name));
+      entry.direct.delete(siteKey(name));
     }
     tally.set(field.key, entry);
   }
@@ -465,7 +471,7 @@ export function scanFields(options: ScanOptions): FieldsReport {
     options.log(`${config}: ${tallyWorld(tally, world)} fields`);
   }
   const rolled = [...tally.values()].map((entry) => ({ ...entry, roles: rolesOf(sources, entry.sites.values()) }));
-  const writtenHomes = new Set(rolled.filter(({ roles }) => roles.write.length > 0).map(({ field }) => homeOf(field)));
+  const writtenHomes = new Set(rolled.filter(({ direct }) => rolesOf(sources, direct.values()).write.length > 0).map(({ field }) => homeOf(field)));
   const judged = rolled.flatMap(({ field, roles }) => {
     const kind = kindOf(field, roles, writtenHomes.has(homeOf(field)));
     return kind === "wired" ? [] : [{ field, roles, kind }];

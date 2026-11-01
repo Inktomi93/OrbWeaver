@@ -170,6 +170,32 @@ test("engine two only audits: fewer sites contradict nothing, a site in a role e
   expect(report.disagreements).toEqual([{ key: "packages/a/src/audit.ts:Detail.starred", uses: ["packages/a/src/audit.ts:12"] }]);
 });
 
+// `HostEnv` is parsed from outside the tree. A resolver spreads it and overrides `base`: that write reaches the home
+// only through the spread link, so `host` is no default the tree chose. `Written.extra` beside it is the found case.
+const LINK_WRITTEN = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/z.ts": TREE["packages/a/src/z.ts"],
+  "packages/a/src/env.ts": [
+    'import type { Infer } from "./z.ts";',
+    'import { z } from "./z.ts";',
+    "export const HostEnv = z.object({ host: z.string().optional(), base: z.string().optional() });",
+    "export interface Resolved { readonly host: string | undefined; readonly base: string }",
+    'export const resolve = (val: Infer<typeof HostEnv>): Resolved => ({ ...val, base: "x" });',
+    'export const shown = (env: Resolved): string => (env.host ?? "") + env.base;',
+    "export const Written = z.object({ name: z.string(), extra: z.string().optional() });",
+    'export const written: Infer<typeof Written> = { name: "n" };',
+    'export const named = (row: Infer<typeof Written>): string => row.name + (row.extra ?? "");',
+  ].join("\n"),
+};
+
+test("a write that reaches a home only through a link does not mark the home written", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(LINK_WRITTEN);
+  const report = scanFields({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const planted = report.unwired.filter(({ file }) => file.endsWith("env.ts"));
+  expect(planted.map(({ home, member, kind }) => `${home}.${member} ${kind}`)).toEqual(["Written.extra never-written"]);
+  expect(report.disagreements).toEqual([]);
+});
+
 // The client imports the router through `@orb/server`; with no declaration surface planted, only the scans' source
 // bridge resolves it, so the client's read is the field's only read.
 const BRIDGED = {

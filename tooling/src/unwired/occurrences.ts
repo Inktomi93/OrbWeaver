@@ -349,9 +349,20 @@ function* redeclarations(checker: Checker, declaration: InterfaceDeclaration): A
   return links;
 }
 
+/** A world's property sites: `index` with every link applied, `direct` with only the sites that name each declaration. */
+export interface PropertyReferences {
+  readonly index: ReferenceIndex;
+  readonly direct: ReferenceIndex;
+}
+
 /** Every property site of a world resolved to the property declarations it means. A spread, computed key, `for…in`
  *  or reflective call credits its value expression's site to each property it reads. */
 export function propertyIndex(world: NativeWorld): ReferenceIndex {
+  return propertyReferences(world).index;
+}
+
+/** {@link propertyIndex} beside the same sites before any link joined them. */
+export function propertyReferences(world: NativeWorld): PropertyReferences {
   const lookups: Lookup[] = [];
   const extending: InterfaceDeclaration[] = [];
   const reflections: (Reflection<Node> & { readonly site: Site })[] = [];
@@ -413,19 +424,20 @@ export function propertyIndex(world: NativeWorld): ReferenceIndex {
     }
     links.push(...spread);
   }
-  return linked(index, links);
+  return { index: linked(index, links), direct: index };
 }
 
 // The index with each link's `from` sites added to its `to` keys, read from the unlinked index so order cannot matter.
-function linked(index: Map<string, Site[]>, links: readonly Link[]): ReferenceIndex {
+function linked(index: ReadonlyMap<string, readonly Site[]>, links: readonly Link[]): ReferenceIndex {
+  const joined = new Map(index);
   const additions = links.flatMap(({ from, to }) => {
     const sites = from.flatMap((key) => index.get(key) ?? []);
     return sites.length === 0 ? [] : to.filter((key) => !from.includes(key)).map((key) => [key, sites] as const);
   });
   for (const [key, sites] of additions) {
-    index.set(key, [...(index.get(key) ?? []), ...sites]);
+    joined.set(key, [...(joined.get(key) ?? []), ...sites]);
   }
-  return index;
+  return joined;
 }
 
 // A name in a type position, a declaration's own name or a module binding: never a value reference.
