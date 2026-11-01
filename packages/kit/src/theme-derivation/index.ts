@@ -1726,7 +1726,7 @@ const TINT_PIXEL_HEADROOM = 0.004;
 // How far past the nearest ink-clearing tint a search looks for the solid's floor: a tint this far off is no longer the tone's tint, and an unreachable floor must not walk the whole range.
 const TINT_MARK_SEARCH_STEPS = 400;
 // Every clamp render pays this search on a palette whose floor is out of reach, so it samples rather than walks. Odd, because the walk alternates sides.
-const TINT_MARK_SEARCH_STRIDE = 7;
+const TINT_MARK_SEARCH_STRIDE = 3;
 
 // A browser can round a pixel one level off the solve's own 8-bit reading, so a tint landing on the separation can paint just under it.
 const TINT_ROUNDING_MARGIN = 0.001;
