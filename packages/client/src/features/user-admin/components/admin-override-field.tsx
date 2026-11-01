@@ -15,6 +15,7 @@
 // A components/ leaf (no CSS, tokens/variants only via @orb/ui primitives) shared by every admin override
 // section.
 
+import { errorMessage } from "@orb/kit/error-message";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Row, Stack } from "@orb/ui/layout";
@@ -157,7 +158,8 @@ export interface AdminOverrideResetRowProps {
   /** Any field in this nested section is an active override (shows "Reset to defaults"). */
   readonly anyOverridden: boolean;
   readonly saving: boolean;
-  readonly errored: boolean;
+  /** The section's last save failure, or `null`; the row says what failed. */
+  readonly error: unknown;
   readonly onSave?: () => void;
   /** Clear this section's OWN override keys to the floor. */
   readonly onReset: () => void;
@@ -165,7 +167,7 @@ export interface AdminOverrideResetRowProps {
 
 /** The Save + Reset-to-defaults row shared by the admin override sections. Save renders only for a section
  *  that HAS a draft; Reset appears only when the section has an active override. */
-export function AdminOverrideResetRow({ sectionLabel, dirty, anyOverridden, saving, errored, onSave, onReset }: AdminOverrideResetRowProps): ReactElement {
+export function AdminOverrideResetRow({ sectionLabel, dirty, anyOverridden, saving, error, onSave, onReset }: AdminOverrideResetRowProps): ReactElement {
   return (
     <Stack gap="field">
       <Row className="flex-wrap" gap="field" align="center">
@@ -188,11 +190,11 @@ export function AdminOverrideResetRow({ sectionLabel, dirty, anyOverridden, savi
           />
         ) : null}
       </Row>
-      {errored ? (
-        <Text tone="destructive" voice="label">
-          Couldn't save — administrators only.
+      {error === null || error === undefined ? null : (
+        <Text role="alert" tone="destructive" voice="label">
+          Couldn't save — {errorMessage(error)}
         </Text>
-      ) : null}
+      )}
     </Stack>
   );
 }

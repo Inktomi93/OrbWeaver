@@ -201,7 +201,7 @@ function SystemTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
           dirty={dirty}
           anyOverridden={anyOverridden}
           saving={save.isPending}
-          errored={save.error !== null}
+          error={save.error}
           onSave={onSave}
           onReset={onReset}
         />

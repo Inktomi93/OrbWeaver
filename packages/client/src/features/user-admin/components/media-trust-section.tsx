@@ -152,7 +152,7 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
           dirty={dirty}
           anyOverridden={anyOverridden}
           saving={save.isPending}
-          errored={save.error !== null}
+          error={save.error}
           onSave={(): void => {
             if (bytes !== null) {
               write({ maxImageBytes: bytes });

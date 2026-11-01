@@ -74,6 +74,8 @@ export interface Elem {
   readonly element: ts.JsxElement | ts.JsxSelfClosingElement;
   readonly attrs: ReadonlyMap<string, ts.JsxAttribute>;
   readonly hasSpread: boolean;
+  /** The expression of every `{...x}` attribute, in source order. */
+  readonly spreads: readonly ts.Expression[];
 }
 
 function importsOf(sf: ts.SourceFile): ReadonlyMap<string, string> {
@@ -127,16 +129,16 @@ export function elementsOf(sf: ts.SourceFile): readonly Elem[] {
     }
     const opening = ts.isJsxElement(node) ? node.openingElement : node;
     const attrs = new Map<string, ts.JsxAttribute>();
-    let hasSpread = false;
+    const spreads: ts.Expression[] = [];
     for (const attribute of opening.attributes.properties) {
       if (ts.isJsxAttribute(attribute)) {
         attrs.set(attribute.name.getText(sf), attribute);
       } else {
-        hasSpread = true;
+        spreads.push(attribute.expression);
       }
     }
     const tag = opening.tagName.getText(sf);
-    out.push({ tag, ...kindOf(tag, imports), line: lineOf(sf, opening), opening, element: node, attrs, hasSpread });
+    out.push({ tag, ...kindOf(tag, imports), line: lineOf(sf, opening), opening, element: node, attrs, hasSpread: spreads.length > 0, spreads });
   });
   return out;
 }

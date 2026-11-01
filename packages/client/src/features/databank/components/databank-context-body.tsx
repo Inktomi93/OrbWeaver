@@ -35,7 +35,7 @@ import { Section, Stack, Surface } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary, SettingSwitchRow } from "#components";
+import { ContextTabBody, QueryBoundary, SettingSwitchRow } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { trpcErrorCode } from "#lib";
 import { openConfigTo, useSelectedDocumentId } from "#state";
@@ -155,7 +155,7 @@ function ContextBody({ documentId }: { readonly documentId: DocumentId }): React
   return (
     // `instrument` with a form island (density §3 blesses exactly this nesting for a context panel).
     <Surface tier="instrument">
-      <Stack gap="section" padding="block">
+      <ContextTabBody>
         <EverywhereSection documentId={doc.id} name={doc.name} />
         <ActiveInSection documentId={doc.id} documentName={doc.name} />
         {/* `kicker`, not `heading` — CD1 (section.tsx's own doc): these three are compact groupings in a
@@ -183,7 +183,7 @@ function ContextBody({ documentId }: { readonly documentId: DocumentId }): React
             </Button>
           </Stack>
         </Section>
-      </Stack>
+      </ContextTabBody>
     </Surface>
   );
 }

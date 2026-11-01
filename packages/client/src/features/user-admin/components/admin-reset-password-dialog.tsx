@@ -75,7 +75,7 @@ function ResetPasswordBody({ userId, onDone }: { readonly userId: UserId; readon
         </Text>
       ) : null}
       {!showTooShort && resetPassword.error !== null ? (
-        <Text tone="destructive" voice="label">
+        <Text role="alert" tone="destructive" voice="label">
           Couldn't reset the password — try again.
         </Text>
       ) : null}

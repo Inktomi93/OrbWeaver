@@ -40,6 +40,7 @@ import { CharacterImportDialog } from "./character-import-dialog.tsx";
 function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; readonly onOpenChange: (open: boolean) => void }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
+  // A coded refusal also has a line here while the dialog shows it; the toast speaks every failure.
   const create = useCreateCharacter({ trpc, invalidation });
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -128,8 +129,7 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
       {/* LOAD-BEARING: it names why Create is disabled, so it keeps the `label` voice (the landed
           requirement/error line grammar), never the receding `gloss`. It speaks for BOTH fields, so this
           is where it belongs — unlike the #542 refusal line, which moved up under the Name field it is
-          about (#548, see its note there). The string is the mapper's, so the toast and that line can
-          never become two spellings of one refusal. */}
+          about (#548, see its note there). */}
       {incomplete ? (
         <Text ink="muted" voice="label">
           A name and a description are both required.

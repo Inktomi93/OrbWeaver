@@ -84,8 +84,8 @@ export function FirstModelSetup({
   trpc,
   invalidation,
 }: FirstModelSetupProps): ReactElement {
-  // The step's own alert line carries a failure and stays open as the retry, so the writes raise no toast.
-  const deps = { trpc, invalidation, failureShownInline: true };
+  // The step's own alert line also carries a failure and stays open as the retry.
+  const deps = { trpc, invalidation };
   const setBinding = useSetBinding(deps);
   const update = useUpdateConnection(deps);
   const { data: connections } = useSuspenseQuery(trpc.connection.list.queryOptions());

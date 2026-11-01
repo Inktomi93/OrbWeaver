@@ -17,7 +17,7 @@ import { LABELS_LIBRARY_SLOT } from "../lib/labels-focus-targets.ts";
 
 /** `returning` marks an in-place swap back from the editor: the control that closed it (Back, merge, delete)
  *  just left the tree, so focus lands here unconditionally. A first arrival keeps the guarded mount focus. */
-export function LabelsLibrarySurface({ returning = false }: { readonly returning?: boolean }): ReactElement {
+export function LabelsLandingSurface({ returning = false }: { readonly returning?: boolean }): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const phone = useMobileViewport();
   const listMode = useSectionListMode("corpus");

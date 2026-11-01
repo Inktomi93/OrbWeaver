@@ -328,7 +328,7 @@ export function createAutosaveEntityForm<TValues extends object>(
           return; // a staged reseed/discard, or an unwritable subtree (#1716) — see the predicate's TSDoc
         }
         if (form.state.isValid && unsaved(form.state.values, lastSavedRef.current)) {
-          // same swallow as the debounce driver above — the injected save's own errorToast surfaces the failure and the draft mirror holds the edit for retry. Ends if the injected save stops wiring an errorToast.
+          // same swallow as the debounce driver above — the editor has unmounted, so the injected save's errorToast is the only surface for the failure and the draft mirror holds the edit for retry. Ends if the injected save stops wiring an errorToast.
           form.handleSubmit().catch(() => undefined);
         }
       };

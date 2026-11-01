@@ -145,7 +145,7 @@ function MultiUserBody({ anchorId, sectionId }: { readonly anchorId: string; rea
           dirty={isOwner && allowlistDirty}
           anyOverridden={anyOverridden}
           saving={save.isPending}
-          errored={save.error !== null}
+          error={save.error}
           onSave={saveAllowlist}
           onReset={reset}
         />

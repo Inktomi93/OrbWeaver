@@ -11,6 +11,7 @@ const TOP_DIFF = 6;
 const TEMPLATE_TAGS = new Set([
   "ListPage",
   "EditorPage",
+  "ContextTabBody",
   "DetailHeader",
   "MemberDrillHeader",
   "LibrarySurfaceShell",
@@ -174,17 +175,17 @@ function cohortOfSkeletons(name: string, members: readonly SkeletonMember[]): Sk
   return { name, members, common, outliers };
 }
 
-/** Which skeleton cohort a client file belongs to, or null. List and library surfaces are their own cohort. */
+/** Which skeleton cohort a client file belongs to, or null. List and library surfaces are their own cohort, except the
+ *  chat transcript (`message-list-surface`), which is a message list and not a LIST pane. Context cohort members render
+ *  a body; `context-tabs-panel` and `refinery-context-tabs` host or wire bodies and render no layout of their own. */
 export function skeletonCohortOf(path: string): string | null {
-  if (/^packages\/client\/src\/features\/[^/]+\/surfaces\/[^/]*(?:list|library)-surface\.tsx$/u.test(path)) {
+  if (/^packages\/client\/src\/features\/[^/]+\/surfaces\/(?!message-list-)[^/]*(?:list|library)-surface\.tsx$/u.test(path)) {
     return "surface:list";
   }
   if (/^packages\/client\/src\/features\/[^/]+\/surfaces\/[^/]+\.tsx$/u.test(path)) {
     return "surface:other";
   }
-  return /^packages\/client\/src\/features\/[^/]+\/components\/(?:[a-z-]*context-tabs|[a-z-]*-context-body|context-tabs-panel)\.tsx$/u.test(path)
-    ? "context-tab"
-    : null;
+  return /^packages\/client\/src\/features\/[^/]+\/components\/(?:context-tabs|[a-z-]*-context-body)\.tsx$/u.test(path) ? "context-tab" : null;
 }
 
 export function buildSkeletons(all: readonly FileFacts[]): readonly SkeletonCohort[] {

@@ -8,6 +8,7 @@ export { CollectionGrid } from "./collection-grid.tsx";
 export { ConfirmDialog } from "./confirm-dialog.tsx";
 export { useSetBinding, useUpdateConnection } from "./connection-role-mutations.ts";
 export { ConnectionRoleSlot } from "./connection-role-slot.tsx";
+export { ContextTabBody } from "./context-tab-body.tsx";
 export { CountText } from "./count-text.tsx";
 export { DescribedMenuItem } from "./described-menu-item.tsx";
 export { DetailHeader } from "./detail-header.tsx";

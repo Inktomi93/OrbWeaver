@@ -22,7 +22,7 @@ import { useToastManager } from "@orb/ui/toast";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import type { MemberDrillBack } from "#components";
-import { MemberDrillHeader } from "#components";
+import { EditorPage, MemberDrillHeader } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { CollectionMemberView } from "#lib";
 import { useFocusOnMount } from "#lib";
@@ -104,19 +104,19 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
 
   if (selectedEntry !== null) {
     return (
-      <Stack className="min-block-0" focusTarget={true} data-slot="world-info-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
+      <EditorPage focusTarget={true} data-slot="world-info-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
         {/* THE ENTRY RUNG'S OWN DRILL ROW (#1747) — the same composite the book level above draws, so the
               two rungs of this one surface cannot speak two grammars. Its Back pops the ENTRY, never the
               book (the `makeSelectionSeam` stack's deepest rung), and it states the entry's name, which
               nothing else on this rung did: `EntryEditor` carries a Title FIELD, not a heading. */}
         <MemberDrillHeader back={{ label: `Back to ${book.name}`, onClick: (): void => clearWorldEntrySelection() }} title={selectedEntry.title} />
         <EntryEditor entry={selectedEntry} onDeleted={(): void => clearWorldEntrySelection()} />
-      </Stack>
+      </EditorPage>
     );
   }
 
   return (
-    <Stack className="min-block-0" focusTarget={true} data-slot="world-info-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
+    <EditorPage focusTarget={true} data-slot="world-info-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
       {/* THE DRILL ROW (#1747, the mock design §3.4, board 06): `← Back to <library>` · the book's name · this
             book's OWN verbs — Edit details · Backfill · New entry, exactly the trio the board draws, moved
             up out of the two rows that used to carry them (the name+pencil row and the census row). No
@@ -187,7 +187,7 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
         onSave={(patch): void => update.mutate({ bookId, input: patch })}
         open={detailsOpen}
       />
-    </Stack>
+    </EditorPage>
   );
 }
 
