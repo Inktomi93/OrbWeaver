@@ -14,6 +14,7 @@ import { makePluginRow } from "@orb/testkit/node/helpers";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { commandShortcutLabel } from "#client/features/app-shell/lib/command-shortcut-label.ts";
+import { CHARACTER_IMPORT_NAME, CHARACTER_LIBRARY_NAME, CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
 import { renameChatButtonIdentity } from "#client/lib/chat-rename-names.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { AppShellTrailProjectionStory } from "./_trail-projection-stories.tsx";
@@ -62,7 +63,7 @@ test.afterAll(async () => {
 });
 
 function library(page: Page): Locator {
-  return page.locator(LIST).getByRole("list", { name: "Character library" });
+  return page.locator(LIST).getByRole("list", { name: CHARACTER_LIBRARY_NAME });
 }
 
 /** How far the list pane's body starts below the pane's own top edge: the band's row when it paints, else nothing. */
@@ -171,7 +172,7 @@ test.describe("on a phone", () => {
       await expect(page.locator(`${LIST} .shell-panel-header`)).toBeHidden();
       const trail = page.locator(".shell-topbar-trail");
       await expect(trail.getByRole("button", { name: "New", exact: true })).toBeVisible();
-      await expect(trail.getByRole("button", { name: "Import a character card" })).toBeVisible();
+      await expect(trail.getByRole("button", { name: CHARACTER_IMPORT_NAME })).toBeVisible();
       expect((await page.locator('.shell-topbar-identity[data-identity="narrow"]').boundingBox())?.width ?? 0).toBeGreaterThan(0);
       await library(page).getByRole("button").first().click();
       await expect(trail.getByRole("button", { name: "New", exact: true })).toHaveCount(0);
@@ -187,8 +188,8 @@ test.describe("on a phone", () => {
     const trail = page.locator(".shell-topbar-trail");
     await expect(trail.getByRole("button", { name: "New", exact: true })).toBeHidden();
     await trail.getByRole("button", { name: TRAIL_OVERFLOW_LABEL }).click();
-    await expect(page.getByRole("menuitem", { name: "New character", exact: true })).toBeVisible();
-    await expect(page.getByRole("menuitem", { name: "Import a character card", exact: true })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: CHARACTER_NEW_NAME, exact: true })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: CHARACTER_IMPORT_NAME, exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
     await library(page).getByRole("button").first().click();
     await expect(trail.getByRole("button", { name: TRAIL_OVERFLOW_LABEL })).toHaveCount(0);

@@ -3,6 +3,7 @@ kind: bug
 status: open
 updated: 2026-10-24
 priority: P3
+plan: inference-flow
 area: connection
 ---
 

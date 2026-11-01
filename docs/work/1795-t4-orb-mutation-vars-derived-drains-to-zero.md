@@ -1,12 +1,13 @@
 ---
-kind: bug
+kind: work
 status: open
 updated: 2026-11-01
-priority: P1
-area: server
+priority: P2
+area: client
+plan: type-law
 ---
 
-# Stripping a hidden tag can rejoin bytes into a new tag
+# T4 orb/mutation-vars-derived drains to zero by codemod; WakeRequest derives its port member
 
 ## What
 

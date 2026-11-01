@@ -314,7 +314,7 @@ async function resolveStagePass(
   const presetParams = await ctx.resolveUtilityPresetParams(ownerId);
   const resolution = await resolveStageResolution(ctx, { ownerId, stage, session });
   const rc = await ctx.roleClientsFor(ownerId);
-  const facts = await summarizerFactsOf(rc, presetParams);
+  const facts = await summarizerFactsOf(rc, presetParams, { ownerId, resolveStructuredBinding: ctx.resolveStructuredBinding });
   return {
     session,
     rc,

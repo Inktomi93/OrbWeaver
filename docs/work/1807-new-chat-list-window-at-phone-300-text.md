@@ -2,11 +2,12 @@
 kind: bug
 status: open
 updated: 2026-11-01
-priority: P1
-area: server
+priority: P2
+area: client
+plan: css-system
 ---
 
-# Presence never releases after a same-socket takeover: a member reads online after both connections closed, which skews cast gating and host-return
+# New chat list window at phone 300% text
 
 ## What
 

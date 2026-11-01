@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { CHARACTER_ACTIONS_MENU_NAME } from "#client/features/character/lib/character-names.ts";
 import type { MenuChoiceStory, MenuHandleStory } from "./_native-parts-stories.tsx";
 
 test("checkbox and radio semantics survive the optional viewport, and native callbacks can veto changes", async ({ mount, page }) => {
@@ -42,10 +43,10 @@ test("a menu handle resolves its anchor payload and does not retain it for anoth
   const menu = page.getByRole("menu");
   await expect(menu).toBeHidden();
   await page.getByRole("button", { name: "Open remotely", exact: true }).click();
-  await expect(menu.getByRole("menuitem", { name: "Character actions", exact: true })).toBeVisible();
+  await expect(menu.getByRole("menuitem", { name: CHARACTER_ACTIONS_MENU_NAME, exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(menu).toBeHidden();
   await page.getByRole("button", { name: "Rooms", exact: true }).click();
   await expect(menu.getByRole("menuitem", { name: "Room actions", exact: true })).toBeVisible();
-  await expect(menu.getByRole("menuitem", { name: "Character actions", exact: true })).toHaveCount(0);
+  await expect(menu.getByRole("menuitem", { name: CHARACTER_ACTIONS_MENU_NAME, exact: true })).toHaveCount(0);
 });

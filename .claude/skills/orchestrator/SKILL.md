@@ -58,6 +58,18 @@ Claude uses `SendMessage` and `TaskStop` below. In Codex, inspect state with `li
 - Write the lane map to a file only when a context sentinel fires or the owner orders a handoff.
 - Stop a runaway lane with TaskStop.
 
+## Plan order
+
+Finish an active plan before opening new work. File a finding; it never jumps this order.
+
+1. P1 items in any plan.
+2. `css-system`, then the client and ui lint drain that lands the lint branch.
+3. `cross-surface-consistency` through acceptance and integrated verification, with `surface-walk` beside it.
+4. `type-law` in its own order: server and contract steps first, client and ui steps after acceptance.
+5. `inference-flow` and `easy-sharing`.
+6. `test-foundation` and `test-enforcement`, owed proof runs first.
+7. `unwired-code`: server bugs first, then field judgments in bulk.
+
 ## Lane cap
 
 Run at most three lanes at once. Raise the cap only on an explicit owner ruling, written here.

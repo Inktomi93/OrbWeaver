@@ -758,7 +758,7 @@ const ARBITRARY_APPLY_MESSAGES = messagesOf(ARBITRARY_APPLY, {
   rejected: "An arbitrary value with a design number bypasses the token scale; use a token utility or add one in tokens.json",
 });
 const ARBITRARY_DESIGN_VALUE =
-  /-\[[^\]]*(?:\d+(?:\.\d+)?(?:px|rem|em|ch|cq[whib]|v[wh]|dvh|svh|lvh|ms|s|deg)\b|\d\.\d+|(?:[2-9]|\d{2,})fr\b|#[0-9a-fA-F]{3,8}\b|length:)[^\]]*\]/u;
+  /-\[[^\]]*(?:\d(?:\.\d+)?(?:px|rem|em|ch|cq[whib]|v[wh]|dvh|svh|lvh|ms|s|deg)\b|\d\.\d|(?:[2-9]|\d\d)fr\b|#[0-9a-fA-F]{3,8}\b|length:)[^\]]*\]/u;
 
 const arbitraryApplyRule: Rule<true> = (primary) => (root, result) => {
   if (!stylelint.utils.validateOptions(result, ARBITRARY_APPLY, { actual: primary, possible: [true] })) {

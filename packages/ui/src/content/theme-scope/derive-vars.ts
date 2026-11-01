@@ -12,6 +12,7 @@ import {
   carriedInks,
   chartRampForSurface,
   derivedForegroundLightness,
+  derivedForegroundLightnessForSurfaces,
   READING_BAND_ALPHA,
   rampDeltas,
   rampSurface,
@@ -20,8 +21,10 @@ import {
   shadowIngredients,
   solveFocusRing,
   solveInputBorder,
+  surfacePolarity,
   THEME_DERIVATION,
 } from "@orb/kit/theme-derivation";
+import { TOKENS } from "#tokens";
 import type { ParsedOklch } from "./color-parse.ts";
 import { serializeOpaqueOklch } from "./color-parse.ts";
 import { THEME_OVERRIDE_COLOR_VARS } from "./emit-vars.ts";
@@ -57,12 +60,6 @@ const SURFACE_RAMP_VARS: ReadonlyArray<readonly [name: string, role: keyof RampD
 const BORDER_ALPHA = THEME_DERIVATION.borderAlpha;
 const INPUT_ALPHA = THEME_DERIVATION.inputAlpha;
 
-/** A contrast-safe foreground for text sitting on `surface` (a validated deterministic color).
- *  Exported because the clamp derives it for two PICKED colours too (the accent and each bubble bg),
- *  which are not part of the one-base cascade below. */
-export function foregroundOn(surface: string, parsed: Oklch): string {
-  return `oklch(from ${surface} ${derivedForegroundLightness(parsed)} 0 h / 1)`;
-}
 function foregroundAt(base: string, lightness: number): string {
   return `oklch(from ${base} ${lightness} 0 h / 1)`;
 }
@@ -70,9 +67,17 @@ function foregroundAt(base: string, lightness: number): string {
 function borderOn(surface: string, base: Oklch): string {
   return `oklch(from ${surface} ${derivedForegroundLightness(base)} 0 h / ${BORDER_ALPHA})`;
 }
-/** The input-field surface lift derived from `surface`, composited over any surface. */
-function inputSurfaceOn(surface: string, base: Oklch, alpha: number = INPUT_ALPHA): string {
-  return `oklch(from ${surface} ${derivedForegroundLightness(base)} 0 h / ${alpha})`;
+/** The input-field wash derived from `surface`, composited over any surface. */
+function inputSurfaceOn(surface: string, wash: number): string {
+  return `oklch(from ${surface} ${wash} 0 h / ${INPUT_ALPHA})`;
+}
+/**
+ * A text field's fill. A dark carried palette takes the solved input wash, which the page and muted inks are judged on: the
+ * static dark arm is a white lift that a mid-tone page cannot carry. A light one keeps the opaque light arm, restated so a
+ * scope nested in a dark carried one does not inherit that scope's wash.
+ */
+function fieldFillOn(surface: string, wash: number, base: Oklch): string {
+  return surfacePolarity(base) === "dark" ? inputSurfaceOn(surface, wash) : TOKENS["color.field-fill"].value;
 }
 /** A truly unjudgeable provider-less base gets an OPAQUE plate — see {@link readingPlateOn}. */
 const UNJUDGEABLE_PLATE_ALPHA = 1;
@@ -221,8 +226,8 @@ function carriedEdgeOn({ pixel: base, inks }: CarriedPalette): CarriedEdge {
     inkLightness: inks.foreground,
     grounds: {
       panels: [opaqueBase, ...Object.values(surfaces)],
-      fillInk: { l: derivedForegroundLightness(opaqueBase), c: 0, h: base.h },
-      fillAlpha: inks.muted.inputAlpha,
+      fillInk: { l: inks.muted.inputWash, c: 0, h: base.h },
+      fillAlpha: INPUT_ALPHA,
     },
   });
   return { ...solve, card: surfaces.card };
@@ -291,7 +296,8 @@ export function surfaceVarsOn(background: string, carried: CarriedPalette | null
   vars["--color-foreground"] = foregroundAt(origin, carried.inks.foreground);
   vars["--color-card-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.card));
   vars["--color-popover-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.popover));
-  vars["--color-sidebar-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.sidebar));
+  // List rows wear this ink on the page as well as on the rail.
+  vars["--color-sidebar-foreground"] = foregroundAt(origin, derivedForegroundLightnessForSurfaces([opaqueBase, surfaces.sidebar]));
   vars["--color-sidebar-accent-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.sidebarAccent));
   vars["--color-secondary-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.secondary));
   const mutedPair = carried.inks.muted;
@@ -299,6 +305,7 @@ export function surfaceVarsOn(background: string, carried: CarriedPalette | null
   vars["--color-reading-plate-foreground"] = foregroundAt(origin, readingPlateForeground(opaqueBase).l);
   vars["--color-border"] = borderOn(origin, opaqueBase);
   vars["--color-sidebar-border"] = borderOn(origin, opaqueBase);
-  vars["--color-input"] = inputSurfaceOn(origin, opaqueBase, mutedPair.inputAlpha);
+  vars["--color-input"] = inputSurfaceOn(origin, mutedPair.inputWash);
+  vars["--color-field-fill"] = fieldFillOn(origin, mutedPair.inputWash, opaqueBase);
   return { ...vars, ...shadowVarsOn(origin, pixel), ...chartVarsOn(pixel) };
 }

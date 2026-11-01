@@ -10,6 +10,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { loadAppearancePreset } from "@orb/testkit/node/helpers";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { CHARACTER_IMPORT_NAME } from "#client/features/character/lib/character-names.ts";
 import type { AppShellListDockStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -361,7 +362,7 @@ test.describe("on a wide desktop", () => {
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "docked");
     // The band's New is a word or a glyph by its own container width; exactly one of the pair is in the tree.
     await expect(band.getByRole("button", { name: /^New(?: character)?$/u })).toHaveCount(1);
-    await expect(band.getByRole("button", { name: "Import a character card", exact: true })).toHaveCount(1);
+    await expect(band.getByRole("button", { name: CHARACTER_IMPORT_NAME, exact: true })).toHaveCount(1);
     await expect(band.locator('[data-slot="list-pane-title"]')).toContainText(/\d/u);
     const squeezed = await read();
     await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).click();

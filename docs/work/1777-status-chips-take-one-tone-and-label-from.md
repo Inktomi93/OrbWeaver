@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-01
 priority: P2
 area: ui
-plan: cross-surface-consistency
+plan: type-law
 ---
 
 # Status chips take one tone and label from a typed verdict or status union, so no raw wire word or local tone map reaches a chip
