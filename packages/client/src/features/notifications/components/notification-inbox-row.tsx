@@ -16,6 +16,7 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { notifyNewRoomPersona, useInvalidation, useTRPC } from "#data";
+import { timeLib } from "#lib";
 import { useDismissNotification } from "../hooks/use-inbox.ts";
 import { useAcceptInvite, useDeclineInvite } from "../hooks/use-invite-actions.ts";
 
@@ -57,6 +58,22 @@ const ROW_COPY: {
 function rowCopy(payload: NotificationEvent, pluginName: string | undefined): string {
   const handler = ROW_COPY[payload.type] as (p: NotificationEvent, pluginName: string | undefined) => string;
   return handler(payload, pluginName);
+}
+
+/** A dismissed row: what it said and when it arrived and left. Read-only, because a dismissal is set once and
+ *  the decision it carried is settled. */
+export function DismissedInboxRow({ item }: { readonly item: InboxItem }): ReactElement {
+  const pluginName = useDisabledPluginName(item.payload);
+  return (
+    <Stack gap="tight" data-slot="inbox-dismissed-row">
+      <Text as="span" voice="gloss" prose={true}>
+        {rowCopy(item.payload, pluginName)}
+      </Text>
+      <Text as="span" voice="gloss" ink="muted">
+        {`${timeLib.formatRelative(item.createdAt)} · dismissed ${timeLib.formatRelative(item.dismissedAt ?? item.createdAt)}`}
+      </Text>
+    </Stack>
+  );
 }
 
 export interface InboxRowProps {
@@ -183,9 +200,14 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
             you open the bell because of a dot and find the dot that put it there. `aria-hidden`: the row's
             own actions are what say it is decidable; the mark is the sighted shorthand. */}
         {item.actionable ? <IndicatorDot tone="primary" variant="solid" aria-hidden={true} className="mbs-field" /> : null}
-        <Text as="span" voice={item.readAt === null || item.actionable ? "label" : "gloss"} prose={true}>
-          {rowCopy(item.payload, disabledPluginName)}
-        </Text>
+        <Stack gap="tight">
+          <Text as="span" voice={item.readAt === null || item.actionable ? "label" : "gloss"} prose={true}>
+            {rowCopy(item.payload, disabledPluginName)}
+          </Text>
+          <Text as="span" voice="gloss" ink="muted">
+            {timeLib.formatRelative(item.createdAt)}
+          </Text>
+        </Stack>
       </Row>
       <Row gap="field" align="center" justify="end">
         {isInvite && !acted ? (

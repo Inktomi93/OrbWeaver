@@ -1,3 +1,4 @@
+import { brandedId } from "@orb/kit/ids";
 import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import {
   createShellAmbientReads,
@@ -10,11 +11,12 @@ import {
   trpcError,
 } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { connectDevice, createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
+const PAST_DISCONNECT_GRACE_MS = 60_000;
 
 test("removing a member closes the real confirm onto a surviving roster control", async ({ corpus, page, mount }) => {
   await using root = await createCorpusHarness();
@@ -112,6 +114,36 @@ test("removing a member closes the real confirm onto a surviving roster control"
   await expect(members.getByRole("button", { name: new RegExp(`^${nextCharacter.displayName} — character`, "u") })).toBeFocused();
   await component.unmount();
   await joined.promise;
+});
+
+test("a member whose last device left shows when they were last around", async ({ corpus, page, mount }) => {
+  await using root = await createCorpusHarness();
+  await (await root.internalCallerFor(root.ownerId)).settings.updateAppSettings({ partial: { localMultiUser: true } });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const memberId = corpus.memberIdentities?.sharedMember.viewer.userId;
+  const chat = corpus.reads["chat.getChat"].find(({ output }) => output.participants.some((person) => person.userId === memberId))?.output;
+  const member = chat?.participants.find((person) => person.userId === memberId);
+  if (chat === undefined || member === undefined || memberId === undefined) {
+    throw new Error("The corpus has no shared human room");
+  }
+  const device = new AbortController();
+  await connectDevice(root, brandedId("UserId").parse(memberId), device.signal);
+  device.abort();
+  root.clock.advance(PAST_DISCONNECT_GRACE_MS);
+  await seedShellState(page, { activeSection: "chats" });
+  await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
+  await routeTrpc(page, {
+    ...createShellAmbientReads(corpus, root.ownerId),
+    ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "notifications.presence", "rpg.getGame", "rpg.listTurnToolCalls"]),
+  });
+  const { id: chatId } = await caller.chat.getChat({ chatId: chat.id });
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+  await page.getByRole("button", { name: /^Members — /u }).click();
+  const members = page.getByRole("toolbar", { name: "Members and characters", exact: true });
+  const row = members
+    .locator('[data-slot="member-row"]')
+    .filter({ has: page.getByRole("button", { name: new RegExp(`^${member.displayName} — member, offline, `, "u") }) });
+  await expect(row.locator('[data-slot="member-last-seen"]')).toBeVisible();
 });
 
 test("the inline flank threshold resolves to its reading floor, sidebar and gap", async ({ corpus, page, mount }) => {

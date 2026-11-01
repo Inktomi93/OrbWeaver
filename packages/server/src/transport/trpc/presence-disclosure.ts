@@ -24,18 +24,18 @@
 // `multiHumanProcedure`, which refuses an unauthenticated caller (401) and a deployment that cannot seat a
 // second human (a uniform 404) before this function is ever reached.
 //
-// WHAT IS DISCLOSED IS ONE BIT PER ASKED ID. `PresenceView` also carries `lastSeenAt` — WHEN a user's last
-// device went dark — and it is dropped here rather than on the client: the projection is what makes the
-// activity timestamp unreachable from the wire at all (`PresenceSnapshot`'s own header states the shape
-// argument). Presence stays SERVER-DERIVED in both directions — there is no inbound presence schema, so this
-// read cannot become a client-asserted heartbeat (client-architecture-lockdown.md §6).
+// WHAT IS DISCLOSED PER ASKED ID: online, or when the user's last device left. The second reaches the same
+// wide audience as the first, and the owner chose to show it on the roster. Presence stays SERVER-DERIVED in
+// both directions — there is no inbound presence schema, so this read cannot become a client-asserted
+// heartbeat (client-architecture-lockdown.md §6).
 
-import type { PresenceSnapshot } from "@orb/contracts/notifications";
+import type { PresenceLastSeen, PresenceSnapshot } from "@orb/contracts/notifications";
 import type { UserId } from "@orb/kit/ids";
 import type { PresenceRegistry } from "./presence-registry.ts";
 
 /**
- * Answer a presence ask: the ONLINE subset of `userIds`, deduplicated, in first-asked order.
+ * Answer a presence ask: the ONLINE subset of `userIds` and the last-seen time of the rest, deduplicated, in
+ * first-asked order.
  *
  * Duplicates collapse before the registry is touched, so a caller cannot spend its `PRESENCE_READ_MAX_USER_IDS`
  * budget N times on one id, and the answer can never repeat an id back.
@@ -44,11 +44,14 @@ import type { PresenceRegistry } from "./presence-registry.ts";
  */
 export function readPresenceDisclosure(presence: PresenceRegistry, userIds: readonly UserId[]): PresenceSnapshot {
   const onlineUserIds: UserId[] = [];
-  for (const userId of new Set(userIds)) {
-    // ONE BIT crosses: `.online` is read here and the rest of the `PresenceView` is dropped on the floor.
-    if (presence.read(userId).online) {
+  const lastSeen: PresenceLastSeen[] = [];
+  for (const asked of new Set(userIds)) {
+    const { userId, online, lastSeenAt } = presence.read(asked);
+    if (online) {
       onlineUserIds.push(userId);
+    } else if (lastSeenAt !== null) {
+      lastSeen.push({ userId, lastSeenAt });
     }
   }
-  return { onlineUserIds };
+  return { onlineUserIds, lastSeen };
 }

@@ -61,6 +61,7 @@ export const notificationsRouter = t.router({
         principal: ctx.auth,
         ...(input?.cursor !== undefined ? { cursor: input.cursor } : {}),
         ...(input?.limit !== undefined ? { limit: input.limit } : {}),
+        ...(input?.state !== undefined ? { state: input.state } : {}),
       }),
     ),
 
