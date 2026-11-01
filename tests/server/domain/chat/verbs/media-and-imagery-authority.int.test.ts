@@ -45,7 +45,7 @@ test("composed imagery card reads carry the row-derived host role rather than a 
     ProviderError,
   );
   expect(getCard).toHaveBeenCalledExactlyOnceWith({
-    principal: expect.objectContaining({ userId: host.userId, handle: host.handle }),
+    principal: host,
     characterId: subject.id,
   });
   const captured = getCard.mock.calls[0]?.[0].principal;
@@ -132,7 +132,7 @@ test("quiet extraction sends only the caller's visible scene through the host's 
   const extracted = await root.services.imagery.extractPrompt({ caller: member, ...params });
   expect(extracted).toMatchObject({ prompt: extractedPrompt, source: "extracted" });
   expect(getCard).toHaveBeenCalledExactlyOnceWith({
-    principal: expect.objectContaining({ userId: host.userId, role: host.role }),
+    principal: host,
     characterId: subject.id,
   });
   const extractionRequests = requests

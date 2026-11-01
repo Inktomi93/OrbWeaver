@@ -101,6 +101,6 @@ host.tools.register({name:"look",description:"Look.",replayHistory:true,
   expect(bodies).toHaveLength(3);
   const carried = (body: z.infer<typeof bodySchema> | undefined): unknown =>
     body?.messages.find((row) => row.tool_calls?.[0]?.id === TOOL_CALL.id)?.reasoning_details;
-  expect(carried(bodies[1])).toEqual([expect.objectContaining({ type: DETAIL.type, data: DETAIL.data })]);
-  expect(carried(bodies[2])).toEqual([expect.objectContaining({ type: DETAIL.type, data: DETAIL.data })]);
+  expect(carried(bodies[1])).toEqual([DETAIL]);
+  expect(carried(bodies[2])).toEqual([DETAIL]);
 });

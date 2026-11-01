@@ -145,11 +145,12 @@ test("graph schedule timers preserve future cancellation and paused cadence befo
   expect(result.paused).toEqual([result.disabled]);
   expect(result.pausedJobs.map((job) => [job.id, job.status])).toEqual([[result.queued.id, "cancelled"]]);
   expect(result.resumed.enabled).toBe(true);
-  expect(result.afterTick).toMatchObject([{ id: result.schedule.id, lastRunAt: expect.any(Number) }]);
+  expect(result.afterTick).toMatchObject([{ id: result.schedule.id }]);
   const fired = result.afterTick[0];
   if (fired === undefined || fired.lastRunAt === null) {
     throw new Error("native schedule did not fire");
   }
+  expect(fired.lastRunAt).toBeGreaterThanOrEqual(result.schedule.createdAt);
   expect(fired.nextRunAt).toBe(fired.lastRunAt + CADENCE_INTERVAL_MS.hourly);
   expect(result.completed).toMatchObject([
     { id: result.admitted[0]?.id, kind: "reconcile-stats", ownerId: root.ownerId, mode: "singular", status: "succeeded" },
