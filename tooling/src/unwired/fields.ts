@@ -59,8 +59,9 @@ export interface FieldsReport {
   readonly scanned: number;
   readonly unwired: readonly UnwiredField[];
   readonly deliberate: readonly (UnwiredField & { readonly reason: string })[];
-  /** Fields engine one judged and engine two contradicted, with what engine two found. */
-  readonly disagreements: readonly { readonly key: string; readonly found: FieldKind | "wired" }[];
+  /** Fields where engine two found a production site in a role engine one lacks, with those sites. Engine one links
+   *  what find-references cannot follow, so engine two finding fewer sites is expected and contradicts nothing. */
+  readonly disagreements: readonly { readonly key: string; readonly uses: readonly string[] }[];
 }
 
 const SAMPLE = 3;
@@ -417,21 +418,14 @@ function rolesOf(sources: Sources, sites: Iterable<Site>): Roles {
   return { read, write, tests };
 }
 
-/** What an engine knows about a field beyond its named sites. */
-interface Context {
-  /** Engine two: a spread, computed key, `for…in` or reflective call reads it, which find-references never reports. */
-  readonly reflected: boolean;
-  /** Production writes some field of its home. A home no production code writes gets its value from outside the
-   *  tree (a host object cast from `globalThis`, a parse of external input), so its optional fields are never a
-   *  default the tree chose. */
-  readonly homeWritten: boolean;
-}
-
-function kindOf(field: FieldDeclaration, roles: Roles, context: Context): FieldKind | "wired" {
-  if (roles.read.length === 0 && !context.reflected) {
+// `homeWritten`: production writes some field of the home. A home no production code writes gets its value from outside
+// the tree (a host object cast from `globalThis`, a parse of external input), so its optional fields are never a default
+// the tree chose.
+function kindOf(field: FieldDeclaration, roles: Roles, homeWritten: boolean): FieldKind | "wired" {
+  if (roles.read.length === 0) {
     return roles.write.length === 0 ? "unreferenced" : "never-read";
   }
-  return roles.write.length === 0 && field.optional && !field.parameterOwned && context.homeWritten ? "never-written" : "wired";
+  return roles.write.length === 0 && field.optional && !field.parameterOwned && homeWritten ? "never-written" : "wired";
 }
 
 const homeOf = (field: FieldDeclaration): string => `${field.site.file}:${field.home}`;
@@ -445,6 +439,22 @@ function mergedSites(names: readonly Site[], second: ReadonlyMap<string, readonl
 
 const namesOf = (field: FieldDeclaration): readonly Site[] => [field.site, ...field.mirrorSites];
 
+function tallyWorld(tally: Map<string, Tally>, world: NativeWorld): number {
+  const fields = declarations(world);
+  const index = propertyIndex(world);
+  for (const field of fields) {
+    const entry = tally.get(field.key) ?? { field, sites: new Map() };
+    for (const site of sitesOf(index, field.keys, field.site)) {
+      entry.sites.set(siteKey(site), site);
+    }
+    for (const name of field.mirrorSites) {
+      entry.sites.delete(siteKey(name));
+    }
+    tally.set(field.key, entry);
+  }
+  return fields.length;
+}
+
 /** Run both engines over the worlds of `root` for dead data. */
 export function scanFields(options: ScanOptions): FieldsReport {
   const { worlds, testWorlds } = scanWorlds(options);
@@ -452,33 +462,17 @@ export function scanFields(options: ScanOptions): FieldsReport {
   const tally = new Map<string, Tally>();
   for (const config of [...worlds, ...testWorlds]) {
     using world = NativeWorld.open(options.root, config);
-    const fields = declarations(world);
-    const index = propertyIndex(world);
-    for (const field of fields) {
-      const entry = tally.get(field.key) ?? { field, sites: new Map() };
-      for (const site of sitesOf(index, field.keys, field.site)) {
-        entry.sites.set(siteKey(site), site);
-      }
-      for (const name of field.mirrorSites) {
-        entry.sites.delete(siteKey(name));
-      }
-      tally.set(field.key, entry);
-    }
-    options.log(`${config}: ${fields.length} fields`);
+    options.log(`${config}: ${tallyWorld(tally, world)} fields`);
   }
   const rolled = [...tally.values()].map((entry) => ({ ...entry, roles: rolesOf(sources, entry.sites.values()) }));
   const writtenHomes = new Set(rolled.filter(({ roles }) => roles.write.length > 0).map(({ field }) => homeOf(field)));
-  // Engine one's index already credits a reflective read to its value expression's site.
   const judged = rolled.flatMap(({ field, roles }) => {
-    const kind = kindOf(field, roles, { reflected: false, homeWritten: writtenHomes.has(homeOf(field)) });
+    const kind = kindOf(field, roles, writtenHomes.has(homeOf(field)));
     return kind === "wired" ? [] : [{ field, roles, kind }];
   });
-  // Engine two judges a home's writes itself, so it is asked about every field of a home with a never-written finding.
-  const homes = new Set(judged.filter(({ kind }) => kind === "never-written").map(({ field }) => homeOf(field)));
-  const siblings = rolled.filter(({ field }) => homes.has(homeOf(field))).map(({ field }) => field);
-  const asked = new Map([...judged.map(({ field }) => field), ...siblings].map((field) => [field.key, field]));
   const reflectedTwo = new Set<string>();
-  const second = serviceReferences(options.root, [...worlds, ...testWorlds], [...asked.values()].flatMap(namesOf), {
+  const asked = judged.flatMap(({ field }) => namesOf(field));
+  const second = serviceReferences(options.root, [...worlds, ...testWorlds], asked, {
     log: options.log,
     crossCheck: options.crossCheck,
     visit: (world) => {
@@ -487,23 +481,19 @@ export function scanFields(options: ScanOptions): FieldsReport {
       }
     },
   });
-  const rolesTwo = new Map([...asked.values()].map((field) => [field.key, rolesOf(sources, mergedSites(namesOf(field), second))]));
-  const writtenHomesTwo = new Set([...asked.values()].filter((field) => (rolesTwo.get(field.key)?.write.length ?? 0) > 0).map((field) => homeOf(field)));
+  const located = (site: Site): string => `${site.file}:${sources.line(site)}`;
   const findings: UnwiredField[] = [];
   const disagreements: FieldsReport["disagreements"][number][] = [];
   for (const { field, roles, kind } of judged) {
-    const confirmed = rolesTwo.get(field.key) ?? { read: [], write: [], tests: 0 };
-    const found = kindOf(field, confirmed, {
-      reflected: namesOf(field).some((name) => reflectedTwo.has(siteKey(name))),
-      homeWritten: writtenHomesTwo.has(homeOf(field)),
-    });
-    if (found === kind) {
-      const sample = [...roles.write, ...roles.read].slice(0, SAMPLE).map((written) => `${written.file}:${sources.line(written)}`);
-      const { key, site, line, home, member, origin } = field;
-      findings.push({ key, file: site.file, line, home, member, origin, kind, tests: Math.max(roles.tests, confirmed.tests), sample });
-    } else {
-      disagreements.push({ key: field.key, found });
+    const audit = rolesOf(sources, mergedSites(namesOf(field), second));
+    const lacking = [...(roles.read.length === 0 ? audit.read : []), ...(roles.write.length === 0 ? audit.write : [])];
+    if (lacking.length > 0) {
+      disagreements.push({ key: field.key, uses: lacking.map(located) });
+      continue;
     }
+    const sample = [...roles.write, ...roles.read].slice(0, SAMPLE).map(located);
+    const { key, site, line, home, member, origin } = field;
+    findings.push({ key, file: site.file, line, home, member, origin, kind, tests: Math.max(roles.tests, audit.tests), sample });
   }
   return { scanned: tally.size, ...sortDeliberate(findings, options.deliberate), disagreements };
 }

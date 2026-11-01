@@ -141,6 +141,35 @@ test("a field the deliberate list names leaves the unwired list with its reason"
   expect(report.unwired.map(({ member }) => member)).not.toContain("dead");
 });
 
+// Engine one is the judge. A spread link find-references cannot follow is no contradiction; a site engine two finds in a
+// role engine one lacks is, and that field leaves the findings.
+const AUDITED = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/z.ts": TREE["packages/a/src/z.ts"],
+  "packages/a/src/audit.ts": [
+    'import type { Infer } from "./z.ts";',
+    'import { z } from "./z.ts";',
+    "export const Input = z.object({ chatId: z.string(), title: z.string().optional() });",
+    "export interface Params { readonly owner: string; readonly chatId: string; readonly title?: string | undefined }",
+    'export const verb = (params: Params): string => params.owner + params.chatId + (params.title ?? "");',
+    'export const route = (input: Infer<typeof Input>): string => verb({ owner: "o", ...input });',
+    'export const called = route({ chatId: "c" });',
+    "export interface Card { readonly starred: boolean }",
+    "export interface Detail extends Card { readonly starred: boolean }",
+    "export const detail: Detail = { starred: true };",
+    "export const card: Card = detail;",
+    "export const isStarred = card.starred;",
+  ].join("\n"),
+};
+
+test("engine two only audits: fewer sites contradict nothing, a site in a role engine one lacks does", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(AUDITED);
+  const report = scanFields({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const planted = report.unwired.filter(({ file }) => file.endsWith("audit.ts"));
+  expect(planted.map(({ home, member, kind }) => `${home}.${member} ${kind}`)).toEqual(["Input.title never-written"]);
+  expect(report.disagreements).toEqual([{ key: "packages/a/src/audit.ts:Detail.starred", uses: ["packages/a/src/audit.ts:12"] }]);
+});
+
 // The client imports the router through `@orb/server`; with no declaration surface planted, only the scans' source
 // bridge resolves it, so the client's read is the field's only read.
 const BRIDGED = {
