@@ -8,7 +8,6 @@ import { ASSEMBLE_POST_PROCESS_ORDER, RECEIVE_POST_PROCESS_ORDER } from "@orb/co
 
 // These patterns run on every reply.
 const THREE_PLUS_NEWLINES = /\n{3,}/gu;
-const TRAILING_WHITESPACE = /\s+$/u;
 // A sentence that ends cleanly: terminal punctuation + any immediate closing quote/paren/asterisk.
 const ENDS_CLEANLY = /[.!?…][)"'»”’*]*$/u;
 // The longest prefix ending at the LAST complete sentence (cut everything after it).
@@ -26,14 +25,14 @@ function collapseNewlines(text: string): string {
 
 // RECEIVE: strip trailing whitespace (spaces, tabs, newlines) from the model's reply.
 function trimTrailingWhitespace(text: string): string {
-  return text.replace(TRAILING_WHITESPACE, "");
+  return text.trimEnd();
 }
 
 // RECEIVE: drop a trailing INCOMPLETE sentence — text after the last sentence-ending punctuation. No-op when
 // the reply already ends at `.`/`!`/`?`/`…` (optionally followed by a close quote/paren/asterisk) or has no
 // sentence punctuation at all (don't nuke a single fragment the user may want).
 function dropIncompleteSentence(text: string): string {
-  const trimmed = text.replace(TRAILING_WHITESPACE, "");
+  const trimmed = text.trimEnd();
   if (trimmed.length === 0) {
     return text;
   }
@@ -55,7 +54,7 @@ function collapseToSingleLine(text: string): string {
   const leadingTrimmed = text.replace(LEADING_BLANK_LINE, "");
   const firstNewline = leadingTrimmed.indexOf("\n");
   const line = firstNewline === -1 ? leadingTrimmed : leadingTrimmed.slice(0, firstNewline);
-  return line.replace(TRAILING_WHITESPACE, "");
+  return line.trimEnd();
 }
 
 /** Each switch's transform, keyed by the flag it rides. Mapped Records over the two lane tuples, so a flag

@@ -3,6 +3,8 @@
 // exact bug that voids the download in some browsers). D54: `file-saver` is dead; the native
 // anchor-click is the 2026 answer. One helper, async revoke, no third copy ever again.
 
+import { trimEdgesWhile } from "@orb/kit/strings";
+
 // DOM access rides `globalThis` with self-contained structural types (the view-transition.ts
 // pattern): the node typecheck lane follows the lib barrel into this file and has no `dom` lib.
 interface Anchorish {
@@ -21,7 +23,6 @@ const JSON_INDENT = 2;
 const REVOKE_DELAY_MS = 100;
 const FILENAME_MAX_LEN = 64;
 const NON_SLUG_RE = /[^a-z0-9]+/gu;
-const EDGE_DASH_RE = /^-+|-+$/gu;
 
 function clickAnchor(href: string, download?: string): void {
   const doc = (globalThis as DownloadGlobals).document;
@@ -73,6 +74,6 @@ export function downloadUrl(href: string): void {
 /** Display name → a safe download filename token. Client-side filename use ONLY — the server's
  *  `slugifyHandle` (the import pairing key) is identity-bearing and deliberately separate. */
 export function slugifyFilename(name: string, fallback: string): string {
-  const slug = name.toLowerCase().replace(NON_SLUG_RE, "-").replace(EDGE_DASH_RE, "").slice(0, FILENAME_MAX_LEN);
+  const slug = trimEdgesWhile(name.toLowerCase().replace(NON_SLUG_RE, "-"), "-").slice(0, FILENAME_MAX_LEN);
   return slug === "" ? fallback : slug;
 }

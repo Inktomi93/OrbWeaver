@@ -27,6 +27,7 @@
 import { stripHiddenSpans } from "@orb/kit/content";
 
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { trimEdgesWhile } from "@orb/kit/strings";
 import { z } from "zod";
 import { CARD_FACE_LIMITS } from "../card-face/index.ts";
 import { rpgRelationshipKindSchema } from "./enums.ts";
@@ -44,7 +45,6 @@ import { rpgTrackerValueSchema, rpgTrackerValuesSchema } from "./tracker.ts";
 // trackers, inventory and wallet. A key that merges two people is not a normalization, it is data loss.
 // `\p{M}` rides along with `\p{L}` because in many scripts a mark is part of the letter, not punctuation.
 const NPC_SLUG_STRIP = /[^\p{L}\p{N}\p{M}]+/gu;
-const NPC_SLUG_TRIM = /^-+|-+$/g;
 
 /** The FALLBACK for a name that carries no letter, digit or mark AT ALL (emoji-only, punctuation-only). A
  *  npc key must be non-empty (`rpgActorRefSchema`), and a refused write on an exotic name would be a worse
@@ -95,7 +95,7 @@ export function rpgNpcSlug(name: string): string {
   }
   // NFC last, so the output is normalized whatever the input's composition was: a combining-accent "café"
   // and a precomposed "café" are one person, not two rows.
-  const slug = trimmed.toLowerCase().normalize("NFC").replace(NPC_SLUG_STRIP, "-").replace(NPC_SLUG_TRIM, "");
+  const slug = trimEdgesWhile(trimmed.toLowerCase().normalize("NFC").replace(NPC_SLUG_STRIP, "-"), "-");
   if (slug !== "") {
     return slug;
   }
