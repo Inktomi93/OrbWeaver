@@ -148,10 +148,10 @@ function isIngressAllowed(ip: string | null, cidrs: readonly string[]): boolean 
 /** Mounted FIRST by `entry/app.ts` when `IP_ALLOWLIST` is set; non-allowed caller gets an empty 403
  *  before any auth work. */
 export function ipAllowlistMiddleware(cidrs: readonly string[], trustedProxies: readonly string[]): MiddlewareHandler {
-  return async (c, next) => {
+  return async (c, next): ReturnType<MiddlewareHandler> => {
     if (!isIngressAllowed(clientIp(c, trustedProxies), cidrs)) {
       return c.body(null, FORBIDDEN);
     }
-    return await next();
+    await next();
   };
 }

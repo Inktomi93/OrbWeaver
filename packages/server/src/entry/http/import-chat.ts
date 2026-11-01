@@ -19,6 +19,7 @@ import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
+import type { MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { SettleImportMemory } from "#domain/import";
 import { hasCsrfHeader } from "#infra/auth";
@@ -88,7 +89,7 @@ export function registerImportChat(app: ImportApp, deps: ImportChatDeps): void {
     // body byte is read (the sibling upload routes' belt order). Inline, so the ctx types come off `app`.
     // CSRF keys on the ambient-credential arms `via !== "header"` (cookie + the loopback owner fallback) —
     // this is a CORS-"simple" multipart route with no preflight (#300; see upload.ts's authCsrfGuard WHY-block).
-    async (c, next) => {
+    async (c, next): ReturnType<MiddlewareHandler> => {
       const principal = c.get("principal");
       if (principal === null) {
         return c.body(null, UNAUTHORIZED);
@@ -96,7 +97,7 @@ export function registerImportChat(app: ImportApp, deps: ImportChatDeps): void {
       if (principal.via !== "header" && !hasCsrfHeader(c.req.raw.headers)) {
         return c.body(null, FORBIDDEN);
       }
-      return await next();
+      await next();
     },
     bodyLimit({ maxSize: IMPORT_MAX_TOTAL_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }),
     async (c) => {

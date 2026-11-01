@@ -293,7 +293,7 @@ async function applyRunOnEditRegex(
   const scripts = resolveHostTierRegexScripts({
     ...(await ctx.resolveRegexSources({ ownerId: hostUserId, presetId: foreign.presetId ?? null, characterIds, chatId })),
     allow: args.regexAllow,
-  }).filter((script) => script.runOnEdit === true);
+  }).filter((script) => script.runOnEdit);
   if (scripts.length === 0) {
     return args.content;
   }

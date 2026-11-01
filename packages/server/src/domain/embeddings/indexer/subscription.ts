@@ -9,7 +9,7 @@ function assertNeverEvent(event: never): never {
 /** Route only embeddable canon events, preserving exhaustive handling of the closed event union. */
 export function createEmbeddingsIndexerSubscription(deps: EmbeddingsIndexerSubscriptionDeps): EmbeddingsIndexerSubscription {
   return (event) => {
-    if (deps.getEffectiveConfig().corpusAutoindex !== true) {
+    if (!deps.getEffectiveConfig().corpusAutoindex) {
       return Promise.resolve();
     }
     switch (event.type) {

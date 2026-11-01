@@ -27,6 +27,6 @@ export type ChatRpgPointer = z.infer<typeof chatRpgPointerSchema>;
  *  Every client gate (tabs `when`, panel state, wand, reading surface) reads THIS, never a re-spelled
  *  null-check — the OFF arm must gate identically everywhere. A pointer MISSING the field (a pre-toggle
  *  cached payload the schema default hasn't healed) reads ENGAGED — mirroring the `.default(true)`. */
-export function isRpgEngaged(pointer: ChatRpgPointer | null | undefined): boolean {
+export function isRpgEngaged(pointer: z.input<typeof chatRpgPointerSchema> | null | undefined): boolean {
   return pointer !== null && pointer !== undefined && pointer.engaged !== false;
 }

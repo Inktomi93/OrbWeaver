@@ -20,11 +20,17 @@ const POLYFILLS = {
   },
   "RegExp.escape": {
     present: (): boolean => typeof RegExp.escape === "function",
-    install: (): Promise<void> => Promise.resolve(define(RegExp, "escape", regExpEscape)),
+    install: (): Promise<void> => {
+      define(RegExp, "escape", regExpEscape);
+      return Promise.resolve();
+    },
   },
   "Error.isError": {
     present: (): boolean => typeof Error.isError === "function",
-    install: (): Promise<void> => Promise.resolve(define(Error, "isError", isError)),
+    install: (): Promise<void> => {
+      define(Error, "isError", isError);
+      return Promise.resolve();
+    },
   },
 } satisfies Record<Polyfilled, { present: () => boolean; install: () => Promise<void> }>;
 

@@ -282,8 +282,7 @@ export function inheritSessionArgs(bootArgs: Args, call: Args, name: string, inh
 /** A stateful session call differs from a scenario checkpoint only in JSON ownership: every daemon call
  * is its own run, while a scenario is one outer run. Browser-lifetime inheritance remains exclusively in
  * `inheritSessionArgs`; this wrapper must never grow another boot-field list. */
-export function inheritSessionBinding(bootArgs: Args, merged: Args, call: Args): Args {
-  void bootArgs;
+export function inheritSessionBinding(_bootArgs: Args, merged: Args, call: Args): Args {
   return {
     ...merged,
     json: call.json,

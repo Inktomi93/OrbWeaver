@@ -303,7 +303,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
       // makes the host's card say WHO is asking — a plugin ask is the one card class whose requester is not
       // a rule the host wrote themselves.
       ops.suggestions.raise({ plugin: { id, name: plugin?.name ?? "", slug: plugin?.slug ?? "" }, installerUserId, chatId, act });
-      return await Promise.resolve();
+      await Promise.resolve();
     },
     // The `net.fetch` HOURLY egress claim. Infra performs the fetch (`safeFetch` is the audited SSRF guard and
     // lives in infra — a domain may not import it), so what crosses down is only the admission, keyed by a

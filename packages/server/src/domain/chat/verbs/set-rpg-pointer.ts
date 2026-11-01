@@ -34,7 +34,6 @@ import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
  *  background-availability guard; the durable write is a `json_remove` of that one path. */
 function dropRpgPointer(metadata: ChatMetadata): ChatMetadata {
   const { rpg: _droppedGamePointer, ...rest } = metadata;
-  void _droppedGamePointer;
   return rest;
 }
 

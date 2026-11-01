@@ -34,7 +34,7 @@ export async function renderOp(argv: readonly string[]): Promise<number> {
   const arg = argv[0];
   let raw: string;
   if (arg === undefined || arg === "-") {
-    if (process.stdin.isTTY === true) {
+    if (process.stdin.isTTY) {
       throw new UsageError("usage: pnpm trace:render <file>  |  curl … | pnpm trace:render");
     }
     raw = await readStdin();

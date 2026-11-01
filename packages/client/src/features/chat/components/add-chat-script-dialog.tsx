@@ -143,7 +143,7 @@ function PickerBody({
                   checked={already || picked.includes(script.id)}
                   disabled={already}
                   onCheckedChange={(next): void => {
-                    setPicked((current) => (next === true ? [...current, script.id] : current.filter((id) => id !== script.id)));
+                    setPicked((current) => (next ? [...current, script.id] : current.filter((id) => id !== script.id)));
                   }}
                   tone="quiet"
                 />

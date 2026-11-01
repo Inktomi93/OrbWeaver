@@ -64,9 +64,8 @@ function useTrackOverflow(trackRef: RefObject<HTMLDivElement | null>, cellCount:
   // The Compiler memoizes both closures keyed on what they read (no-manual-memo, D54 full-compile):
   // `subscribe` reads `cellCount`, so a new tab set mints a new subscribe and uSES re-subscribes + re-measures.
   const subscribe = (onStoreChange: () => void): (() => void) => {
-    void cellCount;
     const track = trackRef.current;
-    if (track === null) {
+    if (track === null || cellCount === 0) {
       return (): void => undefined;
     }
     const observer = new ResizeObserver(onStoreChange);

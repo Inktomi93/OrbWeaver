@@ -34,14 +34,14 @@ test("admin wire schemas preserve composed views and the router refuses private 
   using listUsers = vi.spyOn(root.services.admin, "listUsers");
   listUsers.mockResolvedValueOnce(internalUsers.map((view) => ({ ...view, passwordHash: PRIVATE_PASSWORD_HASH })));
   await expect(caller.admin.listUsers()).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR", message: "Output validation failed" });
-  expect(userViews.every((view) => adminUserViewSchema.safeParse({ ...view, passwordHash: PRIVATE_PASSWORD_HASH }).success === false)).toBe(true);
+  expect(userViews.every((view) => !adminUserViewSchema.safeParse({ ...view, passwordHash: PRIVATE_PASSWORD_HASH }).success)).toBe(true);
   using listSessions = vi.spyOn(root.services.admin, "listSessions");
   listSessions.mockResolvedValueOnce(devices.map((view) => ({ ...view, tokenHash: PRIVATE_SESSION_HASH })));
   await expect(caller.admin.listSessions({ userId: target.id })).rejects.toMatchObject({
     code: "INTERNAL_SERVER_ERROR",
     message: "Output validation failed",
   });
-  expect(devices.every((view) => sessionAdminViewSchema.safeParse({ ...view, tokenHash: PRIVATE_SESSION_HASH }).success === false)).toBe(true);
+  expect(devices.every((view) => !sessionAdminViewSchema.safeParse({ ...view, tokenHash: PRIVATE_SESSION_HASH }).success)).toBe(true);
 });
 
 test("owner includes delegated admin work while a delegate cannot grant elevated roles or create another owner", async () => {
