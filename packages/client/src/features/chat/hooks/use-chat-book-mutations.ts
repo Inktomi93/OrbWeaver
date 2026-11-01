@@ -21,7 +21,7 @@ import { createEntityMutation } from "#data";
 export const useAttachBookToChat = createEntityMutation<inferInput<Trpc["worldInfo"]["attachToChat"]>, unknown>({
   options: (trpc) => trpc.worldInfo.attachToChat.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't attach the world book to this chat.",
+  // No errorToast: the attach picker renders the failure text.
 });
 
 export const useDetachBookFromChat = createEntityMutation<inferInput<Trpc["worldInfo"]["detachFromChat"]>, unknown>({

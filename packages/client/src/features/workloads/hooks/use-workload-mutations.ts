@@ -10,7 +10,7 @@ import { createEntityMutation } from "#data";
 export const useStartWorkload = createEntityMutation<inferInput<Trpc["workloads"]["start"]>, unknown>({
   options: (trpc) => trpc.workloads.start.mutationOptions(),
   invalidates: (trpc) => [trpc.workloads.list.pathFilter()],
-  errorToast: "Couldn't start the workload — a run of that kind may already be active.",
+  // No errorToast: the run dialog renders the failure text.
 });
 
 /** Request a stop on an active row (`queued`/`running` → `cancelling` → `cancelled`). */
@@ -31,14 +31,14 @@ export const useRetryWorkload = createEntityMutation<inferInput<Trpc["workloads"
 export const useCreateSchedule = createEntityMutation<inferInput<Trpc["workloads"]["createSchedule"]>, unknown>({
   options: (trpc) => trpc.workloads.createSchedule.mutationOptions(),
   invalidates: (trpc) => [trpc.workloads.listSchedules.pathFilter()],
-  errorToast: "Couldn't create the schedule.",
+  // No errorToast: the schedule dialog renders the failure text.
 });
 
 /** Retune a schedule in place (kind/params/cadence/mode). `enabled` is not here — that stays `setScheduleEnabled`. */
 export const useUpdateSchedule = createEntityMutation<inferInput<Trpc["workloads"]["updateSchedule"]>, unknown>({
   options: (trpc) => trpc.workloads.updateSchedule.mutationOptions(),
   invalidates: (trpc) => [trpc.workloads.listSchedules.pathFilter()],
-  errorToast: "Couldn't update the schedule.",
+  // No errorToast: the schedule dialog renders the failure text.
 });
 
 /** Pause/resume a schedule. */

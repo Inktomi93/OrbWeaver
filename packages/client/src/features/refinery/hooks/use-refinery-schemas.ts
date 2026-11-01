@@ -79,13 +79,13 @@ export function useRefinerySchemaPlan(schema: Record<string, unknown>, stage: Re
 export const useCreateRefinerySchema = createEntityMutation<inferInput<Trpc["refinery"]["createSchema"]>, inferOutput<Trpc["refinery"]["createSchema"]>>({
   options: (trpc) => trpc.refinery.createSchema.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't save that schema.",
+  // No errorToast: the schema editor renders the refusal through RefusalNote.
 });
 
 export const useUpdateRefinerySchema = createEntityMutation<inferInput<Trpc["refinery"]["updateSchema"]>, inferOutput<Trpc["refinery"]["updateSchema"]>>({
   options: (trpc) => trpc.refinery.updateSchema.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't update that schema.",
+  // No errorToast: the schema editor renders the refusal through RefusalNote.
 });
 
 /** Delete one saved schema-library row. Freshness arrives on the server's `refineryChanged` event, whose

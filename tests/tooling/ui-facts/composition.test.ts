@@ -165,6 +165,49 @@ test("an autosave form that dismisses with Cancel is a defect, and a hook toast 
   expect(feedback.map((member) => [member.label, member.cells["failure"]?.value])).toEqual([["useSaveThing", "toast+inline"]]);
 });
 
+test("a failed-state mark, a toast that stands down and a catch that sets local state read as the failure surface they are", ({ scratch }) => {
+  const root = plantDir(scratch, "feedback-surfaces");
+  plant(root, {
+    "hooks/use-mutations.ts": [
+      'export const useMarked = createEntityMutation<A, B>({ errorToast: "Could not save", busDriven: true });',
+      'export const useSplit = createEntityMutation<A, B>({ errorToast: (error) => (isCoded(error) ? null : "Could not save"), busDriven: true });',
+      "export const useCaught = createEntityMutation<A, B>({ busDriven: true });",
+      'export const useCaughtAndToasted = createEntityMutation<A, B>({ errorToast: "Could not save", busDriven: true });',
+    ].join("\n"),
+    "components/consumers.tsx": [
+      'import { useCaught, useCaughtAndToasted, useMarked, useSplit } from "../hooks/use-mutations.ts";',
+      "export const Marked = ({ trpc, invalidation }) => {",
+      "  const save = useMarked({ trpc, invalidation });",
+      "  useReportSaveStatus(id, saveStateOf(save.isPending, save.error !== null));",
+      "  return null;",
+      "};",
+      "export const Split = ({ trpc, invalidation }) => {",
+      "  const save = useSplit({ trpc, invalidation });",
+      "  return save.error === null ? null : <p>coded</p>;",
+      "};",
+      "export const Caught = ({ trpc, invalidation }) => {",
+      "  const save = useCaught({ trpc, invalidation });",
+      "  const [failure, setFailure] = useState(null);",
+      '  const run = async () => { try { await save.mutateAsync({}); } catch { setFailure("no"); } };',
+      "  return <p>{failure}</p>;",
+      "};",
+      "export const CaughtAndToasted = ({ trpc, invalidation }) => {",
+      "  const save = useCaughtAndToasted({ trpc, invalidation });",
+      "  const [failure, setFailure] = useState(null);",
+      '  const run = async () => { try { await save.mutateAsync({}); } catch { setFailure("no"); } };',
+      "  return <p>{failure}</p>;",
+      "};",
+    ].join("\n"),
+  });
+  const feedback = analyse(root, [], null).cohorts.find((entry) => entry.name === "feedback")?.members ?? [];
+  expect(feedback.map((member) => [member.label, member.cells["failure"]?.value])).toEqual([
+    ["useMarked", "toast"],
+    ["useSplit", "toast"],
+    ["useCaught", "inline"],
+    ["useCaughtAndToasted", "toast+inline"],
+  ]);
+});
+
 test("a section's list boundary is the shell, the boundary or none", ({ scratch }) => {
   const root = plantDir(scratch, "structure");
   plant(root, {

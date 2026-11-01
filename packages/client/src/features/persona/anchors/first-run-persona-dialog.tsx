@@ -45,9 +45,9 @@ function oldestByIdOf<TRow extends { readonly id: PersonaId }>(rows: readonly TR
 export function FirstRunPersonaDialog(): ReactElement | null {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const create = useCreatePersona({ trpc, invalidation });
-  const update = useUpdatePersona({ trpc, invalidation });
-  const setSeed = useSetPersonaSeed({ trpc, invalidation });
+  const create = useCreatePersona({ trpc, invalidation, failureShownInline: true });
+  const update = useUpdatePersona({ trpc, invalidation, failureShownInline: true });
+  const setSeed = useSetPersonaSeed({ trpc, invalidation, failureShownInline: true });
   const personasQuery = useQuery(trpc.persona.list.queryOptions());
   const personas = personasQuery.data ?? [];
   // THE TRIGGER IS "CAN THIS VIEWER SPEAK", NOT "DOES A ROW EXIST" (#1570). A create-succeeds / seed-fails

@@ -18,7 +18,7 @@ export const useRestartServer = createEntityMutation<inferInput<Trpc["admin"]["r
 export const useCreateUser = createEntityMutation<inferInput<Trpc["admin"]["createUser"]>, unknown>({
   options: (trpc) => trpc.admin.createUser.mutationOptions(),
   invalidates: (trpc) => [trpc.admin.listUsers.queryFilter()],
-  errorToast: "Couldn't create the user — that handle may already be taken.",
+  // No errorToast: the create-user dialog renders the failure text.
 });
 
 /** Grant/revoke the delegated `admin` role (owner-only server-side — `requireOwner`). */
@@ -40,14 +40,14 @@ export const useSetEnabled = createEntityMutation<inferInput<Trpc["admin"]["setE
 export const useLinkSsoIdentity = createEntityMutation<inferInput<Trpc["admin"]["linkSsoIdentity"]>, unknown>({
   options: (trpc) => trpc.admin.linkSsoIdentity.mutationOptions(),
   invalidates: (trpc) => [trpc.admin.listUsers.queryFilter()],
-  errorToast: "Couldn't link the SSO identity — that subject may already be linked to another account.",
+  // No errorToast: the link dialog renders the failure text.
 });
 
 /** Set a user's local password (revokes all of their live sessions server-side). */
 export const useResetPassword = createEntityMutation<inferInput<Trpc["admin"]["resetPassword"]>, unknown>({
   options: (trpc) => trpc.admin.resetPassword.mutationOptions(),
   invalidates: (trpc) => [trpc.admin.listSessions.pathFilter()],
-  errorToast: "Couldn't reset the password.",
+  // No errorToast: the reset dialog renders the failure text.
 });
 
 /** Revoke ONE session (the per-device kick). */
@@ -71,7 +71,7 @@ export const useRevokeUserSessions = createEntityMutation<inferInput<Trpc["admin
 export const useUpdateAppOverrides = createEntityMutation<{ readonly partial: AppSettings }, EffectiveAppConfig>({
   options: (trpc) => trpc.settings.updateAppSettings.mutationOptions(),
   invalidates: (trpc) => [trpc.settings.getAppSettings.queryFilter(), trpc.settings.getAppSettingsWithOverrides.queryFilter()],
-  errorToast: "Couldn't save the setting.",
+  // No errorToast: every consumer renders the failure text through AdminOverrideResetRow.
 });
 
 /** Refresh ONE provider's model catalog (`GET /models` → write the KV snapshot, warm the cache) — the

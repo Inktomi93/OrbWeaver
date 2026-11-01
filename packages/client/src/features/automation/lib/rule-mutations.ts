@@ -75,7 +75,7 @@ export const useCreateRule = createEntityMutation<
   },
   // The owner-global key is shared across sign-ins; an old settle must not refetch the new viewer's list.
   invalidates: (trpc, vars) => (ruleDraftOwnerCurrent(vars.cacheOwnerId) ? [ruleListFilter(trpc, vars.chatId)] : []),
-  errorToast: "Couldn't create that rule. Your draft is kept.",
+  // No errorToast: the rule editor renders the failure text beside the autosave status.
 });
 
 /** Cache scope is local metadata, explicitly excluded from the strict update payload. */
@@ -91,7 +91,7 @@ export const useUpdateRule = createEntityMutation<
     update: (old, row) => echoRule(old, row),
   },
   invalidates: (trpc, vars) => (ruleDraftOwnerCurrent(vars.cacheOwnerId) ? [ruleListFilter(trpc, vars.chatId)] : []),
-  errorToast: "Couldn't save that rule. Your draft is kept.",
+  // No errorToast: the rule editor renders the failure text beside the autosave status.
 });
 
 /** Ordering covers the complete selected scope, including the author's global scope. */
