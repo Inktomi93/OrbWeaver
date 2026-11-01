@@ -95,6 +95,9 @@ export interface GatherTurnContextArgs {
 export interface ChatRpgGatherData {
   readonly macros: Readonly<Record<string, string>>;
   readonly injections: readonly ChatInjection[];
+  /** `injections` as an AI-to-AI beat should read them, present only when they differ: the note that answers the
+   *  player's own dice stamp is left out, because a chained beat answers another character. */
+  readonly chainInjections?: readonly ChatInjection[] | undefined;
   readonly tools: readonly string[];
   /** The `{{expr::...}}` activation a game turn contributes: a data-only `rpg` binding shaped as a tree of
    *  scalars, lists and maps. Absent means `{{expr::rpg...}}` renders empty (non-game). */

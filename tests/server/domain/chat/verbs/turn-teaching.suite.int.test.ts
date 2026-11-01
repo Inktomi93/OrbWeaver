@@ -7,6 +7,7 @@ import { CHAT_REACT_TOOL_NAME } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
+import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
@@ -15,6 +16,7 @@ import { REACTION_ANONYMOUS_REACTOR, REACTION_WHOLE_MESSAGE_TARGET, reactionNote
 import { coreProse } from "../engine/core-physical.ts";
 import { inputMessages, invitePerson, messageText, personaInputs, personaRoom, seatPersona } from "../persona-cache-physical.ts";
 import { textRoom, wireBodies, wireText } from "../scenario-physical.ts";
+import { TAIL_ROSTER } from "./turn-lifetimes-roster.ts";
 import { turnRpgReply, turnRpgRoom, turnToolsRoom, turnWireBody } from "./turn-rpg-physical.ts";
 
 const CHOICES_TEACH = PROSE_SLOTS["rpg.reminder.cyoaTeach"].text;
@@ -126,6 +128,72 @@ test("the player's dice stamp is honoured by the turns answering it and by no la
 
   const oldSwipe = await newestWireAfter(h, () => h.root.services.chat.swipe({ ...params, messageId: reply.id }));
   expect(oldSwipe).not.toContain(roll);
+});
+
+const ROLL_NOTE = PROSE_SLOTS["rpg.reminder.playerRolledDice"].text;
+const STAMP = "[dice: d20 → 7]";
+
+function replies(count: number): (() => Response)[] {
+  return Array.from({ length: count }, () => (): Response => turnRpgReply("The keeper nods."));
+}
+
+/** Whether each provider request so far carried the roll note, oldest first. */
+async function rollNotes(h: ChatRoot): Promise<boolean[]> {
+  return (await wireBodies(h)).map((body) => wireText(body).includes(ROLL_NOTE));
+}
+
+test("an auto-mode beat answers another character, so only the turns answering the player's stamp carry the note", async () => {
+  await using h = await turnRpgRoom(replies(8), {
+    characters: TAIL_ROSTER.slice(0, 2),
+    group: { output: "per-speaker", policy: "list", allowSelfResponses: false, autoMode: true, autoModeMaxTurns: 2, autoModeDelayMs: 0 },
+  });
+  await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: `I leap. ${STAMP}` });
+  await h.root.settleBackground();
+  // The group send's two speakers both answer the player; the two chained beats answer each other.
+  expect(await rollNotes(h)).toEqual([true, true, false, false]);
+});
+
+test("a generate on the stamped tail answers it; a generate on any later tail does not", async () => {
+  await using h = await turnRpgRoom(replies(3));
+  const params = { principal: h.owner, chatId: h.chatId };
+  await h.root.services.chat.commitMessage({ ...params, content: `I leap. ${STAMP}` });
+  await h.root.services.chat.generate(params);
+  await h.root.settleBackground();
+  await h.root.services.chat.generate(params);
+  await h.root.settleBackground();
+  expect(await rollNotes(h)).toEqual([true, false]);
+});
+
+test("a hidden stamped message is off the wire, so a swipe is not told its roll", async () => {
+  await using h = await turnRpgRoom(replies(3));
+  const params = { principal: h.owner, chatId: h.chatId };
+  await h.root.services.chat.send({ ...params, content: `I leap. ${STAMP}` });
+  await h.root.settleBackground();
+  const { messages } = await h.root.services.chat.listMessages(params);
+  const user = messages.find(({ role }) => role === "user");
+  const reply = messages.findLast(({ role }) => role === "assistant");
+  if (user === undefined || reply === undefined) {
+    throw new Error("the send wrote no rows");
+  }
+  await h.root.services.chat.setMessageHidden({ ...params, messageId: user.id, hidden: true });
+  await h.root.services.chat.swipe({ ...params, messageId: reply.id });
+  await h.root.settleBackground();
+  expect(await rollNotes(h)).toEqual([true, false]);
+});
+
+test("a USER_INPUT regex that strips the stamp leaves nothing for the note to answer", async () => {
+  await using h = await turnRpgRoom(replies(2));
+  const script = await h.root.services.regex.createScript({
+    principal: h.owner,
+    input: createRegexScriptSchema.parse({ name: "Strip dice", findRegex: "/\\[dice:[^\\]]*\\]/g", replaceString: "", placement: ["USER_INPUT"] }),
+  });
+  await h.root.services.regex.attachGlobal({ principal: h.owner, scriptId: script.id });
+  await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: `I leap. ${STAMP}` });
+  await h.root.settleBackground();
+  const wire = wireText((await wireBodies(h)).at(-1) ?? null);
+  expect(wire).toContain("I leap.");
+  expect(wire).not.toContain(STAMP);
+  expect(wire).not.toContain(ROLL_NOTE);
 });
 
 test("a dice stamp quoted as code is not a roll", async () => {

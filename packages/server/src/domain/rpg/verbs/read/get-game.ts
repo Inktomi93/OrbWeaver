@@ -1,6 +1,7 @@
 // domain/rpg/verbs/read/get-game — getGame (D58). The takeover's mode read + the honest-arms
-// delivery verdicts (`trackersReadOnly` = the model write path for this game's mode; `canPopulate` = the
-// structured writer the host born-state round needs — one resolve, both answers). Member-gated.
+// delivery verdicts (`effectiveDelivery`, which folds in the model write path for this game's mode; `canPopulate` =
+// the structured writer the host born-state round needs — one resolve, both answers). The read-only flag itself is
+// the tracker view's. Member-gated.
 
 import type { RpgGameView } from "@orb/contracts/rpg";
 import type { ReadGameParams } from "#src/domain/rpg/contract/params.ts";
