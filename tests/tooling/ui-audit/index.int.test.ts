@@ -1039,7 +1039,14 @@ test("the non-replacing twin is a verdict — the revision fence does not refuse
 const CUSTOM_LIGHT_ID = "theme_01customlight000000000000";
 const CUSTOM_DARK_ID = "theme_01customdark0000000000000";
 
-function serveCustomThemeProof(): Promise<{ readonly base: string; readonly close: () => void; readonly mutations: () => number }> {
+/** The block-box carrier the first custom-theme proof used: the scope paints its own surface. */
+const BLOCK_SCOPE_MARKUP = `<div id="scope" data-slot="theme-scope"><main>
+<p style="font-size:16px;margin:24px">the custom theme subject</p>
+</main></div>`;
+
+function serveCustomThemeProof(
+  scopeMarkup: string = BLOCK_SCOPE_MARKUP,
+): Promise<{ readonly base: string; readonly close: () => void; readonly mutations: () => number }> {
   let writes = 0;
   const library = [
     { id: CUSTOM_LIGHT_ID, name: "Custom Light", isSeed: false },
@@ -1047,9 +1054,7 @@ function serveCustomThemeProof(): Promise<{ readonly base: string; readonly clos
   ];
   const html = `<!doctype html>
 <html style="color-scheme:dark"><head><meta charset="utf-8"><title>custom theme proof</title></head>
-<body style="margin:0;background:#111;color:#fff;font-family:Geist,sans-serif"><div id="scope" data-slot="theme-scope"><main>
-<p style="font-size:16px;margin:24px">the custom theme subject</p>
-</main></div><script>
+<body style="margin:0;background:#111;color:#fff;font-family:Geist,sans-serif">${scopeMarkup}<script>
 fetch('/api/trpc/settings.getUserSettings?batch=1&input=%7B%7D').then((response) => response.json()).then((body) => {
   const id = body[0].result.data.config.theme.selectedThemeId;
   const light = id === '${CUSTOM_LIGHT_ID}';
@@ -1132,6 +1137,42 @@ test("custom light and dark requests prove catalog source, inline carrier, and e
     expect(server.mutations(), "the proof shim must remain read-only").toBe(0);
   } finally {
     server.close();
+  }
+});
+
+/** The app shell's real carrier shape: a `display: contents` scope that paints no box of its own, its
+ *  palette painted by a descendant, holding a nested preview-tile scope with a different palette. */
+function contentsScopeMarkup(withDecoyTile: boolean): string {
+  const decoy = withDecoyTile
+    ? `<div data-slot="theme-scope" style="--color-background:#1e3a8a;--color-foreground:#eff6ff;background:var(--color-background);color:var(--color-foreground);color-scheme:dark;padding:12px;margin:24px"><p style="font-size:16px;margin:0">a preview tile of another theme</p></div>`
+    : "";
+  return `<div id="scope" data-slot="theme-scope" style="display:contents"><main style="background:var(--color-background);color:var(--color-foreground);min-block-size:100vh;overflow:hidden">
+${decoy}<p style="font-size:16px;margin:24px">the custom theme subject</p>
+</main></div>`;
+}
+
+test("a custom palette on a display:contents shell scope is the carrier, never a nested preview tile's", async ({ runCli }) => {
+  for (const [name, withDecoyTile, background] of [
+    ["Custom Light", true, "#f8f8f8"],
+    ["Custom Dark", false, "#111111"],
+  ] as const) {
+    const server = await serveCustomThemeProof(contentsScopeMarkup(withDecoyTile));
+    try {
+      const res = await runCli("snap", ["/", "--base", server.base, "--theme", name, ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
+      expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+      expect(res.stdout, `${name}: a custom theme on the shell's contents scope must run, not refuse`).not.toContain("rendered provenance");
+      expect(res.stdout).toContain("theme-source=custom");
+      const artifact = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as {
+        themeEvidence: { rendered: { shellScope: { present: boolean; inlineBackground: string | null; colorScheme: string | null } } };
+      };
+      expect(artifact.themeEvidence.rendered.shellScope, `${name}: the shell scope's palette, decoy tile=${String(withDecoyTile)}`).toEqual({
+        present: true,
+        inlineBackground: background,
+        colorScheme: withDecoyTile ? "light" : "dark",
+      });
+    } finally {
+      server.close();
+    }
   }
 });
 

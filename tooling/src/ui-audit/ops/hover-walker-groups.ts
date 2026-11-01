@@ -27,6 +27,8 @@ export const HOVER_DENOMINATOR = `
   var hoverComplexPaint = 0;
   var hoverUnresolvedSubject = 0;
   var hoverUnreadableColor = 0;
+  var hoverSrOnly = 0;
+  var hoverSrOnlyUnreadable = 0;
   var hoverTextCandidates = 0;
   function hoverRestKey(color, backdrop) {
     return JSON.stringify([color, backdrop]);
@@ -53,6 +55,14 @@ export const HOVER_DENOMINATOR = `
     var tel = allEls[ti];
     if (!isVisible(tel)) continue;
     if (directTextOf(tel) === "") continue;
+    // Screen-reader-only text paints no pixels, so it has no hover contrast to judge.
+    var telSrOnly = srOnlyText(tel, null);
+    if (telSrOnly !== false) {
+      hoverTextCandidates += 1;
+      if (telSrOnly === true) hoverSrOnly += 1;
+      else hoverSrOnlyUnreadable += 1;
+      continue;
+    }
     var hoverEntry = hoverPaintOf.get(tel);
     var attrEntry = attrPaintOf.get(tel);
     var isPseudoPainted = pseudoPaintEls.get(tel) === true;
