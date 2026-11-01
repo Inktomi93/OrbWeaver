@@ -16,7 +16,7 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { useUpdateMessageDetails } from "../hooks/appearance-message-details-section-mutations.ts";
+import { useUpdateMessageDetails } from "../hooks/use-chat-settings-mutations.ts";
 import { APPEARANCE_MESSAGE_DETAILS_KEYS, APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY } from "../lib/appearance-message-details-model.ts";
 import { MESSAGE_ACTIONS_ITEMS } from "../lib/appearance-select-items.ts";
 

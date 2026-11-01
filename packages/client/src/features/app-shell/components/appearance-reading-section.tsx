@@ -18,7 +18,7 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { useUpdateReading } from "../hooks/appearance-reading-section-mutations.ts";
+import { useUpdateReading } from "../hooks/use-appearance-mutations.ts";
 import { APPEARANCE_READING_KEYS, APPEARANCE_READING_SUBCATEGORY } from "../lib/appearance-reading-model.ts";
 
 const READING_LINE_HEIGHT_MIN = 1.2;

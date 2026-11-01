@@ -13,7 +13,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { cancelEditingReasoning, setReasoningEditDraft, startEditingReasoning, useIsEditingReasoning, useReasoningEditDraftText } from "#state";
-import { useClearReasoningMutation, useEditReasoningMutation } from "../hooks/message-reasoning-mutations.ts";
+import { useClearReasoningMutation, useEditReasoningMutation } from "../hooks/use-message-mutations.ts";
 import {
   MESSAGE_REASONING_CANCEL_NAME,
   MESSAGE_REASONING_CLEAR_CONFIRM,

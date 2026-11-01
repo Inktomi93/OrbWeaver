@@ -24,7 +24,7 @@ import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { useId } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
-import { useSwipeMutation } from "../hooks/swipe-strip-mutations.ts";
+import { useSwipeMutation } from "../hooks/use-message-mutations.ts";
 import { useSelectVariantMutation } from "../hooks/use-select-variant.ts";
 import { useSwipeKeyboardNav } from "../hooks/use-swipe-keyboard-nav.ts";
 import { useVariantHistory } from "../hooks/use-variant-history.ts";

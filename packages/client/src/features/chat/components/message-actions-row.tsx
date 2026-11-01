@@ -39,13 +39,7 @@ import { DescribedMenuItem } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { copyWithNotice, NEEDS_CONTINUATION, notify, testId } from "#lib";
 import { selectChat, startEditingMessage } from "#state";
-import {
-  useDeleteMutation,
-  useForkMutation,
-  useHideMutation,
-  useRevertContinueMutation,
-  useUndoContinueMutation,
-} from "../hooks/message-actions-row-mutations.ts";
+import { useDeleteMutation, useForkMutation, useHideMutation, useRevertContinueMutation, useUndoContinueMutation } from "../hooks/use-message-mutations.ts";
 import { useReactionsEnabled, useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
 import { useReattributeTarget } from "../hooks/use-reattribute-target.ts";
 import { MESSAGE_VIEW_WIRE_TRACE_NAME } from "../lib/message-action-names.ts";

@@ -18,7 +18,7 @@ import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { ContributorRegistry, ToolRenderer } from "#lib";
 import { MessageToolsRendererRegistryContext } from "#state";
-import { useEditToolCall } from "../hooks/message-tool-calls-mutations.ts";
+import { useEditToolCall } from "../hooks/use-message-mutations.ts";
 
 export interface MessageToolCallsProps {
   readonly message?: MessageView;

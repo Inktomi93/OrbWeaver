@@ -45,10 +45,10 @@ function ModelMetadata({ entry, picked, current }: Parameters<typeof ModelPicker
     <Row align="center" className="flex-wrap min-inline-0 @max-cq-32:inline-full @cq-32:shrink-0" gap="field">
       {vision ? (
         <Badge tone="info" variant="solid" size="sm">
-          vision
+          Vision
         </Badge>
       ) : null}
-      {tools ? <Badge size="sm">tools</Badge> : null}
+      {tools ? <Badge size="sm">Tools</Badge> : null}
       {context === null ? null : (
         <Text as="span" voice="datumMono">
           {context}

@@ -22,7 +22,7 @@ import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, usePromptMacroSuggestions, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
-import { useUpdateImagery } from "../hooks/imagery-templates-section-mutations.ts";
+import { useUpdateImagery } from "../hooks/use-chat-settings-mutations.ts";
 import { IMAGERY_TEMPLATES_ENTITY_ID, ImageryTemplatesAutosaveForm } from "../hooks/use-imagery-templates-form.ts";
 import type { ImageryTemplatesForm } from "../lib/imagery-templates-model.ts";
 import { projectImageryTemplatesForm, toImageryTemplatesPatch } from "../lib/imagery-templates-model.ts";

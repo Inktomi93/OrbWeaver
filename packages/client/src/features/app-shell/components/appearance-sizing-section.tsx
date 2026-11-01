@@ -19,7 +19,7 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { useUpdateSizing } from "../hooks/appearance-sizing-section-mutations.ts";
+import { useUpdateSizing } from "../hooks/use-appearance-mutations.ts";
 import { useIsBelowShellContentFloor } from "../hooks/use-is-mobile-viewport.ts";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN, FONT_SCALE_MAX, FONT_SCALE_MIN, FONT_SCALE_STEP } from "../lib/appearance-bounds.ts";
 import { OS_PREFERENCE_ITEMS } from "../lib/appearance-select-items.ts";

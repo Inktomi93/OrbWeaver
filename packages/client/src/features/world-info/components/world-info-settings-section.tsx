@@ -17,8 +17,8 @@ import { QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
+import { useUpdateWorldInfoSettings } from "../hooks/use-world-info-mutations.ts";
 import { WORLD_INFO_SETTINGS_ENTITY_ID, WorldInfoSettingsAutosaveForm } from "../hooks/use-world-info-settings-form.ts";
-import { useUpdateWorldInfoSettings } from "../hooks/world-info-settings-section-mutations.ts";
 import { SCAN_DEPTH_MAX, SCAN_DEPTH_MIN, WI_TOKEN_BUDGET_MAX, WI_TOKEN_BUDGET_MIN } from "../lib/world-info-settings-model.ts";
 import { WORLD_INFO_SETTINGS_SUBCATEGORY } from "../lib/world-info-settings-nav.ts";
 

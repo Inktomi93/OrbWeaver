@@ -18,7 +18,7 @@ import type { ReactElement } from "react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { useColorQuotedSpeech, useInvalidation, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
-import { useGenerateGreetingMutation, useRewriteGreetingMutation } from "../hooks/greeting-studio-mutations.ts";
+import { useGenerateGreetingMutation, useRewriteGreetingMutation } from "../hooks/use-character-mutations.ts";
 
 export interface GreetingStudioProps {
   readonly characterId: CharacterId;

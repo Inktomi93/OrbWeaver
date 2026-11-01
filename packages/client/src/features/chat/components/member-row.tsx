@@ -199,7 +199,7 @@ function RowStateBadges({ row }: { readonly row: MemberPersonRow | MemberCharact
           Host
         </Badge>
       ) : null}
-      {row.isViewer ? <Badge size="sm">you</Badge> : null}
+      {row.isViewer ? <Badge size="sm">You</Badge> : null}
       {row.pendingNominee ? (
         <Badge size="sm" tone="info">
           Nominated

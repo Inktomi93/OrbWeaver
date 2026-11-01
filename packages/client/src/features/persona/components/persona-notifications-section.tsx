@@ -8,7 +8,7 @@ import { Section } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, SettingSwitchRow } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { useSetPersonaPrefs } from "../hooks/persona-notifications-section-mutations.ts";
+import { useSetPersonaPrefs } from "../hooks/use-persona-mutations.ts";
 import { PERSONA_NOTIFICATIONS_SUBCATEGORY } from "../lib/personas-nav.ts";
 
 export function PersonaNotificationsSection({ anchorId }: { readonly anchorId: string }): ReactElement {

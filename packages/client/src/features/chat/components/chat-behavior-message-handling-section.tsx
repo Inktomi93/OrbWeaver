@@ -18,7 +18,7 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { useUpdateMessageHandling } from "../hooks/chat-behavior-message-handling-section-mutations.ts";
+import { useUpdateMessageHandling } from "../hooks/use-chat-settings-mutations.ts";
 import type { ChatMessageHandlingForm } from "../lib/chat-behavior-message-handling-model.ts";
 import {
   AUTO_CONTINUE_ROUNDS_MAX,

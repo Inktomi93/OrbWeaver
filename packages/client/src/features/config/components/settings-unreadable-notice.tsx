@@ -35,7 +35,7 @@ import { ConfirmDialog, StoredConfigUnreadableNotice } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { SaveUnwritableContext } from "#forms";
 import { SETTINGS_UNREADABLE_COPY, unreadableConfigCause } from "#lib";
-import { useResetUserConfig } from "../hooks/settings-unreadable-notice-mutations.ts";
+import { useResetUserConfig } from "../hooks/use-config-mutations.ts";
 
 /** The pane gate: transparent while the stored blob reads fine, the state + its door when it does not. */
 export function SettingsUnreadableGate({ children }: { readonly children: ReactNode }): ReactElement {

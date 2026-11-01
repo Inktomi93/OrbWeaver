@@ -26,7 +26,7 @@ import { ChevronLeft, ChevronRight, Icon } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { useSetSeededGreeting } from "../hooks/greeting-swipe-strip-mutations.ts";
+import { useSetSeededGreeting } from "../hooks/use-message-mutations.ts";
 import { variantCountName } from "../lib/message-action-names.ts";
 import type { SwipeFoot } from "../lib/pager-chrome.ts";
 import { SwipeFootRow } from "./swipe-strip.tsx";

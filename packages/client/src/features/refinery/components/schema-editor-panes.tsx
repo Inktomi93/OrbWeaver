@@ -104,7 +104,7 @@ export function PreviewCard({
       <Stack gap="row" padding="block">
         <Row align="center" gap="field">
           <Text voice="kicker">Render preview</Text>
-          <RefineryChip tone="info">the same renderer every run uses</RefineryChip>
+          <RefineryChip tone="info">The same renderer every run uses</RefineryChip>
         </Row>
         {/* The test drill's own loading arm (P1-10: "no loading affordance on any model call"). A
             `testSchema` turn is a real model round-trip; while it runs, the preview keeps painting the

@@ -29,9 +29,9 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { COLLECTION_LARGE_GROUP, regexScriptScent, regexScriptTitle, timeLib } from "#lib";
+import { useAttachCharacter, useAttachChat, useAttachPreset, useDetachCharacter, useDetachChat, useDetachPreset } from "./regex-mutations.ts";
 import { RegexScopeOrder } from "./regex-scope-order.tsx";
 import { scopeOrderShowsGrips } from "./regex-scope-order-model.ts";
-import { useAttachCharacter, useAttachChat, useAttachPreset, useDetachCharacter, useDetachChat, useDetachPreset } from "./regex-script-picker-mutations.ts";
 
 // Every regex verb is `busDriven` (`regexChanged` path-invalidates the whole router), so no call site
 // hand-invalidates its own attached-list read. The six factories live at the BOTTOM of this file, next to

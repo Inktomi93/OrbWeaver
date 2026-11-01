@@ -13,7 +13,7 @@ import { useId } from "react";
 import { DescribedMenuItem } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { isLiveTurnPhase, useTurnPhase } from "#state";
-import { useReattributeVoice } from "../hooks/reattribute-voice-menu-mutations.ts";
+import { useReattributeVoice } from "../hooks/use-message-mutations.ts";
 import { MESSAGE_REATTRIBUTE_GENERATING, MESSAGE_REATTRIBUTE_NO_OTHER_SEAT, MESSAGE_REATTRIBUTE_VOICE_NAME } from "../lib/message-action-names.ts";
 
 interface VoiceSubmenuProps {

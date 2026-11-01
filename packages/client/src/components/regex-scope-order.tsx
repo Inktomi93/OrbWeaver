@@ -36,8 +36,8 @@ import { SortableList } from "@orb/ui/sortable";
 import type { ReactElement, ReactNode } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { COLLECTION_LARGE_GROUP, regexScriptTitle } from "#lib";
+import { useApplyRegexScopeOrder } from "./regex-mutations.ts";
 import { ORDERABLE_MINIMUM } from "./regex-scope-order-model.ts";
-import { useApplyRegexScopeOrder } from "./regex-scope-order-mutations.ts";
 
 export interface RegexScopeOrderProps {
   /** WHICH junction the rewrite addresses — the `@orb/contracts/regex` union the router validates. */

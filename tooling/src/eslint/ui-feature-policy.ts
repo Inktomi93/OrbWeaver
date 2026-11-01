@@ -230,6 +230,16 @@ export const UI_FEATURE_RESTRICTIONS = [
     ],
   },
   {
+    id: "library-surface-row",
+    selectors: [
+      {
+        selector: "JSXOpeningElement[name.name='ListRow']",
+        message:
+          "A list or library surface composes `LibraryRow` (`#components`); its `leading`, `markers`, `trailing` and `actions` slots cover a row's anatomy.",
+      },
+    ],
+  },
+  {
     id: "no-single-row-textarea",
     selectors: [
       {

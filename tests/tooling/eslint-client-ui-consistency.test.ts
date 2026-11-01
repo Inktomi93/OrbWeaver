@@ -85,6 +85,15 @@ test("a word that is not a class and a token utility pass the paint-class rule",
   expect(found.filter(({ message }) => message.includes("raw radius, shadow, border"))).toEqual([]);
 });
 
+const LIBRARY_ROW = "orb/library-surface-row";
+const LIST_SURFACE = "packages/client/src/features/stats/surfaces/probe-list-surface.tsx";
+
+test("a raw ListRow in a list surface is a finding; LibraryRow and other files pass", async () => {
+  expect(await findings(LIBRARY_ROW, "export const A = () => <ListRow title='a' />;", LIST_SURFACE)).toHaveLength(1);
+  expect(await findings(LIBRARY_ROW, "export const A = () => <LibraryRow title='a' />;", LIST_SURFACE)).toEqual([]);
+  expect(await findings(LIBRARY_ROW, "export const A = () => <ListRow title='a' />;")).toEqual([]);
+});
+
 const INTRINSIC = "orb/no-raw-interactive-intrinsics";
 
 test.for(["label", "ul", "ol", "hr", "h2", "dialog", "table", "button"])("a raw <%s> in a feature is a finding", async (tag) => {

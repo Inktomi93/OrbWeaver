@@ -31,7 +31,7 @@ import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTR
 import { CAPPED_FIELD_MAX_ROWS } from "#forms";
 import type { AutosaveSession } from "#forms/editor";
 import { CappedFieldCounter, createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { useUpdateProse } from "../hooks/prose-settings-section-mutations.ts";
+import { useUpdateProse } from "../hooks/use-chat-settings-mutations.ts";
 import {
   keepProsePatch,
   PROSE_SETTINGS_SUBCATEGORY,

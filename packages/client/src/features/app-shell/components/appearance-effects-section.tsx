@@ -22,7 +22,7 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, SettingSw
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { useUpdateEffects } from "../hooks/appearance-effects-section-mutations.ts";
+import { useUpdateEffects } from "../hooks/use-appearance-mutations.ts";
 import { BLUR_STRENGTH_MAX, BLUR_STRENGTH_MIN } from "../lib/appearance-bounds.ts";
 import { APPEARANCE_EFFECTS_KEYS, APPEARANCE_EFFECTS_SUBCATEGORY } from "../lib/appearance-effects-model.ts";
 import { BLUR_SURFACE_ITEMS, SURFACE_TEXTURE_ITEMS } from "../lib/appearance-select-items.ts";

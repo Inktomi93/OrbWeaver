@@ -13,7 +13,7 @@ import { useLayoutEffect, useRef } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
 import { cancelEditingMessage, setMessageEditDraft, useMessageEditDraftText } from "#state";
-import { useEditMessageMutation } from "../hooks/message-edit-textarea-mutations.ts";
+import { useEditMessageMutation } from "../hooks/use-message-mutations.ts";
 import { MESSAGE_EDIT_NAME } from "../lib/message-action-names.ts";
 import type { MoveNeighbours } from "../lib/move-neighbours.ts";
 import { MessageMoveArrows } from "./message-move-arrows.tsx";

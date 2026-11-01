@@ -17,7 +17,7 @@ import { QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
-import { useUpdateDatabank } from "../hooks/databank-settings-section-mutations.ts";
+import { useUpdateDatabank } from "../hooks/use-chat-settings-mutations.ts";
 import { DATABANK_SETTINGS_ENTITY_ID, DatabankSettingsAutosaveForm } from "../hooks/use-databank-settings-form.ts";
 import type { DatabankSettingsForm } from "../lib/databank-settings-model.ts";
 import {

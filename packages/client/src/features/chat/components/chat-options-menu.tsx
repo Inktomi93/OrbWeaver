@@ -37,8 +37,7 @@ import {
   openCharacterGallery,
   selectChat,
 } from "#state";
-import { useSetGameEngaged, useStartGame } from "../hooks/chat-options-menu-mutations.ts";
-import { useDeleteChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutations.ts";
+import { useDeleteChat, useSetGameEngaged, useStartGame, useUpdateChatTitle } from "../hooks/use-chat-row-mutations.ts";
 import { BACK_TO_PARENT_CHAT_LABEL, CHAT_DELETE_NAME, CHAT_SELECT_MESSAGES_NAME } from "../lib/chat-options-names.ts";
 import { RenameChatDialog } from "./rename-chat-dialog.tsx";
 

@@ -7,7 +7,7 @@ import type { ReactElement } from "react";
 import { DescribedMenuItem } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { isLiveTurnPhase, useTurnPhase } from "#state";
-import { useDuplicateMutation } from "../hooks/message-duplicate-item-mutations.ts";
+import { useDuplicateMutation } from "../hooks/use-message-mutations.ts";
 import { MESSAGE_DUPLICATE_GENERATING, MESSAGE_DUPLICATE_NAME } from "../lib/message-action-names.ts";
 
 export function MessageDuplicateItem({ message }: { readonly message: MessageView }): ReactElement {

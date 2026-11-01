@@ -22,7 +22,7 @@ import { useEffect, useRef } from "react";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { START_TEMP_CHAT_NAME } from "#lib";
 import { openNewChatPicker } from "#state";
-import { useReapTemporaryChats } from "../hooks/home-temp-chat-tile-body-mutations.ts";
+import { useReapTemporaryChats } from "../hooks/use-chat-row-mutations.ts";
 
 /** This body is FIXED, not paged: one primary button and one gloss paragraph. So its first-boot skeleton
  *  is two rows, not the frame's three (#92) — declared here, beside the body it describes, and consumed by

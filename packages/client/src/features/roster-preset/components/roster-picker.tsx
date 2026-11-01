@@ -93,8 +93,8 @@ function RosterRow(props: {
                 same face as one that only adds seats. Same badge grammar as the rules pill; the word is the
                 settings section's own ("Group behavior"), and the fact rides the apply doors' accessible
                 names through `rosterCountsSuffix` — a `<span>` badge has no name to carry it. */}
-            {roster.hasGroupConfig ? <Badge className="shrink-0">group behavior</Badge> : null}
-            {roster.game === null ? null : <Badge className="shrink-0">game</Badge>}
+            {roster.hasGroupConfig ? <Badge className="shrink-0">Group behavior</Badge> : null}
+            {roster.game === null ? null : <Badge className="shrink-0">Game</Badge>}
           </Row>
           <Text voice="gloss" className="truncate">
             {characterCountPhrase(roster.characterCount)} · {memberNames}

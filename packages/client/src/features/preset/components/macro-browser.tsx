@@ -104,12 +104,12 @@ function MacroRow({ meta }: { readonly meta: MacroMetadata }): ReactElement {
         <Badge size="sm">{meta.category}</Badge>
         {meta.volatile ? (
           <Badge tone="warning" variant="solid" size="sm">
-            volatile
+            Volatile
           </Badge>
         ) : null}
         {meta.strict === true ? (
           <Badge tone="info" variant="solid" size="sm">
-            strict
+            Strict
           </Badge>
         ) : null}
         {meta.source !== undefined ? (

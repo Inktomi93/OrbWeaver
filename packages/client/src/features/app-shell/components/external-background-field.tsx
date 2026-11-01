@@ -19,7 +19,7 @@ import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { useAddExternalBackground } from "../hooks/external-background-field-mutations.ts";
+import { useAddExternalBackground } from "../hooks/use-appearance-mutations.ts";
 
 /** The inline refusal copy — the verb's own leak-free message when it threw one, else the generic fallback
  *  (a transport/unknown failure carries no user-facing reason). `null` ⇒ no error row. */

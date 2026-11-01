@@ -6,7 +6,7 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, SettingTr
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { useUpdateQuality } from "../hooks/chat-attachment-quality-section-mutations.ts";
+import { useUpdateQuality } from "../hooks/use-chat-settings-mutations.ts";
 import { ATTACHMENT_QUALITY_LABELS, ATTACHMENT_QUALITY_SUBCATEGORY, IMAGE_DETAIL_ITEMS, VIDEO_RESOLUTION_ITEMS } from "../lib/chat-attachment-quality-model.ts";
 
 const QualityForm = createAutosaveEntityForm<AttachmentQuality>({ defaultValues: DEFAULT_ATTACHMENT_QUALITY });

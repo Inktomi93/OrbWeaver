@@ -24,7 +24,7 @@ import { useState } from "react";
 import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { exitSelectionMode, readSelectedMessageIds, useSelectedCount, useSelectionActive } from "#state";
-import { useDeleteMessages } from "../hooks/message-selection-bar-mutations.ts";
+import { useDeleteMessages } from "../hooks/use-message-mutations.ts";
 
 export interface MessageSelectionBarProps {
   readonly chatId: ChatId;

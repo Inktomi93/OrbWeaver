@@ -18,7 +18,7 @@ import { QueryBoundary, SettingRowGroup } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import type { SaveLifecycleState } from "#state";
-import { useUpdateLibrary } from "../hooks/library-settings-section-mutations.ts";
+import { useUpdateLibrary } from "../hooks/use-character-mutations.ts";
 import { LIBRARY_SETTINGS_SUBCATEGORY } from "../lib/library-settings-nav.ts";
 
 const LIBRARY_PAGE_SIZE_MIN = 10;

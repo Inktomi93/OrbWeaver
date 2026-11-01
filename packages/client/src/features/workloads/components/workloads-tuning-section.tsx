@@ -16,8 +16,8 @@ import { QueryBoundary, SettingRowGroup, SettingTrackRow, useFirstBootBox } from
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
+import { useUpdateWorkloadsTuning } from "../hooks/use-workload-mutations.ts";
 import { WORKLOADS_TUNING_ENTITY_ID, WorkloadsTuningAutosaveForm } from "../hooks/use-workloads-tuning-form.ts";
-import { useUpdateWorkloadsTuning } from "../hooks/workloads-tuning-section-mutations.ts";
 import type { WorkloadsTuningForm } from "../lib/workloads-tuning-model.ts";
 import {
   COMPUTE_THEMES_K_MAX,

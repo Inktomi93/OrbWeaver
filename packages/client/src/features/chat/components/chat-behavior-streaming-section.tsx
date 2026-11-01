@@ -17,7 +17,7 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { useUpdateStreaming } from "../hooks/chat-behavior-streaming-section-mutations.ts";
+import { useUpdateStreaming } from "../hooks/use-chat-settings-mutations.ts";
 import {
   CHAT_STREAMING_KEYS,
   CHAT_STREAMING_SUBCATEGORY,

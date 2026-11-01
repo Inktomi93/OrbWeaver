@@ -15,7 +15,7 @@ import { useId } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { isLiveTurnPhase, useTurnPhase } from "#state";
-import { useMoveMessageMutation } from "../hooks/message-move-arrows-mutations.ts";
+import { useMoveMessageMutation } from "../hooks/use-message-mutations.ts";
 import { MESSAGE_MOVE_DOWN_NAME, MESSAGE_MOVE_FAILED, MESSAGE_MOVE_NEIGHBOUR_GONE, MESSAGE_MOVE_UP_NAME } from "../lib/message-action-names.ts";
 import type { MoveNeighbours } from "../lib/move-neighbours.ts";
 import { moveReasons } from "../lib/move-neighbours.ts";
