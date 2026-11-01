@@ -67,6 +67,14 @@
     }
   }
 
+  /* An inset pane at the enlarged root keeps the inset's step in rem, which takes a third of a phone: the pane gives
+   * the column back, so a control row of its own width fits. */
+  @container shell-main (inline-size < 20rem) {
+    .shell-region-fill[data-inset] {
+      padding-inline: var(--spacing-block);
+    }
+  }
+
   /* The scrim stays mounted and fades on the shared co-motion tokens, so it never desyncs from the panel it dims;
    * it starts below the topbar so it never intercepts the topbar's own panel toggle. */
   .shell-scrim {

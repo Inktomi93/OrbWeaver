@@ -13,6 +13,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { CHARACTER_EDITOR_NAME } from "#client/features/character/lib/character-names.ts";
 import type { AppShellCharacterStory, AppShellModalStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { PlantedControlsStory } from "./_text-scale-probe-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -104,6 +105,7 @@ const QUALIFIED = {
   ],
   presetsWelcome: EVERY_CELL,
   importDialog: EVERY_CELL,
+  characterEditor: EVERY_CELL,
 } as const satisfies Record<string, readonly (readonly [Viewport, Scale])[]>;
 
 // How many of the composer row's movable actions sit in the Message tools menu in each room case, as measured.
@@ -347,6 +349,21 @@ function splitWords(subject: Element): { readonly total: number; readonly split:
     }
   }
   return { total, split };
+}
+
+/** Pairs of a save bar's painted parts that intersect: the title, the kind label, the diagnostic and the status take lines of their own, never one another's. */
+function overlappingParts(bar: Element, subpixel: number): string[] {
+  const parts = [...bar.querySelectorAll("[data-slot]")].filter((part) =>
+    part.matches('[data-slot="save-bar-title"], [data-slot="save-bar-kind"], [data-slot="save-bar-meta"], [data-slot="save-bar-actions"]'),
+  );
+  return parts.flatMap((part, index) =>
+    parts.slice(index + 1).flatMap((other) => {
+      const [a, b] = [part.getBoundingClientRect(), other.getBoundingClientRect()];
+      const inline = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+      const block = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+      return inline > subpixel && block > subpixel ? [`${part.getAttribute("data-slot")} overlaps ${other.getAttribute("data-slot")}`] : [];
+    }),
+  );
 }
 
 async function findings(scope: Locator): Promise<string[]> {
@@ -930,6 +947,23 @@ for (const [viewport, scale] of QUALIFIED.importDialog) {
       expect(frame?.x ?? -1).toBeGreaterThanOrEqual(-SUBPIXEL);
       expect((frame?.x ?? 0) + (frame?.width ?? 0)).toBeLessThanOrEqual(viewport.size.width + SUBPIXEL);
       await expect.poll(() => findings(dialog)).toEqual([]);
+      expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
+    });
+  });
+}
+
+for (const [viewport, scale] of QUALIFIED.characterEditor) {
+  test.describe(`character editor at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    test("keeps the save bar's parts apart and the editor's controls inside its column", async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: "characters" });
+      await mount<typeof AppShellCharacterStory>(`${SHELL_STORIES}/AppShellCharacterStory`, { characterId: await firstCharacterId() });
+      const editor = page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true });
+      await expect(editor).toBeVisible();
+      await scaleRoot(page, scale.factor);
+      await expect.poll(() => editor.locator('[data-slot="save-bar-root"]').evaluate(overlappingParts, SUBPIXEL)).toEqual([]);
+      await expect.poll(() => findings(editor)).toEqual([]);
       expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
     });
   });

@@ -11,8 +11,9 @@ export const saveBarVariants = tv({
     // `flex-wrap` + `@container/save-bar` are what make the `meta` slot's narrow arm possible: the DIAGNOSTIC
     // drops to a line of its own below the identity instead of eating it (see the `meta` slot).
     root: "@container/save-bar sticky z-(--z-raised) flex flex-wrap items-center justify-between gap-row border-border bg-card px-block py-row tone-host-card",
-    // `flex-1`: the identity CLAIMS the free width rather than merely being allowed to shrink into it.
-    label: "flex flex-1 items-baseline gap-field min-inline-0",
+    // `grow`: the identity CLAIMS the free width rather than merely being allowed to shrink into it. Below `@cq-16` it
+    // takes a whole line, so the status wraps under it instead of the kind label running over the status.
+    label: "flex grow basis-full items-baseline gap-field min-inline-0 @cq-16/save-bar:basis-0",
     title: "truncate text-body leading-body font-medium text-foreground",
     kind: "shrink-0 text-label leading-label text-muted-foreground",
     // THE DIAGNOSTIC SLOT, AND WHY IT IS NOT `actions` (side-eye 2026-08-18 P1-4). At 430px the character

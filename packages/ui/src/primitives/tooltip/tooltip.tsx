@@ -208,9 +208,7 @@ export function TooltipPopup(props: TooltipPopupProps): ReactElement {
   );
 }
 
-export interface TooltipViewportProps extends Omit<BaseViewportProps, "className"> {
-  className?: string;
-}
+export type TooltipViewportProps = Omit<BaseViewportProps, "className">;
 
 /**
  * OPTIONAL transition container — render it INSIDE `<TooltipPopup>` when ONE tooltip serves several
@@ -219,26 +217,24 @@ export interface TooltipViewportProps extends Omit<BaseViewportProps, "className
  * `data-activation-direction`/`data-transitioning`. A per-trigger tooltip needs nothing here.
  */
 export function TooltipViewport(props: TooltipViewportProps): ReactElement {
-  const { className, children, ...rest } = props;
+  const { children, ...rest } = props;
   if (use(TooltipDescriptionCopyContext)) {
     return <>{children}</>;
   }
   return (
-    <BaseTooltip.Viewport className={className} data-slot="tooltip-viewport" {...rest}>
+    <BaseTooltip.Viewport data-slot="tooltip-viewport" {...rest}>
       {children}
     </BaseTooltip.Viewport>
   );
 }
 
-export interface TooltipArrowProps extends Omit<BaseArrowProps, "className"> {
-  className?: string;
-}
+export type TooltipArrowProps = Omit<BaseArrowProps, "className">;
 
 export function TooltipArrow(props: TooltipArrowProps): ReactElement | null {
-  const { className, ...rest } = props;
+  const rest = props;
   if (use(TooltipDescriptionCopyContext)) {
     // Pure decoration — the description copy is text, and an arrow glyph in it would be announced.
     return null;
   }
-  return <BaseTooltip.Arrow className={slots.arrow({ className })} data-slot="tooltip-arrow" {...rest} />;
+  return <BaseTooltip.Arrow className={slots.arrow()} data-slot="tooltip-arrow" {...rest} />;
 }

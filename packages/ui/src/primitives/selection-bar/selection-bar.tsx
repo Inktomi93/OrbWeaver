@@ -13,11 +13,10 @@ export interface SelectionBarProps {
   children?: ReactNode;
   /** `sticky` (default) pins to the bottom edge of a scroll container; `floating` is a centered pill. */
   placement?: "sticky" | "floating";
-  className?: string;
 }
 
 /** Bulk-action chrome. Render-null-when-zero is the caller's concern — this primitive always renders exactly what it's given. */
-export function SelectionBar({ count, onClear, children, placement, className }: SelectionBarProps): ReactElement {
+export function SelectionBar({ count, onClear, children, placement }: SelectionBarProps): ReactElement {
   const slots = selectionBarVariants({ placement });
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -37,7 +36,7 @@ export function SelectionBar({ count, onClear, children, placement, className }:
   }, [onClear]);
 
   return (
-    <div className={slots.root({ className })} data-slot="selection-bar-root" ref={rootRef}>
+    <div className={slots.root()} data-slot="selection-bar-root" ref={rootRef}>
       <span aria-live="polite" className={slots.count()} data-slot="selection-bar-count">
         {count} selected
       </span>

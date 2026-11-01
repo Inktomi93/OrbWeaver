@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "drop-unsupplied-classname"
+version: "0.1.0"
+description: "Drop the className prop from the seals a map names, where no caller supplies one, so an override fails to compile."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["tsx"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

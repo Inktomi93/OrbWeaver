@@ -26,10 +26,10 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { ConfirmDialog, SettingTrackRow } from "#components";
 
-/** The numeric row's floor formatter — the SAME default `Intl.NumberFormat` Base UI's NumberField formats
- *  its visible value with (locale + options both defaulted), so the floor sentence reads in the same
- *  grouping as the control above it ("1,024" can never sit over "Default: 1024."). */
-const NUMERIC_FLOOR_FORMAT = new Intl.NumberFormat();
+/** The numeric row's floor formatter — the SAME default format the NumberField primitive formats its visible
+ *  value with (locale defaulted, grouping off), so the floor sentence reads in the same digits as the control
+ *  above it ("1024" can never sit over "Default: 1,024."). */
+const NUMERIC_FLOOR_FORMAT = new Intl.NumberFormat(undefined, { useGrouping: false });
 
 /** The muted "Overridden / Using the default" line beneath every override control. A `null` floor means the
  *  caller CANNOT name it: `getAppSettingsWithOverrides` returns floor ⊕ override, so once an override is

@@ -24,6 +24,10 @@ function stepperLabel(verb: string, subject: string | undefined): string {
 
 const SCRUB_CURSOR_ICON: ReactElement = <Icon icon={MoveHorizontal} size="xs" />;
 
+// An editable number is the digits a person types: Base UI groups by default, which turns a port into "8,443". A
+// caller that wants grouping opts in through `format`, which is merged over this.
+const EDITABLE_FORMAT: Intl.NumberFormatOptions = { useGrouping: false };
+
 /**
  * The ONE home for the bounds sentence — no call site spells it, so none can drift from it.
  *
@@ -117,10 +121,11 @@ export function NumberField(props: NumberFieldProps): ReactElement {
   const hasSteppers = layout !== "inline" && layout !== "tile";
   const hasScrub = scrubLabel !== undefined && scrubLabel !== null;
   const boundsId = useId();
-  const bounds = boundsDescription(rest.min, rest.max, rest.locale, rest.format);
+  const format: Intl.NumberFormatOptions = { ...EDITABLE_FORMAT, ...rest.format };
+  const bounds = boundsDescription(rest.min, rest.max, rest.locale, format);
   const inputDescribedBy = [describedBy, bounds === null ? undefined : boundsId].filter((id) => id !== undefined && id !== "").join(" ");
   return (
-    <BaseNumberField.Root className={cn(slots.root(), className)} data-slot="number-field-root" {...rest} {...identity}>
+    <BaseNumberField.Root className={cn(slots.root(), className)} data-slot="number-field-root" {...rest} format={format} {...identity}>
       {hasScrub ? (
         <BaseNumberField.ScrubArea className={slots.scrubArea()} data-slot="number-field-scrub-area" direction={scrubDirection}>
           {scrubLabel}

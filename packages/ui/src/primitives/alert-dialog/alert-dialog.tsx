@@ -49,32 +49,26 @@ export function AlertDialogPopup(props: AlertDialogPopupProps): ReactElement {
   );
 }
 
-export interface AlertDialogTitleProps extends Omit<BaseTitleProps, "className"> {
-  className?: string;
-}
+export type AlertDialogTitleProps = Omit<BaseTitleProps, "className">;
 
 export function AlertDialogTitle(props: AlertDialogTitleProps): ReactElement {
-  const { className, ...rest } = props;
-  return <BaseAlertDialog.Title className={slots.title({ className })} {...rest} />;
+  const rest = props;
+  return <BaseAlertDialog.Title className={slots.title()} {...rest} />;
 }
 
-export interface AlertDialogDescriptionProps extends Omit<BaseDescriptionProps, "className"> {
-  className?: string;
-}
+export type AlertDialogDescriptionProps = Omit<BaseDescriptionProps, "className">;
 
 export function AlertDialogDescription(props: AlertDialogDescriptionProps): ReactElement {
-  const { className, ...rest } = props;
-  return <BaseAlertDialog.Description className={slots.description({ className })} {...rest} />;
+  const rest = props;
+  return <BaseAlertDialog.Description className={slots.description()} {...rest} />;
 }
 
-export interface AlertDialogActionsProps extends HTMLAttributes<HTMLDivElement> {
-  className?: string;
-}
+export type AlertDialogActionsProps = Omit<HTMLAttributes<HTMLDivElement>, "className">;
 
 /** Right-aligned action row for the cancel/confirm pair — a plain layout slot (no Base UI part). */
 export function AlertDialogActions(props: AlertDialogActionsProps): ReactElement {
-  const { className, ...rest } = props;
-  return <div className={slots.actions({ className })} data-slot="alert-dialog-actions" {...rest} />;
+  const rest = props;
+  return <div className={slots.actions()} data-slot="alert-dialog-actions" {...rest} />;
 }
 
 /** Use for BOTH the cancel and confirm control — the confirm fires the destructive action via its own `onClick`. */
