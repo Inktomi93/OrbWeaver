@@ -33,11 +33,10 @@ import type { WorkloadProgressView } from "../lib/workloads-model.ts";
 
 const ZIP_EXTENSION = ".zip";
 
-/** Where a folder's sequential uploads stand: the upload now running and the sum of the finished ones. */
+/** Where a folder's sequential uploads stand: the upload now running of the total. */
 interface BatchProgress {
   readonly index: number;
   readonly total: number;
-  readonly done: BundleCounts;
 }
 
 type LibraryImportState =
@@ -213,7 +212,7 @@ export function useLibraryImport(): LibraryImport {
             epoch: run.epoch,
             workloadId,
             progress: { pct: null, label: null },
-            batch: { index: run.index, total: run.plan.batches.length, done: run.done },
+            batch: { index: run.index, total: run.plan.batches.length },
           });
         }
       })

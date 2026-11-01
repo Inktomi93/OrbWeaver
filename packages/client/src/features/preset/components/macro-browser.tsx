@@ -30,7 +30,7 @@ interface BrowserModel {
 function buildModel(userMacros: readonly UserMacroSpec[], presetId: PresetId): BrowserModel {
   const registry = createDefaultRegistry();
   const { rejected } = registerUserMacros(registry, userMacros, { source: { kind: "preset", id: presetId } });
-  return { macros: queryMacros(registry, {}), rejected };
+  return { macros: queryMacros(registry), rejected };
 }
 
 /** One macro's arg signature for display — `name` / `name?` / `name?=default`, comma-joined. */

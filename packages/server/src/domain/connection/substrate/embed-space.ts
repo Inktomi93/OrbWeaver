@@ -68,8 +68,8 @@ export async function vectorResolutionOf(
 }
 
 /** One vector task's space — {@link vectorResolutionOf} without the pixel question. */
-async function vectorSpaceOf(ctx: SpaceResolveCtx, principal: Principal, task: RoutableTask, connectionId?: UserConnectionId): Promise<EmbedSpace | null> {
-  return (await vectorResolutionOf(ctx, principal, task, { connectionId }))?.space ?? null;
+async function vectorSpaceOf(ctx: SpaceResolveCtx, principal: Principal, task: RoutableTask): Promise<EmbedSpace | null> {
+  return (await vectorResolutionOf(ctx, principal, task))?.space ?? null;
 }
 
 /** Did one task's space move? Encoder identity or width — the trigger's whole condition, in one place. */

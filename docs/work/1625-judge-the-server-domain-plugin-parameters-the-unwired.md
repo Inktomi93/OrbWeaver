@@ -28,4 +28,9 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+2 rows: applied 2, kept 0, handed off 0, owner questions 0.
+
+Applied: `createPluginMacroRegistry.deadlineMs` (the 1000 ms bound stays as the named `PLUGIN_MACRO_RESOLVE_DEADLINE_MS`) and `createSnippetGate.max` (the per-user ceiling stays as the named `SNIPPET_CONCURRENCY_PER_USER`, which is also what `PluginSnippetBusyError` reports). Both are host-internal factories built once at the composition roots (`entry/compose/services.ts:1057`, `entry/compose/automation-plugin.ts:412`); neither is a guest or Plugin API surface, and no test passes the override (literal `rg` for `deadlineMs` finds only unrelated functions).
+
+Survey: codegraph_explore on createPluginMacroRegistry, createSnippetGate; ast-grep on both names, -l ts and -l tsx over packages, tests, tooling, scripts (5929 .ts, 1524 .tsx): 1 call each.
+Ran: `pnpm typecheck packages/server/tsconfig.json tsconfig.tests-iso.json tsconfig.node.json` exit 0; `pnpm test tests/support/node/plugin-lifetime.int.test.ts` 3 passed.

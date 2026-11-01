@@ -389,7 +389,7 @@ export function selectActiveVariantStatement(db: Db, messageId: MessageId, varia
 }
 
 /** Append a fresh variant to an existing slot (a swipe/regen reroll — the slot is unchanged, a new
- *  generation is added) at `idx`, and (default) flip the slot's `selectedVariantId` to it. */
+ *  generation is added) at `idx`, and flip the slot's `selectedVariantId` to it. */
 export function appendVariantStatements(
   db: Db,
   params: {
@@ -398,7 +398,6 @@ export function appendVariantStatements(
     readonly idx: number;
     readonly now: number;
     readonly variant: CanonVariantInput;
-    readonly selectActive?: boolean | undefined;
   },
 ): BatchStmt[] {
   const stmts: BatchStmt[] = [
@@ -414,9 +413,7 @@ export function appendVariantStatements(
       ),
     ),
   ];
-  if (params.selectActive !== false) {
-    stmts.push(selectActiveVariantStatement(db, params.messageId, params.variantId));
-  }
+  stmts.push(selectActiveVariantStatement(db, params.messageId, params.variantId));
   return stmts;
 }
 

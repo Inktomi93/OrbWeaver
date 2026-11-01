@@ -29,6 +29,7 @@ import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
   CORPUS_PROVIDER_ENDPOINT,
+  casOf,
   exportLibrary,
   extractZip,
   imageProvider,
@@ -773,9 +774,9 @@ test("restoring bytes the owner holds under another id repairs that asset when i
 
   await using target = await signedInBox();
   const held = await target.services.assets.store({ principal: await target.principalFor(target.ownerId), kind: "background", mime: PNG, bytes });
-  await target.app.cas.remove(target.ownerId, held.hash);
+  await casOf(target).remove(target.ownerId, held.hash);
   const outcome = await restoreBundle(target, bundle);
-  const stored = await target.app.cas.exists(target.ownerId, held.hash);
+  const stored = await casOf(target).exists(target.ownerId, held.hash);
   const restored = stored ? await target.services.assets.loadAssetBytes(held.assetId) : null;
 
   expect({ outcome, stored, readable: restored !== null && Buffer.from(restored).equals(Buffer.from(bytes)) }).toEqual({

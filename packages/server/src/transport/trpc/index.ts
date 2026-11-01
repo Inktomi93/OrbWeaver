@@ -7,7 +7,6 @@ export type { LiveBuses } from "./contract/live-buses.ts";
 
 export { classifyDomainError } from "./error-mapping.ts";
 export { createLiveBuses } from "./live-buses.ts";
-export type { PresenceRegistry } from "./presence-registry.ts";
 export { createPresenceRegistry } from "./presence-registry.ts";
 export type { AppRouter } from "./router.ts";
 export { appRouter, createCaller } from "./router.ts";

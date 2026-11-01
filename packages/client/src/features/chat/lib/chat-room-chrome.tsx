@@ -1,6 +1,6 @@
-// The open room's Members and Memory entries, registered as `topbar.trail` widgets. They sit last in the trail, Members
-// before Memory, so the trail's overflow row moves Memory into the "More top bar actions" menu first and Members next,
-// and the menu trigger itself stays in the row. Both are visible only while the Chats section holds an open room.
+// The open room's Members and Memory entries, registered as `topbar.trail` widgets. They sit last among the host's own
+// trail entries, Members before Memory, so after any plugin buttons the trail's overflow row moves Memory into the
+// "More top bar actions" menu first and Members next, and the menu trigger itself stays in the row. Both are visible only while the Chats section holds an open room.
 
 import { BrainCircuit, Users } from "@orb/ui/icons";
 import type { ReactElement } from "react";

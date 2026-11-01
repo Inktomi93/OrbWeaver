@@ -30,19 +30,14 @@ function invalid(message: string): ProviderError {
 }
 
 /**
- * Decode ONE wire embedding into a `Float32Array`, refusing a misaligned payload and a width that
- * contradicts `expectedDimensions` (omit it when the request asked for no particular width — then any
- * self-consistent width is admitted; this is a MATCH check, never a floor).
+ * Decode ONE wire embedding into a `Float32Array`, refusing a misaligned payload. Any self-consistent width is
+ * admitted.
  *
  * `prefix` is the caller's operator-facing coordinates (`openrouter embed (model)`), so a refusal says which
  * role and model produced the payload without this module knowing either.
  */
-export function decodeEmbeddingVector(embedding: WireEmbedding, prefix: string, expectedDimensions?: number): Float32Array<ArrayBuffer> {
-  const vector = typeof embedding === "string" ? fromBase64(embedding, prefix) : new Float32Array(embedding);
-  if (expectedDimensions !== undefined && vector.length !== expectedDimensions) {
-    throw invalid(`${prefix}: embedding width does not match the requested dimensions — expected ${expectedDimensions}, got ${vector.length}`);
-  }
-  return vector;
+export function decodeEmbeddingVector(embedding: WireEmbedding, prefix: string): Float32Array<ArrayBuffer> {
+  return typeof embedding === "string" ? fromBase64(embedding, prefix) : new Float32Array(embedding);
 }
 
 /** Base64 → an exactly-sized, 4-byte-aligned copy. The copy is NOT optional: `Buffer.from` returns a view

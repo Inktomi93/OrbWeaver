@@ -44,11 +44,6 @@ const TAP_HZ = 0.03;
 const TAP_AMP = 0.28;
 const TAP_SIDE_PHASE = 2;
 const TAP_LEG_COUNT = 2;
-/** The idle twitch: one leg lifts, the abdomen shivers. */
-const TWITCH_LEG_INDEX = 1;
-const TWITCH_LIFT = 0.5;
-const TWITCH_ABDOMEN_AMP = 0.05;
-const TWITCH_ABDOMEN_CYCLES = 3;
 const HEAD_X = 2.2;
 const HEAD_R = 2.4;
 const PEDICEL_X = -0.4;
@@ -67,26 +62,21 @@ const SPECKLE_ALPHA = 0.55;
 const BREATHE_HZ = 0.0012;
 const BREATHE_AMP = 0.04;
 
-/** How she is CARRYING herself this frame — the gait's speed and reach, plus the two life beats. */
+/** How she is CARRYING herself this frame — the gait's speed and reach, plus the resting beat. */
 interface SpiderMood {
   readonly gaitHz: number;
   readonly gaitAmp: number;
   /** Leg-swing amplitude while she is still (a resting spider is not a statue). */
   readonly restAmp: number;
-  /** 0..1 through an idle twitch, 0 when none is playing. */
-  readonly twitchPhase: number;
 }
 
-/** One leg's hip bearing this frame: the gait swing, plus tapping and twitching where they apply. */
+/** One leg's hip bearing this frame: the gait swing, plus tapping where it applies. */
 function hipAngle(pair: number, side: number, { pose, now, mood }: SpiderGait): number {
   // Alternating tetrapod: legs 1/3 on one side swing with 2/4 on the other.
   const tetrapod = (((pair % 2) + (side > 0 ? 0 : 1)) % 2) * Math.PI;
   let swing = Math.sin(now * mood.gaitHz + tetrapod + pair * GAIT_ROW_PHASE) * (pose.moving ? mood.gaitAmp : mood.restAmp);
   if (pose.tap > 0 && pair < TAP_LEG_COUNT) {
     swing += Math.sin(now * TAP_HZ + side * TAP_SIDE_PHASE) * TAP_AMP * pose.tap;
-  }
-  if (mood.twitchPhase > 0 && pair === TWITCH_LEG_INDEX && side === 1) {
-    swing += Math.sin(mood.twitchPhase * Math.PI) * TWITCH_LIFT;
   }
   return (LEG_BASE_ANGLES[pair] as number) + swing;
 }
@@ -145,10 +135,7 @@ export function drawSpiderBody(ctx: CanvasRenderingContext2D, { palette, pose, n
   ctx.scale(SPIDER_SCALE, SPIDER_SCALE);
   ctx.lineCap = "round";
   drawLegs(ctx, palette, { pose, now, mood });
-  let breathe = pose.moving ? 1 : 1 + Math.sin(now * BREATHE_HZ) * BREATHE_AMP;
-  if (mood.twitchPhase > 0) {
-    breathe += Math.sin(mood.twitchPhase * Math.PI * TWITCH_ABDOMEN_CYCLES) * TWITCH_ABDOMEN_AMP;
-  }
+  const breathe = pose.moving ? 1 : 1 + Math.sin(now * BREATHE_HZ) * BREATHE_AMP;
   ctx.fillStyle = palette.spiderBody;
   ctx.beginPath();
   ctx.arc(HEAD_X, 0, HEAD_R, 0, TAU); // cephalothorax

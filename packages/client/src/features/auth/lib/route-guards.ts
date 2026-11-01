@@ -21,20 +21,15 @@ import { fetchAuthMe, stashInboundJoinToken } from "#data";
 const UNREACHABLE_RETRIES = 3;
 const UNREACHABLE_RETRY_DELAY_MS = 200;
 
-/** The backoff wait between retries. INJECTED (defaulted to the real timer at both guard doors below) for the
- *  determinism reason every clock/timer in this repo is injected: a test drains the retry window through this
- *  seam instead of replacing the global clock, which `vi.useFakeTimers` does and Spine-Testing.md §3 bans. The
- *  router never passes one — `beforeLoad: () => requireAuthed()` calls both doors with no arguments. */
-type WaitOp = (ms: number) => Promise<void>;
-
-const realWait: WaitOp = (ms) =>
+/** The backoff wait between retries. */
+const wait = (ms: number): Promise<void> =>
   new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
 
 /** This request's auth state, or null only when the server stays unreachable across a short retry window.
  *  A completed fetch (authed OR anon) short-circuits immediately — retries cover a THROWN read only. */
-async function meOrNull(wait: WaitOp, retriesLeft = UNREACHABLE_RETRIES): Promise<AuthMe | null> {
+async function meOrNull(retriesLeft = UNREACHABLE_RETRIES): Promise<AuthMe | null> {
   // a thrown read retries, then returns null after
   // the window; requireAuthed turns null into `throw redirect({ to: "/login" })` (route-guards.ts:55-58) and redirectIfAuthed
   // (:64) leaves the caller on /login, the surface it guards. Ends if a caller treats null as an authed state.
@@ -45,13 +40,13 @@ async function meOrNull(wait: WaitOp, retriesLeft = UNREACHABLE_RETRIES): Promis
       return null;
     }
     await wait(UNREACHABLE_RETRY_DELAY_MS);
-    return meOrNull(wait, retriesLeft - 1);
+    return meOrNull(retriesLeft - 1);
   }
 }
 
 /** Gate a protected route (`/`): an unauthenticated request or bootstrap failure lands on /login. */
-export async function requireAuthed(wait: WaitOp = realWait): Promise<void> {
-  const me = await meOrNull(wait);
+export async function requireAuthed(): Promise<void> {
+  const me = await meOrNull();
   if (me === null || !me.authenticated) {
     stashInboundJoinToken();
     throw redirect({ to: "/login" });
@@ -59,8 +54,8 @@ export async function requireAuthed(wait: WaitOp = realWait): Promise<void> {
 }
 
 /** Reverse-gate `/login`: an already-authenticated caller goes home; unauthenticated/unreachable stays. */
-export async function redirectIfAuthed(wait: WaitOp = realWait): Promise<void> {
-  const me = await meOrNull(wait);
+export async function redirectIfAuthed(): Promise<void> {
+  const me = await meOrNull();
   if (me?.authenticated === true) {
     throw redirect({ to: "/" });
   }

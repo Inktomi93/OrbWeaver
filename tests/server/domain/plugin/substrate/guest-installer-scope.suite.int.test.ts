@@ -28,6 +28,7 @@ import {
   seedAsset,
   seedCorpusActors,
 } from "@orb/testkit/node/composed";
+import { vi } from "vitest";
 import { z } from "zod";
 
 const SCOPE_OPS = {
@@ -209,6 +210,21 @@ test("library ingests land in the installer's own library, stamped with the call
   const detail = await o.root.services.character.get({ principal: o.owner, characterId: character.characterId });
   expect(parsePluginImportedFrom(detail.importedFrom)).toEqual({ pluginId });
   await expect(o.root.services.character.get({ principal: o.stranger, characterId: character.characterId })).rejects.toBeInstanceOf(DomainNotFoundError);
+});
+
+test("a non-owner installer's character ingest runs under that installer's own principal", { tags: ["slow"] }, async () => {
+  await using o = await owners();
+  const { run } = await o.guest(o.stranger, "stranger-feeder");
+  const source = await ownCharacter(o.root, o.stranger, "stranger-keeper");
+  const exported = await o.root.app.exportService.exportCharacter({ principal: o.stranger, characterId: source, format: "json" });
+  if (exported === null) {
+    throw new Error("the stranger's own character did not export");
+  }
+  const card = jsonValueSchema.parse(JSON.parse(new TextDecoder().decode(exported.bytes)));
+  const create = vi.spyOn(o.root.services.character, "create");
+  z.object({ characterId: typeIdSchema(ID_PREFIX.character) }).parse(reported(await run("ingestCharacter", { card })));
+  expect(create).toHaveBeenCalledTimes(1);
+  expect(create.mock.calls[0]?.[0].principal).toEqual(await o.root.principalFor(o.stranger.userId));
 });
 
 test("a guest's document search ranks only its installer's library while both libraries share an active space", { tags: ["slow"] }, async () => {

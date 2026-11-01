@@ -21,7 +21,7 @@ export {
   pluginMessageFooterSurface,
 } from "./lib/chat-anchors.tsx";
 // The U5 set (seam 16): the tenth rail SECTION (the platform's full-page
-// home), the ONE `/plugin` slash contribution, the "Plugins" wand chrome widget, and the ONE house modal a
+// home), the ONE `/plugin` slash contribution, the top bar placement chrome widget, and the ONE house modal a
 // plugin `dialog` surface renders inside. Four door members for the whole platform — none of them grows when a
 // person installs a plugin, because every per-plugin fan happens INSIDE a body off the caller's own reads.
 export { extensionsSection } from "./lib/extensions-section.tsx";
@@ -30,11 +30,11 @@ export { extensionsSection } from "./lib/extensions-section.tsx";
 // the palette-source registry at the door; the palette imports nothing from here.
 export { pluginCommandArgsModal } from "./lib/plugin-command-args-modal.tsx";
 export { pluginCommandPaletteSource } from "./lib/plugin-command-palette-source.ts";
-export { pluginCommandsChrome } from "./lib/plugin-commands-chrome.tsx";
 export { pluginContextTab } from "./lib/plugin-context-tab.tsx";
 export { pluginDialogModal } from "./lib/plugin-dialog-modal.tsx";
 export { pluginDistributeSection } from "./lib/plugin-distribute-section.tsx";
 export { pluginSlashCommands } from "./lib/plugin-slash-commands.ts";
+export { pluginTopbarChrome } from "./lib/plugin-topbar-chrome.tsx";
 export { pluginsGroup } from "./lib/plugins-group.tsx";
 export { pluginsInstallSection } from "./lib/plugins-install-section.tsx";
 export { pluginsInstalledSection } from "./lib/plugins-installed-section.tsx";

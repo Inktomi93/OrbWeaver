@@ -104,7 +104,7 @@ export async function analyzeAvatarImage(
 ): Promise<AvatarAnalysis> {
   const { logger, availability } = sinks;
   // The CAPTION lens is a `structured` call WITH an image input (inference program §7.5-1): it names its task
-  // and reads the vision requirement off the resolved capability — `accepts(cap, "input", "image")`.
+  // and reads the vision requirement off the resolved capability — `acceptsImageInput(cap)`.
   const resolved = await roleClients.resolved("structured");
   const skipCause = analysisSkipCause(resolved, availability);
   if (resolved === null) {

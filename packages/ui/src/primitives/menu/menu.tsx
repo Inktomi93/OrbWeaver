@@ -129,14 +129,11 @@ export function MenuItem(props: MenuItemProps): ReactElement {
   );
 }
 
-export interface MenuSeparatorProps extends Omit<ComponentProps<typeof BaseMenu.Separator>, "className"> {
-  className?: string;
-}
+export type MenuSeparatorProps = Omit<ComponentProps<typeof BaseMenu.Separator>, "className">;
 
 /** Visual divider between menu groups. */
 export function MenuSeparator(props: MenuSeparatorProps): ReactElement {
-  const { className, ...rest } = props;
-  return <BaseMenu.Separator className={slots.separator({ className })} {...rest} />;
+  return <BaseMenu.Separator className={slots.separator()} {...props} />;
 }
 
 export interface MenuGroupProps extends Omit<BaseGroupProps, "className"> {
