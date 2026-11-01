@@ -5,7 +5,6 @@ import { blobPortraitUrl } from "@orb/contracts/assets";
 import type { MessageView } from "@orb/contracts/chat";
 import { initialsFor } from "@orb/kit/initials";
 import type { MessageRole } from "@orb/kit/message-role";
-import { Avatar } from "@orb/ui/avatar";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { cn, viewImageActionName } from "#lib";
@@ -16,7 +15,7 @@ import { messageNumberLabel } from "../lib/message-readout.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import { avatarSrcProp } from "../lib/message-row-variants.ts";
 import type { ArtView } from "./art-slot.tsx";
-import { ArtButton, FallbackLetter, PortraitAvatar } from "./art-slot.tsx";
+import { ChipAvatar, FallbackLetter, PortraitAvatar } from "./art-slot.tsx";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { MessageNumber } from "./message-metadata-row.tsx";
 
@@ -80,28 +79,21 @@ export function renderRowAvatar(args: {
       args.gutterRail === "leading" ? RAIL_LEADING : undefined,
       args.gutterRail === "trailing" ? RAIL_TRAILING : undefined,
     ) ?? "";
-  const avatar = {
-    size: args.avatarSize,
-    shape: args.avatarShape,
-    aspect: args.avatarAspect,
-    ring: args.avatarRing,
-    fallbackDelay: 0,
-    hueSeed: args.attribution.hueSeed,
-    // exactOptionalPropertyTypes idiom: OMIT the prop rather than pass `undefined` (`avatarSrcProp`).
-    ...avatarSrcProp(args.attribution.avatarHash),
-  } as const;
-  const initials = initialsFor(args.attribution.name);
-  if (target === null) {
-    return (
-      <Avatar {...avatar} className={chipLayout}>
-        {initials}
-      </Avatar>
-    );
-  }
   return (
-    <ArtButton view={artViewOf(target, args.artControl)} className={chipLayout}>
-      <Avatar {...avatar}>{initials}</Avatar>
-    </ArtButton>
+    <ChipAvatar
+      size={args.avatarSize}
+      shape={args.avatarShape}
+      aspect={args.avatarAspect}
+      ring={args.avatarRing}
+      fallbackDelay={0}
+      hueSeed={args.attribution.hueSeed}
+      // exactOptionalPropertyTypes idiom: OMIT the prop rather than pass `undefined` (`avatarSrcProp`).
+      {...avatarSrcProp(args.attribution.avatarHash)}
+      view={target === null ? null : artViewOf(target, args.artControl)}
+      layoutClassName={chipLayout}
+    >
+      {initialsFor(args.attribution.name)}
+    </ChipAvatar>
   );
 }
 
@@ -168,7 +160,7 @@ function portraitSource(hash: string | null): ((cssWidth: number) => string) | u
 // Ripple's portrait sticks to the top of its card as the row scrolls; wrapped, the button is the sticky flex item.
 function stickyPortrait(args: Parameters<typeof renderRowAvatar>[0], target: ViewTarget | null): ReactElement {
   const weld = args.mirrored ? "end" : "start";
-  const portrait = (
+  return (
     <PortraitAvatar
       size={args.avatarSize}
       shape="square"
@@ -178,19 +170,12 @@ function stickyPortrait(args: Parameters<typeof renderRowAvatar>[0], target: Vie
       fade={args.mirrored ? "start" : "end"}
       fallbackDelay={0}
       hueSeed={args.attribution.hueSeed}
-      // Unwrapped, the portrait is the sticky flex item; wrapped, the button is.
-      className={cn(target === null ? STICKY_TOP : undefined, PORTRAIT_WIDTH) ?? ""}
+      className={PORTRAIT_WIDTH}
+      stickyClassName={STICKY_TOP}
       urlAt={portraitSource(args.attribution.avatarHash)}
+      view={target === null ? null : artViewOf(target, args.artControl)}
     >
       <FallbackLetter className="absolute inset-0" initials={initialsFor(args.attribution.name ?? "")} />
     </PortraitAvatar>
-  );
-  if (target === null) {
-    return portrait;
-  }
-  return (
-    <ArtButton view={artViewOf(target, args.artControl)} cardCorners={weld} className={cn(STICKY_TOP, "shrink-0") ?? ""}>
-      {portrait}
-    </ArtButton>
   );
 }

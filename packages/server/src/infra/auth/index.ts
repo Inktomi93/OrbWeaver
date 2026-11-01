@@ -1,7 +1,7 @@
 // infra/auth — FRONT DOOR. The sealed, db-free auth VERIFICATION executor (docs/law/Tier-3-Infra.md + spine
 // Spine-Identity-and-Auth.md §1/§3). This tier does VERIFICATION ONLY: `resolve(headers, deps)` turns a
 // request's headers into an `IdentityResolution` — the pre-row `ResolvedIdentity` (NO `userId`, NO
-// `role` — invariant #3) + the per-request signals (`via`, `hasCsrfHeader`) — dispatching on
+// `role` — invariant #3) + its `via` signal — dispatching on
 // AUTH_MODE and applying the origin-gated owner fallback. It does NOT upsert, does NOT derive a role,
 // does NOT mint a `Principal`. Those are LOWER tiers, invoked by the seam AFTER verification:
 //   • `determineRole` + the users-row upsert → RESOLUTION tier, `domain/sessions`
@@ -9,23 +9,22 @@
 //   • the ONE `Principal` mint (from `via:"fallback"` → owner, or the upserted row) → CONSTRUCTION tier,
 //     `entry/auth/seam.ts` (Phase 4e, invariant #1).
 //
-// Every db-dependent VERIFICATION step (cookie validate, OIDC PKCE store, JWT/JWKS crypto) arrives
-// INJECTED via `ResolveDeps` — this module imports NO `@orb/db` and NO domain (the sealed-executor
-// invariant; `infra-no-db` + `infra-no-domain`). It reaches DOWN only: `foundation/env` (via config),
+// The forward-JWT verifier arrives INJECTED via `ResolveDeps`, the seam validates the cookie before this runs,
+// and the OIDC transaction store stays with the entry routes — this module imports NO `@orb/db` and NO domain
+// (the sealed-executor invariant; `infra-no-db` + `infra-no-domain`). It reaches DOWN only: `foundation/env` (via config),
 // `foundation/observability` (securityEvent), `infra/network` (the CIDR matcher), `@orb/contracts/*`,
 // `@orb/kit/*`, `node:*`.
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { IdentityResolution, ResolveDeps } from "./contract.ts";
-import { hasCsrfHeader } from "./csrf.ts";
 import { MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch.ts";
 import { hasForwardingHeader } from "./forwarded.ts";
 import { reportRelayedFallback } from "./relay-notice.ts";
 
 /**
- * VERIFICATION: resolve a request's headers → an `IdentityResolution` (the pre-row identity + the seam's
- * signals). `identity === null` ⇒ the caller is unauthenticated (the seam/transport 401s). Three paths:
+ * VERIFICATION: resolve a request's headers → an `IdentityResolution` (the pre-row identity + its `via`
+ * signal). `identity === null` ⇒ the caller is unauthenticated (the seam/transport 401s). Three paths:
  *   - COOKIE (`local`/`oidc`) — resolves to `null` at infra (post-D40 the seam validates the cookie via
  *     `sessions.validate` BEFORE calling here), so cookie modes fall through to the owner fallback / unauth.
  *   - SSO HEADER (`forward-header`) — the verified header/JWT identity (NO upsert here — that's the seam).
@@ -42,12 +41,11 @@ import { reportRelayedFallback } from "./relay-notice.ts";
 export async function resolve(headers: Headers, deps: ResolveDeps): Promise<IdentityResolution> {
   const { config } = deps;
   const identity = await MODE_RESOLVERS[config.mode](headers, config, deps);
-  const csrf = hasCsrfHeader(headers);
 
   if (identity !== null) {
     // A non-null identity from infra is always the forward-header path (post-D40 infra never resolves a
     // cookie — the seam does). `via:"header"`.
-    return { identity, via: "header", hasCsrfHeader: csrf };
+    return { identity, via: "header" };
   }
 
   if (config.fallback === "owner") {
@@ -62,7 +60,6 @@ export async function resolve(headers: Headers, deps: ResolveDeps): Promise<Iden
           email: null,
         },
         via: "fallback",
-        hasCsrfHeader: csrf,
       };
     }
     if (hasForwardingHeader(headers)) {
@@ -75,7 +72,7 @@ export async function resolve(headers: Headers, deps: ResolveDeps): Promise<Iden
   }
 
   // Unauthenticated: no identity. `via` is inert when `identity === null` (the seam 401s before reading it).
-  return { identity: null, via: "header", hasCsrfHeader: csrf };
+  return { identity: null, via: "header" };
 }
 
 export { createBackchannelLogoutVerifier } from "./backchannel.ts";

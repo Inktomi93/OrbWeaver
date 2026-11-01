@@ -65,7 +65,6 @@ export function createPasswordHasher(pepperSecret: string | null | undefined): P
   }
 
   return {
-    enabled: secret !== null,
     dummyHash: DUMMY_PASSWORD_HASH,
     async hash(plain: string): Promise<string> {
       const normalized = plain.normalize();

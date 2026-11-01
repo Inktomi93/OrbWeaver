@@ -1439,7 +1439,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     rosterPreset,
     rpg,
     search,
-    sessions,
     settings,
     share,
     stats,

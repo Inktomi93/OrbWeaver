@@ -58,9 +58,7 @@ export async function captureAutomationViews(root: ServerProducerRoot, params: A
   };
 }
 
-export interface SeededAutomationConfirmation extends Omit<SeededAutomationRun, "result"> {
-  readonly result: Awaited<ReturnType<AutomationService["confirmSuggestion"]>>;
-}
+export type SeededAutomationConfirmation = Omit<SeededAutomationRun, "result">;
 
 /** Run the rule dry run; the verb's own result is the seed's whole result. */
 export async function seedAutomationTestFires(

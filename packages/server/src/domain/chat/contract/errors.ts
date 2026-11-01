@@ -39,6 +39,9 @@ export const CHAT_OP_CODES = {
    *  authoring persona (the `{{user}}` subject). A coded validation refusal on a KNOWN membership (the caller
    *  cleared the per-row author-or-host gate), never a NOT_FOUND collapse. */
   notUserMessage: "not_user_message",
+  /** `reattributeMessages` targeted a slot that is not an ordinary assistant reply (`isReattributableReply`).
+   *  Host-only surface (the caller already sees the canon), so a coded refusal leaks nothing. */
+  notReattributableMessage: "not_reattributable_message",
   /** A verb's target persona is NOT owned by the required party. `reattributePersona`: not owned by the
    *  targeted row's AUTHOR (a line may only be attributed to a persona its author owns, never the acting
    *  host's own persona; a persona has ONE owner, so a bulk set that mixes authors can never all pass).

@@ -8,7 +8,7 @@
 // Two tiers:
 //   • Pure JS helpers (cosineSim, l2Normalize, mean) — single-pair / single-vector work; the hot
 //     per-query rerank paths.
-//   • Flat-buffer JS batch ops (pairwiseCosine, cosineToMany) — N² or N×K work, normalized once into
+//   • Flat-buffer JS batch ops (pairwiseCosineCooperative, cosineToMany) — N² or N×K work, normalized once into
 //     a contiguous Float32Array buffer for better V8 JIT locality (avoids per-call renormalization).
 
 // Replaces a missing / zero-norm vector so a divide-by-norm never yields NaN (the `|| ZERO_NORM_GUARD`
@@ -113,22 +113,19 @@ function dotRows(buf: Float32Array, baseA: number, baseB: number, dim: number): 
  *
  * Memory: returns N² float32s = 4·N² bytes. Fine for N up to ~5000 (≤ 100MB); above that, switch to
  * `cosineToMany` with caller-side row chunking.
+ *
+ * Cooperative: `pace` is awaited after every row with the multiply-adds that row cost, so the caller decides
+ * when to yield the event loop.
  */
-export function pairwiseCosine(vecs: readonly Float32Array[]): { sim: Float32Array; n: number } {
-  const n = vecs.length;
-  const first = vecs[0];
-  if (first === undefined) {
+export async function pairwiseCosineCooperative(
+  vecs: readonly Float32Array[],
+  pace: (units: number) => Promise<void>,
+): Promise<{ sim: Float32Array; n: number }> {
+  const normalized = normalizedMatrix(vecs, "pairwiseCosineCooperative");
+  if (normalized === null) {
     return { sim: new Float32Array(0), n: 0 };
   }
-  const dim = first.length;
-  const flat = new Float32Array(n * dim);
-  for (let i = 0; i < n; i += 1) {
-    const v = vecs[i];
-    if (v !== undefined) {
-      assertDimension(v, dim, "pairwiseCosine");
-      normalizeInto(v, flat, i * dim, dim);
-    }
-  }
+  const { flat, dim, n } = normalized;
   const sim = new Float32Array(n * n);
   for (let i = 0; i < n; i += 1) {
     sim[i * n + i] = 1;
@@ -137,8 +134,27 @@ export function pairwiseCosine(vecs: readonly Float32Array[]): { sim: Float32Arr
       sim[i * n + j] = cos;
       sim[j * n + i] = cos;
     }
+    await pace((n - i) * dim);
   }
   return { sim, n };
+}
+
+function normalizedMatrix(vecs: readonly Float32Array[], operation: string): { flat: Float32Array; dim: number; n: number } | null {
+  const n = vecs.length;
+  const first = vecs[0];
+  if (first === undefined) {
+    return null;
+  }
+  const dim = first.length;
+  const flat = new Float32Array(n * dim);
+  for (let i = 0; i < n; i += 1) {
+    const v = vecs[i];
+    if (v !== undefined) {
+      assertDimension(v, dim, operation);
+      normalizeInto(v, flat, i * dim, dim);
+    }
+  }
+  return { flat, dim, n };
 }
 
 /**

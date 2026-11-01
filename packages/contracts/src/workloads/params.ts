@@ -13,6 +13,7 @@
 // Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import { z } from "zod";
+import { assetKindSchema } from "#assets";
 import type { MemoryBackfillWorkloadParams } from "#chat";
 import { documentIdSchema, reindexModeSchema, reindexScopeSchema } from "#databank";
 import type { ComputeThemesWorkloadParams, FindDuplicatesWorkloadParams } from "#discovery";
@@ -76,6 +77,10 @@ export const indexWorkloadParams = z.object({
 /** The shared maintenance tunable — `dryRun` reports what a pass WOULD change without mutating. */
 export const maintenanceWorkloadParams = z.object({ dryRun: z.boolean().optional() });
 
+/** assets-rebuild-index: the asset kind stamped on every row the rebuild re-derives. A rebuild targets one kind
+ *  at a time because a blob on disk carries no kind of its own. */
+export const assetsRebuildIndexWorkloadParams = z.object({ kind: assetKindSchema });
+
 /** import-st tunables: the maintenance `dryRun` plus an optional folder-upload `stagedDir` override (a
  *  server-minted staging handle — a single safe path segment; the import contribution resolves it to a
  *  strict descendant of the staging root). Absent `stagedDir` ⇒ the env-configured ST profile dir.
@@ -114,6 +119,7 @@ export interface WorkloadParamsByKind {
   "assets-backfill": z.infer<typeof maintenanceWorkloadParams>;
   "assets-gc": z.infer<typeof maintenanceWorkloadParams>;
   "assets-fsck": NoWorkloadParams;
+  "assets-rebuild-index": z.infer<typeof assetsRebuildIndexWorkloadParams>;
   "import-st": z.infer<typeof importStWorkloadParams>;
   "import-token-usage-backfill": z.infer<typeof maintenanceWorkloadParams>;
   "import-bundle": z.infer<typeof importBundleWorkloadParams>;

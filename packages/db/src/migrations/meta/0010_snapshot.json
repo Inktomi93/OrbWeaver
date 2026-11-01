@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "f428cd94-f08e-4c67-bec1-47e6be4c96e3",
-  "prevId": "577b5fec-fb08-4d6f-98d8-d308879a8d40",
+  "id": "c3deedf8-168c-4145-9a14-c695946bcca3",
+  "prevId": "593cddb1-3b3c-4b45-8076-e878a8ce3b41",
   "tables": {
     "assets": {
       "name": "assets",
@@ -11586,7 +11586,7 @@
       "checkConstraints": {
         "workload_schedules_kind_check": {
           "name": "workload_schedules_kind_check",
-          "value": "kind in ('index', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'import-st', 'import-token-usage-backfill', 'import-bundle', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'databank-ingest', 'databank-reindex', 'refine-score-sweep')"
+          "value": "kind in ('index', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'assets-rebuild-index', 'import-st', 'import-token-usage-backfill', 'import-bundle', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'databank-ingest', 'databank-reindex', 'refine-score-sweep')"
         },
         "workload_schedules_mode_check": {
           "name": "workload_schedules_mode_check",
@@ -11793,7 +11793,7 @@
       "checkConstraints": {
         "workloads_kind_check": {
           "name": "workloads_kind_check",
-          "value": "kind in ('index', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'import-st', 'import-token-usage-backfill', 'import-bundle', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'databank-ingest', 'databank-reindex', 'refine-score-sweep')"
+          "value": "kind in ('index', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'assets-rebuild-index', 'import-st', 'import-token-usage-backfill', 'import-bundle', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'databank-ingest', 'databank-reindex', 'refine-score-sweep')"
         },
         "workloads_status_check": {
           "name": "workloads_status_check",

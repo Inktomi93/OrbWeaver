@@ -11,16 +11,16 @@ plan: unwired-code
 
 ## What
 
-The change, in a sentence.
+Delete `QUALITY_META.description`; the table keeps only the labels the dial uses.
 
 ## Why
 
-The symptom or the ruling behind it.
+The deck already shows one server-resolved gloss line under the Quality select (`qualityDeckGloss`), and a select renders labels only. A second description line would duplicate it.
 
 ## Done when
 
-The observable bar a verifier can check.
+`QUALITY_META` in `packages/client/src/features/preset/lib/capability-panel-model.ts` has no `description` key.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Targeted typecheck, lint, depcruise and knip results are in the landing commit message.

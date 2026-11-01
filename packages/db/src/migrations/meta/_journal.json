@@ -66,9 +66,16 @@
       "breakpoints": true
     },
     {
+      "idx": 9,
+      "version": "6",
+      "when": 1793501715533,
+      "tag": "0009_assets-rebuild-index-kind-checks",
+      "breakpoints": true
+    },
+    {
       "idx": 10,
       "version": "6",
-      "when": 1793503874491,
+      "when": 1793506298191,
       "tag": "0010_drop-chat-stream-events",
       "breakpoints": true
     }
