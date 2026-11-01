@@ -23,6 +23,7 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ChangeEvent, ReactElement } from "react";
 import { useState } from "react";
+import { REGEX_SAMPLE_TEXT_NAME } from "../lib/regex-names.ts";
 import type { RegexPreview } from "../lib/regex-preview.ts";
 import { previewRegexScript, REGEX_PREVIEW_CHAR, REGEX_PREVIEW_DEFAULT_SAMPLE, REGEX_PREVIEW_MAX_INPUT, REGEX_PREVIEW_USER } from "../lib/regex-preview.ts";
 
@@ -87,7 +88,7 @@ export function RegexTestPanel({ script }: RegexTestPanelProps): ReactElement {
           not against a live chat.
         </Text>
 
-        <Field label="Sample text">
+        <Field label={REGEX_SAMPLE_TEXT_NAME}>
           <Textarea
             maxLength={REGEX_PREVIEW_MAX_INPUT}
             rows={SAMPLE_ROWS}

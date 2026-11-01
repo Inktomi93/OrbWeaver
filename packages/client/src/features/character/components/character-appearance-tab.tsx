@@ -34,7 +34,7 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import { ThemePreviewPane, ThemeSwatchStrip } from "@orb/ui/theme-swatch";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { BackgroundSourceField, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
+import { BackgroundSourceField, CORNER_RADIUS_NAME, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { AutosaveStatus } from "#forms/editor";
@@ -285,7 +285,7 @@ function ThemeControlsBody({ characterName, session }: ThemeControlsBodyProps): 
               <form.AppField name="font">{(field): ReactElement => <field.SelectField label="Font" items={FONT_ITEMS} />}</form.AppField>
             </SettingTrackRow>
             <SettingTrackRow>
-              <form.AppField name="radius">{(field): ReactElement => <field.SelectField label="Corner radius" items={RADIUS_ITEMS} />}</form.AppField>
+              <form.AppField name="radius">{(field): ReactElement => <field.SelectField label={CORNER_RADIUS_NAME} items={RADIUS_ITEMS} />}</form.AppField>
             </SettingTrackRow>
           </SettingRowGroup>
         </Section>

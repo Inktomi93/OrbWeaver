@@ -17,7 +17,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog } from "#components";
 import { restoreCardLorebook, useInvalidation } from "#data";
-import { notify } from "#lib";
+import { DIALOG_VERBS, notify } from "#lib";
 
 const CARD_ACCEPT = ".png,.json,image/png,application/json";
 
@@ -70,7 +70,7 @@ export function CharacterRestoreBookAction({ canRestore }: CharacterRestoreBookA
       </FileTrigger>
       <ConfirmDialog
         confirmTone="primary"
-        confirmLabel="Restore"
+        confirmLabel={DIALOG_VERBS.restore}
         description={picked === null ? undefined : confirmDescription(picked.name)}
         onConfirm={onConfirm}
         onOpenChange={(open): void => {

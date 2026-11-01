@@ -64,6 +64,7 @@ import {
 } from "#src/features/preset/lib/assembly-model.ts";
 import { PRESET_NUMBER_FORMAT } from "#src/features/preset/lib/format-count.ts";
 import type { PresetEditorValues } from "../../lib/preset-editor-values.ts";
+import { PRESET_DELETE_SECTION_TITLE } from "../../lib/preset-names.ts";
 import { DeliveryCluster } from "../delivery-cluster.tsx";
 import type { DerivedZones } from "./derive-zones.ts";
 import { deriveZones } from "./derive-zones.ts";
@@ -403,7 +404,7 @@ function SectionActionsMenu({ form, section, index, onBack }: SectionEditProps &
         return (
           <RowActionsMenu
             destructive={{
-              title: "Delete this section?",
+              title: PRESET_DELETE_SECTION_TITLE,
               description: "This removes the section from the preset's prompt arrangement. This can't be undone.",
               onConfirm: onDelete,
             }}

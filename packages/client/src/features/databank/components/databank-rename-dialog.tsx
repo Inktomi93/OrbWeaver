@@ -9,7 +9,7 @@ import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { FormDialog } from "#components";
-import { useFocusOnMount } from "#lib";
+import { DIALOG_VERBS, useFocusOnMount } from "#lib";
 
 export interface DatabankRenameDialogProps {
   readonly open: boolean;
@@ -53,9 +53,9 @@ export function DatabankRenameDialog({ open, onOpenChange, currentName, onRename
               no a11y suppression to carry (the suppressions ratchet only shrinks). */}
           <Input aria-label="Document name" onValueChange={setName} placeholder="Document name" ref={inputRef} value={name} />
           <DialogFooter>
-            <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+            <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
             <Button disabled={!canSave} type="submit">
-              Save
+              {DIALOG_VERBS.save}
             </Button>
           </DialogFooter>
         </Stack>

@@ -65,7 +65,7 @@ import { useRef, useState } from "react";
 import { CountText, QueryBoundary } from "#components";
 import { QueryErrorState } from "#data";
 import type { CollectionContribution, CollectionInsight } from "#lib";
-import { useFocusOnSwap } from "#lib";
+import { DIALOG_VERBS, useFocusOnSwap } from "#lib";
 import type { CollectionGroupDefinition } from "#state";
 import { selectCollectionMemberFromList, useCollectionSelection } from "#state";
 import { ConfigPaneGlance } from "./config-pane-glance.tsx";
@@ -253,10 +253,10 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
           />
           <Row className="shrink-0 flex-wrap max-inline-full" gap="field">
             <Button disabled={trimmed === "" || pending} type="submit" {...(inBand ? { size: "sm" as const } : {})}>
-              Create
+              {DIALOG_VERBS.create}
             </Button>
             <Button variant="ghost" onClick={cancel} type="button" {...(inBand ? { size: "sm" as const } : {})}>
-              Cancel
+              {DIALOG_VERBS.cancel}
             </Button>
           </Row>
         </Row>

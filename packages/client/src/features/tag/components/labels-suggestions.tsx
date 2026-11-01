@@ -10,7 +10,7 @@ import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { EditableTagChip, QueryBoundary, useAcceptSuggestion, useRejectSuggestion } from "#components";
 import { QueryErrorState, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { notify } from "#lib";
+import { DIALOG_VERBS, notify } from "#lib";
 import { selectCharacter, setActiveSection } from "#state";
 import type { SuggestionGroup } from "../lib/label-suggestion-groups.ts";
 import { groupSuggestions } from "../lib/label-suggestion-groups.ts";
@@ -255,7 +255,7 @@ function SuggestionRow({
           );
         }}
       >
-        Apply
+        {DIALOG_VERBS.apply}
       </Button>
       <Button
         variant="ghost"

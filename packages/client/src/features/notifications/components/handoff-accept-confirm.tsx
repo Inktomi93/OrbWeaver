@@ -27,6 +27,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
+import { DIALOG_VERBS } from "#lib";
 import { useAcceptHostHandoff } from "../hooks/use-handoff-actions.ts";
 import { useDismissNotification } from "../hooks/use-inbox.ts";
 
@@ -109,7 +110,7 @@ export function HandoffAcceptConfirm({ chatId, notificationId, offer, onClose, o
         )
       }
       confirmTone="primary"
-      confirmLabel="Accept"
+      confirmLabel={DIALOG_VERBS.accept}
       description={
         lines.length === 0
           ? "You become the host of this chat. Nothing is copied into your library."

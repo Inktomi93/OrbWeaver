@@ -18,8 +18,10 @@ import { useRef, useState } from "react";
 import { PickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { DIALOG_VERBS } from "#lib";
 import { useAddToGallery, useGalleryCandidates } from "../hooks/use-character-gallery.ts";
 import { useGalleryFocus } from "../hooks/use-gallery-focus.ts";
+import { CHAT_GALLERY_IMAGES_NAME, CHAT_GALLERY_UPLOAD_INSTEAD_NAME } from "../lib/chat-surface-names.ts";
 import { ownedImageName } from "../lib/gallery-image-name.ts";
 import { galleryThumbUrl } from "../lib/gallery-thumb.ts";
 import { GalleryLoadMore } from "./gallery-load-more.tsx";
@@ -168,7 +170,7 @@ function OwnedAssetPicker({ characterId, failure, isOwned, onConfirm, onUploadIn
         description="Every image you own is already in this gallery. Upload a new one from the gallery instead."
         action={
           <Button variant="outline" onClick={onUploadInstead}>
-            Upload instead
+            {CHAT_GALLERY_UPLOAD_INSTEAD_NAME}
           </Button>
         }
       />
@@ -177,7 +179,7 @@ function OwnedAssetPicker({ characterId, failure, isOwned, onConfirm, onUploadIn
     body = (
       <MediaGrid
         items={gridItems}
-        ariaLabel="Your images"
+        ariaLabel={CHAT_GALLERY_IMAGES_NAME}
         gapToken="row"
         selection={{ selectedIds: selected, onToggle: toggle }}
         className="max-block-(--height-scroll-md) @cq-28:max-block-(--height-scroll-lg)"
@@ -208,7 +210,7 @@ function OwnedAssetPicker({ characterId, failure, isOwned, onConfirm, onUploadIn
         <DialogClose
           render={
             <Button variant="ghost" disabled={isOwned}>
-              Cancel
+              {DIALOG_VERBS.cancel}
             </Button>
           }
         />

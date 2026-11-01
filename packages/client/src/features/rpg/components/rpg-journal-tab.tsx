@@ -43,7 +43,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { timeLib } from "#lib";
+import { DIALOG_VERBS, timeLib } from "#lib";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useAddJournalEntry, useCreateCheckpoint, useDeleteJournalEntry, useEditJournalEntry, useRestoreCheckpoint } from "../hooks/use-rpg-mutations.ts";
 import type { ArchivedCard } from "../lib/archived-cards.ts";
@@ -267,7 +267,7 @@ function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElemen
                   <ConfirmDialog
                     title={`Restore "${mark.label}"?`}
                     description="The game state rolls forward from this mark as a new current snapshot. The chronicle keeps everything since."
-                    confirmLabel="Restore"
+                    confirmLabel={DIALOG_VERBS.restore}
                     confirmTone="primary"
                     confirmLoading={restoreCheckpoint.isPending}
                     onConfirm={(): void => {
@@ -275,7 +275,7 @@ function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElemen
                     }}
                     trigger={
                       <Button variant="ghost" size="sm">
-                        Restore
+                        {DIALOG_VERBS.restore}
                       </Button>
                     }
                   />

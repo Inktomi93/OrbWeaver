@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog, ImportedChatsMemoryOffer } from "#components";
 import { importChats, useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
+import { DIALOG_VERBS, notify } from "#lib";
 
 // Both chat formats the single-chat door accepts: the ST/share transcript and the R6 orb-native BUNDLE
 // (which carries the room whole — injections, room overrides, the tag overlay, the rpg campaign). `.json`
@@ -118,7 +118,7 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
     <FormDialog
       closeButton={true}
       description="SillyTavern .jsonl transcripts or orbweaver .orb.json exports. Import the character first: each chat attaches to the character it names."
-      dismissLabel="Cancel"
+      dismissLabel={DIALOG_VERBS.cancel}
       onOpenChange={changeOpen}
       open={open}
       title="Import chats"

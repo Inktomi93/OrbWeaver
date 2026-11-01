@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { createEntityMutation, useColorQuotedSpeech, useInvalidation, useTRPC } from "#data";
-import { viewerTimeZone } from "#lib";
+import { DIALOG_VERBS, viewerTimeZone } from "#lib";
 
 /** The rewrite generation — returns the revised greeting text (no cache/bus effect; the result is previewed). */
 const useRewriteGreetingMutation = createEntityMutation<inferInput<Trpc["character"]["rewriteGreeting"]>, inferOutput<Trpc["character"]["rewriteGreeting"]>>({
@@ -134,7 +134,7 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
             }}
           >
             <Icon icon={X} size="sm" />
-            Discard
+            {DIALOG_VERBS.discard}
           </Button>
           <Button
             size="sm"
@@ -144,7 +144,7 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
             }}
           >
             <Icon icon={Check} size="sm" />
-            Accept
+            {DIALOG_VERBS.accept}
           </Button>
         </Row>
       </Stack>

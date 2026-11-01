@@ -10,6 +10,7 @@ import type { HomeTileContribution } from "#state";
 import { openModal, ROSTERS_TILE_ID, rememberHomeTileSettledHidden, useHomeTileSettledHidden } from "#state";
 import { HomeRostersTileBody } from "../components/home-rosters-tile-body.tsx";
 import { homeRostersVisible } from "./home-rosters-visibility.ts";
+import { ROSTER_ALL_NAME } from "./roster-names.ts";
 
 // Between the character faces and temp chat: all three start a chat, and a roster is the group one.
 const ROSTERS_TILE_ORDER = 25;
@@ -42,7 +43,7 @@ export const rosterPresetHomeTile: HomeTileContribution = {
   action: (
     // The arrow is decorative; the name is "All rosters".
     <Button variant="ghost" onClick={(): void => openModal("savedRosters")} size="sm">
-      All rosters
+      {ROSTER_ALL_NAME}
       <TrailingArrow />
     </Button>
   ),

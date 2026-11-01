@@ -38,6 +38,7 @@ import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { LibraryRow, RowToggleAction } from "#components";
 import { documentSubtitle, ingestBadge, ingestEmptyHint, ingestStallHint, showsPhaseChip } from "../lib/databank-model.ts";
+import { DATABANK_FEED_EVERY_CHAT_NAME } from "../lib/databank-names.ts";
 
 export interface DatabankLibraryRowProps {
   readonly document: DocumentView;
@@ -76,6 +77,7 @@ export function DatabankLibraryRow({
   // flipped would announce the opposite of what is on ("Stop feeding…, pressed").
   const everywhereName = `Use ${document.name} in every chat`;
   const toggleGlobal = (): void => onToggleGlobal(document.id, !global);
+  const feedName = global ? "Stop feeding every chat" : DATABANK_FEED_EVERY_CHAT_NAME;
 
   return (
     <LibraryRow
@@ -95,7 +97,7 @@ export function DatabankLibraryRow({
         menuItemsBefore: (
           <MenuItem onClick={toggleGlobal}>
             <Icon icon={Globe} size="sm" />
-            {global ? "Stop feeding every chat" : "Feed every chat"}
+            {feedName}
           </MenuItem>
         ),
         menuItemsAfter: (

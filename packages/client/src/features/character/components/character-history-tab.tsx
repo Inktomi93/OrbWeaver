@@ -13,7 +13,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { ConfirmDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { timeLib } from "#lib";
+import { DIALOG_VERBS, timeLib } from "#lib";
 import { useRestoreCharacter, useSnapshotCharacter } from "../hooks/use-character-context-mutations.ts";
 import { CHARACTER_RESTORE_SNAPSHOT_TITLE, CHARACTER_SNAPSHOT_NOW_NAME } from "../lib/character-names.ts";
 
@@ -106,11 +106,11 @@ function RestoreConfirm({ onConfirm }: { readonly onConfirm: () => void | Promis
   return (
     <ConfirmDialog
       confirmTone="primary"
-      confirmLabel="Restore"
+      confirmLabel={DIALOG_VERBS.restore}
       description="This replaces the character's current card with this snapshot. Your current state is snapshotted first, so you can undo it."
       onConfirm={onConfirm}
       title={CHARACTER_RESTORE_SNAPSHOT_TITLE}
-      trigger={<Button variant="ghost">Restore</Button>}
+      trigger={<Button variant="ghost">{DIALOG_VERBS.restore}</Button>}
     />
   );
 }

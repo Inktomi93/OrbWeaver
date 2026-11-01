@@ -31,8 +31,10 @@ import { MediaGrid } from "@orb/ui/media-grid";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { DIALOG_VERBS } from "#lib";
 import { openConfigTo } from "#state";
 import { QueryBoundary } from "./query-boundary.tsx";
+import { BACKGROUND_FROM_URL_NAME, BACKGROUND_URL_FIELD_NAME } from "./shared-control-names.ts";
 
 /** The all-blank "no background" source — every non-active field heals to "" (the `themeBackgroundSchema`
  *  fault-isolation defaults), so a pick always rewrites the WHOLE object rather than leaking a stale
@@ -106,7 +108,7 @@ export function BackgroundSourceField({ value, onChange, reserveKey }: Backgroun
       {inExternalMode ? null : (
         <Row align="center" gap="field" className="justify-between">
           <Button variant="ghost" onClick={(): void => setExternalDraft("")} size="sm" type="button">
-            From a URL…
+            {BACKGROUND_FROM_URL_NAME}
           </Button>
           {/* The ADD door — upload/manage lives in ONE place (BG-D's atomic library writes). */}
           <Button variant="ghost" onClick={(): void => openConfigTo("appearance", "background")} size="sm" type="button">
@@ -116,9 +118,9 @@ export function BackgroundSourceField({ value, onChange, reserveKey }: Backgroun
       )}
       {inExternalMode ? (
         <Row align="end" gap="field">
-          <Input aria-label="Background image URL" className="flex-1" onValueChange={setExternalDraft} placeholder="https://…" value={draftValue} />
+          <Input aria-label={BACKGROUND_URL_FIELD_NAME} className="flex-1" onValueChange={setExternalDraft} placeholder="https://…" value={draftValue} />
           <Button disabled={draftValue.trim().length === 0} variant="outline" onClick={applyExternal} type="button">
-            Apply
+            {DIALOG_VERBS.apply}
           </Button>
         </Row>
       ) : null}

@@ -26,6 +26,7 @@ import {
   useWorldInfoMemberTitle,
 } from "../hooks/use-world-info-collection.ts";
 import { WorldInfoMemberSurface } from "../surfaces/world-info-member-surface.tsx";
+import { WORLD_INFO_BOOK_NAME_FIELD_NAME, WORLD_INFO_IMPORT_BOOK_NAME, WORLD_INFO_NEW_BOOK_NAME } from "./world-info-names.ts";
 
 export const worldInfoCollection: CollectionContribution = {
   emptyText: "No books yet.",
@@ -34,8 +35,12 @@ export const worldInfoCollection: CollectionContribution = {
   // launcher rendered as a hollow shell in the lead column). The rank is ATTACHMENT, named by the kicker.
   insights: { useInsights: useWorldInfoInsights },
   useMemberTitle: useWorldInfoMemberTitle,
-  create: { label: "New book", useRun: useCreateWorldInfoMember, askName: { fieldLabel: "Book name", maxLength: WORLD_INFO_NAME_MAX } },
-  importFile: { label: "Import a world-info book", accept: "application/json", useRun: useImportWorldInfoMember },
+  create: {
+    label: WORLD_INFO_NEW_BOOK_NAME,
+    useRun: useCreateWorldInfoMember,
+    askName: { fieldLabel: WORLD_INFO_BOOK_NAME_FIELD_NAME, maxLength: WORLD_INFO_NAME_MAX },
+  },
+  importFile: { label: WORLD_INFO_IMPORT_BOOK_NAME, accept: "application/json", useRun: useImportWorldInfoMember },
   list: (view) => <WorldInfoCollectionRows view={view} />,
   // The WHOLE view: the editor draws the drill row out of `library` too (#1747, §3.4).
   detail: (view) => <WorldInfoMemberSurface view={view} />,

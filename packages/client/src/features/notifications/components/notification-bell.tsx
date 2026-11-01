@@ -28,7 +28,7 @@ import type { ReactElement } from "react";
 import { Fragment, useEffect, useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { testId, useOpenRequests } from "#lib";
+import { DIALOG_VERBS, testId, useOpenRequests } from "#lib";
 import type { ChromePresentation } from "#state";
 import { closeModal, openConfigTo, openInstalledPlugin, selectChat, setActiveSection } from "#state";
 import { useInbox, useMarkAllNotificationsRead } from "../hooks/use-inbox.ts";
@@ -205,7 +205,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
           icon={<Icon icon={Bell} size="md" />}
           action={
             <Button variant="outline" size="sm" onClick={isSheet ? (): void => closeModal() : (): void => setOpen(false)}>
-              Done
+              {DIALOG_VERBS.done}
             </Button>
           }
         />

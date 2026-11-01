@@ -30,7 +30,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { AppFormInstance } from "#forms/editor";
-import { notify } from "#lib";
+import { DIALOG_VERBS, notify } from "#lib";
 import { FormDialog } from "./form-dialog.tsx";
 import type { UserMacrosFormValues } from "./user-macro-editor-model.ts";
 
@@ -142,7 +142,7 @@ export function UserMacroEditorDialog({ form, index, onClose, suggestions }: Use
         </form.AppField>
 
         <DialogFooter>
-          <DialogClose render={<Button>Done</Button>} />
+          <DialogClose render={<Button>{DIALOG_VERBS.done}</Button>} />
         </DialogFooter>
       </DialogBody>
     </FormDialog>

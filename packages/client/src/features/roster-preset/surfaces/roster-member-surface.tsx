@@ -22,7 +22,7 @@ import { useRef, useState } from "react";
 import { EditorPage, MemberDrillHeader, SettingSwitchRow } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { CollectionMemberView } from "#lib";
-import { talkativenessReadout, useFocusOnMount } from "#lib";
+import { DIALOG_VERBS, talkativenessReadout, useFocusOnMount } from "#lib";
 import { clearCollectionSelection } from "#state";
 import { useUpdateRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
 import { useRulePresetCatalogue } from "../hooks/use-saved-rosters.ts";
@@ -167,7 +167,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
       </Field>
       <Row align="center" gap="field">
         <Button disabled={busy || !dirty || name.trim().length === 0} size="sm" onClick={onSave}>
-          Save
+          {DIALOG_VERBS.save}
         </Button>
       </Row>
       {/* The two-writer collision, STATED (#1561). It rides beside the Save it qualifies rather than at

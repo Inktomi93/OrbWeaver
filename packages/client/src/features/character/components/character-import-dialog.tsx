@@ -13,7 +13,7 @@ import { FileDropzone } from "@orb/ui/file-dropzone";
 import type { ReactElement } from "react";
 import { FormDialog } from "#components";
 import { importCharacters, useInvalidation } from "#data";
-import { notify } from "#lib";
+import { DIALOG_VERBS, notify } from "#lib";
 import { selectCharacter } from "#state";
 import { CHARACTER_IMPORT_NAME } from "../lib/character-names.ts";
 
@@ -88,7 +88,7 @@ export function CharacterImportDialog({ open, onOpenChange }: CharacterImportDia
     // AND IT SAYS ITS ONE FACT ONCE. It used to state the accepted formats THREE times in a 250px dialog
     // with one control — the description, the dropzone's instruction and the dropzone's hint. The
     // INSTRUCTION is the one a user acts on, so it carries the formats; the other two stand down.
-    <FormDialog closeButton={true} dismissLabel="Cancel" onOpenChange={onOpenChange} open={open} title={CHARACTER_IMPORT_NAME}>
+    <FormDialog closeButton={true} dismissLabel={DIALOG_VERBS.cancel} onOpenChange={onOpenChange} open={open} title={CHARACTER_IMPORT_NAME}>
       <FileDropzone
         accept={CARD_ACCEPT}
         subject="a SillyTavern character card (PNG or JSON)"

@@ -16,6 +16,7 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { notifyNewRoomPersona, useInvalidation, useTRPC } from "#data";
+import { DIALOG_VERBS } from "#lib";
 import { useDismissNotification } from "../hooks/use-inbox.ts";
 import { useAcceptInvite, useDeclineInvite } from "../hooks/use-invite-actions.ts";
 
@@ -191,7 +192,7 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
         {isInvite && !acted ? (
           <>
             <Button aria-label={`Accept invitation from ${item.payload.invitedByHandle}`} type="button" disabled={isPending} size="sm" onClick={acceptInvite}>
-              Accept
+              {DIALOG_VERBS.accept}
             </Button>
             <Button
               aria-label={`Decline invitation from ${item.payload.invitedByHandle}`}
@@ -207,7 +208,7 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
         ) : null}
         {isHandoff && !acted && !acceptedHandoff ? (
           <Button aria-label="Accept the host handoff" type="button" disabled={isPending} size="sm" onClick={(): void => onRequestHandoff(item)}>
-            Accept
+            {DIALOG_VERBS.accept}
           </Button>
         ) : null}
         {isConsent ? (
