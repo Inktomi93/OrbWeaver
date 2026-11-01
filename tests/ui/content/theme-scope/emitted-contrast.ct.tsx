@@ -19,6 +19,7 @@ import type {
   NestedSeedSurfaceStory,
   NeutralFillStory,
   PickedBubbleStory,
+  PickedRoomStory,
   ReadingBandStory,
   SelectedRowStory,
   SemanticContrastStory,
@@ -36,6 +37,8 @@ import {
   PICKED_BUBBLE_FILLS,
   PICKED_BUBBLE_INKS,
   PICKED_BUBBLE_PALETTES,
+  PICKED_ROOM_CASES,
+  PICKED_ROOM_PALETTES,
   SPEAKER_DIALOGUE,
 } from "./contrast-cases.ts";
 
@@ -211,6 +214,27 @@ for (const palette of PICKED_BUBBLE_PALETTES) {
         }
       });
     }
+  }
+}
+
+for (const palette of PICKED_ROOM_PALETTES) {
+  for (const room of PICKED_ROOM_CASES) {
+    test(`${palette.name}: ${room.name}: every turn, the page and its chips clear AA in the painted pixels`, async ({ mount, page }) => {
+      const { name: _palette, dark, light, ...scope } = palette;
+      const { name: _room, picks, ...shape } = room;
+      const component = await mount<typeof PickedRoomStory>("tests/ui/content/theme-scope/_contrast-stories/PickedRoomStory", {
+        ...scope,
+        ...shape,
+        picks: picks({ opposed: dark, matched: light }),
+      });
+      const samples = component.locator('[data-chip], [data-body] p, [data-slot="dialogue"], em, [data-streamdown="inline-code"]');
+      await expect(samples).toHaveCount(9);
+      for (const sample of await samples.all()) {
+        await sample.scrollIntoViewIfNeeded();
+        const receipt = await pixelContrast(page, sample);
+        expect(receipt.ratio, `${await sample.textContent()}: ${receipt.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+      }
+    });
   }
 }
 

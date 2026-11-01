@@ -109,13 +109,16 @@ test("an ink-only scope over a seed base is judged on that base's reading hosts,
   expect(lightness).toBeGreaterThan(0.5);
 });
 
-test("a scope that picks a bubble fill re-judges an inherited ink there, and leaves the cascade alone when the ink still clears", () => {
+test("a picked fill restates its inks on its own box and leaves the scope's vars to the page", () => {
   const page = "oklch(0.158 0.006 60)";
   const narrationVar = TOKENS["color.narration"].cssVar;
   const inks = { narrationColor: "oklch(0.67 0.03 260)" };
-  expect(clampThemeTokens({ aiBubble: { bg: "oklch(0.34 0.06 35)" } }, page, undefined, { palette: "carried", inks }).vars[narrationVar]).toContain(
-    "oklch(from",
-  );
-  expect(clampThemeTokens({ aiBubble: { bg: "oklch(0.2 0.02 35)" } }, page, undefined, { palette: "carried", inks }).vars[narrationVar]).toBeUndefined();
-  expect(clampThemeTokens({}, page, undefined, { palette: "carried", inks }).vars[narrationVar]).toBeUndefined();
+  const clamped = clampThemeTokens({ aiBubble: { bg: "oklch(0.34 0.06 35)" } }, page, undefined, { palette: "carried", inks });
+  expect(clamped.vars[narrationVar]).toBeUndefined();
+  expect(clamped.vars[TOKENS["color.muted"].cssVar]).toBeUndefined();
+  expect(clamped.bubbleScopes.assistant?.vars[narrationVar]).toContain("oklch(from");
+  expect(clamped.bubbleScopes.user).toBeUndefined();
+  expect(
+    clampThemeTokens({ aiBubble: { bg: "oklch(0.2 0.02 35)" } }, page, undefined, { palette: "carried", inks }).bubbleScopes.assistant?.vars[narrationVar],
+  ).toBe(inks.narrationColor);
 });

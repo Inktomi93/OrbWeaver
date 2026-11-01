@@ -1,7 +1,9 @@
 import type { MessageRole } from "@orb/kit/message-role";
-import type { ComponentProps, ReactElement } from "react";
+import type { ComponentProps, CSSProperties, ReactElement } from "react";
+import { use } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { variantProps } from "#lib";
+import { AmbientScopeContext } from "../../content/theme-scope/ambient-scope.ts";
 import { messageBubbleVariants } from "./variants.ts";
 
 export type MessageBubbleProps = ComponentProps<"div"> &
@@ -15,7 +17,8 @@ export type MessageBubbleProps = ComponentProps<"div"> &
 
 /**
  * A message bubble: a box filled as one role. It stamps the neutral D336 scope, because the role's own fill and ink are
- * not a tone's roles, and the attributes `tiers.css` keys the box's inset and radius on.
+ * not a tone's roles, and the attributes `tiers.css` keys the box's inset and radius on. A picked fill's prose inks and
+ * inset step are restated here and nowhere wider: only this box paints the fill (D202).
  */
 export function MessageBubble({
   messageRole,
@@ -27,15 +30,20 @@ export function MessageBubble({
   corners,
   ownSlot = "card-root",
   className,
+  style,
   ...rest
 }: MessageBubbleProps): ReactElement {
-  return (
+  const ambient = use(AmbientScopeContext);
+  const scope = ambient.scopes?.[messageRole];
+  const box = (
     <div
       {...rest}
       {...variantProps(messageBubbleVariants, { messageRole, shape, padding, receded, artDecoration, share, corners }, className, "neutral")}
+      style={{ ...(scope?.vars as CSSProperties | undefined), ...style }}
       data-padding={padding === "none" ? "none" : undefined}
       data-shape={shape === "bubble" ? "bubble" : undefined}
       data-slot={ownSlot}
     />
   );
+  return <AmbientScopeContext value={scope === undefined ? ambient : { ...ambient, inside: scope.fill }}>{box}</AmbientScopeContext>;
 }

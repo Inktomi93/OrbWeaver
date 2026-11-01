@@ -441,6 +441,85 @@ export function PickedBubbleStory({
   );
 }
 
+function StoryProse({ dialogue = true }: { readonly dialogue?: boolean }): ReactElement {
+  return (
+    <>
+      <div data-body="">
+        <Markdown trust="untrusted" mode="static">
+          Body prose.
+        </Markdown>
+      </div>
+      {dialogue ? (
+        <Markdown trust="untrusted" mode="static" colorQuotes={true}>
+          {'"Quoted speech" and *narration* with `inline code`.'}
+        </Markdown>
+      ) : null}
+    </>
+  );
+}
+
+/** A turn on the fill a boxed skin paints, or on the page as a box-less skin leaves it, in the reading ink that skin takes. */
+function StoryTurn({
+  boxed,
+  speaker,
+  readingInk,
+}: {
+  readonly boxed: boolean;
+  readonly speaker: "user" | "assistant";
+  readonly readingInk: boolean;
+}): ReactElement {
+  return boxed ? (
+    <MessageBubble messageRole={speaker} data-turn={speaker}>
+      <StoryProse />
+    </MessageBubble>
+  ) : (
+    <div data-turn={speaker} style={readingInk ? { color: `var(${TOKENS["color.prose-body"].cssVar})` } : undefined}>
+      <StoryProse />
+    </div>
+  );
+}
+
+/**
+ * A room over a seed or custom palette: page chrome, a user turn and an assistant turn. `level` puts the picks on the room
+ * scope, as a carried room theme does, or on the assistant row's scope, as a card's row does.
+ */
+export function PickedRoomStory({
+  theme,
+  background,
+  picks,
+  level,
+  boxed,
+  readingInk,
+}: {
+  readonly theme?: keyof typeof SEED_THEME_VALUE_SETS;
+  readonly background?: string;
+  readonly picks: ThemeScopeTokens;
+  readonly level: "room" | "row";
+  readonly boxed: boolean;
+  readonly readingInk: boolean;
+}): ReactElement {
+  const seed = theme === undefined ? TOKENS["color.background"].value : SEED_THEME_VALUE_SETS[theme].vars[TOKENS["color.background"].cssVar];
+  return (
+    <CtIsolation subject="ThemeScope" isolates="A picked bubble fill reaching only the box that paints it">
+      <div data-theme={theme}>
+        <ThemeScope tokens={background === undefined ? {} : { background }} ambientBackground={seed}>
+          <ThemeScope tokens={level === "room" ? picks : {}}>
+            <div style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, color: `var(${TOKENS["color.foreground"].cssVar})`, padding: "1rem" }}>
+              <p data-chip="" style={{ backgroundColor: `var(${TOKENS["color.muted"].cssVar})`, color: `var(${TOKENS["color.accent-foreground"].cssVar})` }}>
+                Modified
+              </p>
+              <StoryTurn boxed={boxed} speaker="user" readingInk={readingInk} />
+              <ThemeScope tokens={level === "row" ? picks : {}}>
+                <StoryTurn boxed={boxed} speaker="assistant" readingInk={readingInk} />
+              </ThemeScope>
+            </div>
+          </ThemeScope>
+        </ThemeScope>
+      </div>
+    </CtIsolation>
+  );
+}
+
 export function ReadingBandStory({ background }: { readonly background: string }): ReactElement {
   return (
     <CtIsolation subject="ThemeScope reading band" isolates="Opaque attribution coverage against contrasting art and the live plate color">

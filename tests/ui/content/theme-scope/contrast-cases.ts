@@ -42,6 +42,49 @@ export const PICKED_BUBBLE_INKS = [
   { name: "with card inks", inks: { dialogueColor: "oklch(0.4 0.1 240)", narrationColor: "oklch(0.86 0.1 85)" } },
 ] as const;
 
+const FILL_NEAR_BLACK = "oklch(0.34 0.06 35)";
+const FILL_NEAR_WHITE = "oklch(0.92 0.03 90)";
+
+/** The palettes a room pick lands on, each with the fill across the crossover from its page and the fill on its side. */
+export const PICKED_ROOM_PALETTES = [
+  { name: "light seed", theme: "light", dark: FILL_NEAR_BLACK, light: FILL_NEAR_WHITE },
+  { name: "pale paper", background: "oklch(0.93 0.02 90)", dark: FILL_NEAR_BLACK, light: FILL_NEAR_WHITE },
+  { name: "hearth seed", dark: FILL_NEAR_WHITE, light: FILL_NEAR_BLACK },
+  { name: "custom dark", background: "oklch(0.2 0.02 250)", dark: FILL_NEAR_WHITE, light: FILL_NEAR_BLACK },
+] as const;
+
+interface RoomFills {
+  readonly opposed: string;
+  readonly matched: string;
+}
+
+interface RoomPicks {
+  readonly aiBubble?: { readonly bg: string };
+  readonly userBubble?: { readonly bg: string };
+}
+
+/** Each way a pick reaches a room: a skin with no box, a pick for the other role, opposed picks, and a translucent fill. */
+export const PICKED_ROOM_CASES = [
+  { name: "flat", level: "room", boxed: false, readingInk: false, picks: ({ opposed }: RoomFills): RoomPicks => ({ aiBubble: { bg: opposed } }) },
+  { name: "document", level: "room", boxed: false, readingInk: true, picks: ({ opposed }: RoomFills): RoomPicks => ({ aiBubble: { bg: opposed } }) },
+  { name: "user bubble pick", level: "row", boxed: true, readingInk: false, picks: ({ opposed }: RoomFills): RoomPicks => ({ userBubble: { bg: opposed } }) },
+  {
+    name: "two opposed picks",
+    level: "room",
+    boxed: true,
+    readingInk: false,
+    picks: ({ opposed, matched }: RoomFills): RoomPicks => ({ aiBubble: { bg: opposed }, userBubble: { bg: matched } }),
+  },
+  { name: "room level pick", level: "room", boxed: true, readingInk: false, picks: ({ opposed }: RoomFills): RoomPicks => ({ aiBubble: { bg: opposed } }) },
+  {
+    name: "translucent fill",
+    level: "row",
+    boxed: true,
+    readingInk: false,
+    picks: ({ opposed }: RoomFills): RoomPicks => ({ aiBubble: { bg: opposed.replace(")", " / 0.6)") } }),
+  },
+] as const;
+
 /** A neutral mid-grey, where a fixed-colour edge has the least room on either side. */
 export const MID_GREY = "oklch(0.6 0 0)";
 

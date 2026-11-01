@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { createContext, use, useEffect } from "react";
-import type { AmbientPalette, ScopeAmbient, ThemeScopeTokens } from "./clamp.ts";
+import { AmbientScopeContext } from "./ambient-scope.ts";
+import type { AmbientPalette, ThemeScopeTokens } from "./clamp.ts";
 import { clampThemeTokens } from "./clamp.ts";
 import { InputBorderFallbackReporterContext, ToneFallbackReporterContext } from "./tone-fallback.ts";
 
@@ -55,9 +56,6 @@ interface AmbientBase {
  */
 const AmbientAccentContext = createContext<string | null>(null);
 
-/** The validated prose inks and picked bubble fills of the scopes above: a nested scope judges its inks on those fills. */
-const AmbientProseContext = createContext<Pick<ScopeAmbient, "inks" | "fills">>({});
-
 // The ONLY sanctioned path for a ThemeOverride to reach the DOM — values are parsed + clamped by
 // clampThemeTokens, so a hostile `accent: "url(//x)"` is dropped, not applied.
 export function ThemeScope({ tokens, children, className, ambientBackground, ambientAccent }: ThemeScopeProps): ReactElement {
@@ -66,7 +64,8 @@ export function ThemeScope({ tokens, children, className, ambientBackground, amb
   // The shell hands the active app theme's base to the root scope, which carries that background itself when the theme is custom.
   const ambient: AmbientBase | null = ambientBackground === undefined ? inheritedBase : { pixel: ambientBackground, palette: "seed" };
   const accentAmbient = ambientAccent ?? inheritedAccent;
-  const clamped = clampThemeTokens(tokens, ambient?.pixel, accentAmbient ?? undefined, { palette: ambient?.palette, ...use(AmbientProseContext) });
+  const scopeAmbient = use(AmbientScopeContext);
+  const clamped = clampThemeTokens(tokens, ambient?.pixel, accentAmbient ?? undefined, { palette: ambient?.palette, ...scopeAmbient });
   const reportFallback = use(ToneFallbackReporterContext);
   const reportInputBorderFallback = use(InputBorderFallbackReporterContext);
   // The fallback's fields, not the object the clamp rebuilds every render, so a scope reports one fallback once.
@@ -103,11 +102,18 @@ export function ThemeScope({ tokens, children, className, ambientBackground, amb
   return (
     <AmbientBaseContext value={clamped.resolvedBackground === undefined ? ambient : { pixel: clamped.resolvedBackground, palette: "carried" }}>
       <AmbientAccentContext value={clamped.accentSource ?? accentAmbient}>
-        <AmbientProseContext value={{ inks: clamped.proseInks, fills: clamped.pickedFills }}>
+        <AmbientScopeContext
+          value={{
+            inks: clamped.proseInks,
+            fills: clamped.bubbleFills,
+            scopes: clamped.bubbleScopes,
+            inside: tokens.background === undefined ? scopeAmbient.inside : undefined,
+          }}
+        >
           <div className={className} style={style} data-slot="theme-scope" {...(clamped.density === undefined ? {} : { "data-density": clamped.density })}>
             {children}
           </div>
-        </AmbientProseContext>
+        </AmbientScopeContext>
       </AmbientAccentContext>
     </AmbientBaseContext>
   );
