@@ -136,7 +136,6 @@ async function boot(message: UiGuestBootMessage): Promise<void> {
 
   const state: GuestState = {
     ctx,
-    log,
     jsonParse,
     handler: null,
     pending: new Map(),

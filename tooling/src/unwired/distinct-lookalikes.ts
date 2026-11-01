@@ -156,17 +156,6 @@ export const DISTINCT_LOOKALIKES = [
     reason: "Log panel props; the plugin transform view is a wire view of another concept.",
   },
   {
-    shape: "packages/client/src/features/rpg/components/rpg-scene-cards.tsx#RpgSceneCardsProps",
-    distinctFrom: [
-      "packages/client/src/features/chat/hooks/use-context-panel-mutations.ts#SetCharactersCanReactVars",
-      "packages/client/src/features/chat/hooks/use-context-panel-mutations.ts#SetHostDisplayScriptsVars",
-      "packages/client/src/features/chat/hooks/use-context-panel-mutations.ts#SetMemberPersonaLoreVars",
-      "packages/client/src/features/chat/hooks/use-context-panel-mutations.ts#SetOfferChoicesVars",
-      "packages/client/src/features/chat/hooks/use-context-panel-mutations.ts#SetReactionsEnabledVars",
-    ],
-    reason: "Rpg component props; the matches are chat mutation variables, another layer and owner.",
-  },
-  {
     shape: "packages/client/src/features/tag/hooks/use-tag-library.ts#TagLibraryFact",
     distinctFrom: ["packages/client/src/lib/collection-contracts.ts#CollectionInsight"],
     reason: "Tag library facts render only on its own surface; collection insights are the collection host's contribution data.",

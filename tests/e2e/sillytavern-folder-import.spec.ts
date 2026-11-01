@@ -9,12 +9,13 @@ import { testId } from "@orb/client/lib";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { openingPolicySchema } from "@orb/contracts/chat";
-import { ST_SECRETS_FILE, ST_SETTINGS_FILE } from "@orb/contracts/import";
+import { isStSecretsFile, ST_SECRETS_FILE, ST_SETTINGS_FILE } from "@orb/contracts/import";
 import { exportCharacterPath, exportChatPath, PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
 import { slugifyHandle } from "@orb/kit/slug";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page, Response } from "@playwright/test";
+import { relativePathOf } from "#client/data/import-tree.ts";
 import { planServedTreeImport } from "#client/data/import-tree-served.ts";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
@@ -102,6 +103,15 @@ async function servedPlan(page: Page, root: string): Promise<TreeImportPlan> {
   );
 }
 
+/** The synthetic library knows its skips exactly: each profile's credentials file and its unhandled plane. */
+function expectSyntheticSkips(unsentPaths: readonly string[], root: string): void {
+  const byPath = (a: string, b: string): number => a.localeCompare(b);
+  const expected = SYNTHETIC_PROFILES.flatMap(({ profile }) =>
+    [ST_SECRETS_FILE, `${UNHANDLED_PLANE}/index.bin`].map((leaf) => join(basename(root), profile, leaf)),
+  );
+  expect(unsentPaths.toSorted(byPath)).toEqual(expected.toSorted(byPath));
+}
+
 async function expectRenderedInLibrary(page: Page, name: string): Promise<void> {
   // The import ends inside Settings, and a reload restores Settings too. A phone shows its Settings screen without the
   // section bar there, so the section deep link is the one door to Characters that exists on every viewport.
@@ -131,13 +141,13 @@ test("a SillyTavern library folder imports every handled plane for the owner", {
   const plan = await servedPlan(page, root);
   expect(plan.layout).toBeNull();
   expect(plan.batches.length).toBeGreaterThan(0);
-  // The synthetic library knows its skips exactly: each profile's credentials file and its unhandled plane.
-  const byPath = (a: string, b: string): number => a.localeCompare(b);
-  const expectedSkips =
-    SELECTED_ST_FOLDER === undefined
-      ? SYNTHETIC_PROFILES.flatMap(({ profile }) => [ST_SECRETS_FILE, `${UNHANDLED_PLANE}/index.bin`].map((leaf) => `${profile}/${leaf}`)).toSorted(byPath)
-      : null;
-  expect(SELECTED_ST_FOLDER === undefined ? plan.skipped.map(({ path }) => path).toSorted(byPath) : null).toEqual(expectedSkips);
+  const sentPaths = new Set(plan.batches.flat().map(relativePathOf));
+  const unsentPaths = (await pickedFolder(root)).map(relativePathOf).filter((path) => !sentPaths.has(path));
+  expect([...sentPaths].filter(isStSecretsFile)).toEqual([]);
+  expect(unsentPaths).toHaveLength(plan.skipped.length);
+  if (SELECTED_ST_FOLDER === undefined) {
+    expectSyntheticSkips(unsentPaths, root);
+  }
 
   const before = await host.trpc.workloads.list.query({ kind: "import-st", limit: WORKLOAD_LIST_MAX_LIMIT });
   expect(before.length).toBeLessThan(WORKLOAD_LIST_MAX_LIMIT);

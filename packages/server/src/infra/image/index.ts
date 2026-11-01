@@ -10,7 +10,7 @@
 //     `withMetadata()` is called — which this adapter never does — so EXIF (incl. GPS), XMP, and ICC are
 //     dropped on every transform. `.rotate()` (no args) bakes in the EXIF orientation BEFORE the metadata
 //     is discarded, so the visual orientation survives while the data does not.
-//   • Rejects non-images. `probe` / `transform` decode through sharp, which throws on bytes it cannot
+//   • Rejects non-images. `transform` decodes through sharp, which throws on bytes it cannot
 //     parse as a supported raster image — the validation seam the assets domain can lean on. (The upload
 //     boundary's claimed-mime-vs-signature check is a SEPARATE pure guard in `domain/assets` `sniffMime`.)
 //   • The default sharp `limitInputPixels` (~268 MP) guards against decompression-bomb inputs.
@@ -18,7 +18,7 @@
 import type { Sharp } from "sharp";
 import sharp from "sharp";
 
-import type { ImageAdapter, ImageFormat, ImageInfo } from "./contract.ts";
+import type { ImageAdapter, ImageFormat } from "./contract.ts";
 
 export type { ImageAdapter } from "./contract.ts";
 
@@ -77,13 +77,6 @@ export function createImageAdapter(): ImageAdapter {
       }
       const out = await encode(pipeline, format, quality).toBuffer();
       return new Uint8Array(out.buffer, out.byteOffset, out.byteLength);
-    },
-
-    async probe(bytes): Promise<ImageInfo> {
-      // sharp's `Metadata.format`/`width`/`height` are non-optional: metadata() only resolves for bytes
-      // it successfully decoded (it throws otherwise), so these are always populated at this point.
-      const meta = await sharp(bytes).metadata();
-      return { format: meta.format, width: meta.width, height: meta.height };
     },
   };
 }

@@ -19,6 +19,7 @@
 import type { UserSettings, UserSettingsSection } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { useQuery } from "@tanstack/react-query";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import { use } from "react";
 import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
@@ -49,11 +50,7 @@ export function configLeafKey(address: { readonly sub: string; readonly setting:
   return `${address.sub}/${address.setting}`;
 }
 
-interface ResetLeafVars {
-  readonly section: UserSettingsSection;
-  readonly patch: Record<string, unknown>;
-}
-const useResetLeaf = createEntityMutation<ResetLeafVars, unknown>({
+const useResetLeaf = createEntityMutation<inferInput<Trpc["settings"]["updateUserSettingsSection"]>, unknown>({
   options: (trpc: Trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
   errorToast: "Couldn't reset the setting.",

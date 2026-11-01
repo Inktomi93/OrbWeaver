@@ -5,7 +5,6 @@ import { toolCallBlockVariants } from "./variants.ts";
 
 // ui-local structural mirror of @orb/contracts/chat's ToolCallRecord — ui never imports contracts.
 export interface ToolCallBlockRecord {
-  readonly toolCallId: string;
   readonly name: string;
   /** The model's raw JSON-string arguments (provenance-faithful — may be malformed). */
   readonly arguments: string;

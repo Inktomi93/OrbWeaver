@@ -28,16 +28,6 @@ export interface ImageTransformOptions {
   quality?: number;
 }
 
-/** Decoded image dimensions/format — the return of {@link ImageAdapter.probe}. */
-export interface ImageInfo {
-  /** The detected container format (e.g. `"png"`, `"jpeg"`, `"webp"`). */
-  format: string;
-  /** Decoded pixel width. */
-  width: number;
-  /** Decoded pixel height. */
-  height: number;
-}
-
 /** The sharp image adapter. `entry/` constructs it once and injects `transform` into
  *  `domain/assets`. Stateless (sharp holds no per-instance state) — the factory exists only to keep the
  *  injection seam uniform with the other infra handles. */
@@ -45,7 +35,4 @@ export interface ImageAdapter {
   frameCount: (bytes: Uint8Array) => Promise<number>;
   /** Decode → auto-orient → optional resize → re-encode, stripping all metadata. Rejects non-images. */
   transform: (bytes: Uint8Array, opts?: ImageTransformOptions) => Promise<Uint8Array>;
-  /** Decode just the header to report format + dimensions. Rejects (throws) on non-image bytes — the
-   *  validation seam for an upload that must be a real raster image. */
-  probe: (bytes: Uint8Array) => Promise<ImageInfo>;
 }

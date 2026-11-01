@@ -19,6 +19,7 @@ import { pickKeys } from "@orb/kit/objects";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, SettingSwitchRow, SettingTrackRow } from "#components";
+import type { SectionPatchVars } from "#data";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
@@ -28,11 +29,7 @@ import { BLUR_SURFACE_ITEMS, SURFACE_TEXTURE_ITEMS } from "../lib/appearance-sel
 
 type EffectsForm = Pick<AppearanceSettings, (typeof APPEARANCE_EFFECTS_KEYS)[number]>;
 
-interface UpdateEffectsVars {
-  readonly section: "appearance";
-  readonly patch: EffectsForm;
-}
-const useUpdateEffects = createEntityMutation<UpdateEffectsVars, unknown>({
+const useUpdateEffects = createEntityMutation<SectionPatchVars<"appearance">, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
   errorToast: "Couldn't save your effect settings.",

@@ -15,6 +15,7 @@ const DISTILL = { kind: "distill-characters", params: {} } satisfies StartWorklo
 const STATS = { kind: "reconcile-stats", params: {} } satisfies StartWorkloadInput;
 const MEMORY = { kind: "memory-backfill", params: {} } satisfies StartWorkloadInput;
 const CATALOG = { kind: "refresh-model-catalog", params: {} } satisfies StartWorkloadInput;
+const IMPORT_ST = { kind: "import-st", params: { dryRun: true } } satisfies StartWorkloadInput;
 
 test("a kind that calls no model answers null, never zero, and a kind that does answers a count", async () => {
   await using root = await createServerHarness({ startJobs: false });
@@ -50,6 +51,21 @@ test("a retry estimate answers a stranger and a missing id with the same not-fou
     await expect(root.services.workloads.estimateRetryModelCalls({ caller: stranger, id })).rejects.toBeInstanceOf(DomainNotFoundError);
   }
   await expect(root.services.workloads.estimateRetryModelCalls({ caller: owner, id: missing })).rejects.toBeInstanceOf(DomainNotFoundError);
+});
+
+test("a bulk create-kind run through the door mints for its named target, on the estimate and the start, and refuses without one", async () => {
+  await using root = await createServerHarness({ startJobs: false });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const target = await root.actor();
+  const scope = { input: IMPORT_ST, mode: "bulk" } as const;
+
+  await expect(caller.workloads.estimateModelCalls(scope)).rejects.toThrow("targetOwnerId");
+  await expect(caller.workloads.start(scope)).rejects.toThrow("targetOwnerId");
+
+  const targeted = { ...scope, targetOwnerId: target.id };
+  expect(await caller.workloads.estimateModelCalls(targeted)).toEqual({ calls: null });
+  const ref = await caller.workloads.start(targeted);
+  expect(await caller.workloads.get({ id: ref.id })).toMatchObject({ kind: IMPORT_ST.kind, ownerId: target.id });
 });
 
 // The memory sweep is the one kind whose owning domain refuses a run (memory turned off); the chat suite owns its counts.

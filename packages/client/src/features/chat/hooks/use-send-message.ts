@@ -37,7 +37,6 @@ export interface UseSendMessageOptions {
 export interface UseSendMessageResult {
   readonly send: (content: string, attachments?: readonly File[]) => void;
   readonly isPending: boolean;
-  readonly error: unknown | null;
 }
 
 async function uploadAttachments(upload: ReturnType<typeof useUploadAsset>, attachments: readonly File[]): Promise<AssetId[]> {
@@ -54,7 +53,6 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
   const upload = useUploadAsset();
   const sendMutation = useSendMutation({ trpc, invalidation });
   const [isPending, setIsPending] = useState(false);
-  const [error, setError] = useState<unknown>(null);
 
   // We subscribe synchronously right before firing the mutation that produces the user's row — JS is
   // single-threaded and bus delivery needs a real network round-trip, so the subscribe always lands
@@ -80,16 +78,15 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
     if (trimmed.length === 0 && attachments.length === 0) {
       return;
     }
-    setError(null);
     setIsPending(true);
+    // Only a send failure reaches the mutation's errorToast; an upload rejection is dropped here with no notice.
     runSend(trimmed, attachments)
-      .catch((err: unknown) => setError(err))
+      .catch(() => undefined)
       .finally(() => setIsPending(false));
   };
 
   return {
     send,
     isPending,
-    error,
   };
 }

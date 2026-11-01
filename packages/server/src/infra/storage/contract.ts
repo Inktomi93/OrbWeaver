@@ -25,8 +25,6 @@ export interface UserRuntimeDirs {
 export interface PutResult {
   hash: string;
   size: number;
-  /** false if the blob already existed (within-user dedup) — the write was skipped, the mtime bumped. */
-  created: boolean;
 }
 
 export interface Cas {
