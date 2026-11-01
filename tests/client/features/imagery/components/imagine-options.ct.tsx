@@ -3,7 +3,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { resolvedLength, settledBox } from "@orb/testkit/browser/spec";
 import type { TrpcRecorder } from "@orb/testkit/ct";
-import { routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -93,6 +93,25 @@ test("a room member is told the host pays, a host is told they do, and both read
     await expect(page.locator('[data-slot="imagine-count-spend"]')).toHaveText(payer);
     await mounted.unmount();
   }
+});
+
+test("no payer is named until the room read says who the viewer is", async ({ corpus, mount, page }) => {
+  const chatId = typeIdSchema(ID_PREFIX.chat).parse(corpus.reads["chat.listChats"][0]?.output.items[0]?.id);
+  const caller = await root.internalCallerFor(root.ownerId);
+  const roomRead = holdServed();
+  await using held = new AsyncDisposableStack();
+  held.defer(roomRead.release);
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings"]),
+    ...serveCorpusProcedures(caller, ["chat.getChat"], () => roomRead),
+  });
+  await mount<typeof ImagineOptionsStory>(STORY, { seed: { chatId, mode: "free", prompt: SEED_PROMPT } });
+  await roomRead.requested;
+  await pickCount(page, "3");
+  await expect(page.getByRole("status")).toHaveText("");
+  await expect(page.locator('[data-slot="imagine-count-spend"]')).toHaveCount(0);
+  roomRead.release();
+  await expect(page.locator('[data-slot="imagine-count-spend"]')).toBeVisible();
 });
 
 test("the spend line is a live region that is mounted before it has words", async ({ corpus, mount, page }) => {

@@ -289,10 +289,10 @@ const SHARED_ROOM_FLOOR = 2;
 function useImagineRoom(
   trpc: Trpc,
   chatId: ChatId,
-): { readonly galleryCharacterName: string | undefined; readonly shared: boolean; readonly hostPays: boolean } {
+): { readonly galleryCharacterName: string | undefined; readonly shared: boolean; readonly hostPays: boolean | undefined } {
   const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
   if (chat === undefined) {
-    return { galleryCharacterName: undefined, shared: false, hostPays: false };
+    return { galleryCharacterName: undefined, shared: false, hostPays: undefined };
   }
   const members = chat.participants.filter((person) => person.kind === "human" && person.leftSeq === null).length;
   return { galleryCharacterName: viewerGalleryCharacter(chat)?.displayName, shared: members >= SHARED_ROOM_FLOOR, hostPays: !chat.viewerIsHost };

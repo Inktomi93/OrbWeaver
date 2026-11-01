@@ -26,7 +26,8 @@ const NEGATIVE_MAX_ROWS = 6;
 export interface ImagineOptionsProps {
   readonly busy: boolean;
   /** A room member's picture runs on the host's connection and bill (D298). */
-  readonly hostPays: boolean;
+  /** `undefined` until the room read says who the viewer is: no payer is named before then. */
+  readonly hostPays: boolean | undefined;
   readonly count: number;
   readonly onCount: (count: number) => void;
   readonly size: SizePresetName | undefined;
@@ -69,7 +70,7 @@ export function ImagineOptions({ busy, hostPays, count, onCount, size, onSize, n
             </ToggleGroup>
             {/* Mounted before it has words, so a screen reader announces the spend the moment a count above one is picked. */}
             <Stack aria-live="polite" role="status">
-              {count > MIN_IMAGE_COUNT ? (
+              {count > MIN_IMAGE_COUNT && hostPays !== undefined ? (
                 <Text className="max-inline-(--reading-measure-prose)" data-slot="imagine-count-spend" voice="reading">
                   Asks for {count} images. {hostPays ? "The room's host pays" : "You pay"} for each one that comes back, and some connections make only one.
                 </Text>
