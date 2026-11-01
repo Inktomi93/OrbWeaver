@@ -20,7 +20,7 @@ Ports derive from their owners so references follow the composition root. The un
 | - | - | - |
 | 1 | Judge every member the member scan reports | the unwired-member items the 1439 report boards, 0501, and the possibly dead guards the restoration lanes found |
 | 2 | Judge the first full run of each new scan | the [judgement items](#judgement-items) |
-| 3 | Adjudicate unused exports through the package doors | [0989](../../work/0989-adjudicate-unused-production-exports-behind-explicit-package-doors.md) |
+| 3 | Adjudicate unused exports through the package doors | 0989 |
 | 4 | Hold the domain template with dependency rules | [1443](../../work/1443-enforce-domain-contract-purity-with-a-dependency-cruiser.md), [1423](../../work/1423-move-i-o-out-of-domain-substrate-folders.md), [1463](../../work/1463-chat-persistence-reads-the-assets-characters-and-personas.md) |
 
 ## Rejected
