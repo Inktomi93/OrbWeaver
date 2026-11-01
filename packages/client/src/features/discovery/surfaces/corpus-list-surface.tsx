@@ -22,10 +22,17 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, RefObject } from "react";
 import { useDeferredValue, useRef } from "react";
-import { ListPage, QueryBoundary } from "#components";
+import { ListPage, QueryBoundary, RerankModelDoor, SettingSwitchRow, useRerankModel } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
-import { setCorpusSearchQuery, setCorpusSearchTarget, useCorpusSearchQuery, useCorpusSearchTargetId } from "#state";
+import {
+  setCorpusSearchQuery,
+  setCorpusSearchRerank,
+  setCorpusSearchTarget,
+  useCorpusSearchQuery,
+  useCorpusSearchRerank,
+  useCorpusSearchTargetId,
+} from "#state";
 import { CorpusBrowseView } from "../components/corpus-browse-view.tsx";
 import { CorpusSearchResults } from "../components/corpus-search-results.tsx";
 import {
@@ -58,7 +65,12 @@ export function CorpusListSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const query = useCorpusSearchQuery();
   // The axis owns its own default: an unset/stale stored id resolves to the first target.
-  const targetId = resolveSearchTarget(useCorpusSearchTargetId()).id;
+  const target = resolveSearchTarget(useCorpusSearchTargetId());
+  const targetId = target.id;
+  const rerankModel = useRerankModel();
+  const rerankAsked = useCorpusSearchRerank();
+  // A stored ask the Rerank model can no longer serve is not sent: the switch shows off and says why.
+  const rerank = rerankAsked && rerankModel.kind === "ready";
   const deferredQuery = useDeferredValue(query);
   const searching = deferredQuery.trim() !== "";
 
@@ -77,6 +89,8 @@ export function CorpusListSurface(): ReactElement {
           value={targetId}
         />
       }
+      // The lexical text target ranks by BM25 and has nothing to rerank.
+      filters={target.kind === "unified" ? <RerankSwitch model={rerankModel} checked={rerank} /> : undefined}
       ref={surfaceRef}
       search={<SearchOmnibox inputRef={omniboxRef} query={query} deferredQuery={deferredQuery} onQuery={setCorpusSearchQuery} />}
       skipTo="Skip to results"
@@ -85,6 +99,7 @@ export function CorpusListSurface(): ReactElement {
         <CorpusSearchResults
           query={deferredQuery}
           targetId={targetId}
+          rerank={rerank}
           retainFinderScroll={true}
           // The pressed button goes away with the paused state, so focus returns to the field the query is in.
           onTextInstead={(): void => {
@@ -97,6 +112,37 @@ export function CorpusListSurface(): ReactElement {
       )}
     </ListPage>
   );
+}
+
+/** The rerank ask for the unified targets. Off and explained, with the Model-roles door, while no Rerank model can serve it. */
+function RerankSwitch({ model, checked }: { readonly model: ReturnType<typeof useRerankModel>; readonly checked: boolean }): ReactElement {
+  const ready = model.kind === "ready";
+  return (
+    <Stack gap="field">
+      <SettingSwitchRow
+        label="Rerank results"
+        description="Re-sorts the nearest hits with your Rerank model. Costs an extra model call."
+        checked={checked}
+        onChange={setCorpusSearchRerank}
+        disabled={!ready}
+        disabledReason={rerankOffReason(model)}
+      />
+      {model.kind === "unset" || model.kind === "blocked" ? <RerankModelDoor /> : null}
+    </Stack>
+  );
+}
+
+function rerankOffReason(model: ReturnType<typeof useRerankModel>): string | undefined {
+  switch (model.kind) {
+    case "ready":
+      return undefined;
+    case "unknown":
+      return "Checking your Rerank model.";
+    case "unset":
+      return "No Rerank model is set.";
+    case "blocked":
+      return `Your Rerank model is set but not running: ${model.cause}.`;
+  }
 }
 
 /** The omnibox input with server-driven typeahead. `mode="none"` shows the suggestions VERBATIM (they are

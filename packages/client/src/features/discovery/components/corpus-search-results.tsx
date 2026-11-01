@@ -31,18 +31,29 @@ export interface CorpusSearchResultsProps {
   readonly query: string;
   readonly targetId: string;
   readonly retainFinderScroll?: boolean;
+  /** Ask the unified targets for a cross-encoder rerank. The lexical text target has none. */
+  readonly rerank?: boolean;
   /** Switch this surface to the lexical text target, which still answers while vector search is paused. Absent: the
    *  surface has no target picker, so a paused search offers no switch. */
   readonly onTextInstead?: (() => void) | undefined;
 }
 
 /** Dispatch to the engine the active target names — the unified `search.search`, or the lexical `fields`. */
-export function CorpusSearchResults({ query, targetId, retainFinderScroll = false, onTextInstead }: CorpusSearchResultsProps): ReactElement {
+export function CorpusSearchResults({ query, targetId, retainFinderScroll = false, rerank = false, onTextInstead }: CorpusSearchResultsProps): ReactElement {
   const target = resolveSearchTarget(targetId);
   if (target.kind === "fields") {
     return <FieldsResults query={query} label={target.label} retainFinderScroll={retainFinderScroll} />;
   }
-  return <UnifiedResults query={query} over={target.over} label={target.label} retainFinderScroll={retainFinderScroll} onTextInstead={onTextInstead} />;
+  return (
+    <UnifiedResults
+      query={query}
+      over={target.over}
+      label={target.label}
+      retainFinderScroll={retainFinderScroll}
+      rerank={rerank}
+      onTextInstead={onTextInstead}
+    />
+  );
 }
 
 /** Run the unified search for the active target + render the discriminated result. */
@@ -51,12 +62,14 @@ function UnifiedResults({
   over,
   label,
   retainFinderScroll,
+  rerank,
   onTextInstead,
 }: {
   readonly query: string;
   readonly over: UnifiedOver;
   readonly label: string;
   readonly retainFinderScroll: boolean;
+  readonly rerank: boolean;
   readonly onTextInstead: (() => void) | undefined;
 }): ReactElement {
   const trpc = useTRPC();
@@ -68,6 +81,7 @@ function UnifiedResults({
         topN: CORPUS_SEARCH_TOP_N,
         over,
         scope: { kind: "owner" },
+        ...(rerank ? { rerank } : {}),
         ...(over === "images" ? { lens: CORPUS_IMAGE_LENS } : {}),
       },
       { enabled: trimmed !== "" },

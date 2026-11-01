@@ -182,8 +182,10 @@ export {
   readCorpusResultScroll,
   setCorpusResultScroll,
   setCorpusSearchQuery,
+  setCorpusSearchRerank,
   setCorpusSearchTarget,
   useCorpusSearchQuery,
+  useCorpusSearchRerank,
   useCorpusSearchTargetId,
 } from "./corpus-search-store.ts";
 export {
