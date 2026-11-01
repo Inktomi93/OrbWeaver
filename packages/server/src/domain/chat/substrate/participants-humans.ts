@@ -115,10 +115,12 @@ export function humanSeatPersonasOf(participants: readonly PersonaSeat[], consen
   });
 }
 
-/** The personas whose books join a round's world-info pool: each consented seat's persona, in seat order. The
- *  same present membership the people block renders (pass {@link humanSeatPersonasOf}'s output), never the
- *  online set, so a reconnect cannot rewrite the lore in the static half. The turn and every preview must
- *  derive it here, or a preview reports lore the next turn would not send. PURE. */
-export function memberPersonaIdsOf(humanSeats: readonly HumanSeatPersona[]): readonly PersonaId[] {
-  return humanSeats.flatMap((seat) => (seat.personaId === null ? [] : [seat.personaId]));
+/** The personas whose books join a round's world-info pool: each consented seat's persona, in seat order, then
+ *  the room's pin. The seats are the present membership the people block renders (pass
+ *  {@link humanSeatPersonasOf}'s output), never the online set, so a reconnect cannot rewrite the lore in the
+ *  static half. The pin joins past the consent set because it holds when its owner leaves or is disabled (D315).
+ *  Pass `chats.anchorPersonaId`, never a caller-supplied id. The turn and every preview must derive it here, or a
+ *  preview reports lore the next turn would not send. PURE. */
+export function lorePersonaIdsOf(humanSeats: readonly HumanSeatPersona[], anchorPersonaId: PersonaId | null): readonly PersonaId[] {
+  return [...new Set([...humanSeats.map((seat) => seat.personaId), anchorPersonaId].flatMap((id) => (id === null ? [] : [id])))];
 }

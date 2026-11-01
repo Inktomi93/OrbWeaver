@@ -15,8 +15,8 @@
 //     host-owned card can only legitimately carry host-owned books. `loadCharacterCardLore` below has
 //     applied exactly this join since it was written; this is that belt on the per-turn path.
 //   • persona  → the PERSONA'S OWN owner, via the `personas` join — deliberately NOT `target.ownerId`.
-//     `personaIds` is the present members' seat personas (multi-human native), so in a shared room they
-//     legitimately belong to members other than the host; belting this arm to the host would silently
+//     `personaIds` is the present members' seat personas plus the room's pin (multi-human native), so in a
+//     shared room they legitimately belong to members other than the host; belting this arm to the host would silently
 //     delete a member's own lore from the prompt. `attachToPersona` gates the persona and the book under
 //     one caller, so "the book belongs to the persona's owner" is the writers' invariant made physics.
 //   • chat     → `chatId` only, ON PURPOSE — but NOT for the reason this bullet used to give. It said a
@@ -51,7 +51,7 @@ interface WorldInfoPoolTarget {
   readonly ownerId: UserId;
   /** Every present AI seated character's identity; primary first. Empty ⇒ no character-scope books. */
   readonly characterIds: readonly CharacterId[];
-  /** The present members' seat personas (`memberPersonaIdsOf`). Empty ⇒ no persona-scope books. */
+  /** The present members' seat personas and the room's pin (`lorePersonaIdsOf`). Empty ⇒ no persona-scope books. */
   readonly personaIds: readonly PersonaId[];
   /** The host's room switch (`ChatMetadata.memberPersonaLore`). False ⇒ only the host's own persona books join. */
   readonly memberPersonaLore: boolean;
@@ -172,8 +172,8 @@ async function loadWorldInfoSources(
       .innerJoin(worldBooks, eq(worldBooks.id, globalBooks.worldBookId))
       .where(and(eq(worldBooks.ownerId, target.ownerId), eq(worldEntries.enabled, true))),
     // persona → scoped to the PERSONA'S OWN owner, NOT `target.ownerId` (see FLAG[attachment-scope]).
-    // the scope is `personaIds`, the room's present human seats' active personas (`memberPersonaIdsOf(humanSeats)`, or the editing/selecting member's own seat persona), resolved by the turn caller after the room authority gate; `setActivePersona` seats only a member's own persona. The personas row has no owner pin because a shared room legitimately carries members' personas. Ends if a caller-supplied persona id reaches the pool.
-    // each book is pinned to its persona's owner by `eq(worldBooks.ownerId, personas.ownerId)`, and the personas are the room's present seat personas in `personaIds` (see the personas waiver above), so a book joins only when the persona's own owner holds it. Ends if a caller-supplied persona id reaches the pool or the owner match is dropped.
+    // the scope is `personaIds`, the room's present human seats' active personas and its `chats.anchorPersonaId` pin (`lorePersonaIdsOf`, or the editing/selecting member's own seat persona), resolved by the turn caller after the room authority gate; `setActivePersona` seats only a member's own persona, and the pin is a host-gated room column that holds past its owner's leave (D315). The personas row has no owner pin because a shared room legitimately carries members' personas. Ends if a caller-supplied persona id reaches the pool.
+    // each book is pinned to its persona's owner by `eq(worldBooks.ownerId, personas.ownerId)`, and the personas are the room's own in `personaIds` (see the personas waiver above), so a book joins only when the persona's own owner holds it. Ends if a caller-supplied persona id reaches the pool or the owner match is dropped.
     personaIds.length === 0
       ? Promise.resolve([])
       : db

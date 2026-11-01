@@ -43,6 +43,9 @@ Owner rulings:
 
 Open:
 
-- Point 4 (a held pin's lore book in the turn's lore pool). It changes what the model receives (inference request shaping); stop and rule it before any change.
+Owner ruling (point 4): yes. A held pin's lore book feeds the chat's lore pool while the pin holds, even when another persona speaks.
+
+- Fixed. `lorePersonaIdsOf` in `packages/server/src/domain/chat/substrate/participants-humans.ts` adds the pin to the seats, and the turn, the preview and the inherited rack all derive the pool from it. Rule: `docs/law/Chat-Macro-Resolution.md` Persona books, ADR 0315. Test: `tests/server/domain/chat/verbs/turn-pin-lore.int.test.ts` through production `chat.send`, reading the provider request, the assembly trace, the preview and the rack.
+- Lane default, for owner review: `memberPersonaLore` off keeps a member's pinned book out, because the switch's copy promises only the host's, the chat's and the characters' books. The pool's existing owner term enforces it.
 
 Owner ruling (point 5): the stale seed-order header comment in the persona-resolution suite may be corrected; the suite's test code stays untouched and its comments may change.
