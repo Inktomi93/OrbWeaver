@@ -5,6 +5,7 @@ import { CORPUS_MODE_LABELS, CORPUS_WHOLE_LABEL, pruneConfirmLabel, testId } fro
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
 import { LEADERBOARD_ROW_ATTR } from "#client/features/stats/lib/leaderboard-row-attr.ts";
+import { TAG_FILTER_NAME } from "#client/features/tag/lib/tag-list-name.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { ROW_DELETE_NAME } from "#client/lib/row-menu-names.ts";
 import { ownerActor } from "./support/actors.ts";
@@ -71,7 +72,7 @@ test.describe("committed corpus workbench", () => {
     await openCorpusOnPhone(page);
     const list = page.locator(CORPUS_LIST);
     await list.getByRole("radio", { name: CORPUS_MODE_LABELS.labels }).click();
-    const filterBox = list.getByRole("textbox", { name: "Filter tags", exact: true });
+    const filterBox = list.getByRole("textbox", { name: TAG_FILTER_NAME, exact: true });
     await filterBox.fill(filter);
     await list.getByRole("button", { name: tag.name, exact: true }).click();
 
@@ -112,7 +113,7 @@ test.describe("committed corpus workbench", () => {
 
     // Labels: the tag library is the finder, its facts are CONTENT, and its one inspector explains labels.
     await modes.getByRole("radio", { name: CORPUS_MODE_LABELS.labels }).click();
-    await expect(list.getByRole("textbox", { name: "Filter tags", exact: true })).toBeVisible();
+    await expect(list.getByRole("textbox", { name: TAG_FILTER_NAME, exact: true })).toBeVisible();
     await expect(main.getByRole("heading", { name: CORPUS_MODE_LABELS.labels, level: 2 })).toBeVisible();
     await expect(context.getByRole("region", { name: "Usage", exact: true })).toBeVisible();
     await expect(context.getByRole("tab", { name: "Models", exact: true })).toHaveCount(0);
@@ -160,7 +161,7 @@ test.describe("committed corpus workbench", () => {
 
     await main.getByRole("radio", { name: CORPUS_MODE_LABELS.labels }).click();
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
-    await expect(list.getByRole("textbox", { name: "Filter tags", exact: true })).toBeVisible();
+    await expect(list.getByRole("textbox", { name: TAG_FILTER_NAME, exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: `Show ${CORPUS_MODE_LABELS.labels} overview`, exact: true })).toBeVisible();
   });
 
@@ -244,7 +245,7 @@ test.describe("committed corpus workbench", () => {
     const list = page.locator(CORPUS_LIST);
     await list.getByRole("radio", { name: CORPUS_MODE_LABELS.labels }).click();
     // The finder windows a large library, so its own filter brings this cell's row into the tree.
-    await list.getByRole("textbox", { name: "Filter tags", exact: true }).fill(name);
+    await list.getByRole("textbox", { name: TAG_FILTER_NAME, exact: true }).fill(name);
     await list.getByRole("button", { name: `Actions for ${name}`, exact: true }).click();
     await page.getByRole("menuitem", { name: ROW_DELETE_NAME }).click();
     await page.getByRole("alertdialog").getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();

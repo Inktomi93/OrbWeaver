@@ -7,6 +7,7 @@ import { dropOn, seedShellState, settledBox } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
 import type { AppShellModalStory, AppShellNoticeStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -168,7 +169,7 @@ test.describe("with an open sheet and keyboard", () => {
       description: LONG_DETAIL,
     });
     await page.getByRole("textbox", { name: "Search characters", exact: true }).fill(card.name);
-    await page.getByRole("list", { name: "Character library", exact: true }).getByRole("button", { name: card.name, exact: true }).click();
+    await page.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true }).getByRole("button", { name: card.name, exact: true }).click();
     // The push to the card's screen runs a view transition, which takes hit tests until it ends; a click inside it is
     // retried by scrolling the page, which moves every box this test then measures.
     await expect(page.getByRole("button", { name: "Back to Characters", exact: true })).toBeVisible();
