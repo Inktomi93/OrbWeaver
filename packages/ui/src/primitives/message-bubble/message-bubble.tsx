@@ -2,8 +2,7 @@ import type { MessageRole } from "@orb/kit/message-role";
 import type { ComponentProps, CSSProperties, ReactElement } from "react";
 import { use } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { variantProps } from "#lib";
-import { AmbientScopeContext } from "../../content/theme-scope/ambient-scope.ts";
+import { AmbientScopeContext, variantProps } from "#lib";
 import { messageBubbleVariants } from "./variants.ts";
 
 export type MessageBubbleProps = ComponentProps<"div"> &

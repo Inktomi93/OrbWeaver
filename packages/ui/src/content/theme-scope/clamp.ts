@@ -34,6 +34,8 @@ import { isDeterministicColor, isSafeColor } from "@orb/kit/safe-color";
 import type { Oklch } from "@orb/kit/theme-derivation";
 import { bubbleInset, carriedReadingHosts, derivedForegroundLightness, proseInkCorrection, surfacePolarity } from "@orb/kit/theme-derivation";
 import { z } from "zod";
+import type { AmbientScope, BubbleFillPixels, BubbleScope, BubbleScopes, ProseInks } from "#lib";
+import { PROSE_INK_FIELDS } from "#lib";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "#tokens";
 import type { ParsedOklch } from "./color-parse.ts";
 import { compositedBase, serializeOpaqueOklch, toOklch } from "./color-parse.ts";
@@ -160,27 +162,9 @@ const AMBIENT_PALETTES = ["seed", "carried"] as const;
  */
 export type AmbientPalette = (typeof AMBIENT_PALETTES)[number];
 
-/** The opaque fill a scope picked for each role. */
-export type BubbleFillPixels = Readonly<Partial<Record<MessageRole, string>>>;
-
-/** One role's box: its fill, and the vars it restates on itself. */
-export interface BubbleScope {
-  readonly fill: string;
-  readonly vars: Readonly<Record<string, string>>;
-}
-
-export type BubbleScopes = Readonly<Partial<Record<MessageRole, BubbleScope>>>;
-
 /** What a scope inherits beside its ambient base and accent: who painted that base, and the prose inks picked above it. */
-export interface ScopeAmbient {
+export interface ScopeAmbient extends AmbientScope {
   readonly palette?: AmbientPalette | undefined;
-  readonly inks?: ProseInks;
-  /** The picked bubble fills around this scope, as the pixels {@link ClampedTheme.bubbleFills} hands down. */
-  readonly fills?: BubbleFillPixels;
-  /** The bubble scopes in force, which `MessageBubble` reads. */
-  readonly scopes?: BubbleScopes;
-  /** The fill this scope sits inside, when a bubble box set it. */
-  readonly inside?: string | undefined;
 }
 
 /** The D336 primary fallback a scope took: the fill it paints and the hover and active percents the solve raised to. */
@@ -246,11 +230,6 @@ function proseInkOn(picked: string | undefined, base: ParsedOklch | null, hosts:
 function readingHostsOn(inkBase: ParsedOklch | null): readonly Oklch[] {
   return inkBase === null ? [] : carriedReadingHosts({ l: inkBase.l, c: inkBase.c, h: inkBase.h });
 }
-
-/** The prose inks of a scope and the scopes around it, validated, which a bubble box restates judged on its fill. */
-export type ProseInks = Readonly<Partial<Record<(typeof PROSE_INK_FIELDS)[number], string>>>;
-
-const PROSE_INK_FIELDS = ["speaker", "dialogueColor", "narrationColor", "bodyColor"] as const;
 
 /** The token each prose field overrides, read for a seed's static value. */
 const PROSE_INK_TOKENS = {
