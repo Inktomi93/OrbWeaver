@@ -32,7 +32,6 @@ interface SearchReadCaptures {
   readonly digests: CorpusRead<"search.search">;
   readonly corpus: CorpusRead<"search.search">;
   readonly documents: CorpusRead<"search.search">;
-  readonly segments: CorpusRead<"search.search">;
   readonly imagesRaw: CorpusRead<"search.search">;
   readonly imagesCaptioned: CorpusRead<"search.search">;
   readonly fields: CorpusRead<"search.fields">;
@@ -56,7 +55,6 @@ export function corpusSearchInput(ids: z.output<typeof searchIdsSchema>): {
     digests: { ...base, over: "digests", scope },
     corpus: { ...base, over: "corpus", scope },
     documents: { ...base, over: "documents", scope },
-    segments: { ...base, over: "segments", scope: { kind: "chat", chatId: ids.chatId, scopedCharacterId: ids.povId } },
     imagesRaw: { ...base, over: "images", scope, lens: "image-raw" },
     imagesCaptioned: { ...base, over: "images", scope, lens: "image-captioned" },
     fields: { query: SEARCH_FIELDS_QUERY, topN: SEARCH_LIMIT },
@@ -75,7 +73,6 @@ const searchReadsSchema = z.strictObject({
   digests: unifiedSearchResultSchema,
   corpus: unifiedSearchResultSchema,
   documents: unifiedSearchResultSchema,
-  segments: unifiedSearchResultSchema,
   imagesRaw: unifiedSearchResultSchema,
   imagesCaptioned: unifiedSearchResultSchema,
   fields: fieldSearchResultSchema,
@@ -91,8 +88,6 @@ function roomsOfSearch(output: CorpusRead<"search.search">["output"]): readonly 
       return [...output.hits.flatMap((hit) => hit.segments), ...output.standaloneSegments].flatMap((segment) => [segment.chatId, segment.source.chatId]);
     case "digests":
       return output.hits.flatMap((hit) => [hit.blockKey.chatId, hit.source.chatId]);
-    case "segments":
-      return output.hits.map((hit) => hit.blockKey.chatId);
     case "corpus":
       return output.hits.flatMap((hit) => [hit.source.chatId, ...hit.blockKeys.map((key) => key.chatId)]);
     case "entities":
@@ -116,17 +111,7 @@ export const corpusSearchSchema = z
   .strictObject({ viewerUserId: brandedId("UserId"), ids: searchIdsSchema, rooms: chatDetailSchema.array(), reads: searchReadsSchema })
   .refine(({ viewerUserId, ids, rooms, reads }) => {
     const requests = corpusSearchInput(ids);
-    const searches = [
-      reads.entities,
-      reads.characters,
-      reads.discover,
-      reads.digests,
-      reads.corpus,
-      reads.documents,
-      reads.segments,
-      reads.imagesRaw,
-      reads.imagesCaptioned,
-    ];
+    const searches = [reads.entities, reads.characters, reads.discover, reads.digests, reads.corpus, reads.documents, reads.imagesRaw, reads.imagesCaptioned];
     const expected = [
       requests.entities,
       requests.characters,
@@ -134,7 +119,6 @@ export const corpusSearchSchema = z
       requests.digests,
       requests.corpus,
       requests.documents,
-      requests.segments,
       requests.imagesRaw,
       requests.imagesCaptioned,
     ];
@@ -145,10 +129,7 @@ export const corpusSearchSchema = z
       new Set(rooms.map((room) => room.id)).size === requiredRooms.size &&
       rooms.every((room) => requiredRooms.has(room.id) && room.viewerUserId === viewerUserId && room.viewerIsHost) &&
       rooms.some((room) => room.id === ids.chatId && room.viewerOwnedCharacterIds.includes(ids.povId)) &&
-      searches.every((output, index) => output.over === expected[index]?.over && output.coverage.requestLimit === SEARCH_LIMIT && !output.coverage.reranked) &&
-      reads.segments.over === "segments" &&
-      reads.segments.hits.length > 0 &&
-      reads.segments.hits.every((hit) => hit.blockKey.chatId === ids.chatId && hit.blockKey.scopedCharacterId === ids.povId)
+      searches.every((output, index) => output.over === expected[index]?.over && output.coverage.requestLimit === SEARCH_LIMIT && !output.coverage.reranked)
     );
   }, "Corpus search viewer or retrieval cohort mismatch");
 
@@ -183,7 +164,6 @@ export function hydrateCorpusSearch(section: z.output<typeof corpusSearchSchema>
       digests: { input: inputs.digests, output: reads.digests },
       corpus: { input: inputs.corpus, output: reads.corpus },
       documents: { input: inputs.documents, output: reads.documents },
-      segments: { input: inputs.segments, output: reads.segments },
       imagesRaw: { input: inputs.imagesRaw, output: reads.imagesRaw },
       imagesCaptioned: { input: inputs.imagesCaptioned, output: reads.imagesCaptioned },
       fields: { input: inputs.fields, output: reads.fields },

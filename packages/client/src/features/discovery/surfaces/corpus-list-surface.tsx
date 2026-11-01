@@ -22,10 +22,17 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, RefObject } from "react";
 import { useDeferredValue, useRef } from "react";
-import { ListPage, QueryBoundary } from "#components";
+import { ListPage, QueryBoundary, RerankModelDoor, SettingSwitchRow, useRerankModel } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { testId, useFocusOnMount } from "#lib";
-import { setCorpusSearchQuery, setCorpusSearchTarget, useCorpusSearchQuery, useCorpusSearchTargetId } from "#state";
+import { testId, useDebouncedValue, useFocusOnMount } from "#lib";
+import {
+  setCorpusSearchQuery,
+  setCorpusSearchRerank,
+  setCorpusSearchTarget,
+  useCorpusSearchQuery,
+  useCorpusSearchRerank,
+  useCorpusSearchTargetId,
+} from "#state";
 import { CorpusBrowseView } from "../components/corpus-browse-view.tsx";
 import { CorpusSearchResults } from "../components/corpus-search-results.tsx";
 import {
@@ -41,6 +48,7 @@ import {
 const DEFAULT_TARGET = CORPUS_SEARCH_TARGETS[0].id;
 const SKELETON_ROW_COUNT = 5;
 const MIN_SUGGEST_LEN = 2;
+const RERANK_SETTLE_MS = 400;
 const TARGET_ITEMS = CORPUS_SEARCH_TARGETS.map((target) => ({ label: target.label, value: target.id }));
 
 export function CorpusListSurface(): ReactElement {
@@ -58,9 +66,40 @@ export function CorpusListSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const query = useCorpusSearchQuery();
   // The axis owns its own default: an unset/stale stored id resolves to the first target.
-  const targetId = resolveSearchTarget(useCorpusSearchTargetId()).id;
+  const target = resolveSearchTarget(useCorpusSearchTargetId());
+  const targetId = target.id;
+  const rerankModel = useRerankModel();
+  const rerankAsked = useCorpusSearchRerank();
+  // A stored ask the Rerank model can no longer serve is not sent: the switch shows off and says why.
+  const rerank = rerankAsked && rerankModel.kind === "ready";
+  // The stored ask waits for the model read, so the first search carries it instead of a plain one followed by a reranked one.
+  const awaitingRerankModel = target.kind === "unified" && rerankAsked && rerankModel.kind === "unknown";
   const deferredQuery = useDeferredValue(query);
+  // Each reranked search is a model call, so typing settles before it fires; a plain search keeps its per-keystroke reads.
+  const settledQuery = useDebouncedValue(deferredQuery, RERANK_SETTLE_MS);
+  const searchQuery = rerank ? settledQuery : deferredQuery;
   const searching = deferredQuery.trim() !== "";
+
+  let pane: ReactElement;
+  if (!searching) {
+    pane = <CorpusRestState targetId={targetId} />;
+  } else if (awaitingRerankModel) {
+    pane = <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
+  } else {
+    pane = (
+      <CorpusSearchResults
+        query={searchQuery}
+        targetId={targetId}
+        rerank={rerank}
+        retainFinderScroll={true}
+        // The pressed button goes away with the paused state, so focus returns to the field the query is in.
+        onTextInstead={(): void => {
+          setCorpusSearchTarget(CORPUS_TEXT_TARGET_ID);
+          omniboxRef.current?.focus();
+        }}
+      />
+    );
+  }
 
   return (
     <ListPage
@@ -77,26 +116,46 @@ export function CorpusListSurface(): ReactElement {
           value={targetId}
         />
       }
+      // The lexical text target ranks by BM25 and has nothing to rerank.
+      filters={target.kind === "unified" ? <RerankSwitch model={rerankModel} checked={rerank} /> : undefined}
       ref={surfaceRef}
       search={<SearchOmnibox inputRef={omniboxRef} query={query} deferredQuery={deferredQuery} onQuery={setCorpusSearchQuery} />}
       skipTo="Skip to results"
     >
-      {searching ? (
-        <CorpusSearchResults
-          query={deferredQuery}
-          targetId={targetId}
-          retainFinderScroll={true}
-          // The pressed button goes away with the paused state, so focus returns to the field the query is in.
-          onTextInstead={(): void => {
-            setCorpusSearchTarget(CORPUS_TEXT_TARGET_ID);
-            omniboxRef.current?.focus();
-          }}
-        />
-      ) : (
-        <CorpusRestState targetId={targetId} />
-      )}
+      {pane}
     </ListPage>
   );
+}
+
+/** The rerank ask for the unified targets. Off and explained, with the Model-roles door, while no Rerank model can serve it. */
+function RerankSwitch({ model, checked }: { readonly model: ReturnType<typeof useRerankModel>; readonly checked: boolean }): ReactElement {
+  const ready = model.kind === "ready";
+  return (
+    <Stack gap="field">
+      <SettingSwitchRow
+        label="Rerank results"
+        description="Re-sorts the nearest hits with your Rerank model. Costs an extra model call."
+        checked={checked}
+        onChange={setCorpusSearchRerank}
+        disabled={!ready}
+        disabledReason={rerankOffReason(model)}
+      />
+      {model.kind === "unset" || model.kind === "blocked" ? <RerankModelDoor /> : null}
+    </Stack>
+  );
+}
+
+function rerankOffReason(model: ReturnType<typeof useRerankModel>): string | undefined {
+  switch (model.kind) {
+    case "ready":
+      return undefined;
+    case "unknown":
+      return "Checking your Rerank model.";
+    case "unset":
+      return "No Rerank model is set.";
+    case "blocked":
+      return `Your Rerank model is set but not running: ${model.cause}.`;
+  }
 }
 
 /** The omnibox input with server-driven typeahead. `mode="none"` shows the suggestions VERBATIM (they are

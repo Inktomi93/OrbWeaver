@@ -6,11 +6,11 @@ import type { MemoryRetrievalMode, SearchScope } from "@orb/contracts/search";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { blockKeyStr } from "@orb/kit/recall";
 import { applyRerank } from "@orb/kit/rerank";
-import { SEARCH_EMPTY_QUERY, SEARCH_LENS_REQUIRED, SEARCH_SCOPE_REQUIRED, SEARCH_SCOPE_UNSUPPORTED, SearchError } from "../contract/errors.ts";
+import { SEARCH_EMPTY_QUERY, SEARCH_LENS_REQUIRED, SEARCH_SCOPE_UNSUPPORTED, SearchError } from "../contract/errors.ts";
 import type { UnifiedSearchParams } from "../contract/params.ts";
-import type { DigestSourceHit, SegmentSearchHit, UnifiedSearchResult, UnifiedSearchRows } from "../contract/results.ts";
+import type { DigestSourceHit, UnifiedSearchResult, UnifiedSearchRows } from "../contract/results.ts";
 import type { DigestCoverageOp, SearchContext, SearchService } from "../contract/service.ts";
-import { hostedChatIds, nearestDigests } from "../persistence/digest-rows.ts";
+import { nearestDigests } from "../persistence/digest-rows.ts";
 import { resolveCharacterDisplay, resolveChatDisplay } from "../persistence/display.ts";
 import { DISCOVER_SEGMENT_POOL_CAP, DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGMENTS_PER_CHAR, OWNER_OVERFETCH, SCOPED_POOL_K } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
@@ -18,7 +18,7 @@ import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
 import { withActiveQuerySpace } from "../substrate/space.ts";
 
 /** Delegated retrieval retains producer scope; digest scopes share the current-host scan below. */
-type DelegateVerbs = Pick<SearchService, "knn" | "findCharacters" | "discover" | "corpus" | "images" | "segments" | "documents">;
+type DelegateVerbs = Pick<SearchService, "knn" | "findCharacters" | "discover" | "corpus" | "images" | "documents">;
 
 function assertNever(value: never): never {
   throw new SearchError(SEARCH_SCOPE_UNSUPPORTED, `unhandled search dispatch: ${String(value)}`);
@@ -39,7 +39,6 @@ function requireOwnerScope(scope: SearchScope, over: string): void {
 interface DigestScanArgs {
   readonly ownerId: UserId;
   readonly chatId?: ChatId | undefined;
-  readonly scopedCharacterId?: CharacterId | undefined;
   readonly speakerCharacterId?: CharacterId | undefined;
   readonly query: string;
   readonly topN: number;
@@ -64,7 +63,6 @@ async function digestScan(ctx: SearchContext, args: DigestScanArgs, coverage: Di
       generationId: space.generationId,
       ownerId: args.ownerId,
       ...(args.chatId !== undefined ? { chatIds: [args.chatId] } : {}),
-      ...(args.scopedCharacterId !== undefined ? { scopedCharacterId: args.scopedCharacterId } : {}),
       ...(args.speakerCharacterId !== undefined ? { speakerCharacterId: args.speakerCharacterId } : {}),
       limit: Math.min(args.topN * OWNER_OVERFETCH, SCOPED_POOL_K),
     });
@@ -137,15 +135,7 @@ async function dispatchDigests(ctx: SearchContext, params: UnifiedSearchParams, 
   const base = { ownerId, query, topN, rerank: rerank === true };
   switch (scope.kind) {
     case "chat":
-      return await digestScan(
-        ctx,
-        {
-          ...base,
-          chatId: scope.chatId,
-          scopedCharacterId: scope.scopedCharacterId,
-        },
-        coverage,
-      );
+      return await digestScan(ctx, { ...base, chatId: scope.chatId }, coverage);
     case "character":
       return await digestScan(ctx, { ...base, speakerCharacterId: scope.characterId }, coverage);
     case "owner":
@@ -153,36 +143,6 @@ async function dispatchDigests(ctx: SearchContext, params: UnifiedSearchParams, 
     default:
       return assertNever(scope);
   }
-}
-
-/** The wire segment scope requires a current hosted room and an egocentric recall identity. */
-async function dispatchSegments(ctx: SearchContext, verbs: DelegateVerbs, params: UnifiedSearchParams): Promise<SegmentSearchHit[]> {
-  const { scope, ownerId, query, topN, rerank } = params;
-  if (scope.kind !== "chat") {
-    throw new SearchError(SEARCH_SCOPE_UNSUPPORTED, "the segments target is within-chat verbatim — it needs a chat scope");
-  }
-  if (scope.scopedCharacterId === undefined) {
-    throw new SearchError(SEARCH_SCOPE_REQUIRED, "segments needs an egocentric scopedCharacterId on the chat scope");
-  }
-  // Host membership applies independently of whether a digest exists.
-  return await withActiveQuerySpace(ctx, ownerId, "embed", async () => {
-    const owned = await hostedChatIds(ctx.db, ownerId);
-    if (!owned.includes(scope.chatId)) {
-      return [];
-    }
-    return await verbs.segments({
-      scope: { chat: scope.chatId },
-      ownerId,
-      scopedCharacterId: scope.scopedCharacterId,
-      queryText: query,
-      mode: memoryMode(rerank),
-      keywordMatch: false,
-      minScore: 0,
-      // The omnibox asks for `topN` — so the retrieval cut and the mixC rerank cut are both the caller's topN.
-      retrieveK: topN,
-      rerankTo: topN,
-    });
-  });
 }
 
 export function createSearch(ctx: SearchContext, verbs: DelegateVerbs, coverage: DigestCoverageOp): SearchService["search"] {
@@ -236,8 +196,6 @@ export function createSearch(ctx: SearchContext, verbs: DelegateVerbs, coverage:
           over,
           hits: await verbs.documents({ scope: { ownerId }, ownerId, queryText: query, k: topN, minScore: 0, rerank }),
         };
-      case "segments":
-        return { over, hits: await dispatchSegments(ctx, verbs, params) };
       case "digests":
         return { over, hits: await dispatchDigests(ctx, params, coverage) };
       default:
@@ -264,7 +222,6 @@ function searchCandidateLimit(params: UnifiedSearchParams): number {
     case "discover":
       return Math.min(params.topN * DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGMENT_POOL_CAP);
     case "corpus":
-    case "segments":
       return SCOPED_POOL_K;
     case "digests":
     case "documents":
