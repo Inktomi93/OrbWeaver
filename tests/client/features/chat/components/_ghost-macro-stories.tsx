@@ -15,6 +15,7 @@ function Transcript({
   streamLabel,
   nextText = "",
   nextLabel = "Stream more",
+  kind = "text",
 }: {
   readonly chatId: ChatId;
   readonly speakerCharacterId: CharacterId;
@@ -23,6 +24,8 @@ function Transcript({
   /** A second chunk appended by its own control, so a test can stop the stream between the two. */
   readonly nextText?: string;
   readonly nextLabel?: string;
+  /** Which stream the chunks ride: the answer text or the reasoning trace. */
+  readonly kind?: "text" | "reasoning";
 }): ReactElement {
   useState(() => selectChat(chatId));
   const busDeps = useChatBusDeps();
@@ -32,12 +35,12 @@ function Transcript({
       <Button
         onClick={(): void => {
           busDeps.stream.beginTurn(chatId, { intent: "send", speakerCharacterId, targetMessageId: null });
-          busDeps.stream.appendDelta({ chatId, kind: "text", text: streamedText });
+          busDeps.stream.appendDelta({ chatId, kind, text: streamedText });
         }}
       >
         {streamLabel}
       </Button>
-      <Button onClick={(): void => busDeps.stream.appendDelta({ chatId, kind: "text", text: nextText })}>{nextLabel}</Button>
+      <Button onClick={(): void => busDeps.stream.appendDelta({ chatId, kind, text: nextText })}>{nextLabel}</Button>
       <MessageListSurface chatId={chatId} busDeps={busDeps} surfaceContributors={chatSurfaceContributors} toolRenderers={toolRenderers} />
     </>
   );
@@ -51,6 +54,7 @@ export function StreamingReplyStory({
   streamLabel,
   nextText = "",
   nextLabel = "Stream more",
+  kind = "text",
 }: {
   readonly chatId: ChatId;
   readonly speakerCharacterId: CharacterId;
@@ -59,6 +63,8 @@ export function StreamingReplyStory({
   /** A second chunk appended by its own control, so a test can stop the stream between the two. */
   readonly nextText?: string;
   readonly nextLabel?: string;
+  /** Which stream the chunks ride: the answer text or the reasoning trace. */
+  readonly kind?: "text" | "reasoning";
 }): ReactElement {
   return (
     <CtClientProviders>
@@ -70,6 +76,7 @@ export function StreamingReplyStory({
           streamLabel={streamLabel}
           nextText={nextText}
           nextLabel={nextLabel}
+          kind={kind}
         />
       </Container>
     </CtClientProviders>

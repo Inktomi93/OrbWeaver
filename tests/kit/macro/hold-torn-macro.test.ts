@@ -1,7 +1,7 @@
 // The streaming ghost holds a torn `{{macro}}` by the parser's own verdict, and releases what the parser reads as literal.
 // @subject packages/kit/src/macro/parser.ts
 
-import { holdTornMacro, MAX_HELD_MACRO_LENGTH } from "@orb/kit/macro";
+import { holdTornMacro } from "@orb/kit/macro";
 import { expect, test } from "@orb/testkit/node";
 
 // Every cut of one streamed reply, the way token chunks land: a prefix of the final text.
@@ -34,8 +34,13 @@ test("an opener the parser reads as literal text is never held", () => {
   expect(holdTornMacro("one { brace")).toBe("one { brace");
 });
 
-test("a macro that never closes releases once it outgrows the hold bound", () => {
-  const run = `{{note ${"x".repeat(MAX_HELD_MACRO_LENGTH)}`;
-  expect(holdTornMacro(run)).toBe(run);
-  expect(holdTornMacro(`before ${run.slice(0, MAX_HELD_MACRO_LENGTH)}`)).toBe("before ");
+test("a macro that never closes releases once its open tail outgrows the hold bound", () => {
+  const tail = (length: number): string => `{{note ${"x".repeat(length)}`;
+  expect(holdTornMacro(`before ${tail(10)}`)).toBe("before ");
+  const releasedAt = Array.from({ length: 10_000 }, (_, length) => length).find((length) => holdTornMacro(tail(length)) === tail(length));
+  expect(releasedAt).toBeDefined();
+  // The bound is finite, so prose that never closes cannot hide the rest of a stream.
+  expect(releasedAt).toBeLessThan(10_000);
+  expect(holdTornMacro(`before ${tail(releasedAt ?? 0)}`)).toBe(`before ${tail(releasedAt ?? 0)}`);
+  expect(holdTornMacro(`before ${tail((releasedAt ?? 0) - 1)}`)).toBe("before ");
 });

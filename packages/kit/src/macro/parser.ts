@@ -326,7 +326,7 @@ export function parseMacros(text: string): MacroAST {
 
 /** The longest torn macro a streaming display holds back. A prose `{{name` that never closes would hide the
  *  rest of the stream; past this length it renders as the literal text the parser degrades it to. */
-export const MAX_HELD_MACRO_LENGTH = 2048;
+const MAX_HELD_MACRO_LENGTH = 2048;
 
 /** Streaming display: strip a trailing macro whose closing `}}` has not arrived, so a half-streamed
  *  `{{cha` never flashes as literal text. "Torn" is the parser's own verdict — `readTag` stops on an

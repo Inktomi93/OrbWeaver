@@ -86,10 +86,6 @@ function FormingCardChip({ title }: { readonly title: string | null }): ReactEle
   );
 }
 
-function holdTornMacroWhile(streaming: boolean, text: string): string {
-  return streaming ? holdTornMacro(text) : text;
-}
-
 /** One ghost segment → its element. The KEY is `index-kind`, the settled path's precedent
  *  (`message-content.tsx`): stable for an unchanged body, so a closed card's iframe is never remounted by
  *  the prose that keeps streaming BELOW it — a remount would reload the srcdoc and re-run the card's paint
@@ -270,9 +266,9 @@ export function GhostMessageRow({
   const viewArt = useArtViewer();
   const artControl = useArtControl();
   // A torn `{{macro}}` is held on the RAW stream, before substitution: after it, the half-token is already
-  // literal text the renderer cannot tell from prose. The settled row (not streaming) is untouched.
-  const text = holdTornMacroWhile(streaming, useGhostText(chatId));
-  const rawReasoning = holdTornMacroWhile(streaming, useGhostReasoning(chatId));
+  // literal text the renderer cannot tell from prose. The slot text is empty outside a live turn.
+  const text = holdTornMacro(useGhostText(chatId));
+  const rawReasoning = holdTornMacro(useGhostReasoning(chatId));
   const reasoning = renderMessageForDisplay(rawReasoning, renderContext, speakerCharacterId, null);
   const thinking = useGhostThinking(chatId);
   const paced = useSmoothText(renderMessageForDisplay(text, renderContext, speakerCharacterId, null), {
