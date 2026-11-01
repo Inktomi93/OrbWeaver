@@ -117,7 +117,7 @@ function plannedSites(rootNode: SgNode<TS>, types: ReadonlySet<string>): readonl
   return sites;
 }
 
-// Any module counts: the file may import the binding through a relative door (`./trpc.ts`) rather than `#data`.
+// Any module counts: the file may import the binding through a relative door (a sibling `trpc` module) rather than `#data`.
 function hasImport(rootNode: SgNode<TS>, wanted: Import): boolean {
   return rootNode.findAll({ rule: { kind: "import_specifier" } }).some((specifier) => specifier.field("name")?.text() === wanted.name);
 }
