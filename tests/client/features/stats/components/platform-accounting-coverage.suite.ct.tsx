@@ -5,6 +5,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import type { AccountingCoverageStory } from "./_accounting-coverage-stories.tsx";
 
@@ -89,7 +90,7 @@ async function expectIndependentDisclosure(subject: ReadingSubject, others: read
     contentType: "application/json",
   });
   expect(geometry.inlineOverflow).toBeLessThanOrEqual(1);
-  const floor = await resolvedLength(page, "var(--size-control-sm)", pane);
+  const floor = await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`, pane);
   expect(geometry.controls[0]?.height).toBeGreaterThanOrEqual(floor);
 }
 

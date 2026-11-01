@@ -5,6 +5,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { RpgTurnFooterStory } from "./_own-key-panels-stories.tsx";
 
 const STORY = "tests/client/features/rpg/components/_own-key-panels-stories/RpgTurnFooterStory";
@@ -55,26 +56,29 @@ for (const touch of [false, true]) {
       await expect(trigger).toBeVisible();
       await expect(trigger).toHaveText(String(recorded.record.calls.length));
       await expect(trigger).toHaveAttribute("aria-expanded", "false");
-      const geometry = await trigger.evaluate((element) => {
-        const box = element.getBoundingClientRect();
-        const parent = element.parentElement;
-        if (parent === null) {
-          throw new Error("Missing disclosure root");
-        }
-        const probe = document.createElement("span");
-        probe.style.width = "var(--size-touch-target)";
-        probe.style.position = "absolute";
-        element.append(probe);
-        const floor = probe.getBoundingClientRect().width;
-        probe.remove();
-        return {
-          width: box.width,
-          height: box.height,
-          available: parent.getBoundingClientRect().width,
-          floor,
-          coarse: matchMedia("(pointer: coarse)").matches,
-        };
-      });
+      const geometry = await trigger.evaluate(
+        (element, { sizeTouchTarget, pointerCoarse }) => {
+          const box = element.getBoundingClientRect();
+          const parent = element.parentElement;
+          if (parent === null) {
+            throw new Error("Missing disclosure root");
+          }
+          const probe = document.createElement("span");
+          probe.style.width = `var(${sizeTouchTarget})`;
+          probe.style.position = "absolute";
+          element.append(probe);
+          const floor = probe.getBoundingClientRect().width;
+          probe.remove();
+          return {
+            width: box.width,
+            height: box.height,
+            available: parent.getBoundingClientRect().width,
+            floor,
+            coarse: matchMedia(pointerCoarse).matches,
+          };
+        },
+        { sizeTouchTarget: TOKENS["size.touch-target"].cssVar, pointerCoarse: MEDIA_QUERIES["pointer-coarse"] },
+      );
       expect(geometry.coarse).toBe(touch);
       expect(geometry.width).toBeLessThan(geometry.available);
       expect(geometry.floor).toBeGreaterThan(0);

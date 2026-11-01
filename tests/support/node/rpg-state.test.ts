@@ -1,6 +1,7 @@
 // @subject tests/support/iso/rpg-state.ts
 
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import { ZodError } from "zod";
 import { createSeededIds } from "../iso/ids.ts";
 import {
   makeRpgActorEntry,
@@ -27,12 +28,12 @@ test("whole actor defaults retain the supplied reference without sharing mutable
 
 test("component construction preserves owner refusals after overrides", () => {
   const itemId = createSeededIds().uuid();
-  expect(() => makeRpgSheet({ level: -1 })).toThrow();
-  expect(() => makeRpgActorVolatile({ wallet: [{ name: "Coin", amount: 0.5 }] })).toThrow();
+  expect(() => makeRpgSheet({ level: -1 })).toThrow(ZodError);
+  expect(() => makeRpgActorVolatile({ wallet: [{ name: "Coin", amount: 0.5 }] })).toThrow(ZodError);
   expect(() => makeRpgRelationship({ label: "Custom", kind: "custom" })).not.toThrow();
-  expect(() => makeRpgTrackerValue({ max: 0 })).toThrow();
-  expect(() => makeRpgActorIdentity("")).toThrow();
-  expect(() => makeRpgActorEntry({ kind: "npc", npcKey: "Not a canonical key" })).toThrow();
-  expect(() => makeRpgInventoryItem({ id: "", name: "Token" })).toThrow();
-  expect(() => makeRpgInventoryItem({ id: itemId, name: "Token", quantity: 0 })).toThrow();
+  expect(() => makeRpgTrackerValue({ max: 0 })).toThrow(ZodError);
+  expect(() => makeRpgActorIdentity("")).toThrow(ZodError);
+  expect(() => makeRpgActorEntry({ kind: "npc", npcKey: "Not a canonical key" })).toThrow(ZodError);
+  expect(() => makeRpgInventoryItem({ id: "", name: "Token" })).toThrow(ZodError);
+  expect(() => makeRpgInventoryItem({ id: itemId, name: "Token", quantity: 0 })).toThrow(ZodError);
 });

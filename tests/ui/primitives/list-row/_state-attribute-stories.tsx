@@ -1,5 +1,6 @@
 import { CtIsolation } from "@orb/testkit/browser";
 import { ListRow } from "@orb/ui/list-row";
+import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 import { useState } from "react";
 
@@ -13,7 +14,7 @@ export function StateAttributeStory(): ReactElement {
       <ListRow aria-expanded={true} clickable={true} title="Expanded" />
       <ListRow aria-expanded={true} clickable={true} rowTint="row" title="Expanded row tint" />
       <ListRow clickable={true} rowTint="row" title="Plain row tint" />
-      <div data-probe="tint" data-tone="neutral" style={{ backgroundColor: "var(--color-tone-tint-active)" }} />
+      <div data-probe="tint" data-tone="neutral" style={{ backgroundColor: `var(${TOKENS["color.tone-tint-active"].cssVar})` }} />
       <ListRow clickable={true} data-disabled="" onClick={(): void => setClicks(clicks + 1)} title="Disabled" />
       <output data-slot="clicks">{clicks}</output>
     </CtIsolation>

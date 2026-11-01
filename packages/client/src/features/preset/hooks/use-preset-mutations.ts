@@ -5,7 +5,7 @@
 // `no-client-wire-redeclare`).
 
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
-import type { Trpc } from "#data";
+import type { SectionPatchVars, Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
 /** Create a new (empty-default or seeded) preset. Refetches the library list; resolves to the created row
@@ -60,7 +60,7 @@ export const useResetPreset = createEntityMutation<inferInput<Trpc["preset"]["re
  *  covers `getUserSettings` (the LIST dropdown + CONTEXT Usage tab both read it), so the echo reconciles the
  *  acting device with no self-invalidate double-refetch (the persona-seed precedent). `null` clears the seed
  *  (the active-preset delete guard nulls it so a stale pointer never survives). */
-export const useSetDefaultPreset = createEntityMutation<inferInput<Trpc["settings"]["updateUserSettingsSection"]>, unknown>({
+export const useSetDefaultPreset = createEntityMutation<SectionPatchVars<"seeds">, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't set the active preset.",

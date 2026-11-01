@@ -3,6 +3,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Tabs, TabsList, TabsTab } from "@orb/ui/tabs";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
+import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 
 const ACCENT = "oklch(0.72 0.175 52)";
@@ -12,7 +13,7 @@ const CARRIED_MID_GREEN = "oklch(0.55 0.12 140)";
 /** A selected ListRow and an active rail cell: both paint a tone tint under their label. */
 function Marked(): ReactElement {
   return (
-    <div style={{ backgroundColor: "var(--color-background)", padding: "1rem", inlineSize: "20rem" }}>
+    <div style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, padding: "1rem", inlineSize: "20rem" }}>
       <ListRow title="Connections" clickable={true} data-selected="" />
       <Tabs defaultValue="active">
         <TabsList>
@@ -25,10 +26,10 @@ function Marked(): ReactElement {
         </TabsList>
       </Tabs>
       {/* The two inks a tint could carry, resolved where the primary tone is stamped. */}
-      <span data-probe="text-on-tint" data-tone="primary" style={{ color: "var(--color-tone-text-on-tint)" }}>
+      <span data-probe="text-on-tint" data-tone="primary" style={{ color: `var(${TOKENS["color.tone-text-on-tint"].cssVar})` }}>
         probe
       </span>
-      <span data-probe="page-ink" data-tone="primary" style={{ color: "var(--color-foreground)" }}>
+      <span data-probe="page-ink" data-tone="primary" style={{ color: `var(${TOKENS["color.foreground"].cssVar})` }}>
         probe
       </span>
     </div>

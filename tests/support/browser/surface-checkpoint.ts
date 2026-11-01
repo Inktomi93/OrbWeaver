@@ -1,3 +1,4 @@
+import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Locator, TestInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { SurfacePass } from "../iso/surface-pass.ts";
@@ -63,7 +64,7 @@ export async function surfaceCheckpoint(
       type: "screenshot",
       description: `Visible viewport at one image pixel per CSS pixel; viewport=${JSON.stringify(page.viewportSize())}. Nested scroll positions are separate checkpoints; offscreen content is not pictured.`,
     });
-    const coarse = await page.evaluate(() => matchMedia("(pointer: coarse)").matches);
+    const coarse = await page.evaluate((pointerCoarse) => matchMedia(pointerCoarse).matches, MEDIA_QUERIES["pointer-coarse"]);
     const touch = coarse
       ? { status: "measured" as const, findings: await touchTargetFindings(page) }
       : { status: "unmeasured" as const, reason: "fine pointer project" };

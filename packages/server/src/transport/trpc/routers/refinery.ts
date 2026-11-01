@@ -31,7 +31,7 @@ import {
   schemaForgeResultSchema,
 } from "@orb/contracts/refinery";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { strictInput } from "@orb/kit/zod-schema";
+import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
@@ -79,7 +79,7 @@ export const refineryRouter = t.router({
   updateSession: authedProcedure
     .output(refinerySessionViewSchema)
     .input(
-      strictInput(
+      strictTwin(
         z.strictObject({
           sessionId: typeIdSchema(ID_PREFIX.refinerySession),
           patch: z.strictObject({
@@ -97,6 +97,7 @@ export const refineryRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.refinery.updateSession({ principal: ctx.auth, sessionId: input.sessionId, patch: input.patch })),
 
   deleteSession: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ sessionId: typeIdSchema(ID_PREFIX.refinerySession) }))
     .mutation(({ ctx, input }) => ctx.services.refinery.deleteSession({ principal: ctx.auth, sessionId: input.sessionId })),
 
@@ -125,7 +126,7 @@ export const refineryRouter = t.router({
     ),
 
   applyFields: authedProcedure
-    .output(applyFieldsResultSchema)
+    .output(strictTwin(applyFieldsResultSchema))
     .input(
       z.strictObject({
         sessionId: typeIdSchema(ID_PREFIX.refinerySession),
@@ -138,7 +139,7 @@ export const refineryRouter = t.router({
     ),
 
   applyAsCopy: authedProcedure
-    .output(applyAsCopyResultSchema)
+    .output(strictTwin(applyAsCopyResultSchema))
     .input(
       z.strictObject({
         sessionId: typeIdSchema(ID_PREFIX.refinerySession),
@@ -172,7 +173,7 @@ export const refineryRouter = t.router({
 
   submitManualRewrite: authedProcedure
     .output(refineryRunViewSchema)
-    .input(strictInput(z.strictObject({ sessionId: typeIdSchema(ID_PREFIX.refinerySession), fields: z.array(refineryRewriteFieldSchema).min(1) })))
+    .input(strictTwin(z.strictObject({ sessionId: typeIdSchema(ID_PREFIX.refinerySession), fields: z.array(refineryRewriteFieldSchema).min(1) })))
     .mutation(({ ctx, input }) => ctx.services.refinery.submitManualRewrite({ principal: ctx.auth, sessionId: input.sessionId, fields: input.fields })),
 
   preflight: authedProcedure
@@ -208,6 +209,7 @@ export const refineryRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.refinery.updateSchema({ principal: ctx.auth, schemaId: input.schemaId, patch: input.patch })),
 
   deleteSchema: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ schemaId: typeIdSchema(ID_PREFIX.refinerySchema) }))
     .mutation(({ ctx, input }) => ctx.services.refinery.deleteSchema({ principal: ctx.auth, schemaId: input.schemaId })),
 

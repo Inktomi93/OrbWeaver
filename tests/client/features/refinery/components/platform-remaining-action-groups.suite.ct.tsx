@@ -5,6 +5,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import type { RefineryRemainingActionsStory } from "./_remaining-action-groups-stories.tsx";
 
@@ -61,7 +62,7 @@ async function expectContained(group: Locator, controls: readonly Locator[]): Pr
   expect(geometry.inlineOverflow).toBeLessThanOrEqual(1);
   const host = group.page().getByRole("group", { name: "Refinery remaining-action host", exact: true });
   expect((await actionGroupGeometry(host, controls)).inlineOverflow).toBeLessThanOrEqual(1);
-  const floor = await resolvedLength(group.page(), "var(--size-control-sm)", group);
+  const floor = await resolvedLength(group.page(), `var(${TOKENS["size.control-sm"].cssVar})`, group);
   for (const box of geometry.controls) {
     expect(box.height).toBeGreaterThanOrEqual(floor);
   }

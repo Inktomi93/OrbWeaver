@@ -1,5 +1,7 @@
 // @subject tests/support/node/factories/rows/admin-user.ts
 // @subject tests/support/node/factories/rows/sessions.ts
+
+import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "../fixtures.ts";
@@ -51,9 +53,9 @@ test("admin output captures retain native identities and clocks while excluding 
       handle: castId<Handle>("refused-admin-output-member"),
       password: PASSWORD,
     }),
-  ).rejects.toThrow();
+  ).rejects.toMatchObject({ code: "FORBIDDEN" });
   expect(await caller.admin.listUsers()).toEqual(usersBefore);
-  await expect(seedRevokedUserSessionsRows(root, { principal: foreignPrincipal, userId: created.view.id })).rejects.toThrow();
+  await expect(seedRevokedUserSessionsRows(root, { principal: foreignPrincipal, userId: created.view.id })).rejects.toThrow(DomainForbiddenError);
   expect(await root.app.sessions.validate(session.created.token)).toMatchObject({ userId: created.view.id });
 
   root.clock.advance(2000);

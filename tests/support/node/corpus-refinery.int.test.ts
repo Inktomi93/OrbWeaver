@@ -158,7 +158,7 @@ test("custom modeled runs pin actual schema versions and remain readable after t
   await caller.refinery.deleteSchema({ schemaId: result.schema.id });
   expect(await caller.refinery.listRuns({ sessionId: result.customSession.id })).toEqual(result.customRuns);
   const before = [...physical.requests];
-  await expect(caller.refinery.runStage({ sessionId: result.customSession.id, stage: "score" })).rejects.toThrow();
+  await expect(caller.refinery.runStage({ sessionId: result.customSession.id, stage: "score" })).rejects.toMatchObject({ code: "NOT_FOUND" });
   expect(physical.requests).toEqual(before);
 });
 
@@ -172,12 +172,12 @@ test("foreign session access and out-of-order or completed operations refuse bef
   const foreign = await root.internalCallerFor(stranger.id);
   const empty = await owner.refinery.startSession({ characterId: result.character.id });
   const before = [...physical.requests];
-  await expect(foreign.refinery.getSession({ sessionId: result.session.id })).rejects.toThrow();
-  await expect(foreign.refinery.runStage({ sessionId: result.session.id, stage: "score" })).rejects.toThrow();
-  await expect(owner.refinery.runStage({ sessionId: empty.id, stage: "analyze" })).rejects.toThrow();
+  await expect(foreign.refinery.getSession({ sessionId: result.session.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
+  await expect(foreign.refinery.runStage({ sessionId: result.session.id, stage: "score" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+  await expect(owner.refinery.runStage({ sessionId: empty.id, stage: "analyze" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   await expect(
     owner.refinery.applyFields({ sessionId: result.session.id, rewriteRunId: result.manual.id, accepts: [{ field: "description" }] }),
-  ).rejects.toThrow();
+  ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   expect(physical.requests).toEqual(before);
   expect(await owner.refinery.listRuns({ sessionId: result.session.id })).toEqual(result.runs);
   expect(await owner.refinery.listRuns({ sessionId: empty.id })).toEqual([]);

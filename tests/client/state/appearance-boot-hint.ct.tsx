@@ -1,4 +1,4 @@
-import type { SeedThemeName } from "@orb/client/state";
+import type { SeedThemeName } from "@orb/client/lib";
 import { APPEARANCE_BOOT_AXES } from "@orb/client/state";
 import { OS_PREFERENCE_MODES } from "@orb/contracts/settings";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";

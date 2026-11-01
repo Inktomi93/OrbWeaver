@@ -4,10 +4,13 @@
 // @subject packages/client/src/data/restore-card-lorebook.ts
 import { importBundle, importChats, importTree, restoreCardLorebook } from "@orb/client/data";
 import { importStartedSchema } from "@orb/contracts/import";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { vi } from "vitest";
 import { z } from "zod";
+
+const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 function upload(): File {
   return new File(["fixture"], "fixture.json", { type: "application/json" });
@@ -42,7 +45,7 @@ test("the restore door parses its 400 refusal as data but refuses an unreadable 
 });
 
 test("valid workload-backed import responses still return the server's real workload handle", async () => {
-  const started = importStartedSchema.parse({ workloadId: mintTypeId(ID_PREFIX.workload) });
+  const started = importStartedSchema.parse({ workloadId: ids.typeId(ID_PREFIX.workload) });
   vi.stubGlobal(
     "fetch",
     vi.fn().mockImplementation(() => Promise.resolve(Response.json(started, { status: 202 }))),

@@ -23,4 +23,4 @@ The rule refuses a planted literal and accepts the token read; its existing find
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Rule `orb/no-hand-typed-css-token` in `tooling/src/eslint/test-derivation.ts`; controls in `tests/tooling/eslint-test-derivation.test.ts`. Matcher arguments and `--name: value` declaration text are in scope; only `expect(value, "message")` is exempt. The existing sites moved through the `literal-to-binding` codemod, with reads inside `evaluate` callbacks threaded through the evaluate argument. `pnpm lint:eslint` over `tests/` by directory reports zero for the rule. `tests/tooling` is out of scope because Spine-Testing §9 governs product tests and a tooling literal is its tool's input.

@@ -1,5 +1,6 @@
 import { resolvedLength, scrollIntoReadingMessage, seedShellState, tokenColor } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 import type { ReadingRoom } from "./chat-style-reading.fixtures.ts";
@@ -17,7 +18,7 @@ test.afterAll(async () => {
 });
 
 async function restTideHeader(row: Locator): Promise<void> {
-  const inset = await resolvedLength(row.page(), "var(--spacing-block)");
+  const inset = await resolvedLength(row.page(), `var(${TOKENS["spacing.block"].cssVar})`);
   await row.evaluate((element, offset) => {
     const scroller = element.closest('[data-slot="message-list-scroll"]');
     if (scroller === null) {
@@ -52,7 +53,11 @@ function registerTideBackingCase(width: number, height: number): void {
         .toBe(true);
       await expect(header).toHaveCSS(
         "background-color",
-        await tokenColor(header, (await row.getAttribute("data-role")) === "user" ? "--color-user-bubble" : "--color-ai-bubble", "background-color"),
+        await tokenColor(
+          header,
+          (await row.getAttribute("data-role")) === "user" ? TOKENS["color.user-bubble"].cssVar : TOKENS["color.ai-bubble"].cssVar,
+          "background-color",
+        ),
       );
       await restTideHeader(row);
       await expect(header).not.toHaveAttribute("data-pinned", "");

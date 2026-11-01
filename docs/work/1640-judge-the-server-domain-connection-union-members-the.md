@@ -27,4 +27,8 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 1 row = 1 kept.
+
+- `CONNECTION_JSON_FIELDS.promptCache`: kept. The stored `user_connections.prompt_cache` column holds JSON text that `parseStoredConnection` reads at `packages/server/src/domain/connection/contract/stored.ts:46`, and writes land from `packages/server/src/domain/connection/verbs/connections.ts:138,218`. The member types `StoredConnectionRow` (line 13): without it the row's `promptCache` would be the column's own type and the `columnJson` parse would have no matching field, so stored rows would not parse.
+- Survey: codegraph_explore `CONNECTION_JSON_FIELDS columnJson stored.ts promptCache` (one caller of `columnJson`, `parseStoredConnection` has many); ast-grep `"promptCache"` over `packages tests tooling scripts`: 3 ts, 0 tsx; rg `promptCache` in `packages/server/src/domain/connection`. The whole file was read.
+- No code change.

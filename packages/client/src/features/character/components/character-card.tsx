@@ -34,11 +34,12 @@ import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Icon, MessagesSquare, Star } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
+import { selectActionName } from "@orb/ui/lib";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem, MenuLinkItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
 import { RowActionsMenu, RowToggleAction } from "#components";
-import { chatWithActionName, rowActionSubject, rowActionsName, selectActionName } from "#lib";
+import { chatWithActionName, rowActionSubject, rowActionsName } from "#lib";
 import type { CHARACTER_ACTION_SCOPE_IDS } from "../lib/character-actions.ts";
 import { CHARACTER_ACTIONS, characterActionItemsForScope, characterActionLabel } from "../lib/character-actions.ts";
 

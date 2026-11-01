@@ -65,13 +65,13 @@ export {
 export { TagPickerDialog } from "./tag-picker-dialog.tsx";
 export { Tip } from "./tip.tsx";
 export { TrailingArrow } from "./trailing-arrow.tsx";
-export type { ConfigLeafAddress, ConfigLeafValue } from "./use-config-leaf.ts";
+export type { ConfigLeafValue } from "./use-config-leaf.ts";
 export { configLeafKey, useConfigLeaf, useConfigLeafReadings } from "./use-config-leaf.ts";
 export { useEmbedderRebuild } from "./use-embedder-rebuild.ts";
 export { useFirstBootBox } from "./use-first-boot-box.ts";
 export { useModelRunConfirm } from "./use-model-run-confirm.ts";
 export { useRerankModel, useUtilityModel } from "./use-utility-model.ts";
-export type { UserMacrosFormValues } from "./user-macro-editor-dialog.tsx";
 export { UserMacroEditorDialog } from "./user-macro-editor-dialog.tsx";
+export type { UserMacrosFormValues } from "./user-macro-editor-model.ts";
 export { RerankModelDoor, UtilityModelDoor } from "./utility-model-door.tsx";
 export { ViewerDialog } from "./viewer-dialog.tsx";

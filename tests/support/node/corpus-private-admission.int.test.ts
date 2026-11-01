@@ -45,7 +45,7 @@ describe("private corpus rejects native output and reporter overrides before rea
     const environment = { ...clean, [name]: escaped };
     expect(() => privateCorpusParent(directory, environment)).toThrow(new Error(OVERRIDE_REFUSAL));
     expect(() => assertPrivateCorpusOutput(parent, join(parent, "owner-corpus-run"), environment)).toThrow(new Error(OVERRIDE_REFUSAL));
-    await expect(access(escaped)).rejects.toThrow();
+    await expect(access(escaped)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   const argumentShapes = [
@@ -74,6 +74,6 @@ describe("private corpus rejects native output and reporter overrides before rea
     });
     expect(result.code).not.toBe(0);
     expect(result.transcript).toContain(OVERRIDE_REFUSAL);
-    await expect(access(escaped)).rejects.toThrow();
+    await expect(access(escaped)).rejects.toMatchObject({ code: "ENOENT" });
   });
 });

@@ -37,4 +37,11 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+11 rows: 11 applied, 0 kept, 0 owner questions.
+
+- `PersonaPrefsPatchVars` (3 rows), `PersonaSeedPatchVars` (4 rows) and `PersonaBookVars` (2 rows) now use the router input (`packages/client/src/features/persona/components/persona-notifications-section.tsx`, `packages/client/src/features/persona/hooks/use-persona-identity.ts`, `packages/client/src/features/persona/hooks/use-persona-lorebooks.ts`).
+- `SetChatActivePersonaVars.personaId` and `SetChatAnchorPersonaVars.personaId` (`packages/client/src/features/persona/hooks/use-chat-persona.ts`): the type is the router input intersected with `{ chatId: ChatId }`. The router input types a TypeId as a plain string and `personaWriteReads` needs the branded `ChatId`.
+
+Ran: `pnpm typecheck packages/client/tsconfig.json tsconfig.tests-dom.json` (exit 0).
+
+Reclass list: none.

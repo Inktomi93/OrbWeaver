@@ -6,8 +6,6 @@ import type { AdjustedKnob } from "@orb/contracts/chat";
 import type { EffortLevel, WarningCode } from "@orb/contracts/inference";
 import { z } from "zod";
 
-export type { ChatDeltaEvent } from "@orb/contracts/chat";
-
 export const COMPACTION_TRIGGERS = ["manual", "auto"] as const;
 export const compactionTriggerSchema = z.enum(COMPACTION_TRIGGERS);
 export const COMPACT_RESULTS = ["success", "failed"] as const;

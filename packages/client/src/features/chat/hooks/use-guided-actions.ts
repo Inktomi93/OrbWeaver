@@ -39,13 +39,6 @@ import { notifyImpersonateFailure } from "../lib/guided-failure-notices.ts";
 type GuidedTurnVars = inferInput<Trpc["chat"]["generate"]>;
 type GuidedSteerInput = NonNullable<GuidedTurnVars["guided"]>;
 
-interface GuidedSlotVars {
-  readonly chatId: ChatId;
-  readonly timeZone: string;
-  readonly messageId: MessageId;
-  readonly guided?: GuidedSteerInput | undefined;
-}
-
 interface ActiveImpersonation {
   readonly chatId: ChatId;
   readonly client: TrpcClient;
@@ -58,13 +51,13 @@ const useGuidedGenerateMutation = createEntityMutation<GuidedTurnVars, unknown>(
   errorToast: (error) => turnMutationToast(error, "Couldn't generate a guided response."),
 });
 
-const useGuidedSwipeMutation = createEntityMutation<GuidedSlotVars, unknown>({
+const useGuidedSwipeMutation = createEntityMutation<inferInput<Trpc["chat"]["swipe"]>, unknown>({
   options: (trpc) => trpc.chat.swipe.mutationOptions(),
   busDriven: true,
   errorToast: (error) => turnMutationToast(error, "Couldn't generate that guided swipe."),
 });
 
-const useGuidedContinueMutation = createEntityMutation<GuidedSlotVars, unknown>({
+const useGuidedContinueMutation = createEntityMutation<inferInput<Trpc["chat"]["continueTurn"]>, unknown>({
   options: (trpc) => trpc.chat.continueTurn.mutationOptions(),
   busDriven: true,
   errorToast: (error) => turnMutationToast(error, "Couldn't continue with that guidance."),
@@ -75,7 +68,7 @@ const useGuidedContinueMutation = createEntityMutation<GuidedSlotVars, unknown>(
 // difference is the guided action kind (`rewrite`), which selects the out-of-character rewrite template.
 // The delivery seam already existed (swipe + guided); this was the missing fire surface (the preset card
 // shipped its config with nothing able to trigger it — the dead-ended-pair defect).
-const useGuidedRewriteMutation = createEntityMutation<GuidedSlotVars, unknown>({
+const useGuidedRewriteMutation = createEntityMutation<inferInput<Trpc["chat"]["swipe"]>, unknown>({
   options: (trpc) => trpc.chat.swipe.mutationOptions(),
   busDriven: true,
   errorToast: (error) => turnMutationToast(error, "Couldn't rewrite that reply."),

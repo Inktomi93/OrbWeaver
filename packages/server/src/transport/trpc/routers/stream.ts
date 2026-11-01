@@ -25,6 +25,7 @@
 import type { StreamFrame } from "@orb/contracts/stream";
 import { streamAttachInputSchema, streamConnectInputSchema, streamDetachInputSchema } from "@orb/contracts/stream";
 import type * as TRPCCore from "@trpc/server/unstable-core-do-not-import";
+import { z } from "zod";
 import { getLog } from "#foundation/observability";
 import type { SubscriptionErrorFrame } from "../contract/subscriptions.ts";
 import { roomSourceFor } from "../stream/room-sources.ts";
@@ -71,7 +72,6 @@ export const streamRouter = t.router({
           principal: ctx.auth,
           services: ctx.services,
           liveBuses: ctx.liveBuses,
-          multiHumanCapable: ctx.multiHumanCapable,
           signal: sig,
         }),
         ctx.logger,
@@ -80,20 +80,25 @@ export const streamRouter = t.router({
 
   // Authorize FIRST (the room's own gate, at the same moment relative to the live attach it runs today),
   // then record the room. A refusing room throws before anything is recorded.
-  attach: authedProcedure.input(streamAttachInputSchema).mutation(async ({ ctx, input }) => {
-    await roomSourceFor(input.ref).authorizeAttach({
-      ref: input.ref,
-      principal: ctx.auth,
-      services: ctx.services,
-      liveBuses: ctx.liveBuses,
-      multiHumanCapable: ctx.multiHumanCapable,
-    });
-    ctx.sockets.attach(ctx.auth.userId, input.socketId, input.ref, input.sinceSeq ?? null);
-  }),
+  attach: authedProcedure
+    .output(z.void())
+    .input(streamAttachInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      await roomSourceFor(input.ref).authorizeAttach({
+        ref: input.ref,
+        principal: ctx.auth,
+        services: ctx.services,
+        liveBuses: ctx.liveBuses,
+      });
+      ctx.sockets.attach(ctx.auth.userId, input.socketId, input.ref, input.sinceSeq ?? null);
+    }),
 
   // Idempotent: detaching an unattached room (or an unknown socket) is a no-op, never an error — a client
   // tearing down after a reconnect must not see a failure for work the server already did.
-  detach: authedProcedure.input(streamDetachInputSchema).mutation(({ ctx, input }) => {
-    ctx.sockets.detach(ctx.auth.userId, input.socketId, input.ref);
-  }),
+  detach: authedProcedure
+    .output(z.void())
+    .input(streamDetachInputSchema)
+    .mutation(({ ctx, input }) => {
+      ctx.sockets.detach(ctx.auth.userId, input.socketId, input.ref);
+    }),
 });

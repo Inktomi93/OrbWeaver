@@ -48,4 +48,10 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+22 rows: applied 0, kept 22, handed off 0, owner question 0. No code changed. Scan: ast-grep inline rule (identifier, type_identifier, property_identifier) with `-l ts` and `-l tsx` over `packages tests` (5199 ts and 1450 tsx files): every shape is declared and used only in its own file, except `ContinueRestoreVars`, declared in two files.
+
+- Section props `{ chatId, isHost }` (`ChatBooksSectionProps`, `ChatDocumentsSectionProps`, `InjectionsManagerProps`, `RegexOnScreenGroupProps`, `RegexSectionProps`; 10 rows): kept. Each is the prop contract of a separate component. They match because the settings tab passes the same two values to each sibling; one shared type would make five component contracts change together when one gains a prop.
+- `ChatImportDialogProps` / `CharacterImportDialogProps` (1 row): kept. Both are `{ open, onOpenChange }` of dialogs in different features. A shared type needs a sideways feature import or a lift for two fields; the dialogs change for different reasons.
+- `ReasoningVars`, `ContinueRestoreVars`, `GateKey`, `ContinueTurnVars`, `SwipeVars` (6 rows): kept. Each is the variables of a different tRPC procedure (`clearReasoning`, `undoContinue`/`revertContinue`, `continueTurn`, `swipe`) or a query gate key (`GateKey` for `listMessageVariants`). Sharing `{ chatId, messageId }` is a coincidence of the procedures' inputs; merging couples unrelated procedures.
+- `SetHostDisplayScriptsVars`, `SetOfferChoicesVars`, `SetCharactersCanReactVars`, `SetReactionsEnabledVars`, `SetMemberPersonaLoreVars` / `RpgSceneCardsProps` (5 rows): kept as the item states; mutation variables against component props.
+- Flag, not a row: `ContinueRestoreVars` with the `undoContinue` and `revertContinue` mutation hooks is declared in both `hooks/use-composer-utilities.ts` and `components/message-actions-row.tsx`. That is duplicated mutation hooks, a different finding from this scan.

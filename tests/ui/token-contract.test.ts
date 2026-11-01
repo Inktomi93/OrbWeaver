@@ -3,6 +3,7 @@ import { cpSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, symlink
 import { dirname, join } from "node:path";
 import { isPlainObject } from "@orb/kit/guards";
 import { expect, test } from "@orb/testkit/node";
+import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import { generateArtifacts } from "@orb/ui/tokens-build";
 import { describe } from "vitest";
 import type { TokenContractTexts } from "../../packages/ui/token-contract.ts";
@@ -35,10 +36,10 @@ function validFixture(): TokenContractTexts {
   const base = {
     $extensions: {
       "orb.llm": { usage: ["Use semantic tokens; do not author palette literals in components."] },
-      "orb.conditions": { "pointer-fine": "(pointer: fine)", "shell-mobile": "(width <= {dimension.gap})" },
+      "orb.conditions": { "pointer-fine": MEDIA_QUERIES["pointer-fine"], "shell-mobile": "(width <= {dimension.gap})" },
       "orb.cssValues": {
         "--shadow-runtime": {
-          value: "0 0 1rem var(--color-background)",
+          value: `0 0 1rem var(${TOKENS["color.background"].cssVar})`,
           placement: "theme",
           description: "A runtime custom-property shadow.",
           provenance: ["dimension.runtime-blur"],
@@ -225,7 +226,7 @@ describe("primitive ramp controls", () => {
     expect(codes(frozenRecipe)).toContain("shadow.ingredient");
     const derivedRecipe = mutate(vault(), "base", (base) => {
       descend(descend(base, "$extensions"), "orb.cssValues")[`${prefix}planted`] = {
-        value: "0 1px 2px oklch(from var(--color-backdrop) l c h / 0.4), 0 0 0 var(--color-shadow-hairline)",
+        value: `0 1px 2px oklch(from var(${TOKENS["color.backdrop"].cssVar}) l c h / 0.4), 0 0 0 var(${TOKENS["color.shadow-hairline"].cssVar})`,
         placement: "theme",
         description: "planted",
         provenance: ["color.backdrop"],
@@ -338,7 +339,7 @@ describe("Orb semantic controls", () => {
 
     const duplicate = mutate(validFixture(), "base", (base) => {
       const css = descend(descend(base, "$extensions"), "orb.cssValues");
-      css["--color-background"] = { value: "red", placement: "theme", description: "plant", provenance: ["color.background"] };
+      css[TOKENS["color.background"].cssVar] = { value: "red", placement: "theme", description: "plant", provenance: ["color.background"] };
     });
     expect(codes(duplicate)).toContain("output.duplicate");
 
@@ -546,7 +547,7 @@ test("every token bundle member is required, nonempty and strict UTF-8", ({ impo
     const path = join(ui, "src/tokens", member);
     const intact = readFileSync(path);
     rmSync(path);
-    expect(() => readTokenContractTexts(ui, root), member).toThrow();
+    expect(() => readTokenContractTexts(ui, root), member).toThrow(expect.objectContaining({ code: "ENOENT" }));
     writeFileSync(path, "");
     expect(() => readTokenContractTexts(ui, root), member).toThrow(/empty/);
     writeFileSync(path, Buffer.from([0x7b, 0xff, 0x7d]));

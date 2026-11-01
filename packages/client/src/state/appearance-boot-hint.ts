@@ -19,10 +19,6 @@ export const DATA_THEME_ATTR = "data-theme";
 export const APPEARANCE_BOOT_AXES = ["reducedMotion", "reducedTransparency", "increasedContrast", "fontScale", "density"] as const;
 export type AppearanceBootAxes = Pick<AppearanceSettings, (typeof APPEARANCE_BOOT_AXES)[number]>;
 
-/** The generated seed palettes that own a `[data-theme]` block — re-exported from its ONE home beside the
- *  theme-scope resolver (`#lib`), which owns both halves of "what does this theme paint from". */
-export type { SeedThemeName } from "#lib";
-
 /** This device's whole remembered answer: the appearance axes plus the resolved `[data-theme]` value. */
 export interface AppearanceBootHintState extends AppearanceBootAxes {
   /** The `[data-theme]` value the shell would stamp (a SEED palette's lowercased name), or null for the base Hearth palette. */

@@ -4,11 +4,11 @@
 import { Button } from "@orb/ui/button";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
+import { removeActionName } from "@orb/ui/lib";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { Key, ReactElement, ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
-import { removeActionName } from "#lib";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
 
 export interface EntryListEditorProps<TItem> {

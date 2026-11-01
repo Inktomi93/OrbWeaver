@@ -34,4 +34,8 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Eight rows: 8 applied (derived), 0 kept, 0 owner questions.
+
+- The four appearance sections (`appearance-background-section.tsx`, `appearance-effects-section.tsx`, `appearance-reading-section.tsx`, `appearance-sizing-section.tsx` under `packages/client/src/features/app-shell/components/`) now type their mutation as `inferInput<Trpc["settings"]["updateUserSettingsSection"]>`. Their `patch` is no longer narrowed to the section's form type; the router declares `patch` as an opaque record (`packages/server/src/transport/trpc/routers/settings.ts:53`).
+- Ran: `pnpm typecheck packages/client/tsconfig.json tsconfig.tests-dom.json` (exit 0); `pnpm test:ct tests/client/features/app-shell/surfaces/app-shell-appearance.ct.tsx tests/client/features/app-shell/components/appearance-sizing-preferences.ct.tsx` (59 passed; the run also reports one error outside any test from the working-tree guard, because this lane edited sibling files while the run was open).
+- Reclass list: none.

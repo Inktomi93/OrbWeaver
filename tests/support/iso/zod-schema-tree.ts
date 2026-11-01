@@ -76,3 +76,41 @@ export function zodSchemaChildren(schema: z.core.$ZodType): readonly z.core.$Zod
     }
   }
 }
+
+// Object keys and union or tuple positions name a step; a wrapper (optional, nullable, ...) adds none.
+function pathStep(kind: string, key: string | undefined, index: number): string {
+  if (kind === "object") {
+    return `.${key ?? "*"}`;
+  }
+  if (kind === "array") {
+    return "[]";
+  }
+  return kind === "union" || kind === "tuple" ? `[${index}]` : "";
+}
+
+/** Every plain (strip-mode) object a parser reaches outside a `catch`, by path. A strict or loose object declares
+ *  its unknown-key policy; strip drops a key silently. Below a `catch` no refusal can surface, so strip is the
+ *  smaller loss there and the walk stops. */
+export function stripObjectPaths(root: z.core.$ZodType): readonly string[] {
+  const found: string[] = [];
+  const seen = new Set<z.core.$ZodType>();
+  const visit = (schema: z.core.$ZodType, path: string): void => {
+    if (seen.has(schema)) {
+      return;
+    }
+    seen.add(schema);
+    const def = zodDefinition(schema);
+    if (def.type === "catch") {
+      return;
+    }
+    if (def.type === "object" && def.catchall === undefined) {
+      found.push(path === "" ? "$" : path);
+    }
+    const keys = def.type === "object" ? Object.keys(def.shape) : [];
+    zodSchemaChildren(schema).forEach((child, index) => {
+      visit(child, `${path}${pathStep(def.type, keys[index], index)}`);
+    });
+  };
+  visit(root, "");
+  return found;
+}

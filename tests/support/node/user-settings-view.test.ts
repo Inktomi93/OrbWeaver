@@ -4,6 +4,7 @@ import { DEFAULT_USER_SETTINGS, USER_SETTINGS_SCHEMA_VERSION, userSettingsViewSc
 
 import { createIdSource } from "@orb/kit/ids";
 import { describe } from "vitest";
+import { ZodError } from "zod";
 import { createSeededIds } from "../iso/ids.ts";
 import { expect, test } from "./fixtures.ts";
 
@@ -29,7 +30,7 @@ describe("production-derived settings builders", () => {
 
   test("an override cannot produce an envelope the real output parser refuses", async () => {
     const { userSettingsView } = await import("../iso/user-settings-view.ts");
-    expect(() => userSettingsView({}, { schemaVersion: Number.NaN })).toThrow();
-    expect(() => userSettingsView({}, { updatedAt: Number.POSITIVE_INFINITY })).toThrow();
+    expect(() => userSettingsView({}, { schemaVersion: Number.NaN })).toThrow(ZodError);
+    expect(() => userSettingsView({}, { updatedAt: Number.POSITIVE_INFINITY })).toThrow(ZodError);
   });
 });

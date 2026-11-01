@@ -10,11 +10,6 @@ import { createScheduledCache } from "./scheduled-cache.ts";
 import { createLocalLightEmbed, createLocalLightImageEmbed, createLocalLightRerank } from "./tasks.ts";
 import { createWorkerModelCache } from "./worker-cache.ts";
 
-export type { LocalLightModelSlot } from "#contract";
-export { LOCAL_LIGHT_MODEL_SLOTS } from "#contract";
-export type { LocalLightModelCache } from "./model-cache.ts";
-export type { LocalLightPrefetchTarget } from "./prefetch.ts";
-
 function isModelCache(value: unknown): value is LocalLightModelCache {
   return value !== null && typeof value === "object" && "embedTexts" in value && "preload" in value;
 }

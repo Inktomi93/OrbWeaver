@@ -85,6 +85,10 @@ export const PORTABLE_IMPORT_ORDER = [
 /** A text download returned by a single-entity export; its contents retain the entity's own codec. */
 export const portableTextFileSchema = z.object({ filename: z.string(), fileText: z.string() });
 
+/** Where one imported file landed: the name it carries now, the file's own name when a collision suffix applied, and
+ *  whether a row was minted (false = an owned entity with equal content was reused). */
+export const importLandingSchema = z.strictObject({ created: z.boolean(), name: z.string(), renamedFrom: z.string().nullable() });
+
 // ── the uniform file envelope (spec R7/R8) ───────────────────────────────────────────────────────────
 // Every orb-NATIVE portable file carries this header. Re-minted 2026-08-03 WITH consumers (the original
 // `PortableEnvelope` died unconsumed in `c1a8f726c7` because each serde re-spelled it structurally — the

@@ -6,6 +6,7 @@ import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { serveCorpusProcedures } from "@orb/testkit/ct";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
+import { ZodError } from "zod";
 import { routeAuthConfig } from "../node/route-auth-config.ts";
 import {
   abortProcedure,
@@ -130,7 +131,7 @@ test("native output capture validates unbatched success and refuses server error
   await page.evaluate(async (id) => {
     await fetch(`/api/trpc/preset.get?input=${encodeURIComponent(JSON.stringify({ id }))}`);
   }, preset.id);
-  await expect(readTrpcOutput(await malformed, "preset.get", presetDetailSchema)).rejects.toThrow();
+  await expect(readTrpcOutput(await malformed, "preset.get", presetDetailSchema)).rejects.toThrow(ZodError);
 });
 
 test("abortProcedure refuses a procedure alone or batched, leaves others served, and its restore lifts the refusal", async ({ page }) => {

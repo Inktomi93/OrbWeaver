@@ -32,4 +32,9 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 6 rows = 6 kept.
+
+- `ROLE_POLICY_ENV_KEYS.DEFAULT_USER_HANDLE`, `.OWNER_HANDLES`, `.OWNER_GROUP`, `.OIDC_ADMIN_GROUPS`, `.OIDC_ALLOWED_GROUPS`, `.RE_DERIVE_ROLE_ON_LOGIN`: kept, 6 rows. The tuple is type-only on purpose: `SessionsRolePolicyConfig = Pick<Env, (typeof ROLE_POLICY_ENV_KEYS)[number]>` (`packages/server/src/domain/sessions/contract/role-policy.ts:26`) is the config `createSessionsRolePolicy` reads (`packages/server/src/domain/sessions/substrate/role-policy.ts:25`), and the env parse builds each key. Removing a member drops that key from the config the role policy reads. These are authn and role-policy rows, so they are left and flagged for the owner.
+- Handed off: the row's own note asks to teach the scan a tuple used only as type keys. That is a change to `tooling/src/unwired/`, outside this lane.
+- Survey: codegraph_explore `ROLE_POLICY_ENV_KEYS createSessionsRolePolicy` (`createSessionsRolePolicy` has 13 callers incl. `packages/server/src/entry/lifecycle.ts` and `packages/server/src/entry/compose/services.ts`); rg `ROLE_POLICY_ENV_KEYS|SessionsRolePolicyConfig` over `packages tests tooling`; the whole of `contract/role-policy.ts` was read; ast-grep `ROLE_POLICY_ENV_KEYS` over `packages tests tooling` (5913 `.ts`, 1524 `.tsx`): 2 ts matches (declaration and the `Pick`), 0 tsx.
+- No code change.

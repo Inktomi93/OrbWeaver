@@ -42,7 +42,6 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
     viewerIsHost,
     chatFailed: chat.isError,
     availabilityCause: availability.cause,
-    availabilityFailed: availability.failed,
     resolved: resolve.data ?? undefined,
     resolveFailed: resolve.isError,
     connections,

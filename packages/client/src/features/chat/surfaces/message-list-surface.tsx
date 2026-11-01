@@ -36,7 +36,6 @@ import { GhostMessageRow } from "../components/ghost-message-row.tsx";
 import { JumpToLatestPill } from "../components/jump-to-latest-pill.tsx";
 import { MessageRow } from "../components/message-row.tsx";
 import { resolveGenerationCredit } from "../components/message-row-parts.tsx";
-import type { TranscriptEdges } from "../components/transcript-window.tsx";
 import { TranscriptWindow } from "../components/transcript-window.tsx";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
 import { useChatStyle } from "../hooks/use-chat-style.ts";
@@ -52,7 +51,9 @@ import { resolveContextBoundaryMessageId } from "../lib/context-boundary.ts";
 import { contextFitLabel } from "../lib/context-room.ts";
 import { isGreetingWindowOpen, resolveGreetingBinding } from "../lib/greeting-window.ts";
 import { liveCardRowIds } from "../lib/live-card-rows.ts";
+import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
+import type { TranscriptEdges } from "../lib/move-neighbours.ts";
 import { moveNeighboursAt } from "../lib/move-neighbours.ts";
 import { buildParticipantsById } from "../lib/roster.ts";
 import { settledLastRowId } from "../lib/row-placement.ts";
@@ -222,6 +223,13 @@ function ChatThread({
     characterAvatarsById,
     kind: ghostKind,
   });
+  // Macros only: the ghost renders untransformed by the viewer's display scripts, so none ride this context.
+  const ghostRenderContext = resolveMessageRenderContext({
+    participants,
+    characterNamesById,
+    personaNamesById,
+    anchorPersonaId: chatDetail.anchorPersonaId,
+  });
   // The ghost's CARD TIER, resolved through the ONE trust authority with the SAME inputs `MessageRow` will
   // use once this turn settles — so a card that mounts mid-stream (at its fence CLOSE, §4.5) does not change
   // tier at commit. Only the tier crosses: the ghost pins its markdown trust, external-media verdict and
@@ -316,6 +324,8 @@ function ChatThread({
         chatStyle={chatStyle}
         streaming={phase === "streaming" || phase === "stopping"}
         attribution={ghostAttribution}
+        speakerCharacterId={ghostSpeakerCharacterId}
+        renderContext={ghostRenderContext}
         avatarSize={messageAppearance.avatarSize}
         avatarShape={messageAppearance.avatarShape}
         avatarAspect={messageAppearance.avatarAspect}

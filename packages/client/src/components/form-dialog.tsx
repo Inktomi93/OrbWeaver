@@ -24,10 +24,6 @@ interface FormDialogSubmit {
   readonly disabled?: boolean;
   /** Shows the confirm button's busy state. @defaultValue false */
   readonly loading?: boolean;
-  /** The Cancel button's label. @defaultValue "Cancel" */
-  readonly cancelLabel?: string;
-  /** The confirm button's tone. @defaultValue "primary" */
-  readonly tone?: "destructive" | "primary";
 }
 
 export interface FormDialogProps {
@@ -145,8 +141,8 @@ function OwnedFooter({
   if (submit !== undefined) {
     return (
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost">{submit.cancelLabel ?? "Cancel"}</Button>} />
-        <Button disabled={submit.disabled ?? false} form={formId} tone={submit.tone ?? "primary"} loading={submit.loading ?? false} type="submit">
+        <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+        <Button disabled={submit.disabled ?? false} form={formId} tone="primary" loading={submit.loading ?? false} type="submit">
           {submit.label}
         </Button>
       </DialogFooter>

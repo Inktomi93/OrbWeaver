@@ -4,6 +4,7 @@
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { forEachNonEmpty } from "@orb/testkit/iso";
 import { LENGTH_BASE_PX } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
 import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
@@ -53,7 +54,7 @@ async function cardWidths(page: Page): Promise<readonly number[]> {
 }
 
 for (const viewport of WIDTHS) {
-  for (const chatStyle of IMMERSIVE_STYLES) {
+  forEachNonEmpty(IMMERSIVE_STYLES, "IMMERSIVE_STYLES", (chatStyle) => {
     test(`${chatStyle} at ${viewport.width}px draws every row as one card width`, async ({ corpus, mount, page }) => {
       await page.setViewportSize(viewport);
       await openReadingStyle(page, corpus, chatStyle);
@@ -63,7 +64,7 @@ for (const viewport of WIDTHS) {
       expect(widths.length).toBeGreaterThan(1);
       expect(new Set(widths).size, `card widths ${widths.join(", ")}`).toBe(1);
     });
-  }
+  });
 }
 
 test("hush draws a filled, rounded card for each row", async ({ corpus, mount, page }) => {
@@ -173,7 +174,7 @@ const CHIP_STYLES = IMMERSIVE_STYLES.filter((style) => {
 });
 
 for (const viewport of [WIDTHS[0], WIDTHS[1]]) {
-  for (const chatStyle of CHIP_STYLES) {
+  forEachNonEmpty(CHIP_STYLES, "CHIP_STYLES", (chatStyle) => {
     test(`${chatStyle} seats the identity chip inside its card, on the header line, at ${viewport.width}px`, async ({ corpus, mount, page }) => {
       await page.setViewportSize(viewport);
       await openReadingStyle(page, corpus, chatStyle);
@@ -203,7 +204,7 @@ for (const viewport of [WIDTHS[0], WIDTHS[1]]) {
         expect(row.offLine).toBeLessThanOrEqual(FEW_PX);
       }
     });
-  }
+  });
 }
 
 test("a whisper band on a phone grows to 55% of the card and is at least the minimum tall", async ({ corpus, mount, page }) => {

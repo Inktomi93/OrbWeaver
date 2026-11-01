@@ -59,7 +59,7 @@ function InlineTokens(): ReactElement {
 /** The card, raised and popover hosts, each holding the soft badges, and a bubble per role holding inline tokens; the popover portals into `container`. */
 function Hosts({ container }: { readonly container: HTMLElement | null }): ReactElement {
   return (
-    <div style={{ display: "grid", gap: "1rem", padding: "1rem", backgroundColor: "var(--color-background)" }}>
+    <div style={{ display: "grid", gap: "1rem", padding: "1rem", backgroundColor: `var(${TOKENS["color.background"].cssVar})` }}>
       <Popover defaultOpen={true}>
         <PopoverTrigger>Open</PopoverTrigger>
         {container === null ? null : (

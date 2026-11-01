@@ -31,7 +31,7 @@ import type { CardTrust } from "@orb/contracts/chat";
 import type { GhostContentSegment } from "@orb/kit/content";
 import { scanGhostContent } from "@orb/kit/content";
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
-import type { ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { speakerTagsToPlain, stripLeadingSpeakerName } from "@orb/kit/speaker-label";
 import { Card } from "@orb/ui/card";
 import { Stack } from "@orb/ui/layout";
@@ -41,6 +41,8 @@ import { TypingDots, useSmoothText } from "@orb/ui/stream";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import type { MessageRenderContext } from "#lib";
+import { renderMessageForDisplay } from "#lib";
 import { useArtViewer } from "../hooks/art-viewer-context.tsx";
 import { useArtControl } from "../hooks/use-art-control.ts";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
@@ -200,6 +202,10 @@ export interface GhostMessageRowProps {
   /** The live turn's resolved identity, the same shape resolveRowAttribution produces for the settled
    *  row. Undefined ⇒ no sibling avatar, no immersive decoration. */
   readonly attribution?: RowAttribution | undefined;
+  /** The live turn's voiced character: the subject `{{char}}` resolves to, as the settled row's stamp does. */
+  readonly speakerCharacterId: CharacterId | null;
+  /** The room's macro-name context, so the streamed text and reasoning resolve `{{char}}`/`{{user}}` exactly as the settled row. */
+  readonly renderContext: MessageRenderContext;
   readonly avatarSize?: "sm" | "md" | "lg" | undefined;
   readonly avatarShape?: "round" | "square" | "rounded" | undefined;
   readonly avatarAspect?: "square" | "portrait" | undefined;
@@ -238,6 +244,8 @@ export function GhostMessageRow({
   chatStyle,
   streaming,
   attribution,
+  speakerCharacterId,
+  renderContext,
   avatarSize = "lg",
   avatarShape = "round",
   avatarAspect = "square",
@@ -257,9 +265,13 @@ export function GhostMessageRow({
   const viewArt = useArtViewer();
   const artControl = useArtControl();
   const text = useGhostText(chatId);
-  const reasoning = useGhostReasoning(chatId);
+  const rawReasoning = useGhostReasoning(chatId);
+  const reasoning = renderMessageForDisplay(rawReasoning, renderContext, speakerCharacterId, null);
   const thinking = useGhostThinking(chatId);
-  const paced = useSmoothText(text, { enabled: streaming && smoothStream, cps: smoothStreamCps });
+  const paced = useSmoothText(renderMessageForDisplay(text, renderContext, speakerCharacterId, null), {
+    enabled: streaming && smoothStream,
+    cps: smoothStreamCps,
+  });
   // The live speaker's own name (the same value the server's per-speaker clean strips against). In a
   // speakerTags group turn the model, trained on the `Name:`-prefixed transcript, echoes its own `JFC: `
   // prefix at the START of the stream — the server strips it at finalize, so without this the raw prefix

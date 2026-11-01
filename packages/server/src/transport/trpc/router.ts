@@ -4,6 +4,7 @@
 
 import { bugReportDiagnosticsSchema, clientErrorReportSchema } from "@orb/contracts/diagnostics";
 import type { Principal } from "@orb/contracts/identity";
+import { okResultSchema } from "@orb/contracts/rpc";
 import type * as TRPCCore from "@trpc/server/unstable-core-do-not-import";
 import { z } from "zod";
 import { isOwner } from "#domain/admin";
@@ -42,18 +43,24 @@ import { authedProcedure, publicProcedure, t } from "./trpc.ts";
 export const appRouter = t.router({
   // @server-only: deployment readiness probe used by the boot supervisor and external health checks; it is
   // deliberately public, carries no input, and has no browser UI consumer.
-  health: publicProcedure.query(() => ({ ok: true }) as const),
+  health: publicProcedure.output(okResultSchema).query(() => ({ ok: true }) as const),
   // @test-fixture: the CT typed-read template — the client-data CTs (_ct-stories.tsx) type a suspense
   // query against this echo; it ships as the minimal round-trip fixture, no production UI consumer.
-  echo: publicProcedure.input(z.strictObject({ message: z.string() })).query(({ input }) => ({ message: input.message })),
+  echo: publicProcedure
+    .output(z.strictObject({ message: z.string() }))
+    .input(z.strictObject({ message: z.string() }))
+    .query(({ input }) => ({ message: input.message })),
 
   // The client error boundary's fire-and-forget report. publicProcedure (anonymous-allowed): a render
   // throw can happen before auth resolves, or because auth is broken. Always returns { ok: true } — the
   // sink is best-effort and never throws.
-  clientError: publicProcedure.input(clientErrorReportSchema).mutation(({ ctx, input }) => {
-    recordClientError(input, ctx.logger);
-    return { ok: true } as const;
-  }),
+  clientError: publicProcedure
+    .output(okResultSchema)
+    .input(clientErrorReportSchema)
+    .mutation(({ ctx, input }) => {
+      recordClientError(input, ctx.logger);
+      return { ok: true } as const;
+    }),
 
   // The production "Report a bug" read: runtime facts for any signed-in caller, and the grammar-checked
   // error census for the OWNER only (`isOwner`, D17 — the log ring is principal-blind, the `/api/_debug`

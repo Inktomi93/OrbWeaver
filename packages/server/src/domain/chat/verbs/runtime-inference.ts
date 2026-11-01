@@ -1,7 +1,8 @@
 // Runtime capability decisions keep the caller-selected funder separate from the room's host-owned vector space.
 
+import type { BindingActor } from "@orb/contracts/inference";
 import { RERANK_FLOOR, windowForPreset } from "@orb/contracts/inference";
-import type { BindingActor, NoConnectionError, Resolved, RoleClientsWithSignal } from "@orb/inference";
+import type { NoConnectionError, Resolved, RoleClientsWithSignal } from "@orb/inference";
 import { carriesStructured, unavailableRefusal } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context.ts";

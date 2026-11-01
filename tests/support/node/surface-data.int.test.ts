@@ -294,7 +294,7 @@ test("owner intake preserves original subjects and plugin consent, scrubs only c
   expect(await readFile(join(source.layout.assets, assetFile))).toEqual(Buffer.from(source.bytes));
   expect(await readFile(database)).toEqual(before);
   await prepared[Symbol.asyncDispose]();
-  await expect(lstat(prepared.layout.root)).rejects.toThrow();
+  await expect(lstat(prepared.layout.root)).rejects.toMatchObject({ code: "ENOENT" });
   expect((await lstat(join(prepared.runRoot, "provenance.json"))).isFile()).toBe(true);
 });
 
@@ -482,7 +482,7 @@ test("standalone owner startup owns its native listener while restoring enabled 
   expect(result.transcript).toContain("standalone surface startup and teardown joined");
   const runs = await readdir(privateRoot);
   expect(runs).toHaveLength(1);
-  await expect(lstat(join(privateRoot, runs[0] ?? "", "dataset"))).rejects.toThrow();
+  await expect(lstat(join(privateRoot, runs[0] ?? "", "dataset"))).rejects.toMatchObject({ code: "ENOENT" });
   successful = true;
 });
 
@@ -595,7 +595,7 @@ test("an owner clone generates only through its disposable scripted connection a
     const reader = held.body.getReader();
     expect((await reader.read()).done).toBe(false);
     await guard[Symbol.asyncDispose]();
-    await expect(reader.read()).rejects.toThrow();
+    await expect(reader.read()).rejects.toThrow("terminated");
     expect(parseSurfaceProviderEvidence(await readFile(guard.requestEvidencePath, "utf8")).some(({ event }) => event === "disposed")).toBe(true);
     expect(originalRequests).toBe(1);
   } finally {
@@ -634,7 +634,7 @@ test("a prior physical cancellation cannot satisfy the next held provider reques
   const firstId = (await events()).find(({ event }) => event === "held")?.requestId;
   assert(firstId !== undefined);
   first.abort();
-  await expect(firstReader.read()).rejects.toThrow();
+  await expect(firstReader.read()).rejects.toMatchObject({ name: "AbortError" });
   await expect.poll(events).toContainEqual({ requestId: firstId, event: "aborted", request: "POST /v1/chat/completions" });
   const cursor = Math.max(0, ...(await events()).map(({ requestId }) => requestId));
   const second = new AbortController();
@@ -645,7 +645,7 @@ test("a prior physical cancellation cannot satisfy the next held provider reques
     expect((await events()).some(({ requestId, event }) => requestId === firstId && event === "aborted")).toBe(true);
     expect((await events()).filter(({ requestId, event }) => requestId === current.requestId && event !== "request" && event !== "held")).toEqual([]);
     second.abort();
-    await expect(secondReader.read()).rejects.toThrow();
+    await expect(secondReader.read()).rejects.toMatchObject({ name: "AbortError" });
     await expect.poll(events).toContainEqual({ requestId: current.requestId, event: "aborted", request: "POST /v1/chat/completions" });
   } finally {
     second.abort();
@@ -704,7 +704,7 @@ test("owner intake refuses lost completed vectors and retains exact private pari
   const runs = await readdir(privateRoot);
   expect(runs).toHaveLength(1);
   const runRoot = join(privateRoot, runs[0] ?? "");
-  await expect(lstat(join(runRoot, "dataset"))).rejects.toThrow();
+  await expect(lstat(join(runRoot, "dataset"))).rejects.toMatchObject({ code: "ENOENT" });
   expect(JSON.parse(await readFile(join(runRoot, "provenance.json"), "utf8"))).toMatchObject({
     embeddings: { preserved: false, source: { counts: { characters: source.embeddingCount } }, prepared: { counts: { characters: 0 } } },
   });
@@ -782,7 +782,7 @@ test("owner admission rejects resumable work and cleans copied data while retain
   const runs = await readdir(privateRoot);
   expect(runs).toHaveLength(1);
   const runRoot = join(privateRoot, runs[0] ?? "");
-  await expect(lstat(join(runRoot, "dataset"))).rejects.toThrow();
+  await expect(lstat(join(runRoot, "dataset"))).rejects.toMatchObject({ code: "ENOENT" });
   const failure = await readFile(join(runRoot, "failure.txt"), "utf8");
   expect(failure).toContain("refuses unfinished work and pending turns");
   await expectPosixPrivateMode(join(runRoot, "failure.txt"), 0o600);

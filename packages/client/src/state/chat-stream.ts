@@ -13,8 +13,6 @@ import { perfMark, perfMeasure } from "#lib";
 import type { ChatStreamApi, RecallState, TurnSlot } from "./chat-stream-types.ts";
 import { createGatedStore } from "./create-gated-store.ts";
 
-export type { ChatStreamApi, RecallState, TurnSlot } from "./chat-stream-types.ts";
-
 // Mark names are per-chat so concurrent rooms never cross-measure: beginTurn stamps the start, the
 // first delta onto a pending slot measures TTFT, and the terminal events measure end-to-end latency.
 const turnStartMark = (chatId: ChatId): string => `turn-begin:${chatId}`;

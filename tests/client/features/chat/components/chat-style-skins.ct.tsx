@@ -95,11 +95,11 @@ function decorationFor(skin: RowSkin, kind: string | null, role: Role): ReturnTy
 /** A bubble skin's box: the role's fill at the card radius with no shadow, inset unless its art takes the inset. */
 async function expectedBubble(page: Page, box: Locator, skin: RowSkin, row: { readonly role: Role; readonly kind: string | null }): Promise<Box> {
   const { role, kind } = row;
-  const card = await resolvedLength(page, "var(--radius-card)");
-  const sharp = await resolvedLength(page, "var(--radius-bubble-sharp)");
-  const round = await resolvedLength(page, "var(--radius-bubble-round)");
-  const tail = await resolvedLength(page, "var(--radius-bubble-tail)");
-  const pill = await resolvedLength(page, "var(--radius-pill)");
+  const card = await resolvedLength(page, `var(${TOKENS["radius.card"].cssVar})`);
+  const sharp = await resolvedLength(page, `var(${TOKENS["radius.bubble-sharp"].cssVar})`);
+  const round = await resolvedLength(page, `var(${TOKENS["radius.bubble-round"].cssVar})`);
+  const tail = await resolvedLength(page, `var(${TOKENS["radius.bubble-tail"].cssVar})`);
+  const pill = await resolvedLength(page, `var(${TOKENS["radius.pill"].cssVar})`);
   const cornerSet = {
     card: [card, card, card, card],
     speech: role === "user" ? [round, sharp, tail, round] : [sharp, round, round, tail],
@@ -108,14 +108,14 @@ async function expectedBubble(page: Page, box: Locator, skin: RowSkin, row: { re
   // Whisper's band and ripple's welded portrait hand the inset to the stack beside them.
   const decoration = decorationFor(skin, kind, role);
   const handed = decoration?.headerBand !== undefined || skin.avatarTreatment(kind === null ? null : "character") === "sticky-portrait";
-  const block = await resolvedLength(page, "var(--spacing-block)");
-  const rowStep = await resolvedLength(page, "var(--spacing-row)");
+  const block = await resolvedLength(page, `var(${TOKENS["spacing.block"].cssVar})`);
+  const rowStep = await resolvedLength(page, `var(${TOKENS["spacing.row"].cssVar})`);
   // Echo's art side is inset by its art pane, so the prose clears the tile.
   const pane = decoration?.art === undefined ? null : ((await box.locator('[data-slot="message-echo-art"]').boundingBox())?.width ?? Number.NaN);
   const start = pane !== null && decoration?.art?.side === "left" ? pane : block;
   const end = pane !== null && decoration?.art?.side === "right" ? pane : block;
   return {
-    fill: await tokenColor(box, role === "user" ? "--color-user-bubble" : "--color-ai-bubble", "background-color"),
+    fill: await tokenColor(box, role === "user" ? TOKENS["color.user-bubble"].cssVar : TOKENS["color.ai-bubble"].cssVar, "background-color"),
     corners: cornerSet,
     shadow: "none",
     blurred: false,
@@ -134,17 +134,27 @@ async function expectedBox(
   if (skin.box === "bubble") {
     return expectedBubble(page, box, skin, { role, kind });
   }
-  const rowStep = await resolvedLength(page, "var(--spacing-row)");
+  const rowStep = await resolvedLength(page, `var(${TOKENS["spacing.row"].cssVar})`);
   const isPage = skin.box === "page";
   return {
-    fill: art ? await tokenColor(box, "--color-reading-plate", "background-color") : TRANSPARENT,
+    fill: art ? await tokenColor(box, TOKENS["color.reading-plate"].cssVar, "background-color") : TRANSPARENT,
     corners: [0, 0, 0, 0],
     shadow: "none",
     blurred: art,
     inset: isPage
-      ? [await resolvedLength(page, "var(--spacing-gutter)"), await resolvedLength(page, "var(--spacing-gutter)"), rowStep, 0]
-      : [await resolvedLength(page, "var(--spacing-section)"), await resolvedLength(page, "var(--spacing-section)"), rowStep, rowStep],
-    ink: isPage || art ? await tokenColor(box, "--color-prose-body", "color") : await tokenColor(box, "--color-foreground", "color"),
+      ? [
+          await resolvedLength(page, `var(${TOKENS["spacing.gutter"].cssVar})`),
+          await resolvedLength(page, `var(${TOKENS["spacing.gutter"].cssVar})`),
+          rowStep,
+          0,
+        ]
+      : [
+          await resolvedLength(page, `var(${TOKENS["spacing.section"].cssVar})`),
+          await resolvedLength(page, `var(${TOKENS["spacing.section"].cssVar})`),
+          rowStep,
+          rowStep,
+        ],
+    ink: isPage || art ? await tokenColor(box, TOKENS["color.prose-body"].cssVar, "color") : await tokenColor(box, TOKENS["color.foreground"].cssVar, "color"),
   };
 }
 
@@ -158,7 +168,7 @@ async function measureArt(box: Locator): Promise<readonly number[] | null> {
 }
 
 async function expectedArt(page: Page, skin: RowSkin, kind: string | null, role: Role): Promise<readonly number[] | null> {
-  const card = await resolvedLength(page, "var(--radius-card)");
+  const card = await resolvedLength(page, `var(${TOKENS["radius.card"].cssVar})`);
   const decoration = decorationFor(skin, kind, role);
   if (decoration?.art !== undefined) {
     return decoration.art.side === "left" ? [card, 0, 0, 0] : [0, card, 0, 0];
@@ -182,7 +192,10 @@ function expectedAlign(skin: RowSkin, role: Role): string {
 }
 
 function expectedTrack(page: Page, skin: RowSkin): Promise<number> {
-  return resolvedLength(page, skin.track === "echo" ? "calc(var(--width-shell-content) + var(--immersive-echo-art-width))" : "var(--width-shell-content)");
+  return resolvedLength(
+    page,
+    skin.track === "echo" ? `calc(var(--width-shell-content) + var(${TOKENS["immersive.echo-art-width"].cssVar}))` : "var(--width-shell-content)",
+  );
 }
 
 /** The row's placement and box for one role, measured and expected. */
@@ -223,7 +236,7 @@ async function revealFacts(page: Page, skin: RowSkin): Promise<{ readonly measur
     // Inside every skin's corner radius, the pill's and a speech card's long corner included.
     .hover({ position: { x: 44, y: 4 } });
   await expect.poll(() => computed(actions, "opacity")).toBe("1");
-  const card = await resolvedLength(page, "var(--radius-card)");
+  const card = await resolvedLength(page, `var(${TOKENS["radius.card"].cssVar})`);
   return {
     measured: {
       rest,
@@ -234,14 +247,14 @@ async function revealFacts(page: Page, skin: RowSkin): Promise<{ readonly measur
       rest: { opacity: "0", pointer: "none" },
       hovered: "auto",
       chip: skin.actionsRow.chip
-        ? { fill: await tokenColor(actions, "--color-reading-band", "background-color"), corners: [card, card, card, card] }
+        ? { fill: await tokenColor(actions, TOKENS["color.reading-band"].cssVar, "background-color"), corners: [card, card, card, card] }
         : { fill: TRANSPARENT, corners: [0, 0, 0, 0] },
     },
   };
 }
 
 // The token each pinned fill paints; the long reply is the assistant's.
-const PINNED_FILL = { role: "--color-ai-bubble", band: "--color-reading-band" } as const;
+const PINNED_FILL = { role: TOKENS["color.ai-bubble"].cssVar, band: TOKENS["color.reading-band"].cssVar } as const;
 
 /** The long reply's header once the transcript scrolls into its body. */
 async function pinFacts(page: Page, skin: RowSkin): Promise<{ readonly measured: object; readonly expected: object }> {
@@ -249,7 +262,7 @@ async function pinFacts(page: Page, skin: RowSkin): Promise<{ readonly measured:
   const header = row.locator('[data-slot="message-name-row"]');
   await expect(header).toHaveAttribute("data-sticky", "");
   await scrollIntoMessage(row);
-  const card = await resolvedLength(page, "var(--radius-card)");
+  const card = await resolvedLength(page, `var(${TOKENS["radius.card"].cssVar})`);
   const fill = skin.pinnedHeader.fill;
   const top = skin.pinnedHeader.corners === "top" ? [card, card, 0, 0] : [card, card, card, card];
   return {
@@ -272,16 +285,19 @@ async function pinFacts(page: Page, skin: RowSkin): Promise<{ readonly measured:
 async function footFacts(page: Page, skin: RowSkin, art: boolean): Promise<{ readonly measured: object; readonly expected: object }> {
   const foot = page.locator(`${ROW}[data-role="assistant"]`).last().locator('[data-slot="swipe-strip"]');
   await expect(foot).toBeVisible();
-  const card = await resolvedLength(page, "var(--radius-card)");
+  const card = await resolvedLength(page, `var(${TOKENS["radius.card"].cssVar})`);
   const edge = skin.swipeFoot.edge;
   const plated = edge === "plate" && art;
-  const fill = edge === "card" ? await tokenColor(foot, "--color-ai-bubble", "background-color") : TRANSPARENT;
+  const fill = edge === "card" ? await tokenColor(foot, TOKENS["color.ai-bubble"].cssVar, "background-color") : TRANSPARENT;
   return {
     measured: { fill: await computed(foot, "background-color"), corners: await corners(foot), inset: px(await computed(foot, "padding-inline-start")) },
     expected: {
-      fill: plated ? await tokenColor(foot, "--color-card", "background-color") : fill,
+      fill: plated ? await tokenColor(foot, TOKENS["color.card"].cssVar, "background-color") : fill,
       corners: FOOT_CORNERS[edge](card, art),
-      inset: edge === "inset" ? 0 : await resolvedLength(page, edge === "card" ? "var(--spacing-block)" : "var(--spacing-field)"),
+      inset:
+        edge === "inset"
+          ? 0
+          : await resolvedLength(page, edge === "card" ? `var(${TOKENS["spacing.block"].cssVar})` : `var(${TOKENS["spacing.field"].cssVar})`),
     },
   };
 }
@@ -477,7 +493,7 @@ test("Whisper leaves reading space above the composer in a short landscape room"
   if (box === null) {
     throw new Error("The rendered Whisper banner has no box");
   }
-  const aspect = await resolvedLength(page, "calc(1px * var(--aspect-banner))");
+  const aspect = await resolvedLength(page, `calc(1px * var(${TOKENS["aspect.banner"].cssVar}))`);
   expect(box.width / box.height).toBeCloseTo(aspect, 2);
 });
 

@@ -309,7 +309,7 @@ test("lighthouse audits the page in the session's own browser (snapshot mode, no
 
 test("an unreachable debugging port THROWS instead of reporting zero failed audits", async () => {
   const port = await freePort();
-  await expect(puppeteer.connect({ browserURL: `http://127.0.0.1:${port}`, defaultViewport: null })).rejects.toThrow();
+  await expect(puppeteer.connect({ browserURL: `http://127.0.0.1:${port}`, defaultViewport: null })).rejects.toMatchObject({ cause: { code: "ECONNREFUSED" } });
 });
 
 // This deliberately equals the old hard-coded away viewport, proving the repair cannot silently no-op.

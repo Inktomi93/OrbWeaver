@@ -1,4 +1,4 @@
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs take the strict twin via `strictInput` (`@orb/kit/zod-schema`).
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import type { AssetId, CharacterId, ChatId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -229,7 +229,7 @@ export const IMAGERY_CAPTION_SLOT_IDS: Record<MultimodalCaptionMode, ProseSlotId
  *  arbitrary dimensions to its own buckets anyway, so optimizing for the strictest wire wins). The concrete
  *  WxH mapping lives in the leaf's `substrate/size.ts` (Phase 7). */
 export const SIZE_PRESET_NAMES = ["square", "portrait", "landscape"] as const;
-export const sizePresetSchema = z.enum(SIZE_PRESET_NAMES);
+const sizePresetSchema = z.enum(SIZE_PRESET_NAMES);
 export type SizePresetName = z.infer<typeof sizePresetSchema>;
 
 // Request numeric bounds (named — `noMagicNumbers`). `n` clamp mirrors the leaf's per-call fan-out cap

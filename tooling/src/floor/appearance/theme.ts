@@ -43,7 +43,7 @@ export type ThemeRequest = string;
 /** Parse outcome: a request, or a stated reason (the caller turns it into an ARG ERROR — EXIT.misuse). */
 export type ThemeParse = { readonly theme: ThemeRequest } | { readonly error: string };
 
-/** One entry of the app's theme library, as much of `ThemeView` as the shim needs. */
+/** One entry of the app's theme library, as much of `Theme` as the shim needs. */
 export interface ThemeEntry {
   readonly id: string;
   readonly name: string;

@@ -7,6 +7,7 @@ import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/te
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import type { RpgSceneCardsStory } from "./_scene-cards-stories.tsx";
 
@@ -375,15 +376,15 @@ test.describe("at phone width with a coarse pointer", () => {
     // The row's name carries the stamp, so two cards from one earlier day differ to a screen reader too.
     await expect(row).toHaveAccessibleName(`Open card: ${CARD_TITLE}, ${stamp}`);
 
-    expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
-    const touchTarget = await page.evaluate(() => {
+    expect(await page.evaluate((pointerCoarse) => matchMedia(pointerCoarse).matches, MEDIA_QUERIES["pointer-coarse"])).toBe(true);
+    const touchTarget = await page.evaluate((sizeTouchTarget) => {
       const probe = document.createElement("div");
-      probe.style.blockSize = "var(--size-touch-target)";
+      probe.style.blockSize = `var(${sizeTouchTarget})`;
       document.body.append(probe);
       const height = probe.getBoundingClientRect().height;
       probe.remove();
       return height;
-    });
+    }, TOKENS["size.touch-target"].cssVar);
     const box = await row.boundingBox();
     expect(box?.height ?? Number.NaN).toBeGreaterThanOrEqual(touchTarget);
   });

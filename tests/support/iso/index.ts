@@ -28,4 +28,4 @@ export { ACCEPTED_BASES } from "./theme-bases.ts";
 export { EDGE_FALLBACK_SCOPE, TONE_FALLBACK_SCOPE } from "./theme-fallback-cases.ts";
 export type { ControlledTimers } from "./timers.ts";
 export { createControlledTimers, createQuietTimers } from "./timers.ts";
-export { zodDefinition, zodSchemaChildren } from "./zod-schema-tree.ts";
+export { stripObjectPaths, zodDefinition, zodSchemaChildren } from "./zod-schema-tree.ts";

@@ -2,7 +2,6 @@
 // this exact root module is the stable assembly import and contains no second type home.
 
 export type {
-  BindingActor,
   BindingStore,
   ConnectionStore,
   InferenceDeps,

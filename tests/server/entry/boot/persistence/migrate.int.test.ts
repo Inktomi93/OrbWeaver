@@ -6,7 +6,6 @@ import { pathToFileURL } from "node:url";
 import type { Db } from "@orb/db";
 import { backupBeforeMigrate, checkBaseline, closeDb, createDb, hasPendingMigrations, listBackupFiles, messageVariants, runMigrations } from "@orb/db";
 import { isBackupFileName } from "@orb/db/backup-names";
-import { DomainOperationError } from "@orb/kit/errors";
 import { runBootMigrations } from "@orb/server/entry/boot";
 import { expect, test } from "@orb/testkit/node";
 import { createTestLogger, migrationsBeforeLatest, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
@@ -188,7 +187,7 @@ test("a database that recorded a migration the shipped chain does not hold refus
     await db.run(sql`UPDATE __drizzle_migrations SET created_at = 0`);
     expect((await checkBaseline(db, SHIPPED_MIGRATIONS)).status).toBe("regenerated");
     // The refusal is the boot's own typed error; a drizzle or SQLite failure from re-applying the chain is not.
-    await expect(boot(db, where)).rejects.toBeInstanceOf(DomainOperationError);
+    await expect(boot(db, where)).rejects.toMatchObject({ code: "boot_migration_diverged" });
 
     expect(await contents(db)).toEqual([CONTENT]);
     expect(backupsIn(where.backupDir)).toEqual(copies);

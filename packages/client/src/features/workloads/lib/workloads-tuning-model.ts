@@ -7,6 +7,7 @@
 // lenient tier self-heals, so these bound the INPUT for UX, never the enforcement).
 
 import type { UserSettings } from "@orb/contracts/settings";
+import type { SectionPatchVars } from "#data";
 
 type WorkloadsSection = UserSettings["workloads"];
 
@@ -47,6 +48,6 @@ export function projectWorkloadsTuningForm(section: WorkloadsSection): Workloads
 }
 
 /** The flat form value → the `workloads` section-patch shape `updateUserSettingsSection("workloads")` merges. */
-export function toWorkloadsSectionPatch(form: WorkloadsTuningForm): Record<string, unknown> {
+export function toWorkloadsSectionPatch(form: WorkloadsTuningForm): SectionPatchVars<"workloads">["patch"] {
   return { dupThreshold: form.dupThreshold, computeThemesK: form.computeThemesK, maxPairs: form.maxPairs, hubFraction: form.hubFraction };
 }

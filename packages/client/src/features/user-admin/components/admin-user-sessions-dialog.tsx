@@ -4,7 +4,6 @@
 // UserSessionsDialog shape); per-row Revoke + a confirm-gated Revoke-all header action. The revoke
 // mutations path-invalidate `admin.listSessions`, so the list refreshes on settle.
 
-import type { Handle, UserId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
@@ -16,17 +15,11 @@ import { ConfirmDialog, FormDialog } from "#components";
 import { QueryInlineStates, useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import { useRevokeSession, useRevokeUserSessions } from "../hooks/use-admin-mutations.ts";
+import type { AdminUserDialogProps } from "../lib/admin-model.ts";
 import { revokeSessionName } from "../lib/admin-model.ts";
 
-export interface AdminUserSessionsDialogProps {
-  readonly userId: UserId;
-  readonly handle: Handle;
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
-}
-
 /** The sessions list + revoke affordances for one account. */
-export function AdminUserSessionsDialog(props: AdminUserSessionsDialogProps): ReactElement {
+export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const sessions = useQuery(trpc.admin.listSessions.queryOptions({ userId: props.userId }));

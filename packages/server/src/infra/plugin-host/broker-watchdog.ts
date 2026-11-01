@@ -46,7 +46,6 @@ process.on("message", (value: unknown) => {
 });
 
 interface BrokerHeartbeat {
-  readonly kind: "plugin-broker-memory";
   readonly rssBytes: number;
   readonly peakPhysicalWorkers: number;
   readonly execArgv: readonly string[];
@@ -72,7 +71,7 @@ function parseHeartbeat(message: unknown): BrokerHeartbeat | null {
     Array.isArray(execArgv) &&
     execArgv.every((value) => typeof value === "string") &&
     nodeOptions === null
-    ? { kind, rssBytes, peakPhysicalWorkers, execArgv, nodeOptions }
+    ? { rssBytes, peakPhysicalWorkers, execArgv, nodeOptions }
     : null;
 }
 

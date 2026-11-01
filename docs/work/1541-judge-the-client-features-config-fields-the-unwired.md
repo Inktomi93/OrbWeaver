@@ -36,4 +36,12 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+10 rows: 8 applied, 2 kept with a named reader, 0 owner questions.
+
+Applied (`packages/client/src/features/config/hooks/use-theme-mutations.ts`): `DuplicateThemeVars`, `UpdateThemeVars`, `RemoveThemeVars` and `SelectThemeVars` are gone; each mutation is typed `inferInput<Trpc["settings"][<procedure>]>`. `DuplicateThemeVars.name` (listed as delete) is resolved by the same derivation: the router declares `name` as an optional input (`packages/server/src/transport/trpc/routers/settings.ts:127`), so the client type no longer owns it.
+
+Kept: `SearchItem.label` and `SearchItem.haystack` (`packages/client/src/features/config/components/config-search-input.tsx:49,50`). `fuzzySearch` takes `fields: readonly (keyof T & string)[]` (`packages/ui/src/fuzzy-search/fuzzy-search.ts:12`), and `SEARCH_OPTIONS` names both fields (`config-search-input.tsx:53`). The fields are indexed by key name, which the scanner cannot see.
+
+Ran: `pnpm typecheck packages/client/tsconfig.json tsconfig.tests-dom.json` (exit 0).
+
+Reclass list: `SearchItem.label`, `SearchItem.haystack` delete -> kept (K-indexed read); `DuplicateThemeVars.name` delete -> derived.
