@@ -26,16 +26,15 @@ import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { coreProse } from "../../../domain/chat/engine/core-physical.ts";
 import { signedInMember } from "../../../entry/_auth-roots.ts";
 
-export const THOUGHT = "Weighing the witness. ";
+const THOUGHT = "Weighing the witness. ";
 export const SECRET_HEAD = "ledger-truth-";
 export const SECRET_TAIL = "held-past-the-join";
 /** The hidden span opens before the join and closes after it: a read that loses the scrub state leaks the tail. */
-export const BEFORE_JOIN = ["The opening ", "stays public. ", '<lie character="Witness" truth="', SECRET_HEAD];
-export const AFTER_JOIN = [`${SECRET_TAIL}"/>`, " The close", " lands live."];
+const BEFORE_JOIN = ["The opening ", "stays public. ", '<lie character="Witness" truth="', SECRET_HEAD];
+const AFTER_JOIN = [`${SECRET_TAIL}"/>`, " The close", " lands live."];
 /** The tokens a held reply streams before it waits: the reasoning, then the text. */
 export const tokenCount = BEFORE_JOIN.length + 1;
-export const FULL_TEXT = [...BEFORE_JOIN, ...AFTER_JOIN].join("");
-export const OPENING = "The opening stays public.";
+const FULL_TEXT = [...BEFORE_JOIN, ...AFTER_JOIN].join("");
 const HOST_PASSWORD = "a-real-late-join-host-password";
 
 export interface Frame {
@@ -107,7 +106,7 @@ export async function openDevice(root: ServerTestHarness, userId: UserId, cookie
 }
 
 /** The provider's reply bytes: the opening tokens now, the rest when the test releases them. */
-export function heldReply(): { readonly release: () => void; readonly fail: () => void; readonly respond: () => Response } {
+function heldReply(): { readonly release: () => void; readonly fail: () => void; readonly respond: () => Response } {
   const released = Promise.withResolvers<boolean>();
   const encoder = new TextEncoder();
   const line = (body: string): Uint8Array => encoder.encode(`${body}\n\n`);
@@ -233,8 +232,8 @@ export async function admit(room: Room, handle: string): Promise<{ readonly id: 
   return seat;
 }
 
-export const typesOf = (frames: readonly Frame[]): readonly string[] => frames.map(({ event }) => event.type);
-export const channelOf = (frames: readonly Frame[], kind: "text" | "reasoning"): string =>
+const typesOf = (frames: readonly Frame[]): readonly string[] => frames.map(({ event }) => event.type);
+const channelOf = (frames: readonly Frame[], kind: "text" | "reasoning"): string =>
   frames.flatMap(({ event }) => (event.type === "delta" && event.delta.kind === kind ? [event.delta.text] : [])).join("");
 export const textOf = (frames: readonly Frame[]): string => channelOf(frames, "text");
 export const ended = (frames: readonly Frame[]): boolean => typesOf(frames).some((type) => type === "turnCompleted" || type === "turnAborted");
