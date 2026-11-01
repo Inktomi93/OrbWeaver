@@ -101,7 +101,7 @@ import { buildTurnUserMacros, freezeVolatileMacros, resolveNudgeText } from "../
 import { isBelowHistoryFloor } from "../substrate/auth/index.ts";
 import { refuseHandoffAdmission } from "../substrate/handoff-barrier.ts";
 import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
-import { projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
+import { createViewerTextScrub, projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { ownedCitedAssetIds } from "../substrate/owned-citations.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { humanSeatPersonasOf, lorePersonaIdsOf, presentAndEnabledHumanUserIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
@@ -2470,10 +2470,14 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
       ),
       chatId,
     );
+    const scrub = createViewerTextScrub(membership);
     let drained = false;
     try {
-      for await (const delta of bridge.drain()) {
-        yield { delta };
+      for await (const text of bridge.drain()) {
+        const delta = scrub(text);
+        if (delta.length > 0) {
+          yield { delta };
+        }
       }
       drained = true;
     } finally {

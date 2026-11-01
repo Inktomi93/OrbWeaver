@@ -1666,6 +1666,11 @@ async function closePreStartRefusal(deps: EngineDeps, prep: TurnPrep): Promise<v
   });
 }
 
+/** The bytes that precede a continue's first token in its committed body, delimiter included. */
+function continuedBodyOf(prep: TurnPrep, persist: TurnPersist, target: SlotTarget | null): string | undefined {
+  return persist.mode === "continue" && target !== null ? target.content + continuePostfixDelimiter(prep) : undefined;
+}
+
 /** The id the room knows this turn by. A round's speakers share their acceptance's, so it is not always `turnId`. */
 function announcedTurn(prep: TurnPrep, turnId: ChatTurnId): ChatTurnId {
   return prep.acceptedTurnId ?? turnId;
@@ -1697,17 +1702,20 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
   const announcedTurnId = announcedTurn(prep, turnId);
   const observations = createGenerationObservationSession(ctx, observationParentOf(prep.chatId, turnId, target));
   markRpgDiceEligible(ctx, prep, turnId);
-  await deps.emit({
-    type: "turnStarted",
-    chatId: prep.chatId,
-    turnId: announcedTurnId,
-    intent,
-    api: connection.api,
-    provider: connection.providerId,
-    model: connection.model,
-    speakerCharacterId: prep.speakerCharacterId,
-    targetMessageId: persist.mode === "new-slot" ? null : persist.targetMessageId,
-  });
+  await deps.emit(
+    {
+      type: "turnStarted",
+      chatId: prep.chatId,
+      turnId: announcedTurnId,
+      intent,
+      api: connection.api,
+      provider: connection.providerId,
+      model: connection.model,
+      speakerCharacterId: prep.speakerCharacterId,
+      targetMessageId: persist.mode === "new-slot" ? null : persist.targetMessageId,
+    },
+    continuedBodyOf(prep, persist, target),
+  );
 
   // `runTurnPipeline` invokes onDelta synchronously while durable chat emission is asynchronous. Keep the
   // tail outside the try so BOTH success and failure terminals must drain it; otherwise a partial stream that

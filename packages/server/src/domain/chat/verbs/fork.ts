@@ -66,7 +66,7 @@ import { seatableCharacterIds } from "../persistence/seat-characters.ts";
 import { permitsHost } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { continuationToolsAreUndone } from "../substrate/content-signatures.ts";
-import { viewerReadsHidden } from "../substrate/member-visibility.ts";
+import { stripContinuationForMember, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { resolveAnchorState } from "../substrate/participants-humans.ts";
 import { foldChain } from "../substrate/runtime-variables.ts";
 import { appendStatsDeltas, canonMessageDelta, chatCreatedDelta, seatChatDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
@@ -152,6 +152,9 @@ function forkVariantValues(args: {
   // otherwise reconstruct a lie's truth from the snapshot. `stripBody` is identity when nothing is hidden / the
   // field is null.
   const stripBody = (s: string | null): string | null => (posture.stripHidden && s !== null ? stripHiddenSpans(s).content : s);
+  // The addition is a fragment of the body, so it strips against the bytes it was appended to.
+  const stripAddition = (s: string | null): string | null =>
+    posture.stripHidden && s !== null ? stripContinuationForMember(variant.preContinueContent ?? "", s) : s;
   // P3 §3.6: on a DECEPTION-active source, a non-host forker also loses the REASONING channel (the live
   // `reasoning` + its continue-snapshot twins) — a deceptive model may spell a lie's truth in its thinking, and
   // the forker becomes HOST of the copy, so an unstripped reasoning twin would launder that leak past the
@@ -178,7 +181,7 @@ function forkVariantValues(args: {
     // ── MEMBER-PROJECTED — the prose channels the §3.6 strips transform for a non-host forker ───────────
     content: stripBody(variant.content) ?? variant.content,
     preContinueContent: stripBody(variant.preContinueContent),
-    lastContinuationContent: stripBody(variant.lastContinuationContent),
+    lastContinuationContent: stripAddition(variant.lastContinuationContent),
     reasoning: nullReasoning(variant.reasoning),
     preContinueReasoning: nullReasoning(variant.preContinueReasoning),
     lastContinuationReasoning: nullReasoning(variant.lastContinuationReasoning),

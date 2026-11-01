@@ -52,7 +52,7 @@ export interface Device {
   readonly close: () => Promise<void>;
 }
 
-export async function openDevice(root: ServerTestHarness, userId: UserId, cookie: string, chatId: ChatId): Promise<Device> {
+async function openDevice(root: ServerTestHarness, userId: UserId, cookie: string, chatId: ChatId): Promise<Device> {
   const { socketId } = streamConnectInputSchema.parse({ socketId: root.ids.uuid() });
   const address = new URL("http://localhost/api/trpc/stream.connect");
   address.searchParams.set("input", JSON.stringify({ socketId }));
@@ -152,6 +152,8 @@ export interface Room extends AsyncDisposable {
   readonly rearm: () => void;
   /** Answer every later provider request at once with this finished text. */
   readonly answerWith: (text: string) => void;
+  /** The bytes of every chat completion request so far: what the model actually received. */
+  readonly prompts: () => readonly string[];
   readonly send: () => Promise<unknown>;
   /** Wait until `count` tokens stand in the room's log. */
   readonly tokensLogged: (count?: number) => Promise<void>;
@@ -166,12 +168,17 @@ export async function openRoom(): Promise<Room> {
     images: [],
   });
   let reply = heldReply();
+  const prompts: string[] = [];
   const root = await createServerHarness({
     startJobs: false,
     env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" },
     providerFetch: async (input, init) => {
       const request = new Request(input, init);
-      return request.method === "POST" && new URL(request.url).pathname.endsWith("/chat/completions") ? reply.respond() : await provider.execute(request);
+      if (request.method !== "POST" || !new URL(request.url).pathname.endsWith("/chat/completions")) {
+        return await provider.execute(request);
+      }
+      prompts.push(await request.text());
+      return reply.respond();
     },
   });
   const { owner: host } = await seedCorpusActors(root);
@@ -208,6 +215,7 @@ export async function openRoom(): Promise<Room> {
     answerWith: (text): void => {
       reply = { ...reply, respond: (): Response => coreProse(text) };
     },
+    prompts: () => prompts,
     send: () => root.services.chat.send({ principal: host, chatId, content: "Begin the witness turn." }),
     tokensLogged: async (count = tokenCount): Promise<void> => {
       await expect
@@ -230,6 +238,36 @@ export async function admit(room: Room, handle: string): Promise<{ readonly id: 
   const invite = await seedChatInvite(room.root, { principal: room.host, chatId: room.chatId, input: { invitedHandle: guest.handle } });
   await seedInvitedChatParticipant(room.root, { principal: guest, inviteId: invite.invite.id });
   return seat;
+}
+
+/** The stored member stamps, read through the host's verbatim replay: each text token's stamp, or the token itself
+ *  where the producer stamped it identical. */
+export async function storedMemberBytes(room: Room): Promise<string> {
+  const log = await room.root.services.chat.replayChatEvents({ principal: room.host, chatId: room.chatId });
+  return log.flatMap(({ event }) => (event.type === "delta" && event.delta.kind === "text" ? [event.memberText ?? event.delta.text] : [])).join("");
+}
+
+export type Guest = Awaited<ReturnType<Room["root"]["principalFor"]>>;
+
+/** The member-facing planes that carry any of the secret. */
+export async function leaks(room: Room, device: Device, guest: Guest): Promise<readonly string[]> {
+  const planes = {
+    live: JSON.stringify(device.frames),
+    stored: await storedMemberBytes(room),
+    replay: JSON.stringify(await room.root.services.chat.replayChatEvents({ principal: guest, chatId: room.chatId })),
+  };
+  return Object.entries(planes)
+    .filter(([, bytes]) => bytes.includes(SECRET_HEAD) || bytes.includes(SECRET_TAIL))
+    .map(([plane]) => plane);
+}
+
+/** A seated member's device, attached before a host turn stops inside its hidden span. */
+export async function memberWatching(room: Room, handle: string): Promise<{ readonly device: Device; readonly guest: Guest }> {
+  const seat = await admit(room, handle);
+  const device = await openDevice(room.root, seat.id, seat.cookie, room.chatId);
+  await device.attach();
+  await device.waitFor((frames) => frames.length > 0);
+  return { device, guest: await room.root.principalFor(seat.id) };
 }
 
 const typesOf = (frames: readonly Frame[]): readonly string[] => frames.map(({ event }) => event.type);

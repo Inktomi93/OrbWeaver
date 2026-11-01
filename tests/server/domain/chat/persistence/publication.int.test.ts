@@ -3,11 +3,13 @@
 // The emitter's claim is a raw unexecuted statement by contract, so the durable append suite builds one here.
 
 import type { ChatLivePublish } from "@orb/contracts/chat";
+import type { ProviderId } from "@orb/contracts/inference";
 import { chatEvents, chats } from "@orb/db";
 import { batchStmt } from "@orb/db/query";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { statementToken } from "@orb/db/wiring-owner";
-import { ID_PREFIX } from "@orb/kit/ids";
+import type { ChatTurnId } from "@orb/kit/ids";
+import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { createChatBus, createChatPublication } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -54,6 +56,34 @@ test("durable append precedes fan, a lost claim converges without fan, and a del
   await harness.services.chat.delete({ principal: host, chatId: room.id });
   expect(await publication.emitChecked({ type: "chatUpdated", chatId: room.id })).toBe(false);
   expect(published).toHaveLength(1);
+});
+
+test("a delta from a turn the bus never saw start, or a continue with no body to resume, stamps no member bytes", async ({
+  harness,
+  db,
+  clock,
+  ids,
+}): Promise<void> => {
+  const { room } = await hostedRoom(harness);
+  const bus = createChatBus({ db: databaseHandle(db), logger: createTestLogger(), now: clock.now, newEventId: () => ids.typeId(ID_PREFIX.chatEvent) });
+  const chatId = room.id;
+  const streamed = async (turnId: ChatTurnId): Promise<unknown> => {
+    const delta = { chatId, kind: "text", text: 'held-past-the-join"/> A tail.' } as const;
+    return (await bus.emit({ type: "delta", chatId, turnId, slotSeq: 1, delta }))?.event;
+  };
+  expect(await streamed(ids.typeId(ID_PREFIX.chatTurn))).toMatchObject({ memberText: "" });
+  const continued = ids.typeId(ID_PREFIX.chatTurn);
+  const started = {
+    type: "turnStarted",
+    chatId,
+    turnId: continued,
+    api: null,
+    provider: castId<ProviderId>("custom-openai"),
+    model: "a-model",
+    speakerCharacterId: null,
+  } as const;
+  await bus.emit({ ...started, intent: "continue", targetMessageId: ids.typeId(ID_PREFIX.message) });
+  expect(await streamed(continued)).toMatchObject({ memberText: "" });
 });
 
 test("quiet entity churn may coalesce but a terminal delete remains live and append-free", async ({ harness, db, clock, ids }): Promise<void> => {
