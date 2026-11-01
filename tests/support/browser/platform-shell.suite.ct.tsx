@@ -116,13 +116,13 @@ for (const viewport of [PHONE_PORTRAIT, DESKTOP]) {
   });
 }
 
-// The room's hooks are the public slot names; a bare probe wearing them reads the shell sheet's rule without
-// mounting a chat room.
+// The room's hooks are the public slot names; a bare probe wearing them, inside the content column whose height the
+// rule queries, reads the shell sheet's rule without mounting a chat room.
 for (const [viewport, short] of [
   [PHONE_LANDSCAPE_KEYBOARD, true],
   [PHONE_LANDSCAPE, false],
 ] as const) {
-  test(`shell-short ${short ? "scrolls the room and floors the transcript" : "leaves the room alone"} at ${String(viewport.width)}x${String(viewport.height)}`, async ({
+  test(`shell-short ${short ? "floors the transcript" : "leaves the transcript alone"} at ${String(viewport.width)}x${String(viewport.height)}`, async ({
     mount,
     page,
   }) => {
@@ -136,14 +136,13 @@ for (const [viewport, short] of [
       row.dataset["slot"] = "chat-room-flank-row";
       anchor.append(row);
       surface.append(anchor);
-      document.body.append(surface);
+      (document.querySelector(".shell-main") as Element).append(surface);
       const floor = getComputedStyle(anchor).minBlockSize;
-      const scrolls = getComputedStyle(surface).overflowBlock;
       surface.remove();
-      return { floor, scrolls };
+      return floor;
     });
     const floorPx = await page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize) * 10);
-    expect(probed).toEqual(short ? { floor: `${String(floorPx)}px`, scrolls: "auto" } : { floor: "0px", scrolls: "visible" });
+    expect(probed).toBe(short ? `${String(floorPx)}px` : "0px");
   });
 }
 

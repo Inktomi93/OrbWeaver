@@ -436,8 +436,9 @@ Dynamic Type remains deferred. Adopting `-apple-system-body` changes the approve
 - Preserve the distinction between source delivery, selected rendered acceptance and full application CI.
 - The Import FormDialog is qualified on Chromium and WebKit at 200% text and 300% layout on the phone and desktop.
 - Keep fine-pointer finder reveal-transition imagery unqualified. A recent-shelf focus image does not establish that behavior.
-- The desktop topbar and the desktop room at 200% text are qualified on Chromium and WebKit. The phone topbar, the panels, the phone room and every 300% case other than the Import dialog on desktop are open defects on the enlarged-text item.
+- The topbar, the list and Context panels, the room and the Import dialog are qualified on Chromium and WebKit at 200% text and 300% layout on the phone and desktop, in `tests/client/features/app-shell/surfaces/platform-text-scale.suite.ct.tsx`. 300% on a 320px phone stays unqualified: two touch targets do not fit one row.
 - Qualify 300% layout separately. Room measurements at the base scale do not cover enlarged text.
+- A shell pane or the room that is 20rem tall or less at the enlarged root scrolls as a whole and keeps its rows or transcript at a floor. The floor yields while the composer holds focus.
 - Keep broader user text-spacing and zoom qualification separate from the scoped component evidence.
 - Perform independent rendered review over the actual changed population. Main owns integration and shared verification.
 - Keep real-device gaps open: notch insets including the bottom edge, keyboard with dynamic viewport, standalone status bar and theme color, rubber-banding and focus zoom.

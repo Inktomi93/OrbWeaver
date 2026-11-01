@@ -53,13 +53,13 @@ export function DialogPopup(props: DialogPopupProps): ReactElement {
   );
 }
 
-export interface DialogTitleProps extends Omit<BaseTitleProps, "className"> {
+export interface DialogTitleProps extends Omit<BaseTitleProps, "className">, Pick<VariantProps<typeof dialogVariants>, "clearsClose"> {
   className?: string;
 }
 
 export function DialogTitle(props: DialogTitleProps): ReactElement {
-  const { className, ...rest } = props;
-  return <BaseDialog.Title className={slots.title({ className })} {...rest} />;
+  const { className, clearsClose, ...rest } = props;
+  return <BaseDialog.Title className={dialogVariants({ clearsClose }).title({ className })} {...rest} />;
 }
 
 export interface DialogDescriptionProps extends Omit<BaseDescriptionProps, "className"> {

@@ -282,7 +282,7 @@ export function CharacterLibrarySurface(): ReactElement {
       search={
         <Input
           aria-label={CHARACTER_SEARCH_NAME}
-          className="flex-1 min-inline-(--width-field-floor)"
+          className="flex-1 min-inline-0"
           onValueChange={setCharacterSearch}
           placeholder="Search characters…"
           value={query}

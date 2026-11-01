@@ -187,7 +187,7 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
           {rowCopy(item.payload, disabledPluginName)}
         </Text>
       </Row>
-      <Row gap="field" align="center" justify="end">
+      <Row gap="field" align="center" className="flex-wrap" justify="end">
         {isInvite && !acted ? (
           <>
             <Button aria-label={`Accept invitation from ${item.payload.invitedByHandle}`} type="button" disabled={isPending} size="sm" onClick={acceptInvite}>

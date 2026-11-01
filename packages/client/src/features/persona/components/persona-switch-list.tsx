@@ -152,7 +152,7 @@ function SwitchRow({
       <Avatar className="pointer-events-none relative shrink-0" fallbackDelay={0} hueSeed={persona.id} size="sm" {...avatarSrc}>
         {initialsFor(persona.name)}
       </Avatar>
-      <Text as="span" className="pointer-events-none relative flex-1 truncate min-inline-0" voice="label">
+      <Text as="span" className="pointer-events-none relative flex-1 basis-(--width-title-floor) truncate min-inline-0" voice="label">
         {persona.name}
       </Text>
       {room === null ? null : <RoomGlyphs persona={persona} room={room} subject={subject} tabIndex={tabIndex} />}
@@ -173,7 +173,7 @@ function SwitchRow({
   );
 }
 
-const ROW_BOX = "group relative min-block-(--size-control-md)";
+const ROW_BOX = "group relative flex-wrap min-block-(--size-control-md)";
 
 /** The row body in a room: one stretched button that switches. The playing row's name says so instead of
  *  offering a no-op verb (§13.10 N3/N4). */

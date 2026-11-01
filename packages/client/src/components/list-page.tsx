@@ -58,6 +58,7 @@ export function ListPage({
     <Surface tier="instrument">
       <Stack
         {...data}
+        data-list-page={body}
         {...(label === undefined ? {} : { "aria-label": label, role: "region" })}
         className={body === "pane" ? "relative overflow-y-auto overscroll-contain block-full min-block-0" : "block-full min-block-0"}
         focusTarget={true}
@@ -69,7 +70,7 @@ export function ListPage({
         {skipTo === undefined ? null : <SkipToFirstRow containerRef={ref}>{skipTo}</SkipToFirstRow>}
         {lead}
         <Row align="center" className="flex-wrap" gap="field">
-          <Row align="center" className="flex-1 min-inline-(--width-field-floor)">
+          <Row align="center" className="flex-1 basis-(--width-field-floor) max-inline-full min-inline-0">
             <ListSearch>{search}</ListSearch>
           </Row>
           {/* The aside wraps as one cluster at the row's end, so the search keeps its floor and a control never strands alone. */}
@@ -82,7 +83,11 @@ export function ListPage({
         {filters}
         {body === "pane" ? children : null}
         {body === "scroll" ? <ListScrollBox>{children}</ListScrollBox> : null}
-        {body === "bounded" ? <Stack className="flex-1 min-block-0">{children}</Stack> : null}
+        {body === "bounded" ? (
+          <Stack className="flex-1 min-block-0" data-slot="library-list-bounded">
+            {children}
+          </Stack>
+        ) : null}
       </Stack>
     </Surface>
   );

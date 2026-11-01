@@ -9,10 +9,23 @@
     overflow: hidden;
     background: var(--color-sidebar);
     color: var(--color-sidebar-foreground);
-    /* The query container for the pane's band, which sits outside the body's region container. Its layout
-     * containment also makes the pane the containing block for the glass carrier (`.shell-panel::before`, client
-     * globals); without it the fill escapes the pane. */
-    container-type: inline-size;
+    /* The query container for the pane's band, which sits outside the body's region container, and for its own
+     * height at the enlarged root. Its layout containment also makes the pane the containing block for the glass
+     * carrier (`.shell-panel::before`, client globals); without it the fill escapes the pane. */
+    container: shell-panel / size;
+  }
+  /* A pane this short at the enlarged root cannot hold a LIST page's chrome and its rows, so the page scrolls and the
+   * rows keep a floor, the room's own answer in content.css. */
+  @container shell-panel (height <= 20rem) {
+    [data-list-page="scroll"],
+    [data-list-page="bounded"] {
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+    [data-list-page] > :is([data-slot="library-list-scroll"], [data-slot="library-list-bounded"]) {
+      flex: none;
+      block-size: var(--height-scroll-sm);
+    }
   }
   /* The panes and `<main>` take focus only programmatically; the ring belongs on the controls inside them. */
   .shell-panel:focus-visible,

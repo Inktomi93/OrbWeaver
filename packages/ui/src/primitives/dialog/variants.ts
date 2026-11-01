@@ -31,6 +31,12 @@ export const dialogVariants = tv({
   },
   variants: {
     spaced: { true: { popup: "gap-block" }, false: {} },
+    // A float, not padding: the title clears only the corner a pinned close button holds, so at enlarged text the lines
+    // below it take the whole width instead of a thin column the height of the title.
+    clearsClose: {
+      true: { title: "wrap-break-word before:float-end before:content-[''] before:block-(--size-control-md) before:inline-(--size-control-md)" },
+      false: {},
+    },
     // A header that stays in view while the body scrolls under it (a drawer's title and close), on the card fill so
     // scrolled rows do not show through.
     stickyHeader: { true: { header: "sticky inset-bs-0 z-(--z-raised) bg-card" }, false: {} },
