@@ -28,7 +28,19 @@ import type {
   TurnKind,
   UserMacroDraws,
 } from "@orb/contracts/chat";
-import { AUTOMATION_DEPTH_HARD_CAP, buildIdentityNameContext, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
+import {
+  AUTOMATION_DEPTH_HARD_CAP,
+  buildIdentityNameContext,
+  composeSendBody,
+  DEFAULT_GROUP_CONFIG,
+  fillSendPictures,
+  isAiDriven,
+  picturesPlaceExactlyOnce,
+  placeSendPictures,
+  sendBlockDraft,
+  sendBlockText,
+  speakerKey,
+} from "@orb/contracts/chat";
 import type { ParticipantRoleState, Principal } from "@orb/contracts/identity";
 import type { BindingActor } from "@orb/contracts/inference";
 import type { GenerationType, GuidedImpersonatePerson, UserIntent, UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
@@ -97,7 +109,7 @@ import {
 import { commitRetainedCanonStats } from "../persistence/retained-canon.ts";
 import { prepareContinueRestoreForRoleData } from "../persistence/role-encoding.ts";
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
-import { buildTurnUserMacros, freezeVolatileMacros, resolveNudgeText } from "../substrate/assembly-access.ts";
+import { buildTurnUserMacros, freezeVolatileMacros, renderHistoryMacros, resolveNudgeText } from "../substrate/assembly-access.ts";
 import { isBelowHistoryFloor } from "../substrate/auth/index.ts";
 import { refuseHandoffAdmission } from "../substrate/handoff-barrier.ts";
 import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
@@ -663,6 +675,7 @@ async function buildTurnContext(
      *  human states `{kind:"none"}`. */
     readonly trigger: TurnTrigger;
     readonly pendingUserText?: string | undefined;
+    readonly sendDraft?: string | undefined;
     /** D58 slot-adjacency: is this turn (re)generating the assistant slot that DIRECTLY responds
      *  to the latest user message (send / deferred-drain / swipe-of-that-slot)? Drives the rpg dice feed-forward
      *  flag + eligibility so a later GM/auto round never re-feeds a stale die. Absent ⇒ false (ineligible). */
@@ -791,6 +804,7 @@ async function buildTurnContext(
       choicePicks: "random",
       timeZone: args.timeZone,
       ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText } : {}),
+      ...(args.sendDraft !== undefined ? { sendDraft: args.sendDraft } : {}),
       ...(args.guided !== undefined ? { guided: args.guided } : {}),
       // The rpg gather-args: macro feed + the game turn's `{{expr::…}}` CEL activation (parity-plus §12), each
       // omitted when absent so a non-game turn / a lite gather that stages none stays byte-identical (⇒
@@ -1385,13 +1399,49 @@ async function freezeGreetingVolatiles(
   }
 }
 
+/** A macro that spanned a picture froze the placeholder; the record stores the ref, so it replays the stored body. */
+function placedFreezes(blocks: NonNullable<SendParams["blocks"]>, freezes: MacroFreezeRecord): MacroFreezeRecord {
+  return freezes.map(({ args, value, ...freeze }) => ({
+    ...freeze,
+    ...(args === undefined ? {} : { args: fillSendPictures(blocks, args) }),
+    value: fillSendPictures(blocks, value),
+  }));
+}
+
+/** The last step of a structured send: replace the transformed draft's placeholders with picture refs, then run
+ *  the wire's macro pass and tokenizer over the result. A picture that would not reach the model exactly as
+ *  authored refuses here, before the row commits. */
+async function placeBlockPictures(
+  ctx: ChatContext,
+  args: {
+    readonly chatId: ChatId;
+    readonly blocks: NonNullable<SendParams["blocks"]>;
+    readonly text: string;
+    readonly personaId: PersonaId | null;
+    readonly assembleContext: AssembleContext;
+  },
+): Promise<string> {
+  const { chatId, blocks, text, personaId, assembleContext } = args;
+  const body = placeSendPictures(blocks, text);
+  const producer = buildIdentityNameContext(await loadChatIdentityProducer(ctx.db, { messages: [] }));
+  if (body === null || !picturesPlaceExactlyOnce(blocks, renderHistoryMacros(body, { characterId: null, personaId }, assembleContext, { producer }))) {
+    throw new ChatOperationError(CHAT_OP_CODES.blockPictureLost, `chat ${chatId}: a block picture would not place exactly once`);
+  }
+  return body;
+}
+
 /** Trust boundary: every claimed attachment id must be owned by the actor. A foreign/gone id is absent from
  *  the owned subset → a leak-free `attachment_not_owned` refusal. No-op for an attachment-free send. */
-async function assertAttachmentsOwned(ctx: ChatContext, principalUserId: UserId, chatId: ChatId, attachments: readonly AssetId[]): Promise<void> {
+async function assertAttachmentsOwned(
+  filterOwned: ChatContext["filterOwnedAssetIds"],
+  principalUserId: UserId,
+  chatId: ChatId,
+  attachments: readonly AssetId[],
+): Promise<void> {
   if (attachments.length === 0) {
     return;
   }
-  const owned = new Set(await ctx.filterOwnedAssetIds(principalUserId, attachments));
+  const owned = new Set(await filterOwned(principalUserId, attachments));
   const foreign = attachments.find((id) => !owned.has(id));
   if (foreign !== undefined) {
     throw new ChatOperationError(CHAT_OP_CODES.attachmentNotOwned, `chat ${chatId}: attachment ${foreign} is not owned by the sender`);
@@ -1619,17 +1669,20 @@ interface CommittedUserTurn {
 async function commitUserTurn(
   ctx: ChatContext,
   deps: TurnDeps,
-  args: Readonly<Pick<SendParams, "principal" | "chatId" | "content" | "personaId" | "attachmentAssetIds" | "guided">> & {
+  args: Readonly<Pick<SendParams, "principal" | "chatId" | "content" | "personaId" | "blocks" | "attachmentAssetIds" | "guided">> & {
     readonly timeZone: SendParams["timeZone"];
   },
 ): Promise<CommittedUserTurn> {
-  const { principal, chatId, content, personaId, guided } = args;
+  const { principal, chatId, content, personaId, blocks, guided } = args;
   const membership = await requireParticipant(ctx, principal, chatId);
   // A committed user line is THE claim (R0 F4(a)). Before the row, per the ordering invariant: the
   // claim replays the creation stats over the canon present at claim, and this row is about to join it.
   await deps.claimChat(chatId);
   const attachments = args.attachmentAssetIds ?? [];
-  await assertAttachmentsOwned(ctx, principal.userId, chatId, attachments);
+  await assertAttachmentsOwned(ctx.filterOwnedAssetIds, principal.userId, chatId, attachments);
+  // Unlike a picture typed into text, a block names its asset as a claim, so a foreign, gone or non-image one refuses.
+  const blockAssetIds = blocks?.flatMap((block) => (block.kind === "media" ? [block.src.assetId] : [])) ?? [];
+  await assertAttachmentsOwned(ctx.filterOwnedImageAssetIds, principal.userId, chatId, blockAssetIds);
   // Same trust boundary as impersonate: an EXPLICIT personaId stamped onto the committed user row must be
   // owned by the caller, else the message-stamped persona name/avatar producers leak a foreign persona's
   // chrome. Omitted ⇒ the caller's own active persona (trusted). See assertPersonaOwnedIfExplicit.
@@ -1667,6 +1720,7 @@ async function commitUserTurn(
       anchorPersonaId: membership.chat.anchorPersonaId,
       trigger: humanTrigger(principal.userId, personaId !== undefined ? personaId : membership.activePersonaId),
       pendingUserText: content,
+      ...(blocks === undefined ? {} : { sendDraft: sendBlockDraft(blocks) }),
       // A send's AI response directly responds to the just-committed user message (D58): the
       // player's queued d20 feeds its first skill check. Always true for a send.
       respondsToLatestUserTurn: true,
@@ -1687,7 +1741,13 @@ async function commitUserTurn(
   // the first-user-turn greeting-freeze probe, reached by BOTH `send` and the D56 post-without-generate `commitMessage`, which shares `send`'s COMMIT half (`commitUserTurn`). Its product is a BOOLEAN (`isFirstUserTurn`) + a server-side greeting-volatile freeze — NO canon bytes flow to the caller (it returns only the just-committed user row, §3.6-projected); the prompt is the ROOM's.
   const priorCanon = isFirstUserTurn ? await loadCanonHistory(ctx.db, chatId) : [];
 
-  const body = composeBodyWithAttachments(sendOut.sendUserText ?? content, attachments);
+  const stampedPersonaId = personaId !== undefined ? personaId : membership.activePersonaId;
+  const transformed = sendOut.sendUserText ?? content;
+  const composed =
+    blocks === undefined
+      ? transformed
+      : await placeBlockPictures(ctx, { chatId, blocks, text: transformed, personaId: stampedPersonaId, assembleContext: built.assembleContext });
+  const body = composeBodyWithAttachments(composed, attachments);
   // A picture typed into the text rather than attached is placed only when the sender owns it, like an edit.
   const typed = await ownedCitedAssetIds(ctx, principal.userId, body, attachments);
   const userView = await persistUserMessage(ctx, deps.emit, {
@@ -1696,11 +1756,11 @@ async function commitUserTurn(
     // D129-F provenance: `content` above is the draft after the freeze, the `user_input` transform, the
     // USER_INPUT regex and the attachment compose; `rawContent` is what the human actually typed. The writer
     // collapses it to NULL whenever none of those legs changed a byte.
-    rawContent: content,
-    macroFreezes: sendOut.sendMacroFreezes ?? [],
+    rawContent: blocks === undefined ? content : composeSendBody(blocks),
+    macroFreezes: blocks === undefined ? (sendOut.sendMacroFreezes ?? []) : placedFreezes(blocks, sendOut.sendMacroFreezes ?? []),
     authorUserId: principal.userId,
     // An omitted personaId stamps the acting participant's active persona; an explicit id (or null) wins.
-    personaId: personaId !== undefined ? personaId : membership.activePersonaId,
+    personaId: stampedPersonaId,
     hostUserId: room.hostUserId,
     attachmentAssetIds: [...attachments, ...typed],
   });
@@ -1718,12 +1778,25 @@ async function commitUserTurn(
  *  the round, then (if autoMode) chain AI→AI, then run the host's post-round auto-behaviors.
  *  Member-gated; AI turns run as the host. */
 function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): ChatService["send"] {
-  return async ({ principal, chatId, content, personaId, attachmentAssetIds, intent, guided, timeZone }: SendParams): Promise<TurnOutcome> => {
+  return async ({
+    principal,
+    chatId,
+    content: plainContent,
+    personaId,
+    blocks,
+    attachmentAssetIds,
+    intent,
+    guided,
+    timeZone,
+  }: SendParams): Promise<TurnOutcome> => {
+    // Block text only, as an attachment send's text reads: the mention resolvers below never see an alt.
+    const content = blocks === undefined ? plainContent : sendBlockText(blocks);
     const { membership, room, identity, connection, group, userView, built } = await commitUserTurn(ctx, deps, {
       principal,
       chatId,
       content,
       personaId,
+      blocks,
       attachmentAssetIds,
       guided,
       timeZone,

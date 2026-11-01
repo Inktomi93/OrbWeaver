@@ -12,5 +12,6 @@ export interface ChatAssetOpsDeps {
 export interface ChatAssetOps {
   readonly resolveAssetHash: ResolveAssetHashOp;
   readonly filterOwnedAssetIds: FilterOwnedAssetIdsOp;
+  readonly filterOwnedImageAssetIds: FilterOwnedAssetIdsOp;
   readonly copyAsset: CopyAssetToOwner;
 }

@@ -22,7 +22,6 @@ export type {
   ImageSearchHit,
   SearchHit,
   SearchSuggestion,
-  SegmentSearchHit,
   SimilarArtHit,
   UnifiedSearchResult,
   UnifiedSearchRows,

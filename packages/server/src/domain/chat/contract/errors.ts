@@ -80,6 +80,9 @@ export const CHAT_OP_CODES = {
    *  caller IS a present member (the send gate passed), so this is a coded validation refusal, not a
    *  NOT_FOUND collapse — and it leaks nothing about another owner's asset (per-user D21 scope). */
   attachmentNotOwned: "attachment_not_owned",
+  /** A structured send's picture would not reach the transcript or the model exactly as authored: a transform
+   *  removed or repeated it, or the final body swallows it. Refused before the row commits. */
+  blockPictureLost: "block_picture_lost",
   /** `setGroupConfig` tried to flip a GAME chat OFF narrator+merged (to `per-speaker`) while an AGENT holds the
    *  GM seat (D60 AP4a — the F5 SEAL). narrator+merged keeps the GM tool loop on
    *  the narrator turn; `per-speaker` would let a player-CHARACTER turn carry GM-authority tools at an agent-GM

@@ -46,6 +46,7 @@ import {
 import { ctResponderReadsInputRule } from "./test-routes.ts";
 import { ctPollIntervalsSharedRule, evaluateNoScopeCaptureRule, typedTestIdRule, uiCtColorRule } from "./tests.ts";
 import { textVoiceOnlyRule } from "./text-voices.ts";
+import { trpcOutputKeysRule } from "./trpc-output.ts";
 import { trpcPayloadKeysRule } from "./trpc-payload.ts";
 import type { AppearanceVocabulary } from "./ui-appearance.ts";
 import { appearanceNameRule } from "./ui-appearance.ts";
@@ -204,6 +205,7 @@ export function createOrbPlugin(options: {
       "no-module-state": moduleStateRule,
       "derived-port-member": derivedPortMemberRule,
       "trpc-payload-declared-keys": trpcPayloadKeysRule,
+      "trpc-output-declared-keys": trpcOutputKeysRule,
       "no-hardcoded-side-gen-sampling": sideGenSamplingRule,
       "session-channel-boundary": sessionChannelBoundaryRule,
       "detached-work-traced": detachedWorkRule,

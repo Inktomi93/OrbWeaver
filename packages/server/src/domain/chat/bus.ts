@@ -69,7 +69,7 @@ import { databaseForOwner, statementForOwner, statementToken } from "@orb/db/wir
 import type { ChatEventId, ChatId, ChatTurnId } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
-import type { ChatContext } from "./contract/context.ts";
+import type { ChatContext, ChatServiceDeps } from "./contract/context.ts";
 import { appendChatEvent, appendChatEventAfterClaimStatement, insertChatEventStatement } from "./persistence/events.ts";
 import { loadChatEventById, loadChatRow } from "./persistence/queries.ts";
 import { createMemberDeltaStamper } from "./substrate/member-visibility.ts";
@@ -97,7 +97,7 @@ interface ChatBus {
   /** Claim state first, then append only if that exact statement changed a row, in one SQLite batch. */
   readonly emitAfterClaim: EmitChatEventAfterClaim;
   /** Where each turn still open in `chatId` entered the log, by `seq`. */
-  readonly openTurns: (chatId: ChatId) => ReadonlyMap<ChatTurnId, number>;
+  readonly openTurns: ChatServiceDeps["openTurns"];
   /** Prepare the first event for a room-creation batch, then publish the already-committed row without a
    * second append. `chatCreated` is the only event whose sequence is known before its room exists. */
   readonly prepareCreation: (event: Extract<DurableChatBusEvent, { readonly type: "chatCreated" }>) => {

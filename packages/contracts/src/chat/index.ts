@@ -130,8 +130,20 @@ export {
 } from "./bus.ts";
 export type { CardFrameMintRequest, CardFrameMintResponse } from "./card-frame.ts";
 export { CARD_FRAME_MINT_BODY_MAX_BYTES, CARD_FRAME_ROUTE, cardFrameMintRequestSchema, cardFrameMintResponseSchema, cardFrameUrl } from "./card-frame.ts";
-export type { CardTrust, ContentSpansToBlocksOptions, MessageContentBlock } from "./content-blocks.ts";
-export { contentSpansToBlocks, messageContentBlockSchema } from "./content-blocks.ts";
+export type { CardTrust, ContentSpansToBlocksOptions, MessageContentBlock, SendContentBlock } from "./content-blocks.ts";
+export {
+  composeSendBody,
+  contentSpansToBlocks,
+  fillSendPictures,
+  messageContentBlockSchema,
+  picturesPlaceExactlyOnce,
+  placeSendPictures,
+  SEND_BLOCK_LIMITS,
+  sendBlockDraft,
+  sendBlockText,
+  sendContentBlocksSchema,
+  stripSendPlaceholders,
+} from "./content-blocks.ts";
 
 export type { AnchorState, ChatDetail, RedeemInviteResult } from "./detail.ts";
 export { chatDetailSchema, redeemInviteResultSchema, viewerGalleryCharacter } from "./detail.ts";

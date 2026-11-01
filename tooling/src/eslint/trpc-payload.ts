@@ -6,6 +6,7 @@ import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import ts from "typescript";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
+import { keysOf, undeclaredKeys } from "./type-keys.ts";
 
 // The tRPC client calls whose first argument is a procedure input.
 const TRPC_PAYLOAD_METHODS: ReadonlySet<string> = new Set(["mutate", "mutateAsync", "queryOptions", "infiniteQueryOptions", "queryKey", "subscriptionOptions"]);
@@ -15,68 +16,6 @@ const factoryMessage = (keys: readonly string[]): string =>
 
 const message = (keys: readonly string[]): string =>
   `This tRPC payload carries ${keys.map((key) => `\`${key}\``).join(", ")}, which the procedure input does not declare, so the strict input refuses the call. Build the payload from the router input type (a fresh literal, or a value typed from \`inferInput<Trpc[...]>\`), never from a form or view type.`;
-
-// The keys of a type's object members, or null when one is open (an index signature, an array, a function): an open
-// member can carry any key. A primitive member (a skip token, a literal) holds no keys and is passed over.
-function keysOf(checker: ts.TypeChecker, type: ts.Type): ReadonlySet<string> | null {
-  const names = new Set<string>();
-  for (const member of type.isUnion() ? type.types : [type]) {
-    // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript TypeFlags is a compiler-owned bitfield.
-    if ((member.flags & ts.TypeFlags.Object) === 0) {
-      continue;
-    }
-    const open = checker.isArrayLikeType(member) || member.getCallSignatures().length > 0;
-    if (open || member.getStringIndexType() !== undefined || member.getNumberIndexType() !== undefined) {
-      return null;
-    }
-    for (const property of checker.getPropertiesOfType(member)) {
-      names.add(property.getName());
-    }
-  }
-  return names;
-}
-
-function propertyType(checker: ts.TypeChecker, target: ts.Type, name: string, at: ts.Node): ts.Type | null {
-  const types = (target.isUnion() ? target.types : [target]).flatMap((member) => {
-    const symbol = checker.getPropertyOfType(member, name);
-    return symbol === undefined ? [] : [checker.getNonNullableType(checker.getTypeOfSymbolAtLocation(symbol, at))];
-  });
-  const [first] = types;
-  return first ?? null;
-}
-
-// The keys `expression` carries that `target` does not declare, walking fresh literals so a nested value is judged
-// against its own field's type. A fresh literal's own keys are TypeScript's to refuse.
-function undeclaredKeys(checker: ts.TypeChecker, expression: ts.Expression, target: ts.Type): readonly string[] {
-  if (ts.isParenthesizedExpression(expression) || ts.isSatisfiesExpression(expression)) {
-    return undeclaredKeys(checker, expression.expression, target);
-  }
-  if (ts.isConditionalExpression(expression)) {
-    return [...undeclaredKeys(checker, expression.whenTrue, target), ...undeclaredKeys(checker, expression.whenFalse, target)];
-  }
-  if (ts.isObjectLiteralExpression(expression)) {
-    return expression.properties.flatMap((property) => {
-      if (ts.isSpreadAssignment(property)) {
-        return undeclaredKeys(checker, property.expression, target);
-      }
-      if (ts.isPropertyAssignment(property) && (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name))) {
-        const field = propertyType(checker, target, property.name.text, property);
-        return field === null ? [] : undeclaredKeys(checker, property.initializer, field).map((key) => `${property.name.getText()}.${key}`);
-      }
-      return [];
-    });
-  }
-  if (ts.isArrayLiteralExpression(expression)) {
-    const element = checker.isArrayLikeType(target) ? checker.getIndexTypeOfType(target, ts.IndexKind.Number) : undefined;
-    return element === undefined ? [] : expression.elements.flatMap((item) => (ts.isSpreadElement(item) ? [] : undeclaredKeys(checker, item, element)));
-  }
-  const declared = keysOf(checker, target);
-  const carried = keysOf(checker, checker.getTypeAtLocation(expression));
-  if (declared === null || carried === null || declared.size === 0) {
-    return [];
-  }
-  return [...carried].filter((key) => !declared.has(key));
-}
 
 // The first parameter of a type's `mutationFn` member: the variables a mutation's options accept.
 function mutationVariables(checker: ts.TypeChecker, type: ts.Type, at: ts.Node): ts.Type | null {

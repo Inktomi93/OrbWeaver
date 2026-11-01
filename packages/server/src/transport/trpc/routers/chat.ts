@@ -30,7 +30,6 @@ import {
   hostTierRegexAllowSchema,
   listMessagesInputSchema,
   memberCardViewSchema,
-  messageContentBlockSchema,
   messageVariantSummarySchema,
   messageViewSchema,
   messageWindowSchema,
@@ -43,6 +42,7 @@ import {
   regexTierKeySchema,
   roomOverridesSchema,
   seatKnobsSchema,
+  sendContentBlocksSchema,
   shapeTraceSchema,
   startChatSchema,
   TOOL_CALL_EDIT_ACTIONS,
@@ -93,18 +93,25 @@ const listMessageVariantsSchema = z.strictObject({
 // Every procedure whose assembly renders `{{date}}`/`{{time}}`/`{{weekday}}` requires `timeZone`, the viewer's browser
 // zone (UI-Gates §11.5). `reportedTimeZoneSchema` refuses a non-string and reads an unknown zone as UTC, so a
 // browser on a zone this server's ICU lacks still runs its turn.
-const sendSchema = z.strictObject({
-  chatId: typeIdSchema(ID_PREFIX.chat),
-  content: z.string(),
-  personaId: typeIdSchema(ID_PREFIX.persona).nullish(),
-  blocks: z.array(messageContentBlockSchema).optional(),
-  // #67 — inline images the user attached (asset ids). The send verb TRUST-BOUNDARY-checks each is the
-  // actor's own asset (rejecting a foreign/gone id), then persists a `message_assets` row + a body ref per id.
-  attachmentAssetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX).optional(),
-  intent: userIntentSchema.optional(),
-  guided: guidedSteerSchema.optional(),
-  timeZone: reportedTimeZoneSchema,
-});
+const sendSchema = z
+  .strictObject({
+    chatId: typeIdSchema(ID_PREFIX.chat),
+    content: z.string(),
+    personaId: typeIdSchema(ID_PREFIX.persona).nullish(),
+    blocks: sendContentBlocksSchema.optional(),
+    // #67 — inline images the user attached (asset ids). The send verb TRUST-BOUNDARY-checks each is the
+    // actor's own asset (rejecting a foreign/gone id), then persists a `message_assets` row + a body ref per id.
+    attachmentAssetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX).optional(),
+    intent: userIntentSchema.optional(),
+    guided: guidedSteerSchema.optional(),
+    timeZone: reportedTimeZoneSchema,
+  })
+  // Refused rather than merged: `blocks` replaces `content`, so text beside it would vanish silently.
+  .refine(({ content, blocks }) => blocks === undefined || content.length === 0, { path: ["content"], error: "content must be empty when blocks are sent" })
+  .refine(
+    ({ blocks = [], attachmentAssetIds = [] }) => blocks.filter(({ kind }) => kind === "media").length + attachmentAssetIds.length <= ASSET_LIST_LIMIT_MAX,
+    { path: ["blocks"], error: "too many pictures in one send" },
+  );
 
 // `commitMessage` — the D56 "Simple Send" / post-without-generate lever: `sendSchema` MINUS intent/guided (no
 // generation ⇒ no gen-config, no steer). The verb runs `send`'s trust boundaries + persist; no AI round.

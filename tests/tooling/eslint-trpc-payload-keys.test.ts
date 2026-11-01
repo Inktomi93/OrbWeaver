@@ -96,6 +96,11 @@ test.for([
     keys: ["`chatId`"],
   },
   {
+    name: "mutation variables intersecting the input with a cache scope key",
+    source: "createEntityMutation<{ readonly ruleId: string } & { readonly chatId: string | null }>({ options: (trpc) => trpc.rule.test.mutationOptions() });",
+    keys: ["`chatId`"],
+  },
+  {
     name: "mutation variables that name their procedure input",
     source:
       "createEntityMutation<{ readonly ruleId: string; readonly chatId: string | null }>({ options: (trpc) => withProcedureInput(trpc.rule.test.mutationOptions(), (vars: { readonly ruleId: string; readonly chatId: string | null }) => ({ ruleId: vars.ruleId })) });",

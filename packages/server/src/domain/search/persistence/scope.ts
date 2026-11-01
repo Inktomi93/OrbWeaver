@@ -67,18 +67,13 @@ interface SegmentScopeParams {
   readonly model: string;
   readonly generationId?: EmbedGenerationId | undefined;
   readonly chatIds: readonly ChatId[];
-  readonly candidates?: readonly BlockKey[] | undefined;
 }
 
 export function segmentScopeCond(params: SegmentScopeParams): SQL | undefined {
-  const belts: (SQL | undefined)[] = [
+  return and(
     eq(chatSegments.model, params.model),
     hostScopeCond(chatSegments.chatId, params.ownerId),
     params.generationId === undefined ? undefined : eq(chatSegments.generationId, params.generationId),
     inArray(chatSegments.chatId, [...params.chatIds]),
-  ];
-  if (params.candidates !== undefined) {
-    belts.push(or(...params.candidates.map((k) => and(eq(chatSegments.chatId, k.chatId), eq(chatSegments.blockIdx, k.blockIdx)))));
-  }
-  return and(...belts);
+  );
 }
