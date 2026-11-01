@@ -122,15 +122,20 @@ export const bundleImportWorkloadResultSchema = z.strictObject({
   memoryScope: storedImportWindowSchema.nullable().default(null),
 }) satisfies z.ZodType<BundleImportWorkloadResult>;
 
-export const importTokenUsageBackfillResultSchema = z.strictObject({
-  scanned: z.number(),
-  exactRecovered: z.number(),
-  legacyPromoted: z.number(),
-  estimated: z.number(),
-  alreadyMeasured: z.number(),
-  alreadyEstimated: z.number(),
-  compareAndSetSkipped: z.number(),
-  dryRun: z.boolean(),
-}) satisfies z.ZodType<ImportTokenUsageBackfillResult>;
+// A row stored before the owner census keys were retired still carries them: accept and drop, so the strict view never echoes them.
+export const importTokenUsageBackfillResultSchema = z
+  .strictObject({
+    scanned: z.number(),
+    exactRecovered: z.number(),
+    legacyPromoted: z.number(),
+    estimated: z.number(),
+    alreadyMeasured: z.number(),
+    alreadyEstimated: z.number(),
+    compareAndSetSkipped: z.number(),
+    dryRun: z.boolean(),
+    ownersScanned: z.number().optional(),
+    ownersReconciled: z.number().optional(),
+  })
+  .transform(({ ownersScanned: _ownersScanned, ownersReconciled: _ownersReconciled, ...view }) => view) satisfies z.ZodType<ImportTokenUsageBackfillResult>;
 
 export const deferredResultSchema = z.strictObject({ deferred: z.literal(true) }) satisfies z.ZodType<DeferredResult>;

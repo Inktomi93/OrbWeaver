@@ -33,7 +33,6 @@ export function makeGenerationProvenance(overrides: Partial<ProvenanceWire> = {}
         costProvenance: null,
       },
       subjectCharacterId: null,
-      identityHash: null,
       edited: false,
       createdAt: FROZEN_AT_MS,
     }),

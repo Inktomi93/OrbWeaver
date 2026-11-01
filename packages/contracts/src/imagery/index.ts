@@ -323,11 +323,6 @@ export interface GenerationProvenance {
   readonly costUsd: number | null;
   readonly usage: GenerationUsageDetails;
   readonly subjectCharacterId: CharacterId | null;
-  /** The reuse hash stored on this generation (D58): the portrait-mode subject hash, an external
-   *  free-mode consumer's precomputed hash, or `null`. Exposed so a non-character consumer's own reuse gate can
-   *  read it back + compare (rpg's NPC-portrait short-circuit) — the internal imagery gate matches by query, not
-   *  through this read. */
-  readonly identityHash: string | null;
   readonly edited: boolean;
   readonly createdAt: number;
 }
@@ -373,7 +368,6 @@ export const generationProvenanceSchema = z.strictObject({
   costUsd: z.number().nullable(),
   usage: generationUsageDetailsSchema,
   subjectCharacterId: typeIdSchema(ID_PREFIX.character).nullable(),
-  identityHash: z.string().nullable(),
   edited: z.boolean(),
   createdAt: z.number(),
 }) satisfies z.ZodType<GenerationProvenance>;
@@ -424,13 +418,6 @@ interface GeneratePictureFields {
    *  resolved model lacks `input.imageEdit` — the asymmetric posture vs `editImage` (doc 01 §3.4). */
   readonly useAvatarReference?: boolean | undefined;
 
-  /** An EXTERNALLY-computed reuse hash a non-character consumer stores on this generation's provenance so its
-   *  OWN reuse gate can short-circuit later (D58 — NPC portraits are content-addressed by the
-   *  npc identity tuple; rpg computes it via imagery's `identityHashFor`, never a second hash derivation).
-   *  Honored ONLY in `mode:"free"` (the subject-character portrait modes own the internal reuse gate, which
-   *  supersedes this). Absent ⇒ the provenance `identityHash` stays null (the additive-only guarantee — the
-   *  existing free/scenario/edit paths are byte-identical). rpg reads it back via `readProvenance`. */
-  readonly identityHash?: string | undefined;
   /** Join every returned picture to the run-as principal's gallery under this character. Absent = no auto-add. Kept
    *  apart from `subjectCharacterId`, which also drives the portrait reuse gate and the extraction subject. */
   readonly gallery?: GalleryCuration | undefined;

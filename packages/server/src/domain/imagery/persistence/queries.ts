@@ -131,7 +131,6 @@ export async function readProvenanceByAsset(db: Db, ownerId: UserId, assetId: As
       tokenDetails: imageryGenerations.tokenDetails,
       responseCache: imageryGenerations.responseCache,
       subjectCharacterId: imageryGenerations.subjectCharacterId,
-      identityHash: imageryGenerations.identityHash,
       edited: imageryGenerations.edited,
       createdAt: imageryGenerations.createdAt,
     })

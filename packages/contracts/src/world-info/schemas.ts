@@ -46,8 +46,7 @@ export type UpdateBookInput = z.infer<typeof updateBookSchema>;
 //  agents keepers were the other two intended consumers — the rebuild wires them onto the same shape if either
 //  domain returns) stamps onto an entry it owns. `contentHash` is the sha256-hex of the content AS THE WRITER
 //  LEFT IT — the hand-edit-safe belt: a `upsertEntries` re-run that finds the CURRENT content no longer
-//  hashing to this value knows a human curated the entry and SKIPS it (the host's hand always wins). `span`
-//  is the transcript window that produced the entry (display + re-run idempotency). Generic on purpose — the
+//  hashing to this value knows a human curated the entry and SKIPS it (the host's hand always wins). Generic on purpose — the
 //  shared `upsertEntries` mint owns this shape so every machine consumer inherits the same guarantee.
 const loreEntryProvenanceSchema = z.object({
   contentHash: z.string(),

@@ -51,7 +51,7 @@ export interface TeachingCollection {
 }
 
 /** One domain's entry in the per-turn teaching collection (D145): registered at the composition root and collected
- *  in `order` (ascending, ties by registration). `id` is a stable diagnostic name, unique within a registry. */
+ *  in `order` (ascending, ties by registration). */
 export interface TeachingContribution {
   readonly order: number;
   readonly collect: (tctx: TeachingContext) => Promise<TeachingCollection>;

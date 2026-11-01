@@ -5,9 +5,10 @@
 //
 // TWO FAILURE POSTURES, one pass (the `opts.characterId` narrow is the switch):
 //   • the BATCH (a sweep, no `characterId`) CONTAINS a per-card failure — one bad card must never abort the
-//     other 500, so the pass commits everything valid and REPORTS `failed` in its counts. Never throws.
+//     other 500, so the pass commits everything valid; the failed card is simply absent from `distilled`.
+//     Never throws.
 //   • the ON-DEMAND single card (`suggestCharacterTags`, the editor's "Suggest tags") THROWS. That pass IS
-//     one card, so containing its failure returned a 200 carrying `{distilled: 0, failed: 1}` that no client
+//     one card, so containing its failure returned a 200 carrying `{distilled: 0}` that no client
 //     reads — the button went quiet and told the user nothing (the exact lying-empty-state the typed errors
 //     in `contract/errors.ts` exist to kill). Both arms are pinned by tests; don't collapse them.
 //
