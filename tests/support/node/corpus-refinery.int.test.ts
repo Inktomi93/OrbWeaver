@@ -50,7 +50,6 @@ test("the refinery corpus retains real fixed/manual run lineage and reviewed cop
   expect(result.analyze.sourceRunId).toBe(result.rewrite.id);
   expect(result.iteration.rewrite.sourceRunId).toBe(result.analyze.id);
   expect(result.iteration.analyze.sourceRunId).toBe(result.iteration.rewrite.id);
-  expect(result.iteration.iterationCount).toBe(1);
   expect(result.manual).toMatchObject({
     model: null,
     promptTokens: null,

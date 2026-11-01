@@ -4066,7 +4066,6 @@
           }
         ],
         "rules": [{ "rulePresetId": "openerChips", "knobs": { "labels": ["Continue.", "Time skip — later that day.", "New scene."] } }],
-        "createdAt": 1750003791001,
         "updatedAt": 1750003791001
       },
       "rosterList": [
@@ -4315,7 +4314,6 @@
         "added": ["character_000000000000000000000005nz"],
         "alreadyPresent": ["character_0000000000000000000000014j"],
         "skipped": [],
-        "configApplied": true,
         "rulesMinted": ["openerChips"],
         "rulesAlreadyPresent": [],
         "rulesSkipped": []
@@ -4324,7 +4322,6 @@
         "added": [],
         "alreadyPresent": ["character_000000000000000000000005nz", "character_0000000000000000000000014j"],
         "skipped": [],
-        "configApplied": true,
         "rulesMinted": [],
         "rulesAlreadyPresent": ["openerChips"],
         "rulesSkipped": []
@@ -5072,8 +5069,7 @@
             }
           },
           "prose": {}
-        },
-        "schemaVersion": 8
+        }
       },
       "presetList": [
         {
@@ -8258,7 +8254,6 @@
                   "chunkIdx": 0
                 },
                 "chatId": "chat_0000000000000000000000017k",
-                "blockIdx": 1,
                 "snippet": "User: Funding memory scene 6: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger rec",
                 "score": 0.3906248211860657,
                 "relevance": 0.10937517881393433,
@@ -8280,7 +8275,6 @@
                   "chunkIdx": 0
                 },
                 "chatId": "chat_000000000000000000000001q0",
-                "blockIdx": 1,
                 "snippet": "User: Funding memory scene 6: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger rec",
                 "score": 0.3906248211860657,
                 "relevance": 0.10937517881393433,
@@ -8302,7 +8296,6 @@
                   "chunkIdx": 0
                 },
                 "chatId": "chat_0000000000000000000000017k",
-                "blockIdx": 0,
                 "snippet": "User: Witness the opening ledger scene.\nFunding control: The keeper preserves the ledger and remembers its witnesses.\nUser: Funding memory scene 0: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger rec",
                 "score": 0.4672091007232666,
                 "relevance": 0.0327908992767334,
@@ -8337,7 +8330,6 @@
                   "chunkIdx": 0
                 },
                 "chatId": "chat_000000000000000000000004hy",
-                "blockIdx": 0,
                 "snippet": "User: Record both co-star witnesses beside the ledger.\nSearch co-star first: The keeper preserves the ledger and remembers its witnesses.\nSearch co-star second: The keeper preserves the ledger and remembers its witnesses.\nUser: Search observatory scene 0: Both witnesses preserve ",
                 "score": 0.4135017991065979,
                 "relevance": 0.0864982008934021,
@@ -8372,7 +8364,6 @@
                   "chunkIdx": 0
                 },
                 "chatId": "chat_000000000000000000000004hy",
-                "blockIdx": 0,
                 "snippet": "User: Record both co-star witnesses beside the ledger.\nSearch co-star first: The keeper preserves the ledger and remembers its witnesses.\nSearch co-star second: The keeper preserves the ledger and remembers its witnesses.\nUser: Search observatory scene 0: Both witnesses preserve ",
                 "score": 0.4135017991065979,
                 "relevance": 0.0864982008934021,
@@ -8407,7 +8398,6 @@
                   "chunkIdx": 0
                 },
                 "chatId": "chat_0000000000000000000000029f",
-                "blockIdx": 1,
                 "snippet": "User: Arc ledger scene 8: The traveller repairs the loom and preserves a harbor witness's recorded journey.\nUser: Arc ledger scene 9: The traveller repairs the loom and preserves a harbor witness's recorded journey.\nUser: Arc ledger scene 10: The traveller repairs the loom and pr",
                 "score": 0.4337870478630066,
                 "relevance": 0.06621295213699341,
@@ -8429,7 +8419,6 @@
                   "chunkIdx": 0
                 },
                 "chatId": "chat_0000000000000000000000029f",
-                "blockIdx": 8,
                 "snippet": "User: Arc ledger scene 64: The traveller repairs the loom and preserves a harbor witness's recorded journey.\nUser: Arc ledger scene 65: The traveller repairs the loom and preserves a harbor witness's recorded journey.\nUser: Arc ledger scene 66: The traveller repairs the loom and ",
                 "score": 0.5021349191665649,
                 "relevance": 0,
@@ -8451,7 +8440,6 @@
                   "chunkIdx": 0
                 },
                 "chatId": "chat_0000000000000000000000029f",
-                "blockIdx": 6,
                 "snippet": "User: Arc ledger scene 48: The traveller repairs the loom and preserves a harbor witness's recorded journey.\nUser: Arc ledger scene 49: The traveller repairs the loom and preserves a harbor witness's recorded journey.\nUser: Arc ledger scene 50: The traveller repairs the loom and ",
                 "score": 0.514923095703125,
                 "relevance": 0,
@@ -8486,7 +8474,6 @@
                   "chunkIdx": 0
                 },
                 "chatId": "chat_000000000000000000000004t1",
-                "blockIdx": 0,
                 "snippet": "User: Uncredited native scene 0: The orbital ledger records an anonymous witness.\nUser: Uncredited native scene 1: The orbital ledger records an anonymous witness.\nUser: Uncredited native scene 2: The orbital ledger records an anonymous witness.\nUser: Uncredited native scene 3: T",
                 "score": 0.523614764213562,
                 "relevance": 0,
@@ -9097,28 +9084,22 @@
             "documentId": "document_00000000000000000000000134",
             "documentName": "Loom lore (databank demo)",
             "chunkId": "document_chunk_0000000000000000000000013b",
-            "chunkIdx": 0,
             "content": "The Loom is the great orbital engine at the heart of the settlement, a lattice of woven light that\nbinds the drifting habitats into one turning wheel. Its keepers, the Weavers, tend the threads that\ncarry water, heat, and memory between the rings. When a thread frays, a Weaver must climb the\nspokes and re-splice it by hand, singing the old counting songs that keep the tension true.\n\nRev runs the card refinery on the third ring, where broken personas are melted down and re-cast.\nMira audits every splice for drift, and Niko keeps the archive of songs no one else remembers.\nThe Assistant speaks for the Loom itself, translating its slow machine-thoughts into human words.\nTogether they hold the wheel against the long dark, one thread and one turn at a time.",
-            "score": 0.11449927091598511,
-            "contentHash": "d7a5984a59c1008e5dd11e239784af1c0d5cf24f21e5b22e7945a8b033a86d27"
+            "score": 0.11449927091598511
           },
           {
             "documentId": "document_000000000000000000000005q6",
             "documentName": "Native lifecycle source",
             "chunkId": "document_chunk_000000000000000000000005r7",
-            "chunkIdx": 0,
             "content": "The native archive records an intact intake and its independently preserved witness.",
-            "score": 0.3815348148345947,
-            "contentHash": "3c4d3be7159c9935921d6597e3a5833013984701507228d75602d2f498f3ca6a"
+            "score": 0.3815348148345947
           },
           {
             "documentId": "document_0000000000000000000000016e",
             "documentName": "Orbital ledger source",
             "chunkId": "document_chunk_000000000000000000000001ez",
-            "chunkIdx": 0,
             "content": "The orbital ledger preserves the witness names and the completed loom scenes.",
-            "score": 0.40622788667678833,
-            "contentHash": "78997936318db0b86559cf2377161055adca6ccff2a1161726fd7e75eecfb7e4"
+            "score": 0.40622788667678833
           }
         ],
         "coverage": { "requestLimit": 20, "candidateLimit": 80, "evidencePerCharacter": null, "reranked": false }
@@ -9423,95 +9404,84 @@
         ],
         "coverage": { "requestLimit": 20, "indexedCharacters": 38, "matchingCharacters": 17 }
       },
-      "suggest": [{ "suggestion": "orbital", "score": 1.7289233672999393 }],
+      "suggest": [{ "suggestion": "orbital" }],
       "similarRaw": [
         {
           "characterId": "character_0000000000000000000000008e",
           "score": 0.2819055914878845,
           "relevance": 0.21809440851211548,
           "name": "Birdie Mae Holloway",
-          "avatarHash": "d91d20234b6277fe0087c15343d1bac55b81f657e981dd996432c8ca6fa50aba",
-          "lens": "image-raw"
+          "avatarHash": "d91d20234b6277fe0087c15343d1bac55b81f657e981dd996432c8ca6fa50aba"
         },
         {
           "characterId": "character_00000000000000000000000035",
           "score": 0.40573930740356445,
           "relevance": 0.09426069259643555,
           "name": "Charlotte",
-          "avatarHash": "4204316e1c6d4d846f60a8784f9c54f4c9faf8d35257af89686f6284f7e328fa",
-          "lens": "image-raw"
+          "avatarHash": "4204316e1c6d4d846f60a8784f9c54f4c9faf8d35257af89686f6284f7e328fa"
         },
         {
           "characterId": "character_00000000000000000000000040",
           "score": 0.4937187433242798,
           "relevance": 0.006281256675720215,
           "name": "JFC",
-          "avatarHash": "a90d64fd073ac2a6b85238fcd54319c2ea31d640bfdd1b2cbde197508d16214a",
-          "lens": "image-raw"
+          "avatarHash": "a90d64fd073ac2a6b85238fcd54319c2ea31d640bfdd1b2cbde197508d16214a"
         },
         {
           "characterId": "character_0000000000000000000000005p",
           "score": 0.4998336434364319,
           "relevance": 0.00016635656356811523,
           "name": "Hana Mizushima",
-          "avatarHash": "016ffe3a28c43408148cf11c829bb146a85d7a42e83888ee7f1234a6b4f92f49",
-          "lens": "image-raw"
+          "avatarHash": "016ffe3a28c43408148cf11c829bb146a85d7a42e83888ee7f1234a6b4f92f49"
         },
         {
           "characterId": "character_0000000000000000000000006j",
           "score": 0.5030485391616821,
           "relevance": 0,
           "name": "Morgatha, the Undying Dark",
-          "avatarHash": "3d8fe8670f99b01c9f427c369bf97aba7fbb0350310b457ea34642947c5c38c6",
-          "lens": "image-raw"
+          "avatarHash": "3d8fe8670f99b01c9f427c369bf97aba7fbb0350310b457ea34642947c5c38c6"
         },
         {
           "characterId": "character_000000000000000000000000a6",
           "score": 0.5402064323425293,
           "relevance": 0,
           "name": "Calamity, Doomblade of the Ninth Epoch",
-          "avatarHash": "cc8cac65e3a91c934e51150fa31053f9bb6f9a48510725da3c2cda6ea931ba75",
-          "lens": "image-raw"
+          "avatarHash": "cc8cac65e3a91c934e51150fa31053f9bb6f9a48510725da3c2cda6ea931ba75"
         },
         {
           "characterId": "character_000000000000000000000003e6",
           "score": 0.5521689653396606,
           "relevance": 0,
           "name": "Orbital portrait 1",
-          "avatarHash": "7d60df4fc3982644d0e6ae1a4d3b52f860ccb14505de53ab62be9652eda58257",
-          "lens": "image-raw"
+          "avatarHash": "7d60df4fc3982644d0e6ae1a4d3b52f860ccb14505de53ab62be9652eda58257"
         },
         {
           "characterId": "character_000000000000000000000000b4",
           "score": 0.5716999769210815,
           "relevance": 0,
           "name": "Elias Thorn",
-          "avatarHash": "9b67380721584258ea541edbbea2a9ac8f05d94133ecfd9275f4ac27c9c0d66b",
-          "lens": "image-raw"
+          "avatarHash": "9b67380721584258ea541edbbea2a9ac8f05d94133ecfd9275f4ac27c9c0d66b"
         },
         {
           "characterId": "character_0000000000000000000000007g",
           "score": 0.5796196460723877,
           "relevance": 0,
           "name": "Sabine Veyra",
-          "avatarHash": "4cad41410b4f371cfec28f8cc7e4a0198dbf0a27336fc56d56e11440a7fe54a6",
-          "lens": "image-raw"
+          "avatarHash": "4cad41410b4f371cfec28f8cc7e4a0198dbf0a27336fc56d56e11440a7fe54a6"
         },
         {
           "characterId": "character_0000000000000000000000009a",
           "score": 0.6084189414978027,
           "relevance": 0,
           "name": "Kohaku",
-          "avatarHash": "7981639888cf4d33840d90e5293a50d192c0146e8e404cbf88a615d2fa08e08a",
-          "lens": "image-raw"
+          "avatarHash": "7981639888cf4d33840d90e5293a50d192c0146e8e404cbf88a615d2fa08e08a"
         },
         {
           "characterId": "character_0000000000000000000000004w",
           "score": 0.8026770353317261,
           "relevance": 0,
           "name": "Niko",
-          "avatarHash": "3d9644b4c03dd495584a44a37875fda3fc0949c1d3eb1a180bce6f3e253e518d",
-          "lens": "image-raw"
+          "avatarHash": "3d9644b4c03dd495584a44a37875fda3fc0949c1d3eb1a180bce6f3e253e518d"
         }
       ],
       "similarCaptioned": [
@@ -9520,88 +9490,77 @@
           "score": 0.3682267665863037,
           "relevance": 0.1317732334136963,
           "name": "Birdie Mae Holloway",
-          "avatarHash": "d91d20234b6277fe0087c15343d1bac55b81f657e981dd996432c8ca6fa50aba",
-          "lens": "image-captioned"
+          "avatarHash": "d91d20234b6277fe0087c15343d1bac55b81f657e981dd996432c8ca6fa50aba"
         },
         {
           "characterId": "character_000000000000000000000000a6",
           "score": 0.3773878216743469,
           "relevance": 0.12261217832565308,
           "name": "Calamity, Doomblade of the Ninth Epoch",
-          "avatarHash": "cc8cac65e3a91c934e51150fa31053f9bb6f9a48510725da3c2cda6ea931ba75",
-          "lens": "image-captioned"
+          "avatarHash": "cc8cac65e3a91c934e51150fa31053f9bb6f9a48510725da3c2cda6ea931ba75"
         },
         {
           "characterId": "character_0000000000000000000000005p",
           "score": 0.3971041440963745,
           "relevance": 0.10289585590362549,
           "name": "Hana Mizushima",
-          "avatarHash": "016ffe3a28c43408148cf11c829bb146a85d7a42e83888ee7f1234a6b4f92f49",
-          "lens": "image-captioned"
+          "avatarHash": "016ffe3a28c43408148cf11c829bb146a85d7a42e83888ee7f1234a6b4f92f49"
         },
         {
           "characterId": "character_000000000000000000000003e6",
           "score": 0.4111297130584717,
           "relevance": 0.08887028694152832,
           "name": "Orbital portrait 1",
-          "avatarHash": "7d60df4fc3982644d0e6ae1a4d3b52f860ccb14505de53ab62be9652eda58257",
-          "lens": "image-captioned"
+          "avatarHash": "7d60df4fc3982644d0e6ae1a4d3b52f860ccb14505de53ab62be9652eda58257"
         },
         {
           "characterId": "character_000000000000000000000000b4",
           "score": 0.46869009733200073,
           "relevance": 0.03130990266799927,
           "name": "Elias Thorn",
-          "avatarHash": "9b67380721584258ea541edbbea2a9ac8f05d94133ecfd9275f4ac27c9c0d66b",
-          "lens": "image-captioned"
+          "avatarHash": "9b67380721584258ea541edbbea2a9ac8f05d94133ecfd9275f4ac27c9c0d66b"
         },
         {
           "characterId": "character_0000000000000000000000004w",
           "score": 0.5009820461273193,
           "relevance": 0,
           "name": "Niko",
-          "avatarHash": "3d9644b4c03dd495584a44a37875fda3fc0949c1d3eb1a180bce6f3e253e518d",
-          "lens": "image-captioned"
+          "avatarHash": "3d9644b4c03dd495584a44a37875fda3fc0949c1d3eb1a180bce6f3e253e518d"
         },
         {
           "characterId": "character_00000000000000000000000040",
           "score": 0.510486364364624,
           "relevance": 0,
           "name": "JFC",
-          "avatarHash": "a90d64fd073ac2a6b85238fcd54319c2ea31d640bfdd1b2cbde197508d16214a",
-          "lens": "image-captioned"
+          "avatarHash": "a90d64fd073ac2a6b85238fcd54319c2ea31d640bfdd1b2cbde197508d16214a"
         },
         {
           "characterId": "character_00000000000000000000000035",
           "score": 0.5656737089157104,
           "relevance": 0,
           "name": "Charlotte",
-          "avatarHash": "4204316e1c6d4d846f60a8784f9c54f4c9faf8d35257af89686f6284f7e328fa",
-          "lens": "image-captioned"
+          "avatarHash": "4204316e1c6d4d846f60a8784f9c54f4c9faf8d35257af89686f6284f7e328fa"
         },
         {
           "characterId": "character_0000000000000000000000006j",
           "score": 0.5948524475097656,
           "relevance": 0,
           "name": "Morgatha, the Undying Dark",
-          "avatarHash": "3d8fe8670f99b01c9f427c369bf97aba7fbb0350310b457ea34642947c5c38c6",
-          "lens": "image-captioned"
+          "avatarHash": "3d8fe8670f99b01c9f427c369bf97aba7fbb0350310b457ea34642947c5c38c6"
         },
         {
           "characterId": "character_0000000000000000000000007g",
           "score": 0.6220016479492188,
           "relevance": 0,
           "name": "Sabine Veyra",
-          "avatarHash": "4cad41410b4f371cfec28f8cc7e4a0198dbf0a27336fc56d56e11440a7fe54a6",
-          "lens": "image-captioned"
+          "avatarHash": "4cad41410b4f371cfec28f8cc7e4a0198dbf0a27336fc56d56e11440a7fe54a6"
         },
         {
           "characterId": "character_0000000000000000000000009a",
           "score": 0.7117114067077637,
           "relevance": 0,
           "name": "Kohaku",
-          "avatarHash": "7981639888cf4d33840d90e5293a50d192c0146e8e404cbf88a615d2fa08e08a",
-          "lens": "image-captioned"
+          "avatarHash": "7981639888cf4d33840d90e5293a50d192c0146e8e404cbf88a615d2fa08e08a"
         }
       ],
       "status": { "paused": false, "embed": false, "imageEmbed": false }

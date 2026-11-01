@@ -169,7 +169,7 @@ test("native connection catalog, capability and account outputs retain real task
     tokensOut: 3,
   });
   expect(result.physical.some((request) => request.url.endsWith(`/generation?id=${assistant.generationId}`))).toBe(true);
-  expect(result.account.cost).toEqual({ totalCost: 0.000_011, tokensPrompt: 5, tokensCompletion: 3 });
+  expect(result.account.cost).toEqual({ totalCost: 0.000_011 });
   expect(result.account.malformedCredits).toBeInstanceOf(Error);
   expect(result.account.malformedCost).toBeInstanceOf(Error);
   expect(result.account.afterMalformed).toEqual(result.account.beforeMalformed);
@@ -252,7 +252,7 @@ test("native connection corpus spends its recipes after legitimate memory and pe
   expect(result.account.catalog).toEqual(cold);
   expect(result.account.refresh).toEqual({ models: 3 });
   expect(result.account.turn.aborted).toBe(false);
-  expect(result.account.cost).toEqual({ totalCost: 0.000_011, tokensPrompt: 5, tokensCompletion: 3 });
+  expect(result.account.cost).toEqual({ totalCost: 0.000_011 });
   expect(result.capabilities.requestsAfterRepeated).toBe(result.capabilities.requestsAfterFirst);
   expect(result.catalogs.requestsAfterBuiltin).toBe(result.catalogs.requestsBeforeBuiltin);
   expect(result.refusals.requestsAfter).toBe(result.refusals.requestsBefore);

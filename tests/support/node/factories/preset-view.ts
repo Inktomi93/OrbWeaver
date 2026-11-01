@@ -23,7 +23,6 @@ export function makePresetDetail(overrides: Partial<PresetDetailWire> = {}, sour
     createdAt: FROZEN_AT_MS,
     updatedAt: FROZEN_AT_MS,
     config: DEFAULT_PROMPT_CONFIG,
-    schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
     ...overrides,
   };
 }

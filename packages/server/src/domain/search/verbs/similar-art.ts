@@ -64,7 +64,6 @@ export function createSimilarArt(ctx: SearchContext): SearchService["similarArt"
           relevance: relevanceOf(r.distance),
           name: r.name,
           avatarHash: r.avatarHash,
-          lens,
         }));
     });
   };

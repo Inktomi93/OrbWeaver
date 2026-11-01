@@ -24,7 +24,6 @@ interface RefinerySchemaStats {
   readonly properties: number;
   readonly optionalFields: number;
   readonly anyOfBlocks: number;
-  readonly anyOfVariants: number;
   readonly enums: number;
   readonly maxDepth: number;
 }
@@ -99,7 +98,6 @@ interface WalkState {
   properties: number;
   optionalFields: number;
   anyOfBlocks: number;
-  anyOfVariants: number;
   enums: number;
   maxDepth: number;
   readonly strippedKeys: Set<string>;
@@ -139,7 +137,6 @@ function collectShape({ node, path }: PairedNode, state: WalkState): void {
     return;
   }
   state.anyOfBlocks += 1;
-  state.anyOfVariants += anyOf.length;
   if (anyOf.length > MAX_ANYOF_VARIANTS) {
     state.advisories.push({
       code: "anyof-variants",
@@ -172,7 +169,6 @@ export function refinerySchemaAdvisoryOf(schema: Unprojected): RefinerySchemaAss
     properties: 0,
     optionalFields: 0,
     anyOfBlocks: 0,
-    anyOfVariants: 0,
     enums: 0,
     maxDepth: 0,
     strippedKeys: new Set<string>(),
@@ -185,7 +181,6 @@ export function refinerySchemaAdvisoryOf(schema: Unprojected): RefinerySchemaAss
     properties: state.properties,
     optionalFields: state.optionalFields,
     anyOfBlocks: state.anyOfBlocks,
-    anyOfVariants: state.anyOfVariants,
     enums: state.enums,
     maxDepth: state.maxDepth,
   };

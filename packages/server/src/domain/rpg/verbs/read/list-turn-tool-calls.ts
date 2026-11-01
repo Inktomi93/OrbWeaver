@@ -57,7 +57,6 @@ export function createListTurnToolCalls(ctx: RpgContext): Pick<RpgService, "list
       // The round-could-not-run sentence, host-verbatim / summary-only for everyone else (#1468 item 2) — the
       // same viewer verdict the args ride, for the same reason.
       failure: projectFailureForViewer(r.failure, readsHidden),
-      createdAt: r.createdAt,
     }));
   }
   return { listTurnToolCalls };
