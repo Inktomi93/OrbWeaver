@@ -29,7 +29,7 @@ export function useStartRoster(options: { readonly onEntered?: () => void } = {}
   const apply = useApplyRosterPreset({ trpc, invalidation });
   const { startChat, isPending: isStarting } = useStartChat();
   // A refused rule is reported by its catalogue title, whatever the roster carries.
-  const { titleOf } = useRulePresetCatalogue(true);
+  const { titleOf } = useRulePresetCatalogue();
   const isPending = isStarting || apply.isPending;
 
   const report = (rosterName: string, result: ApplyRosterPresetResult): void => {

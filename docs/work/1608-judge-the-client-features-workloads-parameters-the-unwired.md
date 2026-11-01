@@ -27,4 +27,6 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+One row: one applied, none kept, none handed off, no owner questions.
+
+`field(source, key)` in `packages/client/src/features/workloads/lib/workloads-result-copy.ts` became `changedOf(source)` reading `changed`; its two calls (`:106`, `:107`) were the only users. The literal is a coincidence of one summary renderer, not a variant axis. Proof: client typecheck clean.
