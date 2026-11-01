@@ -60,12 +60,6 @@ const SURFACE_RAMP_VARS: ReadonlyArray<readonly [name: string, role: keyof RampD
 const BORDER_ALPHA = THEME_DERIVATION.borderAlpha;
 const INPUT_ALPHA = THEME_DERIVATION.inputAlpha;
 
-/** A contrast-safe foreground for text sitting on `surface` (a validated deterministic color).
- *  Exported because the clamp derives it for two PICKED colours too (the accent and each bubble bg),
- *  which are not part of the one-base cascade below. */
-export function foregroundOn(surface: string, parsed: Oklch): string {
-  return `oklch(from ${surface} ${derivedForegroundLightness(parsed)} 0 h / 1)`;
-}
 function foregroundAt(base: string, lightness: number): string {
   return `oklch(from ${base} ${lightness} 0 h / 1)`;
 }

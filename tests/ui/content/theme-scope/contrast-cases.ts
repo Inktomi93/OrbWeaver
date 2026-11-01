@@ -21,6 +21,27 @@ export const SPEAKER_DIALOGUE = "oklch(0.86 0.16 85)";
 /** A theme's narration pick and a card's assistant bubble fill: the pair the review measured at 4.01:1. */
 export const INHERITED_INK_CASE = { narrationColor: "oklch(0.67 0.03 260)", aiBubble: "oklch(0.34 0.06 35)" } as const;
 
+/** The palettes a card's bubble-only override lands on: both polarities of seed and custom. */
+export const PICKED_BUBBLE_PALETTES = [
+  { name: "light seed", theme: "light" },
+  { name: "pale paper", background: "oklch(0.93 0.02 90)" },
+  { name: "hearth seed" },
+  { name: "custom dark", background: "oklch(0.2 0.02 250)" },
+] as const;
+
+/** Bubble fills on each side of the crossover and near it. */
+export const PICKED_BUBBLE_FILLS = [
+  { name: "dark", aiBubble: "oklch(0.34 0.06 35)" },
+  { name: "light", aiBubble: "oklch(0.92 0.03 90)" },
+  { name: "mid", aiBubble: "oklch(0.6 0.04 30)" },
+] as const;
+
+/** A card with no prose picks, and one whose picks suit the page rather than the bubble. */
+export const PICKED_BUBBLE_INKS = [
+  { name: "alone", inks: {} },
+  { name: "with card inks", inks: { dialogueColor: "oklch(0.4 0.1 240)", narrationColor: "oklch(0.86 0.1 85)" } },
+] as const;
+
 /** A neutral mid-grey, where a fixed-colour edge has the least room on either side. */
 export const MID_GREY = "oklch(0.6 0 0)";
 

@@ -1232,19 +1232,10 @@ export function familyForegroundLightness(family: readonly Oklch[]): number | nu
   return null;
 }
 
-/** A message bubble's fill a scope picked, keyed like {@link BubbleFills}: it paints in place of the derived one. */
-export type PickedBubbleFills = Readonly<Partial<Record<keyof BubbleFills, Oklch>>>;
-
 /** The surfaces a carried palette's prose is read on: the page, a card, and the fill each message bubble paints. */
-export function carriedReadingHosts(base: Oklch, picked: PickedBubbleFills = {}): readonly Oklch[] {
-  const fills = bubbleFills(base);
-  return [
-    base,
-    rampSurface(base, rampDeltas(base).card),
-    picked.user ?? bubbleFillColor(base, fills.user),
-    picked.ai ?? bubbleFillColor(base, fills.ai),
-    picked.system ?? bubbleFillColor(base, fills.system),
-  ];
+export function carriedReadingHosts(base: Oklch): readonly Oklch[] {
+  const { user, ai, system } = bubbleFills(base);
+  return [base, rampSurface(base, rampDeltas(base).card), bubbleFillColor(base, user), bubbleFillColor(base, ai), bubbleFillColor(base, system)];
 }
 
 /** The neutral inks a carried base solves: each is a search, so a caller solves them once and hands them to every derivation. */
@@ -1843,6 +1834,12 @@ export function bubbleFills(base: Oklch): BubbleFills {
     ai: bubbleFillApart(base, "ai-bubble", deltas.card),
     system: bubbleFillApart(base, "system-bubble", deltas.muted),
   };
+}
+
+/** A picked bubble fill's inset step, which inline code paints on, and the one ink that covers the fill and that step. */
+export function bubbleInset(fill: Oklch): { readonly muted: Oklch; readonly foreground: number } {
+  const muted = rampSurface(fill, rampDeltas(fill).muted);
+  return { muted: opaquePixel(muted), foreground: derivedForegroundLightnessForSurfaces([fill, muted]) };
 }
 
 /** The bubble roles whose fill paints closer to the page than {@link BUBBLE_PAGE_SEPARATION}. */

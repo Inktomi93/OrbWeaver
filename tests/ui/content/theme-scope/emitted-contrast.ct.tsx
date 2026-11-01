@@ -18,6 +18,7 @@ import type {
   NestedSeedStory,
   NestedSeedSurfaceStory,
   NeutralFillStory,
+  PickedBubbleStory,
   ReadingBandStory,
   SelectedRowStory,
   SemanticContrastStory,
@@ -27,7 +28,16 @@ import type {
   ToneRoleContrastStory,
 } from "./_contrast-stories.tsx";
 
-import { BASES, INHERITED_INK_CASE, keepsHue, MID_GREY, SPEAKER_DIALOGUE } from "./contrast-cases.ts";
+import {
+  BASES,
+  INHERITED_INK_CASE,
+  keepsHue,
+  MID_GREY,
+  PICKED_BUBBLE_FILLS,
+  PICKED_BUBBLE_INKS,
+  PICKED_BUBBLE_PALETTES,
+  SPEAKER_DIALOGUE,
+} from "./contrast-cases.ts";
 
 const SEED_THEMES = Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[];
 
@@ -181,6 +191,27 @@ for (const { name, ...props } of SEMANTIC_CASES) {
       }
     }
   });
+}
+
+for (const palette of PICKED_BUBBLE_PALETTES) {
+  for (const { name: bubble, aiBubble } of PICKED_BUBBLE_FILLS) {
+    for (const { name: carries, inks } of PICKED_BUBBLE_INKS) {
+      test(`${palette.name}: ${bubble} picked bubble ${carries}: story text and inline code clear AA on the fill`, async ({ mount, page }) => {
+        const { name: _name, ...scope } = palette;
+        const component = await mount<typeof PickedBubbleStory>("tests/ui/content/theme-scope/_contrast-stories/PickedBubbleStory", {
+          ...scope,
+          aiBubble,
+          inks,
+        });
+        const samples = component.locator('[data-slot="dialogue"], em, [data-streamdown="inline-code"]');
+        await expect(samples).toHaveCount(4);
+        for (const sample of await samples.all()) {
+          const receipt = await pixelContrast(page, sample);
+          expect(receipt.ratio, `${await sample.textContent()}: ${receipt.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+        }
+      });
+    }
+  }
 }
 
 test("an inherited narration pick clears a bubble fill a nested scope picked", async ({ mount, page }) => {

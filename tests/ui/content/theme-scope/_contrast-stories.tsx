@@ -2,6 +2,7 @@ import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { CtIsolation } from "@orb/testkit/browser";
 import { Card } from "@orb/ui/card";
 import { ListRow } from "@orb/ui/list-row";
+import { Markdown } from "@orb/ui/markdown";
 import { MessageBubble } from "@orb/ui/message-bubble";
 import { TrackBar } from "@orb/ui/meter";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
@@ -395,6 +396,47 @@ export function InheritedInkStory({
           </MessageBubble>
         </ThemeScope>
       </ThemeScope>
+    </CtIsolation>
+  );
+}
+
+/**
+ * A speaker's row over a seed or custom palette: a card scope that picks the assistant bubble's fill and no background,
+ * the production Markdown inside it, and a nested ink-only span as a merged narrator row stamps.
+ */
+export function PickedBubbleStory({
+  theme,
+  background,
+  aiBubble,
+  inks,
+}: {
+  readonly theme?: keyof typeof SEED_THEME_VALUE_SETS;
+  readonly background?: string;
+  readonly aiBubble: string;
+  readonly inks: Pick<ThemeScopeTokens, "dialogueColor" | "narrationColor">;
+}): ReactElement {
+  const seed = theme === undefined ? TOKENS["color.background"].value : SEED_THEME_VALUE_SETS[theme].vars[TOKENS["color.background"].cssVar];
+  const row = (
+    <ThemeScope tokens={{ aiBubble: { bg: aiBubble }, ...inks }}>
+      <MessageBubble messageRole="assistant">
+        <Markdown trust="untrusted" mode="static" colorQuotes={true}>
+          {'"Quoted speech" and *narration* with `inline code`.'}
+        </Markdown>
+        <ThemeScope tokens={{ dialogueColor: "oklch(0.7 0.14 250)" }}>
+          <Markdown trust="untrusted" mode="static" colorQuotes={true}>
+            {'"Span speech"'}
+          </Markdown>
+        </ThemeScope>
+      </MessageBubble>
+    </ThemeScope>
+  );
+  return (
+    <CtIsolation subject="ThemeScope" isolates="Prose inks and inline code on a bubble fill a scope picked, beside its surrounding palette">
+      <div data-theme={theme}>
+        <ThemeScope tokens={background === undefined ? {} : { background }} ambientBackground={seed}>
+          {row}
+        </ThemeScope>
+      </div>
     </CtIsolation>
   );
 }

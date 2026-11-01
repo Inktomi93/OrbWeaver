@@ -118,9 +118,9 @@ test("a picked bubble fill replaces the derived one as a reading host, and hosts
   const ink = { l: 0.7, c: 0, h: 0 };
   expect(proseInkCorrection(ink, 1, hearth, carriedReadingHosts(hearth))).toBeNull();
   const mid = { l: 0.5, c: 0, h: 0 };
-  expect(proseInkCorrection(ink, 1, hearth, carriedReadingHosts(hearth, { ai: mid }))?.l).toBeGreaterThan(ink.l);
+  expect(proseInkCorrection(ink, 1, hearth, [...carriedReadingHosts(hearth), mid])?.l).toBeGreaterThan(ink.l);
   const white = { l: 1, c: 0, h: 0 };
-  expect(proseInkCorrection(ink, 1, hearth, carriedReadingHosts(hearth, { ai: white }))).toBeNull();
+  expect(proseInkCorrection(ink, 1, hearth, [...carriedReadingHosts(hearth), white])).toBeNull();
 });
 
 test("a corrected ink and accent stay inside sRGB at their lightness, so the hue they paint is the hue they named", () => {
