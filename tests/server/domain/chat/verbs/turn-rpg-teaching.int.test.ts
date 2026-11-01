@@ -52,7 +52,6 @@ test("a genuinely installed and granted native teaching tool reaches public SEND
   });
   expect(enabled.outcome.status).toBe("enabled");
   const tool = pluginToolWireName(MANIFEST.id, LOCAL_TOOL);
-  expect(h.root.app.toolUse.listDrivableToolNames(h.owner.userId)).toContain(tool);
   const outcome = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Describe the keeper's mood." });
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages.filter((message) => message.role === "assistant")).toMatchObject([

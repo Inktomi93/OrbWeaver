@@ -10,6 +10,7 @@ import {
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  casOf,
   createCorpusProviderExecution,
   createServerHarness,
   makeAssetBytes,
@@ -72,7 +73,7 @@ test("a finished index run names the avatar whose stored file was gone, in a lib
   if (ref === undefined) {
     throw new Error("the stored avatar must have a CAS reference");
   }
-  await root.app.cas.remove(ref.ownerId, ref.hash);
+  await casOf(root).remove(ref.ownerId, ref.hash);
   const started = await caller.workloads.start({ input: { kind: "index", params: { source: "image" } } });
   await runAdmittedWorkload(started.id, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
   const finished = await caller.workloads.get({ id: started.id });

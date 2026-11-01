@@ -30,12 +30,12 @@ test("same-user concurrent calls share the real pass while a second account rece
   const second = await harness.actor();
   const actor = await principal(harness, first.id);
   const neighbor = await principal(harness, second.id);
-  const seedCard = vi.spyOn(app.characterSeeder, "seedCard");
+  const created = vi.spyOn(services.character, "create");
   const pending = app.contentSeeder.ensureSeeded(actor);
   expect(app.contentSeeder.ensureSeeded(actor)).toBe(pending);
   await pending;
   await app.contentSeeder.ensureSeeded(neighbor);
-  expect(seedCard.mock.calls.filter(([, handle]) => handle === FIRST_CARD.handle).map(([p]) => p)).toEqual([actor, neighbor]);
+  expect(created.mock.calls.filter(([params]) => params.input.handle === FIRST_CARD.handle).map(([params]) => params.principal)).toEqual([actor, neighbor]);
   expect([...(await createReadSeededKeys(databaseHandle(db))(first.id))]).toContain(FIRST_CARD.key);
   expect([...(await createReadSeededKeys(databaseHandle(db))(second.id))]).toContain(FIRST_CARD.key);
   expect(await services.character.findByHandle({ ownerId: second.id, handle: FIRST_CARD.handle })).not.toBeNull();

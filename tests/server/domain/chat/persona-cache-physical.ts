@@ -1,5 +1,6 @@
 // Native Anthropic input carries the cache proof; only response bytes and canonical-host DNS are supplied.
 
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { builtinProvider, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
@@ -41,10 +42,14 @@ function reply(text: string, model: string): Response {
 /** Keep provider admission and the native converter real while controlling a finite sequence of replies. */
 export async function personaRoom(
   replies: readonly string[],
-  options: Pick<ChatRootOptions, "characters" | "promptConfig" | "group" | "transcript"> & { readonly model?: string } = {},
+  options: Pick<ChatRootOptions, "characters" | "promptConfig" | "group" | "transcript"> & {
+    readonly model?: string;
+    /** A local-auth root with the multi-user setting on, so the presence disclosure query answers. */
+    readonly multiHuman?: boolean;
+  } = {},
 ): Promise<ChatRoot> {
   await using construction = new AsyncDisposableStack();
-  const { model = MODEL, ...roomOptions } = options;
+  const { model = MODEL, multiHuman = false, ...roomOptions } = options;
   const endpoint = builtinProvider("anthropic")?.baseUrl;
   if (endpoint === undefined) {
     throw new Error("the canonical Anthropic provider has no endpoint");
@@ -64,6 +69,7 @@ export async function personaRoom(
       memoryEnabled: false,
       server: {
         secretBoxKey: SECRET_BOX_TEST_KEY,
+        ...(multiHuman ? { env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } } : {}),
         networkExecution: {
           resolver: (host): Promise<readonly string[]> =>
             host === hostname ? Promise.resolve([PUBLIC_PEER_ADDRESS]) : Promise.reject(new Error(`unscripted persona provider address: ${host}`)),
@@ -93,6 +99,9 @@ export async function personaRoom(
     promptCache: SHIPPED_PROMPT_CACHE,
   });
   await h.caller.connection.setBinding({ task: "chat", connectionId: connection.id });
+  if (multiHuman) {
+    await h.root.services.settings.updateAppSettings({ principal: h.owner, partial: { localMultiUser: true } });
+  }
   const lifetime = construction.move();
   return { ...h, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }

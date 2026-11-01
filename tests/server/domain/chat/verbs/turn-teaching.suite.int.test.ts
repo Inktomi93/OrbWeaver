@@ -10,6 +10,7 @@ import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
+import { connectDevice } from "@orb/testkit/node/composed";
 import { REACTION_ANONYMOUS_REACTOR, REACTION_WHOLE_MESSAGE_TARGET, reactionNote } from "#server/domain/chat/substrate/reaction-note.ts";
 import { coreProse } from "../engine/core-physical.ts";
 import { inputMessages, invitePerson, messageText, personaInputs, personaRoom, seatPersona } from "../persona-cache-physical.ts";
@@ -81,8 +82,8 @@ test("in a labelled multi-human room the teach never reads as part of the player
   const bob = await invitePerson(h);
   const online = new AbortController();
   using _presence = { [Symbol.dispose]: (): void => online.abort() };
-  h.root.app.presence.connect(h.owner.userId, online.signal);
-  h.root.app.presence.connect(bob.userId, online.signal);
+  await connectDevice(h.root, h.owner.userId, online.signal);
+  await connectDevice(h.root, bob.userId, online.signal);
   await h.root.services.chat.setOfferChoices({ principal: h.owner, chatId: h.chatId, enabled: true });
   await seatPersona(h, h.owner, "Alice", "A guide.");
   const outcome = await h.root.services.chat.send({ principal: bob, chatId: h.chatId, content: "bob speaks" });
