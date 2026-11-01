@@ -5,8 +5,9 @@ import type { Node } from "@typescript/native/ast";
 import type { APIRequestGenerator, Type } from "@typescript/native/sync";
 import { API } from "@typescript/native/sync";
 import { vi } from "vitest";
-import { NativeWorld } from "../../../tooling/src/unwired/native.ts";
-import { propertyIndex } from "../../../tooling/src/unwired/occurrences.ts";
+import { homeFiles, NativeWorld } from "../../../tooling/src/unwired/native.ts";
+import type { PropertyFacts } from "../../../tooling/src/unwired/occurrences.ts";
+import { joinFacts, propertyFacts, propertyIndex } from "../../../tooling/src/unwired/occurrences.ts";
 import { LIB, WORLD } from "./_planted.ts";
 
 const SPREADS = {
@@ -67,6 +68,38 @@ test("the wider a type, the same number of compiler rounds", { timeout: 120_000 
     return rounds;
   };
   expect(await roundsFor(40)).toBe(await roundsFor(4));
+});
+
+test("each file is asked in its home world alone and the joined answer equals the union of every world's", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const worlds = ["packages/b/tsconfig.json", WORLD, "tsconfig.json"];
+  const root = await plantedTree({
+    [WORLD]: plantedTsconfig({ lib: LIB }),
+    "packages/b/tsconfig.json": plantedTsconfig({ lib: LIB }),
+    "tsconfig.json": plantedTsconfig({ lib: LIB, include: ["packages/*/src", "tests"] }),
+    "packages/a/src/shape.ts": "export interface Shape { readonly title: string }\nexport interface Twin { readonly title: string }",
+    "packages/b/src/use.ts":
+      'import type { Shape, Twin } from "../../a/src/shape.ts";\nexport const hand = (shape: Shape): Twin => shape;\nexport const read = (twin: Twin): string => twin.title;',
+    "tests/use.test.ts": 'import type { Shape } from "../packages/a/src/shape.ts";\nexport const read = (shape: Shape): string => shape.title;',
+  });
+  const homes = homeFiles(worlds, NativeWorld.fileLists(root, worlds));
+  expect(homes.get(WORLD)).toEqual(new Set(["packages/a/src/shape.ts"]));
+  expect(homes.get("packages/b/tsconfig.json")).toEqual(new Set(["packages/b/src/use.ts"]));
+  expect(homes.get("tsconfig.json")).toEqual(new Set(["tests/use.test.ts"]));
+  const sitesPerKey = (index: ReadonlyMap<string, readonly { readonly file: string; readonly position: number }[]>, into: Map<string, Set<string>>): void => {
+    for (const [key, sites] of index) {
+      into.set(key, new Set([...(into.get(key) ?? []), ...sites.map(({ file, position }) => `${file}:${position}`)]));
+    }
+  };
+  const union = new Map<string, Set<string>>();
+  const facts: PropertyFacts[] = [];
+  for (const config of worlds) {
+    using world = NativeWorld.open(root, config);
+    sitesPerKey(propertyIndex(world), union);
+    facts.push(propertyFacts(world, homes.get(config)));
+  }
+  const homed = new Map<string, Set<string>>();
+  sitesPerKey(joinFacts(facts).index, homed);
+  expect(homed).toEqual(union);
 });
 
 test("a site linked more than once lands in the index once", { timeout: 120_000 }, async ({ plantedTree }) => {

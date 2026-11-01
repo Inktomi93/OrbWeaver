@@ -76,15 +76,17 @@ function credit(index: Map<string, Site[]>, keys: readonly string[], site: Site)
   }
 }
 
-function walk(world: NativeWorld, visit: (node: Node) => void): void {
+function walk(world: NativeWorld, home: ReadonlySet<string>, visit: (node: Node) => void): void {
   const step = (node: Node): void => {
     visit(node);
     node.forEachChild(step);
   };
-  for (const file of world.files) {
+  for (const file of world.files.filter((source) => home.has(world.siteOf(source).file))) {
     file.forEachChild(step);
   }
 }
+
+const everyFile = (world: NativeWorld): ReadonlySet<string> => new Set(world.files.map((file) => world.siteOf(file).file));
 
 type PropertyName = Identifier | StringLiteral | NoSubstitutionTemplateLiteral;
 
@@ -227,7 +229,7 @@ function* keyNames(checker: Checker, key: Node): APIRequestGenerator<readonly st
  *  contextual type gives it (a literal kept by `satisfies` is read through its own keys), a spread value's member
  *  and the same-named member of the type it is spread into, a member typed `Owner["m"]` and `Owner.m`, and an
  *  overload implementation's parameter member and each overload's. */
-export interface Link {
+interface Link {
   readonly from: readonly string[];
   readonly to: readonly string[];
 }
@@ -398,16 +400,11 @@ export interface PropertyFacts {
 /** Every property site of a world resolved to the property declarations it means. A spread, computed key, `for…in`
  *  or reflective call credits its value expression's site to each property it reads. */
 export function propertyIndex(world: NativeWorld): ReferenceIndex {
-  return propertyReferences(world).index;
+  return joinFacts([propertyFacts(world)]).index;
 }
 
-/** {@link propertyIndex} beside the sites no link joined. */
-export function propertyReferences(world: NativeWorld): PropertyReferences {
-  return joinFacts([propertyFacts(world)]);
-}
-
-/** The unjoined facts of a world's files. */
-export function propertyFacts(world: NativeWorld): PropertyFacts {
+/** The unjoined facts of a world's `home` files. */
+export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = everyFile(world)): PropertyFacts {
   const lookups: Lookup[] = [];
   const extending: InterfaceDeclaration[] = [];
   const reflections: (Reflection & { readonly site: Site })[] = [];
@@ -421,7 +418,7 @@ export function propertyFacts(world: NativeWorld): PropertyFacts {
       written.add(siteKey(lookup.site));
     }
   };
-  walk(world, (node) => {
+  walk(world, home, (node) => {
     if (isPropertyName(node)) {
       lookUp(node);
     }
@@ -461,7 +458,7 @@ export function propertyFacts(world: NativeWorld): PropertyFacts {
   const redeclared = world.batch(extending.map((declaration) => redeclarations(checker, declaration)));
   const credits: { readonly site: Site; readonly keys: readonly string[] }[] = [];
   const links: Link[] = [...derived, ...overloaded.flat(), ...redeclared.flat()];
-  const flows: Flow[] = [...handoffFlows(world)];
+  const flows: Flow[] = [...handoffFlows(world, home)];
   for (const [at, lookup] of lookups.entries()) {
     const { symbols, own } = found[at] ?? { symbols: [], own: undefined };
     credits.push({ site: lookup.site, keys: keysOf(symbols) });
@@ -603,10 +600,10 @@ function isValueName(node: Identifier): boolean {
 
 /** Every value reference of a world resolved through import aliases to the declarations it means. A shorthand
  *  property assignment reads the value its name binds. */
-export function valueIndex(world: NativeWorld): ReferenceIndex {
+export function valueIndex(world: NativeWorld, home: ReadonlySet<string> = everyFile(world)): ReferenceIndex {
   const plain: Identifier[] = [];
   const shorthand: Node[] = [];
-  walk(world, (node) => {
+  walk(world, home, (node) => {
     if (!isIdentifier(node)) {
       return;
     }

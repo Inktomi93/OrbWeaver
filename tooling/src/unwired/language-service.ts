@@ -6,6 +6,7 @@ import { join, relative } from "node:path";
 import ts from "typescript";
 import type { Site } from "./classify.ts";
 import { siteKey } from "./classify.ts";
+import type { WorldFiles } from "./native.ts";
 import { NativeWorld } from "./native.ts";
 import type { PortMember } from "./restated-port.ts";
 import { effectiveMember, flowMembers, flowsAt } from "./restated-port.ts";
@@ -159,33 +160,33 @@ function nameAt(root: string, { file, position }: Site): string | null {
 // The holders of a site that together hold every file spelling its name, largest gain first. A find-references answer
 // is the same in every world that holds the referencing file, so one holder of each file is enough. A site with no
 // plain name, a quoted key, goes to every holder.
-function worldsFor(holders: readonly string[], lists: ReadonlyMap<string, ReadonlySet<string>>, spelling: readonly string[] | null): readonly string[] {
+function worldsFor(holders: readonly string[], lists: ReadonlyMap<string, WorldFiles>, spelling: readonly string[] | null): readonly string[] {
   if (spelling === null) {
     return holders;
   }
   const chosen: string[] = [];
-  let left = spelling.filter((file) => holders.some((world) => lists.get(world)?.has(file) === true));
+  let left = spelling.filter((file) => holders.some((world) => lists.get(world)?.held.has(file) === true));
   while (left.length > 0) {
     const best = widest(holders, lists, left);
     chosen.push(best);
-    left = left.filter((file) => lists.get(best)?.has(file) !== true);
+    left = left.filter((file) => lists.get(best)?.held.has(file) !== true);
   }
   return chosen;
 }
 
-function widest(holders: readonly string[], lists: ReadonlyMap<string, ReadonlySet<string>>, files: readonly string[]): string {
-  const gain = (world: string): number => files.filter((file) => lists.get(world)?.has(file) === true).length;
+function widest(holders: readonly string[], lists: ReadonlyMap<string, WorldFiles>, files: readonly string[]): string {
+  const gain = (world: string): number => files.filter((file) => lists.get(world)?.held.has(file) === true).length;
   return holders.reduce((a, b) => (gain(b) > gain(a) ? b : a));
 }
 
 // Each world's sites: every site once, in the fewest worlds that still reach all its references.
 function nativeAssignment(root: string, worlds: readonly string[], sites: readonly Site[]): ReadonlyMap<string, readonly Site[]> {
   const lists = NativeWorld.fileLists(root, worlds);
-  const spelled = filesSpelling(root, new Set([...lists.values()].flatMap((files) => [...files])));
+  const spelled = filesSpelling(root, new Set([...lists.values()].flatMap(({ held }) => [...held])));
   const assigned = new Map<string, Site[]>(worlds.map((world) => [world, []]));
-  const bySize = worlds.toSorted((a, b) => (lists.get(b)?.size ?? 0) - (lists.get(a)?.size ?? 0));
+  const bySize = worlds.toSorted((a, b) => (lists.get(b)?.held.size ?? 0) - (lists.get(a)?.held.size ?? 0));
   for (const site of new Map(sites.map((one) => [siteKey(one), one])).values()) {
-    const holders = bySize.filter((world) => lists.get(world)?.has(site.file) === true);
+    const holders = bySize.filter((world) => lists.get(world)?.held.has(site.file) === true);
     const name = nameAt(root, site);
     for (const world of worldsFor(holders, lists, name === null ? null : (spelled.get(name) ?? []))) {
       assigned.get(world)?.push(site);

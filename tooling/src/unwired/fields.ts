@@ -22,8 +22,9 @@ import type { APIRequestGenerator, Checker, Symbol as NativeSymbol } from "@type
 import type { Site, SyntaxRole } from "./classify.ts";
 import { isProductionFile, roleAt, Sources, siteKey } from "./classify.ts";
 import { serviceReferences } from "./language-service.ts";
-import { constituents, declarationKeys, NativeWorld } from "./native.ts";
-import { propertyReferences } from "./occurrences.ts";
+import { constituents, declarationKeys, homeFiles, NativeWorld } from "./native.ts";
+import type { PropertyFacts, PropertyReferences } from "./occurrences.ts";
+import { joinFacts, propertyFacts } from "./occurrences.ts";
 import type { ScanOptions } from "./scan.ts";
 import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
 import { typeMembers } from "./type-members.ts";
@@ -328,6 +329,8 @@ function uniquelyKeyed(fields: readonly FieldDeclaration[]): readonly FieldDecla
 
 interface Tally {
   readonly field: FieldDeclaration;
+  /** Every declaration key any world gave the field. */
+  readonly keys: Set<string>;
   readonly sites: Map<string, Site>;
   /** The sites that name the field and the writes carried into it. A link-borne write proves nothing about who fills its home. */
   readonly direct: Map<string, Site>;
@@ -380,11 +383,23 @@ function mergedSites(names: readonly Site[], second: ReadonlyMap<string, readonl
 
 const namesOf = (field: FieldDeclaration): readonly Site[] => [field.site, ...field.mirrorSites];
 
-function tallyWorld(tally: Map<string, Tally>, world: NativeWorld): number {
+function tallyWorld(tally: Map<string, Tally>, declared: Set<string>, world: NativeWorld): number {
   const fields = declarations(world);
-  const { index, direct } = propertyReferences(world);
-  // A schema key names a field; it writes no value, and a flow out of its schema must not carry it as one.
-  const declared = new Set(fields.flatMap(namesOf).map(siteKey));
+  for (const field of fields) {
+    const entry = tally.get(field.key) ?? { field, keys: new Set(), sites: new Map(), direct: new Map() };
+    for (const key of field.keys) {
+      entry.keys.add(key);
+    }
+    for (const name of namesOf(field)) {
+      declared.add(siteKey(name));
+    }
+    tally.set(field.key, entry);
+  }
+  return fields.length;
+}
+
+// A schema key names a field; it writes no value, and a flow out of its schema must not carry it as one.
+function tallySites(tally: ReadonlyMap<string, Tally>, declared: ReadonlySet<string>, { index, direct }: PropertyReferences): void {
   const keep = (into: Map<string, Site>, sites: readonly Site[]): void => {
     for (const site of sites) {
       const key = siteKey(site);
@@ -393,13 +408,10 @@ function tallyWorld(tally: Map<string, Tally>, world: NativeWorld): number {
       }
     }
   };
-  for (const field of fields) {
-    const entry = tally.get(field.key) ?? { field, sites: new Map(), direct: new Map() };
-    keep(entry.sites, sitesOf(index, field.keys, field.site));
-    keep(entry.direct, sitesOf(direct, field.keys, field.site));
-    tally.set(field.key, entry);
+  for (const entry of tally.values()) {
+    keep(entry.sites, sitesOf(index, [...entry.keys], entry.field.site));
+    keep(entry.direct, sitesOf(direct, [...entry.keys], entry.field.site));
   }
-  return fields.length;
 }
 
 /** Run both engines over the worlds of `root` for dead data. */
@@ -407,10 +419,16 @@ export function scanFields(options: ScanOptions): FieldsReport {
   const { worlds, testWorlds } = scanWorlds(options);
   const sources = new Sources(options.root);
   const tally = new Map<string, Tally>();
-  for (const config of [...worlds, ...testWorlds]) {
+  const declared = new Set<string>();
+  const configs = [...worlds, ...testWorlds];
+  const homes = homeFiles(configs, NativeWorld.fileLists(options.root, configs));
+  const facts: PropertyFacts[] = [];
+  for (const config of configs) {
     using world = NativeWorld.open(options.root, config);
-    options.log(`${config}: ${tallyWorld(tally, world)} fields`);
+    options.log(`${config}: ${tallyWorld(tally, declared, world)} fields`);
+    facts.push(propertyFacts(world, homes.get(config)));
   }
+  tallySites(tally, declared, joinFacts(facts));
   const rolled = [...tally.values()].map((entry) => ({ ...entry, roles: rolesOf(sources, entry.sites.values()) }));
   const writtenHomes = new Set(rolled.filter(({ direct }) => rolesOf(sources, direct.values()).write.length > 0).map(({ field }) => homeOf(field)));
   const judged = rolled.flatMap(({ field, roles }) => {

@@ -178,7 +178,7 @@ test("engine two asks a site only in worlds that add a file spelling its name, a
   const served = serviceReferences(root, ["narrow/tsconfig.json", "wide/tsconfig.json"], [quiet, spelled, spelled], { log: () => undefined });
   const sizes = asked.mock.calls.map(([sites]) => sites.length);
   asked.mockRestore();
-  expect(sizes.toSorted()).toEqual([1, 2]);
+  expect(sizes.toSorted((a, b) => a - b)).toEqual([1, 2]);
   expect((served.get(`${quiet.file}:${quiet.position}`) ?? []).map(({ file }) => file)).toEqual(["wide/src/quiet.ts"]);
   expect((served.get(`${spelled.file}:${spelled.position}`) ?? []).map(({ file }) => file).toSorted()).toEqual([
     "narrow/src/spelled.ts",

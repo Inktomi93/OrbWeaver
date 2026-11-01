@@ -17,6 +17,12 @@ export function hasFlag(flags: number, flag: number): boolean {
   return (flags & flag) !== 0;
 }
 
+/** A world's source files, and the root files its config names rather than reaches through imports. */
+export interface WorldFiles {
+  readonly held: ReadonlySet<string>;
+  readonly roots: ReadonlySet<string>;
+}
+
 const isWorldSource = (name: string): boolean => !(name.includes("/node_modules/") || name.endsWith(".d.ts"));
 
 type Request = APIRequestGenerator extends Generator<infer Yielded, unknown, unknown> ? Yielded : never;
@@ -72,15 +78,17 @@ export class NativeWorld implements Disposable {
     return new NativeWorld(root, config, new API({ cwd: root }));
   }
 
-  /** The repository-relative source files of every world, listed in one session rather than one process per world. */
-  static fileLists(root: string, configs: readonly string[]): ReadonlyMap<string, ReadonlySet<string>> {
+  /** The repository-relative source files and root files of every world, listed in one session rather than one
+   *  process per world. */
+  static fileLists(root: string, configs: readonly string[]): ReadonlyMap<string, WorldFiles> {
     using api = new API({ cwd: root });
     const files = Object.fromEntries(configs.map((config) => [`${root}/${config}`, bridgedConfigText(root, config)]));
     const snapshot = api.createSnapshot({ openProjects: Object.keys(files), fileSystem: { kind: "layer", files } });
+    const relatives = (names: readonly string[]): ReadonlySet<string> => new Set(names.filter(isWorldSource).map((name) => relative(root, name)));
     return new Map(
       configs.map((config) => {
-        const names = snapshot.getConfiguredProject(`${root}/${config}`)?.program.getSourceFileNames() ?? [];
-        return [config, new Set(names.filter(isWorldSource).map((name) => relative(root, name)))];
+        const project = snapshot.getConfiguredProject(`${root}/${config}`);
+        return [config, { held: relatives(project?.program.getSourceFileNames() ?? []), roots: relatives(project?.parsedCommandLine.fileNames ?? []) }];
       }),
     );
   }
@@ -225,6 +233,26 @@ export class NativeWorld implements Disposable {
   [Symbol.dispose](): void {
     this.#api.close();
   }
+}
+
+/** Each world's home files: every file once, in the first world that names it as a root, else the first that holds it.
+ *  A site's answer is the same in every world that holds its file, so its home alone is asked. */
+export function homeFiles(configs: readonly string[], lists: ReadonlyMap<string, WorldFiles>): ReadonlyMap<string, ReadonlySet<string>> {
+  const home = new Map<string, string>();
+  for (const pick of [(files: WorldFiles): ReadonlySet<string> => files.roots, (files: WorldFiles): ReadonlySet<string> => files.held]) {
+    for (const config of configs) {
+      for (const file of pick(lists.get(config) as WorldFiles)) {
+        if (!home.has(file)) {
+          home.set(file, config);
+        }
+      }
+    }
+  }
+  const homes = new Map<string, Set<string>>(configs.map((config) => [config, new Set()]));
+  for (const [file, config] of home) {
+    homes.get(config)?.add(file);
+  }
+  return homes;
 }
 
 /** A union's member types, or the type itself. */

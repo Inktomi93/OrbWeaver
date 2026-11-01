@@ -76,13 +76,13 @@ function handedAt(node: Node): readonly Node[] {
 }
 
 // Only production hand-offs prove a production flow; a test world repeats those of its production files.
-function handedValues(world: NativeWorld): readonly Node[] {
+function handedValues(world: NativeWorld, home: ReadonlySet<string>): readonly Node[] {
   const found: Node[] = [];
   const visit = (node: Node): void => {
     found.push(...handedAt(node).filter((handed) => !isPlainLiteral(handed)));
     node.forEachChild(visit);
   };
-  for (const file of world.files.filter((source) => isProduction(world.siteOf(source).file))) {
+  for (const file of world.files.filter((source) => isProduction(world.siteOf(source).file) && home.has(world.siteOf(source).file))) {
     file.forEachChild(visit);
   }
   return found;
@@ -182,10 +182,10 @@ function* compared(world: NativeWorld, { source, sink, depth }: TypePair): APIRe
 }
 
 /** Every member flow the production hand-offs of a world make, each distinct pair of types compared once. */
-export function handoffFlows(world: NativeWorld): readonly Flow[] {
+export function handoffFlows(world: NativeWorld, home: ReadonlySet<string>): readonly Flow[] {
   const flows: Flow[] = [];
   const seen = new Set<string>();
-  let pending = world.batch(handedValues(world).map((handed) => pairAt(world, handed))).flatMap((pair) => (pair === null ? [] : [pair]));
+  let pending = world.batch(handedValues(world, home).map((handed) => pairAt(world, handed))).flatMap((pair) => (pair === null ? [] : [pair]));
   while (pending.length > 0) {
     const fresh = new Map(
       pending.filter(({ source, sink, depth }) => depth < MAX_DEPTH && source.id !== sink.id).map((pair) => [`${pair.source.id}|${pair.sink.id}`, pair]),
