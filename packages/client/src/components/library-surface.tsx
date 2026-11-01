@@ -6,18 +6,14 @@
 // homing precedent).
 
 import { Stack } from "@orb/ui/layout";
-import type { FocusEvent, ReactElement, ReactNode, RefObject } from "react";
-import { useEffect, useRef } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { useRef } from "react";
 import { QueryErrorState, SkeletonRows } from "#data";
 import { ListScrollBox } from "./list-page.tsx";
 import { QueryBoundary } from "./query-boundary.tsx";
 import { useRovingRadioGroup } from "./use-roving-radio-group.ts";
 
 const LIBRARY_LOADING_ROWS = 3;
-/** The first control of a row, where a removed neighbour's focus lands. */
-const FOCUSABLE = "button, a[href], [tabindex]:not([tabindex='-1'])";
-/** How long a removed row's focus hand-off waits for the confirm that removed it to close. */
-const FOCUS_WATCH_MS = 3000;
 
 export interface LibrarySurfaceShellProps {
   /** Suspense fallback copy, e.g. "Loading your presets…". */
@@ -72,71 +68,6 @@ export interface LibraryListRowsProps {
   readonly scroll: boolean;
 }
 
-/** The row a removed row's focus should move to, or the list's root when none is left. A confirmed delete unmounts the
- *  row (and the menu that opened its confirm), so the browser drops focus on the page body; this hands it to the row now
- *  at the same place, or the one before it. It acts only when focus was inside the rows and is now nowhere. */
-function useFocusAfterRowRemoved(rowsRef: RefObject<HTMLDivElement | null>): { readonly onFocus: (event: FocusEvent<HTMLElement>) => void } {
-  const seen = useRef({
-    index: -1,
-    count: 0,
-    root: null as HTMLElement | null,
-    watch: null as MutationObserver | null,
-    giveUp: undefined as ReturnType<typeof globalThis.setTimeout> | undefined,
-  });
-  useEffect(() => {
-    const count = rowsRef.current?.children.length ?? 0;
-    const shrank = seen.current.index >= 0 && count < seen.current.count;
-    seen.current.count = count;
-    if (!shrank) {
-      return;
-    }
-    const restore = (): boolean => {
-      if (document.activeElement !== null && document.activeElement !== document.body) {
-        return false;
-      }
-      const live = rowsRef.current;
-      const last = (live?.children.length ?? 0) - 1;
-      const row = live?.children[Math.min(seen.current.index, last)];
-      seen.current.index = -1;
-      (row?.querySelector<HTMLElement>(FOCUSABLE) ?? seen.current.root)?.focus();
-      return true;
-    };
-    if (restore()) {
-      return;
-    }
-    // The confirm that deleted the row is still open and holds focus; it hands focus to the removed trigger as it closes.
-    seen.current.watch?.disconnect();
-    globalThis.clearTimeout(seen.current.giveUp);
-    const watch = new MutationObserver(() => {
-      if (restore()) {
-        watch.disconnect();
-      }
-    });
-    watch.observe(document.body, { childList: true, subtree: true });
-    seen.current.watch = watch;
-    seen.current.giveUp = globalThis.setTimeout(() => watch.disconnect(), FOCUS_WATCH_MS);
-  });
-  useEffect(
-    () => (): void => {
-      seen.current.watch?.disconnect();
-      globalThis.clearTimeout(seen.current.giveUp);
-    },
-    [],
-  );
-  return {
-    onFocus: (event): void => {
-      const rows = event.currentTarget;
-      // A portaled confirm bubbles its focus through the React tree; only focus inside the rows counts.
-      if (!rows.contains(event.target)) {
-        return;
-      }
-      const row = Array.from(rows.children).find((child) => child.contains(event.target));
-      seen.current.index = row === undefined ? -1 : Array.from(rows.children).indexOf(row);
-      seen.current.root = rows.closest<HTMLElement>("[tabindex]");
-    },
-  };
-}
-
 /** The library list BODY: empty-or-rows, plus the radiogroup keyboard contract. Everything here depends on
  *  the read, so this is the half that lives INSIDE the boundary. */
 export function LibraryListRows({ isEmpty, empty, children, rowsRadiogroupLabel, scroll }: LibraryListRowsProps): ReactElement {
@@ -147,16 +78,15 @@ export function LibraryListRows({ isEmpty, empty, children, rowsRadiogroupLabel,
   // unconditionally beside the optional role.
   const rowsRef = useRef<HTMLDivElement>(null);
   useRovingRadioGroup(rowsRef);
-  const focusWatch = useFocusAfterRowRemoved(rowsRef);
   if (isEmpty) {
     return <>{empty}</>;
   }
   return scroll ? (
-    <ListScrollBox {...rowsGroup} {...focusWatch} gap="tight" ref={rowsRef}>
+    <ListScrollBox {...rowsGroup} gap="tight" ref={rowsRef}>
       {children}
     </ListScrollBox>
   ) : (
-    <Stack {...rowsGroup} {...focusWatch} gap="tight" ref={rowsRef}>
+    <Stack {...rowsGroup} gap="tight" ref={rowsRef}>
       {children}
     </Stack>
   );

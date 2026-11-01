@@ -847,23 +847,6 @@ const PRE_POLYFILL_SOURCE = staticImportGraph(fileURLToPath(new URL("./packages/
 // Exact DOM-boundary calls; additional calls in these files remain findings.
 export const DOM_LOOKUP_HOMES = [
   {
-    file: "packages/client/src/components/library-surface.tsx",
-    function: "useFocusAfterRowRemoved/restore",
-    method: "querySelector",
-    receiver: "row",
-    selector: "button, a[href], [tabindex]:not([tabindex='-1'])",
-    reason:
-      "a confirmed delete unmounts the row that held focus, so the list hands focus to the row now in its place; rows are caller children that publish no handle",
-  },
-  {
-    file: "packages/client/src/components/library-surface.tsx",
-    function: "useFocusAfterRowRemoved/onFocus",
-    method: "closest",
-    receiver: "rows",
-    selector: "[tabindex]",
-    reason: "the list remembers its focusable root so focus has a home when the last row is deleted; the page template publishes no handle to it",
-  },
-  {
     file: "packages/client/src/features/app-shell/components/context-bracket.tsx",
     function: "ContextBracket",
     method: "querySelector",

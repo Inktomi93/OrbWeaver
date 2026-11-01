@@ -112,6 +112,9 @@ export function scopeChipLabelOf(field: string, greetingIndexes: readonly number
   return formatLabel(field);
 }
 
+/** What an appended greeting is called: it has no slot number yet. */
+export const NEW_GREETING_LABEL = "New greeting";
+
 /** One slot's name, from the one source every dialog reads: a field is humanized, a greeting slot is counted from one. */
 export function slotLabelOf(field: string, greetingIndex?: number): string {
   return greetingIndex === undefined ? formatLabel(field) : `Greeting ${greetingIndex + 1}`;

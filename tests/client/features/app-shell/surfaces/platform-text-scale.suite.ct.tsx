@@ -689,8 +689,11 @@ for (const [viewport, scale] of QUALIFIED.newChat) {
   });
 }
 
-// The 300% layout on a phone leaves the stacked footer little else: a character row must stay in view above it.
-for (const [viewport, scale] of [[PHONE, LAYOUT_300]] as const) {
+// Enlarged text on a phone stacks the footer: it must stay inside the dialog, and a character row must stay in view above it.
+for (const [viewport, scale] of [
+  [PHONE, TEXT_200],
+  [PHONE, LAYOUT_300],
+] as const) {
   test.describe(`New chat footer at ${scale.name} on the ${viewport.name}`, () => {
     test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
 
@@ -700,15 +703,38 @@ for (const [viewport, scale] of [[PHONE, LAYOUT_300]] as const) {
       const dialog = page.getByRole("dialog");
       await expect(dialog).toBeVisible();
       await scaleRoot(page, scale.factor);
-      const footerTop = await dialog
-        .getByRole("button", { name: BLANK_CHAT_NAME, exact: true })
-        .evaluate((button) => (button.parentElement ?? button).getBoundingClientRect().top);
+      const blank = dialog.getByRole("button", { name: BLANK_CHAT_NAME, exact: true });
+      // The footer may sit below the fold of a scrolling dialog; reaching it by scrolling is reaching it.
+      await blank.scrollIntoViewIfNeeded();
+      const frame = await dialog.boundingBox();
+      const footerBox = await blank.boundingBox();
+      expect(frame === null || footerBox === null ? false : footerBox.y + footerBox.height <= frame.y + frame.height + SUBPIXEL).toBe(true);
+      await dialog.getByRole("option").first().scrollIntoViewIfNeeded();
+      const footerTop = await blank.evaluate((button) => (button.parentElement ?? button).getBoundingClientRect().top);
       await expect
         .poll(async () => {
           const boxes = await dialog.getByRole("option").evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect()));
-          return boxes.some((box) => box.top >= 0 && box.bottom <= footerTop);
+          return boxes.some((row) => row.top >= 0 && row.bottom <= footerTop);
         })
         .toBe(true);
+    });
+  });
+}
+
+// Pinned means in view without scrolling: at 200% the footer is the way to start, so it stays inside the dialog.
+for (const [viewport, scale] of [[PHONE, TEXT_200]] as const) {
+  test.describe(`New chat footer pinned at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    test("stays visible inside the dialog without scrolling", async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: "chats" });
+      await mount<typeof AppShellModalStory>(`${SHELL_STORIES}/AppShellModalStory`, { modalId: "newChat" });
+      const dialog = page.getByRole("dialog");
+      await expect(dialog).toBeVisible();
+      await scaleRoot(page, scale.factor);
+      const frame = await dialog.boundingBox();
+      const footer = await dialog.getByRole("button", { name: BLANK_CHAT_NAME, exact: true }).boundingBox();
+      expect(frame === null || footer === null ? false : footer.y + footer.height <= frame.y + frame.height + SUBPIXEL).toBe(true);
     });
   });
 }

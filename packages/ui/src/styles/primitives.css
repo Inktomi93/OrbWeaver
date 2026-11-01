@@ -105,7 +105,8 @@
 }
 
 @layer ui {
-  /* It sits in a layer so a stylesheet regime rule can cap the field lower than the inline ceiling. */
+  /* The ceiling rides a custom property, never an inline max-height. Declared in layer ui, it loses to any unlayered
+   * rule, so a regime rule (the app shell's short-room cap) can hold the field lower than the ceiling the component asks for. */
   [data-slot="textarea-root"] {
     max-block-size: var(--textarea-ceiling);
   }

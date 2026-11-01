@@ -28,7 +28,7 @@ import type { RefineryContextState } from "#lib";
 import { testId } from "#lib";
 import type { RefineryWorkbenchDoor } from "#state";
 import { useRestoreCharacterSnapshot, useSnapshotCharacterNow } from "../hooks/use-refinery-snapshots.ts";
-import { BUILT_IN_SCHEMA_LINE } from "../lib/schema-line.ts";
+import { SETUP_SCHEMA_ROWS, schemaDoorActionOf } from "../lib/setup-door-names.ts";
 import { verdictToneOf, verdictWordOf } from "../lib/verdict.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
 
@@ -258,17 +258,12 @@ export function SetupTab({
       <SetupRow action="View" k="Original card" onAction={onViewOriginal} v={anchorLine} />
       <SetupRow action="Edit" k="Scope" onAction={(): void => onOpenDoor("scope")} v={scopeLine} />
       {/* ONE ROW PER STAGE, so custom-ANALYZE authoring and editing a saved analyze schema have a door as score
-          does. Each stage carries its own "Edit" → the editor at that stage; the body resolves
+          does. Each stage carries its own "Edit" ("Create" on the built-in schema) → the editor at that stage; the body resolves
           edit-vs-author. */}
+      <SetupRow action={schemaDoorActionOf(scoreSchemaLine)} k={SETUP_SCHEMA_ROWS.score} onAction={(): void => onEditSchema("score")} v={scoreSchemaLine} />
       <SetupRow
-        action={scoreSchemaLine === BUILT_IN_SCHEMA_LINE ? "Create" : "Edit"}
-        k="Score schema"
-        onAction={(): void => onEditSchema("score")}
-        v={scoreSchemaLine}
-      />
-      <SetupRow
-        action={analyzeSchemaLine === BUILT_IN_SCHEMA_LINE ? "Create" : "Edit"}
-        k="Analyze schema"
+        action={schemaDoorActionOf(analyzeSchemaLine)}
+        k={SETUP_SCHEMA_ROWS.analyze}
         onAction={(): void => onEditSchema("analyze")}
         v={analyzeSchemaLine}
       />

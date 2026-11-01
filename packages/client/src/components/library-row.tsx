@@ -134,6 +134,8 @@ export interface LibraryRowProps {
    * that passes it never floats its cluster; it sits before the state toggle and menu.
    */
   readonly trailing?: ReactNode;
+  /** The row body's ref, so a list can move focus to it by key (`useRowDeleteFocus`). */
+  readonly bodyRef?: NonNullable<ListRowProps["bodyRef"]>;
   readonly "data-testid"?: string;
 }
 
@@ -190,6 +192,14 @@ function optionalSlots({
   };
 }
 
+/** The two optional pass-throughs to the row body: its ref, and its test id. */
+function passthrough({ bodyRef, "data-testid": testId }: LibraryRowProps): {
+  readonly bodyRef?: NonNullable<ListRowProps["bodyRef"]>;
+  readonly "data-testid"?: string;
+} {
+  return { ...(bodyRef === undefined ? {} : { bodyRef }), ...(testId === undefined ? {} : { "data-testid": testId }) };
+}
+
 /** One entity-library row: title/subtitle + title-line status markers · state toggle · Rename/Duplicate/
  *  Delete menu. */
 export function LibraryRow(props: LibraryRowProps): ReactElement {
@@ -219,7 +229,7 @@ export function LibraryRow(props: LibraryRowProps): ReactElement {
       onClick={onSelect}
       data-selected={selected ? "" : undefined}
       title={title}
-      {...(props["data-testid"] === undefined ? {} : { "data-testid": props["data-testid"] })}
+      {...passthrough(props)}
       {...optionalSlots(props)}
       {...(hasCluster
         ? {

@@ -3,7 +3,7 @@ import { useLayoutEffect, useRef } from "react";
 
 // `field-sizing: content` is the native autosize, and the skin keeps it where the browser has it. Below that
 // (Safari before 26.2, Firefox before 152) the box is measured and sized in script instead, from the same
-// content, inside the same min and max rows (those ride `min-height` and `max-height`, which clamp the height set here).
+// content, inside the same min and max rows (the min rides `min-height`, the max rides `max-block-size` read from `--textarea-ceiling`; both clamp the height set here).
 // Only `getComputedStyle` is read: `computedStyleMap` is not in Firefox, and Firefox 138 to 151 runs this arm.
 
 interface Sized {

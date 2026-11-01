@@ -70,6 +70,8 @@ export { configLeafKey, useConfigLeaf, useConfigLeafReadings } from "./use-confi
 export { useEmbedderRebuild } from "./use-embedder-rebuild.ts";
 export { useFirstBootBox } from "./use-first-boot-box.ts";
 export { useModelRunConfirm } from "./use-model-run-confirm.ts";
+export type { RowDeleteFocus } from "./use-row-delete-focus.ts";
+export { useRowDeleteFocus } from "./use-row-delete-focus.ts";
 export { useRerankModel, useUtilityModel } from "./use-utility-model.ts";
 export { UserMacroEditorDialog } from "./user-macro-editor-dialog.tsx";
 export type { UserMacrosFormValues } from "./user-macro-editor-model.ts";

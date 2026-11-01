@@ -15,6 +15,7 @@ import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { testId } from "#lib";
 import { DROP_REASON_COPY } from "../lib/reason-copy.ts";
+import { NEW_GREETING_LABEL, slotLabelOf } from "../lib/render-plan.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
 
 type ApplyWire = inferOutput<Trpc["refinery"]["applyFields"]>;
@@ -47,9 +48,9 @@ export interface ApplyOutcomeProps {
  *  whatever the tail was at write time, so printing a number would be a fact we do not have. */
 function targetOf(ref: { field: string; greetingIndex?: number | undefined; appendIndex?: number | undefined }): string {
   if (ref.appendIndex !== undefined) {
-    return `${ref.field} [new]`;
+    return NEW_GREETING_LABEL;
   }
-  return ref.greetingIndex === undefined ? ref.field : `${ref.field} [${ref.greetingIndex}]`;
+  return slotLabelOf(ref.field, ref.greetingIndex);
 }
 
 /** A row's React key — the itemization can carry several entries for one field (two appends, or an append

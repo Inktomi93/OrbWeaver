@@ -34,9 +34,9 @@ import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Input } from "@orb/ui/input";
-import type { ReactElement } from "react";
+import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
-import { LibraryListRows, LibraryRow, LibrarySurfaceShell, ListPage } from "#components";
+import { LibraryListRows, LibraryRow, LibrarySurfaceShell, ListPage, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { timeLib, useFocusListArrival } from "#lib";
 import { refinerySectionSelection, requestRefineryLandingFocus, selectRefinerySessionFromList, useMobileViewport, useSelectedRefinerySessionId } from "#state";
@@ -108,6 +108,7 @@ export function RefineryListSurface(): ReactElement {
     >
       <LibrarySurfaceShell errorLabel="your sessions" loadingLabel="Loading your sessions…">
         <RefineryList
+          listRootRef={surfaceRef}
           onClearSearch={(): void => {
             setSearch("");
             surfaceRef.current?.focus();
@@ -119,7 +120,15 @@ export function RefineryListSurface(): ReactElement {
   );
 }
 
-function RefineryList({ search, onClearSearch }: { readonly search: string; readonly onClearSearch: () => void }): ReactElement {
+function RefineryList({
+  search,
+  onClearSearch,
+  listRootRef,
+}: {
+  readonly search: string;
+  readonly onClearSearch: () => void;
+  readonly listRootRef: RefObject<HTMLElement | null>;
+}): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const sessions = useSuspenseQuery(trpc.refinery.listSessions.queryOptions());
@@ -152,6 +161,11 @@ function RefineryList({ search, onClearSearch }: { readonly search: string; read
   // page `character.list` would have returned.
   const rows = resolved.filter(
     (r) => query.length === 0 || r.characterName.toLowerCase().includes(query) || (r.sessionName ?? "").toLowerCase().includes(query),
+  );
+
+  const rowFocus = useRowDeleteFocus(
+    listRootRef,
+    rows.map((row) => row.rawId),
   );
 
   // A desktop landing focuses the existing CONTENT picker; the other regimes open the existing start door.
@@ -208,10 +222,11 @@ function RefineryList({ search, onClearSearch }: { readonly search: string; read
     >
       {rows.map((row) => (
         <LibraryRow
+          bodyRef={rowFocus.bodyRef(row.rawId)}
           actions={{
             name: row.characterName,
             qualifier: `started ${timeLib.formatDateTime(row.createdAt)}`,
-            onDelete: (): Promise<void> => deleteSession(row),
+            ...rowFocus.delete(row.rawId, (): Promise<void> => deleteSession(row)),
             deleteDescription: `This permanently deletes this session and all of its refinery runs. ${row.characterName}'s character card is unchanged.`,
           }}
           key={row.rawId}
