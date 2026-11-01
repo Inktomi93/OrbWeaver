@@ -13,9 +13,9 @@
 //   • ASKING IS PER-ID, NEVER A LISTING. The caller names the user ids it wants an answer about and gets
 //     back the online SUBSET. There is no "who is online" enumeration to tighten away later, and the wire
 //     ceiling (`PRESENCE_READ_MAX_USER_IDS`) is what stops the per-id shape being brute-forced into one.
-//   • A WITHHELD ANSWER IS INDISTINGUISHABLE FROM OFFLINE. An id that is not in the returned subset is
-//     offline OR not disclosable — one answer, so a membership filter added here can never become an
-//     existence oracle for accounts the asker may not know about.
+//   • A WITHHELD ANSWER IS INDISTINGUISHABLE FROM NEVER SEEN. An id in neither returned list has not
+//     connected since boot OR is not disclosable — one answer. A `lastSeen` entry does prove the id connected
+//     since boot, which is what v1 deliberately shows; a membership filter added here must withhold both lists.
 //   • THE TIGHTENING IS TYPED, NOT REMEMBERED. Adding the viewer's `Principal` + a membership predicate to
 //     this function's parameters REDS its one call site (`routers/notifications.ts`) at `tsc`; nothing else
 //     on the tree reads the registry for a client.

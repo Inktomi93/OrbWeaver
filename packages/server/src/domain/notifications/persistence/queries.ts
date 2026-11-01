@@ -12,6 +12,7 @@ import { batchMany } from "@orb/db/query";
 import type { NotificationId } from "@orb/kit/ids";
 import { and, asc, desc, eq, gt, isNotNull, isNull, lt, ne, not, notExists, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
+import { z } from "zod";
 
 /** A new notification row — the verb mints `id` + parses the closed `event` + passes its injected clock. */
 type NotificationInsert = Pick<typeof notifications.$inferSelect, "id" | "recipientUserId" | "type" | "payload" | "createdAt">;
@@ -188,20 +189,44 @@ interface InboxPageQuery {
   readonly limit: number;
 }
 
+interface InboxPage {
+  readonly rows: NotificationRow[];
+  /** The `seq` of the last row READ (decodable or not) when a full page came back, else `null`. */
+  readonly nextCursor: number | null;
+  /** Dismissed rows whose stored bytes no longer decode; always empty for the active state. */
+  readonly unreadable: readonly NotificationId[];
+}
+
 /** One inbox page of `state` — recipient-scoped, newest-first by `seq`, paged with `seq < cursor` when a cursor
- *  is given. */
-export async function selectInbox(
-  db: Db,
-  recipientUserId: NotificationEvent["recipientUserId"],
-  { state, cursor, limit }: InboxPageQuery,
-): Promise<NotificationRow[]> {
+ *  is given.
+ *
+ *  The active list is loud: an undecodable row throws, because it may be an actionable ask. The dismissed list is
+ *  read-only history, so an undecodable row is skipped and reported in `unreadable`; the cursor is taken from the
+ *  rows READ, so a skipped row can neither end the walk early nor strand the rows below it. */
+export async function selectInbox(db: Db, recipientUserId: NotificationEvent["recipientUserId"], { state, cursor, limit }: InboxPageQuery): Promise<InboxPage> {
   const scoped = and(
     eq(notifications.recipientUserId, recipientUserId),
     state === "active" ? isNull(notifications.dismissedAt) : and(isNotNull(notifications.dismissedAt), ne(notifications.type, STANDING_ASK_TYPE)),
     cursor === undefined ? undefined : lt(notifications.seq, cursor),
   );
-  const rows = await db.select(TEXT_ROW_COLS).from(notifications).where(scoped).orderBy(desc(notifications.seq)).limit(limit);
-  return rows.map(decodeNotificationRow);
+  const stored = await db.select(TEXT_ROW_COLS).from(notifications).where(scoped).orderBy(desc(notifications.seq)).limit(limit);
+  const nextCursor = stored.length === limit ? (stored.at(-1)?.seq ?? null) : null;
+  if (state === "active") {
+    return { rows: stored.map(decodeNotificationRow), nextCursor, unreadable: [] };
+  }
+  const rows: NotificationRow[] = [];
+  const unreadable: NotificationId[] = [];
+  for (const row of stored) {
+    try {
+      rows.push(decodeNotificationRow(row));
+    } catch (error) {
+      if (!(error instanceof SyntaxError || error instanceof z.ZodError)) {
+        throw error;
+      }
+      unreadable.push(row.id);
+    }
+  }
+  return { rows, nextCursor, unreadable };
 }
 
 /** The RESUME page — recipient-scoped, dismissed excluded, `seq` strictly ABOVE the watermark, OLDEST-first.

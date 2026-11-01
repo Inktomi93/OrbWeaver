@@ -317,9 +317,11 @@ export interface PresenceLastSeen {
  *  IT IS A PROJECTION OF {@link PresenceView}, NEVER THE VIEW ITSELF, so a new `PresenceView` member reaches
  *  the wire only by an explicit change here.
  *
- *  A user id the caller asked about and does not get back is OFFLINE **or** not disclosable to them — one
- *  indistinguishable answer, deliberately. That is what keeps a later membership/privacy tightening
- *  (`transport/trpc/presence-disclosure.ts`) free of an existence oracle. */
+ *  An id in `lastSeen` proves that user connected since the server booted, so a caller who types an arbitrary
+ *  id learns whether that account has been online this run. That is the v1 audience (everyone sees presence),
+ *  and it is as wide as `onlineUserIds`. An id absent from both lists is never-seen-this-run **or** not
+ *  disclosable: one answer, so a later membership/privacy tightening
+ *  (`transport/trpc/presence-disclosure.ts`) can still withhold without telling the asker which. */
 export interface PresenceSnapshot {
   readonly onlineUserIds: readonly UserId[];
   readonly lastSeen: readonly PresenceLastSeen[];
