@@ -6,7 +6,7 @@ import type { VariantProps } from "tailwind-variants";
 import { cn, variantAttrs } from "#lib";
 import { useFieldIdentity } from "#primitives/field";
 import { Icon, Lock, Minus, MoveHorizontal, Plus } from "#primitives/icons";
-import { stripPastedGroups, stripTypedGroups } from "./group-text.ts";
+import { stripComposedGroups, stripPastedGroups, stripTypedGroups } from "./group-text.ts";
 import { numberFieldVariants } from "./variants.ts";
 
 // THE STEPPERS NAME THEIR SUBJECT (side-eye F-20, 2026-08-03). A bare "Decrease"/"Increase" is fine for
@@ -161,6 +161,7 @@ export function NumberField(props: NumberFieldProps): ReactElement {
           className={slots.input()}
           data-slot="number-field-input"
           onChange={(event): void => stripTypedGroups(event, rest.locale)}
+          onCompositionEnd={(event): void => stripComposedGroups(event, rest.locale)}
           onPaste={(event): void => stripPastedGroups(event, rest.locale)}
           {...nameProp}
           placeholder={placeholder}

@@ -7,11 +7,11 @@ import type { PresetListLifetimeStory } from "./_list-lifetime-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_list-lifetime-stories/PresetListLifetimeStory";
 const LOCALES = [
-  { locale: "en-US", grouped: "8,192", decimal: "0.7" },
-  { locale: "de-DE", grouped: "8.192", decimal: "0,7" },
+  { locale: "en-US", grouped: "8,192", decimal: "0.7", point: "0.7", shown: "0.7" },
+  { locale: "de-DE", grouped: "8.192", decimal: "0,7", point: "0.7", shown: "0,7" },
 ] as const;
 
-for (const { locale, grouped, decimal } of LOCALES) {
+for (const { locale, grouped, decimal, point, shown } of LOCALES) {
   test.describe(`preset knobs in ${locale}`, () => {
     test.use({ locale, viewport: { width: 1280, height: 900 } });
 
@@ -48,6 +48,19 @@ for (const { locale, grouped, decimal } of LOCALES) {
       await temperature.fill(decimal);
       await temperature.press("Tab");
       await expect(temperature).toHaveValue(decimal);
+      // A lone point is not a group, in a locale that groups with it or not: 0.7 reads 0.7, never 7.
+      await temperature.fill(point);
+      await temperature.press("Tab");
+      await expect(temperature).toHaveValue(shown);
+      // A field that takes no input takes no paste either.
+      const lifetime = page.getByRole("textbox", { name: "Response replay lifetime (seconds)", exact: true });
+      await expect(lifetime).toBeDisabled();
+      await lifetime.evaluate((input, text) => {
+        const data = new DataTransfer();
+        data.setData("text/plain", text);
+        input.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+      }, grouped);
+      await expect(lifetime).toHaveValue("");
     });
   });
 }
