@@ -2,11 +2,11 @@
 // internals sideways — the corpus/import producers that stage pending character-tag rows receive an
 // injected TagService at the root.
 
-export type { TagAssemblyContext as TagContext, TagService } from "./contract/service.ts";
+export type { TagAssemblyContext, TagService } from "./contract/service.ts";
 
 export { createTagService } from "./service.ts";
 export { createReadAttachedEntity } from "./verbs/attached-reader.ts";
-export { createExport as createTagLibraryExport } from "./verbs/export.ts";
-export { createImport as createTagLibraryImport } from "./verbs/import.ts";
+export { createTagLibraryExport } from "./verbs/export.ts";
+export { createTagLibraryImport } from "./verbs/import.ts";
 export { createImportedCardTag } from "./verbs/import-tag.ts";
 export { createSeedCardTag } from "./verbs/seed-tag.ts";

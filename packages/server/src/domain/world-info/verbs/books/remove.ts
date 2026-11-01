@@ -9,7 +9,7 @@ import { WorldInfoNotFoundError } from "#src/domain/world-info/contract/errors.t
 import type { RemoveBookParams } from "#src/domain/world-info/contract/params.ts";
 import type { WorldInfoContext, WorldInfoService } from "#src/domain/world-info/contract/service.ts";
 
-export function createRemove(ctx: WorldInfoContext): WorldInfoService["removeBook"] {
+export function createRemoveBook(ctx: WorldInfoContext): WorldInfoService["removeBook"] {
   return async ({ principal, bookId }: RemoveBookParams) => {
     const ownerId = principal.userId;
 

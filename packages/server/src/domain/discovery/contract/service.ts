@@ -3,7 +3,7 @@
 // writeHubScores seam; characterDossier's neighbours arrive via the injected `similar` search seam (wired at
 // the root — type-only here). analyze/swipes read the SEMANTIC messages projection (content, never economics).
 
-import type { DuplicateRelation } from "@orb/contracts/discovery";
+import type { Archetype, ArchetypeMember, DuplicateRelation, ModelRoutingRow, ThemeLevel, ThemeRow, VisualArchetype } from "@orb/contracts/discovery";
 import type { WriteHubScoresOp } from "@orb/contracts/embeddings";
 import type { ResolveUtilityPresetParams } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -41,13 +41,10 @@ import type {
   DuplicateChatsOptions,
   ImageFacetKey,
   SimilarityGraphOptions,
-  ThemeLevel,
   ThemeNameEstimateOptions,
   TopKeywordsOptions,
 } from "./params.ts";
 import type {
-  Archetype,
-  ArchetypeMember,
   AskCardAnswer,
   BrowseCharactersPage,
   CatalogStats,
@@ -70,7 +67,6 @@ import type {
   ImageFacetMember,
   ImageFacets,
   KeywordCount,
-  ModelRoutingRow,
   PortraitAlignmentReport,
   SimilarChat,
   SimilarityGraph,
@@ -78,8 +74,6 @@ import type {
   ThemeComputeStats,
   ThemeDetail,
   ThemeDriftBucket,
-  ThemeRow,
-  VisualArchetype,
 } from "./results.ts";
 
 // ── injected cross-feature ops (type-only; wired at the root) ─────────────────

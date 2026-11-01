@@ -5,9 +5,9 @@ import { classifyReference, Sources, siteKey } from "./classify.ts";
 import type { DeliberateEntry } from "./deliberate.ts";
 import { deliberateEntry } from "./deliberate.ts";
 import { serviceReferences } from "./language-service.ts";
-import { NativeWorld } from "./native.ts";
-import type { ReferenceIndex } from "./occurrences.ts";
-import { propertyIndex } from "./occurrences.ts";
+import { homeFiles, NativeWorld } from "./native.ts";
+import type { PropertyFacts, ReferenceIndex } from "./occurrences.ts";
+import { joinFacts, propertyFacts, propertyIndex } from "./occurrences.ts";
 import type { TypeMember } from "./type-members.ts";
 import { typeMembers } from "./type-members.ts";
 import { packageWorlds, TEST_WORLDS } from "./worlds.ts";
@@ -83,8 +83,12 @@ function countKinds(sites: readonly { readonly kind: ReferenceKind }[]): Record<
 
 /** Every callable member of one world with engine one's classified references. */
 export function scanWorld(world: NativeWorld, sources: Sources): readonly MemberReferences[] {
-  const members = typeMembers(world).filter((member) => member.callable && !member.nested);
-  const index = propertyIndex(world);
+  return memberReferences(callableMembers(world), propertyIndex(world), sources);
+}
+
+const callableMembers = (world: NativeWorld): readonly TypeMember[] => typeMembers(world).filter((member) => member.callable && !member.nested);
+
+function memberReferences(members: readonly TypeMember[], index: ReferenceIndex, sources: Sources): readonly MemberReferences[] {
   return members.map((member) => {
     const sites = classifySites(sources, sitesOf(index, member.keys, member.site));
     return { key: `${member.site.file}:${member.home}.${member.member}`, member, counts: countKinds(sites), sites };
@@ -122,14 +126,17 @@ interface Tally {
   readonly tests: Map<string, Site>;
 }
 
-function tallyWorld(tally: Map<string, Tally>, members: readonly MemberReferences[], testWorld: boolean): void {
+// A file homed in a test world is reached only from tests, so a use there is test-only.
+function tallyMembers(tally: Map<string, Tally>, members: readonly MemberReferences[], testFiles: ReadonlySet<string>): void {
   for (const member of members) {
     const entry = tally.get(member.key) ?? { first: member, use: 0, builder: 0, tests: new Map<string, Site>() };
-    // A test world's production files are the same files the package worlds already counted.
-    entry.use += testWorld ? 0 : member.counts.use;
     entry.builder += member.counts.builder;
-    for (const site of member.sites.filter((reference) => reference.kind === "test" || (testWorld && reference.kind === "use"))) {
-      entry.tests.set(siteKey(site), site);
+    for (const site of member.sites) {
+      const testOnly = testFiles.has(site.file);
+      entry.use += site.kind === "use" && !testOnly ? 1 : 0;
+      if (site.kind === "test" || (site.kind === "use" && testOnly)) {
+        entry.tests.set(siteKey(site), site);
+      }
     }
     tally.set(member.key, entry);
   }
@@ -148,14 +155,22 @@ export function scanUnwired(options: ScanOptions): UnwiredReport {
   const sources = new Sources(options.root);
   const tally = new Map<string, Tally>();
   const counted: UnwiredReport["worlds"][number][] = [];
-  const runs = [...worlds.map((world) => [world, false] as const), ...testWorlds.map((world) => [world, true] as const)];
-  for (const [config, testWorld] of runs) {
+  const configs = [...worlds, ...testWorlds];
+  const homes = homeFiles(configs, NativeWorld.fileLists(options.root, configs));
+  const facts: PropertyFacts[] = [];
+  const declared = new Map<string, TypeMember>();
+  for (const config of configs) {
     using world = NativeWorld.open(options.root, config);
-    const members = scanWorld(world, sources);
-    tallyWorld(tally, members, testWorld);
+    const members = callableMembers(world);
+    for (const member of members) {
+      declared.set(siteKey(member.site), declared.get(siteKey(member.site)) ?? member);
+    }
+    facts.push(propertyFacts(world, homes.get(config)));
     counted.push({ config, members: members.length });
     options.log(`${config}: ${members.length} members`);
   }
+  const testFiles = new Set(testWorlds.flatMap((config) => [...(homes.get(config) ?? [])]));
+  tallyMembers(tally, memberReferences([...declared.values()], joinFacts(facts).index, sources), testFiles);
   const candidates = [...tally.values()].filter((entry) => entry.use === 0);
   const packages = new Set(worlds);
   const flows = new Map<string, Set<string>>();

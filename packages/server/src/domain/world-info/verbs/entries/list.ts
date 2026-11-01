@@ -7,7 +7,7 @@ import type { ListEntriesParams } from "#src/domain/world-info/contract/params.t
 import type { WorldInfoContext, WorldInfoService } from "#src/domain/world-info/contract/service.ts";
 import { listBookEntries, loadOwnedBook, toEntryView } from "#src/domain/world-info/persistence/queries.ts";
 
-export function createList(ctx: WorldInfoContext): WorldInfoService["listEntries"] {
+export function createListEntries(ctx: WorldInfoContext): WorldInfoService["listEntries"] {
   return async ({ principal, bookId }: ListEntriesParams) => {
     const book = await loadOwnedBook(ctx.db, principal.userId, bookId);
     if (book === undefined) {

@@ -12,7 +12,7 @@ import {
   createLoadOwnedCard,
   createStampRefinerySignals,
 } from "#domain/character";
-import type { RefineryContext, RefineryService, RefineryWorkloadDeps, ResolveStructuredBinding } from "#domain/refinery";
+import type { RefineryAssemblyContext, RefineryService, RefineryWorkloadDeps, ResolveStructuredBinding } from "#domain/refinery";
 import { createPlanSchema, createRefineryService, isScoreSweepReady } from "#domain/refinery";
 import type { SettingsService } from "#domain/settings";
 import { createResolveUserProse } from "#domain/settings";
@@ -28,10 +28,10 @@ export interface RefineryComposeDeps {
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: Clock;
-  readonly roleClientsFor: RefineryContext["roleClientsFor"];
+  readonly roleClientsFor: RefineryAssemblyContext["roleClientsFor"];
   readonly resolveStructuredBinding: ResolveStructuredBinding;
   readonly character: Pick<CharacterService, "snapshot" | "update" | "get" | "duplicate">;
-  readonly resolveUtilityPresetParams: RefineryContext["resolveUtilityPresetParams"];
+  readonly resolveUtilityPresetParams: RefineryAssemblyContext["resolveUtilityPresetParams"];
   readonly loadUserSettings: SettingsService["loadUserSettings"];
 }
 

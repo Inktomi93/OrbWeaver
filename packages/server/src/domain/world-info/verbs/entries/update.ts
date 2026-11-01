@@ -17,7 +17,7 @@ import { listChatIdsForBook, loadOwnedEntry, toEntryView } from "#src/domain/wor
 
 const SCOPE_AFFECTING_FIELDS = ["keys", "enabled", "metadata"] as const;
 
-export function createUpdate(ctx: WorldInfoContext): WorldInfoService["updateEntry"] {
+export function createUpdateEntry(ctx: WorldInfoContext): WorldInfoService["updateEntry"] {
   return async ({ principal, entryId, input }: UpdateEntryParams) => {
     const ownerId = principal.userId;
     let metadata: EntryMetadata | null | undefined;

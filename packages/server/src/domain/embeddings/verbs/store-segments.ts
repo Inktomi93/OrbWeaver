@@ -16,11 +16,10 @@
 //
 // A one-element call is the live post-turn path — same code, batch of one.
 
-import type { StoreGenerationReceipt } from "@orb/contracts/embeddings";
+import type { StoreGenerationReceipt, StoreResult } from "@orb/contracts/embeddings";
 import type { UserId } from "@orb/kit/ids";
 import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
 import type { SegmentStoreParams } from "../contract/params.ts";
-import type { StoreResult } from "../contract/results.ts";
 import type { EmbeddingsContext, EmbeddingsService, PinnedGeneration } from "../contract/service.ts";
 import { existingSegmentHash, upsertChatSegment } from "../persistence/queries.ts";
 import { resolveTargetGeneration } from "../substrate/generation.ts";

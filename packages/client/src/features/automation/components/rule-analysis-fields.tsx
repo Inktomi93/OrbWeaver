@@ -2,11 +2,10 @@ import { ANALYSIS_APPLY_MODES } from "@orb/contracts/automation";
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { ChevronRight, Icon } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
-import { Switch } from "@orb/ui/switch";
+import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useId } from "react";
+import { SettingSwitchRow } from "#components";
 import type { AutosaveSession } from "#forms/editor";
 import { touchedFieldError } from "#forms/editor";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
@@ -26,7 +25,6 @@ export function RuleAnalysisFields({
   readonly action: Extract<RuleEditorValues["actions"][number], { type: "run_analysis" }>;
   readonly chatId: ChatId | null;
 }): ReactElement {
-  const outputsId = useId();
   const confirmations =
     Number(action.routes.steer?.apply === "confirm") +
     Number(action.routes.lore?.apply === "confirm") +
@@ -60,15 +58,11 @@ export function RuleAnalysisFields({
         <Text voice="label">Outputs</Text>
         <form.AppField name={`actions[${index}].routes.steer`}>
           {(field): ReactElement => (
-            <Row gap="field" align="center">
-              <Switch
-                id={`${outputsId}-steer`}
-                aria-label="Guidance"
-                checked={field.state.value !== undefined}
-                onCheckedChange={(checked): void => field.handleChange(checked ? { apply: "direct" } : undefined)}
-              />
-              <label htmlFor={`${outputsId}-steer`}>Guidance</label>
-            </Row>
+            <SettingSwitchRow
+              label="Guidance"
+              checked={field.state.value !== undefined}
+              onChange={(checked): void => field.handleChange(checked ? { apply: "direct" } : undefined)}
+            />
           )}
         </form.AppField>
         {action.routes.steer === undefined ? null : (
@@ -78,15 +72,11 @@ export function RuleAnalysisFields({
         )}
         <form.AppField name={`actions[${index}].routes.lore`}>
           {(field): ReactElement => (
-            <Row gap="field" align="center">
-              <Switch
-                id={`${outputsId}-lore`}
-                aria-label="World book"
-                checked={field.state.value !== undefined}
-                onCheckedChange={(checked): void => field.handleChange(checked ? { apply: "confirm", bookId: "" } : undefined)}
-              />
-              <label htmlFor={`${outputsId}-lore`}>World book</label>
-            </Row>
+            <SettingSwitchRow
+              label="World book"
+              checked={field.state.value !== undefined}
+              onChange={(checked): void => field.handleChange(checked ? { apply: "confirm", bookId: "" } : undefined)}
+            />
           )}
         </form.AppField>
         {action.routes.lore === undefined ? null : (
@@ -110,44 +100,32 @@ export function RuleAnalysisFields({
         <form.AppField name={`actions[${index}].routes`}>
           {(field): ReactElement => (
             <Stack gap="tight">
-              <Row gap="field" align="center">
-                <Switch
-                  id={`${outputsId}-suggest`}
-                  aria-label="Suggested turns"
-                  checked={action.routes.suggest !== undefined}
-                  onCheckedChange={(checked): void => {
-                    const { suggest: _removed, ...rest } = action.routes;
-                    field.handleChange(checked ? { ...rest, suggest: {} } : rest);
-                  }}
-                />
-                <label htmlFor={`${outputsId}-suggest`}>Suggested turns</label>
-              </Row>
-              <Row gap="field" align="center">
-                <Switch
-                  id={`${outputsId}-rewrite`}
-                  aria-label="Rewrite suggestions"
-                  checked={action.routes.rewrite !== undefined}
-                  onCheckedChange={(checked): void => {
-                    const { rewrite: _removed, ...rest } = action.routes;
-                    field.handleChange(checked ? { ...rest, rewrite: {} } : rest);
-                  }}
-                />
-                <label htmlFor={`${outputsId}-rewrite`}>Rewrite suggestions</label>
-              </Row>
+              <SettingSwitchRow
+                label="Suggested turns"
+                checked={action.routes.suggest !== undefined}
+                onChange={(checked): void => {
+                  const { suggest: _removed, ...rest } = action.routes;
+                  field.handleChange(checked ? { ...rest, suggest: {} } : rest);
+                }}
+              />
+              <SettingSwitchRow
+                label="Rewrite suggestions"
+                checked={action.routes.rewrite !== undefined}
+                onChange={(checked): void => {
+                  const { rewrite: _removed, ...rest } = action.routes;
+                  field.handleChange(checked ? { ...rest, rewrite: {} } : rest);
+                }}
+              />
             </Stack>
           )}
         </form.AppField>
         <form.AppField name={`actions[${index}].routes.vars`}>
           {(field): ReactElement => (
-            <Row gap="field" align="center">
-              <Switch
-                id={`${outputsId}-vars`}
-                aria-label="Score variable"
-                checked={field.state.value !== undefined}
-                onCheckedChange={(checked): void => field.handleChange(checked ? { key: "" } : undefined)}
-              />
-              <label htmlFor={`${outputsId}-vars`}>Score variable</label>
-            </Row>
+            <SettingSwitchRow
+              label="Score variable"
+              checked={field.state.value !== undefined}
+              onChange={(checked): void => field.handleChange(checked ? { key: "" } : undefined)}
+            />
           )}
         </form.AppField>
         {action.routes.vars === undefined ? null : (

@@ -11,7 +11,7 @@ import { slugifyHandle } from "@orb/kit/slug";
 import type { PresetContext } from "../contract/service.ts";
 import { listOwned } from "../persistence/queries.ts";
 
-export function createExport(input: DbAssemblyInput<PresetContext>): ExportPresets {
+export function createExportPresets(input: DbAssemblyInput<PresetContext>): ExportPresets {
   const ctx: PresetContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId }): Promise<PortableFile[]> => {
     const rows = await listOwned(ctx.db, ownerId);

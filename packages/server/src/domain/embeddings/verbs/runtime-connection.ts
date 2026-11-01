@@ -5,6 +5,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import { ENCODER_IDENTITY_NO_API } from "@orb/contracts/inference";
 import type { EmbedResult } from "@orb/contracts/providers";
+import type { ImageEmbedInput } from "@orb/contracts/role-clients";
 import type { Resolved } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import type { EmbeddingRuntime } from "../contract/runtime-connection.ts";
@@ -38,6 +39,11 @@ export function createResolveEmbeddingConnection(runtime: EmbeddingRuntime, prin
       ...(opts?.signal === undefined ? {} : { signal: opts.signal }),
     });
   };
+  // A stated instruction replaces the wire's cookbook default, so the capability gate has to run on this path too.
+  const honouredImageInput = (input: ImageEmbedInput, connection: Resolved): ImageEmbedInput =>
+    input.instruction === undefined || connection.capability.kind !== "embedding"
+      ? input
+      : { ...input, instruction: runtime.funnel.embed({ instruction: input.instruction }, connection.capability.embedding).instruction };
   const snapshotOf = (generationConnection: Resolved): EmbeddingConnectionSnapshot => ({
     connectionId: generationConnection.connectionId,
     providerId: generationConnection.providerId,
@@ -60,7 +66,11 @@ export function createResolveEmbeddingConnection(runtime: EmbeddingRuntime, prin
       if (!isResolvedTask(generationConnection, "imageEmbed")) {
         throw new Error("generation is not an image embed connection");
       }
-      return runtime.executor.imageEmbed({ connection: generationConnection, input, ...(opts?.signal === undefined ? {} : { signal: opts.signal }) });
+      return runtime.executor.imageEmbed({
+        connection: generationConnection,
+        input: honouredImageInput(input, generationConnection),
+        ...(opts?.signal === undefined ? {} : { signal: opts.signal }),
+      });
     },
   });
   return async (ownerId, task, connectionId, opts) => {

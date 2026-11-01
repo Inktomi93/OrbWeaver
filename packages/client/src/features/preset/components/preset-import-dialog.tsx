@@ -20,7 +20,7 @@ import { PRESET_SCHEMA_KIND, tryImportStChatCompletionPreset } from "@orb/contra
 import { Button } from "@orb/ui/button";
 import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { FileDropzone } from "@orb/ui/file-dropzone";
-import { AlertTriangle, Icon } from "@orb/ui/icons";
+import { Icon, TriangleAlert } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -202,7 +202,7 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
 
         {error !== null ? (
           <Row align="start" gap="field">
-            <Icon icon={AlertTriangle} size="sm" tone="destructive" />
+            <Icon icon={TriangleAlert} size="sm" tone="destructive" />
             <Text prose={true} voice="label">
               {error}
             </Text>

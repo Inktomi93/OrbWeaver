@@ -11,7 +11,7 @@
 
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
-import { AlertTriangle, ChevronRight, Icon, MessagesSquare } from "@orb/ui/icons";
+import { ChevronRight, Icon, MessagesSquare, TriangleAlert } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -35,7 +35,7 @@ export function PivotBand({ duplicate, restoreFocus, onSelect, onDrill }: PivotB
     return (
       <Card tone="warning" variant="soft">
         <Row align="center" gap="row">
-          <Icon icon={AlertTriangle} size="sm" tone="warning" />
+          <Icon icon={TriangleAlert} size="sm" tone="warning" />
           <Text className="flex-1" voice="label">
             Duplicate chat history — only the first one splits the conversation. Remove this one.
           </Text>

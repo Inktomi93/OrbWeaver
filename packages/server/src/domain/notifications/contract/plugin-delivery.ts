@@ -5,4 +5,3 @@ export interface PluginNotificationDeliveryDeps {
   readonly notifications: Pick<NotificationsService, "record" | "refreshStanding" | "retract">;
   readonly publish: (view: InboxView, correction?: boolean) => void;
 }
-export type { PluginNotificationDelivery } from "@orb/contracts/plugin";

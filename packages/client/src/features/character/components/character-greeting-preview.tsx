@@ -8,7 +8,7 @@ import type { ThemeOverride } from "@orb/contracts/theme";
 import { cardEmbeddableSubset } from "@orb/contracts/theme";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Icon, Pencil, Plus, Trash2, WandSparkles } from "@orb/ui/icons";
+import { Icon, Pencil, Plus, Trash, WandSparkles } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { MacroTextarea } from "@orb/ui/macro-textarea";
 import { Markdown } from "@orb/ui/markdown";
@@ -284,7 +284,7 @@ function GreetingActions({
               addOpeningRef.current?.focus();
             }}
           >
-            <Icon icon={Trash2} size="sm" />
+            <Icon icon={Trash} size="sm" />
             {REMOVE_GREETING_NAME}
           </Button>
         ) : null}

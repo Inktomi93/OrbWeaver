@@ -5,10 +5,13 @@ import type {
   EmbeddingConnectionFacts,
   EmbeddingTask,
   EmbedPassResult,
+  GenerationReceipt,
   ListCharacterIds,
   ListImageAssetIds,
   PruneDocumentChunksOp,
+  PruneMemoryBlocksParams,
   ResolveEmbeddingConnectionOp,
+  StoreResult,
   SyncTargetGenerationsOp,
   TargetWouldMoveOp,
   VectorScope,
@@ -28,9 +31,8 @@ import type { AssetId, CharacterEmbeddingId, CharacterId, ChatDigestId, ChatId, 
 import type { Clock, ScheduleOp } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import type { Logger } from "#foundation/observability";
-import type { GenerationReceipt } from "./generation.ts";
-import type { EmbedPassParams, PruneMemoryBlocksParams, SegmentStoreParams, StoreParams } from "./params.ts";
-import type { ImageSpace, ImageSpaceDegrade, StoreResult } from "./results.ts";
+import type { EmbedPassParams, SegmentStoreParams, StoreParams } from "./params.ts";
+import type { ImageSpace, ImageSpaceDegrade } from "./results.ts";
 
 // The typed API surface: the two DI bundles, the verb interface, injected cross-feature op types, and the
 // indexer interface. Every cross-feature capability arrives as an injected op (no sideways imports); there is

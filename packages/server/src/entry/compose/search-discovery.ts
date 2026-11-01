@@ -2,6 +2,7 @@
 // Workload admission is late-bound because chat contributes runners after this graph is constructed.
 
 import type { DomainEvent } from "@orb/contracts/events";
+import type { ResolvePersonasForParticipants } from "@orb/contracts/persona";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { RoleClientsWithSignal } from "@orb/inference";
 import type { IdSource, UserId } from "@orb/kit/ids";
@@ -21,15 +22,15 @@ import {
   createResolveStandingAsks,
   createResolveViewerVisibility,
   loadPresentHostUserId,
-  requireAuthorOrHost,
+  requireWiredAuthorOrHost,
   setParticipantActivePersona,
 } from "#domain/chat";
 import { resolveActiveDocumentIds, resolveActiveDocumentScope } from "#domain/databank";
-import type { DiscoveryContext, DiscoveryService, DiscoveryWorkloadDeps } from "#domain/discovery";
+import type { DiscoveryAssemblyContext, DiscoveryService, DiscoveryWorkloadDeps } from "#domain/discovery";
 import { createDiscoveryService, createDossierNeighbors, distinctCorpusOwners } from "#domain/discovery";
 import type {
   EmbeddingReindexTriggers,
-  EmbeddingsContext,
+  EmbeddingsAssemblyContext,
   EmbeddingsIndexer,
   EmbeddingsService,
   ResolveEmbeddingConnection,
@@ -47,14 +48,14 @@ import {
 } from "#domain/embeddings";
 import type { NotificationsService } from "#domain/notifications";
 import { createNotificationsService } from "#domain/notifications";
-import type { PersonaContext, PersonaService, ResolvePersonasForParticipants } from "#domain/persona";
+import type { PersonaAssemblyContext, PersonaService } from "#domain/persona";
 import {
   createJoinerPersonaStatement,
   createPersonaService,
   createRepointSeedsAfterPersonaDelete,
   createResolvePersonasForParticipants,
 } from "#domain/persona";
-import type { PresetContext, PresetService } from "#domain/preset";
+import type { PresetAssemblyContext, PresetService } from "#domain/preset";
 import { createPresetService, createResolvePresetUsage } from "#domain/preset";
 import { listGmPresetChatIds } from "#domain/rpg";
 import type { FieldIndexCache, SearchService } from "#domain/search";
@@ -81,7 +82,7 @@ export interface SearchDiscoveryComposeDeps {
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
   readonly supervise?: DetachedSupervision["superviseDetached"];
-  readonly scheduleTimeout: EmbeddingsContext["scheduleTimeout"];
+  readonly scheduleTimeout: EmbeddingsAssemblyContext["scheduleTimeout"];
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: Clock;
@@ -90,11 +91,11 @@ export interface SearchDiscoveryComposeDeps {
    *  (vector tasks are owner-scoped, §7.5) and the workload's acting user for the summarize passes. */
   readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;
   readonly resolveEmbeddingConnection: ResolveEmbeddingConnection;
-  readonly withStableEmbeddingBinding: EmbeddingsContext["withStableEmbeddingBinding"];
+  readonly withStableEmbeddingBinding: EmbeddingsAssemblyContext["withStableEmbeddingBinding"];
   readonly eventBus: PubSub<DomainEvent>;
   readonly attachCardTagByName: TagService["attachCardTagByName"];
   /** The card owner's Utility-role preset params (D299) — distill + analyze. */
-  readonly resolveUtilityPresetParams: DiscoveryContext["resolveUtilityPresetParams"];
+  readonly resolveUtilityPresetParams: DiscoveryAssemblyContext["resolveUtilityPresetParams"];
   readonly character: Pick<CharacterService, "listEmbeddableCharacterIds" | "loadCardText">;
   readonly assets: Pick<AssetsService, "listImageAssetIds" | "loadAssetBytes" | "assetCasRefById">;
   readonly settings: Pick<SettingsService, "loadUserSettings" | "updateUserSettingsSection">;
@@ -109,7 +110,7 @@ export interface SearchDiscoveryComposeDeps {
   /** preset's ONE cross-feature op: the caller's chat-role capability, for `preset.resolveEffective`'s
    *  projection of the generation funnel. `connection` composes BEFORE this seam at the keystone, so it is a
    *  plain dep, not a forward-ref. */
-  readonly resolveChatCapability: PresetContext["resolveChatCapability"];
+  readonly resolveChatCapability: PresetAssemblyContext["resolveChatCapability"];
   /** The LATE-BOUND workload contribution registry (assembled after chat, at the keystone) — the workloads
    *  verbs deref it per call as their per-kind params validator. */
   readonly getContributions: WorkloadServiceContext["getContributions"];
@@ -130,7 +131,7 @@ export interface SearchDiscoveryComposeResult {
   readonly resolvePersonasForParticipants: ResolvePersonasForParticipants;
   /** D259 — the sign-up joiner's persona statement chat's signup batch runs. Built from the same `PersonaContext`. */
   readonly joinerPersonaStatement: SignupInviteDeps["signupPersonaStatement"];
-  readonly presetCtx: PresetContext;
+  readonly presetCtx: PresetAssemblyContext;
   readonly preset: PresetService;
   readonly stats: StatsService;
   readonly search: SearchService;
@@ -222,7 +223,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   // Named (not inlined into the service call) because TWO things are built from it: the Principal-scoped
   // `PersonaService` and the PRINCIPAL-LESS participants op (`domain/persona/contract/ops.ts`) the chat
   // FOREIGN-inputs resolver reads a room's personas through. One ctx, one home for the persona wiring.
-  const personaCtx: PersonaContext = {
+  const personaCtx: PersonaAssemblyContext = {
     db,
     now,
     newPersonaId: minter(ID_PREFIX.persona, deps.idSource),
@@ -235,7 +236,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     // its seat/anchor pointers, then fans the captured set — the post-write `emit` path above would see ∅.
     captureRoomReachForDelete: deleteReachCapture.persona,
     requireChatAuthorOrHost: async (principal, chatId, targetUserId) => {
-      await requireAuthorOrHost({ db, can }, principal, chatId, targetUserId);
+      await requireWiredAuthorOrHost({ db, can }, principal, chatId, targetUserId);
     },
     setChatActivePersona: async (chatId, targetUserId, personaId) => {
       await setParticipantActivePersona(db, deps.emitChatEvent, { chatId, targetUserId, personaId });
@@ -255,7 +256,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   const persona = createPersonaService(personaCtx);
   const resolvePersonasForParticipants = createResolvePersonasForParticipants(personaCtx);
   const joinerPersonaStatement = createJoinerPersonaStatement(personaCtx);
-  const presetCtx: PresetContext = {
+  const presetCtx: PresetAssemblyContext = {
     logger: deps.logger,
     db,
     now,

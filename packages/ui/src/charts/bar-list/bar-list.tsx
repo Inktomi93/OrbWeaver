@@ -10,7 +10,7 @@ import { LabeledChartFrame } from "../labeled-chart-frame/index.ts";
 import type { BarListIntent, BarListItem } from "./option.ts";
 import { buildBarListOption } from "./option.ts";
 
-export type { BarListIntent, BarListItem } from "./option.ts";
+export type { BarListIntent } from "./option.ts";
 
 export interface BarListProps {
   /** Pre-sorted rank order — index 0 renders as the TOP row. */

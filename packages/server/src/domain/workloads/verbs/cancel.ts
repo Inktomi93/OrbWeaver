@@ -3,8 +3,9 @@
 // and visibility-gated before any state change — a caller cancelling a workload it doesn't own gets a
 // leak-free DomainNotFoundError and nothing is mutated.
 
+import type { CancelWorkloadResult } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CancelWorkloadParams, CancelWorkloadResult } from "../contract/params.ts";
+import type { CancelWorkloadParams } from "../contract/params.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
 import { loadWorkload, markCancelling } from "../persistence/queries.ts";
 import { isVisibleToCaller } from "../substrate/authorize.ts";

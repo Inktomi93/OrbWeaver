@@ -27,4 +27,6 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 1 row = 1 applied. 0 kept, 0 handed off, 0 owner questions.
+
+- `ConnectionContext` / `ConnectionAssemblyContext` renamed-reexport: applied. `domain/connection/index.ts` exports `ConnectionAssemblyContext` under its declared name; the one importer (ast-grep ts 5949 / tsx 1525 tracked files, plan from importers of the door) is renamed with the `move-import-names` codemod. The inner `ConnectionContext` in `contract/service.ts` is a different type, so the declaration cannot take that name.

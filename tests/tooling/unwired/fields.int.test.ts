@@ -2,22 +2,11 @@
 // never writes, and one it never names. Each read and write form the scan must see has a wired control beside it.
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { scanFields } from "../../../tooling/src/unwired/index.ts";
-import { LIB, WORLD } from "./_planted.ts";
+import { LIB, WORLD, ZOD_STUB } from "./_planted.ts";
 
 const TREE = {
   [WORLD]: plantedTsconfig({ lib: LIB }),
-  "packages/a/src/z.ts": [
-    "export interface Schema<V> { readonly value?: V; optional(): Schema<V | undefined> }",
-    "const schema = <V>(): Schema<V> => ({ optional: () => schema<V | undefined>() });",
-    "export type Infer<S> = S extends { readonly shape: infer T } ? { [K in keyof T]: T[K] extends Schema<infer V> ? V : never } : never;",
-    "export const z = {",
-    "  object: <T>(shape: T): { readonly shape: T } => ({ shape }),",
-    "  discriminatedUnion: <T>(key: string, options: T): { readonly shape: T } => ({ shape: options }),",
-    "  lazy: <T>(make: () => T): T => make(),",
-    "  string: (): Schema<string> => schema<string>(),",
-    "};",
-    "export type Checked<T> = { readonly shape: unknown } & { readonly checked?: T };",
-  ].join("\n"),
+  "packages/a/src/z.ts": ZOD_STUB,
   "packages/a/src/row.ts": [
     'import type { Checked, Infer } from "./z.ts";',
     'import { z } from "./z.ts";',
@@ -124,7 +113,8 @@ test("the fields scan reports never-read, never-written and unreferenced fields,
     { field: "Stranger.title", kind: "unreferenced", origin: "type", tests: 0 },
     { field: "Tree.leaf", kind: "unreferenced", origin: "type", tests: 0 },
   ]);
-  expect(report.disagreements).toEqual([]);
+  // The read narrows to the first option; find-references climbs to every option that declares the member.
+  expect(report.disagreements).toEqual([{ key: "packages/a/src/outside.ts:HealthSchema.at#2", uses: ["packages/a/src/outside.ts:35"] }]);
 });
 
 test("a field the deliberate list names leaves the unwired list with its reason", { timeout: 120_000 }, async ({ plantedTree }) => {
@@ -139,6 +129,83 @@ test("a field the deliberate list names leaves the unwired list with its reason"
   });
   expect(report.deliberate.map(({ member, reason: why }) => ({ member, why }))).toEqual([{ member: "dead", why: reason }]);
   expect(report.unwired.map(({ member }) => member)).not.toContain("dead");
+});
+
+// Engine one is the judge. A spread link find-references cannot follow is no contradiction; a site engine two finds in a
+// role engine one lacks is, and that field leaves the findings.
+const AUDITED = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/z.ts": ZOD_STUB,
+  "packages/a/src/audit.ts": [
+    'import type { Infer } from "./z.ts";',
+    'import { z } from "./z.ts";',
+    "export const Input = z.object({ chatId: z.string(), title: z.string().optional() });",
+    "export interface Params { readonly owner: string; readonly chatId: string; readonly title?: string | undefined }",
+    'export const verb = (params: Params): string => params.owner + params.chatId + (params.title ?? "");',
+    'export const route = (input: Infer<typeof Input>): string => verb({ owner: "o", ...input });',
+    'export const called = route({ chatId: "c" });',
+    "export interface Card { readonly starred: boolean }",
+    "export interface Detail extends Card { readonly starred: boolean }",
+    "export const detail: Detail = { starred: true };",
+    "export const card: Card = { starred: false };",
+    "export const isStarred = card.starred;",
+  ].join("\n"),
+};
+
+test("engine two only audits: fewer sites contradict nothing, a site in a role engine one lacks does", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(AUDITED);
+  const report = scanFields({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const planted = report.unwired.filter(({ file }) => file.endsWith("audit.ts"));
+  expect(planted.map(({ home, member, kind }) => `${home}.${member} ${kind}`)).toEqual(["Input.title never-written"]);
+  expect(report.disagreements).toEqual([{ key: "packages/a/src/audit.ts:Detail.starred", uses: ["packages/a/src/audit.ts:12"] }]);
+});
+
+// `HostEnv` is parsed from outside the tree. A resolver spreads it and overrides `base`: that write reaches the home
+// only through the spread link, so `host` is no default the tree chose. `Written.extra` beside it is the found case.
+const LINK_WRITTEN = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/z.ts": ZOD_STUB,
+  "packages/a/src/env.ts": [
+    'import type { Infer } from "./z.ts";',
+    'import { z } from "./z.ts";',
+    "export const HostEnv = z.object({ host: z.string().optional(), base: z.string().optional() });",
+    "export interface Resolved { readonly host: string | undefined; readonly base: string }",
+    'export const resolve = (val: Infer<typeof HostEnv>): Resolved => ({ ...val, base: "x" });',
+    'export const shown = (env: Resolved): string => (env.host ?? "") + env.base;',
+    "export const Written = z.object({ name: z.string(), extra: z.string().optional() });",
+    'export const written: Infer<typeof Written> = { name: "n" };',
+    'export const named = (row: Infer<typeof Written>): string => row.name + (row.extra ?? "");',
+  ].join("\n"),
+};
+
+test("a write that reaches a home only through a link does not mark the home written", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(LINK_WRITTEN);
+  const report = scanFields({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const planted = report.unwired.filter(({ file }) => file.endsWith("env.ts"));
+  expect(planted.map(({ home, member, kind }) => `${home}.${member} ${kind}`)).toEqual(["Written.extra never-written"]);
+  expect(report.disagreements).toEqual([]);
+});
+
+// Two options of a union name one key: each is its own field, judged on its own sites. `Lone.tag` is the control: one
+// declaration keeps the bare key.
+const OPTIONS = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/z.ts": ZOD_STUB,
+  "packages/a/src/options.ts": [
+    'import { z } from "./z.ts";',
+    "export const Actor = z.discriminatedUnion('kind', [",
+    "  z.object({ kind: z.string(), tag: z.string() }),",
+    "  z.object({ kind: z.string(), tag: z.string(), name: z.string() }),",
+    "]);",
+    "export const Lone = z.object({ tag: z.string() });",
+  ].join("\n"),
+};
+
+test("each union option's key is its own field", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(OPTIONS);
+  const report = scanFields({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const keys = report.unwired.flatMap(({ file, key }) => (file.endsWith("options.ts") ? [key.replace("packages/a/src/options.ts:", "")] : []));
+  expect(keys.toSorted()).toEqual(["Actor.kind", "Actor.kind#2", "Actor.name", "Actor.tag", "Actor.tag#2", "Lone.tag"]);
 });
 
 // The client imports the router through `@orb/server`; with no declaration surface planted, only the scans' source

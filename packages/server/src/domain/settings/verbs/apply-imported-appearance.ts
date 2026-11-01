@@ -20,11 +20,10 @@
 // depend on readdir order. The parsed blob always has a value for every key (the schema defaults), so
 // "already set" is measured against the schema DEFAULT, not against absence.
 
-import type { UserSettings } from "@orb/contracts/settings";
+import type { ImportedAppearance, ImportedAppearanceOutcome, UserSettings } from "@orb/contracts/settings";
 import { parseUserSettings } from "@orb/contracts/settings";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { UserId } from "@orb/kit/ids";
-import type { ImportedAppearance, ImportedAppearanceOutcome } from "../contract/portability.ts";
 import type { SettingsAssemblyContext, SettingsContext } from "../contract/service.ts";
 import { readUserSettings, writeUserConfig } from "../persistence/queries.ts";
 

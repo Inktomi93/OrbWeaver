@@ -10,7 +10,7 @@ import type { CreateEntryParams } from "#src/domain/world-info/contract/params.t
 import type { WorldInfoContext, WorldInfoService } from "#src/domain/world-info/contract/service.ts";
 import { listChatIdsForBook, loadOwnedBook } from "#src/domain/world-info/persistence/queries.ts";
 
-export function createCreate(ctx: WorldInfoContext): WorldInfoService["createEntry"] {
+export function createCreateEntry(ctx: WorldInfoContext): WorldInfoService["createEntry"] {
   return async ({ principal, bookId, input }: CreateEntryParams) => {
     const ownerId = principal.userId;
     const book = await loadOwnedBook(ctx.db, ownerId, bookId);

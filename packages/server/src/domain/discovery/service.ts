@@ -1,11 +1,11 @@
 // Discovery binds its compute/read helpers over the injected context. Workload contributions enter through
 // this service, keeping domain policy out of the generic execution substrate (D117).
 
+import type { ThemeLevel, ThemeRow } from "@orb/contracts/discovery";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { UserId } from "@orb/kit/ids";
-import type { ThemeLevel } from "./contract/params.ts";
-import type { DuplicateCharacterPair, DuplicateChatPair, ThemeRow } from "./contract/results.ts";
+import type { DuplicateCharacterPair, DuplicateChatPair } from "./contract/results.ts";
 import type { DiscoveryContext, DiscoveryService, ViewsDeps } from "./contract/service.ts";
 import { computeCooccurrence as runComputeCooccurrence } from "./cooccurrence/generate.ts";
 import { characterKeywords, cooccurringKeywords, topKeywords } from "./cooccurrence/retrieve.ts";
