@@ -16,7 +16,7 @@ import type {
   RoomOverrides,
   SpeakerRef,
 } from "@orb/contracts/chat";
-import { joinSendBlockText, speakerKey } from "@orb/contracts/chat";
+import { speakerKey } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS, REWRITE_TOGGLES } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -356,8 +356,6 @@ interface BuildAssembleContextInput {
   readonly lastCharMessage?: string | undefined;
   /** In-flight (uncommitted) user turn — folded into the WI keyword haystack. */
   readonly pendingUserText?: string | undefined;
-  /** A structured send's markdown texts: each runs the author-side transforms alone, so no transform sees a picture ref. */
-  readonly pendingUserSegments?: readonly string[] | undefined;
   readonly currentInput?: string | undefined;
   readonly userInjections: readonly ChatInjection[];
   readonly memory?: string | null | undefined;
@@ -413,8 +411,6 @@ interface BuildAssembleContextInput {
  *  the SEND verb persists the exact same text the WI haystack saw. */
 interface SendRegexResult {
   sendUserText?: string;
-  /** The transformed {@link BuildAssembleContextInput.pendingUserSegments}, in order. */
-  sendUserSegments?: readonly string[];
   /** The VOLATILE-FREEZE record (D129-F) of what the SEND bake resolved out of the composer draft, in
    *  occurrence order. Written only when something actually froze (absent ⇒ the draft carried no volatile
    *  macro — the common case, and the reason `macro_freezes` stays NULL for it). */
@@ -818,52 +814,8 @@ async function runSendAuthorTransforms(
     readonly out: SendRegexResult | undefined;
   },
 ): Promise<string> {
-  const { input, out } = args;
+  const { draft, input, base, hostScripts, out } = args;
   const freezes: MacroFreeze[] = [];
-  const segments = input.pendingUserSegments;
-  if (segments === undefined || segments.length === 0) {
-    const text = await transformSendDraft(ctx, { ...args, freezes });
-    recordSendText(out, { text, freezes });
-    return text;
-  }
-  const transformed: string[] = [];
-  // In order, not in parallel: the seeded PRNG and the occurrence-ordered freeze record both follow the text.
-  for (const segment of segments) {
-    transformed.push(await transformSendDraft(ctx, { ...args, draft: segment, freezes }));
-  }
-  const text = joinSendBlockText(transformed);
-  recordSendText(out, { text, freezes, segments: transformed });
-  return text;
-}
-
-function recordSendText(
-  out: SendRegexResult | undefined,
-  result: { readonly text: string; readonly freezes: readonly MacroFreeze[]; readonly segments?: readonly string[] },
-): void {
-  if (out === undefined) {
-    return;
-  }
-  out.sendUserText = result.text;
-  if (result.segments !== undefined) {
-    out.sendUserSegments = result.segments;
-  }
-  if (result.freezes.length > 0) {
-    out.sendMacroFreezes = [...result.freezes];
-  }
-}
-
-/** One draft through the ruled chain; appends what it froze to `freezes`. */
-async function transformSendDraft(
-  ctx: ChatContext,
-  args: {
-    readonly draft: string;
-    readonly input: BuildAssembleContextInput;
-    readonly base: AssembleContext;
-    readonly hostScripts: readonly RegexScriptRow[];
-    readonly freezes: MacroFreeze[];
-  },
-): Promise<string> {
-  const { draft, input, base, hostScripts, freezes } = args;
   let text = freezeVolatileMacros(draft, base, { random: input.prng, registry: input.freezeMacroRegistry, freezes });
   // The D50 `user_input` PromptTransform point: AFTER the macro pass,
   // BEFORE the USER_INPUT regex. Rewrites the draft the WI haystack + the persisted row both see (author-
@@ -903,6 +855,12 @@ async function transformSendDraft(
       applyReplace: ctx.applyRegexReplace,
       onScriptFailure: onHostRegexFailure("USER_INPUT", ctx.logger),
     });
+  }
+  if (out !== undefined) {
+    out.sendUserText = text;
+    if (freezes.length > 0) {
+      out.sendMacroFreezes = freezes;
+    }
   }
   return text;
 }

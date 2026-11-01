@@ -329,6 +329,160 @@ test("only block text picks a speaker: an @mention in an alt is a label", async 
   expect(await speakers([{ kind: "markdown", md: "@bryn look" }, IMAGE_BLOCK(assetId)])).toEqual([roster[1]?.id]);
 });
 
+const MARKDOWN = (md: string): SendContentBlock => ({ kind: "markdown", md });
+
+async function hostRegex(box: Box, findRegex: string, replaceString: string): Promise<void> {
+  const script = await box.root.services.regex.createScript({
+    principal: box.host,
+    input: createRegexScriptSchema.parse({ name: "Host regex", findRegex, replaceString, placement: ["USER_INPUT"] }),
+  });
+  await box.root.services.regex.attachGlobal({ principal: box.host, scriptId: script.id });
+}
+
+async function userInputRule(box: Box, template: string): Promise<void> {
+  const made = await box.root.services.automation.createRule({
+    chatId: box.chatId,
+    name: "Signature",
+    trigger: { bus: "chat", type: "turnStarted" },
+    actions: [{ type: "transform_draft", target: "user_input", template }],
+    principal: box.host,
+    timeZone: UTC_TIME_ZONE,
+  });
+  await box.root.services.automation.setRuleEnabled({ principal: box.host, ruleId: made.id, enabled: true });
+}
+
+async function userBodies(box: Box): Promise<string[]> {
+  return (await box.caller.chat.listMessages({ chatId: box.chatId })).messages.filter((message) => message.role === "user").map((message) => message.content);
+}
+
+async function sendBlocks(box: Box, blocks: readonly SendContentBlock[]): Promise<void> {
+  await box.caller.chat.send({ chatId: box.chatId, content: "", blocks: [...blocks], timeZone: UTC_TIME_ZONE });
+}
+
+test.for([
+  { name: "a comment", first: "{{//", last: "}}" },
+  { name: "a comment with text", first: "Before {{// hide", last: "end}} after" },
+])("$name spanning a picture refuses rather than lose it on the wire", async ({ first, last }) => {
+  const box = await openBox();
+  const assetId = await storePicture(box, box.host);
+
+  await expect(sendBlocks(box, [MARKDOWN(first), IMAGE_BLOCK(assetId), MARKDOWN(last)])).rejects.toMatchObject({
+    cause: { code: CHAT_OP_CODES.blockPictureLost },
+  });
+
+  expect(await userBodies(box)).toEqual([]);
+});
+
+test("a conditional the wire leaves literal keeps the picture between its markers", async () => {
+  const box = await openBox();
+  const assetId = await storePicture(box, box.host);
+
+  await sendBlocks(box, [MARKDOWN("{{#if 0}}"), IMAGE_BLOCK(assetId), MARKDOWN("{{/if}}")]);
+
+  expect(
+    userParts(lastRequest(box))
+      .flat()
+      .flatMap((part) => imageUrlOf(part) ?? []),
+  ).toEqual([await wireUrl(box, assetId)]);
+});
+
+test("a regex-made card that would swallow a picture refuses before anything commits", async () => {
+  const box = await openBox();
+  await hostRegex(box, "/MAKEFENCE/g", ':::card title="x"');
+  const assetId = await storePicture(box, box.host);
+
+  await expect(sendBlocks(box, [MARKDOWN("MAKEFENCE"), IMAGE_BLOCK(assetId)])).rejects.toMatchObject({ cause: { code: CHAT_OP_CODES.blockPictureLost } });
+
+  expect(await userBodies(box)).toEqual([]);
+});
+
+test.for([
+  { name: "removes", findRegex: "/[\\s\\S]+/g", replaceString: "gone" },
+  { name: "duplicates", findRegex: "/[\\s\\S]+/g", replaceString: "$&$&" },
+])("a transform that $name a picture placeholder refuses", async ({ findRegex, replaceString }) => {
+  const box = await openBox();
+  await hostRegex(box, findRegex, replaceString);
+  const assetId = await storePicture(box, box.host);
+
+  await expect(sendBlocks(box, mixedBlocks(assetId))).rejects.toMatchObject({ cause: { code: CHAT_OP_CODES.blockPictureLost } });
+
+  expect(await userBodies(box)).toEqual([]);
+});
+
+test("a duplicate asset cannot mask a swallowed picture", async () => {
+  const box = await openBox();
+  const assetId = await storePicture(box, box.host);
+
+  await expect(sendBlocks(box, [IMAGE_BLOCK(assetId), MARKDOWN(':::card title="x"'), IMAGE_BLOCK(assetId), MARKDOWN("tail")])).rejects.toMatchObject({
+    code: "BAD_REQUEST",
+  });
+
+  expect(await userBodies(box)).toEqual([]);
+});
+
+test("a host mask holds a phrase split across blocks exactly as in plain text", async () => {
+  const box = await openBox();
+  await hostRegex(box, "/bad\\s+word/g", "****");
+  await box.caller.chat.send({ chatId: box.chatId, content: "bad\n\nword", timeZone: UTC_TIME_ZONE });
+  await sendBlocks(box, [MARKDOWN("bad"), MARKDOWN("word")]);
+
+  expect(await userBodies(box)).toEqual(["****", "****"]);
+});
+
+test("a user_input transform runs once per send and reads the whole message", async () => {
+  const box = await openBox();
+  await userInputRule(box, "{{draft}} [sig]");
+  await box.caller.chat.send({ chatId: box.chatId, content: "one\n\ntwo\n\nthree", timeZone: UTC_TIME_ZONE });
+  await sendBlocks(box, [MARKDOWN("one"), MARKDOWN("two"), MARKDOWN("three")]);
+
+  const [plain, blocks] = await userBodies(box);
+  expect(blocks).toBe(plain);
+});
+
+test("a picture-only send still runs the transforms and keeps their output", async () => {
+  const box = await openBox();
+  await userInputRule(box, "{{draft}} [sig]");
+  const assetId = await storePicture(box, box.host);
+
+  await sendBlocks(box, [IMAGE_BLOCK(assetId)]);
+
+  expect(await userBodies(box)).toEqual([`![${ALT}](asset:${assetId}) [sig]`]);
+});
+
+test("one send's freezes draw independently across blocks and the authored body keeps its refs", async () => {
+  const box = await openBox();
+  const assetId = await storePicture(box, box.host);
+  const rolls = Array.from({ length: 8 }, () => MARKDOWN("{{roll:1d1000}}"));
+
+  await sendBlocks(box, [...rolls.slice(0, 4), IMAGE_BLOCK(assetId), ...rolls.slice(4)]);
+
+  const plain = Array.from({ length: rolls.length }, () => "{{roll:1d1000}}").join("\n\n");
+  await box.caller.chat.send({ chatId: box.chatId, content: plain, timeZone: UTC_TIME_ZONE });
+  const [blocksBody = "", plainBody = ""] = await userBodies(box);
+  const distinct = (body: string): number => new Set(body.split("\n\n").filter((part) => !part.includes("asset:"))).size;
+  expect(distinct(blocksBody)).toBe(distinct(plainBody));
+  const [message] = (await box.caller.chat.listMessages({ chatId: box.chatId })).messages;
+  const wire = await box.caller.chat.getVariantWire({ chatId: box.chatId, variantId: message?.selectedVariantId ?? ("" as never) });
+  expect(wire.rawContent).toContain(`![${ALT}](asset:${assetId})`);
+  expect(wire.rawContent).toContain("{{roll:1d1000}}");
+  expect(wire.macroFreezes).toHaveLength(rolls.length);
+});
+
+test("a repeated picture places once per occurrence with one link", async () => {
+  const box = await openBox();
+  const assetId = await storePicture(box, box.host);
+  const url = await wireUrl(box, assetId);
+
+  await sendBlocks(box, [IMAGE_BLOCK(assetId), MARKDOWN("between"), IMAGE_BLOCK(assetId)]);
+
+  expect(
+    userParts(lastRequest(box))
+      .flat()
+      .filter((part) => imageUrlOf(part) === url),
+  ).toHaveLength(2);
+  expect((await box.root.services.assets.resolveChatAssetRefs(box.host.userId, box.chatId, [assetId])).map((ref) => ref.assetId)).toEqual([assetId]);
+});
+
 const IMAGE_BLOCK = (assetId: AssetId, alt = ALT): SendContentBlock => ({ kind: "media", media: "image", src: { kind: "asset", assetId }, alt });
 
 const REFUSED_INPUTS: readonly { readonly name: string; readonly input: (assetId: AssetId) => Record<string, unknown> }[] = [
@@ -354,6 +508,15 @@ const REFUSED_INPUTS: readonly { readonly name: string; readonly input: (assetId
     name: "an unterminated card that swallows a later picture",
     input: (assetId) => ({ blocks: [{ kind: "markdown", md: ':::card title="x"' }, IMAGE_BLOCK(assetId)] }),
   },
+  {
+    name: "a macro hidden after a line separator in an alt",
+    input: (assetId) => ({ blocks: [IMAGE_BLOCK(assetId, `${String.fromCodePoint(0x20_28)}{{char}}`)] }),
+  },
+  {
+    name: "a paragraph separator before a macro in an alt",
+    input: (assetId) => ({ blocks: [IMAGE_BLOCK(assetId, `${String.fromCodePoint(0x20_29)}{{char}}`)] }),
+  },
+  { name: "authored text spelling a picture placeholder", input: () => ({ blocks: [{ kind: "markdown", md: String.fromCodePoint(0xe0_00) }] }) },
   { name: "an oversized alt", input: (assetId) => ({ blocks: [IMAGE_BLOCK(assetId, "a".repeat(SEND_BLOCK_LIMITS.altChars + 1))] }) },
   { name: "an oversized markdown block", input: () => ({ blocks: [{ kind: "markdown", md: "a".repeat(SEND_BLOCK_LIMITS.mdChars + 1) }] }) },
   { name: "too many blocks", input: () => ({ blocks: Array.from({ length: SEND_BLOCK_LIMITS.blocks + 1 }, () => ({ kind: "markdown", md: "x" })) }) },

@@ -71,7 +71,14 @@ const SEND_BLOCK_SEPARATOR = "\n\n";
 
 // An alt is a literal label: `]` ends the image grammar's alt, `<` opens a tag the scanner reads first, a newline
 // reaches the line-anchored directive grammar, and `{{` would resolve in a later render of the stored body.
-const SEND_BLOCK_ALT_RE = /^(?!.*\{\{)[^\]<\r\n]*$/;
+const SEND_BLOCK_ALT_RE = /^[^\]<\r\n]*$/;
+const MACRO_OPEN = "{{";
+
+// One private-use code point per picture: no word, digit or whitespace class matches it, and macros ignore it.
+const SEND_PICTURE_PLACEHOLDER_BASE = 0xe0_00;
+const placeholderFor = (index: number): string => String.fromCodePoint(SEND_PICTURE_PLACEHOLDER_BASE + index);
+const SEND_PICTURE_PLACEHOLDERS = `[${placeholderFor(0)}-${placeholderFor(SEND_BLOCK_LIMITS.blocks - 1)}]`;
+const SEND_PICTURE_PLACEHOLDER_RE = new RegExp(SEND_PICTURE_PLACEHOLDERS, "u");
 
 /**
  * What a caller may author on `send`: the render blocks that compile into the one stored body (D51). Text and an
@@ -79,54 +86,85 @@ const SEND_BLOCK_ALT_RE = /^(?!.*\{\{)[^\]<\r\n]*$/;
  * ref never rides, and the body cannot carry `dims`.
  */
 const sendContentBlockSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("markdown"), md: z.string().min(1).max(SEND_BLOCK_LIMITS.mdChars) }),
+  z.strictObject({
+    kind: z.literal("markdown"),
+    md: z
+      .string()
+      .min(1)
+      .max(SEND_BLOCK_LIMITS.mdChars)
+      .refine((md) => !SEND_PICTURE_PLACEHOLDER_RE.test(md)),
+  }),
   z.strictObject({
     kind: z.literal("media"),
     media: z.literal("image"),
     src: z.strictObject({ kind: z.literal("asset"), assetId: typeIdSchema(ID_PREFIX.asset) }),
-    alt: z.string().max(SEND_BLOCK_LIMITS.altChars).regex(SEND_BLOCK_ALT_RE),
+    alt: z
+      .string()
+      .max(SEND_BLOCK_LIMITS.altChars)
+      .regex(SEND_BLOCK_ALT_RE)
+      .refine((alt) => !alt.includes(MACRO_OPEN)),
   }),
 ]);
 export type SendContentBlock = z.infer<typeof sendContentBlockSchema>;
 
-/** A send's markdown block texts, in order: the only part of a structured send the author-side transforms read. */
-export function sendBlockMarkdown(blocks: readonly SendContentBlock[]): string[] {
-  return blocks.flatMap((block) => (block.kind === "markdown" ? [block.md] : []));
-}
+type SendPictureBlock = Extract<SendContentBlock, { kind: "media" }>;
 
-/** Joins transformed block texts the way the stored body separates them. */
-export function joinSendBlockText(texts: readonly string[]): string {
-  return texts.join(SEND_BLOCK_SEPARATOR);
-}
+const sendPictures = (blocks: readonly SendContentBlock[]): SendPictureBlock[] => blocks.filter((block) => block.kind === "media");
+
+const pictureRef = (block: SendPictureBlock): string => contentSpanRaw({ kind: "image", alt: block.alt, ref: { kind: "asset", assetId: block.src.assetId } });
 
 /**
- * The one stored body of a structured send (D51): `markdown` holds the block texts in order, the pictures sit
- * between them as the `asset:` refs an attachment writes. A text a transform emptied leaves no gap.
+ * The one message the author-side transforms read: block text in order, with one private-use character standing
+ * for each picture (U+E000 for the first, then upward). A transform sees the whole message once and never an alt
+ * or a ref. {@link placeSendPictures} restores the pictures as the last step.
  */
-export function composeSendBody(blocks: readonly SendContentBlock[], markdown: readonly string[] = sendBlockMarkdown(blocks)): string {
-  let next = 0;
-  const parts = blocks.map((block) => {
-    if (block.kind === "markdown") {
-      return markdown[next++] ?? "";
-    }
-    return contentSpanRaw({ kind: "image", alt: block.alt, ref: { kind: "asset", assetId: block.src.assetId } });
-  });
-  return joinSendBlockText(parts.filter((part) => part.length > 0));
+export function sendBlockDraft(blocks: readonly SendContentBlock[]): string {
+  let picture = 0;
+  return blocks.map((block) => (block.kind === "markdown" ? block.md : placeholderFor(picture++))).join(SEND_BLOCK_SEPARATOR);
 }
 
-// A markdown block can open a span that swallows the rest of the body, so a picture is checked in the composed body.
-function everyPictureSurvives(blocks: readonly SendContentBlock[]): boolean {
-  const images = tokenizeContent(composeSendBody(blocks), { committed: true }).filter((span) => span.kind === "image");
-  return blocks.every(
-    (block) => block.kind === "markdown" || images.some(({ alt, ref }) => alt === block.alt && ref.kind === "asset" && ref.assetId === block.src.assetId),
-  );
+/** The transformed draft with its placeholders replaced by picture refs, or `null` when a transform removed,
+ *  repeated or invented one. */
+export function placeSendPictures(blocks: readonly SendContentBlock[], text: string): string | null {
+  const refs = sendPictures(blocks).map(pictureRef);
+  const refOf = (placeholder: string): string | undefined => refs[(placeholder.codePointAt(0) ?? 0) - SEND_PICTURE_PLACEHOLDER_BASE];
+  const found = text.match(new RegExp(SEND_PICTURE_PLACEHOLDERS, "gu")) ?? [];
+  if (found.length !== refs.length || new Set(found).size !== refs.length || found.some((placeholder) => refOf(placeholder) === undefined)) {
+    return null;
+  }
+  return text.replace(new RegExp(SEND_PICTURE_PLACEHOLDERS, "gu"), (placeholder) => refOf(placeholder) ?? "");
+}
+
+/** The body as authored, before any transform: what `rawContent` keeps. */
+export function composeSendBody(blocks: readonly SendContentBlock[]): string {
+  return blocks.map((block) => (block.kind === "markdown" ? block.md : pictureRef(block))).join(SEND_BLOCK_SEPARATOR);
+}
+
+const pictureKey = (assetId: string, alt: string): string => JSON.stringify([assetId, alt]);
+
+/** Whether every authored picture is an image span in `body` exactly as many times as it was authored. Counts each
+ *  occurrence, because one surviving copy of an asset must not hide a swallowed copy. */
+export function picturesPlaceExactlyOnce(blocks: readonly SendContentBlock[], body: string): boolean {
+  const authored = new Map<string, number>();
+  for (const { src, alt } of sendPictures(blocks)) {
+    const key = pictureKey(src.assetId, alt);
+    authored.set(key, (authored.get(key) ?? 0) + 1);
+  }
+  const placed = new Map<string, number>();
+  for (const span of tokenizeContent(body, { committed: true })) {
+    if (span.kind === "image" && span.ref.kind === "asset") {
+      const key = pictureKey(span.ref.assetId, span.alt);
+      placed.set(key, (placed.get(key) ?? 0) + 1);
+    }
+  }
+  return [...authored].every(([key, count]) => placed.get(key) === count);
 }
 
 export const sendContentBlocksSchema = z
   .array(sendContentBlockSchema)
   .min(1)
   .max(SEND_BLOCK_LIMITS.blocks)
-  .refine(everyPictureSurvives, { error: "a markdown block swallows a later picture" });
+  .refine((blocks) => picturesPlaceExactlyOnce(blocks, composeSendBody(blocks)), { error: "a markdown block swallows a later picture" });
 
 /**
  * Project kit content spans (`@orb/kit/content` `tokenizeContent` — the ONE ref grammar, D51) into

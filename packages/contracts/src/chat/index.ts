@@ -133,10 +133,11 @@ export type { CardTrust, ContentSpansToBlocksOptions, MessageContentBlock, SendC
 export {
   composeSendBody,
   contentSpansToBlocks,
-  joinSendBlockText,
   messageContentBlockSchema,
+  picturesPlaceExactlyOnce,
+  placeSendPictures,
   SEND_BLOCK_LIMITS,
-  sendBlockMarkdown,
+  sendBlockDraft,
   sendContentBlocksSchema,
 } from "./content-blocks.ts";
 

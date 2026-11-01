@@ -34,8 +34,9 @@ import {
   composeSendBody,
   DEFAULT_GROUP_CONFIG,
   isAiDriven,
-  joinSendBlockText,
-  sendBlockMarkdown,
+  picturesPlaceExactlyOnce,
+  placeSendPictures,
+  sendBlockDraft,
   speakerKey,
 } from "@orb/contracts/chat";
 import type { ParticipantRoleState, Principal } from "@orb/contracts/identity";
@@ -106,7 +107,7 @@ import {
 import { commitRetainedCanonStats } from "../persistence/retained-canon.ts";
 import { prepareContinueRestoreForRoleData } from "../persistence/role-encoding.ts";
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
-import { buildTurnUserMacros, freezeVolatileMacros, resolveNudgeText } from "../substrate/assembly-access.ts";
+import { buildTurnUserMacros, freezeVolatileMacros, renderHistoryMacros, resolveNudgeText } from "../substrate/assembly-access.ts";
 import { isBelowHistoryFloor } from "../substrate/auth/index.ts";
 import { refuseHandoffAdmission } from "../substrate/handoff-barrier.ts";
 import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
@@ -135,7 +136,6 @@ import {
  *  inputs (`memoryRecall`) `gatherMemory` stages for the engine's per-speaker witnessed re-run (D6). */
 interface SendRegexSink {
   sendUserText?: string;
-  sendUserSegments?: readonly string[];
   /** The SEND bake's VOLATILE-FREEZE record (D129-F): which `{{roll}}`/`{{random}}`/clock occurrences the
    *  freeze resolved out of the composer draft, and to what. Persisted on the user row's variant beside the
    *  pre-freeze draft so the bake stops being lossy. Absent ⇒ nothing froze. */
@@ -673,7 +673,6 @@ async function buildTurnContext(
      *  human states `{kind:"none"}`. */
     readonly trigger: TurnTrigger;
     readonly pendingUserText?: string | undefined;
-    readonly pendingUserSegments?: readonly string[] | undefined;
     /** D58 slot-adjacency: is this turn (re)generating the assistant slot that DIRECTLY responds
      *  to the latest user message (send / deferred-drain / swipe-of-that-slot)? Drives the rpg dice feed-forward
      *  flag + eligibility so a later GM/auto round never re-feeds a stale die. Absent ⇒ false (ineligible). */
@@ -802,7 +801,6 @@ async function buildTurnContext(
       choicePicks: "random",
       timeZone: args.timeZone,
       ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText } : {}),
-      ...(args.pendingUserSegments !== undefined ? { pendingUserSegments: args.pendingUserSegments } : {}),
       ...(args.guided !== undefined ? { guided: args.guided } : {}),
       // The rpg gather-args: macro feed + the game turn's `{{expr::…}}` CEL activation (parity-plus §12), each
       // omitted when absent so a non-game turn / a lite gather that stages none stays byte-identical (⇒
@@ -1397,6 +1395,28 @@ async function freezeGreetingVolatiles(
   }
 }
 
+/** The last step of a structured send: replace the transformed draft's placeholders with picture refs, then run
+ *  the wire's macro pass and tokenizer over the result. A picture that would not reach the model exactly as
+ *  authored refuses here, before the row commits. */
+async function placeBlockPictures(
+  ctx: ChatContext,
+  args: {
+    readonly chatId: ChatId;
+    readonly blocks: NonNullable<SendParams["blocks"]>;
+    readonly text: string;
+    readonly personaId: PersonaId | null;
+    readonly assembleContext: AssembleContext;
+  },
+): Promise<string> {
+  const { chatId, blocks, text, personaId, assembleContext } = args;
+  const body = placeSendPictures(blocks, text);
+  const producer = buildIdentityNameContext(await loadChatIdentityProducer(ctx.db, { messages: [] }));
+  if (body === null || !picturesPlaceExactlyOnce(blocks, renderHistoryMacros(body, { characterId: null, personaId }, assembleContext, { producer }))) {
+    throw new ChatOperationError(CHAT_OP_CODES.blockPictureLost, `chat ${chatId}: a block picture would not place exactly once`);
+  }
+  return body;
+}
+
 /** Trust boundary: every claimed attachment id must be owned by the actor. A foreign/gone id is absent from
  *  the owned subset → a leak-free `attachment_not_owned` refusal. No-op for an attachment-free send. */
 async function assertAttachmentsOwned(
@@ -1687,7 +1707,6 @@ async function commitUserTurn(
       anchorPersonaId: membership.chat.anchorPersonaId,
       trigger: humanTrigger(principal.userId, personaId !== undefined ? personaId : membership.activePersonaId),
       pendingUserText: content,
-      ...(blocks === undefined ? {} : { pendingUserSegments: sendBlockMarkdown(blocks) }),
       // A send's AI response directly responds to the just-committed user message (D58): the
       // player's queued d20 feeds its first skill check. Always true for a send.
       respondsToLatestUserTurn: true,
@@ -1708,9 +1727,13 @@ async function commitUserTurn(
   // the first-user-turn greeting-freeze probe, reached by BOTH `send` and the D56 post-without-generate `commitMessage`, which shares `send`'s COMMIT half (`commitUserTurn`). Its product is a BOOLEAN (`isFirstUserTurn`) + a server-side greeting-volatile freeze — NO canon bytes flow to the caller (it returns only the just-committed user row, §3.6-projected); the prompt is the ROOM's.
   const priorCanon = isFirstUserTurn ? await loadCanonHistory(ctx.db, chatId) : [];
 
-  // Picture refs join after the transforms, like attachments: no regex or macro pass can rewrite one.
-  const transformed = blocks === undefined ? (sendOut.sendUserText ?? content) : composeSendBody(blocks, sendOut.sendUserSegments);
-  const body = composeBodyWithAttachments(transformed, attachments);
+  const stampedPersonaId = personaId !== undefined ? personaId : membership.activePersonaId;
+  const transformed = sendOut.sendUserText ?? content;
+  const composed =
+    blocks === undefined
+      ? transformed
+      : await placeBlockPictures(ctx, { chatId, blocks, text: transformed, personaId: stampedPersonaId, assembleContext: built.assembleContext });
+  const body = composeBodyWithAttachments(composed, attachments);
   // A picture typed into the text rather than attached is placed only when the sender owns it, like an edit.
   const typed = await ownedCitedAssetIds(ctx, principal.userId, body, attachments);
   const userView = await persistUserMessage(ctx, deps.emit, {
@@ -1723,7 +1746,7 @@ async function commitUserTurn(
     macroFreezes: sendOut.sendMacroFreezes ?? [],
     authorUserId: principal.userId,
     // An omitted personaId stamps the acting participant's active persona; an explicit id (or null) wins.
-    personaId: personaId !== undefined ? personaId : membership.activePersonaId,
+    personaId: stampedPersonaId,
     hostUserId: room.hostUserId,
     attachmentAssetIds: [...attachments, ...typed],
   });
@@ -1752,8 +1775,8 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
     guided,
     timeZone,
   }: SendParams): Promise<TurnOutcome> => {
-    // Block text only: the mention resolvers below read this, and an alt is a label, never a speaker pick.
-    const content = blocks === undefined ? plainContent : joinSendBlockText(sendBlockMarkdown(blocks));
+    // The draft holds placeholders, so the mention resolvers below never read an alt.
+    const content = blocks === undefined ? plainContent : sendBlockDraft(blocks);
     const { membership, room, identity, connection, group, userView, built } = await commitUserTurn(ctx, deps, {
       principal,
       chatId,
