@@ -4,18 +4,7 @@ import type { ChatMembership } from "@orb/contracts/identity";
 import type { AttachmentQuality } from "@orb/contracts/inference";
 import type { ChatToolDefinition, GeneratedImage, Resolved, ToolCallInput } from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
-import type {
-  AssetId,
-  CharacterId,
-  ChatId,
-  ChatStreamEventId,
-  ChatStreamGenerationId,
-  ChatTurnId,
-  MessageAssetId,
-  MessageId,
-  MessageVariantId,
-  UserId,
-} from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageAssetId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
 import type { RegexExecuteOptions } from "@orb/kit/regex";
 import type { TimerScheduler } from "@orb/kit/time";
@@ -114,8 +103,6 @@ export interface EngineContext extends Pick<ChatAccountingContext, "db" | "now" 
   readonly newMessageId: () => MessageId;
   readonly newMessageVariantId: () => MessageVariantId;
   readonly newMessageAssetId: () => MessageAssetId;
-  readonly newStreamEventId: () => ChatStreamEventId;
-  readonly newStreamGenerationId: () => ChatStreamGenerationId;
   readonly newChatTurnId: () => ChatTurnId;
   readonly emitChatChanged: EmitChatChanged;
   readonly applyRegexReplace: ApplyRegexReplaceOp;

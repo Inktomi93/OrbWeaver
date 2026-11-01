@@ -47,7 +47,6 @@ function creditSegment(
   const evidence: DiscoverSegment = {
     source: seg.source,
     chatId: seg.chatId,
-    blockIdx: seg.blockIdx,
     snippet: seg.sourceText.slice(0, SNIPPET_CHARS),
     score: seg.score,
     relevance: relevanceOf(seg.distance),
@@ -148,7 +147,6 @@ async function groupByCharacter(
         async (candidate): Promise<DiscoverSegment> => ({
           source: { ...candidate.source, ...(await readSourceAnchors(ctx.db, candidate.chatId, candidate.source, NO_HISTORY_FLOOR)) },
           chatId: candidate.chatId,
-          blockIdx: candidate.blockIdx,
           snippet: candidate.sourceText.slice(0, SNIPPET_CHARS),
           score: candidate.score,
           relevance: relevanceOf(candidate.distance),

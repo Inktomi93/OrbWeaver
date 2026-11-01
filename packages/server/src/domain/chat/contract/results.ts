@@ -44,7 +44,7 @@ import type {
   ToolCallInput,
   WireTool,
 } from "@orb/inference";
-import type { AssetId, CharacterId, ChatId, MessageId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { MemoryConfig, MemoryRecallInputs } from "./memory.ts";
@@ -430,12 +430,13 @@ export interface TurnPrep {
   readonly persist?: TurnPersist | undefined;
   /** Lock-free execution — generate runs concurrent with a locked send. Absent/false means the locked path. */
   readonly lockFree?: boolean | undefined;
-  /** The CALLER already emitted `turnAccepted` for this turn — the client's turn slot is OPEN. Only the engine
+  /** The CALLER already emitted `turnAccepted` for this turn under this id — the client's turn slot is OPEN, and
+   *  every lifecycle event of the turn carries the id. Only the engine
    *  knows whether `turnStarted` fired, so it owns closing that slot on a PRE-START refusal (lock contention /
    *  consent / budget / a missing persist target): those paths emit `turnAborted` instead of throwing silently,
    *  or the acceptance strands as a stuck Stop button. ABSENT ⇒ nobody opened a slot (the founding `opening`
    *  turn — every other turn-starting verb accepts) ⇒ pre-start refusals stay bus-SILENT exactly as before. */
-  readonly slotAccepted?: boolean | undefined;
+  readonly acceptedTurnId?: ChatTurnId | undefined;
   /** The caller's abort signal, threaded engine → pipeline → runChatTurn (and → the pre-turn compaction, which
    *  is awaited before dispatch). THIS SIGNAL IS WHAT PROVES A CANCELLATION (#1435): a post-start throw with
    *  the signal SETTLED is `turnAborted(reason:"user"|"stale")` and returns the aborted outcome; with the

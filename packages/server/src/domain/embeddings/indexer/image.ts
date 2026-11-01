@@ -49,10 +49,9 @@ async function indexableImageSpace(ctx: EmbeddingsContext, assetId: AssetId): Pr
   return await resolveImageSweepSpace(ctx, assetId);
 }
 
-function imageNoOp(generation: PinnedGeneration, hash: string): StoreResult {
+function imageNoOp(generation: PinnedGeneration): StoreResult {
   return {
     outcome: "noop",
-    contentHash: hash,
     model: generation.space,
     generationId: generation.id,
     generationEpoch: generation.epoch,
@@ -81,11 +80,11 @@ async function indexAsset(
   const captioned = await existingCaptionedRow(ctx.db, assetId, generation.id);
   const captionedCurrent = captioned !== undefined && captioned.hash === hash && captioned.hasFacets;
   if (!force && rawCurrent && captionedCurrent) {
-    return imageNoOp(generation, hash);
+    return imageNoOp(generation);
   }
   const raw =
     space.via === "embed"
-      ? imageNoOp(generation, hash)
+      ? imageNoOp(generation)
       : await deps.store({
           lens: "image-raw",
           ownerId,

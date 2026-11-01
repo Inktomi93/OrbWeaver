@@ -38,13 +38,13 @@ export function createLinkCarriedBooks(input: DbAssemblyInput<WorldInfoDuplicate
   const ctx: WorldInfoDuplicateCarryContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, characterId, refs }) => {
     if (refs.length === 0) {
-      return { linked: 0, skipped: 0 };
+      return { linked: 0 };
     }
     const { db } = ctx;
     // A foreign/absent target links NOTHING and reports every ref skipped — the same best-effort silence the
     // owned-source gate below already gives a foreign BOOK (this op answers a caller, it is not a door).
     if (!(await targetOwned(db, ownerId, characterId))) {
-      return { linked: 0, skipped: refs.length };
+      return { linked: 0 };
     }
     // The owned-source gate: resolve which of the carried ids are books this user actually owns.
     const owned = await db
@@ -63,7 +63,7 @@ export function createLinkCarriedBooks(input: DbAssemblyInput<WorldInfoDuplicate
     const ownedIds = new Set(owned.map((r) => r.id));
     const linkable = refs.filter((r) => ownedIds.has(r.worldBookId));
     if (linkable.length === 0) {
-      return { linked: 0, skipped: refs.length };
+      return { linked: 0 };
     }
     const at = ctx.now();
     // Fresh junction rows, roles preserved. onConflictDoNothing keeps a re-import onto an already-linked
@@ -79,6 +79,6 @@ export function createLinkCarriedBooks(input: DbAssemblyInput<WorldInfoDuplicate
         })),
       )
       .onConflictDoNothing();
-    return { linked: linkable.length, skipped: refs.length - linkable.length };
+    return { linked: linkable.length };
   };
 }

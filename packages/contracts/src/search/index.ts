@@ -116,7 +116,6 @@ export interface DigestSourceHit extends DigestSearchHit {
 export interface DiscoverSegment {
   readonly source: Extract<CorpusSource, { kind: "segment" }>;
   readonly chatId: ChatId;
-  readonly blockIdx: number;
   readonly snippet: string;
   readonly score: number;
   readonly relevance: number;
@@ -190,7 +189,6 @@ export interface FieldSearchResult {
 
 export interface SearchSuggestion {
   readonly suggestion: string;
-  readonly score: number;
 }
 
 // A group-scene block credits every co-star present in it, so one segment can be evidence for several characters.
@@ -220,7 +218,6 @@ export interface SimilarArtHit {
   readonly relevance: number;
   readonly name: string;
   readonly avatarHash: string | null;
-  readonly lens: ImageLens;
 }
 
 /** The scope a document search runs over: one chat's active documents, or an owner's whole bank. */
@@ -242,10 +239,8 @@ export interface DocumentChunkHit {
   readonly documentId: DocumentId;
   readonly documentName: string;
   readonly chunkId: DocumentChunkId;
-  readonly chunkIdx: number;
   readonly content: string;
   readonly score: number;
-  readonly contentHash: string;
 }
 
 /** The unified search() result — discriminated by `over` (the {@link SearchTarget}), each branch carrying
@@ -297,7 +292,6 @@ const digestSourceHitSchema = digestSearchHitSchema.extend({
 const discoverSegmentSchema = z.strictObject({
   source: strictSegmentSource,
   chatId: typeIdSchema(ID_PREFIX.chat),
-  blockIdx: z.number(),
   snippet: z.string(),
   score: z.number(),
   relevance: z.number(),
@@ -350,7 +344,7 @@ export const fieldSearchResultSchema = z.strictObject({
   coverage: z.strictObject({ requestLimit: z.number(), indexedCharacters: z.number(), matchingCharacters: z.number() }),
 }) satisfies z.ZodType<FieldSearchResult>;
 
-export const searchSuggestionSchema = z.strictObject({ suggestion: z.string(), score: z.number() }) satisfies z.ZodType<SearchSuggestion>;
+export const searchSuggestionSchema = z.strictObject({ suggestion: z.string() }) satisfies z.ZodType<SearchSuggestion>;
 
 const discoverCharacterSchema = characterCardHitSchema.extend({
   matchCount: z.number(),
@@ -365,17 +359,14 @@ const discoverResultSchema = z.strictObject({
 export const similarArtHitSchema = searchHitSchema.extend({
   name: z.string(),
   avatarHash: z.string().nullable(),
-  lens: imageLensSchema,
 }) satisfies z.ZodType<SimilarArtHit>;
 
 const documentChunkHitSchema = z.strictObject({
   documentId: typeIdSchema(ID_PREFIX.document),
   documentName: z.string(),
   chunkId: typeIdSchema(ID_PREFIX.documentChunk),
-  chunkIdx: z.number(),
   content: z.string(),
   score: z.number(),
-  contentHash: z.string(),
 }) satisfies z.ZodType<DocumentChunkHit>;
 
 const searchCoverageSchema = z.strictObject({

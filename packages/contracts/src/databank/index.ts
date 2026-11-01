@@ -163,7 +163,6 @@ export type DatabankRetrievalSettings = z.infer<typeof databankRetrievalSettings
 
 export const databankSettingsSchema = z.object({
   chunk: chunkParamsSchema,
-  retrieval: databankRetrievalSettingsSchema,
 });
 
 export type DatabankSettings = z.infer<typeof databankSettingsSchema>;

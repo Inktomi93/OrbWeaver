@@ -22,7 +22,6 @@ import type {
   LoreEntryIndexRow,
   RemoveResult,
   ReorderResult,
-  UpsertEntriesResult,
   WiBusEvent,
 } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
@@ -153,7 +152,7 @@ export interface WorldInfoService {
    *  `metadata.provenance.contentHash` guard). Injected into the D46 automation writer (and any future
    *  machine keeper) — the ONE
    *  hand-edit-safe home. */
-  readonly upsertEntries: (params: UpsertEntriesParams) => Promise<UpsertEntriesResult>;
+  readonly upsertEntries: (params: UpsertEntriesParams) => Promise<void>;
   /** The lean per-book entry index a machine writer reads to build its merge prompt + count against a cap. */
   readonly listEntryIndex: (params: ListEntryIndexParams) => Promise<readonly LoreEntryIndexRow[]>;
 }

@@ -41,8 +41,8 @@ export function createResetUserConfig(ctx: SettingsContext): SettingsService["re
         at,
       );
       ctx.emitUserEvent(ownerId, { type: "settingsChanged" });
-      // Read back rather than synthesizing the view: the caller reseeds its autosave sessions off this row,
-      // and `updatedAt`/`schemaVersion` must be the row's own. It also proves the repair to the caller —
+      // Read back rather than synthesizing the view: the caller reseeds its autosave sessions off this row.
+      // It also proves the repair to the caller —
       // `configUnreadable` comes back `null` iff the blob is now readable.
       return await readUserSettings(ctx.db, ownerId);
     });

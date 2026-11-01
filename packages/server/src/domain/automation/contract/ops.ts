@@ -183,9 +183,8 @@ export interface AutomationTurnRequest {
 export interface AutomationToolRequest {
   readonly authorUserId: UserId;
   /** C5 — NULL on an owner-GLOBAL rule's fire. `ToolExecutionContext` supports the non-chat consumer BY
-   *  CONTRACT (`domain/tool-use/contract/params.ts`: chatId/turnId/roster are all nullable, and a chat-scoped
-   *  tool running under a null roster is "an errors-as-data denial, never a crash"), so the arm needs no
-   *  special case: the registry answers for what a chat-less invocation can do. */
+   *  CONTRACT (`domain/tool-use/contract/params.ts`: chatId/turnId/membership are all nullable) and the arm only
+   *  drives contributor tools, whose `run` accepts that context, so it needs no special case. */
   readonly chatId: ChatId | null;
   readonly name: string;
   readonly argsJson: string;

@@ -101,66 +101,54 @@ export const DEFAULT_CAPTION_INSTRUCTIONS: Record<MultimodalCaptionMode, string>
 
 export const IMAGERY_PROSE_SLOTS = {
   "imagery.template.character": {
-    id: "imagery.template.character",
     home: "user",
     version: 1,
     text: DEFAULT_PROMPT_TEMPLATES.character,
-    macros: "full",
     requiredMacros: ["{{char}}"],
     requiredTokens: ["full body portrait,"],
     title: "Full-body portrait prompt",
     fires: "The quiet shaper, when an image is requested in `character` mode.",
   },
   "imagery.template.face": {
-    id: "imagery.template.face",
     home: "user",
     version: 1,
     text: DEFAULT_PROMPT_TEMPLATES.face,
-    macros: "full",
     requiredMacros: ["{{char}}"],
     requiredTokens: ["close up facial portrait,"],
     title: "Face portrait prompt",
     fires: "The quiet shaper, when an image is requested in `face` mode.",
   },
   "imagery.template.scenario": {
-    id: "imagery.template.scenario",
     home: "user",
     version: 1,
     text: DEFAULT_PROMPT_TEMPLATES.scenario,
-    macros: "full",
     requiredMacros: [],
     requiredTokens: ["scene,"],
     title: "Scene prompt",
     fires: "The quiet shaper, when an image is requested in `scenario` mode.",
   },
   "imagery.template.background": {
-    id: "imagery.template.background",
     home: "user",
     version: 1,
     text: DEFAULT_PROMPT_TEMPLATES.background,
-    macros: "full",
     requiredMacros: [],
     requiredTokens: ["background,"],
     title: "Background prompt",
     fires: "The quiet shaper, when an image is requested in `background` mode.",
   },
   "imagery.caption.characterMultimodal": {
-    id: "imagery.caption.characterMultimodal",
     home: "user",
     version: 1,
     text: DEFAULT_CAPTION_INSTRUCTIONS.character_multimodal,
-    macros: "none",
     requiredMacros: [],
     requiredTokens: ["full body portrait,"],
     title: "Full-body caption instruction",
     fires: "The vision op, captioning a subject's avatar in `character_multimodal` mode.",
   },
   "imagery.caption.faceMultimodal": {
-    id: "imagery.caption.faceMultimodal",
     home: "user",
     version: 1,
     text: DEFAULT_CAPTION_INSTRUCTIONS.face_multimodal,
-    macros: "none",
     requiredMacros: [],
     requiredTokens: ["close up facial portrait,"],
     title: "Face caption instruction",
@@ -171,14 +159,12 @@ export const IMAGERY_PROSE_SLOTS = {
   // request field still APPENDS to whatever this resolves to (never replaces): the two are different things —
   // this is the standing house floor, that is the per-generation addition.
   "imagery.negative.base": {
-    id: "imagery.negative.base",
     home: "user",
     version: 1,
     text:
       "text, letters, captions, subtitles, UI, watermark, logo, signature, speech bubble, " +
       "split screen, panel, collage, grid, duplicated face, extra head, extra person, " +
       "bad anatomy, low quality",
-    macros: "none",
     requiredMacros: [],
     requiredTokens: [],
     title: "Negative-prompt base",
@@ -189,14 +175,12 @@ export const IMAGERY_PROSE_SLOTS = {
   // siblings have no analogue for — this resolves to its shipped default at module load; a future per-call
   // tool-listing resolution can read this same slot without a second home.
   "imagery.tool.generateImageDescription": {
-    id: "imagery.tool.generateImageDescription",
     home: "user",
     version: 1,
     text:
       "Generate an image in the current chat from a text prompt. Use when the user asks you to draw, paint, " +
       'show, or picture something. `mode:"free"` uses `prompt` verbatim; the portrait/scene modes derive the ' +
       "prompt from the conversation. Posts one message with the image(s) attached.",
-    macros: "none",
     requiredMacros: [],
     requiredTokens: [],
     title: "generate_image tool description",
@@ -339,11 +323,6 @@ export interface GenerationProvenance {
   readonly costUsd: number | null;
   readonly usage: GenerationUsageDetails;
   readonly subjectCharacterId: CharacterId | null;
-  /** The reuse hash stored on this generation (D58): the portrait-mode subject hash, an external
-   *  free-mode consumer's precomputed hash, or `null`. Exposed so a non-character consumer's own reuse gate can
-   *  read it back + compare (rpg's NPC-portrait short-circuit) — the internal imagery gate matches by query, not
-   *  through this read. */
-  readonly identityHash: string | null;
   readonly edited: boolean;
   readonly createdAt: number;
 }
@@ -389,7 +368,6 @@ export const generationProvenanceSchema = z.strictObject({
   costUsd: z.number().nullable(),
   usage: generationUsageDetailsSchema,
   subjectCharacterId: typeIdSchema(ID_PREFIX.character).nullable(),
-  identityHash: z.string().nullable(),
   edited: z.boolean(),
   createdAt: z.number(),
 }) satisfies z.ZodType<GenerationProvenance>;
@@ -440,13 +418,6 @@ interface GeneratePictureFields {
    *  resolved model lacks `input.imageEdit` — the asymmetric posture vs `editImage` (doc 01 §3.4). */
   readonly useAvatarReference?: boolean | undefined;
 
-  /** An EXTERNALLY-computed reuse hash a non-character consumer stores on this generation's provenance so its
-   *  OWN reuse gate can short-circuit later (D58 — NPC portraits are content-addressed by the
-   *  npc identity tuple; rpg computes it via imagery's `identityHashFor`, never a second hash derivation).
-   *  Honored ONLY in `mode:"free"` (the subject-character portrait modes own the internal reuse gate, which
-   *  supersedes this). Absent ⇒ the provenance `identityHash` stays null (the additive-only guarantee — the
-   *  existing free/scenario/edit paths are byte-identical). rpg reads it back via `readProvenance`. */
-  readonly identityHash?: string | undefined;
   /** Join every returned picture to the run-as principal's gallery under this character. Absent = no auto-add. Kept
    *  apart from `subjectCharacterId`, which also drives the portrait reuse gate and the extraction subject. */
   readonly gallery?: GalleryCuration | undefined;

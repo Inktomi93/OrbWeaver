@@ -156,5 +156,5 @@ function suggestFields(index: MiniSearch<FieldIndexCard>, query: string, limit: 
   return index
     .autoSuggest(query, { fuzzy: FUZZY, prefix: true })
     .slice(0, limit)
-    .map((s) => ({ suggestion: s.suggestion, score: s.score }));
+    .map((s) => ({ suggestion: s.suggestion }));
 }

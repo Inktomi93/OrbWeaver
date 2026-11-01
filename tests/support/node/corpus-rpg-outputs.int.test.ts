@@ -44,7 +44,7 @@ test("native RPG outputs preserve actor rekeying, disclosed name clamping, deter
   expect(result.config.statProfile).toEqual(result.born.publicConfig.statProfile);
   expect(result.born).not.toHaveProperty("steeringNote");
   expect(result.born.publicConfig).not.toHaveProperty("hiddenContentReveal");
-  expect(result.checkpoints).toMatchObject([{ id: result.checkpointId, gameId: result.born.id, label: "Promoted witness", trigger: "manual" }]);
+  expect(result.checkpoints).toMatchObject([{ id: result.checkpointId, label: "Promoted witness", trigger: "manual" }]);
   expect(result.resync).toMatchObject({ ok: false, reason: expect.any(String) });
   expect(result.populate).toMatchObject({ ok: false, reason: expect.any(String) });
   const outsiderRow = await root.actor();

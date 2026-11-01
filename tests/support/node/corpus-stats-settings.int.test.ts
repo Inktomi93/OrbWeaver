@@ -1,7 +1,7 @@
 // @subject tests/support/node/corpus-stats-settings.ts
 // @subject packages/server/src/domain/settings/verbs/duplicate-theme.ts
 import { createCharacterSchema } from "@orb/contracts/character";
-import { DEFAULT_USER_SETTINGS, USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { assertReferentialIntegrity } from "@orb/db";
 import { seedThemes } from "@orb/server/entry/boot";
 import { bootGrantFor } from "./boot-grant.ts";
@@ -54,10 +54,10 @@ test("native stats preserve nonzero retained history and user preferences surviv
   const stats = result.stats;
   expect(result.absent.overview.output).toBeNull();
   expect(result.absent.wrapped.output).toBeNull();
-  expect(result.absent.freshness.output).toEqual({ computedAt: null, stale: false, hasData: false });
-  expect(result.computedEmpty.output).toMatchObject({ owners: 1, characters: 0, buckets: 0, models: 0 });
+  expect(result.absent.freshness.output).toEqual({ computedAt: null, hasData: false });
+  expect(result.computedEmpty.output).toMatchObject({ owners: 1, characters: 0 });
   expect(result.emptyAfter.overview.output).toMatchObject({ characters: 0, chats: 0, userTurns: 0, assistantTurns: 0, tokensOut: null });
-  expect(result.emptyAfter.freshness.output).toEqual({ computedAt: result.computedEmpty.output.computedAt, stale: false, hasData: true });
+  expect(result.emptyAfter.freshness.output).toEqual({ computedAt: result.emptyAfter.overview.output?.computedAt, hasData: true });
   expect(result.emptyAfter.timeseries.output).toEqual([]);
   expect(result.emptyAfter.byModel.output).toEqual([]);
   expect(result.emptyAfter.momentum.output).toEqual([]);
@@ -65,7 +65,7 @@ test("native stats preserve nonzero retained history and user preferences surviv
   expect(result.rows.owner).toMatchObject({ ownerId: root.ownerId, userTurns: 2, assistantTurns: 2, swipes: 1 });
   expect(stats.overview.output).toMatchObject({ userTurns: 2, assistantTurns: 2, swipes: 1, tokensOutProvenance: "measured" });
   expect(stats.overview.output?.tokensOut).toBeGreaterThan(0);
-  expect(stats.character.output).toMatchObject({ characterId: libraries.character.id, assistantTurns: 1, swipes: 1 });
+  expect(stats.character.output).toMatchObject({ assistantTurns: 1, swipes: 1 });
   expect(stats.character.output?.tokensOut).toBeGreaterThan(0);
   expect(stats.leaderboard.output.total).toBe(2);
   expect(stats.capped.output.rows).toHaveLength(1);
@@ -80,12 +80,12 @@ test("native stats preserve nonzero retained history and user preferences surviv
     provider: "custom-openai",
     generations: 3,
     charactersUsedWith: 2,
-    tokensIn: 120,
     tokensOut: 45,
     tokensOutProvenance: "measured",
   });
+  expect(result.rows.models.find((model) => model.model === CORPUS_TEXT_MODEL)).toMatchObject({ tokensIn: 120, tokensOut: 45 });
   expect(stats.modelCapped.output).toHaveLength(1);
-  expect(stats.freshness.output).toEqual({ computedAt: result.reconciled.output.computedAt, stale: false, hasData: true });
+  expect(stats.freshness.output).toEqual({ computedAt: stats.overview.output?.computedAt, hasData: true });
   expect(stats.personas.output.find((persona) => persona.personaId === libraries.persona.id)).toMatchObject({
     chatCount: 2,
     messageCount: 4,
@@ -125,8 +125,6 @@ test("native stats preserve nonzero retained history and user preferences surviv
   const settings = result.settings;
   expect(result.absent.row).toBeUndefined();
   expect(result.absent.settings.output).toMatchObject({
-    updatedAt: 0,
-    schemaVersion: USER_SETTINGS_SCHEMA_VERSION,
     configUnreadable: null,
     config: DEFAULT_USER_SETTINGS,
   });

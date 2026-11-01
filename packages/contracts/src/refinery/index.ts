@@ -23,7 +23,7 @@
 // cost is stated plainly: an over-token blob is now a FAILED RUN rather than an ungeneratable one.
 // Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
-import type { CharacterId, CharacterSnapshotId, ModelId, RefinerySessionId } from "@orb/kit/ids";
+import type { CharacterId, CharacterSnapshotId, RefinerySessionId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { CharacterCard, CharacterDetail } from "#character";
@@ -625,11 +625,10 @@ export const refinerySessionSummarySchema = z.object({
 });
 export type RefinerySessionSummary = z.infer<typeof refinerySessionSummarySchema>;
 
-/** One `iterate` round: the refinement rewrite + the analyze that judged it, plus the bumped counter. */
+/** One `iterate` round: the refinement rewrite + the analyze that judged it. */
 export interface IterateResult {
   readonly rewrite: RefineryRun;
   readonly analyze: RefineryRun;
-  readonly iterationCount: number;
 }
 
 /** One stage's preflight readout (schema-renderer §8) — the RESOLVED posture (floor + the owner's preset
@@ -637,8 +636,6 @@ export interface IterateResult {
  *  says "likely", never a hard number (`@orb/kit/tokens`' own doctrine). */
 export interface StagePreflight {
   readonly stage: RefineryStage;
-  readonly model: ModelId;
-  readonly temperature: number | null;
   readonly maxOutputTokens: number | null;
   /** Estimated PROMPT tokens for this stage as currently configured (the real assembled prompt, measured). */
   readonly inputEstimate: number;
@@ -694,12 +691,9 @@ export const refineryRunViewSchema = z.union([
 export const iterateResultSchema = z.strictObject({
   rewrite: refineryRunViewSchema,
   analyze: refineryRunViewSchema,
-  iterationCount: z.number(),
 }) satisfies z.ZodType<IterateResult>;
 const stagePreflightSchema = z.strictObject({
   stage: refineryStageSchema,
-  model: brandedId("ModelId"),
-  temperature: z.number().nullable(),
   maxOutputTokens: z.number().nullable(),
   inputEstimate: z.number(),
   outputEstimate: z.number(),
@@ -739,7 +733,6 @@ export interface RefinerySessionView {
   readonly guidance: string | null;
   readonly iterationCount: number;
   readonly createdAt: number;
-  readonly updatedAt: number;
 }
 
 /** Why one accepted entry was REFUSED — itemized per entry so the user learns which field and why. Owner
@@ -839,7 +832,6 @@ export const refinerySessionViewSchema = z.strictObject({
   guidance: z.string().nullable(),
   iterationCount: z.number(),
   createdAt: z.number(),
-  updatedAt: z.number(),
 }) satisfies z.ZodType<RefinerySessionView>;
 
 const refineryFieldRefShape = {

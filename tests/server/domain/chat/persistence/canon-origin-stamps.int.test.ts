@@ -3,7 +3,7 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
-import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
+import { createBookSchema, createEntrySchema, updateEntrySchema } from "@orb/contracts/world-info";
 import { messages } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
@@ -19,10 +19,15 @@ test("human and real chained automation turns retain their origin and publish th
     ]);
   await using h = await coreHttpRoom([response, response, response]);
   const book = await h.root.services.worldInfo.createBook({ principal: h.owner, input: createBookSchema.parse({ name: "The keeper's constant scene" }) });
-  const entry = await h.root.services.worldInfo.createEntry({
+  const created = await h.root.services.worldInfo.createEntry({
     principal: h.owner,
     bookId: book.id,
-    input: createEntrySchema.parse({ title: "Keeper", content: "The keeper guards an orbital ledger.", metadata: { scopeMode: "always" } }),
+    input: createEntrySchema.parse({ title: "Keeper", content: "The keeper guards an orbital ledger." }),
+  });
+  const entry = await h.root.services.worldInfo.updateEntry({
+    principal: h.owner,
+    entryId: created.id,
+    input: updateEntrySchema.parse({ metadata: { scopeMode: "always" } }),
   });
   await h.root.services.worldInfo.attachToChat({ principal: h.owner, chatId: h.chatId, bookId: book.id });
   const events: ChatBusEvent[] = [];

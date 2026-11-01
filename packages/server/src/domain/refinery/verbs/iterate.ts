@@ -69,15 +69,11 @@ export function createIterate(ctx: RefineryContext, deps: StageEngineDeps): Refi
       // the rounds that actually completed. A read-modify-write over a monotonic tally has no honest
       // snapshot to write from — the statement itself does the addition and RETURNS what it wrote, so each
       // round gets its own round number and the tally equals the number of completed rounds.
-      const [bumped] = await ctx.db
+      await ctx.db
         .update(refinerySessions)
         .set({ iterationCount: sql`${refinerySessions.iterationCount} + 1`, updatedAt: ctx.now() })
-        .where(eq(refinerySessions.id, sessionId))
-        .returning({ iterationCount: refinerySessions.iterationCount });
-      // The session was proven owned above and nothing deletes it mid-round but a cascade from the card;
-      // if that raced us there is no round number to report, so fall back to the snapshot's successor.
-      const iterationCount = bumped?.iterationCount ?? row.iterationCount + 1;
-      return { rewrite, analyze, iterationCount };
+        .where(eq(refinerySessions.id, sessionId));
+      return { rewrite, analyze };
     } finally {
       // RELEASE ON BOTH ARMS — the whole point of taking the claim early is that a FAILED round frees the
       // session immediately rather than parking it for a lease. Best-effort by construction: the release is

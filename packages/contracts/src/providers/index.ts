@@ -10,7 +10,7 @@ import { responseCacheSchema } from "../inference/usage.ts";
  *  `Float32Array` at its boundary). */
 const embedVectorSchema = z.instanceof(Float32Array);
 
-/** Token-usage half of a (text) embed result. `null` when the family doesn't report — in-process
+/** Token usage of one embed batch observation. `null` when the family doesn't report — in-process
  *  embedders don't meter. */
 export const embedUsageSchema = z.object({
   responseCache: responseCacheSchema.optional(),
@@ -18,8 +18,6 @@ export const embedUsageSchema = z.object({
   promptTokens: z.number().nullable(),
   totalTokens: z.number().nullable(),
 });
-
-export type EmbedUsage = z.infer<typeof embedUsageSchema>;
 
 // Cross-family TEXT embed result. One `vectors` entry per input (same order as the request `input`
 //  array; a single-string input produces a one-element array). `null` entries mark filtered inputs
@@ -29,7 +27,6 @@ const embedResultSchema = z.object({
   vectors: z.array(embedVectorSchema.nullable()),
   /** Which model actually served the embedding — provenance for the row's `model` column. */
   model: z.string(),
-  usage: embedUsageSchema,
 });
 export type EmbedResult = z.infer<typeof embedResultSchema>;
 
@@ -49,11 +46,6 @@ export type RerankHit = z.infer<typeof rerankHitSchema>;
 //  scoring.
 const rerankResultSchema = z.object({
   hits: z.array(rerankHitSchema),
-  model: z.string(),
-  usage: z.object({
-    /** Tokens billed (some families don't report — `null` then). */
-    totalTokens: z.number().nullable(),
-  }),
 });
 export type RerankResult = z.infer<typeof rerankResultSchema>;
 
@@ -64,7 +56,6 @@ export type RerankResult = z.infer<typeof rerankResultSchema>;
 const imageEmbedResultSchema = z.object({
   vectors: z.array(embedVectorSchema.nullable()),
   model: z.string(),
-  usage: embedUsageSchema,
 });
 export type ImageEmbedResult = z.infer<typeof imageEmbedResultSchema>;
 
@@ -85,9 +76,6 @@ export type SummarizeResultItem = z.infer<typeof summarizeResultItemSchema>;
 // Cross-family summarize result. `items` length matches `request.inputs`; index-aligned.
 const summarizeResultSchema = z.object({
   items: z.array(summarizeResultItemSchema),
-  /** Which model actually produced the summaries — provenance for `chat_digests.summarizerModel` and
-   *  similar storage seams. */
-  model: z.string(),
 });
 export type SummarizeResult = z.infer<typeof summarizeResultSchema>;
 
@@ -99,12 +87,9 @@ export const accountCreditsSchema = z.object({
 });
 export type AccountCredits = z.infer<typeof accountCreditsSchema>;
 
-/** The settled upstream cost of ONE generation. Token counts are `null` when the provider doesn't
- *  break them out. */
+/** The settled upstream cost of ONE generation. */
 export const generationCostSchema = z.object({
   totalCost: z.number(),
-  tokensPrompt: z.number().nullable(),
-  tokensCompletion: z.number().nullable(),
 });
 export type GenerationCost = z.infer<typeof generationCostSchema>;
 
@@ -134,7 +119,7 @@ export type EndpointInspection = z.infer<typeof endpointInspectionSchema>;
 
 /** The authenticated account's identity/plan metadata — an SDK-free projection of the agent-sdk
  *  `accountInfo()` control response. Best-effort: omitted on any failure/timeout (the verify turn must
- *  never fail or delay on this). `apiProvider: "firstParty"` is the healthy Max-sub answer.
+ *  never fail or delay on this).
  *
  *  @remarks Strip mode on purpose: this parses the SDK's own response, so a field the SDK adds is dropped from
  *  the projection instead of failing it. The wire result below re-reads it strictly. */
@@ -143,18 +128,14 @@ export const verifyAuthAccountSchema = z.object({
   organization: z.string().optional(),
   /** The plan tier the account is on (SDK `subscriptionType`). */
   subscriptionType: z.string().optional(),
-  /** The active API backend (SDK `apiProvider`) — the union the SDK declares. */
-  apiProvider: z.enum(["firstParty", "bedrock", "vertex", "foundry", "anthropicAws", "mantle", "gateway", "anthropicGoogleCloud"]).optional(),
 });
 export type VerifyAuthAccount = z.infer<typeof verifyAuthAccountSchema>;
 
 export const verifyAuthResultSchema = z.strictObject({
-  source: z.literal("max-pro-sub"),
   ok: z.boolean(),
   /** Which credential the spawned runtime used (`"none"` = the host login was active — the healthy
    *  Max-sub answer; an unexpected key name means an env leak reached the spawn). */
   apiKeySource: z.string(),
-  model: z.string(),
   /** The trimmed probe reply (expected `"ok"`). */
   reply: z.string(),
   /** Metered-equivalent cost; on a flat-rate Max sub this is allowance, not dollars. */

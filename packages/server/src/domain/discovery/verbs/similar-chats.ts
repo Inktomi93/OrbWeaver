@@ -80,5 +80,5 @@ async function similarChats(db: Db, ownerId: UserId, chatId: ChatId, limit = DEF
     similarity: sims[i] ?? 0,
   }));
   scored.sort((a, b) => b.similarity - a.similarity);
-  return scored.slice(0, limit);
+  return scored.slice(0, limit).map(({ chatId: id, title }) => ({ chatId: id, title }));
 }

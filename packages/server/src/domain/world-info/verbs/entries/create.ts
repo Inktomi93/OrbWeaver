@@ -2,7 +2,6 @@
 // via the book (D23). Fans `wiEntryAttached` out over every chat the book is attached to (empty fan-out
 // is correct when the book has zero chat attachments).
 
-import { entryMetadataSchema } from "@orb/contracts/world-info";
 import { worldEntries } from "@orb/db";
 import { resolveEntryScope } from "@orb/kit/world-info";
 import { WorldInfoNotFoundError } from "#src/domain/world-info/contract/errors.ts";
@@ -20,25 +19,16 @@ export function createCreateEntry(ctx: WorldInfoContext): WorldInfoService["crea
 
     const at = ctx.now();
     const entryId = ctx.newEntryId();
-    const description = input.description ?? null;
     const keys = input.keys ?? null;
-    const enabled = input.enabled ?? true;
     const priority = input.priority ?? 0;
-    const ignoreBudget = input.ignoreBudget ?? false;
-    const rawMetadata = input.metadata ?? null;
-    const metadata = rawMetadata === null ? null : entryMetadataSchema.parse(rawMetadata);
 
     await ctx.db.insert(worldEntries).values({
       id: entryId,
       worldBookId: bookId,
       title: input.title,
-      description,
       content: input.content,
       keys,
-      enabled,
       priority,
-      ignoreBudget,
-      metadata,
       createdAt: at,
       updatedAt: at,
     });
@@ -54,7 +44,7 @@ export function createCreateEntry(ctx: WorldInfoContext): WorldInfoService["crea
       at,
     );
 
-    const scope = resolveEntryScope(metadata, keys !== null && keys.length > 0);
+    const scope = resolveEntryScope(null, keys !== null && keys.length > 0);
     const chatIds = await listChatIdsForBook(ctx.db, bookId);
     for (const chatId of chatIds) {
       await ctx.emitWiEvent({ type: "wiEntryAttached", chatId, surface: "chat", entryId, scope });
@@ -69,13 +59,13 @@ export function createCreateEntry(ctx: WorldInfoContext): WorldInfoService["crea
       id: entryId,
       worldBookId: bookId,
       title: input.title,
-      description,
+      description: null,
       content: input.content,
       keys,
-      enabled,
+      enabled: true,
       priority,
-      ignoreBudget,
-      metadata,
+      ignoreBudget: false,
+      metadata: null,
     };
   };
 }

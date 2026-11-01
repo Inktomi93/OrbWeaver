@@ -82,7 +82,8 @@ async function seedRoom(
 /** Every stored value the migration may touch for one room, in a stable order. */
 async function capture(db: Db, room: Room): Promise<Record<string, unknown>> {
   return {
-    chat: await db.all(sql`select * from chats where id = ${room.chatId}`),
+    // Named columns: this runs the whole chain, and a later migration may drop a column from `chats`.
+    chat: await db.all(sql`select id, compact_summary, compacted_at_seq, standalone_variable_deltas, updated_at from chats where id = ${room.chatId}`),
     messages: await db.all(sql`select * from messages where chat_id = ${room.chatId} order by id`),
     variants: await db.all(sql`select v.* from message_variants v join messages m on m.id = v.message_id where m.chat_id = ${room.chatId} order by v.id`),
     participants: await db.all(sql`select * from chat_participants where chat_id = ${room.chatId} order by id`),

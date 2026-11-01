@@ -28,7 +28,6 @@ export function toBookView(row: BookRow): BookView {
     id: row.id,
     name: row.name,
     description: row.description,
-    createdAt: row.createdAt,
   };
 }
 

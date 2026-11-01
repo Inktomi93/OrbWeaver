@@ -165,7 +165,6 @@ test("native image admission and funded output variants preserve short-edge skip
       edited: row?.edited,
       costUsd: row?.costUsd,
       subjectCharacterId: row?.subjectCharacterId,
-      identityHash: row?.identityHash,
       usage: {
         tokensIn: row?.tokensIn,
         tokensOut: row?.tokensOut,

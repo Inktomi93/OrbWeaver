@@ -226,7 +226,6 @@ export function createApplyToChat(ctx: RosterPresetContext): RosterPresetService
       added,
       alreadyPresent,
       skipped,
-      configApplied,
       rulesMinted: ruleResults.minted,
       rulesAlreadyPresent: ruleResults.alreadyPresent,
       rulesSkipped: ruleResults.skipped,

@@ -636,7 +636,7 @@ export const messageViewSchema = z.strictObject({
   genStartedAt: z.number().nullable(),
   genFinishedAt: z.number().nullable(),
   hasGeneratedVariant: z.boolean(),
-  // eslint-disable-next-line orb/no-raw-id -- Upstream provider billing handle, not the separately minted ChatStreamGenerationId.
+  // eslint-disable-next-line orb/no-raw-id -- Upstream provider billing handle, not an orbweaver id.
   generationId: z.string().nullable(),
   connectionAttributionProvenance: connectionAttributionProvenanceSchema,
   connectionId: typeIdSchema(ID_PREFIX.userConnection).nullable(),

@@ -15,7 +15,7 @@
 //
 // KEYED BY `ChatTurnId`, NOT bare `chatId` (load-bearing): a lock-free `generate` can run CONCURRENT with a
 // locked `send` on ONE chat — two turns must not share a bucket, or one turn's staged writes would leak into
-// the other's flush. The `turnId` threaded on `ToolExecutionContext` (tool-use/contract/params.ts) is this
+// the other's flush. The `turnId` threaded on `ChatToolExecutionContext` (tool-use/contract/params.ts) is this
 // correlation key.
 //
 // READ-THROUGH: a tool reads the turn's CURRENT effective state (the base overlaid by every earlier staged

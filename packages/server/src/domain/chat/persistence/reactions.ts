@@ -22,7 +22,7 @@
 import type { HistoryFloorSeq, MessageKind } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, messageReactions, messages, messageVariants, personas } from "@orb/db";
-import type { AssetId, ChatId, ChatParticipantId, MessageId, MessageReactionId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { ChatId, ChatParticipantId, MessageId, MessageReactionId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, gte, inArray, isNull, max } from "drizzle-orm";
 import type { StoredSegmentAnchor } from "../contract/params.ts";
 
@@ -38,7 +38,6 @@ interface ReactionRow {
   readonly variantId: MessageVariantId;
   readonly reactorParticipantId: ChatParticipantId;
   readonly emoji: string;
-  readonly emojiImageAssetId: AssetId | null;
   readonly segmentIndex: number | null;
   readonly segmentSpeaker: string | null;
   readonly segmentSnippet: string | null;
@@ -221,7 +220,6 @@ export function listChatReactions(
         variantId: messageReactions.variantId,
         reactorParticipantId: messageReactions.reactorParticipantId,
         emoji: messageReactions.emoji,
-        emojiImageAssetId: messageReactions.emojiImageAssetId,
         segmentIndex: messageReactions.segmentIndex,
         segmentSpeaker: messageReactions.segmentSpeaker,
         segmentSnippet: messageReactions.segmentSnippet,

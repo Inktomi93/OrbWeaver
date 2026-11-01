@@ -14,7 +14,7 @@ import { stripHiddenForViewer } from "#src/domain/rpg/substrate/hidden-spans.ts"
 
 // `snapshot_kind` is storage: it exists only to key the composite foreign key, so the view drops it.
 function checkpointView(row: RpgCheckpointRow): RpgCheckpointView {
-  return { id: row.id, gameId: row.gameId, snapshotId: row.snapshotId, label: row.label, trigger: row.trigger, createdAt: row.createdAt };
+  return { id: row.id, snapshotId: row.snapshotId, label: row.label, trigger: row.trigger, createdAt: row.createdAt };
 }
 
 export function createListCheckpoints(ctx: RpgContext): Pick<RpgService, "listCheckpoints"> {

@@ -7,6 +7,7 @@ import {
   isBlock,
   isCallExpression,
   isJsxExpression,
+  isJsxSpreadAttribute,
   isNewExpression,
   isNoSubstitutionTemplateLiteral,
   isNumericLiteral,
@@ -14,6 +15,7 @@ import {
   isPropertyAssignment,
   isReturnStatement,
   isShorthandPropertyAssignment,
+  isSpreadAssignment,
   isSpreadElement,
   isStringLiteral,
   isVariableDeclaration,
@@ -75,17 +77,32 @@ function handedAt(node: Node): readonly Node[] {
   return given === undefined ? [] : [given];
 }
 
+interface Handed {
+  readonly values: readonly Node[];
+  readonly calls: readonly Node[];
+  /** Object literal and JSX spreads, whose value lands in the literal's contextual type. */
+  readonly spreads: readonly Node[];
+}
+
 // Only production hand-offs prove a production flow; a test world repeats those of its production files.
-function handedValues(world: NativeWorld, home: ReadonlySet<string>): readonly Node[] {
-  const found: Node[] = [];
+function handedValues(world: NativeWorld, home: ReadonlySet<string>): Handed {
+  const values: Node[] = [];
+  const calls: Node[] = [];
+  const spreads: Node[] = [];
   const visit = (node: Node): void => {
-    found.push(...handedAt(node).filter((handed) => !isPlainLiteral(handed)));
+    values.push(...handedAt(node).filter((handed) => !isPlainLiteral(handed)));
+    if (isSpreadAssignment(node) || isJsxSpreadAttribute(node)) {
+      spreads.push(node);
+    }
+    if (isCallExpression(node) || isNewExpression(node)) {
+      calls.push(node);
+    }
     node.forEachChild(visit);
   };
   for (const file of world.files.filter((source) => isProduction(world.siteOf(source).file) && home.has(world.siteOf(source).file))) {
     file.forEachChild(visit);
   }
-  return found;
+  return { values, calls, spreads };
 }
 
 function* pairAt(world: NativeWorld, handed: Node): APIRequestGenerator<TypePair | null> {
@@ -93,10 +110,39 @@ function* pairAt(world: NativeWorld, handed: Node): APIRequestGenerator<TypePair
   return sink === undefined ? null : { source: yield* world.checker.getTypeAtLocation.gen(handed), sink, depth: 0 };
 }
 
+// A spread hands its whole value to the literal it sits in, so the nested members of both types meet as well.
+function* spreadPair(world: NativeWorld, spread: Node): APIRequestGenerator<TypePair | null> {
+  const { expression } = spread as Node & { readonly expression: Expression };
+  const sink = yield* world.checker.getContextualType.gen(spread.parent as Expression);
+  return sink === undefined ? null : { source: yield* world.checker.getTypeAtLocation.gen(expression), sink, depth: 0 };
+}
+
+// At a generic call the contextual type of an argument is already instantiated, so the value and the slot are one type.
+// The generic signature's own parameter types are the slot the callee's body reads: a type parameter there stands for
+// its constraint, which the instantiated argument type meets here.
+function* genericPairs(world: NativeWorld, call: Node): APIRequestGenerator<readonly TypePair[]> {
+  const { checker } = world;
+  const resolved = yield* checker.getResolvedSignature.gen(call);
+  const target = yield* resolved.getTarget.gen();
+  if (target === undefined || (target.typeParameters ?? []).length === 0) {
+    return [];
+  }
+  const [own, generic] = yield* all(resolved.getParameters.gen(), target.getParameters.gen());
+  const shared = Math.min(own.length, generic.length);
+  const [sources, sinks] = yield* all(checker.getTypeOfSymbol.gen(own.slice(0, shared)), checker.getTypeOfSymbol.gen(generic.slice(0, shared)));
+  return sources.map((source, at) => ({ source, sink: sinks[at] as Type, depth: 0 }));
+}
+
 const isObjectLike = (type: Type): boolean => hasFlag(type.flags, TypeFlags.Object) || hasFlag(type.flags, TypeFlags.Intersection);
 
 function* objectMembers(world: NativeWorld, type: Type): APIRequestGenerator<readonly Type[]> {
   return (yield* constituents(yield* world.checker.getNonNullableType.gen(type))).filter(isObjectLike);
+}
+
+// A slot typed by a type parameter takes whatever its constraint allows.
+function* slotMembers(world: NativeWorld, type: Type): APIRequestGenerator<readonly Type[]> {
+  const bound = hasFlag(type.flags, TypeFlags.TypeParameter) ? yield* world.checker.getBaseConstraintOfType.gen(type) : undefined;
+  return yield* objectMembers(world, bound ?? type);
 }
 
 interface Compared {
@@ -176,7 +222,7 @@ function* comparedMembers(world: NativeWorld, from: Type, into: Type, depth: num
 }
 
 function* compared(world: NativeWorld, { source, sink, depth }: TypePair): APIRequestGenerator<Compared> {
-  const [froms, intos] = yield* all(objectMembers(world, source), objectMembers(world, sink));
+  const [froms, intos] = yield* all(objectMembers(world, source), slotMembers(world, sink));
   const answers = yield* all(...froms.flatMap((from) => intos.map((into) => comparedMembers(world, from, into, depth))));
   return { flows: answers.flatMap((answer) => answer.flows), next: answers.flatMap((answer) => answer.next) };
 }
@@ -185,7 +231,9 @@ function* compared(world: NativeWorld, { source, sink, depth }: TypePair): APIRe
 export function handoffFlows(world: NativeWorld, home: ReadonlySet<string>): readonly Flow[] {
   const flows: Flow[] = [];
   const seen = new Set<string>();
-  let pending = world.batch(handedValues(world, home).map((handed) => pairAt(world, handed))).flatMap((pair) => (pair === null ? [] : [pair]));
+  const { values, calls, spreads } = handedValues(world, home);
+  const handed = [...world.batch(values.map((value) => pairAt(world, value))), ...world.batch(spreads.map((spread) => spreadPair(world, spread)))];
+  let pending = [...handed.flatMap((pair) => (pair === null ? [] : [pair])), ...world.batch(calls.map((call) => genericPairs(world, call))).flat()];
   while (pending.length > 0) {
     const fresh = new Map(
       pending.filter(({ source, sink, depth }) => depth < MAX_DEPTH && source.id !== sink.id).map((pair) => [`${pair.source.id}|${pair.sink.id}`, pair]),

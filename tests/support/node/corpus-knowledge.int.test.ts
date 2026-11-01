@@ -61,9 +61,9 @@ test("public jobs retain owned and owner-admitted bulk scopes while producing di
   expect(result.reads.catalog.totalDistilled).toBe(result.summaries.length);
   expect(result.reads.projection.map((point) => point.characterId)).toContain(result.comparisonCard.id);
   expect(result.reads.archetypes.flatMap((group) => group.members.map((member) => member.characterId))).toContain(result.comparisonCard.id);
-  expect(result.reads.comparison).toMatchObject({ a: { characterId: result.refinery.character.id }, b: { characterId: result.comparisonCard.id } });
+  expect(result.reads.comparison).toMatchObject({ a: { name: result.refinery.character.name }, b: { name: result.comparisonCard.name } });
   expect(result.reads.deepComparison?.narrative.degraded).toBe(false);
-  expect(result.reads.dossier?.characterId).toBe(result.refinery.character.id);
+  expect(result.reads.dossier?.name).toBe(result.refinery.character.name);
   expect(result.reads.cooccurring.flat().length).toBeGreaterThan(0);
   expect(result.reads.profiles.flat().length).toBeGreaterThan(0);
   expect(result.reads.answers.some((answer) => answer !== null && answer.sampledMessages > 0 && !answer.degraded)).toBe(true);
@@ -72,8 +72,6 @@ test("public jobs retain owned and owner-admitted bulk scopes while producing di
       characterIdA: pair.characterIdA,
       characterIdB: pair.characterIdB,
       similarity: pair.similarity,
-      cslsScore: pair.cslsScore,
-      computedAt: pair.computedAt,
     });
   }
   for (const pair of result.duplicateChats) {
@@ -97,7 +95,6 @@ test("public jobs retain owned and owner-admitted bulk scopes while producing di
     expect(gem).toMatchObject({
       tokensOut: accounted?.tokensOut ?? null,
       tokensOutProvenance: accounted?.tokensOutProvenance ?? "unrecorded",
-      costUsd: accounted?.costUsd ?? null,
     });
   }
   expect(result.reads.routing).toContainEqual(expect.objectContaining({ genre: "science-fiction", model: CORPUS_TEXT_MODEL, tokensOutProvenance: "measured" }));

@@ -7,7 +7,6 @@ export function createDossierNeighbors(deps: DossierSearchDeps): DiscoveryContex
     (await deps.similarCharacters({ ownerId: userId, characterId, topN })).map((h) => ({
       characterId: h.characterId,
       name: h.name,
-      score: h.score,
       relevance: h.relevance,
       avatarHash: h.avatarHash,
       genre: h.genre,

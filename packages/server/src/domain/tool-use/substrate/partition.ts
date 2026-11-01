@@ -25,7 +25,7 @@
 // error, which is what makes the partition physics instead of etiquette (constitution §2, enforcement tier 2).
 
 import type { UserId } from "@orb/kit/ids";
-import type { RegisteredTool, ToolRegistry, ToolRegistryKey } from "../contract/results.ts";
+import type { ToolRegistry, ToolRegistryEntry, ToolRegistryKey } from "../contract/results.ts";
 
 /** The ONE key derivation. `owner` is the INSTALLER for a plugin entry and `null` for a first-party builtin
  *  (which belongs to the process, not to a user — `verbs/register.ts`). */
@@ -40,6 +40,6 @@ export function toolRegistryKey(owner: UserId | null, name: string): ToolRegistr
  *  The two-step is UNAMBIGUOUS rather than a precedence rule: `registerPluginTool` refuses a name a builtin
  *  already holds, and compose-time `register` runs before any activation, so an entry can never exist in both
  *  partitions at once. The order below therefore never decides anything — it only avoids a second lookup. */
-export function lookupForDriver(registry: ToolRegistry, driverUserId: UserId, name: string): RegisteredTool | undefined {
+export function lookupForDriver(registry: ToolRegistry, driverUserId: UserId, name: string): ToolRegistryEntry | undefined {
   return registry.get(toolRegistryKey(driverUserId, name)) ?? registry.get(toolRegistryKey(null, name));
 }
