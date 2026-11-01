@@ -86,7 +86,7 @@ export function LaneNotes({ viewingBack, iteration, behind, onBackToLatest }: La
     <Row align="center" className="flex-wrap" gap="field">
       {viewingBack ? (
         <>
-          <RefineryChip tone="warn">viewing round {iteration ?? 0} · superseded</RefineryChip>
+          <RefineryChip tone="warn">Viewing round {iteration ?? 0} · superseded</RefineryChip>
           <Button variant="ghost" onClick={onBackToLatest} size="sm">
             Back to latest
           </Button>

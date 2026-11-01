@@ -73,7 +73,7 @@ export function DatabankLibraryRow({
   // arithmetic (`empty` is terminal, so it can never be the stall overlay), so one `??` is the whole rule.
   const remedy = ingestStallHint(document, nowMs) ?? ingestEmptyHint(document);
   // ONE name for the inline toggle in both states: `aria-pressed` carries the state, so a name that also
-  // flipped would announce the opposite of what is on ("Stop feeding…, pressed").
+  // flipped would announce the opposite of what is on ("Stop using…, pressed").
   const everywhereName = `Use ${document.name} in every chat`;
   const toggleGlobal = (): void => onToggleGlobal(document.id, !global);
 
@@ -95,7 +95,7 @@ export function DatabankLibraryRow({
         menuItemsBefore: (
           <MenuItem onClick={toggleGlobal}>
             <Icon icon={Globe} size="sm" />
-            {global ? "Stop feeding every chat" : "Feed every chat"}
+            {global ? "Stop using in every chat" : "Use in every chat"}
           </MenuItem>
         ),
         menuItemsAfter: (

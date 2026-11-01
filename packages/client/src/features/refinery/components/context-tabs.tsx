@@ -21,11 +21,14 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { ConfirmDialog } from "#components";
 import type { Trpc } from "#data";
-import { createEntityMutation, QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import type { RefineryContextState } from "#lib";
 import { testId } from "#lib";
 import type { RefineryWorkbenchDoor } from "#state";
+import { useRestoreCharacterSnapshot, useSnapshotCharacterNow } from "../hooks/use-refinery-snapshots.ts";
+import { verdictToneOf, verdictWordOf } from "../lib/verdict.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
 
 type RunLedger = inferOutput<Trpc["refinery"]["listRuns"]>;
@@ -33,11 +36,7 @@ type RunView = RunLedger[number];
 type SnapshotList = inferOutput<Trpc["character"]["listSnapshots"]>;
 
 const STAGE_TONE: Record<RefineryStage, RenderHintTone> = { score: "info", rewrite: "neutral", analyze: "warn" };
-const VERDICT_TONE: Record<string, RenderHintTone> = {
-  ACCEPT: "good",
-  NEEDS_REFINEMENT: "warn",
-  REGRESSION: "bad",
-};
+const STAGE_WORD: Record<RefineryStage, string> = { score: "Score", rewrite: "Rewrite", analyze: "Analyze" };
 const MS_PER_SECOND = 1000;
 
 /** The label convention's prefixes — the version walk's classifier. */
@@ -98,11 +97,11 @@ function RunRow({
     <Card elevated={viewed}>
       <Stack gap="tight" padding="row">
         <Row align="center" gap="field">
-          <RefineryChip tone={STAGE_TONE[run.stage]}>{run.stage}</RefineryChip>
+          <RefineryChip tone={STAGE_TONE[run.stage]}>{STAGE_WORD[run.stage]}</RefineryChip>
           <Text voice="label">round {run.iteration}</Text>
-          {verdict !== null ? <RefineryChip tone={VERDICT_TONE[verdict] ?? "neutral"}>{verdict}</RefineryChip> : null}
-          {run.payloadConfig.kind === "custom" ? <RefineryChip tone="info">custom schema</RefineryChip> : null}
-          {armed ? <RefineryChip tone="good">in force for apply</RefineryChip> : null}
+          {verdict !== null ? <RefineryChip tone={verdictToneOf(verdict)}>{verdictWordOf(verdict)}</RefineryChip> : null}
+          {run.payloadConfig.kind === "custom" ? <RefineryChip tone="info">Custom schema</RefineryChip> : null}
+          {armed ? <RefineryChip tone="good">In force for apply</RefineryChip> : null}
         </Row>
         <Row align="center" gap="field">
           <Text voice="gloss">{economicsOf(run)}</Text>
@@ -258,10 +257,10 @@ export function SetupTab({
       <SetupRow action="View" k="Original card" onAction={onViewOriginal} v={anchorLine} />
       <SetupRow action="Edit" k="Scope" onAction={(): void => onOpenDoor("scope")} v={scopeLine} />
       {/* ONE ROW PER STAGE, so custom-ANALYZE authoring and editing a saved analyze schema have a door as score
-          does. Each stage carries its own "Change" → the editor at that stage; the body resolves
+          does. Each stage carries its own "Edit" → the editor at that stage; the body resolves
           edit-vs-author. */}
-      <SetupRow action="Change" k="Score schema" onAction={(): void => onEditSchema("score")} v={scoreSchemaLine} />
-      <SetupRow action="Change" k="Analyze schema" onAction={(): void => onEditSchema("analyze")} v={analyzeSchemaLine} />
+      <SetupRow action="Edit" k="Score schema" onAction={(): void => onEditSchema("score")} v={scoreSchemaLine} />
+      <SetupRow action="Edit" k="Analyze schema" onAction={(): void => onEditSchema("analyze")} v={analyzeSchemaLine} />
       <SetupRow k="Stage modes" v={stageModesLine} />
       <SetupRow action="Edit" k="Guidance" onAction={(): void => onOpenDoor("guidance")} v={guidanceLine} />
     </Stack>
@@ -286,23 +285,6 @@ function classOf(snapshot: SnapshotRow): { word: string; tone: RenderHintTone } 
 /** Placeholder rows while the snapshot walk lands — enough to hold the tab's height without asserting a
  *  population. */
 const SNAPSHOT_PENDING_ROWS = 3;
-
-/** The Versions empty-state's next action: mint the FIRST snapshot by hand (the same verb the History
- *  tab offers) — rides character's user-bus for the card half; the list is writer-local. */
-const useSnapshotCharacterNow = createEntityMutation<{ characterId: RefineryContextState["characterId"]; label: string }, unknown>({
-  options: (trpc) => trpc.character.snapshot.mutationOptions(),
-  invalidates: (trpc) => [trpc.character.listSnapshots.pathFilter()],
-  errorToast: "Couldn't snapshot the card.",
-});
-
-/** Restore rides character's OWN machinery: `restore` snapshots first (reversible by construction) and
- *  its `character.update` emits `charactersChanged`, which the seam routes to `trpc.character.*` — only
- *  the snapshot list itself needs the writer-local row (it gains the pre-restore row). */
-const useRestoreCharacterSnapshot = createEntityMutation<{ characterId: RefineryContextState["characterId"]; snapshotId: SnapshotRow["id"] }, unknown>({
-  options: (trpc) => trpc.character.restore.mutationOptions(),
-  invalidates: (trpc) => [trpc.character.listSnapshots.pathFilter()],
-  errorToast: "Couldn't restore that version.",
-});
 
 export function VersionsTab({ state, liveDescription }: { state: RefineryContextState; liveDescription: string }): ReactElement {
   const trpc = useTRPC();
@@ -329,7 +311,7 @@ export function VersionsTab({ state, liveDescription }: { state: RefineryContext
       <EmptyState
         action={
           <Button variant="outline" onClick={(): void => snapshotNow.mutate({ characterId: state.characterId, label: "manual: before refining" })} size="sm">
-            Snapshot the card now
+            Snapshot now
           </Button>
         }
         description="Every apply snapshots the card first, and you can snapshot by hand — versions land here as they are made."
@@ -357,9 +339,18 @@ export function VersionsTab({ state, liveDescription }: { state: RefineryContext
                 <Button variant="ghost" onClick={(): void => setCompareId(compareId === snapshot.id ? null : snapshot.id)} size="sm">
                   {compareId === snapshot.id ? "Hide compare" : "Compare"}
                 </Button>
-                <Button variant="ghost" onClick={(): void => restore.mutate({ characterId: state.characterId, snapshotId: snapshot.id })} size="sm">
-                  Restore
-                </Button>
+                <ConfirmDialog
+                  confirmLabel="Restore"
+                  confirmTone="primary"
+                  description="This replaces the live card with this version. The current card is snapshotted first, so you can undo it."
+                  onConfirm={(): void => restore.mutate({ characterId: state.characterId, snapshotId: snapshot.id })}
+                  title="Restore this snapshot?"
+                  trigger={
+                    <Button variant="ghost" size="sm">
+                      Restore
+                    </Button>
+                  }
+                />
               </Row>
               {compareId === snapshot.id ? (
                 <Stack gap="tight">

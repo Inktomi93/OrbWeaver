@@ -250,6 +250,42 @@ for (const regime of REGIMES) {
   });
 }
 
+test("Versions asks before Restore overwrites the live card, and Cancel writes nothing", async ({ corpus, page, mount }) => {
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const session = await seedSession(caller, null);
+  await caller.character.snapshot({ characterId: session.characterId, label: "manual: keep this" });
+  const calls = await routeTrpc(page, {
+    ...createShellAmbientReads(corpus, root.ownerId),
+    ...serveCorpusProcedures(caller, [
+      ...SECTION_PROCEDURES,
+      "refinery.getSession",
+      "refinery.listRuns",
+      "refinery.preflight",
+      "refinery.listSchemas",
+      "character.listSnapshots",
+      "character.restore",
+    ]),
+  });
+  await seedShellState(page, { activeSection: "refinery", panelOverrides: { refinery: { list: "collapsed", context: "collapsed" } } });
+  await mount<typeof RefineryCompositionShellStory>(STORY, { sessionId: session.id });
+  await expect(page.getByTestId(testId("refineryMasthead"))).toBeVisible();
+  await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
+  const context = page.locator(CONTEXT);
+  await context.getByRole("tab", { name: "Versions", exact: true }).click();
+  await context.getByRole("button", { name: "Restore", exact: true }).click();
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toBeVisible();
+  expect(calls.count("character.restore")).toBe(0);
+  await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(confirm).toBeHidden();
+  expect(calls.count("character.restore")).toBe(0);
+  await context.getByRole("button", { name: "Restore", exact: true }).click();
+  await confirm.getByRole("button", { name: "Restore", exact: true }).click();
+  await expect.poll(() => calls.count("character.restore")).toBe(1);
+});
+
 test.describe("explicitly named equal to the card", () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   test("preserves the card heading because the session is named, not because the strings differ", async ({ corpus, page, mount }) => {

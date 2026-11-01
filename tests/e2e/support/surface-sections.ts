@@ -1684,7 +1684,7 @@ async function databankDisposable(journey: Journey): Promise<void> {
       body: await journey.page.getByRole("menu").ariaSnapshot(),
       contentType: "text/plain",
     });
-    await journey.page.getByRole("menuitem", { name: "Feed every chat", exact: true }).click();
+    await journey.page.getByRole("menuitem", { name: "Use in every chat", exact: true }).click();
     await expect.poll(async () => (await journey.client.databank.listGlobal.query()).includes(document.id)).toBe(true);
     await actions().click();
     await journey.page.getByRole("menuitem", { name: ROW_RENAME_NAME, exact: true }).click();
@@ -2248,7 +2248,7 @@ const REFINERY_WORKBENCH_DOORS = [
   { name: "Edit scope", id: "scope-dialog" },
   { name: "Hand-edit", id: "manual-rewrite-dialog" },
 ] as const;
-const REFINERY_SETUP_DOORS = ["View Original card", "Change Score schema", "Change Analyze schema"] as const;
+const REFINERY_SETUP_DOORS = ["View Original card", "Edit Score schema", "Edit Analyze schema"] as const;
 
 async function openSetupTab(journey: Journey): Promise<Locator> {
   await reveal(journey, "context");

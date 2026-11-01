@@ -44,7 +44,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { CharacterPicker } from "#components";
 import { uploadDocument, useGatedQuery, useInvalidation, useTRPC, useUploadCaps } from "#data";
-import { notify, testId } from "#lib";
+import { testId } from "#lib";
 import { closeModal, selectDocumentFromList, setActiveSection, useActiveChatId } from "#state";
 import { useCreateDocumentFromText, useScrapeWeb, useScrapeWiki, useScrapeYoutube } from "../hooks/use-databank-mutations.ts";
 import { useScrapeForm } from "../hooks/use-scrape-form.ts";
@@ -74,7 +74,7 @@ export function AddDocumentBody(): ReactElement {
   };
   const destination = destinations[scope];
   const scopeCopy: Record<DocumentScopeSource, string> = {
-    global: "Feeds every chat you are in. Switch Everywhere off on the document to stop that; any other attachments remain.",
+    global: "Feeds every chat you are in. Switch off Use in every chat on the document to stop that; any other attachments remain.",
     character: "Feeds chats with the selected character. Existing attachments stay unchanged.",
     chat: destination === null ? "Open a chat you host before choosing This chat." : "Feeds only the current chat. Existing attachments stay unchanged.",
   };
@@ -326,9 +326,10 @@ function PasteBody({ onLanded, destination }: { readonly onLanded: OnLanded; rea
 function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; readonly destination: DocumentDestination | null }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const scrapeWeb = useScrapeWeb({ trpc, invalidation });
-  const scrapeYoutube = useScrapeYoutube({ trpc, invalidation });
-  const scrapeWiki = useScrapeWiki({ trpc, invalidation });
+  // The failure is told once, by the form's own line below, so the global error toast stays quiet.
+  const scrapeWeb = useScrapeWeb({ trpc, invalidation, failureShownInline: true });
+  const scrapeYoutube = useScrapeYoutube({ trpc, invalidation, failureShownInline: true });
+  const scrapeWiki = useScrapeWiki({ trpc, invalidation, failureShownInline: true });
 
   const pending = scrapeWeb.isPending || scrapeYoutube.isPending || scrapeWiki.isPending;
   // THE FAILURE BELONGS TO A SOURCE, NOT TO THE DIALOG (#1502). A flat OR over all three runners made one
@@ -409,7 +410,8 @@ function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; read
               data-testid={testId("databankScrapeSubmit")}
               disabled={destination === null || urlEmpty || pending}
               onClick={(): void => {
-                form.handleSubmit().catch(() => notify.error("Couldn't add the document."));
+                // A rejected submit is a failed runner, which `runnerFailed` already prints.
+                form.handleSubmit().catch(() => undefined);
               }}
             >
               {pending ? "Fetching…" : "Fetch and add"}
