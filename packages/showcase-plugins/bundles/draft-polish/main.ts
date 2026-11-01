@@ -4,8 +4,10 @@
 const host = orb.host(1);
 const ELLIPSIS_RE = /\.{3,}/g;
 const RUN_OF_SPACES_RE = /[ \t]{2,}/g;
-const SPACE_BEFORE_PUNCT_RE = / +([,.;:!?])/g;
-const TRAILING_SPACE_RE = /[ \t]+$/gm;
+const SPACE_RUN_RE = / +/g;
+const TAB_OR_SPACE_RUN_RE = /[ \t]+/g;
+const PUNCT = ",.;:!?";
+const LINE_TERMINATORS = "\n\r\u2028\u2029";
 const DOUBLE_DASH_RE = /(\S) ?-- ?(?=\S)/g;
 const APOSTROPHE_RE = /(\w)'\b/g;
 const OPEN_DQUOTE_RE = /(^|[\s([{])"/gm;
@@ -14,8 +16,17 @@ const CLOSE_DQUOTE_RE = /"/g;
 // Code is copied, never passed through prose rules, on both paths.
 const CODE_SPAN_RE = /(```[\s\S]*?```|`[^`\n]*`)/;
 
+// A space run is dropped whole when punctuation follows it (` +([,.;:!?])` kept the mark); matching the run
+// itself, not the run plus its mark, keeps a long run of spaces linear.
+function dropSpacesBeforePunct(text: string): string {
+  return text.replaceAll(SPACE_RUN_RE, (spaces: string, offset: number) => {
+    const next = text.charAt(offset + spaces.length);
+    return next !== "" && PUNCT.includes(next) ? "" : spaces;
+  });
+}
+
 function tidy(text: string): string {
-  return text.replaceAll(ELLIPSIS_RE, "…").replaceAll(SPACE_BEFORE_PUNCT_RE, "$1").replaceAll(RUN_OF_SPACES_RE, " ");
+  return dropSpacesBeforePunct(text.replaceAll(ELLIPSIS_RE, "…")).replaceAll(RUN_OF_SPACES_RE, " ");
 }
 
 function polish(draft: string): string {
@@ -27,9 +38,14 @@ function polish(draft: string): string {
       }
       const prose = tidy(segment);
       // A prose segment ending before code is not a line ending: keep the separator space.
-      return prose.replaceAll(TRAILING_SPACE_RE, (spaces: string, offset: number) =>
-        offset + spaces.length === prose.length && index < segments.length - 1 ? spaces : "",
-      );
+      // A run of blanks is trailing when it ends the segment or sits before a line terminator.
+      return prose.replaceAll(TAB_OR_SPACE_RUN_RE, (spaces: string, offset: number) => {
+        const end = offset + spaces.length;
+        if (end < prose.length && !LINE_TERMINATORS.includes(prose.charAt(end))) {
+          return spaces;
+        }
+        return end === prose.length && index < segments.length - 1 ? spaces : "";
+      });
     })
     .join("")
     .trim();

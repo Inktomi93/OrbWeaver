@@ -46,6 +46,7 @@
 // unrelated occurrence of those digits. Over-redaction inside a credential-named subtree is deliberate:
 // the key name declares the semantics, exactly as it does for a custom auth header.
 
+import { replaceAngleSpans } from "@orb/kit/strings";
 import type { ProviderScrubSet } from "#contract";
 import type { ScrubSource } from "../../contract/http.ts";
 import { secretHeaderValues } from "../wire/openai-body.ts";
@@ -64,7 +65,7 @@ export function sanitizeApiError(raw: string, maxLen: number = DEFAULT_SANITIZE_
   // Replace each HTML/XML tag with a single space so adjacent tag-wrapped tokens don't fuse
   // ("<h1>Foo</h1><p>Bar</p>" → "Foo Bar", not "FooBar"); an upstream HTML error page would otherwise
   // leak a wall of markup into our logs.
-  cleaned = cleaned.replace(/<[^>]*>/g, " ");
+  cleaned = replaceAngleSpans(cleaned, " ", true);
   // Collapse runs of whitespace (from tag stripping or the raw body) into a single space.
   cleaned = cleaned.replace(/\s+/g, " ").trim();
   if (cleaned.length > maxLen) {

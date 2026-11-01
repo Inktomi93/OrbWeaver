@@ -756,7 +756,7 @@ function memoryRequestId(turnId: ChatTurnId): string {
 
 // The existing terminal boundaries own failures; graph lifetime owns joining their settlement.
 function trackSettledWork(ctx: EngineContext, chatId: ChatId, work: Promise<void>): void {
-  ctx.trackBackground?.(work, chatId);
+  ctx.trackBackground(work, chatId);
 }
 
 /** Fire-and-forget the rpg post-turn FLUSH (D58): after the variant commits, flush the turn's

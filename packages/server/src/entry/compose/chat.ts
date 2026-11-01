@@ -129,7 +129,7 @@ export interface ChatComposeInput {
 
   readonly timers: TimerScheduler;
   readonly backgroundSignal?: AbortSignal;
-  readonly trackBackground?: ChatAssemblyContext["trackBackground"];
+  readonly trackBackground: ChatAssemblyContext["trackBackground"];
   readonly recordTurnOutcome?: ChatAssemblyContext["recordTurnOutcome"];
   readonly random: RandomSource;
   readonly idSource: IdSource;
@@ -391,7 +391,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     now,
     timers,
     ...(input.backgroundSignal === undefined ? {} : { backgroundSignal: input.backgroundSignal }),
-    ...(input.trackBackground === undefined ? {} : { trackBackground: input.trackBackground }),
+    trackBackground: input.trackBackground,
     ...(input.recordTurnOutcome === undefined ? {} : { recordTurnOutcome: input.recordTurnOutcome }),
     can: input.can,
     newChatId: minter(ID_PREFIX.chat, input.idSource),

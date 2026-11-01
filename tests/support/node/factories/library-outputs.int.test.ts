@@ -99,7 +99,7 @@ test("world library outputs preserve attachment roles, entry ordering, portable 
   expect(views.imported.output.name).not.toBe(views.collision.name);
   expect(views.repeated.output).toMatchObject({ created: false, name: views.imported.output.name });
   expect(views.exported.output.filename).toMatch(/\.json$/u);
-  expect(views.deleted.output).toEqual({ deleted: true });
+  expect(views.deleted.output).toBeUndefined();
   await expect(caller.worldInfo.getBook(views.deleted.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
   expect(views.books.output.map((book) => book.id)).not.toContain(views.collision.id);
   expect(await caller.worldInfo.countBooks()).toBe(views.books.output.length);
@@ -108,7 +108,7 @@ test("world library outputs preserve attachment roles, entry ordering, portable 
   expect(await caller.worldInfo.detachGlobal({ bookId: library.world.book.id })).toEqual({ detached: true });
   expect((await caller.worldInfo.listGlobal()).map((book) => book.id)).not.toContain(library.world.book.id);
   expect(await caller.worldInfo.detachGlobal({ bookId: library.world.book.id })).toEqual({ detached: false });
-  expect(await caller.worldInfo.removeEntry({ entryId: views.first.id })).toEqual({ deleted: true });
+  await caller.worldInfo.removeEntry({ entryId: views.first.id });
   await expect(caller.worldInfo.getEntry({ entryId: views.first.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
 });
 
@@ -141,7 +141,7 @@ test("regex output captures preserve execution order, host opt-in, portable reus
   expect(views.bulk.output).toEqual({ affected: 1 });
   expect(views.detached.output).toEqual({ detached: true });
   expect(views.detachedAgain.output).toEqual({ detached: false });
-  expect(views.deleted.output).toEqual({ deleted: true });
+  expect(views.deleted.output).toBeUndefined();
   expect(views.list.output.map((script) => script.id)).not.toContain(views.deleted.input.scriptId);
   const foreign = (await other.regex.listScripts()).find((script) => script.name === views.first.name);
   if (foreign === undefined) {
