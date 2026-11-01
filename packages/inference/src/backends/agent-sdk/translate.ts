@@ -18,6 +18,9 @@ const COWORK_DENYLIST = ["DesignSync", "Monitor", "PushNotification", "RemoteTri
 /** The in-process MCP server namespace — the ONE name both the agent runner's `mcpServers` mount and the
  *  chat runner's tool mount key on (`allowedTools: mcp__<ns>__*`). */
 export const MCP_NAMESPACE = "orbweaver";
+/** The `serverInfo.version` the registry mount answers `initialize` with. The runtime's tool prefix comes from
+ *  {@link MCP_NAMESPACE}, so this value never reaches a prompt. */
+export const MCP_SERVER_VERSION = "1.0.0";
 /** The TERMINAL-tool mount's own MCP namespace (D112 R1) — deliberately NOT {@link MCP_NAMESPACE}: the
  *  registry mount is allow-listed (the SDK executes it), while a terminal tool must be DENIED at the permission
  *  seam so it never executes and never earns a second model call. */

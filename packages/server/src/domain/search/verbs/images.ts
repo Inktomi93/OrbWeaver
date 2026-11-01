@@ -19,6 +19,7 @@ import { resolveAvatarOwners } from "../persistence/display.ts";
 import { nearestImages } from "../persistence/image-nearest.ts";
 import { CAPTION_LENS, OWNER_OVERFETCH, RERANK_POOL_FACTOR } from "../substrate/constants.ts";
 import { relevanceOf, rerankPoolByScores } from "../substrate/csls.ts";
+import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
 import { withActiveQuerySpace } from "../substrate/space.ts";
 import { requirePositiveTopN } from "../substrate/top-n.ts";
 
@@ -58,7 +59,10 @@ export function createImages(ctx: SearchContext): SearchService["images"] {
         score: r.distance,
       }));
 
-      const ordered = params.rerank === true ? await applyRerank(query, rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN), rc.rerank, topN) : ranked;
+      const ordered =
+        params.rerank === true
+          ? await applyRerank(`${SCOPE_INSTRUCTIONS.images.rerank}\n${query}`, rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN), rc.rerank, topN)
+          : ranked;
 
       // A HIT IS A PICTURE AND A PLACE (side-eye corpus re-pass U4). The hash makes the result renderable; the
       // avatar owner makes it navigable. Resolved AFTER the slice, so the enrichment join is sized by what is
@@ -90,8 +94,11 @@ export function createImages(ctx: SearchContext): SearchService["images"] {
 }
 
 async function embedImageQuery(space: ActiveQuerySpace, query: string): Promise<Float32Array> {
+  const instruction = SCOPE_INSTRUCTIONS.images.query;
   const embedded =
-    space.via === "embed" ? await space.connection.embed(query, { inputType: "query" }) : await space.connection.imageEmbed({ kind: "text", input: query });
+    space.via === "embed"
+      ? await space.connection.embed(query, { inputType: "query", instruction })
+      : await space.connection.imageEmbed({ kind: "text", input: query, instruction });
   const vector = embedded.vectors[0];
   if (vector === null || vector === undefined) {
     throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
