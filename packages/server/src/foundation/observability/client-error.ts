@@ -11,8 +11,6 @@ import type { ClientErrorReport } from "@orb/contracts/diagnostics";
 import type { Logger } from "./contract/logging.ts";
 import { getLog } from "./logger.ts";
 
-export type { ClientErrorReport } from "@orb/contracts/diagnostics";
-
 const FIELD_MAX = 4000;
 /** The correlation id is opaque and short by construction (`X-Request-Id`'s own charset-only validation is
  *  the twin). It had NO cap here at all — the wire procedure's 200 was the only bound, and this sink is

@@ -34,6 +34,7 @@
 // explicit host config write — `verbs/claim-chat.ts`).
 
 import type { ChatRpgGameBirthPlan, MessageView, OpeningPolicy } from "@orb/contracts/chat";
+import { NO_HISTORY_FLOOR } from "@orb/contracts/chat";
 import type { ChatRpgPointer } from "@orb/contracts/rpg";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
@@ -51,7 +52,6 @@ import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { buildInitialParticipantRows } from "../persistence/participants-read.ts";
 import { loadChatRow } from "../persistence/queries.ts";
 import { assertSeatableCharacters } from "../persistence/seat-characters.ts";
-import { NO_HISTORY_FLOOR } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { buildGreetingSeed } from "../substrate/greeting-seed.ts";
 import { resolveAnchorState } from "../substrate/participants-humans.ts";

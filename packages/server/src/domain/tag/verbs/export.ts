@@ -14,7 +14,7 @@ import type { TagContext } from "../contract/service.ts";
 import { listOwnedTags } from "../persistence/queries.ts";
 
 /** Read the owner's tags and serialize them to tag-library JSON bytes. */
-export function createExport(input: DbAssemblyInput<TagContext>): (ownerId: UserId) => Promise<Uint8Array> {
+export function createTagLibraryExport(input: DbAssemblyInput<TagContext>): (ownerId: UserId) => Promise<Uint8Array> {
   const ctx: TagContext = { ...input, db: databaseForOwner(input.db) };
   return async (ownerId: UserId): Promise<Uint8Array> => {
     const rows = await listOwnedTags(ctx.db, ownerId);

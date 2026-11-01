@@ -3,7 +3,7 @@
 // the SAME instance. Idempotent; never throws.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { ExamplePluginSeeder } from "./seed-example-plugins.ts";
+import type { ExamplePluginSeeder } from "#domain/plugin";
 
 export interface SeedExamplePluginsDeps {
   /** Shared with the app first-request hook. */

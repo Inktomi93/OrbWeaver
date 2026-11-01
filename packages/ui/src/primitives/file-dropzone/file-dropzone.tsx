@@ -6,7 +6,7 @@ import type { ChangeEvent, ComponentPropsWithRef, DragEvent, MouseEvent, ReactEl
 import { useId, useState } from "react";
 import { HIDDEN_AT } from "#lib";
 import { useFieldIdentity, useFieldLabelled } from "#primitives/field";
-import { AlertTriangle, Check, Icon, Upload } from "#primitives/icons";
+import { Check, Icon, TriangleAlert, Upload } from "#primitives/icons";
 import { WebSpinner } from "#primitives/spinner";
 import { matchesAccept } from "./accept.ts";
 import { fileDropzoneVariants } from "./variants.ts";
@@ -370,7 +370,7 @@ export function FileDropzone({
       </div>
       {errorMessage === undefined ? null : (
         <p className={slots.error()} data-slot="file-dropzone-error" role="alert">
-          <Icon className={slots.errorIcon()} icon={AlertTriangle} label="Error" size="xs" />
+          <Icon className={slots.errorIcon()} icon={TriangleAlert} label="Error" size="xs" />
           <span className={slots.errorText()}>{errorMessage}</span>
         </p>
       )}

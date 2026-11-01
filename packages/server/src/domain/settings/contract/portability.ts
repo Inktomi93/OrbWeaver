@@ -4,5 +4,3 @@
 export type ImportThemeFileOutcome =
   | { readonly ok: true; readonly created: boolean; readonly name: string; readonly renamedFrom: string | null }
   | { readonly ok: false; readonly error: string };
-
-export type { ImportedAppearance, ImportedAppearanceOutcome, ImportedThemeLanding, SettingsImportOutcome } from "@orb/contracts/settings";

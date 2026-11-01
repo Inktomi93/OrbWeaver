@@ -1,13 +1,8 @@
 import { useSyncExternalStore } from "react";
-
-interface ColorSchemeQuery {
-  readonly matches: boolean;
-  readonly addEventListener: (type: "change", listener: () => void) => void;
-  readonly removeEventListener: (type: "change", listener: () => void) => void;
-}
+import type { MatchMediaListView } from "./match-media-list.ts";
 
 // Keep the browser fact here so features share its query and subscription lifecycle.
-const matchMediaFn = (globalThis as { matchMedia?: (query: string) => ColorSchemeQuery }).matchMedia;
+const matchMediaFn = (globalThis as { matchMedia?: (query: string) => MatchMediaListView }).matchMedia;
 const lightQuery = typeof matchMediaFn === "function" ? matchMediaFn("(prefers-color-scheme: light)") : null;
 
 function subscribe(onChange: () => void): () => void {

@@ -23,10 +23,8 @@
 // Growing this taxonomy further needs a convicted path with a throw site AND a surfaced client state — a class
 // with neither is the exact lie that was deleted.
 
-export { THEME_LEVELS } from "@orb/contracts/discovery";
-
 export { IMAGE_FACET_KEYS } from "./contract/params.ts";
-export type { DiscoveryAssemblyContext as DiscoveryContext, DiscoveryService, DiscoveryWorkloadDeps } from "./contract/service.ts";
+export type { DiscoveryAssemblyContext, DiscoveryService, DiscoveryWorkloadDeps } from "./contract/service.ts";
 export {} from "./cooccurrence/generate.ts";
 export {} from "./duplicates/generate.ts";
 /** The bulk-pass announce audience — every owner with corpus rows. Exported for the composition root, which

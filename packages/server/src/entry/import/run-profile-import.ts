@@ -32,8 +32,6 @@ export interface CardLorebookRestoreDeps extends Omit<ProfileImportDeps, "files"
   readonly file: ImportFile;
 }
 
-export type { ImportFile } from "#domain/import";
-
 /** The card-only per-owner `ImportContext`, in ONE place: both card doors (the batch import and the #1598
  *  lorebook restore) compose the identical wiring, so a port that lands on one arm can never be missing from
  *  the other. */

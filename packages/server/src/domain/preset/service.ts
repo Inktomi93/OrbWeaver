@@ -9,7 +9,7 @@ import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { PresetContext, PresetService } from "./contract/service.ts";
 import { createCreate } from "./verbs/create.ts";
 import { createGet } from "./verbs/get.ts";
-import { createImport } from "./verbs/import.ts";
+import { createImportPresets } from "./verbs/import.ts";
 import { createImportFile } from "./verbs/import-file.ts";
 import { createList } from "./verbs/list.ts";
 import { createListUsage } from "./verbs/list-usage.ts";
@@ -31,6 +31,6 @@ export function createPresetService(input: DbAssemblyInput<PresetContext>): Pres
     ...createListUsage(ctx),
     // The single-preset import DOOR over the bundle's own import verb (factory injection — the verb-isolation
     // wiring point), so both doors run one implementation.
-    ...createImportFile({ importPreset: createImport(input) }),
+    ...createImportFile({ importPreset: createImportPresets(input) }),
   };
 }

@@ -1,7 +1,7 @@
 // The Labels finder owns phone arrival; the visible library owns desktop arrival.
 
 import { Button } from "@orb/ui/button";
-import { Icon, MoreVertical, Trash2 } from "@orb/ui/icons";
+import { EllipsisVertical, Icon, Trash } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Select } from "@orb/ui/select";
@@ -81,13 +81,13 @@ function LabelsOverflow(): ReactElement {
       <MenuTrigger
         render={
           <Button aria-label="More tag actions" variant="ghost" size="sm" square={true}>
-            <Icon icon={MoreVertical} size="sm" />
+            <Icon icon={EllipsisVertical} size="sm" />
           </Button>
         }
       />
       <MenuPopup align="end">
         <MenuItem onClick={(): void => setTagPruneConfirmOpen(true)}>
-          <Icon icon={Trash2} size="sm" />
+          <Icon icon={Trash} size="sm" />
           Prune unused tags
         </MenuItem>
       </MenuPopup>

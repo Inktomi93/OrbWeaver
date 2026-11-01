@@ -11,7 +11,7 @@
 // is a toast — an import that silently kept the wrong plane is exactly the "book kept" surprise this
 // pairs with (#1598's whole reason for existing).
 
-import { AlertTriangle, Check, Icon } from "@orb/ui/icons";
+import { Check, Icon, TriangleAlert } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -43,7 +43,7 @@ export function ImportReportSummary({ summary }: ImportReportSummaryProps): Reac
             <Stack key={outcome.path} gap="field">
               <Row align="center" gap="row" role="listitem">
                 <Icon
-                  icon={outcome.ok ? Check : AlertTriangle}
+                  icon={outcome.ok ? Check : TriangleAlert}
                   size="sm"
                   tone={outcome.ok ? "success" : "destructive"}
                   label={outcome.ok ? "Imported" : "Not imported"}

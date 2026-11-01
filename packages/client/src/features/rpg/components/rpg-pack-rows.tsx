@@ -20,7 +20,7 @@ import type { RpgInventoryItem } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { GlyphButton } from "@orb/ui/glyph-button";
-import { Icon, Trash2 } from "@orb/ui/icons";
+import { Icon, Trash } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
@@ -206,7 +206,7 @@ function PackTileEditor({ item, edit }: { readonly item: RpgInventoryItem; reado
           onConfirm={(): void => edit.onRemoveItem(item.id)}
           trigger={
             <Button aria-label={`Drop item: ${item.name}`} variant="ghost" size="sm">
-              <Icon icon={Trash2} size="xs" />
+              <Icon icon={Trash} size="xs" />
               Drop
             </Button>
           }
@@ -243,7 +243,7 @@ function PackListRow({ item, edit }: { readonly item: RpgInventoryItem; readonly
             onConfirm={(): void => edit.onRemoveItem(item.id)}
             trigger={
               <GlyphButton aria-label={`Drop item: ${item.name}`} variant="ghost" glyph="sm">
-                <Icon icon={Trash2} size="xs" />
+                <Icon icon={Trash} size="xs" />
               </GlyphButton>
             }
           />

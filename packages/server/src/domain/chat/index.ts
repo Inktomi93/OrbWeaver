@@ -14,7 +14,6 @@ export type {
   PresenceReadOp,
   PromptTransformRegistry,
   ResolveChatPresetParamsOp,
-  ResolveViewerVisibility,
 } from "./contract/context.ts";
 export type { EmitDurableChatEventOp, PromptCacheMinDepthOp } from "./contract/engine-context.ts";
 export { ChatOperationError } from "./contract/errors.ts";
@@ -25,7 +24,6 @@ export type { MemoryRecallRecorder } from "./contract/memory.ts";
 export { toolRecurseLimitSchema } from "./contract/metadata.ts";
 export type { ChatPublicationDeps } from "./contract/publication.ts";
 export type { ReactToolHandlerDeps } from "./contract/react-tool.ts";
-export type { RequestTurnOp } from "./contract/results.ts";
 export type { ChatRoomInputs } from "./contract/room-inputs.ts";
 export type { ChatInferenceDeps } from "./contract/runtime-inference.ts";
 export type { ChatService } from "./contract/service.ts";
@@ -33,10 +31,10 @@ export type {
   SignupInviteDeps,
   SignupInviteOps,
 } from "./contract/signup.ts";
-export type { ChatAssemblyContext as ChatContext } from "./contract/wiring.ts";
+export type { ChatAssemblyContext } from "./contract/wiring.ts";
 export type { ChatWorkloadDeps } from "./contract/workloads.ts";
 export { createRunChatTurnBridge } from "./engine/provider-bridge.ts";
-export { requireWiredAuthorOrHost as requireAuthorOrHost, requireWiredHost as requireHost, requireWiredParticipant as requireParticipant } from "./guard.ts";
+export { requireWiredAuthorOrHost, requireWiredHost, requireWiredParticipant } from "./guard.ts";
 export { SUMMARIZE_TRANSCRIPT_MARKER } from "./memory/generate/substrate/prompts.ts";
 export { consolidationHash } from "./memory/generate/substrate/transcript.ts";
 export { createLiveTier0Range } from "./memory/recall/live-tier-range.ts";
@@ -74,7 +72,7 @@ export { createChatService, createVisibleExtractQuiet } from "./service.ts";
 // the client happened to be connected. The transport only APPLIES the verdict — it never re-derives the
 // policy (the floor is handed to it by `chatEventBounds`). Same posture as the `requireHost`/
 // `requireParticipant` guards this door already exports for out-of-domain enforcement.
-export { isBelowHistoryFloor } from "./substrate/auth/index.ts";
+export { isBelowHistoryFloor } from "./substrate/auth/clamp.ts";
 export { createResolveChatUserMacroDefs } from "./substrate/macro-readers.ts";
 // The §3.6 member-strip verdict — exported for the SAME reason `isBelowHistoryFloor` is: the LIVE SSE
 // fan-out (transport) must apply the identical per-subscriber strip the durable replay applies, off the

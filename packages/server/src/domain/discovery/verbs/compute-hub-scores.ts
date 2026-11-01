@@ -8,7 +8,7 @@ import type { EveryOwnerRun, WorkloadRunScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import type { ComputeHubScoresOptions } from "../contract/params.ts";
-import type { HubStats } from "../contract/results.ts";
+import type { HubStats, HubVector } from "../contract/results.ts";
 import type { ComputeHubScoresDeps, DiscoveryContext, DiscoveryService } from "../contract/service.ts";
 import {
   distinctCharacterHubOwners,
@@ -22,13 +22,6 @@ import {
 } from "../persistence/embed-store-reads.ts";
 import { collapseByHash } from "../substrate/collapse.ts";
 import { computeGroupHubs } from "../substrate/hub-math.ts";
-
-interface HubRow {
-  readonly id: string;
-  readonly model: string;
-  readonly embedding: Float32Array;
-  readonly contentHash: string;
-}
 
 function groupBy<T>(rows: readonly T[], keyOf: (row: T) => string): Map<string, T[]> {
   const groups = new Map<string, T[]>();
@@ -58,7 +51,7 @@ interface HubPassConfig<T> {
   readonly opts: ComputeHubScoresOptions;
 }
 
-async function fanOutHubPass<T extends HubRow>(
+async function fanOutHubPass<T extends HubVector>(
   owners: readonly UserId[],
   readForOwner: (ownerId: UserId) => Promise<T[]>,
   cfg: HubPassConfig<T>,
@@ -73,7 +66,7 @@ async function fanOutHubPass<T extends HubRow>(
   return { rowsScored, groupsProcessed };
 }
 
-async function runHubPass<T extends HubRow>(rows: readonly T[], cfg: HubPassConfig<T>): Promise<HubStats> {
+async function runHubPass<T extends HubVector>(rows: readonly T[], cfg: HubPassConfig<T>): Promise<HubStats> {
   const { table, groupKeyOf, deps, opts } = cfg;
   const updates: HubScoreUpdate[] = [];
   const groups = groupBy(rows, groupKeyOf);

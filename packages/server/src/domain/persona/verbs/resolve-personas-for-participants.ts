@@ -6,9 +6,9 @@
 //
 // The consent rule + why the gate rides IN the params: `contract/ops.ts`. A read: no audit, no writes.
 
+import type { ResolvePersonasForParticipants } from "@orb/contracts/persona";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { ResolvePersonasForParticipants } from "../contract/ops.ts";
 import type { PersonaContext } from "../contract/service.ts";
 import { loadPersonasForOwners, loadPinnedPersonaView } from "../persistence/queries.ts";
 

@@ -35,7 +35,7 @@
 // (`stripChatEventForMember` at the live transport + the durable replay), so pre-stripping here would withhold
 // the host's own payload. Strip the return; emit the truth.
 
-import type { ClaimChatOp, MessageView, ReattributeScope } from "@orb/contracts/chat";
+import type { ClaimChatOp, HostTierRegexAllow, MessageView, ReattributeScope } from "@orb/contracts/chat";
 import { isSeededGreetingRow, macroFreezeRecordSchema, parseVariantMetadata } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
@@ -73,7 +73,6 @@ import type {
   SetMessageHiddenParams,
   SetSeededGreetingParams,
 } from "../contract/params.ts";
-import type { HostTierRegexAllow } from "../contract/regex.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireAuthorOrHost, requireHost, requireParticipant } from "../guard.ts";
 import {

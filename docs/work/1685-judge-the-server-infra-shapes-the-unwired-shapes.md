@@ -30,4 +30,8 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 4 rows = 4 applied. 0 kept, 0 handed off, 0 owner questions.
+
+- `SafeFetch`, `SafeFetchResult` reexport-chain: applied. `infra/network/index.ts` exports both from their home `contract/egress.ts`; the intermediate re-export in `egress.ts` is deleted. Importers go through the `#infra/network` door (ast-grep ts 5949 / tsx 1525 tracked files), so none changed.
+- `InvocationChat`, `PluginBridge` reexport-chain: applied. The `infra/plugin-host/membrane.ts` re-export is deleted; its one importer (`sandbox.ts`) takes both from `@orb/contracts/plugin`. `packages/contracts/src/plugin/` and `packages/plugin-sdk/` are untouched; the host-side re-export is not guest-reachable.
+- Check: `pnpm typecheck packages/server/tsconfig.json` exit 0.

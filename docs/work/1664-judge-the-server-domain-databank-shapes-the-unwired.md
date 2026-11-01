@@ -34,4 +34,6 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 2 rows = 2 applied. 0 kept, 0 handed off, 0 owner questions.
+
+- `DatabankPortabilityContext` / `DatabankPortabilityAssemblyContext` and `DatabankContext` / `DatabankAssemblyContext`, renamed-reexport: applied. `domain/databank/index.ts` exports each under its declared name; 3 importer files renamed with the `move-import-names` codemod (in-place plan built from importers of the door; ast-grep ts 5949 / tsx 1525 tracked files). The inner `DatabankContext` and `DatabankPortabilityContext` in `contract/` are different types, so the declarations cannot take those names. `codegraph_explore` on both assembly types: one caller each, the door.
