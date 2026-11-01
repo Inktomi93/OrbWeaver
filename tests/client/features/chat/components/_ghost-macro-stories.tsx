@@ -13,11 +13,16 @@ function Transcript({
   speakerCharacterId,
   streamedText,
   streamLabel,
+  nextText = "",
+  nextLabel = "Stream more",
 }: {
   readonly chatId: ChatId;
   readonly speakerCharacterId: CharacterId;
   readonly streamedText: string;
   readonly streamLabel: string;
+  /** A second chunk appended by its own control, so a test can stop the stream between the two. */
+  readonly nextText?: string;
+  readonly nextLabel?: string;
 }): ReactElement {
   useState(() => selectChat(chatId));
   const busDeps = useChatBusDeps();
@@ -32,6 +37,7 @@ function Transcript({
       >
         {streamLabel}
       </Button>
+      <Button onClick={(): void => busDeps.stream.appendDelta({ chatId, kind: "text", text: nextText })}>{nextLabel}</Button>
       <MessageListSurface chatId={chatId} busDeps={busDeps} surfaceContributors={chatSurfaceContributors} toolRenderers={toolRenderers} />
     </>
   );
@@ -43,16 +49,28 @@ export function StreamingReplyStory({
   speakerCharacterId,
   streamedText,
   streamLabel,
+  nextText = "",
+  nextLabel = "Stream more",
 }: {
   readonly chatId: ChatId;
   readonly speakerCharacterId: CharacterId;
   readonly streamedText: string;
   readonly streamLabel: string;
+  /** A second chunk appended by its own control, so a test can stop the stream between the two. */
+  readonly nextText?: string;
+  readonly nextLabel?: string;
 }): ReactElement {
   return (
     <CtClientProviders>
       <Container role="group" aria-label="Room transcript host" style={{ inlineSize: 960, blockSize: 900 }}>
-        <Transcript chatId={chatId} speakerCharacterId={speakerCharacterId} streamedText={streamedText} streamLabel={streamLabel} />
+        <Transcript
+          chatId={chatId}
+          speakerCharacterId={speakerCharacterId}
+          streamedText={streamedText}
+          streamLabel={streamLabel}
+          nextText={nextText}
+          nextLabel={nextLabel}
+        />
       </Container>
     </CtClientProviders>
   );

@@ -32,6 +32,7 @@ import type { GhostContentSegment } from "@orb/kit/content";
 import { scanGhostContent } from "@orb/kit/content";
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
+import { holdTornMacro } from "@orb/kit/macro";
 import { speakerTagsToPlain, stripLeadingSpeakerName } from "@orb/kit/speaker-label";
 import { Card } from "@orb/ui/card";
 import { Stack } from "@orb/ui/layout";
@@ -83,6 +84,10 @@ function FormingCardChip({ title }: { readonly title: string | null }): ReactEle
       </Stack>
     </Card>
   );
+}
+
+function holdTornMacroWhile(streaming: boolean, text: string): string {
+  return streaming ? holdTornMacro(text) : text;
 }
 
 /** One ghost segment → its element. The KEY is `index-kind`, the settled path's precedent
@@ -264,8 +269,10 @@ export function GhostMessageRow({
   const arrival = useEnterMotion(enterMotion);
   const viewArt = useArtViewer();
   const artControl = useArtControl();
-  const text = useGhostText(chatId);
-  const rawReasoning = useGhostReasoning(chatId);
+  // A torn `{{macro}}` is held on the RAW stream, before substitution: after it, the half-token is already
+  // literal text the renderer cannot tell from prose. The settled row (not streaming) is untouched.
+  const text = holdTornMacroWhile(streaming, useGhostText(chatId));
+  const rawReasoning = holdTornMacroWhile(streaming, useGhostReasoning(chatId));
   const reasoning = renderMessageForDisplay(rawReasoning, renderContext, speakerCharacterId, null);
   const thinking = useGhostThinking(chatId);
   const paced = useSmoothText(renderMessageForDisplay(text, renderContext, speakerCharacterId, null), {

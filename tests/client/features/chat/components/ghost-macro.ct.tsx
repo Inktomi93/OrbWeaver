@@ -52,3 +52,29 @@ test("a streaming reply resolves {{char}} to the speaker's name, as the settled 
   await expect(ghost.locator('[data-slot="ghost-stream-body"]')).toContainText(`${name} nods slowly.`);
   await expect(ghost).not.toContainText("{{char}}");
 });
+
+test("a macro torn across two chunks never shows as literal text, and resolves when its braces arrive", async ({ mount, page, corpusMedia }) => {
+  await using root = await createCorpusHarness();
+  const { chatId, characterId, name } = await soloRoom(root);
+  const owner = await root.internalCallerFor(root.ownerId);
+  await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
+  await routeTrpc(page, serveCorpusProcedures(owner, PROCEDURES));
+  await corpusMedia();
+  await mount<typeof StreamingReplyStory>(STORY, {
+    chatId,
+    speakerCharacterId: characterId,
+    streamedText: "Well met, {{ch",
+    streamLabel: STREAM_LABEL,
+    nextText: "ar}} and friend.",
+    nextLabel: "Stream the rest",
+  });
+
+  await page.getByRole("button", { name: STREAM_LABEL, exact: true }).click();
+  const body = page.locator('[data-slot="ghost-message-row"] [data-slot="ghost-stream-body"]');
+  await expect(body).toContainText("Well met,");
+  await expect(body).not.toContainText("{{");
+  await expect(body).not.toContainText("ch");
+
+  await page.getByRole("button", { name: "Stream the rest", exact: true }).click();
+  await expect(body).toContainText(`Well met, ${name} and friend.`);
+});
