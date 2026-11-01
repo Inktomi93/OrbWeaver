@@ -37,11 +37,11 @@ export const dialogVariants = tv({
     clearsClose: {
       true: {
         title: `
-            wrap-break-word
-            before:float-end before:content-[''] before:block-(--size-control-md) before:inline-(--size-control-md)
-            @max-cq-20:pbs-(--size-control-md)
-            @max-cq-20:before:hidden
-          `,
+          wrap-break-word
+          before:float-end before:content-[''] before:block-(--size-control-md) before:inline-(--size-control-md)
+          @max-cq-20:pbs-(--size-control-md)
+          @max-cq-20:before:hidden
+        `,
       },
       false: {},
     },

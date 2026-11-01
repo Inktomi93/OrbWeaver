@@ -13,8 +13,6 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
-import { CHARACTER_IMPORT_NAME } from "#client/features/character/lib/character-names.ts";
-import { VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import type { AppShellCharacterStory, AppShellModalStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { PlantedControlsStory } from "./_text-scale-probe-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -29,6 +27,7 @@ const TEXT_200 = { name: "200% text", factor: 2 } as const;
 const LAYOUT_300 = { name: "300% layout", factor: 3 } as const;
 // The character band's chip row scrolls by ruling: it keeps each chip whole rather than wrap into a ragged void.
 const SIDEWAYS_STRIPS = 'input, textarea, [role="tablist"], [role="toolbar"], [data-slot="character-context-band"] > * > *';
+const IMPORT_DOOR = /^Import/u;
 const BAND_MENU_TRIGGER = '[data-slot="list-pane-action"] [data-slot="overflow-actions-trigger"]';
 const TRAIL_MENU_TRIGGER = '.shell-topbar-trail [data-slot="overflow-actions-trigger"]';
 const FONT_SCALE_PROPERTY = channelName("fontScale");
@@ -515,10 +514,8 @@ for (const [viewport, scale] of QUALIFIED.readingWindow) {
       });
       const foot = page.locator('[data-slot="swipe-strip"]');
       await foot.scrollIntoViewIfNeeded();
-      const next = foot
-        .getByRole("button", { name: VARIANT_NEXT_NAME, exact: true })
-        .or(foot.getByRole("button", { name: VARIANT_GENERATE_NAME, exact: true }));
-      for (const button of [foot.getByRole("button", { name: VARIANT_PREV_NAME, exact: true }), next]) {
+      // The foot's two chevrons, in reading order; the second is a step or the paid generate, by position in the history.
+      for (const button of [foot.getByRole("button").first(), foot.getByRole("button").last()]) {
         await button.scrollIntoViewIfNeeded();
         await expect(button).toBeInViewport({ ratio: 1 });
         await expect.poll(() => button.evaluate(coverOf)).toBeNull();
@@ -624,17 +621,17 @@ for (const [viewport, scale] of QUALIFIED.importOpen) {
       await mount<typeof AppShellStory>(STORY, {});
       await expect(page.locator(".shell-topbar")).toBeVisible();
       await scaleRoot(page, scale.factor);
-      const door = page.getByRole("button", { name: CHARACTER_IMPORT_NAME, exact: true });
+      const door = page.getByRole("button", { name: IMPORT_DOOR });
       const menu = page.locator(`${BAND_MENU_TRIGGER}, ${TRAIL_MENU_TRIGGER}`).first();
       await expect(door.or(menu).first()).toBeVisible();
       if (await door.isVisible()) {
         await door.click();
       } else {
         await menu.click();
-        await page.getByRole("menuitem", { name: CHARACTER_IMPORT_NAME, exact: true }).click();
+        await page.getByRole("menuitem", { name: IMPORT_DOOR }).click();
       }
-      const dialog = page.getByRole("dialog", { name: CHARACTER_IMPORT_NAME, exact: true });
-      const heading = dialog.getByRole("heading", { name: CHARACTER_IMPORT_NAME, exact: true });
+      const dialog = page.getByRole("dialog", { name: IMPORT_DOOR });
+      const heading = dialog.getByRole("heading", { name: IMPORT_DOOR });
       await expect(heading).toBeInViewport({ ratio: 1 });
       expect((await heading.evaluate(splitWords)).split).toEqual([]);
     });
@@ -885,8 +882,8 @@ for (const [viewport, scale] of QUALIFIED.importDialog) {
     test("fits its frame and keeps both exits reachable", async ({ mount, page }) => {
       await seedShellState(page, { activeSection: "characters" });
       await mount<typeof AppShellStory>(STORY, {});
-      await page.getByRole("button", { name: CHARACTER_IMPORT_NAME, exact: true }).click();
-      const dialog = page.getByRole("dialog", { name: CHARACTER_IMPORT_NAME, exact: true });
+      await page.getByRole("button", { name: IMPORT_DOOR }).click();
+      const dialog = page.getByRole("dialog", { name: IMPORT_DOOR });
       await expect(dialog).toBeVisible();
       await scaleRoot(page, scale.factor);
       // The popup is its own scroller on a short viewport, so an exit is reachable once scrolled to.
