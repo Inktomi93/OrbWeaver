@@ -294,39 +294,41 @@ function proseInkAim(endpoint: number, neutral: boolean): number {
 /**
  * The #204 §7a prose-ink clamp decision — for the four AUTHOR-PICKED transcript inks
  * (`speaker`/`dialogueColor`/`narrationColor`/`bodyColor`), the only inks exempt from the house
- * "a foreground is never picked, only derived" law. Judged against the theme's own BASE surface
- * (post-#204 every reading plate derives from that one base, so base-legibility is plate-legibility):
- *   • `null`  — the authored ink already clears AA against the base: keep it BYTE-IDENTICAL
+ * "a foreground is never picked, only derived" law. Judged against the surfaces it is read on, at the worse of the float colour and the 8-bit pixel:
+ *   • `null`  — the authored ink already clears AA on every host: keep it BYTE-IDENTICAL
  *     (the no-op-where-the-card-was-sensible guarantee; the dark-art rooms do not move a pixel);
- *   • a correction — the ink fails AA there: the LIGHTNESS to re-derive it at, keeping the author's hue and
- *     chroma where it can, using the same measured polarity/render-target solver as every derived foreground.
+ *   • a correction — the ink fails AA there: the least move from the author's lightness toward the polarity's end
+ *     point that clears them, keeping the author's hue and chroma where it can.
  * `inkAlpha < 1` composites the ink over the base first — a naive ratio on a translucent ink lies. (The
  * comparison stays INSIDE the backticks: tsdoc reads a bare `<` followed by a space as a malformed HTML
  * element and the eslint tsdoc/syntax rule reds the file.)
  *
  * `hosts` are the surfaces the ink is read on, the base alone unless a carried palette names its reading hosts
- * ({@link carriedReadingHosts}). The re-derived lightness keeps walking toward the polarity's end point until the
- * author's chroma clears them too. Near the crossover chroma itself spends more luminance than any lightness returns, so
- * only there the chroma steps down: on a mid-grey page the hue gives way before the reading floor does.
+ * ({@link carriedReadingHosts}), so a pick that clears its page moves only as far as those hosts need. Near the crossover
+ * chroma itself spends more luminance than any lightness returns, so only there the chroma steps down: on a mid-grey page
+ * the hue gives way before the reading floor does.
  */
 export function proseInkCorrection(ink: Oklch, inkAlpha: number, base: Oklch, hosts: readonly Oklch[] = [base]): ProseInkCorrection | null {
   const grounds = hosts.map((host) => oklchToSrgb(host));
   const authored = oklchToSrgb(ink);
-  if (grounds.every((ground) => wcagContrastRatio(inkAlpha < 1 ? compositeSrgb(authored, inkAlpha, ground) : authored, ground) >= AA_NORMAL_RATIO)) {
+  const clearsAuthored = (ground: Rgb): boolean =>
+    worstTextContrast(inkAlpha < 1 ? compositeSrgb(authored, inkAlpha, ground) : authored, [ground]) >= AA_NORMAL_RATIO;
+  if (grounds.every(clearsAuthored)) {
     return null;
   }
-  const start = derivedForegroundLightness(base);
   const direction = surfacePolarity(base) === "light" ? -1 : 1;
   const steps = Math.ceil(ink.c / PROSE_CHROMA_STEP);
   for (let step = 0; step <= steps; step += 1) {
-    const c = Math.max(0, ink.c - step * PROSE_CHROMA_STEP);
+    const c = step === 0 ? ink.c : Number(Math.max(0, ink.c - step * PROSE_CHROMA_STEP).toFixed(FOREGROUND_L_DECIMALS));
     const contrast = (lightness: number): number => worstTextContrast(oklchToSrgb({ l: lightness, c, h: ink.h }), grounds);
-    const l = nearestClearingLightness(start, direction, (candidate) => contrast(candidate) >= proseInkAim(contrast(direction > 0 ? 1 : 0), step === steps));
+    const aim = proseInkAim(contrast(direction > 0 ? 1 : 0), step === steps);
+    const l = nearestClearingLightness(ink.l, direction, (candidate) => contrast(candidate) >= aim);
     if (l !== null) {
-      return { l, c };
+      return { l: Number(l.toFixed(FOREGROUND_L_DECIMALS)), c };
     }
   }
-  return { l: start, c: 0 };
+  // Hosts on both sides of the crossover admit no one ink, so a pick that holds its base keeps it.
+  return clearsAuthored(oklchToSrgb(base)) ? null : { l: derivedForegroundLightness(base), c: 0 };
 }
 
 const SURFACE_POLARITIES = ["dark", "light"] as const;
@@ -1229,10 +1231,19 @@ export function familyForegroundLightness(family: readonly Oklch[]): number | nu
   return null;
 }
 
-/** The surfaces a carried palette's prose is read on: the page, a card, and each message bubble's fill. */
-export function carriedReadingHosts(base: Oklch): readonly Oklch[] {
-  const { user, ai, system } = bubbleFills(base);
-  return [base, rampSurface(base, rampDeltas(base).card), bubbleFillColor(base, user), bubbleFillColor(base, ai), bubbleFillColor(base, system)];
+/** A message bubble's fill a scope picked, keyed like {@link BubbleFills}: it paints in place of the derived one. */
+export type PickedBubbleFills = Readonly<Partial<Record<keyof BubbleFills, Oklch>>>;
+
+/** The surfaces a carried palette's prose is read on: the page, a card, and the fill each message bubble paints. */
+export function carriedReadingHosts(base: Oklch, picked: PickedBubbleFills = {}): readonly Oklch[] {
+  const fills = bubbleFills(base);
+  return [
+    base,
+    rampSurface(base, rampDeltas(base).card),
+    picked.user ?? bubbleFillColor(base, fills.user),
+    picked.ai ?? bubbleFillColor(base, fills.ai),
+    picked.system ?? bubbleFillColor(base, fills.system),
+  ];
 }
 
 /** The neutral inks a carried base solves: each is a search, so a caller solves them once and hands them to every derivation. */
@@ -1936,6 +1947,8 @@ interface TintSpec {
   readonly inks: readonly Oklch[];
   /** The surfaces the tint may sit over ({@link TONE_HOSTS}), each of which it keeps the separation from. */
   readonly hosts: readonly Oklch[];
+  /** The tone's solid, which a glyph paints on this tint (an active rail cell): held at the non-text floor where the tint can reach it. */
+  readonly mark: Oklch;
 }
 
 /**
@@ -1947,9 +1960,10 @@ interface TintSpec {
  *
  * The inks are the page-family inks a selected row, an active tab or a compare panel keep on a tint (D336). Each aims at
  * its own pair with the page, capped at the derivation ratio and never below the floor; the page ink's end point clears
- * whatever those inks clear, so `text-on-tint` always has a solution too.
+ * whatever those inks clear, so `text-on-tint` always has a solution too. The tone's solid on the tint holds
+ * {@link AA_NON_TEXT_RATIO} when a candidate does; the inks outrank it, so where none does the nearest that keeps them wins.
  */
-function solveTint<Host extends string>(palette: TonePalette<Host>, base: Oklch, { percent, weakestPercent, inks, hosts }: TintSpec): Oklch {
+function solveTint<Host extends string>(palette: TonePalette<Host>, base: Oklch, { percent, weakestPercent, inks, hosts, mark }: TintSpec): Oklch {
   const { background, foreground } = palette;
   const floorChroma = Math.min(base.c, (TONE_TINT_MIN_CHROMA * percent) / weakestPercent);
   const chroma = Math.max((base.c * percent) / PERCENT, floorChroma);
@@ -1957,7 +1971,9 @@ function solveTint<Host extends string>(palette: TonePalette<Host>, base: Oklch,
     ink: luminances(oklchToSrgb(ink)),
     aim: Math.max(AA_NORMAL_RATIO, Math.min(AA_NORMAL_DERIVATION_RATIO, toneContrast(ink, background))),
   }));
+  const markLuminance = luminances(oklchToSrgb(mark));
   let nearest: Oklch | undefined;
+  let unmarked: Oklch | undefined;
   for (const l of lightnessWalk(mixOklab(base, percent, background).l, foreground.l < background.l ? 1 : -1)) {
     const candidate = onHue(l, chroma, base.h);
     if (hosts.some((host) => paintedDistance(candidate, host) < TONE_TINT_SEPARATION)) {
@@ -1967,16 +1983,21 @@ function solveTint<Host extends string>(palette: TonePalette<Host>, base: Oklch,
     if (aims.some(({ ink, aim }) => worstLuminanceContrast(ink, candidatePixel) < aim)) {
       continue;
     }
+    if (worstLuminanceContrast(markLuminance, candidatePixel) < AA_NON_TEXT_RATIO) {
+      unmarked ??= candidate;
+      continue;
+    }
     if (candidate.c >= floorChroma - CHROMA_TOLERANCE) {
       return candidate;
     }
     nearest ??= candidate;
   }
-  if (nearest === undefined) {
+  const tint = nearest ?? unmarked;
+  if (tint === undefined) {
     // Black and white sit at least the separation off any host family and clear AA against each other's side.
     throw new Error("unable to derive a tint that keeps its separation from every host");
   }
-  return nearest;
+  return tint;
 }
 
 /**
@@ -2043,7 +2064,7 @@ export function solveCarriedToneRoles<Role extends string, Knob extends string>(
     const floors = TONE_HOSTS.flatMap((host) => roleFloors(recipes[role], tone, tonePaletteOn(palette, host)));
     const inks = [...new Set(floors.map((over) => ("role" in over ? colors[over.role] : palette.hosts[over.host])))];
     const weakestPercent = weakest === undefined ? defaults[step.mix] : defaults[weakest.step.mix];
-    const tint = solveTint(palette, tone.base, { percent: defaults[step.mix], weakestPercent, inks, hosts });
+    const tint = solveTint(palette, tone.base, { percent: defaults[step.mix], weakestPercent, inks, hosts, mark: tone.base });
     colors[role] = tint;
     literals[role] = tint;
   }

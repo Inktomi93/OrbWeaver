@@ -20,6 +20,7 @@ Carried scopes. A carried scope emits each colored tone's `text`, `text-on-tint`
 
 - A tint keeps at least `TONE_TINT_MIN_CHROMA` where the tone and the gamut allow. One literal serves every host, so it sits at least `TONE_TINT_SEPARATION`, OKLab 0.02, off each of `TONE_HOSTS`. Each page ink of each host clears the text floor on it.
 - The tints of two tones keep the same separation from each other unless their hues sit within `TONE_HUE_ADJACENT_DEGREES`, as Hearth's primary and warning do. No pairwise check runs: `TONE_TINT_MIN_CHROMA` is derived from that bound, so non-adjacent tints at that chroma keep the separation.
+- A carried tint holds the tone's `solid` at 3:1 where a tint can, because an active rail cell paints the solid as a glyph on it. The inks outrank this floor, and seeds do not take it.
 - An ink aims at the D202 derivation ratio over its floor's grounds on the page ink's side, and settles for the floor.
 - A tone the scope cannot judge declares `initial`, so the role falls back to its mix. So does the primary of a scope that paints its own accent over a seed palette.
 - A scope that paints its own accent and no background over a carried scope solves that primary on the outer palette: its fill, its ink, its literals and its solid steps. Every other tone keeps the outer solve. The scope learns that its ambient is carried from the scope above it, never from global state.

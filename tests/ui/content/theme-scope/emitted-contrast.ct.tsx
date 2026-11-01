@@ -1,4 +1,4 @@
-import type { Oklch } from "@orb/kit/theme-derivation";
+import type { Oklch, Rgb } from "@orb/kit/theme-derivation";
 import {
   AA_NON_TEXT_RATIO,
   AA_NORMAL_RATIO,
@@ -162,6 +162,23 @@ for (const { name, background } of BASES.slice(0, 4)) {
     const screenshot = testInfo.outputPath("settled-theme.png");
     await component.screenshot({ path: screenshot, animations: "disabled" });
     await testInfo.attach("settled-theme", { path: screenshot, contentType: "image/png" });
+  });
+}
+
+for (const { name, background } of BASES) {
+  test(`${name}: every colored tone's solid holds the non-text floor as a glyph on its own tints`, async ({ mount, page }) => {
+    const component = await mount<typeof ToneHueStory>("tests/ui/content/theme-scope/_contrast-stories/ToneHueStory", { background });
+    const tones = await component.locator("[data-tone]").all();
+    expect(tones.length).toBeGreaterThan(0);
+    for (const tone of tones) {
+      await tone.scrollIntoViewIfNeeded();
+      const fill = async (sample: string): Promise<Rgb> => (await pixelSurface(page, tone.locator(`[data-sample="${sample}"]`))).rgb;
+      const solid = await fill("solid");
+      for (const tint of ["tint", "tint-active"]) {
+        const ratio = wcagContrastRatio(solid, await fill(tint));
+        expect(ratio, `${(await tone.getAttribute("data-tone")) ?? "tone"} on ${tint}`).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
+      }
+    }
   });
 }
 

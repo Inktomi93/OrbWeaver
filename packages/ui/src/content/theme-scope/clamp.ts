@@ -11,9 +11,10 @@
 // backing, base + readingPlate.deltaL at the polarity-derived `readingPlateAlpha`) — and every INK on such a plate comes from
 // the SAME palette: derived foregrounds by the pivot flip, and the four author-picked prose inks
 // (`speaker`/`dialogueColor`/`narrationColor`/`bodyColor`) through the §7a conditional lightness clamp
-// below (pass-through byte-identical when the pairing already clears AA; L re-derived and the ink made
-// OPAQUE, hue+chroma kept, when it does not; fail-open only when neither a standards-readable color nor
-// an ambient backing exists (`currentColor` or an invalid safe bare word in a provider-less mount).
+// below (pass-through byte-identical when the pairing clears AA on every reading host; otherwise the least L
+// move that clears them, the ink made OPAQUE, hue+chroma kept where they can be, so a pick that clears its page
+// moves only as far as a carried palette's cards and bubbles need; fail-open only when neither a standards-readable
+// color nor an ambient backing exists (`currentColor` or an invalid safe bare word in a provider-less mount).
 //
 // THE INK'S BASE IS THE CARRIED ONE, ELSE THE AMBIENT ONE (#236). An override that picks inks and NO
 // background is the ST-imported population (a 113-116 byte scope payload: three ink vars, no surface),
@@ -29,7 +30,7 @@
 // dark smoke. A token names ONE polarity semantic.
 
 import { isDeterministicColor, isSafeColor } from "@orb/kit/safe-color";
-import type { Oklch } from "@orb/kit/theme-derivation";
+import type { Oklch, PickedBubbleFills } from "@orb/kit/theme-derivation";
 import { carriedReadingHosts, derivedForegroundLightness, proseInkCorrection, surfacePolarity } from "@orb/kit/theme-derivation";
 import { z } from "zod";
 import { TOKENS } from "#tokens";
@@ -215,12 +216,25 @@ function proseInkOn(picked: string | undefined, base: ParsedOklch | null, hosts:
  * The surfaces a picked prose ink is judged on beyond its base: a carried palette's reading hosts, whether this scope
  * carries it or sits inside one. A seed's bubbles and cards are its own generated block, so a seed ambient judges the base alone.
  */
-function readingHostsOn(t: ThemeScopeTokens, inkBase: ParsedOklch | null, ambientPalette: AmbientPalette): readonly Oklch[] | undefined {
+function readingHostsOn(
+  t: ThemeScopeTokens,
+  inkBase: ParsedOklch | null,
+  ambientPalette: AmbientPalette,
+  ambient: string | undefined,
+): readonly Oklch[] | undefined {
   const picksInk = [t.speaker, t.dialogueColor, t.narrationColor, t.bodyColor].some((ink) => ink !== undefined);
   if (!picksInk || inkBase === null || (t.background === undefined && ambientPalette !== "carried")) {
     return;
   }
-  return carriedReadingHosts({ l: inkBase.l, c: inkBase.c, h: inkBase.h });
+  const painted = (fill: string | undefined): PickedBubbleFills[keyof PickedBubbleFills] => {
+    const pixel = fill === undefined ? null : compositedBase(fill, t.background ?? ambient);
+    return pixel === null ? undefined : { l: pixel.l, c: pixel.c, h: pixel.h };
+  };
+  const [user, ai, system] = [painted(t.userBubble?.bg), painted(t.aiBubble?.bg), painted(t.systemBubble?.bg)];
+  return carriedReadingHosts(
+    { l: inkBase.l, c: inkBase.c, h: inkBase.h },
+    { ...(user === undefined ? {} : { user }), ...(ai === undefined ? {} : { ai }), ...(system === undefined ? {} : { system }) },
+  );
 }
 
 /** What a scope emits for the accent: the fill `--color-primary`/`--color-ring` take, and the foreground
@@ -468,7 +482,7 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
   // carried background is precisely the case where the composed surface IS knowable. The residual
   // provider-less fail-open (neither side statically readable) stands unchanged.
   const inkBase = inkBaseFor(t.background, ambientBackground);
-  const inkHosts = readingHostsOn(t, inkBase, ambientPalette);
+  const inkHosts = readingHostsOn(t, inkBase, ambientPalette, ambientBackground);
   // A carried base also owns every ABSENT prose pick (#985). Otherwise a legal background-only custom
   // theme inherits all four inks from the outer seed, which can be the opposite polarity. Derive the
   // fallback from the resolved carried pixel; with no carried background there is deliberately no
