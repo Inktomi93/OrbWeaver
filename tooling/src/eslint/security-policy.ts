@@ -312,7 +312,6 @@ const ROLE_DATA_EXPORTS = [
       "viewerReadsHidden",
       "stripMessagesForViewer",
       "stripMemberCardForViewer",
-      "stripContinuationForMember",
       "createViewerTextScrub",
       "projectViewReturnForViewer",
       "stripChatEventForMember",

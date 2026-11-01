@@ -107,6 +107,25 @@ test("a fork by a member carries nothing of a continued secret through undo or r
   }
 });
 
+test.each([
+  ["a literal open", "She would <lie down on the bed.", " Then she slept."],
+  ["a bare bracket", "Four is <", " five."],
+])("a member's fork keeps the prose a continue added after %s through undo and redo", async (_name, body, addition) => {
+  await using room = await openRoom();
+  const { device, guest } = await memberWatching(room, "literal-forker");
+  try {
+    room.answerWith(body);
+    await room.send();
+    await continueReply(room, device, addition, continueEnded);
+    const chatId = await soleMemberFork(room, guest);
+    const { id: messageId } = await replyBody(room, guest, chatId);
+    expect((await room.root.services.chat.undoContinue({ principal: guest, chatId, messageId })).content).toBe(body);
+    expect((await room.root.services.chat.revertContinue({ principal: guest, chatId, messageId })).content).toBe(body + addition);
+  } finally {
+    await device.close();
+  }
+});
+
 test("a span held across two continues stays hidden until the second closes it", async () => {
   await using room = await openRoom();
   const { device, guest } = await memberWatching(room, "two-continues");

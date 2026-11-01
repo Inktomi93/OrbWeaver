@@ -311,12 +311,6 @@ function scrubberPast(body: string): HiddenSpanStreamScrubber {
   return scrubber;
 }
 
-/** The member's bytes of text appended to `body`, for a stored continuation twin. SECURITY: `addition` alone may
- *  start inside a tag `body` left open, where a fragment strip finds no `<` and keeps the secret's tail. */
-export function stripContinuationForMember(body: string, addition: string): string {
-  return scrubberPast(body).push(addition);
-}
-
 /** The per-tick member projection of a text stream that bypasses the bus (the impersonation draft), one stream per
  *  call. Identity for the host, who reads model text verbatim. An unclosed tail is dropped at stream end. */
 export function createViewerTextScrub(viewer: ViewerRole): (text: string) => string {

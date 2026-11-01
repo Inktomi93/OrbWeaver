@@ -66,7 +66,7 @@ import { seatableCharacterIds } from "../persistence/seat-characters.ts";
 import { permitsHost } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { continuationToolsAreUndone } from "../substrate/content-signatures.ts";
-import { stripContinuationForMember, viewerReadsHidden } from "../substrate/member-visibility.ts";
+import { viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { resolveAnchorState } from "../substrate/participants-humans.ts";
 import { foldChain } from "../substrate/runtime-variables.ts";
 import { appendStatsDeltas, canonMessageDelta, chatCreatedDelta, seatChatDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
@@ -152,9 +152,14 @@ function forkVariantValues(args: {
   // otherwise reconstruct a lie's truth from the snapshot. `stripBody` is identity when nothing is hidden / the
   // field is null.
   const stripBody = (s: string | null): string | null => (posture.stripHidden && s !== null ? stripHiddenSpans(s).content : s);
-  // The addition is a fragment of the body, so it strips against the bytes it was appended to.
-  const stripAddition = (s: string | null): string | null =>
-    posture.stripHidden && s !== null ? stripContinuationForMember(variant.preContinueContent ?? "", s) : s;
+  // The addition is a fragment of the body, so its member bytes are what the commit strip of the whole body adds.
+  const stripAddition = (s: string | null): string | null => {
+    if (!posture.stripHidden || s === null) {
+      return s;
+    }
+    const before = variant.preContinueContent ?? "";
+    return stripHiddenSpans(before + s).content.slice(stripHiddenSpans(before).content.length);
+  };
   // P3 §3.6: on a DECEPTION-active source, a non-host forker also loses the REASONING channel (the live
   // `reasoning` + its continue-snapshot twins) — a deceptive model may spell a lie's truth in its thinking, and
   // the forker becomes HOST of the copy, so an unstripped reasoning twin would launder that leak past the

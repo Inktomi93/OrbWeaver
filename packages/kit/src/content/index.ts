@@ -25,9 +25,10 @@
 //      depth so an inner directive line doesn't false-close the outer fence.
 //   2. STREAM-TRUNCATION SURVIVAL — on this grammar an unclosed tag/fence (mid-stream, aborted) falls through to
 //      literal text IN PLACE; nothing is mangled, nothing throws. DEGRADE-NEVER-THROW on all persisted content (D51).
-//      The §3.6 hidden scan below reads one case the other way: a REGISTERED hidden open that never closes is
-//      concealed from members to the end of the body (D285), while this grammar keeps it literal for the host's
-//      render and the model's wire. D51 says what becomes of bytes that are not a tag; D285 says who may read a secret.
+//      The §3.6 hidden scan below reads two cases the other way: a REGISTERED hidden open that never closes, and one
+//      whose name is followed by a `name=` shape that then breaks, are concealed from members to the end of the body
+//      (D285), while this grammar keeps both literal for the host's render and the model's wire. D51 says what becomes
+//      of bytes that are not a tag; D285 says who may read a secret.
 //      ONE exception, opt-in per call: `committed: true` says no more bytes are coming, so an unterminated
 //      REGISTERED fence closes at EOF (degrade PRESERVING VALUE — see `TokenizeContentOptions.committed`).
 //      Streaming callers never pass it, so mid-stream behavior is byte-identical.
@@ -272,11 +273,14 @@ interface TagScan {
 /** The outcome of ONE bounded tag walk. `capped` and `truncated` are the distinctions the §3.6 trust boundary
  *  needs: the walk was still consuming a WELL-FORMED attr list when it ran off the scan bound (`capped`, too LONG)
  *  or off the end of the input (`truncated`, the rest never arrived), so the tag is unfinished rather than broken.
- *  Collapsing either into "null = literal text" hands a member the attr value. */
+ *  `loose` is a registered hidden open with a `name=` shape that breaks the strict grammar: no close it offers can
+ *  be trusted, so it conceals to the end of the body.
+ *  Collapsing any of these into "null = literal text" hands a member the attr value. */
 type TagScanOutcome =
   | { readonly kind: "tag"; readonly scan: TagScan }
   | { readonly kind: "capped"; readonly tag: string }
   | { readonly kind: "truncated"; readonly tag: string }
+  | { readonly kind: "loose"; readonly tag: string }
   | { readonly kind: "malformed" };
 
 const TAG_MALFORMED: TagScanOutcome = { kind: "malformed" };
@@ -286,7 +290,7 @@ const TAG_MALFORMED: TagScanOutcome = { kind: "malformed" };
  *  `capped` when there ARE bytes past the bound and `truncated` at the true end of input. Neither is `malformed`:
  *  D51 keeps a malformed tag literal, which is a rule about bytes that are not a tag. An unfinished tag is a tag,
  *  so what becomes of it is the reader's call: literal on the render and wire grammar, concealed by the §3.6 hidden
- *  scan (D285). */
+ *  scan (D285). `malformed` is this strict walk's verdict alone; {@link scanSelfClosingTag} has the last word. */
 function walkSelfClosingTag(content: string, start: number, limit: number): TagScanOutcome {
   const name = TAG_NAME_RE.exec(content.slice(start, start + IDENT_WINDOW));
   if (name === null) {
@@ -316,13 +320,45 @@ function walkSelfClosingTag(content: string, start: number, limit: number): TagS
   }
 }
 
-/** The walk both planes call, WITH the §3.6 hidden escalation (#1352). A REGISTERED hidden name capped at the
+const ATTR_GAP_RE = /\s/;
+
+/** Past any whitespace, including the newlines the strict walker refuses between attrs. */
+function skipAttrGap(src: string, from: number): number {
+  let i = from;
+  while (i < src.length && ATTR_GAP_RE.test(src.charAt(i))) {
+    i += 1;
+  }
+  return i;
+}
+
+/** The verdict on an open the strict walk refused (§3.6, D285). THE TEST IS THE WORD AFTER THE NAME: a registered name
+ *  followed by a `name=` shape is a tag however broken its close, and anything else is prose, so `<lie down on the bed`
+ *  stays readable. Input that ends before that word is decided is `truncated`: the same bytes may yet grow into a tag.
+ *  Past the first word nothing else is read, so a later `a=b` in a sentence never turns prose into a tag. */
+function scanLooseHiddenOpen(content: string, start: number): TagScanOutcome {
+  const tag = TAG_NAME_RE.exec(content.slice(start, start + IDENT_WINDOW))?.[1];
+  if (tag === undefined || !HIDDEN_TAG_NAMES.has(tag)) {
+    return TAG_MALFORMED;
+  }
+  const key = skipAttrGap(content, start + 1 + tag.length);
+  const name = ATTR_KEY_RE.exec(content.slice(key, key + IDENT_WINDOW));
+  if (name === null) {
+    return key < content.length ? TAG_MALFORMED : { kind: "truncated", tag };
+  }
+  const equals = skipAttrGap(content, key + name[0].length);
+  if (equals >= content.length) {
+    return { kind: "truncated", tag };
+  }
+  return content[equals] === "=" ? { kind: "loose", tag } : TAG_MALFORMED;
+}
+
+/** The strict walk, WITH the §3.6 hidden escalation (#1352). A REGISTERED hidden name capped at the
  *  general bound is re-walked at `MAX_HIDDEN_TAG_SCAN` before any verdict, so an oversized-but-well-formed
  *  `<lie …/>` is recognised (and therefore stripped from members, and counted by `hadHidden`) instead of
  *  released verbatim. Still capped past the hidden bound ⇒ the verdict STAYS `capped`, and both callers
  *  conceal from the `<` rather than emitting it. A capped or truncated NON-hidden tag is literal text — it
  *  carries no secret, so cost wins there. */
-function scanSelfClosingTag(content: string, start: number): TagScanOutcome {
+function walkWithEscalation(content: string, start: number): TagScanOutcome {
   const bounded = walkSelfClosingTag(content, start, Math.min(content.length, start + MAX_TAG_SCAN));
   if (bounded.kind === "tag" || bounded.kind === "malformed") {
     return bounded;
@@ -333,6 +369,24 @@ function scanSelfClosingTag(content: string, start: number): TagScanOutcome {
   return bounded.kind === "capped" ? walkSelfClosingTag(content, start, Math.min(content.length, start + MAX_HIDDEN_TAG_SCAN)) : bounded;
 }
 
+/** THE ONE VERDICT ON A `<`, read by the commit strip, the stream's hold and the render grammar alike. Each reader may
+ *  only decide what its verdict MEANS for it, never re-derive it, which is what keeps the stream and the strip agreed. */
+function scanSelfClosingTag(content: string, start: number): TagScanOutcome {
+  const strict = walkWithEscalation(content, start);
+  return strict.kind === "malformed" ? scanLooseHiddenOpen(content, start) : strict;
+}
+
+const BROKEN_HIDDEN_POSTURES = ["literal", "body", "prefix"] as const;
+/** How a reader treats an unclosed or loose hidden open. `literal` is the render and wire grammar. `body` is the hidden
+ *  scan of a whole body. `prefix` is the hidden scan of text the stream released ahead of a held run: its end is not the
+ *  end of the input, so `truncated` there is an artifact of the cut, and every real unclosed open is already held. */
+type BrokenHiddenPosture = (typeof BROKEN_HIDDEN_POSTURES)[number];
+
+/** Does this verdict conceal the rest of its text? An over-cap open does for every reader (#1352). */
+function concealsRest(outcome: TagScanOutcome, posture: BrokenHiddenPosture): outcome is Extract<TagScanOutcome, { kind: "capped" | "truncated" | "loose" }> {
+  return outcome.kind === "capped" || (outcome.kind === "truncated" && posture === "body") || (outcome.kind === "loose" && posture !== "literal");
+}
+
 /** One REGISTERED hidden tag's byte range, walked FENCE-BLIND (#1524). */
 interface HiddenRun {
   readonly start: number;
@@ -341,15 +395,15 @@ interface HiddenRun {
 
 /** Every registered hidden tag's byte range in `content`, found by the SAME quote-aware walker the tag pass
  *  uses and DELIBERATELY without any markdown-fence state — the question these answer is "could this fence
- *  delimiter be inside a hidden tag's attr value?", and a fence-aware answer would beg it. An over-cap (#1352) or
- *  unclosed open runs to the end, matching what the tag pass conceals. Disjoint and ascending; empty for bodies with no hidden tag,
+ *  delimiter be inside a hidden tag's attr value?", and a fence-aware answer would beg it. A run the tag pass conceals
+ *  to the end, by {@link concealsRest}, runs to the end here. Disjoint and ascending; empty for bodies with no hidden tag,
  *  which is the common case and costs one `indexOf`. */
-function hiddenTagRuns(content: string): readonly HiddenRun[] {
+function hiddenTagRuns(content: string, posture: BrokenHiddenPosture): readonly HiddenRun[] {
   const runs: HiddenRun[] = [];
   let i = content.indexOf("<");
   while (i !== -1) {
     const outcome = scanSelfClosingTag(content, i);
-    if (outcome.kind === "capped" || outcome.kind === "truncated") {
+    if (concealsRest(outcome, posture)) {
       runs.push({ start: i, end: content.length });
       return runs;
     }
@@ -683,8 +737,8 @@ interface ScanEnv {
    * boundary's own correction, not a change to how anyone reads a document.
    */
   readonly hiddenRuns: readonly HiddenRun[];
-  /** Conceal a registered hidden open the body never closes (D285). FALSE for the render/wire grammar, which keeps it literal. */
-  readonly concealUnclosedHidden: boolean;
+  /** What an unclosed or loose hidden open becomes (D285). */
+  readonly brokenHidden: BrokenHiddenPosture;
 }
 
 /** A code-fence delimiter line: toggle the fence state (its own line stays literal); the lenient html arm may
@@ -777,21 +831,16 @@ function classifyTag(scan: TagScan, raw: string): ContentSpan | null {
 
 type Expanded = { readonly kind: "text"; readonly text: string } | { readonly kind: "span"; readonly span: ContentSpan };
 
-/** Does this walk end its text run as one concealed hidden span? */
-function concealsRun(outcome: TagScanOutcome, concealUnclosedHidden: boolean): outcome is Extract<TagScanOutcome, { kind: "capped" | "truncated" }> {
-  return outcome.kind === "capped" || (outcome.kind === "truncated" && concealUnclosedHidden);
-}
-
-function scanTags(text: string, concealUnclosedHidden: boolean): Expanded[] {
+function scanTags(text: string, brokenHidden: BrokenHiddenPosture): Expanded[] {
   const out: Expanded[] = [];
   let last = 0;
   let i = text.indexOf("<");
   while (i !== -1) {
     const outcome = scanSelfClosingTag(text, i);
-    // FAIL-CLOSED (#1352): a registered hidden open too long to parse, or unclosed on the hidden scan, cannot be
-    // literal text — that is the `truth` attr reaching the member verbatim — so it becomes ONE hidden span running
+    // FAIL-CLOSED (#1352): a registered hidden open too long to parse, or unclosed or loose on the hidden scan, cannot
+    // be literal text — that is the `truth` attr reaching the member verbatim — so it becomes ONE hidden span running
     // to the end of this text run. The member strip drops it and `hadHidden` stops lying. Its attrs are deliberately
-    // empty: nothing inside the bound is a trustworthy parse of the whole tag.
+    // empty: nothing here is a trustworthy parse of the whole tag.
     //
     // WHAT THE HOST GETS, stated exactly (#1526 — an earlier note here overclaimed it). `raw` carries the
     // bytes, but the rpg reveal's wire shape (`RpgRevealedSpan`) projects only the registry's LABELLED
@@ -800,7 +849,7 @@ function scanTags(text: string, concealUnclosedHidden: boolean): Expanded[] {
     // verbatim in the live stream (the scrubber is member-only), and re-shipping an unparseable ≥16 KiB blob
     // to a panel buys no decision. An all-empty span is also excluded from the STANDING-LIE inventory
     // (`domain/rpg/substrate/reveal.ts`) — a lie with no character and no truth cannot stand.
-    if (concealsRun(outcome, concealUnclosedHidden)) {
+    if (concealsRest(outcome, brokenHidden)) {
       if (i > last) {
         out.push({ kind: "text", text: text.slice(last, i) });
       }
@@ -866,7 +915,7 @@ function scanDiceStamps(text: string): Expanded[] {
   return out;
 }
 
-function expandPieces({ content, concealUnclosedHidden }: ScanEnv, pieces: readonly Piece[]): Expanded[] {
+function expandPieces({ content, brokenHidden }: ScanEnv, pieces: readonly Piece[]): Expanded[] {
   const expanded: Expanded[] = [];
   for (const p of coalesceTextPieces(pieces)) {
     if (p.kind === "span") {
@@ -875,7 +924,7 @@ function expandPieces({ content, concealUnclosedHidden }: ScanEnv, pieces: reado
     }
     const text = content.slice(p.start, p.end);
     if (p.allowTags) {
-      expanded.push(...scanTags(text, concealUnclosedHidden).flatMap((part) => (part.kind === "text" ? scanDiceStamps(part.text) : [part])));
+      expanded.push(...scanTags(text, brokenHidden).flatMap((part) => (part.kind === "text" ? scanDiceStamps(part.text) : [part])));
     } else {
       expanded.push({ kind: "text", text });
     }
@@ -900,7 +949,7 @@ export function tokenizeContent(content: string, options?: TokenizeContentOption
     // The RENDER/WIRE grammar keeps markdown's own fence rule intact — a reader looking at a ``` block is
     // looking at a code block. The §3.6 correction below is the trust boundary's, and only its.
     hiddenRuns: [],
-    concealUnclosedHidden: false,
+    brokenHidden: "literal",
   });
 }
 
@@ -998,25 +1047,25 @@ export type HiddenContentSpan = Extract<ContentSpan, { kind: "hidden" }>;
  * Also deliberately NOT `committed`: an EOF-closed fence would swallow an unterminated tail; strict-close
  * keeps that tail scannable. Fail-closed beats consistent at a trust boundary.
  */
-function tokenizeForHiddenScan(content: string): ContentSpan[] {
+function tokenizeForHiddenScan(content: string, brokenHidden: Exclude<BrokenHiddenPosture, "literal"> = "body"): ContentSpan[] {
   return tokenizeWithEnv({
     content,
     lines: splitLines(content),
     lenient: false,
     committed: false,
     directiveFences: false,
-    hiddenRuns: hiddenTagRuns(content),
-    concealUnclosedHidden: true,
+    hiddenRuns: hiddenTagRuns(content, brokenHidden),
+    brokenHidden,
   });
 }
 
 /** The MEMBER-STRIP primitive (§3.6 — the trust boundary's pure half): removes ONLY `hidden`-class spans
  *  from a body, byte-preserving everything else (fence bytes included — a stripped card is still a card).
- *  A body with no hidden spans returns the ORIGINAL string (identity — the common case is free). A malformed
- *  hidden tag that degraded to literal text is NOT stripped (it is visible, not secret — the D51 posture; the
- *  reader seeing raw `<lie` is a visible model bug, never a silent truth-leak). An UNCLOSED registered open is a
- *  well-formed tag whose close never arrived, so it IS stripped, to the end of the body (D285). `unknown-directive`
- *  spans are NOT stripped here — they are display noise, not secrets, and the transcript payload stays honest. */
+ *  A body with no hidden spans returns the ORIGINAL string (identity — the common case is free). A registered
+ *  name followed by no `name=` shape is prose and is NOT stripped (the D51 posture). An UNCLOSED open, and a LOOSE one
+ *  whose `name=` shape breaks the strict grammar, ARE stripped, to the end of the body (D285; see
+ *  {@link scanSelfClosingTag}). `unknown-directive` spans are NOT stripped here — they are display noise, not secrets,
+ *  and the transcript payload stays honest. */
 export function stripHiddenSpans(content: string): { readonly content: string; readonly hadHidden: boolean } {
   const projected = projectHiddenSpans(content, []);
   return { content: projected.content, hadHidden: projected.hadHidden };
@@ -1063,13 +1112,11 @@ export function scanHiddenSpans(content: string): readonly HiddenContentSpan[] {
 // per-subscriber transform over the accumulating text channel: emit the maximal prefix PROVABLY free of a
 // hidden tag (open OR in-progress), HOLD BACK any trailing run that could still grow into a hidden-tag open,
 // and DROP any hidden tag that completes. FAIL-CLOSED by construction: an unclosed potential-open is withheld
-// (never released as "malformed-so-literal" — mid-stream "unclosed" means "the close hasn't arrived yet"); at
-// stream end whatever is still held is dropped, and the member keeps the at-commit-stripped committed view.
+// (mid-stream "unclosed" means "the close hasn't arrived yet"). A registered name that turns out to be prose is
+// released: the hold asks {@link scanSelfClosingTag} the same question the commit strip asks, so the two agree.
 // Allocation-sane: the held buffer is bounded by ONE tag's in-progress length, and a run that outgrows the
 // hidden-tag scan bound stops being buffered at all (it is CONCEALED — see below), never the whole ghost.
 
-/** The longest hidden-tag name (`ofilter`) bounds how far past a `<` we must look before a name is decidable. */
-const MAX_HIDDEN_TAG_NAME_LEN = Math.max(...HIDDEN_TAGS.map((d) => d.tag.length));
 // THE OVER-CAP RUN (#1352 — this replaces a force-RELEASE). A hold-back run that outgrows `MAX_HIDDEN_TAG_SCAN`
 // is indeed model garbage rather than a keyed secret field — but "garbage" is a claim about the tag's SHAPE,
 // never a licence to emit its bytes, and the bytes past `truth="` are the secret whatever their length. The
@@ -1079,29 +1126,19 @@ const MAX_HIDDEN_TAG_NAME_LEN = Math.max(...HIDDEN_TAGS.map((d) => d.tag.length)
 // stream end. The anti-wedge property that branch was written for survives without it — the stream is never
 // BLOCKED, it just stops carrying the concealed run, and the member's authoritative view is the at-commit
 // strip either way (which now conceals the same run — one rule, both planes).
-// The leading tag-name identifier of a hold-back run (same shape as the tokenizer's `TAG_NAME_RE` body).
-const HELD_NAME_RE = /^[A-Za-z][A-Za-z0-9_-]*/;
 
-/** Could the run at `text[lt..]` be a viable hidden-tag NAME prefix (`<`, `<l`, `<lie`, `<ofilter`, …)? This is
- *  the pure name-level test — it does NOT look past the name for a close (that is `scanSelfClosingTag`'s job).
- *  A `<` whose following name can never prefix a hidden tag (`< `, `</`, `<div`) is disqualified here. */
-function startsViableHiddenName(text: string, lt: number): boolean {
-  const s = text.slice(lt, lt + 1 + MAX_HIDDEN_TAG_NAME_LEN + 1);
-  const nameMatch = HELD_NAME_RE.exec(s.slice(1));
-  if (nameMatch === null) {
-    return s.length === 1; // a bare trailing `<` may still grow into a name.
-  }
-  const name = nameMatch[0];
-  const tags = HIDDEN_TAGS.map((d) => d.tag);
-  // Name fully consumed inside the window (a following char exists) ⇒ decide on exact match; still-growing ⇒ prefix.
-  return 1 + name.length < s.length ? tags.includes(name) : tags.some((t) => t.startsWith(name));
+/** Does the buffer end inside what may yet be a hidden-tag NAME (`<`, `<l`, `<ofil`)? This covers only the bytes the
+ *  tag scan cannot judge, because no complete name exists yet. Past the name, `scanSelfClosingTag` decides. */
+function endsInsideHiddenName(text: string, lt: number): boolean {
+  const name = text.slice(lt + 1);
+  return HIDDEN_TAGS.some((d) => d.tag.startsWith(name));
 }
 
 /** Split accumulated text into `{ safe, held }`: `held` is the trailing run from the LEFTMOST `<` that begins a
  *  hidden-tag open which has NOT yet completed (quote-aware, via `scanSelfClosingTag` — so a `<` or a `/>` inside
  *  a quoted attr value never mis-splits the tag). Everything before that `<` is `safe`. When no in-progress
- *  hidden open exists, the whole buffer is safe. FAIL-CLOSED: once a viable hidden open begins, the ENTIRE run
- *  from its `<` is held until the quote-aware walker sees a real close — a `<` inside its attr value can never
+ *  hidden open exists, the whole buffer is safe. FAIL-CLOSED: once a hidden open may have begun, the ENTIRE run
+ *  from its `<` is held until the tag scan gives a verdict — a `<` inside its attr value can never
  *  release the enclosing tag's prefix (the D106 leak the rightmost-cut logic had). Past the hidden scan bound
  *  the run turns `conceal`: it can never complete inside the bound, so it can never be released, and holding
  *  it further only re-walks a growing buffer — the scrubber stops emitting for the rest of the turn.
@@ -1121,31 +1158,40 @@ function cutAtIncompleteOpen(text: string): StreamCut {
       lt = text.indexOf("<", outcome.scan.end);
       continue;
     }
-    // An over-cap REGISTERED hidden open: the tokenizer conceals it at commit, so the stream conceals it too.
-    if (outcome.kind === "capped") {
-      return { kind: "conceal", safe: text.slice(0, lt) };
-    }
-    // Not a complete tag. If this `<` begins a VIABLE hidden-tag name still growing toward a close, HOLD the
-    // whole run from here (fail-closed — the close hasn't arrived).
-    if (startsViableHiddenName(text, lt)) {
+    // Not a complete tag. A hidden open whose close hasn't arrived, or a name still arriving, HOLDS the whole run
+    // from here (fail-closed).
+    if (outcome.kind === "truncated" || endsInsideHiddenName(text, lt)) {
       return { kind: "cut", safe: text.slice(0, lt), held: text.slice(lt) };
     }
+    // A REGISTERED hidden open the commit strip conceals to the end: the stream conceals it the same way.
+    if (concealsRest(outcome, "prefix")) {
+      return { kind: "conceal", safe: text.slice(0, lt) };
+    }
+    // A `malformed` verdict is prose on both planes, so it passes.
     lt = text.indexOf("<", lt + 1);
   }
   return { kind: "cut", safe: text, held: "" };
 }
 
+/** The member's bytes of a released stream prefix: the commit strip, minus its reading that the prefix ends the input. */
+function stripStreamPrefix(text: string): string {
+  return tokenizeForHiddenScan(text, "prefix")
+    .filter((span) => span.kind !== "hidden")
+    .map(contentSpanRaw)
+    .join("");
+}
+
 /** A stateful per-subscriber scrubber over ONE turn's text-delta stream (§3.6). Feed each delta's text; get
  *  back the bytes safe to emit to a NON-HOST member (complete hidden tags removed, in-progress opens withheld).
- *  Call {@link HiddenSpanStreamScrubber.flush} at turn end to release any tail that is provably not a hidden
- *  open (an unclosed hidden open is DROPPED — the member keeps the at-commit-stripped view). ONE scrubber per
+ *  Call {@link HiddenSpanStreamScrubber.flush} at turn end to settle the held tail by the commit strip's own verdict
+ *  (an unclosed hidden open is DROPPED, and a name that never grew into one is released). ONE scrubber per
  *  subscriber per turn; a host subscriber never constructs one (they read the stream verbatim). */
 export interface HiddenSpanStreamScrubber {
   /** Feed a text-channel delta; returns the substring safe to forward to the member this tick (may be `""`).
    *  Once an over-cap hidden open is seen this returns `""` for the rest of the turn (#1352) — the run cannot
    *  be parsed and must not be released, and the member's committed view conceals the same bytes. */
   readonly push: (text: string) => string;
-  /** Turn/stream end: release the held tail IFF it holds no in-progress hidden open, else drop it. */
+  /** Turn/stream end: no more bytes are coming, so the held tail takes the commit strip's verdict. */
   readonly flush: () => string;
 }
 
@@ -1163,14 +1209,12 @@ export function createHiddenSpanStreamScrubber(): HiddenSpanStreamScrubber {
       held = cut.kind === "cut" ? cut.held : "";
       concealing = cut.kind === "conceal";
       // `safe` may contain COMPLETE hidden tags (a `<lie …/>` that finished this tick) — strip them.
-      return cut.safe.length > 0 ? stripHiddenSpans(cut.safe).content : "";
+      return cut.safe.length > 0 ? stripStreamPrefix(cut.safe) : "";
     },
     flush(): string {
-      // `held` is, BY CONSTRUCTION (`cutAtIncompleteOpen`), always an UNCLOSED viable hidden open starting at
-      // its own `<`. The stream ended, so it can never close → FAIL-CLOSED: drop it whole (never emit a
-      // half-formed secret). The member's authoritative final content is the at-commit-stripped view.
+      const tail = held;
       held = "";
-      return "";
+      return stripHiddenSpans(tail).content;
     },
   };
 }

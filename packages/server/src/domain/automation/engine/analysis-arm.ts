@@ -49,6 +49,7 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { runStructuredTurn, StructuredOutputError } from "@orb/inference";
+import { stripHiddenSpans } from "@orb/kit/content";
 import type { VarOp } from "@orb/kit/macro";
 import { neutralizeMacros } from "@orb/kit/macro";
 import { writeOwnKey } from "@orb/kit/objects";
@@ -402,7 +403,8 @@ async function readAuditTarget(deps: ArmExecutorDeps, action: RunAnalysisAction,
     return null;
   }
   const target = await latestAuditableReply(deps.db, frame.chatId);
-  return target !== null && target.content.length <= ANALYSIS_REWRITE_MAX ? target : null;
+  // D285: the audit reads a reply verbatim and a rewrite replaces it, so a reply carrying a hidden span sits it out.
+  return target !== null && target.content.length <= ANALYSIS_REWRITE_MAX && !stripHiddenSpans(target.content).hadHidden ? target : null;
 }
 
 async function readPassInputs(deps: ArmExecutorDeps, action: RunAnalysisAction, frame: ChatScopedDispatchFrame): Promise<PassInputs> {
