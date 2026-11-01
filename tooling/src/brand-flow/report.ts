@@ -2,7 +2,7 @@
 // through a string first, then contract and port slots, then client state, then local helpers.
 import { isProduction } from "../unwired/index.ts";
 import type { BrandFlowReport } from "./scan.ts";
-import type { Layer, MintSite, Provenance, Where, WidenSite } from "./types.ts";
+import type { Layer, MintSite, Provenance, VocabField, Where, WidenSite } from "./types.ts";
 
 /** 1 a brand laundered through a string; 2 a contract or port slot; 3 client state; 4 a local helper; 5 library slots and unproven compares. */
 const TIER = { laundered: 1, wire: 2, state: 3, local: 4, minor: 5 } as const;
@@ -18,7 +18,10 @@ export interface RankedSite extends Where {
   readonly provenance: Provenance;
 }
 
-const LAYER_TIER: Readonly<Record<Layer, Tier>> = { contract: WIRE, port: WIRE, "client-state": STATE, local: LOCAL, library: MINOR };
+// A schema-input or unknown layer has no tier: the first is by design, the second could not be read.
+const LAYER_TIER: Readonly<Partial<Record<Layer, Tier>>> = { contract: WIRE, port: WIRE, "client-state": STATE, local: LOCAL, library: MINOR };
+
+const isDefectLayer = (widen: WidenSite): boolean => LAYER_TIER[widen.layer] !== undefined;
 
 const RAW_FIX: Readonly<Record<string, string>> = {
   "http-param": "parse the route param with typeIdSchema(ID_PREFIX.x) before it reaches a handler",
@@ -50,7 +53,7 @@ function rankedWiden(widen: WidenSite): RankedSite {
   const brand = widen.brands.join(" | ");
   return {
     ...where(widen),
-    tier: LAYER_TIER[widen.layer],
+    tier: LAYER_TIER[widen.layer] ?? MINOR,
     klass: "widen",
     what: `${brand} into plain string slot ${widen.slot.name} [${widen.slot.kind}, ${widen.layer}]`,
     fix: widen.slot.kind === "state" ? `useState<${brand}> and brand the setter's argument` : `declare ${widen.slot.name} as ${brand}`,
@@ -75,11 +78,11 @@ export function rank(report: BrandFlowReport): RankedSite[] {
     ...production(report.mints)
       .filter((mint) => mint.mintClass === "raw" && (mint.via === "castId" || mint.via === "as"))
       .map(rankedMint),
-    ...production(report.widens).map(rankedWiden),
+    ...production(report.widens).filter(isDefectLayer).map(rankedWiden),
     ...production(report.missing).map(
       (site): RankedSite => ({
         ...where(site),
-        tier: LAYER_TIER[site.layer],
+        tier: LAYER_TIER[site.layer] ?? LOCAL,
         klass: "missing",
         what: `${site.name}: string (${site.declKind}${site.owner === null ? "" : ` of ${site.owner}`}) where ${site.brand} exists (${site.match} match)`,
         fix: `declare ${site.name} as ${site.brand}`,
@@ -129,6 +132,31 @@ const BLIND = [
   "Id-named declarations are matched by name; `memberId`, `actorId`, a DOM id and a plugin-defined id have no brand and are listed apart.",
 ];
 
+const VALUE_WIDTH = 90;
+
+// The string-typed kind, status and role fields, most values first. The fields are reported, never judged closed.
+function vocabLines(fields: readonly VocabField[]): string[] {
+  const seen = fields.filter((field) => field.values.length > 0);
+  return [
+    `## Closed vocabularies: ${fields.length} string-typed kind, status and role fields; ${seen.length} with a literal value seen in production`,
+    "",
+    ...table(
+      ["field", "owner", "where", "values observed", "assigned", "compared", "case"],
+      seen
+        .slice(0, TOP)
+        .map((field) => [
+          field.name,
+          field.owner ?? "",
+          `${field.file}:${field.line}`,
+          field.values.join(", ").slice(0, VALUE_WIDTH),
+          field.assigned,
+          field.compared,
+          field.cased,
+        ]),
+    ),
+  ];
+}
+
 export function renderReport(report: BrandFlowReport, ranked: readonly RankedSite[]): string {
   const production = <T extends Where>(sites: readonly T[]): T[] => sites.filter((site) => isProduction(site.file));
   const castIds = report.mints.filter((mint) => mint.via === "castId");
@@ -141,7 +169,7 @@ export function renderReport(report: BrandFlowReport, ranked: readonly RankedSit
   const by = (sites: readonly Where[]): Map<string, number> => tally(sites, (site) => site.pkg);
   const columns = {
     "raw mint": by(report.mints.filter((mint) => mint.mintClass === "raw")),
-    widen: by(report.widens),
+    widen: by(report.widens.filter(isDefectLayer)),
     "re-narrow": by(report.renarrows.filter((site) => site.proof === "slot-widened")),
     missing: by(report.missing),
   };
@@ -167,6 +195,8 @@ export function renderReport(report: BrandFlowReport, ranked: readonly RankedSit
     "",
     "## Widen (production files)",
     "",
+    "A `schema-input` slot is declared as a brand schema, whose zod input type is `string` by design; an `unknown` slot's declaration could not be read. Neither is a defect count.",
+    "",
     ...table(["layer", "sites"], [...tally(production(report.widens), (widen) => widen.layer)].sort(byName)),
     "",
     ...table(["slot kind", "sites"], [...tally(production(report.widens), (widen) => widen.slot.kind)].sort(byName)),
@@ -185,6 +215,8 @@ export function renderReport(report: BrandFlowReport, ranked: readonly RankedSit
       ["name", "count", "packages"],
       report.generic.slice(0, TOP).map((entry) => [entry.name, entry.count, entry.packages.join(", ")]),
     ),
+    "",
+    ...vocabLines(report.vocabularies),
     "",
     `## Top real sites (production only; ${production(ranked).length} ranked)`,
   ];
