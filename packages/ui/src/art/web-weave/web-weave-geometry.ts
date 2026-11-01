@@ -79,9 +79,6 @@ export interface WovenWeb {
   /** Mean hub→frame distance — the spiral scale + the free-zone base. */
   readonly reach: number;
   readonly freeZoneRadius: number;
-  /** The seed this web was woven from — carried so the ambient beats keyed off it (her idle twitches)
-   *  stay deterministic per web without the painters re-deriving it. */
-  readonly seed: number;
 }
 
 // ─── Web construction ────────────────────────────────────────────────────────────────────────────
@@ -417,7 +414,7 @@ export function buildWeb({ width, height, hub: hubFrac, seed }: BuildWebInput): 
   itinerary.push({ t0: capture.t0, t1: capture.t1, pts: capture.pts, from: 0, to: 1, tip: "capture" });
   itinerary.push({ t0: T.capture[1], t1: T.rest, pts: [capture.pts.at(-1) as WeavePoint, hub], from: 0, to: 1 });
 
-  return { strands, radii, aux, capture, dew, itinerary, hub, reach, freeZoneRadius, seed };
+  return { strands, radii, aux, capture, dew, itinerary, hub, reach, freeZoneRadius };
 }
 
 /** The A9 strand-out silk line: hub → off the top-right edge, sagging — steeper than the bridge so the

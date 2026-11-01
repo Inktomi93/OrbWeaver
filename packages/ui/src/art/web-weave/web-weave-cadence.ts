@@ -35,7 +35,6 @@ export interface WeaveActivity {
   readonly riding: boolean;
   /** The weaver is off her hub — or still inside the settle tail after coming home. */
   readonly hunting: boolean;
-  readonly wind: number;
   readonly shiver: number;
   readonly ringing: boolean;
   /** Read straight from the pointer seam, never from the previous frame's verdict: a SKIPPED frame
@@ -46,7 +45,7 @@ export interface WeaveActivity {
 
 /** Is the web merely BREATHING right now? */
 export function weaveIsQuiet(activity: WeaveActivity): boolean {
-  const { building, riding, hunting, wind, shiver, ringing, plucks } = activity;
-  const busy = building || riding || hunting || ringing || wind !== 0 || shiver !== 0 || (plucks?.size ?? 0) > 0;
+  const { building, riding, hunting, shiver, ringing, plucks } = activity;
+  const busy = building || riding || hunting || ringing || shiver !== 0 || (plucks?.size ?? 0) > 0;
   return !busy;
 }

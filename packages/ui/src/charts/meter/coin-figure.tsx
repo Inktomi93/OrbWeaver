@@ -15,7 +15,6 @@
 //     track step. An empty (or negative) purse rendered in ramp gold was a null state wearing a prize's
 //     clothes; the FIGURE stays, only its mood is honest.
 import type { ReactElement } from "react";
-import { cn } from "#lib";
 import type { TrackColor } from "./track-bar.tsx";
 import { COIN_DISC_EMPTY, COIN_DISC_FILL, COIN_DISC_RING, COIN_DISC_STROKE, ringGaugeVariants } from "./variants.ts";
 
@@ -28,7 +27,6 @@ export interface CoinFigureProps {
   color?: TrackColor;
   /** Show the visible label + amount caption below the disc. @defaultValue false */
   showCaption?: boolean;
-  className?: string;
 }
 
 // SVG geometry (viewBox units — mirrors the mock coin; named per biome noMagicNumbers).
@@ -51,14 +49,14 @@ function coinGlyph(amount: number): string {
 }
 
 /** The decorative coin disc + its visually-hidden datum. */
-export function CoinFigure({ amount, label, color = 3, showCaption = false, className }: CoinFigureProps): ReactElement {
+export function CoinFigure({ amount, label, color = 3, showCaption = false }: CoinFigureProps): ReactElement {
   // Shares the orb column skin (label/readout/value slots) with RingGauge — one satellite anatomy.
   const slots = ringGaugeVariants();
   // A purse at zero or in the red is NOT a hoard (#99 item 6): it sheds the ramp tint for the neutral trio.
   const empty = amount <= 0;
   const disc = empty ? COIN_DISC_EMPTY : { fill: COIN_DISC_FILL[color], stroke: COIN_DISC_STROKE[color], ring: COIN_DISC_RING[color] };
   return (
-    <div className={cn(slots.root(), className)} data-slot="coin-figure" data-empty={empty}>
+    <div className={slots.root()} data-slot="coin-figure" data-empty={empty}>
       <svg aria-hidden={true} className={slots.svg()} data-slot="coin-figure-svg" viewBox={`0 0 ${SIZE} ${SIZE}`}>
         <circle cx={CENTER} cy={CENTER} r={DISC_R} fill={disc.fill} stroke={disc.stroke} strokeWidth={DISC_STROKE_W} />
         <circle cx={CENTER} cy={CENTER} r={INNER_R} fill="none" stroke={disc.ring} strokeWidth="1" />

@@ -1,8 +1,6 @@
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
-import { cn } from "#lib";
 import { Button } from "#primitives/button";
-import { Checkbox } from "#primitives/checkbox";
 import { Check, Icon, Minus, Plus, X } from "#primitives/icons";
 import { COMPARE_SIDE_TONE, compareBlocksVariants } from "./variants.ts";
 
@@ -38,15 +36,9 @@ export interface CompareReview {
 
 export interface CompareBlocksProps {
   readonly blocks: readonly CompareBlock[];
-  /** LEGACY checkbox acceptance (pre-R3 consumers/CT) — ignored when `review` is supplied. */
-  readonly accepted?: readonly boolean[];
-  readonly onAcceptedChange?: (accepted: readonly boolean[]) => void;
-  /** @defaultValue "Accept all" */
-  readonly acceptAllLabel?: string;
   /** The ARM-B review grammar (per-block Keep/Discard verbs, tri-state, no bulk row) — the accept
-   *  ergonomics the owner ruled. Supplying it suppresses the checkbox grammar entirely. */
+   *  ergonomics the owner ruled. Without it the blocks render as a read-only comparison. */
   readonly review?: CompareReview;
-  readonly className?: string;
 }
 
 const DECISION_WORD: Record<"kept" | "discarded" | "undecided", string> = {
@@ -187,77 +179,13 @@ function blockStateOf(block: CompareBlock, index: number, review: CompareReview 
   return { name: block.label ?? `change ${index + 1}`, cleared, added, decision, collapsed };
 }
 
-/** The LEGACY accept-all checkbox row (pre-R3 grammar). */
-function AcceptAllRow({
-  count,
-  accepted,
-  label,
-  slots,
-  onAcceptedChange,
-}: {
-  count: number;
-  accepted: readonly boolean[];
-  label: string;
-  slots: Slots;
-  onAcceptedChange: (accepted: readonly boolean[]) => void;
-}): ReactElement {
-  const acceptedCount = accepted.filter(Boolean).length;
-  const allAccepted = count > 0 && acceptedCount === count;
-  return (
-    // biome-ignore lint/a11y/noLabelWithoutControl: the Checkbox control is nested inside.
-    <label className={slots.acceptAllRow()} data-slot="compare-blocks-accept-all">
-      <Checkbox
-        checked={allAccepted}
-        indeterminate={acceptedCount > 0 && !allAccepted}
-        onCheckedChange={(value: boolean): void => onAcceptedChange(Array.from({ length: count }, () => value))}
-      />
-      <span className={slots.acceptAllLabel()}>{label}</span>
-    </label>
-  );
-}
-
-/** The LEGACY per-block accept checkbox (pre-R3 grammar). The next array is built over the BLOCK count
- *  (a short `accepted` back-fills false), preserving the primitive's original controlled contract. */
-function AcceptRow({
-  name,
-  index,
-  count,
-  accepted,
-  slots,
-  onAcceptedChange,
-}: {
-  name: string;
-  index: number;
-  count: number;
-  accepted: readonly boolean[];
-  slots: Slots;
-  onAcceptedChange: (accepted: readonly boolean[]) => void;
-}): ReactElement {
-  return (
-    // biome-ignore lint/a11y/noLabelWithoutControl: the Checkbox control is nested inside.
-    <label className={slots.acceptRow()} data-slot="compare-block-accept">
-      <Checkbox
-        checked={accepted[index] ?? false}
-        onCheckedChange={(value: boolean): void => onAcceptedChange(Array.from({ length: count }, (_, i) => (i === index ? value : (accepted[i] ?? false))))}
-      />
-      <span className={slots.acceptLabel()}>
-        Accept<span className={slots.srOnly()}> {name}</span>
-      </span>
-    </label>
-  );
-}
-
-export function CompareBlocks({ blocks, accepted, onAcceptedChange, acceptAllLabel = "Accept all", review, className }: CompareBlocksProps): ReactElement {
+export function CompareBlocks({ blocks, review }: CompareBlocksProps): ReactElement {
   const slots = compareBlocksVariants();
-  const canAccept = review === undefined && accepted !== undefined && onAcceptedChange !== undefined;
   // Which decided blocks the user re-expanded (presentation-only state; the DECISIONS stay controlled).
   const [reExpanded, setReExpanded] = useState<ReadonlySet<number>>(new Set());
 
   return (
-    <div className={cn(slots.root(), className)} data-slot="compare-blocks">
-      {canAccept && blocks.length > 1 ? (
-        <AcceptAllRow accepted={accepted} count={blocks.length} label={acceptAllLabel} onAcceptedChange={onAcceptedChange} slots={slots} />
-      ) : null}
+    <div className={slots.root()} data-slot="compare-blocks">
       {blocks.map((block, index) => {
         const state = blockStateOf(block, index, review, reExpanded);
         if (state.decision !== null && state.collapsed) {
@@ -274,13 +202,9 @@ export function CompareBlocks({ blocks, accepted, onAcceptedChange, acceptAllLab
         }
         return (
           <BlockView
-            accepted={accepted}
             block={block}
-            count={blocks.length}
-            index={index}
             // biome-ignore lint/suspicious/noArrayIndexKey: decisions address positions; the active-field caller disables collapse state while replacing its single slot.
             key={index}
-            onAcceptedChange={onAcceptedChange}
             onDecide={
               review === undefined
                 ? undefined
@@ -298,25 +222,17 @@ export function CompareBlocks({ blocks, accepted, onAcceptedChange, acceptAllLab
   );
 }
 
-/** One expanded block: header (label + state chip), the body (pair or override), and its grammar row —
- *  review verbs when a decision channel exists, else the legacy accept checkbox when one is wired. */
+/** One expanded block: header (label + state chip), the body (pair or override), and its review verbs
+ *  when a decision channel exists. */
 function BlockView({
   block,
-  index,
-  count,
   state,
   slots,
-  accepted,
-  onAcceptedChange,
   onDecide,
 }: {
   block: CompareBlock;
-  index: number;
-  count: number;
   state: BlockState;
   slots: Slots;
-  accepted: readonly boolean[] | undefined;
-  onAcceptedChange: ((accepted: readonly boolean[]) => void) | undefined;
   onDecide: ((decision: CompareDecision) => void) | undefined;
 }): ReactElement {
   const { name, cleared, added, decision } = state;
@@ -335,9 +251,6 @@ function BlockView({
         {block.body ?? <PairBody added={added} block={block} cleared={cleared} slots={slots} />}
       </div>
       {onDecide !== undefined && decision !== null ? <ReviewVerbs cleared={cleared} decision={decision} name={name} onDecide={onDecide} slots={slots} /> : null}
-      {onDecide === undefined && accepted !== undefined && onAcceptedChange !== undefined ? (
-        <AcceptRow accepted={accepted} count={count} index={index} name={name} onAcceptedChange={onAcceptedChange} slots={slots} />
-      ) : null}
     </div>
   );
 }
