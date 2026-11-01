@@ -134,7 +134,6 @@ import {
   loadChatMessageStats,
   loadChatRow,
   loadForkChildren,
-  loadLastTurnTerminalSeq,
   loadMessagesPage,
   loadMessageVariantSummaries,
   loadVariantWire,
@@ -191,6 +190,7 @@ async function resolveReasoningHostOnly(ctx: ChatContext, chatId: ChatId): Promi
 /** The collaborators not on `ChatContext` (see the file header). */
 interface ReadDeps {
   readonly activeTurns: ActiveTurns;
+  readonly openTurns: ChatServiceDeps["openTurns"];
   readonly loadParticipantViewsBatch: LoadParticipantViewsBatchOp;
   readonly loadParticipantViews: LoadParticipantViewsOp;
   readonly resolveConnection: ChatServiceDeps["resolveConnection"];
@@ -1714,25 +1714,33 @@ async function projectChatEventReplay(
   });
 }
 
-/** What a device needs to stand a live turn's ghost up. The rest of a turn's log is canon the mount's own reads
- *  already carry, or a once-only signal (a warning, a user row's composer clear) that belongs to whoever was
- *  there. `messageCommitted` stays for the assistant row alone: it is the ghost's handover signal. */
+/** What a device needs to stand a live turn's ghost up. Anything else in a turn's log is a once-only signal that
+ *  belongs to whoever was there. Every commit stays: the assistant row is the ghost's handover signal, and a user
+ *  row is the prompt, which a remount's cached list can predate. */
 const LIVE_TURN_EVENT_TYPES = ["turnAccepted", "turnStarted", "delta", "messageCommitted"] as const satisfies readonly DurableChatBusEvent["type"][];
 
-/** `replayLiveTurn` — what a device attaching with no cursor is missing of the turn in flight, from generation
- *  start through `throughSeq` (the attach's own bounds read, so the rows above it are the live tail's). Empty
- *  when no turn is running: `activeTurns` is the liveness truth, because a crash leaves an open turn in the log
- *  with no terminal, and replaying that would strand a ghost nothing ever closes. */
+/** `replayLiveTurn` — what a device attaching with no cursor is missing of the turns in flight, each from where it
+ *  entered the log through `throughSeq` (the attach's own bounds read, so the rows above it are the live tail's).
+ *  The log alone cannot say which turns those are: a refused send's terminal lands inside a running turn, and a
+ *  crash leaves a turn open with no terminal. The bus's open set can, and `activeTurns` rules out a terminal that
+ *  never logged, which would strand a ghost nothing closes. */
 function createReplayLiveTurn(ctx: ChatContext, deps: ReadDeps): ChatService["replayLiveTurn"] {
   return async ({ principal, chatId, throughSeq }: ReplayLiveTurnParams): Promise<ChatBusReplayEvent[]> => {
     const membership = await requireParticipant(ctx, principal, chatId);
-    if (deps.activeTurns.countActive(chatId) === 0) {
+    const open = deps.openTurns(chatId);
+    if (open.size === 0 || deps.activeTurns.countActive(chatId) === 0) {
       return [];
     }
-    const lastTerminal = await loadLastTurnTerminalSeq(ctx.db, chatId);
-    const rows = await readEventPages(ctx.db, chatId, lastTerminal, { throughSeq, types: LIVE_TURN_EVENT_TYPES });
-    const ghost = rows.filter(({ payload }) => payload.type !== "messageCommitted" || payload.view?.role === "assistant");
-    return await projectChatEventReplay(ctx, chatId, membership, ghost);
+    // One row below the head: a send commits its user row just before it accepts.
+    const rows = await readEventPages(ctx.db, chatId, Math.min(...open.values()) - 2, { throughSeq, types: LIVE_TURN_EVENT_TYPES });
+    const ofOpenTurns = rows.filter(({ seq, payload }) => {
+      if (!("turnId" in payload) || payload.turnId === undefined) {
+        return true;
+      }
+      const entered = open.get(payload.turnId);
+      return entered !== undefined && seq >= entered;
+    });
+    return await projectChatEventReplay(ctx, chatId, membership, ofOpenTurns);
   };
 }
 

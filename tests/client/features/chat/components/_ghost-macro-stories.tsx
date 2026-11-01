@@ -2,11 +2,15 @@ import { useChatBusDeps } from "@orb/client/data";
 import { MessageListSurface } from "@orb/client/features/chat";
 import { selectChat } from "@orb/client/state";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { CtClientProviders, chatSurfaceContributors, toolRenderers } from "@orb/testkit/browser";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { Button } from "@orb/ui/button";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
+
+const TURN_ID = createSeededIds(FIXTURE_ID_CURSOR).typeId(ID_PREFIX.chatTurn);
 
 function Transcript({
   chatId,
@@ -34,13 +38,13 @@ function Transcript({
       {/* The production stream's own calls, in the order the bus applier makes them for an accepted turn. */}
       <Button
         onClick={(): void => {
-          busDeps.stream.beginTurn(chatId, { intent: "send", speakerCharacterId, targetMessageId: null });
-          busDeps.stream.appendDelta({ chatId, kind, text: streamedText });
+          busDeps.stream.beginTurn(chatId, { turnId: TURN_ID, intent: "send", speakerCharacterId, targetMessageId: null });
+          busDeps.stream.appendDelta(TURN_ID, { chatId, kind, text: streamedText });
         }}
       >
         {streamLabel}
       </Button>
-      <Button onClick={(): void => busDeps.stream.appendDelta({ chatId, kind, text: nextText })}>{nextLabel}</Button>
+      <Button onClick={(): void => busDeps.stream.appendDelta(TURN_ID, { chatId, kind, text: nextText })}>{nextLabel}</Button>
       <MessageListSurface chatId={chatId} busDeps={busDeps} surfaceContributors={chatSurfaceContributors} toolRenderers={toolRenderers} />
     </>
   );

@@ -236,7 +236,11 @@ async function* attachSynthesesAndReplay(args: {
   const { service, principal, chatId, resumeSeq, bounds } = args;
   // See the doc comment: a RESUMING attach keeps its own cursor; a cursor-less one adopts the room's current
   // high-water so the client (and the socket cell) have something replayable to come back to.
-  const cursorSeq = resumeSeq ?? bounds.maxSeq ?? 0;
+  // The turn in flight is read before the notice because it moves the floor: a device that drops after the notice
+  // and before these frames resumes from the floor, so the floor has to sit below the turn's first row.
+  const liveTurn = resumeSeq === null && bounds.maxSeq !== null ? await service.replayLiveTurn({ principal, chatId, throughSeq: bounds.maxSeq }) : [];
+  const liveHead = liveTurn.at(0)?.seq;
+  const cursorSeq = resumeSeq ?? (liveHead === undefined ? (bounds.maxSeq ?? 0) : liveHead - 1);
   // `chatOpened` — the per-subscription attach synthesis (the client reducer invalidates). The
   // per-viewer automation tap (D81) fires off the SAME synthesis — it never rides the durable bus.
   yield { channel: "chat", chatId, seq: cursorSeq, event: { type: "chatOpened", chatId } };
@@ -244,11 +248,9 @@ async function* attachSynthesesAndReplay(args: {
 
   // A cursor-less attach has the canon from its own reads and needs only the turn in flight, if there is one.
   // `bounds.maxSeq` is the one handover point: the live listener attached before that read, so every row above
-  // it arrives live, and the frames below raise the live loop's dedup floor over everything they carried.
+  // it arrives live, and these frames raise the live loop's dedup floor over everything they carried.
   if (resumeSeq === null) {
-    if (bounds.maxSeq !== null) {
-      yield* replayFrames(chatId, await service.replayLiveTurn({ principal, chatId, throughSeq: bounds.maxSeq }));
-    }
+    yield* replayFrames(chatId, liveTurn);
     return;
   }
   // `historyTruncated` — the cursor predates the retained window (`minSeq` = earliest retained
@@ -268,9 +270,15 @@ function replayFrames(chatId: ChatId, entries: readonly ChatBusReplayEvent[]): C
   const frames: ChatFrame[] = [];
   for (const { seq, event } of entries) {
     const last = frames.at(-1)?.event;
-    if (event.type === "delta" && last?.type === "delta" && last.slotSeq === event.slotSeq && last.delta.kind === event.delta.kind) {
+    if (
+      event.type === "delta" &&
+      last?.type === "delta" &&
+      last.turnId === event.turnId &&
+      last.slotSeq === event.slotSeq &&
+      last.delta.kind === event.delta.kind
+    ) {
       const delta = { ...last.delta, text: last.delta.text + event.delta.text };
-      frames[frames.length - 1] = { channel: "chat", chatId, seq, event: { type: "delta", chatId, slotSeq: last.slotSeq, delta } };
+      frames[frames.length - 1] = { channel: "chat", chatId, seq, event: { type: "delta", chatId, turnId: event.turnId, slotSeq: last.slotSeq, delta } };
       continue;
     }
     frames.push({ channel: "chat", chatId, seq, event });

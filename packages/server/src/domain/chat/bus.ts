@@ -66,7 +66,7 @@ import type { Db } from "@orb/db";
 import { batchMany } from "@orb/db/query";
 import type { DbAssemblyInput, StatementToken } from "@orb/db/wiring";
 import { databaseForOwner, statementForOwner, statementToken } from "@orb/db/wiring-owner";
-import type { ChatEventId } from "@orb/kit/ids";
+import type { ChatEventId, ChatId, ChatTurnId } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "./contract/context.ts";
@@ -96,6 +96,8 @@ interface ChatBus {
   readonly emit: EmitChatEvent;
   /** Claim state first, then append only if that exact statement changed a row, in one SQLite batch. */
   readonly emitAfterClaim: EmitChatEventAfterClaim;
+  /** Where each turn still open in `chatId` entered the log, by `seq`. */
+  readonly openTurns: (chatId: ChatId) => ReadonlyMap<ChatTurnId, number>;
   /** Prepare the first event for a room-creation batch, then publish the already-committed row without a
    * second append. `chatCreated` is the only event whose sequence is known before its room exists. */
   readonly prepareCreation: (event: Extract<DurableChatBusEvent, { readonly type: "chatCreated" }>) => {
@@ -254,14 +256,33 @@ async function reportTerminalDrop(db: Db, drop: TerminalDrop, logger: Logger): P
   return committedSeq;
 }
 
+const NO_OPEN_TURNS: ReadonlyMap<ChatTurnId, number> = new Map<ChatTurnId, number>();
+
 /** Build the per-process chat bus (ONE instance, wired at the composition root). */
 export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
   const deps: ChatBusDeps = { ...input, db: databaseForOwner(input.db) };
   // The §3.6 producer stamper (see the file header) — ONE per bus, so a slot's scrub state spans its whole
   // token stream regardless of who is (or is not) subscribed at any moment.
   const stamper = createMemberDeltaStamper();
+  const open = new Map<ChatId, Map<ChatTurnId, number>>();
 
-  const publishCommitted = (seq: number, event: DurableChatBusEvent): ChatEmitted => ({ seq, event });
+  const trackTurn = (seq: number, event: DurableChatBusEvent): void => {
+    if (event.type === "turnAccepted" || event.type === "turnStarted") {
+      const turns = open.getOrInsertComputed(event.chatId, () => new Map<ChatTurnId, number>());
+      turns.set(event.turnId, turns.get(event.turnId) ?? seq);
+    } else if (event.type === "turnCompleted" || event.type === "turnAborted") {
+      const turns = open.get(event.chatId);
+      turns?.delete(event.turnId);
+      if (turns?.size === 0) {
+        open.delete(event.chatId);
+      }
+    }
+  };
+
+  const publishCommitted = (seq: number, event: DurableChatBusEvent): ChatEmitted => {
+    trackTurn(seq, event);
+    return { seq, event };
+  };
 
   const prepareCreation: ChatBus["prepareCreation"] = (raw) => {
     const event = stamper.stamp(raw);
@@ -333,5 +354,5 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
     }
   };
 
-  return { emit, emitAfterClaim, prepareCreation };
+  return { emit, emitAfterClaim, prepareCreation, openTurns: (chatId) => open.get(chatId) ?? NO_OPEN_TURNS };
 }

@@ -415,7 +415,6 @@ const ROLE_DATA_EXPORTS = [
       "loadContinueSnapshot",
       "loadMessagesPage",
       "loadChatEventPage",
-      "loadLastTurnTerminalSeq",
       "loadChatEventById",
       "loadChatEventBounds",
       "loadMessageVariantSummaries",

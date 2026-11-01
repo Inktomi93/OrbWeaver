@@ -8,7 +8,7 @@
 // imported inside data/bus/ — lint rule `orb/chat-stream-writes-in-bus-only`). The slot does not close there — it
 // closes only on the bus's turnAborted (or a race-won turnCompleted).
 
-import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatTurnId, MessageId } from "@orb/kit/ids";
 import { perfMark, perfMeasure } from "#lib";
 import type { ChatStreamApi, RecallState, TurnSlot } from "./chat-stream-types.ts";
 import { createGatedStore } from "./create-gated-store.ts";
@@ -40,6 +40,12 @@ const IDLE_TURN: TurnSlot = Object.freeze({ phase: "idle" as const });
 const RECALLING: RecallState = Object.freeze({ phase: "recalling" as const });
 
 const useChatStreamStore = createGatedStore<ChatStreamState>("chat-stream", (): ChatStreamState => ({ turns: {}, recalls: {} }));
+
+/** Is this slot live under a turn other than `turnId`? The first turn holds the ghost until its own terminal. A send
+ *  the lock refuses still accepts and aborts, and a `generate` streams beside a send; neither may touch it. */
+function heldByAnotherTurn(slot: TurnSlot, turnId: ChatTurnId): boolean {
+  return (slot.phase === "pending" || slot.phase === "streaming" || slot.phase === "stopping") && slot.turnId !== turnId;
+}
 
 function slotOf(chatId: ChatId): TurnSlot {
   return useChatStreamStore.getState().turns[chatId] ?? IDLE_TURN;
@@ -113,6 +119,7 @@ function flushChat(chatId: ChatId): void {
       chatId,
       {
         phase: "streaming",
+        turnId: slot.turnId,
         intent: slot.intent,
         speakerCharacterId: slot.speakerCharacterId,
         targetMessageId: slot.targetMessageId,
@@ -184,6 +191,9 @@ export function subscribeUserMessageCommitted(chatId: ChatId, listener: () => vo
 
 export const chatStream: ChatStreamApi = {
   beginTurn: (chatId, turn) => {
+    if (heldByAnotherTurn(slotOf(chatId), turn.turnId)) {
+      return;
+    }
     // Discard any un-flushed buffer from a prior turn on this chat so a rapid begin never inherits stale
     // tokens (a terminal normally drains it first; this closes the begin-races-an-unflushed-frame edge).
     pendingTokensByChat.delete(chatId);
@@ -191,8 +201,11 @@ export const chatStream: ChatStreamApi = {
     perfMark(turnStartMark(chatId));
     setSlot(chatId, { phase: "pending", committedMessageId: null, ...turn }, "turn/begin");
   },
-  appendDelta: (delta) => {
+  appendDelta: (turnId, delta) => {
     const slot = slotOf(delta.chatId);
+    if (heldByAnotherTurn(slot, turnId)) {
+      return;
+    }
     // A delta with no live turn (raced past a terminal event) is dropped — invalidation already
     // refetched the durable canon. TTFT is measured at the FIRST token's ARRIVAL (not the batched flush)
     // so the metric stays honest; the token itself rides the rAF-batched buffer (scheduleDelta).
@@ -203,7 +216,10 @@ export const chatStream: ChatStreamApi = {
       scheduleDelta(delta.chatId, delta.kind === "text" ? delta.text : "", delta.kind === "reasoning" ? delta.text : "");
     }
   },
-  completeTurn: (chatId, messageId) => {
+  completeTurn: (chatId, turnId, messageId) => {
+    if (heldByAnotherTurn(slotOf(chatId), turnId)) {
+      return;
+    }
     flushPending(chatId); // land any buffered tail tokens BEFORE the terminal so none are dropped.
     const slot = slotOf(chatId);
     if (slot.phase === "pending" || slot.phase === "streaming" || slot.phase === "stopping") {
@@ -211,7 +227,10 @@ export const chatStream: ChatStreamApi = {
       setSlot(chatId, { phase: "completed", intent: slot.intent, messageId }, "turn/complete");
     }
   },
-  abortTurn: (chatId, reason) => {
+  abortTurn: (chatId, turnId, reason) => {
+    if (heldByAnotherTurn(slotOf(chatId), turnId)) {
+      return;
+    }
     flushPending(chatId); // land any buffered tail tokens BEFORE the terminal.
     const slot = slotOf(chatId);
     if (slot.phase === "pending" || slot.phase === "streaming" || slot.phase === "stopping") {
@@ -237,6 +256,7 @@ export const chatStream: ChatStreamApi = {
         chatId,
         {
           phase: "stopping",
+          turnId: slot.turnId,
           intent: slot.intent,
           speakerCharacterId: slot.speakerCharacterId,
           targetMessageId: slot.targetMessageId,
@@ -269,6 +289,7 @@ export const chatStream: ChatStreamApi = {
       chatId,
       {
         phase: "pending",
+        turnId: slot.turnId,
         intent: slot.intent,
         speakerCharacterId: slot.speakerCharacterId,
         targetMessageId: slot.targetMessageId,
@@ -277,8 +298,11 @@ export const chatStream: ChatStreamApi = {
       "turn/stop-failed",
     );
   },
-  markCommitted: (chatId, messageId) => {
+  markCommitted: (chatId, messageId, turnId) => {
     const slot = slotOf(chatId);
+    if (turnId !== undefined && heldByAnotherTurn(slot, turnId)) {
+      return;
+    }
     // Live phases only. A commit with no live slot is somebody else's write (a narrator post, another
     // device's edit) — the canon refetch owns it and there is no ghost to hand over to.
     if (slot.phase !== "pending" && slot.phase !== "streaming" && slot.phase !== "stopping") {

@@ -960,20 +960,6 @@ export async function loadChatEventPage(
     .limit(limit);
 }
 
-const TURN_TERMINAL_EVENT_TYPES = ["turnCompleted", "turnAborted"] as const satisfies readonly DurableChatBusEvent["type"][];
-
-/** The `seq` of the room's last turn terminal, 0 when it has none. The walk back stays on the (chat, seq) index and
- *  stops at the first hit, so it costs the length of the current turn, never the length of the room. */
-export async function loadLastTurnTerminalSeq(db: Db, chatId: ChatId): Promise<number> {
-  const rows = await db
-    .select({ seq: chatEvents.seq })
-    .from(chatEvents)
-    .where(and(eq(chatEvents.chatId, chatId), inArray(chatEvents.type, TURN_TERMINAL_EVENT_TYPES)))
-    .orderBy(desc(chatEvents.seq))
-    .limit(1);
-  return rows.at(0)?.seq ?? 0;
-}
-
 /** The durable log row minted under ONE event id — its cursor plus the payload AS STORED, or undefined when
  *  no row carries that id. The GROUND-TRUTH read behind the bus's terminal-drop classification (#1544): after
  *  a same-id retry fails, only the stored payload can say whether OUR append is the one that committed (id

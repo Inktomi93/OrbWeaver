@@ -157,6 +157,7 @@ export function createChatService(
   const signupInvites = createSignupInvite(ctx, { ...deps.signup, assemblePreview, emit: deps.emit });
   const read = createRead(ctx, {
     activeTurns: deps.activeTurns,
+    openTurns: deps.openTurns,
     loadParticipantViews,
     loadParticipantViewsBatch,
     resolveConnection: deps.resolveConnection,

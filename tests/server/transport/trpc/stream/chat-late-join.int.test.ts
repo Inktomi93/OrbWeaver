@@ -27,6 +27,7 @@ import {
   seedInvitedChatParticipant,
 } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
+import { coreProse } from "../../../domain/chat/engine/core-physical.ts";
 import { signedInMember } from "../../../entry/_auth-roots.ts";
 
 const THOUGHT = "Weighing the witness. ";
@@ -47,6 +48,7 @@ interface Frame {
 
 /** One device's real multiplexed socket, read frame by frame as the browser reads it. */
 interface Device {
+  readonly socketId: string;
   readonly frames: readonly Frame[];
   readonly attach: () => Promise<void>;
   readonly waitFor: (done: (frames: readonly Frame[]) => boolean) => Promise<void>;
@@ -88,6 +90,7 @@ async function openDevice(root: ServerTestHarness, userId: UserId, cookie: strin
     await pull();
   }
   return {
+    socketId,
     frames,
     attach: async (): Promise<void> => {
       const caller = await root.internalCallerFor(userId);
@@ -150,6 +153,8 @@ interface Room extends AsyncDisposable {
   readonly reply: () => Reply;
   /** Arm a fresh held reply for the next turn. */
   readonly rearm: () => void;
+  /** Answer every later provider request at once with this finished text. */
+  readonly answerWith: (text: string) => void;
   readonly send: () => Promise<unknown>;
   /** Wait until `count` tokens stand in the room's log. */
   readonly tokensLogged: (count?: number) => Promise<void>;
@@ -202,6 +207,9 @@ async function openRoom(): Promise<Room> {
     reply: (): Reply => reply,
     rearm: (): void => {
       reply = heldReply();
+    },
+    answerWith: (text): void => {
+      reply = { ...reply, respond: (): Response => coreProse(text) };
     },
     send: () => root.services.chat.send({ principal: host, chatId, content: "Begin the witness turn." }),
     tokensLogged: async (count = BEFORE_JOIN.length + 1): Promise<void> => {
@@ -387,6 +395,121 @@ test("a swipe in flight reaches a joiner as a swipe of its target, carrying only
     await swipe;
     await device.waitFor(ended);
     expect(textOf(device.frames)).toBe(FULL_TEXT);
+  } finally {
+    await device.close();
+  }
+});
+
+test("a refused send during a turn leaves a joiner the whole ghost", async () => {
+  await using room = await openRoom();
+  const turn = room.send();
+  await room.tokensLogged();
+  await room.send();
+  const device = await openDevice(room.root, room.host.userId, room.hostCookie, room.chatId);
+  try {
+    await device.attach();
+    await device.waitFor((frames) => textOf(frames) === BEFORE_JOIN.join(""));
+    expect(typesOf(device.frames)).toContain("turnStarted");
+    room.reply().release();
+    await turn;
+    await device.waitFor((frames) => textOf(frames) === FULL_TEXT);
+  } finally {
+    await device.close();
+  }
+});
+
+test("a refused send inside a hidden span keeps the secret's tail from a member, live and on replay", async () => {
+  await using room = await openRoom();
+  const member = await admit(room, "late-join-refused");
+  const guest = await room.root.principalFor(member.id);
+  const device = await openDevice(room.root, member.id, member.cookie, room.chatId);
+  try {
+    await device.attach();
+    await device.waitFor((frames) => frames.length > 0);
+    const turn = room.send();
+    await room.tokensLogged();
+    await room.root.services.chat.send({ principal: guest, chatId: room.chatId, content: "A member speaks mid-span." });
+    room.reply().release();
+    await turn;
+    await device.waitFor((frames) => textOf(frames).includes("The close lands live."));
+    const replayed = await room.root.services.chat.replayChatEvents({ principal: guest, chatId: room.chatId });
+    for (const bytes of [JSON.stringify(device.frames), JSON.stringify(replayed)]) {
+      expect(bytes).not.toContain(SECRET_HEAD);
+      expect(bytes).not.toContain(SECRET_TAIL);
+    }
+  } finally {
+    await device.close();
+  }
+});
+
+test("a generate finishing inside a send's hidden span keeps the secret's tail from a member, and a joiner keeps the send's ghost", async () => {
+  await using room = await openRoom();
+  const member = await admit(room, "late-join-generate");
+  const guest = await room.root.principalFor(member.id);
+  const watcher = await openDevice(room.root, member.id, member.cookie, room.chatId);
+  try {
+    await watcher.attach();
+    await watcher.waitFor((frames) => frames.length > 0);
+    const turn = room.send();
+    await room.tokensLogged();
+    const held = room.reply();
+    room.answerWith("A side reply lands.");
+    await room.root.services.chat.generate({ principal: room.host, chatId: room.chatId });
+    const joiner = await openDevice(room.root, room.host.userId, room.hostCookie, room.chatId);
+    try {
+      await joiner.attach();
+      await joiner.waitFor((frames) => textOf(frames).startsWith(BEFORE_JOIN.join("")));
+      held.release();
+      await turn;
+      await watcher.waitFor((frames) => textOf(frames).includes("The close lands live."));
+      await joiner.waitFor((frames) => textOf(frames).includes(FULL_TEXT));
+    } finally {
+      await joiner.close();
+    }
+    const replayed = await room.root.services.chat.replayChatEvents({ principal: guest, chatId: room.chatId });
+    for (const bytes of [JSON.stringify(watcher.frames), JSON.stringify(replayed)]) {
+      expect(bytes).not.toContain(SECRET_HEAD);
+      expect(bytes).not.toContain(SECRET_TAIL);
+    }
+  } finally {
+    await watcher.close();
+  }
+});
+
+test("a device that drops after its attach notice reconnects at a floor that replays the turn's head", async () => {
+  await using room = await openRoom();
+  const turn = room.send();
+  await room.tokensLogged();
+  const device = await openDevice(room.root, room.host.userId, room.hostCookie, room.chatId);
+  const revived = await openDevice(room.root, room.host.userId, room.hostCookie, room.chatId);
+  try {
+    await device.attach();
+    await device.waitFor((frames) => textOf(frames).length > 0);
+    const floor = device.frames.find(({ event }) => event.type === "chatOpened")?.seq;
+    const caller = await room.root.internalCallerFor(room.host.userId);
+    await caller.stream.attach({ socketId: revived.socketId, ref: { channel: "chat", chatId: room.chatId }, sinceSeq: floor ?? null });
+    await revived.waitFor((frames) => textOf(frames) === BEFORE_JOIN.join(""));
+    expect(typesOf(revived.frames)).toContain("turnStarted");
+    room.reply().release();
+    await turn;
+  } finally {
+    await device.close();
+    await revived.close();
+  }
+});
+
+test("a joiner gets the turn's user row even when its own list predates it", async () => {
+  await using room = await openRoom();
+  const turn = room.send();
+  await room.tokensLogged();
+  const device = await openDevice(room.root, room.host.userId, room.hostCookie, room.chatId);
+  try {
+    await device.attach();
+    await device.waitFor((frames) => textOf(frames).length > 0);
+    const commit = device.frames.find(({ event }) => event.type === "messageCommitted")?.event;
+    expect(commit).toMatchObject({ view: { role: "user" } });
+    room.reply().release();
+    await turn;
   } finally {
     await device.close();
   }

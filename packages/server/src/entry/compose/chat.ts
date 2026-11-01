@@ -147,6 +147,7 @@ export interface ChatComposeInput {
   readonly emitChatEvent: EmitDurableChatEventOp;
   /** The same emit with the durable append verdict retained for resumable host-handoff completion. */
   readonly emitChatEventChecked: ChatServiceDeps["emitChecked"];
+  readonly openChatTurns: ChatServiceDeps["openTurns"];
   /** The chat bus's prepared birth-event seam: statement joins room creation; callback fans after commit. */
   readonly prepareChatCreationEvent: ChatServiceDeps["prepareCreationEvent"];
   /** The same bus's LIVE-ONLY fan (no `chat_events` append). Chat's one consumer is `chatDeleted`, whose
@@ -551,6 +552,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   const chatDeps: ChatServiceDeps = {
     emit: emitChatEvent,
     emitChecked: input.emitChatEventChecked,
+    openTurns: input.openChatTurns,
     prepareCreationEvent: input.prepareChatCreationEvent,
     emitLive: input.emitChatEventLive,
     activeTurns,
