@@ -83,7 +83,7 @@ test("a round whose first speaker ended and whose second died does not revive th
 test("a database fault taking the turn lock closes the accepted turn", async () => {
   await using room = await openRoom();
   await using _refusal = await refuseWrites(room.root.db, { table: chatLocks, event: "INSERT", when: "1", message: "controlled lock refusal" });
-  await expect(room.send()).rejects.toThrow();
+  await expect(room.send()).rejects.toThrow(/controlled lock refusal|Failed query/u);
   const log = await room.root.services.chat.replayChatEvents({ principal: room.host, chatId: room.chatId });
   expect(log.map(({ event }) => event.type).slice(-2)).toEqual(["turnAccepted", "turnAborted"]);
 });
