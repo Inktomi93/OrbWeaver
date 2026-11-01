@@ -29,7 +29,7 @@
 // gate's census, so a THIRD door would land silently — and a third door on any of these three is the drift
 // the budget exists to red on.
 
-import type { ForkResult, MessageView } from "@orb/contracts/chat";
+import type { ForkResult, MessageView, ParticipantView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { Code, Copy, CopyPlus, Eye, EyeOff, GitFork, Icon, Pencil, Redo2, SmilePlus, Undo2 } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
@@ -48,6 +48,7 @@ import { ACTIONS_REVEAL_POSTURE } from "../lib/message-actions-reveal.ts";
 import { GenerationCredit } from "./generation-credit.tsx";
 import { MessageActionsCluster } from "./message-actions-cluster.tsx";
 import { ReattributeFromHereConfirm, ReattributeFromHereItem } from "./reattribute-from-here.tsx";
+import { ReattributeVoiceMenu } from "./reattribute-voice-menu.tsx";
 import { RowReactionPicker } from "./row-reaction-picker.tsx";
 import { SavedRepliesItem, SavedRepliesPicker } from "./saved-replies-picker.tsx";
 import { VariantWireViewer } from "./variant-wire-viewer.tsx";
@@ -156,6 +157,8 @@ export interface MessageActionsRowProps {
    *  ever refuse — and is never told the plane exists. Absent ⇒ NOT host (fail-closed: a caller that forgets
    *  to thread it hides the item rather than exposing it). The server gate is the AUTHORITY; this is UX. */
   readonly viewerIsHost?: boolean | undefined;
+  /** The room's character seats, for the host's "Reattribute" submenu. Absent ⇒ a host sees it disabled. */
+  readonly characterSeats?: readonly ParticipantView[] | undefined;
   /** Show the generation credit (`GenerationCredit`). The row gates it on the `showModelIcon` appearance
    *  toggle; absent ⇒ no credit. */
   readonly generationCredit?: boolean | undefined;
@@ -175,6 +178,7 @@ export function MessageActionsRow({
   messageActions = "hover",
   greetingBound = false,
   viewerIsHost = false,
+  characterSeats = [],
   generationCredit = false,
   characterNames = [],
   chip = false,
@@ -332,6 +336,7 @@ export function MessageActionsRow({
             ) : null}
             <SavedRepliesItem message={message} greetingBound={greetingBound} onSelect={(): void => setSavedRepliesOpen(true)} />
             <ReattributeFromHereItem onSelect={(): void => setReattributeOpen(true)} target={reattributeTarget} />
+            <ReattributeVoiceMenu message={message} seats={characterSeats} viewerIsHost={viewerIsHost} />
             <MenuItem onClick={(): void => copyWithNotice(content, MESSAGE_COPY_FALLBACK)}>
               <Icon icon={Copy} size="sm" />
               Copy

@@ -682,6 +682,9 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/chat/components/settings-context-tab.tsx":
       "CommittedSettingsTab: the This-chat tab body, which only the chats section renders and no door forwards",
   },
+  "tests/client/features/chat/components/message-reattribute-voice.ct.tsx": {
+    "packages/client/src/features/chat/lib/message-action-names.ts": "the row menu trigger, both reattribute doors and the disabled reason the suite addresses",
+  },
   "tests/client/features/chat/components/message-reasoning-and-move.ct.tsx": {
     "packages/client/src/features/chat/lib/message-action-names.ts": "the reasoning and move action names and refusal copy the suite addresses",
   },

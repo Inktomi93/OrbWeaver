@@ -799,8 +799,16 @@ export function deleteMessagesStatement(db: Db, chatId: ChatId, messageIds: read
   return batchStmt(db.delete(messages).where(and(eq(messages.chatId, chatId), inArray(messages.id, [...messageIds]))));
 }
 
-/** Re-stamp a set of slots' `characterId` attribution (host-only — `reattributeMessages`; the self-heal
- *  hash-diff re-voice). Scoped to `chatId`. */
+/** The `reattributeMessages` gate as a retained-fence term: `characterId` holds a present character seat of `chatId`
+ *  when the batch that stamps it runs. */
+export function presentCharacterSeatFence(chatId: ChatId, characterId: CharacterId): SQL {
+  return sql`exists (select 1 from ${chatParticipants}
+    where ${chatParticipants.chatId} = ${chatId} and ${chatParticipants.kind} = 'character'
+      and ${chatParticipants.characterId} = ${characterId} and ${chatParticipants.leftSeq} is null)`;
+}
+
+/** Re-stamp a set of slots' `characterId` attribution (`reattributeMessages`, whose fence holds the seat gate).
+ *  Scoped to `chatId`. */
 export function reattributeMessagesStatement(db: Db, chatId: ChatId, messageIds: readonly MessageId[], characterId: CharacterId): BatchStmt {
   return batchStmt(
     db

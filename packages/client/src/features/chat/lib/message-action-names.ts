@@ -32,6 +32,13 @@ export const MESSAGE_DUPLICATE_NAME = "Duplicate message";
 /** The viewer's own user row's restamp door: their lines from this one onward take their current persona. */
 export const MESSAGE_REATTRIBUTE_NAME = "Reattribute from here";
 
+/** The host's submenu on a reply: it re-voices the row onto another character seated in the room. */
+export const MESSAGE_REATTRIBUTE_VOICE_NAME = "Reattribute";
+
+/** The disabled reason beside that door, and the toast its refusal raises. */
+export const MESSAGE_REATTRIBUTE_NO_OTHER_SEAT = "No other character is in this chat.";
+export const MESSAGE_REATTRIBUTE_VOICE_FAILED = "Couldn't reattribute that message.";
+
 /** The host-only door to the prompt a reply was generated from, in the row's overflow menu. */
 export const MESSAGE_VIEW_WIRE_TRACE_NAME = "View wire trace…";
 
