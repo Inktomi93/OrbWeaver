@@ -182,6 +182,7 @@ export type NewRpgTurnToolCalls = typeof rpgTurnToolCalls.$inferInsert;
  *  returns it; the pure `substrate/reveal` projection consumes it. */
 export interface RevealBodyRow {
   readonly messageId: MessageId;
+  readonly createdAt: number;
   readonly content: string;
 }
 
@@ -859,7 +860,7 @@ export type HandStateWrite =
  *  `./results` (the two internal results). */
 export interface RpgService {
   /** Host. Mints the game row (lite only; `"full"` → `RpgModeUnbuiltError`), seeds the born snapshot, writes
-   *  the opaque pointer. Returns the birth summary (incl. `trackersReadOnly`). */
+   *  the opaque pointer. Returns the birth summary. */
   readonly createGame: (params: CreateGameParams) => Promise<CreateGameResult>;
   /** Host. The ONE config write door: profile mutability matrix + `steeringNote` + the `gmPresetId` +
    *  `extractionMode` knobs. */

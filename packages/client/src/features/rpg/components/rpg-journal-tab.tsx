@@ -256,9 +256,11 @@ function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElemen
                     <Text as="span" voice="gloss">
                       {timeLib.formatDate(mark.createdAt)}
                     </Text>
-                    <Text as="span" voice="gloss" data-slot="rpg-mark-trigger">
-                      {CHECKPOINT_TRIGGER_LABELS[mark.trigger]}
-                    </Text>
+                    {CHECKPOINT_TRIGGER_LABELS[mark.trigger] === null ? null : (
+                      <Text as="span" voice="gloss" data-slot="rpg-mark-trigger">
+                        {CHECKPOINT_TRIGGER_LABELS[mark.trigger]}
+                      </Text>
+                    )}
                   </Row>
                 </Stack>
                 {state.isHost ? (

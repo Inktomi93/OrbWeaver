@@ -1,5 +1,5 @@
-// What the host reads off the game's own tabs: every hidden span by turn behind the Status ledger's disclosure, and
-// how each mark was made. Hidden spans come from a real card greeting and marks from the real verb.
+// What the host reads off the game's own tabs: every hidden span by turn behind the Status ledger's disclosure, the
+// ledger's motive and truth behind their gate, and what a mark says about how it was made. Hidden spans come from a real card greeting and marks from the real verb.
 import { createCharacterSchema } from "@orb/contracts/character";
 import { HIDDEN_TAGS } from "@orb/kit/content";
 import type { ChatId } from "@orb/kit/ids";
@@ -13,6 +13,9 @@ const TAB_STORY = "tests/client/features/rpg/components/_own-key-panels-stories/
 const TRUTH = "the-ledger-burned";
 const UNSEEN = "a-footstep-behind-the-door";
 const LIE_GREETING = `The loom is quiet. <lie character="Warden" type="secret" truth="${TRUTH}" reason="Protect the ledger"/>`;
+const LONG_TOKEN = "x".repeat(117);
+const LONG_GREETING = `The loom is quiet. <lie character="Warden" type="secret" truth="${LONG_TOKEN}" reason="Protect the ledger"/>`;
+const MOTIVE = "Protect the ledger";
 const UNSEEN_GREETING = `The loom is quiet. <ofilter event="${UNSEEN}" reason="Nobody turned around"/> <lie/>`;
 
 function revealLabel(tag: string): string {
@@ -63,7 +66,7 @@ test("the hidden log stays shut and each span's fields stay unmounted until the 
   const row = page.locator('[data-slot="rpg-veiled-log-row"]');
   await expect(row).toHaveCount(1);
   await expect(row).toContainText(revealLabel("lie"));
-  await expect(row.locator('[data-slot="rpg-turn-ref"]')).toBeVisible();
+  await expect(row.locator('time[data-slot="rpg-turn-ref"]')).toBeVisible();
   await expect(row).not.toContainText(TRUTH);
 
   await row.getByRole("button").click();
@@ -89,11 +92,46 @@ test("a room with no standing lie still shows what was concealed, and a span wit
   await expect(unreadable.locator('[data-slot="rpg-veiled-log-unreadable"]')).toBeVisible();
 });
 
-test("each mark names how it was made", async ({ mount, page }) => {
+test("the ledger holds a lie's motive and truth behind one gate until the host asks", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const chatId = await mountRoom(root, page, LIE_GREETING);
+  await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId, tab: "rpg.status" });
+
+  const section = page.locator('[data-slot="rpg-veiled-section"]');
+  await expect(section).toBeVisible();
+  await expect(section).not.toContainText(MOTIVE);
+  await expect(section).not.toContainText(TRUTH);
+
+  await section.getByRole("button", { name: /^Reveal the truth for Warden/ }).click();
+  await expect(section).toContainText(`reason: ${MOTIVE}`);
+  await expect(section).toContainText(`truth: ${TRUTH}`);
+});
+
+test("one unbroken value wraps inside its row instead of widening it", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await using root = await createCorpusHarness();
+  const chatId = await mountRoom(root, page, LONG_GREETING);
+  await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId, tab: "rpg.status" });
+
+  const log = page.locator('[data-slot="rpg-veiled-log"]');
+  await log.getByRole("button").first().click();
+  const row = page.locator('[data-slot="rpg-veiled-log-row"]');
+  await row.getByRole("button").click();
+  const value = row.getByText(LONG_TOKEN);
+  await expect(value).toBeVisible();
+  const rowBox = await row.boundingBox();
+  const valueBox = await value.boundingBox();
+  expect(rowBox).not.toBeNull();
+  expect(valueBox).not.toBeNull();
+  expect((valueBox?.x ?? 0) + (valueBox?.width ?? 0)).toBeLessThanOrEqual((rowBox?.x ?? 0) + (rowBox?.width ?? 0) + 0.5);
+});
+
+test("a hand-made mark says nothing about how it was made", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const chatId = await mountRoom(root, page, LIE_GREETING);
   await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId, tab: "rpg.journal" });
 
   await page.getByText("Marks", { exact: true }).click();
-  await expect(page.locator('[data-slot="rpg-mark-row"] [data-slot="rpg-mark-trigger"]')).not.toBeEmpty();
+  await expect(page.locator('[data-slot="rpg-mark-row"]')).toHaveCount(1);
+  await expect(page.locator('[data-slot="rpg-mark-trigger"]')).toHaveCount(0);
 });

@@ -34,7 +34,7 @@ The owner ruled these half-built rows wire, each only after a check for an exist
 - Each span's field values stay unmounted behind a reveal gate. A span with no readable field says so and offers no gate.
 - A room with an `<ofilter>` and no standing lie still shows the section.
 - A member never mounts the section.
-- Each mark row in Journal, Marks shows its trigger label, and a new trigger fails `tsc` until it has one.
+- Each mark row in Journal, Marks shows its trigger label when the trigger is not `manual`, and a new trigger fails `tsc` until it has a label or an explicit `null`.
 
 ## Evidence
 

@@ -27,7 +27,6 @@ export function createGetGame(ctx: RpgContext): Pick<RpgService, "getGame"> {
       chatId: game.chatId,
       mode: game.mode,
       status: game.status,
-      trackersReadOnly,
       canPopulate,
       extractionMode: game.config.extractionMode,
       // EFF-3 — the knob is what the host ASKED for; this is what the room's connection actually does with it,

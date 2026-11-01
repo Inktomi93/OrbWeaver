@@ -22,9 +22,10 @@ export const JOURNAL_TYPE_LABELS: Readonly<Record<RpgJournalType, string>> = {
   custom: "Custom",
 };
 
-/** How a mark came to exist, as its row reads. An exhaustive Record, so a new trigger fails `tsc` here. */
-export const CHECKPOINT_TRIGGER_LABELS: Readonly<Record<RpgCheckpointTrigger, string>> = {
-  manual: "Set by hand",
+/** How a mark came to exist, as its row reads; `null` ⇒ the row says nothing (a hand-made mark is the default,
+ *  so naming it on every row is noise). An exhaustive Record, so a new trigger fails `tsc` until it has an answer. */
+export const CHECKPOINT_TRIGGER_LABELS: Readonly<Record<RpgCheckpointTrigger, string | null>> = {
+  manual: null,
 };
 
 /** The display label for a stored entry — the R4c free `label` when the entry carries one (a `custom` entry's

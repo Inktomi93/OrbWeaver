@@ -179,7 +179,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     expect(game.mode).toBe("lite");
     expect(game.status).toBe("active");
     expect(game.extractionMode).toBe("folded");
-    expect(game.trackersReadOnly).toBe(false);
+    expect(before.trackersReadOnly).toBe(false);
 
     // FE (born-default): open the takeover; the Scene tab shows its honest empty affordances, no fabricated state.
     await openNewestChat(page);
@@ -629,7 +629,7 @@ test("rpg-lite (sad paths): a deleted turn leaves the snapshot readable + an idl
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 // SPEC 8 — READONLY / CAPABILITY-ABSENT MODE: CLEAR the `chat` Model role, and the game is born READ-ONLY by
 // construction — the model has NO write path (manual-steering: the host hand-edits, and those hand values
-// STILL steer). FE=BE: `getGame` reports `trackersReadOnly:true`, the view carries it, and a HAND edit still
+// STILL steer). FE=BE: the tracker view reports `trackersReadOnly:true`, and a HAND edit still
 // lands (steering is not inert).
 //
 // WHY AN UNBOUND ROLE AND NOT AN INCOHERENT ONE: this arm used to pin the RETIRED `agent-sdk × vllm` pair,
@@ -649,7 +649,6 @@ test("rpg-lite (readonly): a capability-absent connection is born read-only but 
   try {
     await setChatBinding(null);
     // The game read now derives read-only (`no-connection` ⇒ no write path).
-    expect((await getGame(chatId)).trackersReadOnly).toBe(true);
     expect((await getTrackerView(chatId)).trackersReadOnly).toBe(true);
     // Manual-steering is NOT inert: a host hand-edit still lands as canon (and would still steer the reminder).
     await editSnapshot(chatId, { location: "The Locked Archive" });

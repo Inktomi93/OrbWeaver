@@ -1,9 +1,9 @@
 // The VEILED ledger (the deception `<lie>`/`<ofilter>` host surface):
 // Status hosts the standing-secrets ledger because secrets are game-state ABOUT the participants (the same lens
 // this tab already is). All crown-gold so "host-only" reads without a label. LIVE off `rpg.revealHidden`
-// (the P3 read — host-gated server-side, leak-free NOT_FOUND for a member): the `standingLies` inventory
-// (most-recent lie per character/truth across the visible transcript) → claim/truth/origin rows; the
-// TurnRef (`messageId`) anchors where it was told. The `messages` log below them lists every hidden span.
+// (the P3 read — host-gated server-side: FORBIDDEN for a joined member, NOT_FOUND for a non-member): the `standingLies` inventory
+// (most-recent lie per character/truth across the visible transcript) → motive/truth/origin rows; the
+// TurnRef (the message's time) anchors where it was told. The `messages` log below them lists every hidden span.
 // A member NEVER mounts this (the host gate + PERMISSION-omit: the section is only rendered for `isHost`), so
 // member DOM carries zero veiled content.
 //
@@ -11,8 +11,9 @@
 // ledger returns null on zero messages), and a failed reveal read surfaces the sealed battery
 // (`QueryErrorState` + Retry) contained to this section, never breaking the participants above it.
 //
-// EACH TRUTH SITS BEHIND A RevealGate, so a host on a shared screen or a stream does not spoil it at rest:
-// the truth text is unmounted until the host reveals it and unmounted again on Hide. This is presentation
+// EACH LIE'S MOTIVE (`reason`, "why they lie") AND TRUTH SIT BEHIND A RevealGate, so a host on a shared screen or
+// a stream does not spoil them at rest: both are unmounted until the host reveals them and unmounted again on Hide.
+// Field values wrap anywhere, so one unbroken token never widens the gate past its row. This is presentation
 // only. The host gate above and the server's host check on `rpg.revealHidden` are the authorization.
 
 import type { RpgRevealedSpan, RpgRevealView, RpgStandingLie } from "@orb/contracts/rpg";
@@ -35,7 +36,17 @@ function truthSubject(character: string, index: number, count: number): string {
 }
 
 /** One hidden span as a log row. An attr-less or over-cap span has no readable field, so it has nothing to gate. */
-function HiddenLogRow({ span, messageId, subject }: { readonly span: RpgRevealedSpan; readonly messageId: MessageId; readonly subject: string }): ReactElement {
+function HiddenLogRow({
+  span,
+  messageId,
+  createdAt,
+  subject,
+}: {
+  readonly span: RpgRevealedSpan;
+  readonly messageId: MessageId;
+  readonly createdAt: number;
+  readonly subject: string;
+}): ReactElement {
   const fields = span.fields.filter((field) => field.value !== "");
   return (
     <Card tone="warning" variant="outline">
@@ -44,7 +55,7 @@ function HiddenLogRow({ span, messageId, subject }: { readonly span: RpgRevealed
           <Text as="span" voice="label">
             {span.revealLabel}
           </Text>
-          <RpgTurnRef messageId={messageId} />
+          <RpgTurnRef messageId={messageId} createdAt={createdAt} />
         </Row>
         {fields.length === 0 ? (
           <Text voice="gloss" data-slot="rpg-veiled-log-unreadable">
@@ -54,7 +65,7 @@ function HiddenLogRow({ span, messageId, subject }: { readonly span: RpgRevealed
           <RevealGate subject={subject}>
             <Stack gap="field">
               {fields.map((field) => (
-                <Text key={field.key} voice="gloss" ink="accolade">
+                <Text key={field.key} voice="gloss" ink="accolade" className="wrap-anywhere min-inline-0">
                   {field.key}: {field.value}
                 </Text>
               ))}
@@ -69,14 +80,16 @@ function HiddenLogRow({ span, messageId, subject }: { readonly span: RpgRevealed
 /** Every hidden span by turn, newest first. The ledger above keeps only standing lies, so an `<ofilter>`, a
  *  retold lie's earlier telling and an unreadable span live here. Closed at rest because a long game holds many. */
 function HiddenLog({ messages }: { readonly messages: RpgRevealView["messages"] }): ReactElement {
-  const rows = messages.toReversed().flatMap(({ messageId, spans }) => spans.map((span, index) => ({ key: `${messageId}:${index}`, messageId, span })));
+  const rows = messages
+    .toReversed()
+    .flatMap(({ messageId, createdAt, spans }) => spans.map((span, index) => ({ key: `${messageId}:${index}`, messageId, createdAt, span })));
   return (
     <Collapsible data-slot="rpg-veiled-log">
       <CollapsibleTrigger>Every hidden line ({rows.length})</CollapsibleTrigger>
       <CollapsiblePanel>
         <Stack gap="field">
-          {rows.map(({ key, messageId, span }, index) => (
-            <HiddenLogRow key={key} span={span} messageId={messageId} subject={`hidden line ${index + 1} of ${rows.length}`} />
+          {rows.map(({ key, messageId, createdAt, span }, index) => (
+            <HiddenLogRow key={key} span={span} messageId={messageId} createdAt={createdAt} subject={`hidden line ${index + 1} of ${rows.length}`} />
           ))}
         </Stack>
       </CollapsiblePanel>
@@ -96,6 +109,7 @@ function VeiledLedger({ chatId }: { readonly chatId: ChatId }): ReactElement | n
   if (reveal.messages.length === 0) {
     return null;
   }
+  const toldAt = new Map(reveal.messages.map((message) => [message.messageId, message.createdAt]));
   return (
     <Stack gap="field" data-slot="rpg-veiled-section">
       <Kicker crown={true}>Veiled — host only</Kicker>
@@ -108,15 +122,20 @@ function VeiledLedger({ chatId }: { readonly chatId: ChatId }): ReactElement | n
               <Text as="span" voice="label">
                 {lie.character}
               </Text>
-              <RpgTurnRef messageId={lie.messageId} />
+              <RpgTurnRef messageId={lie.messageId} createdAt={toldAt.get(lie.messageId)} />
             </Row>
-            {/* The claim the character makes to the table (the lie's public face); `type` is the lie class. */}
-            {lie.reason === "" ? null : <Text voice="label">{lie.reason}</Text>}
-            {/* The TRUTH — crown-gold, host-only, and unmounted until the host reveals it. */}
+            {/* The MOTIVE and the TRUTH — crown-gold, host-only, and unmounted until the host reveals them; `type` is the lie class. */}
             <RevealGate subject={subject}>
-              <Text voice="gloss" ink="accolade">
-                truth: {lie.truth}
-              </Text>
+              <Stack gap="field">
+                {lie.reason === "" ? null : (
+                  <Text voice="gloss" ink="accolade" className="wrap-anywhere min-inline-0">
+                    reason: {lie.reason}
+                  </Text>
+                )}
+                <Text voice="gloss" ink="accolade" className="wrap-anywhere min-inline-0">
+                  truth: {lie.truth}
+                </Text>
+              </Stack>
             </RevealGate>
             {lie.type === "" ? null : <Text voice="gloss">{lie.type}</Text>}
           </Stack>
