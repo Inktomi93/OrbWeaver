@@ -17,7 +17,7 @@ Four pointers, one glyph and one writer each. The seat (chat_participants.active
 
 A new chat seats and pins: an explicit persona (ownership-checked), then the persona connected to its one character when exactly one is connected, then the default, then last played, then none. Two or more connected personas fall through to the default. A join seats: the default, then last played, then none. The client tells the reader when something other than the default decided, derived from its own seed pointers; the two-connected fall-through raises no notice.
 
-The pin holds. While chats.anchorPersonaId names a persona whose owner left the room or is disabled, the room still reads that persona live, whoever owns it: resolvePersonasForParticipants takes the room's chatId and reads the pin through chats.anchorPersonaId, so the read inherits its scope from the chat and no caller can name a persona to pass the consent gate. The voice binding stays consent-gated, so preset {{user}} binds the frozen host's seat (ADR 0250). This amends ADR 0122's gate sentence for that one id. ChatDetail.anchorState says live, held or none, never why a pin is held, and the pin is an identity source so a held pin keeps its name. A held pin clears only when the host re-pins or clears it, or the owner deletes the persona (FK set null). A host handoff never touches the pin, and a fork carries it.
+The pin holds. While chats.anchorPersonaId names a persona whose owner left the room or is disabled, the room still reads that persona live, whoever owns it: resolvePersonasForParticipants takes the room's chatId and reads the pin through chats.anchorPersonaId, so the read inherits its scope from the chat and no caller can name a persona to pass the consent gate. The voice binding stays consent-gated, so preset {{user}} binds the frozen host's seat (ADR 0250). The pin's world books feed the room's lore pool on every turn for any speaker while the pin holds, under the persona-owner book match and the host's memberPersonaLore switch; the rack and the preview show the same pool. This amends ADR 0122's gate sentence for that one id. ChatDetail.anchorState says live, held or none, never why a pin is held, and the pin is an identity source so a held pin keeps its name. A held pin clears only when the host re-pins or clears it, or the owner deletes the persona (FK set null). A host handoff never touches the pin, and a fork carries it.
 
 Persona deletes heal. A deleted default moves to the last-played persona, else the newest remaining, and the result names it so the client says so. A seat that held the deleted persona is re-seated with its owner's default, else last played.
 
@@ -25,7 +25,7 @@ Card and preset {{user}} resolution from the two columns is unchanged (ADR 0250,
 
 ## Consequences
 
-A departed owner's later persona edits reach a room whose pin still names them, until the host re-pins. Deleting that persona clears the pin and the card follows the host's seat; the room block's line says so.
+A departed owner's later persona and book edits reach a room whose pin still names them, until the host re-pins. Deleting that persona clears the pin and the card follows the host's seat; the room block's line says so.
 
 ## Alternatives rejected
 
