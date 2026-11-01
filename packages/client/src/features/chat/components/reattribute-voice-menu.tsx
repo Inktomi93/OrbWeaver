@@ -5,8 +5,11 @@ import type { MessageView, ParticipantView } from "@orb/contracts/chat";
 import { isReattributableReply } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { Icon, Users } from "@orb/ui/icons";
+import { Stack } from "@orb/ui/layout";
 import { MenuItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
+import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useId } from "react";
 import { DescribedMenuItem } from "#components";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { isLiveTurnPhase, useTurnPhase } from "#state";
@@ -59,18 +62,26 @@ function VoiceSubmenu({ message, seats }: VoiceSubmenuProps): ReactElement {
   const invalidation = useInvalidation();
   const reattribute = useReattributeVoice({ trpc, invalidation });
   const liveTurn = isLiveTurnPhase(useTurnPhase(message.chatId));
+  const labelId = useId();
+  const detailId = useId();
   const targets = targetSeats(message, seats);
-  if (liveTurn) {
-    return <DescribedMenuItem detail={MESSAGE_REATTRIBUTE_GENERATING} disabled={true} icon={Users} label={MESSAGE_REATTRIBUTE_VOICE_NAME} />;
-  }
   if (targets.length === 0) {
     return <DescribedMenuItem detail={MESSAGE_REATTRIBUTE_NO_OTHER_SEAT} disabled={true} icon={Users} label={MESSAGE_REATTRIBUTE_VOICE_NAME} />;
   }
+  // The submenu root stays mounted while a turn runs: swapping it for a plain item would close a submenu the
+  // host just opened. Only the trigger disables.
   return (
-    <MenuSubmenuRoot>
-      <MenuSubmenuTrigger>
+    <MenuSubmenuRoot disabled={liveTurn}>
+      <MenuSubmenuTrigger aria-describedby={liveTurn ? detailId : undefined} aria-labelledby={labelId}>
         <Icon icon={Users} size="sm" />
-        {MESSAGE_REATTRIBUTE_VOICE_NAME}
+        <Stack gap="tight">
+          <span id={labelId}>{MESSAGE_REATTRIBUTE_VOICE_NAME}</span>
+          {liveTurn ? (
+            <Text id={detailId} voice="gloss">
+              {MESSAGE_REATTRIBUTE_GENERATING}
+            </Text>
+          ) : null}
+        </Stack>
       </MenuSubmenuTrigger>
       <MenuPopup>
         {targets.map((seat) => (

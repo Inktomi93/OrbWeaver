@@ -101,7 +101,11 @@ test("the host re-voices a reply through its Reattribute submenu, which lists th
 
   await openRowMenu(page, room.reply);
   await page.getByRole("menuitem", { name: MESSAGE_REATTRIBUTE_VOICE_NAME, exact: true }).click();
-  await page.getByRole("menuitem", { name: SECOND_VOICE, exact: true }).click();
+  // By keyboard: a pointer path from the trigger to the seat can cross another row, and the submenu closes on the way.
+  const seat = page.getByRole("menuitem", { name: SECOND_VOICE, exact: true });
+  await expect(seat).toBeVisible();
+  await seat.focus();
+  await page.keyboard.press("Enter");
 
   await expect
     .poll(async () => (await room.host.chat.listMessages({ chatId: room.chatId })).messages.find((row) => row.id === room.reply.id)?.characterId)
