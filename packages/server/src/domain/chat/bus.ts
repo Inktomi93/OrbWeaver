@@ -66,10 +66,10 @@ import type { Db } from "@orb/db";
 import { batchMany } from "@orb/db/query";
 import type { DbAssemblyInput, StatementToken } from "@orb/db/wiring";
 import { databaseForOwner, statementForOwner, statementToken } from "@orb/db/wiring-owner";
-import type { ChatEventId } from "@orb/kit/ids";
+import type { ChatEventId, ChatId, ChatTurnId } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
-import type { ChatContext } from "./contract/context.ts";
+import type { ChatContext, ChatServiceDeps } from "./contract/context.ts";
 import { appendChatEvent, appendChatEventAfterClaimStatement, insertChatEventStatement } from "./persistence/events.ts";
 import { loadChatEventById, loadChatRow } from "./persistence/queries.ts";
 import { createMemberDeltaStamper } from "./substrate/member-visibility.ts";
@@ -96,6 +96,8 @@ interface ChatBus {
   readonly emit: EmitChatEvent;
   /** Claim state first, then append only if that exact statement changed a row, in one SQLite batch. */
   readonly emitAfterClaim: EmitChatEventAfterClaim;
+  /** Where each turn still open in `chatId` entered the log, by `seq`. */
+  readonly openTurns: ChatServiceDeps["openTurns"];
   /** Prepare the first event for a room-creation batch, then publish the already-committed row without a
    * second append. `chatCreated` is the only event whose sequence is known before its room exists. */
   readonly prepareCreation: (event: Extract<DurableChatBusEvent, { readonly type: "chatCreated" }>) => {
@@ -260,8 +262,34 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
   // The §3.6 producer stamper (see the file header) — ONE per bus, so a slot's scrub state spans its whole
   // token stream regardless of who is (or is not) subscribed at any moment.
   const stamper = createMemberDeltaStamper();
+  const open = new Map<ChatId, Map<ChatTurnId, number>>();
+  const noOpenTurns: ReadonlyMap<ChatTurnId, number> = new Map<ChatTurnId, number>();
 
-  const publishCommitted = (seq: number, event: DurableChatBusEvent): ChatEmitted => ({ seq, event });
+  // A terminal closes its turn even when its append was lost: the turn has ended either way, and a turn left open
+  // here would have its ghost replayed to every joiner with nothing to close it.
+  const closeTurn = (event: DurableChatBusEvent): void => {
+    if (event.type !== "turnCompleted" && event.type !== "turnAborted") {
+      return;
+    }
+    const turns = open.get(event.chatId);
+    turns?.delete(event.turnId);
+    if (turns?.size === 0) {
+      open.delete(event.chatId);
+    }
+  };
+
+  const trackTurn = (seq: number, event: DurableChatBusEvent): void => {
+    if (event.type === "turnAccepted" || event.type === "turnStarted") {
+      const turns = open.getOrInsertComputed(event.chatId, () => new Map<ChatTurnId, number>());
+      turns.set(event.turnId, turns.get(event.turnId) ?? seq);
+    }
+    closeTurn(event);
+  };
+
+  const publishCommitted = (seq: number, event: DurableChatBusEvent): ChatEmitted => {
+    trackTurn(seq, event);
+    return { seq, event };
+  };
 
   const prepareCreation: ChatBus["prepareCreation"] = (raw) => {
     const event = stamper.stamp(raw);
@@ -292,7 +320,12 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
     // ceiling (#1821) — and it mints ONE id for the whole retry outside its loop (#1537, see its own header
     // comment for why re-using the id is what makes the DB the arbiter of a duplicate-vs-lost commit).
     const outcome = await appendWithRetry(deps, deps.newEventId(), event);
-    if (outcome.kind === "gone" || outcome.kind === "dropped") {
+    if (outcome.kind === "gone") {
+      open.delete(event.chatId);
+      return null;
+    }
+    if (outcome.kind === "dropped") {
+      closeTurn(event);
       return null;
     }
     // #1821: `"recovered"` is the terminal-drop branch that PROVED its seq — publish it on the live fan with
@@ -333,5 +366,5 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
     }
   };
 
-  return { emit, emitAfterClaim, prepareCreation };
+  return { emit, emitAfterClaim, prepareCreation, openTurns: (chatId) => open.get(chatId) ?? noOpenTurns };
 }

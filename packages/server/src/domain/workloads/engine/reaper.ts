@@ -39,7 +39,7 @@ export async function reapOrphanedWorkloads(args: ReapWorkloadsArgs): Promise<nu
         now: args.now,
       });
       if (moved) {
-        const error: WorkloadError = { kind: "worker_died", message };
+        const error: WorkloadError = { message };
         args.emitEvent({
           type: "failed",
           workloadId: row.id,

@@ -3665,7 +3665,6 @@ export interface PresetSummary {
 
 export interface PresetDetail extends PresetSummary {
   readonly config: PromptConfig;
-  readonly schemaVersion: number;
 }
 
 /**
@@ -3783,7 +3782,6 @@ export const presetSummarySchema = z.strictObject({
 }) satisfies z.ZodType<PresetSummary>;
 export const presetDetailSchema = presetSummarySchema.extend({
   config: promptConfigViewSchema,
-  schemaVersion: z.number(),
 }) satisfies z.ZodType<PresetDetail>;
 export const presetUsageViewSchema = z.strictObject({
   isUserDefault: z.boolean(),

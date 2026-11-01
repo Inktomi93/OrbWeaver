@@ -11,6 +11,7 @@
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
+import { trpcErrorCode } from "#lib";
 
 /** Recompute my stats now (the direct twin of the `reconcile-stats` workload's singular arm). */
 export const useRecomputeStats = createEntityMutation<inferInput<Trpc["stats"]["reconcile"]>, unknown>({
@@ -23,8 +24,5 @@ export const useRecomputeStats = createEntityMutation<inferInput<Trpc["stats"]["
  *  discrimination precedent — key on the structured code, never the message text). CONFLICT is the only
  *  code this verb refuses with (it takes no input to reject and no id to miss). */
 export function isRecomputeAlreadyRunning(error: unknown): boolean {
-  if (typeof error !== "object" || error === null || !("data" in error)) {
-    return false;
-  }
-  return (error as { data?: { code?: string } }).data?.code === "CONFLICT";
+  return trpcErrorCode(error) === "CONFLICT";
 }

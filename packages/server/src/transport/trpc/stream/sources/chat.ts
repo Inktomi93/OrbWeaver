@@ -77,6 +77,8 @@ import type { RoomSourceDef } from "../room-source.ts";
 /** What the member-gated `chatEventBounds` attach probe returns (derived off the service type — no new
  *  front-door export; the shape is `{ minSeq, maxSeq, historyFloorSeq, viewerIsHost, reasoningHostOnly }`). */
 type ChatEventAttach = Awaited<ReturnType<ChatService["chatEventBounds"]>>;
+type ChatBusReplayEvent = Awaited<ReturnType<ChatService["replayChatEvents"]>>[number];
+type ChatFrame = Extract<StreamDataFrame, { readonly channel: "chat" }>;
 
 export const chatRoomSource: RoomSourceDef<"chat"> = {
   // The durable `chat_events` log IS this room's resume path (and what makes its `lag` overflow legal).
@@ -219,9 +221,10 @@ async function resolveLiveYield(args: {
  *
  *  On a cursor-less attach the synthetic now carries `bounds.maxSeq` — the room's current durable
  *  high-water. THE NON-ADVANCEMENT RULE STILL HOLDS, for the reason it exists: it forbids advancing past a
- *  row that was never DELIVERED, and on a cursor-less attach nothing durable is replayed *because the client
- *  already holds it* — its canon read covers everything at or below `maxSeq`. A resuming attach is untouched
- *  (`cursor` wins), so the only behavior that changes is the one that used to resume from nothing. */
+ *  row that was never DELIVERED, and on a cursor-less attach no canon is replayed *because the client already
+ *  holds it* — its canon read covers everything at or below `maxSeq`. The turn in flight is the one exception
+ *  (no canon row carries it yet), replayed under the same `seq` the live tail uses. A resuming attach is
+ *  untouched (`cursor` wins), so the only behavior that changes is the one that used to resume from nothing. */
 async function* attachSynthesesAndReplay(args: {
   readonly notifyChatOpened: LiveBuses["chatOpen"]["notifyChatOpened"];
   readonly service: ChatService;
@@ -229,18 +232,25 @@ async function* attachSynthesesAndReplay(args: {
   readonly chatId: ChatId;
   readonly resumeSeq: number | null;
   readonly bounds: ChatEventAttach;
-}): AsyncGenerator<Extract<StreamDataFrame, { readonly channel: "chat" }>> {
+}): AsyncGenerator<ChatFrame> {
   const { service, principal, chatId, resumeSeq, bounds } = args;
   // See the doc comment: a RESUMING attach keeps its own cursor; a cursor-less one adopts the room's current
   // high-water so the client (and the socket cell) have something replayable to come back to.
-  const cursorSeq = resumeSeq ?? bounds.maxSeq ?? 0;
+  // The turn in flight is read before the notice because it moves the floor: a device that drops after the notice
+  // and before these frames resumes from the floor, so the floor has to sit below the turn's first row.
+  const liveTurn = resumeSeq === null && bounds.maxSeq !== null ? await service.replayLiveTurn({ principal, chatId, throughSeq: bounds.maxSeq }) : [];
+  const liveHead = liveTurn.at(0)?.seq;
+  const cursorSeq = resumeSeq ?? (liveHead === undefined ? (bounds.maxSeq ?? 0) : liveHead - 1);
   // `chatOpened` — the per-subscription attach synthesis (the client reducer invalidates). The
   // per-viewer automation tap (D81) fires off the SAME synthesis — it never rides the durable bus.
-  yield { channel: "chat", chatId, seq: cursorSeq, event: { type: "chatOpened", chatId } };
+  yield { channel: "chat", chatId, seq: cursorSeq, event: { type: "chatOpened", chatId, openTurnIds: bounds.openTurnIds } };
   args.notifyChatOpened(chatId, principal.userId);
 
-  // A cursor-less attach (live-only) drains live only — no replay, no truncation check.
+  // A cursor-less attach has the canon from its own reads and needs only the turn in flight, if there is one.
+  // `bounds.maxSeq` is the one handover point: the live listener attached before that read, so every row above
+  // it arrives live, and these frames raise the live loop's dedup floor over everything they carried.
   if (resumeSeq === null) {
+    yield* replayFrames(chatId, liveTurn);
     return;
   }
   // `historyTruncated` — the cursor predates the retained window (`minSeq` = earliest retained
@@ -250,9 +260,48 @@ async function* attachSynthesesAndReplay(args: {
   if (bounds.minSeq !== null && resumeSeq < bounds.minSeq - 1) {
     yield { channel: "chat", chatId, seq: cursorSeq, event: { type: "historyTruncated", chatId } };
   }
-  for (const entry of await service.replayChatEvents({ principal, chatId, afterSeq: resumeSeq })) {
-    yield { channel: "chat", chatId, seq: entry.seq, event: entry.event };
+  yield* replayFrames(chatId, withoutDeadTurns(await service.replayChatEvents({ principal, chatId, afterSeq: resumeSeq }), bounds));
+}
+
+/** Drops a turn the log left open and the room no longer runs: its process died, so no terminal exists, and replaying
+ *  its accept would hand the device a slot nothing closes. Rows above the bounds read stay: they may be a turn that
+ *  opened after it. */
+function withoutDeadTurns(entries: readonly ChatBusReplayEvent[], bounds: ChatEventAttach): readonly ChatBusReplayEvent[] {
+  // The LAST terminal, by seq: a round's speakers share one id, so an earlier speaker's terminal vouches only for
+  // the rows before it.
+  const lastTerminal = new Map(
+    entries.flatMap(({ seq, event }) => (event.type === "turnCompleted" || event.type === "turnAborted" ? [[event.turnId, seq] as const] : [])),
+  );
+  const open = new Set(bounds.openTurnIds);
+  return entries.filter(({ seq, event }) => {
+    if (!("turnId" in event) || event.type === "messageCommitted" || seq > (bounds.maxSeq ?? 0) || open.has(event.turnId)) {
+      return true;
+    }
+    return seq <= (lastTerminal.get(event.turnId) ?? 0);
+  });
+}
+
+/** Replay rows as frames, each run of same-slot same-channel tokens folded into one. A turn's log is thousands of
+ *  small rows and the socket's queue sheds at far fewer, while the reader only ever wants the text so far. The
+ *  folded frame takes its last row's `seq`, so a resume after it neither repeats nor skips a token. */
+function replayFrames(chatId: ChatId, entries: readonly ChatBusReplayEvent[]): ChatFrame[] {
+  const frames: ChatFrame[] = [];
+  for (const { seq, event } of entries) {
+    const last = frames.at(-1)?.event;
+    if (
+      event.type === "delta" &&
+      last?.type === "delta" &&
+      last.turnId === event.turnId &&
+      last.slotSeq === event.slotSeq &&
+      last.delta.kind === event.delta.kind
+    ) {
+      const delta = { ...last.delta, text: last.delta.text + event.delta.text };
+      frames[frames.length - 1] = { channel: "chat", chatId, seq, event: { type: "delta", chatId, turnId: event.turnId, slotSeq: last.slotSeq, delta } };
+      continue;
+    }
+    frames.push({ channel: "chat", chatId, seq, event });
   }
+  return frames;
 }
 
 // The withhold-not-throw membership probe, carrying the retained-window bounds + the caller's D16 floor:

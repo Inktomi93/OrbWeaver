@@ -31,13 +31,11 @@
 //     the guard (#1365, `appearance.backgroundLibrary`). Collection leaves under a versioned config use
 //     {@link tolerantArray} — one bad element costs one element. SWEEP RECORDED 2026-09-04, EXTENDED
 //     2026-09-05 (#1532) over the three tenants (`appSettingsConfig`, `userSettingsConfig`,
-//     `promptConfigConfig`) — FIVE array leaves, FOUR verdicts. `appearance.backgroundLibrary` +
+//     `promptConfigConfig`) — the array leaves below, FOUR verdicts. `appearance.backgroundLibrary` +
 //     `chat.customStoppingStrings` carry user CONTENT and moved to `tolerantArray`; `appearance.blurSurfaces`
 //     KEEPS its whole-collection self-heal because an empty set is itself a meaningful stored value there
 //     (filtering would fabricate a deliberate opt-out — the reasoning is at its own leaf);
-//     `appSettings.importSkipCharacters` keeps `.catch(undefined)` because `undefined` there is the CLEAR
-//     sentinel ("unset — inherit the env floor", `settings/index.ts:363`), not an empty list, so its degrade
-//     is visible as "unset" on the admin surface rather than as silent loss; `chat.autoSwipe.blacklist`
+//     `chat.autoSwipe.blacklist`
 //     (`settings/index.ts`, the `autoSwipe` object) carries NO `.catch` AT ALL — the FOURTH verdict, LOUD not
 //     LOSSY: one non-string element fails `z.array(z.string())`, which fails the enclosing `autoSwipe` object
 //     (its own `.prefault({})` only supplies a MISSING object, it does not cushion an internal validation
@@ -132,8 +130,6 @@ export interface VersionedConfig<T> {
    * checks "row absent?" first and only then asks this.
    */
   parseOutcome: (raw: unknown, storedVersion?: number) => VersionedParseOutcome<T>;
-  readonly default: T;
-  readonly currentVersion: number;
 }
 
 const versionProbeSchema = z.object({ schemaVersion: z.int().optional() });
@@ -210,8 +206,6 @@ export function defineVersionedConfig<T>(def: VersionedConfigDef<T>): VersionedC
       return parseOutcome(raw, storedVersion).value;
     },
     parseOutcome,
-    default: def.default,
-    currentVersion: def.version,
   };
 }
 

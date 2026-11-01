@@ -26,7 +26,6 @@ export function createCreate(ctx: TagContext): TagService["createTag"] {
           id: ctx.newTagId(),
           ownerId,
           name,
-          color: input.color ?? null,
           source: input.source ?? null,
           createdAt: ctx.now(),
         })

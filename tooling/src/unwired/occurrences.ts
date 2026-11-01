@@ -164,6 +164,10 @@ function lookupsOf(world: NativeWorld, node: PropertyName): readonly Lookup[] {
   if (isJsxAttribute(parent) && parent.name === node && isJsxAttributes(parent.parent)) {
     return [{ site, by: "contextual", node: parent.parent, name, literalKey: null }];
   }
+  // `"key" in value` reads the property of that name on the value's type.
+  if (isBinaryExpression(parent) && parent.left === node && !isIdentifier(node) && parent.operatorToken.kind === SyntaxKind.InKeyword) {
+    return [{ site, by: "type", node: parent.right, name }];
+  }
   if (isBindingElement(parent) && parent.propertyName === undefined && parent.name === node && isObjectBindingPattern(parent.parent)) {
     return [{ site, by: "type", node: parent.parent, name }];
   }
@@ -212,10 +216,13 @@ function reflectionsAt(node: Node): readonly Reflection[] {
   return [];
 }
 
-// The names a computed key can take, or null when it is a wide string and may name any property.
+// The names a computed key can take, or null when it is a wide string and may name any property. A key typed by a
+// type parameter takes the names of its constraint.
 function* keyNames(checker: Checker, key: Node): APIRequestGenerator<readonly string[] | null> {
   const names: string[] = [];
-  for (const member of yield* constituents(yield* checker.getTypeAtLocation.gen(key))) {
+  const type = yield* checker.getTypeAtLocation.gen(key);
+  const bound = hasFlag(type.flags, TypeFlags.TypeParameter) ? yield* checker.getBaseConstraintOfType.gen(type) : undefined;
+  for (const member of yield* constituents(bound ?? type)) {
     if (member.isStringLiteralType()) {
       names.push(member.value);
     } else if (hasFlag(member.flags, TypeFlags.String)) {

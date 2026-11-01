@@ -126,7 +126,6 @@ export async function runOpenAiCompatImageEmbed(req: ImageEmbedRequest, deps: Im
   const { dims: dim, mrl } = connection.capability.embedding;
   const conversations = await toConversations(req.input, deps.normalize);
   const vectors: (Float32Array<ArrayBuffer> | null)[] = new Array(conversations.length).fill(null);
-  const reported: EmbeddingsResponse["usage"][] = [];
   let next = 0;
   const worker = async (): Promise<void> => {
     while (next < conversations.length) {
@@ -141,7 +140,6 @@ export async function runOpenAiCompatImageEmbed(req: ImageEmbedRequest, deps: Im
       }
       const response = await embedOne({ req, deps, label, messages, dim });
       await observeImageBatch(req, response);
-      reported.push(response.usage);
       const item = response.data[0];
       if (item !== undefined) {
         vectors[i] = fitToDim(Array.from(decodeEmbeddingVector(item.embedding, label)), { dims: dim, mrl }, label);
@@ -150,15 +148,7 @@ export async function runOpenAiCompatImageEmbed(req: ImageEmbedRequest, deps: Im
   };
   const workerCount = Math.min(connection.features.concurrency?.imageEmbed ?? 1, conversations.length);
   await Promise.all(Array.from({ length: workerCount }, () => worker()));
-  const promptTokens =
-    reported.length > 0 && reported.every((usage) => typeof usage?.prompt_tokens === "number")
-      ? reported.reduce((sum, usage) => sum + (usage?.prompt_tokens ?? 0), 0)
-      : null;
-  const totalTokens =
-    reported.length > 0 && reported.every((usage) => typeof usage?.total_tokens === "number")
-      ? reported.reduce((sum, usage) => sum + (usage?.total_tokens ?? 0), 0)
-      : null;
-  return { vectors, model: connection.model, usage: { promptTokens, totalTokens } };
+  return { vectors, model: connection.model };
 }
 
 export type { ImageEmbedDeps } from "../../contract/openai-backend.ts";

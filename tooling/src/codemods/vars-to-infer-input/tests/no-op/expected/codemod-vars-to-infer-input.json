@@ -1,0 +1,4 @@
+{
+  "sites": [{ "file": "elsewhere.ts", "type": "OtherVars" }],
+  "skip": [{ "type": "SectionPatchVars", "reason": "narrows the router union by section" }]
+}

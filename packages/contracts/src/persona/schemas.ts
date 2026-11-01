@@ -128,7 +128,6 @@ export interface PersonaDetail extends CardFace<string>, ResolvedCardFace<string
   /** Display subtitle for pickers/lists — never injected into the prompt. */
   readonly title: string | null;
   readonly metadata: PersonaMetadata | null;
-  readonly createdAt: number;
   readonly updatedAt: number;
 }
 
@@ -147,7 +146,6 @@ export const personaDetailSchema = z.strictObject({
   title: z.string().nullable(),
   avatarHash: z.string().nullable(),
   metadata: personaMetadataSchema.nullable(),
-  createdAt: z.number(),
   updatedAt: z.number(),
 }) satisfies z.ZodType<PersonaDetail>;
 
@@ -156,11 +154,9 @@ export const connectedCharacterViewSchema = z.strictObject({
   name: z.string(),
 }) satisfies z.ZodType<ConnectedCharacterView>;
 
-/** `remove` — `deleted` is always `true` on success (a not-owned/missing persona throws instead).
- *  `newDefaultPersonaId` names the persona the default moved to when the deleted one was the default, so the
+/** `remove` — a not-owned/missing persona throws. `newDefaultPersonaId` names the persona the default moved to when the deleted one was the default, so the
  *  client can say so; `null` when the default did not move. */
 export interface RemovePersonaResult {
-  readonly deleted: boolean;
   readonly newDefaultPersonaId: PersonaId | null;
 }
 
@@ -170,7 +166,6 @@ export interface DisconnectResult {
 }
 
 export const removePersonaResultSchema = z.strictObject({
-  deleted: z.boolean(),
   newDefaultPersonaId: typeIdSchema(ID_PREFIX.persona).nullable(),
 }) satisfies z.ZodType<RemovePersonaResult>;
 

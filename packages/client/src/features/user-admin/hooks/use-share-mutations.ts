@@ -1,7 +1,9 @@
 // The Share card's verbs: the relay's start and stop, and the IP certificate's enable and disable. Each answers with the whole `ShareStatus`, which is authoritative for the card's
 // `share.status` read, so it seeds that read instead of refetching it; the poll keeps it fresh afterwards.
 
-import type { IpCertificateSetting, ShareStatus } from "@orb/contracts/identity";
+import type { ShareStatus } from "@orb/contracts/identity";
+import type { inferInput } from "@trpc/tanstack-react-query";
+import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 import { ipCertificateRefusal, shareStartFailure } from "../lib/share-model.ts";
 
@@ -23,7 +25,7 @@ export const useStopSharing = createEntityMutation<void, ShareStatus>({
 
 /** Store the IP certificate choice and start getting the certificate. A coded refusal shows in the card, so only an
  *  uncoded failure toasts. */
-export const useEnableIpCertificate = createEntityMutation<IpCertificateSetting, ShareStatus>({
+export const useEnableIpCertificate = createEntityMutation<inferInput<Trpc["share"]["enableIpCertificate"]>, ShareStatus>({
   options: (trpc) => trpc.share.enableIpCertificate.mutationOptions(),
   echo: (trpc) => trpc.share.status.queryKey(),
   invalidates: () => [],

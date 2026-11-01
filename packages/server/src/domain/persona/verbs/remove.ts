@@ -70,6 +70,6 @@ export function createRemove(ctx: PersonaContext): PersonaService["remove"] {
     // clamped roster and finds the seat fell back — the captured-set fan repaints them. Live-only + past the
     // delete's success path, so it cannot fault the write that already committed.
     fanReach();
-    return { deleted: true, newDefaultPersonaId: seeds.defaultMoved ? seeds.defaultPersonaId : null };
+    return { newDefaultPersonaId: seeds.defaultMoved ? seeds.defaultPersonaId : null };
   };
 }

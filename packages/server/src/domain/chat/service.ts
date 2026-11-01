@@ -87,8 +87,6 @@ export function createChatService(
       newMessageId: ctx.newMessageId,
       newMessageVariantId: ctx.newMessageVariantId,
       newMessageAssetId: ctx.newMessageAssetId,
-      newStreamEventId: ctx.newStreamEventId,
-      newStreamGenerationId: ctx.newStreamGenerationId,
       newChatTurnId: ctx.newChatTurnId,
       applyStatsDelta: ctx.applyStatsDelta,
       resolveRetainedChatAccountingScope: ctx.resolveRetainedChatAccountingScope,
@@ -158,6 +156,7 @@ export function createChatService(
   const invites = createInvites(ctx, { emit: deps.emit, loadParticipantViews, claimChat, assemblePreview });
   const signupInvites = createSignupInvite(ctx, { ...deps.signup, assemblePreview, emit: deps.emit });
   const read = createRead(ctx, {
+    openTurns: deps.openTurns,
     loadParticipantViews,
     loadParticipantViewsBatch,
     resolveConnection: deps.resolveConnection,

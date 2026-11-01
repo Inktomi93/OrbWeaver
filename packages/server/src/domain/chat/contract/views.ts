@@ -12,17 +12,7 @@ import type {
   ChatSummary as WireChatSummary,
 } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
-import type { ChatStreamGenerationId } from "@orb/kit/ids";
-
-/** A resumable SSE token-log row (replayStreamEvents) — one streamed delta with its replay cursor
- *  ("resumable SSE stream log"; the db `chat_stream_events` row projected). */
-export interface ChatStreamReplayEvent {
-  readonly seq: number;
-  readonly messageId: MessageView["id"] | null;
-  readonly generationId: ChatStreamGenerationId | null;
-  readonly kind: "text" | "reasoning";
-  readonly delta: string;
-}
+import type { ChatTurnId } from "@orb/kit/ids";
 
 export type MessageWindowAnchor = Pick<MessageView, "id" | "seq">;
 export type MessageWindowResolution =
@@ -37,10 +27,10 @@ export interface ChatBusReplayEvent {
   readonly event: ChatBusEvent;
 }
 
-/** The replay cursor bounds (streamEventBounds / chatEventBounds) — the min/max `seq` of the chat's stream
- *  log / durable bus log (null/null when empty). The late-subscriber ramp-up reads these to size the replay
- *  window; `chatEventBounds` doubles as the cheap membership gate the SSE per-yield check calls. */
-export interface StreamEventBounds {
+/** The `chatEventBounds` cursor bounds — the min/max `seq` of the durable bus log (null/null when empty). The
+ *  late-subscriber ramp-up reads these to size the replay window; the probe doubles as the cheap membership
+ *  gate the SSE per-yield check calls. */
+export interface ChatEventBounds {
   readonly minSeq: number | null;
   readonly maxSeq: number | null;
 }
@@ -54,7 +44,7 @@ export interface StreamEventBounds {
  *  decides "may this caller still receive at all" now also carries "…and from which `messages.seq` up". It is
  *  therefore per-CALLER by construction and never client-supplied. `0` = unclamped (`full` / a born-here host
  *  seat) — the common case, which the `isBelowHistoryFloor` verdict short-circuits on. */
-export interface ChatEventAttach extends StreamEventBounds {
+export interface ChatEventAttach extends ChatEventBounds {
   readonly historyFloorSeq: HistoryFloorSeq;
   /** Whether the SUBSCRIBER is the room host — resolved from their own participant row at the same probe.
    *  The live fan-out applies the §3.6 hidden-content member-strip (`stripChatEventForMember`) when false,
@@ -66,6 +56,8 @@ export interface ChatEventAttach extends StreamEventBounds {
    *  that member (reasoning deltas + `reasoningStreamDone` dropped, `view.reasoning` nulled). `false` for a
    *  non-game / non-deception chat — the pre-P3 live behavior (reasoning member-visible). Never client-supplied. */
   readonly reasoningHostOnly: boolean;
+  /** The room's turns in flight, which the attach's `chatOpened` hands the device. */
+  readonly openTurnIds: readonly ChatTurnId[];
   /** The subscriber's position for the probe's `positionOf` row; absent when the row is outside their history. */
   readonly messagePosition?: number;
 }

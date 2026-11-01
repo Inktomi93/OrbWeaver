@@ -16,7 +16,7 @@ import type {
   RoomOverrides,
   SpeakerRef,
 } from "@orb/contracts/chat";
-import { speakerKey } from "@orb/contracts/chat";
+import { speakerKey, stripSendPlaceholders } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS, REWRITE_TOGGLES } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -356,6 +356,9 @@ interface BuildAssembleContextInput {
   readonly lastCharMessage?: string | undefined;
   /** In-flight (uncommitted) user turn — folded into the WI keyword haystack. */
   readonly pendingUserText?: string | undefined;
+  /** A structured send's placeholder draft. Only the author-side transforms read it; every later reader takes
+   *  the text without placeholders, so none reaches a scan, a provider or a stored record. */
+  readonly sendDraft?: string | undefined;
   readonly currentInput?: string | undefined;
   readonly userInjections: readonly ChatInjection[];
   readonly memory?: string | null | undefined;
@@ -462,7 +465,6 @@ function buildBaseContext(
     // null ⇒ fail closed (no null-stamped row borrows the name).
     activePersonaUserId: input.personas.activeUserId ?? null,
     speaker: { kind: "single", character },
-    recentMessages: [...input.recentMessages],
     variableValues: input.variableValues,
     // D46 runtime plane: ONE fresh op-log per assembly, threaded BY REFERENCE (like `variableValues`) into every
     // macro context so a `{{setvar}}` in ANY section / regex template / guided template this turn is recorded.
@@ -817,7 +819,7 @@ async function runSendAuthorTransforms(
 ): Promise<string> {
   const { draft, input, base, hostScripts, out } = args;
   const freezes: MacroFreeze[] = [];
-  let text = freezeVolatileMacros(draft, base, { random: input.prng, registry: input.freezeMacroRegistry, freezes });
+  let text = freezeVolatileMacros(input.sendDraft ?? draft, base, { random: input.prng, registry: input.freezeMacroRegistry, freezes });
   // The D50 `user_input` PromptTransform point: AFTER the macro pass,
   // BEFORE the USER_INPUT regex. Rewrites the draft the WI haystack + the persisted row both see (author-
   // side transform order — D51). Null op / zero registrants ⇒ byte-identical.
@@ -863,7 +865,7 @@ async function runSendAuthorTransforms(
       out.sendMacroFreezes = freezes;
     }
   }
-  return text;
+  return input.sendDraft === undefined ? text : stripSendPlaceholders(text);
 }
 
 /** Produces the immutable per-turn AssembleContext SHAPE consumes per speaker; never mutated after return. */
@@ -874,7 +876,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     return card ? [{ characterId, card }] : [];
   });
   const characters = present.map((p) => toAssembleCharacter(p.card));
-  const speakerRefs: SpeakerRef[] = present.map((p): SpeakerRef => ({ kind: "character", characterId: p.characterId }));
+  const speakerRefs: SpeakerRef[] = present.map((p): SpeakerRef => ({ characterId: p.characterId }));
   const character: AssembleCharacter = characters[0] ?? { name: "Assistant", description: "" };
 
   // The turn's PROSE bag — the two homes composed into one home-agnostic record (PROSE-1 §3.1 stays intact:

@@ -115,7 +115,7 @@ export function createLocalLightEmbed(cache: LocalLightModelCache, spaceTag: (mo
     // A caller that asks for no width still writes into the connection's space, so a declared MRL width applies.
     const dims = req.dimensions ?? declaredMrlWidth(req.connection.capability);
     const vectors = scatter(inputs.length, kept, raw, (vec) => finalizeVector(vec, dims, modelId));
-    return { vectors, model: spaceTag(modelId), usage: { promptTokens: null, totalTokens: null } };
+    return { vectors, model: spaceTag(modelId) };
   };
 }
 
@@ -146,7 +146,7 @@ export function createLocalLightRerank(cache: LocalLightModelCache): (req: Reran
     const query = req.instruction !== undefined && req.instruction.length > 0 ? `${req.instruction} ${baseQuery}` : baseQuery;
     const kept = req.documents.filter((doc) => (doc.text ?? "").trim().length > 0);
     if (kept.length === 0) {
-      return { hits: [], model: modelId, usage: { totalTokens: null } };
+      return { hits: [] };
     }
     const { maxInputTokens, onnx } = capability.rerank;
     const pretrim = (text: string): string => clampToTokenBudget(text, maxInputTokens * PRETRIM_ESTIMATED_TOKENS_PER_WINDOW_TOKEN);
@@ -161,7 +161,7 @@ export function createLocalLightRerank(cache: LocalLightModelCache): (req: Reran
     );
     throwIfAborted(req.signal);
     const hits = kept.map((doc, i) => ({ id: doc.id, score: scores[i] ?? 0 })).sort((a, b) => b.score - a.score);
-    return { hits: req.topN === undefined ? hits : hits.slice(0, Math.max(0, req.topN)), model: modelId, usage: { totalTokens: null } };
+    return { hits: req.topN === undefined ? hits : hits.slice(0, Math.max(0, req.topN)) };
   };
 }
 
@@ -257,6 +257,6 @@ export function createLocalLightImageEmbed(
       req.signal,
     );
     throwIfAborted(req.signal);
-    return { vectors, model: spaceTag(modelId), usage: { promptTokens: null, totalTokens: null } };
+    return { vectors, model: spaceTag(modelId) };
   };
 }

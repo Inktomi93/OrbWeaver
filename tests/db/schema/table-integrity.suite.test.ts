@@ -117,7 +117,6 @@ const SOFT_REFERENCES = {
   "automation_rules.rulePresetId": "a member of the closed RULE_PRESET_IDS code tuple, not a table row",
   "chat_generation_observations.generationId": "the upstream provider's opaque generation handle, not an orbweaver row",
   "chat_generation_observations.turnId": "the internally minted turn-grouping identity in the (chatId, turnId, ordinal) key; no turn row exists",
-  "chat_stream_events.generationId": "an internally minted correlation identity for one token-stream generation; no generation entity exists",
   "embedding_calls.invocationId": "groups the physical batches of one logical embedding invocation; no invocation row exists",
   "imagery_generations.callId": "groups the output rows of one physical generation call; a native call has no execution row",
   "message_variants.generationId": "the upstream OpenRouter generation handle a variant was billed under, an external provider id",

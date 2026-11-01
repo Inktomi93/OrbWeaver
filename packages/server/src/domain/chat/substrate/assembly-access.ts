@@ -23,6 +23,7 @@ import {
   buildTurnMacroContext as buildTurnMacroContextImpl,
   freezeVolatileMacros as freezeVolatileMacrosImpl,
   previewActionText as previewActionTextImpl,
+  renderHistoryMacros as renderHistoryMacrosImpl,
   renderMacros as renderMacrosImpl,
   resolveNudgeText as resolveNudgeTextImpl,
 } from "../assembly/macros.ts";
@@ -93,6 +94,11 @@ export function speakerCue(...args: Parameters<typeof speakerCueImpl>): ReturnTy
  *  `engine/ → assembly/` bridge (a direct import is `domain-no-cross-subsystem`-illegal). */
 export function buildTurnMacroContext(...args: Parameters<typeof buildTurnMacroContextImpl>): ReturnType<typeof buildTurnMacroContextImpl> {
   return buildTurnMacroContextImpl(...args);
+}
+
+/** The macro pass the wire runs over a stored row. The legal `verbs/ → assembly/` bridge. */
+export function renderHistoryMacros(...args: Parameters<typeof renderHistoryMacrosImpl>): ReturnType<typeof renderHistoryMacrosImpl> {
+  return renderHistoryMacrosImpl(...args);
 }
 
 /** FREEZE the VOLATILE (nondeterministic clock/PRNG) macros in `text` at COMMIT (Chat-Macro-Resolution.md

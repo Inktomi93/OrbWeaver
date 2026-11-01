@@ -94,9 +94,7 @@ export function createChatInferenceOps(deps: ChatInferenceDeps): ChatInferenceOp
     checkSendAvailability: async ({ funderUserId }) => deps.connection.availability({ task: "chat", principal: await deps.resolveHostPrincipal(funderUserId) }),
     getNextTurnConnection: async ({ funderUserId }): ReturnType<ChatInferenceOps["getNextTurnConnection"]> => {
       const row = await deps.connection.getBoundConnection({ task: "chat", principal: await deps.resolveHostPrincipal(funderUserId) });
-      return row === null
-        ? { state: "unset" }
-        : { state: "configured", connectionLabel: row.label, provider: row.providerId, providerLabel: row.providerLabel, model: row.model };
+      return row === null ? { state: "unset" } : { state: "configured", connectionLabel: row.label, providerLabel: row.providerLabel };
     },
     summarizerContextTokens: taskWindows.summarize,
     embedContextTokens: taskWindows.embed,

@@ -77,7 +77,6 @@ const inspectedChatSchema = z.strictObject({
   startedAt: z.number().nullable(),
   parentChatId: chatIdSchema.nullable(),
   forkedAt: z.number().nullable(),
-  streamSeq: z.int(),
   createdAt: z.number(),
   updatedAt: z.number(),
 });

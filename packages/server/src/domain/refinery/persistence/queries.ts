@@ -260,7 +260,6 @@ export function sessionViewOf(row: RefinerySessionRow): RefinerySessionView {
     guidance: row.guidance,
     iterationCount: row.iterationCount,
     createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
   };
 }
 

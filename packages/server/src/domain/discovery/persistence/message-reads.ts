@@ -64,8 +64,6 @@ export async function readCharacterMessageSamples(db: Db, ownerId: UserId, chara
 
 type SwipeHotspotRow = Pick<typeof messages.$inferSelect, "seq"> & {
   readonly messageId: (typeof messages.$inferSelect)["id"];
-  readonly characterId: (typeof characters.$inferSelect)["id"];
-  readonly characterName: (typeof characters.$inferSelect)["name"];
   readonly variantCount: number;
   readonly snippet: (typeof messageVariants.$inferSelect)["content"] | null;
 };
@@ -87,8 +85,6 @@ export async function readSwipeHotspots(db: Db, ownerId: UserId, chatId: ChatId,
     .select({
       messageId: messages.id,
       seq: messages.seq,
-      characterId: characters.id,
-      characterName: characters.name,
       variantCount,
       snippet: selected.content,
     })

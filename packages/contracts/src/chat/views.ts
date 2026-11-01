@@ -77,7 +77,6 @@ interface ChatSummaryFields {
    *  offers only HOSTED chats, since v1 rule authoring IS room-host authority) and any future
    *  host-vs-member list affordance. Present on every listing row (listChats/listForks/getChatLineage). */
   readonly viewerRole: ParticipantRole;
-  readonly createdAt: number;
   readonly updatedAt: number;
 }
 
@@ -264,7 +263,6 @@ export const chatSummarySchema = z
     participantNames: z.array(z.string()).readonly(),
     participantPortraits: z.array(chatSeatPortraitSchema).readonly(),
     viewerRole: participantRoleSchema,
-    createdAt: z.number(),
     updatedAt: z.number(),
   })
   .transform((summary, ctx) => {

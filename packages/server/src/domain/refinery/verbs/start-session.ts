@@ -49,7 +49,6 @@ export function createStartSession(ctx: RefineryContext): RefineryService["start
       guidance: row.guidance,
       iterationCount: row.iterationCount,
       createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
     };
   };
 }

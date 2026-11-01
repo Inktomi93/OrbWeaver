@@ -3,9 +3,6 @@ import type { ReactToolHandler, ReactToolHandlerDeps } from "../contract/react-t
 
 export function createReactToolHandler(deps: ReactToolHandlerDeps): ReactToolHandler {
   return async (args, exec) => {
-    if (exec.chatId === null) {
-      return { ok: false, error: "react requires a chat context" };
-    }
     const result = await deps.reactAsCharacter({
       principal: exec.principal,
       chatId: exec.chatId,

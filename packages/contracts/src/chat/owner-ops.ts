@@ -137,7 +137,6 @@ export type RequestTurnOp = (params: RequestTurnParams) => Promise<TurnOutcome>;
  *  character, never a sentinel/null).
  */
 export interface MemoryDigestInput {
-  readonly lens: "digest";
   readonly ownerId: UserId;
   readonly model: string;
   readonly key: BlockKey;
@@ -153,7 +152,6 @@ export interface MemoryDigestInput {
  *  overwhelming majority of cases — a block too big for the embed model's window becomes N chunks rather than
  *  one truncated row (#172), each carrying the honest span of the messages its text contains. */
 export interface StoreSegmentParams {
-  readonly lens: "segment";
   readonly ownerId: UserId;
   readonly model: string;
   readonly generationId: EmbedGenerationId;

@@ -1,4 +1,6 @@
 import type { ChatAssetOps, ChatAssetOpsDeps } from "../contract/chat-asset-ops.ts";
+
+const IMAGE_MIME_PREFIX = "image/";
 /** Bind asset copying and reference projections without widening the source owner's scope. */
 export function createChatAssetOps(deps: ChatAssetOpsDeps): ChatAssetOps {
   return {
@@ -28,5 +30,7 @@ export function createChatAssetOps(deps: ChatAssetOpsDeps): ChatAssetOps {
     },
     // Owner-scoped: a foreign/gone id is simply absent from the result.
     filterOwnedAssetIds: async (userId, assetIds) => (await deps.assets.resolveOwnedAssetRefs(userId, assetIds)).map((r) => r.assetId),
+    filterOwnedImageAssetIds: async (userId, assetIds) =>
+      (await deps.assets.resolveOwnedAssetRefs(userId, assetIds)).filter((r) => r.mime.startsWith(IMAGE_MIME_PREFIX)).map((r) => r.assetId),
   };
 }

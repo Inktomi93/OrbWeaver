@@ -21,6 +21,7 @@
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
+import { trpcErrorCode } from "#lib";
 
 // ── producers ───────────────────────────────────────────────────────────────
 
@@ -89,10 +90,7 @@ export const useReindexDocuments = createEntityMutation<inferInput<Trpc["databan
  *  the owner-wide sweep — already holds its single-active slot. Keyed on the STRUCTURED code, never message
  *  text (the `invite-dialog` / `use-recompute-stats` precedent). */
 function isReindexAlreadyRunning(error: unknown): boolean {
-  if (typeof error !== "object" || error === null || !("data" in error)) {
-    return false;
-  }
-  return (error as { data?: { code?: string } }).data?.code === "CONFLICT";
+  return trpcErrorCode(error) === "CONFLICT";
 }
 
 // ── the global scope (owner authority — the write lives where the authority lives, §2.1) ────────────────

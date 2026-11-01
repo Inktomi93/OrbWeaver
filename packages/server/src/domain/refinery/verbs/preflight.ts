@@ -92,7 +92,6 @@ export function createPreflight(ctx: RefineryContext): RefineryService["prefligh
     const working = rewritePayload.fields.length === 0 ? session.originalCard : overlayRewrite(session.originalCard, rewritePayload);
 
     const facts = await summarizerFactsOf(await ctx.roleClientsFor(ownerId), presetParams);
-    const model = facts.model;
     const resolutions = await Promise.all(REFINERY_STAGES.map((stage) => resolveStageResolution(ctx, { ownerId, stage, session })));
     const stages: StagePreflight[] = REFINERY_STAGES.map((stage, i) => {
       const resolution = resolutions[i] ?? { kind: "fixed" as const };
@@ -104,8 +103,6 @@ export function createPreflight(ctx: RefineryContext): RefineryService["prefligh
       const sampling = resolveStageSampling({ subject, presetParams, contextTokens: facts.contextTokens, inputEstimate });
       return {
         stage,
-        model,
-        temperature: sampling.temperature ?? null,
         maxOutputTokens: sampling.maxOutputTokens ?? null,
         inputEstimate,
         outputEstimate: outputEstimateOf(subject),

@@ -38,7 +38,7 @@ export function throughputTps(tokensOut: number, genTimeMs: number): number {
  *  every backend identically. `null` when the row has neither cache column populated (nothing to report)
  *  or no input tokens recorded (no denominator) — `character_stats` has no cache columns at all, so every
  *  per-character read lands here. */
-export function cacheHitRate(cacheReadTokens: number, cacheWriteTokens: number, tokensIn: number): number | null {
+function cacheHitRate(cacheReadTokens: number, cacheWriteTokens: number, tokensIn: number): number | null {
   if (cacheReadTokens + cacheWriteTokens <= 0 || tokensIn <= 0) {
     return null;
   }
@@ -75,7 +75,6 @@ export function deriveExtra(r: {
   cacheWriteTokens: number;
   forkedChats: number;
   variantMessages: number;
-  maxContextTokens: number | null;
   tokensIn: number;
   tokensOut: number;
   costSamples: number;
@@ -83,21 +82,16 @@ export function deriveExtra(r: {
   totalGenTimeMs: number;
   activeIdxSum: number;
   assistantTurns: number;
-  assistantWords: number;
   swipes: number;
 }): ExtraStats {
   return {
     reasoningMs: r.reasoningMs,
     costUsd: recordedCost(r.costUsd, r.costSamples, r.notionalCostSamples),
-    cacheReadTokens: r.cacheReadTokens,
-    cacheWriteTokens: r.cacheWriteTokens,
     forkedChats: r.forkedChats,
     variantMessages: r.variantMessages,
-    maxContextTokens: r.maxContextTokens,
     throughputTps: throughputTps(r.tokensOut, r.totalGenTimeMs),
     avgSwipeDepth: div(r.activeIdxSum, r.variantMessages),
     swipeRate: div(r.variantMessages, r.assistantTurns),
     cacheHitRate: cacheHitRate(r.cacheReadTokens, r.cacheWriteTokens, r.tokensIn),
-    avgReplyWords: div(r.assistantWords, r.assistantTurns),
   };
 }

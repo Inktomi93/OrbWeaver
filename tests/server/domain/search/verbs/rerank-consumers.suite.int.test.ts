@@ -309,7 +309,7 @@ test.for(SHAPES)("the databank gather keeps the reranked chunk inside its k cut,
   }
 });
 
-const OMNIBOX_TARGETS = ["digests", "segments", "corpus", "discover", "entities", "characters", "documents"] as const;
+const OMNIBOX_TARGETS = ["digests", "corpus", "discover", "entities", "characters", "documents"] as const;
 type OmniboxTarget = (typeof OMNIBOX_TARGETS)[number];
 type SearchResult = Awaited<ReturnType<ChatRoot["caller"]["search"]["search"]>>;
 type Placed = Arc | "other" | "elsewhere" | "foreign";
@@ -323,7 +323,6 @@ function placements(world: RerankWorld, result: SearchResult): readonly Placed[]
   const byCharacter = new Map<CharacterId, Placed>(ARCS.map((arc) => [world.personas[arc], arc]));
   switch (result.over) {
     case "digests":
-    case "segments":
     case "corpus":
       return result.hits.map((hit) => arcOf(hit.text));
     case "discover":
@@ -345,8 +344,7 @@ function placements(world: RerankWorld, result: SearchResult): readonly Placed[]
 
 async function omniboxOrder(world: RerankWorld, over: OmniboxTarget, rerank: boolean): Promise<readonly Placed[]> {
   const { h } = world;
-  const scope = over === "segments" ? { kind: "chat" as const, chatId: h.chatId, scopedCharacterId: h.characters[0]?.id } : { kind: "owner" as const };
-  return placements(world, await h.caller.search.search({ query: QUERY, topN: OMNIBOX_TOP_N, rerank, over, scope }));
+  return placements(world, await h.caller.search.search({ query: QUERY, topN: OMNIBOX_TOP_N, rerank, over, scope: { kind: "owner" } }));
 }
 
 test.for(SHAPES)("every omnibox target puts the reranked item first only when its rerank switch is on (%s)", async (shape) => {

@@ -16,6 +16,6 @@ export function createListEntryIndex(ctx: WorldInfoContext): WorldInfoService["l
       throw new WorldInfoNotFoundError("world_book", bookId);
     }
     const rows = await listBookEntries(ctx.db, bookId);
-    return rows.map((row) => ({ title: row.title, keys: row.keys ?? [] }));
+    return rows.map((row) => ({ title: row.title }));
   };
 }

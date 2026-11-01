@@ -74,7 +74,6 @@ const bookColumns = {
   ownerId: worldBooks.ownerId,
   name: worldBooks.name,
   description: worldBooks.description,
-  createdAt: worldBooks.createdAt,
 } as const;
 
 const entryColumns = {
@@ -133,12 +132,12 @@ async function loadWorldInfoSources(
 ): Promise<{
   chatRows: BookExpansionRow[];
   characterRows: (BookExpansionRow & {
-    book: Pick<typeof worldBooks.$inferSelect, "id" | "ownerId" | "name" | "description" | "createdAt">;
+    book: Pick<typeof worldBooks.$inferSelect, "id" | "ownerId" | "name" | "description">;
     sourceName: string;
   })[];
-  globalRows: (BookExpansionRow & { book: Pick<typeof worldBooks.$inferSelect, "id" | "ownerId" | "name" | "description" | "createdAt"> })[];
+  globalRows: (BookExpansionRow & { book: Pick<typeof worldBooks.$inferSelect, "id" | "ownerId" | "name" | "description"> })[];
   personaRows: (BookExpansionRow & {
-    book: Pick<typeof worldBooks.$inferSelect, "id" | "ownerId" | "name" | "description" | "createdAt">;
+    book: Pick<typeof worldBooks.$inferSelect, "id" | "ownerId" | "name" | "description">;
     personaId: PersonaId;
     personaName: string;
     personaDescription: string;
