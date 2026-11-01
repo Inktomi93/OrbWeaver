@@ -4,7 +4,8 @@
 import type { TagTargetRef } from "@orb/contracts/tag";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { createEntityMutation, trpcErrorCode } from "#data";
+import { createEntityMutation } from "#data";
+import { trpcErrorCode } from "#lib";
 
 /** The toast for a create the name index refused. */
 export const CREATE_TAG_CONFLICT_TOAST = "Couldn't create the tag — that name may already be in use.";

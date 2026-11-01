@@ -16,9 +16,7 @@ import type { ReadinessAction, ReadinessFacts } from "../lib/corpus-readiness-pa
 import { enqueueReadinessPass, isReadinessRun, READINESS_PASSES, readinessActionFor, readinessEstimates } from "../lib/corpus-readiness-passes.ts";
 import { affectsViewer, isActive } from "./use-understanding-pass.ts";
 
-type StartWorkloadWire = inferInput<Trpc["workloads"]["start"]>;
-
-const useStartReadinessRun = createEntityMutation<StartWorkloadWire, WorkloadRef>({
+const useStartReadinessRun = createEntityMutation<inferInput<Trpc["workloads"]["start"]>, WorkloadRef>({
   options: (trpc) => trpc.workloads.start.mutationOptions(),
   invalidates: (trpc) => [trpc.workloads.list.pathFilter()],
   // The server's own sentence (an admission refusal, a run already going) is the reason.

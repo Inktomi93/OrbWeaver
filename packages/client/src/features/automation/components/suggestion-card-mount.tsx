@@ -32,7 +32,7 @@ import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useBusRoom, useInvalidation, useTRPC } from "#data";
 import type { ChatControl, ChatControlSourceMountProps } from "#lib";
-import { timeLib } from "#lib";
+import { timeLib, trpcErrorCode } from "#lib";
 import type { PendingAsk } from "../lib/apply-automation-bus-event.ts";
 import { applyAutomationBusEvent, pruneExpiredAsks } from "../lib/apply-automation-bus-event.ts";
 import { useConfirmSuggestion, useDismissSuggestion } from "../lib/suggestion-mutations.ts";
@@ -53,7 +53,7 @@ const NO_ASKS: readonly PendingAsk[] = [];
  *  structured `data.code` is the discriminator, never message text (the `use-recompute-stats`/`stale-session`
  *  precedent). */
 function isSuggestionGone(error: unknown): boolean {
-  return (error as { data?: { code?: string } } | null | undefined)?.data?.code === "NOT_FOUND";
+  return trpcErrorCode(error) === "NOT_FOUND";
 }
 
 /** C3's card BODY — the rewrite behind a disclosure, closed by default.

@@ -1,0 +1,12 @@
+{
+  "verbs": [
+    {
+      "verb": "removeScript",
+      "field": "deleted",
+      "resultType": "RemoveResult",
+      "verbFile": "remove.ts",
+      "serviceFile": "service.ts",
+      "routerFile": "router.ts"
+    }
+  ]
+}

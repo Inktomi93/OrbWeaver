@@ -6,10 +6,12 @@
 // busDriven: `settings.promoteTheme` emits `themesChanged` after the durable write, which covers the theme
 // library read — the picker shows the new row without this hook invalidating anything itself.
 
-import type { PromoteThemeInput, Theme } from "@orb/contracts/theme";
+import type { Theme } from "@orb/contracts/theme";
+import type { inferInput } from "@trpc/tanstack-react-query";
+import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
-export const usePromoteTheme = createEntityMutation<PromoteThemeInput, Theme>({
+export const usePromoteTheme = createEntityMutation<inferInput<Trpc["settings"]["promoteTheme"]>, Theme>({
   options: (trpc) => trpc.settings.promoteTheme.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't save this look as a theme.",

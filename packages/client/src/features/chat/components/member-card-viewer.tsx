@@ -33,7 +33,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { EditableTagChip, ViewerDialog } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { testId, viewerTimeZone } from "#lib";
+import { testId, trpcErrorCode, viewerTimeZone } from "#lib";
 
 export interface MemberCardViewerProps {
   readonly chatId: ChatId;
@@ -45,10 +45,7 @@ export interface MemberCardViewerProps {
 /** The transport-mapped domain NOT_FOUND — a stranger's chatId OR a character no longer in the roster
  *  (the `getChat`/dangling-pointer collapse). Discriminated by the code, never a bare catch. */
 function isNotFound(error: unknown): boolean {
-  if (typeof error !== "object" || error === null || !("data" in error)) {
-    return false;
-  }
-  return (error as { data?: { code?: string } }).data?.code === "NOT_FOUND";
+  return trpcErrorCode(error) === "NOT_FOUND";
 }
 
 export function MemberCardViewer({ chatId, characterId, open, onOpenChange }: MemberCardViewerProps): ReactElement {
