@@ -161,27 +161,20 @@ function* propertiesNamed(checker: Checker, type: Type, name: string): APIReques
   return found;
 }
 
-/** The value whose properties a spread, a computed key, a `for…in` or a reflective call reads, and the key's
- *  expression for a computed element access. */
-export interface Reflection<N> {
-  readonly value: N;
-  readonly key: N | null;
+// The value whose properties a spread, a computed key, a `for…in` or a reflective call reads, and the key's expression
+// for a computed element access.
+interface Reflection {
+  readonly value: Node;
+  readonly key: Node | null;
 }
 
-/** Calls that read every property of their arguments by reflection, by the callee's text. */
-export const REFLECTIVE_CALLS: ReadonlySet<string> = new Set([
-  "Object.entries",
-  "Object.values",
-  "Object.keys",
-  "Object.assign",
-  "JSON.stringify",
-  "structuredClone",
-]);
+// Calls that read every property of their arguments by reflection, by the callee's text.
+const REFLECTIVE_CALLS: ReadonlySet<string> = new Set(["Object.entries", "Object.values", "Object.keys", "Object.assign", "JSON.stringify", "structuredClone"]);
 
 // A literal key names one property, which a name already reports; any other key expression reads by its type.
 const isLiteralKey = (node: Node): boolean => isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node) || isNumericLiteral(node);
 
-function reflectionsAt(node: Node): readonly Reflection<Node>[] {
+function reflectionsAt(node: Node): readonly Reflection[] {
   if (isSpreadAssignment(node) || isJsxSpreadAttribute(node)) {
     return [{ value: node.expression, key: null }];
   }
@@ -221,7 +214,7 @@ interface Link {
 
 // The properties a reflection reads, and the links a spread into a typed literal makes instead. A spread member
 // whose target member a library declares is read by that library.
-function* reflected(world: NativeWorld, { value, key }: Reflection<Node>): APIRequestGenerator<{ readonly reads: NativeSymbol[]; readonly links: Link[] }> {
+function* reflected(world: NativeWorld, { value, key }: Reflection): APIRequestGenerator<{ readonly reads: NativeSymbol[]; readonly links: Link[] }> {
   const { checker } = world;
   const properties = yield* reflectedProperties(checker, value, key === null ? null : yield* keyNames(checker, key));
   const spreadInto = spreadTarget(value);
@@ -365,7 +358,7 @@ export function propertyIndex(world: NativeWorld): ReferenceIndex {
 export function propertyReferences(world: NativeWorld): PropertyReferences {
   const lookups: Lookup[] = [];
   const extending: InterfaceDeclaration[] = [];
-  const reflections: (Reflection<Node> & { readonly site: Site })[] = [];
+  const reflections: (Reflection & { readonly site: Site })[] = [];
   const indexed: { readonly member: Node; readonly owner: Node; readonly name: string }[] = [];
   const implementations: Signature[] = [];
   walk(world, (node) => {

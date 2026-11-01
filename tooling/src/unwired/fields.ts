@@ -19,14 +19,11 @@ import {
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol } from "@typescript/native/sync";
-import ts from "typescript";
 import type { Site, SyntaxRole } from "./classify.ts";
 import { isProductionFile, roleAt, Sources, siteKey } from "./classify.ts";
-import type { ServiceWorld } from "./language-service.ts";
 import { serviceReferences } from "./language-service.ts";
-import { constituents, declarationKeys, hasFlag, NativeWorld } from "./native.ts";
-import type { Reflection } from "./occurrences.ts";
-import { propertyReferences, REFLECTIVE_CALLS } from "./occurrences.ts";
+import { constituents, declarationKeys, NativeWorld } from "./native.ts";
+import { propertyReferences } from "./occurrences.ts";
 import type { ScanOptions } from "./scan.ts";
 import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
 import { typeMembers } from "./type-members.ts";
@@ -329,75 +326,6 @@ function uniquelyKeyed(fields: readonly FieldDeclaration[]): readonly FieldDecla
   });
 }
 
-function serviceReflectionsAt(node: ts.Node): readonly Reflection<ts.Node>[] {
-  if (ts.isSpreadAssignment(node) || ts.isJsxSpreadAttribute(node)) {
-    return [{ value: node.expression, key: null }];
-  }
-  if (ts.isElementAccessExpression(node) && !(ts.isStringLiteralLike(node.argumentExpression) || ts.isNumericLiteral(node.argumentExpression))) {
-    return [{ value: node.expression, key: node.argumentExpression }];
-  }
-  if (ts.isForInStatement(node)) {
-    return [{ value: node.expression, key: null }];
-  }
-  if (ts.isCallExpression(node) && REFLECTIVE_CALLS.has(node.expression.getText())) {
-    return node.arguments.map((value) => ({ value, key: null }));
-  }
-  return [];
-}
-
-function serviceKeyNames(checker: ts.TypeChecker, key: ts.Node): readonly string[] | null {
-  const type = checker.getTypeAtLocation(key);
-  const names: string[] = [];
-  for (const member of type.isUnion() ? type.types : [type]) {
-    if (member.isStringLiteral()) {
-      names.push(member.value);
-    } else if (hasFlag(member.flags, ts.TypeFlags.String)) {
-      return null;
-    }
-  }
-  return names;
-}
-
-// A spread into a typed literal reads only the members a library declares on the target; engine one links the rest to
-// the target's own members, which find-references cannot follow, so engine two leaves them unread.
-function serviceReflectedProperties(checker: ts.TypeChecker, { value, key }: Reflection<ts.Node>): readonly ts.Symbol[] {
-  const names = key === null ? null : serviceKeyNames(checker, key);
-  const type = checker.getNonNullableType(checker.getTypeAtLocation(value));
-  const properties = (type.isUnion() ? type.types : [type]).flatMap((member) =>
-    names === null ? checker.getPropertiesOfType(member) : names.flatMap((name) => checker.getPropertyOfType(member, name) ?? []),
-  );
-  const owner = value.parent.parent;
-  const spread =
-    (ts.isSpreadAssignment(value.parent) && ts.isObjectLiteralExpression(owner)) || (ts.isJsxSpreadAttribute(value.parent) && ts.isJsxAttributes(owner));
-  const target = spread ? checker.getContextualType(owner) : undefined;
-  if (target === undefined) {
-    return properties;
-  }
-  const external = (declaration: ts.Declaration): boolean => declaration.getSourceFile().fileName.includes("/node_modules/");
-  return properties.filter((property) => checker.getPropertyOfType(target, property.name)?.declarations?.every(external) === true);
-}
-
-/** Engine two's view of the reflective reads `propertyIndex` credits in engine one: the sites of the names of the properties read. */
-function serviceReflectedReads(world: ServiceWorld): ReadonlySet<string> {
-  const found = new Set<string>();
-  const visit = (node: ts.Node): void => {
-    const properties = serviceReflectionsAt(node).flatMap((reflection) => serviceReflectedProperties(world.checker, reflection));
-    for (const declaration of properties.flatMap((property) => property.declarations ?? [])) {
-      const name = ts.getNameOfDeclaration(declaration);
-      if (name !== undefined) {
-        found.add(siteKey(world.siteOf(name)));
-      }
-    }
-    ts.forEachChild(node, visit);
-  };
-  for (const source of world.program.getSourceFiles()) {
-    if (!source.isDeclarationFile && isProduction(world.siteOf(source).file)) {
-      visit(source);
-    }
-  }
-  return found;
-}
-
 interface Tally {
   readonly field: FieldDeclaration;
   readonly sites: Map<string, Site>;
@@ -487,17 +415,8 @@ export function scanFields(options: ScanOptions): FieldsReport {
     const kind = kindOf(field, roles, writtenHomes.has(homeOf(field)));
     return kind === "wired" ? [] : [{ field, roles, kind }];
   });
-  const reflectedTwo = new Set<string>();
   const asked = judged.flatMap(({ field }) => namesOf(field));
-  const second = serviceReferences(options.root, [...worlds, ...testWorlds], asked, {
-    log: options.log,
-    crossCheck: options.crossCheck,
-    visit: (world) => {
-      for (const site of serviceReflectedReads(world)) {
-        reflectedTwo.add(site);
-      }
-    },
-  });
+  const second = serviceReferences(options.root, [...worlds, ...testWorlds], asked, { log: options.log, crossCheck: options.crossCheck });
   const located = (site: Site): string => `${site.file}:${sources.line(site)}`;
   const findings: UnwiredField[] = [];
   const disagreements: FieldsReport["disagreements"][number][] = [];
