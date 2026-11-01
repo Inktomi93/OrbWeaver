@@ -479,6 +479,14 @@ function StoryTurn({
   );
 }
 
+/** The picks a room's root scope holds: a carried theme's sit beside its background on one scope. */
+function rootPicks(level: "room" | "row" | "carried", background: string | undefined, picks: ThemeScopeTokens): ThemeScopeTokens {
+  if (level === "carried") {
+    return { ...picks, ...(background === undefined ? {} : { background }) };
+  }
+  return level === "room" ? picks : {};
+}
+
 /**
  * A room over a seed or custom palette: page chrome, a user turn and an assistant turn. `level` puts the picks on the room
  * scope, as a carried room theme does, or on the assistant row's scope, as a card's row does.
@@ -494,7 +502,7 @@ export function PickedRoomStory({
   readonly theme?: keyof typeof SEED_THEME_VALUE_SETS;
   readonly background?: string;
   readonly picks: ThemeScopeTokens;
-  readonly level: "room" | "row";
+  readonly level: "room" | "row" | "carried";
   readonly boxed: boolean;
   readonly readingInk: boolean;
 }): ReactElement {
@@ -502,8 +510,8 @@ export function PickedRoomStory({
   return (
     <CtIsolation subject="ThemeScope" isolates="A picked bubble fill reaching only the box that paints it">
       <div data-theme={theme}>
-        <ThemeScope tokens={background === undefined ? {} : { background }} ambientBackground={seed}>
-          <ThemeScope tokens={level === "room" ? picks : {}}>
+        <ThemeScope tokens={level === "carried" || background === undefined ? {} : { background }} ambientBackground={seed}>
+          <ThemeScope tokens={rootPicks(level, background, picks)}>
             <div style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, color: `var(${TOKENS["color.foreground"].cssVar})`, padding: "1rem" }}>
               <p data-chip="" style={{ backgroundColor: `var(${TOKENS["color.muted"].cssVar})`, color: `var(${TOKENS["color.accent-foreground"].cssVar})` }}>
                 Modified

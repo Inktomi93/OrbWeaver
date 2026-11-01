@@ -10,7 +10,7 @@ import {
 } from "@orb/kit/theme-derivation";
 import { pixelContrast, pixelSurface } from "@orb/testkit/browser/spec";
 import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_NON_PALETTE_VARS } from "@orb/ui/theme-scope/emit-vars";
-import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
+import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
 import type {
   BubbleSeparationStory,
@@ -31,6 +31,7 @@ import type {
 
 import {
   BASES,
+  CARRIED_BUBBLE_PALETTES,
   INHERITED_INK_CASE,
   keepsHue,
   MID_GREY,
@@ -227,6 +228,48 @@ for (const palette of PICKED_ROOM_PALETTES) {
         ...shape,
         picks: picks({ opposed: dark, matched: light }),
       });
+      const samples = component.locator('[data-chip], [data-body] p, [data-slot="dialogue"], em, [data-streamdown="inline-code"]');
+      await expect(samples).toHaveCount(9);
+      for (const sample of await samples.all()) {
+        await sample.scrollIntoViewIfNeeded();
+        const receipt = await pixelContrast(page, sample);
+        expect(receipt.ratio, `${await sample.textContent()}: ${receipt.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+      }
+    });
+  }
+}
+
+const BUILDER_BUBBLES = {
+  aiBubble: { bg: TOKENS["color.ai-bubble"].value },
+  userBubble: { bg: TOKENS["color.user-bubble"].value },
+  systemBubble: { bg: TOKENS["color.system-bubble"].value },
+};
+
+for (const { name, background, fills } of CARRIED_BUBBLE_PALETTES) {
+  const cases = [
+    ...fills.map((fill) => ({ label: `${fill} picked bubble`, picks: { aiBubble: { bg: fill }, userBubble: { bg: fill } } })),
+    { label: "the theme builder's Hearth bubbles", picks: BUILDER_BUBBLES },
+  ];
+  for (const { label, picks } of cases) {
+    test(`carried ${name} with ${label}: the bubbles paint, and every turn and the page clear AA`, async ({ mount, page }) => {
+      const component = await mount<typeof PickedRoomStory>("tests/ui/content/theme-scope/_contrast-stories/PickedRoomStory", {
+        background,
+        picks,
+        level: "carried",
+        boxed: true,
+        readingInk: false,
+      });
+      const turn = component.locator('[data-turn="assistant"]');
+      const painted = await turn.evaluate((element) => getComputedStyle(element).backgroundColor);
+      const probe = await turn.evaluate((element, bg) => {
+        const swatch = document.createElement("span");
+        swatch.style.backgroundColor = bg;
+        element.append(swatch);
+        const value = getComputedStyle(swatch).backgroundColor;
+        swatch.remove();
+        return value;
+      }, picks.aiBubble.bg);
+      expect(painted).toBe(probe);
       const samples = component.locator('[data-chip], [data-body] p, [data-slot="dialogue"], em, [data-streamdown="inline-code"]');
       await expect(samples).toHaveCount(9);
       for (const sample of await samples.all()) {

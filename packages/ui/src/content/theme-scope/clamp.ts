@@ -291,12 +291,9 @@ const BUBBLE_PICKS = [
   ["assistant", "aiBubble"],
 ] as const satisfies readonly (readonly [MessageRole, keyof ThemeScopeTokens])[];
 
-/** The fill each role paints, as an opaque pixel: this scope's picks over the ones around it. A carried background's surface emit owns the bubbles, so it hands down none. */
+/** The fill each role paints, as an opaque pixel: this scope's picks over the ones around it. A carried background repaints what those sat on, so it keeps only its own. */
 function bubbleFillsOn(t: ThemeScopeTokens, under: string | undefined, ambient: BubbleFillPixels): BubbleFillPixels {
-  if (t.background !== undefined) {
-    return {};
-  }
-  const fills: Partial<Record<MessageRole, string>> = { ...ambient };
+  const fills: Partial<Record<MessageRole, string>> = t.background === undefined ? { ...ambient } : {};
   for (const [role, field] of BUBBLE_PICKS) {
     const picked = t[field]?.bg;
     const pixel = picked === undefined ? null : compositedBase(picked, under);
@@ -598,7 +595,8 @@ export function clampThemeTokens(
   // carried background is precisely the case where the composed surface IS knowable. The residual
   // provider-less fail-open (neither side statically readable) stands unchanged.
   const inkBase = inkBaseFor(t.background, ambientBackground);
-  const fills = bubbleFillsOn(t, ambientBackground, ambientFills);
+  const fillUnder = carriedBase === null ? ambientBackground : serializeOpaqueOklch(carriedBase);
+  const fills = bubbleFillsOn(t, fillUnder, ambientFills);
   const insideFill = t.background === undefined && inside !== undefined ? toOklch(inside) : null;
   // A carried base also owns every ABSENT prose pick (#985). Otherwise a legal background-only custom
   // theme inherits all four inks from the outer seed, which can be the opposite polarity. Derive the
@@ -606,9 +604,10 @@ export function clampThemeTokens(
   // fallback and the cascade remains intact. Explicit picks still take the pass-through/correction arms
   // above, judged on the reading hosts of the base under them.
   Object.assign(vars, proseInkVars(raw, t, carried, { inkBase, inside: insideFill }));
-  Object.assign(vars, pickedBubbleVars(t, ambientBackground));
   const surface = t.background === undefined ? undefined : carriedSurfaceOn(t.background, carried, accent?.painted ?? null);
   Object.assign(vars, surface?.vars);
+  // After the surface emit: a picked fill paints over the one its base derives.
+  Object.assign(vars, pickedBubbleVars(t, fillUnder));
   Object.assign(vars, toneVars);
   // An explicit border color wins over the derived hairline, for both border scopes.
   put(THEME_OVERRIDE_COLOR_VARS.borderColor, t.borderColor);

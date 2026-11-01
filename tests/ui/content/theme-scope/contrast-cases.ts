@@ -53,6 +53,14 @@ export const PICKED_ROOM_PALETTES = [
   { name: "custom dark", background: "oklch(0.2 0.02 250)", dark: FILL_NEAR_WHITE, light: FILL_NEAR_BLACK },
 ] as const;
 
+/** Carried backgrounds in both polarities, each with a fill on either side of the crossover. */
+export const CARRIED_BUBBLE_PALETTES = [
+  { name: "light", background: "oklch(0.98 0.004 75)", fills: [FILL_NEAR_BLACK, FILL_NEAR_WHITE] },
+  { name: "pale", background: "oklch(0.93 0.02 90)", fills: [FILL_NEAR_BLACK, FILL_NEAR_WHITE] },
+  { name: "hearth", background: "oklch(0.158 0.006 60)", fills: [FILL_NEAR_BLACK, FILL_NEAR_WHITE] },
+  { name: "custom dark", background: "oklch(0.2 0.02 250)", fills: [FILL_NEAR_BLACK, FILL_NEAR_WHITE] },
+] as const;
+
 interface RoomFills {
   readonly opposed: string;
   readonly matched: string;
