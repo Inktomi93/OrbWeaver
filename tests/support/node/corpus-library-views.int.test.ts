@@ -48,6 +48,7 @@ test("native library projections retain canonical usage, ordering, intake and re
     [world.first.id, 1],
     [world.second.id, 2],
   ]);
+  expect(world.demoted.output).toHaveLength(2);
   expect(world.demoted.output).toEqual(
     expect.arrayContaining([
       expect.objectContaining({ id: world.book.id, role: "auxiliary" }),

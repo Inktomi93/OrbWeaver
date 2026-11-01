@@ -44,7 +44,7 @@ test("releasing one lock drops that path and keeps the other pinned paths", asyn
   const locked = async (): Promise<readonly string[]> => (await root.services.rpg.getTrackerView({ principal: owner, chatId })).lockedPaths;
 
   await root.services.rpg.editSnapshot({ principal: owner, chatId, patch: { location: "the gate", calendarDate: "Spring 3" } });
-  expect(await locked()).toEqual(expect.arrayContaining(["location", "calendarDate"]));
+  expect((await locked()).toSorted()).toEqual(["calendarDate", "location"]);
 
   await root.services.rpg.editSnapshot({ principal: owner, chatId, patch: {}, releaseLocks: ["location"] });
   const after = await locked();

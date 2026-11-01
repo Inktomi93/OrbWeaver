@@ -136,7 +136,7 @@ test("native SDK metadata projects actual events and deltas without changing pai
   );
   expect(result.usage.costUsd).toBe(3);
   expect(result.usage.reasoningTokens).toBe(1);
-  expect(events).toEqual(expect.arrayContaining(["compaction", "api_retry", "status", "refusal", "rate_limit", "auth_status"]));
+  expect([...new Set(events)].toSorted()).toEqual(["api_retry", "auth_status", "compaction", "model_downgrade", "rate_limit", "refusal", "status"]);
   expect(result.events).toContainEqual(expect.objectContaining({ kind: "compaction", trigger: "auto", preTokens: 3, postTokens: 2 }));
   expect(result.events).toContainEqual(expect.objectContaining({ kind: "refusal", retried: true, fallbackModel: `${MODEL}-fallback` }));
   expect(result.rateLimit).toMatchObject({ status: "allowed", utilization: 0.1, isUsingOverage: false });
