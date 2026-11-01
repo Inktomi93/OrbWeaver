@@ -355,7 +355,9 @@ export const markAllReadResultSchema = z.strictObject({ markedCount: z.number() 
  *  this domain's `record` + transport's bus. */
 export type EmitNotification = (event: NotificationEvent) => Promise<void>;
 
-export const listInboxInputSchema = z.object({ cursor: z.number().optional(), limit: z.int().min(1).max(NOTIFICATIONS_LIST_MAX_LIMIT).optional() }).optional();
+export const listInboxInputSchema = z
+  .strictObject({ cursor: z.number().optional(), limit: z.int().min(1).max(NOTIFICATIONS_LIST_MAX_LIMIT).optional() })
+  .optional();
 
 /** What the inbox asks chat about: the ids on ONE page of rows that carry a chat-owned decision. The op
  *  traffics in bare ids so neither domain spells the other's vocabulary. */

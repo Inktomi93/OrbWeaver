@@ -11,7 +11,15 @@
 // THREE outcome classes, not two (EDITSNAP-OK): resolved-and-committed · threw (`errorToast`) · RESOLVED AND
 // REFUSED (`refusal`). The third is the one that goes silently wrong — see the `refusal` doc below.
 
-import type { DefaultError, InvalidateQueryFilters, QueryClient, QueryKey, UseMutateFunction, UseMutationOptions } from "@tanstack/react-query";
+import type {
+  DefaultError,
+  InvalidateQueryFilters,
+  MutationFunctionContext,
+  QueryClient,
+  QueryKey,
+  UseMutateFunction,
+  UseMutationOptions,
+} from "@tanstack/react-query";
 import { hashKey, useMutation } from "@tanstack/react-query";
 import { notify } from "#lib";
 import type { Invalidation } from "./invalidation.ts";
@@ -21,6 +29,27 @@ import type { Trpc } from "./trpc.ts";
  *  so a rename/reshape breaks here at compile time, not silently at a consumer. */
 type BaseMutationOptions<TVars, TData, TError = DefaultError> = Required<Pick<UseMutationOptions<TData, TError, TVars>, "mutationKey">> &
   Pick<UseMutationOptions<TData, TError, TVars>, "mutationFn">;
+
+/**
+ * Mutation options whose variables carry client-only scope (a cache key the settle reads) beside the procedure input.
+ *
+ * @remarks The procedure input is strict and the factory sends the variables whole, so a scope key would be refused at
+ * the server. `input` names exactly what crosses the wire.
+ */
+export function withProcedureInput<TVars, TInput, TData>(
+  base: BaseMutationOptions<TInput, TData>,
+  input: (vars: TVars) => TInput,
+): BaseMutationOptions<TVars, TData> {
+  return {
+    mutationKey: base.mutationKey,
+    mutationFn: (vars: TVars, context: MutationFunctionContext): Promise<TData> => {
+      if (base.mutationFn === undefined) {
+        throw new Error("The procedure's mutation transport is unavailable.");
+      }
+      return base.mutationFn(input(vars), context);
+    },
+  };
+}
 
 interface EntityMutationBase<TVars, TData, TRead> {
   /** `(t) => t.character.update.mutationOptions()` — the proxy is the one mutationKey/Fn source. */

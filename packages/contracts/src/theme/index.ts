@@ -60,7 +60,7 @@ const themeSchema = z.object({
 });
 export type Theme = z.infer<typeof themeSchema>;
 
-export const createThemeInputSchema = z.object({
+export const createThemeInputSchema = z.strictObject({
   name: z.string().trim().min(1).max(THEME_NAME_MAX),
   override: themeOverrideSchema,
   css: z.string().max(THEME_CSS_MAX).nullable().optional(),
@@ -77,7 +77,7 @@ export type UpdateThemeInput = z.infer<typeof updateThemeInputSchema>;
  *  not exert) and DE-COLLIDES the name at the mint — this door supplies a default the user never typed
  *  (the character's name), so "Aria 2" is the honest outcome where `createTheme`'s explicit-name editor
  *  path correctly throws a typed conflict instead. No `css`: cards have no CSS tier. */
-export const promoteThemeInputSchema = z.object({
+export const promoteThemeInputSchema = z.strictObject({
   name: z.string().trim().min(1).max(THEME_NAME_MAX),
   override: themeOverrideSchema,
 });

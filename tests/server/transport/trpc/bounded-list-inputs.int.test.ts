@@ -3,6 +3,7 @@
 import { readFile } from "node:fs/promises";
 import { CHAT_MESSAGE_LIST_MAX_LIMIT } from "@orb/contracts/chat";
 import { appRouter } from "@orb/server/transport/trpc";
+import { zodDefinition, zodSchemaChildren } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
@@ -11,62 +12,6 @@ import { z } from "zod";
 interface NumericCeiling {
   readonly numeric: boolean;
   readonly maximum?: number;
-}
-
-type CoreDefType = z.core.$ZodTypes["_zod"]["def"]["type"];
-// Every core schema kind, checked both ways by `satisfies`: a new zod kind or a misspelled one fails tsc here.
-const CORE_DEF_TYPES = {
-  number: true,
-  literal: true,
-  enum: true,
-  optional: true,
-  nullable: true,
-  nonoptional: true,
-  default: true,
-  prefault: true,
-  catch: true,
-  readonly: true,
-  lazy: true,
-  union: true,
-  intersection: true,
-  any: true,
-  unknown: true,
-  custom: true,
-  transform: true,
-  pipe: true,
-  string: true,
-  bigint: true,
-  boolean: true,
-  symbol: true,
-  undefined: true,
-  object: true,
-  function: true,
-  map: true,
-  array: true,
-  date: true,
-  null: true,
-  never: true,
-  void: true,
-  tuple: true,
-  record: true,
-  set: true,
-  promise: true,
-  ["template_literal"]: true,
-  nan: true,
-  success: true,
-  file: true,
-} as const satisfies Record<CoreDefType, true>;
-
-// A schema is a core union member only when its runtime discriminant names one of zod's core kinds.
-function isCoreSchema(schema: z.core.$ZodType): schema is z.core.$ZodTypes {
-  return "_zod" in schema && Object.hasOwn(CORE_DEF_TYPES, schema._zod.def.type);
-}
-
-function definition(schema: z.core.$ZodType): z.core.$ZodTypes["_zod"]["def"] {
-  if (!isCoreSchema(schema)) {
-    throw new Error("a limit schema carries no zod core discriminant");
-  }
-  return schema._zod.def;
 }
 
 function numberCeiling(def: z.core.$ZodNumberDef): NumericCeiling {
@@ -85,7 +30,7 @@ function ceiling(schema: z.core.$ZodType, active: ReadonlySet<z.core.$ZodType> =
     throw new Error("a numeric limit has an unclosed recursive alternative");
   }
   const next = new Set(active).add(schema);
-  const def = definition(schema);
+  const def = zodDefinition(schema);
   switch (def.type) {
     case "number":
       return numberCeiling(def);
@@ -178,71 +123,6 @@ function requireBound(schema: z.core.$ZodType): boolean {
   return true;
 }
 
-function schemaChildren(schema: z.core.$ZodType): readonly z.core.$ZodType[] {
-  const def = definition(schema);
-  switch (def.type) {
-    case "object":
-      return [...Object.values(def.shape), ...(def.catchall === undefined ? [] : [def.catchall])];
-    case "array":
-      return [def.element];
-    case "tuple":
-      return [...def.items, ...(def.rest === null ? [] : [def.rest])];
-    case "record":
-    case "map":
-      return [def.keyType, def.valueType];
-    case "set":
-      return [def.valueType];
-    case "union":
-      return def.options;
-    case "intersection":
-      return [def.left, def.right];
-    case "pipe":
-      return [def.in, def.out];
-    case "function":
-      return [def.input, def.output];
-    case "optional":
-    case "nullable":
-    case "nonoptional":
-    case "default":
-    case "prefault":
-    case "catch":
-    case "readonly":
-    case "promise":
-    case "success":
-      return [def.innerType];
-    case "lazy":
-      if (!(schema instanceof z.core.$ZodLazy)) {
-        throw new Error("the lazy schema has no native lazy owner");
-      }
-      return [schema._zod.innerType];
-    case "template_literal":
-      return def.parts.flatMap((part) => (part instanceof z.core.$ZodType ? [part] : []));
-    case "string":
-    case "number":
-    case "bigint":
-    case "boolean":
-    case "date":
-    case "symbol":
-    case "undefined":
-    case "null":
-    case "any":
-    case "unknown":
-    case "never":
-    case "void":
-    case "literal":
-    case "enum":
-    case "custom":
-    case "transform":
-    case "nan":
-    case "file":
-      return [];
-    default: {
-      const unhandled: never = def;
-      throw new Error(`unsupported native schema definition: ${String(unhandled)}`);
-    }
-  }
-}
-
 function objectValue(value: unknown): value is object {
   return value !== null && typeof value === "object";
 }
@@ -271,11 +151,11 @@ function inspectSchemaValues(value: object): number {
       }
       return;
     }
-    const def = definition(current);
+    const def = zodDefinition(current);
     if (def.type === "object" && def.shape["limit"] !== undefined && requireBound(def.shape["limit"])) {
       limits++;
     }
-    for (const child of schemaChildren(current)) {
+    for (const child of zodSchemaChildren(current)) {
       visit(child);
     }
   };
