@@ -8,7 +8,7 @@
 // Sibling module (D15 directory-module law: internals flat, this index re-exports):
 //   • prose.ts — the per-PRESET PROSE-1 slot table; the ONE home for the BYTES of every guided-action
 //     template + format string this file's schema defaults read.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs take the strict twin via `strictInput` (`@orb/kit/zod-schema`).
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import type { ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";

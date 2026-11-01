@@ -39,7 +39,7 @@ import {
 } from "@orb/contracts/chat";
 
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { strictInput } from "@orb/kit/zod-schema";
+import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
 import { redeemInviteResultSchema } from "../role-output.ts";
 import { multiHumanProcedure, t } from "../trpc.ts";
@@ -98,17 +98,20 @@ export const invitesRouter = t.router({
   // THE one human-join path (the atomic participant-insert chokepoint).
   redeemInvite: multiHumanProcedure
     .input(redeemInviteSchema)
-    .output(redeemInviteResultSchema)
+    .output(strictTwin(redeemInviteResultSchema))
     .mutation(({ ctx, input }) => ctx.services.chat.redeemInvite({ principal: ctx.auth, input })),
 
   // The token-FREE in-app accept of a TARGETED invite by id (the notification→accept loop) — self-authorizing
   // (the invite is bound to `ctx.auth.userId`); a share-link / foreign / spent invite is a leak-free NOT_FOUND.
   acceptInvite: multiHumanProcedure
     .input(acceptInviteSchema)
-    .output(redeemInviteResultSchema)
+    .output(strictTwin(redeemInviteResultSchema))
     .mutation(({ ctx, input }) => ctx.services.chat.acceptInvite({ principal: ctx.auth, inviteId: input.inviteId })),
 
-  revokeInvite: multiHumanProcedure.input(revokeSchema).mutation(({ ctx, input }) => ctx.services.chat.revokeInvite({ principal: ctx.auth, ...input })),
+  revokeInvite: multiHumanProcedure
+    .output(z.void())
+    .input(revokeSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.revokeInvite({ principal: ctx.auth, ...input })),
 
   // FIX #4 — the host-management outstanding-invites read (`InviteView`s; tokens never re-derivable).
   // A genuine `.query()`: unlike preview/redeem there is no raw token in the input or output, so the
@@ -119,27 +122,35 @@ export const invitesRouter = t.router({
     .query(({ ctx, input }) => ctx.services.chat.listInvites({ principal: ctx.auth, chatId: input.chatId })),
 
   declineInvite: multiHumanProcedure
+    .output(z.void())
     .input(declineSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.declineInvite({ principal: ctx.auth, inviteId: input.inviteId })),
 
   // Host removes a HUMAN member (character mute/remove is the ungated chat surface, not here).
-  kick: multiHumanProcedure.input(kickSchema).mutation(({ ctx, input }) => ctx.services.chat.kick({ principal: ctx.auth, ...input })),
+  kick: multiHumanProcedure
+    .output(z.void())
+    .input(kickSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.kick({ principal: ctx.auth, ...input })),
 
   // Host sets how much of the room's canon one HUMAN member may read (D16). The change takes effect on the
   // target's very NEXT read — the floor is resolved per-call from this column, never cached in a session.
   setMemberHistoryVisibility: multiHumanProcedure
+    .output(z.void())
     .input(setMemberHistoryVisibilitySchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setMemberHistoryVisibility({ principal: ctx.auth, ...input })),
 
   selfLeave: multiHumanProcedure
+    .output(z.void())
     .input(chatScopedSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.selfLeave({ principal: ctx.auth, chatId: input.chatId })),
 
   nominateHostHandoff: multiHumanProcedure
-    .input(strictInput(nominateSchema))
+    .output(z.void())
+    .input(strictTwin(nominateSchema))
     .mutation(({ ctx, input }) => ctx.services.chat.nominateHostHandoff({ principal: ctx.auth, ...input })),
 
   acceptHostHandoff: multiHumanProcedure
+    .output(z.void())
     .input(chatScopedSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.acceptHostHandoff({ principal: ctx.auth, chatId: input.chatId })),
 });
