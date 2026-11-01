@@ -2,7 +2,7 @@
 // scanners must keep reading links, code spans and dice stamps the way the patterns they replaced did.
 // @subject packages/kit/src/content/index.ts
 
-import { projectBodyForPreview, stripHiddenSpans, tokenizeContent } from "@orb/kit/content";
+import { contentSpanRaw, createHiddenSpanStreamScrubber, hiddenSpanRanges, projectBodyForPreview, stripHiddenSpans, tokenizeContent } from "@orb/kit/content";
 import { expect, test } from "@orb/testkit/node";
 
 const BUDGET_MS = 1000;
@@ -83,6 +83,89 @@ test.each([
   ["decreasing runs of ticks", `${PROSE_OPENER}${Array.from({ length: 700 }, (_, index) => `${TICK.repeat(700 - index)}a`).join("")}`],
 ])("dice stamps: %s is read in linear time", (_name, body) => {
   expect(elapsedMs(() => tokenizeContent(body, { committed: true }))).toBeLessThan(BUDGET_MS);
+});
+
+const imagesOf = (body: string): { alt: string; url: string }[] =>
+  tokenizeContent(body, { committed: true }).flatMap((span) =>
+    span.kind === "image" && span.ref.kind === "external" ? [{ alt: span.alt, url: span.ref.url }] : [],
+  );
+
+test.each([
+  [
+    "two refs",
+    "![a](b) ![c](d)",
+    [
+      { alt: "a", url: "b" },
+      { alt: "c", url: "d" },
+    ],
+  ],
+  [
+    "refs side by side",
+    "![a](b)![c](d)",
+    [
+      { alt: "a", url: "b" },
+      { alt: "c", url: "d" },
+    ],
+  ],
+  ["a title form is text", '![a](u "t")', []],
+  ["an empty target is text", "![a]() ![c](d)", [{ alt: "c", url: "d" }]],
+  ["a spaced target gives way to a later ref", "![a](b c) ![d](e)", [{ alt: "d", url: "e" }]],
+  ["an open inside a failed target still opens", "![a](b![c d](e)", [{ alt: "c d", url: "e" }]],
+  ["an open inside a whole target does not", "![a](b![c](d)", [{ alt: "a", url: "b![c](d" }]],
+  ["an earlier open joins the alt up to the first close", "![![a](b)", [{ alt: "![a", url: "b" }]],
+  ["a close with no target passes every open before it", "![![a] ![b](c)", [{ alt: "b", url: "c" }]],
+  ["a close in the target is target", "![a](b]c)", [{ alt: "a", url: "b]c" }]],
+  ["an unclosed target is text", "![a](b", []],
+  ["a target ended by any whitespace is text", "![a](b\u00A0c)", []],
+  ["a mark away from the bracket is text", "! [a](b)", []],
+])("image refs: %s", (_name, body, images) => {
+  expect(imagesOf(body)).toEqual(images);
+  expect(tokenizeContent(body, { committed: true }).map(contentSpanRaw).join("")).toBe(body);
+});
+
+test.each([
+  ["image opens", "![".repeat(60_000)],
+  ["image opens with a shared close", `${"![".repeat(60_000)}]`],
+  ["empty refs with no close paren", "![](".repeat(30_000)],
+  ["spaced refs", "![a]( x".repeat(20_000)],
+  ["empty refs that share one far stop", `${"![](".repeat(30_000)} x`],
+])("image refs: a long run of %s is read in linear time", (_name, body) => {
+  expect(elapsedMs(() => tokenizeContent(body, { committed: true }))).toBeLessThan(BUDGET_MS);
+  expect(elapsedMs(() => stripHiddenSpans(body))).toBeLessThan(BUDGET_MS);
+  expect(elapsedMs(() => projectBodyForPreview(body))).toBeLessThan(BUDGET_MS);
+});
+
+test.each([
+  ["ticks that open a delta", ["Hi", `\`\`\`<lie truth="${SECRET}"/> seen`]],
+  ["a closing fence line in the same delta", ["```\ncode\n", `\`\`\`\n<lie truth="${SECRET}"/> seen`]],
+  ["a fence line ahead of the tag in one delta", [`a\n\`\`\`\n<lie truth="${SECRET}"/> seen`]],
+])("the stream conceals a tag behind %s", (_name, deltas) => {
+  const scrubber = createHiddenSpanStreamScrubber();
+  const emitted = [...deltas.map((delta) => scrubber.push(delta)), scrubber.flush()].join("");
+  expect(emitted).toContain("seen");
+  expect(emitted).not.toContain(SECRET);
+});
+
+test("hidden ranges are the bytes the strip removes", () => {
+  const tag = `<lie truth="${SECRET}"/>`;
+  const body = `Hi ${tag} and <ofilter event="e"/> tail`;
+  const ranges = hiddenSpanRanges(body);
+  expect(ranges.map(({ start, end }) => body.slice(start, end))).toEqual([tag, '<ofilter event="e"/>']);
+  let kept = "";
+  let cursor = 0;
+  for (const { start, end } of ranges) {
+    kept += body.slice(cursor, start);
+    cursor = end;
+  }
+  expect(kept + body.slice(cursor)).toBe(stripHiddenSpans(body).content);
+});
+
+test.each([
+  ["an unclosed open reaches the end", `a <lie truth="${SECRET}`, [[2, 2 + `<lie truth="${SECRET}`.length]]],
+  ["prose holds no range", "<lie down on the bed", []],
+  ["a fenced tag stays literal", '```\n<lie truth="x"/>\n```', []],
+])("hidden ranges: %s", (_name, body, ranges) => {
+  expect(hiddenSpanRanges(body).map(({ start, end }) => [start, end])).toEqual(ranges);
 });
 
 test.each([

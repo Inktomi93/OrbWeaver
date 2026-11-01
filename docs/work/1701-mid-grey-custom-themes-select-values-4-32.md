@@ -1,8 +1,8 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-31
-priority: P2
+updated: 2026-11-01
+priority: P1
 area: ui
 plan: cross-surface-consistency
 ---

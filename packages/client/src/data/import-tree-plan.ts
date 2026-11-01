@@ -65,7 +65,7 @@ const WORLDS_DIR = "worlds" satisfies StProfileHandledEntry;
 // Generic and profile plans report the same per-file cap refusal.
 const OVER_FILE_CAP_REASON = "over the per-file size cap";
 const OVER_UPLOAD_CAP_REASON = "too large for one upload";
-const UNHANDLED_FALLBACK = "no importer for this plane";
+const UNHANDLED_FALLBACK = "Orbweaver cannot import this";
 /** Why `secrets.json` is left out, from the one reason map. */
 const ST_PROFILE_SECRETS_REASON = (stProfileEntryDisposition(ST_SECRETS_FILE, false) as { readonly reason: string | null }).reason ?? UNHANDLED_FALLBACK;
 

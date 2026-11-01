@@ -27,9 +27,9 @@
 import type { ImportPreview, PersonaCollision, PersonaCollisionChoice, PersonaCollisionChoices } from "@orb/contracts/import";
 import { DEFAULT_PERSONA_COLLISION_CHOICE, mergeImportPreviews } from "@orb/contracts/import";
 import type { WorkloadId } from "@orb/kit/ids";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { TreeImportCaps, TreeImportPlan } from "#data";
-import { importBundle, importCharacters, importTree, planServedFolderImport, relativePathOf, useInvalidation, useTRPC, useUploadCaps } from "#data";
+import { HttpError, importBundle, importCharacters, importTree, planServedFolderImport, relativePathOf, useInvalidation, useTRPC, useUploadCaps } from "#data";
 import { notify } from "#lib";
 import type { BundleCounts, ImportSummary } from "../lib/portability-model.ts";
 import { planNotes, sumBundleCounts, summarizeBundleCounts, summarizeCardImport, summaryCaption } from "../lib/portability-model.ts";
@@ -47,6 +47,27 @@ interface BatchProgress {
 const NO_PROGRESS: WorkloadProgressView = { pct: null, label: null };
 const NO_PREVIEW = { status: "off" } as const;
 const UNREADABLE_PREVIEW = "The server returned no preview.";
+const HTTP_CONFLICT = 409;
+const HTTP_TOO_LARGE = 413;
+const HTTP_SERVER_ERROR = 500;
+/** A cancelled dry run holds the account's import slot until it settles, so the next upload is refused for a
+ *  moment. The dry run waits that out instead of failing. */
+const CONFLICT_RETRY_MS = 1000;
+const CONFLICT_RETRY_LIMIT = 30;
+
+/** What the reader is told when the dry run could not start. The status and the server's text stay out of it. */
+function previewFailureMessage(error: unknown): string {
+  if (!(error instanceof HttpError)) {
+    return "Could not reach the server.";
+  }
+  if (error.status === HTTP_CONFLICT) {
+    return "Another import is still finishing.";
+  }
+  if (error.status === HTTP_TOO_LARGE) {
+    return "This folder is too large to preview.";
+  }
+  return error.status >= HTTP_SERVER_ERROR ? "The server could not read this folder." : "The server did not accept this folder for a preview.";
+}
 
 /** The staged folder's dry run. A pick with no preview sits at `off`; a failed preview leaves the import available. */
 export type ImportPreviewState =
@@ -102,6 +123,8 @@ export interface LibraryImport {
   readonly confirm: () => void;
   /** Drop the staged selection, having imported nothing. */
   readonly cancel: () => void;
+  /** Run the staged folder's dry run again after it failed. */
+  readonly retryPreview: () => void;
   /** Return to the resting dropzone (clears a prior report / error). */
   readonly reset: () => void;
   /** Wired into the workload tracker while `state.status === "running"`. */
@@ -146,6 +169,22 @@ export function useLibraryImport(): LibraryImport {
   const requestEpoch = useRef(0);
   const folderRun = useRef<FolderRun | null>(null);
   const previewRun = useRef<PreviewRun | null>(null);
+  const conflictTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearConflictTimer = (): void => {
+    if (conflictTimer.current !== null) {
+      clearTimeout(conflictTimer.current);
+      conflictTimer.current = null;
+    }
+  };
+  useEffect(
+    () => (): void => {
+      if (conflictTimer.current !== null) {
+        clearTimeout(conflictTimer.current);
+      }
+    },
+    [],
+  );
 
   const setPreview = (run: PreviewRun, preview: ImportPreviewState): void => {
     if (previewRun.current === run) {
@@ -164,12 +203,13 @@ export function useLibraryImport(): LibraryImport {
   const dropPreview = (): void => {
     const run = previewRun.current;
     previewRun.current = null;
+    clearConflictTimer();
     if (run !== null && run.workloadId !== null) {
       cancelWorkload.mutate({ id: run.workloadId });
     }
   };
 
-  const sendPreviewBatch = (run: PreviewRun): void => {
+  const sendPreviewBatch = (run: PreviewRun, attempt = 0): void => {
     const batch = run.plan.batches[run.index];
     if (batch === undefined) {
       setPreview(run, { status: "ready", preview: mergeImportPreviews(run.previews) });
@@ -179,7 +219,8 @@ export function useLibraryImport(): LibraryImport {
     const position = { index: run.index, total: run.plan.batches.length };
     run.workloadId = null;
     setPreview(run, { status: "reading", workloadId: null, progress: NO_PROGRESS, batch: position });
-    // the .catch below calls failPreview(), which leaves the staged import available and shows why.
+    // the .catch below calls failPreview(), which leaves the staged import available and shows why. A refusal
+    // for a running import is retried while this run is still the live one.
     importTree(batch, {}, run.plan.layout, { dryRun: true })
       .then(({ workloadId }) => {
         if (previewRun.current !== run) {
@@ -189,7 +230,28 @@ export function useLibraryImport(): LibraryImport {
         run.workloadId = workloadId;
         setPreview(run, { status: "reading", workloadId, progress: NO_PROGRESS, batch: position });
       })
-      .catch((error: unknown) => failPreview(run, errorMessage(error)));
+      .catch((error: unknown) => {
+        if (error instanceof HttpError && error.status === HTTP_CONFLICT && attempt < CONFLICT_RETRY_LIMIT && previewRun.current === run) {
+          conflictTimer.current = setTimeout(() => {
+            conflictTimer.current = null;
+            if (previewRun.current === run) {
+              sendPreviewBatch(run, attempt + 1);
+            }
+          }, CONFLICT_RETRY_MS);
+          return;
+        }
+        failPreview(run, previewFailureMessage(error));
+      });
+  };
+
+  const retryPreview = (): void => {
+    if (state.status !== "staged" || state.preview.status !== "failed" || state.plan === null || !state.plan.previewable) {
+      return;
+    }
+    dropPreview();
+    const run: PreviewRun = { plan: state.plan, index: 0, workloadId: null, previews: [] };
+    previewRun.current = run;
+    sendPreviewBatch(run);
   };
 
   const finish = (epoch: number, summary: ImportSummary): void => {
@@ -393,7 +455,7 @@ export function useLibraryImport(): LibraryImport {
     folderRun.current = null;
     setState({ status: "idle" });
   };
-  return { state, stageFiles, stageFolder, chooseCollision, chooseAllCollisions, confirm, cancel, reset, track, previewTrack };
+  return { state, stageFiles, stageFolder, chooseCollision, chooseAllCollisions, confirm, cancel, retryPreview, reset, track, previewTrack };
 }
 
 function errorMessage(error: unknown): string {
