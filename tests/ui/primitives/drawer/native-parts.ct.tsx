@@ -1,9 +1,10 @@
 import { expect, test } from "@playwright/test";
+import { CHARACTER_FILTERS_NAME } from "#client/features/character/lib/character-names.ts";
 import type { DrawerDepthStory, DrawerHandleStory } from "./_native-parts-stories.tsx";
 
 test("the closed edge target occupies the bottom edge and provider depth follows open and close", async ({ mount, page }) => {
   await mount<typeof DrawerDepthStory>("tests/ui/primitives/drawer/_native-parts-stories/DrawerDepthStory");
-  const popup = page.getByRole("dialog", { name: "Filters", exact: true });
+  const popup = page.getByRole("dialog", { name: CHARACTER_FILTERS_NAME, exact: true });
   const edge = page.locator('[data-slot="drawer-swipe-area"]');
   const indent = page.locator('[data-slot="drawer-indent"]');
   const background = page.locator('[data-slot="drawer-indent-background"]');

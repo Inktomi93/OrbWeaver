@@ -865,7 +865,7 @@ function packageTestMirrorRules([pkg, packageCake]: readonly [string, string]): 
             comment: "A feature suite or story runs only its own feature's door; another feature reaches it through the composed registries.",
             from: "^tests/client/features/([^/]+)/",
             to: `${CLIENT}features/`,
-            toNot: [`${CLIENT}features/$1/`],
+            toNot: [`${CLIENT}features/$1/`, ...TEST_CONSTANT_HOME_PATHS],
             runtime: true,
           }),
           mirrorRule({
@@ -873,7 +873,7 @@ function packageTestMirrorRules([pkg, packageCake]: readonly [string, string]): 
             comment: "A suite of a client tier below the features runs no feature door.",
             from: "^tests/client/(?!features/)[^/]+/",
             to: `${CLIENT}features/`,
-            toNot: [],
+            toNot: TEST_CONSTANT_HOME_PATHS,
             runtime: true,
           }),
           mirrorRule({

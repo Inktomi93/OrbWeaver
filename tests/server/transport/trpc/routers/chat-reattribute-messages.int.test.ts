@@ -10,7 +10,7 @@ import { streamConnectInputSchema } from "@orb/contracts/stream";
 import { closeDb } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, MessageId } from "@orb/kit/ids";
-import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { signInWithPassword } from "@orb/testkit/node/auth";
 import type { ChatRoot, ServerTestHarness } from "@orb/testkit/node/composed";
@@ -141,7 +141,7 @@ test("a stranger's character and a nonexistent id get one refusal, and no foreig
   await using seeded = await room();
   const { h, firstReply, ada } = seeded;
   const { characterId: foreign } = await strangerOf(h, "reattr-tenant");
-  const nonexistent = mintTypeId(ID_PREFIX.character);
+  const nonexistent = h.root.idSource.typeId(ID_PREFIX.character);
   const input = { chatId: h.chatId, messageIds: [firstReply] };
 
   const events = await eventsDuring(h, async () => {
@@ -164,7 +164,7 @@ test("a deleted character is refused like a stranger's, because its seat went wi
   await h.caller.character.remove({ characterId: bex });
   const deleted = await refusalOf(h.caller.chat.reattributeMessages({ chatId: h.chatId, messageIds: [firstReply], characterId: bex }));
   const missing = await refusalOf(
-    h.caller.chat.reattributeMessages({ chatId: h.chatId, messageIds: [firstReply], characterId: mintTypeId(ID_PREFIX.character) }),
+    h.caller.chat.reattributeMessages({ chatId: h.chatId, messageIds: [firstReply], characterId: h.root.idSource.typeId(ID_PREFIX.character) }),
   );
   expect(deleted.code).toBe("NOT_FOUND");
   expect(deleted).toEqual(missing);
@@ -174,7 +174,7 @@ test("a deleted character is refused like a stranger's, because its seat went wi
 test("the wire refuses a persona id, an unknown key, an empty list and an over-long list before the verb", async () => {
   await using seeded = await room();
   const { h, firstReply, ada, bex } = seeded;
-  const persona = mintTypeId(ID_PREFIX.persona);
+  const persona = h.root.idSource.typeId(ID_PREFIX.persona);
   const input = { chatId: h.chatId, messageIds: [firstReply], characterId: bex };
   await expect(h.caller.chat.reattributeMessages({ ...input, characterId: castId<CharacterId>(persona) })).toThrowTRPCError("BAD_REQUEST");
   await expect(h.caller.chat.reattributeMessages({ ...input, personaId: persona } as typeof input)).toThrowTRPCError("BAD_REQUEST");
@@ -236,7 +236,7 @@ test("a removed seat is no target until it is re-added, and a row can still leav
 
   const removed = await refusalOf(h.caller.chat.reattributeMessages({ chatId: h.chatId, messageIds: [firstReply], characterId: bex }));
   const missing = await refusalOf(
-    h.caller.chat.reattributeMessages({ chatId: h.chatId, messageIds: [firstReply], characterId: mintTypeId(ID_PREFIX.character) }),
+    h.caller.chat.reattributeMessages({ chatId: h.chatId, messageIds: [firstReply], characterId: h.root.idSource.typeId(ID_PREFIX.character) }),
   );
   expect(removed.code).toBe("NOT_FOUND");
   expect(removed).toEqual(missing);

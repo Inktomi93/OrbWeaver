@@ -4,21 +4,20 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { slugifyHandle } from "@orb/kit/slug";
 import { abortProcedure } from "@orb/testkit/node/helpers";
 import type { Locator, Page } from "@playwright/test";
+import { CHARACTER_EDITOR_NAME, CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
 import { AUTOSAVE_RESUME_NAME, AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { charactersRailButton, waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_CORPUS_FIXTURE } from "./support/modes.ts";
 
-const EDITOR_NAME = "Edit character";
-
 /** Open the library row stored as `name`; the editor then shows `shown`, which differs when a draft was restored. */
 async function openCharacter(page: Page, name: string, shown = name): Promise<Locator> {
   await charactersRailButton(page).click();
   const list = page.locator('.shell-panel[data-panel-side="list"]');
   await list.getByRole("textbox", { name: "Search characters", exact: true }).fill(name);
-  await list.getByRole("list", { name: "Character library", exact: true }).getByRole("button", { name, exact: true }).click();
-  const form = page.getByRole("form", { name: EDITOR_NAME, exact: true });
+  await list.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true }).getByRole("button", { name, exact: true }).click();
+  const form = page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true });
   await expect(form.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(shown);
   return form;
 }
