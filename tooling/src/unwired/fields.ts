@@ -315,7 +315,18 @@ function declarations(world: NativeWorld): readonly FieldDeclaration[] {
     };
     return [field];
   });
-  return [...fromTypes, ...fromSchemas];
+  return uniquelyKeyed([...fromTypes, ...fromSchemas]);
+}
+
+// Union options name one key under one home, and each is its own field with its own sites. Declarations walk in source
+// order, so every world numbers them alike and the first keeps the bare key.
+function uniquelyKeyed(fields: readonly FieldDeclaration[]): readonly FieldDeclaration[] {
+  const seen = new Map<string, number>();
+  return fields.map((field) => {
+    const nth = (seen.get(field.key) ?? 0) + 1;
+    seen.set(field.key, nth);
+    return nth === 1 ? field : { ...field, key: `${field.key}#${nth}` };
+  });
 }
 
 function serviceReflectionsAt(node: ts.Node): readonly Reflection<ts.Node>[] {

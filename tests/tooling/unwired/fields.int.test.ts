@@ -124,7 +124,8 @@ test("the fields scan reports never-read, never-written and unreferenced fields,
     { field: "Stranger.title", kind: "unreferenced", origin: "type", tests: 0 },
     { field: "Tree.leaf", kind: "unreferenced", origin: "type", tests: 0 },
   ]);
-  expect(report.disagreements).toEqual([]);
+  // The read narrows to the first option; find-references climbs to every option that declares the member.
+  expect(report.disagreements).toEqual([{ key: "packages/a/src/outside.ts:HealthSchema.at#2", uses: ["packages/a/src/outside.ts:35"] }]);
 });
 
 test("a field the deliberate list names leaves the unwired list with its reason", { timeout: 120_000 }, async ({ plantedTree }) => {
@@ -194,6 +195,28 @@ test("a write that reaches a home only through a link does not mark the home wri
   const planted = report.unwired.filter(({ file }) => file.endsWith("env.ts"));
   expect(planted.map(({ home, member, kind }) => `${home}.${member} ${kind}`)).toEqual(["Written.extra never-written"]);
   expect(report.disagreements).toEqual([]);
+});
+
+// Two options of a union name one key: each is its own field, judged on its own sites. `Lone.tag` is the control: one
+// declaration keeps the bare key.
+const OPTIONS = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/z.ts": TREE["packages/a/src/z.ts"],
+  "packages/a/src/options.ts": [
+    'import { z } from "./z.ts";',
+    "export const Actor = z.discriminatedUnion('kind', [",
+    "  z.object({ kind: z.string(), tag: z.string() }),",
+    "  z.object({ kind: z.string(), tag: z.string(), name: z.string() }),",
+    "]);",
+    "export const Lone = z.object({ tag: z.string() });",
+  ].join("\n"),
+};
+
+test("each union option's key is its own field", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(OPTIONS);
+  const report = scanFields({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const keys = report.unwired.flatMap(({ file, key }) => (file.endsWith("options.ts") ? [key.replace("packages/a/src/options.ts:", "")] : []));
+  expect(keys.toSorted()).toEqual(["Actor.kind", "Actor.kind#2", "Actor.name", "Actor.tag", "Actor.tag#2", "Lone.tag"]);
 });
 
 // The client imports the router through `@orb/server`; with no declaration surface planted, only the scans' source
