@@ -40,10 +40,10 @@ import type { CharacterId } from "@orb/kit/ids";
 import { Row, Stack } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { QueryErrorState, useTRPC } from "#data";
+import { QueryBoundary } from "#components";
+import { QueryErrorState, useSuspenseQueries, useTRPC } from "#data";
 import { deriveChatTitle, timeLib } from "#lib";
 
 const REFINERY_SCORE_DECIMALS = 2;
@@ -64,25 +64,28 @@ export interface CharacterOverviewCardProps {
 /** The Field tab at rest: where this card CAME FROM, what it is linked to, how it renders, and when you two
  *  last spoke — with the pick-a-field hint demoted to the footer. */
 export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProps): ReactElement {
+  // Both reads settle together under the card's own boundary: a pending or failed chats read must not print
+  // "Never" for when you two last spoke, and a failed read says so with the way to re-read it.
+  return (
+    <QueryBoundary
+      fallback={<Text voice="quiet">Loading…</Text>}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="this character" onRetry={retry} />}
+    >
+      <OverviewBody characterId={characterId} />
+    </QueryBoundary>
+  );
+}
+
+function OverviewBody({ characterId }: CharacterOverviewCardProps): ReactElement {
   const trpc = useTRPC();
-  const { data, isError, refetch } = useQuery(trpc.character.get.queryOptions({ characterId }));
   // HER page-of-one (2026-08-09): `items[0]` is her newest-updated thread, and the list's own order is
   // last-activity — so that row IS the last time you two spoke, and it is the same row the chats projection's
   // identity gloss reads, so the two surfaces cannot print different "last" times.
-  const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({ characterId, limit: NEWEST_THREAD_ONLY }));
+  const [{ data }, { data: chats }] = useSuspenseQueries({
+    queries: [trpc.character.get.queryOptions({ characterId }), trpc.chat.listChats.queryOptions({ characterId, limit: NEWEST_THREAD_ONLY })],
+  });
 
-  // A FAILED READ IS NOT A SLOW ONE (#1500). `data === undefined` used to be the only branch, so once the
-  // client's two retries were spent the card sat on "Loading…" forever with no recovery but a page reload —
-  // the panel's whole content, stuck, claiming to be working. The error arm comes FIRST because it is the
-  // narrower claim: `isError` implies `data === undefined`, never the reverse.
-  if (isError) {
-    return <QueryErrorState label="this character" onRetry={(): void => void refetch().catch(globalThis.reportError)} />;
-  }
-  if (data === undefined) {
-    return <Text voice="quiet">Loading…</Text>;
-  }
-
-  const newest = chatsQuery.data?.items[0];
+  const newest = chats.items[0];
   const lastMessageAt = newest === undefined ? null : (newest.lastMessageAt ?? newest.updatedAt);
   // The ACCEPTED chips as the card wears them — hidden-on-card tags are excluded here for the same reason
   // the hero's strip excludes them: a tag hidden on the card is not part of what this card SAYS it is.

@@ -25,11 +25,10 @@ import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { FormDialog } from "#components";
-import { SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { FormDialog, QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { regexScriptScent, regexScriptTitle, timeLib } from "#lib";
 import { useAttachScriptToChat } from "../hooks/use-chat-regex-mutations.ts";
 
@@ -53,35 +52,40 @@ export function AddChatScriptDialog({ chatId, open, onOpenChange, attachedIds }:
       open={open}
       title="Attach a script to this chat"
     >
-      {/* Non-suspending: the dialog frame paints at once and the candidate list fills in, so opening the
+      {/* The picker reads inside its own boundary: the dialog frame paints at once and the candidate list fills in, so opening the
           picker never blanks the panel behind it through a shared suspense boundary. */}
       <PickerBody attachedIds={attachedIds} chatId={chatId} onClose={(): void => onOpenChange(false)} />
     </FormDialog>
   );
 }
 
-function PickerBody({
-  attachedIds,
-  chatId,
-  onClose,
-}: {
+interface PickerBodyProps {
   readonly attachedIds: readonly RegexScriptId[];
   readonly chatId: ChatId;
   readonly onClose: () => void;
-}): ReactElement {
+}
+
+// The boundary is the dialog body's own, so a failed library read says so with a Retry instead of reading as "no scripts".
+function PickerBody(props: PickerBodyProps): ReactElement {
+  return (
+    <QueryBoundary
+      fallback={<SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="your scripts" onRetry={retry} />}
+    >
+      <ScriptPicker {...props} />
+    </QueryBoundary>
+  );
+}
+
+function ScriptPicker({ attachedIds, chatId, onClose }: PickerBodyProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const attach = useAttachScriptToChat({ trpc, invalidation });
-  const library = useQuery(trpc.regex.listScripts.queryOptions());
+  const { data: scripts } = useSuspenseQuery(trpc.regex.listScripts.queryOptions());
   const [filter, setFilter] = useState("");
   const [picked, setPicked] = useState<readonly RegexScriptId[]>([]);
   const [failure, setFailure] = useState<string | null>(null);
 
-  if (library.isPending) {
-    return <SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" />;
-  }
-
-  const scripts = library.data ?? [];
   if (scripts.length === 0) {
     return (
       <EmptyState

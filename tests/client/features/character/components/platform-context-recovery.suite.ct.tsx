@@ -120,7 +120,7 @@ async function expectRetryContained(context: Locator, retry: Locator): Promise<v
   expect((await actionGroupGeometry(context, [retry])).inlineOverflow).toBeLessThanOrEqual(1);
 }
 
-async function openCharacterContext(page: Page, tabName: "History" | "Links" | "Look"): Promise<void> {
+async function openCharacterContext(page: Page, tabName: "History" | "Links" | "Look" | "Overview"): Promise<void> {
   await selectCharacter(page, CARD_NAME);
   if ((await page.locator('.shell-panel[data-panel-side="context"]').getAttribute("data-panel-mode")) === "collapsed") {
     await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
@@ -208,6 +208,24 @@ test("Links does not claim nothing is linked while its real reads are held", asy
     pending.release();
     await expect(context.getByText("No world books linked.", { exact: true })).toBeVisible();
     await expect(context.getByText("No personas connected.", { exact: true })).toBeVisible();
+  } finally {
+    pending.release();
+  }
+});
+
+test("Overview does not claim you never spoke while its newest-thread read is held", async ({ page, corpus, mount }) => {
+  await using root = await createCorpusHarness(undefined, { startJobs: false });
+  const { caller, reads } = await prepare(root, page, corpus);
+  const pending = holdServed();
+  await routeTrpc(page, { ...reads, ...serveCorpusProcedures(caller, ["chat.listChats"], (input) => (input?.limit === 1 ? pending : undefined)) });
+  try {
+    await mount<typeof ShellAmbientStory>(STORY, {});
+    await openCharacterContext(page, "Overview");
+    await pending.requested;
+    const context = page.locator('.shell-panel[data-panel-side="context"]');
+    await expect(context.getByText("Never", { exact: true })).toHaveCount(0);
+    pending.release();
+    await expect(context.getByText("Never", { exact: true })).toBeVisible();
   } finally {
     pending.release();
   }
