@@ -252,3 +252,29 @@ export function PortraitAvatar({
     </ArtButton>
   );
 }
+
+/** The gutter chip: the Avatar with its image, opening full size through `view`. A chip whose image failed to load
+ *  keeps the Avatar's initials and drops the tap target, like the other styles' art. `layoutClassName` seats the chip on
+ *  whichever element is outermost: the chip, or the button that opens it. */
+export function ChipAvatar({
+  src,
+  view,
+  layoutClassName,
+  ...avatar
+}: Omit<AvatarProps, "className" | "src"> & {
+  readonly src?: string;
+  readonly view: ArtView | null;
+  readonly layoutClassName: string;
+}): ReactElement {
+  const { attach, failed } = useSlotImage(src === undefined ? undefined : (): string => src);
+  const tappable = view !== null && !failed;
+  const chip = <Avatar ref={attach} {...avatar} className={tappable ? "" : layoutClassName} {...(src === undefined || failed ? {} : { src })} />;
+  if (!tappable) {
+    return chip;
+  }
+  return (
+    <ArtButton view={view} className={layoutClassName}>
+      {chip}
+    </ArtButton>
+  );
+}
