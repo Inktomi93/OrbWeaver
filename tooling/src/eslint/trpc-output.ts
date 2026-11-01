@@ -1,6 +1,6 @@
 // Every tRPC output is strict, but a spread or a wider typed value passes tsc and fails at runtime. A resolver is judged
-// whole; any other returned literal is judged for its spreads when its type is a contract's. An argument or a variable
-// is an input to someone else, not an output, so it is not judged.
+// whole; any other returned literal, a value bound to an annotated contract-typed variable, and an element pushed onto a
+// contract-typed array are judged for their spreads. An ordinary call argument is an input to someone else, so it is not judged.
 
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
@@ -12,21 +12,23 @@ import { excessKeys, undeclaredKeys } from "./type-keys.ts";
 // The procedure builder calls whose function argument is a resolver.
 const RESOLVER_METHODS: ReadonlySet<string> = new Set(["query", "mutation"]);
 
-// A type declared under the contracts package or a domain's `contract/` folder is a wire or port shape.
-const CONTRACT_FILE = /\/packages\/contracts\/|\/contract\//u;
+/** The path of a wire or port shape: the contracts package or a domain's `contract/` folder. */
+export const CONTRACT_FILE = /\/packages\/contracts\/|\/contract\//u;
 
 const message = (keys: readonly string[], resolver: boolean): string =>
   `This ${resolver ? "resolver" : "return"} carries ${keys.map((key) => `\`${key}\``).join(", ")}, which the declared ${resolver ? "procedure output" : "contract type"} does not declare, and the strict output refuses an undeclared key at runtime. Build the value from the declared type: name each field, or omit the extra keys before the spread.`;
 
 const members = (type: ts.Type): readonly ts.Type[] => (type.isUnion() ? type.types : [type]);
 
-function declaredHere(type: ts.Type): boolean {
+/** Whether a type is declared under the contracts package or a domain's `contract/` folder. */
+export function declaredHere(type: ts.Type): boolean {
   const declarations = (type.aliasSymbol ?? type.getSymbol())?.getDeclarations() ?? [];
   return declarations.some((declaration) => CONTRACT_FILE.test(declaration.getSourceFile().fileName));
 }
 
-// One array level deep: a recursive element type (a JSON value) would otherwise never end.
-function declaredInContract(checker: ts.TypeChecker, type: ts.Type): boolean {
+/** Whether a type, or the element of an array of it, is declared under the contracts package or a `contract/` folder.
+ *  One array level deep: a recursive element type (a JSON value) would otherwise never end. */
+export function declaredInContract(checker: ts.TypeChecker, type: ts.Type): boolean {
   return members(type).some((member) => {
     const element = checker.isArrayLikeType(member) ? checker.getIndexTypeOfType(member, ts.IndexKind.Number) : undefined;
     return element === undefined ? declaredHere(member) : members(element).some(declaredHere);
@@ -55,7 +57,7 @@ function enclosingFunction(node: TSESTree.Node): TSESTree.Node | null {
   return null;
 }
 
-/** Refuses a tRPC resolver, or a return typed by a contract, carrying a key the declared output type does not declare. */
+/** Refuses a tRPC resolver, or a return, annotated variable or array push typed by a contract, carrying a key the declared output type does not declare. */
 export const trpcOutputKeysRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
@@ -121,6 +123,18 @@ export const trpcOutputKeysRule: OrbRule = {
       CallExpression: (node: TSESTree.CallExpression): void => {
         const [handler] = node.arguments;
         const callee = node.callee;
+        // `push` onto a contract-typed array builds that array's output; any other argument is someone else's input.
+        if (
+          callee.type === AST_NODE_TYPES.MemberExpression &&
+          isNamed(callee.property, "push") &&
+          checker.isArrayLikeType(checker.getTypeAtLocation(toTs.get(callee.object)))
+        ) {
+          for (const argument of node.arguments) {
+            if (argument.type !== AST_NODE_TYPES.SpreadElement) {
+              judge(argument, null);
+            }
+          }
+        }
         if (
           handler !== undefined &&
           callee.type === AST_NODE_TYPES.MemberExpression &&
@@ -129,6 +143,11 @@ export const trpcOutputKeysRule: OrbRule = {
           (handler.type === AST_NODE_TYPES.Identifier || handler.type === AST_NODE_TYPES.MemberExpression)
         ) {
           judgeHandler(handler);
+        }
+      },
+      VariableDeclarator: (node: TSESTree.VariableDeclarator): void => {
+        if (node.id.typeAnnotation !== undefined && node.init !== null) {
+          judge(node.init, null);
         }
       },
       ReturnStatement: (node: TSESTree.ReturnStatement): void => {
