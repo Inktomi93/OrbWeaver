@@ -7,25 +7,25 @@ area: server
 plan: unwired-code
 ---
 
-# Wire the search controls for rerank and scopedCharacterId (owner: wire)
+# Wire the search controls for rerank and scopedCharacterId (owner: wire rerank, drop scopedCharacterId)
 
 ## What
 
-Add a Rerank results switch to the Corpus list pane, under the search box. It sends `rerank` on `search.search` for the Characters, Scenes, Memories and Images targets. The Text target has no switch. The ask lives in the corpus search store beside the query and target.
+Rerank is wired. The Corpus list pane has a Rerank results switch under the search box. It sends `rerank` on `search.search` for the Characters, Scenes, Memories and Images targets. The Text target has no switch. The ask lives in the corpus search store beside the query and target.
 
-The switch is disabled with the reason in its description while no Rerank model is running: unset, set but not running, or still loading. When the model is unset or blocked, the existing Model roles door sits beside it. A stored ask that no running model can serve is not sent.
+The switch is disabled with the reason in its description while no Rerank model is running: unset, set but not running, or still loading. When the model is unset or blocked, the Model roles door sits beside it. A stored ask that no running model can serve is not sent.
 
-`scopedCharacterId` is not wired. It exists only on the `chat` scope, which also needs a `chatId`. The Corpus list searches the whole library and has no chat. No client surface searches inside one chat, and the digest moment view is a read view. A control would need a new in-chat search surface, which needs an owner design call.
+`scopedCharacterId` is dropped. The key left the `chat` search scope in `packages/contracts/src/search/index.ts`, and the `chat` scope now carries only `chatId`. The `segments` unified target needed it, so the target left `SEARCH_TARGETS`, the result union and `dispatchSegments`. The `segments` verb stays: chat recall calls it directly. The corpus fixture in `tests/support/node/corpus-data` was republished without the segments read.
 
 ## Why
 
-The server branches on `unifiedSearchInputSchema.rerank` and `searchScopeInputSchema.scopedCharacterId`, and no client sends either. The owner ruled to wire both.
+The server branched on `unifiedSearchInputSchema.rerank` and `searchScopeInputSchema.scopedCharacterId`, and no client sent either. The owner ruled to wire rerank. The owner ruled to drop `scopedCharacterId`: it only exists on the chat scope, the Corpus list searches the whole library, and no client surface searches inside one chat.
 
 ## Done when
 
 - Switching Rerank results on makes the next `search.search` request carry `rerank: true`, and the result disclosure reports the rerank as requested.
 - With no running Rerank model the switch is disabled and states why.
-- `scopedCharacterId` has a home: either the owner picks a surface for an in-chat search, or the key leaves the contract.
+- No `scopedCharacterId` remains in the search scope contract, and no `segments` unified target remains.
 
 ## Evidence
 

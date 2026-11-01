@@ -1475,11 +1475,11 @@
   },
   "notificationInbox": {
     "readerRaised": {
-      "viewerUserId": "000000000000000000000007j4",
+      "viewerUserId": "000000000000000000000007j0",
       "output": {
         "items": [
           {
-            "id": "notification_000000000000000000000007k1",
+            "id": "notification_000000000000000000000007jx",
             "actionable": true,
             "seq": 2,
             "readAt": null,
@@ -1488,14 +1488,14 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007j4",
-              "chatId": "chat_000000000000000000000007js",
-              "inviteId": "chat_invite_000000000000000000000007k0",
-              "invitedByHandle": "c-000000000000000000000007jb"
+              "recipientUserId": "000000000000000000000007j0",
+              "chatId": "chat_000000000000000000000007jn",
+              "inviteId": "chat_invite_000000000000000000000007jw",
+              "invitedByHandle": "c-000000000000000000000007j7"
             }
           },
           {
-            "id": "notification_000000000000000000000007jz",
+            "id": "notification_000000000000000000000007jv",
             "actionable": true,
             "seq": 1,
             "readAt": null,
@@ -1504,10 +1504,10 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007j4",
-              "chatId": "chat_000000000000000000000007js",
-              "inviteId": "chat_invite_000000000000000000000007jy",
-              "invitedByHandle": "c-000000000000000000000007jb"
+              "recipientUserId": "000000000000000000000007j0",
+              "chatId": "chat_000000000000000000000007jn",
+              "inviteId": "chat_invite_000000000000000000000007jt",
+              "invitedByHandle": "c-000000000000000000000007j7"
             }
           }
         ],
@@ -1515,11 +1515,11 @@
       }
     },
     "readerRead": {
-      "viewerUserId": "000000000000000000000007j4",
+      "viewerUserId": "000000000000000000000007j0",
       "output": {
         "items": [
           {
-            "id": "notification_000000000000000000000007k1",
+            "id": "notification_000000000000000000000007jx",
             "actionable": true,
             "seq": 2,
             "readAt": 1750003795001,
@@ -1528,14 +1528,14 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007j4",
-              "chatId": "chat_000000000000000000000007js",
-              "inviteId": "chat_invite_000000000000000000000007k0",
-              "invitedByHandle": "c-000000000000000000000007jb"
+              "recipientUserId": "000000000000000000000007j0",
+              "chatId": "chat_000000000000000000000007jn",
+              "inviteId": "chat_invite_000000000000000000000007jw",
+              "invitedByHandle": "c-000000000000000000000007j7"
             }
           },
           {
-            "id": "notification_000000000000000000000007jz",
+            "id": "notification_000000000000000000000007jv",
             "actionable": true,
             "seq": 1,
             "readAt": 1750003795001,
@@ -1544,10 +1544,10 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007j4",
-              "chatId": "chat_000000000000000000000007js",
-              "inviteId": "chat_invite_000000000000000000000007jy",
-              "invitedByHandle": "c-000000000000000000000007jb"
+              "recipientUserId": "000000000000000000000007j0",
+              "chatId": "chat_000000000000000000000007jn",
+              "inviteId": "chat_invite_000000000000000000000007jt",
+              "invitedByHandle": "c-000000000000000000000007j7"
             }
           }
         ],
@@ -1555,11 +1555,11 @@
       }
     },
     "readerSettled": {
-      "viewerUserId": "000000000000000000000007j4",
+      "viewerUserId": "000000000000000000000007j0",
       "output": {
         "items": [
           {
-            "id": "notification_0000000000000000000000081q",
+            "id": "notification_0000000000000000000000081k",
             "actionable": true,
             "seq": 13,
             "readAt": null,
@@ -1568,14 +1568,14 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007j4",
-              "chatId": "chat_0000000000000000000000081h",
-              "inviteId": "chat_invite_0000000000000000000000081p",
-              "invitedByHandle": "c-000000000000000000000007jb"
+              "recipientUserId": "000000000000000000000007j0",
+              "chatId": "chat_0000000000000000000000081d",
+              "inviteId": "chat_invite_0000000000000000000000081j",
+              "invitedByHandle": "c-000000000000000000000007j7"
             }
           },
           {
-            "id": "notification_000000000000000000000007k1",
+            "id": "notification_000000000000000000000007jx",
             "actionable": false,
             "seq": 2,
             "readAt": 1750003795001,
@@ -1584,14 +1584,14 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007j4",
-              "chatId": "chat_000000000000000000000007js",
-              "inviteId": "chat_invite_000000000000000000000007k0",
-              "invitedByHandle": "c-000000000000000000000007jb"
+              "recipientUserId": "000000000000000000000007j0",
+              "chatId": "chat_000000000000000000000007jn",
+              "inviteId": "chat_invite_000000000000000000000007jw",
+              "invitedByHandle": "c-000000000000000000000007j7"
             }
           },
           {
-            "id": "notification_000000000000000000000007jz",
+            "id": "notification_000000000000000000000007jv",
             "actionable": false,
             "seq": 1,
             "readAt": 1750003795001,
@@ -1600,10 +1600,10 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007j4",
-              "chatId": "chat_000000000000000000000007js",
-              "inviteId": "chat_invite_000000000000000000000007jy",
-              "invitedByHandle": "c-000000000000000000000007jb"
+              "recipientUserId": "000000000000000000000007j0",
+              "chatId": "chat_000000000000000000000007jn",
+              "inviteId": "chat_invite_000000000000000000000007jt",
+              "invitedByHandle": "c-000000000000000000000007j7"
             }
           }
         ],
@@ -1611,11 +1611,11 @@
       }
     },
     "readerFinal": {
-      "viewerUserId": "000000000000000000000007j4",
+      "viewerUserId": "000000000000000000000007j0",
       "output": {
         "items": [
           {
-            "id": "notification_0000000000000000000000084p",
+            "id": "notification_0000000000000000000000084j",
             "actionable": false,
             "seq": 22,
             "readAt": null,
@@ -1624,13 +1624,13 @@
             "type": "deferred-turn-dropped",
             "payload": {
               "type": "deferred-turn-dropped",
-              "recipientUserId": "000000000000000000000007j4",
-              "chatId": "chat_00000000000000000000000845",
+              "recipientUserId": "000000000000000000000007j0",
+              "chatId": "chat_00000000000000000000000841",
               "reason": "chat-gone"
             }
           },
           {
-            "id": "notification_0000000000000000000000084b",
+            "id": "notification_00000000000000000000000847",
             "actionable": false,
             "seq": 21,
             "readAt": null,
@@ -1639,24 +1639,24 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007j4",
-              "chatId": "chat_00000000000000000000000845",
-              "inviteId": "chat_invite_0000000000000000000000084a",
-              "invitedByHandle": "c-000000000000000000000007jb"
+              "recipientUserId": "000000000000000000000007j0",
+              "chatId": "chat_00000000000000000000000841",
+              "inviteId": "chat_invite_00000000000000000000000846",
+              "invitedByHandle": "c-000000000000000000000007j7"
             }
           },
           {
-            "id": "notification_0000000000000000000000083z",
+            "id": "notification_0000000000000000000000083v",
             "actionable": false,
             "seq": 20,
             "readAt": null,
             "dismissedAt": null,
             "createdAt": 1750003795001,
             "type": "plugin-disabled",
-            "payload": { "type": "plugin-disabled", "recipientUserId": "000000000000000000000007j4", "pluginId": "plugin_0000000000000000000000083e" }
+            "payload": { "type": "plugin-disabled", "recipientUserId": "000000000000000000000007j0", "pluginId": "plugin_0000000000000000000000083a" }
           },
           {
-            "id": "notification_0000000000000000000000083j",
+            "id": "notification_0000000000000000000000083e",
             "actionable": false,
             "seq": 19,
             "readAt": null,
@@ -1665,14 +1665,14 @@
             "type": "automation-notice",
             "payload": {
               "type": "automation-notice",
-              "recipientUserId": "000000000000000000000007j4",
-              "chatId": "chat_000000000000000000000007js",
-              "source": { "kind": "plugin", "pluginId": "plugin_0000000000000000000000083e" },
+              "recipientUserId": "000000000000000000000007j0",
+              "chatId": "chat_000000000000000000000007jn",
+              "source": { "kind": "plugin", "pluginId": "plugin_0000000000000000000000083a" },
               "message": "The resident keeper has checked the ledger.The resident keeper has checked the ledger.The resident keeper has checked the ledger.The resident keeper has checked the ledger.The resident keeper has chec"
             }
           },
           {
-            "id": "notification_00000000000000000000000836",
+            "id": "notification_00000000000000000000000832",
             "actionable": false,
             "seq": 18,
             "readAt": null,
@@ -1681,24 +1681,24 @@
             "type": "automation-notice",
             "payload": {
               "type": "automation-notice",
-              "recipientUserId": "000000000000000000000007j4",
-              "chatId": "chat_000000000000000000000007js",
-              "source": { "kind": "rule", "ruleId": "automation_rule_00000000000000000000000830" },
+              "recipientUserId": "000000000000000000000007j0",
+              "chatId": "chat_000000000000000000000007jn",
+              "source": { "kind": "rule", "ruleId": "automation_rule_0000000000000000000000082w" },
               "message": "The room's ledger is ready for its witnesses."
             }
           },
           {
-            "id": "notification_0000000000000000000000082c",
+            "id": "notification_00000000000000000000000828",
             "actionable": false,
             "seq": 15,
             "readAt": 1750003795001,
             "dismissedAt": null,
             "createdAt": 1750003795001,
             "type": "kicked",
-            "payload": { "type": "kicked", "recipientUserId": "000000000000000000000007j4", "chatId": "chat_0000000000000000000000081h" }
+            "payload": { "type": "kicked", "recipientUserId": "000000000000000000000007j0", "chatId": "chat_0000000000000000000000081d" }
           },
           {
-            "id": "notification_00000000000000000000000821",
+            "id": "notification_0000000000000000000000081x",
             "actionable": false,
             "seq": 14,
             "readAt": 1750003795001,
@@ -1707,13 +1707,13 @@
             "type": "handoff-nominated",
             "payload": {
               "type": "handoff-nominated",
-              "recipientUserId": "000000000000000000000007j4",
-              "chatId": "chat_000000000000000000000007js",
+              "recipientUserId": "000000000000000000000007j0",
+              "chatId": "chat_000000000000000000000007jn",
               "offer": { "characters": 0, "worldBooks": 0, "regexScripts": 0, "gmPreset": false }
             }
           },
           {
-            "id": "notification_0000000000000000000000081q",
+            "id": "notification_0000000000000000000000081k",
             "actionable": false,
             "seq": 13,
             "readAt": 1750003795001,
@@ -1722,14 +1722,14 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007j4",
-              "chatId": "chat_0000000000000000000000081h",
-              "inviteId": "chat_invite_0000000000000000000000081p",
-              "invitedByHandle": "c-000000000000000000000007jb"
+              "recipientUserId": "000000000000000000000007j0",
+              "chatId": "chat_0000000000000000000000081d",
+              "inviteId": "chat_invite_0000000000000000000000081j",
+              "invitedByHandle": "c-000000000000000000000007j7"
             }
           },
           {
-            "id": "notification_000000000000000000000007k1",
+            "id": "notification_000000000000000000000007jx",
             "actionable": false,
             "seq": 2,
             "readAt": 1750003795001,
@@ -1738,10 +1738,10 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007j4",
-              "chatId": "chat_000000000000000000000007js",
-              "inviteId": "chat_invite_000000000000000000000007k0",
-              "invitedByHandle": "c-000000000000000000000007jb"
+              "recipientUserId": "000000000000000000000007j0",
+              "chatId": "chat_000000000000000000000007jn",
+              "inviteId": "chat_invite_000000000000000000000007jw",
+              "invitedByHandle": "c-000000000000000000000007j7"
             }
           }
         ],
@@ -1749,11 +1749,11 @@
       }
     },
     "foreignBefore": {
-      "viewerUserId": "000000000000000000000007jk",
+      "viewerUserId": "000000000000000000000007jf",
       "output": {
         "items": [
           {
-            "id": "notification_000000000000000000000007k3",
+            "id": "notification_000000000000000000000007jz",
             "actionable": true,
             "seq": 1,
             "readAt": null,
@@ -1762,10 +1762,10 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007jk",
-              "chatId": "chat_000000000000000000000007js",
-              "inviteId": "chat_invite_000000000000000000000007k2",
-              "invitedByHandle": "c-000000000000000000000007jb"
+              "recipientUserId": "000000000000000000000007jf",
+              "chatId": "chat_000000000000000000000007jn",
+              "inviteId": "chat_invite_000000000000000000000007jy",
+              "invitedByHandle": "c-000000000000000000000007j7"
             }
           }
         ],
@@ -1773,11 +1773,11 @@
       }
     },
     "foreignAfter": {
-      "viewerUserId": "000000000000000000000007jk",
+      "viewerUserId": "000000000000000000000007jf",
       "output": {
         "items": [
           {
-            "id": "notification_000000000000000000000007k3",
+            "id": "notification_000000000000000000000007jz",
             "actionable": true,
             "seq": 1,
             "readAt": null,
@@ -1786,10 +1786,10 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007jk",
-              "chatId": "chat_000000000000000000000007js",
-              "inviteId": "chat_invite_000000000000000000000007k2",
-              "invitedByHandle": "c-000000000000000000000007jb"
+              "recipientUserId": "000000000000000000000007jf",
+              "chatId": "chat_000000000000000000000007jn",
+              "inviteId": "chat_invite_000000000000000000000007jy",
+              "invitedByHandle": "c-000000000000000000000007j7"
             }
           }
         ],
@@ -1797,11 +1797,11 @@
       }
     },
     "hostAccepted": {
-      "viewerUserId": "000000000000000000000007jc",
+      "viewerUserId": "000000000000000000000007j8",
       "output": {
         "items": [
           {
-            "id": "notification_00000000000000000000000826",
+            "id": "notification_00000000000000000000000822",
             "actionable": false,
             "seq": 1,
             "readAt": null,
@@ -1810,9 +1810,9 @@
             "type": "handoff-accepted",
             "payload": {
               "type": "handoff-accepted",
-              "recipientUserId": "000000000000000000000007jc",
-              "chatId": "chat_000000000000000000000007js",
-              "newHostHandle": "c-000000000000000000000007j3"
+              "recipientUserId": "000000000000000000000007j8",
+              "chatId": "chat_000000000000000000000007jn",
+              "newHostHandle": "c-000000000000000000000007hz"
             }
           }
         ],
@@ -2121,9 +2121,9 @@
     "viewerUserId": "00000000000000000000000004",
     "ids": {
       "libraryBookId": "world_book_0000000000000000000000015b",
-      "orderedBookId": "world_book_000000000000000000000005k5",
-      "entryId": "world_entry_000000000000000000000005k7",
-      "demotedCharacterId": "character_000000000000000000000005jz",
+      "orderedBookId": "world_book_000000000000000000000005k1",
+      "entryId": "world_entry_000000000000000000000005k3",
+      "demotedCharacterId": "character_000000000000000000000005jv",
       "characterId": "character_0000000000000000000000014j",
       "personaId": "persona_0000000000000000000000014r",
       "chatId": "chat_0000000000000000000000014w"
@@ -2131,8 +2131,8 @@
     "reads": {
       "orderedEntries": [
         {
-          "id": "world_entry_000000000000000000000005kd",
-          "worldBookId": "world_book_000000000000000000000005k5",
+          "id": "world_entry_000000000000000000000005k9",
+          "worldBookId": "world_book_000000000000000000000005k1",
           "title": "Inner archive",
           "description": null,
           "content": "The inner archive preserves the second witness.",
@@ -2143,8 +2143,8 @@
           "metadata": null
         },
         {
-          "id": "world_entry_000000000000000000000005k7",
-          "worldBookId": "world_book_000000000000000000000005k5",
+          "id": "world_entry_000000000000000000000005k3",
+          "worldBookId": "world_book_000000000000000000000005k1",
           "title": "Outer archive",
           "description": null,
           "content": "The outer archive preserves the first witness.",
@@ -2157,14 +2157,14 @@
       ],
       "demoted": [
         {
-          "id": "world_book_000000000000000000000005kx",
+          "id": "world_book_000000000000000000000005ks",
           "name": "Native replacement ledger",
           "description": null,
           "createdAt": 1750003791001,
           "role": "primary"
         },
         {
-          "id": "world_book_000000000000000000000005k5",
+          "id": "world_book_000000000000000000000005k1",
           "name": "Native lifecycle ledger",
           "description": null,
           "createdAt": 1750003791001,
@@ -2172,8 +2172,8 @@
         }
       ],
       "books": [
-        { "id": "world_book_000000000000000000000005kx", "name": "Native replacement ledger", "description": null, "createdAt": 1750003791001 },
-        { "id": "world_book_000000000000000000000005k5", "name": "Native lifecycle ledger", "description": null, "createdAt": 1750003791001 },
+        { "id": "world_book_000000000000000000000005ks", "name": "Native replacement ledger", "description": null, "createdAt": 1750003791001 },
+        { "id": "world_book_000000000000000000000005k1", "name": "Native lifecycle ledger", "description": null, "createdAt": 1750003791001 },
         { "id": "world_book_0000000000000000000000015b", "name": "Orbital ledger canon", "description": null, "createdAt": 1750000000000 },
         {
           "id": "world_book_00000000000000000000000125",
@@ -2245,7 +2245,7 @@
       "detail": { "id": "world_book_0000000000000000000000015b", "name": "Orbital ledger canon", "description": null, "createdAt": 1750000000000 },
       "usage": [
         {
-          "id": "world_book_000000000000000000000005kx",
+          "id": "world_book_000000000000000000000005ks",
           "name": "Native replacement ledger",
           "description": null,
           "createdAt": 1750003791001,
@@ -2253,7 +2253,7 @@
           "usage": { "characters": 1, "personas": 0, "chats": 0, "global": false, "total": 1 }
         },
         {
-          "id": "world_book_000000000000000000000005k5",
+          "id": "world_book_000000000000000000000005k1",
           "name": "Native lifecycle ledger",
           "description": null,
           "createdAt": 1750003791001,
@@ -2362,8 +2362,8 @@
         "personaIds": ["persona_0000000000000000000000014r"]
       },
       "entry": {
-        "id": "world_entry_000000000000000000000005k7",
-        "worldBookId": "world_book_000000000000000000000005k5",
+        "id": "world_entry_000000000000000000000005k3",
+        "worldBookId": "world_book_000000000000000000000005k1",
         "title": "Outer archive",
         "description": null,
         "content": "The outer archive preserves the first witness.",
@@ -2409,7 +2409,7 @@
   "regexLibrary": {
     "viewerUserId": "00000000000000000000000004",
     "ids": {
-      "scriptId": "regex_script_000000000000000000000005mj",
+      "scriptId": "regex_script_000000000000000000000005me",
       "characterId": "character_0000000000000000000000014j",
       "presetId": "preset_0000000000000000000000014t",
       "chatId": "chat_0000000000000000000000014w"
@@ -2425,7 +2425,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005mj",
+          "id": "regex_script_000000000000000000000005me",
           "name": "Native display ledger 0",
           "enabled": true,
           "updatedAt": 1750003791001
@@ -2439,7 +2439,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005mm",
+          "id": "regex_script_000000000000000000000005mg",
           "name": "Native display ledger 1",
           "enabled": true,
           "updatedAt": 1750003791001
@@ -2455,7 +2455,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005mm",
+          "id": "regex_script_000000000000000000000005mg",
           "name": "Native display ledger 1",
           "enabled": true,
           "updatedAt": 1750003791001
@@ -2469,7 +2469,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005mj",
+          "id": "regex_script_000000000000000000000005me",
           "name": "Native display ledger 0",
           "enabled": true,
           "updatedAt": 1750003791001
@@ -2486,7 +2486,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005mj",
+          "id": "regex_script_000000000000000000000005me",
           "name": "Native display ledger 0",
           "enabled": true,
           "updatedAt": 1750003791001
@@ -2500,7 +2500,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005mm",
+          "id": "regex_script_000000000000000000000005mg",
           "name": "Native display ledger 1",
           "enabled": true,
           "updatedAt": 1750003791001
@@ -2530,7 +2530,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005mj",
+          "id": "regex_script_000000000000000000000005me",
           "name": "Native display ledger 0",
           "enabled": true,
           "updatedAt": 1750003791001
@@ -2544,7 +2544,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005mm",
+          "id": "regex_script_000000000000000000000005mg",
           "name": "Native display ledger 1",
           "enabled": true,
           "updatedAt": 1750003791001
@@ -2635,7 +2635,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005mj",
+          "id": "regex_script_000000000000000000000005me",
           "name": "Native display ledger 0",
           "enabled": true,
           "updatedAt": 1750003791001
@@ -2651,7 +2651,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005mj",
+          "id": "regex_script_000000000000000000000005me",
           "name": "Native display ledger 0",
           "enabled": true,
           "updatedAt": 1750003791001
@@ -2667,7 +2667,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005mj",
+          "id": "regex_script_000000000000000000000005me",
           "name": "Native display ledger 0",
           "enabled": true,
           "updatedAt": 1750003791001
@@ -2678,18 +2678,18 @@
   "libraryRelations": {
     "viewerUserId": "00000000000000000000000004",
     "ids": {
-      "tagId": "tag_000000000000000000000005ne",
+      "tagId": "tag_000000000000000000000005na",
       "characterId": "character_0000000000000000000000014j",
       "personaId": "persona_0000000000000000000000014r",
-      "rosterPresetId": "roster_preset_000000000000000000000005pa",
-      "rosterChatId": "chat_000000000000000000000005p5",
+      "rosterPresetId": "roster_preset_000000000000000000000005p6",
+      "rosterChatId": "chat_000000000000000000000005p1",
       "presetId": "preset_0000000000000000000000014t",
       "connectionId": "user_connection_000000000000000000000000vn"
     },
     "reads": {
       "tagPending": [
         {
-          "id": "tag_000000000000000000000005ne",
+          "id": "tag_000000000000000000000005na",
           "name": "Native lifecycle label",
           "color": null,
           "color2": null,
@@ -2801,7 +2801,7 @@
       ],
       "tagBefore": [
         {
-          "id": "tag_000000000000000000000005ne",
+          "id": "tag_000000000000000000000005na",
           "name": "Native lifecycle label",
           "color": null,
           "color2": null,
@@ -3211,7 +3211,7 @@
       ],
       "tagUsage": [
         {
-          "id": "tag_000000000000000000000005ne",
+          "id": "tag_000000000000000000000005na",
           "name": "Native lifecycle label",
           "color": null,
           "color2": null,
@@ -3621,7 +3621,7 @@
       ],
       "tagList": [
         {
-          "id": "tag_000000000000000000000005ne",
+          "id": "tag_000000000000000000000005na",
           "name": "Native lifecycle label",
           "color": null,
           "color2": null,
@@ -3963,7 +3963,7 @@
       ],
       "tagVocabulary": [
         { "id": "tag_0000000000000000000000013h", "name": "demo", "isHiddenOnCard": false, "characters": 1 },
-        { "id": "tag_000000000000000000000005ne", "name": "Native lifecycle label", "isHiddenOnCard": false, "characters": 1 },
+        { "id": "tag_000000000000000000000005na", "name": "Native lifecycle label", "isHiddenOnCard": false, "characters": 1 },
         { "id": "tag_0000000000000000000000008t", "name": "americana", "isHiddenOnCard": false, "characters": 0 },
         { "id": "tag_0000000000000000000000003b", "name": "assistant", "isHiddenOnCard": false, "characters": 0 },
         { "id": "tag_0000000000000000000000007r", "name": "banter", "isHiddenOnCard": false, "characters": 0 },
@@ -4030,7 +4030,7 @@
       ],
       "personaCharacters": [{ "id": "character_0000000000000000000000014j", "name": "The ledger archivist" }],
       "rosterDetail": {
-        "id": "roster_preset_000000000000000000000005pa",
+        "id": "roster_preset_000000000000000000000005p6",
         "name": "Native library party",
         "description": "",
         "anchorPersonaId": "persona_0000000000000000000000014r",
@@ -4050,7 +4050,7 @@
         "game": null,
         "members": [
           {
-            "characterId": "character_000000000000000000000005nz",
+            "characterId": "character_000000000000000000000005nv",
             "position": 0,
             "talkativeness": 0.25,
             "disabled": true,
@@ -4151,14 +4151,14 @@
           "hasGroupConfig": false
         },
         {
-          "id": "roster_preset_000000000000000000000005pa",
+          "id": "roster_preset_000000000000000000000005p6",
           "name": "Native library party",
           "description": "",
           "anchorPersonaId": "persona_0000000000000000000000014r",
           "game": null,
           "members": [
             {
-              "characterId": "character_000000000000000000000005nz",
+              "characterId": "character_000000000000000000000005nv",
               "position": 0,
               "talkativeness": 0.25,
               "disabled": true,
@@ -4313,7 +4313,7 @@
         }
       ],
       "rosterApplied": {
-        "added": ["character_000000000000000000000005nz"],
+        "added": ["character_000000000000000000000005nv"],
         "alreadyPresent": ["character_0000000000000000000000014j"],
         "skipped": [],
         "configApplied": true,
@@ -4323,7 +4323,7 @@
       },
       "rosterAppliedAgain": {
         "added": [],
-        "alreadyPresent": ["character_000000000000000000000005nz", "character_0000000000000000000000014j"],
+        "alreadyPresent": ["character_000000000000000000000005nv", "character_0000000000000000000000014j"],
         "skipped": [],
         "configApplied": true,
         "rulesMinted": [],
@@ -4331,7 +4331,7 @@
         "rulesSkipped": []
       },
       "rosterChat": {
-        "id": "chat_000000000000000000000005p5",
+        "id": "chat_000000000000000000000005p1",
         "title": null,
         "starred": false,
         "archived": false,
@@ -4342,8 +4342,8 @@
         "anchorState": "live",
         "participants": [
           {
-            "id": "chat_participant_000000000000000000000005p6",
-            "chatId": "chat_000000000000000000000005p5",
+            "id": "chat_participant_000000000000000000000005p2",
+            "chatId": "chat_000000000000000000000005p1",
             "kind": "human",
             "userId": "00000000000000000000000004",
             "characterId": null,
@@ -4364,8 +4364,8 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_000000000000000000000005p7",
-            "chatId": "chat_000000000000000000000005p5",
+            "id": "chat_participant_000000000000000000000005p3",
+            "chatId": "chat_000000000000000000000005p1",
             "kind": "character",
             "userId": null,
             "characterId": "character_0000000000000000000000014j",
@@ -4386,11 +4386,11 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_000000000000000000000005pe",
-            "chatId": "chat_000000000000000000000005p5",
+            "id": "chat_participant_000000000000000000000005pa",
+            "chatId": "chat_000000000000000000000005p1",
             "kind": "character",
             "userId": null,
-            "characterId": "character_000000000000000000000005nz",
+            "characterId": "character_000000000000000000000005nv",
             "role": "member",
             "activePersonaId": null,
             "talkativeness": 0.25,
@@ -4411,7 +4411,7 @@
         "viewerActivePersonaId": "persona_0000000000000000000000014r",
         "viewerIsHost": true,
         "viewerUserId": "00000000000000000000000004",
-        "viewerOwnedCharacterIds": ["character_0000000000000000000000014j", "character_000000000000000000000005nz"],
+        "viewerOwnedCharacterIds": ["character_0000000000000000000000014j", "character_000000000000000000000005nv"],
         "viewerGalleryCharacterId": "character_0000000000000000000000014j",
         "pendingHostUserId": null,
         "group": {
@@ -4443,7 +4443,7 @@
         "updatedAt": 1750003791001,
         "identities": [
           { "kind": "character", "id": "character_0000000000000000000000014j", "name": "The ledger archivist", "avatarHash": null },
-          { "kind": "character", "id": "character_000000000000000000000005nz", "name": "Native roster witness", "avatarHash": null },
+          { "kind": "character", "id": "character_000000000000000000000005nv", "name": "Native roster witness", "avatarHash": null },
           {
             "kind": "persona",
             "id": "persona_0000000000000000000000014r",
@@ -5188,7 +5188,7 @@
           "updatedAt": 1750003769001
         },
         {
-          "id": "preset_000000000000000000000005h0",
+          "id": "preset_000000000000000000000005gw",
           "name": "Native account corpus",
           "kind": "custom",
           "isSystemDefault": false,
@@ -5221,8 +5221,8 @@
       },
       "rulesFirst": [
         {
-          "id": "automation_rule_000000000000000000000005pt",
-          "chatId": "chat_000000000000000000000005p5",
+          "id": "automation_rule_000000000000000000000005pp",
+          "chatId": "chat_000000000000000000000005p1",
           "name": "Opener chips",
           "description": "When you open the room, offer a short deck of starters you can edit before sending.",
           "enabled": true,
@@ -5256,8 +5256,8 @@
       ],
       "rulesRepeated": [
         {
-          "id": "automation_rule_000000000000000000000005pt",
-          "chatId": "chat_000000000000000000000005p5",
+          "id": "automation_rule_000000000000000000000005pp",
+          "chatId": "chat_000000000000000000000005p1",
           "name": "Opener chips",
           "description": "When you open the room, offer a short deck of starters you can edit before sending.",
           "enabled": true,
@@ -5297,7 +5297,7 @@
       "recentChats": {
         "items": [
           {
-            "id": "chat_000000000000000000000006p9",
+            "id": "chat_000000000000000000000006p5",
             "title": null,
             "starred": false,
             "archived": false,
@@ -5307,10 +5307,10 @@
             "lastMessagePreview": "The traveller witnesses the orbital loom.",
             "isGame": false,
             "gamePaused": false,
-            "participantNames": ["Image variant witness", "c-000000000000000000000005sd"],
+            "participantNames": ["Image variant witness", "c-000000000000000000000005s9"],
             "participantPortraits": [
               {
-                "characterId": "character_000000000000000000000006nx",
+                "characterId": "character_000000000000000000000006ns",
                 "name": "Image variant witness",
                 "avatarHash": "45388cd52ff5a33fb2e3139d816f35ebaa044fe8bdbef19faf0a3f90a882a864"
               }
@@ -5320,7 +5320,7 @@
             "updatedAt": 1750003795001
           },
           {
-            "id": "chat_000000000000000000000005p5",
+            "id": "chat_000000000000000000000005p1",
             "title": null,
             "starred": false,
             "archived": false,
@@ -5333,14 +5333,14 @@
             "participantNames": ["The ledger archivist", "Native roster witness"],
             "participantPortraits": [
               { "characterId": "character_0000000000000000000000014j", "name": "The ledger archivist", "avatarHash": null },
-              { "characterId": "character_000000000000000000000005nz", "name": "Native roster witness", "avatarHash": null }
+              { "characterId": "character_000000000000000000000005nv", "name": "Native roster witness", "avatarHash": null }
             ],
             "viewerRole": "host",
             "createdAt": 1750003791001,
             "updatedAt": 1750003791001
           },
           {
-            "id": "chat_000000000000000000000005h9",
+            "id": "chat_000000000000000000000005h5",
             "title": null,
             "starred": false,
             "archived": false,
@@ -5351,7 +5351,7 @@
             "isGame": false,
             "gamePaused": false,
             "participantNames": ["Native account witness"],
-            "participantPortraits": [{ "characterId": "character_000000000000000000000005h3", "name": "Native account witness", "avatarHash": null }],
+            "participantPortraits": [{ "characterId": "character_000000000000000000000005gz", "name": "Native account witness", "avatarHash": null }],
             "viewerRole": "host",
             "createdAt": 1750003791001,
             "updatedAt": 1750003791001
@@ -5458,13 +5458,13 @@
       "quickPicks": {
         "items": [
           {
-            "id": "character_000000000000000000000006nx",
+            "id": "character_000000000000000000000006ns",
             "handle": "image-variant-witness",
             "name": "Image variant witness",
             "starred": false,
             "archived": false,
             "themeOverride": null,
-            "avatarAssetId": "asset_000000000000000000000006qg",
+            "avatarAssetId": "asset_000000000000000000000006qc",
             "avatarHash": "45388cd52ff5a33fb2e3139d816f35ebaa044fe8bdbef19faf0a3f90a882a864",
             "createdAt": 1750003795001,
             "tags": [],
@@ -5472,12 +5472,12 @@
             "tokenSize": 19,
             "elevatorPitch": null,
             "lastChattedAt": 1750003795001,
-            "lastChatId": "chat_000000000000000000000006p9",
+            "lastChatId": "chat_000000000000000000000006p5",
             "chatCount": 1,
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000005nz",
+            "id": "character_000000000000000000000005nv",
             "handle": "library-roster",
             "name": "Native roster witness",
             "starred": false,
@@ -5491,12 +5491,12 @@
             "tokenSize": 19,
             "elevatorPitch": null,
             "lastChattedAt": 1750003791001,
-            "lastChatId": "chat_000000000000000000000005p5",
+            "lastChatId": "chat_000000000000000000000005p1",
             "chatCount": 1,
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000005h3",
+            "id": "character_000000000000000000000005gz",
             "handle": "native-account-witness",
             "name": "Native account witness",
             "starred": false,
@@ -5510,7 +5510,7 @@
             "tokenSize": 18,
             "elevatorPitch": null,
             "lastChattedAt": 1750003791001,
-            "lastChatId": "chat_000000000000000000000005h9",
+            "lastChatId": "chat_000000000000000000000005h5",
             "chatCount": 1,
             "nameIsAmbiguous": false
           },
@@ -5526,7 +5526,7 @@
             "createdAt": 1750000000000,
             "tags": [
               {
-                "id": "tag_000000000000000000000005ne",
+                "id": "tag_000000000000000000000005na",
                 "name": "Native lifecycle label",
                 "color": null,
                 "color2": null,
@@ -5540,7 +5540,7 @@
             "tokenSize": 17,
             "elevatorPitch": "A traveller repairs the orbital loom.",
             "lastChattedAt": 1750003791001,
-            "lastChatId": "chat_000000000000000000000005p5",
+            "lastChatId": "chat_000000000000000000000005p1",
             "chatCount": 2,
             "nameIsAmbiguous": false
           },
@@ -5667,14 +5667,14 @@
           "hasGroupConfig": false
         },
         {
-          "id": "roster_preset_000000000000000000000005pa",
+          "id": "roster_preset_000000000000000000000005p6",
           "name": "Native library party",
           "description": "",
           "anchorPersonaId": "persona_0000000000000000000000014r",
           "game": null,
           "members": [
             {
-              "characterId": "character_000000000000000000000005nz",
+              "characterId": "character_000000000000000000000005nv",
               "position": 0,
               "talkativeness": 0.25,
               "disabled": true,
@@ -5765,7 +5765,7 @@
       "recentDocuments": {
         "items": [
           {
-            "id": "document_000000000000000000000005q6",
+            "id": "document_000000000000000000000005q2",
             "name": "Native lifecycle source",
             "mime": "text/plain",
             "origin": "text",
@@ -5856,7 +5856,7 @@
     },
     "recentRooms": [
       {
-        "id": "chat_000000000000000000000006p9",
+        "id": "chat_000000000000000000000006p5",
         "title": null,
         "starred": false,
         "archived": false,
@@ -5867,8 +5867,8 @@
         "anchorState": "live",
         "participants": [
           {
-            "id": "chat_participant_000000000000000000000006pa",
-            "chatId": "chat_000000000000000000000006p9",
+            "id": "chat_participant_000000000000000000000006p6",
+            "chatId": "chat_000000000000000000000006p5",
             "kind": "human",
             "userId": "00000000000000000000000004",
             "characterId": null,
@@ -5889,11 +5889,11 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_000000000000000000000006pb",
-            "chatId": "chat_000000000000000000000006p9",
+            "id": "chat_participant_000000000000000000000006p7",
+            "chatId": "chat_000000000000000000000006p5",
             "kind": "character",
             "userId": null,
-            "characterId": "character_000000000000000000000006nx",
+            "characterId": "character_000000000000000000000006ns",
             "role": "member",
             "activePersonaId": null,
             "talkativeness": 0.5,
@@ -5904,17 +5904,17 @@
             "joinHistoryVisibility": "full",
             "displayName": "Image variant witness",
             "handle": null,
-            "avatarAssetId": "asset_000000000000000000000006qg",
+            "avatarAssetId": "asset_000000000000000000000006qc",
             "avatarHash": "45388cd52ff5a33fb2e3139d816f35ebaa044fe8bdbef19faf0a3f90a882a864",
             "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
             "themeOverride": null,
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_000000000000000000000006px",
-            "chatId": "chat_000000000000000000000006p9",
+            "id": "chat_participant_000000000000000000000006ps",
+            "chatId": "chat_000000000000000000000006p5",
             "kind": "human",
-            "userId": "000000000000000000000005se",
+            "userId": "000000000000000000000005sa",
             "characterId": null,
             "role": "member",
             "activePersonaId": null,
@@ -5924,8 +5924,8 @@
             "joinSeq": 1,
             "leftSeq": null,
             "joinHistoryVisibility": "full",
-            "displayName": "c-000000000000000000000005sd",
-            "handle": "c-000000000000000000000005sd",
+            "displayName": "c-000000000000000000000005s9",
+            "handle": "c-000000000000000000000005s9",
             "avatarAssetId": null,
             "avatarHash": null,
             "renderPolicy": { "htmlTrust": "untrusted", "forbidExternalMedia": true },
@@ -5936,8 +5936,8 @@
         "viewerActivePersonaId": "persona_0000000000000000000000014r",
         "viewerIsHost": true,
         "viewerUserId": "00000000000000000000000004",
-        "viewerOwnedCharacterIds": ["character_000000000000000000000006nx"],
-        "viewerGalleryCharacterId": "character_000000000000000000000006nx",
+        "viewerOwnedCharacterIds": ["character_000000000000000000000006ns"],
+        "viewerGalleryCharacterId": "character_000000000000000000000006ns",
         "pendingHostUserId": null,
         "group": {
           "output": "per-speaker",
@@ -5969,7 +5969,7 @@
         "identities": [
           {
             "kind": "character",
-            "id": "character_000000000000000000000006nx",
+            "id": "character_000000000000000000000006ns",
             "name": "Image variant witness",
             "avatarHash": "45388cd52ff5a33fb2e3139d816f35ebaa044fe8bdbef19faf0a3f90a882a864"
           },
@@ -5983,7 +5983,7 @@
         ]
       },
       {
-        "id": "chat_000000000000000000000005p5",
+        "id": "chat_000000000000000000000005p1",
         "title": null,
         "starred": false,
         "archived": false,
@@ -5994,8 +5994,8 @@
         "anchorState": "live",
         "participants": [
           {
-            "id": "chat_participant_000000000000000000000005p6",
-            "chatId": "chat_000000000000000000000005p5",
+            "id": "chat_participant_000000000000000000000005p2",
+            "chatId": "chat_000000000000000000000005p1",
             "kind": "human",
             "userId": "00000000000000000000000004",
             "characterId": null,
@@ -6016,8 +6016,8 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_000000000000000000000005p7",
-            "chatId": "chat_000000000000000000000005p5",
+            "id": "chat_participant_000000000000000000000005p3",
+            "chatId": "chat_000000000000000000000005p1",
             "kind": "character",
             "userId": null,
             "characterId": "character_0000000000000000000000014j",
@@ -6038,11 +6038,11 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_000000000000000000000005pe",
-            "chatId": "chat_000000000000000000000005p5",
+            "id": "chat_participant_000000000000000000000005pa",
+            "chatId": "chat_000000000000000000000005p1",
             "kind": "character",
             "userId": null,
-            "characterId": "character_000000000000000000000005nz",
+            "characterId": "character_000000000000000000000005nv",
             "role": "member",
             "activePersonaId": null,
             "talkativeness": 0.25,
@@ -6063,7 +6063,7 @@
         "viewerActivePersonaId": "persona_0000000000000000000000014r",
         "viewerIsHost": true,
         "viewerUserId": "00000000000000000000000004",
-        "viewerOwnedCharacterIds": ["character_0000000000000000000000014j", "character_000000000000000000000005nz"],
+        "viewerOwnedCharacterIds": ["character_0000000000000000000000014j", "character_000000000000000000000005nv"],
         "viewerGalleryCharacterId": "character_0000000000000000000000014j",
         "pendingHostUserId": null,
         "group": {
@@ -6095,7 +6095,7 @@
         "updatedAt": 1750003791001,
         "identities": [
           { "kind": "character", "id": "character_0000000000000000000000014j", "name": "The ledger archivist", "avatarHash": null },
-          { "kind": "character", "id": "character_000000000000000000000005nz", "name": "Native roster witness", "avatarHash": null },
+          { "kind": "character", "id": "character_000000000000000000000005nv", "name": "Native roster witness", "avatarHash": null },
           {
             "kind": "persona",
             "id": "persona_0000000000000000000000014r",
@@ -6106,7 +6106,7 @@
         ]
       },
       {
-        "id": "chat_000000000000000000000005h9",
+        "id": "chat_000000000000000000000005h5",
         "title": null,
         "starred": false,
         "archived": false,
@@ -6117,8 +6117,8 @@
         "anchorState": "live",
         "participants": [
           {
-            "id": "chat_participant_000000000000000000000005ha",
-            "chatId": "chat_000000000000000000000005h9",
+            "id": "chat_participant_000000000000000000000005h6",
+            "chatId": "chat_000000000000000000000005h5",
             "kind": "human",
             "userId": "00000000000000000000000004",
             "characterId": null,
@@ -6139,11 +6139,11 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_000000000000000000000005hb",
-            "chatId": "chat_000000000000000000000005h9",
+            "id": "chat_participant_000000000000000000000005h7",
+            "chatId": "chat_000000000000000000000005h5",
             "kind": "character",
             "userId": null,
-            "characterId": "character_000000000000000000000005h3",
+            "characterId": "character_000000000000000000000005gz",
             "role": "member",
             "activePersonaId": null,
             "talkativeness": 0.5,
@@ -6164,8 +6164,8 @@
         "viewerActivePersonaId": "persona_0000000000000000000000014r",
         "viewerIsHost": true,
         "viewerUserId": "00000000000000000000000004",
-        "viewerOwnedCharacterIds": ["character_000000000000000000000005h3"],
-        "viewerGalleryCharacterId": "character_000000000000000000000005h3",
+        "viewerOwnedCharacterIds": ["character_000000000000000000000005gz"],
+        "viewerGalleryCharacterId": "character_000000000000000000000005gz",
         "pendingHostUserId": null,
         "group": {
           "output": "per-speaker",
@@ -6195,7 +6195,7 @@
         "createdAt": 1750003791001,
         "updatedAt": 1750003791001,
         "identities": [
-          { "kind": "character", "id": "character_000000000000000000000005h3", "name": "Native account witness", "avatarHash": null },
+          { "kind": "character", "id": "character_000000000000000000000005gz", "name": "Native account witness", "avatarHash": null },
           {
             "kind": "persona",
             "id": "persona_0000000000000000000000014r",
@@ -6945,7 +6945,7 @@
           "override": {
             "accent": "oklch(0.5 0.16 50)",
             "userBubble": { "bg": "oklch(0.93 0.02 60)", "fg": "oklch(0.25 0.02 60)" },
-            "aiBubble": { "bg": "oklch(0.97 0.006 60)", "fg": "oklch(0.22 0.02 60)" },
+            "aiBubble": { "bg": "oklch(0.95 0.006 60)", "fg": "oklch(0.22 0.02 60)" },
             "systemBubble": { "bg": "oklch(0.93 0.015 60)", "fg": "oklch(0.45 0.02 60)" },
             "speaker": "oklch(0.5 0.17 50)",
             "dialogueColor": "oklch(0.4 0.1 240)",
@@ -8019,7 +8019,7 @@
           { "characterId": "character_0000000000000000000000004w", "score": 0.2734797943383455, "relevance": 0 },
           { "characterId": "character_00000000000000000000000299", "score": 0.31813114881515503, "relevance": 0.18186885118484497 },
           { "characterId": "character_000000000000000000000003db", "score": 0.36039483547210693, "relevance": 0.13960516452789307 },
-          { "characterId": "character_000000000000000000000005h3", "score": 0.370380163192749, "relevance": 0.12961983680725098 },
+          { "characterId": "character_000000000000000000000005gz", "score": 0.370380163192749, "relevance": 0.12961983680725098 },
           { "characterId": "character_000000000000000000000003t4", "score": 0.37708204984664917, "relevance": 0.12291795015335083 }
         ],
         "coverage": { "requestLimit": 20, "candidateLimit": 80, "evidencePerCharacter": null, "reranked": false }
@@ -8208,7 +8208,7 @@
             "elevatorPitch": "A traveller repairs the orbital loom."
           },
           {
-            "characterId": "character_000000000000000000000005h3",
+            "characterId": "character_000000000000000000000005gz",
             "score": 0.370380163192749,
             "relevance": 0.12961983680725098,
             "name": "Native account witness",
@@ -8234,7 +8234,7 @@
         "hits": [
           {
             "characterId": "character_0000000000000000000000017d",
-            "score": 0.3906248211860657,
+            "score": 0,
             "relevance": 0.10937517881393433,
             "name": "Funding control",
             "avatarHash": null,
@@ -8261,7 +8261,7 @@
                 "chatId": "chat_0000000000000000000000017k",
                 "blockIdx": 1,
                 "snippet": "User: Funding memory scene 6: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger rec",
-                "score": 0.3906248211860657,
+                "score": 0,
                 "relevance": 0.10937517881393433,
                 "chatTitle": null
               },
@@ -8283,7 +8283,7 @@
                 "chatId": "chat_000000000000000000000001q0",
                 "blockIdx": 1,
                 "snippet": "User: Funding memory scene 6: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger rec",
-                "score": 0.3906248211860657,
+                "score": 0,
                 "relevance": 0.10937517881393433,
                 "chatTitle": "Ledger fork"
               },
@@ -8305,7 +8305,7 @@
                 "chatId": "chat_0000000000000000000000017k",
                 "blockIdx": 0,
                 "snippet": "User: Witness the opening ledger scene.\nFunding control: The keeper preserves the ledger and remembers its witnesses.\nUser: Funding memory scene 0: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger rec",
-                "score": 0.4672091007232666,
+                "score": 0,
                 "relevance": 0.0327908992767334,
                 "chatTitle": null
               }
@@ -8504,6 +8504,98 @@
         "over": "digests",
         "hits": [
           {
+            "blockKey": { "chatId": "chat_0000000000000000000000017k", "tier": 0, "blockIdx": 1, "scopedCharacterId": "character_0000000000000000000000017d" },
+            "score": 0.1244119331240654,
+            "relevance": 0,
+            "text": "The harbor witness\nThe keeper finds the missing tool beside the harbor.\nKeywords: harbor, tool",
+            "source": {
+              "chatId": "chat_0000000000000000000000017k",
+              "generationId": "b068951409226ffc0095d23b1039d33bef7f2d5cc814820dcc667de3161575b7",
+              "fingerprint": "792b535bf5392c15a9f77e3e554c8bcd229b079e170afa638eb36564760751d5",
+              "contentHash": "ba6138e4e0d1eabfe08da80694ffd82c40e6fd44b789376f972e0a70dc03d957",
+              "blockIdx": 1,
+              "seqStart": 9,
+              "seqEnd": 16,
+              "messageStartId": "message_000000000000000000000001an",
+              "messageEndId": "message_000000000000000000000001c6",
+              "kind": "digest",
+              "rowId": "chat_digest_000000000000000000000001vc",
+              "tier": 0,
+              "scopedCharacterId": "character_0000000000000000000000017d"
+            },
+            "chatTitle": null,
+            "scopedCharacterName": "Funding control"
+          },
+          {
+            "blockKey": { "chatId": "chat_000000000000000000000001q0", "tier": 0, "blockIdx": 1, "scopedCharacterId": "character_0000000000000000000000017d" },
+            "score": 0.1244119331240654,
+            "relevance": 0,
+            "text": "The harbor witness\nThe keeper finds the missing tool beside the harbor.\nKeywords: harbor, tool",
+            "source": {
+              "chatId": "chat_000000000000000000000001q0",
+              "generationId": "b068951409226ffc0095d23b1039d33bef7f2d5cc814820dcc667de3161575b7",
+              "fingerprint": "792b535bf5392c15a9f77e3e554c8bcd229b079e170afa638eb36564760751d5",
+              "contentHash": "ba6138e4e0d1eabfe08da80694ffd82c40e6fd44b789376f972e0a70dc03d957",
+              "blockIdx": 1,
+              "seqStart": 9,
+              "seqEnd": 16,
+              "messageStartId": "message_000000000000000000000001qb",
+              "messageEndId": "message_000000000000000000000001qj",
+              "kind": "digest",
+              "rowId": "chat_digest_000000000000000000000001vp",
+              "tier": 0,
+              "scopedCharacterId": "character_0000000000000000000000017d"
+            },
+            "chatTitle": "Ledger fork",
+            "scopedCharacterName": "Funding control"
+          },
+          {
+            "blockKey": { "chatId": "chat_0000000000000000000000017k", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_0000000000000000000000017d" },
+            "score": 0.18952607363462448,
+            "relevance": 0,
+            "text": "The orbital loom\nThe keeper preserves the ledger beside the loom.\nKeywords: loom, orbit",
+            "source": {
+              "chatId": "chat_0000000000000000000000017k",
+              "generationId": "b068951409226ffc0095d23b1039d33bef7f2d5cc814820dcc667de3161575b7",
+              "fingerprint": "792b535bf5392c15a9f77e3e554c8bcd229b079e170afa638eb36564760751d5",
+              "contentHash": "dcb8c130a03168be776e127af82c95a57517beae0aa08a77deba39de42d632fb",
+              "blockIdx": 0,
+              "seqStart": 1,
+              "seqEnd": 8,
+              "messageStartId": "message_00000000000000000000000185",
+              "messageEndId": "message_000000000000000000000001ae",
+              "kind": "digest",
+              "rowId": "chat_digest_000000000000000000000001eb",
+              "tier": 0,
+              "scopedCharacterId": "character_0000000000000000000000017d"
+            },
+            "chatTitle": null,
+            "scopedCharacterName": "Funding control"
+          },
+          {
+            "blockKey": { "chatId": "chat_000000000000000000000001q0", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_0000000000000000000000017d" },
+            "score": 0.18952607363462448,
+            "relevance": 0,
+            "text": "The orbital loom\nThe keeper preserves the ledger beside the loom.\nKeywords: loom, orbit",
+            "source": {
+              "chatId": "chat_000000000000000000000001q0",
+              "generationId": "b068951409226ffc0095d23b1039d33bef7f2d5cc814820dcc667de3161575b7",
+              "fingerprint": "792b535bf5392c15a9f77e3e554c8bcd229b079e170afa638eb36564760751d5",
+              "contentHash": "dcb8c130a03168be776e127af82c95a57517beae0aa08a77deba39de42d632fb",
+              "blockIdx": 0,
+              "seqStart": 1,
+              "seqEnd": 8,
+              "messageStartId": "message_000000000000000000000001q3",
+              "messageEndId": "message_000000000000000000000001qa",
+              "kind": "digest",
+              "rowId": "chat_digest_000000000000000000000001vh",
+              "tier": 0,
+              "scopedCharacterId": "character_0000000000000000000000017d"
+            },
+            "chatTitle": "Ledger fork",
+            "scopedCharacterName": "Funding control"
+          },
+          {
             "blockKey": { "chatId": "chat_0000000000000000000000029f", "tier": 1, "blockIdx": 0, "scopedCharacterId": "character_00000000000000000000000299" },
             "score": 0.46431756019592285,
             "relevance": 0.03568243980407715,
@@ -8548,52 +8640,6 @@
             },
             "chatTitle": null,
             "scopedCharacterName": "Arc ledger traveller"
-          },
-          {
-            "blockKey": { "chatId": "chat_0000000000000000000000017k", "tier": 0, "blockIdx": 1, "scopedCharacterId": "character_0000000000000000000000017d" },
-            "score": 0.7383689880371094,
-            "relevance": 0,
-            "text": "The harbor witness\nThe keeper finds the missing tool beside the harbor.\nKeywords: harbor, tool",
-            "source": {
-              "chatId": "chat_0000000000000000000000017k",
-              "generationId": "b068951409226ffc0095d23b1039d33bef7f2d5cc814820dcc667de3161575b7",
-              "fingerprint": "792b535bf5392c15a9f77e3e554c8bcd229b079e170afa638eb36564760751d5",
-              "contentHash": "ba6138e4e0d1eabfe08da80694ffd82c40e6fd44b789376f972e0a70dc03d957",
-              "blockIdx": 1,
-              "seqStart": 9,
-              "seqEnd": 16,
-              "messageStartId": "message_000000000000000000000001an",
-              "messageEndId": "message_000000000000000000000001c6",
-              "kind": "digest",
-              "rowId": "chat_digest_000000000000000000000001vc",
-              "tier": 0,
-              "scopedCharacterId": "character_0000000000000000000000017d"
-            },
-            "chatTitle": null,
-            "scopedCharacterName": "Funding control"
-          },
-          {
-            "blockKey": { "chatId": "chat_000000000000000000000001q0", "tier": 0, "blockIdx": 1, "scopedCharacterId": "character_0000000000000000000000017d" },
-            "score": 0.7383689880371094,
-            "relevance": 0,
-            "text": "The harbor witness\nThe keeper finds the missing tool beside the harbor.\nKeywords: harbor, tool",
-            "source": {
-              "chatId": "chat_000000000000000000000001q0",
-              "generationId": "b068951409226ffc0095d23b1039d33bef7f2d5cc814820dcc667de3161575b7",
-              "fingerprint": "792b535bf5392c15a9f77e3e554c8bcd229b079e170afa638eb36564760751d5",
-              "contentHash": "ba6138e4e0d1eabfe08da80694ffd82c40e6fd44b789376f972e0a70dc03d957",
-              "blockIdx": 1,
-              "seqStart": 9,
-              "seqEnd": 16,
-              "messageStartId": "message_000000000000000000000001qb",
-              "messageEndId": "message_000000000000000000000001qj",
-              "kind": "digest",
-              "rowId": "chat_digest_000000000000000000000001vp",
-              "tier": 0,
-              "scopedCharacterId": "character_0000000000000000000000017d"
-            },
-            "chatTitle": "Ledger fork",
-            "scopedCharacterName": "Funding control"
           },
           {
             "blockKey": { "chatId": "chat_0000000000000000000000029f", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_00000000000000000000000299" },
@@ -8893,52 +8939,6 @@
             },
             "chatTitle": "Uncredited search transcript",
             "scopedCharacterName": "Charlotte"
-          },
-          {
-            "blockKey": { "chatId": "chat_0000000000000000000000017k", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_0000000000000000000000017d" },
-            "score": 0.8034831285476685,
-            "relevance": 0,
-            "text": "The orbital loom\nThe keeper preserves the ledger beside the loom.\nKeywords: loom, orbit",
-            "source": {
-              "chatId": "chat_0000000000000000000000017k",
-              "generationId": "b068951409226ffc0095d23b1039d33bef7f2d5cc814820dcc667de3161575b7",
-              "fingerprint": "792b535bf5392c15a9f77e3e554c8bcd229b079e170afa638eb36564760751d5",
-              "contentHash": "dcb8c130a03168be776e127af82c95a57517beae0aa08a77deba39de42d632fb",
-              "blockIdx": 0,
-              "seqStart": 1,
-              "seqEnd": 8,
-              "messageStartId": "message_00000000000000000000000185",
-              "messageEndId": "message_000000000000000000000001ae",
-              "kind": "digest",
-              "rowId": "chat_digest_000000000000000000000001eb",
-              "tier": 0,
-              "scopedCharacterId": "character_0000000000000000000000017d"
-            },
-            "chatTitle": null,
-            "scopedCharacterName": "Funding control"
-          },
-          {
-            "blockKey": { "chatId": "chat_000000000000000000000001q0", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_0000000000000000000000017d" },
-            "score": 0.8034831285476685,
-            "relevance": 0,
-            "text": "The orbital loom\nThe keeper preserves the ledger beside the loom.\nKeywords: loom, orbit",
-            "source": {
-              "chatId": "chat_000000000000000000000001q0",
-              "generationId": "b068951409226ffc0095d23b1039d33bef7f2d5cc814820dcc667de3161575b7",
-              "fingerprint": "792b535bf5392c15a9f77e3e554c8bcd229b079e170afa638eb36564760751d5",
-              "contentHash": "dcb8c130a03168be776e127af82c95a57517beae0aa08a77deba39de42d632fb",
-              "blockIdx": 0,
-              "seqStart": 1,
-              "seqEnd": 8,
-              "messageStartId": "message_000000000000000000000001q3",
-              "messageEndId": "message_000000000000000000000001qa",
-              "kind": "digest",
-              "rowId": "chat_digest_000000000000000000000001vh",
-              "tier": 0,
-              "scopedCharacterId": "character_0000000000000000000000017d"
-            },
-            "chatTitle": "Ledger fork",
-            "scopedCharacterName": "Funding control"
           }
         ],
         "coverage": { "requestLimit": 20, "candidateLimit": 80, "evidencePerCharacter": null, "reranked": false }
@@ -8966,8 +8966,31 @@
             ],
             "chatTitle": null,
             "relevance": 0.10937517881393433,
-            "score": 0.3906248211860657,
+            "score": 0,
             "text": "User: Funding memory scene 6: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. \nUser: Funding memory scene 7: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. \nUser: Funding memory scene 8: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. \nUser: Funding memory scene 9: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. \nUser: Funding memory scene 10: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. \nUser: Funding memory scene 11: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. \nUser: Funding memory scene 12: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. \nUser: Funding memory scene 13: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. "
+          },
+          {
+            "source": {
+              "chatId": "chat_0000000000000000000000017k",
+              "generationId": "b068951409226ffc0095d23b1039d33bef7f2d5cc814820dcc667de3161575b7",
+              "fingerprint": "792b535bf5392c15a9f77e3e554c8bcd229b079e170afa638eb36564760751d5",
+              "contentHash": "46994fc0ecf848003c0e24fa5ade3dc7920cce5419e06393c5d9ffab2d9024b0",
+              "blockIdx": 0,
+              "seqStart": 1,
+              "seqEnd": 8,
+              "messageStartId": "message_00000000000000000000000185",
+              "messageEndId": "message_000000000000000000000001ae",
+              "kind": "segment",
+              "rowId": "chat_segment_000000000000000000000001e6",
+              "chunkIdx": 0
+            },
+            "blockKeys": [
+              { "chatId": "chat_0000000000000000000000017k", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_0000000000000000000000017d" }
+            ],
+            "chatTitle": null,
+            "relevance": 0.0327908992767334,
+            "score": 0,
+            "text": "User: Witness the opening ledger scene.\nFunding control: The keeper preserves the ledger and remembers its witnesses.\nUser: Funding memory scene 0: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. \nUser: Funding memory scene 1: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. \nUser: Funding memory scene 2: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. \nUser: Funding memory scene 3: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. \nUser: Funding memory scene 4: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. \nUser: Funding memory scene 5: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. "
           },
           {
             "source": {
@@ -9064,29 +9087,6 @@
             "relevance": 0.03568243980407715,
             "score": 0.46431756019592285,
             "text": "The orbital ledger arc\nThe keeper repaired the loom and preserved the harbor witnesses across their journey.\nKeywords: loom, harbor, witnesses"
-          },
-          {
-            "source": {
-              "chatId": "chat_0000000000000000000000017k",
-              "generationId": "b068951409226ffc0095d23b1039d33bef7f2d5cc814820dcc667de3161575b7",
-              "fingerprint": "792b535bf5392c15a9f77e3e554c8bcd229b079e170afa638eb36564760751d5",
-              "contentHash": "46994fc0ecf848003c0e24fa5ade3dc7920cce5419e06393c5d9ffab2d9024b0",
-              "blockIdx": 0,
-              "seqStart": 1,
-              "seqEnd": 8,
-              "messageStartId": "message_00000000000000000000000185",
-              "messageEndId": "message_000000000000000000000001ae",
-              "kind": "segment",
-              "rowId": "chat_segment_000000000000000000000001e6",
-              "chunkIdx": 0
-            },
-            "blockKeys": [
-              { "chatId": "chat_0000000000000000000000017k", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_0000000000000000000000017d" }
-            ],
-            "chatTitle": null,
-            "relevance": 0.0327908992767334,
-            "score": 0.4672091007232666,
-            "text": "User: Witness the opening ledger scene.\nFunding control: The keeper preserves the ledger and remembers its witnesses.\nUser: Funding memory scene 0: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. \nUser: Funding memory scene 1: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. \nUser: Funding memory scene 2: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. \nUser: Funding memory scene 3: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. \nUser: Funding memory scene 4: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. \nUser: Funding memory scene 5: The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. The ledger records the remembered scene and its witnesses. "
           }
         ],
         "coverage": { "requestLimit": 20, "candidateLimit": 200, "evidencePerCharacter": null, "reranked": false }
@@ -9104,9 +9104,9 @@
             "contentHash": "d7a5984a59c1008e5dd11e239784af1c0d5cf24f21e5b22e7945a8b033a86d27"
           },
           {
-            "documentId": "document_000000000000000000000005q6",
+            "documentId": "document_000000000000000000000005q2",
             "documentName": "Native lifecycle source",
-            "chunkId": "document_chunk_000000000000000000000005r7",
+            "chunkId": "document_chunk_000000000000000000000005r3",
             "chunkIdx": 0,
             "content": "The native archive records an intact intake and its independently preserved witness.",
             "score": 0.3815348148345947,
@@ -9123,17 +9123,6 @@
           }
         ],
         "coverage": { "requestLimit": 20, "candidateLimit": 80, "evidencePerCharacter": null, "reranked": false }
-      },
-      "segments": {
-        "over": "segments",
-        "hits": [
-          {
-            "blockKey": { "chatId": "chat_000000000000000000000004hy", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_000000000000000000000004hg" },
-            "score": 0.4135017991065979,
-            "text": "User: Record both co-star witnesses beside the ledger.\nSearch co-star first: The keeper preserves the ledger and remembers its witnesses.\nSearch co-star second: The keeper preserves the ledger and remembers its witnesses.\nUser: Search observatory scene 0: Both witnesses preserve the orbital ledger.\nUser: Search observatory scene 1: Both witnesses preserve the orbital ledger.\nUser: Search observatory scene 2: Both witnesses preserve the orbital ledger.\nUser: Search observatory scene 3: Both witnesses preserve the orbital ledger.\nUser: Search observatory scene 4: Both witnesses preserve the orbital ledger."
-          }
-        ],
-        "coverage": { "requestLimit": 20, "candidateLimit": 200, "evidencePerCharacter": null, "reranked": false }
       },
       "imagesRaw": {
         "over": "images",
@@ -9415,7 +9404,7 @@
           { "characterId": "character_000000000000000000000001jc", "score": 3.091556286095063, "name": "Branch ledger keeper", "avatarHash": null },
           { "characterId": "character_000000000000000000000001k2", "score": 3.091556286095063, "name": "Harbor witness", "avatarHash": null },
           {
-            "characterId": "character_000000000000000000000006nx",
+            "characterId": "character_000000000000000000000006ns",
             "score": 3.091556286095063,
             "name": "Image variant witness",
             "avatarHash": "45388cd52ff5a33fb2e3139d816f35ebaa044fe8bdbef19faf0a3f90a882a864"
@@ -9610,8 +9599,8 @@
   },
   "memberIdentities": {
     "notificationReader": {
-      "viewer": { "userId": "000000000000000000000007j4", "handle": "c-000000000000000000000007j3", "globalRole": "user" },
-      "authMe": { "authenticated": true, "handle": "c-000000000000000000000007j3", "role": "user" },
+      "viewer": { "userId": "000000000000000000000007j0", "handle": "c-000000000000000000000007hz", "globalRole": "user" },
+      "authMe": { "authenticated": true, "handle": "c-000000000000000000000007hz", "role": "user" },
       "authConfig": {
         "discreetLogin": false,
         "defaultHandle": "owner",
@@ -9682,7 +9671,7 @@
             "defaultPersonaId": "persona_0000000000000000000000014r",
             "currentPersonaId": "persona_0000000000000000000000014r",
             "welcomeAssistantCharacterId": "character_00000000000000000000000035",
-            "defaultPresetId": "preset_000000000000000000000005h0",
+            "defaultPresetId": "preset_000000000000000000000005gw",
             "summarizePreset": null
           },
           "worldInfo": { "scanDepth": 6, "tokenBudget": 1024 },
@@ -9900,7 +9889,7 @@
           "override": {
             "accent": "oklch(0.5 0.16 50)",
             "userBubble": { "bg": "oklch(0.93 0.02 60)", "fg": "oklch(0.25 0.02 60)" },
-            "aiBubble": { "bg": "oklch(0.97 0.006 60)", "fg": "oklch(0.22 0.02 60)" },
+            "aiBubble": { "bg": "oklch(0.95 0.006 60)", "fg": "oklch(0.22 0.02 60)" },
             "systemBubble": { "bg": "oklch(0.93 0.015 60)", "fg": "oklch(0.45 0.02 60)" },
             "speaker": "oklch(0.5 0.17 50)",
             "dialogueColor": "oklch(0.4 0.1 240)",
@@ -9941,7 +9930,7 @@
           "updatedAt": 1750000000000
         },
         {
-          "id": "theme_000000000000000000000007g2",
+          "id": "theme_000000000000000000000007fy",
           "name": "Corpus ST palette (SillyTavern)",
           "override": { "bodyColor": "oklch(0.9249 0.0000 0.00)", "background": "oklch(0.2076 0.0135 258.37)" },
           "css": null,
@@ -9951,7 +9940,7 @@
           "updatedAt": 1750003795001
         },
         {
-          "id": "theme_000000000000000000000007fg",
+          "id": "theme_000000000000000000000007fc",
           "name": "Corpus default palette copy",
           "override": {
             "accent": "oklch(0.72 0.175 52)",
@@ -9974,7 +9963,7 @@
           "updatedAt": 1750003795001
         },
         {
-          "id": "theme_000000000000000000000007fa",
+          "id": "theme_000000000000000000000007f6",
           "name": "Corpus edited palette",
           "override": { "accent": "#bbccdd" },
           "css": null,
@@ -9984,7 +9973,7 @@
           "updatedAt": 1750003795001
         },
         {
-          "id": "theme_000000000000000000000007f8",
+          "id": "theme_000000000000000000000007f4",
           "name": "Corpus settings palette",
           "override": { "accent": "#aabbcc", "background": "#202830", "density": "compact" },
           "css": ".corpus-witness { color: #aabbcc; }",
@@ -9994,7 +9983,7 @@
           "updatedAt": 1750003795001
         },
         {
-          "id": "theme_000000000000000000000007fx",
+          "id": "theme_000000000000000000000007fs",
           "name": "Corpus settings palette 2",
           "override": { "accent": "#112233" },
           "css": null,
@@ -10009,13 +9998,13 @@
       {
         "items": [
           {
-            "id": "character_000000000000000000000006nx",
+            "id": "character_000000000000000000000006ns",
             "handle": "image-variant-witness",
             "name": "Image variant witness",
             "starred": false,
             "archived": false,
             "themeOverride": null,
-            "avatarAssetId": "asset_000000000000000000000006qg",
+            "avatarAssetId": "asset_000000000000000000000006qc",
             "avatarHash": "45388cd52ff5a33fb2e3139d816f35ebaa044fe8bdbef19faf0a3f90a882a864",
             "createdAt": 1750003795001,
             "tags": [],
@@ -10023,12 +10012,12 @@
             "tokenSize": 19,
             "elevatorPitch": null,
             "lastChattedAt": 1750003795001,
-            "lastChatId": "chat_000000000000000000000006p9",
+            "lastChatId": "chat_000000000000000000000006p5",
             "chatCount": 1,
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000005nz",
+            "id": "character_000000000000000000000005nv",
             "handle": "library-roster",
             "name": "Native roster witness",
             "starred": false,
@@ -10042,12 +10031,12 @@
             "tokenSize": 19,
             "elevatorPitch": null,
             "lastChattedAt": 1750003791001,
-            "lastChatId": "chat_000000000000000000000005p5",
+            "lastChatId": "chat_000000000000000000000005p1",
             "chatCount": 1,
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000005h3",
+            "id": "character_000000000000000000000005gz",
             "handle": "native-account-witness",
             "name": "Native account witness",
             "starred": false,
@@ -10061,7 +10050,7 @@
             "tokenSize": 18,
             "elevatorPitch": null,
             "lastChattedAt": 1750003791001,
-            "lastChatId": "chat_000000000000000000000005h9",
+            "lastChatId": "chat_000000000000000000000005h5",
             "chatCount": 1,
             "nameIsAmbiguous": false
           },
@@ -10077,7 +10066,7 @@
             "createdAt": 1750000000000,
             "tags": [
               {
-                "id": "tag_000000000000000000000005ne",
+                "id": "tag_000000000000000000000005na",
                 "name": "Native lifecycle label",
                 "color": null,
                 "color2": null,
@@ -10091,7 +10080,7 @@
             "tokenSize": 17,
             "elevatorPitch": "A traveller repairs the orbital loom.",
             "lastChattedAt": 1750003791001,
-            "lastChatId": "chat_000000000000000000000005p5",
+            "lastChatId": "chat_000000000000000000000005p1",
             "chatCount": 2,
             "nameIsAmbiguous": false
           },
@@ -10516,7 +10505,7 @@
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000006p3",
+            "id": "character_000000000000000000000006nz",
             "handle": "image-unseated-witness",
             "name": "Unseated witness",
             "starred": false,
@@ -10535,7 +10524,7 @@
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000005jz",
+            "id": "character_000000000000000000000005jv",
             "handle": "library-lifecycle",
             "name": "Library lifecycle keeper",
             "starred": false,
@@ -10924,7 +10913,7 @@
       {
         "items": [
           {
-            "id": "chat_000000000000000000000006p9",
+            "id": "chat_000000000000000000000006p5",
             "title": null,
             "starred": false,
             "archived": false,
@@ -10934,10 +10923,10 @@
             "lastMessagePreview": "The traveller witnesses the orbital loom.",
             "isGame": false,
             "gamePaused": false,
-            "participantNames": ["Image variant witness", "c-000000000000000000000005sd"],
+            "participantNames": ["Image variant witness", "c-000000000000000000000005s9"],
             "participantPortraits": [
               {
-                "characterId": "character_000000000000000000000006nx",
+                "characterId": "character_000000000000000000000006ns",
                 "name": "Image variant witness",
                 "avatarHash": "45388cd52ff5a33fb2e3139d816f35ebaa044fe8bdbef19faf0a3f90a882a864"
               }
@@ -10947,7 +10936,7 @@
             "updatedAt": 1750003795001
           },
           {
-            "id": "chat_000000000000000000000005p5",
+            "id": "chat_000000000000000000000005p1",
             "title": null,
             "starred": false,
             "archived": false,
@@ -10960,14 +10949,14 @@
             "participantNames": ["The ledger archivist", "Native roster witness"],
             "participantPortraits": [
               { "characterId": "character_0000000000000000000000014j", "name": "The ledger archivist", "avatarHash": null },
-              { "characterId": "character_000000000000000000000005nz", "name": "Native roster witness", "avatarHash": null }
+              { "characterId": "character_000000000000000000000005nv", "name": "Native roster witness", "avatarHash": null }
             ],
             "viewerRole": "host",
             "createdAt": 1750003791001,
             "updatedAt": 1750003791001
           },
           {
-            "id": "chat_000000000000000000000005h9",
+            "id": "chat_000000000000000000000005h5",
             "title": null,
             "starred": false,
             "archived": false,
@@ -10978,7 +10967,7 @@
             "isGame": false,
             "gamePaused": false,
             "participantNames": ["Native account witness"],
-            "participantPortraits": [{ "characterId": "character_000000000000000000000005h3", "name": "Native account witness", "avatarHash": null }],
+            "participantPortraits": [{ "characterId": "character_000000000000000000000005gz", "name": "Native account witness", "avatarHash": null }],
             "viewerRole": "host",
             "createdAt": 1750003791001,
             "updatedAt": 1750003791001
@@ -11801,7 +11790,7 @@
       {
         "items": [
           {
-            "id": "document_000000000000000000000005q6",
+            "id": "document_000000000000000000000005q2",
             "name": "Native lifecycle source",
             "mime": "text/plain",
             "origin": "text",
@@ -14146,7 +14135,7 @@
             "lastActivityAt": 1750003777001
           },
           {
-            "characterId": "character_000000000000000000000005h3",
+            "characterId": "character_000000000000000000000005gz",
             "name": "Native account witness",
             "chats": 1,
             "userTurns": 0,
@@ -14244,7 +14233,7 @@
             "lastActivityAt": 1750003769000
           },
           {
-            "characterId": "character_000000000000000000000005nz",
+            "characterId": "character_000000000000000000000005nv",
             "name": "Native roster witness",
             "chats": 1,
             "userTurns": 0,
@@ -14258,7 +14247,7 @@
             "lastActivityAt": 1750003791001
           },
           {
-            "characterId": "character_000000000000000000000006nx",
+            "characterId": "character_000000000000000000000006ns",
             "name": "Image variant witness",
             "chats": 1,
             "userTurns": 0,
@@ -14295,7 +14284,7 @@
         { "characterId": "character_0000000000000000000000046w", "name": "Corpus round keeper", "bucketStart": 1750003200000, "replies": 1 },
         { "characterId": "character_000000000000000000000004hg", "name": "Search co-star first", "bucketStart": 1750003200000, "replies": 1 },
         { "characterId": "character_000000000000000000000004hp", "name": "Search co-star second", "bucketStart": 1750003200000, "replies": 1 },
-        { "characterId": "character_000000000000000000000005h3", "name": "Native account witness", "bucketStart": 1750003200000, "replies": 1 }
+        { "characterId": "character_000000000000000000000005gz", "name": "Native account witness", "bucketStart": 1750003200000, "replies": 1 }
       ]
     ]
   }

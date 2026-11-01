@@ -171,7 +171,7 @@ test("settled search publication survives native authenticated clone reads and r
       assert(firstRoom !== undefined);
       Object.assign(firstRoom, { input: null });
       expect(() => serializeCorpusWire(changedRoom, authentication.secrets)).toThrow("publication recipe");
-      const snapshot = { viewerUserId: admitted.viewerUserId, read: admitted.reads.segments };
+      const snapshot = { viewerUserId: admitted.viewerUserId, read: admitted.reads.digests };
       expect(createCorpusViewerReadResponder("search.search", root.ownerId, snapshot)(snapshot.read.input)).toEqual(snapshot.read.output);
       expect(() => createCorpusViewerReadResponder("search.search", actors.secondUserId, snapshot)).toThrow("snapshot viewer does not match");
       const foreign = await root.internalCallerFor(actors.secondUserId);
@@ -196,7 +196,7 @@ test("settled search publication survives native authenticated clone reads and r
         expect(output.viewerIsHost).toBe(false);
         memberRooms.push({ input: room.input, output });
       }
-      expect((await foreign.search.search(before.reads.segments.input)).hits).toEqual([]);
+      expect((await foreign.search.search({ ...before.reads.digests.input, scope: { kind: "chat", chatId: before.ids.chatId } })).hits).toEqual([]);
       const memberSplice = structuredClone(captured);
       Object.assign(memberSplice.searchLibrary, { viewerUserId: actors.secondUserId, rooms: memberRooms });
       Object.assign(memberSplice.searchLibrary.reads.viewer, { output: foreignViewer });
@@ -343,7 +343,6 @@ test("settled search publication survives native authenticated clone reads and r
         section.reads.digests,
         section.reads.corpus,
         section.reads.documents,
-        section.reads.segments,
         section.reads.imagesRaw,
         section.reads.imagesCaptioned,
       ],
@@ -373,11 +372,11 @@ test("settled search publication survives native authenticated clone reads and r
   ).rejects.toThrow("exhausted native search provider request");
   const foreignPrincipal = await clone.principalFor(produced.foreignId);
   const foreignAuthentication = await captureCookieAuth(clone, foreignPrincipal, "fresh-private-search-member-password");
-  const scoped = new URL("/api/trpc/search.search", origin);
-  scoped.searchParams.set("input", JSON.stringify(section.reads.segments.input));
+  const scoped = new URL("/api/trpc/search.fields", origin);
+  scoped.searchParams.set("input", JSON.stringify(section.reads.fields.input));
   const response = await fetch(scoped, { headers: { cookie: foreignAuthentication.cookie, forwarded: "" } });
   expect(response.status).toBe(200);
-  const foreignOutput = z.object({ result: z.object({ data: unifiedSearchResultSchema }) }).parse(await response.json()).result.data;
+  const foreignOutput = z.object({ result: z.object({ data: fieldSearchResultSchema }) }).parse(await response.json()).result.data;
   expect(foreignOutput.hits).toEqual([]);
-  expect(JSON.stringify(foreignOutput)).not.toContain(JSON.stringify(section.reads.segments.output.hits));
+  expect(JSON.stringify(foreignOutput)).not.toContain(JSON.stringify(section.reads.fields.output.hits));
 });

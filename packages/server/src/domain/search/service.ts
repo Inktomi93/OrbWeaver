@@ -48,7 +48,7 @@ export function createSearchService(input: DbAssemblyInput<SearchContext>): Sear
     documents,
     similarCharacters: createSimilarCharacters(ctx),
     similarArt: createSimilarArt(ctx),
-    search: createSearch(ctx, { knn, findCharacters, discover, corpus, images, segments, documents }, coverage),
+    search: createSearch(ctx, { knn, findCharacters, discover, corpus, images, documents }, coverage),
     spaceStatus: createSpaceStatus(ctx),
   };
 }

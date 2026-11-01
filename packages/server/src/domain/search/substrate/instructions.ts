@@ -48,4 +48,5 @@ export const SCOPE_INSTRUCTIONS = {
     query: "Retrieve the source-document passage that best answers the request.",
     rerank: "Given a query, retrieve the reference-document passage most relevant to it.",
   },
-} as const satisfies Record<SearchTarget, ScopeInstructions>;
+  // The segments verb serves chat recall; it is not a unified search target.
+} as const satisfies Record<SearchTarget | "segments", ScopeInstructions>;
