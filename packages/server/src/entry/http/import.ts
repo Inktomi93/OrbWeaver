@@ -24,7 +24,7 @@ import { IMPORT_BUNDLE_MAX_BYTES } from "@orb/contracts/uploads";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import type { Context, Hono } from "hono";
-import { DEFAULT_IMPORT_STAGING_DIR, stagedOwnerRoot } from "#domain/import";
+import { DEFAULT_IMPORT_STAGING_DIR, STAGED_BUNDLE_PREFIX, stagedOwnerRoot } from "#domain/import";
 import type { WorkloadService } from "#domain/workloads";
 import { hasCsrfHeader } from "#infra/auth";
 import type { PrincipalEnv } from "./contract/request-env.ts";
@@ -126,7 +126,7 @@ async function stageAndStart(c: Context<PrincipalEnv>, body: ReadableStream<Uint
   // only ever resolves for the account it was staged for. 0o700: the directory is not a shared inbox.
   const stagingRoot = stagedOwnerRoot(deps.stagingDir ?? DEFAULT_IMPORT_STAGING_DIR, principal.userId);
   await mkdir(stagingRoot, { recursive: true, mode: OWNER_ONLY_DIR });
-  const token = `import-bundle-${deps.newOpaqueId()}.zip`;
+  const token = `${STAGED_BUNDLE_PREFIX}${deps.newOpaqueId()}.zip`;
   const stagedPath = join(stagingRoot, token);
   const staged = await stageCapped(body, stagedPath, IMPORT_BUNDLE_MAX_BYTES);
   if (!staged) {

@@ -438,6 +438,11 @@ const SERVER_TEST_REACHES = {
   "tests/server/domain/automation/engine/dispatch.int.test.ts": {
     "domain/imagery": "SIZE_PRESETS: the dimensions a size preset puts on the provider request",
   },
+  // A staged upload's life ends at a boot, and the boot sweep removes the zip extractor's directories by their name.
+  "tests/server/domain/import/persistence/import-staging-lifetime.int.test.ts": {
+    "entry/boot": "reclaimLocksOnBoot: the boot step the sweep runs in",
+    "infra/storage": "ZIP_STAGING_PREFIX: the name an extraction directory carries",
+  },
   // Each cross-owner boot verb must refuse a plain handle cast to the boot grant before a row moves (D335).
   "tests/server/entry/boot/persistence/forged-boot-grant.int.test.ts": {
     "domain/automation": "migratePluginToolWireNames: a cross-owner boot verb",
