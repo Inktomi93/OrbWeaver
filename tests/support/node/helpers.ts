@@ -72,17 +72,14 @@ export {
 export type { SurfaceRunConfig, SurfaceWalkOptions } from "./surface-run.ts";
 export {
   assertSurfaceLocalExecution,
-  readSurfaceCaseAdmission,
   readSurfaceOutputRoot,
   readSurfaceRunConfig,
   SURFACE_BOOT_DIAGNOSTIC_TITLE,
-  SURFACE_CASE_REPORT_TIMEOUT_MS,
   SURFACE_CLIENT_BUILD_MODE,
   SURFACE_NATIVE_TIMEOUT_MS,
   SURFACE_OUTPUT_ROOT_ENV,
   SURFACE_RUN_CONFIG_ENV,
   surfaceArtifactModes,
-  surfaceCaseDelayMs,
   surfaceClientBuildEnvironment,
   surfaceClientBuildKey,
   surfaceNativeTimeout,

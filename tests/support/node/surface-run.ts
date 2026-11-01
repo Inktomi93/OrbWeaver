@@ -1,9 +1,8 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { viewerViewSchema } from "@orb/contracts/identity";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
-import { brandedId } from "@orb/kit/ids";
 import { execGit } from "@orb/tooling/floor/git/git";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import type { PlaywrightWorkerOptions } from "@playwright/test";
@@ -18,9 +17,6 @@ export const SURFACE_OUTPUT_ROOT_ENV = "ORB_SURFACE_OUTPUT_ROOT";
 // Owner ruling: the whole baseline walk fits in 90 minutes at normal load. Shard it by project or cut repeated work; never raise this.
 export const SURFACE_NATIVE_TIMEOUT_MS = 5_400_000;
 export const SURFACE_BOOT_DIAGNOSTIC_TITLE = "production navigation boot diagnostic";
-export const SURFACE_CASE_REPORT_TIMEOUT_MS = 5000;
-const SURFACE_CASE_ADMISSION_FILE = "case-admission.json";
-const caseAdmissionSchema = z.object({ testId: brandedId("PlaywrightTestId"), completedAt: z.number().int().nonnegative().nullable() });
 const MAX_TIMER_DELAY_MS = 2_147_483_647;
 const absolutePath = z.string().refine(isAbsolute, "Surface run paths must be absolute");
 
@@ -35,7 +31,6 @@ export const surfaceRunConfigSchema = z.object({
   owner: viewerViewSchema.pick({ userId: true, handle: true }),
   composition: z.literal("production-composed-harness"),
   jobs: z.literal("disabled"),
-  rateLimitWindowMs: z.number().int().positive(),
   authentication: surfaceAuthenticationSchema,
   generation: surfaceGenerationSchema,
   subjects: surfaceSubjectInventorySchema,
@@ -131,31 +126,6 @@ export function surfaceClientBuildKey(root: string, environment: NodeJS.ProcessE
     hash.update(`${path}\0${id}\0`);
   }
   return hash.digest("hex");
-}
-
-/** Preserve the reporter boundary across native worker replacements. */
-export function writeSurfaceCaseAdmission(root: string, testId: string, completedAt: number | null): void {
-  const path = join(root, SURFACE_CASE_ADMISSION_FILE);
-  const pending = `${path}.pending`;
-  writeFileSync(pending, JSON.stringify(caseAdmissionSchema.parse({ testId, completedAt })), { mode: 0o600 });
-  renameSync(pending, path);
-}
-
-/** The worker must observe its own begin marker before using the previous completion time. */
-export function readSurfaceCaseAdmission(root: string): z.output<typeof caseAdmissionSchema> | null {
-  try {
-    return caseAdmissionSchema.parse(JSON.parse(readFileSync(join(root, SURFACE_CASE_ADMISSION_FILE), "utf8")));
-  } catch (error) {
-    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-      return null;
-    }
-    throw error;
-  }
-}
-
-/** Schedule independent cases after the preceding case's actual fixed window; never pace within a journey. */
-export function surfaceCaseDelayMs(completedAt: number | null, now: number, windowMs: number): number {
-  return completedAt === null ? 0 : Math.max(0, (Math.floor(completedAt / windowMs) + 1) * windowMs - now);
 }
 
 /** Refuse generated local datasets and evidence on CI before any filesystem or browser work. */
