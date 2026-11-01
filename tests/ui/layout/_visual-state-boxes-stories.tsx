@@ -15,13 +15,18 @@ interface StoryProps {
 function Ground({ theme, background, children }: StoryProps & { readonly children: ReactNode }): ReactElement {
   const ambient = theme === undefined ? undefined : SEED_THEME_VALUE_SETS[theme].vars;
   return (
-    <div data-theme={theme} style={{ backgroundColor: "var(--color-background)", color: "var(--color-foreground)", padding: "1rem" }}>
+    <div
+      data-theme={theme}
+      style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, color: `var(${TOKENS["color.foreground"].cssVar})`, padding: "1rem" }}
+    >
       {background === undefined ? (
         children
       ) : (
         <ThemeScope
           tokens={{ background }}
-          {...(ambient === undefined ? {} : { ambientBackground: ambient["--color-background"], ambientAccent: ambient["--color-primary"] })}
+          {...(ambient === undefined
+            ? {}
+            : { ambientBackground: ambient[TOKENS["color.background"].cssVar], ambientAccent: ambient[TOKENS["color.primary"].cssVar] })}
         >
           {children}
         </ThemeScope>
@@ -45,7 +50,7 @@ export function FocalSectionStory(props: StoryProps): ReactElement {
           <Section data-case="plain" heading="Plain">
             plain
           </Section>
-          <span data-probe="speaker" style={{ color: "var(--color-speaker)" }}>
+          <span data-probe="speaker" style={{ color: `var(${TOKENS["color.speaker"].cssVar})` }}>
             speaker
           </span>
         </Stack>
@@ -80,7 +85,7 @@ export function CurrentBoxesStory(props: StoryProps): ReactElement {
             <span>one</span>
             <span>two</span>
           </CurrentGrid>
-          <Stack data-probe="tint" data-tone="neutral" style={{ backgroundColor: "var(--color-tone-tint-active)" }}>
+          <Stack data-probe="tint" data-tone="neutral" style={{ backgroundColor: `var(${TOKENS["color.tone-tint-active"].cssVar})` }}>
             tint
           </Stack>
           <span data-probe="tight" style={{ display: "block", inlineSize: `var(${TOKENS["spacing.tight"].cssVar})` }} />
@@ -88,7 +93,10 @@ export function CurrentBoxesStory(props: StoryProps): ReactElement {
             data-probe="ring"
             style={{ display: "block", blockSize: "1rem", inlineSize: "2rem", backgroundColor: `var(${TOKENS["color.input-border"].cssVar})` }}
           />
-          <span data-probe="ground" style={{ display: "block", blockSize: "1rem", inlineSize: "2rem", backgroundColor: "var(--color-background)" }} />
+          <span
+            data-probe="ground"
+            style={{ display: "block", blockSize: "1rem", inlineSize: "2rem", backgroundColor: `var(${TOKENS["color.background"].cssVar})` }}
+          />
         </Stack>
       </Ground>
     </CtIsolation>
@@ -110,10 +118,10 @@ export function DividerToneStory(props: StoryProps): ReactElement {
           <Row data-case="row-plain" divider="start" dividerWeight="rule">
             plain
           </Row>
-          <Row data-case="probe-primary" tone="primary" style={{ borderStyle: "solid", borderColor: "var(--color-tone-solid)" }}>
+          <Row data-case="probe-primary" tone="primary" style={{ borderStyle: "solid", borderColor: `var(${TOKENS["color.tone-solid"].cssVar})` }}>
             probe
           </Row>
-          <Row data-case="probe-warning" tone="warning" style={{ borderStyle: "solid", borderColor: "var(--color-tone-solid)" }}>
+          <Row data-case="probe-warning" tone="warning" style={{ borderStyle: "solid", borderColor: `var(${TOKENS["color.tone-solid"].cssVar})` }}>
             probe
           </Row>
         </Stack>

@@ -339,7 +339,7 @@ for (const style of THEME_CHAT_STYLES) {
       expect(got?.portraitSpansBubble).toBe(want.portrait === null ? null : true);
       expect(want.portrait === "welded" ? ["left", "right"] : [want.portrait]).toContain(got?.portraitSide);
       const ordered = want.banner || expected.headerPlacement === "outside";
-      expect(!ordered || got?.headerBeforeBody === true).toBe(true);
+      expect(ordered ? got?.headerBeforeBody : true).toBe(true);
     }
   });
 }

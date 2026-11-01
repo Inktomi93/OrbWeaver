@@ -20,6 +20,7 @@
 // harness's rendering context is not the app's, and a literal both fails correct fixes and survives a token
 // retune.
 
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { pseudoHitEnvelope, readPseudoGeometry, walkFrom } from "../iso/hit-extent-walk.ts";
 import { diagnosticTarget } from "./performance-entry.ts";
@@ -68,7 +69,7 @@ function resolveSpacingPx(page: Page, cssVar: string): Promise<number> {
 /** The live `--size-touch-target`, in px. Pointer-CONDITIONAL (44 coarse / 28 fine) — read it only after
  *  asserting the coarse emulation landed, or it answers for the wrong pointer class. */
 export function touchFloorPx(page: Page): Promise<number> {
-  return resolveSpacingPx(page, "--size-touch-target");
+  return resolveSpacingPx(page, TOKENS["size.touch-target"].cssVar);
 }
 
 /** A control's reachable extent on one axis — walked out from its centre with `elementFromPoint` until the

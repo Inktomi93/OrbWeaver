@@ -1,6 +1,7 @@
 // @subject tests/support/iso/inference-capability.ts
 
 import { GENERATION_FLOOR } from "@orb/contracts/inference";
+import { ZodError } from "zod";
 import { makeCapability, makeEmbeddingCapability, makeGenerationCapability, makeRerankCapability } from "../iso/inference-capability.ts";
 import { expect, test } from "./fixtures.ts";
 
@@ -14,7 +15,7 @@ test("mutating one generation fixture cannot rewrite the next fixture or the pro
 });
 
 test("overrides cannot bypass the actual capability constraints", () => {
-  expect(() => makeGenerationCapability({ sampling: { samplerOrder: ["temperature", "temperature"] } })).toThrow();
-  expect(() => makeEmbeddingCapability({ dims: 0 })).toThrow();
-  expect(() => makeRerankCapability({ maxInputTokens: 0 })).toThrow();
+  expect(() => makeGenerationCapability({ sampling: { samplerOrder: ["temperature", "temperature"] } })).toThrow(ZodError);
+  expect(() => makeEmbeddingCapability({ dims: 0 })).toThrow(ZodError);
+  expect(() => makeRerankCapability({ maxInputTokens: 0 })).toThrow(ZodError);
 });

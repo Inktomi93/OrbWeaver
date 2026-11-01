@@ -82,8 +82,8 @@ test("confirmed consumer completion retires before deleting the clone and closin
       ),
     ).toBe(0);
     expect(order).toEqual(["consume", "retire", "dispose"]);
-    await expect(access(directory)).rejects.toThrow();
-    await expect(fetch(`${provider.baseUrl}/models`, { signal: AbortSignal.timeout(1000) })).rejects.toThrow();
+    await expect(access(directory)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(fetch(`${provider.baseUrl}/models`, { signal: AbortSignal.timeout(1000) })).rejects.toMatchObject({ cause: { code: "ECONNREFUSED" } });
   } finally {
     await resource[Symbol.asyncDispose]();
   }

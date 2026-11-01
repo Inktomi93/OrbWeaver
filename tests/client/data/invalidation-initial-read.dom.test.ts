@@ -193,7 +193,7 @@ for (const termination of ["cancel", "remove"] as const) {
     using context = new InitialRead();
     const { queryClient } = context.runtime;
     const initial = queryClient.query(context.options);
-    const canceled = expect(initial).rejects.toThrow();
+    const canceled = expect(initial).rejects.toThrow("CancelledError");
     await context.started;
     context.invalidation.invalidateUser({ type: "tagsChanged" });
     if (termination === "remove") {

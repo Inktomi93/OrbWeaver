@@ -409,7 +409,7 @@ test("a failed rerank call fails the omnibox search instead of falling back to v
   await using world = await rerankWorld("text");
   world.answerRerank("fail");
   const before = world.rerankCalls.length;
-  await expect(omniboxOrder(world, "documents", true)).rejects.toThrow();
+  await expect(omniboxOrder(world, "documents", true)).toThrowTRPCError("SERVICE_UNAVAILABLE");
   expect(world.rerankCalls.length).toBe(before + 1);
   expect(await omniboxOrder(world, "documents", false)).toContain(WANTED);
 });
@@ -429,7 +429,7 @@ test("a reranker window too small to hold any query is refused before anything i
   await using world = await rerankWorld("text");
   await world.bindRerank(RERANK_MIN_WINDOW_TOKENS);
   const before = world.rerankCalls.length;
-  await expect(omniboxOrder(world, "documents", true)).rejects.toThrow();
+  await expect(omniboxOrder(world, "documents", true)).toThrowTRPCError("BAD_REQUEST");
   expect(world.rerankCalls.length).toBe(before);
   await world.bindRerank(WIDE_WINDOW_TOKENS);
   expect((await omniboxOrder(world, "documents", true)).find((placed) => placed !== "elsewhere")).toBe(WANTED);

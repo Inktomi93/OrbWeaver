@@ -73,7 +73,7 @@ test("native databank output suppliers retain envelope, canon, consent and workl
   await expect(member.databank.get({ id: created.row.id, includeText: true })).rejects.toMatchObject({ code: "NOT_FOUND" });
   await expect(member.databank.rename({ id: created.row.id, name: "Foreign overwrite" })).rejects.toMatchObject({ code: "NOT_FOUND" });
   await expect(member.databank.reindex({ scope: { kind: "document", documentId: created.row.id } })).rejects.toMatchObject({ code: "NOT_FOUND" });
-  await expect(caller.databank.listActiveForChat({ chatId: result.room.chat.id })).rejects.toThrow();
+  await expect(caller.databank.listActiveForChat({ chatId: result.room.chat.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
   expect({ documents: await root.db.select().from(documents), jobs: await root.db.select().from(workloads) }).toEqual(before);
   expect(await root.db.select().from(documents).where(eq(documents.id, created.row.id))).toMatchObject([
     { name: result.renamed.name, extractedText: created.row.extractedText },

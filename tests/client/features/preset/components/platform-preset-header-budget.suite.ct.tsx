@@ -5,6 +5,7 @@ import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_preset-action-groups-stories/PresetActionGroupsStory";
@@ -79,7 +80,7 @@ for (const regime of REGIMES) {
       await expect(reset).toBeFocused();
       const geometry = await actionGroupGeometry(editor, [rename, activate, reset]);
       expect(geometry.inlineOverflow).toBeLessThanOrEqual(1);
-      const floor = await resolvedLength(page, "var(--size-control-sm)", editor);
+      const floor = await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`, editor);
       for (const control of geometry.controls) {
         expect(control.height).toBeGreaterThanOrEqual(floor);
       }
@@ -96,7 +97,7 @@ for (const regime of REGIMES) {
       if (stripBox === null || columnBox === null) {
         throw new Error("The real tab scroll wrapper and shared header column must render");
       }
-      const gap = await resolvedLength(page, "var(--spacing-block)", column);
+      const gap = await resolvedLength(page, `var(${TOKENS["spacing.block"].cssVar})`, column);
       expect(columnBox.height).toBeLessThanOrEqual(Math.max(...present.map((box) => box.height)) + gap + stripBox.height + 1);
     });
   });

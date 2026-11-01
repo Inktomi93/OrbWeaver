@@ -1,6 +1,7 @@
 // @subject packages/inference/src/roles/executor.ts
 // @subject packages/inference/src/resolve/resolve-task.ts
 
+import { DomainNoCredentialError } from "@orb/kit/errors";
 import { expect, test } from "@orb/testkit/node";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { physicalSdkScenario } from "../backends/agent-sdk/regression-edge.fixtures.ts";
@@ -73,6 +74,6 @@ test("a saved subscription credential reaches native Query and a current revocat
     throw new Error("the persisted subscription lost its credential");
   }
   await root.services.credentials.markRevokedByUser({ principal: await root.principalFor(root.ownerId), credentialId });
-  await expect(root.app.runtime.executor.summarize({ connection, inputs: [INPUT] })).rejects.toThrow();
+  await expect(root.app.runtime.executor.summarize({ connection, inputs: [INPUT] })).rejects.toThrow(DomainNoCredentialError);
   expect(edge.children).toHaveLength(1);
 });

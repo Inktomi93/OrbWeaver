@@ -20,7 +20,7 @@ test("unread and consumer-locked production responses remain owned until root te
     await expect(reader.read()).rejects.toMatchObject({ name: "AbortError" });
     await expect(unread.text()).rejects.toMatchObject({ name: "AbortError" });
     await expect(harness.http.request("/healthz")).rejects.toThrow("HTTP lifetime is closed");
-    await expect(harness.db.run(sql`select 1`)).rejects.toThrow();
+    await expect(harness.db.run(sql`select 1`)).rejects.toMatchObject({ cause: { code: "CLIENT_CLOSED" } });
     expect(harness.timers.pending()).toBe(0);
   } finally {
     reader.releaseLock();

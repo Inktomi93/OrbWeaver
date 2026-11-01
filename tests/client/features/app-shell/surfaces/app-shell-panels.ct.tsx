@@ -8,6 +8,7 @@ import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { loadAppearancePreset } from "@orb/testkit/node/helpers";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import type { AppShellListDockStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -53,10 +54,13 @@ async function openSection(page: Page, label: string, id: string): Promise<void>
 
 /** Constrain the prospective tracks shell.css owns, without touching a breakpoint, until the sentinel reports a deficit. */
 async function forceConstrained(page: Page): Promise<void> {
-  await page.locator(".shell-grid").evaluate((grid) => {
-    grid.style.setProperty("--dimension-panel-floor", "35rem");
-    grid.style.setProperty("--dimension-panel-context-step", "35rem");
-  });
+  await page.locator(".shell-grid").evaluate(
+    (grid, { dimensionPanelFloor, dimensionPanelContextStep }) => {
+      grid.style.setProperty(dimensionPanelFloor, "35rem");
+      grid.style.setProperty(dimensionPanelContextStep, "35rem");
+    },
+    { dimensionPanelFloor: TOKENS["dimension.panel-floor"].cssVar, dimensionPanelContextStep: TOKENS["dimension.panel-context-step"].cssVar },
+  );
   await expect.poll(() => primacyDeficit(page)).toBeGreaterThan(0);
 }
 
@@ -299,7 +303,7 @@ test.describe("on a wide desktop", () => {
     const revealed = await skip.boundingBox();
     expect(revealed?.width ?? 0).toBeGreaterThan(rest?.width ?? 0);
     // The pointer's touch floor on both axes, and the box comes from the Button's padding, not a height patch.
-    const floor = await resolvedLength(page, "var(--size-touch-target)");
+    const floor = await resolvedLength(page, `var(${TOKENS["size.touch-target"].cssVar})`);
     expect(revealed?.height ?? 0).toBeGreaterThanOrEqual(floor);
     expect(revealed?.width ?? 0).toBeGreaterThanOrEqual(floor);
     await expect.poll(() => skip.evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingInlineStart))).toBeGreaterThan(0);
@@ -340,7 +344,7 @@ test.describe("on a wide desktop", () => {
     await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "docked", context: "docked" } } });
     await mount<typeof AppShellStory>(STORY, {});
     const band = page.locator(`${LIST} .shell-panel-header`);
-    const floor = await resolvedLength(page, "var(--size-control-sm)");
+    const floor = await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`);
     const read = (): Promise<{ readonly width: number; readonly clipped: boolean; readonly doors: number[] }> =>
       band.evaluate((header) => {
         const title = header.querySelector('[data-slot="list-pane-title"]');
@@ -379,10 +383,10 @@ test.describe("on a wide desktop", () => {
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "docked");
     const [railTrack = 0, list = 0, content = 0, context = 0] = await shellTracks(page);
     expect(railTrack + list + content + context).toBeCloseTo(1360, 0);
-    expect(content).toBeGreaterThanOrEqual((await resolvedLength(page, "var(--dimension-content-reading-floor)")) - 1);
-    expect(list).toBeGreaterThanOrEqual(await resolvedLength(page, "var(--dimension-panel-floor)"));
+    expect(content).toBeGreaterThanOrEqual((await resolvedLength(page, `var(${TOKENS["dimension.content-reading-floor"].cssVar})`)) - 1);
+    expect(list).toBeGreaterThanOrEqual(await resolvedLength(page, `var(${TOKENS["dimension.panel-floor"].cssVar})`));
     expect(list).toBeLessThan(await resolvedLength(page, "var(--panel-w)"));
-    expect(context).toBeGreaterThanOrEqual(await resolvedLength(page, "var(--dimension-panel-context-step)"));
+    expect(context).toBeGreaterThanOrEqual(await resolvedLength(page, `var(${TOKENS["dimension.panel-context-step"].cssVar})`));
     expect(context).toBeLessThan(await resolvedLength(page, "var(--panel-context-w)"));
   });
 
@@ -394,7 +398,7 @@ test.describe("on a wide desktop", () => {
     const [, wideList = 0, wideContent = 0, wideContext = 0] = await shellTracks(page);
     expect(wideList).toBeCloseTo(await resolvedLength(page, "var(--panel-w)"), 0);
     expect(wideContext).toBeCloseTo(await resolvedLength(page, "var(--panel-context-w)"), 0);
-    expect(wideContent).toBeGreaterThan(await resolvedLength(page, "var(--dimension-content-reading-floor)"));
+    expect(wideContent).toBeGreaterThan(await resolvedLength(page, `var(${TOKENS["dimension.content-reading-floor"].cssVar})`));
 
     await page.setViewportSize({ width: 1360, height: 900 });
     await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).click();
@@ -482,10 +486,13 @@ test.describe("across the width regimes", () => {
     await expect(context).toHaveAttribute("data-panel-mode", "docked");
     await forceConstrained(page);
     await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
-    await page.locator(".shell-grid").evaluate((grid) => {
-      grid.style.removeProperty("--dimension-panel-floor");
-      grid.style.removeProperty("--dimension-panel-context-step");
-    });
+    await page.locator(".shell-grid").evaluate(
+      (grid, { dimensionPanelFloor, dimensionPanelContextStep }) => {
+        grid.style.removeProperty(dimensionPanelFloor);
+        grid.style.removeProperty(dimensionPanelContextStep);
+      },
+      { dimensionPanelFloor: TOKENS["dimension.panel-floor"].cssVar, dimensionPanelContextStep: TOKENS["dimension.panel-context-step"].cssVar },
+    );
     await expect(context).toHaveAttribute("data-panel-mode", "docked");
     await page.evaluate(() => {
       document.documentElement.style.fontSize = "150%";

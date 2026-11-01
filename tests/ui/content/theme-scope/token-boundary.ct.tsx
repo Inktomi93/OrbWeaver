@@ -14,13 +14,13 @@ const LEGAL = {
   density: "compact",
 } satisfies ThemeScopeTokens;
 const COLOR_PROPERTIES = [
-  "--color-primary",
-  "--color-background",
-  "--color-user-bubble",
-  "--color-speaker",
-  "--color-dialogue",
-  "--color-narration",
-  "--color-prose-body",
+  TOKENS["color.primary"].cssVar,
+  TOKENS["color.background"].cssVar,
+  TOKENS["color.user-bubble"].cssVar,
+  TOKENS["color.speaker"].cssVar,
+  TOKENS["color.dialogue"].cssVar,
+  TOKENS["color.narration"].cssVar,
+  TOKENS["color.prose-body"].cssVar,
 ];
 
 test("accepted tokens reach the public scope while obsolete row anatomy stays absent", async ({ mount }) => {
@@ -32,11 +32,19 @@ test("accepted tokens reach the public scope while obsolete row anatomy stays ab
   await expect(scope).not.toHaveAttribute("data-chat-style");
   await expect
     .poll(() =>
-      scope.evaluate((element) =>
-        ["--color-primary", "--color-user-bubble", "--color-prose-body", "--font-sans", "--radius-card"].map((name) => element.style.getPropertyValue(name)),
+      scope.evaluate(
+        (element, { colorPrimary, colorUserBubble, colorProseBody, fontSans, radiusCard }) =>
+          [colorPrimary, colorUserBubble, colorProseBody, fontSans, radiusCard].map((name) => element.style.getPropertyValue(name)),
+        {
+          colorPrimary: TOKENS["color.primary"].cssVar,
+          colorUserBubble: TOKENS["color.user-bubble"].cssVar,
+          colorProseBody: TOKENS["color.prose-body"].cssVar,
+          fontSans: TOKENS["font.sans"].cssVar,
+          radiusCard: TOKENS["radius.card"].cssVar,
+        },
       ),
     )
-    .toEqual([LEGAL.accent, LEGAL.userBubble.bg, LEGAL.bodyColor, `${LEGAL.font}, serif`, "var(--radius-full)"]);
+    .toEqual([LEGAL.accent, LEGAL.userBubble.bg, LEGAL.bodyColor, `${LEGAL.font}, serif`, `var(${TOKENS["radius.full"].cssVar})`]);
 });
 
 test("hostile color values drop per field and nested scopes inherit the valid outer accent", async ({ mount }) => {
@@ -45,14 +53,16 @@ test("hostile color values drop per field and nested scopes inherit the valid ou
   const scope = component.locator('[data-slot="theme-scope"]').last();
   const sample = component.getByText("Theme boundary reached.", { exact: true });
   await expect(sample).toBeVisible();
-  await expect.poll(() => scope.evaluate((element) => element.style.getPropertyValue("--color-primary"))).toBe(LEGAL.accent);
+  await expect
+    .poll(() => scope.evaluate((element, colorPrimary) => element.style.getPropertyValue(colorPrimary), TOKENS["color.primary"].cssVar))
+    .toBe(LEGAL.accent);
 
   for (const value of [
     "url(//theme-boundary.invalid/image)",
     "expression(alert(1))",
     "red; background: url(//theme-boundary.invalid/image)",
     "javascript:alert(1)",
-    "var(--color-primary)",
+    `var(${TOKENS["color.primary"].cssVar})`,
     "linear-gradient(red, blue)",
     `#${"a".repeat(200)}`,
   ]) {
@@ -74,8 +84,10 @@ test("hostile color values drop per field and nested scopes inherit the valid ou
     await expect
       .poll(() => scope.evaluate((element, names) => names.map((name) => element.style.getPropertyValue(name)), COLOR_PROPERTIES))
       .toEqual(COLOR_PROPERTIES.map(() => ""));
-    await expect.poll(() => scope.evaluate((element) => element.style.getPropertyValue("--color-border"))).toBe("red");
-    await expect.poll(() => sample.evaluate((element) => getComputedStyle(element).getPropertyValue("--color-primary").trim())).toBe(LEGAL.accent);
+    await expect.poll(() => scope.evaluate((element, colorBorder) => element.style.getPropertyValue(colorBorder), TOKENS["color.border"].cssVar)).toBe("red");
+    await expect
+      .poll(() => sample.evaluate((element, colorPrimary) => getComputedStyle(element).getPropertyValue(colorPrimary).trim(), TOKENS["color.primary"].cssVar))
+      .toBe(LEGAL.accent);
   }
 });
 
@@ -87,18 +99,42 @@ test("unreadable bare words drop at write, preserve direct render ink and leave 
   const scope = component.locator('[data-slot="theme-scope"]').last();
   await expect(component.getByText("Theme boundary reached.", { exact: true })).toBeVisible();
   await expect
-    .poll(() => scope.evaluate((element) => ["--color-primary", "--color-ring"].map((name) => element.style.getPropertyValue(name))))
+    .poll(() =>
+      scope.evaluate((element, { colorPrimary, colorRing }) => [colorPrimary, colorRing].map((name) => element.style.getPropertyValue(name)), {
+        colorPrimary: TOKENS["color.primary"].cssVar,
+        colorRing: TOKENS["color.ring"].cssVar,
+      }),
+    )
     .toEqual([LEGAL.accent, LEGAL.accent]);
-  await expect.poll(() => scope.evaluate((element) => element.style.getPropertyValue("--color-primary-foreground"))).not.toBe("");
+  await expect
+    .poll(() =>
+      scope.evaluate((element, colorPrimaryForeground) => element.style.getPropertyValue(colorPrimaryForeground), TOKENS["color.primary-foreground"].cssVar),
+    )
+    .not.toBe("");
 
   await component.update({ tokens, outerTokens });
   await expect
     .poll(() =>
-      scope.evaluate((element) => ["--color-primary", "--color-ring", "--color-primary-foreground"].map((name) => element.style.getPropertyValue(name))),
+      scope.evaluate(
+        (element, { colorPrimary, colorRing, colorPrimaryForeground }) =>
+          [colorPrimary, colorRing, colorPrimaryForeground].map((name) => element.style.getPropertyValue(name)),
+        {
+          colorPrimary: TOKENS["color.primary"].cssVar,
+          colorRing: TOKENS["color.ring"].cssVar,
+          colorPrimaryForeground: TOKENS["color.primary-foreground"].cssVar,
+        },
+      ),
     )
     .toEqual(["", "", ""]);
   await expect
-    .poll(() => scope.evaluate((element) => ["--color-speaker", "--color-prose-body"].map((name) => element.style.getPropertyValue(name))))
+    .poll(() =>
+      scope.evaluate((element, { colorSpeaker, colorProseBody }) => [colorSpeaker, colorProseBody].map((name) => element.style.getPropertyValue(name)), {
+        colorSpeaker: TOKENS["color.speaker"].cssVar,
+        colorProseBody: TOKENS["color.prose-body"].cssVar,
+      }),
+    )
     .toEqual([tokens.speaker, LEGAL.bodyColor]);
-  await expect.poll(() => scope.evaluate((element) => getComputedStyle(element).getPropertyValue("--color-primary").trim())).toBe(outerTokens.accent);
+  await expect
+    .poll(() => scope.evaluate((element, colorPrimary) => getComputedStyle(element).getPropertyValue(colorPrimary).trim(), TOKENS["color.primary"].cssVar))
+    .toBe(outerTokens.accent);
 });

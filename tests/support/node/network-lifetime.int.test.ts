@@ -101,7 +101,7 @@ test("full root cancellation joins a locked physical body before closing its dat
   }
   expect(closed).toBe(true);
   expect(harness.timers.pending()).toBe(0);
-  await expect(harness.db.all(sql`select 1`)).rejects.toThrow();
+  await expect(harness.db.all(sql`select 1`)).rejects.toMatchObject({ cause: { code: "CLIENT_CLOSED" } });
 });
 
 test("a physical body cancellation failure remains visible after the root finishes database and directory cleanup", async () => {
@@ -124,7 +124,7 @@ test("a physical body cancellation failure remains visible after the root finish
   const response = await harness.app.egress.configuredEndpointFetch(`http://${PRIVATE_PROVIDER}:11434/refused-cancel`);
   expect(response.status).toBe(200);
   await expect(harness[Symbol.asyncDispose]()).rejects.toThrow("egress physical cleanup failed");
-  await expect(harness.db.all(sql`select 1`)).rejects.toThrow();
+  await expect(harness.db.all(sql`select 1`)).rejects.toMatchObject({ cause: { code: "CLIENT_CLOSED" } });
   await expect(access(harness.modelCacheDir)).rejects.toMatchObject({ code: "ENOENT" });
   expect(harness.timers.pending()).toBe(0);
 });

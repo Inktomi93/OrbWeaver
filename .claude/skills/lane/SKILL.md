@@ -178,7 +178,7 @@ These restrictions apply to Claude's guarded worktree shell. Codex uses its own 
 ## Build details
 
 - Name test hooks `__reset<Noun>` for state resets and `__<verb>ForTest` otherwise. A hook reached by a computed name ships with the literal search that finds it.
-- Generate TypeID fixtures with `mintTypeId`, never with literals.
+- Generate TypeID fixtures with the seeded `ids.typeId(prefix)` or `root.idSource.typeId(prefix)` (Spine-Testing §3), never with literals or a one-argument `mintTypeId`.
 - Declare a union with `satisfies` when Biome misreads a zod `discriminatedUnion` transform.
 
 ## When to message the orchestrator

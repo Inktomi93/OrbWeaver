@@ -149,7 +149,7 @@ test("native npm ci executes a matching locked package but rejects altered integ
   const refused = run();
   expect(refused.status, refused.stdout + refused.stderr).not.toBe(0);
   expect(refused.stderr).toContain("EINTEGRITY");
-  expect(() => readFileSync(marker)).toThrow();
+  expect(() => readFileSync(marker)).toThrow(expect.objectContaining({ code: "ENOENT" }));
 });
 
 test("the client build excludes stamp-only git refs while the assembler keeps its separate ref mount", ({ repoRoot }) => {

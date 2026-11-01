@@ -38,7 +38,7 @@ test("a binding waiting for ready survives a delayed old-child exit and activate
   child.ref();
   expect(child.kill("SIGKILL")).toBe(true);
   await oldExit.reached;
-  await expect(victim.invoke("noop")).rejects.toThrow();
+  await expect(victim.invoke("noop")).toThrowTRPCError("BAD_REQUEST");
   const bystander = await installGuest(
     root,
     "new-connection",

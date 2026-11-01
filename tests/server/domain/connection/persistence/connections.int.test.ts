@@ -22,7 +22,7 @@ test("owned invalid shapes and malformed bytes refuse before a read-derived upda
   const row = await ownerCaller.connection.create(CONNECTION_INPUT);
   for (const raw of ['{"headers":{"authorization":42}}', "{", `{"headers":{"authorization":"${STORED_CANARY}"},"broken":`]) {
     await db.run(sql`update user_connections set transport = ${raw} where id = ${row.id}`);
-    await expect(ownerCaller.connection.update({ connectionId: row.id, patch: { label: "must not land" } })).rejects.toThrow();
+    await expect(ownerCaller.connection.update({ connectionId: row.id, patch: { label: "must not land" } })).toThrowTRPCError("BAD_REQUEST");
     expect(await db.get<{ label: string; transport: string }>(sql`select label, transport from user_connections where id = ${row.id}`)).toEqual({
       label: row.label,
       transport: raw,

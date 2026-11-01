@@ -72,7 +72,7 @@ test("avatar policy retains the original Principal and false-magic flag while a 
   const bytes = new TextEncoder().encode("Already parsed avatar bytes");
   const stored = vi.spyOn(services.assets, "store");
   const capped = createImportAvatarStore(actor, (params) => services.assets.store({ ...params, maxBytes: 1 }));
-  await expect(capped({ bytes, mime: "image/png" })).rejects.toThrow();
+  await expect(capped({ bytes, mime: "image/png" })).rejects.toMatchObject({ code: "asset_too_large" });
   expect(stored.mock.calls[0]?.[0]).toMatchObject({ principal: actor, enforceMagic: false, kind: "avatar", maxBytes: 1 });
   expect(await services.assets.listOwned({ principal: actor, limit: ASSET_LIST_LIMIT_MAX })).toEqual([]);
   const store = createImportAvatarStore(actor, (params) => services.assets.store(params));

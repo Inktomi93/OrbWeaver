@@ -15,7 +15,7 @@ test("a native aborted held response closes the provider socket before fixture r
     }
     expect(new TextDecoder().decode((await reader.read()).value)).toContain(TURN.prefix);
     controller.abort();
-    await expect(reader.read()).rejects.toThrow();
+    await expect(reader.read()).rejects.toMatchObject({ name: "AbortError" });
     await expect
       .poll(() => ({ socketClosed: fixture.requests[0]?.socketClosed, responseClosed: fixture.requests[0]?.closed, finished: fixture.requests[0]?.finished }))
       .toEqual({ socketClosed: true, responseClosed: true, finished: false });

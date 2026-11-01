@@ -37,7 +37,7 @@ test("concurrent graphs with identical IDs neither deliver foreign room events n
     await secondCaller.regex.updateScript({ scriptId: secondScript.id, input: { name: "still live" } });
     expect(firstFrames).toEqual([]);
     expect(secondFrames).toEqual([{ seq: null, event: { type: "roomEntityChanged", chatId: secondChat.id, entity: "regex" } }]);
-    expect(() => first.app.liveBuses.chat.subscribeAllChatEvents(() => undefined)).toThrow();
+    expect(() => first.app.liveBuses.chat.subscribeAllChatEvents(() => undefined)).toThrow(expect.objectContaining({ name: "AbortError" }));
   } finally {
     stopFirst();
     stopSecond();

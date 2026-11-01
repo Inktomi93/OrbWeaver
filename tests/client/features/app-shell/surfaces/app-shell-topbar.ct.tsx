@@ -11,6 +11,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { makePluginRow } from "@orb/testkit/node/helpers";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { commandShortcutLabel } from "#client/features/app-shell/lib/command-shortcut-label.ts";
 import { renameChatButtonIdentity } from "#client/lib/chat-rename-names.ts";
@@ -77,14 +78,14 @@ async function routeSections(page: Page, corpus: CorpusPlayback): Promise<void> 
 }
 
 function touchTarget(page: Page): Promise<number> {
-  return page.evaluate(() => {
+  return page.evaluate((sizeTouchTarget) => {
     const probe = document.createElement("div");
-    probe.style.width = "var(--size-touch-target)";
+    probe.style.width = `var(${sizeTouchTarget})`;
     document.body.append(probe);
     const width = probe.getBoundingClientRect().width;
     probe.remove();
     return width;
-  });
+  }, TOKENS["size.touch-target"].cssVar);
 }
 
 test.describe("on a phone", () => {
@@ -166,7 +167,7 @@ test.describe("on a phone", () => {
       // The band is a chrome row of its own, so a painted band puts a whole row between the pane's top and its body.
       const offset = await bodyOffset(page);
       expect(offset).toBeGreaterThanOrEqual(0);
-      expect(offset).toBeLessThan(await resolvedLength(page, "var(--dimension-chrome-row)"));
+      expect(offset).toBeLessThan(await resolvedLength(page, `var(${TOKENS["dimension.chrome-row"].cssVar})`));
       await expect(page.locator(`${LIST} .shell-panel-header`)).toBeHidden();
       const trail = page.locator(".shell-topbar-trail");
       await expect(trail.getByRole("button", { name: "New", exact: true })).toBeVisible();
@@ -337,15 +338,15 @@ function titleFloor(page: Page): Promise<number> {
   return page
     .locator(".shell-topbar-title-group")
     .first()
-    .evaluate((group) => {
+    .evaluate((group, dimensionShellTitleFloor) => {
       const probe = document.createElement("span");
-      probe.style.width = "var(--dimension-shell-title-floor)";
+      probe.style.width = `var(${dimensionShellTitleFloor})`;
       probe.style.flex = "none";
       group.append(probe);
       const width = probe.getBoundingClientRect().width;
       probe.remove();
       return width;
-    });
+    }, TOKENS["dimension.shell-title-floor"].cssVar);
 }
 
 function visibleTitles(page: Page): Promise<number> {
@@ -603,23 +604,26 @@ test.describe("an open named group room on a phone, coarse pointer", () => {
       await expect(title).toBeVisible();
       await expect
         .poll(() =>
-          title.evaluate((element) => {
-            const style = getComputedStyle(element);
-            const probe = document.createElement("span");
-            // A chat's screen title is the cast, so it takes the title step rather than the display step.
-            probe.style.fontSize = "var(--text-title)";
-            element.append(probe);
-            const step = getComputedStyle(probe).fontSize;
-            probe.style.fontSize = "var(--text-body)";
-            const body = getComputedStyle(probe).fontSize;
-            probe.remove();
-            return {
-              titleStep: style.fontSize === step,
-              largerThanBody: Number.parseFloat(style.fontSize) > Number.parseFloat(body),
-              overflow: style.textOverflow,
-              contained: element.getBoundingClientRect().right <= document.documentElement.clientWidth,
-            };
-          }),
+          title.evaluate(
+            (element, { textTitle, textBody }) => {
+              const style = getComputedStyle(element);
+              const probe = document.createElement("span");
+              // A chat's screen title is the cast, so it takes the title step rather than the display step.
+              probe.style.fontSize = `var(${textTitle})`;
+              element.append(probe);
+              const step = getComputedStyle(probe).fontSize;
+              probe.style.fontSize = `var(${textBody})`;
+              const body = getComputedStyle(probe).fontSize;
+              probe.remove();
+              return {
+                titleStep: style.fontSize === step,
+                largerThanBody: Number.parseFloat(style.fontSize) > Number.parseFloat(body),
+                overflow: style.textOverflow,
+                contained: element.getBoundingClientRect().right <= document.documentElement.clientWidth,
+              };
+            },
+            { textTitle: TOKENS["text.title"].cssVar, textBody: TOKENS["text.body"].cssVar },
+          ),
         )
         .toEqual({ titleStep: true, largerThanBody: true, overflow: "ellipsis", contained: true });
       await expect(page.locator(".shell-topbar-title:visible")).toHaveCount(1);

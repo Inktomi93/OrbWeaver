@@ -43,7 +43,9 @@ test("the forward migration retains history, recovers only owned funding, and cl
   ]);
   expect(await db.all(sql`select name from pragma_index_info('workloads_funder_idx') order by seqno`)).toEqual([{ name: "funder_user_id" }]);
   // A vanished user is deliberate invalid boundary input, not a normal fixture state.
-  await expect(db.update(workloads).set({ funderUserId: deleted.id }).where(eq(workloads.id, systemId))).rejects.toThrow();
+  await expect(db.update(workloads).set({ funderUserId: deleted.id }).where(eq(workloads.id, systemId))).rejects.toMatchObject({
+    cause: { code: "SQLITE_CONSTRAINT" },
+  });
   await db.delete(users).where(eq(users.id, owner.id));
   expect(await db.select({ ownerId: workloads.ownerId, funderUserId: workloads.funderUserId }).from(workloads).where(eq(workloads.id, ownedId))).toEqual([
     { ownerId: null, funderUserId: null },
