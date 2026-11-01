@@ -545,7 +545,7 @@ function BoxElements({ card, name }: { readonly card: ThemeScopeTokens; readonly
         <Markdown trust="trusted" mode="static">
           {BOX_PROSE}
         </Markdown>
-        <Text as="span" voice="meta" ink="muted" data-element="swipe foot">
+        <Text as="span" voice="gloss" ink="muted" data-element="swipe foot">
           2/3
         </Text>
         <Button variant="ghost" size="sm" data-element="kebab">
