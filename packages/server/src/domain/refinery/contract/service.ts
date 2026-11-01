@@ -66,6 +66,7 @@ import type {
   UpdateSchemaParams,
   UpdateSessionParams,
 } from "./params.ts";
+import type { ResolveStructuredBinding } from "./planning.ts";
 
 /** The card owner's model-facing PROSE overrides — the 12 refinery slots resolve against these
  *  (PROSE-1 §4.3; the discovery caller-scoped precedent). */
@@ -81,6 +82,8 @@ export interface RefineryContext {
   readonly newRefineryRunId: () => RefineryRunId;
   readonly newRefinerySchemaId: () => RefinerySchemaId;
   readonly roleClientsFor: RoleClientsFor;
+  /** Names why a `structured` call reads unbound: nothing bound, or background consent withheld. */
+  readonly resolveStructuredBinding: ResolveStructuredBinding;
   readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   readonly resolveUserProse: ResolveUserProse;
   /**
@@ -134,6 +137,7 @@ export type ScoreSweep = (opts: ScoreSweepOptions) => Promise<RefineryScoreSweep
 export interface RefineryWorkloadDeps {
   readonly logger: Logger;
   readonly roleClientsFor: RoleClientsFor;
+  readonly resolveStructuredBinding: ResolveStructuredBinding;
   readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   readonly resolveUserProse: ResolveUserProse;
   /** The sweep's enumeration (injected character op — refinery reads no `characters` row itself). */
