@@ -352,7 +352,7 @@ export const TOKENS = {
   "reading.measure-min": { cssVar: "--reading-measure-min", value: "65ch" },
   "tracking.micro": { cssVar: "--tracking-micro", value: "0.08em" },
   "dimension.composer-field-min": { cssVar: "--dimension-composer-field-min", value: "12ch" },
-  "dimension.shell-topbar-block": { cssVar: "--dimension-shell-topbar-block", value: "calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-16) + var(--dimension-device-pixel) - 100dvw) * 1000), var(--dimension-chrome-row)))" },
+  "dimension.shell-topbar-block": { cssVar: "--dimension-shell-topbar-block", value: "calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-16) + var(--dimension-device-pixel) - 100dvw) * 1000), var(--dimension-chrome-row) / 2))" },
   "dimension.shell-title-floor": { cssVar: "--dimension-shell-title-floor", value: "6ch" },
   "immersive.whisper-banner-inline-cap": { cssVar: "--immersive-whisper-banner-inline-cap", value: "calc(var(--immersive-whisper-banner-cap) * var(--aspect-banner))" },
   "immersive.whisper-banner-cap": { cssVar: "--immersive-whisper-banner-cap", value: "calc(var(--immersive-whisper-banner-viewport-cap) * 1svh)" },

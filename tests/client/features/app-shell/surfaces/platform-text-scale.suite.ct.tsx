@@ -181,6 +181,14 @@ function clippedControls(subject: Element, { reachable, subpixel }: { readonly r
       const style = getComputedStyle(ancestor);
       return spans(box, ancestor.getBoundingClientRect()).map((axis) => ({ axis, ancestor, kind: kindOf(axis === "x" ? style.overflowX : style.overflowY) }));
     });
+    // Content before a scroller's start edge has no scroll position that reaches it.
+    const beforeStart = ancestorsOf(element)
+      .filter((ancestor) => kindOf(getComputedStyle(ancestor).overflowX) !== "free")
+      .slice(0, 1)
+      .find((ancestor) => box.left < ancestor.getBoundingClientRect().left - ancestor.scrollLeft - subpixel);
+    if (beforeStart !== undefined) {
+      return `past the start of ${label(beforeStart)}`;
+    }
     const scrolls = (axis: string, before: number): boolean => events.slice(0, before).some((event) => event.axis === axis && event.kind === "scroll");
     const cut = events.find((event, index) => event.kind === "clip" && !scrolls(event.axis, index));
     if (cut !== undefined) {
@@ -189,7 +197,11 @@ function clippedControls(subject: Element, { reachable, subpixel }: { readonly r
     const past = spans(box, { left: 0, right: innerWidth, top: 0, bottom: innerHeight }).filter((axis) => !scrolls(axis, events.length));
     return past.length === 0 ? null : `past the viewport edge on ${past.join("")}`;
   };
+  const Disabled = '[aria-disabled="true"], :disabled, [data-disabled]';
   const coveredBy = (element: Element, box: DOMRect): Element | null => {
+    if (element.matches(Disabled)) {
+      return null;
+    }
     const x = box.left + box.width / 2;
     const y = box.top + box.height / 2;
     const top = x >= 0 && x < innerWidth && y >= 0 && y < innerHeight ? document.elementFromPoint(x, y) : element;
@@ -221,7 +233,8 @@ function clippedControls(subject: Element, { reachable, subpixel }: { readonly r
       (element) =>
         element.checkVisibility({ visibilityProperty: true }) &&
         element.closest("[inert]") === null &&
-        getComputedStyle(element).pointerEvents !== "none" &&
+        // A disabled control takes no press, and its words still have to fit on screen.
+        (getComputedStyle(element).pointerEvents !== "none" || element.matches(Disabled)) &&
         element.getBoundingClientRect().width > subpixel,
     )
     .map(verdict)
@@ -611,6 +624,27 @@ for (const [viewport, scale] of QUALIFIED.screenName) {
     });
   });
 }
+
+test.describe("character Import at normal size on the desktop", () => {
+  test.use({ viewport: DESKTOP.size });
+
+  test("opens on its heading with no ring, and the heading's box stays clear of the close button", async ({ mount, page }) => {
+    await seedShellState(page, { activeSection: "characters" });
+    await mount<typeof AppShellStory>(STORY, {});
+    await page.getByRole("button", { name: IMPORT_DOOR }).click();
+    const dialog = page.getByRole("dialog", { name: IMPORT_DOOR });
+    const heading = dialog.getByRole("heading", { name: IMPORT_DOOR });
+    await expect(heading).toBeFocused();
+    await expect(heading).toHaveCSS("outline-style", "none");
+    const close = await dialog.getByRole("button", { name: "Close", exact: true }).boundingBox();
+    const text = await heading.evaluate((node) => {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      return range.getBoundingClientRect().right;
+    });
+    expect(text).toBeLessThanOrEqual((close?.x ?? 0) + SUBPIXEL);
+  });
+});
 
 for (const [viewport, scale] of QUALIFIED.importOpen) {
   test.describe(`character Import opened at ${scale.name} on the ${viewport.name}`, () => {

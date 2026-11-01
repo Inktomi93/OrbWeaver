@@ -415,7 +415,7 @@
     --orb-grid-cell-fixed: 8.5rem;
     --orb-density-comfortable-cell-fixed: 8.5rem;
     --orb-density-compact-cell-fixed: 7.5rem;
-    --dimension-shell-topbar-block: calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-16) + var(--dimension-device-pixel) - 100dvw) * 1000), var(--dimension-chrome-row)));
+    --dimension-shell-topbar-block: calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-16) + var(--dimension-device-pixel) - 100dvw) * 1000), var(--dimension-chrome-row) / 2));
     --immersive-whisper-banner-inline-cap: calc(var(--immersive-whisper-banner-cap) * var(--aspect-banner));
     --immersive-whisper-banner-cap: calc(var(--immersive-whisper-banner-viewport-cap) * 1svh);
     --tone-mix-primary-hover: var(--tone-mix-hover);

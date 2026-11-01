@@ -210,6 +210,7 @@ export function NewChatPicker(): ReactElement {
           quietDisabled={teaching}
           disabled={teaching || isPending}
           variant={teaching ? "outline" : "solid"}
+          wrap={true}
           onClick={(): void => found([...selected])}
         >
           <Icon icon={MessagesSquare} size="sm" />

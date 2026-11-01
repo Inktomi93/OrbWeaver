@@ -106,7 +106,7 @@ export function FormDialog({
         {/* The popup clamps to the viewport, so a tall body scrolls inside this Stack while the sticky footer
             stays visible on a phone. */}
         <DialogBody grow={true} gap="block">
-          <DialogTitle clearsClose={closeButton} id={titleId} {...(arriveOnTitle ? { ref: titleRef, tabIndex: -1 } : {})}>
+          <DialogTitle clearsClose={closeButton} focusTarget={arriveOnTitle} id={titleId} {...(arriveOnTitle ? { ref: titleRef, tabIndex: -1 } : {})}>
             {title}
           </DialogTitle>
           {description === undefined ? null : <DialogDescription>{description}</DialogDescription>}

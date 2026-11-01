@@ -32,19 +32,11 @@ export const dialogVariants = tv({
   },
   variants: {
     spaced: { true: { popup: "gap-block" }, false: {} },
-    // A float, not padding: the title clears only the corner a pinned close button holds. Under the narrow step the
-    // close takes its own line, because a word beside it would break letter by letter.
-    clearsClose: {
-      true: {
-        title: `
-          wrap-break-word
-          before:float-end before:content-[''] before:block-(--size-control-md) before:inline-(--size-control-md)
-          @max-cq-20:pbs-(--size-control-md)
-          @max-cq-20:before:hidden
-        `,
-      },
-      false: {},
-    },
+    // The title clears the close button pinned over its corner. Under the narrow step the close takes its own line,
+    // because a word beside it would break letter by letter.
+    clearsClose: { true: { title: "pe-(--size-control-md) wrap-break-word @max-cq-20:pe-0 @max-cq-20:pbs-(--size-control-md)" }, false: {} },
+    // A heading that takes programmatic arrival focus and no key: a ring would read as a field to type in.
+    focusTarget: { true: { title: "outline-none" }, false: {} },
     // A header that stays in view while the body scrolls under it (a drawer's title and close), on the card fill so
     // scrolled rows do not show through.
     stickyHeader: { true: { header: "sticky inset-bs-0 z-(--z-raised) bg-card" }, false: {} },

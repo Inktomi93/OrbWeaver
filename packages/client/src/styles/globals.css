@@ -212,6 +212,10 @@
     [data-slot="message-bubble"] {
       max-inline-size: 100%;
       padding-inline: var(--spacing-field);
+      --row-reach-left: var(--art-reach-left, var(--spacing-field));
+      --row-reach-right: var(--art-reach-right, var(--spacing-field));
+      --row-foot-inset-left: var(--spacing-field);
+      --row-foot-inset-right: var(--spacing-field);
     }
   }
 

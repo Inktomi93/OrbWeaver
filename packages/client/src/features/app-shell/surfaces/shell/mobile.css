@@ -234,6 +234,10 @@
         inline-size: 100%;
         min-inline-size: 0;
       }
+      .shell-topbar-identity[data-identity="narrow"] .shell-topbar-title {
+        font-size: var(--text-title);
+        line-height: var(--leading-title);
+      }
     }
     /* No blur kill-switch here: the glass rules (client globals) are scoped to `shell-desktop`, this block's exact
      * complement, so none is emitted at this width, and an override here would lose to the appearance layer. */
