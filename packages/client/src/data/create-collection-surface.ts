@@ -64,6 +64,12 @@ export interface CollectionSurface<TItem> {
    *  dead ends). Fire-and-forget (`=> void`): a Retry button never awaits; the boundary re-derives from
    *  `isPending`/`error` on the refetch. */
   readonly refetch: () => void;
+  /** The next page for a reader's explicit press. Unlike `listProps.onEndApproach`, a press is one intent that no
+   *  later scroll repeats, so a running background refetch yields to it instead of swallowing it. */
+  readonly loadMore: () => void;
+  /** The last {@link CollectionSurface.loadMore} press failed. Only a press moves this; `error` also tracks
+   *  background refetches, which say nothing about the page the reader asked for. */
+  readonly loadMoreFailed: boolean;
   readonly selection: CollectionSelection;
   /** Spread into `<VirtualList>`: the id-keyed row key + the guarded tail-fetch. */
   readonly listProps: {
@@ -87,17 +93,27 @@ export function createCollectionSurface<TItem, TPage, TParams, TPageParam = unkn
     });
 
     const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set<string>());
+    const [loadMoreFailed, setLoadMoreFailed] = useState(false);
 
     const items = query.data === undefined ? [] : query.data.pages.flatMap((p) => config.itemsOf(p));
     const firstPage = query.data?.pages[0];
     const totalCount = config.totalOf === undefined || firstPage === undefined ? null : config.totalOf(firstPage);
 
     // Destructured so the callback closes over exact slices, not the fresh-proxy-per-render `query` object.
-    const { hasNextPage, isFetching, fetchNextPage, refetch } = query;
+    const { hasNextPage, isFetching, isFetchingNextPage, fetchNextPage, refetch } = query;
     const onEndApproach = (): void => {
       if (hasNextPage && !isFetching) {
         fetchNextPage().catch(() => undefined); // Query state owns the fetch error.
       }
+    };
+    const loadMore = (): void => {
+      if (!hasNextPage || isFetchingNextPage) {
+        return;
+      }
+      setLoadMoreFailed(false);
+      fetchNextPage()
+        .then((result) => setLoadMoreFailed(result.isFetchNextPageError))
+        .catch(() => undefined); // The resolved result carries the failure.
     };
     const retry = (): void => {
       refetch().catch(() => undefined); // Query state owns the retry error.
@@ -114,6 +130,8 @@ export function createCollectionSurface<TItem, TPage, TParams, TPageParam = unkn
       hasNextPage: query.hasNextPage,
       isFetchingNextPage: query.isFetchingNextPage,
       refetch: retry,
+      loadMore,
+      loadMoreFailed,
       selection: {
         selected,
         isSelected: (id) => selected.has(id),

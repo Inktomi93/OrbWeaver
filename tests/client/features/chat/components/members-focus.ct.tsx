@@ -11,6 +11,7 @@ import {
   trpcError,
 } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { connectDevice, createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
@@ -145,6 +146,75 @@ test("a member whose last device left shows when they were last around", async (
     .filter({ has: page.getByRole("button", { name: new RegExp(`^${member.displayName} — member, offline, `, "u") }) });
   await expect(row.locator('[data-slot="member-last-seen"]')).toBeVisible();
 });
+
+// Each width the row was measured losing its name at, as the pane hands it over.
+const PEOPLE_ROW_REGIMES = [
+  { name: "800", viewport: { width: 800, height: 900 }, enlarged: false },
+  { name: "770", viewport: { width: 770, height: 900 }, enlarged: false },
+  { name: "800 at the largest text", viewport: { width: 800, height: 900 }, enlarged: true },
+  { name: "phone 320", viewport: { width: 320, height: 640 }, enlarged: false },
+] as const;
+
+for (const { name, viewport, enlarged } of PEOPLE_ROW_REGIMES) {
+  test(`at ${name} an offline nominated member with limited history keeps the name line`, async ({ corpus, page, mount }) => {
+    await using root = await createCorpusHarness();
+    await (await root.internalCallerFor(root.ownerId)).settings.updateAppSettings({ partial: { localMultiUser: true } });
+    const caller = await root.internalCallerFor(root.ownerId);
+    const memberId = corpus.memberIdentities?.sharedMember.viewer.userId;
+    const chat = corpus.reads["chat.getChat"].find(({ output }) => output.participants.some((person) => person.userId === memberId))?.output;
+    const member = chat?.participants.find((person) => person.userId === memberId);
+    if (chat === undefined || member === undefined || memberId === undefined) {
+      throw new Error("The corpus has no shared human room");
+    }
+    const userId = brandedId("UserId").parse(memberId);
+    const device = new AbortController();
+    await connectDevice(root, userId, device.signal);
+    device.abort();
+    root.clock.advance(PAST_DISCONNECT_GRACE_MS);
+    const { id: chatId } = await caller.chat.getChat({ chatId: chat.id });
+    await caller.invites.setMemberHistoryVisibility({ chatId, userId, visibility: "from-join" });
+    await caller.invites.nominateHostHandoff({ chatId, userId });
+    if (enlarged) {
+      await caller.settings.updateUserSettingsSection({ section: "appearance", patch: ENLARGED_APPEARANCE_SETTINGS });
+    }
+    await page.setViewportSize(viewport);
+    await seedShellState(page, { activeSection: "chats" });
+    await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
+    await routeTrpc(page, {
+      ...createShellAmbientReads(corpus, root.ownerId),
+      ...serveCorpusProcedures(caller, [
+        ...SECTION_PROCEDURES,
+        ...ROOM_PROCEDURES,
+        "settings.getUserSettings",
+        "notifications.presence",
+        "rpg.getGame",
+        "rpg.listTurnToolCalls",
+      ]),
+    });
+    await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+    await page.getByRole("button", { name: /^Members — /u }).click();
+    const members = page.getByRole("toolbar", { name: "Members and characters", exact: true });
+    const body = members.getByRole("button", { name: new RegExp(`^${member.displayName} — member, nominated as host, limited history, offline, `, "u") });
+    await expect(body).toBeVisible();
+    const geometry = await body.evaluate((element) => {
+      const nameBox = element.querySelector('[data-slot="member-name"]')?.getBoundingClientRect();
+      const lastSeenBox = element.querySelector('[data-slot="member-last-seen"]')?.getBoundingClientRect();
+      const badgeBoxes = [...element.querySelectorAll('[data-slot="badge"]')].map((badge) => badge.getBoundingClientRect());
+      return {
+        overflow: element.scrollWidth - element.clientWidth,
+        bodyWidth: element.clientWidth,
+        nameWidth: nameBox?.width ?? 0,
+        nameBottom: nameBox?.bottom ?? Number.POSITIVE_INFINITY,
+        metaTop: Math.min(lastSeenBox?.top ?? Number.POSITIVE_INFINITY, ...badgeBoxes.map((badge) => badge.top)),
+        metaCount: badgeBoxes.length + (lastSeenBox === undefined ? 0 : 1),
+      };
+    });
+    expect(geometry.metaCount).toBeGreaterThanOrEqual(3);
+    expect(geometry.overflow).toBeLessThanOrEqual(0);
+    expect(geometry.nameWidth).toBeGreaterThan(geometry.bodyWidth / 2);
+    expect(geometry.metaTop).toBeGreaterThanOrEqual(geometry.nameBottom);
+  });
+}
 
 test("the inline flank threshold resolves to its reading floor, sidebar and gap", async ({ corpus, page, mount }) => {
   await using root = await createCorpusHarness();

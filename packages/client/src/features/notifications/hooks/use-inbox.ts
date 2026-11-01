@@ -42,9 +42,14 @@ export interface InboxRead {
   /** The read's paging: more rows may sit below the loaded pages. */
   readonly hasNextPage: boolean;
   readonly isFetchingNextPage: boolean;
-  /** The last read failed. */
-  readonly failed: boolean;
+  /** The first read is still in flight, so an empty `items` says nothing yet. */
+  readonly loading: boolean;
+  /** There are no rows to show because the read failed, which is not an empty inbox. */
+  readonly readFailed: boolean;
+  /** The reader's last Load more press failed. */
+  readonly loadMoreFailed: boolean;
   readonly loadMore: () => void;
+  readonly retry: () => void;
 }
 
 /** The bell's inbox read — non-suspense (topbar chrome degrades to an empty inbox, never a fallback). */
@@ -59,8 +64,11 @@ export function useInbox(): InboxRead {
     waitingCount: items.filter((item) => item.readAt === null || item.actionable).length,
     hasNextPage: inbox.hasNextPage,
     isFetchingNextPage: inbox.isFetchingNextPage,
-    failed: inbox.error !== null,
-    loadMore: inbox.listProps.onEndApproach,
+    loading: inbox.isPending,
+    readFailed: inbox.error !== null && items.length === 0,
+    loadMoreFailed: inbox.loadMoreFailed,
+    loadMore: inbox.loadMore,
+    retry: inbox.refetch,
   };
 }
 

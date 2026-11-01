@@ -22,17 +22,19 @@ import { IndicatorDot } from "@orb/ui/indicator-dot";
 import { Section, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Separator } from "@orb/ui/separator";
+import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { Trpc } from "#data";
-import { useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { testId, useOpenRequests } from "#lib";
 import type { ChromePresentation } from "#state";
 import { closeModal, openConfigTo, openInstalledPlugin, selectChat, setActiveSection } from "#state";
 import { useInbox, useMarkAllNotificationsRead } from "../hooks/use-inbox.ts";
 import { useInboxStream } from "../hooks/use-inbox-stream.ts";
+import { usePageFocus } from "../hooks/use-page-focus.ts";
 import { inboxRequests } from "../lib/notifications-requests.ts";
 import { HandoffAcceptConfirm } from "./handoff-accept-confirm.tsx";
 import { DismissedInbox, InboxLoadMore } from "./notification-inbox-older.tsx";
@@ -56,11 +58,60 @@ export interface NotificationBellProps {
   readonly presentation?: ChromePresentation;
 }
 
+/** What the inbox shows with no rows. A failed read comes first, because one undecodable row fails the whole
+ *  list, and an invitation waiting behind it must never read as nothing to do. */
+function NoInboxRows({
+  loading,
+  readFailed,
+  onRetry,
+  onDone,
+}: {
+  readonly loading: boolean;
+  readonly readFailed: boolean;
+  readonly onRetry: () => void;
+  readonly onDone: () => void;
+}): ReactElement {
+  if (readFailed) {
+    return <QueryErrorState label="your notifications" onRetry={onRetry} />;
+  }
+  if (loading) {
+    return (
+      <Text role="status" voice="gloss" ink="muted">
+        Loading notifications…
+      </Text>
+    );
+  }
+  // A STATE, not a shrug (`empty-states-are-load-bearing`): the old bare "No notifications." read as a
+  // failed load. `titleAs="p"` because the sheet lens already renders a heading above this block and a
+  // second one would invent structure the pane does not have.
+  //
+  // THE ACTION IS "Done", not a destination (D62 rule-1): a caught-up inbox
+  // has nothing further to point at — "Go to chats" would be an arbitrary door this state has no
+  // opinion about — so the CTA is the popover's own next step, closing it. The two lenses close through
+  // DIFFERENT doors because there are two different chrome pieces to dismiss: the bar lens closes the
+  // Popover it is inside; the sheet lens has no popover — it rides the You MODAL (`you-modal.tsx`).
+  return (
+    <EmptyState
+      title="You're all caught up"
+      titleAs="p"
+      description="Invitations, host handoffs and notices from your plugins land here."
+      icon={<Icon icon={Bell} size="md" />}
+      action={
+        <Button variant="outline" size="sm" onClick={onDone}>
+          Done
+        </Button>
+      }
+    />
+  );
+}
+
 /** The dot-marked bell + inbox popover. No deployment gate — see the file header (#1627). */
 export function NotificationBell({ presentation = "bar" }: NotificationBellProps = {}): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const { items, unreadCount, pendingCount, hasNextPage, isFetchingNextPage, failed, loadMore } = useInbox();
+  const { items, unreadCount, pendingCount, hasNextPage, isFetchingNextPage, loading, readFailed, loadMoreFailed, loadMore, retry } = useInbox();
+  const pageFocus = usePageFocus({ rowCount: items.length, loadMore, failed: loadMoreFailed });
+  const popupRef = useRef<HTMLDivElement>(null);
   useInboxStream({ invalidation });
   const markAllRead = useMarkAllNotificationsRead({ trpc, invalidation });
   const [open, setOpen] = useState(false);
@@ -174,7 +225,8 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
       />
     );
 
-  const bellLabel = unreadCount === 0 ? "Notifications" : `Notifications (${unreadCount} unread)`;
+  // Counts cover the loaded pages, so with more below this is a floor, and the name must not state it as exact.
+  const bellLabel = unreadCount === 0 ? "Notifications" : `Notifications (${unreadCount}${hasNextPage ? "+" : ""} unread)`;
   // THE INBOX BODY, in ONE place for both lenses (#1799 restyle). `gap="block"` rather than `row`: the rows
   // are now two-line blocks with their own action cluster, and at `row` the copy of one row sat closer to
   // the buttons of the next than to its own. The width floor grew with them — a decision row's copy plus
@@ -188,28 +240,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
   const inbox = (
     <Stack gap="block" className={isSheet ? "min-inline-0" : "min-inline-(--width-popup-floor)"}>
       {items.length === 0 ? (
-        // A STATE, not a shrug (`empty-states-are-load-bearing`): the old bare "No notifications." read as a
-        // failed load. `titleAs="p"` because the sheet lens already renders a heading above this block and a
-        // second one would invent structure the pane does not have.
-        //
-        // THE ACTION IS "Done", not a destination (D62 rule-1): a caught-up inbox
-        // has nothing further to point at — "Go to chats" would be an arbitrary door this state has no
-        // opinion about — so the CTA is the popover's own next step, closing it. The two lenses close through
-        // DIFFERENT doors because there are two different chrome pieces to dismiss: the bar lens closes the
-        // Popover it is inside (`setOpen(false)`, the same call `onOpenChange` already uses); the sheet lens
-        // has no popover — it rides the You MODAL (`you-modal.tsx`), so its door is `closeModal()`, the same
-        // one `ManageDoor`'s sheet arm uses to leave the sheet on a section navigation.
-        <EmptyState
-          title="You're all caught up"
-          titleAs="p"
-          description="Invitations, host handoffs and notices from your plugins land here."
-          icon={<Icon icon={Bell} size="md" />}
-          action={
-            <Button variant="outline" size="sm" onClick={isSheet ? (): void => closeModal() : (): void => setOpen(false)}>
-              Done
-            </Button>
-          }
-        />
+        <NoInboxRows loading={loading} readFailed={readFailed} onRetry={retry} onDone={isSheet ? (): void => closeModal() : (): void => setOpen(false)} />
       ) : (
         // A HAIRLINE BETWEEN ROWS, and it is a MEASURED fix rather than decoration. Two CT-browser shots
         // (gap `field`-in/`block`-out, then `tight`-in/`block`-out) both came back with the same defect:
@@ -221,6 +252,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
           <Fragment key={item.id}>
             {index > 0 ? <Separator aria-hidden={true} /> : null}
             <InboxRow
+              ref={pageFocus.rowRef(index)}
               item={item}
               acceptedHandoff={acceptedHandoffIds.includes(item.id)}
               onAccepted={onAccepted}
@@ -231,7 +263,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
           </Fragment>
         ))
       )}
-      <InboxLoadMore hasNextPage={hasNextPage} isFetchingNextPage={isFetchingNextPage} failed={failed} onLoadMore={loadMore} />
+      <InboxLoadMore hasNextPage={hasNextPage} isFetchingNextPage={isFetchingNextPage} failed={loadMoreFailed} onLoadMore={pageFocus.loadNextPage} />
       <DismissedInbox />
     </Stack>
   );
@@ -297,7 +329,8 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
         />
         <TooltipPopup side="bottom">Notifications</TooltipPopup>
       </Tooltip>
-      <PopoverPopup aria-label="Notifications" data-testid={testId("notificationsInbox")}>
+      {/* The popup takes the opening focus: left alone it lands on the first Accept, one Enter from a decision. */}
+      <PopoverPopup aria-label="Notifications" data-testid={testId("notificationsInbox")} initialFocus={popupRef} ref={popupRef}>
         {inbox}
       </PopoverPopup>
       {/* OUTSIDE the popup, inside the root: the popover closes the moment the modal confirm takes focus,
