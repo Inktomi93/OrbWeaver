@@ -7,7 +7,7 @@ area: ui
 plan: type-law
 ---
 
-# Primitives refuse opaque prop spreads, so a spread cannot smuggle a variant, class or handler past the primitive's typed props
+# Primitives refuse an opaque prop spread whose type can carry a variant axis, so the variant census is exact
 
 ## What
 
