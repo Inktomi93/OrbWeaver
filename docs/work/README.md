@@ -165,6 +165,7 @@ None.
 - [0818](0818-make-workflow-failures-actionable-and-protect-image-publication.md) P1 Make workflow failures actionable and protect image publication (owner)
 - [0824](0824-verify-collection-responsiveness-during-local-indexing.md) triage Verify collection responsiveness during local indexing `test-foundation` (owner)
 - [0872](0872-find-what-answered-an-api-batch-with-an.md) P3 Find what answered an API batch with an HTML page in production (owner)
+- [1804](1804-per-recipe-delete-pass-over-the-unwritten-variant.md) P2 Per-recipe delete pass over the unwritten variant values once the owner rules on the triage list: each value deleted, wired or kept with a reason `cross-surface-consistency` (owner)
 
 ## Done
 
