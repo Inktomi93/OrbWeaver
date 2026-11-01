@@ -23,8 +23,8 @@ export async function seedUserSettingsRows(
 ): Promise<UserSettingsRow> {
   const db = root.db;
   const updateUserSettingsSection = root.services.settings.updateUserSettingsSection;
-  const view = await updateUserSettingsSection(params);
-  const row = await db.select().from(userSettings).where(eq(userSettings.userId, view.userId)).get();
+  await updateUserSettingsSection(params);
+  const row = await db.select().from(userSettings).where(eq(userSettings.userId, params.principal.userId)).get();
   if (row === undefined) {
     throw new Error("production user-settings write left no canonical row");
   }

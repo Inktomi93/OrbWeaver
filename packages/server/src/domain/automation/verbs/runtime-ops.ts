@@ -92,7 +92,6 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
         // The tool acts AS the rule's author — on their grant, their credentials, their budget. Resolved by
         // ROW READ like every other author→Principal edge in this file; a bare `UserId` carries no authority.
         principal: await resolveOwnerPrincipal(authorUserId),
-        triggeredBy: authorUserId,
         chatId,
         // No turn exists — a rule dispatch is not a turn. This is also why turn-scoped first-party tools are
         // not direct-drivable (`tool-use/substrate/reachability.ts` carries the receipts).

@@ -42,23 +42,11 @@ export async function readUserSettings(db: Db, ownerId: UserId): Promise<UserSet
   const rows = await db.select().from(userSettings).where(eq(userSettings.userId, ownerId)).limit(1);
   const row = rows[0];
   if (row === undefined) {
-    return {
-      userId: ownerId,
-      schemaVersion: USER_SETTINGS_SCHEMA_VERSION,
-      config: parseUserSettings({}),
-      updatedAt: 0,
-      configUnreadable: null,
-    };
+    return { config: parseUserSettings({}), configUnreadable: null };
   }
   // The blob carries no schemaVersion itself; without threading the column, every blob probes as v1.
   const outcome = userSettingsConfig.parseOutcome(row.config, row.schemaVersion);
-  return {
-    userId: ownerId,
-    schemaVersion: row.schemaVersion,
-    config: outcome.value,
-    updatedAt: row.updatedAt,
-    configUnreadable: outcome.intact ? null : outcome.failure,
-  };
+  return { config: outcome.value, configUnreadable: outcome.intact ? null : outcome.failure };
 }
 
 // The ONE asset kind a background may be. Every writer of a `backgroundAssetId` / `backgroundLibrary`

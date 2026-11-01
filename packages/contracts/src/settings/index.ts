@@ -1,7 +1,7 @@
 // Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
-import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { Theme, ThemeBackground } from "#theme";
@@ -916,12 +916,9 @@ export interface AppSettingsView {
   readonly overrides: AppSettings;
 }
 
-/** A never-touched account reads defaults with updatedAt: 0 and no row written. */
+/** A never-touched account reads defaults and no row is written. */
 export interface UserSettingsView {
-  userId: UserId;
-  schemaVersion: number;
   config: UserSettings;
-  updatedAt: number;
   /**
    * WHY THE `config` ABOVE MAY NOT BE THIS USER'S (#1716) — `null` ⇒ the stored blob was read faithfully
    * (and, for a never-written account, there is nothing to fail to read: absence is not corruption);
@@ -1009,10 +1006,7 @@ export const appSettingsViewSchema = z.strictObject({
 }) satisfies z.ZodType<AppSettingsView>;
 
 export const userSettingsViewSchema = z.strictObject({
-  userId: brandedId("UserId"),
-  schemaVersion: z.number(),
   config: userSettingsOutputSchema,
-  updatedAt: z.number(),
   configUnreadable: z.enum(VERSIONED_PARSE_FAILURES).nullable(),
 }) satisfies z.ZodType<UserSettingsView>;
 export const globalSettingViewSchema = z.strictObject({
@@ -1027,8 +1021,6 @@ export const themeViewSchema = z.strictObject({
   css: z.string().nullable(),
   isSeed: z.boolean(),
   isDefault: z.boolean(),
-  createdAt: z.number(),
-  updatedAt: z.number(),
 }) satisfies z.ZodType<Theme>;
 
 export type { ImportedAppearance, ImportedAppearanceOutcome, ImportedThemeLanding, SettingsImportOutcome } from "./import-results.ts";

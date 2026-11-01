@@ -54,7 +54,6 @@ export function isInternalSeedTagName(name: string): boolean {
 
 export const createTagSchema = z.strictObject({
   name: z.string().min(NAME_MIN_LENGTH).max(NAME_MAX_LENGTH),
-  color: z.string().optional(),
   source: tagSourceSchema.optional(),
 });
 export type CreateTagInput = z.infer<typeof createTagSchema>;
@@ -64,7 +63,6 @@ export const updateTagSchema = z.strictObject({
   /** `null` clears back to the theme default (ST's link-to-theme reset); `undefined` leaves it untouched. */
   color: z.string().nullable().optional(),
   color2: z.string().nullable().optional(),
-  source: tagSourceSchema.optional(),
   folderType: tagFolderTypeSchema.optional(),
   isHiddenOnCard: z.boolean().optional(),
 });
@@ -245,11 +243,9 @@ export interface ImportTagPort {
   readonly attachCardTagByName: AttachCardTagByNameOp;
 }
 
-/** `importTagLibrary` — the outcome of restoring a tag-library file. `total` is the tag count the file
- *  carried (post-parse, malformed rows already dropped); `created` is how many were NEWLY minted into the
+/** `importTagLibrary` — the outcome of restoring a tag-library file. `created` is how many were NEWLY minted into the
  *  owner's namespace (the rest deduped against existing tags — the import merges, idempotently). */
 export interface TagLibraryImportResult {
-  readonly total: number;
   readonly created: number;
 }
 

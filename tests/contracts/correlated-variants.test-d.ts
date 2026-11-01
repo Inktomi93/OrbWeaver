@@ -65,7 +65,7 @@ test("chat publication, posture, window and recall retain their existing discrim
 });
 
 test("freshness and free imagery close impossible states while foreign regex masks stay valid", () => {
-  expectTypeOf<{ hasData: true; computedAt: null; stale: false }>().not.toExtend<StatsFreshness>();
+  expectTypeOf<{ hasData: true; computedAt: null }>().not.toExtend<StatsFreshness>();
   type Regex = Pick<RegexScriptBehavior, Exclude<keyof RegexScriptBehavior, "markdownOnly" | "promptOnly">>;
   expectTypeOf<Regex & { markdownOnly: true; promptOnly: true }>().toExtend<RegexScriptBehavior>();
   expectTypeOf<{ mode: "free" }>().not.toExtend<ReturnType<typeof generatePictureRequestSchema.parse>>();

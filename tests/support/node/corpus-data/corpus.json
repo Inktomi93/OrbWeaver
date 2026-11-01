@@ -13,7 +13,6 @@
         "assetUpload": 67108864,
         "image": 5000000,
         "databankUpload": 20971520,
-        "importTotal": 268435456,
         "importBundle": 4294967296,
         "importTreeTotal": 1073741824,
         "importTreeFile": 67108864,
@@ -40,7 +39,6 @@
         "assetUpload": 67108864,
         "image": 5000000,
         "databankUpload": 20971520,
-        "importTotal": 268435456,
         "importBundle": 4294967296,
         "importTreeTotal": 1073741824,
         "importTreeFile": 67108864,
@@ -69,7 +67,6 @@
         "assetUpload": 67108864,
         "image": 5000000,
         "databankUpload": 20971520,
-        "importTotal": 268435456,
         "importBundle": 4294967296,
         "importTreeTotal": 1073741824,
         "importTreeFile": 67108864,
@@ -2156,99 +2153,39 @@
         }
       ],
       "demoted": [
-        {
-          "id": "world_book_000000000000000000000005kx",
-          "name": "Native replacement ledger",
-          "description": null,
-          "createdAt": 1750003791001,
-          "role": "primary"
-        },
-        {
-          "id": "world_book_000000000000000000000005k5",
-          "name": "Native lifecycle ledger",
-          "description": null,
-          "createdAt": 1750003791001,
-          "role": "auxiliary"
-        }
+        { "id": "world_book_000000000000000000000005kx", "name": "Native replacement ledger", "description": null, "role": "primary" },
+        { "id": "world_book_000000000000000000000005k5", "name": "Native lifecycle ledger", "description": null, "role": "auxiliary" }
       ],
       "books": [
-        { "id": "world_book_000000000000000000000005kx", "name": "Native replacement ledger", "description": null, "createdAt": 1750003791001 },
-        { "id": "world_book_000000000000000000000005k5", "name": "Native lifecycle ledger", "description": null, "createdAt": 1750003791001 },
-        { "id": "world_book_0000000000000000000000015b", "name": "Orbital ledger canon", "description": null, "createdAt": 1750000000000 },
-        {
-          "id": "world_book_00000000000000000000000125",
-          "name": "Demo World — The Loom",
-          "description": "Lore for the demo group chat.",
-          "createdAt": 1750000000000
-        },
-        {
-          "id": "world_book_000000000000000000000000bs",
-          "name": "Gullwrack Light",
-          "description": "The book Elias has waited a century to finish.",
-          "createdAt": 1750000000000
-        },
+        { "id": "world_book_000000000000000000000005kx", "name": "Native replacement ledger", "description": null },
+        { "id": "world_book_000000000000000000000005k5", "name": "Native lifecycle ledger", "description": null },
+        { "id": "world_book_0000000000000000000000015b", "name": "Orbital ledger canon", "description": null },
+        { "id": "world_book_00000000000000000000000125", "name": "Demo World — The Loom", "description": "Lore for the demo group chat." },
+        { "id": "world_book_000000000000000000000000bs", "name": "Gullwrack Light", "description": "The book Elias has waited a century to finish." },
         {
           "id": "world_book_000000000000000000000000av",
           "name": "The Ninth Epoch",
-          "description": "The prophecy Calamity is sure is about the end of the world.",
-          "createdAt": 1750000000000
+          "description": "The prophecy Calamity is sure is about the end of the world."
         },
-        {
-          "id": "world_book_0000000000000000000000009x",
-          "name": "The luck ledger",
-          "description": "How Kohaku accounts for the debt she is working off.",
-          "createdAt": 1750000000000
-        },
-        {
-          "id": "world_book_00000000000000000000000091",
-          "name": "Holloway's Hobby & Repair",
-          "description": "The model town in the back room.",
-          "createdAt": 1750000000000
-        },
-        {
-          "id": "world_book_00000000000000000000000085",
-          "name": "The Royal Guard of Vall",
-          "description": "The oath Sabine still keeps.",
-          "createdAt": 1750000000000
-        },
-        {
-          "id": "world_book_00000000000000000000000077",
-          "name": "The Ashen Spire",
-          "description": "The staff of the Dark Lady's tower.",
-          "createdAt": 1750000000000
-        },
-        {
-          "id": "world_book_00000000000000000000000069",
-          "name": "Hana's keyring",
-          "description": "The five transformation charms and what each one does.",
-          "createdAt": 1750000000000
-        },
-        {
-          "id": "world_book_0000000000000000000000005d",
-          "name": "Niko's chart",
-          "description": "The outside chart Niko's therapist keeps.",
-          "createdAt": 1750000000000
-        },
+        { "id": "world_book_0000000000000000000000009x", "name": "The luck ledger", "description": "How Kohaku accounts for the debt she is working off." },
+        { "id": "world_book_00000000000000000000000091", "name": "Holloway's Hobby & Repair", "description": "The model town in the back room." },
+        { "id": "world_book_00000000000000000000000085", "name": "The Royal Guard of Vall", "description": "The oath Sabine still keeps." },
+        { "id": "world_book_00000000000000000000000077", "name": "The Ashen Spire", "description": "The staff of the Dark Lady's tower." },
+        { "id": "world_book_00000000000000000000000069", "name": "Hana's keyring", "description": "The five transformation charms and what each one does." },
+        { "id": "world_book_0000000000000000000000005d", "name": "Niko's chart", "description": "The outside chart Niko's therapist keeps." },
         {
           "id": "world_book_0000000000000000000000004k",
           "name": "JFC's war stories",
-          "description": "The project JFC brings up whenever someone proposes an architecture.",
-          "createdAt": 1750000000000
+          "description": "The project JFC brings up whenever someone proposes an architecture."
         },
-        {
-          "id": "world_book_0000000000000000000000003p",
-          "name": "Charlotte's web",
-          "description": "What the web in the corner of the app is made of.",
-          "createdAt": 1750000000000
-        }
+        { "id": "world_book_0000000000000000000000003p", "name": "Charlotte's web", "description": "What the web in the corner of the app is made of." }
       ],
-      "detail": { "id": "world_book_0000000000000000000000015b", "name": "Orbital ledger canon", "description": null, "createdAt": 1750000000000 },
+      "detail": { "id": "world_book_0000000000000000000000015b", "name": "Orbital ledger canon", "description": null },
       "usage": [
         {
           "id": "world_book_000000000000000000000005kx",
           "name": "Native replacement ledger",
           "description": null,
-          "createdAt": 1750003791001,
           "entryCount": 0,
           "usage": { "characters": 1, "personas": 0, "chats": 0, "global": false, "total": 1 }
         },
@@ -2256,7 +2193,6 @@
           "id": "world_book_000000000000000000000005k5",
           "name": "Native lifecycle ledger",
           "description": null,
-          "createdAt": 1750003791001,
           "entryCount": 2,
           "usage": { "characters": 1, "personas": 0, "chats": 0, "global": false, "total": 1 }
         },
@@ -2264,7 +2200,6 @@
           "id": "world_book_0000000000000000000000015b",
           "name": "Orbital ledger canon",
           "description": null,
-          "createdAt": 1750000000000,
           "entryCount": 1,
           "usage": { "characters": 1, "personas": 1, "chats": 1, "global": true, "total": 4 }
         },
@@ -2272,7 +2207,6 @@
           "id": "world_book_00000000000000000000000125",
           "name": "Demo World — The Loom",
           "description": "Lore for the demo group chat.",
-          "createdAt": 1750000000000,
           "entryCount": 2,
           "usage": { "characters": 0, "personas": 0, "chats": 1, "global": false, "total": 1 }
         },
@@ -2280,7 +2214,6 @@
           "id": "world_book_000000000000000000000000bs",
           "name": "Gullwrack Light",
           "description": "The book Elias has waited a century to finish.",
-          "createdAt": 1750000000000,
           "entryCount": 1,
           "usage": { "characters": 1, "personas": 0, "chats": 0, "global": false, "total": 1 }
         },
@@ -2288,7 +2221,6 @@
           "id": "world_book_000000000000000000000000av",
           "name": "The Ninth Epoch",
           "description": "The prophecy Calamity is sure is about the end of the world.",
-          "createdAt": 1750000000000,
           "entryCount": 1,
           "usage": { "characters": 1, "personas": 0, "chats": 0, "global": false, "total": 1 }
         },
@@ -2296,7 +2228,6 @@
           "id": "world_book_0000000000000000000000009x",
           "name": "The luck ledger",
           "description": "How Kohaku accounts for the debt she is working off.",
-          "createdAt": 1750000000000,
           "entryCount": 1,
           "usage": { "characters": 1, "personas": 0, "chats": 0, "global": false, "total": 1 }
         },
@@ -2304,7 +2235,6 @@
           "id": "world_book_00000000000000000000000091",
           "name": "Holloway's Hobby & Repair",
           "description": "The model town in the back room.",
-          "createdAt": 1750000000000,
           "entryCount": 1,
           "usage": { "characters": 1, "personas": 0, "chats": 0, "global": false, "total": 1 }
         },
@@ -2312,7 +2242,6 @@
           "id": "world_book_00000000000000000000000085",
           "name": "The Royal Guard of Vall",
           "description": "The oath Sabine still keeps.",
-          "createdAt": 1750000000000,
           "entryCount": 1,
           "usage": { "characters": 1, "personas": 0, "chats": 0, "global": false, "total": 1 }
         },
@@ -2320,7 +2249,6 @@
           "id": "world_book_00000000000000000000000077",
           "name": "The Ashen Spire",
           "description": "The staff of the Dark Lady's tower.",
-          "createdAt": 1750000000000,
           "entryCount": 1,
           "usage": { "characters": 1, "personas": 0, "chats": 0, "global": false, "total": 1 }
         },
@@ -2328,7 +2256,6 @@
           "id": "world_book_00000000000000000000000069",
           "name": "Hana's keyring",
           "description": "The five transformation charms and what each one does.",
-          "createdAt": 1750000000000,
           "entryCount": 1,
           "usage": { "characters": 1, "personas": 0, "chats": 0, "global": false, "total": 1 }
         },
@@ -2336,7 +2263,6 @@
           "id": "world_book_0000000000000000000000005d",
           "name": "Niko's chart",
           "description": "The outside chart Niko's therapist keeps.",
-          "createdAt": 1750000000000,
           "entryCount": 1,
           "usage": { "characters": 1, "personas": 0, "chats": 0, "global": false, "total": 1 }
         },
@@ -2344,7 +2270,6 @@
           "id": "world_book_0000000000000000000000004k",
           "name": "JFC's war stories",
           "description": "The project JFC brings up whenever someone proposes an architecture.",
-          "createdAt": 1750000000000,
           "entryCount": 1,
           "usage": { "characters": 1, "personas": 0, "chats": 0, "global": false, "total": 1 }
         },
@@ -2352,7 +2277,6 @@
           "id": "world_book_0000000000000000000000003p",
           "name": "Charlotte's web",
           "description": "What the web in the corner of the app is made of.",
-          "createdAt": 1750000000000,
           "entryCount": 1,
           "usage": { "characters": 1, "personas": 0, "chats": 0, "global": false, "total": 1 }
         }
@@ -2373,24 +2297,15 @@
         "ignoreBudget": false,
         "metadata": null
       },
-      "characterBooks": [
-        { "id": "world_book_0000000000000000000000015b", "name": "Orbital ledger canon", "description": null, "createdAt": 1750000000000, "role": "primary" }
-      ],
-      "personaBooks": [
-        { "id": "world_book_0000000000000000000000015b", "name": "Orbital ledger canon", "description": null, "createdAt": 1750000000000, "role": null }
-      ],
-      "globalBooks": [
-        { "id": "world_book_0000000000000000000000015b", "name": "Orbital ledger canon", "description": null, "createdAt": 1750000000000, "role": null }
-      ],
-      "chatBooks": [
-        { "id": "world_book_0000000000000000000000015b", "name": "Orbital ledger canon", "description": null, "createdAt": 1750000000000, "role": null }
-      ],
+      "characterBooks": [{ "id": "world_book_0000000000000000000000015b", "name": "Orbital ledger canon", "description": null, "role": "primary" }],
+      "personaBooks": [{ "id": "world_book_0000000000000000000000015b", "name": "Orbital ledger canon", "description": null, "role": null }],
+      "globalBooks": [{ "id": "world_book_0000000000000000000000015b", "name": "Orbital ledger canon", "description": null, "role": null }],
+      "chatBooks": [{ "id": "world_book_0000000000000000000000015b", "name": "Orbital ledger canon", "description": null, "role": null }],
       "inheritedBooks": [
         {
           "id": "world_book_0000000000000000000000015b",
           "name": "Orbital ledger canon",
           "description": null,
-          "createdAt": 1750000000000,
           "role": null,
           "inherited": { "source": "global", "name": null }
         },
@@ -2398,11 +2313,10 @@
           "id": "world_book_0000000000000000000000015b",
           "name": "Orbital ledger canon",
           "description": null,
-          "createdAt": 1750000000000,
           "role": null,
           "inherited": { "source": "character", "name": "The ledger archivist" }
         },
-        { "id": "world_book_0000000000000000000000015b", "name": "Orbital ledger canon", "description": null, "createdAt": 1750000000000, "role": null }
+        { "id": "world_book_0000000000000000000000015b", "name": "Orbital ledger canon", "description": null, "role": null }
       ]
     }
   },
@@ -6797,8 +6711,6 @@
     "reads": {
       "viewer": { "userId": "00000000000000000000000001", "handle": "owner", "globalRole": "owner" },
       "settings": {
-        "userId": "00000000000000000000000001",
-        "schemaVersion": 10,
         "config": {
           "schemaVersion": 10,
           "seeds": {
@@ -6907,7 +6819,6 @@
           },
           "theme": { "selectedThemeId": null }
         },
-        "updatedAt": 0,
         "configUnreadable": null
       },
       "themes": [
@@ -6930,9 +6841,7 @@
           },
           "css": null,
           "isSeed": true,
-          "isDefault": true,
-          "createdAt": 1750000000000,
-          "updatedAt": 1750000000000
+          "isDefault": true
         },
         {
           "id": "theme_00000000000000000000000003",
@@ -6953,9 +6862,7 @@
           },
           "css": null,
           "isSeed": true,
-          "isDefault": false,
-          "createdAt": 1750000000000,
-          "updatedAt": 1750000000000
+          "isDefault": false
         },
         {
           "id": "theme_00000000000000000000000002",
@@ -6976,9 +6883,7 @@
           },
           "css": null,
           "isSeed": true,
-          "isDefault": false,
-          "createdAt": 1750000000000,
-          "updatedAt": 1750000000000
+          "isDefault": false
         }
       ],
       "appSettings": {
@@ -9583,7 +9488,6 @@
           "assetUpload": 67108864,
           "image": 5000000,
           "databankUpload": 20971520,
-          "importTotal": 268435456,
           "importBundle": 4294967296,
           "importTreeTotal": 1073741824,
           "importTreeFile": 67108864,
@@ -9613,7 +9517,6 @@
           "assetUpload": 67108864,
           "image": 5000000,
           "databankUpload": 20971520,
-          "importTotal": 268435456,
           "importBundle": 4294967296,
           "importTreeTotal": 1073741824,
           "importTreeFile": 67108864,
@@ -9632,8 +9535,6 @@
     "sessions.me": [{ "userId": "00000000000000000000000004", "handle": "owner", "globalRole": "owner" }],
     "settings.getUserSettings": [
       {
-        "userId": "00000000000000000000000004",
-        "schemaVersion": 10,
         "config": {
           "schemaVersion": 10,
           "seeds": {
@@ -9823,7 +9724,6 @@
           },
           "theme": { "selectedThemeId": null }
         },
-        "updatedAt": 1750003795001,
         "configUnreadable": null
       }
     ],
@@ -9848,9 +9748,7 @@
           },
           "css": null,
           "isSeed": true,
-          "isDefault": true,
-          "createdAt": 1750000000000,
-          "updatedAt": 1750000000000
+          "isDefault": true
         },
         {
           "id": "theme_00000000000000000000000003",
@@ -9871,9 +9769,7 @@
           },
           "css": null,
           "isSeed": true,
-          "isDefault": false,
-          "createdAt": 1750000000000,
-          "updatedAt": 1750000000000
+          "isDefault": false
         },
         {
           "id": "theme_00000000000000000000000002",
@@ -9894,9 +9790,7 @@
           },
           "css": null,
           "isSeed": true,
-          "isDefault": false,
-          "createdAt": 1750000000000,
-          "updatedAt": 1750000000000
+          "isDefault": false
         },
         {
           "id": "theme_000000000000000000000007g2",
@@ -9904,9 +9798,7 @@
           "override": { "bodyColor": "oklch(0.9249 0.0000 0.00)", "background": "oklch(0.2076 0.0135 258.37)" },
           "css": null,
           "isSeed": false,
-          "isDefault": false,
-          "createdAt": 1750003795001,
-          "updatedAt": 1750003795001
+          "isDefault": false
         },
         {
           "id": "theme_000000000000000000000007fg",
@@ -9927,9 +9819,7 @@
           },
           "css": null,
           "isSeed": false,
-          "isDefault": false,
-          "createdAt": 1750003795001,
-          "updatedAt": 1750003795001
+          "isDefault": false
         },
         {
           "id": "theme_000000000000000000000007fa",
@@ -9937,9 +9827,7 @@
           "override": { "accent": "#bbccdd" },
           "css": null,
           "isSeed": false,
-          "isDefault": false,
-          "createdAt": 1750003795001,
-          "updatedAt": 1750003795001
+          "isDefault": false
         },
         {
           "id": "theme_000000000000000000000007f8",
@@ -9947,9 +9835,7 @@
           "override": { "accent": "#aabbcc", "background": "#202830", "density": "compact" },
           "css": ".corpus-witness { color: #aabbcc; }",
           "isSeed": false,
-          "isDefault": false,
-          "createdAt": 1750003795001,
-          "updatedAt": 1750003795001
+          "isDefault": false
         },
         {
           "id": "theme_000000000000000000000007fx",
@@ -9957,9 +9843,7 @@
           "override": { "accent": "#112233" },
           "css": null,
           "isSeed": false,
-          "isDefault": false,
-          "createdAt": 1750003795001,
-          "updatedAt": 1750003795001
+          "isDefault": false
         }
       ]
     ],
@@ -13565,21 +13449,16 @@
       {
         "reasoningMs": 0,
         "costUsd": 0.00032,
-        "cacheReadTokens": 0,
-        "cacheWriteTokens": 0,
         "forkedChats": 2,
         "variantMessages": 1,
-        "maxContextTokens": 32000,
         "throughputTps": 0,
         "avgSwipeDepth": 0,
         "swipeRate": 0.03333333333333333,
         "cacheHitRate": null,
-        "avgReplyWords": 32.43333333333333,
         "characters": 44,
         "chats": 24,
         "userTurns": 188,
         "assistantTurns": 30,
-        "systemTurns": 0,
         "swipes": 2,
         "userWords": 11448,
         "assistantWords": 973,
@@ -13593,10 +13472,7 @@
         "p50GenMs": 0,
         "p90GenMs": 0,
         "avgTtftMs": 0,
-        "p50TtftMs": 0,
-        "p90TtftMs": 0,
         "reasoningRate": 0,
-        "contentChars": 80092,
         "firstChatAt": 1750000000000,
         "lastActivityAt": 1750003803001,
         "computedAt": 1750003803001
@@ -13605,21 +13481,17 @@
     "stats.wrapped": [
       {
         "firstChatAt": 1750000000000,
-        "lastActivityAt": 1750003803001,
         "characters": 44,
         "chats": 24,
         "words": 12421,
         "replies": 30,
         "swipes": 2,
         "genTimeMs": 0,
-        "reasoningMs": 0,
         "costUsd": 0.00032,
         "avgSwipeDepth": 0,
         "swipeRate": 0.03333333333333333,
-        "throughputTps": 0,
         "forkedChats": 2,
-        "topCharacter": { "name": "Funding control", "assistantTurns": 6 },
-        "computedAt": 1750003803001
+        "topCharacter": { "name": "Funding control", "assistantTurns": 6 }
       }
     ],
     "stats.byModel": [
@@ -13629,180 +13501,117 @@
           "provider": "custom-openai",
           "generations": 16,
           "charactersUsedWith": 9,
-          "tokensIn": 800,
           "tokensOut": 300,
-          "tokensInProvenance": "measured",
           "tokensOutProvenance": "measured",
           "totalGenTimeMs": 0,
-          "avgGenMs": 0,
           "avgTtftMs": 0,
-          "p50TtftMs": 0,
           "p90TtftMs": 0,
-          "reasoningRate": 0,
           "throughputTps": null,
-          "costUsd": null,
-          "reasoningMs": 0,
-          "cacheHitRate": null
+          "costUsd": null
         },
         {
           "model": "corpus-image-v1",
           "provider": "custom-openai",
           "generations": 6,
           "charactersUsedWith": 0,
-          "tokensIn": null,
           "tokensOut": null,
-          "tokensInProvenance": "unrecorded",
           "tokensOutProvenance": "unrecorded",
           "totalGenTimeMs": 0,
-          "avgGenMs": null,
           "avgTtftMs": null,
-          "p50TtftMs": null,
           "p90TtftMs": null,
-          "reasoningRate": 0,
           "throughputTps": null,
-          "costUsd": null,
-          "reasoningMs": 0,
-          "cacheHitRate": null
+          "costUsd": null
         },
         {
           "model": "corpus-lifecycle-text-v1",
           "provider": "custom-openai",
           "generations": 3,
           "charactersUsedWith": 2,
-          "tokensIn": 160,
           "tokensOut": 45,
-          "tokensInProvenance": "measured",
           "tokensOutProvenance": "measured",
           "totalGenTimeMs": 0,
-          "avgGenMs": 0,
           "avgTtftMs": 0,
-          "p50TtftMs": 0,
           "p90TtftMs": 0,
-          "reasoningRate": 0,
           "throughputTps": null,
-          "costUsd": 0.00025,
-          "reasoningMs": 0,
-          "cacheHitRate": null
+          "costUsd": 0.00025
         },
         {
           "model": "corpus-output-image-v1",
           "provider": "custom-openai",
           "generations": 3,
           "charactersUsedWith": 0,
-          "tokensIn": null,
           "tokensOut": null,
-          "tokensInProvenance": "unrecorded",
           "tokensOutProvenance": "unrecorded",
           "totalGenTimeMs": 0,
-          "avgGenMs": null,
           "avgTtftMs": null,
-          "p50TtftMs": null,
           "p90TtftMs": null,
-          "reasoningRate": 0,
           "throughputTps": null,
-          "costUsd": null,
-          "reasoningMs": 0,
-          "cacheHitRate": null
+          "costUsd": null
         },
         {
           "model": "corpus-rpg-round-v1",
           "provider": "custom-openai",
           "generations": 3,
           "charactersUsedWith": 2,
-          "tokensIn": 200,
           "tokensOut": 75,
-          "tokensInProvenance": "measured",
           "tokensOutProvenance": "measured",
           "totalGenTimeMs": 0,
-          "avgGenMs": 0,
           "avgTtftMs": 0,
-          "p50TtftMs": 0,
           "p90TtftMs": 0,
-          "reasoningRate": 0,
           "throughputTps": null,
-          "costUsd": null,
-          "reasoningMs": 0,
-          "cacheHitRate": null
+          "costUsd": null
         },
         {
           "model": "corpus-rpg-recursion-v1",
           "provider": "custom-openai",
           "generations": 2,
           "charactersUsedWith": 1,
-          "tokensIn": 200,
           "tokensOut": 70,
-          "tokensInProvenance": "measured",
           "tokensOutProvenance": "measured",
           "totalGenTimeMs": 0,
-          "avgGenMs": 0,
           "avgTtftMs": 0,
-          "p50TtftMs": 0,
           "p90TtftMs": 0,
-          "reasoningRate": 0,
           "throughputTps": null,
-          "costUsd": null,
-          "reasoningMs": 0,
-          "cacheHitRate": null
+          "costUsd": null
         },
         {
           "model": "corpus-output-edit-v1",
           "provider": "custom-openai",
           "generations": 1,
           "charactersUsedWith": 0,
-          "tokensIn": null,
           "tokensOut": null,
-          "tokensInProvenance": "unrecorded",
           "tokensOutProvenance": "unrecorded",
           "totalGenTimeMs": 0,
-          "avgGenMs": null,
           "avgTtftMs": null,
-          "p50TtftMs": null,
           "p90TtftMs": null,
-          "reasoningRate": 0,
           "throughputTps": null,
-          "costUsd": null,
-          "reasoningMs": 0,
-          "cacheHitRate": null
+          "costUsd": null
         },
         {
           "model": "ledger/native-connection",
           "provider": "openrouter",
           "generations": 1,
           "charactersUsedWith": 1,
-          "tokensIn": 5,
           "tokensOut": 3,
-          "tokensInProvenance": "measured",
           "tokensOutProvenance": "measured",
           "totalGenTimeMs": 0,
-          "avgGenMs": 0,
           "avgTtftMs": 0,
-          "p50TtftMs": 0,
           "p90TtftMs": 0,
-          "reasoningRate": 0,
           "throughputTps": null,
-          "costUsd": null,
-          "reasoningMs": 0,
-          "cacheHitRate": null
+          "costUsd": null
         },
         {
           "model": "corpus-embed-v2",
           "provider": "custom-openai",
           "generations": 0,
           "charactersUsedWith": 0,
-          "tokensIn": null,
           "tokensOut": null,
-          "tokensInProvenance": "unrecorded",
           "tokensOutProvenance": "unrecorded",
           "totalGenTimeMs": 0,
-          "avgGenMs": null,
           "avgTtftMs": null,
-          "p50TtftMs": null,
           "p90TtftMs": null,
-          "reasoningRate": null,
           "throughputTps": null,
-          "costUsd": null,
-          "reasoningMs": 0,
-          "cacheHitRate": null
+          "costUsd": null
         }
       ]
     ],
@@ -13831,32 +13640,8 @@
     ],
     "stats.timeseries": [
       [
-        {
-          "bucketStart": 1749999600000,
-          "chatsCreated": 6,
-          "userTurns": 57,
-          "assistantTurns": 15,
-          "swipes": 0,
-          "tokensIn": 400,
-          "tokensOut": 150,
-          "tokensInProvenance": "measured",
-          "tokensOutProvenance": "measured",
-          "genTimeMs": 0,
-          "messageDatesApprox": false
-        },
-        {
-          "bucketStart": 1750003200000,
-          "chatsCreated": 18,
-          "userTurns": 131,
-          "assistantTurns": 15,
-          "swipes": 2,
-          "tokensIn": 885,
-          "tokensOut": 313,
-          "tokensInProvenance": "measured",
-          "tokensOutProvenance": "measured",
-          "genTimeMs": 0,
-          "messageDatesApprox": false
-        }
+        { "bucketStart": 1749999600000, "chatsCreated": 6, "userTurns": 57, "assistantTurns": 15, "tokensOut": 150, "tokensOutProvenance": "measured" },
+        { "bucketStart": 1750003200000, "chatsCreated": 18, "userTurns": 131, "assistantTurns": 15, "tokensOut": 313, "tokensOutProvenance": "measured" }
       ]
     ],
     "stats.leaderboard": [
@@ -13865,372 +13650,216 @@
           {
             "characterId": "character_0000000000000000000000017d",
             "name": "Funding control",
-            "chats": 2,
-            "userTurns": 0,
             "assistantTurns": 6,
-            "swipes": 0,
             "tokensOut": 90,
             "tokensOutProvenance": "measured",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750000000000,
-            "lastActivityAt": 1750000006000
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_00000000000000000000000035",
             "name": "Charlotte",
-            "chats": 2,
-            "userTurns": 0,
             "assistantTurns": 2,
-            "swipes": 0,
             "tokensOut": 15,
             "tokensOutProvenance": "measured",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750000000000,
-            "lastActivityAt": 1750003777001
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_0000000000000000000000006j",
             "name": "Morgatha, the Undying Dark",
-            "chats": 1,
-            "userTurns": 0,
             "assistantTurns": 2,
-            "swipes": 0,
             "tokensOut": 15,
             "tokensOutProvenance": "measured",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750000000000,
-            "lastActivityAt": 1750000000000
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_0000000000000000000000007g",
             "name": "Sabine Veyra",
-            "chats": 1,
-            "userTurns": 0,
             "assistantTurns": 2,
-            "swipes": 0,
             "tokensOut": 15,
             "tokensOutProvenance": "measured",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750000000000,
-            "lastActivityAt": 1750000000000
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_000000000000000000000000a6",
             "name": "Calamity, Doomblade of the Ninth Epoch",
-            "chats": 1,
-            "userTurns": 0,
             "assistantTurns": 2,
-            "swipes": 0,
             "tokensOut": 15,
             "tokensOutProvenance": "measured",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750000000000,
-            "lastActivityAt": 1750000000000
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_000000000000000000000003fw",
             "name": "Lifecycle witness",
-            "chats": 2,
-            "userTurns": 0,
             "assistantTurns": 2,
-            "swipes": 0,
             "tokensOut": 30,
             "tokensOutProvenance": "measured",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750003769000,
-            "lastActivityAt": 1750003769000
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_000000000000000000000003x1",
             "name": "Corpus recursive keeper",
-            "chats": 2,
-            "userTurns": 0,
             "assistantTurns": 2,
-            "swipes": 0,
             "tokensOut": 70,
             "tokensOutProvenance": "measured",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750003769001,
-            "lastActivityAt": 1750003769001
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_00000000000000000000000432",
             "name": "Corpus round keeper",
-            "chats": 1,
-            "userTurns": 0,
             "assistantTurns": 2,
-            "swipes": 0,
             "tokensOut": 45,
             "tokensOutProvenance": "measured",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750003769001,
-            "lastActivityAt": 1750003769001
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_0000000000000000000000023a",
             "name": "Group",
-            "chats": 0,
-            "userTurns": 0,
             "assistantTurns": 1,
-            "swipes": 0,
             "tokensOut": null,
             "tokensOutProvenance": "unrecorded",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": null,
-            "lastActivityAt": 1750000022000
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_00000000000000000000000264",
             "name": "Corpus provider traveller",
-            "chats": 1,
-            "userTurns": 0,
             "assistantTurns": 1,
-            "swipes": 0,
             "tokensOut": 15,
             "tokensOutProvenance": "measured",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750003684000,
-            "lastActivityAt": 1750003684000
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_00000000000000000000000299",
             "name": "Arc ledger traveller",
-            "chats": 1,
-            "userTurns": 0,
             "assistantTurns": 1,
-            "swipes": 2,
             "tokensOut": 45,
             "tokensOutProvenance": "measured",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750003684000,
-            "lastActivityAt": 1750003769000
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_000000000000000000000003md",
             "name": "Lifecycle witness",
-            "chats": 1,
-            "userTurns": 0,
             "assistantTurns": 1,
-            "swipes": 0,
             "tokensOut": 15,
             "tokensOutProvenance": "measured",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750003769000,
-            "lastActivityAt": 1750003769000
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_000000000000000000000003zz",
             "name": "Group",
-            "chats": 0,
-            "userTurns": 0,
             "assistantTurns": 1,
-            "swipes": 0,
             "tokensOut": null,
             "tokensOutProvenance": "unrecorded",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": null,
-            "lastActivityAt": 1750003769001
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_0000000000000000000000041b",
             "name": "Group",
-            "chats": 0,
-            "userTurns": 0,
             "assistantTurns": 1,
-            "swipes": 0,
             "tokensOut": null,
             "tokensOutProvenance": "unrecorded",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": null,
-            "lastActivityAt": 1750003769001
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_0000000000000000000000046w",
             "name": "Corpus round keeper",
-            "chats": 1,
-            "userTurns": 0,
             "assistantTurns": 1,
-            "swipes": 0,
             "tokensOut": 30,
             "tokensOutProvenance": "measured",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750003769001,
-            "lastActivityAt": 1750003769001
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_000000000000000000000004hg",
             "name": "Search co-star first",
-            "chats": 1,
-            "userTurns": 0,
             "assistantTurns": 1,
-            "swipes": 0,
             "tokensOut": 15,
             "tokensOutProvenance": "measured",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750003777001,
-            "lastActivityAt": 1750003777001
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_000000000000000000000004hp",
             "name": "Search co-star second",
-            "chats": 1,
-            "userTurns": 0,
             "assistantTurns": 1,
-            "swipes": 0,
             "tokensOut": 15,
             "tokensOutProvenance": "measured",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750003777001,
-            "lastActivityAt": 1750003777001
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_000000000000000000000005h3",
             "name": "Native account witness",
-            "chats": 1,
-            "userTurns": 0,
             "assistantTurns": 1,
-            "swipes": 0,
             "tokensOut": 3,
             "tokensOutProvenance": "measured",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750003791001,
-            "lastActivityAt": 1750003791001
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_0000000000000000000000014j",
             "name": "The ledger archivist",
-            "chats": 2,
-            "userTurns": 0,
             "assistantTurns": 0,
-            "swipes": 0,
             "tokensOut": null,
             "tokensOutProvenance": "unrecorded",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750000000000,
-            "lastActivityAt": 1750003791001
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_00000000000000000000000229",
             "name": "Loom traveller",
-            "chats": 1,
-            "userTurns": 0,
             "assistantTurns": 0,
-            "swipes": 0,
             "tokensOut": null,
             "tokensOutProvenance": "unrecorded",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750000022000,
-            "lastActivityAt": 1750000022000
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_000000000000000000000003jc",
             "name": "Lifecycle witness",
-            "chats": 1,
-            "userTurns": 0,
             "assistantTurns": 0,
-            "swipes": 0,
             "tokensOut": null,
             "tokensOutProvenance": "unrecorded",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750003769000,
-            "lastActivityAt": 1750003769000
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_000000000000000000000003ka",
             "name": "Lifecycle witness",
-            "chats": 1,
-            "userTurns": 0,
             "assistantTurns": 0,
-            "swipes": 0,
             "tokensOut": null,
             "tokensOutProvenance": "unrecorded",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750003769000,
-            "lastActivityAt": 1750003769000
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_000000000000000000000003p5",
             "name": "Lifecycle witness",
-            "chats": 1,
-            "userTurns": 0,
             "assistantTurns": 0,
-            "swipes": 0,
             "tokensOut": null,
             "tokensOutProvenance": "unrecorded",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750003769000,
-            "lastActivityAt": 1750003769000
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_000000000000000000000003t4",
             "name": "Portrait witness",
-            "chats": 1,
-            "userTurns": 0,
             "assistantTurns": 0,
-            "swipes": 0,
             "tokensOut": null,
             "tokensOutProvenance": "unrecorded",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750003769000,
-            "lastActivityAt": 1750003769000
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_000000000000000000000005nz",
             "name": "Native roster witness",
-            "chats": 1,
-            "userTurns": 0,
             "assistantTurns": 0,
-            "swipes": 0,
             "tokensOut": null,
             "tokensOutProvenance": "unrecorded",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750003791001,
-            "lastActivityAt": 1750003791001
+            "totalGenTimeMs": 0
           },
           {
             "characterId": "character_000000000000000000000006nx",
             "name": "Image variant witness",
-            "chats": 1,
-            "userTurns": 0,
             "assistantTurns": 0,
-            "swipes": 0,
             "tokensOut": null,
             "tokensOutProvenance": "unrecorded",
-            "totalGenTimeMs": 0,
-            "reasoningRate": 0,
-            "firstChatAt": 1750003795001,
-            "lastActivityAt": 1750003795001
+            "totalGenTimeMs": 0
           }
         ],
         "total": 26
       }
     ],
-    "stats.freshness": [{ "hasData": true, "computedAt": 1750003803001, "stale": false }],
+    "stats.freshness": [{ "hasData": true, "computedAt": 1750003803001 }],
     "stats.momentum": [
       [
         { "characterId": "character_00000000000000000000000035", "name": "Charlotte", "bucketStart": 1749999600000, "replies": 2 },
