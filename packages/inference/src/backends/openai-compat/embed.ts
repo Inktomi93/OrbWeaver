@@ -16,7 +16,7 @@
 import type { EmbeddingModelV4, EmbeddingModelV4Result, JSONObject } from "@ai-sdk/provider";
 import type { EmbeddingBatchObservation } from "@orb/contracts/embeddings";
 import type { EmbeddingCapability } from "@orb/contracts/inference";
-import type { EmbedResult, EmbedUsage } from "@orb/contracts/providers";
+import type { EmbedResult } from "@orb/contracts/providers";
 import type { ScheduleOp } from "@orb/kit/time";
 import { clampToTokenBudget, estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
 import { z } from "zod";
@@ -168,7 +168,7 @@ function batchObservationOf(req: EmbedRequest, result: EmbeddingModelV4Result, i
 }
 
 /** ONE POST: the deadline sized by the batch's tokens, the count asserted, every vector fitted into its slot. */
-async function runBatch(run: BatchRun, batch: readonly KeptInput[]): Promise<EmbedUsage> {
+async function runBatch(run: BatchRun, batch: readonly KeptInput[]): Promise<void> {
   const { req, call, model, label, secrets } = run;
   const { features } = req.connection;
   const tokens = batch.reduce((sum, item) => sum + item.tokens, 0);
@@ -199,7 +199,6 @@ async function runBatch(run: BatchRun, batch: readonly KeptInput[]): Promise<Emb
         run.vectors[slot.index] = fitToDim(vec, run.fit, label);
       }
     }
-    return observation.usage;
   } finally {
     post.dispose();
   }
@@ -216,7 +215,7 @@ export async function runOpenAiCompatEmbed(req: EmbedRequest, deps: EmbedDeps): 
   );
   const vectors: (Float32Array<ArrayBuffer> | null)[] = new Array(inputs.length).fill(null);
   if (kept.length === 0) {
-    return { vectors, model: connection.model, usage: { promptTokens: null, totalTokens: null } };
+    return { vectors, model: connection.model };
   }
   const isOpenRouter = connection.provider.dialect === "openrouter";
   const call: ModelCall = {
@@ -247,29 +246,18 @@ export async function runOpenAiCompatEmbed(req: EmbedRequest, deps: EmbedDeps): 
     fit: { dims: req.dimensions ?? capability.dims, mrl: capability.mrl },
     vectors,
   };
-  const usages: (EmbedUsage | undefined)[] = new Array(batches.length).fill(undefined);
   let next = 0;
   const worker = async (): Promise<void> => {
     for (let i = next; i < batches.length; i = next) {
       next += 1;
       const batch = batches[i];
       if (batch !== undefined) {
-        usages[i] = await runBatch(run, batch);
+        await runBatch(run, batch);
       }
     }
   };
   await Promise.all(Array.from({ length: Math.min(connection.features.concurrency?.embed ?? 1, batches.length) }, () => worker()));
-  const sum = (key: keyof Omit<EmbedUsage, "responseCache">): number | null =>
-    usages.reduce<number | null>((total, usage) => (total !== null && usage?.[key] !== undefined && usage[key] !== null ? total + usage[key] : null), 0);
-  return {
-    vectors,
-    model: connection.model,
-    usage: {
-      promptTokens: sum("promptTokens"),
-      totalTokens: sum("totalTokens"),
-      ...(usages.length === 1 && usages[0]?.responseCache !== undefined ? { responseCache: usages[0].responseCache } : {}),
-    },
-  };
+  return { vectors, model: connection.model };
 }
 
 export type { EmbedDeps } from "../../contract/openai-backend.ts";

@@ -230,4 +230,37 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Judged from `reports/unwired/fields-tsapi.json` (`unwired`), not the stale table above.
+
+Deleted, with the writers:
+
+- `IterateResult.iterationCount`, `StagePreflight.model` and `.temperature`, `RefinerySessionView.updatedAt`, `RefinerySchemaStats.anyOfVariants`.
+- `RosterPresetView.createdAt` and `ApplyRosterPresetResult.configApplied` (the audit row keeps the value).
+- `SessionView.createdAt`.
+- `ResolvedTaskView.connectionId` and `.providerId`, and the zod `schema` key of `responseFormatSchema` (the exported type still pins `schema` to `WireReady`).
+- `DiscoverSegment.blockIdx`, `SearchSuggestion.score`, `SimilarArtHit.lens`, `DocumentChunkHit.chunkIdx` and `.contentHash`.
+- `RpgTurnToolCallsView.createdAt`, `RpgCheckpointView.gameId`, `ExtractionPlanePrompt.toolName`.
+
+Kept, with the reader:
+
+- `refineryRunBaseSchema.sessionId`: read by `tests/e2e/support/surface-sections.ts`. `CorpusHit.blockKeys`: read by `tests/support/iso/corpus-search.ts`. Both are testkit helpers.
+- `ApplyFieldsResult.character`, `RpgCheckpointView.snapshotId`, `RpgTurnToolCallsView.messageId`, `RpgGameView.chatId`, `.mode`, `.status` and `.extractionMode`: read only by test files. Owner call below.
+- `SessionAdminView.userId`: the contract header and `tests/server/domain/admin/verbs/session-policy.int.test.ts` state that the admin view carries the queried user's id. Owner call below.
+- `SimilarArtHit.score`: inherited from `searchHitSchema`, shared with the other hit shapes.
+- `rpgUpdateConfigInputSchema.patch.*`: read by name in `packages/server/src/domain/rpg/verbs/game/update-config.ts` through the `UpdateConfigParams` twin type. Deleting a key would strip it silently.
+- Model-facing structured output and tool schemas: `refineryFieldScoreSchema.strengths`, `refineryScorePayloadSchema.summary`, `refineryRewriteFieldSchema.append` and `.cleared` (read with `"cleared" in entry`), `schemaForgeResultSchema`, `forgeFieldRowSchema`, `forgeDesignEnvelopeSchema`, `renderHintSchema`, `rpgPopulateSchema`, `PatchValueEntry`, `PatchNoChangesEntry`, `PatchReply`, `trackerDeltaSchema`, `trackerSetSchema`, `updateInventoryArgsSchema`. Deleting one changes the request the model sees.
+- Stored JSON: `refineryCustomRunConfigSchema.schemaId` and `.schemaVersion`, `rpgTrackerDefSchema.icon`, `rpgStatResolutionSchema.kind`, `rpgWeatherSchema` fields.
+- `subscriptionErrorFrame` and the rpc rows are in item 1559.
+
+Not judged in this commit; each needs a read of its server twin or a product call: the remaining `rpg` input patch rows (`rpgPatchSheetInputSchema.patch.tracker*`, quest and journal patches, `rpgListJournalInputSchema.offset`, `rpgAddJournalEntryInputSchema.label`), `rpgTraceEventSchema`, `rpgTraceRecordSchema.seq` and `.at`, `RollDiceResult`, `RpgExtractionDrop`, `ExtractionPromptContext.refs`, `RpgRevealView.messages`, `RpgRevealedSpan.revealLabel`, `rpgRevealViewSchema.standingLies.character`, `CreateGameResult`, `RpgGameView.trackersReadOnly`, `promoteActorResultSchema.issues`, `RegexRemove`, `RegexDetach` and `RegexReorder` single-field results, `refinerySchemaSummarySchema` fields, `searchScopeInputSchema.scopedCharacterId`, `unifiedSearchInputSchema.rerank`, `FieldSearchResult.coverage`.
+
+Verification: as item 1559.
+
+Owner calls (a test file is the only reader, or the row is a half-built feature):
+
+- Delete the test-only fields and move their tests onto a database read or a second door: `ApplyFieldsResult.character`, `RpgCheckpointView.snapshotId`, `RpgTurnToolCallsView.messageId`, `RpgGameView.chatId`, `.mode`, `.status`, `.extractionMode`, `SessionAdminView.userId`.
+- Reveal eye, read-only pill and checkpoint trigger: `RpgRevealView.messages`, `RpgRevealedSpan.revealLabel`, `RpgGameView.trackersReadOnly`, `CreateGameResult` (both fields would leave an empty result), `RpgCheckpointView.trigger`.
+- Single-field regex results `RemoveResult`, `DetachResult`, `ReorderResult`: deleting the field makes the procedure return nothing.
+- `unifiedSearchInputSchema.rerank` and `searchScopeInputSchema.scopedCharacterId`: no client writes them; the search verb still branches on both.
+- Model-facing refinery and rpg schemas listed above: removing a field changes the request the model receives.
+

@@ -56,33 +56,27 @@ Respond with ONLY a JSON object of this exact shape (no prose, no markdown, no <
 
 export const DISCOVERY_PROSE_SLOTS = {
   "discovery.compare.system": {
-    id: "discovery.compare.system",
     home: "user",
     version: 1,
     text: COMPARE_SYSTEM_TEXT,
-    macros: "none",
     requiredMacros: [],
     requiredTokens: ['{"summary":"...","overlap":"...","distinction":"..."}'],
     title: "Character comparison narrative",
     fires: "`compareCharactersDeep` — the deep-compare panel, once per pair, over the precomputed facet diff.",
   },
   "discovery.ask.system": {
-    id: "discovery.ask.system",
     home: "user",
     version: 1,
     text: ASK_SYSTEM_TEXT,
-    macros: "none",
     requiredMacros: [],
     requiredTokens: ['{"answer":"...","grounded":true}'],
     title: "Ask-a-card answer prompt",
     fires: "`askCard` — a free-text question about one owned character, grounded in its recent played scenes.",
   },
   "discovery.distill.system": {
-    id: "discovery.distill.system",
     home: "user",
     version: 1,
     text: DISTILL_SYSTEM_TEXT,
-    macros: "none",
     requiredMacros: [],
     requiredTokens: ['{"genre":"...","subGenres":["..."],"tone":"...","setting":"...","tags":["..."],"elevatorPitch":"...","overview":"..."}'],
     title: "Card distillation prompt",

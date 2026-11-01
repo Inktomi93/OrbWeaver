@@ -2,7 +2,7 @@ import type { GoogleEmbeddingModelOptions } from "@ai-sdk/google";
 import type { EmbeddingModelV4, EmbeddingModelV4Result, JSONObject } from "@ai-sdk/provider";
 import type { EmbeddingCapability } from "@orb/contracts/inference";
 import { canEmbedImages } from "@orb/contracts/inference";
-import type { EmbedResult, EmbedUsage, ImageEmbedResult } from "@orb/contracts/providers";
+import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import { clampToTokenBudget, safeTokenWindow } from "@orb/kit/tokens";
 import { z } from "zod";
@@ -104,7 +104,7 @@ function storeBatch(batch: readonly KeptInput[], embeddings: readonly number[][]
   }
 }
 
-async function observeGoogleBatch(req: EmbedRequest, batch: readonly KeptInput[], result: EmbeddingModelV4Result): Promise<number | null> {
+async function observeGoogleBatch(req: EmbedRequest, batch: readonly KeptInput[], result: EmbeddingModelV4Result): Promise<void> {
   const parsed = embeddingResponseUsageSchema.safeParse(result.response?.body);
   const count = parsed.success ? (parsed.data.usageMetadata?.promptTokenCount ?? null) : null;
   const textOnly = batch.every((input) => input.parts === undefined);
@@ -116,17 +116,15 @@ async function observeGoogleBatch(req: EmbedRequest, batch: readonly KeptInput[]
     tokenDetails: null,
     cost: embeddingCostOf(count, req.connection.features.pricing, null, textOnly),
   });
-  return count;
 }
 
-async function runBatches(model: EmbeddingModelV4, req: EmbedRequest, kept: readonly KeptInput[], context: BatchContext): Promise<EmbedUsage> {
+async function runBatches(model: EmbeddingModelV4, req: EmbedRequest, kept: readonly KeptInput[], context: BatchContext): Promise<void> {
   const { capability, dimension } = context;
   const limit = (await Promise.resolve(model.maxEmbeddingsPerCall)) ?? kept.length;
   const options: JSONObject = {
     ...(capability.mrl ? { outputDimensionality: dimension } : {}),
     ...(capability.retrievalTaskType === true ? { taskType: req.inputType === "query" ? "RETRIEVAL_QUERY" : "RETRIEVAL_DOCUMENT" } : {}),
   };
-  let promptTokens: number | null = 0;
   for (let start = 0; start < kept.length; start += limit) {
     const batch = kept.slice(start, start + limit);
     const idle = turnAbortSignal(req.signal, embedRequestTimeoutMs(req.connection.features), context.scheduleTimeout);
@@ -137,14 +135,12 @@ async function runBatches(model: EmbeddingModelV4, req: EmbedRequest, kept: read
         abortSignal: idle.signal,
         providerOptions: { [GOOGLE_KEY]: { ...options, ...content } },
       });
-      const count = await observeGoogleBatch(req, batch, result);
+      await observeGoogleBatch(req, batch, result);
       storeBatch(batch, result.embeddings, context);
-      promptTokens = promptTokens !== null && count !== null ? promptTokens + count : null;
     } finally {
       idle.dispose();
     }
   }
-  return { promptTokens, totalTokens: null };
 }
 
 async function embedInputs(req: EmbedRequest, inputs: readonly (EmbeddingInput | null)[], deps: GoogleBackendDeps): Promise<EmbedResult> {
@@ -158,12 +154,12 @@ async function embedInputs(req: EmbedRequest, inputs: readonly (EmbeddingInput |
   const vectors: (Float32Array<ArrayBuffer> | null)[] = new Array(inputs.length).fill(null);
   const kept = keptInputs(req, inputs, deps, capability);
   if (kept.length === 0) {
-    return { vectors, model: connection.model, usage: { promptTokens: null, totalTokens: null } };
+    return { vectors, model: connection.model };
   }
   try {
     const model = googleProviderFor({ connection, deps, label, api: "embed" }).embedding(googleModelId(connection.model));
-    const usage = await runBatches(model, req, kept, { vectors, dimension, capability, label, scheduleTimeout: deps.scheduleTimeout });
-    return { vectors, model: connection.model, usage };
+    await runBatches(model, req, kept, { vectors, dimension, capability, label, scheduleTimeout: deps.scheduleTimeout });
+    return { vectors, model: connection.model };
   } catch (err) {
     throw err instanceof ProviderError ? err : providerErrorFromHttp(err, label, resolvedScrubSet(connection));
   }

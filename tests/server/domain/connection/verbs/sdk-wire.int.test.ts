@@ -63,7 +63,7 @@ test.each(["valid", "bad-account"])("native SDK %s account diagnostics retain th
   const verified = await root.services.connection.verifyAuth({ principal, connectionId: connection.connectionId });
   expect(verified.ok).toBe(true);
   expect(verified.costUsd).toBe(3);
-  expect(verified.account).toEqual(mode === "bad-account" ? undefined : { email: "native@example.test", apiProvider: "firstParty" });
+  expect(verified.account).toEqual(mode === "bad-account" ? undefined : { email: "native@example.test" });
 });
 
 test("native SDK metadata projects actual events and deltas without changing paid-result accounting", async () => {

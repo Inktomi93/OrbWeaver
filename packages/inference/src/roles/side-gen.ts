@@ -180,7 +180,7 @@ export async function runSideGen(req: SummarizeRequest | StructuredRequest, deps
   if (state.failure !== undefined) {
     throw state.failure;
   }
-  return { items, model: connection.model };
+  return { items };
 }
 
 export type { SideGenDeps, SideGenItem } from "../contract/side-generation.ts";

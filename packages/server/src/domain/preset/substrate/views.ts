@@ -58,6 +58,5 @@ export function toPresetDetail(row: PresetRow): PresetDetail {
   return {
     ...summaryOf(row, outcome),
     config: outcome.value,
-    schemaVersion: row.schemaVersion,
   };
 }
