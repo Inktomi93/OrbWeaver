@@ -97,7 +97,7 @@ class TreeRejected extends Error {
  *  before a single body byte is read (identical to the sibling upload routes' guard). CSRF keys on the
  *  ambient-credential arms `via !== "header"` (cookie + the loopback owner fallback) because this is a
  *  CORS-"simple" multipart route with no preflight — see the WHY-block in upload.ts's authCsrfGuard (#300). */
-const authCsrfGuard: MiddlewareHandler<PrincipalEnv> = async (c, next) => {
+const authCsrfGuard: MiddlewareHandler<PrincipalEnv> = async (c, next): ReturnType<MiddlewareHandler> => {
   const principal = c.get("principal");
   if (principal === null) {
     return c.body(null, UNAUTHORIZED);
@@ -105,7 +105,7 @@ const authCsrfGuard: MiddlewareHandler<PrincipalEnv> = async (c, next) => {
   if (principal.via !== "header" && !hasCsrfHeader(c.req.raw.headers)) {
     return c.body(null, FORBIDDEN);
   }
-  return await next();
+  await next();
 };
 
 function bodyCap(maxBytes: number): ReturnType<typeof bodyLimit> {

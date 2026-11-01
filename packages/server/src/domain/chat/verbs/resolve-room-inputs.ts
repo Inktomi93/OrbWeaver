@@ -106,7 +106,7 @@ export function createChatRoomInputs(deps: ChatRoomInputDeps): ChatRoomInputs {
   const resolveMemoryConfig = async (hostUserId: UserId): Promise<MemoryConfig> => {
     const us = await deps.loadUserSettings(hostUserId);
     const defaults = deps.getEffectiveConfig().memoryDefaults;
-    return withMemoryOptOut(us.memory.enabled === false, defaults);
+    return withMemoryOptOut(!us.memory.enabled, defaults);
   };
 
   const resolveTurnPersonas = deps.resolveTurnPersonas;
@@ -151,7 +151,7 @@ export function createChatRoomInputs(deps: ChatRoomInputDeps): ChatRoomInputs {
       // the consent set (its PRESENT humans), so a departed member's persona resolves to nothing.
       const turnPersonas = await resolveTurnPersonas({ chatId, runAsUserId, anchorPersonaId, presentHumanUserIds, humanSeats, trigger, voice });
 
-      const memoryConfig = withMemoryOptOut(us.memory.enabled === false, deps.getEffectiveConfig().memoryDefaults);
+      const memoryConfig = withMemoryOptOut(!us.memory.enabled, deps.getEffectiveConfig().memoryDefaults);
 
       return {
         promptConfig,

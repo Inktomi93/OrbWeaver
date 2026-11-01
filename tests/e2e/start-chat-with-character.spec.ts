@@ -115,7 +115,7 @@ test("draft promotion: after the first send completes, the composer returns to S
   // THE RECOVERY (the bug): the turn is done, so the composer MUST return to Send — the Stop button gone,
   // the primary Send present, and the input re-enabled. Before the fix this stuck on "Stop generating"
   // indefinitely (input + Send disabled), recoverable only by a page reload.
-  const sendButton = page.locator('[data-testid="composer-send"]');
+  const sendButton = page.getByTestId("composer-send");
   await expect(sendButton).toBeVisible({ timeout: WAIT_SETTLE_MS });
   await expect(page.getByRole("button", { name: "Stop generating" })).toHaveCount(0);
   await expect(composer).toBeEnabled();

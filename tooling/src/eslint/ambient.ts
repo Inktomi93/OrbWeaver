@@ -130,9 +130,7 @@ function inTypeQuery(node: TSESTree.Node): boolean {
 function declaredOnly(variable: TSESLint.Scope.Variable): boolean {
   return (
     variable.defs.length > 0 &&
-    variable.defs.every(
-      ({ node, parent }) => ("declare" in node && node.declare === true) || (parent !== null && "declare" in parent && parent.declare === true),
-    )
+    variable.defs.every(({ node, parent }) => ("declare" in node && node.declare) || (parent !== null && "declare" in parent && parent.declare))
   );
 }
 
@@ -145,7 +143,7 @@ function ambientReferences(sourceCode: Source, names: ReadonlySet<string | null 
   const references = globalScope.through.filter(({ identifier }) => names.has(identifier.name));
   for (const variable of scopes.flatMap((scope) => scope.variables)) {
     if (names.has(variable.name) && isGlobalBinding(variable)) {
-      references.push(...variable.references.filter(({ isValueReference }) => isValueReference !== false));
+      references.push(...variable.references.filter(({ isValueReference }) => isValueReference));
     }
   }
   return references.map(({ identifier }) => identifier).filter((identifier) => !inTypeQuery(identifier));

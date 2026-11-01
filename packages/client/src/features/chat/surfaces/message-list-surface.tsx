@@ -250,7 +250,7 @@ function ChatThread({
   const greetingWindowOpen = isGreetingWindowOpen(messages);
   const seatedCharacterIds = [...participants.keys()];
   // Stepping a greeting is a host verb, and a member cannot read the host's cards: only the host reads them.
-  const greetingAlternates = useGreetingAlternates(seatedCharacterIds, greetingWindowOpen && chatDetail.viewerIsHost === true);
+  const greetingAlternates = useGreetingAlternates(seatedCharacterIds, greetingWindowOpen && chatDetail.viewerIsHost);
   const items = useMessageItems(messages, chatId);
   const liveCardRows = liveCardRowIds(items, (view) =>
     resolveRowRenderPolicy({ role: view.role, authorUserId: view.authorUserId, characterId: view.characterId, viewerUserId, participants, lenientHtmlCards }),
@@ -366,7 +366,7 @@ function ChatThread({
         colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
         showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
         metadataVisibility={messageAppearance.metadataVisibility}
-        viewerIsHost={chatDetail.viewerIsHost === true}
+        viewerIsHost={chatDetail.viewerIsHost}
         messageActions={messageAppearance.messageActions}
         showSwipes={item.view.id === lastRowId}
         lastRow={item.view.id === lastRowId}

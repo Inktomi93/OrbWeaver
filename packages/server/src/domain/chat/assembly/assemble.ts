@@ -1013,7 +1013,7 @@ function assembleWithSlices(
   // markers only just gained the field, ST parity): the pivot is the one section the walk skips before the
   // trigger check, so nothing else would read its gate, and a stored gate no reader honours is the same
   // silent drop this row is about.
-  const sendHistory = !(pivotSection !== undefined && (pivotSection.enabled === false || !sectionTriggers(pivotSection, generationType)));
+  const sendHistory = pivotSection === undefined || (pivotSection.enabled && sectionTriggers(pivotSection, generationType));
   config.sections.forEach((section, idx) => {
     if (!section.enabled) {
       return;

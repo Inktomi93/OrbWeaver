@@ -280,7 +280,7 @@ export const browserSupportRule = ({ unsupported, harmless, candidatesToCss }: B
         const libReferences = globalScope.variables.filter(({ defs }) => defs.length === 0).flatMap(({ references }) => references);
         for (const { identifier, isValueReference } of [...globalScope.through, ...libReferences]) {
           const parent = identifier.parent;
-          if (isValueReference !== false && !(parent.type === AST_NODE_TYPES.UnaryExpression && parent.operator === "typeof")) {
+          if (isValueReference && !(parent.type === AST_NODE_TYPES.UnaryExpression && parent.operator === "typeof")) {
             checkGlobal(identifier.name, throwingUse(identifier), identifier);
           }
         }

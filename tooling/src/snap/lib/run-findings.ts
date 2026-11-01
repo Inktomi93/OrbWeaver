@@ -269,7 +269,7 @@ export async function collectSnapFindings(input: SnapFindingInput): Promise<read
     drafts.push(...arms);
     // THE FALLBACK MUST NOT FIRE WHEN A ROW EXISTS (#1385 item 5) — its own text says actionable evidence
     // was absent, and printing that beside a row that carries it is the instrument contradicting itself.
-    if (drafts.some((row) => row.severity === "error") === false) {
+    if (!drafts.some((row) => row.severity === "error")) {
       drafts.push(fallbackFinding(input));
     }
   }

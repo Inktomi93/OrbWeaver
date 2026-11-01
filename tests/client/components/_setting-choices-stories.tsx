@@ -32,7 +32,7 @@ export function SettingChoicesStory({
                 description="Keep the source entries alongside their extracted text in this archive."
                 error={showError ? "Choose at least one available destination before continuing with this export." : undefined}
               >
-                <Checkbox checked={archive} onCheckedChange={(next): void => setArchive(next === true)} />
+                <Checkbox checked={archive} onCheckedChange={(next): void => setArchive(next)} />
               </Field>
             </SettingTrackRow>
             <SettingTrackRow>

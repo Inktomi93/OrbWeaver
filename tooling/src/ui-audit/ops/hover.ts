@@ -289,7 +289,7 @@ async function forceEveryAttrGroup(page: Page, groups: readonly HoverAttrGroupRo
     subjectsForced += 1;
     for (const row of outcome.rows) {
       reads.set(row.index, row);
-      if (outcome.restored !== true) {
+      if (!outcome.restored) {
         stuckMembers.add(row.index);
       }
     }

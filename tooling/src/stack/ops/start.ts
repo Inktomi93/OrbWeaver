@@ -63,7 +63,9 @@ function log(message: string): void {
 
 /** A person at the terminal: setup may ask questions, and the app may open in their browser. */
 function interactive(): boolean {
-  return process.stdin.isTTY === true && process.stdout.isTTY === true;
+  // Node types `isTTY` as boolean but leaves it undefined when the stream is piped.
+  const streams: readonly { readonly isTTY?: boolean | undefined }[] = [process.stdin, process.stdout];
+  return streams.every((stream) => stream.isTTY === true);
 }
 
 /** Run the root `pnpm build` (the ui tokens build + the client's vite build). Returns an exit code when the
