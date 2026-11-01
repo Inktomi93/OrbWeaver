@@ -345,6 +345,43 @@ export const RPG_BASELINE_TOOL_DESCRIPTIONS: ReadonlyMap<string, string> = build
   },
 });
 
+/** `update_scene`'s worked inputs, shown beside its schema where the wire has a slot for them. They are game-free
+ *  (no tracker or actor refs) and carry every field `constrainExtractionSchema` can mark required on a scene
+ *  (location, timeOfDay, a non-empty presentUpsert), so each validates against the schema in every establish state;
+ *  an invalid example is a provider 400. */
+const UPDATE_SCENE_INPUT_EXAMPLES: readonly Record<string, unknown>[] = [
+  {
+    location: "Chapel of Ash",
+    timeOfDay: "evening",
+    presentUpsert: [
+      {
+        name: "Sister Vesna",
+        emoji: "\u{1F56F}\u{FE0F}",
+        mood: "warming",
+        appearance: "tall, silver-haired",
+        outfit: "patched grey habit",
+        thoughts: "weighing whether to trust you",
+        relationship: { kind: "ally", label: "" },
+      },
+    ],
+    recentEvent: "Vesna softened as you shared road news",
+  },
+  {
+    location: "Chapel of Ash",
+    timeOfDay: "night",
+    weather: { type: "indoors", label: "" },
+    presentUpsert: [{ name: "Corvin", mood: "wary", thoughts: "watching the door" }],
+  },
+];
+
+/** The state tools with `update_scene`'s worked examples attached. Only the dedicated cheap round sends these:
+ *  examples add the `advanced-tool-use-2025-11-20` beta header on the Anthropic wire, which is unprobed. A
+ *  refused header on the cheap round costs that round's state write; on the folded character turn it would fail
+ *  the whole turn, so the folded turn mounts the plain tools. */
+export function withStateToolExamples(tools: readonly RpgStateRoundTool[]): RpgStateRoundTool[] {
+  return tools.map((tool) => (tool.name === "update_scene" ? { ...tool, inputExamples: UPDATE_SCENE_INPUT_EXAMPLES } : tool));
+}
+
 /** Build the per-game, per-actor wire tools for a state round / a folded turn (R6 + R2). The parameters come
  *  from ONE projection of the extraction schema constrained by this call's refs — so the tool a model is handed
  *  offers EXACTLY the trackers each target actually carries, minus the locked ones (prevent-at-schema; the
