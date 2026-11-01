@@ -37,7 +37,8 @@ for (const rootFontPx of ROOT_FONT_PX) {
       ...createShellAmbientReads(corpus, root.ownerId),
       ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, ...SETTINGS_READS, "rpg.getGame", "rpg.listTurnToolCalls"]),
     });
-    await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id });
+    const chatId = (await caller.chat.getChat({ chatId: room.id })).id;
+    await mount<typeof ChatRoomShellStory>(STORY, { chatId });
     await page.evaluate((px) => {
       document.documentElement.style.fontSize = `${px}px`;
     }, rootFontPx);
