@@ -78,6 +78,33 @@ test("public execution still reads an allowed public response through its owned 
   await expect(response.bytes()).rejects.toMatchObject({ reason: "consumed" });
 });
 
+test("a public body past maxBytes is refused mid-stream and its stream is cancelled", async () => {
+  const chunkBytes = 1024;
+  const chunksBeforeEnd = 4;
+  const cancelled = Promise.withResolvers<void>();
+  let served = 0;
+  const body = new ReadableStream<Uint8Array>({
+    pull: (controller) => {
+      served += 1;
+      if (served > chunksBeforeEnd) {
+        controller.close();
+        return;
+      }
+      controller.enqueue(new Uint8Array(chunkBytes));
+    },
+    cancel: () => {
+      cancelled.resolve();
+    },
+  });
+  await using root = await createServerHarness({
+    networkExecution: { resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]), fetch: () => Promise.resolve(new Response(body)) },
+  });
+  const response = await root.app.egress.safeFetch(PUBLIC_URL, { allowedHosts: [PUBLIC_HOST], maxBytes: chunkBytes + 1 });
+  await expect(response.bytes()).rejects.toMatchObject({ name: "EgressBlockedError", reason: "too-large" });
+  await cancelled.promise;
+  expect(served).toBeLessThan(chunksBeforeEnd);
+});
+
 test("the public required-host boundary refuses an off-host redirect before its physical hop", async () => {
   const calls: string[] = [];
   await using root = await createServerHarness({
