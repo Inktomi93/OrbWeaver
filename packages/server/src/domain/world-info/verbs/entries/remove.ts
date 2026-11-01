@@ -44,7 +44,5 @@ export function createRemoveEntry(ctx: WorldInfoContext): WorldInfoService["remo
     // The ROOM plane (entity→room bridge §3.6). Safe on a DELETE here — unlike a book delete — because the
     // BOOK survives an entry removal, so the reach junctions are all intact when the engine resolves.
     ctx.emit({ type: "world-info.updated", bookId: removed.worldBookId });
-
-    return { deleted: true };
   };
 }
