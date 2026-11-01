@@ -50,7 +50,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { ViewerDialog } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { testId } from "#lib";
+import { testId, trpcErrorCode } from "#lib";
 
 const PROSE_MEASURE = "max-inline-(--reading-measure-prose)";
 
@@ -64,10 +64,7 @@ export interface VariantWireViewerProps {
 /** The transport-mapped domain NOT_FOUND — a deleted slot, or a variant that is not this chat's (the
  *  `messages.chatId` belt). Discriminated by the code, never a bare catch (`MemberCardViewer` precedent). */
 function isNotFound(error: unknown): boolean {
-  if (typeof error !== "object" || error === null || !("data" in error)) {
-    return false;
-  }
-  return (error as { data?: { code?: string } }).data?.code === "NOT_FOUND";
+  return trpcErrorCode(error) === "NOT_FOUND";
 }
 
 /** Split a prompt half into `LogViewer` lines. An EMPTY half is a real answer ("this half was empty"), not a

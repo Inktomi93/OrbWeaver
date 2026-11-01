@@ -1,0 +1,12 @@
+{
+  "sites": [
+    { "file": "chat.ts", "type": "StarVars" },
+    { "file": "chat.ts", "type": "RenameVars" },
+    { "file": "chat.ts", "type": "ReadVars" },
+    { "file": "chat.ts", "type": "ReadVars0" },
+    { "file": "chat.ts", "type": "KeepVars" },
+    { "file": "asserted.ts", "type": "SendVars" },
+    { "file": "bare.ts", "type": "PinVars" }
+  ],
+  "skip": [{ "type": "RuleActionVars", "reason": "carries a client-only chatId beside the procedure input" }]
+}

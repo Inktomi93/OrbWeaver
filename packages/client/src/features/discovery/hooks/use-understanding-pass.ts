@@ -54,7 +54,6 @@ import { useModelRunConfirm } from "#components";
 import type { Trpc } from "#data";
 import { createEntityMutation, useBusRoom, useInvalidation, useTRPC } from "#data";
 
-type StartWorkloadWire = inferInput<Trpc["workloads"]["start"]>;
 type WorkloadRow = inferOutput<Trpc["workloads"]["list"]>[number];
 
 /** The runs that ARE the understanding pass, in the order the copy names them and the DAG runs them. */
@@ -71,7 +70,7 @@ const STAGE_LABELS: Record<PassKind, string> = {
 
 /** Enqueue one run. The realistic refusal is the engine's single-active-per-kind lock (`CONFLICT`) — which
  *  the card's own dedupe read normally prevents reaching, so the toast is the race-loser's backstop. */
-const useStartUnderstandingRun = createEntityMutation<StartWorkloadWire, WorkloadRef>({
+const useStartUnderstandingRun = createEntityMutation<inferInput<Trpc["workloads"]["start"]>, WorkloadRef>({
   options: (trpc) => trpc.workloads.start.mutationOptions(),
   invalidates: (trpc) => [trpc.workloads.list.pathFilter()],
   // The server's own sentence (an admission refusal, a run already going) is the reason; a fixed guess is not.

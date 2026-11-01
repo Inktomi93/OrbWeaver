@@ -37,6 +37,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, SettingSwitchRow } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { trpcErrorCode } from "#lib";
 import { openConfigTo, useSelectedDocumentId } from "#state";
 import { useAttachDocumentGlobal, useDetachDocumentGlobal } from "../hooks/use-databank-mutations.ts";
 import { DATABANK_CONTEXT_EMPTY } from "../lib/databank-copy.ts";
@@ -127,10 +128,7 @@ function DocumentGone(): ReactElement {
  *  text (the `use-databank-mutations` / `invite-dialog` precedent) — `DocumentNotFoundError` is mapped to
  *  NOT_FOUND by the transport's global error mapping. */
 function isDocumentGone(error: unknown): boolean {
-  if (typeof error !== "object" || error === null || !("data" in error)) {
-    return false;
-  }
-  return (error as { data?: { code?: string } }).data?.code === "NOT_FOUND";
+  return trpcErrorCode(error) === "NOT_FOUND";
 }
 
 /** The open document's own row. NON-suspending, deliberately: a deleted document is a designed STATE with

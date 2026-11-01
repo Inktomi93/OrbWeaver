@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "single-field-result-to-void"
+version: "0.1.0"
+description: "Turn a plan-listed verb whose result is one constant or unread field into a void verb: verb return, service member and router output."
+author: "Orbweaver"
+license: "AGPL-3.0-only"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml
