@@ -45,7 +45,7 @@ export function useActiveRosterChat(): ActiveRosterChat | null {
   if (chatId === null || chatQuery === undefined) {
     return null;
   }
-  return { chatId, isHost: chatQuery.data.viewerIsHost === true, detail: chatQuery.data };
+  return { chatId, isHost: chatQuery.data.viewerIsHost, detail: chatQuery.data };
 }
 
 /** One captured rule as "Save this room's roster" sends it — the wire spec (id + the knob INPUT bag). */

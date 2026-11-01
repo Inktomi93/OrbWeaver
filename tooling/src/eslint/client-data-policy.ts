@@ -1,5 +1,6 @@
 import type { RuleVisitor } from "@eslint/core";
-import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
+import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import ts from "typescript";
 import { importedSymbol } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
@@ -128,10 +129,10 @@ function variableNamed(scope: TSESLint.Scope.Scope | null, name: string): TSESLi
 
 function dependencyRoot(element: TSESTree.Node): TSESTree.Identifier | undefined {
   let node = element;
-  while (node.type === "MemberExpression" || node.type === "ChainExpression") {
-    node = node.type === "ChainExpression" ? node.expression : node.object;
+  while (node.type === AST_NODE_TYPES.MemberExpression || node.type === AST_NODE_TYPES.ChainExpression) {
+    node = node.type === AST_NODE_TYPES.ChainExpression ? node.expression : node.object;
   }
-  return node.type === "Identifier" ? node : undefined;
+  return node.type === AST_NODE_TYPES.Identifier ? node : undefined;
 }
 
 function resolvedSymbol(symbol: ts.Symbol | undefined, checker: ts.TypeChecker): ts.Symbol | undefined {
@@ -169,27 +170,27 @@ function declaredInPointerStore(symbol: ts.Symbol | undefined, checker: ts.TypeC
 type FunctionNode = TSESTree.FunctionDeclaration | TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression;
 
 function functionNameOf(node: FunctionNode): TSESTree.Identifier | undefined {
-  if (node.type === "FunctionDeclaration") {
+  if (node.type === AST_NODE_TYPES.FunctionDeclaration) {
     return node.id ?? undefined;
   }
-  return node.parent.type === "VariableDeclarator" && node.parent.id.type === "Identifier" ? node.parent.id : undefined;
+  return node.parent.type === AST_NODE_TYPES.VariableDeclarator && node.parent.id.type === AST_NODE_TYPES.Identifier ? node.parent.id : undefined;
 }
 
 function pointerThroughParameter(variable: TSESLint.Scope.Variable, context: OrbRuleContext): boolean {
   return variable.defs.some((def) => {
-    if (def.type !== "Parameter") {
+    if (def.type !== TSESLint.Scope.DefinitionType.Parameter) {
       return false;
     }
     const owner = def.node as FunctionNode;
-    const index = owner.params.indexOf(def.name as TSESTree.Parameter);
+    const index = owner.params.indexOf(def.name);
     const name = functionNameOf(owner);
     const callee = name === undefined ? undefined : variableNamed(context.sourceCode.getScope(name), name.name);
     return (
       index >= 0 &&
       (callee?.references ?? []).some(({ identifier }) => {
         const call = identifier.parent;
-        const argument = call.type === "CallExpression" && call.callee === identifier ? call.arguments[index] : undefined;
-        const passed = argument?.type === "Identifier" ? variableNamed(context.sourceCode.getScope(argument), argument.name) : undefined;
+        const argument = call.type === AST_NODE_TYPES.CallExpression && call.callee === identifier ? call.arguments[index] : undefined;
+        const passed = argument?.type === AST_NODE_TYPES.Identifier ? variableNamed(context.sourceCode.getScope(argument), argument.name) : undefined;
         return passed !== undefined && readsSelectionPointer(passed, context, false);
       })
     );
@@ -204,18 +205,18 @@ function readsSelectionPointer(variable: TSESLint.Scope.Variable, context: OrbRu
   const checker = services.program.getTypeChecker();
   const toTsNode = services.esTreeNodeToTSNodeMap;
   const direct = variable.defs.some((def) => {
-    const init = def.type === "Variable" ? def.node.init : null;
-    return init?.type === "CallExpression" && declaredInPointerStore(checker.getSymbolAtLocation(toTsNode.get(init.callee)), checker, true);
+    const init = def.type === TSESLint.Scope.DefinitionType.Variable ? def.node.init : null;
+    return init?.type === AST_NODE_TYPES.CallExpression && declaredInPointerStore(checker.getSymbolAtLocation(toTsNode.get(init.callee)), checker, true);
   });
   return direct || (followParameters && pointerThroughParameter(variable, context));
 }
 
 /** A React import is judged by the name it imports, so `import { useEffect as run }` is still an effect; any other callee by its own name. */
 function effectName(callee: TSESTree.CallExpression["callee"], context: OrbRuleContext): string | undefined {
-  if (callee.type === "MemberExpression") {
-    return !callee.computed && callee.property.type === "Identifier" ? callee.property.name : undefined;
+  if (callee.type === AST_NODE_TYPES.MemberExpression) {
+    return !callee.computed && callee.property.type === AST_NODE_TYPES.Identifier ? callee.property.name : undefined;
   }
-  if (callee.type !== "Identifier") {
+  if (callee.type !== AST_NODE_TYPES.Identifier) {
     return;
   }
   const imported = importedSymbol(context, callee);
@@ -225,7 +226,7 @@ function effectName(callee: TSESTree.CallExpression["callee"], context: OrbRuleC
 function effectDependencies(node: TSESTree.CallExpression, context: OrbRuleContext): readonly (TSESTree.Node | null)[] {
   const dependencies = node.arguments[1];
   // The dependency list is the cheap test; the import lookup runs only for a call that has one.
-  if (dependencies?.type !== "ArrayExpression") {
+  if (dependencies?.type !== AST_NODE_TYPES.ArrayExpression) {
     return [];
   }
   const name = effectName(node.callee, context);

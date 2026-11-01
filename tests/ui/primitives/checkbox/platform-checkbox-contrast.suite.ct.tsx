@@ -2,6 +2,7 @@
 // the focus ring on the card, under each seed and under a custom ThemeScope that carries a mid-grey background.
 import { AA_NON_TEXT_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { pixelSurface } from "@orb/testkit/browser/spec";
+import { keysOf } from "@orb/testkit/iso";
 import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
@@ -17,7 +18,7 @@ const CARRIERS = [
 ] as const;
 const CASES = [
   { name: "hearth seed" },
-  ...(Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[]).map((theme) => ({ name: `${theme} seed`, theme })),
+  ...keysOf(SEED_THEME_VALUE_SETS).map((theme) => ({ name: `${theme} seed`, theme })),
   { name: "custom mid-grey ThemeScope", background: CUSTOM_MID_GREY, accent: STRONG_ACCENT },
   { name: "custom mid-grey ThemeScope with the inherited app accent", background: CUSTOM_MID_GREY, ambientAccent: INHERITED_ACCENT },
 ] as const;

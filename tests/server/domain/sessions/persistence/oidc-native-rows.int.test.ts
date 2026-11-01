@@ -15,6 +15,7 @@ import {
   OWNER_HANDLES_KEY,
 } from "@orb/contracts/identity";
 import { closeDb, oidcPendingSignups, oidcTransactions, sessions, users } from "@orb/db";
+import { toError } from "@orb/kit/error-message";
 import { brandedId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
 import { createControlledTimers, createFrozenClock, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
@@ -353,7 +354,7 @@ test("the actual GC timer reaps expired transactions while retaining a live logi
   if (sweep === undefined) {
     throw new Error("configured OIDC did not arm its actual hourly GC callback");
   }
-  void sweep();
+  sweep();
   await expect.poll(async () => (await root.db.select().from(oidcTransactions)).map((row) => row.state)).toEqual([live.callback.searchParams.get("state")]);
 });
 
@@ -463,9 +464,9 @@ test("configured native issuer execution preserves offset shared-byte views and 
       entered.resolve();
       await new Promise<void>((_resolve, reject) => {
         if (request.signal.aborted) {
-          reject(request.signal.reason);
+          reject(toError(request.signal.reason));
         } else {
-          request.signal.addEventListener("abort", () => reject(request.signal.reason), { once: true });
+          request.signal.addEventListener("abort", () => reject(toError(request.signal.reason)), { once: true });
         }
       });
     }

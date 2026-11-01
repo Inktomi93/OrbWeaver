@@ -26,6 +26,7 @@ import {
   MESSAGE_FORK_NAME,
   MESSAGE_REACTION_ADD_NAME,
   MESSAGE_REATTRIBUTE_NAME,
+  MESSAGE_REATTRIBUTE_VOICE_NAME,
   MESSAGE_VIEW_WIRE_TRACE_NAME,
 } from "#client/features/chat/lib/message-action-names.ts";
 import { resolveIsGroupChat } from "#client/features/chat/lib/roster.ts";
@@ -285,9 +286,13 @@ async function messageLeafName(item: Locator): Promise<string> {
   return label;
 }
 
+function menuLeaves(menu: Locator): Locator {
+  return menu.getByRole("menuitem").or(menu.getByRole("menuitemcheckbox")).or(menu.getByRole("menuitemradio"));
+}
+
 async function accountMessageLeaves(flow: Journey, menu: Locator, name: string, message: MessageView): Promise<void> {
   const chat = await flow.client.chat.getChat.query({ chatId: message.chatId });
-  for (const item of await menu.locator("[role=menuitem], [role=menuitemcheckbox], [role=menuitemradio]").all()) {
+  for (const item of await menuLeaves(menu).all()) {
     const label = await messageLeafName(item);
     const id = `${name}/leaf/${label}`;
     expectSubject(flow, id, "message-menu-leaf");
@@ -329,7 +334,7 @@ async function inspectMenu(
 ): Promise<void> {
   const { depth, message } = options;
   await expect(menu).toBeVisible();
-  const items = menu.locator('[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]');
+  const items = menuLeaves(menu);
   await expect(items.first()).toBeVisible();
   await attachNativeFile(flow.info, flow.info, `${name}-items`, { body: await menu.ariaSnapshot(), contentType: "text/plain" });
   const enabled = menu.locator('[role^="menuitem"]:not([aria-disabled="true"]):not([disabled])');
@@ -1912,7 +1917,7 @@ async function runChatMessageOperations(input: SurfaceFlow): Promise<MessageOper
       await menu.getByRole("menuitem", { name: MESSAGE_REATTRIBUTE_NAME, exact: true }).click();
       const confirm = flow.page.getByRole("alertdialog", { name: "Reattribute from here?", exact: true });
       await expect(confirm).toContainText(persona.name);
-      await confirm.getByRole("button", { name: "Reattribute", exact: true }).click();
+      await confirm.getByRole("button", { name: MESSAGE_REATTRIBUTE_VOICE_NAME, exact: true }).click();
       await expect(confirm).toBeHidden();
       await expect.poll(async () => (await readCanon(flow, room.id)).find(({ id }) => id === user.id)?.personaId).toBe(persona.id);
       await expect(messageRow(flow.page, user.id)).toHaveAccessibleName(persona.name);
@@ -2212,7 +2217,8 @@ export async function walkChatArcade(input: SurfaceFlow): Promise<void> {
           .click();
         await pluginContextReady(flow);
         const frame = activeContext(flow).locator("iframe").filter({ visible: true });
-        const arcade = frame.and(flow.page.getByTitle(new RegExp(`^${RegExp.escape(plugin.name)}(?: — ${RegExp.escape(surface.title)})?$`, "u")));
+        const titles = [plugin.name, `${plugin.name} — ${surface.title}`].map((title) => `[title=${JSON.stringify(title)}]`);
+        const arcade = frame.and(flow.page.locator(titles.join(", ")));
         await expect(arcade).toHaveCount(1);
         await expect(arcade).toBeVisible();
         const guest = arcade.contentFrame();

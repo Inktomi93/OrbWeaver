@@ -3,7 +3,6 @@
 // that a `--goto` started has finished or been discarded by the time the window opens: that is the control here.
 
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { expect, test } from "@orb/testkit/tooling";
 import { chromium } from "@playwright/test";
 import { runNav } from "../../../../tooling/src/floor/instrument/nav.ts";
@@ -11,6 +10,7 @@ import { runAudit } from "../../../../tooling/src/motion-audit/ops/trace.ts";
 import { runMotionWindow } from "../../../../tooling/src/snap/ops/arms/motion-nav.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { listeningAddress } from "../../_server-address.ts";
 
 const BROWSER_TIMEOUT_MS = scaledBudget(120_000);
 const FADE_MS = 700;
@@ -38,7 +38,7 @@ async function withApp<T>(
     response.end(APP);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address() as AddressInfo;
+  const address = listeningAddress(server);
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 800, height: 600 } });

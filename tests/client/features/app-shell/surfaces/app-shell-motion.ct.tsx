@@ -1,6 +1,7 @@
 // The shell's motion on the production panes and a corpus room: what each door's FLIP holds on its first painted
 // frame and keeps inside its corridor, what reduced motion does instead, the phone's cancel, and the scoped section
 // view transition. Every sampler records per animation frame, because the defects it judges are one frame wide.
+
 import { spawn } from "node:child_process";
 import { contextToggleLabel } from "@orb/client/lib";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
@@ -12,6 +13,7 @@ import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
+import { z } from "zod";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, PHONE, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -282,7 +284,7 @@ function recordAnimationStarts(page: Page): Promise<void> {
 
 /** The FLIPs among them: a pane's own scroll fade starts an animation too, and it is no door's motion. */
 async function animationStarts(page: Page): Promise<string[]> {
-  const names = await page.evaluate(() => Reflect.get(globalThis, "__animationStarts") as string[]);
+  const names = z.array(z.string()).parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__animationStarts")));
   return names.filter((name) => name.endsWith("-flip"));
 }
 
@@ -359,7 +361,7 @@ function recordFlipKeyframes(page: Page): Promise<void> {
 }
 
 function flipKeyframes(page: Page): Promise<Record<string, number>> {
-  return page.evaluate(() => ({ ...(Reflect.get(globalThis, "__flipKeyframes") as Record<string, number>) }));
+  return page.evaluate((): unknown => Reflect.get(globalThis, "__flipKeyframes")).then((keyframes) => z.record(z.string(), z.number()).parse(keyframes));
 }
 
 test.describe("the list door on Chats", () => {
@@ -385,7 +387,11 @@ test.describe("the list door on Chats", () => {
       const pushStyle = getComputedStyle(main);
       const paneStyle = getComputedStyle(pane);
       // A timing function holds commas of its own, so the transition lists split only on top-level commas.
-      const arms = (list: string): string[] => list.split(/,\s*(?![^(]*\))/u);
+      const arms = (list: string): string[] =>
+        list
+          .replace(/(?<!\()\([^)]*\)/gu, (group) => group.replaceAll(",", "\u{e000}"))
+          .split(",")
+          .map((part) => part.trim().replaceAll("\u{e000}", ","));
       const arm = arms(paneStyle.transitionProperty).indexOf("transform");
       return {
         push: { duration: pushStyle.animationDuration, easing: pushStyle.animationTimingFunction },
@@ -903,7 +909,9 @@ test.describe("on a phone", () => {
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
     // The phone arms no FLIP, so nothing would ever end one: the stamp is released in the commit that wrote it.
     await expect(page.locator(".shell-grid")).not.toHaveAttribute("data-list-flip", /.*/u);
-    expect(await page.evaluate(() => Reflect.get(globalThis, "__flipStamps") as (string | null)[][])).toStrictEqual([[null, "in"]]);
+    expect(z.array(z.array(z.string().nullable())).parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__flipStamps")))).toStrictEqual([
+      [null, "in"],
+    ]);
     const names = await page
       .locator(`${DOOR_BOXES.main}, ${DOOR_BOXES.trail}, ${LIST}, ${CONTEXT}`)
       .evaluateAll((elements) => elements.map((element) => getComputedStyle(element).animationName));
@@ -966,7 +974,7 @@ test("at an overlay width a closing details sheet keeps its box below the topbar
   await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).click();
   await expect(pane).toHaveAttribute("data-panel-mode", "collapsed");
   await waitForShellIdle(page);
-  const tops = await page.evaluate(() => Reflect.get(globalThis, "__sheetTops") as number[]);
+  const tops = z.array(z.number()).parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__sheetTops")));
   expect(tops.length).toBeGreaterThan(3);
   expect(tops.filter((top) => top !== openTop)).toStrictEqual([]);
 });

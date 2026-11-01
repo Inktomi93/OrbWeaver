@@ -105,7 +105,7 @@ test("the forward migration strips retired tasks at rest and keeps every definit
     ]),
   );
   const stored = await db.all<{ readonly id: string; readonly manifest: string }>(sql`select id, manifest from plugins order by slug`);
-  expect(stored.map((row) => ({ id: row.id, manifest: JSON.parse(row.manifest) as unknown }))).toEqual([
+  expect(stored.map((row) => ({ id: row.id, manifest: JSON.parse(row.manifest) }))).toEqual([
     { id: acme, manifest: manifest("acme", [sdkProvider(STRIPPED_SERVES), TEXT_DEF]) },
     { id: beta, manifest: betaManifest },
   ]);

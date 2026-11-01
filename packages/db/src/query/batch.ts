@@ -25,12 +25,12 @@
 // unreachable. KEEP IT THAT WAY: do not batch a SELECT ahead of writes. If a drizzle bump ever surfaces
 // the mode param, "write" is the right value for these batches and this note is the reason.
 
-import type { Db } from "../client/index.ts";
+import type { ResultSet } from "@libsql/client";
+import type { RunnableQuery } from "drizzle-orm/runnable-query";
 
-/** The exact argument `Db.batch` accepts — a non-empty, readonly tuple of sqlite batch statements. */
-export type DbBatchInput = Parameters<Db["batch"]>[0];
-/** One statement within a {@link DbBatchInput} (a query builder / prepared statement `batch()` accepts). */
-export type BatchStmt = DbBatchInput[number];
+/** One statement `Db.batch` accepts (a query builder / prepared statement) whose result rows are not known here.
+ *  drizzle's own batch item types the result `any`; `unknown` keeps a result read from an erased list honest. */
+export type BatchStmt = RunnableQuery<unknown, "sqlite">;
 
 /**
  * A single statement that is BOTH batchable (assignable to {@link BatchStmt}, so it can ride a `db.batch`)
@@ -42,10 +42,14 @@ export type BatchStmt = DbBatchInput[number];
  * batch). `BatchStmt` itself stays the erased multi-table batch-INPUT type — modelling thenability THERE
  * would lie for the heterogeneous-array case.
  */
-export type AwaitableBatchStmt<TResult> = BatchStmt & PromiseLike<TResult>;
+export type AwaitableBatchStmt<TResult> = RunnableQuery<TResult, "sqlite"> & PromiseLike<TResult>;
 
-/** Identity-typed pass-through that pins a single statement to {@link BatchStmt} at the build site. */
-export function batchStmt(stmt: BatchStmt): BatchStmt {
+/** A write with no `.returning()`: awaited or batched, it reports libSQL's {@link ResultSet} (`rowsAffected`). */
+export type RowsAffectedStmt = AwaitableBatchStmt<ResultSet>;
+
+/** Identity pass-through that checks a single statement is batchable at the build site. It keeps the
+ *  statement's own type, so the row type `db.batch` reports for it survives. */
+export function batchStmt<TStmt extends BatchStmt>(stmt: TStmt): TStmt {
   return stmt;
 }
 
@@ -64,6 +68,6 @@ export function batchStmt(stmt: BatchStmt): BatchStmt {
  * A caller that needs "at least one statement" is asserting a DOMAIN invariant and must say so at its own
  * seam, where it knows what an empty list would mean.
  */
-export function batchMany(stmts: readonly BatchStmt[]): DbBatchInput {
-  return stmts as unknown as DbBatchInput;
+export function batchMany<const TStmts extends readonly BatchStmt[]>(stmts: TStmts): Readonly<[TStmts[number], ...TStmts[number][]]> {
+  return stmts as unknown as Readonly<[TStmts[number], ...TStmts[number][]]>;
 }

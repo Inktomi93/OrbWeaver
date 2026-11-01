@@ -13,7 +13,7 @@ test("character.create and character.update refuse a handle outside the slug alp
   const outcome = (call: Promise<unknown>): Promise<unknown> =>
     call.then(
       () => "accepted",
-      (err: unknown) => (err as { code?: unknown }).code,
+      (err: unknown) => (typeof err === "object" && err !== null && "code" in err ? err.code : undefined),
     );
   for (const handle of HOSTILE_HANDLES) {
     // The rename asks for a different hostile value, so a handle one door accepted cannot make the other

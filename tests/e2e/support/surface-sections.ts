@@ -1573,7 +1573,7 @@ async function databankAdd(journey: Journey): Promise<void> {
       await ready(dialog);
     },
   });
-  await walkChoices(journey, dialog.locator('[aria-label="How to add the document"]'), dialog, "databank/add/method");
+  await walkChoices(journey, dialog.getByLabel("How to add the document", { exact: true }), dialog, "databank/add/method");
   await walkScope(journey, dialog, "databank/add/ceremony");
   await dialog.getByRole("button", { name: "Close", exact: true }).click();
   await expect(dialog).toBeHidden();

@@ -70,8 +70,8 @@ function run(argv: readonly string[]): void {
 
   // A nested launcher in the child's tree must not guard this launcher's caller or its scratch.
   const env = inheritedProcessEnv();
-  delete env[LAUNCHER_PARENT_ENV];
-  delete env[LAUNCHER_SCRATCH_ENV];
+  Reflect.deleteProperty(env, LAUNCHER_PARENT_ENV);
+  Reflect.deleteProperty(env, LAUNCHER_SCRATCH_ENV);
   // Not detached: a group kill aimed at this launcher (Ctrl-C, a stage timeout) must reach the child too.
   const child = spawnFullPriorityChild(cmd, args, { stdio: "inherit", env });
 

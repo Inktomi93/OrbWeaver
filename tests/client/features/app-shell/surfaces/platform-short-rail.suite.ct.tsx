@@ -127,11 +127,15 @@ async function columnKeyboard(page: Page, rail: Locator, home: Locator, info: Te
   await withinViewport(refinery);
   await expect.poll(async () => await refinery.evaluate((node) => node.matches(":focus-visible"))).toBe(true);
   await page.screenshot({ path: info.outputPath("refinery-focused-before-activation.png") });
-  const focusPaint = await refinery.evaluate((node) => ({
-    shadow: getComputedStyle(node).boxShadow,
-    button: node.getBoundingClientRect().toJSON(),
-    scrollport: node.closest(".shell-rail-sections")?.getBoundingClientRect().toJSON(),
-  }));
+  const focusPaint = await refinery.evaluate((node) => {
+    const scrollport = node.closest(".shell-rail-sections")?.getBoundingClientRect();
+    const { x, y, width, height } = node.getBoundingClientRect();
+    return {
+      shadow: getComputedStyle(node).boxShadow,
+      button: { x, y, width, height },
+      scrollport: scrollport === undefined ? undefined : { x: scrollport.x, y: scrollport.y, width: scrollport.width, height: scrollport.height },
+    };
+  });
   await info.attach("rail-keyboard-focus-paint", { body: JSON.stringify(focusPaint), contentType: "application/json" });
   expect(focusPaint.shadow).toContain("inset");
   const target = await settledBox(refinery);

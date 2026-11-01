@@ -5,7 +5,6 @@
 import { readFile } from "node:fs/promises";
 import type { Server } from "node:http";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { expect, test } from "@orb/testkit/tooling";
@@ -20,6 +19,7 @@ import { resolveProbeMedia } from "@orb/tooling/floor/browser/browser-media";
 import type { Browser, BrowserContext } from "@playwright/test";
 import { vi } from "vitest";
 import { scaledBudget } from "../../_load-budget.ts";
+import { listeningAddress } from "../../_server-address.ts";
 
 const RUN_TIMEOUT_MS = scaledBudget(90_000, 4);
 const DEBUG_PORT_ATTEMPTS = 200;
@@ -108,7 +108,7 @@ async function startOrigin(): Promise<{ readonly server: Server; readonly base: 
     response.end("<!doctype html><html><body><main>seed target</main></body></html>");
   });
   await new Promise<void>((resolve) => server.listen(0, "localhost", resolve));
-  return { server, base: `http://localhost:${(server.address() as AddressInfo).port}` };
+  return { server, base: `http://localhost:${listeningAddress(server).port}` };
 }
 
 async function closeOrigin(server: Server): Promise<void> {

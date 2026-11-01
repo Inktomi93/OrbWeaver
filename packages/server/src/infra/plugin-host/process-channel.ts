@@ -11,8 +11,8 @@ export function parsePluginIpcMessage(value: unknown): PluginIpcMessage | null {
   if (typeof value !== "object" || value === null) {
     return null;
   }
-  const kind = Reflect.get(value, "kind");
-  const generation = Reflect.get(value, "generation");
+  const kind: unknown = Reflect.get(value, "kind");
+  const generation: unknown = Reflect.get(value, "generation");
   if (typeof generation !== "string" || generation.length < GENERATION_MIN_CHARS) {
     return null;
   }
@@ -20,13 +20,13 @@ export function parsePluginIpcMessage(value: unknown): PluginIpcMessage | null {
     return { kind, generation };
   }
   if (kind === "frame") {
-    const frame = Reflect.get(value, "frame");
+    const frame: unknown = Reflect.get(value, "frame");
     return typeof frame === "string" && Buffer.byteLength(frame, "utf8") <= PLUGIN_BROKER_MESSAGE_MAX_BYTES ? { kind, generation, frame } : null;
   }
-  const error = Reflect.get(value, "error");
+  const error: unknown = Reflect.get(value, "error");
   if (kind === "stopped" && typeof error === "object" && error !== null) {
-    const name = Reflect.get(error, "name");
-    const message = Reflect.get(error, "message");
+    const name: unknown = Reflect.get(error, "name");
+    const message: unknown = Reflect.get(error, "message");
     return typeof name === "string" && typeof message === "string" ? { kind, generation, error: { name, message } } : null;
   }
   return null;

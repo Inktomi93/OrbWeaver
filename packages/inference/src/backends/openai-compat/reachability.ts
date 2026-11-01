@@ -4,6 +4,7 @@
 // `wakePath` once per server and polls until it answers awake — nothing here knows the word vLLM. The `up | down` cache is per
 // base URL with a short TTL so a burst of availability reads (every composer render) shares one probe.
 
+import { toError } from "@orb/kit/error-message";
 import type { Reachability } from "#contract";
 import { ProviderError } from "#contract";
 import type { ProbeTarget, ReachabilityDeps, ReachabilityProber, SleepTarget } from "../../contract/openai-backend.ts";
@@ -110,7 +111,7 @@ function joinWake(flight: WakeFlight, signal: AbortSignal | undefined): Promise<
     if (signal?.aborted === true) {
       onAbort();
     }
-    // the rejection arm calls `reject(err)` at reachability.ts:121 on this task's own promise, which its caller awaits. Ends if the handler stops rejecting with the error.
+    // the rejection arm below rejects this task's own promise, which its caller awaits; it ends if the handler stops rejecting with the error.
     flight.run.then(
       (woke) => {
         leave();
@@ -118,7 +119,7 @@ function joinWake(flight: WakeFlight, signal: AbortSignal | undefined): Promise<
       },
       (err: unknown) => {
         leave();
-        reject(err);
+        reject(toError(err));
       },
     );
   });

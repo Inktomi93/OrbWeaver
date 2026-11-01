@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const DELETE_RULE = "drizzle/enforce-delete-with-where";
 const BULK_SUBJECTS = [
@@ -16,8 +17,8 @@ test("native bulk delete permissions admit only their statements and preserve sc
   const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot });
   const linter = new Linter({ cwd: repoRoot });
   for (const [path, bulkCount] of BULK_SUBJECTS) {
-    const native: Linter.Config | undefined = await eslint.calculateConfigForFile(path);
-    if (native?.rules === undefined || native.languageOptions === undefined || native.plugins === undefined) {
+    const native: Linter.Config | undefined = await resolvedConfig(eslint, path);
+    if (native.rules === undefined || native.languageOptions === undefined || native.plugins === undefined) {
       throw new Error(`No native Drizzle configuration for ${path}`);
     }
     const languageOptions: Linter.LanguageOptions = native.languageOptions;

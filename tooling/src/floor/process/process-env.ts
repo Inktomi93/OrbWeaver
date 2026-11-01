@@ -135,7 +135,7 @@ export async function withProcessEnv<T>(key: string, value: string, run: () => P
     if (wasPresent) {
       environment[key] = previous;
     } else {
-      delete environment[key];
+      Reflect.deleteProperty(environment, key);
     }
   }
 }

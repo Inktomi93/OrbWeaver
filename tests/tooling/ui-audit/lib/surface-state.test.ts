@@ -197,10 +197,10 @@ test("#1122 the RESULT line prints NO-VERDICT only for WITHHELD; excluded and co
 function capturedSurfaceStateLines(shellState: ShellStateSnapshot): string[] {
   const lines: string[] = [];
   const original = process.stdout.write.bind(process.stdout);
-  process.stdout.write = ((chunk: string): boolean => {
+  process.stdout.write = (chunk: string): boolean => {
     lines.push(chunk);
     return true;
-  }) as typeof process.stdout.write;
+  };
   try {
     printSurfaceState(shellState, buildSurfaceStateAccounting(shellState, "rest"), "rest");
   } finally {

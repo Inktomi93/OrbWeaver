@@ -2194,7 +2194,7 @@ async function publishBrowse(status: string, sourceKey?: SourceKey, loading = fa
   await host.ui.setState("atlas_page", {
     stage: "browse",
     status,
-    loading: loading === true,
+    loading,
     // The pager's buttons are disabled until a search has produced a session to page.
     noSearch: session === null,
     sortOptions: SOURCES[menuKey].sortOptions,

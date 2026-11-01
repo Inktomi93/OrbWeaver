@@ -5,6 +5,7 @@ import { characterDetailSchema } from "@orb/contracts/character";
 import { routeAuthConfig, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { CHARACTER_EDITOR_NAME } from "#client/features/character/lib/character-names.ts";
 import { AUTOSAVE_RESTORED_LEAD, AUTOSAVE_RESUME_NAME, AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import type { CharacterDraftStatusStory } from "./_draft-status-stories.tsx";
 
@@ -36,7 +37,7 @@ test("a restored draft reads as unsaved with a way to resume, and a fresh load r
     ...serveCorpusProcedures(caller, ["character.update"], () => (failSaves ? trpcError() : undefined)),
   });
   const component = await mount<typeof CharacterDraftStatusStory>(STORY, { characterId });
-  const form = page.getByRole("form", { name: "Edit character", exact: true });
+  const form = page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true });
   const status = form.locator('[data-slot="autosave-status"]');
   const name = form.getByRole("textbox", { name: "Name", exact: true });
   await expect(name).toHaveValue(stored);

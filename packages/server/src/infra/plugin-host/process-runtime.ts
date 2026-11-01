@@ -415,7 +415,7 @@ class BrokerClient {
     this.connecting ??= this.connectOnce().finally(() => {
       this.connecting = undefined;
     });
-    return await this.connecting;
+    await this.connecting;
   }
 
   private async connectOnce(deadline = this.monotonicNow() + CONNECT_TIMEOUT_MS): Promise<void> {

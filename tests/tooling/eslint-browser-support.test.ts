@@ -6,6 +6,7 @@ import { ESLint, Linter } from "eslint";
 import ts from "typescript";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const RULE = "orb/browser-support";
@@ -151,14 +152,14 @@ beforeAll(async () => {
 
 async function findings(name: string, root = PROBE_DIR): Promise<readonly Linter.LintMessage[]> {
   const fileName = join(ROOT, PROBE_DIR, `browser-support-${name.replaceAll(/\W+/gu, "-")}.ts`);
-  const config = await eslint.calculateConfigForFile(join(ROOT, root, "x.ts"));
+  const config = await resolvedConfig(eslint, join(ROOT, root, "x.ts"));
   const found = new Linter({ cwd: ROOT }).verify(
     sources.get(fileName) ?? "",
     {
       files: ["**/*.ts"],
-      plugins: config?.plugins ?? {},
+      plugins: config.plugins,
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: [program] } },
-      rules: { [RULE]: config?.rules?.[RULE] ?? "off" },
+      rules: { [RULE]: config.rules[RULE] ?? "off" },
     },
     { filename: fileName },
   );
@@ -175,8 +176,8 @@ test.for(ADMITTED)("admits %s", async ([name]) => {
 });
 
 test("the population is the client bundle; a tooling file is not judged", async () => {
-  const config = await eslint.calculateConfigForFile(join(ROOT, "tooling/src/eslint/index.ts"));
-  expect(config?.rules?.[RULE] ?? "off").toBe("off");
+  const config = await resolvedConfig(eslint, join(ROOT, "tooling/src/eslint/index.ts"));
+  expect(config.rules[RULE] ?? "off").toBe("off");
 });
 
 test("the entry graph is the entry and its static imports, not the app it loads afterwards", () => {
@@ -190,14 +191,14 @@ test("the entry graph is the entry and its static imports, not the app it loads 
 
 // Judged at the real path so the config's file blocks apply; the text is a probe that uses the polyfilled builtins.
 async function useFindings(file: string): Promise<readonly Linter.LintMessage[]> {
-  const config = await eslint.calculateConfigForFile(file);
+  const config = await resolvedConfig(eslint, file);
   const found = new Linter({ cwd: ROOT }).verify(
     sources.get(file) ?? "",
     {
       files: ["**/*.ts", "**/*.tsx"],
-      plugins: config?.plugins ?? {},
+      plugins: config.plugins,
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: [program] } },
-      rules: { [RULE]: config?.rules?.[RULE] ?? "off", [ENTRY_RULE]: config?.rules?.[ENTRY_RULE] ?? "off" },
+      rules: { [RULE]: config.rules[RULE] ?? "off", [ENTRY_RULE]: config.rules[ENTRY_RULE] ?? "off" },
     },
     { filename: file },
   );

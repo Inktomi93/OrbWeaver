@@ -465,7 +465,7 @@ test("one send's freezes draw independently across blocks and the authored body 
   const distinct = (body: string): number => new Set(body.split("\n\n").filter((part) => !part.includes("asset:"))).size;
   expect(distinct(blocksBody)).toBe(distinct(plainBody));
   const [message] = (await box.caller.chat.listMessages({ chatId: box.chatId })).messages;
-  const wire = await box.caller.chat.getVariantWire({ chatId: box.chatId, variantId: message?.selectedVariantId ?? ("" as never) });
+  const wire = await box.caller.chat.getVariantWire({ chatId: box.chatId, variantId: message?.selectedVariantId ?? "" });
   expect(wire.rawContent).toContain(`![${ALT}](asset:${assetId})`);
   expect(wire.rawContent).toContain("{{roll:1d1000}}");
   expect(wire.macroFreezes).toHaveLength(rolls.length);
@@ -511,7 +511,7 @@ test("a macro that spans a picture stores the ref, never a placeholder, in its f
 
   const [message] = (await box.caller.chat.listMessages({ chatId: box.chatId })).messages;
   expect(message?.content).toContain(`![${ALT}](asset:${assetId})`);
-  const wire = await box.caller.chat.getVariantWire({ chatId: box.chatId, variantId: message?.selectedVariantId ?? ("" as never) });
+  const wire = await box.caller.chat.getVariantWire({ chatId: box.chatId, variantId: message?.selectedVariantId ?? "" });
   expect(JSON.stringify(wire.macroFreezes)).toContain(`asset:${assetId}`);
   expect(JSON.stringify([message?.content, wire.rawContent, wire.macroFreezes])).not.toContain(PLACEHOLDER);
 });

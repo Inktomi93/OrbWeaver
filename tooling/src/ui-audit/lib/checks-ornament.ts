@@ -31,7 +31,7 @@ const TRANSPARENT_KEYWORD_RE = /^\s*transparent\s*$/iu;
 
 const RADIAL_GRADIENT_HEAD_RE = /(repeating-)?radial-gradient\(/gi;
 
-function splitTopLevelCommas(s: string): string[] {
+export function splitTopLevelCommas(s: string): string[] {
   const parts: string[] = [];
   let depth = 0;
   let cur = "";

@@ -46,7 +46,7 @@ async function trpc(baseUrl: string, procedure: string, input?: unknown): Promis
     return instrumentRefusal(`rated theme ${procedure} failed (HTTP ${response.status}): ${text}`);
   }
   try {
-    return JSON.parse(text) as unknown;
+    return JSON.parse(text);
   } catch (error) {
     return instrumentRefusal(`rated theme ${procedure} returned invalid JSON: ${errorMessage(error)}`);
   }

@@ -252,7 +252,7 @@ function evaluatePixels(policy: RuntimeAppearanceHistoricalRow, receipt: Appeara
     const framebuffer = pixel.method === "pixel-sample" || pixel.method === "fill-sample";
     if (pixel.status !== "ok" || !framebuffer || pixel.matchIndex === null) {
       errors.push(`pixel selector ${pixel.selector} lacks a composited framebuffer verdict`);
-    } else if (pixel.passed !== true || pixel.ratio < pixel.requiredRatio) {
+    } else if (!pixel.passed || pixel.ratio < pixel.requiredRatio) {
       violations.push(`pixel selector ${pixel.selector} contrast=${pixel.ratio} is below required=${pixel.requiredRatio}`);
     }
   }

@@ -26,7 +26,7 @@ const withoutScrollend = (): void => {
     if (type !== "scrollend") {
       Reflect.apply(native, this, [type, ...rest]);
     }
-  } as typeof EventTarget.prototype.addEventListener;
+  };
   Reflect.deleteProperty(HTMLElement.prototype, "onscrollend");
   Reflect.deleteProperty(Element.prototype, "onscrollend");
   Reflect.deleteProperty(Window.prototype, "onscrollend");

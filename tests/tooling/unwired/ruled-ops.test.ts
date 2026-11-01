@@ -19,7 +19,7 @@ function tableOps(decision: string): string[] {
       const [, opCell = "", ownerCell = ""] = line.split("|");
       const ops = [...opCell.matchAll(/`([A-Za-z]+)`/gu)].map((match) => match[1] ?? "");
       const owners = ownerCell
-        .replace(/\(.*?\)/gu, "")
+        .replace(/(?<!\()\([^)]*\)/gu, "")
         .split(",")
         .map((owner) => owner.trim());
       return ops.map((op, index) => `${owners.length === 1 ? owners[0] : owners[index]}|${op}`);

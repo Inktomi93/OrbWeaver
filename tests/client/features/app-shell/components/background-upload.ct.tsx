@@ -33,6 +33,8 @@ test("an uploaded background is saved under the id the runtime's source minted",
     .poll(() => saved.at(-1))
     .toMatchObject({
       section: "appearance",
-      patch: { backgroundLibrary: expect.arrayContaining([expect.objectContaining({ entryId: expectedEntryId, assetId, assetHash: HASH, name: "dusk" })]) },
+      patch: {
+        backgroundLibrary: expect.arrayContaining([expect.objectContaining({ entryId: expectedEntryId, assetId, assetHash: HASH, name: "dusk" })]),
+      },
     });
 });

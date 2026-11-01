@@ -34,7 +34,7 @@ test("a control pushed past the LEFT edge of an overflow:auto box is an escape �
   // decline would skip it whole and re-ship the #439 blindness; left is judged because no negative
   // scroll offset exists, while right is declined because content there is reachable.
   expect(probe.judged, "scrolling sanctions the positive side only").toEqual(["left", "top"]);
-  expect(probe.escapes.length, `expected the cut button — got ${JSON.stringify(probe.escapes)}`).toBe(1);
+  expect(probe.escapes, `expected the cut button — got ${JSON.stringify(probe.escapes)}`).toHaveLength(1);
   expect(probe.escapes[0]?.side).toBe("left");
   expect(probe.escapes[0]?.px, "#439 measured 27-35px on the live surface").toBeGreaterThan(16);
   expect(probe.escapes[0]?.selector, "a finding nobody can locate is not a finding").toContain("clip-blank");

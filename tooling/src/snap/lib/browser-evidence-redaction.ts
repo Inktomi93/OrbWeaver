@@ -5,6 +5,7 @@ import type { CapturedConsole, CapturedRequest } from "../../floor/browser/brows
 import type { BrowserPageError } from "../../floor/browser/browser-contract.ts";
 import type { BrowserDiagnostic } from "../../floor/browser/browser-diagnostics.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { readMember } from "../../floor/instrument/member.ts";
 import type {
   DiskSafeBrowserDiagnostic,
   DiskSafeBrowserDiagnostics,
@@ -23,7 +24,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const OMITTED = "[OMITTED]";
 const TRUNCATED = "[TRUNCATED]";
-const URL_TOKEN = /(?:[a-z][a-z0-9+.-]*:\/\/|\/\/)[^\s"'<>]+|(?:\/|\.\.?\/)[^\s"'<>]*\?[^\s"'<>]+/giu;
+const URL_TOKEN = /(?:[a-z][a-z0-9+.-]{0,63}:\/\/|\/\/)[^\s"'<>]+|(?:\/|\.\.?\/)[^\s"'<>]{0,2048}\?[^\s"'<>]+/giu;
 const ASSIGNMENT = /(^|[\s?&;,{[(])([A-Z][A-Z0-9_.-]{0,100})(\s*[:=]\s*)([^\s&;,}]+)/gimu;
 const QUOTED_ASSIGNMENT = /(["'])([A-Z][A-Z0-9_.-]{0,100})\1(\s*:\s*)(["'])([^"']*)\4/giu;
 const AUTH_SCHEME = /\b(Bearer|Basic)\s+[A-Z0-9._~+/-]+=*/giu;
@@ -119,7 +120,7 @@ function objectEntries(value: object, cursor: ValueCursor): readonly [string, un
     .map((key) => {
       // a throwing getter is recorded by unreadableValue (browser-evidence-redaction.ts:108, an `unreadable` limit event) and the field becomes [OMITTED]; ops/manifest.ts:290 turns any incomplete receipt into `bounded` artifact completeness. The thrown value stays out of the artifact because it can hold a page secret. Ends if unreadableValue stops pushing the event.
       try {
-        return [key, Reflect.get(value, key)] as const;
+        return [key, readMember(value, key)] as const;
       } catch {
         return [key, unreadableValue(cursor, `${cursor.path}.${safeText(key, `${cursor.path}.$key`, cursor)}`)] as const;
       }

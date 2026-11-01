@@ -38,10 +38,10 @@ function posture(acceleration: BrowserAccelerationEvidence = HARDWARE, load: Sna
 
 async function captureStdout<T>(run: () => Promise<T>): Promise<{ readonly stdout: string; readonly value: T }> {
   let stdout = "";
-  const write = vi.spyOn(process.stdout, "write").mockImplementation(((chunk: string | Uint8Array) => {
+  const write = vi.spyOn(process.stdout, "write").mockImplementation((chunk: string | Uint8Array) => {
     stdout += chunk.toString();
     return true;
-  }) as typeof process.stdout.write);
+  });
   try {
     const value = await run();
     return { stdout, value };

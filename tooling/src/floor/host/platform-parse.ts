@@ -68,7 +68,7 @@ const SS_LISTEN = "LISTEN";
 const SS_ESTABLISHED = "ESTAB";
 /** `ss` always prints its column header, `State` first with `-l` and `Recv-Q` first under a state filter; output
  *  without it (empty, or a `Usage:` line) is not a socket table. */
-const SS_HEADER_RE = /^\s*(?:State|Recv-Q)\s/mu;
+const SS_HEADER_RE = /^[ \t]*(?:State|Recv-Q)\s/mu;
 
 /** `netstat -ano` column layout: Proto Local Peer State PID. */
 const NETSTAT_PROTO_COLUMN = 0;
@@ -81,7 +81,7 @@ const NETSTAT_ESTABLISHED = "ESTABLISHED";
 /** netstat names the System Idle Process as the owner of a socket nobody holds. */
 const NETSTAT_NO_PID = "0";
 /** `netstat -ano` always prints its column header, `Proto` first; output without it is not a socket table. */
-const NETSTAT_HEADER_RE = /^\s*Proto\s/mu;
+const NETSTAT_HEADER_RE = /^[ \t]*Proto\s/mu;
 
 /** `/proc/net/tcp{,6}` column layout (proc(5)): sl local remote st tx:rx tr:when retrnsmt uid timeout inode. */
 const PROC_NET_LOCAL_COLUMN = 1;

@@ -11,6 +11,7 @@ import { adoptRunSlot } from "../../floor/artifacts/artifact-out.ts";
 import { publishRunSlot } from "../../floor/artifacts/artifacts.ts";
 import { pidAlive } from "../../floor/artifacts/run-retention.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { readMember } from "../../floor/instrument/member.ts";
 import type { ProcessGroup, ProcessGroupDeps } from "../../floor/process/proc.ts";
 import { observeProcessGroup } from "../../floor/process/proc.ts";
 import { processEnvValue } from "../../floor/process/process-env.ts";
@@ -114,8 +115,8 @@ function bootReservation(value: unknown): BootReservation | null {
   if (typeof value !== "object" || value === null) {
     return null;
   }
-  const name = Reflect.get(value, "name");
-  const pid = Reflect.get(value, "pid");
+  const name = readMember(value, "name");
+  const pid = readMember(value, "pid");
   return typeof name === "string" && Number.isInteger(pid) && Number(pid) > 0 ? { name, pid: Number(pid) } : null;
 }
 

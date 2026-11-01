@@ -195,7 +195,7 @@ function indexPath(stdout: string): string {
 
 test("typed facts preserve strong rate/core/request/motion/perf/heap data without pair parsing", () => {
   const batch = representativeBatch();
-  const serialized = JSON.parse(JSON.stringify({ v: SNAP_RUN_RESULTS_VERSION, batches: [batch] })) as unknown;
+  const serialized = JSON.parse(JSON.stringify({ v: SNAP_RUN_RESULTS_VERSION, batches: [batch] }));
   const results = parseSnapRunResults(serialized);
   const rate = results.batches[0]?.core.find((fact) => fact.schema === "snap-rate-posture-v1");
   const arms = results.batches[0]?.arms ?? [];

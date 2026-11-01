@@ -45,7 +45,7 @@ function readWorkflow(repoRoot: string): Workflow {
 // These guards use only Boolean/string comparisons shared by Actions and JS; execute the actual source,
 // not a second spelling of their policy. Status functions are explicit fixture inputs.
 function guard(expression: string, context: object): boolean {
-  return Boolean(runInNewContext(expression.replace(/^\$\{\{\s*|\s*\}\}$/gu, ""), context));
+  return Boolean(runInNewContext(expression.replace(/^\$\{\{\s*|(?<!\s)\s*\}\}$/gu, ""), context));
 }
 
 test("E2E startup dispatch is bounded, immutable and retains failed global setup evidence without qualification", ({ repoRoot }) => {

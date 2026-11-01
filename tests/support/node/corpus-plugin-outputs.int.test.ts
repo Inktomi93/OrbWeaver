@@ -36,11 +36,19 @@ test("native callbacks refuse invalid args and stale scopes, revoke grants and r
   await using root = await createServerHarness({ pluginSpawn: spawn, networkExecution: network.networkExecution });
   const captured = await seedCorpusPluginCallbackLifecycle(root, network);
   expect(captured.retained.state).toEqual({ calls: 1, retained: true, variables: {} });
-  expect(captured.stale.state).toMatchObject({ calls: 2, staleError: "Error", staleMessage: expect.stringContaining("invalid chat handle"), variables: {} });
+  expect(captured.stale.state).toMatchObject({
+    calls: 2,
+    staleError: "Error",
+    staleMessage: expect.stringContaining("invalid chat handle"),
+    variables: {},
+  });
   expect(captured.beforeRefusals.state).toEqual({ calls: 3, values: CORPUS_PLUGIN_TYPED_VALUES });
   expect(captured.invalid).toHaveLength(10);
   for (const refusal of captured.invalid) {
-    expect(refusal).toMatchObject({ status: "rejected", reason: expect.objectContaining({ message: expect.stringMatching(/^plugin host: |not found$/u) }) });
+    expect(refusal).toMatchObject({
+      status: "rejected",
+      reason: expect.objectContaining({ message: expect.stringMatching(/^plugin host: |not found$/u) }),
+    });
   }
   expect(captured.invalid.slice(-2)).toEqual([
     expect.objectContaining({ status: "rejected", reason: expect.objectContaining({ code: "NOT_FOUND" }) }),

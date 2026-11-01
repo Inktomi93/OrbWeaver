@@ -1,6 +1,7 @@
 // D336 step 4d: the focal section, the aria-current box and the tone-stamped divider paint through their own doors.
 import { AA_NON_TEXT_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { pixelSurface } from "@orb/testkit/browser/spec";
+import { keysOf } from "@orb/testkit/iso";
 import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
@@ -10,7 +11,7 @@ import type { CurrentBoxesStory, DividerToneStory, FocalSectionStory } from "./_
 const STORIES = "tests/ui/layout/_visual-state-boxes-stories";
 const CASES = [
   { name: "hearth seed" },
-  ...(Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[]).map((theme) => ({ name: `${theme} seed`, theme })),
+  ...keysOf(SEED_THEME_VALUE_SETS).map((theme) => ({ name: `${theme} seed`, theme })),
   { name: "custom mid-grey scope nested in the light seed", theme: "light" as const, background: MID_GREY },
 ] as const;
 

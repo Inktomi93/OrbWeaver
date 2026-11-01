@@ -29,7 +29,7 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { assistantRows, openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
 import { chatFrameTypes, frameCursor, tapStream } from "./support/stream-tap.ts";
-import { WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
+import { CASE_LIVE_FOLLOW_UP_MS, WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import { deleteChat, listCanon, listCharacters, startChat } from "./support/trpc.ts";
 
 const GEN_LOG = path.join(process.cwd(), ".cache/stack/vllm-gen.log");
@@ -57,7 +57,7 @@ function domTranscript(page: Page): Promise<readonly { role: string; text: strin
 test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local engine served it", {
   tag: "@live",
 }, async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(CASE_LIVE_FOLLOW_UP_MS);
 
   // SELF-SEED a FRESH chat (greeting only) so the transcript is SHORT — the whole list renders (no
   // virtualization), making the DOM↔canon full-length parity below deterministic. Open it in the UI (it's
@@ -122,7 +122,7 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
     const dom = await domTranscript(page);
 
     // Same number of rows, and roles match pairwise in order.
-    expect(dom.length).toBe(canon.length);
+    expect(dom).toHaveLength(canon.length);
     expect(dom.map((r) => r.role)).toEqual(canon.map((c) => c.role));
 
     // PARITY of content: canon `content` is markdown-RENDERED into the DOM (styled spans, italics from

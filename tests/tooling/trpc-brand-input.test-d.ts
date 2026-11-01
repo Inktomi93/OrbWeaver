@@ -15,9 +15,8 @@ test("the actual tRPC client accepts string tag ids and rejects non-string wire 
     // @ts-expect-error -- object-shaped ids cannot cross the string wire boundary.
     await client.tag.updateTag.mutate({ tagId: { wrong: true }, patch: { name: "name" } });
 
-    // @ts-expect-error -- updateTag returns the canonical TagId, never a different entity brand.
-    const wrongBrand: CharacterId = tag.id;
-    void wrongBrand;
+    // updateTag returns the canonical TagId, never a different entity brand.
+    expectTypeOf(tag.id).not.toExtend<CharacterId>();
     return tag.id;
   };
 

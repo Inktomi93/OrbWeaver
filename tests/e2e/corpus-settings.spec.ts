@@ -83,7 +83,7 @@ async function assertNativeRestore(
     expect(after.length).toBeLessThan(WORKLOAD_LIST_MAX_LIMIT);
     const created = after.filter((row) => !beforeIds.has(row.id));
     expect(created).toHaveLength(statuses.length);
-    expect(created.length).toBe(folder ? statuses.length : 1);
+    expect(created).toHaveLength(folder ? statuses.length : 1);
     let imported = 0;
     let skipped = 0;
     let failed = 0;

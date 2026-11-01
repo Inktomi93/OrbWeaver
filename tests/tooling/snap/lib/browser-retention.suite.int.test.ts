@@ -5,7 +5,6 @@
 
 import type { ServerResponse } from "node:http";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { expect, test } from "@orb/testkit/tooling";
 import { aggregateScope, exactScope } from "@orb/tooling/floor/artifacts/artifact-scope";
 import { launchProbeSession, settle, withProbeSession } from "@orb/tooling/floor/browser/browser";
@@ -20,6 +19,7 @@ import {
 } from "@orb/tooling/floor/browser/browser-network";
 import { vi } from "vitest";
 import { scaledBudget } from "../../_load-budget.ts";
+import { listeningAddress } from "../../_server-address.ts";
 
 vi.setConfig({ testTimeout: scaledBudget(120_000, 4), hookTimeout: scaledBudget(120_000, 4) });
 
@@ -45,7 +45,7 @@ test("bounded browser evidence keeps cursor attribution and active network chain
     response.end("<!doctype html><html data-app-ready><body>retention</body></html>");
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const origin = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+  const origin = `http://127.0.0.1:${String(listeningAddress(server).port)}`;
   const session = await launchProbeSession({
     headless: true,
     viewport: { width: 640, height: 480 },

@@ -9,6 +9,7 @@ import { createCharacterSchema, parsePluginImportedFrom } from "@orb/contracts/c
 import type { Principal } from "@orb/contracts/identity";
 import type { PluginBridge } from "@orb/contracts/plugin";
 import { PLUGIN_CARD_DATA_FIND_MAX, PluginCapabilityError } from "@orb/contracts/plugin";
+import { toError } from "@orb/kit/error-message";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -287,7 +288,7 @@ test("a quiet generation's provider call is aborted when its invocation is cance
     }
     reached.resolve(request.signal);
     return await new Promise<Response>((_resolve, reject) => {
-      request.signal.addEventListener("abort", () => reject(request.signal.reason), { once: true });
+      request.signal.addEventListener("abort", () => reject(toError(request.signal.reason)), { once: true });
     });
   });
   const { pluginId, run } = await o.guest(o.owner, "quiet-captioner");

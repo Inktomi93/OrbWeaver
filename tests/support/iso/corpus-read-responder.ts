@@ -3,7 +3,7 @@ import { stableStringify } from "@orb/kit/stable-stringify";
 import { readCorpusCapture } from "./corpus-playback.ts";
 import type { CorpusCapture, CorpusPlaybackRead, CorpusPlaybackViewerRead, CorpusProcedurePath, CorpusRead } from "./corpus-read.ts";
 
-function captureKey<T>(value: T): string | undefined {
+function captureKey(value: unknown): string | undefined {
   // The canonical JSON stringifier collapses undefined into null; request input presence must survive.
   return value === undefined ? undefined : stableStringify(value);
 }

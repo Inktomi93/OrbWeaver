@@ -125,7 +125,7 @@ export async function runOpenAiCompatImageEmbed(req: ImageEmbedRequest, deps: Im
   }
   const { dims: dim, mrl } = connection.capability.embedding;
   const conversations = await toConversations(req.input, deps.normalize);
-  const vectors: (Float32Array<ArrayBuffer> | null)[] = new Array(conversations.length).fill(null);
+  const vectors: (Float32Array<ArrayBuffer> | null)[] = new Array<Float32Array<ArrayBuffer> | null>(conversations.length).fill(null);
   let next = 0;
   const worker = async (): Promise<void> => {
     while (next < conversations.length) {

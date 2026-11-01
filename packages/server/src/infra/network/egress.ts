@@ -1291,7 +1291,7 @@ function enforceContentType(response: Response, allowed: readonly string[] | und
  */
 async function* cappedChunks(opened: OpenedFetch): AsyncGenerator<Uint8Array, void> {
   opened.assertActive();
-  const reader = opened.response.body?.getReader();
+  const reader: ReadableStreamDefaultReader<Uint8Array> | undefined = opened.response.body?.getReader();
   opened.holdReader(reader);
   let finished = reader === undefined;
   try {

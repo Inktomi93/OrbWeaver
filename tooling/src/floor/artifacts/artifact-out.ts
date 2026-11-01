@@ -194,7 +194,7 @@ export interface InstrumentRunCompletion {
   readonly root: string;
   /** `null` only when `main` threw before returning an exit code. */
   readonly exit: number | null;
-  readonly error: unknown | null;
+  readonly error: unknown;
 }
 
 /** A slot descriptor for a dir ANOTHER process opened — no marker written, nothing censused: the OPENER
@@ -286,7 +286,7 @@ export async function withInstrumentRun(
     print(`CONCURRENT   other live ${instrument} run(s) on this checkout: ${slot.racing.join(", ")} — each keeps its own slot`);
   }
   let exit: number | null = null;
-  let failure: unknown | null = null;
+  let failure: unknown = null;
   try {
     exit = await main();
     return exit;

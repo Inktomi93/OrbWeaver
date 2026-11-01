@@ -56,7 +56,7 @@ export function withFields(source: string, patch: Readonly<Record<string, string
   const next: Record<string, string> = { ...(fields ?? {}) };
   for (const [key, value] of Object.entries(patch)) {
     if (value === null) {
-      delete next[key];
+      Reflect.deleteProperty(next, key);
     } else {
       next[key] = value;
     }

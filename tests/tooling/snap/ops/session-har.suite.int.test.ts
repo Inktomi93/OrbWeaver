@@ -1,7 +1,6 @@
 // #1296: HAR is real correlated CDP Network evidence, never the shallow Playwright request summary.
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/tooling";
@@ -16,6 +15,7 @@ import { chromium } from "@playwright/test";
 import { vi } from "vitest";
 import { assertCompleteNetworkHar, buildNetworkHar, writeNetworkHar } from "../../../../tooling/src/snap/lib/network-har.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { listeningAddress } from "../../_server-address.ts";
 
 vi.setConfig({ testTimeout: scaledBudget(120_000, 4), hookTimeout: scaledBudget(120_000, 4) });
 
@@ -100,7 +100,7 @@ async function loopbackServer(): Promise<{ readonly base: string; readonly close
     response.end("popup-data");
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const port = (server.address() as AddressInfo).port;
+  const port = listeningAddress(server).port;
   return {
     base: `http://127.0.0.1:${port}`,
     close: async () => await new Promise<void>((resolve, reject) => server.close((error) => (error === undefined ? resolve() : reject(error)))),

@@ -1,6 +1,7 @@
 // The installed Vitest rules must recognize the public composed fixtures without a compiler program.
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint } from "eslint";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const ASSERTIONS = "vitest/expect-expect";
 const VALID_EXPECT = "vitest/valid-expect";
@@ -8,7 +9,7 @@ const VALID_EXPECT = "vitest/valid-expect";
 test("effective Vitest rules recognize composed imports and retain legal assertion cases", async ({ repoRoot }) => {
   const configured = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot });
   const filePath = "tests/tooling/vitest-composed-imports.int.test.ts";
-  const config = await configured.calculateConfigForFile(filePath);
+  const config = await resolvedConfig(configured, filePath);
   const native = new ESLint({
     flags: ["unstable_native_nodejs_ts_config"],
     cwd: repoRoot,
@@ -18,7 +19,7 @@ test("effective Vitest rules recognize composed imports and retain legal asserti
         files: ["**/*.ts"],
         languageOptions: { ...config.languageOptions, parserOptions: { project: false, projectService: false } },
         plugins: config.plugins,
-        settings: config.settings ?? {},
+        settings: config.settings,
         rules: { [ASSERTIONS]: config.rules[ASSERTIONS], [VALID_EXPECT]: config.rules[VALID_EXPECT] },
       },
     ],

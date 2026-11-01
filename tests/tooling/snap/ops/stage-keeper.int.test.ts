@@ -16,6 +16,7 @@
 // held it and watching the same timer reap — otherwise "it did not reap" would be satisfied by a keeper
 // that had simply died. And the reserved-port arm plants a row on the DEV STACK's own pair to prove the
 // refusal exists at all.
+
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import type { Socket } from "node:net";
 import { createConnection } from "node:net";
@@ -38,6 +39,7 @@ import { afterEach, describe, onTestFinished, vi } from "vitest";
 // this proof reaches them at their source path — the spelling tests/tooling/snap/ops/stage-marker.int.test.ts
 // already uses for the same modules.
 import { bindSessionToBand, touchRow, unbindSessionFromBand, writeRow } from "../../../../tooling/src/snap/ops/stage-marker.ts";
+import { spawnedPid } from "../../_child-pid.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const CASE_BUDGET_MS = scaledBudget(120_000, 4);
@@ -243,7 +245,7 @@ describe("the stage's own idle timer", () => {
     const home = scratchHome("reap");
     const stage = await plantStage(home);
     plantRow(home, stage, 10 * 60_000);
-    const stagePid = stage.child.pid as number;
+    const stagePid = spawnedPid(stage.child);
     // The control that makes "dead" mean something: it is alive, and nothing but the timer runs here.
     expect(pidAlive(stagePid), "the planted stage is running before the timer fires").toBe(true);
 
@@ -369,7 +371,7 @@ describe("the stage's own idle timer", () => {
     const home = scratchHome("reserved");
     const stage = await plantStage(home);
     const planted = plantRow(home, stage, 10 * 60_000, { serverPort: DEV_PORTS.server, vitePort: DEV_PORTS.vite });
-    const stagePid = stage.child.pid as number;
+    const stagePid = spawnedPid(stage.child);
 
     const keeper = startKeeper(home);
     expect(await until(() => keeper.child.hasExited(), CASE_BUDGET_MS), `the keeper never answered — ${keeper.log()}`).toBe(true);

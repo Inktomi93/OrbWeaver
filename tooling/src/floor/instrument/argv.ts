@@ -89,7 +89,7 @@ const SELECTOR_ENGINES: ReadonlySet<string> = new Set([
 /** Whether the `=` at `at` is the one that ENDS an engine name — the head of the string, or a part of a
  *  `>>` chain (`role=button >> nth=0`). Those belong to the selector; every other top-level `=` splits. */
 function isEngineNameEq(raw: string, at: number): boolean {
-  const name = /(?:^|\s|>>)\s*([A-Za-z_][\w-]*)$/u.exec(raw.slice(0, at))?.[1];
+  const name = /(?<=^|\s|>>)([A-Za-z_][\w-]*)$/u.exec(raw.slice(0, at))?.[1];
   return name !== undefined && SELECTOR_ENGINES.has(name);
 }
 

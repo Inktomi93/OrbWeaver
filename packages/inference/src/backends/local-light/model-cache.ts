@@ -15,6 +15,7 @@ import type { DataType, DeviceType, Tensor } from "@huggingface/transformers";
 import type { LocalTextEncoding, RerankOnnx } from "@orb/contracts/inference";
 import { embedSpaceOf, LOCAL_TEXT_ENCODING } from "@orb/contracts/inference";
 import type { ImageInput } from "@orb/contracts/role-clients";
+import { isPlainObject } from "@orb/kit/guards";
 import type { ModelId } from "@orb/kit/ids";
 import { l2Normalize } from "@orb/kit/vector-math";
 import { ProviderError } from "#src/contract/errors.ts";
@@ -113,7 +114,8 @@ function tensorRows(t: Tensor): Float32Array[] {
   // The lib's `DataArray` union includes bigint-backed arrays; every model here emits floats, so a bigint
   // tensor is a wrong-model defect, not a case to widen for.
   const flat = t.data;
-  if (flat instanceof BigInt64Array || flat instanceof BigUint64Array) {
+  // `DataArray` also admits a plain `any[]`; a model's output tensor is always a typed array.
+  if (Array.isArray(flat) || flat instanceof BigInt64Array || flat instanceof BigUint64Array) {
     throw new ProviderError({
       kind: "server",
       retryable: false,
@@ -124,11 +126,21 @@ function tensorRows(t: Tensor): Float32Array[] {
   for (let base = 0; base + lastDim <= flat.length; base += lastDim) {
     const row = new Float32Array(lastDim);
     for (let d = 0; d < lastDim; d += 1) {
-      row[d] = flat[base + d] ?? 0;
+      // The lib's typed-array union names `Float16Array`, which this program's lib set does not declare, so the
+      // element reads as `any`; `Number` states that it is a number.
+      row[d] = Number(flat[base + d] ?? 0);
     }
     rows.push(row);
   }
   return rows;
+}
+
+/** The lib's processor and model calls are typed `any`; the named output map is checked here, where it enters. */
+function outputMap(value: unknown, modelId: ModelId, stage: string): Record<string, unknown> {
+  if (!isPlainObject(value)) {
+    throw new ProviderError({ kind: "server", retryable: false, message: `local-light model "${modelId}" ${stage} returned no output map` });
+  }
+  return value;
 }
 
 function requireTensor(out: Record<string, unknown>, key: string, modelId: ModelId, TensorCtor: TransformersModule["Tensor"]): Tensor {
@@ -631,12 +643,12 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
               text,
               encoding,
               async (piece) => {
-                const inputs = await proc([piece], null, { padding: true, truncation: false });
+                const inputs = outputMap(await proc([piece], null, { padding: true, truncation: false }), modelId, "processor");
                 const ids = requireTensor(inputs, "input_ids", modelId, TensorCtor);
                 return { inputs, batch: ids.dims[0] ?? 0, length: ids.dims.length === 2 ? (ids.dims[1] ?? 0) : 0 };
               },
               async (inputs) => {
-                const out: Record<string, unknown> = await model(inputs);
+                const out = outputMap(await model(inputs), modelId, "model");
                 const rows = tensorRows(requireTensor(out, "text_embeddings", modelId, TensorCtor));
                 const vector = rows[0];
                 if (rows.length !== 1 || vector === undefined) {
@@ -692,7 +704,7 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
                 { text_pair: batch.map((i) => pairs[i]?.document ?? ""), padding: true, truncation: true, max_length: maxLength },
               ),
             );
-            const out: Record<string, unknown> = await loaded.model(inputs);
+            const out = outputMap(await loaded.model(inputs), modelId, "model");
             let batchScores: number[];
             try {
               batchScores = readScores(loaded, out, modelId, TensorCtor);
@@ -719,8 +731,8 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
           const vectors: Float32Array[] = [];
           for (const image of images) {
             const raw = await RawImage.read(toImageSource(image));
-            const inputs = await proc(null, [raw]);
-            const out: Record<string, unknown> = await model(inputs);
+            const inputs = outputMap(await proc(null, [raw]), modelId, "processor");
+            const out = outputMap(await model(inputs), modelId, "model");
             vectors.push(...tensorRows(requireTensor(out, "image_embeddings", modelId, TensorCtor)));
           }
           return vectors;

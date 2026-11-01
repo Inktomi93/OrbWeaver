@@ -2,13 +2,13 @@
 // the member's password is reset to the fixture password, so the fixture login works instead of staying locked out.
 
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import { runMultiUserSeed } from "../../../tooling/src/seed/ops/multi-user.ts";
+import { listeningAddress } from "../_server-address.ts";
 
 const MEMBER_PASSWORD = "member-fixture-pass";
 
@@ -42,7 +42,7 @@ async function fakeServer(users: readonly { readonly id: string; readonly handle
     });
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address() as AddressInfo;
+  const address = listeningAddress(server);
   return {
     base: `http://127.0.0.1:${String(address.port)}`,
     calls,

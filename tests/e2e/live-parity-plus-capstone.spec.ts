@@ -31,7 +31,15 @@ import { expect, test } from "@playwright/test";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { IMMERSIVE_CARD_LABELS } from "../../packages/ui/src/content/immersive-card/control-labels.ts";
 import { openContextTab, openNewestChat } from "./support/chat-room.ts";
-import { WAIT_LIVE_TURN_MS, WAIT_ROUND_TRIP_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
+import {
+  CASE_LIVE_LOOP_MS,
+  CASE_LIVE_TURN_MS,
+  CASE_STREAM_MS,
+  WAIT_LIVE_TURN_MS,
+  WAIT_ROUND_TRIP_MS,
+  WAIT_SHORT_MS,
+  WAIT_SURFACE_MS,
+} from "./support/timeouts.ts";
 import {
   createLiteGame,
   deleteChat,
@@ -111,7 +119,7 @@ const LIE_TAG = '<lie character="Thornwick" type="identity" truth="he is the smu
 test("P3 deception: a planted lie is host-revealed (eye + standing-lie inventory) and enabling deception is BE-active", {
   tag: "@live",
 }, async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(CASE_LIVE_TURN_MS);
   const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-pp-p3"));
   try {
     // ── BE: enabling deception makes the game DECEPTION-ACTIVE. `getConfigView` is the host-truth read the
@@ -174,7 +182,7 @@ const CARD_FENCE = `:::card title="${CARD_TITLE}"\n<p>${CARD_MARKER}</p>\n:::`;
 test("P4 immersive HTML: a planted :::card renders sandboxed, view-raw shows source, archive lists it, no DOM leak", {
   tag: "@live",
 }, async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(CASE_LIVE_TURN_MS);
   const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-pp-p4"));
   try {
     // BE: the card teaching knob is on by default (getConfigView truth); the render is toggle-independent, so
@@ -245,7 +253,7 @@ const CHOICES_FENCE = `The tension breaks.\n:::choices\n1. ${CHOICE_OPTION}\n2. 
 test("P5 CYOA: a planted :::choices renders clickable buttons and clicking one sends it as the user's turn", {
   tag: "@live",
 }, async ({ page }) => {
-  test.setTimeout(300_000);
+  test.setTimeout(CASE_LIVE_LOOP_MS);
   const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-pp-p5-cyoa"));
   try {
     // BE: cyoa defaults OFF; flip it on (the standing-mode knob). The render is toggle-independent — a stored
@@ -294,7 +302,7 @@ test("P5 CYOA: a planted :::choices renders clickable buttons and clicking one s
 test("P5 plot: the snapshot plot plane renders on the act rail, advances, and a re-read is swipe-consistent", {
   tag: "@live",
 }, async ({ page }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(CASE_STREAM_MS);
   const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-pp-p5-plot"));
   try {
     // BE: plot progression defaults ON (config truth).
@@ -354,7 +362,7 @@ test("P5 plot: the snapshot plot plane renders on the act rail, advances, and a 
 test("P5 wand: a Plot-submenu game steer fires a real turn and resolves LIVE off {{rpgSceneState}} on the wire", {
   tag: "@live",
 }, async () => {
-  test.setTimeout(300_000);
+  test.setTimeout(CASE_LIVE_LOOP_MS);
   const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-pp-p5-wand"));
   try {
     // Seed a KNOWN scene state the steer's `{{rpgSceneState}}` macro must resolve into the provider prompt.

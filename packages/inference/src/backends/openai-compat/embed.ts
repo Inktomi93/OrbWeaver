@@ -213,7 +213,7 @@ export async function runOpenAiCompatEmbed(req: EmbedRequest, deps: EmbedDeps): 
   const kept = selectInputs(inputs, req, capability, (index, chars, clampedToChars, budget) =>
     log.emit("warn", "provider.embed-clamped", { model: connection.model, index, chars, clampedToChars, budget }),
   );
-  const vectors: (Float32Array<ArrayBuffer> | null)[] = new Array(inputs.length).fill(null);
+  const vectors: (Float32Array<ArrayBuffer> | null)[] = new Array<Float32Array<ArrayBuffer> | null>(inputs.length).fill(null);
   if (kept.length === 0) {
     return { vectors, model: connection.model };
   }

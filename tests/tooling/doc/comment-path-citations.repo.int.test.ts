@@ -39,7 +39,7 @@ const ROOTED = new RegExp(
 const RELATIVE = new RegExp(String.raw`(?<![\w./*@-])\.{1,2}\/[\w./+@-]*\w\.${CITED_EXT}(?![\w*{/-])`, "gu");
 // A path with a directory that is neither rooted nor relative: in a law document it must be written from the repo root.
 const UNROOTED = new RegExp(
-  String.raw`(?<![\w./*@-])(?!(?:docs|packages|tooling|tests|scripts|docker|\.claude|\.github|legacy-source)\/)[\w+-][\w.+-]*\/[\w./+@-]*\w\.${CITED_EXT}(?![\w*{/-])`,
+  String.raw`(?<![\w./*@+-])(?!(?:docs|packages|tooling|tests|scripts|docker|\.claude|\.github|legacy-source)\/)[\w+-][\w.+-]*\/[\w./+@-]*\w\.${CITED_EXT}(?![\w*{/-])`,
   "gu",
 );
 // A quoted literal in a law document is a code or config sample (an export map, an import call), resolved by its own package.

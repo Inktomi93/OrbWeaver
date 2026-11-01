@@ -30,8 +30,7 @@ const USER_SETTINGS_BACKUP_SCHEMA_VERSION = 1;
 
 // The allowlist (the fence) — the only share-safe UserSettings namespaces. Fixed, not derived from
 // UserSettings, so a new namespace is excluded by default. Order = deterministic serialization order.
-// Fenced out: routing (connection config), seeds/profile/theme entity-id refs, groupDefaults, onboarding,
-// workloads, regex, schemaVersion.
+// Fenced out: `schemaVersion` and every other member of `USER_SETTINGS_SECTIONS`.
 export const SHARE_SAFE_SETTINGS_NAMESPACES = [
   "appearance",
   "theme",
@@ -59,12 +58,12 @@ export function projectShareSafe(full: UserSettings): PortableUserSettings {
 }
 
 /** Type-safe single-namespace copy (a union-indexed `dst[ns] = src[ns]` is rejected by tsc). */
-function copyNamespace<K extends ShareSafeSettingsNamespace>(dst: Partial<PortableUserSettings>, src: PortableUserSettings, key: K): void {
+function copyNamespace<K extends ShareSafeSettingsNamespace>(dst: Partial<Pick<PortableUserSettings, K>>, src: Pick<PortableUserSettings, K>, key: K): void {
   dst[key] = src[key];
 }
 
 /** Type-safe single-namespace copy into the parse output (same reason as `copyNamespace`). */
-function takeNamespace<K extends ShareSafeSettingsNamespace>(dst: Partial<PortableUserSettings>, healed: UserSettings, key: K): void {
+function takeNamespace<K extends ShareSafeSettingsNamespace>(dst: Partial<Pick<PortableUserSettings, K>>, healed: Pick<UserSettings, K>, key: K): void {
   dst[key] = healed[key];
 }
 

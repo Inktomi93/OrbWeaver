@@ -226,7 +226,8 @@ export const test = houseTest.extend<ToolFixtures>({
     const originalPath = processEnvValue("PATH");
     const state = { prepended: false };
     await use(async (name, moduleSource) => {
-      if (!FAKE_BIN_NAME_RE.test(name) || name.endsWith(".") || WINDOWS_DEVICE_NAME_RE.test(name)) {
+      const invalidName = !FAKE_BIN_NAME_RE.test(name) || name.endsWith(".") || WINDOWS_DEVICE_NAME_RE.test(name);
+      if (invalidName) {
         throw new Error(`fakeBin: ${JSON.stringify(name)} must be one command basename`);
       }
       await mkdir(binDir, { recursive: true });

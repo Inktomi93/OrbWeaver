@@ -4,6 +4,7 @@ import { execFile } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
+import { toError } from "@orb/kit/error-message";
 import { MS_PER_SECOND } from "@orb/kit/time";
 import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import { CORPUS_PLUGIN_MANIFEST } from "./corpus-plugin.ts";
@@ -40,7 +41,7 @@ function git(directory: string, at: number, args: readonly string[], input?: Uin
         if (error === null) {
           resolve(stdout);
         } else {
-          reject(error);
+          reject(toError(error));
         }
       },
     );

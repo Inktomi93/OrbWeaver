@@ -21,7 +21,7 @@ function stringField(value: unknown, label: string): string {
   return value;
 }
 
-function combineCaptureFailures(primary: unknown | null, cleanup: readonly unknown[]): void {
+function combineCaptureFailures(primary: unknown, cleanup: readonly unknown[]): void {
   const failures = [...(primary === null ? [] : [primary]), ...cleanup];
   if (failures.length === 1) {
     throw failures[0];
@@ -33,7 +33,7 @@ function combineCaptureFailures(primary: unknown | null, cleanup: readonly unkno
 
 export async function captureRawHeap(page: Page, path: string): Promise<CapturedRawHeapIdentity> {
   let cdp: CDPSession | null = null;
-  let primary: unknown | null = null;
+  let primary: unknown = null;
   const cleanup: unknown[] = [];
   const stream = createWriteStream(path, { flags: "wx" });
   const completed = finished(stream);

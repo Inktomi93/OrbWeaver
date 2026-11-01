@@ -22,7 +22,7 @@ import { CONFIG_SECTION_LABEL } from "#client/features/config/lib/config-copy.ts
 import { THEME_MOCHA_NAME } from "#server/domain/settings/constants.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
-import { WAIT_INSTANT_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
+import { CASE_STREAM_MS, WAIT_INSTANT_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 import { getAppearanceTheme, listThemes, updateSettingsSection } from "./support/trpc.ts";
 
 const SETTINGS_SAVE = "/api/trpc/settings.updateUserSettingsSection";
@@ -71,7 +71,7 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     page,
     isMobile,
   }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(CASE_STREAM_MS);
 
     // A stable pre-state: no theme, no background (the afterEach values). Set via API so the spec starts
     // from a known baseline regardless of prior runs — this is SETUP, not the thing under test.

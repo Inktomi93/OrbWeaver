@@ -55,20 +55,20 @@ export function resolveProbeMedia(opts: ProbeMediaOptions): ProbeMedia {
 /** Snapshot the page's live media identity before a browser observer attaches. Chromium's DevTools
  *  frontend resets emulated media on the inspected target, so the observer must restore what it read. */
 export async function readProbeMedia(page: Page): Promise<ProbeMedia> {
-  // #1004 — validated, not asserted: every field below is read as `=== true`, so a MISSING one silently
+  // #1004 — validated, not asserted: every field below is read for truthiness, so a MISSING one silently
   // reads as "not dark / no reduced motion" and the probe restores a media identity the page never had.
   const actual = probeMediaObservation(await page.evaluate(READ_PROBE_MEDIA));
   let colorScheme: ProbeMedia["colorScheme"];
-  if (actual.dark === true) {
+  if (actual.dark) {
     colorScheme = "dark";
-  } else if (actual.light === true) {
+  } else if (actual.light) {
     colorScheme = "light";
   }
   return {
     ...(colorScheme === undefined ? {} : { colorScheme }),
-    reducedMotion: actual.reducedMotion === true ? "reduce" : "no-preference",
-    contrast: actual.contrastMore === true ? "more" : "no-preference",
-    reducedTransparency: actual.reducedTransparency === true,
+    reducedMotion: actual.reducedMotion ? "reduce" : "no-preference",
+    contrast: actual.contrastMore ? "more" : "no-preference",
+    reducedTransparency: actual.reducedTransparency,
   };
 }
 

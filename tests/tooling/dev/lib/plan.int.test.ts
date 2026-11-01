@@ -42,7 +42,7 @@ setInterval(() => {}, 1000);`,
       );
       const env: NodeJS.ProcessEnv = { ...inheritedProcessEnv() };
       env["NODE_OPTIONS"] = `--no-warnings --import=${pathToFileURL(preload).href}`;
-      delete env[RUN_MARKER_ENV];
+      Reflect.deleteProperty(env, RUN_MARKER_ENV);
       writeFileSync(join(scratch, "package.json"), JSON.stringify({ private: true, scripts: { dev: "node leader.mjs" } }));
       const invocation = pnpmInvocation({ ambient: inheritedProcessEnv(), platform: process.platform, nodePath: process.execPath, args: ["run", "dev"] });
       if (invocation.kind === "refused") {

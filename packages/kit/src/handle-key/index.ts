@@ -177,13 +177,15 @@ export function admitsHandle(text: string): boolean {
   // logical order: `nimda` behind a right-to-left override displays as `admin` and keys apart from it. An edge
   // space displays as nothing, so `admin ` would sit beside `admin` under another key.
   const data = loaded();
-  if (UNSEEN_OR_BREAKING.test(text) || [...text].some((char) => isDefaultIgnorable(char, data) || BLANK_RENDERING.has(char))) {
+  if (UNSEEN_OR_BREAKING.test(text) || Array.from(text).some((char) => isDefaultIgnorable(char, data) || BLANK_RENDERING.has(char))) {
     return false;
   }
   if (text.startsWith(SPACE) || text.endsWith(SPACE) || text.includes(SPACE_RUN) || !VISIBLE.test(text)) {
     return false;
   }
-  const scripted = [...text.normalize("NFKC")].map(scriptsOf).filter((scripts) => ![...scripts].every((code) => ANY_SCRIPT.has(code)));
+  const scripted = Array.from(text.normalize("NFKC"))
+    .map(scriptsOf)
+    .filter((scripts) => ![...scripts].every((code) => ANY_SCRIPT.has(code)));
   if (scripted.some((scripts) => scripts.has(UNASSIGNED))) {
     return false;
   }

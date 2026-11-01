@@ -111,7 +111,7 @@ export const worldInfoRouter = t.router({
         // as "not a valid file". The import dialog renders this message.
         throw new TRPCError({ code: "BAD_REQUEST", message: outcome.error });
       }
-      return { created: outcome.created === true, name: outcome.name, renamedFrom: outcome.renamedFrom ?? null };
+      return { created: outcome.created, name: outcome.name, renamedFrom: outcome.renamedFrom ?? null };
     }),
 
   listEntries: authedProcedure

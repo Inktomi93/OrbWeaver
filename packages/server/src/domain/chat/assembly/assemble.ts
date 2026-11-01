@@ -257,7 +257,7 @@ function dedupeNonEmpty(parts: readonly MergedContribution[]): MergedContributio
  * the prompt and the trace otherwise only says "merged".
  */
 function allocateMergedFallback(parts: readonly MergedContribution[], cap: number): { texts: string[]; truncated: string[] } {
-  const points = parts.map((p) => [...p.text]);
+  const points = parts.map((p) => Array.from(p.text));
   const separators = Math.max(parts.length - 1, 0) * MERGED_JOIN.length;
   const budget = Math.max(cap - separators, 0);
   if (points.reduce((n, c) => n + c.length, 0) <= budget) {
@@ -1013,7 +1013,7 @@ function assembleWithSlices(
   // markers only just gained the field, ST parity): the pivot is the one section the walk skips before the
   // trigger check, so nothing else would read its gate, and a stored gate no reader honours is the same
   // silent drop this row is about.
-  const sendHistory = !(pivotSection !== undefined && (pivotSection.enabled === false || !sectionTriggers(pivotSection, generationType)));
+  const sendHistory = pivotSection === undefined || (pivotSection.enabled && sectionTriggers(pivotSection, generationType));
   config.sections.forEach((section, idx) => {
     if (!section.enabled) {
       return;

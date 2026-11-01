@@ -129,7 +129,7 @@ test("the message menu's Duplicate is disabled with its reason while a turn is g
   await expect(item).toHaveAttribute("aria-disabled", "true");
   await expect(page.getByText(MESSAGE_DUPLICATE_GENERATING, { exact: true })).toBeVisible();
   const shown = await rows.count();
-  await item.click({ force: true });
+  await item.dispatchEvent("click");
   await expect(rows).toHaveCount(shown);
   expect((await host.chat.listMessages({ chatId })).messages).toHaveLength(ids.length);
 });

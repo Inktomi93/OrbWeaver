@@ -42,7 +42,7 @@ export const LAUNCHER_SCRATCH_ENV = "ORB_LAUNCHER_SCRATCH";
 export function supervisedEnv(env: NodeJS.ProcessEnv | undefined, scratch?: string): NodeJS.ProcessEnv {
   const supervised: NodeJS.ProcessEnv = { ...(env ?? inheritedProcessEnv()), [LAUNCHER_PARENT_ENV]: String(process.pid) };
   // An inherited key names a directory this caller never handed over; the launcher would delete it.
-  delete supervised[LAUNCHER_SCRATCH_ENV];
+  Reflect.deleteProperty(supervised, LAUNCHER_SCRATCH_ENV);
   return scratch === undefined ? supervised : { ...supervised, [LAUNCHER_SCRATCH_ENV]: scratch };
 }
 

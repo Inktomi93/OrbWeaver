@@ -138,7 +138,8 @@ export async function openChatsList(page: Page): Promise<void> {
   if (await backToChats.isVisible()) {
     await backToChats.click();
   }
-  await chatsRail.click({ timeout: WAIT_SHORT_MS });
+  await expect(chatsRail).toBeVisible({ timeout: WAIT_SHORT_MS });
+  await chatsRail.click();
   await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "chats", { timeout: WAIT_SHORT_MS });
   await expect(chatsList.or(emptyState).or(backToChats).or(showList).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
   if (await backToChats.isVisible()) {

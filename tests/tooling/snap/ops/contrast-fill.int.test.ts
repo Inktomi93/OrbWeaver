@@ -153,13 +153,13 @@ test("a page.screenshot() failure retries once, and a persisting failure is an i
     // A LONE transient failure — the shape a real `Protocol error (Page.captureScreenshot)` takes under
     // contention — recovers silently through the retry: the SAME domain verdict as an unpatched run.
     let calls = 0;
-    page.screenshot = (async (options) => {
+    page.screenshot = async (options): Promise<Buffer> => {
       calls += 1;
       if (calls === 1) {
         throw new Error("Protocol error (Page.captureScreenshot): Target closed.");
       }
       return await real(options);
-    }) as typeof page.screenshot;
+    };
     const [recovered] = await captureContrastEvidence(page, ["#quiet"], false, VIEWPORT);
     expect(calls).toBe(2);
     expect(recovered?.evidence.status).toBe("ok");
@@ -168,7 +168,7 @@ test("a page.screenshot() failure retries once, and a persisting failure is an i
     // A PERSISTENT failure (both attempts) is an INSTRUMENT fault — never folded into the "undecodable"
     // domain-refusal family, so a reason-string pin on that family cannot red on this CDP message. The run
     // still FAILS (never a silent green), and the line names the real capture error.
-    page.screenshot = ((): Promise<never> => Promise.reject(new Error("Protocol error (Page.captureScreenshot): Target closed."))) as typeof page.screenshot;
+    page.screenshot = (): Promise<never> => Promise.reject(new Error("Protocol error (Page.captureScreenshot): Target closed."));
     const [persisted] = await captureContrastEvidence(page, ["#quiet"], false, VIEWPORT);
     expect(persisted?.evidence.status).toBe("instrument-error");
     expect(persisted?.evidence.ratio).toBeNull();

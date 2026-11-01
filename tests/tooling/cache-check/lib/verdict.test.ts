@@ -100,10 +100,10 @@ test.each([
 
 function receipt(outcomes: readonly CaseOutcome[]): { readonly exit: number; readonly stdout: string } {
   let stdout = "";
-  const write = vi.spyOn(process.stdout, "write").mockImplementation(((chunk: string | Uint8Array) => {
+  const write = vi.spyOn(process.stdout, "write").mockImplementation((chunk: string | Uint8Array) => {
     stdout += String(chunk);
     return true;
-  }) as typeof process.stdout.write);
+  });
   try {
     return { exit: printVerdictReceipt("cache-check", runVerdict(outcomes, 0)).exit, stdout };
   } finally {

@@ -3,6 +3,7 @@
 
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import { jsxProperties, staticValueOptions } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 
@@ -110,7 +111,7 @@ function isAccessibilityUtility(token: string): boolean {
 }
 
 // One declaration per line, so a match never runs on into the next declaration and hides its property.
-const DECLARATION = /^\s*([a-zA-Z-][\w-]*)\s*:[^{\n]*;\s*$/gmu;
+const DECLARATION = /^[ \t]*([a-zA-Z-][\w-]*)\s*:[^{\n]*;[ \t]*$/gmu;
 // Tailwind registers the custom properties a utility composes through (`contain-inline-size` builds `contain` from
 // four `--tw-contain-*` parts) as `@property` rules, whose `syntax`/`inherits` descriptors are not declarations.
 const PROPERTY_REGISTRATION = /@property[^{]*\{[^}]*\}/gu;
@@ -163,7 +164,7 @@ const MESSAGES = {
 
 function isComponentElement(element: TSESTree.JSXOpeningElement): boolean {
   const name = element.name;
-  return name.type === "JSXMemberExpression" || (name.type === "JSXIdentifier" && /^[A-Z]/u.test(name.name));
+  return name.type === AST_NODE_TYPES.JSXMemberExpression || (name.type === AST_NODE_TYPES.JSXIdentifier && /^[A-Z]/u.test(name.name));
 }
 
 const isClassProperty = (name: string | undefined): boolean => name === "className" || name?.endsWith("ClassName") === true;
@@ -189,30 +190,30 @@ function resolvedVariable(context: OrbRuleContext, identifier: TSESTree.Identifi
 
 function localInitializer(context: OrbRuleContext, identifier: TSESTree.Identifier): TSESTree.Expression | undefined {
   const definition = resolvedVariable(context, identifier)?.defs[0];
-  if (definition?.type !== "Variable") {
+  if (definition?.type !== TSESLint.Scope.DefinitionType.Variable) {
     return undefined;
   }
   return definition.node.init ?? undefined;
 }
 
 function isImported(context: OrbRuleContext, identifier: TSESTree.Identifier): boolean {
-  return resolvedVariable(context, identifier)?.defs[0]?.type === "ImportBinding";
+  return resolvedVariable(context, identifier)?.defs[0]?.type === TSESLint.Scope.DefinitionType.ImportBinding;
 }
 
 /** The static class tokens a node spells itself: a string, a template's quasis, or an object's keys. */
 function ownTokens(node: TSESTree.Node): readonly string[] {
-  if (node.type === "Literal") {
+  if (node.type === AST_NODE_TYPES.Literal) {
     return typeof node.value === "string" ? tokensOf(node.value) : [];
   }
-  if (node.type === "TemplateLiteral") {
+  if (node.type === AST_NODE_TYPES.TemplateLiteral) {
     return node.quasis.flatMap((quasi) => tokensOf(quasi.value.cooked ?? quasi.value.raw));
   }
-  if (node.type === "ObjectExpression") {
+  if (node.type === AST_NODE_TYPES.ObjectExpression) {
     return node.properties.flatMap((property) => {
-      if (property.type !== "Property" || property.computed) {
+      if (property.type !== AST_NODE_TYPES.Property || property.computed) {
         return [];
       }
-      return tokensOf(property.key.type === "Identifier" ? property.key.name : String((property.key as TSESTree.Literal).value));
+      return tokensOf(property.key.type === AST_NODE_TYPES.Identifier ? property.key.name : String((property.key as TSESTree.Literal).value));
     });
   }
   return [];
@@ -223,25 +224,25 @@ type MaybeNode = TSESTree.Node | null | undefined;
 /** The nodes under a className value that can carry class tokens; identifiers are followed to a local initializer only. */
 function childNodes(context: OrbRuleContext, node: TSESTree.Node): readonly MaybeNode[] {
   switch (node.type) {
-    case "TemplateLiteral":
+    case AST_NODE_TYPES.TemplateLiteral:
       return node.expressions;
-    case "JSXExpressionContainer":
+    case AST_NODE_TYPES.JSXExpressionContainer:
       return [node.expression];
-    case "ConditionalExpression":
+    case AST_NODE_TYPES.ConditionalExpression:
       return [node.consequent, node.alternate];
-    case "LogicalExpression":
-    case "BinaryExpression":
+    case AST_NODE_TYPES.LogicalExpression:
+    case AST_NODE_TYPES.BinaryExpression:
       return [node.left, node.right];
-    case "CallExpression":
+    case AST_NODE_TYPES.CallExpression:
       return node.arguments;
-    case "ArrayExpression":
+    case AST_NODE_TYPES.ArrayExpression:
       return node.elements;
-    case "Identifier":
-    case "MemberExpression":
+    case AST_NODE_TYPES.Identifier:
+    case AST_NODE_TYPES.MemberExpression:
       return staticValueOptions(context, node);
-    case "TSAsExpression":
-    case "TSSatisfiesExpression":
-    case "ChainExpression":
+    case AST_NODE_TYPES.TSAsExpression:
+    case AST_NODE_TYPES.TSSatisfiesExpression:
+    case AST_NODE_TYPES.ChainExpression:
       return [node.expression];
     default:
       return [];
@@ -299,21 +300,21 @@ function builtReason(context: OrbRuleContext, node: MaybeNode): string | undefin
     return undefined;
   }
   switch (node.type) {
-    case "TemplateLiteral":
+    case AST_NODE_TYPES.TemplateLiteral:
       return node.expressions.length > 0 ? MESSAGES.template : undefined;
-    case "BinaryExpression":
+    case AST_NODE_TYPES.BinaryExpression:
       return MESSAGES.concatenation;
-    case "CallExpression":
-      if (node.callee.type !== "Identifier" || !CLASS_HELPERS.has(node.callee.name)) {
+    case AST_NODE_TYPES.CallExpression:
+      if (node.callee.type !== AST_NODE_TYPES.Identifier || !CLASS_HELPERS.has(node.callee.name)) {
         return MESSAGES.call;
       }
       return firstReason(context, node.arguments);
-    case "Identifier":
+    case AST_NODE_TYPES.Identifier:
       if (node.name === "undefined") {
         return undefined;
       }
       return isImported(context, node) ? MESSAGES.imported : builtReason(context, localInitializer(context, node));
-    case "MemberExpression":
+    case AST_NODE_TYPES.MemberExpression:
       return MESSAGES.member;
     default:
       return firstReason(context, childNodes(context, node));

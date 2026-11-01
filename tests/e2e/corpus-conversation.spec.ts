@@ -8,6 +8,7 @@ import { openChatByTitle, openChatOptions, typeAndSend, waitForAppReady } from "
 import { expect, test } from "./support/corpus-test.ts";
 import { startFixtureProvider } from "./support/fixture-provider.ts";
 import { SELECTED_CORPUS_FIXTURE } from "./support/modes.ts";
+import { CASE_LIVE_TURN_MS } from "./support/timeouts.ts";
 
 const TITLE = "Corpus conversation actions";
 const PROMPT = "Describe the synthetic lantern for the corpus smoke.";
@@ -48,7 +49,7 @@ test("a corpus character supports swipe selection, edit save/cancel, persona swi
   isMobile,
 }) => {
   test.skip(SELECTED_CORPUS_FIXTURE === undefined, "Requires the committed corpus");
-  test.setTimeout(120_000);
+  test.setTimeout(CASE_LIVE_TURN_MS);
   const host = ownerActor(baseURL ?? "");
   const character = corpus().libraryRelations?.ids.characterId;
   if (character === undefined) {

@@ -257,8 +257,8 @@ function createDelete(ctx: ChatContext, emitLive: EmitChatEventLive, abortTurns:
     statements.push(ctx.db.delete(chats).where(eq(chats.id, chatId)).returning({ id: chats.id }));
     appendRemovalVersions(ctx, statements, principal.userId, retainedStats.ownerIds);
     const results = await commitGenerationObservationRemoval(ctx, scope, groups, statements);
-    const removed = results[deleteIndex] as readonly { readonly id: ChatId }[];
-    if (removed.length > 0) {
+    const removed = results[deleteIndex];
+    if (Array.isArray(removed) && removed.length > 0) {
       emitLive({ type: "chatDeleted", chatId });
     }
     await ctx.emitChatChanged(chatId, { detail: true, extraUserIds: members });

@@ -122,7 +122,7 @@ test("CodeQL scheduled runs cannot be cancelled by incoming push or dispatch run
   expect(group("pull_request", "refs/pull/31/merge", 31)).toBe(group("pull_request", "refs/pull/31/merge", 31, "b".repeat(40)));
   expect(group("pull_request", "refs/pull/31/merge", 31)).not.toBe(group("pull_request", "refs/pull/32/merge", 32));
   for (const event of ["schedule", "push", "workflow_dispatch", "pull_request"]) {
-    expect(runInNewContext(concurrency["cancel-in-progress"].replace(/^\$\{\{\s*|\s*\}\}$/gu, ""), { github: { ["event_name"]: event } })).toBe(
+    expect(runInNewContext(concurrency["cancel-in-progress"].replace(/^\$\{\{\s*|(?<!\s)\s*\}\}$/gu, ""), { github: { ["event_name"]: event } })).toBe(
       event !== "schedule",
     );
   }

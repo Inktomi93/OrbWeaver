@@ -5,6 +5,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
+import { levelOf, resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const LAYOUT_RULE = "orb/feature-classname-layout-only";
@@ -17,12 +18,12 @@ beforeAll(async () => {
 }, 120_000);
 
 async function findings(rule: string, source: string, path = FEATURE): Promise<readonly string[]> {
-  const config = await eslint.calculateConfigForFile(join(ROOT, path));
+  const config = await resolvedConfig(eslint, join(ROOT, path));
   const found = new Linter({ cwd: ROOT }).verify(
     source,
     {
       files: ["**/*.{ts,tsx}"],
-      plugins: config?.plugins ?? {},
+      plugins: config.plugins,
       languageOptions: {
         parser: tseslint.parser,
         parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true } },
@@ -122,11 +123,11 @@ test.for([
 });
 
 test("both rules are on for client composition and off inside UI", async () => {
-  const levelOf = async (rule: string, path: string): Promise<unknown> => (await eslint.calculateConfigForFile(join(ROOT, path)))?.rules?.[rule]?.[0];
-  expect(await levelOf(LAYOUT_RULE, FEATURE)).toBe(2);
-  expect(await levelOf(BUILT_RULE, FEATURE)).toBe(2);
-  expect(await levelOf(LAYOUT_RULE, "packages/client/src/components/control.tsx")).toBe(2);
-  expect(await levelOf(BUILT_RULE, "packages/ui/src/primitives/a/control.tsx")).toBeUndefined();
+  const levelAt = async (rule: string, path: string): Promise<unknown> => levelOf((await resolvedConfig(eslint, join(ROOT, path))).rules[rule]);
+  expect(await levelAt(LAYOUT_RULE, FEATURE)).toBe(2);
+  expect(await levelAt(BUILT_RULE, FEATURE)).toBe(2);
+  expect(await levelAt(LAYOUT_RULE, "packages/client/src/components/control.tsx")).toBe(2);
+  expect(await levelAt(BUILT_RULE, "packages/ui/src/primitives/a/control.tsx")).toBeUndefined();
 });
 
 test("both rules judge shared client composition too", async () => {

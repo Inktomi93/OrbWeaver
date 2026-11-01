@@ -8,7 +8,7 @@ import { eq, sql } from "drizzle-orm";
 const outcome = (call: Promise<unknown>): Promise<unknown> =>
   call.then(
     () => "accepted",
-    (err: unknown) => (err as { code?: unknown }).code,
+    (err: unknown) => (typeof err === "object" && err !== null && "code" in err ? err.code : undefined),
   );
 
 const strayParams = { ...DEFAULT_PROMPT_CONFIG, params: { temperature: 0.7, notAKnob: 1 } };

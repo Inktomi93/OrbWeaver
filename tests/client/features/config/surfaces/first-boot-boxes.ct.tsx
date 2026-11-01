@@ -4,6 +4,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createFirstBootHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
+import { z } from "zod";
 import type { FirstBootStory } from "./_first-boot-stories.tsx";
 
 // A first boot has no remembered box, so the Settings groups reserve the box their `reserveBlock` declares.
@@ -151,18 +152,17 @@ async function routeGroup(page: Page, group: FirstBootGroup, caller: object): Pr
 }
 
 async function rememberedBoxes(page: Page): Promise<Readonly<Record<string, number>>> {
-  return await page.evaluate(() => {
-    const entry = Object.entries(localStorage).find(([name]) => name.endsWith("surface-box"));
-    const parsed: unknown = entry === undefined ? null : JSON.parse(entry[1]);
-    const boxes = (parsed as { state?: { boxes?: Record<string, number> } } | null)?.state?.boxes;
-    return boxes ?? {};
-  });
+  const stored = await page.evaluate(() => Object.entries(localStorage).find(([name]) => name.endsWith("surface-box"))?.[1] ?? null);
+  if (stored === null) {
+    return {};
+  }
+  return z.object({ state: z.object({ boxes: z.record(z.string(), z.number()).optional() }).optional() }).parse(JSON.parse(stored)).state?.boxes ?? {};
 }
 
 // One skeleton row's pitch, resolved from the live tokens the way the skeleton paints it.
 async function rowPitch(page: Page): Promise<number> {
   return await page.evaluate(
-    ([control, gap]) => {
+    ({ control, gap }) => {
       const measure = (cssVar: string): number => {
         const probe = document.createElement("div");
         probe.style.cssText = `position:absolute;visibility:hidden;block-size:var(${cssVar})`;
@@ -171,9 +171,9 @@ async function rowPitch(page: Page): Promise<number> {
         probe.remove();
         return size;
       };
-      return measure(control as string) + measure(gap as string);
+      return measure(control) + measure(gap);
     },
-    [TOKENS["size.control-lg"].cssVar, TOKENS["spacing.row"].cssVar],
+    { control: TOKENS["size.control-lg"].cssVar, gap: TOKENS["spacing.row"].cssVar },
   );
 }
 
