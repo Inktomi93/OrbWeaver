@@ -12,12 +12,16 @@ test.for(ESCAPE_CORPUS)("regExpEscape(%j) matches the builtin", (input) => {
 });
 
 test("regExpEscape refuses a non-string like the builtin", () => {
-  expect(() => regExpEscape(1 as never)).toThrow(TypeError);
-  expect(() => RegExp.escape(1 as never)).toThrow(TypeError);
+  expect(() => {
+    Reflect.apply(regExpEscape, undefined, [1]);
+  }).toThrow(TypeError);
+  expect(() => {
+    Reflect.apply(RegExp.escape, RegExp, [1]);
+  }).toThrow(TypeError);
 });
 
 test("isError agrees with the builtin on real errors, foreign-realm errors and look-alikes", () => {
-  const spoof = Object.assign(Object.create(null) as object, { [Symbol.toStringTag]: "Error" });
+  const spoof = { __proto__: null, [Symbol.toStringTag]: "Error" };
   const values = [
     new Error("x"),
     new TypeError("x"),
@@ -38,7 +42,7 @@ test("isError agrees with the builtin on real errors, foreign-realm errors and l
         throw new Error("boom");
       },
     }),
-    Object.assign(Object.create(null) as object, { [Symbol.toStringTag]: "DOMException" }),
+    { __proto__: null, [Symbol.toStringTag]: "DOMException" },
     structuredClone(new DOMException("x")),
     { message: "x" },
     "Error",

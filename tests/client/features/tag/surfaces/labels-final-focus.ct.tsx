@@ -5,7 +5,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { TAG_LIST_NAME } from "#client/features/tag/lib/tag-list-name.ts";
+import { TAG_FILTER_NAME, TAG_LIST_NAME } from "#client/features/tag/lib/tag-list-name.ts";
 import type { LabelsListStory } from "./_labels-list-stories.tsx";
 
 const STORY = "tests/client/features/tag/surfaces/_labels-list-stories/LabelsListStory";
@@ -17,7 +17,7 @@ const LABEL_READS = ["sessions.me", "settings.getUserSettings", "tag.listTagsWit
 
 /** The corpus library is windowed, so the finder's own filter brings the new label's row into the tree. */
 async function showUnused(page: Page): Promise<Locator> {
-  await page.getByRole("textbox", { name: "Filter tags", exact: true }).fill(UNUSED);
+  await page.getByRole("textbox", { name: TAG_FILTER_NAME, exact: true }).fill(UNUSED);
   const row = page.getByRole("button", { name: UNUSED, exact: true });
   await expect(row).toBeVisible();
   return row;

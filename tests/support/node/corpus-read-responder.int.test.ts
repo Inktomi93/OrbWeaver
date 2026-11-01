@@ -21,7 +21,9 @@ test("an actual inputless settings capture succeeds, but malformed raw null cann
   const respond = createCorpusReadResponder("settings.getUserSettings", root.ownerId, [capture]);
   expect(respond(undefined)).toEqual(output);
   // A decoded malformed wire value bypasses the typed input; it must not select the absent-input capture.
-  expect(() => Reflect.apply(respond, undefined, [null])).toThrow("Uncaptured corpus read for settings.getUserSettings");
+  expect(() => {
+    Reflect.apply(respond, undefined, [null]);
+  }).toThrow("Uncaptured corpus read for settings.getUserSettings");
 });
 
 test("conflicting results for the same captured input refuse instead of selecting a successful result", async () => {
@@ -53,7 +55,9 @@ test("spread, output replacement, raw copying and cast clones cannot restamp loa
     { ...capture } as typeof capture,
   ];
   for (const forged of forgeries) {
-    expect(() => Reflect.apply(createCorpusReadResponder, undefined, ["character.list", selectedOwner(wire), [forged]])).toThrow("Unadmitted corpus capture");
+    expect(() => {
+      Reflect.apply(createCorpusReadResponder, undefined, ["character.list", selectedOwner(wire), [forged]]);
+    }).toThrow("Unadmitted corpus capture");
   }
 });
 
@@ -130,7 +134,9 @@ test("a genuine new filtered request runs the root operation and locks its input
   expect(respond(filtered.input)).toEqual(await caller.character.list(input));
   expect(respond(original.input)).toEqual(original.output);
   const forged = { ...original, input: filtered.input };
-  expect(() => Reflect.apply(createCorpusReadResponder, undefined, ["character.list", root.ownerId, [forged]])).toThrow("Unadmitted corpus capture");
+  expect(() => {
+    Reflect.apply(createCorpusReadResponder, undefined, ["character.list", root.ownerId, [forged]]);
+  }).toThrow("Unadmitted corpus capture");
   const fakeRoot = { internalCallerFor: () => caller };
   await expect(Reflect.apply(captureCorpusRead, undefined, [fakeRoot, root.ownerId, "character.list", input])).rejects.toThrow(
     "Corpus capture requires a real server root",
@@ -151,12 +157,14 @@ test("the loader readmits published bytes while raw graph copies preserve encodi
   const raw = hydrateCorpusWire(structuredClone(loaded.wire));
   expect(encodeCorpusWire(reloaded.wire)).toBe(serialized);
   expect(encodeCorpusWire(raw)).toBe(serialized);
-  expect(() => Reflect.apply(createCorpusReadResponder, undefined, ["character.list", viewer, raw.reads["character.list"]])).toThrow(
-    "Unadmitted corpus capture",
-  );
+  expect(() => {
+    Reflect.apply(createCorpusReadResponder, undefined, ["character.list", viewer, raw.reads["character.list"]]);
+  }).toThrow("Unadmitted corpus capture");
   expect(createCorpusReadResponder("character.list", viewer, [fresh])(fresh.input)).toEqual(capture.output);
   // JSON retains the public wire inspection fields, not private playback custody.
   const copied = JSON.parse(JSON.stringify(capture)) as typeof capture;
   expect(JSON.stringify(copied)).toBe(JSON.stringify(capture));
-  expect(() => Reflect.apply(createCorpusReadResponder, undefined, ["character.list", viewer, [copied]])).toThrow("Unadmitted corpus capture");
+  expect(() => {
+    Reflect.apply(createCorpusReadResponder, undefined, ["character.list", viewer, [copied]]);
+  }).toThrow("Unadmitted corpus capture");
 });

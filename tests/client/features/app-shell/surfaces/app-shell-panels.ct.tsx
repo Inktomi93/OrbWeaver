@@ -11,6 +11,7 @@ import { loadAppearancePreset } from "@orb/testkit/node/helpers";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { z } from "zod";
+import { CHARACTER_IMPORT_NAME } from "#client/features/character/lib/character-names.ts";
 import type { AppShellListDockStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -213,17 +214,17 @@ test.describe("on a wide desktop", () => {
     await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     await expect(context.locator(".shell-panel-body")).not.toBeEmpty();
     await expect
-      .poll(() =>
-        page.evaluate(() => {
-          const tasks = Reflect.get(globalThis, "__panelTasks") as { tick: number; mode: boolean; body: boolean }[];
-          const modeTick = tasks.find((task) => task.mode)?.tick;
-          const bodyTick = tasks.find((task) => task.body)?.tick;
-          if (modeTick === undefined || bodyTick === undefined) {
-            return `probe-blind:${String(modeTick)}/${String(bodyTick)}`;
-          }
-          return bodyTick > modeTick ? "deferred" : "same-task";
-        }),
-      )
+      .poll(async () => {
+        const tasks = z
+          .array(z.object({ tick: z.number(), mode: z.boolean(), body: z.boolean() }))
+          .parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__panelTasks")));
+        const modeTick = tasks.find((task) => task.mode)?.tick;
+        const bodyTick = tasks.find((task) => task.body)?.tick;
+        if (modeTick === undefined || bodyTick === undefined) {
+          return `probe-blind:${String(modeTick)}/${String(bodyTick)}`;
+        }
+        return bodyTick > modeTick ? "deferred" : "same-task";
+      })
       .toBe("deferred");
   });
 
@@ -330,7 +331,11 @@ test.describe("on a wide desktop", () => {
     await mount<typeof AppShellStory>(STORY, {});
     await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "chats");
     // A programmatic swap with nothing focused is the genuine focus-loss shape the rescue exists for.
-    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await page.evaluate(() => {
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+    });
     await rail(page)
       .getByRole("button", { name: SECTION_LABELS.presets, exact: true })
       .evaluate((node) => node.dispatchEvent(new MouseEvent("click", { bubbles: true })));
@@ -362,7 +367,7 @@ test.describe("on a wide desktop", () => {
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "docked");
     // The band's New is a word or a glyph by its own container width; exactly one of the pair is in the tree.
     await expect(band.getByRole("button", { name: /^New(?: character)?$/u })).toHaveCount(1);
-    await expect(band.getByRole("button", { name: "Import a character card", exact: true })).toHaveCount(1);
+    await expect(band.getByRole("button", { name: CHARACTER_IMPORT_NAME, exact: true })).toHaveCount(1);
     await expect(band.locator('[data-slot="list-pane-title"]')).toContainText(/\d/u);
     const squeezed = await read();
     await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).click();
@@ -484,8 +489,8 @@ test.describe("across the width regimes", () => {
     await seedShellState(page, { activeSection: "presets" });
     const component = await mount<typeof AppShellStory>(STORY, {});
     const context = page.locator(CONTEXT);
-    const counts = (): Promise<{ observe: number; disconnect: number }> =>
-      page.evaluate(() => Reflect.get(globalThis, "__primacyObserver") as { observe: number; disconnect: number });
+    const counts = async (): Promise<{ observe: number; disconnect: number }> =>
+      z.object({ observe: z.number(), disconnect: z.number() }).parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__primacyObserver")));
     await expect(context).toHaveAttribute("data-panel-mode", "docked");
     await forceConstrained(page);
     await expect(context).toHaveAttribute("data-panel-mode", "collapsed");

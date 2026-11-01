@@ -65,7 +65,7 @@ function CtRealSectionRegistry({ children }: { readonly children: ReactNode }): 
 }
 
 function NoticeBinding({ children }: { readonly children: ReactNode }): ReactElement {
-  const [manager] = useState(() => createToastManager());
+  const [manager] = useState(() => createToastManager<object>());
   const [notice] = useState(() => createToastNotify(manager));
   useLayoutEffect(() => leaseNotify(notice)[Symbol.dispose], [notice]);
   return <ToastProvider toastManager={manager}>{children}</ToastProvider>;

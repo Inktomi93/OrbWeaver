@@ -17,8 +17,8 @@ test("inline code carries only classes a stylesheet rule defines, and the fenced
     // Tailwind layers its utilities, so a rule can sit inside a grouping rule: walk every nested rule list.
     const selectorsOf = (rules: CSSRuleList): string[] =>
       [...rules].flatMap((rule) => [
-        ...("selectorText" in rule ? [String(rule.selectorText)] : []),
-        ...("cssRules" in rule ? selectorsOf(rule.cssRules as CSSRuleList) : []),
+        ...(rule instanceof CSSStyleRule ? [rule.selectorText] : []),
+        ...(rule instanceof CSSGroupingRule ? selectorsOf(rule.cssRules) : []),
       ]);
     const selectors = [...document.styleSheets].flatMap((sheet) => selectorsOf(sheet.cssRules));
     return [...element.classList].filter((token) => !selectors.some((text) => text.includes(`.${CSS.escape(token)}`)));

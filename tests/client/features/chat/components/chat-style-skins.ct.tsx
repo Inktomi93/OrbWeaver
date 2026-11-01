@@ -342,7 +342,10 @@ for (const chatStyle of THEME_CHAT_STYLES) {
 
 // Owner CSS that restyles how an art hook's image fills its box: none of these is the art slot's own value.
 const OWNER_FIT = { "background-size": "10px 10px", "background-position": "0% 0%", "background-repeat": "repeat" } as const;
-const OWNER_FIT_HOOKS = { echo: "message-echo-art", whisper: "message-band" } as const satisfies Partial<Record<ThemeChatStyle, string>>;
+const OWNER_FIT_HOOKS = [
+  ["echo", "message-echo-art"],
+  ["whisper", "message-band"],
+] as const satisfies readonly (readonly [ThemeChatStyle, string])[];
 
 /** Select a custom theme named `name` carrying `css` for the owner, run `body`, then restore the owner's own selection. */
 async function withOwnerCss(name: string, css: string, body: (themeId: ThemeId) => Promise<void>): Promise<void> {
@@ -374,7 +377,7 @@ function ownerFitCss(hook: string): string {
   return `[data-slot="${hook}"] { ${declarations.join(" ")} }`;
 }
 
-for (const [chatStyle, hook] of Object.entries(OWNER_FIT_HOOKS) as [ThemeChatStyle, string][]) {
+for (const [chatStyle, hook] of OWNER_FIT_HOOKS) {
   test(`owner CSS on the ${hook} hook decides how the ${chatStyle} art fills its box`, async ({ corpus, mount, page }) => {
     let painted: Record<string, string> = {};
     await withOwnerCss(`Owner CSS on ${hook}`, ownerFitCss(hook), async (themeId) => {
@@ -583,12 +586,20 @@ for (const viewport of READING_VIEWPORTS) {
               await row.evaluate((element) => {
                 const scroller = element.closest('[data-slot="message-list-scroll"]');
                 const bar = element.querySelector('[data-slot="message-name-row"]');
+                // DOMRect.toJSON() is typed any, so the box is projected field by field.
+                const box = (target: Element | null | undefined): Record<string, number> | undefined => {
+                  if (target === null || target === undefined) {
+                    return undefined;
+                  }
+                  const { x, y, width, height, top, right, bottom, left } = target.getBoundingClientRect();
+                  return { x, y, width, height, top, right, bottom, left };
+                };
                 return {
                   id: element.getAttribute("data-message-id"),
                   role: element.getAttribute("data-role"),
-                  row: element.getBoundingClientRect().toJSON(),
-                  header: bar?.getBoundingClientRect().toJSON(),
-                  scrollport: scroller?.getBoundingClientRect().toJSON(),
+                  row: box(element),
+                  header: box(bar),
+                  scrollport: box(scroller),
                   scrollTop: scroller?.scrollTop,
                 };
               }),

@@ -11,6 +11,7 @@ import { channelName } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { CHARACTER_IMPORT_NAME } from "#client/features/character/lib/character-names.ts";
 import type { AppShellCharacterStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { PlantedControlsStory } from "./_text-scale-probe-stories.tsx";
 import { routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -437,8 +438,8 @@ for (const [viewport, scale] of QUALIFIED.importDialog) {
     test("fits its frame and keeps both exits reachable", async ({ mount, page }) => {
       await seedShellState(page, { activeSection: "characters" });
       await mount<typeof AppShellStory>(STORY, {});
-      await page.getByRole("button", { name: "Import a character card", exact: true }).click();
-      const dialog = page.getByRole("dialog", { name: "Import a character card", exact: true });
+      await page.getByRole("button", { name: CHARACTER_IMPORT_NAME, exact: true }).click();
+      const dialog = page.getByRole("dialog", { name: CHARACTER_IMPORT_NAME, exact: true });
       await expect(dialog).toBeVisible();
       await scaleRoot(page, scale.factor);
       // The popup is its own scroller on a short viewport, so an exit is reachable once scrolled to.

@@ -10,7 +10,8 @@ test("authored role rails cover each actual task requirement", () => {
       throw new Error(`No role row for ${task}`);
     }
     const clauses = row.requirements.map(({ requires }) => requires);
-    for (const [axis, value] of Object.entries(taskDef(task).requires ?? {})) {
+    const requirement: [string, unknown][] = Object.entries(taskDef(task).requires ?? {});
+    for (const [axis, value] of requirement) {
       expect(clauses, `${task}.${axis} has no authored requirement warning`).toEqual(expect.arrayContaining([expect.objectContaining({ [axis]: value })]));
     }
   }

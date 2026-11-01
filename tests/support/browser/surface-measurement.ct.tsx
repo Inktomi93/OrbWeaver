@@ -212,7 +212,7 @@ test("web-vitals initialization is per document and missing metric callbacks sta
   await page.addInitScript({ content: webVitalsInitScript(await webVitalsSource()) });
   await page.goto(`http://127.0.0.1:${String(address.port)}${CONTROL_PATH}`);
   await attachNativeFile(info, info, "native-navigation-timing", {
-    body: JSON.stringify(await page.evaluate(() => performance.getEntriesByType("navigation").map((entry) => entry.toJSON())), null, 2),
+    body: JSON.stringify(await page.evaluate(() => performance.getEntriesByType("navigation").map((entry): unknown => entry.toJSON())), null, 2),
     contentType: "application/json",
   });
   const before = await readWebVitals(page);

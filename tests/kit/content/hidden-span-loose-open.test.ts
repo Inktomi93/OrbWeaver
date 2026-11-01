@@ -63,7 +63,7 @@ function streamed(pieces: readonly string[]): string {
 
 /** Every way a provider can cut the body in two, plus one byte at a time. */
 function cutsOf(body: string): readonly (readonly string[])[] {
-  return [...Array.from({ length: body.length + 1 }, (_, at) => [body.slice(0, at), body.slice(at)]), [...body]];
+  return [...Array.from({ length: body.length + 1 }, (_, at) => [body.slice(0, at), body.slice(at)]), Array.from(body)];
 }
 
 test.each(concealed)("%s is hidden from members to the end of the body", (_name, body) => {
@@ -78,7 +78,7 @@ test.each(closed)("%s is one hidden tag on every plane that reads tags", (_name,
   expect(projectBodyForSummary(body)).toBe("Before  after");
   expect(projectBodyForPreview(body)).toBe("Before after");
   expect(streamed(cutsOf(body)[Math.floor(body.length / 2)] ?? [])).toBe("Before  after");
-  expect(streamed([...body])).toBe("Before  after");
+  expect(streamed(Array.from(body))).toBe("Before  after");
   expect(tokenizeContent(body).map(contentSpanRaw).join("")).toBe(body);
 });
 
@@ -171,7 +171,7 @@ test("the stream and the commit strip agree across seeded random tag fragments",
     const committed = stripHiddenSpans(body).content;
     expect(streamed([body]), body).toBe(committed);
     expect(streamed([body.slice(0, at), body.slice(at)]), body).toBe(committed);
-    expect(streamed([...body]), body).toBe(committed);
+    expect(streamed(Array.from(body)), body).toBe(committed);
   }
 });
 

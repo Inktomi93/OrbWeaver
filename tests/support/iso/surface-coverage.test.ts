@@ -12,18 +12,21 @@ function inventory(observations: readonly object[], expected: readonly object[] 
 describe("an unlisted skip fails the walk", () => {
   test("a skip reason outside the closed list names the leaf", () => {
     const audit = auditSurfaceInventory(inventory([{ ...LEAF, disposition: "skipped", skip: "felt-optional", reason: "Read, not run" }]));
-    expect(audit.unlistedSkips).toEqual([{ ...LEAF, issue: expect.stringContaining("skip") }]);
+    expect(audit.unlistedSkips.map(({ issue: _issue, ...leaf }) => leaf)).toEqual([LEAF]);
+    expect(audit.unlistedSkips[0]?.issue).toContain("skip");
     expect(audit.malformed).toEqual([]);
   });
 
   test("a skip with free text and no listed reason names the leaf", () => {
     const audit = auditSurfaceInventory(inventory([{ ...LEAF, disposition: "skipped", reason: "Read, not run" }]));
-    expect(audit.unlistedSkips).toEqual([{ ...LEAF, issue: expect.stringContaining("skip") }]);
+    expect(audit.unlistedSkips.map(({ issue: _issue, ...leaf }) => leaf)).toEqual([LEAF]);
+    expect(audit.unlistedSkips[0]?.issue).toContain("skip");
   });
 
   test("a listed skip without its detail is still unlisted", () => {
     const audit = auditSurfaceInventory(inventory([{ ...LEAF, disposition: "skipped", skip: "not-activated" }]));
-    expect(audit.unlistedSkips).toEqual([{ ...LEAF, issue: expect.stringContaining("reason") }]);
+    expect(audit.unlistedSkips.map(({ issue: _issue, ...leaf }) => leaf)).toEqual([LEAF]);
+    expect(audit.unlistedSkips[0]?.issue).toContain("reason");
   });
 
   test("a malformed witness row is malformed, not an unlisted skip", () => {

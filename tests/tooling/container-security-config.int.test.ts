@@ -243,7 +243,8 @@ test("the shipped compose carries every runtime hardening key, and dropping any 
   // Control: a copy with each key removed in turn must be flagged for exactly that key.
   for (const [key] of COMPOSE_HARDENING) {
     const doc = parse(compose) as { services: { orbweaver: Record<string, unknown> } };
-    Reflect.deleteProperty(doc.services.orbweaver, key);
+    // JSON.stringify drops an undefined value, so the key is absent from the serialized compose.
+    doc.services.orbweaver[key] = undefined;
     expect(hardeningMisses(JSON.stringify(doc)), key).toEqual([key]);
   }
 });

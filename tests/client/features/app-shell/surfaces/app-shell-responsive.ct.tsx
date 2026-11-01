@@ -8,6 +8,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { LENGTH_BASE_PX, MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeRoom, SHELL_STORIES, touchDrag } from "./app-shell-ct.ts";
 
@@ -50,7 +51,7 @@ async function paintedFrames(page: Page, count: number): Promise<void> {
 
 /** Push the first character in the library: on a phone a selection makes CONTENT the screen. */
 async function openFirstCharacter(page: Page): Promise<void> {
-  const library = page.locator(LIST).getByRole("list", { name: "Character library" });
+  const library = page.locator(LIST).getByRole("list", { name: CHARACTER_LIBRARY_NAME });
   await library.getByRole("button").first().click();
   await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "collapsed");
   await expect(page.getByRole("button", { name: "Back to Characters", exact: true })).toBeVisible();

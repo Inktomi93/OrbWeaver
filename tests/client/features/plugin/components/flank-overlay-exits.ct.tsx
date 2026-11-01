@@ -112,7 +112,7 @@ test("a room entered with the column collapsed stamps no glide when its panels a
     Reflect.set(globalThis, "__flankStamps", stamps);
     new MutationObserver((records) => {
       for (const record of records) {
-        stamps.push(`${record.attributeName}=${(record.target as Element).getAttribute(record.attributeName ?? "")}`);
+        stamps.push(`${record.attributeName}=${record.target instanceof Element ? record.target.getAttribute(record.attributeName ?? "") : null}`);
       }
     }).observe(document, { attributes: true, subtree: true, attributeFilter: ["data-flank-flip", "data-flank-settle"] });
   });

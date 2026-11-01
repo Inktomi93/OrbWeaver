@@ -149,7 +149,16 @@ async function touchTargetFinding(control: TouchControl, target: TouchControl, f
   }
   const identity = await control.evaluate(diagnosticTarget);
   const evidence = await control.evaluate((el) => ({
-    rect: el.getBoundingClientRect().toJSON(),
+    rect: {
+      x: el.getBoundingClientRect().x,
+      y: el.getBoundingClientRect().y,
+      width: el.getBoundingClientRect().width,
+      height: el.getBoundingClientRect().height,
+      top: el.getBoundingClientRect().top,
+      right: el.getBoundingClientRect().right,
+      bottom: el.getBoundingClientRect().bottom,
+      left: el.getBoundingClientRect().left,
+    },
     role: el.getAttribute("role"),
     ariaHidden: el.getAttribute("aria-hidden"),
     hiddenAncestor: el.closest('[aria-hidden="true"]') !== null,

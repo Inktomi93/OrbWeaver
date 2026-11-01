@@ -169,7 +169,7 @@ test("a seed palette nested inside a custom mid-grey scope paints its own tone r
     page
       .locator(`[data-nest="${nest}"] [data-role-sample]`)
       .evaluateAll((samples) =>
-        Object.fromEntries(samples.map((sample) => [sample.getAttribute("data-role-sample"), getComputedStyle(sample).backgroundColor])),
+        Object.fromEntries(samples.map((sample) => [sample.getAttribute("data-role-sample") ?? "", getComputedStyle(sample).backgroundColor] as const)),
       );
   const onPage = await painted("page");
   expect(Object.keys(onPage).length).toBeGreaterThan(0);
@@ -193,7 +193,10 @@ test("a seed palette nested inside a carried scope resolves its own value for ev
         Object.fromEntries(
           probes.map((probe) => {
             const style = getComputedStyle(probe);
-            return [probe.getAttribute("data-seed-probe"), Object.fromEntries(names.map((name) => [name, style.getPropertyValue(name).trim()]))];
+            return [
+              probe.getAttribute("data-seed-probe") ?? "",
+              Object.fromEntries(names.map((name) => [name, style.getPropertyValue(name).trim()] as const)),
+            ] as const;
           }),
         ),
       palette,

@@ -379,11 +379,8 @@ function runWrapper(
     const env = inheritedProcessEnv(Object.fromEntries([["ORB_WRAPPER_CAPTURE", captureFile]]));
     env["ORB_WRAPPER_OUTCOME"] = extra.outcome ?? "0";
     Object.assign(env, extra.env);
-    if (box === undefined) {
-      Reflect.deleteProperty(env, DEDICATED_BOX_ENV);
-    } else {
-      env[DEDICATED_BOX_ENV] = box;
-    }
+    // spawn drops an undefined value, so an unset box reaches the child as an absent variable.
+    env[DEDICATED_BOX_ENV] = box;
     const result = spawnSync(process.execPath, ["--require", preload, join(process.cwd(), "scripts", script), ...args], {
       cwd: process.cwd(),
       env,

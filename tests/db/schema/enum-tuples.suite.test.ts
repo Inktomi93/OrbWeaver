@@ -21,7 +21,7 @@ async function canonicalTuples(): Promise<readonly (readonly string[])[]> {
     const manifest = manifestSchema.parse(JSON.parse(readFileSync(join(import.meta.dirname, `../../../packages/${pkg}/package.json`), "utf8")));
     for (const subpath of Object.keys(manifest.exports)) {
       const specifier = subpath === "." ? `@orb/${pkg}` : `@orb/${pkg}/${subpath.slice("./".length)}`;
-      const exports: Record<string, unknown> = await import(specifier);
+      const exports = z.record(z.string(), z.unknown()).parse(await import(specifier));
       for (const value of Object.values(exports)) {
         if (Array.isArray(value) && value.length > 0 && value.every((member): member is string => typeof member === "string")) {
           tuples.push(value);
@@ -35,10 +35,11 @@ async function canonicalTuples(): Promise<readonly (readonly string[])[]> {
 function enumColumns(exports: Readonly<Record<string, unknown>>): ReadonlyMap<string, readonly string[]> {
   const columns = new Map<string, readonly string[]>();
   for (const table of new Set(Object.values(exports).filter((value): value is SQLiteTable => is(value, SQLiteTable)))) {
-    const keyOf = new Map(Object.entries(table).flatMap(([key, value]) => (is(value, SQLiteColumn) ? [[value, key] as const] : [])));
+    const members: [string, unknown][] = Object.entries(table);
+    const keyOf = new Map<unknown, string>(members.flatMap(([key, value]) => (is(value, SQLiteColumn) ? [[value, key] as const] : [])));
     for (const column of getTableConfig(table).columns) {
       if (column.enumValues !== undefined) {
-        columns.set(`${getTableConfig(table).name}.${keyOf.get(column) ?? column.name}`, column.enumValues);
+        columns.set(`${getTableConfig(table).name}.${keyOf.get(column) ?? column.name}`, z.array(z.string()).parse(column.enumValues));
       }
     }
   }

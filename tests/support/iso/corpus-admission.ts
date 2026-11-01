@@ -125,11 +125,8 @@ function admitRead<Path extends CorpusProcedurePath>(path: Path, viewerUserId: U
 function admitReads<const Paths extends ReadPaths<keyof Paths>>(paths: Paths, viewerUserId: UserId, reads: RawReads<Paths>): PlaybackReads<Paths> {
   // Every key of this closed map is filled below; the assertion covers incremental object construction.
   const admitted = {} as PlaybackReads<Paths>;
-  const admitKey = <Key extends keyof Paths>(key: Key): void => {
-    admitted[key] = admitRead<Paths[Key]>(paths[key], viewerUserId, reads[key]);
-  };
   for (const key of Object.keys(paths) as (keyof Paths)[]) {
-    admitKey(key);
+    admitted[key] = admitRead(paths[key], viewerUserId, reads[key]);
   }
   return admitted;
 }

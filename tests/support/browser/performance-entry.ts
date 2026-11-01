@@ -150,12 +150,28 @@ function diagnosticSource(source: string): string {
   return ["http:", "https:", "file:"].includes(url.protocol) ? `${url.protocol}//${url.host}${url.pathname}` : url.protocol;
 }
 
+// Chromium-only entry kinds that the DOM declarations lack as values, so each is told apart by the members it carries.
+function isLayoutShift(entry: PerformanceEntry): entry is CLSMetric["entries"][number] {
+  return "hadRecentInput" in entry && "sources" in entry;
+}
+
+function isLongFrame(entry: PerformanceEntry): entry is PerformanceLongAnimationFrameTiming {
+  return "scripts" in entry && "renderStart" in entry;
+}
+
+function isLongTask(entry: PerformanceEntry): entry is LongTaskEntry {
+  return "attribution" in entry && Array.isArray(entry.attribution);
+}
+
 /** Copy native entry fields explicitly; native JSON and DOM-node serialization lose attribution. */
 export function serializePerformanceEntry(entry: PerformanceEntry): SerializedPerformanceEntry {
   const base = { entryType: entry.entryType, startTime: entry.startTime, duration: entry.duration };
   switch (entry.entryType) {
     case "layout-shift": {
-      const shift = entry as CLSMetric["entries"][number];
+      if (!isLayoutShift(entry)) {
+        return { ...base, kind: "other" };
+      }
+      const shift = entry;
       return {
         ...base,
         kind: "layout-shift",
@@ -169,7 +185,10 @@ export function serializePerformanceEntry(entry: PerformanceEntry): SerializedPe
       };
     }
     case "event": {
-      const event = entry as PerformanceEventTiming;
+      if (!(entry instanceof PerformanceEventTiming)) {
+        return { ...base, kind: "other" };
+      }
+      const event = entry;
       return {
         ...base,
         kind: "event",
@@ -182,7 +201,10 @@ export function serializePerformanceEntry(entry: PerformanceEntry): SerializedPe
       };
     }
     case "largest-contentful-paint": {
-      const paint = entry as LargestContentfulPaint;
+      if (!(entry instanceof LargestContentfulPaint)) {
+        return { ...base, kind: "other" };
+      }
+      const paint = entry;
       return {
         ...base,
         kind: "largest-contentful-paint",
@@ -193,7 +215,10 @@ export function serializePerformanceEntry(entry: PerformanceEntry): SerializedPe
       };
     }
     case "long-animation-frame": {
-      const frame = entry as PerformanceLongAnimationFrameTiming;
+      if (!isLongFrame(entry)) {
+        return { ...base, kind: "other" };
+      }
+      const frame = entry;
       return {
         ...base,
         kind: "long-animation-frame",
@@ -205,7 +230,10 @@ export function serializePerformanceEntry(entry: PerformanceEntry): SerializedPe
       };
     }
     case "navigation": {
-      const navigation = entry as PerformanceNavigationTiming;
+      if (!(entry instanceof PerformanceNavigationTiming)) {
+        return { ...base, kind: "other" };
+      }
+      const navigation = entry;
       return {
         ...base,
         kind: "navigation",
@@ -218,7 +246,10 @@ export function serializePerformanceEntry(entry: PerformanceEntry): SerializedPe
       };
     }
     case "resource": {
-      const resource = entry as PerformanceResourceTiming;
+      if (!(entry instanceof PerformanceResourceTiming)) {
+        return { ...base, kind: "other" };
+      }
+      const resource = entry;
       return {
         ...base,
         kind: "resource",
@@ -231,7 +262,10 @@ export function serializePerformanceEntry(entry: PerformanceEntry): SerializedPe
       };
     }
     case "longtask": {
-      const task = entry as LongTaskEntry;
+      if (!isLongTask(entry)) {
+        return { ...base, kind: "other" };
+      }
+      const task = entry;
       return {
         ...base,
         kind: "longtask",
@@ -250,5 +284,7 @@ export function serializePerformanceEntry(entry: PerformanceEntry): SerializedPe
 
 /** Keep the serialized browser functions together so the Node-side initializer needs no DOM runtime. */
 export function performanceEntrySource(): string {
-  return [diagnosticTarget, rect, diagnosticSource, scriptTiming, serializePerformanceEntry].map((fn) => fn.toString()).join("\n");
+  return [diagnosticTarget, rect, diagnosticSource, scriptTiming, isLayoutShift, isLongFrame, isLongTask, serializePerformanceEntry]
+    .map((fn) => fn.toString())
+    .join("\n");
 }

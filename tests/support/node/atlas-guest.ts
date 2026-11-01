@@ -199,5 +199,5 @@ export async function bootAtlasDates(): Promise<{ readonly epochMs: (value: unkn
   if (typeof epochMs !== "function" || typeof fmtDate !== "function") {
     throw new Error("card-atlas bundle has no private date engine");
   }
-  return { epochMs: (value): unknown => epochMs(value), fmtDate: (ms): unknown => fmtDate(ms) };
+  return { epochMs: (value): unknown => Reflect.apply(epochMs, undefined, [value]), fmtDate: (ms): unknown => Reflect.apply(fmtDate, undefined, [ms]) };
 }

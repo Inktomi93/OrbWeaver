@@ -152,7 +152,15 @@ async function routeGroup(page: Page, group: FirstBootGroup, caller: object): Pr
 }
 
 async function rememberedBoxes(page: Page): Promise<Readonly<Record<string, number>>> {
-  const stored = await page.evaluate(() => Object.entries(localStorage).find(([name]) => name.endsWith("surface-box"))?.[1] ?? null);
+  const stored = await page.evaluate(() => {
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const name = localStorage.key(index);
+      if (name?.endsWith("surface-box") === true) {
+        return localStorage.getItem(name);
+      }
+    }
+    return null;
+  });
   if (stored === null) {
     return {};
   }

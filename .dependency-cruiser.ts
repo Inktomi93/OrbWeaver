@@ -512,6 +512,11 @@ const SERVER_TEST_REACHES = {
   },
 } as const satisfies Readonly<Record<string, Readonly<Record<string, string>>>>;
 
+function withoutExtension(path: string): string {
+  const dot = path.lastIndexOf(".");
+  return dot > path.lastIndexOf("/") ? path.slice(0, dot) : path;
+}
+
 function serverTestMirrorRules(): IForbiddenRuleType[] {
   const reachers = Object.keys(SERVER_TEST_REACHES).map((path) => `^${RegExp.escape(path)}$`);
   const mirror = (name: string, comment: string, from: string, own: string): IForbiddenRuleType[] => [
@@ -532,10 +537,7 @@ function serverTestMirrorRules(): IForbiddenRuleType[] {
       const mirrored = own.replaceAll(/\$(\d)/gu, (_, index: string) => RegExp.escape(groups[Number(index)] ?? ""));
       return [
         {
-          name: `${name}-listed-${path
-            .replace(/^tests\/server\//u, "")
-            .replace(/\.[^/]*$/u, "")
-            .replaceAll("/", "-")}`,
+          name: `${name}-listed-${withoutExtension(path.replace(/^tests\/server\//u, "")).replaceAll("/", "-")}`,
           comment,
           severity: "error",
           from: { path: `^${RegExp.escape(path)}$` },
@@ -810,10 +812,7 @@ function withListedCopies(pkg: string, rule: MirrorRule): IForbiddenRuleType[] {
     ),
     ...listed.map(([path, files]) =>
       mirrorRule({
-        name: `${rule.name}-listed-${path
-          .replace(/^tests\/[^/]+\//u, "")
-          .replace(/\.[^/]*$/u, "")
-          .replaceAll("/", "-")}`,
+        name: `${rule.name}-listed-${withoutExtension(path.replace(/^tests\/[^/]+\//u, "")).replaceAll("/", "-")}`,
         comment: rule.comment,
         from: `^${RegExp.escape(path)}$`,
         to: rule.to,
@@ -865,7 +864,7 @@ function packageTestMirrorRules([pkg, packageCake]: readonly [string, string]): 
             comment: "A feature suite or story runs only its own feature's door; another feature reaches it through the composed registries.",
             from: "^tests/client/features/([^/]+)/",
             to: `${CLIENT}features/`,
-            toNot: [`${CLIENT}features/$1/`],
+            toNot: [`${CLIENT}features/$1/`, ...TEST_CONSTANT_HOME_PATHS],
             runtime: true,
           }),
           mirrorRule({
@@ -873,7 +872,7 @@ function packageTestMirrorRules([pkg, packageCake]: readonly [string, string]): 
             comment: "A suite of a client tier below the features runs no feature door.",
             from: "^tests/client/(?!features/)[^/]+/",
             to: `${CLIENT}features/`,
-            toNot: [],
+            toNot: TEST_CONSTANT_HOME_PATHS,
             runtime: true,
           }),
           mirrorRule({

@@ -509,8 +509,8 @@ test("(8) a word-keyed logit bias resolves to token ids through the server's tok
     const request = new Request(input, init);
     if (request.url.endsWith("/tokenize")) {
       const word = z.string().parse((await recordRequest(request)).body["prompt"]);
-      const ids = [...word].map((char) => char.codePointAt(0) ?? 0);
-      return Promise.resolve(Response.json({ count: ids.length, ["max_model_len"]: 4096, tokens: ids, ["token_strs"]: [...word] }));
+      const ids = Array.from(word).map((char) => char.codePointAt(0) ?? 0);
+      return Promise.resolve(Response.json({ count: ids.length, ["max_model_len"]: 4096, tokens: ids, ["token_strs"]: Array.from(word) }));
     }
     return chat(request);
   };

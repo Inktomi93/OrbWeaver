@@ -26,6 +26,8 @@ describe("production-derived settings builders", () => {
   test("an override cannot produce an envelope the real output parser refuses", async () => {
     const { userSettingsView } = await import("../iso/user-settings-view.ts");
     expect(userSettingsView({}, { configUnreadable: VERSIONED_PARSE_FAILURES.schemaRejected }).configUnreadable).toBe(VERSIONED_PARSE_FAILURES.schemaRejected);
-    expect(() => userSettingsView({}, { configUnreadable: "not-a-failure" as never })).toThrow(ZodError);
+    expect(() => {
+      Reflect.apply(userSettingsView, undefined, [{}, { configUnreadable: "not-a-failure" }]);
+    }).toThrow(ZodError);
   });
 });

@@ -660,6 +660,13 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
     },
   },
   {
+    files: ["tests/**/*.test-d.ts"],
+    rules: {
+      // The generic under test is the subject of a type assertion, so a single-use type parameter is the point.
+      "@typescript-eslint/no-unnecessary-type-parameters": "off",
+    },
+  },
+  {
     files: NODE_TOOL_SOURCE,
     ignores: ["**/*.d.{ts,mts,cts}"],
     languageOptions: { parserOptions: { project: ["tsconfig.node.json"], projectService: false, tsconfigRootDir: ROOT } },

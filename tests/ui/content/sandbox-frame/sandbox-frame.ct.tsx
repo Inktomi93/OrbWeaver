@@ -4,6 +4,7 @@ import { buildCardFrameCsp, CARD_FRAME_SAFE_FLOOR, foldCardFrameHeight } from "@
 import { expect } from "@orb/testkit/ct-corpus";
 import { LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { z } from "zod";
 import type { FocusedBesideFrameStory, SandboxFrameStory } from "./_frame-stories.tsx";
 import type { ServedFrame } from "./_served-frame.ts";
 import { routeServedFrame, test } from "./_served-frame.ts";
@@ -224,7 +225,8 @@ test("an interactive card reaches nothing new: no eval, no worker, no storage, n
   if (handle === null) {
     throw new Error("routed iframe has no content frame");
   }
-  const reach = async (): Promise<Record<string, unknown>> => await handle.evaluate(() => (globalThis as { __reach?: Record<string, unknown> }).__reach ?? {});
+  const reach = async (): Promise<Record<string, unknown>> =>
+    z.record(z.string(), z.unknown()).parse(await handle.evaluate((): unknown => Reflect.get(globalThis, "__reach") ?? {}));
   await expect.poll(reach).toMatchObject({
     eval: "refused:EvalError",
     newFunction: "refused:EvalError",

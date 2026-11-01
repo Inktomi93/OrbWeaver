@@ -63,7 +63,7 @@ test("native catalog refusal scrubs a reflected saved token from the readable re
   expect(listing.reason).not.toContain(TOKEN);
   expect(edge.environments.map((env) => env["CLAUDE_CODE_OAUTH_TOKEN"])).toEqual([TOKEN]);
   const logs = JSON.stringify(warning.mock.calls, (_key, value: unknown) =>
-    value instanceof Error ? { ...value, message: value.message, stack: value.stack, cause: value.cause } : value,
+    value instanceof Error ? { ...Object.fromEntries(Object.entries(value)), message: value.message, stack: value.stack, cause: value.cause } : value,
   );
   expect(logs).toContain("auth rejected");
   expect(logs).not.toContain(TOKEN);

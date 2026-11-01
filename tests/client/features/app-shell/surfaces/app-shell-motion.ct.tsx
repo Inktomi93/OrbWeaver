@@ -178,22 +178,25 @@ function startSampler(page: Page, boxes: readonly DoorBox[]): Promise<void> {
         }
         return element.getBoundingClientRect();
       };
+      const sample = (): Record<string, number> => {
+        const frame: Record<string, number> = {};
+        for (const [name, selector] of Object.entries(selectors)) {
+          frame[name] = Math.round(read(name, selector).x * 10) / 10;
+        }
+        for (const [name, selector] of Object.entries(widths)) {
+          frame[name] = Math.round(read(name, selector).width);
+        }
+        return frame;
+      };
       const tick = (): void => {
         if (ring.length > limit) {
           return;
         }
         try {
-          const frame: Record<string, number> = {};
-          for (const [name, selector] of Object.entries(selectors)) {
-            frame[name] = Math.round(read(name, selector).x * 10) / 10;
-          }
-          for (const [name, selector] of Object.entries(widths)) {
-            frame[name] = Math.round(read(name, selector).width);
-          }
-          ring.push(frame);
+          ring.push(sample());
           requestAnimationFrame(tick);
         } catch (error) {
-          Reflect.set(globalThis, "__shellFramesError", (error as Error).message);
+          Reflect.set(globalThis, "__shellFramesError", error instanceof Error ? error.message : String(error));
         }
       };
       requestAnimationFrame(tick);
@@ -203,10 +206,13 @@ function startSampler(page: Page, boxes: readonly DoorBox[]): Promise<void> {
 }
 
 async function readSamples(page: Page): Promise<Frame[]> {
-  const { frames, error } = await page.evaluate(() => ({
-    frames: Reflect.get(globalThis, "__shellFrames") as Record<string, number>[],
-    error: Reflect.get(globalThis, "__shellFramesError") as string | null,
-  }));
+  const { frames, error } = z.object({ frames: z.array(z.record(z.string(), z.number())), error: z.string().nullable() }).parse(
+    await page.evaluate((): unknown => {
+      const recorded: unknown = Reflect.get(globalThis, "__shellFrames");
+      const failure: unknown = Reflect.get(globalThis, "__shellFramesError");
+      return { frames: recorded, error: failure };
+    }),
+  );
   if (error !== null) {
     throw new Error(error);
   }
@@ -291,33 +297,43 @@ async function animationStarts(page: Page): Promise<string[]> {
 /** Sum every layout shift the browser scores from now on. A click drives each case, so recent input is not filtered. */
 function recordLayoutShift(page: Page): Promise<void> {
   return page.evaluate(() => {
-    const total = { value: 0 };
+    const values: number[] = [];
     const observer = new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
-        total.value += (entry as PerformanceEntry & { value: number }).value;
+        if ("value" in entry && typeof entry.value === "number") {
+          values.push(entry.value);
+        }
       }
     });
     observer.observe({ type: "layout-shift" });
-    Reflect.set(globalThis, "__shift", { observer, total });
+    Reflect.set(globalThis, "__shiftObserver", observer);
+    Reflect.set(globalThis, "__shiftValues", values);
   });
 }
 
 /** The scored total after two painted frames, with the observer's queued entries taken rather than waited for. */
-function layoutShift(page: Page): Promise<number> {
-  return page.evaluate(
+async function layoutShift(page: Page): Promise<number> {
+  const scored = await page.evaluate(
     () =>
-      new Promise<number>((resolve) => {
+      new Promise<unknown>((resolve) => {
         requestAnimationFrame(() =>
           requestAnimationFrame(() => {
-            const { observer, total } = Reflect.get(globalThis, "__shift") as { observer: PerformanceObserver; total: { value: number } };
-            for (const entry of observer.takeRecords()) {
-              total.value += (entry as PerformanceEntry & { value: number }).value;
+            const observer: unknown = Reflect.get(globalThis, "__shiftObserver");
+            const values: unknown = Reflect.get(globalThis, "__shiftValues");
+            const taken = observer instanceof PerformanceObserver ? observer.takeRecords() : [];
+            const fresh = taken.flatMap((entry) => ("value" in entry && typeof entry.value === "number" ? [entry.value] : []));
+            if (Array.isArray(values)) {
+              values.push(...fresh);
             }
-            resolve(total.value);
+            resolve(values);
           }),
         );
       }),
   );
+  return z
+    .array(z.number())
+    .parse(scored)
+    .reduce((sum, value) => sum + value, 0);
 }
 
 /** The instrument's positive control: push the content region's children down by one chrome row, a shift the browser must score. */
@@ -352,10 +368,14 @@ function recordFlipKeyframes(page: Page): Promise<void> {
     document.addEventListener("animationstart", (event) => {
       const animation =
         event.target instanceof Element
-          ? event.target.getAnimations().find((candidate) => (candidate as CSSAnimation).animationName === event.animationName)
+          ? event.target.getAnimations().find((candidate) => candidate instanceof CSSAnimation && candidate.animationName === event.animationName)
           : undefined;
       const translate = animation?.effect instanceof KeyframeEffect ? animation.effect.getKeyframes()[0]?.["translate"] : undefined;
-      seen[event.animationName] = typeof translate === "string" ? Number.parseFloat(translate) : Number.NaN;
+      // A `calc()` with a percentage (the trail's counter reads its own width) has no px to read before it resolves, so it is not recorded.
+      const px = typeof translate === "string" ? Number.parseFloat(translate) : Number.NaN;
+      if (Number.isFinite(px)) {
+        seen[event.animationName] = px;
+      }
     });
   });
 }
@@ -543,9 +563,9 @@ test.describe("a section swap", () => {
       await expect(grid).toHaveAttribute("data-section", id);
       await page.waitForFunction(() => !document.documentElement.matches(":active-view-transition"));
     }
-    const seen = await page.evaluate(
-      () => Reflect.get(globalThis, "__viewTransitions") as { pseudos: string[]; groupMorphs: boolean; fit: string; anchor: string; oldReturns: boolean }[],
-    );
+    const seen = z
+      .array(z.object({ pseudos: z.array(z.string()), groupMorphs: z.boolean(), fit: z.string(), anchor: z.string(), oldReturns: z.boolean() }))
+      .parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__viewTransitions")));
     expect(seen.length).toBeGreaterThan(0);
     const pseudos = seen.flatMap((transition) => transition.pseudos);
     expect(pseudos).toContain("::view-transition-new(orb-section-content)");
@@ -697,7 +717,7 @@ async function holdDoorClock(page: Page, button: string, selector: string, anima
         const animation = document
           .querySelector(target)
           ?.getAnimations()
-          .find((candidate) => (candidate as CSSAnimation).animationName === name);
+          .find((candidate) => candidate instanceof CSSAnimation && candidate.animationName === name);
         return animation?.playState === "running" && Number(animation.currentTime) > phase;
       },
       { target: selector, name: animationName, phase: 2 * PHASE_TOLERANCE_MS },
@@ -719,7 +739,9 @@ test.describe("a row mounted mid-door", () => {
     await waitForShellIdle(page);
     // The tracks already mounted, kept in page memory so the read below can tell a newcomer from them.
     await page.evaluate(() => {
-      Reflect.set(globalThis, "__tracksAtRest", new Set(document.querySelectorAll(".orb-chat-track")));
+      for (const track of document.querySelectorAll(".orb-chat-track")) {
+        track.setAttribute("data-ct-at-rest", "");
+      }
     });
     await using _clock = await holdDoorClock(page, "Hide list panel", ".shell-main", "shell-main-flip");
     const read = await page.evaluate(async () => {
@@ -728,9 +750,8 @@ test.describe("a row mounted mid-door", () => {
       if (scroller === null) {
         throw new Error("The transcript scroller is absent");
       }
-      const atRest = Reflect.get(globalThis, "__tracksAtRest") as Set<Element>;
       const flip = (element: Element | null, name: string): Animation | undefined =>
-        element?.getAnimations().find((candidate) => (candidate as CSSAnimation).animationName === name);
+        element?.getAnimations().find((candidate) => candidate instanceof CSSAnimation && candidate.animationName === name);
       const reference = flip(document.querySelector(".shell-main"), "shell-main-flip");
       if (reference === undefined) {
         throw new Error("The held list door animation is absent");
@@ -739,11 +760,11 @@ test.describe("a row mounted mid-door", () => {
       let newcomers: Element[] = [];
       while (reference.playState === "running" && newcomers.length === 0) {
         await frame();
-        newcomers = Array.from(document.querySelectorAll(".orb-chat-track")).filter((track) => !atRest.has(track));
+        newcomers = Array.from(document.querySelectorAll(".orb-chat-track")).filter((track) => !track.hasAttribute("data-ct-at-rest"));
       }
       // Read in the next painted frame, over the newcomers still mounted then: the list drops rows it scrolled past.
       await frame();
-      const mounted = Array.from(document.querySelectorAll(".orb-chat-track")).filter((track) => !atRest.has(track));
+      const mounted = Array.from(document.querySelectorAll(".orb-chat-track")).filter((track) => !track.hasAttribute("data-ct-at-rest"));
       return {
         reference: reference.playState === "running" ? Number(reference.currentTime) : null,
         newcomers: mounted.map((track) => {
@@ -779,7 +800,7 @@ test.describe("a row mounted mid flank door", () => {
       // Read the row fresh each time: the room may re-render it across the door.
       const row = (): Element | null => document.querySelector('[data-slot="chat-room-flank-row"]');
       const flip = (element: Element): Animation | undefined =>
-        element.getAnimations().find((candidate) => (candidate as CSSAnimation).animationName === "room-flank-centre-flip");
+        element.getAnimations().find((candidate) => candidate instanceof CSSAnimation && candidate.animationName === "room-flank-centre-flip");
       const tracks = (): Element[] => Array.from(row()?.querySelectorAll(".orb-chat-track") ?? []);
       const armed = new Set(tracks().filter((track) => flip(track) !== undefined));
       const reference = (): Animation | undefined =>
@@ -900,7 +921,11 @@ test.describe("on a phone", () => {
     await page.evaluate(() => {
       const deliveries: (string | null)[][] = [];
       Reflect.set(globalThis, "__flipStamps", deliveries);
-      new MutationObserver((records) => deliveries.push(records.map((record) => record.oldValue))).observe(document.querySelector(".shell-grid") as Element, {
+      const grid = document.querySelector(".shell-grid");
+      if (grid === null) {
+        throw new Error("The shell grid is absent");
+      }
+      new MutationObserver((records) => deliveries.push(records.map((record) => record.oldValue))).observe(grid, {
         attributeFilter: ["data-list-flip"],
         attributeOldValue: true,
       });

@@ -5,6 +5,7 @@ import { createShellAmbientReads, routeTrpc, SECTION_LABELS, serveCorpusProcedur
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import { z } from "zod";
 import type { AppShellModalStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { JUMP_CHIP, PHONE, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -90,7 +91,7 @@ test("the shortcut cancels only an exact, non-repeating chord and leaves every t
 test("rapid chords share one pending frame, the listener never duplicates, and unmount releases both", async ({ mount, page }) => {
   await page.addInitScript(() => {
     const active = new Set<EventListenerOrEventListenerObject>();
-    const probe = { active, adds: 0, removes: 0 };
+    const probe = { active: 0, adds: 0, removes: 0 };
     Reflect.set(globalThis, "__commandListenerProbe", probe);
     const add = document.addEventListener.bind(document);
     const remove = document.removeEventListener.bind(document);
@@ -99,12 +100,14 @@ test("rapid chords share one pending frame, the listener never duplicates, and u
       const capture = options === true || (typeof options === "object" && options.capture === true);
       if (type === "keydown" && capture && !active.has(listener)) {
         active.add(listener);
+        probe.active = active.size;
         probe.adds += 1;
       }
       add(type, listener, options);
     }) as typeof document.addEventListener;
     document.removeEventListener = ((type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void => {
       if (type === "keydown" && active.delete(listener)) {
+        probe.active = active.size;
         probe.removes += 1;
       }
       remove(type, listener, options);
@@ -112,11 +115,10 @@ test("rapid chords share one pending frame, the listener never duplicates, and u
   });
   const component = await mount<typeof AppShellStory>(STORY, {});
   await expect(page.getByRole("button", { name: JUMP_CHIP })).toBeVisible();
-  const listeners = (): Promise<{ active: number; adds: number; removes: number }> =>
-    page.evaluate(() => {
-      const probe = Reflect.get(globalThis, "__commandListenerProbe") as { active: Set<unknown>; adds: number; removes: number };
-      return { active: probe.active.size, adds: probe.adds, removes: probe.removes };
-    });
+  const listeners = async (): Promise<{ active: number; adds: number; removes: number }> =>
+    z
+      .object({ active: z.number(), adds: z.number(), removes: z.number() })
+      .parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__commandListenerProbe")));
   const baseline = await listeners();
 
   // A rerender that re-runs the shortcut's effect replaces its listener rather than stacking a second one.
@@ -127,26 +129,27 @@ test("rapid chords share one pending frame, the listener never duplicates, and u
 
   await page.evaluate(() => {
     const callbacks = new Map<number, FrameRequestCallback>();
-    const probe = { callbacks, canceled: 0, nextId: 1, requested: 0 };
+    const probe = { pending: 0, canceled: 0, nextId: 1, requested: 0 };
     Reflect.set(globalThis, "__commandFrameProbe", probe);
     globalThis.requestAnimationFrame = (callback: FrameRequestCallback): number => {
       const id = probe.nextId;
       probe.nextId += 1;
       probe.requested += 1;
       callbacks.set(id, callback);
+      probe.pending = callbacks.size;
       return id;
     };
     globalThis.cancelAnimationFrame = (id: number): void => {
       if (callbacks.delete(id)) {
+        probe.pending = callbacks.size;
         probe.canceled += 1;
       }
     };
   });
-  const frames = (): Promise<{ canceled: number; pending: number; requested: number }> =>
-    page.evaluate(() => {
-      const probe = Reflect.get(globalThis, "__commandFrameProbe") as { callbacks: Map<number, unknown>; canceled: number; requested: number };
-      return { canceled: probe.canceled, pending: probe.callbacks.size, requested: probe.requested };
-    });
+  const frames = async (): Promise<{ canceled: number; pending: number; requested: number }> =>
+    z
+      .object({ canceled: z.number(), pending: z.number(), requested: z.number() })
+      .parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__commandFrameProbe")));
   expect(await dispatchCommandKey(page, { metaKey: true })).toBe(true);
   expect(await dispatchCommandKey(page, { ctrlKey: true })).toBe(true);
   expect(await frames()).toEqual({ canceled: 0, pending: 1, requested: 1 });

@@ -44,11 +44,8 @@ export async function createNativeIssuer(options: { readonly algorithm?: Generat
   let authorizationCount = 0;
   let logoutCount = 0;
   const sign = (claims: JWTPayload, signing: SignedTokenOptions = {}): Promise<string> => {
-    const payload = { ...claims };
     const omitted = signing.omittedClaims ?? [];
-    for (const claim of omitted) {
-      Reflect.deleteProperty(payload, claim);
-    }
+    const payload = Object.fromEntries(Object.entries(claims).filter(([claim]) => !omitted.includes(claim)));
     const token = new SignJWT(payload).setProtectedHeader(signing.header ?? { alg: algorithm, kid: SIGNING_KEY });
     // Native defaults must not repair raw negative cases or deliberately omitted required claims.
     if (!(Object.hasOwn(claims, "iat") || omitted.includes("iat"))) {
@@ -108,9 +105,6 @@ export async function createNativeIssuer(options: { readonly algorithm?: Generat
         jti: `scripted-logout-${String(++logoutCount)}`,
         ...claims,
       };
-      for (const claim of omittedClaims) {
-        Reflect.deleteProperty(payload, claim);
-      }
       return sign(payload, { omittedClaims });
     },
     fetch: async (input, init): Promise<Response> => {
