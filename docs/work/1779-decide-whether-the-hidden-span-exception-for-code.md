@@ -1,10 +1,10 @@
 ---
 kind: decision
-status: blocked
+status: open
 updated: 2026-11-01
 priority: P2
 area: server
-blocked: owner
+lane: cb-regex-sec
 ---
 
 # Decide whether the hidden-span exception for code blocks stays, after the strip fixpoint write-up (it caused two leaks)
