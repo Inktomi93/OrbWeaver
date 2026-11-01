@@ -51,28 +51,34 @@ for (const [label, attribute] of [
   });
 }
 
-for (const [label, attribute, withheldReason] of [
-  ["selected", "data-selected", "unmatchedSelected"],
-  ["unselected", 'aria-selected="false"', "unmatchedUnselected"],
-] as const) {
-  test(`selection-idiom withholds a comparable ${label}-only authored cohort`, async ({ runCli, scratch }) => {
-    await writeFile(
-      join(scratch, `comparable-${label}-only-selection.html`),
-      relationalDocument(`<section data-slot="choice-group">
+const COMPARABLE_PAIR = (attribute: string): string => `<section data-slot="choice-group">
 <div data-slot="choice" ${attribute} style="width:120px;height:40px">one</div>
 <div data-slot="choice" ${attribute} style="width:120px;height:40px">two</div>
-</section>`),
-    );
-    const res = await runCli("snap", ["--file", join(scratch, `comparable-${label}-only-selection.html`), ...AUDIT_ARGV], {
-      timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
-    });
-    expect(res.stdout).toContain(
-      `POPULATION   selection-idiom candidates=1 judged=0 affected=0 populations=0 representatives=0 withheld(${withheldReason}=1) excluded()`,
-    );
-    expect(res.stdout).toContain("INSTRUMENT ERROR");
-    await expect(res).toExitWith(2);
+</section>`;
+
+test("selection-idiom withholds a comparable selected-only authored cohort", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "comparable-selected-only-selection.html"), relationalDocument(COMPARABLE_PAIR("data-selected")));
+  const res = await runCli("snap", ["--file", join(scratch, "comparable-selected-only-selection.html"), ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-}
+  expect(res.stdout).toContain(
+    "POPULATION   selection-idiom candidates=1 judged=0 affected=0 populations=0 representatives=0 withheld(unmatchedSelected=1) excluded()",
+  );
+  expect(res.stdout).toContain("INSTRUMENT ERROR");
+  await expect(res).toExitWith(2);
+});
+
+test("selection-idiom EXCLUDES a cohort with nothing chosen at rest — it does not void the run", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "comparable-unselected-only-selection.html"), relationalDocument(COMPARABLE_PAIR('aria-selected="false"')));
+  const res = await runCli("snap", ["--file", join(scratch, "comparable-unselected-only-selection.html"), ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
+  expect(res.stdout).toContain(
+    "POPULATION   selection-idiom candidates=1 judged=0 affected=0 populations=0 representatives=0 withheld() excluded(noneChosenAtRest=1)",
+  );
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+  await expect(res).toExitWith(0);
+});
 
 test("selection-idiom aggregates delta vocabularies across checked, selected, and current state kinds", async ({ runCli, scratch }) => {
   const vocabularies = [
@@ -112,14 +118,14 @@ test("a selected twin in a SIBLING presentation wrapper is one cohort and judged
   await expect(res).toExitWith(0);
 });
 
-test("a cohort that is genuinely one-sided ACROSS those wrappers is still withheld — #987 :208 survives the regrouping", async ({ runCli, scratch }) => {
+test("a cohort that is genuinely one-sided ACROSS those wrappers is still one cohort — nothing chosen is excluded", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "wrapped-selection-orphan.html"), relationalDocument(gridRows(false)));
   const res = await runCli("snap", ["--file", join(scratch, "wrapped-selection-orphan.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   expect(res.stdout).toContain(
-    "POPULATION   selection-idiom candidates=1 judged=0 affected=0 populations=0 representatives=0 withheld(unmatchedUnselected=1) excluded()",
+    "POPULATION   selection-idiom candidates=1 judged=0 affected=0 populations=0 representatives=0 withheld() excluded(noneChosenAtRest=1)",
   );
-  expect(res.stdout).toContain("INSTRUMENT ERROR");
-  await expect(res).toExitWith(2);
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+  await expect(res).toExitWith(0);
 });
 
 // ── the component-PART controls (#1150), all three directions ────────────────
@@ -198,13 +204,11 @@ test("a NESTED control that owns its own aria state is a carrier, not a part —
 // were never named. The withholding itself is #987's ruling and is UNCHANGED; what changed is that it now
 // says WHAT it could not judge, which is the difference between a loud refusal and a silent third pass.
 test("a withheld selection cohort names its subject in both the population row and the NO-VERDICT detail", async ({ runCli, scratch }) => {
-  // LEFT: three carriers of one authored cohort, every one unselected — no twin exists, so #987 withholds.
+  // LEFT: three carriers of one authored cohort, every one selected — no unselected twin exists, so #987 withholds.
   // RIGHT (the control): a twinned cohort in the same document, which must still be judged and must not
   // acquire a subject of its own. Distinct `data-slot`s keep them two authored homes.
   const orphan = `<section data-slot="orphan-group">${["a", "b", "c"]
-    .map(
-      (id) => `<div id="orphan-${id}" data-slot="orphan-choice" aria-selected="false" style="color:#fff;width:120px;height:40px;background:#111">${id}</div>`,
-    )
+    .map((id) => `<div id="orphan-${id}" data-slot="orphan-choice" data-selected style="color:#fff;width:120px;height:40px;background:#111">${id}</div>`)
     .join("")}</section>`;
   const twinned = `<section data-slot="twin-group"><div id="twin-on" data-slot="twin-choice" aria-selected="true" style="color:#fff;width:120px;height:40px;background:#111;outline:2px solid orange">on</div><div id="twin-off" data-slot="twin-choice" aria-selected="false" style="color:#fff;width:120px;height:40px;background:#111">off</div></section>`;
   await writeFile(join(scratch, "withheld-subject-selection.html"), relationalDocument(orphan + twinned));
@@ -212,18 +216,12 @@ test("a withheld selection cohort names its subject in both the population row a
 
   // The tally is unchanged — one cohort withheld, one judged — so the `withheld(...)` token stays the
   // stable machine surface it was, and the subject rides its own trailing segment.
-  expect(res.stdout).toContain("POPULATION   selection-idiom candidates=2 judged=1 affected=0 populations=0 representatives=0 withheld(unmatchedUnselected=1)");
-  expect(res.stdout, "the population row must name the cohort it could not judge").toContain("withheld-at(unmatchedUnselected: #orphan-a (0 of 3 chosen))");
+  expect(res.stdout).toContain("POPULATION   selection-idiom candidates=2 judged=1 affected=0 populations=0 representatives=0 withheld(unmatchedSelected=1)");
+  expect(res.stdout, "the population row must name the cohort it could not judge").toContain("withheld-at(unmatchedSelected: #orphan-a (3 of 3 chosen))");
   // The line a reader actually acts on: the NO-VERDICT detail carries the subject beside the count.
   expect(res.stdout, "the refusal must name its subject where the verdict is stated").toMatch(
-    /selection-idiom: unmatchedUnselected=1 at #orphan-a \(0 of 3 chosen\)/u,
+    /selection-idiom: unmatchedSelected=1 at #orphan-a \(3 of 3 chosen\)/u,
   );
-  // …AND THE COHORT'S CENSUS (#1840), which is what tells the two one-sided shapes apart: three carriers,
-  // none chosen, is a cohort waiting for a drive — not a single-member list nothing can twin.
-  expect(res.stdout, "the subject must carry the cohort census, not just the element").toContain("(0 of 3 chosen)");
-  // The remedy no longer asserts that a drive exists — a cohort with no reachable selected state is a
-  // correct, final refusal, and saying so is what stops the fourth identical pass.
-  expect(res.stdout).toContain("structurally unjudgeable here");
   // CONTROL: the twinned cohort is still judged and contributes no subject.
   expect(res.stdout).not.toContain("#twin-");
   // The VERDICT is unchanged by this row — a withheld population is still a refusal, still exit 2. Naming

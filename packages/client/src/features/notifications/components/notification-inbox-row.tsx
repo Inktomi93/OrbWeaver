@@ -220,7 +220,7 @@ export function InboxRow({ item, ref, onAccepted, onRequestHandoff, acceptedHand
           </Text>
         </Stack>
       </Row>
-      <Row gap="field" align="center" justify="end">
+      <Row gap="field" align="center" className="flex-wrap" justify="end">
         {isInvite && !acted ? (
           <>
             <Button aria-label={`Accept invitation from ${item.payload.invitedByHandle}`} type="button" disabled={isPending} size="sm" onClick={acceptInvite}>

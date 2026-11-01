@@ -5,6 +5,7 @@ import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { jsxProperties, staticValueOptions } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
+import { posixPath } from "./syntax.ts";
 
 /** How a class token paints: `layout` emits only layout properties, `paint` emits anything else, `unknown` does not compile. */
 const CLASS_KINDS = ["layout", "paint", "unknown"] as const;
@@ -270,7 +271,7 @@ export function featureClassNameLayoutOnlyRule(classify: ClassClassifier): OrbRu
   return {
     meta: { type: "problem", schema: [] },
     create(context: OrbRuleContext): RuleVisitor {
-      if (!context.filename.includes(CLIENT_DIRECTORY)) {
+      if (!posixPath(context.filename).includes(CLIENT_DIRECTORY)) {
         return {};
       }
       return {
@@ -323,7 +324,7 @@ function builtReason(context: OrbRuleContext, node: MaybeNode): string | undefin
 export const noBuiltClassStringRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
-    if (!context.filename.includes(CLIENT_DIRECTORY)) {
+    if (!posixPath(context.filename).includes(CLIENT_DIRECTORY)) {
       return {};
     }
     return {

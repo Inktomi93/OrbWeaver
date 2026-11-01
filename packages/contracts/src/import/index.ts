@@ -49,36 +49,33 @@ const ST_PROFILE_HANDLED_ENTRIES = [
 
 export type StProfileHandledEntry = (typeof ST_PROFILE_HANDLED_ENTRIES)[number];
 
-const TEXT_COMPLETION_TEMPLATES = "text-completion templates — text-completion is out of product scope";
-const TEXT_COMPLETION_PRESETS = "text-completion preset files — orb has no text-completion mode";
-const TEXT_COMPLETION_LIVE = "live text-completion preset — orb has no text-completion mode";
+const TEXT_COMPLETION_TEMPLATES = "text-completion templates, which Orbweaver does not use";
+const TEXT_COMPLETION_PRESETS = "text-completion presets, which Orbweaver does not use";
+const TEXT_COMPLETION_LIVE = "the live text-completion preset, which Orbweaver does not use";
 
 /** Why each unhandled top-level profile plane has no importer. A directory name ends in `/`. A plane absent
  *  here renders bare in the report, so a new ST plane shows up instead of vanishing. */
 export const ST_PROFILE_UNHANDLED_REASONS: ReadonlyMap<string, string> = new Map([
-  ["movingUI/", "saved UI layout state — no domain home"],
+  ["movingUI/", "saved window layout"],
   ["context/", TEXT_COMPLETION_TEMPLATES],
   ["instruct/", TEXT_COMPLETION_TEMPLATES],
   ["sysprompt/", TEXT_COMPLETION_TEMPLATES],
-  ["reasoning/", "saved reasoning-format template library — the ACTIVE template already folds onto the live preset; the library is out of product scope"],
+  ["reasoning/", "the saved reasoning-format templates (the one in use is already carried by your preset)"],
   ["TextGen Settings/", TEXT_COMPLETION_PRESETS],
   ["NovelAI Settings/", TEXT_COMPLETION_PRESETS],
   ["KoboldAI Settings/", TEXT_COMPLETION_PRESETS],
-  ["QuickReplies/", "STscript quick-reply buttons — orb has no STscript executor (orb automation is CEL-based, D46)"],
-  ["assets/", "ST extension assets (portraits, audio) — no supported importer"],
-  ["vectors/", "ST's own vector store — orb re-embeds locally after import, so a foreign index never travels"],
-  ["extensions/", "third-party extension INSTALLS (code, not state) — out of scope"],
-  ["backups/", "ST's own chat backups — the live chats import; a backup copy would duplicate them"],
-  ["thumbnails/", "ST's cached avatar thumbnails — orb derives its own"],
-  ["_cache/", "ST's internal cache — not canon"],
-  [
-    "user/",
-    "user/files (Data Bank) + user/images (character gallery) ARE walked and counted (see the Data Bank / gallery section); user/workflows is ST's stock ComfyUI workflow pair — orb has no ComfyUI workflow store",
-  ],
-  [ST_SECRETS_FILE, "API keys — never uploaded and never imported (credentials are entered per-install)"],
-  ["stats.json", "usage stats — recomputed locally, not import canon"],
-  ["content.log", "ST install log — not canon"],
-  ["image-metadata.json", "ST gallery/background thumbnail metadata — orb derives its own media metadata at CAS-store time"],
+  ["QuickReplies/", "quick-reply buttons, which rely on SillyTavern scripts"],
+  ["assets/", "extension assets such as portraits and audio"],
+  ["vectors/", "SillyTavern's search index, which Orbweaver rebuilds itself"],
+  ["extensions/", "installed extensions, which are code and not your data"],
+  ["backups/", "SillyTavern's chat backups; your live chats import"],
+  ["thumbnails/", "cached avatar thumbnails, which Orbweaver makes itself"],
+  ["_cache/", "SillyTavern's internal cache"],
+  ["user/", "SillyTavern's image-generation workflows"],
+  [ST_SECRETS_FILE, "your API keys, which never leave this browser; add them again in Orbweaver"],
+  ["stats.json", "usage statistics, which Orbweaver counts itself"],
+  ["content.log", "SillyTavern's log file"],
+  ["image-metadata.json", "thumbnail details for images, which Orbweaver works out itself"],
 ]);
 
 /** Why each unhandled `settings.json` section has no importer (ST snake_case section names). */

@@ -69,7 +69,9 @@ export const WALKER_CENSUS_BORDER = `  // ── form-control boundary census (b
       });
     }
     var borderInactiveKind = (function (el) { return ${INACTIVE_KIND_EXPR}; })(bel);
+    var borderRect = bel.getBoundingClientRect();
     borderContrasts.push({
+      box: { x: borderRect.x, y: borderRect.y, width: borderRect.width, height: borderRect.height },
       selector: describe(bel),
       tag: bel.tagName.toLowerCase(),
       role: bel.getAttribute("role"),

@@ -20,8 +20,9 @@ export const dialogVariants = tv({
     // and a base `p-gutter` were two padding classes tailwind-merge could not dedupe; with the spacing scale
     // registered they DO dedupe last-wins, and per-size stays because a size arm STATING its own gutter is
     // legible where an arm neutralising an inherited one is not.
-    viewport: "fixed inset-0 z-(--z-modal) flex justify-center",
-    popup: `relative flex flex-col overflow-y-auto overscroll-contain max-block-full ${MODAL_SURFACE} ${OVERLAY_MOTION.modalPopup}`,
+    viewport: "@container fixed inset-0 z-(--z-modal) flex justify-center",
+    popup: `relative flex flex-col overflow-x-hidden overflow-y-auto overscroll-contain max-block-full ${MODAL_SURFACE} @max-cq-20:p-field ${OVERLAY_MOTION.modalPopup}
+    `,
     header: "flex shrink-0 items-center justify-between gap-row border-be border-border pbe-field",
     title: "text-title leading-title font-semibold",
     description: "mbs-field text-body leading-body text-muted-foreground",
@@ -31,6 +32,11 @@ export const dialogVariants = tv({
   },
   variants: {
     spaced: { true: { popup: "gap-block" }, false: {} },
+    // The title clears the close button pinned over its corner. Under the narrow step the close takes its own line,
+    // because a word beside it would break letter by letter.
+    clearsClose: { true: { title: "pe-(--size-control-md) wrap-break-word @max-cq-20:pe-0 @max-cq-20:pbs-(--size-control-md)" }, false: {} },
+    // A heading that takes programmatic arrival focus and no key: a ring would read as a field to type in.
+    focusTarget: { true: { title: "outline-none" }, false: {} },
     // A header that stays in view while the body scrolls under it (a drawer's title and close), on the card fill so
     // scrolled rows do not show through.
     stickyHeader: { true: { header: "sticky inset-bs-0 z-(--z-raised) bg-card" }, false: {} },

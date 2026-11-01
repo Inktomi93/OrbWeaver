@@ -4,6 +4,9 @@ import type { Linter } from "eslint";
 
 export const ROOT_SPAN_OPENERS = ["withRequestSpan", "superviseDetached", "superviseSettled"];
 
+/** A path with `/` separators: ESLint hands rules native paths, and the directory policies below match `/`-spelled segments. */
+export const posixPath = (path: string): string => path.replaceAll("\\", "/");
+
 export const memberNamed = (name: string, prefix = ""): string =>
   `:matches([${prefix}computed=false][${prefix}property.name='${name}'], [${prefix}computed=true][${prefix}property.type='Literal'][${prefix}property.value='${name}'], [${prefix}computed=true][${prefix}property.type='TemplateLiteral'][${prefix}property.expressions.length=0][${prefix}property.quasis.0.value.cooked='${name}'])`;
 

@@ -354,6 +354,22 @@ test("duplicate DOM boundary permissions refuse instead of hiding an added call"
   ).toThrow("Duplicate DOM home");
 });
 
+test("a DOM home matches a file whose path uses Windows separators", () => {
+  const home = { file: FEATURE_TS, function: "f", receiver: "document", method: "querySelector", selector: ".x", reason: "A named boundary operation." };
+  const windowsPath = `C:\\repo\\${FEATURE_TS.replaceAll("/", "\\")}`;
+  const found = new Linter({ cwd: ROOT }).verify(
+    "export const f = () => document.querySelector('.x');",
+    {
+      files: ["**/*.ts"],
+      languageOptions: { parser: tseslint.parser },
+      plugins: { probe: { rules: { lookup: domLookupRule([home]) } } },
+      rules: { "probe/lookup": "error" },
+    },
+    { filename: windowsPath },
+  );
+  expect(found).toEqual([]);
+});
+
 test("configured DOM homes stay live and preserve selector semantics", { timeout: 120_000 }, async () => {
   const { DOM_LOOKUP_HOMES } = await import("../../eslint.config.ts");
   const paths = [...new Set(DOM_LOOKUP_HOMES.map(({ file }) => file))];

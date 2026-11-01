@@ -53,6 +53,7 @@ export const OWNER_CSS_RENAMES: readonly OwnerCssRename[] = [
   { kind: "slot", name: "compare-blocks-accept-all", to: null },
   { kind: "slot", name: "table-select-cell", to: null },
   { kind: "slot", name: "table-select-header", to: null },
+  { kind: "token", name: "--breakpoint-shell-short", to: null },
   ...RETIRED_PROPERTIES.map(propertyRename),
   ...RETIRED_ATTRIBUTES.map(([name, key]): OwnerCssRename => ({ kind: "appearance-attribute", name, to: null, see: appearanceChannelName(key) })),
 ];
