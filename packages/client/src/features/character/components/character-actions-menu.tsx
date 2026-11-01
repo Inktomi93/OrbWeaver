@@ -39,6 +39,7 @@ import { useCreatePersonaFromCharacter, useDuplicateCharacter, useRemoveCharacte
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import type { CHARACTER_ACTION_SCOPE_IDS } from "../lib/character-actions.ts";
 import { CHARACTER_ACTIONS, characterActionItemsForScope, characterActionLabel } from "../lib/character-actions.ts";
+import { CHARACTER_ACTIONS_MENU_NAME, CHARACTER_DELETE_TITLE, CHARACTER_DUPLICATE_TITLE } from "../lib/character-names.ts";
 
 /** File-local — exactly the verbs the `open` scope offers, so a verb added to that scope is a `tsc` error
  *  here until it is wired. */
@@ -105,10 +106,10 @@ export function CharacterActionsMenu({ characterId }: CharacterActionsMenuProps)
     <>
       <RowActionsMenu
         align="start"
-        label="Character actions"
+        label={CHARACTER_ACTIONS_MENU_NAME}
         destructive={{
           label: CHARACTER_ACTIONS.delete.label,
-          title: "Delete this character?",
+          title: CHARACTER_DELETE_TITLE,
           description: "This permanently deletes the character and everything attached to it. This can't be undone.",
           onConfirm: confirmDelete,
         }}
@@ -149,7 +150,7 @@ export function CharacterActionsMenu({ characterId }: CharacterActionsMenuProps)
         onConfirm={confirmDuplicate}
         onOpenChange={setDuplicateOpen}
         open={duplicateOpen}
-        title="Duplicate this character?"
+        title={CHARACTER_DUPLICATE_TITLE}
       />
     </>
   );

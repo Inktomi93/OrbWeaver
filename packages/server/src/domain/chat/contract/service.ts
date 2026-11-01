@@ -17,9 +17,12 @@ import type {
   ChatInjectionView,
   ChatReactionsView,
   ContextFitAnswer,
+  CreateInviteResult,
   EffectiveRegexView,
   GroupConfig,
   HistoryPage,
+  HostTierRegexAllow,
+  ImpersonateStreamDelta,
   InvitePreview,
   InviteView,
   MemberCardView,
@@ -128,19 +131,7 @@ import type {
   UndoContinueParams,
   UpdateTitleParams,
 } from "./params.ts";
-import type { HostTierRegexAllow } from "./regex.ts";
-import type {
-  CompactResult,
-  CreateInviteResult,
-  DrainDeferredTurnsScope,
-  DrainReport,
-  ForkData,
-  ImpersonateStreamDelta,
-  ReapResult,
-  RedeemInviteData,
-  StartChatData,
-  TurnOutcome,
-} from "./results.ts";
+import type { CompactResult, DrainDeferredTurnsScope, DrainReport, ForkData, ReapResult, RedeemInviteData, StartChatData, TurnOutcome } from "./results.ts";
 import type { ChatBusReplayEvent, ChatDetailData, ChatEventAttach, ChatLineageData, ChatListPageData, ChatSummaryData } from "./views.ts";
 
 export interface ChatService {

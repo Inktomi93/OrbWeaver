@@ -2,12 +2,11 @@
 // parentless per-user aggregate), so the owner scope belt is a direct `owner_id = ?` filter (never reads the
 // `users` table). `ownerId` is ALWAYS the resolved principal id, never caller input (audit #1).
 
+import type { ThemeLevel, ThemeRow } from "@orb/contracts/discovery";
 import type { Db } from "@orb/db";
 import { themeClusters } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { and, asc, eq } from "drizzle-orm";
-import type { ThemeLevel } from "../contract/params.ts";
-import type { ThemeRow } from "../contract/results.ts";
 
 /** The owner's theme clusters at `level` (both levels when omitted), ordered by `clusterIdx`. The stored
  *  `level` TEXT is the domain-validated {@link ThemeLevel} (schema/discovery.ts: db stores it as plain TEXT,

@@ -29,9 +29,9 @@ import type { AssetsService, ImportAssetPort } from "#domain/assets";
 import { AssetContentRejectedError } from "#domain/assets";
 import type { ImportCharacterPort } from "#domain/character";
 import type { DatabankService } from "#domain/databank";
+import type { ImportFile } from "#domain/import";
 import { hasCsrfHeader } from "#infra/auth";
 import { classifyDomainError } from "#transport/trpc";
-import type { ImportFile } from "../import/index.ts";
 import { runCardLorebookRestore, runProfileImport } from "../import/index.ts";
 import type { PrincipalEnv } from "./contract/request-env.ts";
 

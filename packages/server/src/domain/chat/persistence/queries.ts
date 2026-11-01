@@ -13,6 +13,7 @@ import type {
   ChatBusEvent,
   ChatLibraryLens,
   ChatListCursor,
+  ChatMetadata,
   ChatReasoningPart,
   ContentSignatures,
   DurableChatBusEvent,
@@ -58,7 +59,6 @@ import { alias } from "drizzle-orm/sqlite-core";
 import { captureParticipantRole } from "#primitives/role-data";
 import type { ContinueSnapshot } from "../contract/continuation.ts";
 import type { RetainedCanonContributions } from "../contract/generation-observation.ts";
-import type { ChatMetadata } from "../contract/metadata.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
 import type { DeliveredCue } from "../contract/results.ts";
 import type { ChatEventBounds } from "../contract/views.ts";

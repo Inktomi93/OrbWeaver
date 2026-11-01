@@ -26,6 +26,7 @@ import type {
   AssemblyPreview,
   ChatInjection,
   ChatLibraryLens,
+  ChatMetadata,
   ChatReasoningPart,
   ChatSeatPortrait,
   ContextFitAnswer,
@@ -34,6 +35,7 @@ import type {
   DurableChatBusEvent,
   EffectiveRegexView,
   GroupConfig,
+  GuidedSteer,
   HistoryPage,
   JoinHistoryVisibility,
   MemberCardView,
@@ -47,7 +49,14 @@ import type {
   TeachingKnobs,
   VariantWireView,
 } from "@orb/contracts/chat";
-import { buildIdentityNameContext, CHAT_LIST_MAX_LIMIT, CHAT_MESSAGE_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG, projectViewForMember } from "@orb/contracts/chat";
+import {
+  buildIdentityNameContext,
+  CHAT_LIST_MAX_LIMIT,
+  CHAT_MESSAGE_LIST_MAX_LIMIT,
+  DEFAULT_GROUP_CONFIG,
+  NO_HISTORY_FLOOR,
+  projectViewForMember,
+} from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { GenerationCapability, SendAvailability, UnavailableCause } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill, acceptsImageInput, acceptsVideoInput, turnsLevelFor, windowForPreset } from "@orb/contracts/inference";
@@ -80,7 +89,6 @@ import type { ChatContext, ChatServiceDeps, LoadParticipantViewsBatchOp, LoadPar
 import { ChatNotFoundError } from "../contract/errors.ts";
 import type { ForeignInputs, HumanSeatPersona, ResolveForeignInputsOp } from "../contract/foreign.ts";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
-import type { ChatMetadata } from "../contract/metadata.ts";
 import type {
   ChatEventBoundsParams,
   CountChatsParams,
@@ -89,7 +97,6 @@ import type {
   GetMemberCardParams,
   GetShapeTraceParams,
   GetVariantWireParams,
-  GuidedSteer,
   ListChatsParams,
   ListEffectiveRegexParams,
   ListForksParams,
@@ -154,7 +161,7 @@ import {
   toShapeCanon,
   voiceContextForSpeaker,
 } from "../substrate/assembly-access.ts";
-import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisibility, resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
+import { clampMemberCard, isBelowHistoryFloor, resolveCardVisibility, resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { isCoveredByCompaction } from "../substrate/compaction-coverage.ts";
 import { cueReplayFor } from "../substrate/cue-replay.ts";

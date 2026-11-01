@@ -1,6 +1,6 @@
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
-import { AlertTriangle, Icon } from "@orb/ui/icons";
+import { Icon, TriangleAlert } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 import { AppFailureSurface } from "#lib";
 
@@ -10,7 +10,7 @@ export function RouteError({ onRetry }: { readonly onRetry: () => void }): React
   return (
     <AppFailureSurface kind="crashed">
       <EmptyState
-        icon={<Icon icon={AlertTriangle} size="lg" />}
+        icon={<Icon icon={TriangleAlert} size="lg" />}
         title="Couldn't load this page"
         description="Part of the app failed to load. Retrying usually fixes it."
         action={<Button onClick={onRetry}>Retry</Button>}

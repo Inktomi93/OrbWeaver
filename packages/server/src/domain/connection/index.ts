@@ -7,7 +7,7 @@ export {
   connectionCapabilityViewSchema,
 } from "./contract/results.ts";
 export type {
-  ConnectionAssemblyContext as ConnectionContext,
+  ConnectionAssemblyContext,
   ConnectionService,
   ConnectionWorkloadDeps,
 } from "./contract/service.ts";

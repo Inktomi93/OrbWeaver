@@ -7,7 +7,7 @@ export type { LiveEmbedSpaceDeps } from "./contract/live-embed-space.ts";
 export type { EmbeddingReindexTriggers, VacuousMemoryReceiptDeps } from "./contract/reindex.ts";
 // The entry root wires these; transport/tests reference them directly.
 export type {
-  EmbeddingsAssemblyContext as EmbeddingsContext,
+  EmbeddingsAssemblyContext,
   EmbeddingsIndexer,
   EmbeddingsService,
   EmbeddingsWorkloadDeps,

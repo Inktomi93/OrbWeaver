@@ -14,7 +14,7 @@ import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { pickKeys } from "@orb/kit/objects";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
-import { Icon, Trash2 } from "@orb/ui/icons";
+import { Icon, Trash } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { removeActionName } from "@orb/ui/lib";
 import type { MediaGridItem } from "@orb/ui/media-grid";
@@ -154,7 +154,7 @@ function BackgroundBody({
                 values.backgroundImageKind === "asset" ? values.backgroundLibrary.find((entry) => entry.assetId === values.backgroundAssetId) : undefined;
               return picked === undefined ? null : (
                 <Button className="self-start" variant="ghost" onClick={(): void => removeEntry(picked)} size="sm" type="button">
-                  <Icon icon={Trash2} size="sm" />
+                  <Icon icon={Trash} size="sm" />
                   {removeActionName(picked.name)}
                 </Button>
               );

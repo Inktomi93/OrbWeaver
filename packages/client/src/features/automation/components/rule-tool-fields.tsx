@@ -1,13 +1,13 @@
 import { AUTOMATION_VARIABLE_SCOPES, AUTOMATION_VARIABLE_VALUE_MAX } from "@orb/contracts/automation";
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { Field } from "@orb/ui/field";
 import { ChevronRight, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useId } from "react";
 import { useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { touchedFieldError } from "#forms/editor";
@@ -27,8 +27,6 @@ export function RuleToolFields({
   readonly chatId: ChatId | null;
 }): ReactElement {
   const trpc = useTRPC();
-  const id = useId();
-  const labelId = `${id}-label`;
   const catalog = useQuery(trpc.automation.listRuleTools.queryOptions());
   const tools = catalog.data ?? [];
   const selected = tools.find((tool) => tool.name === action.name);
@@ -40,15 +38,9 @@ export function RuleToolFields({
     <Stack gap="block">
       <form.AppField name={`actions[${index}].name`}>
         {(field): ReactElement => (
-          <Stack gap="tight">
-            <label id={labelId} htmlFor={id}>
-              Tool
-            </label>
+          <Field label="Tool" error={touchedFieldError(field.state.meta)}>
+            {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- Base UI's FieldRootContext injects `aria-labelledby` at render time, as in SelectField. */}
             <Select
-              id={id}
-              aria-labelledby={labelId}
-              aria-invalid={touchedFieldError(field.state.meta) !== null || undefined}
-              {...(touchedFieldError(field.state.meta) === null ? {} : { "aria-describedby": `${id}-error` })}
               onOpenChange={(open): void => {
                 if (!open) {
                   field.handleBlur();
@@ -63,12 +55,7 @@ export function RuleToolFields({
                 }
               }}
             />
-            {touchedFieldError(field.state.meta) === null ? null : (
-              <Text tone="destructive" id={`${id}-error`} role="alert">
-                {touchedFieldError(field.state.meta)}
-              </Text>
-            )}
-          </Stack>
+          </Field>
         )}
       </form.AppField>
       {catalog.isPending ? <Text voice="gloss">Loading your available tools…</Text> : null}

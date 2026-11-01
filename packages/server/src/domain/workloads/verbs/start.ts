@@ -5,9 +5,8 @@
 // caller-supplied future instant is persisted verbatim (absent ⇒ now) and the SAME head query gates on it,
 // so a "Run at" row stays out of the dispatch window until its instant.
 
-import type { WorkloadKind, WorkloadRef } from "@orb/contracts/workloads";
+import type { StartWorkloadParams, WorkloadKind, WorkloadRef } from "@orb/contracts/workloads";
 import { DomainConflictError, DomainNotFoundError } from "@orb/kit/errors";
-import type { StartWorkloadParams } from "../contract/params.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
 import { isActiveKindUniqueViolation, isWorkloadForeignKeyViolation } from "../persistence/constraints.ts";
 import { findActiveAdmittedWorkloadId, findUnavailableWorkloadDependency, insertWorkload } from "../persistence/queries.ts";

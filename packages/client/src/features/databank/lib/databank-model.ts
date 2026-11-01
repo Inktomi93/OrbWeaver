@@ -21,7 +21,7 @@ import { DOC_FORMAT_EXTENSIONS, DOC_UPLOAD_FORMATS, docFormatForMime } from "@or
 // spelled here and, byte-identically, inside `@orb/ui/file-dropzone`). Same function, one home.
 import { formatBytes, groupThousands } from "@orb/kit/strings";
 import type { LucideIcon } from "@orb/ui/icons";
-import { AlertTriangle } from "@orb/ui/icons";
+import { TriangleAlert } from "@orb/ui/icons";
 
 const ORIGIN_LABELS: Record<DocOrigin, string> = {
   upload: "Upload",
@@ -100,7 +100,7 @@ const INGEST_BADGES: Record<IngestPhase, IngestBadge> = {
   // pixel value distinguished only by a 10.5px word. Reverting `Empty` to neutral would satisfy the new
   // finding by re-committing the old one. A glyph is the axis neither ruling spends: the chip keeps its
   // amber, and only the arm that asks the user to DO something carries a mark.
-  empty: { label: "Empty", tone: "warning", glyph: AlertTriangle },
+  empty: { label: "Empty", tone: "warning", glyph: TriangleAlert },
   indexing: { label: "Queued", tone: "warning", glyph: null },
   embedding: { label: "Indexing", tone: "warning", glyph: null },
   ready: { label: "Ready", tone: "success", glyph: null },

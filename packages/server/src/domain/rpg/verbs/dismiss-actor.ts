@@ -17,9 +17,9 @@
 // Host-gated (a shared plane). Refusal is errors-as-data: dismissing an actor the game does not carry says so
 // rather than reporting a write that removed nothing.
 
+import type { HandDoorResult } from "@orb/contracts/rpg";
 import { actorRefKey, rpgActorLockBase } from "@orb/contracts/rpg";
 import type { DismissActorParams } from "../contract/params.ts";
-import type { HandDoorResult } from "../contract/results.ts";
 import type { RpgContext, RpgService } from "../contract/service.ts";
 import { assertHostRole, resolveMember } from "../guard.ts";
 import { writeHandState } from "../snapshot-edit.ts";

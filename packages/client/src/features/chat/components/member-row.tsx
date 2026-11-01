@@ -30,7 +30,7 @@ import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Crown, Icon, MoreHorizontal, Volume2, VolumeX, Zap } from "@orb/ui/icons";
+import { Crown, Ellipsis, Icon, Volume2, VolumeX, Zap } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Menu, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Swatch } from "@orb/ui/swatch";
@@ -152,7 +152,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
           aria-label={rowActionsName(row.displayName)}
           onClick={(): void => bodyRef.current?.click()}
         >
-          <Icon icon={MoreHorizontal} size="sm" />
+          <Icon icon={Ellipsis} size="sm" />
         </Button>
       ) : null}
 

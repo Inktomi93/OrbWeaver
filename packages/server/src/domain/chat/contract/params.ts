@@ -27,15 +27,9 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import type { AssetId, CharacterId, ChatInjectionId, ChatInviteId, ChatTurnId, MessageId, MessageVariantId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 
-export type { RequestTurnParams } from "@orb/contracts/chat";
-
 // Every verb's *Params, declared once. Pure types (no z.object): the cross-boundary wire input schemas live
 // in @orb/contracts/chat and are referenced type-only here. Every verb carries the resolved principal — chat
 // is membership-scoped, resolving requireParticipant/requireHost(principal, chatId); there is no ownerId.
-
-// The one-turn typed steer is the CONTRACTS wire shape (`guidedSteerSchema`) — re-exported here so the
-// verb *Params surface stays one import (F6 re-home: the local re-spell died when the wire schema landed).
-export type { GuidedSteer } from "@orb/contracts/chat";
 
 /** Common to every chat verb: the acting principal. */
 interface ChatActorParams {

@@ -5,21 +5,18 @@ import {
   PLUGIN_LOG_CHARS_MAX,
   PLUGIN_LOG_LEVELS,
   PLUGIN_LOG_LINES_MAX,
+  pluginBundleAssetViewSchema,
   pluginCommandViewSchema,
+  pluginDisplayTransformViewSchema,
+  pluginLogViewSchema,
+  pluginSurfaceStateSchema,
+  pluginSurfaceViewSchema,
   pluginUiOutcomeSchema,
   pluginViewSchema,
   snippetResultSchema,
 } from "@orb/contracts/plugin";
 import { pluginKv } from "@orb/db";
-import {
-  pluginBundleAssetViewSchema,
-  pluginDisplayTransformResultSchema,
-  pluginDisplayTransformViewSchema,
-  pluginLogViewSchema,
-  pluginSurfaceStateSchema,
-  pluginSurfaceViewSchema,
-  pluginUiHostCallResultSchema,
-} from "@orb/server/domain/plugin";
+import { pluginDisplayTransformResultSchema, pluginUiHostCallResultSchema } from "@orb/server/domain/plugin";
 import { PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES } from "@orb/server/infra/plugin-host";
 import { ZodError } from "zod";
 import {

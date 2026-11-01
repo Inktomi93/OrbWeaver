@@ -1,8 +1,8 @@
 // The rows door and the tier behind it are a native module boundary: outside testkit only persistence suites and
 // tests/db import them, and inside testkit only the closed importer list does.
-import { dirname, join, relative } from "node:path";
+import { dirname, relative } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { cruiseRules, fires, unresolvable } from "./_native-cruise.ts";
 
 const ROWS_DOOR = "tests/support/node/factories/rows.ts";
 const ROWS_MODULE = "tests/support/node/factories/rows/probe.ts";
@@ -32,23 +32,15 @@ test.for([
   { name: "a testkit self-test importing a rows-tier module", entry: "tests/support/node/factories/probe.int.test.ts", target: ROWS_MODULE, rule: null },
   { name: "a corpus publication producer importing a rows-tier module", entry: "tests/support/node/corpus-search.ts", target: ROWS_MODULE, rule: null },
   { name: "the rows tier importing its own door", entry: "tests/support/node/factories/rows/other.ts", target: ROWS_DOOR, rule: null },
-] as const)("the native rows boundary judges $name", async (row, { plantedTree, repoRoot }) => {
+] as const)("the native rows boundary judges $name", async (row, { plantedTree }) => {
   const root = await plantedTree({
     [ROWS_DOOR]: "export const captureProbeRows = (): readonly string[] => [];",
     [ROWS_MODULE]: "export const seedProbeRows = (): readonly string[] => [];",
     [row.entry]: `export { ${row.target === ROWS_DOOR ? "captureProbeRows" : "seedProbeRows"} as read } from ${JSON.stringify(relativeSpecifier(row.entry, row.target))};`,
   });
-  const result = runNicedSync(
-    join(repoRoot, "node_modules/.bin/depcruise"),
-    [row.entry, "--config", join(repoRoot, ".dependency-cruiser.ts"), "--output-type", "err-long"],
-    {
-      cwd: root,
-    },
-  );
-  const output = result.stdout + result.stderr;
-  expect(result.errorCode, output).toBeUndefined();
-  expect(output).not.toContain("not-to-unresolvable");
+  const violations = await cruiseRules(root, [row.entry], [PERSISTENCE_ONLY, CLOSED_IMPORTERS]);
+  expect(unresolvable(violations)).toEqual([]);
   for (const rule of [PERSISTENCE_ONLY, CLOSED_IMPORTERS]) {
-    expect(output.includes(`${rule}: ${row.entry}`), output).toBe(rule === row.rule);
+    expect(fires(violations, rule, [row.entry])).toBe(rule === row.rule);
   }
 });

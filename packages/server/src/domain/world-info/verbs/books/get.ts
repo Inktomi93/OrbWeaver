@@ -6,7 +6,7 @@ import type { GetBookParams } from "#src/domain/world-info/contract/params.ts";
 import type { WorldInfoContext, WorldInfoService } from "#src/domain/world-info/contract/service.ts";
 import { loadOwnedBook, toBookView } from "#src/domain/world-info/persistence/queries.ts";
 
-export function createGet(ctx: WorldInfoContext): WorldInfoService["getBook"] {
+export function createGetBook(ctx: WorldInfoContext): WorldInfoService["getBook"] {
   return async ({ principal, bookId }: GetBookParams) => {
     const row = await loadOwnedBook(ctx.db, principal.userId, bookId);
     if (row === undefined) {

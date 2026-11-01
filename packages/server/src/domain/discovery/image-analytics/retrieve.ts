@@ -16,12 +16,13 @@
 //   5. `image-analytics/facets.ts` tallies the same column into the Visuals tab's distributions + drill.
 // Nothing in this chain reads card TEXT to name a picture; `genre`/`tone` ride along as context chips only.
 
+import type { ArchetypeMember, VisualArchetype } from "@orb/contracts/discovery";
 import type { ImageCaptionMeta, ImageFacetMetaKey } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { sha256Hex } from "#primitives/content-hash";
-import type { ArchetypeMember, ImageDuplicatePair, VisualArchetype } from "../contract/results.ts";
+import type { ImageDuplicatePair } from "../contract/results.ts";
 import type { DiscoveryContext, DiscoveryService } from "../contract/service.ts";
 import { readOwnedAvatarVectors, readOwnedCaptionRows } from "../persistence/embed-store-reads.ts";
 import { readOwnedCardFacets } from "../persistence/summary-reads.ts";

@@ -4,8 +4,14 @@ import { join } from "node:path";
 import process from "node:process";
 import { stripVTControlCharacters } from "node:util";
 import type { FullConfig, FullResult, Reporter, Suite, TestCase, TestError, TestResult, TestStep } from "@playwright/test/reporter";
-import type { SurfaceCoverageInventory } from "../iso/surface-coverage.ts";
-import { SURFACE_INVENTORY_ATTACHMENT, surfaceCoverageInventorySchema } from "../iso/surface-coverage.ts";
+import type { SurfaceCoverageInventory, SurfaceInventoryAudit, SurfaceSkipReason } from "../iso/surface-coverage.ts";
+import {
+  auditSurfaceInventory,
+  SURFACE_INVENTORY_ATTACHMENT,
+  SURFACE_SKIP_REASON_MEANINGS,
+  SURFACE_SKIP_REASONS,
+  surfaceCoverageInventorySchema,
+} from "../iso/surface-coverage.ts";
 import { SURFACE_HTTP_ANNOTATION } from "../iso/surface-pass.ts";
 import { nativeAttachmentExtension } from "./native-attachments.ts";
 import { assertSurfaceRunOutput } from "./surface-data.ts";
@@ -49,6 +55,7 @@ interface CaseRoute {
   readonly retry: number;
   readonly annotatedSteps: (Pick<TestStep, "annotations"> & { readonly titlePath: ReturnType<TestStep["titlePath"]> })[];
   readonly inventories: SurfaceCoverageInventory[];
+  readonly audits: SurfaceInventoryAudit[];
   readonly inventoryErrors: string[];
   result: NativeResult | null;
   attachments: readonly AttachmentRoute[];
@@ -67,6 +74,23 @@ function coverageCounts(inventories: readonly SurfaceCoverageInventory[]): strin
     }
   }
   return [...dispositions].map(([disposition, count]) => `${disposition}=${String(count)}`).join(", ") || "none";
+}
+
+/** Count and list every skipped subject by its reason, and name each skip whose reason is unlisted. */
+export function surfaceSkipLines(audits: readonly SurfaceInventoryAudit[]): string[] {
+  const skipped = audits.flatMap((audit) => audit.skipped);
+  const unlisted = audits.flatMap((audit) => audit.unlistedSkips);
+  const counts = SURFACE_SKIP_REASONS.flatMap((reason: SurfaceSkipReason) => {
+    const count = skipped.filter(({ skip }) => skip === reason).length;
+    return count === 0 ? [] : [`${reason}=${String(count)}`];
+  });
+  const lines = [`Skipped subjects: ${String(skipped.length)}${counts.length === 0 ? "" : ` (${counts.join(", ")})`}.`];
+  lines.push(...skipped.map(({ skip, kind, id, reason }) => `- skipped, ${skip}: ${kind} ${id}: ${reason}`));
+  if (unlisted.length > 0) {
+    lines.push(`Skips without a listed reason (each fails the walk): ${String(unlisted.length)}.`);
+    lines.push(...unlisted.map(({ kind, id, issue }) => `- UNLISTED skip: ${kind} ${id}: ${issue}`));
+  }
+  return lines;
 }
 
 function httpLines(route: CaseRoute): string[] {
@@ -111,6 +135,9 @@ function caseLines(route: CaseRoute): string[] {
     lines.push("Surface inventory unavailable/incomplete; absence is not an empty coverage pass.", "");
   } else {
     lines.push(`Coverage observation rows: ${coverageCounts(route.inventories)}. These include repeated checkpoints, not unique covered subjects.`, "");
+  }
+  if (route.audits.length > 0) {
+    lines.push(...surfaceSkipLines(route.audits), "");
   }
   lines.push(...route.inventoryErrors.map((error) => `Inventory unavailable: ${error}`), "");
   return lines;
@@ -204,7 +231,14 @@ export default class SurfaceIndexReporter implements Reporter {
         if (body === undefined) {
           throw new Error("Native inventory attachment has no retained body");
         }
-        route.inventories.push(surfaceCoverageInventorySchema.parse(JSON.parse(body.toString("utf8"))));
+        const raw: unknown = JSON.parse(body.toString("utf8"));
+        const audit = auditSurfaceInventory(raw);
+        route.audits.push(audit);
+        route.inventoryErrors.push(...audit.malformed);
+        const parsed = surfaceCoverageInventorySchema.safeParse(raw);
+        if (parsed.success) {
+          route.inventories.push(parsed.data);
+        }
       } catch (inventoryError) {
         route.inventoryErrors.push(String(inventoryError));
       }
@@ -240,6 +274,7 @@ export default class SurfaceIndexReporter implements Reporter {
       retry: result.retry,
       annotatedSteps: [],
       inventories: [],
+      audits: [],
       inventoryErrors: [],
       result: null,
       attachments: [],
@@ -280,6 +315,9 @@ export default class SurfaceIndexReporter implements Reporter {
     const unexpected = completed.filter((route) => route.result?.status !== route.test.expectedStatus && route.result?.status !== "skipped");
     const missing = this.selected.filter((test) => !completed.some((route) => route.test.id === test.id));
     const unselected = this.configuredProjects.filter((project) => !this.selectedProjects.includes(project));
+    const audits = completed.flatMap((route) => route.audits);
+    const skippedCount = audits.reduce((total, audit) => total + audit.skipped.length, 0);
+    const unlistedCount = audits.reduce((total, audit) => total + audit.unlistedSkips.length, 0);
     const lines = [
       `# Surface E2E: ${this.outcome ?? "incomplete / native runner has not finalized"}`,
       "",
@@ -298,6 +336,12 @@ export default class SurfaceIndexReporter implements Reporter {
       "",
       "No source ownership or root cause is inferred. Observed checkpoints do not establish completed operations; exclusions/skips do not establish exercised coverage.",
       "",
+      "## Skipped subjects",
+      "",
+      `Across completed cases: ${String(skippedCount)} skipped; ${String(unlistedCount)} without a listed reason. Each case below lists its own.`,
+      "",
+      ...SURFACE_SKIP_REASONS.map((reason) => `- ${reason}: ${SURFACE_SKIP_REASON_MEANINGS[reason]}`),
+      "",
       "## Native cases",
       "",
     ];
@@ -314,7 +358,7 @@ export default class SurfaceIndexReporter implements Reporter {
     );
     writeFileSync(join(this.root, SURFACE_AGENT_ENTRY), `${lines.join("\n")}\n`, { mode: 0o600 });
     const summary = [
-      `Native E2E: ${this.outcome ?? "incomplete"}; completed=${String(completed.length)} unexpected=${String(unexpected.length)} selected-without-end=${String(missing.length)} global-errors=${String(this.errors.length)}`,
+      `Native E2E: ${this.outcome ?? "incomplete"}; completed=${String(completed.length)} unexpected=${String(unexpected.length)} selected-without-end=${String(missing.length)} global-errors=${String(this.errors.length)} skipped=${String(skippedCount)} unlisted-skips=${String(unlistedCount)}`,
       ...completed.flatMap((route) => httpLines(route).map((line) => `${route.titlePath.join(" / ")}: ${line}`)),
       ...unexpected.flatMap((route) => {
         const errors = route.result?.errors ?? [];

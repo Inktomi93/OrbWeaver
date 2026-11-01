@@ -3,6 +3,7 @@
 // client-supplied seed is NEVER honored (the security ruling — seed-replay is rejected by having no seed
 // input at all). Zero durable state. Member-gated. Notation is `NdM(+/-K)?` (e.g. `2d6+3`, `d20`, `4d8-1`).
 
+import type { RollDiceResult } from "@orb/contracts/rpg";
 import { rpgAttributeModifier } from "@orb/contracts/rpg";
 import type { DiceNotation } from "@orb/kit/dice";
 import { parseDiceNotation, rollDiceNotation } from "@orb/kit/dice";
@@ -10,7 +11,6 @@ import { DomainOperationError } from "@orb/kit/errors";
 import { readOwnKey } from "@orb/kit/objects";
 import { RPG_OP_CODES } from "#src/domain/rpg/contract/op-codes.ts";
 import type { RollDiceParams } from "../contract/params.ts";
-import type { RollDiceResult } from "../contract/results.ts";
 import type { RpgContext, RpgGameRow, RpgService } from "../contract/service.ts";
 import { resolveMember } from "../guard.ts";
 import { findSheet } from "../persistence/sheets.ts";

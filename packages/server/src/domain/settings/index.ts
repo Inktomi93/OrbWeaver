@@ -1,12 +1,12 @@
 // domain/settings — front door: the only legal external import. AppSettings/UserSettings/EffectiveAppConfig
 // and every settings zod schema/parser live in @orb/contracts/settings — callers import those directly.
 
-export { createSettingsAssemblyContext as createSettingsContext } from "./context.ts";
+export { createSettingsAssemblyContext } from "./context.ts";
 export type { SettingsComposedOps } from "./contract/composed-ops.ts";
 export type { ContentSeedPolicyDeps, ContentSeedStep, UserContentSeeder } from "./contract/content-seed.ts";
 export type { DefaultBackgroundSeeder } from "./contract/seeder.ts";
 export type {
-  SettingsAssemblyContext as SettingsContext,
+  SettingsAssemblyContext,
   SettingsService,
   SettingsServiceDeps,
 } from "./contract/service.ts";

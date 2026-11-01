@@ -52,8 +52,6 @@ export type CharacterHandoffCopyAssemblyContext = Omit<DbAssemblyInput<Character
   readonly applyStatsDelta: ApplyStatsDelta<BatchHandle, DatabaseHandle>;
 };
 
-export type { HandoffCardCopy } from "@orb/contracts/chat";
-
 /** Copy the named cards from `fromOwnerId`'s library into `toOwnerId`'s, point-in-time and verbatim.
  *
  *  Returns one entry per card that RESOLVED under `fromOwnerId` — a source id that is not the old host's (or

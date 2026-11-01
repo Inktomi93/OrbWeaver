@@ -55,5 +55,4 @@ Ran: `pnpm typecheck` for every program, `pnpm lint:eslint packages tooling test
 ### Owner calls
 
 - `AutosaveBoundaryProps.save` and `AutosaveBoundaryPropsPersisting.save` stay. They are the per-instance persistence seam: a surface passes `save={...}` as a JSX prop (`packages/client/src/features/chat/components/room-overrides-tab.tsx:35`) and `createAutosaveEntityForm` reads it. Deleting them removes autosave persistence. The member scan does not count a JSX attribute as a read.
-- `ExtensionsEmptyCopy.title` and `ExtensionsEmptyCopy.description` stay. They are the live empty-state copy (`extensions-page-surface.tsx`, `extensions-switcher-surface.tsx`). The `satisfies` check hides the call sites from the scan, and the call sites rely on the narrow arm types (`title()` with no argument), so typing them through the interface does not compile.
-
+- `ExtensionsEmptyCopy.title` and `ExtensionsEmptyCopy.description` stay. They are the live empty-state copy (`extensions-page-surface.tsx`, `extensions-switcher-surface.tsx`). The `satisfies` check hides the call sites from the scan, and the call sites rely on the narrow branch types (`title()` with no argument), so typing them through the interface does not compile.

@@ -81,6 +81,8 @@ async function nativeRun(command: keyof typeof NATIVE_CONFIG, runRoot: string, a
   await mkdir(temporary, { mode: 0o700 });
   const log = join(runRoot, "native.log");
   await assertSurfaceRunOutput(runRoot, log);
+  let code = 2;
+  let sweepFailed = false;
   try {
     const result = await spawnNicedTranscript(
       "pnpm",
@@ -107,10 +109,17 @@ async function nativeRun(command: keyof typeof NATIVE_CONFIG, runRoot: string, a
       { mode: 0o600 },
     );
     process.stdout.write(`Surface ${command}: exit=${String(result.code)}; local artifacts: ${runRoot}\n`);
-    return result.code ?? 2;
+    code = result.code ?? 2;
   } finally {
-    await joinRunMarkerSweep(marker);
+    // A sweep that cannot confirm completion warns; it never replaces the walk's own result or its summary.
+    try {
+      await joinRunMarkerSweep(marker);
+    } catch (error) {
+      sweepFailed = true;
+      process.stderr.write(`Run-marker sweep failed (warning): ${String(error)}\n`);
+    }
   }
+  return sweepFailed && code === 0 ? 2 : code;
 }
 
 /** Route the read-first entry to the retained cause whenever the launcher stops before native collection. */

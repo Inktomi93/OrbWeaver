@@ -2,12 +2,11 @@
 // chat-internal `loadParticipantViews` once, then calls the verb/engine factories and assembles the typed
 // `ChatService` (so a missing/renamed verb fails tsc). Every verb body lives in its `verbs/*` factory.
 
-import type { ClaimChatOp } from "@orb/contracts/chat";
+import type { ClaimChatOp, RequestTurnOp } from "@orb/contracts/chat";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { createChatContext } from "./context.ts";
 import type { ChatServiceDeps } from "./contract/context.ts";
 import type { VisibleExtractQuiet, VisibleExtractQuietDeps } from "./contract/imagery-access.ts";
-import type { RequestTurnOp } from "./contract/results.ts";
 import type { ChatService } from "./contract/service.ts";
 import type { SignupInviteOps } from "./contract/signup.ts";
 import type { ChatAssemblyContext } from "./contract/wiring.ts";

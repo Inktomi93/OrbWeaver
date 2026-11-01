@@ -2,47 +2,41 @@
 // wrap, the per-request middleware, the best-effort audit writer, and the /api/_debug read surface. Read
 // DOWN by every tier; a root's logger, read through `getLog(base)`, is the only sanctioned output (the `noConsole` total ban).
 
-export { type AuditEntry, createAuditWiring } from "./audit.ts";
+export { createAuditWiring } from "./audit.ts";
 export type { BugReportDiagnosticsRead } from "./bug-report-diagnostics.ts";
 export { createBugReportDiagnosticsRead } from "./bug-report-diagnostics.ts";
 export { recordClientError } from "./client-error.ts";
-export type { AuditWiring } from "./contract/audit-wiring.ts";
-export type { DebugRoutesOptions, RecorderFilter, SocketInspector } from "./contract/debug.ts";
+export type { AuditEntry, AuditWiring } from "./contract/audit-wiring.ts";
+export type { DebugRoutesOptions, MemoryRecallInspector, RecorderFilter, RpgTraceInspector, SocketInspector } from "./contract/debug.ts";
+export type { Logger, ObservabilityRings } from "./contract/logging.ts";
+export type { DetachedSupervision, RequestTrace, SerializedSpan, SpanAttrs, TraceRing } from "./contract/tracing.ts";
+export type { WireOutcome } from "./contract/wire-capture.ts";
+export { registerDebugRoutes } from "./debug/routes.ts";
 export {
   createWireCaptureSpill,
   isWireCaptureEnabled,
   isWireReplyCaptureEnabled,
-  type MemoryRecallInspector,
-  type RpgTraceInspector,
   recordTurnOutcome,
   recordWireCapture,
-  registerDebugRoutes,
   type WireCaptureSpill,
-  type WireOutcome,
-} from "./debug/index.ts";
+} from "./debug/wire-capture.ts";
 export {
   createLogger,
   getLog,
   groupsLogFields,
-  type Logger,
   logSerializers,
   securityEvent,
 } from "./logger.ts";
 export { recordMemoryLog } from "./memory-log.ts";
 export { createRequestObservability } from "./middleware.ts";
-export { createObservabilityRings, type ObservabilityRings } from "./rings.ts";
+export { createObservabilityRings } from "./rings.ts";
 export { traceStructuredRetry } from "./structured-retry.ts";
 export {
   addSpanEvent,
   createDetachedSupervision,
-  type DetachedSupervision,
   initTracing,
-  type RequestTrace,
-  type SerializedSpan,
-  type SpanAttrs,
   setSpanAttrs,
   span,
-  type TraceRing,
   withRequestSpan,
   wrapLibSqlClient,
 } from "./tracing.ts";

@@ -53,6 +53,26 @@ test.each(["stage retirement refused", "marker join refused"])("unconfirmed %s k
   }
 });
 
+test("an unconfirmed retirement keeps a failing run's own exit code and only turns a pass into 2", async () => {
+  let disposed = false;
+  await using resource: AsyncDisposable = {
+    [Symbol.asyncDispose]: (): Promise<void> => {
+      disposed = true;
+      return Promise.resolve();
+    },
+  };
+  const run = (code: number): Promise<number> =>
+    runCorpusSnapConsumer(
+      resource,
+      () => Promise.resolve(code),
+      () => Promise.reject(new Error("marker join refused")),
+      () => undefined,
+    );
+  expect(await run(1)).toBe(1);
+  expect(await run(0)).toBe(2);
+  expect(disposed).toBe(false);
+});
+
 test("confirmed consumer completion retires before deleting the clone and closing its provider", async () => {
   const directory = await mkdtemp(join(tmpdir(), "orb-corpus-completed-"));
   await using provider = await providerFixture();

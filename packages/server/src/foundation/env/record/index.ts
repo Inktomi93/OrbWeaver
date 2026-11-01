@@ -34,7 +34,7 @@ import { trustedPrivateRangeRefusal, unreadableTrustedPrivateRanges } from "../p
 import { EnvRefusedError } from "../refusal/index.ts";
 
 export { publicAddresses, resolveAllowedHosts } from "../allowed-hosts.ts";
-export { bindPostureWarnings, loopbackCompanion, loopbackOrigin, resolveBindPosture } from "../bind.ts";
+export { loopbackOrigin } from "../bind.ts";
 export { fileReadCommand, settingInstruction } from "../container.ts";
 export type {
   AllowedHostsInput,
