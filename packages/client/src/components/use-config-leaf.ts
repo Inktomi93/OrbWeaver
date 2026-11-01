@@ -10,11 +10,14 @@
 // via `use(Context)` (the sanctioned nullable read — `useRegistry()` throws), so a `SettingRow` mounted
 // outside config (or a CT without the provider) stays inert instead of crashing.
 //
-// RESET IS ONE DIRECT WRITE (`updateUserSettingsSection({section, patch: {[key]: default}})`) — the §7.7
+// RESET IS ONE DIRECT WRITE (`updateUserSettingsSection({section, patch: {[key]: default}})`; a list or object leaf adds an Undo toast) — the §7.7
 // deviation from the original "the frame gets onReset from the section": the About door (the COARSE
 // path) cannot reach a section's form session, and two reset paths would be the two-writer drift trap.
 // The autosave boundary's clean server-echo reseed adopts the round-tripped value into the live control;
 // a dirty form keeps the in-flight edit (last-writer-wins — Reset stays available).
+//
+// KNOWN LIMIT: a list or object Reset offers Undo, which writes the value read at Reset time. A newer write to the
+// same leaf inside the toast's window (about five seconds) is overwritten by that Undo.
 
 import type { UserSettings, UserSettingsSection } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
@@ -22,7 +25,7 @@ import { useQuery } from "@tanstack/react-query";
 import { use } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import type { ContributorRegistry } from "#lib";
-import { settingsValueAtPath, settingsValueDiffers } from "#lib";
+import { notify, settingsValueAtPath, settingsValueDiffers } from "#lib";
 import type { ConfigSectionContribution, ConfigSettingRef } from "#state";
 import { configSectionRegistryContext } from "#state";
 import { useResetLeaf } from "./use-config-leaf-mutations.ts";
@@ -38,7 +41,7 @@ export interface ConfigLeafReading {
 
 /** A bound leaf's value seam — the reading plus the pre-bound Reset. */
 export interface ConfigLeafValue extends ConfigLeafReading {
-  /** Write the default back through the section's own wire (one undoable write, never a destructive act). */
+  /** Write the default back through the section's own wire (one write; a list or object leaf offers Undo). */
   readonly reset: () => void;
   readonly resetPending: boolean;
 }
@@ -73,7 +76,22 @@ export function useConfigLeaf(address: ConfigSettingRef | null): ConfigLeafValue
     defaultValue: bound.defaultValue,
     modified: bound.modified,
     reset: (): void => {
-      resetMutation.mutate({ section: bound.section, patch: { [bound.key]: bound.defaultValue } });
+      const { section, key, current, defaultValue } = bound;
+      // A list or an object holds what the host typed, so its Reset offers Undo; a scalar is one click from set again.
+      const typed = typeof current === "object" && current !== null;
+      // The toast hangs off the write's promise, not a per-call `onSuccess`: those callbacks are dropped once the row
+      // that pressed Reset unmounts, and the write still lands. The factory already toasts a failure.
+      const write = (value: unknown): Promise<unknown> => resetMutation.mutateAsync({ section, patch: { [key]: value } });
+      const undo = (): void => {
+        write(current).catch(() => undefined);
+      };
+      write(defaultValue)
+        .then((): void => {
+          if (typed) {
+            notify.info({ title: "Reset to default", action: { label: "Undo", onClick: undo } });
+          }
+        })
+        .catch(() => undefined);
     },
     resetPending: resetMutation.isPending,
   };

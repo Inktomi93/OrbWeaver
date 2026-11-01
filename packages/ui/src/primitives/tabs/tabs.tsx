@@ -188,7 +188,7 @@ function observeIndicatorGlide(node: HTMLElement): () => void {
   };
 }
 
-export function TabsIndicator(rest: TabsIndicatorProps): ReactElement {
+export function TabsIndicator(props: TabsIndicatorProps): ReactElement {
   const indicatorRef = useRef<HTMLSpanElement | null>(null);
   useLayoutEffect((): (() => void) | undefined => {
     const node = indicatorRef.current;
@@ -198,7 +198,7 @@ export function TabsIndicator(rest: TabsIndicatorProps): ReactElement {
     <BaseTabs.Indicator
       className={tabsVariants().indicator()}
       data-slot="tabs-indicator"
-      {...rest}
+      {...props}
       // The seal owns this node's ref (the glide above is its only reader). Last, so a spread cannot lose it.
       ref={indicatorRef}
     />

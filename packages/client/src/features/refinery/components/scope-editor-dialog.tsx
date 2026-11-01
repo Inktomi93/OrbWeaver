@@ -37,7 +37,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog } from "#components";
-import { scopeChipLabelOf } from "../lib/render-plan.ts";
+import { scopeChipLabelOf, slotLabelOf } from "../lib/render-plan.ts";
 
 export interface ScopeEditorDialogProps {
   readonly open: boolean;
@@ -158,9 +158,9 @@ function GreetingsScopeRow({
                 gloss={g.text.length > 0 ? g.text : "(empty)"}
                 // biome-ignore lint/suspicious/noArrayIndexKey: the greeting INDEX is the slot's identity — the whole selection model (greetingIndexes) addresses by index.
                 key={i}
-                // The slot's name is its ADDRESS. "Greeting 0" (not "[0]") because the accessible name is
+                // The slot's name is its ADDRESS, counted from one. "Greeting 1" (not "[0]") because the accessible name is
                 // read aloud, and a bracketed index is not a sentence.
-                name={`Greeting ${i}`}
+                name={slotLabelOf("greetings", i)}
                 onToggle={(): void => onToggleGreeting(i)}
               />
             );

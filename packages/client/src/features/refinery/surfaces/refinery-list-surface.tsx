@@ -34,9 +34,9 @@ import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Input } from "@orb/ui/input";
-import type { ReactElement } from "react";
+import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
-import { LibraryListRows, LibraryRow, LibrarySurfaceShell, ListPage } from "#components";
+import { LibraryListRows, LibraryRow, LibrarySurfaceShell, ListPage, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { timeLib, useFocusListArrival } from "#lib";
 import { refinerySectionSelection, requestRefineryLandingFocus, selectRefinerySessionFromList, useMobileViewport, useSelectedRefinerySessionId } from "#state";
@@ -72,24 +72,24 @@ interface ResolvedRow {
  *  ANALYZE has not been run — and it wore the same filled, boxed, uppercase chip as `REGRESSION` on a
  *  session already scored 9.5/10, shouting louder than the character name that is the row's identity. A
  *  chip is for a verdict the model RETURNED; the absent arm has no chip at all and states itself in the
- *  subtitle beside the iteration and the stamp (`readoutSubtitleOf`), one register BELOW the row's title
+ *  subtitle beside the round and the stamp (`readoutSubtitleOf`), one register BELOW the row's title
  *  rather than above it. The WORD moved with it: "no verdict" named the wire field, "not analyzed" names
  *  the fact the row is reporting. */
 function verdictChipOf(row: ResolvedRow): ReactElement | undefined {
   return row.latestVerdict === null ? undefined : <RefineryChip tone={verdictToneOf(row.latestVerdict)}>{verdictWordOf(row.latestVerdict)}</RefineryChip>;
 }
 
-/** The subtitle: iteration + the session's START STAMP. The stamp is the same-card DISTINGUISHER — every
+/** The subtitle: round + the session's START STAMP. The stamp is the same-card DISTINGUISHER — every
  *  session on one card shares the character title and carries no name of its own, and `createdAt` is
  *  per-session, so an absolute start stamp differs the rows visually AND in the a11y tree (the ruled
  *  auto-label arm; no nameable-session affordance is added here). "Freshness" is already positional (the
  *  list is newest-updated first), so WHEN-STARTED is the fact that actually tells six sessions apart. A
  *  session that HAS a name leads with it. Rides `aria-describedby` with the verdict via the subtitle span.
  *  It also carries the NOT-ANALYZED state (finding c): a row with no verdict says so here, in the same
- *  quiet register as its iteration and stamp, instead of wearing a filled chip louder than its own name. */
+ *  quiet register as its round and stamp, instead of wearing a filled chip louder than its own name. */
 function readoutSubtitleOf(row: ResolvedRow): string {
   const stage = row.latestVerdict === null ? "not analyzed · " : "";
-  const readout = `${stage}iteration ${row.iterationCount} · started ${timeLib.formatDateTime(row.createdAt)}`;
+  const readout = `${stage}round ${row.iterationCount} · started ${timeLib.formatDateTime(row.createdAt)}`;
   return row.sessionName === null ? readout : `${row.sessionName} · ${readout}`;
 }
 
@@ -108,6 +108,7 @@ export function RefineryListSurface(): ReactElement {
     >
       <LibrarySurfaceShell errorLabel="your sessions" loadingLabel="Loading your sessions…">
         <RefineryList
+          listRootRef={surfaceRef}
           onClearSearch={(): void => {
             setSearch("");
             surfaceRef.current?.focus();
@@ -119,7 +120,15 @@ export function RefineryListSurface(): ReactElement {
   );
 }
 
-function RefineryList({ search, onClearSearch }: { readonly search: string; readonly onClearSearch: () => void }): ReactElement {
+function RefineryList({
+  search,
+  onClearSearch,
+  listRootRef,
+}: {
+  readonly search: string;
+  readonly onClearSearch: () => void;
+  readonly listRootRef: RefObject<HTMLElement | null>;
+}): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const sessions = useSuspenseQuery(trpc.refinery.listSessions.queryOptions());
@@ -152,6 +161,11 @@ function RefineryList({ search, onClearSearch }: { readonly search: string; read
   // page `character.list` would have returned.
   const rows = resolved.filter(
     (r) => query.length === 0 || r.characterName.toLowerCase().includes(query) || (r.sessionName ?? "").toLowerCase().includes(query),
+  );
+
+  const rowFocus = useRowDeleteFocus(
+    listRootRef,
+    rows.map((row) => row.rawId),
   );
 
   // A desktop landing focuses the existing CONTENT picker; the other regimes open the existing start door.
@@ -208,10 +222,11 @@ function RefineryList({ search, onClearSearch }: { readonly search: string; read
     >
       {rows.map((row) => (
         <LibraryRow
+          bodyRef={rowFocus.bodyRef(row.rawId)}
           actions={{
             name: row.characterName,
             qualifier: `started ${timeLib.formatDateTime(row.createdAt)}`,
-            onDelete: (): Promise<void> => deleteSession(row),
+            ...rowFocus.delete(row.rawId, (): Promise<void> => deleteSession(row)),
             deleteDescription: `This permanently deletes this session and all of its refinery runs. ${row.characterName}'s character card is unchanged.`,
           }}
           key={row.rawId}
@@ -223,6 +238,7 @@ function RefineryList({ search, onClearSearch }: { readonly search: string; read
           onSelect={(): void => selectRefinerySessionFromList(row.id)}
           selected={selectedId === row.rawId}
           subtitle={readoutSubtitleOf(row)}
+          subtitleStep="label"
           subtitleLead={verdictChipOf(row)}
           title={row.characterName}
         />

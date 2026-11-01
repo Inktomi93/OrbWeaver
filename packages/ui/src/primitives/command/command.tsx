@@ -163,42 +163,37 @@ export function CommandAuxiliaryButton(props: ButtonProps): ReactElement {
   return <Button {...props} onKeyDown={handleKeyDown} />;
 }
 
-export interface CommandEmptyProps extends Omit<ComponentProps<typeof BaseCommandEmpty>, "className"> {
-  className?: string;
-}
+export type CommandEmptyProps = Omit<ComponentProps<typeof BaseCommandEmpty>, "className">;
 
 /**
  * Renders only when the filtered result count is zero. Defaults to a plain text line; compose
  * `<EmptyState>` as children instead for a full-page omni-bar surface.
  */
-export function CommandEmpty({ className, children, ...rest }: CommandEmptyProps): ReactElement {
+export function CommandEmpty({ children, ...rest }: CommandEmptyProps): ReactElement {
   return (
-    <BaseCommandEmpty className={cn(slots.empty(), className)} data-slot="command-empty" {...rest}>
+    <BaseCommandEmpty className={slots.empty()} data-slot="command-empty" {...rest}>
       {children ?? "No results found."}
     </BaseCommandEmpty>
   );
 }
 
-export interface CommandGroupProps extends Omit<ComponentProps<typeof BaseCommandGroup>, "className"> {
-  className?: string;
-}
+export type CommandGroupProps = Omit<ComponentProps<typeof BaseCommandGroup>, "className">;
 
 /**
  * A labeled section of items. cmdk renders the heading through an unstyled internal div with no
  * className slot, so the styled treatment wraps `heading` in a token-classed span instead.
  */
-export function CommandGroup({ className, heading, ...rest }: CommandGroupProps): ReactElement {
+export function CommandGroup({ heading, ...rest }: CommandGroupProps): ReactElement {
   const styledHeading: ReactNode =
     heading === undefined ? undefined : (
       <span className={slots.groupHeading()} data-slot="command-group-heading">
         {heading}
       </span>
     );
-  return <BaseCommandGroup className={cn(slots.group(), className)} data-slot="command-group" heading={styledHeading} {...rest} />;
+  return <BaseCommandGroup className={slots.group()} data-slot="command-group" heading={styledHeading} {...rest} />;
 }
 
 export interface CommandItemProps extends Omit<ComponentProps<typeof BaseCommandItem>, "className"> {
-  className?: string;
   /**
    * Scroll the list so this row sits at its centre, once the row has mounted or this turns true. Only the list's own
    * scroll box moves, never an ancestor pane, and only a frame later, once the list has its final height.
@@ -212,7 +207,7 @@ export interface CommandItemProps extends Omit<ComponentProps<typeof BaseCommand
  * children — an id-based `value` needs the display text passed via `keywords` too, or typing the
  * visible label matches nothing.
  */
-export function CommandItem({ className, centerInList = false, ref, ...rest }: CommandItemProps): ReactElement {
+export function CommandItem({ centerInList = false, ref, ...rest }: CommandItemProps): ReactElement {
   const rowRef = useRef<HTMLDivElement>(null);
   useImperativeHandle(ref, () => rowRef.current as HTMLDivElement);
   useEffect(() => {
@@ -222,7 +217,7 @@ export function CommandItem({ className, centerInList = false, ref, ...rest }: C
     const frame = requestAnimationFrame(() => centerRowInList(rowRef.current));
     return (): void => cancelAnimationFrame(frame);
   }, [centerInList]);
-  return <BaseCommandItem className={cn(slots.item(), className)} data-slot="command-item" ref={rowRef} {...rest} />;
+  return <BaseCommandItem className={slots.item()} data-slot="command-item" ref={rowRef} {...rest} />;
 }
 
 /** Put `row` at the centre of its cmdk list's own scroll box; a row outside a list is left where it is. */
@@ -235,12 +230,10 @@ function centerRowInList(row: HTMLElement | null): void {
   list.scrollTop = rowTop - (list.clientHeight - row.offsetHeight) / 2;
 }
 
-export interface CommandLoadingProps extends Omit<ComponentProps<typeof BaseCommandLoading>, "className"> {
-  className?: string;
-}
+export type CommandLoadingProps = Omit<ComponentProps<typeof BaseCommandLoading>, "className">;
 
-export function CommandLoading({ className, ...rest }: CommandLoadingProps): ReactElement {
-  return <BaseCommandLoading className={cn(slots.loading(), className)} data-slot="command-loading" {...rest} />;
+export function CommandLoading(props: CommandLoadingProps): ReactElement {
+  return <BaseCommandLoading className={slots.loading()} data-slot="command-loading" {...props} />;
 }
 
 /** Announces the live filtered-result count to screen readers. Must render under `<Command>`. */

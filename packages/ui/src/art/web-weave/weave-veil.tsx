@@ -14,7 +14,7 @@
 
 import type { ReactElement, ReactNode, TransitionEvent } from "react";
 import { useEffect, useRef, useState } from "react";
-import { cn, usePrefersReducedMotion } from "#lib";
+import { usePrefersReducedMotion } from "#lib";
 import { weaveVeilVariants } from "./variants.ts";
 
 export interface WeaveVeilProps {
@@ -25,7 +25,6 @@ export interface WeaveVeilProps {
   /** Accessible name for the `role="status"` live region (the veil IS the loading affordance). */
   label: string;
   children?: ReactNode;
-  className?: string;
 }
 
 const VEIL_STAGES = ["enter", "open", "ending", "gone"] as const;
@@ -36,7 +35,7 @@ type VeilStage = (typeof VEIL_STAGES)[number];
 const EXIT_SAFETY_MS = 1200;
 
 /** The fullscreen weave veil. Mount it whenever the wait exists; drive `open` from the real gate. */
-export function WeaveVeil({ open, onExited, label, children, className }: WeaveVeilProps): ReactElement | null {
+export function WeaveVeil({ open, onExited, label, children }: WeaveVeilProps): ReactElement | null {
   const slots = weaveVeilVariants();
   const reduced = usePrefersReducedMotion();
   const [stage, setStage] = useState<VeilStage>("enter");
@@ -110,7 +109,7 @@ export function WeaveVeil({ open, onExited, label, children, className }: WeaveV
       data-slot="weave-veil"
       data-entered={entered ? "" : undefined}
       data-ending={stage === "ending" ? "" : undefined}
-      className={cn(slots.root(), className)}
+      className={slots.root()}
       onTransitionEnd={finishExit}
     >
       <div data-slot="weave-veil-content" className={slots.content()}>

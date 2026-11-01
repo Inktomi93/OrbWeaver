@@ -1,5 +1,4 @@
 import { RESPONSE_CACHE_TTL_BOUNDS, responseCacheTtlSchema } from "@orb/contracts/preset";
-import { groupThousands } from "@orb/kit/strings";
 import { Field } from "@orb/ui/field";
 import { Section } from "@orb/ui/layout";
 import { NumberField } from "@orb/ui/number-field";
@@ -82,7 +81,7 @@ function ReplayRetention({ form, disabled }: { readonly form: AppForm; readonly 
           name={field.name}
           label="Response replay lifetime (seconds)"
           description="Choose an explicit replay request before editing. Empty inherits the connection header or OpenRouter's default; it does not write a guessed lifetime."
-          error={invalid ? `Enter whole seconds from ${RESPONSE_CACHE_TTL_BOUNDS.min} to ${groupThousands(RESPONSE_CACHE_TTL_BOUNDS.max)}.` : null}
+          error={invalid ? `Enter whole seconds from ${RESPONSE_CACHE_TTL_BOUNDS.min} to ${RESPONSE_CACHE_TTL_BOUNDS.max}.` : null}
         >
           <NumberField
             disabled={disabled}

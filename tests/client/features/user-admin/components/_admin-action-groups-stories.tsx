@@ -1,4 +1,4 @@
-import { systemTuningSection } from "@orb/client/features/user-admin";
+import { memoryTuningSection, systemTuningSection } from "@orb/client/features/user-admin";
 import { useConfigSectionRegistry } from "@orb/client/state";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import { CtAppearanceChannels, CtClientProviders, CtConfigGroupBody } from "@orb/testkit/browser";
@@ -30,6 +30,19 @@ export function AdminResetNamesStory({ width, appearance }: { readonly width: nu
       <CtAppearanceChannels settings={appearance}>
         <Container style={{ inlineSize: width }} data-slot="admin-reset-host">
           <AdminResetNamesBody />
+        </Container>
+      </CtAppearanceChannels>
+    </CtClientProviders>
+  );
+}
+
+/** The production memory-tuning contribution, whose Minimum match field takes decimals. */
+export function AdminMemoryTuningStory({ width, appearance }: { readonly width: number; readonly appearance: AppearanceSettings }): ReactElement {
+  return (
+    <CtClientProviders>
+      <CtAppearanceChannels settings={appearance}>
+        <Container style={{ inlineSize: width }} data-slot="admin-memory-host">
+          {memoryTuningSection.body("admin-memory-subject")}
         </Container>
       </CtAppearanceChannels>
     </CtClientProviders>

@@ -207,13 +207,14 @@
       position: static;
     }
   }
-  /* A column this narrow at the enlarged root reads a few characters a line, so the card gives back its share and inset. */
+  /* A column this narrow at the enlarged root reads a few characters a line, so the card gives back its share and inset.
+   * The inset it gives back includes the art pane's, so the foot and pinned header reach only the card's own inset. */
   @container shell-main (inline-size < 20rem) {
     [data-slot="message-bubble"] {
       max-inline-size: 100%;
       padding-inline: var(--spacing-field);
-      --row-reach-left: var(--art-reach-left, var(--spacing-field));
-      --row-reach-right: var(--art-reach-right, var(--spacing-field));
+      --row-reach-left: var(--spacing-field);
+      --row-reach-right: var(--spacing-field);
       --row-foot-inset-left: var(--spacing-field);
       --row-foot-inset-right: var(--spacing-field);
     }

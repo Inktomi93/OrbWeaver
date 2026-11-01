@@ -31,6 +31,8 @@ import { homeSectionJumpVisible } from "#client/features/home/lib/section-jump-v
 import { EXTENSIONS_SECTION_LABEL } from "#client/features/plugin/lib/extensions-section-label.ts";
 import { PRESETS_SECTION_LABEL } from "#client/features/preset/lib/presets-section-label.ts";
 import { REFINERY_SECTION_LABEL } from "#client/features/refinery/lib/refinery-section-label.ts";
+import { reviewFieldLabel } from "#client/features/refinery/lib/review-field-label.ts";
+import { SETUP_SCHEMA_ACTIONS, SETUP_SCHEMA_ROWS } from "#client/features/refinery/lib/setup-door-names.ts";
 import { homeRostersVisible } from "#client/features/roster-preset/lib/home-rosters-visibility.ts";
 import { rosterCountsSuffix } from "#client/features/roster-preset/lib/roster-copy.ts";
 import { ANALYTICS_SEARCH_NAME } from "#client/features/stats/lib/analytics-names.ts";
@@ -2004,7 +2006,9 @@ export async function walkRefineryExecution(flow: SurfaceFlow): Promise<void> {
       throw new Error("The maintained rewrite fixture did not produce its description entry");
     }
     expect(description.text).not.toBe(before.description);
-    await content(journey).getByRole("button", { name: "Keep description", exact: true }).click();
+    await content(journey)
+      .getByRole("button", { name: `Keep ${reviewFieldLabel("description")}`, exact: true })
+      .click();
     await expect.poll(async () => (await flow.client.refinery.getSession.query({ sessionId: session.id })).rewriteDecisions[latestRewrite.id]).toEqual([true]);
     await expect(content(journey).getByRole("button", { name: "Apply 1 kept", exact: true })).toBeEnabled();
     const branch = await refineryCopy(journey, session.id, characters);
@@ -2084,7 +2088,7 @@ function refineryPayloadWitness(lane: Locator, run: RefineryRun): Locator {
     case "score":
       return lane.getByText(REFINERY_STAGE_PAYLOADS.score.parse(run.payload).summary, { exact: true });
     case "rewrite":
-      return lane.getByRole("button", { name: "Keep description", exact: true });
+      return lane.getByRole("button", { name: `Keep ${reviewFieldLabel("description")}`, exact: true });
     case "analyze":
       return lane.getByText(REFINERY_STAGE_PAYLOADS.analyze.parse(run.payload).soulAssessment, { exact: true });
   }
@@ -2248,7 +2252,12 @@ const REFINERY_WORKBENCH_DOORS = [
   { name: "Edit scope", id: "scope-dialog" },
   { name: "Hand-edit", id: "manual-rewrite-dialog" },
 ] as const;
-const REFINERY_SETUP_DOORS = ["View Original card", "Edit Score schema", "Edit Analyze schema"] as const;
+// A stage on the built-in schema offers Create, a stage on a saved one offers Edit; the pattern takes either, from the pane's own words.
+const SCHEMA_ACTIONS = SETUP_SCHEMA_ACTIONS.join("|");
+const REFINERY_SETUP_DOORS = [
+  { id: "View Original card", name: "View Original card" },
+  ...Object.values(SETUP_SCHEMA_ROWS).map((row) => ({ id: row, name: new RegExp(`^(${SCHEMA_ACTIONS}) ${row}$`, "u") })),
+] as const;
 
 async function openSetupTab(journey: Journey): Promise<Locator> {
   await reveal(journey, "context");
@@ -2263,9 +2272,13 @@ async function refineryDoors(journey: Journey, prefix: string): Promise<void> {
   for (const door of REFINERY_WORKBENCH_DOORS) {
     await walkDoor(journey, { id: `${prefix}/${door.id}`, trigger: content(journey).getByRole("button", { name: door.name, exact: true }), body: dialog });
   }
-  for (const name of REFINERY_SETUP_DOORS) {
+  for (const { id, name } of REFINERY_SETUP_DOORS) {
     const setup = await openSetupTab(journey);
-    await walkDoor(journey, { id: `${prefix}/setup/${name}`, trigger: setup.getByRole("button", { name, exact: true }), body: dialog });
+    await walkDoor(journey, {
+      id: `${prefix}/setup/${id}`,
+      trigger: setup.getByRole("button", typeof name === "string" ? { name, exact: true } : { name }),
+      body: dialog,
+    });
   }
   await dismissContext(journey);
   observe(

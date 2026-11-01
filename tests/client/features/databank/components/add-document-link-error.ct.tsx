@@ -17,7 +17,12 @@ test("a failed link fetch reports once: the form's own line, with no toast besid
   await page.getByRole("textbox", { name: "Link", exact: true }).fill(REFUSED_LINK);
   await page.getByRole("button", { name: "Fetch and add", exact: true }).click();
 
-  await expect(page.getByText("Couldn't fetch that link. Check the address, then try again.", { exact: true })).toBeVisible();
+  const failure = page.getByRole("alert").filter({ hasText: "Couldn't fetch that link. Check the address, then try again." });
+  await expect(failure).toBeVisible();
+  // The line is announced, and the Link field points at it and reads as invalid.
+  const link = page.getByRole("textbox", { name: "Link", exact: true });
+  await expect(link).toHaveAttribute("aria-invalid", "true");
+  await expect(link).toHaveAccessibleDescription("Couldn't fetch that link. Check the address, then try again.");
   // Let every other surface that would speak settle before counting them.
   await expect(page.getByRole("button", { name: "Fetch and add", exact: true })).toBeEnabled();
   await expect(page.locator(TOAST)).toHaveCount(0);
