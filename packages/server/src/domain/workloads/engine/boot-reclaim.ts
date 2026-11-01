@@ -35,7 +35,7 @@ import type { WorkloadId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { WorkloadProgressBus } from "../contract/progress-bus.ts";
 import type { BootReclaimArgs, BootReclaimReport, WorkloadReapReason } from "../contract/service.ts";
-import { findInFlightForBootReclaim, markTerminal, requeueInFlight } from "../persistence/queries.ts";
+import { findActiveForBootSweep, findInFlightForBootReclaim, markTerminal, requeueInFlight } from "../persistence/queries.ts";
 import { MAX_BOOT_RESPAWNS, reapedMessage } from "./reap-record.ts";
 
 /** The three things that can happen to one orphan. `unmoved` is the status-guard losing: the row left the
@@ -106,5 +106,19 @@ export async function reclaimInFlightOnBoot(args: BootReclaimArgs): Promise<Boot
     reaped: dispositions.filter((disposition) => disposition === "reaped").length,
   };
   getLog(args.logger).info(report, "workloads: boot reclaim of orphaned in-flight rows (resumable kinds re-queued, the rest reaped)");
+  await sweepAbandoned(args);
   return report;
+}
+
+// After the dispositions, so a re-queued row counts as live and a reaped one does not.
+async function sweepAbandoned(args: BootReclaimArgs): Promise<void> {
+  // owned by the log line: a sweep only frees disk, so a fault must not stop the box booting, and the next boot sweeps again. Ends if a sweep starts to own a guarantee beyond freeing disk.
+  try {
+    const active = await findActiveForBootSweep(args.db);
+    for (const contribution of Object.values(args.contributions)) {
+      await contribution.sweepOnBoot?.(active);
+    }
+  } catch (err) {
+    getLog(args.logger).error({ err }, "workloads: boot sweep of abandoned work failed; what it left waits for the next boot");
+  }
 }

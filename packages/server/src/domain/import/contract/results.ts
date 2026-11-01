@@ -312,6 +312,8 @@ export interface ImportReport {
   readonly seatedDisabledMembers: readonly ImportSeatedDisabledMember[];
   /** A transcript leaf a group's own `chats[]` claimed with no readable file under `group chats/`. */
   readonly missingGroupChats: readonly string[];
+  /** A persona's avatar name that matched no file in the profile's avatar folder; the persona imported without art. */
+  readonly missingPersonaAvatars: readonly string[];
   readonly skippedChats: readonly string[];
   readonly orphanChatDirs: readonly string[];
   readonly skippedCharacters: readonly string[];

@@ -112,6 +112,7 @@ function mergeRecords(into: ProfileCollectRecords, from: Awaited<ReturnType<type
   for (const g of from.groups) {
     into.missingGroupChats.push(...g.missingChatLeaves);
   }
+  into.missingPersonaAvatars.push(...from.missingPersonaAvatars);
   into.skippedChats.push(...from.skippedChats);
   into.orphanChatDirs.push(...from.orphanChatDirs);
   into.skippedCharacters.push(...from.skippedCharacters);
@@ -153,6 +154,7 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
     skippedBackgrounds: [],
     unreadableGroups: [],
     missingGroupChats: [],
+    missingPersonaAvatars: [],
     skippedChats: [],
     orphanChatDirs: [],
     skippedCharacters: [],
@@ -494,6 +496,7 @@ function reportFrom({ collected, scanned, changed, skippedCards, waves, dryRunWo
     unreadablePresets: collected.unreadablePresets,
     unreadableGroups: collected.unreadableGroups,
     missingGroupChats: collected.missingGroupChats,
+    missingPersonaAvatars: collected.missingPersonaAvatars,
     ...waves,
     // ONE "did not import" list per plane, whichever stage refused: the CONVERTER's refusals (collect-time —
     // unreadable / colour-less; a non-media background

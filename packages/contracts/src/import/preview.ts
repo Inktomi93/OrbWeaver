@@ -53,16 +53,14 @@ export const importPreviewSchema = z.strictObject({
 });
 export type ImportPreview = z.infer<typeof importPreviewSchema>;
 
-function union<T extends { readonly source: string }>(
-  lists: readonly { readonly total: number; readonly items: readonly T[] }[],
-): { total: number; items: T[] } {
+function union<T>(lists: readonly { readonly total: number; readonly items: readonly T[] }[], identity: (item: T) => string): { total: number; items: T[] } {
   const seen = new Map<string, T>();
   let unlisted = 0;
   for (const list of lists) {
     unlisted += list.total - list.items.length;
     for (const item of list.items) {
-      if (!seen.has(item.source)) {
-        seen.set(item.source, item);
+      if (!seen.has(identity(item))) {
+        seen.set(identity(item), item);
       }
     }
   }
@@ -70,8 +68,21 @@ function union<T extends { readonly source: string }>(
 }
 
 /** One preview over the uploads of a split folder. Shared files and repeated cards repeat across uploads, so
- *  listed items union by source; a capped list's unlisted tail cannot be compared and is added. */
+ *  listed items union by source; a capped list's unlisted tail cannot be compared and is added. A skip unions by
+ *  source and reason together: one source can be skipped two ways, and each way is its own row. */
 export function mergeImportPreviews(previews: readonly ImportPreview[]): ImportPreview {
-  const kinds = Object.fromEntries(IMPORT_PREVIEW_KINDS.map((kind) => [kind, union(previews.map((preview) => preview.kinds[kind]))]));
-  return importPreviewSchema.parse({ kinds, skipped: union(previews.map((preview) => preview.skipped)) });
+  const kinds = Object.fromEntries(
+    IMPORT_PREVIEW_KINDS.map((kind) => [
+      kind,
+      union(
+        previews.map((preview) => preview.kinds[kind]),
+        (item) => item.source,
+      ),
+    ]),
+  );
+  const skipped = union(
+    previews.map((preview) => preview.skipped),
+    (item) => `${item.source}\n${item.reason}`,
+  );
+  return importPreviewSchema.parse({ kinds, skipped });
 }

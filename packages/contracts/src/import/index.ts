@@ -122,9 +122,10 @@ export function stProfileEntryDisposition(
   return { handled: false, reason: ST_PROFILE_UNHANDLED_REASONS.get(isDirectory ? `${name}/` : name) ?? null };
 }
 
-/** The ST credentials file by its last path segment — the one name every door drops before staging. */
+/** The ST credentials file by its last path segment, in any case: a Windows or macOS profile may carry any
+ *  spelling of the name. Every door drops it before staging. */
 export function isStSecretsFile(relPath: string): boolean {
-  return relPath.split("/").at(-1) === ST_SECRETS_FILE;
+  return relPath.split("/").at(-1)?.toLowerCase() === ST_SECRETS_FILE;
 }
 
 const TRAILING_DIGITS = /\d+$/u;

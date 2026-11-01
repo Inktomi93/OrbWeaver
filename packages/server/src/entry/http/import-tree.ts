@@ -42,7 +42,7 @@ import type { IdSource } from "@orb/kit/ids";
 import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { UploadedFile } from "#domain/import";
-import { DEFAULT_IMPORT_STAGING_DIR, incomingPersonasOf, stagedOwnerRoot } from "#domain/import";
+import { DEFAULT_IMPORT_STAGING_DIR, incomingPersonasOf, STAGED_TREE_PREFIX, stagedOwnerRoot } from "#domain/import";
 import type { PersonaService } from "#domain/persona";
 import type { WorkloadService } from "#domain/workloads";
 import type { Logger } from "#foundation/observability";
@@ -313,7 +313,7 @@ async function stageUpload(
     throw new TreeRejected(BAD_REQUEST, "a dry run reads a SillyTavern profile only");
   }
   await mkdir(staging.root, { recursive: true, mode: OWNER_ONLY_DIR });
-  const token = `import-tree-${staging.newOpaqueId()}`;
+  const token = `${STAGED_TREE_PREFIX}${staging.newOpaqueId()}`;
   const stagedRoot = join(staging.root, token);
   await mkdir(stagedRoot, { recursive: true });
   try {

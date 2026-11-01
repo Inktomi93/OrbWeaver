@@ -1,7 +1,7 @@
 import { ST_PROFILE_UNHANDLED_REASONS, ST_SETTINGS_UNHANDLED_REASONS } from "@orb/contracts/import";
 import type { ImportReport } from "../contract/results.ts";
 
-export function unhandledReason(name: string): string | undefined {
+function unhandledReason(name: string): string | undefined {
   return ST_PROFILE_UNHANDLED_REASONS.get(name) ?? ST_SETTINGS_UNHANDLED_REASONS.get(name);
 }
 
@@ -245,6 +245,10 @@ export function formatImportReport(report: ImportReport, generatedAt: number): s
     section(
       "Group transcripts a group claimed but that could not be read",
       report.missingGroupChats.map((f) => `\`${f}\``),
+    ),
+    section(
+      "Persona avatars named in settings.json with no file in the avatar folder (the persona imported without art)",
+      report.missingPersonaAvatars.map((f) => `\`${f}\``),
     ),
     section(
       "Chat-bound persona picks that did NOT resolve (the chat imported; only the pick was dropped)",
