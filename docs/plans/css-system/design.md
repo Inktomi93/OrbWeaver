@@ -148,43 +148,13 @@ Done when: `tsc` refuses each removed value. `tests/client/features/app-shell/su
 
 Step 4 lands as ordered sub-steps. Each sub-step is one commit and leaves the app working. Each one adds its family map, its components with their CTs, a `.dom.test-d.ts` per touched primitive and its captures.
 
-| Sub-step | Scope | Depends on |
-| - | - | - |
-| 4a | The codemod, the button family core, `GlyphButton`, `InlineAction`, `PictureButton` | none |
-| 4b | `InlineToken`, `IndicatorDot` | 4a; the shell lane merged (`context-rail.tsx`, `rail.tsx`) |
-| 4c | `MessageBubble`, the theme preview parts, `FloatingChip`, `RoomIsland`, `Spoiler`, the plate and backdrop flag, `shadow="overlay"` | 4a; the shell lane merged (`appearance-elevation-cards.tsx`, `appearance-density-cards.tsx`) |
-| 4d | The layout boxes: `FocalSection`, `highlight`, slide and lift, `opacityMotion`, `stateFill`, `dividerTone` | 4c for `Spoiler`; the shell lane merged (`room-flank.tsx`) |
-| 4e | ListRow state on `data-selected`, `aria-expanded` and `data-disabled`; `revealActions` and `density` | item 1448 merged (`SELECTION_RAIL` in `packages/ui/src/lib/`) |
-
-Literal call sites at the survey, in `packages/client/src` and `packages/ui/src`. Re-run the survey after each merge; a spread site is a hand edit.
-
-| Sub-step | Value | Sites | Files |
-| - | - | - | - |
-| 4b | Badge `size="inline"` | 16 | 11, including `packages/ui/src/markdown/dice-inline.tsx` |
-| 4b | Badge `size="dot"`, `edge` | 7 | 5; `DOT_SKIN` in `packages/client/src/components/connection-role-slot.tsx` is computed |
-| 4c | Card `tone` `bubble`, `userBubble`, `systemBubble`, `shape="bubble"` | 10 | 6; `ROLE_FILL[role]` in `message-box.tsx` is computed |
-| 4c | Card `tone` `background`, `accent`, `sidebar`, `sidebarEdge`, `translucent`, `shape="inset"` | 11 | 5 |
-| 4c | Card `shape="pill"`, `tone="popover"`, `presence` | 3 | 1, `jump-to-latest-pill.tsx` |
-| 4c | Card `shape="float"`, `holdsField`, `dropTarget` | 1 | 1, `chat-controls-band.tsx`, plus the composer island and `composer-drop-target.tsx` |
-| 4c | Card `shape="plate"`, `tone="backdrop"` | 2 | 1, `message-row-divider.tsx` |
-| 4c | Card `shadow="overlay"` | 3 | 2 |
-| 4c | Card and Stack `spoiler` | 3 | 2, both computed |
-| 4d | Section `focal` | 2 | 2, both computed |
-| 4d | Stack and Grid `highlight` | 2 | 2, both computed |
-| 4d | Stack `slide`, `lifted` | 2 | 1, `room-flank.tsx` |
-| 4d | Stack `opacityMotion` | 1 | 1 |
-| 4d | Row `stateFill` | 2 | 2 |
-| 4d | Stack and Row `dividerTone` | 4 | 3 |
-| 4e | ListRow `selected`, `expanded`, `disabled`, `revealActions`, `density` | 16 | 14 |
-
-Inks on tints. D336 paints text on a tint with the tone's `text-on-tint` role; for `neutral` that role is `accent-foreground`. These recipes keep a page ink on a tint, which no floor covers: `foreground` on the neutral `tint-active` measures 3.35:1 over `oklch(0.5 0 0)`. Each sub-step repaints its rows.
-
-| Sub-step | Recipe | Change |
-| - | - | - |
-| 4c | Card `interactive` in `packages/ui/src/primitives/card/variants.ts` | Its hover and press paint `card-foreground` on `bg-tone-tint-active`; add `hover:text-tone-text-on-tint` and `active:text-tone-text-on-tint`. |
-| 4c | `packages/ui/src/primitives/compare-blocks/variants.ts` `before` and `after` panels | `text-foreground` on `bg-tone-tint` becomes `text-tone-text-on-tint`. |
-| 4c | `packages/ui/src/primitives/tool-call-block/variants.ts` `pre`, `packages/ui/src/content/immersive-card/variants.ts` body | `text-foreground` on `bg-muted`, the neutral tint, becomes `text-accent-foreground`. |
-| 4e | Tabs rail cell in `packages/ui/src/primitives/tabs/variants.ts` | `data-active:text-foreground` on `data-active:bg-tone-tint` becomes `data-active:text-tone-text-on-tint`, beside ListRow's `data-selected` state styles. |
+| Sub-step | Scope |
+| - | - |
+| 4a | The codemod, the button family core, `GlyphButton`, `InlineAction`, `PictureButton` |
+| 4b | `InlineToken`, `IndicatorDot` |
+| 4c | `MessageBubble`, the theme preview parts, `FloatingChip`, `RoomIsland`, `Spoiler`, the plate and backdrop flag, `shadow="overlay"` |
+| 4d | The layout boxes: `FocalSection`, `highlight`, slide and lift, `opacityMotion`, `stateFill`, `dividerTone` |
+| 4e | ListRow state on `data-selected`, `aria-expanded` and `data-disabled`; `revealActions` and `density` |
 
 Each family map holds `defaults` and a list of `{ element, door, match, to, toDoor, attributes }` rows. The first row whose `match` attributes all match wins, so list a more specific match first. A `match` value of `true` matches a bare or `{true}` attribute.
 
@@ -262,7 +232,7 @@ Ink fixes: Card `interactive` hover and press paint `text-tone-text-on-tint`; th
 | `packages/client/src/features/chat/surfaces/message-list-surface.tsx` | The default, a `Card variant="soft"`, was refused: it adds a border and padding, and a conditional Card swaps the element and remounts a live row. The row wrapper became `CurrentStack` with `aria-current` and keeps `data-corpus-anchor`. The mark is the neutral soft paint, so the old `bg-muted` and focus-ring ring became `tint-active` and the quiet edge. |
 | `packages/client/src/components/setting-teach-row.tsx` | The same refusal, and a Card border would shift the subgrid row, which the zero-shift bar forbids. The row is `CurrentGrid` with `aria-current` on a search match. The mark gains the quiet ring and keeps the accent fill. The modified rail takes `tone="primary"`. |
 | `packages/client/src/features/chat/components/room-flank.tsx` | The column stamps `data-flank-sheet` (`shown`, `parked`) and `data-flank-lifted`. `panels.css` keys the slide, the parked visibility and the overlay shadow on `data-slot="chat-thread-flank"`, on the same motion tokens, so the slide is unchanged. |
-| `packages/client/src/features/refinery/components/payload-view.tsx` | `opacityMotion` is gone. Stack `receded` carries the opacity transition in both arms, because a transition that leaves with the `true` arm would not ease the recovery. |
+| `packages/client/src/features/refinery/components/payload-view.tsx` | `opacityMotion` is gone. Stack `receded` carries the opacity transition in both branches, because a transition that leaves with the `true` branch would not ease the recovery. |
 | `packages/client/src/features/persona/components/persona-panel-row.tsx` | The row became `ListRow` with `"aria-expanded"`. ListRow now holds the neutral `tint-active` fill and the `text-on-tint` ink while `aria-expanded` is set, on the body or, for a row-tinted row, on the root; that is the fill the row held as `stateFill`, mapped onto the tone roles. The `persona-row-expand` and `persona-row-name` slots leave, with `renames.ts` rows pointing at `list-row-body` and `list-row-title`. |
 | `packages/client/src/features/persona/components/persona-panel-row.tsx` (marker) | The row wrapper stamps `data-persona-row`, which the e2e disclosure walker keys on, so only persona rows leave its census. |
 | `packages/client/src/features/persona/components/persona-switch-list.tsx` | `ListRow` was refused: even with the step 4e attribute props it has no `tabIndex` or row focus seam, and the room list is one roving tab stop. The stretched switch button already is the row body, so it takes `selection="rail"` and `data-selected`, the selection rail `ListRow` wears. |
@@ -402,31 +372,13 @@ Each surface a rendered review reaches has a CT that reads its computed paint on
 | `dividerTone` `primary`, `warning` | paints `border-tone-solid` under a stamp |
 | `receded`, `ground`, `plate`, `ink`, `divider`, `hoverDim`, `fade`, `feather` and the art axes | kept: UI-Density-Law §2.3 and §4.3 rule them |
 
-#### Flagged sites
+#### Flagged rows
 
-A lane adjudicates each site by hand, records the choice in its codemod table and captures the surface.
-
-| Site | Question |
-| - | - |
-| `packages/client/src/components/confirm-dialog.tsx`, `packages/client/src/components/form-dialog.tsx`, `packages/client/src/features/plugin/components/plugin-leaf-nodes.tsx`, `packages/client/src/features/rpg/components/tracker-blocks/add-row.tsx`, `packages/client/src/features/character/components/character-bulk-bar.tsx` | A forwarded Button `intent` that can name a fill style or a color. Split it into `variant` and `tone` at the type that carries it. |
-| `packages/client/src/features/chat/components/composer-send-control.tsx` | `sendLook` swaps `solid` and `ghost` with a muted tone. It needs `focal={false}` and an `ink`. |
-| `packages/client/src/features/character/components/character-filter-rail-parts.tsx`, `packages/client/src/features/refinery/components/lane-run-control.tsx` | A computed tone on an outline or secondary Button. |
-| `packages/client/src/features/character/components/character-facet-editor.tsx`, `packages/client/src/features/character/components/character-greeting-preview.tsx`, `packages/client/src/features/databank/surfaces/databank-library-surface.tsx`, `packages/client/src/features/rpg/components/tracker-blocks/ambient-strip.tsx`, `packages/client/src/features/rpg/components/tracker-blocks/npc-card-slots.tsx`, `packages/client/src/components/panel-edge-control.tsx`, `packages/client/src/features/chat/components/chat-controls-band.tsx`, `packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx`, `packages/client/src/features/config/components/settings-unreadable-notice.tsx`, `packages/client/src/features/user-admin/components/share-ip-certificate.tsx` | A Button swaps `intent` to show a state. Decide between a pressed state and a real change of emphasis. |
-| `packages/client/src/features/rpg/components/rpg-veiled-section.tsx` | Card `highlight` has no tone. Default `tone="warning" variant="outline"`. |
-| `packages/client/src/features/chat/components/composer-drop-target.tsx` | Card `primaryOutline` is a drop target. Default `tone="primary" variant="outline"`, or the `FileDropzone` skin. |
-| `packages/client/src/features/workloads/components/import-library-section.tsx` | Card `input` loses the field edge for the neutral edge. |
-| `packages/client/src/features/preset/components/macro-text.tsx`, `packages/client/src/features/discovery/components/corpus-family-map.tsx`, `packages/client/src/features/config/components/theme-editor.tsx` | `mutedWash`, `raised` and `well` all become the neutral soft fill. Confirm each is still distinct from its host. |
-| `packages/client/src/features/chat/components/message-row-divider.tsx` | Card `plate` with `backdrop` composites over art under D144. Decide between a layout `plate` and a transcript component. |
-| `packages/client/src/features/refinery/components/payload-view.tsx`, `packages/client/src/features/chat/components/message-choices-block.tsx`, the Card `warning` and `info` sites | A soft card sets the `text-on-tint` ink on content that does not set its own. Confirm the icons and bare text. |
-| `packages/client/src/features/chat/surfaces/message-list-surface.tsx`, `packages/client/src/components/setting-teach-row.tsx` | A highlighted layout box. |
-| `packages/client/src/features/chat/components/room-flank.tsx` | The flank's slide and lift. |
-| `packages/client/src/features/persona/components/persona-panel-row.tsx`, `packages/client/src/features/persona/components/persona-switch-list.tsx` | A Row with a state fill. |
-| `packages/client/src/features/refinery/components/payload-lane.tsx`, `packages/client/src/features/refinery/components/rewrite-lane.tsx` | Section `focal`. |
-| The ListRow and Card call sites that spread props | A spread can carry an axis no literal scan sees. Resolve each before deleting a value. |
+A mapping row marked flagged is adjudicated by hand at its call site, and the step records hold each choice. A spread can carry an axis no literal scan sees, so resolve each ListRow and Card call site that spreads props before deleting a value.
 
 ### Platform decisions
 
-Private source-review evidence: `reports/surface-consistency-private/governed-doc-recovery/originals/docs/plans/css-system/design.md`. These decisions do not establish new runtime qualification.
+These decisions do not establish new runtime qualification.
 
 | Candidate | Decision | Requirement or remaining action |
 | - | - | - |
@@ -496,12 +448,6 @@ Playwright WebKit on Linux does not reproduce Safari's mobile chrome, physical s
 
 RTL expansion is outside this assignment. A successful warm capture does not qualify cold startup.
 
-### Evidence ownership
-
-Private bounded acceptance evidence: `reports/surface-consistency-private/governed-doc-recovery/originals/docs/reviews/css-closeout.md`. It does not close the remaining acceptance above.
-
-The original plan, className inventory and enforcement audit are retained privately. Current source, ledger decisions and governed work own future requirements.
-
 ## Rejected
 
 - A second token vocabulary or hand-authored generated theme.
@@ -518,7 +464,7 @@ The UI law owns placement, density, reading geometry, motion and theme compositi
 
 The source-owner table identifies generators and retained checks. The restoration register and item 1299 retain unfinished application and qualification work.
 
-[theme-color-validators.md](theme-color-validators.md) explains why the wire and render theme schemas validate colors with different kit predicates, and recommends keeping the layering.
+The wire theme schema (`packages/contracts/src/theme/override.ts`) and the render clamp (`packages/ui/src/content/theme-scope/clamp.ts`) both gate colors through `packages/kit/src/safe-color/index.ts`. The wire schema also asks `isRenderableColor`; the render clamp asks `isSafeColor` only. Every value the wire schema keeps, the render clamp keeps. Keep the two schemas over the layered kit predicates and change no logic. `docs/law/UI-Theming-and-Content.md` §12.5 names the pairing, and `tests/ui/content/theme-scope/wire-subset-of-render.test.ts` pins the subset.
 
 ## Test plan
 
