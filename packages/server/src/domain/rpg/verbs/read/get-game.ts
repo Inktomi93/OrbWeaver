@@ -1,6 +1,7 @@
 // domain/rpg/verbs/read/get-game — getGame (D58). The takeover's mode read + the honest-arms
-// delivery verdicts (`trackersReadOnly` = the model write path for this game's mode; `canPopulate` = the
-// structured writer the host born-state round needs — one resolve, both answers). Member-gated.
+// delivery verdicts (`effectiveDelivery`, which folds in the model write path for this game's mode; `canPopulate` =
+// the structured writer the host born-state round needs — one resolve, both answers). The read-only flag itself is
+// the tracker view's. Member-gated.
 
 import type { RpgGameView } from "@orb/contracts/rpg";
 import type { ReadGameParams } from "#src/domain/rpg/contract/params.ts";
@@ -27,7 +28,6 @@ export function createGetGame(ctx: RpgContext): Pick<RpgService, "getGame"> {
       chatId: game.chatId,
       mode: game.mode,
       status: game.status,
-      trackersReadOnly,
       canPopulate,
       extractionMode: game.config.extractionMode,
       // EFF-3 — the knob is what the host ASKED for; this is what the room's connection actually does with it,

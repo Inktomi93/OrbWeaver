@@ -286,13 +286,6 @@ export interface SetRpgPointerDeps {
   readonly claimChat: ClaimChatOp;
 }
 
-/** The pending user text a game turn is responding to (D58): the latest user-role message's
- *  selected-variant content, or `null` (no user line yet). rpg's `skill_check` re-reads it server-side to feed
- *  the player's queued d20 as `preRolledD20` — the roll is server-emitted (the model can't lie), the tool arg is
- *  advisory, this parse is authoritative. A STANDALONE principal-free op (rpg gated the turn), the `GetMembership`
- *  precedent — chat learns nothing rpg-shaped. */
-export type GetPendingUserText = (chatId: ChatId) => Promise<string | null>;
-
 /** Delivers an invite/kick/handoff to a non-member the per-chat bus can't reach. Durable-first; `coStatements`
  *  carries the producer's membership-transition statements, committed in the same batch as the notification row. */
 type NotificationsEmitOp = (event: NotificationEvent, coStatements?: readonly StatementToken[]) => Promise<void>;

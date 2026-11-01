@@ -422,6 +422,7 @@ export type {
   GatherTurnContextArgs,
   GatherTurnContextOp,
   GetMembership,
+  GetPendingUserText,
   HandoffHealStatementsOp,
   HandoffRekeyActorsOp,
   HandoffWouldCopyGmPresetOp,

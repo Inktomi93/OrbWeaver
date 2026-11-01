@@ -9,7 +9,6 @@ export type { ChatBoundBackfillOps } from "./contract/bound-backfill.ts";
 export type {
   ChatServiceDeps,
   ExtractQuietDeps,
-  GetPendingUserText,
   PostNarratorMessage,
   PresenceReadOp,
   PromptTransformRegistry,

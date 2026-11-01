@@ -511,6 +511,8 @@ export interface LiteReminderInput {
    * The blocks teach the `<lie …/>`/`<ofilter …/>` grammar recognized by the tokenizer. */
   readonly deception: boolean;
   readonly omniscience: boolean;
+  /** This turn answers a player message carrying a dice stamp. A flag, so no player text enters the reminder. */
+  readonly playerRolledDice?: boolean | undefined;
   /** The #9 ambient-date mode — `narrated` drops the `day N` counter from the ambient line. */
   readonly dateMode: RpgDateMode;
   /** PROSE-1 (§4.3) — the turn PRESET's model-facing prose OVERRIDES (`promptConfig.prose`), threaded whole so the reminder
