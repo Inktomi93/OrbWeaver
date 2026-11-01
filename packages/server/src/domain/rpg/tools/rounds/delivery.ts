@@ -52,7 +52,8 @@ export function buildResolveStateDelivery(input: RpgRoundsAssemblyDeps): RpgCont
 }
 
 /** Which request a state round prices: the structured extraction, the in-turn cheap tool round, or the host resync's tool round. */
-export type StateRoundVehicle = "extraction" | "cheap-tools" | "resync-tools";
+const STATE_ROUND_VEHICLES = ["extraction", "cheap-tools", "resync-tools"] as const;
+type StateRoundVehicle = (typeof STATE_ROUND_VEHICLES)[number];
 
 /**
  * The text the state round's first request carries on `conn`: its system prompt, its user prompt, and its tool or
