@@ -484,6 +484,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // A hash is not a secret; the owner-gate lives on the blob route's byte read, not here.
     resolveAssetHash: assetOps.resolveAssetHash,
     filterOwnedAssetIds: assetOps.filterOwnedAssetIds,
+    filterOwnedImageAssetIds: assetOps.filterOwnedImageAssetIds,
     materializeBackground: input.materializeBackground,
     storeInlineReplyImage: input.storeInlineReplyImage,
     applyStatsDelta: stats.applyStatsDelta,

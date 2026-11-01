@@ -309,6 +309,7 @@ export async function gatherAssembleContext(
     /** The room seats more than one present human — carried onto the built ctx for SHAPE's name-stamp. */
     readonly multiHuman?: boolean | undefined;
     readonly pendingUserText?: string | undefined;
+    readonly sendDraft?: string | undefined;
     /** The one-turn typed steer — threaded to the BUILD, which resolves the action template once and
      *  delivers it via its placement. */
     readonly guided?: GuidedSteer | undefined;
@@ -495,6 +496,7 @@ export async function gatherAssembleContext(
       ...(lastUserMessage !== undefined ? { lastUserMessage } : {}),
       ...(lastCharMessage !== undefined ? { lastCharMessage } : {}),
       ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText, currentInput: args.pendingUserText } : {}),
+      ...(args.sendDraft !== undefined ? { sendDraft: args.sendDraft } : {}),
       ...(args.guided !== undefined ? { guided: args.guided } : {}),
       // The per-turn user-macro registries (WAVE MU) — absent ⇒ the pure build's singleton fallback (byte-identical).
       ...macroRegistries,
