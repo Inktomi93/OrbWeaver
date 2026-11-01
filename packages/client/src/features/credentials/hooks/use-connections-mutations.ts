@@ -15,8 +15,8 @@ type CredentialView = inferOutput<Trpc["credentials"]["add"]>;
 
 const connectionReads = (trpc: Trpc): ReturnType<Trpc["connection"]["pathFilter"]>[] => [trpc.connection.pathFilter()];
 
-/** Create a connection row (label auto-minted server-side when omitted). The add dialog calls it with
- *  `failureShownInline`: it states every submit failure in the dialog, where a toast would sit under the scrim. */
+/** Create a connection row (label auto-minted server-side when omitted). The add dialog also states every submit
+ *  failure inline, because a toast can sit under the scrim. */
 export const useCreateConnection = createEntityMutation<inferInput<Trpc["connection"]["create"]>, ConnectionView>({
   options: (trpc) => trpc.connection.create.mutationOptions(),
   invalidates: connectionReads,

@@ -82,7 +82,7 @@ export function SavedRepliesItem({
 function SavedRepliesBody({ message, onOpenChange }: Pick<SavedRepliesPickerProps, "message" | "onOpenChange">): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const selectVariant = useSelectVariantMutation({ trpc, invalidation, failureShownInline: true });
+  const selectVariant = useSelectVariantMutation({ trpc, invalidation });
   const history = useVariantHistory(message);
   if (history.isError) {
     return <QueryErrorState label="saved replies" onRetry={history.retry} />;

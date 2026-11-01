@@ -34,7 +34,7 @@ The attempt: let a consumer that renders a failure claim it, so the toast stands
 - A claim held for the consumer's mounted lifetime. A refusal after Cancel or after the name was edited, and an older write that failed after a newer one succeeded, showed nothing.
 - A claim that also required the failing mutation to be the observer's newest and unreset. It made `mutate` unstable, which fired `refinery.schemaPlan` 2,461 times in one CT run, and the document picker's no-match arm and add-document after switching Source still showed nothing.
 
-The claim needs per-consumer proof forever for a cosmetic gain, so it is deleted. `createEntityMutation` and the global handler are main's, with `failureShownInline` as it was for its earlier users and no new users.
+The claim needs per-consumer proof forever for a cosmetic gain, so it is deleted. The older `failureShownInline` option went with it: it suppressed the toast for six earlier users, so a failure could still show nothing. `createEntityMutation` takes no such option, every `errorToast` fires, and the earlier users keep their inline text beside the toast. `useAskSchemaPlan` has no `errorToast`, so its plan line stays the only surface for an advisory ask.
 
 ### Fixed
 
