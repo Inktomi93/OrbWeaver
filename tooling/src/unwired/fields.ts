@@ -19,14 +19,12 @@ import {
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol } from "@typescript/native/sync";
-import ts from "typescript";
 import type { Site, SyntaxRole } from "./classify.ts";
 import { isProductionFile, roleAt, Sources, siteKey } from "./classify.ts";
-import type { ServiceWorld } from "./language-service.ts";
 import { serviceReferences } from "./language-service.ts";
-import { constituents, declarationKeys, hasFlag, NativeWorld } from "./native.ts";
-import type { Reflection } from "./occurrences.ts";
-import { propertyIndex, REFLECTIVE_CALLS } from "./occurrences.ts";
+import { constituents, declarationKeys, homeFiles, NativeWorld } from "./native.ts";
+import type { PropertyFacts, PropertyReferences } from "./occurrences.ts";
+import { joinFacts, propertyFacts } from "./occurrences.ts";
 import type { ScanOptions } from "./scan.ts";
 import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
 import { typeMembers } from "./type-members.ts";
@@ -59,8 +57,9 @@ export interface FieldsReport {
   readonly scanned: number;
   readonly unwired: readonly UnwiredField[];
   readonly deliberate: readonly (UnwiredField & { readonly reason: string })[];
-  /** Fields engine one judged and engine two contradicted, with what engine two found. */
-  readonly disagreements: readonly { readonly key: string; readonly found: FieldKind | "wired" }[];
+  /** Fields where engine two found a production site in a role engine one lacks, with those sites. Engine one links
+   *  what find-references cannot follow, so engine two finding fewer sites is expected and contradicts nothing. */
+  readonly disagreements: readonly { readonly key: string; readonly uses: readonly string[] }[];
 }
 
 const SAMPLE = 3;
@@ -314,81 +313,27 @@ function declarations(world: NativeWorld): readonly FieldDeclaration[] {
     };
     return [field];
   });
-  return [...fromTypes, ...fromSchemas];
+  return uniquelyKeyed([...fromTypes, ...fromSchemas]);
 }
 
-function serviceReflectionsAt(node: ts.Node): readonly Reflection<ts.Node>[] {
-  if (ts.isSpreadAssignment(node) || ts.isJsxSpreadAttribute(node)) {
-    return [{ value: node.expression, key: null }];
-  }
-  if (ts.isElementAccessExpression(node) && !(ts.isStringLiteralLike(node.argumentExpression) || ts.isNumericLiteral(node.argumentExpression))) {
-    return [{ value: node.expression, key: node.argumentExpression }];
-  }
-  if (ts.isForInStatement(node)) {
-    return [{ value: node.expression, key: null }];
-  }
-  if (ts.isCallExpression(node) && REFLECTIVE_CALLS.has(node.expression.getText())) {
-    return node.arguments.map((value) => ({ value, key: null }));
-  }
-  return [];
-}
-
-function serviceKeyNames(checker: ts.TypeChecker, key: ts.Node): readonly string[] | null {
-  const type = checker.getTypeAtLocation(key);
-  const names: string[] = [];
-  for (const member of type.isUnion() ? type.types : [type]) {
-    if (member.isStringLiteral()) {
-      names.push(member.value);
-    } else if (hasFlag(member.flags, ts.TypeFlags.String)) {
-      return null;
-    }
-  }
-  return names;
-}
-
-// A spread into a typed literal reads only the members a library declares on the target; engine one links the rest to
-// the target's own members, which find-references cannot follow, so engine two leaves them unread.
-function serviceReflectedProperties(checker: ts.TypeChecker, { value, key }: Reflection<ts.Node>): readonly ts.Symbol[] {
-  const names = key === null ? null : serviceKeyNames(checker, key);
-  const type = checker.getNonNullableType(checker.getTypeAtLocation(value));
-  const properties = (type.isUnion() ? type.types : [type]).flatMap((member) =>
-    names === null ? checker.getPropertiesOfType(member) : names.flatMap((name) => checker.getPropertyOfType(member, name) ?? []),
-  );
-  const owner = value.parent.parent;
-  const spread =
-    (ts.isSpreadAssignment(value.parent) && ts.isObjectLiteralExpression(owner)) || (ts.isJsxSpreadAttribute(value.parent) && ts.isJsxAttributes(owner));
-  const target = spread ? checker.getContextualType(owner) : undefined;
-  if (target === undefined) {
-    return properties;
-  }
-  const external = (declaration: ts.Declaration): boolean => declaration.getSourceFile().fileName.includes("/node_modules/");
-  return properties.filter((property) => checker.getPropertyOfType(target, property.name)?.declarations?.every(external) === true);
-}
-
-/** Engine two's view of the reflective reads `propertyIndex` credits in engine one: the sites of the names of the properties read. */
-function serviceReflectedReads(world: ServiceWorld): ReadonlySet<string> {
-  const found = new Set<string>();
-  const visit = (node: ts.Node): void => {
-    const properties = serviceReflectionsAt(node).flatMap((reflection) => serviceReflectedProperties(world.checker, reflection));
-    for (const declaration of properties.flatMap((property) => property.declarations ?? [])) {
-      const name = ts.getNameOfDeclaration(declaration);
-      if (name !== undefined) {
-        found.add(siteKey(world.siteOf(name)));
-      }
-    }
-    ts.forEachChild(node, visit);
-  };
-  for (const source of world.program.getSourceFiles()) {
-    if (!source.isDeclarationFile && isProduction(world.siteOf(source).file)) {
-      visit(source);
-    }
-  }
-  return found;
+// Union options name one key under one home, and each is its own field with its own sites. Declarations walk in source
+// order, so every world numbers them alike and the first keeps the bare key.
+function uniquelyKeyed(fields: readonly FieldDeclaration[]): readonly FieldDeclaration[] {
+  const seen = new Map<string, number>();
+  return fields.map((field) => {
+    const nth = (seen.get(field.key) ?? 0) + 1;
+    seen.set(field.key, nth);
+    return nth === 1 ? field : { ...field, key: `${field.key}#${nth}` };
+  });
 }
 
 interface Tally {
   readonly field: FieldDeclaration;
+  /** Every declaration key any world gave the field. */
+  readonly keys: Set<string>;
   readonly sites: Map<string, Site>;
+  /** The sites that name the field and the writes carried into it. A link-borne write proves nothing about who fills its home. */
+  readonly direct: Map<string, Site>;
 }
 
 interface Roles {
@@ -417,21 +362,14 @@ function rolesOf(sources: Sources, sites: Iterable<Site>): Roles {
   return { read, write, tests };
 }
 
-/** What an engine knows about a field beyond its named sites. */
-interface Context {
-  /** Engine two: a spread, computed key, `for…in` or reflective call reads it, which find-references never reports. */
-  readonly reflected: boolean;
-  /** Production writes some field of its home. A home no production code writes gets its value from outside the
-   *  tree (a host object cast from `globalThis`, a parse of external input), so its optional fields are never a
-   *  default the tree chose. */
-  readonly homeWritten: boolean;
-}
-
-function kindOf(field: FieldDeclaration, roles: Roles, context: Context): FieldKind | "wired" {
-  if (roles.read.length === 0 && !context.reflected) {
+// `homeWritten`: production writes some field of the home. A home no production code writes gets its value from outside
+// the tree (a host object cast from `globalThis`, a parse of external input), so its optional fields are never a default
+// the tree chose.
+function kindOf(field: FieldDeclaration, roles: Roles, homeWritten: boolean): FieldKind | "wired" {
+  if (roles.read.length === 0) {
     return roles.write.length === 0 ? "unreferenced" : "never-read";
   }
-  return roles.write.length === 0 && field.optional && !field.parameterOwned && context.homeWritten ? "never-written" : "wired";
+  return roles.write.length === 0 && field.optional && !field.parameterOwned && homeWritten ? "never-written" : "wired";
 }
 
 const homeOf = (field: FieldDeclaration): string => `${field.site.file}:${field.home}`;
@@ -445,65 +383,73 @@ function mergedSites(names: readonly Site[], second: ReadonlyMap<string, readonl
 
 const namesOf = (field: FieldDeclaration): readonly Site[] => [field.site, ...field.mirrorSites];
 
+function tallyWorld(tally: Map<string, Tally>, declared: Set<string>, world: NativeWorld): number {
+  const fields = declarations(world);
+  for (const field of fields) {
+    const entry = tally.get(field.key) ?? { field, keys: new Set(), sites: new Map(), direct: new Map() };
+    for (const key of field.keys) {
+      entry.keys.add(key);
+    }
+    for (const name of namesOf(field)) {
+      declared.add(siteKey(name));
+    }
+    tally.set(field.key, entry);
+  }
+  return fields.length;
+}
+
+// A schema key names a field; it writes no value, and a flow out of its schema must not carry it as one.
+function tallySites(tally: ReadonlyMap<string, Tally>, declared: ReadonlySet<string>, { index, direct }: PropertyReferences): void {
+  const keep = (into: Map<string, Site>, sites: readonly Site[]): void => {
+    for (const site of sites) {
+      const key = siteKey(site);
+      if (!declared.has(key)) {
+        into.set(key, site);
+      }
+    }
+  };
+  for (const entry of tally.values()) {
+    keep(entry.sites, sitesOf(index, [...entry.keys], entry.field.site));
+    keep(entry.direct, sitesOf(direct, [...entry.keys], entry.field.site));
+  }
+}
+
 /** Run both engines over the worlds of `root` for dead data. */
 export function scanFields(options: ScanOptions): FieldsReport {
   const { worlds, testWorlds } = scanWorlds(options);
   const sources = new Sources(options.root);
   const tally = new Map<string, Tally>();
-  for (const config of [...worlds, ...testWorlds]) {
+  const declared = new Set<string>();
+  const configs = [...worlds, ...testWorlds];
+  const homes = homeFiles(configs, NativeWorld.fileLists(options.root, configs));
+  const facts: PropertyFacts[] = [];
+  for (const config of configs) {
     using world = NativeWorld.open(options.root, config);
-    const fields = declarations(world);
-    const index = propertyIndex(world);
-    for (const field of fields) {
-      const entry = tally.get(field.key) ?? { field, sites: new Map() };
-      for (const site of sitesOf(index, field.keys, field.site)) {
-        entry.sites.set(siteKey(site), site);
-      }
-      for (const name of field.mirrorSites) {
-        entry.sites.delete(siteKey(name));
-      }
-      tally.set(field.key, entry);
-    }
-    options.log(`${config}: ${fields.length} fields`);
+    options.log(`${config}: ${tallyWorld(tally, declared, world)} fields`);
+    facts.push(propertyFacts(world, homes.get(config)));
   }
+  tallySites(tally, declared, joinFacts(facts));
   const rolled = [...tally.values()].map((entry) => ({ ...entry, roles: rolesOf(sources, entry.sites.values()) }));
-  const writtenHomes = new Set(rolled.filter(({ roles }) => roles.write.length > 0).map(({ field }) => homeOf(field)));
-  // Engine one's index already credits a reflective read to its value expression's site.
+  const writtenHomes = new Set(rolled.filter(({ direct }) => rolesOf(sources, direct.values()).write.length > 0).map(({ field }) => homeOf(field)));
   const judged = rolled.flatMap(({ field, roles }) => {
-    const kind = kindOf(field, roles, { reflected: false, homeWritten: writtenHomes.has(homeOf(field)) });
+    const kind = kindOf(field, roles, writtenHomes.has(homeOf(field)));
     return kind === "wired" ? [] : [{ field, roles, kind }];
   });
-  // Engine two judges a home's writes itself, so it is asked about every field of a home with a never-written finding.
-  const homes = new Set(judged.filter(({ kind }) => kind === "never-written").map(({ field }) => homeOf(field)));
-  const siblings = rolled.filter(({ field }) => homes.has(homeOf(field))).map(({ field }) => field);
-  const asked = new Map([...judged.map(({ field }) => field), ...siblings].map((field) => [field.key, field]));
-  const reflectedTwo = new Set<string>();
-  const second = serviceReferences(options.root, [...worlds, ...testWorlds], [...asked.values()].flatMap(namesOf), {
-    log: options.log,
-    crossCheck: options.crossCheck,
-    visit: (world) => {
-      for (const site of serviceReflectedReads(world)) {
-        reflectedTwo.add(site);
-      }
-    },
-  });
-  const rolesTwo = new Map([...asked.values()].map((field) => [field.key, rolesOf(sources, mergedSites(namesOf(field), second))]));
-  const writtenHomesTwo = new Set([...asked.values()].filter((field) => (rolesTwo.get(field.key)?.write.length ?? 0) > 0).map((field) => homeOf(field)));
+  const asked = judged.flatMap(({ field }) => namesOf(field));
+  const second = serviceReferences(options.root, [...worlds, ...testWorlds], asked, { log: options.log, crossCheck: options.crossCheck });
+  const located = (site: Site): string => `${site.file}:${sources.line(site)}`;
   const findings: UnwiredField[] = [];
   const disagreements: FieldsReport["disagreements"][number][] = [];
   for (const { field, roles, kind } of judged) {
-    const confirmed = rolesTwo.get(field.key) ?? { read: [], write: [], tests: 0 };
-    const found = kindOf(field, confirmed, {
-      reflected: namesOf(field).some((name) => reflectedTwo.has(siteKey(name))),
-      homeWritten: writtenHomesTwo.has(homeOf(field)),
-    });
-    if (found === kind) {
-      const sample = [...roles.write, ...roles.read].slice(0, SAMPLE).map((written) => `${written.file}:${sources.line(written)}`);
-      const { key, site, line, home, member, origin } = field;
-      findings.push({ key, file: site.file, line, home, member, origin, kind, tests: Math.max(roles.tests, confirmed.tests), sample });
-    } else {
-      disagreements.push({ key: field.key, found });
+    const audit = rolesOf(sources, mergedSites(namesOf(field), second));
+    const lacking = [...(roles.read.length === 0 ? audit.read : []), ...(roles.write.length === 0 ? audit.write : [])];
+    if (lacking.length > 0) {
+      disagreements.push({ key: field.key, uses: lacking.map(located) });
+      continue;
     }
+    const sample = [...roles.write, ...roles.read].slice(0, SAMPLE).map(located);
+    const { key, site, line, home, member, origin } = field;
+    findings.push({ key, file: site.file, line, home, member, origin, kind, tests: Math.max(roles.tests, audit.tests), sample });
   }
   return { scanned: tally.size, ...sortDeliberate(findings, options.deliberate), disagreements };
 }

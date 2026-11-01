@@ -19,9 +19,9 @@ import { SymbolFlags } from "@typescript/native/sync";
 import type { CallShape, Site } from "./classify.ts";
 import { callAt, isProductionFile, Sources, siteKey, valueUseAt } from "./classify.ts";
 import { serviceReferences } from "./language-service.ts";
-import { declarationKeys, hasFlag, NativeWorld } from "./native.ts";
-import type { ReferenceIndex } from "./occurrences.ts";
-import { propertyIndex, valueIndex } from "./occurrences.ts";
+import { declarationKeys, hasFlag, homeFiles, NativeWorld } from "./native.ts";
+import type { PropertyFacts, ReferenceIndex } from "./occurrences.ts";
+import { joinFacts, propertyFacts, valueIndex } from "./occurrences.ts";
 import type { ScanOptions } from "./scan.ts";
 import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
 import { typeMembers } from "./type-members.ts";
@@ -247,24 +247,50 @@ function judge(callable: Callable, calls: Calls): readonly UnwiredParam[] {
   });
 }
 
+interface Tallied {
+  readonly callable: Callable;
+  readonly sites: Map<string, Site>;
+}
+
+function addSites(entry: Tallied, references: ReferenceIndex): void {
+  for (const reference of sitesOf(references, entry.callable.keys, entry.callable.site)) {
+    entry.sites.set(siteKey(reference), reference);
+  }
+}
+
+// Each file's value sites come from its home world, and a property site joins every world's links and flows at the end.
+function engineOne(root: string, configs: readonly string[], log: (line: string) => void): ReadonlyMap<string, Tallied> {
+  const tally = new Map<string, Tallied>();
+  const homes = homeFiles(configs, NativeWorld.fileLists(root, configs));
+  const facts: PropertyFacts[] = [];
+  for (const config of configs) {
+    using world = NativeWorld.open(root, config);
+    const found = callables(world);
+    const values = valueIndex(world, homes.get(config));
+    for (const callable of found) {
+      const entry = tally.get(callable.key) ?? { callable, sites: new Map() };
+      if (callable.reach === "value") {
+        addSites(entry, values);
+      }
+      tally.set(callable.key, entry);
+    }
+    facts.push(propertyFacts(world, homes.get(config)));
+    log(`${config}: ${found.length} callables`);
+  }
+  const { index } = joinFacts(facts);
+  for (const entry of tally.values()) {
+    if (entry.callable.reach === "property") {
+      addSites(entry, index);
+    }
+  }
+  return tally;
+}
+
 /** Run both engines over the worlds of `root` for unsupplied and constant parameters. */
 export function scanParams(options: ScanOptions): ParamsReport {
   const { worlds, testWorlds } = scanWorlds(options);
   const sources = new Sources(options.root);
-  const tally = new Map<string, { readonly callable: Callable; readonly sites: Map<string, Site> }>();
-  for (const config of [...worlds, ...testWorlds]) {
-    using world = NativeWorld.open(options.root, config);
-    const found = callables(world);
-    const indexes: Record<Callable["reach"], ReferenceIndex> = { value: valueIndex(world), property: propertyIndex(world) };
-    for (const callable of found) {
-      const entry = tally.get(callable.key) ?? { callable, sites: new Map() };
-      for (const reference of sitesOf(indexes[callable.reach], callable.keys, callable.site)) {
-        entry.sites.set(siteKey(reference), reference);
-      }
-      tally.set(callable.key, entry);
-    }
-    options.log(`${config}: ${found.length} callables`);
-  }
+  const tally = engineOne(options.root, [...worlds, ...testWorlds], options.log);
   const judged = [...tally.values()].flatMap(({ callable, sites }) => {
     const findings = judge(callable, callsOf(sources, callable, sites.values()));
     return findings.length === 0 ? [] : [{ callable, findings }];
