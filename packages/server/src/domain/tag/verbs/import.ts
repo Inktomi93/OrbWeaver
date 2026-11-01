@@ -64,6 +64,6 @@ export function createImport(input: DbAssemblyInput<TagContext>): (ownerId: User
       ctx.emitUserEvent(ownerId, { type: "tagsChanged" });
     }
 
-    return { total: library.tags.length, created };
+    return { created };
   };
 }

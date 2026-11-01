@@ -227,9 +227,7 @@ test("an accepted native copy handoff rebases exact retained cohorts and signed 
     { tokensIn: 0, tokensOut: 0, tokensInMeasuredSamples: 0, tokensOutMeasuredSamples: 0 },
   ]);
   expect(await root.services.stats.characterEconomics(actors.owner.userId)).toEqual([]);
-  expect(await root.services.stats.characterEconomics(nominee.userId)).toMatchObject([
-    { characterId: slot.characterId, generations: 1, tokensIn: 100, tokensOut: 35 },
-  ]);
+  expect(await root.services.stats.characterEconomics(nominee.userId)).toMatchObject([{ characterId: slot.characterId, tokensOut: 35 }]);
   for (const ownerId of [actors.owner.userId, nominee.userId]) {
     const before = await root.services.stats.overview(ownerId);
     await root.services.stats.reconcile(ownerId);
@@ -472,9 +470,7 @@ test("native continuation settles before handoff rebases its retained cohort and
     ]);
     expect(await root.services.stats.overview(nominee.userId)).toMatchObject({ chats: 1, assistantTurns: 1, tokensIn: 100, tokensOut: 35 });
     expect(await root.services.stats.characterEconomics(actors.owner.userId)).toEqual([]);
-    expect(await root.services.stats.characterEconomics(nominee.userId)).toMatchObject([
-      { characterId: copied.characterId, generations: 1, tokensIn: 100, tokensOut: 35 },
-    ]);
+    expect(await root.services.stats.characterEconomics(nominee.userId)).toMatchObject([{ characterId: copied.characterId, tokensOut: 35 }]);
     for (const ownerId of [actors.owner.userId, nominee.userId]) {
       const before = await root.services.stats.overview(ownerId);
       await root.services.stats.reconcile(ownerId);

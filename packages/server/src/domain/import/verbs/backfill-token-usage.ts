@@ -12,7 +12,7 @@ const PAGE_SIZE = 500;
 const PLANNED_CHANGES = ["exactRecovered", "estimated", "legacyPromoted"] as const;
 type PlannedChange = (typeof PLANNED_CHANGES)[number];
 type BackfillCounts = {
-  -readonly [K in keyof Omit<ImportTokenUsageBackfillResult, "ownersScanned" | "ownersReconciled" | "dryRun">]: ImportTokenUsageBackfillResult[K];
+  -readonly [K in keyof Omit<ImportTokenUsageBackfillResult, "dryRun">]: ImportTokenUsageBackfillResult[K];
 };
 
 function plan(candidate: ImportedTokenUsageCandidate): {
@@ -38,14 +38,12 @@ async function settleCandidate(args: {
   readonly candidate: ImportedTokenUsageCandidate;
   readonly dryRun: boolean;
   readonly counts: BackfillCounts;
-  readonly ownersScanned: Set<UserId>;
   readonly changedOwners: Set<UserId>;
   readonly signal: AbortSignal;
 }): Promise<void> {
-  const { deps, candidate, dryRun, counts, ownersScanned, changedOwners, signal } = args;
+  const { deps, candidate, dryRun, counts, changedOwners, signal } = args;
   signal.throwIfAborted();
   counts.scanned++;
-  ownersScanned.add(candidate.ownerId);
   if (candidate.tokenProvenance === "measured") {
     counts.alreadyMeasured++;
     return;
@@ -74,7 +72,6 @@ function settlePageSequentially(args: {
   readonly page: readonly ImportedTokenUsageCandidate[];
   readonly dryRun: boolean;
   readonly counts: BackfillCounts;
-  readonly ownersScanned: Set<UserId>;
   readonly changedOwners: Set<UserId>;
   readonly signal: AbortSignal;
 }): Promise<void> {
@@ -110,7 +107,6 @@ export function createBackfillTokenUsage(deps: ImportTokenUsageBackfillDeps): Ba
       alreadyEstimated: 0,
       compareAndSetSkipped: 0,
     };
-    const ownersScanned = new Set<UserId>();
     const changedOwners = new Set<UserId>();
 
     const sweepPage = async (afterVariantId: ImportedTokenUsageCandidate["variantId"] | null): Promise<void> => {
@@ -119,7 +115,7 @@ export function createBackfillTokenUsage(deps: ImportTokenUsageBackfillDeps): Ba
       if (page.length === 0) {
         return;
       }
-      await settlePageSequentially({ deps, page, dryRun, counts, ownersScanned, changedOwners, signal });
+      await settlePageSequentially({ deps, page, dryRun, counts, changedOwners, signal });
       report({ current: counts.scanned, message: `token usage: scanned ${counts.scanned}` });
       const lastVariantId = page.at(-1)?.variantId;
       if (page.length === PAGE_SIZE && lastVariantId !== undefined) {
@@ -134,11 +130,6 @@ export function createBackfillTokenUsage(deps: ImportTokenUsageBackfillDeps): Ba
     } finally {
       await reconcileChangedOwners({ deps, changedOwners });
     }
-    return {
-      ...counts,
-      ownersScanned: ownersScanned.size,
-      ownersReconciled: changedOwners.size,
-      dryRun,
-    };
+    return { ...counts, dryRun };
   };
 }

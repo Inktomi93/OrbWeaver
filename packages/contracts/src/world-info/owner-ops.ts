@@ -38,11 +38,10 @@ export type CopyCharacterBooks = (args: {
   readonly toCharacterId: CharacterId;
 }) => Promise<void>;
 
-/** linked/skipped counts for the import report; `skipped` counts references whose id has no book the importer
- *  owns on this install (absent or foreign). */
+/** The count of carried references that linked; a reference whose id has no book the importer owns on this
+ *  install (absent or foreign) is not linked. */
 interface LinkCarriedBooksResult {
   readonly linked: number;
-  readonly skipped: number;
 }
 
 /** Re-link a portable card's carried attached-book references on import, the portability twin of

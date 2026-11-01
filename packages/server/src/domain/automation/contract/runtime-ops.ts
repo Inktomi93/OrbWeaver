@@ -28,7 +28,7 @@ export interface AutomationRuntimeDeps<TSet> {
     readonly executeToolCalls: (
       set: TSet,
       calls: readonly ToolCallInput[],
-      exec: { readonly principal: Principal; readonly triggeredBy: UserId; readonly chatId: ChatId | null; readonly turnId: null; readonly membership: null },
+      exec: { readonly principal: Principal; readonly chatId: ChatId | null; readonly turnId: null; readonly membership: null },
     ) => Promise<readonly ToolCallRecord[]>;
   };
   readonly roleClientsFor: (funderUserId: UserId, actor?: BindingActor) => Promise<RoleClientsWithSignal>;

@@ -10,6 +10,7 @@
 import type {
   ActivityBucket,
   CharacterStatsView,
+  LatencyStats,
   LeaderboardPage,
   ModelStatRow,
   OwnerStatsView,
@@ -25,13 +26,18 @@ import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import type { LeaderboardOpts, PersonaUsageOpts, TimeseriesOpts } from "../contract/params.ts";
-import { aggregateTokenProvenance, cacheHitRate, deriveExtra, reasoningRate, recordedCost, recordedTokens, throughputTps } from "../substrate/rates.ts";
+import { aggregateTokenProvenance, deriveExtra, reasoningRate, recordedCost, recordedTokens, throughputTps } from "../substrate/rates.ts";
 import { modelLatencyKey, readLatency, readModelLatencies } from "./latency.ts";
 
 // The ceiling is the shared `STATS_LIST_MAX_LIMIT` (`@orb/contracts/stats` — the transport `.max()`
 // references the same value); the `Math.min` is the DoS backstop for internal callers.
 const DEFAULT_LIMIT = 50;
 const UNKNOWN_PROVIDER = "(unknown)";
+
+/** The latency figures the owner and character views carry: the model view alone surfaces `p50TtftMs`. */
+function ownerLatency(latency: LatencyStats): Pick<OwnerStatsView, "avgGenMs" | "p50GenMs" | "p90GenMs" | "avgTtftMs"> {
+  return { avgGenMs: latency.avgGenMs, p50GenMs: latency.p50GenMs, p90GenMs: latency.p90GenMs, avgTtftMs: latency.avgTtftMs };
+}
 
 export async function readOverview(db: Db, ownerId: UserId): Promise<OwnerStatsView | null> {
   const row = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];
@@ -45,7 +51,6 @@ export async function readOverview(db: Db, ownerId: UserId): Promise<OwnerStatsV
     chats: row.chats,
     userTurns: row.userTurns,
     assistantTurns: row.assistantTurns,
-    systemTurns: row.systemTurns,
     swipes: row.swipes,
     userWords: row.userWords,
     assistantWords: row.assistantWords,
@@ -55,9 +60,8 @@ export async function readOverview(db: Db, ownerId: UserId): Promise<OwnerStatsV
     tokensInProvenance: aggregateTokenProvenance(row.tokensInMeasuredSamples, row.tokensInEstimatedSamples),
     tokensOutProvenance: aggregateTokenProvenance(row.tokensOutMeasuredSamples, row.tokensOutEstimatedSamples),
     totalGenTimeMs: row.genTimeMs,
-    ...latency,
+    ...ownerLatency(latency),
     reasoningRate: reasoningRate(row.reasoningGenerations, row.assistantTurns + row.swipes),
-    contentChars: row.contentChars,
     firstChatAt: row.firstChatAt,
     lastActivityAt: row.lastActivityAt,
     computedAt: row.computedAt,
@@ -81,13 +85,11 @@ export async function readCharacter(db: Db, ownerId: UserId, characterId: Charac
   const c = row.cs;
   const latency = await readLatency(db, ownerId, { kind: "character", characterId: c.characterId });
   return {
-    characterId: c.characterId,
     name: row.name,
     characters: 1,
     chats: c.chats,
     userTurns: c.userTurns,
     assistantTurns: c.assistantTurns,
-    systemTurns: c.systemTurns,
     swipes: c.swipes,
     userWords: c.userWords,
     assistantWords: c.assistantWords,
@@ -97,13 +99,12 @@ export async function readCharacter(db: Db, ownerId: UserId, characterId: Charac
     tokensInProvenance: aggregateTokenProvenance(c.tokensInMeasuredSamples, c.tokensInEstimatedSamples),
     tokensOutProvenance: aggregateTokenProvenance(c.tokensOutMeasuredSamples, c.tokensOutEstimatedSamples),
     totalGenTimeMs: c.genTimeMs,
-    ...latency,
+    ...ownerLatency(latency),
     reasoningRate: reasoningRate(c.reasoningGenerations, c.assistantTurns + c.swipes),
-    contentChars: c.contentChars,
     firstChatAt: c.firstChatAt,
     lastActivityAt: c.lastActivityAt,
     computedAt: c.computedAt,
-    // character_stats carries no cache/context columns (owner+model grain only) → 0/null.
+    // character_stats carries no cache columns (owner+model grain only) → 0.
     ...deriveExtra({
       reasoningMs: c.reasoningMs,
       costUsd: c.costUsd,
@@ -113,13 +114,11 @@ export async function readCharacter(db: Db, ownerId: UserId, characterId: Charac
       cacheWriteTokens: 0,
       forkedChats: c.forkedChats,
       variantMessages: c.variantMessages,
-      maxContextTokens: null,
       tokensIn: c.tokensIn,
       tokensOut: c.tokensOut,
       totalGenTimeMs: c.genTimeMs,
       activeIdxSum: c.activeIdxSum,
       assistantTurns: c.assistantTurns,
-      assistantWords: c.assistantWords,
       swipes: c.swipes,
     }),
   };
@@ -168,16 +167,10 @@ export async function readLeaderboard(db: Db, ownerId: UserId, opts: Leaderboard
     rows: rows.map(({ cs, name }) => ({
       characterId: cs.characterId,
       name,
-      chats: cs.chats,
-      userTurns: cs.userTurns,
       assistantTurns: cs.assistantTurns,
-      swipes: cs.swipes,
       tokensOut: recordedTokens(cs.tokensOut, cs.tokensOutMeasuredSamples, cs.tokensOutEstimatedSamples),
       tokensOutProvenance: aggregateTokenProvenance(cs.tokensOutMeasuredSamples, cs.tokensOutEstimatedSamples),
       totalGenTimeMs: cs.genTimeMs,
-      reasoningRate: reasoningRate(cs.reasoningGenerations, cs.assistantTurns + cs.swipes),
-      firstChatAt: cs.firstChatAt,
-      lastActivityAt: cs.lastActivityAt,
     })),
   };
 }
@@ -201,13 +194,8 @@ export async function readTimeseries(db: Db, ownerId: UserId, opts: TimeseriesOp
     chatsCreated: r.chatsCreated,
     userTurns: r.userTurns,
     assistantTurns: r.assistantTurns,
-    swipes: r.swipes,
-    tokensIn: recordedTokens(r.tokensIn, r.tokensInMeasuredSamples, r.tokensInEstimatedSamples),
     tokensOut: recordedTokens(r.tokensOut, r.tokensOutMeasuredSamples, r.tokensOutEstimatedSamples),
-    tokensInProvenance: aggregateTokenProvenance(r.tokensInMeasuredSamples, r.tokensInEstimatedSamples),
     tokensOutProvenance: aggregateTokenProvenance(r.tokensOutMeasuredSamples, r.tokensOutEstimatedSamples),
-    genTimeMs: r.genTimeMs,
-    messageDatesApprox: r.messageDatesApprox,
   }));
 }
 
@@ -235,9 +223,7 @@ export async function readByModel(db: Db, ownerId: UserId, opts: { limit?: numbe
   }
   const latencies = await readModelLatencies(db, ownerId);
   const noLatency = {
-    avgGenMs: null,
     avgTtftMs: null,
-    p50TtftMs: null,
     p90TtftMs: null,
   } as const;
   return rows.map((r): ModelStatRow => {
@@ -248,20 +234,13 @@ export async function readByModel(db: Db, ownerId: UserId, opts: { limit?: numbe
       provider: r.provider,
       generations: r.generations,
       charactersUsedWith: reach[key] ?? 0,
-      tokensIn: recordedTokens(r.tokensIn, r.tokensInMeasuredSamples, r.tokensInEstimatedSamples),
       tokensOut: recordedTokens(r.tokensOut, r.tokensOutMeasuredSamples, r.tokensOutEstimatedSamples),
-      tokensInProvenance: aggregateTokenProvenance(r.tokensInMeasuredSamples, r.tokensInEstimatedSamples),
       tokensOutProvenance: aggregateTokenProvenance(r.tokensOutMeasuredSamples, r.tokensOutEstimatedSamples),
       totalGenTimeMs: r.genTimeMs,
-      avgGenMs: latency.avgGenMs,
       avgTtftMs: latency.avgTtftMs,
-      p50TtftMs: latency.p50TtftMs,
       p90TtftMs: latency.p90TtftMs,
-      reasoningRate: r.generations > 0 ? reasoningRate(r.reasoningGenerations, r.generations) : null,
       throughputTps: r.genTimeMs > 0 && r.tokensOutMeasuredSamples + r.tokensOutEstimatedSamples > 0 ? throughputTps(r.tokensOut, r.genTimeMs) : null,
       costUsd: recordedCost(r.costUsd, r.costSamples, r.notionalCostSamples),
-      reasoningMs: r.reasoningMs,
-      cacheHitRate: cacheHitRate(r.cacheReadTokens, r.cacheWriteTokens, r.tokensIn),
     };
   });
 }
@@ -269,10 +248,10 @@ export async function readByModel(db: Db, ownerId: UserId, opts: { limit?: numbe
 export async function readFreshness(db: Db, ownerId: UserId): Promise<StatsFreshness> {
   const o = (await db.select({ computedAt: ownerStats.computedAt }).from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];
   if (!o) {
-    return { computedAt: null, stale: false, hasData: false };
+    return { computedAt: null, hasData: false };
   }
   // Live maintenance: owner_stats is upserted on every canon write → always current, never stale.
-  return { computedAt: o.computedAt, stale: false, hasData: true };
+  return { computedAt: o.computedAt, hasData: true };
 }
 
 /** Per-persona usage. A persona is "used" by a chat when it's the chat's anchor persona or a participant's
@@ -349,20 +328,16 @@ export async function readWrapped(db: Db, ownerId: UserId): Promise<WrappedSumma
   const top = leaderboard.rows[0];
   return {
     firstChatAt: o.firstChatAt,
-    lastActivityAt: o.lastActivityAt,
     characters: o.characters,
     chats: o.chats,
     words: o.userWords + o.assistantWords,
     replies: o.assistantTurns,
     swipes: o.swipes,
     genTimeMs: o.totalGenTimeMs,
-    reasoningMs: o.reasoningMs,
     costUsd: o.costUsd,
     avgSwipeDepth: o.avgSwipeDepth,
     swipeRate: o.swipeRate,
-    throughputTps: o.throughputTps,
     forkedChats: o.forkedChats,
     topCharacter: top ? { name: top.name, assistantTurns: top.assistantTurns } : null,
-    computedAt: o.computedAt,
   };
 }

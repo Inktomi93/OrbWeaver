@@ -31,7 +31,8 @@ test("tag creation uses advanced product time and a folded-name conflict preserv
 test("native tag-library restore stamps new rows but preserves existing births and attachments", async ({ harness }) => {
   const source = await harness.principalFor((await harness.actor()).id);
   const principal = await harness.principalFor((await harness.actor()).id);
-  await harness.services.tag.createTag({ principal: source, input: { name: "Restore existing", color: "#123456" } });
+  const sourceTag = await harness.services.tag.createTag({ principal: source, input: { name: "Restore existing" } });
+  await harness.services.tag.updateTag({ principal: source, tagId: sourceTag.id, patch: { color: "#123456" } });
   await harness.services.tag.createTag({ principal: source, input: { name: "Restore new" } });
   const existing = await seedCreatedTagRows(harness, { principal, input: { name: "Restore existing" } });
   const character = await seedCharacterRows(harness, {

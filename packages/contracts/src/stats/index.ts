@@ -71,8 +71,6 @@ const statsDeltaSchema = z.object({
   characterForkedChats: z.number().optional(),
   // per-bucket chats-created (the `daily_stats` column; bucketed on `bucketStart`).
   chatsCreated: z.number().optional(),
-  // `daily_stats` flag — set when a migrated chat clobbers a message time (OR-merged in the upsert).
-  messageDatesApprox: z.boolean().optional(),
 
   dailyTokensIn: z.number().optional(),
   dailyTokensOut: z.number().optional(),
@@ -364,10 +362,6 @@ export type BumpStatsCanonVersion<Batch, Db> = (batch: Batch, db: Db, ownerId: U
  *  (no assistant generation) simply don't appear. */
 export interface CharacterEconomics {
   readonly characterId: CharacterId;
-  /** Assistant generations counted (selected variants of the character's assistant messages). */
-  readonly generations: number;
-  readonly tokensIn: number | null;
-  readonly tokensInProvenance: TokenProvenance;
   /** Output tokens summed over the selected variants — `null` when NOT ONE of them recorded a count.
    *  ABSENT ACCOUNTING IS NOT ZERO (side-eye corpus re-pass B2): an imported library carries thousands of
    *  real assistant turns whose `tokens_out` was never written, and coalescing that to 0 made the corpus
@@ -376,8 +370,6 @@ export interface CharacterEconomics {
   readonly tokensOut: number | null;
   readonly tokensOutProvenance: TokenProvenance;
   readonly costUsd: number | null;
-  readonly cacheReadTokens: number;
-  readonly cacheWriteTokens: number;
 }
 
 /** Per-(character, model) economics rollup. `genTimeMs` is the sum of wall-clock durations over
@@ -397,8 +389,8 @@ export interface CharacterModelEconomics {
 // ── The `reconcile-stats` workload's terminal result (the workloads junk-drawer exit: authored by the
 //    OWNING domain). The same rebuild also runs awaited, in-request, off the import post-settle. ──
 
-/** The rollup rebuild's counts: owners swept, character rollups rewritten. */
-export interface ReconcileStatsWorkloadResult {
+/** What a full `reconcileStats` rebuild touched: owners swept, character rollups rewritten. */
+export interface ReconcileStatsResult {
   readonly owners: number;
   readonly characters: number;
 }
@@ -407,17 +399,13 @@ export interface ExtraStats {
   reasoningMs: number;
   /** Partial compatible priced subtotal; missing prices are omitted. Null when unavailable or incompatible. */
   costUsd: number | null;
-  cacheReadTokens: number;
-  cacheWriteTokens: number;
   forkedChats: number;
   variantMessages: number;
-  maxContextTokens: number | null;
   throughputTps: number;
   avgSwipeDepth: number;
   swipeRate: number;
   /** Share of INPUT tokens served from the prompt cache; `null` when the row carries no cache accounting. */
   cacheHitRate: number | null;
-  avgReplyWords: number;
 }
 
 /** Missing economics stay null; known zero is not missing usage or pricing. Cost is a compatible priced subset. */
@@ -426,8 +414,6 @@ export interface OwnerStatsView extends ExtraStats {
   chats: number;
   userTurns: number;
   assistantTurns: number;
-  /** Kept separately so complete turn accounting does not drop system canon. */
-  systemTurns: number;
   swipes: number;
   userWords: number;
   assistantWords: number;
@@ -442,34 +428,23 @@ export interface OwnerStatsView extends ExtraStats {
   p50GenMs: number | null;
   p90GenMs: number | null;
   avgTtftMs: number | null;
-  p50TtftMs: number | null;
-  p90TtftMs: number | null;
   reasoningRate: number;
-  /** JavaScript string.length totals: UTF-16 code units, not UTF-8 bytes, code points or graphemes. */
-  contentChars: number;
   firstChatAt: number | null;
   lastActivityAt: number | null;
   computedAt: number;
 }
 
 export interface CharacterStatsView extends OwnerStatsView {
-  characterId: CharacterId;
   name: string;
 }
 
 export interface LeaderboardRow {
   characterId: CharacterId;
   name: string;
-  chats: number;
-  userTurns: number;
   assistantTurns: number;
-  swipes: number;
   tokensOut: number | null;
   tokensOutProvenance: TokenProvenance;
   totalGenTimeMs: number;
-  reasoningRate: number;
-  firstChatAt: number | null;
-  lastActivityAt: number | null;
 }
 
 /** A bounded leaderboard page plus its ranked-population census. Rows are capped at 50 by default and 200
@@ -489,13 +464,8 @@ export interface ActivityBucket {
   chatsCreated: number;
   userTurns: number;
   assistantTurns: number;
-  swipes: number;
-  tokensIn: number | null;
   tokensOut: number | null;
-  tokensInProvenance: TokenProvenance;
   tokensOutProvenance: TokenProvenance;
-  genTimeMs: number;
-  messageDatesApprox: boolean;
 }
 
 export interface ModelStatRow {
@@ -504,25 +474,16 @@ export interface ModelStatRow {
   generations: number;
   /** Distinct characters generated for; model_stats is character-less, so this is a separate GROUP BY. */
   charactersUsedWith: number;
-  tokensIn: number | null;
   tokensOut: number | null;
-  tokensInProvenance: TokenProvenance;
   tokensOutProvenance: TokenProvenance;
   totalGenTimeMs: number;
-  avgGenMs: number | null;
   avgTtftMs: number | null;
-  p50TtftMs: number | null;
   p90TtftMs: number | null;
-  reasoningRate: number | null;
   throughputTps: number | null;
   costUsd: number | null;
-  reasoningMs: number;
-  cacheHitRate: number | null;
 }
 
-export type StatsFreshness =
-  | { readonly hasData: false; readonly computedAt: null; readonly stale: false }
-  | { readonly hasData: true; readonly computedAt: number; readonly stale: false };
+export type StatsFreshness = { readonly hasData: false; readonly computedAt: null } | { readonly hasData: true; readonly computedAt: number };
 
 export interface PersonaUsageRow {
   personaId: PersonaId;
@@ -536,21 +497,17 @@ export interface PersonaUsageRow {
 
 export interface WrappedSummary {
   firstChatAt: number | null;
-  lastActivityAt: number | null;
   characters: number;
   chats: number;
   words: number;
   replies: number;
   swipes: number;
   genTimeMs: number;
-  reasoningMs: number;
   costUsd: number | null;
   avgSwipeDepth: number;
   swipeRate: number;
-  throughputTps: number;
   forkedChats: number;
   topCharacter: { name: string; assistantTurns: number } | null;
-  computedAt: number;
 }
 
 /** One character's replies in one UTC quarter-hour (`@orb/kit/time.CALENDAR_BUCKET_MS`) — the momentum timeline. The
@@ -574,16 +531,12 @@ export interface LatencyStats {
 const extraStatsSchema = z.strictObject({
   reasoningMs: z.number(),
   costUsd: z.number().nullable(),
-  cacheReadTokens: z.number(),
-  cacheWriteTokens: z.number(),
   forkedChats: z.number(),
   variantMessages: z.number(),
-  maxContextTokens: z.number().nullable(),
   throughputTps: z.number(),
   avgSwipeDepth: z.number(),
   swipeRate: z.number(),
   cacheHitRate: z.number().nullable(),
-  avgReplyWords: z.number(),
 }) satisfies z.ZodType<ExtraStats>;
 
 export const ownerStatsViewSchema = extraStatsSchema.extend({
@@ -591,7 +544,6 @@ export const ownerStatsViewSchema = extraStatsSchema.extend({
   chats: z.number(),
   userTurns: z.number(),
   assistantTurns: z.number(),
-  systemTurns: z.number(),
   swipes: z.number(),
   userWords: z.number(),
   assistantWords: z.number(),
@@ -605,33 +557,23 @@ export const ownerStatsViewSchema = extraStatsSchema.extend({
   p50GenMs: z.number().nullable(),
   p90GenMs: z.number().nullable(),
   avgTtftMs: z.number().nullable(),
-  p50TtftMs: z.number().nullable(),
-  p90TtftMs: z.number().nullable(),
   reasoningRate: z.number(),
-  contentChars: z.number(),
   firstChatAt: z.number().nullable(),
   lastActivityAt: z.number().nullable(),
   computedAt: z.number(),
 }) satisfies z.ZodType<OwnerStatsView>;
 
 export const characterStatsViewSchema = ownerStatsViewSchema.extend({
-  characterId: typeIdSchema(ID_PREFIX.character),
   name: z.string(),
 }) satisfies z.ZodType<CharacterStatsView>;
 
 const leaderboardRowSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   name: z.string(),
-  chats: z.number(),
-  userTurns: z.number(),
   assistantTurns: z.number(),
-  swipes: z.number(),
   tokensOut: z.number().nullable(),
   tokensOutProvenance: tokenProvenanceSchema,
   totalGenTimeMs: z.number(),
-  reasoningRate: z.number(),
-  firstChatAt: z.number().nullable(),
-  lastActivityAt: z.number().nullable(),
 }) satisfies z.ZodType<LeaderboardRow>;
 
 export const leaderboardPageSchema = z.strictObject({
@@ -644,13 +586,8 @@ export const activityBucketSchema = z.strictObject({
   chatsCreated: z.number(),
   userTurns: z.number(),
   assistantTurns: z.number(),
-  swipes: z.number(),
-  tokensIn: z.number().nullable(),
   tokensOut: z.number().nullable(),
-  tokensInProvenance: tokenProvenanceSchema,
   tokensOutProvenance: tokenProvenanceSchema,
-  genTimeMs: z.number(),
-  messageDatesApprox: z.boolean(),
 }) satisfies z.ZodType<ActivityBucket>;
 
 export const modelStatRowSchema = z.strictObject({
@@ -658,25 +595,18 @@ export const modelStatRowSchema = z.strictObject({
   provider: z.string().nullable(),
   generations: z.number(),
   charactersUsedWith: z.number(),
-  tokensIn: z.number().nullable(),
   tokensOut: z.number().nullable(),
-  tokensInProvenance: tokenProvenanceSchema,
   tokensOutProvenance: tokenProvenanceSchema,
   totalGenTimeMs: z.number(),
-  avgGenMs: z.number().nullable(),
   avgTtftMs: z.number().nullable(),
-  p50TtftMs: z.number().nullable(),
   p90TtftMs: z.number().nullable(),
-  reasoningRate: z.number().nullable(),
   throughputTps: z.number().nullable(),
   costUsd: z.number().nullable(),
-  reasoningMs: z.number(),
-  cacheHitRate: z.number().nullable(),
 }) satisfies z.ZodType<ModelStatRow>;
 
 export const statsFreshnessSchema = z.discriminatedUnion("hasData", [
-  z.strictObject({ hasData: z.literal(false), computedAt: z.null(), stale: z.literal(false) }),
-  z.strictObject({ hasData: z.literal(true), computedAt: z.number(), stale: z.literal(false) }),
+  z.strictObject({ hasData: z.literal(false), computedAt: z.null() }),
+  z.strictObject({ hasData: z.literal(true), computedAt: z.number() }),
 ]) satisfies z.ZodType<StatsFreshness>;
 
 export const personaUsageRowSchema = z.strictObject({
@@ -691,21 +621,17 @@ export const personaUsageRowSchema = z.strictObject({
 
 export const wrappedSummarySchema = z.strictObject({
   firstChatAt: z.number().nullable(),
-  lastActivityAt: z.number().nullable(),
   characters: z.number(),
   chats: z.number(),
   words: z.number(),
   replies: z.number(),
   swipes: z.number(),
   genTimeMs: z.number(),
-  reasoningMs: z.number(),
   costUsd: z.number().nullable(),
   avgSwipeDepth: z.number(),
   swipeRate: z.number(),
-  throughputTps: z.number(),
   forkedChats: z.number(),
   topCharacter: z.strictObject({ name: z.string(), assistantTurns: z.number() }).nullable(),
-  computedAt: z.number(),
 }) satisfies z.ZodType<WrappedSummary>;
 
 export const momentumBucketSchema = z.strictObject({
@@ -724,28 +650,10 @@ export const latencyStatsSchema = z.strictObject({
   p90GenMs: z.number().nullable(),
 }) satisfies z.ZodType<LatencyStats>;
 
-/** What a full `reconcileStats` rebuild touched — the workload runner logs it; the drift test asserts it. */
-export interface ReconcileStatsResult {
-  owners: number;
-  characters: number;
-  /** `daily_stats` rows written: quarter-hour buckets, not days. */
-  buckets: number;
-  models: number;
-  computedAt: number;
-}
-
 export const reconcileStatsResultSchema = z.strictObject({
   owners: z.number(),
   characters: z.number(),
-  buckets: z.number(),
-  models: z.number(),
-  computedAt: z.number(),
 }) satisfies z.ZodType<ReconcileStatsResult>;
-
-export const reconcileStatsWorkloadResultSchema = z.strictObject({
-  owners: z.number(),
-  characters: z.number(),
-}) satisfies z.ZodType<ReconcileStatsWorkloadResult>;
 
 const LEADERBOARD_SORTS = ["assistantTurns", "totalGenTimeMs", "swipes", "lastActivityAt"] as const;
 export type LeaderboardSort = (typeof LEADERBOARD_SORTS)[number];

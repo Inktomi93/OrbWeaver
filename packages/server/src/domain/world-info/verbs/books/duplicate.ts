@@ -53,6 +53,6 @@ export function createDuplicate(ctx: WorldInfoContext): WorldInfoService["duplic
     );
 
     ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId: newBookId });
-    return { id: newBookId, name: newName, description: source.description, createdAt: at };
+    return { id: newBookId, name: newName, description: source.description };
   };
 }

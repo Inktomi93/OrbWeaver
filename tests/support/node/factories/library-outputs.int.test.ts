@@ -2,7 +2,7 @@
 // @subject tests/support/node/factories/world-info-view.ts
 // @subject tests/support/node/corpus-library-views.ts
 import { createPersonaSchema } from "@orb/contracts/persona";
-import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
+import { createBookSchema, createEntrySchema, updateEntrySchema } from "@orb/contracts/world-info";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { isPlainObject } from "@orb/kit/guards";
 import { seedPersonaLibraryViews, seedRegexLibraryViews, seedTagLibraryViews, seedWorldInfoLibraryViews } from "../corpus-library-views.ts";
@@ -26,17 +26,11 @@ test("world book import defaults admit a native named book and title repair capt
     bookId: foreignBook.id,
     input: createEntrySchema.parse({ title: "Keyed", content: "The keyed witness survives repair.", keys: ["archive", "witness"], priority: 4 }),
   });
-  await other.worldInfo.createEntry({
+  const unkeyed = await other.worldInfo.createEntry({
     bookId: foreignBook.id,
-    input: createEntrySchema.parse({
-      title: "Unkeyed",
-      content: "The unkeyed witness stays unnamed.",
-      keys: [],
-      enabled: false,
-      priority: 2,
-      ignoreBudget: true,
-    }),
+    input: createEntrySchema.parse({ title: "Unkeyed", content: "The unkeyed witness stays unnamed.", keys: [], priority: 2 }),
   });
+  await other.worldInfo.updateEntry({ entryId: unkeyed.id, input: updateEntrySchema.parse({ enabled: false, ignoreBudget: true }) });
   const exported = await other.worldInfo.exportBook({ bookId: foreignBook.id });
   const restored: unknown = JSON.parse(exported.fileText);
   if (!(isPlainObject(restored) && Array.isArray(restored["entries"]))) {
@@ -76,7 +70,7 @@ test("world library outputs preserve attachment roles, entry ordering, portable 
   const other = await root.internalCallerFor(actor.id);
   await caller.persona.setActivePersona({ chatId: library.room.chat.id, personaId: library.persona.id });
   const views = await seedWorldInfoLibraryViews(root, library, caller, other);
-  expect(views.detail.output).toEqual({ id: library.world.book.id, name: library.world.book.name, description: null, createdAt: root.clock.now() });
+  expect(views.detail.output).toEqual({ id: library.world.book.id, name: library.world.book.name, description: null });
   expect(views.usage.output.find((book) => book.id === library.world.book.id)).toMatchObject({
     entryCount: 1,
     usage: { characters: 1, personas: 1, chats: 1, global: true, total: 4 },

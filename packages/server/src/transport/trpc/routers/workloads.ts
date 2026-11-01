@@ -125,8 +125,6 @@ export const workloadsRouter = t.router({
       ctx.services.workloads.list({
         caller: ctx.auth,
         ...(input?.kind !== undefined ? { kind: input.kind } : {}),
-        ...(input?.status !== undefined ? { status: input.status } : {}),
-        ...(input?.since !== undefined ? { since: input.since } : {}),
         ...(input?.limit !== undefined ? { limit: input.limit } : {}),
       }),
     ),

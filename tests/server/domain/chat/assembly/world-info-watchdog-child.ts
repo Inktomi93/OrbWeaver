@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import process from "node:process";
 import { test } from "node:test";
 import { createCharacterSchema } from "@orb/contracts/character";
-import { createEntrySchema } from "@orb/contracts/world-info";
+import { createEntrySchema, updateEntrySchema } from "@orb/contracts/world-info";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { z } from "zod";
@@ -44,16 +44,13 @@ await test("actual composed world-info matcher", async () => {
     assert.equal(started.opening?.messages.length, 1);
     await caller.chat.commitMessage({ chatId: started.chat.id, content: `${"a".repeat(40)}! [ comet a+b`, timeZone: UTC_TIME_ZONE });
     const book = await caller.worldInfo.createBook({ input: { name: "Watchdog controls" } });
-    const entry = async (title: string, keys: string[], keyMode: "literal" | "regex", inject = false): ReturnType<typeof caller.worldInfo.createEntry> =>
-      await caller.worldInfo.createEntry({
-        bookId: book.id,
-        input: createEntrySchema.parse({
-          title,
-          content: `${title} payload`,
-          keys,
-          metadata: { keyMode, scopeMode: "keyword", ...(inject ? { inject: { depth: 0, role: "system" } } : {}) },
-        }),
+    const entry = async (title: string, keys: string[], keyMode: "literal" | "regex", inject = false): ReturnType<typeof caller.worldInfo.updateEntry> => {
+      const created = await caller.worldInfo.createEntry({ bookId: book.id, input: createEntrySchema.parse({ title, content: `${title} payload`, keys }) });
+      return await caller.worldInfo.updateEntry({
+        entryId: created.id,
+        input: updateEntrySchema.parse({ metadata: { keyMode, scopeMode: "keyword", ...(inject ? { inject: { depth: 0, role: "system" } } : {}) } }),
       });
+    };
     const benign = await entry("Benign regex", ["com.t"], "regex");
     const literal = await entry("Literal metacharacters", ["a+b"], "literal");
     const absent = await entry("Absent regex", ["kraken"], "regex");

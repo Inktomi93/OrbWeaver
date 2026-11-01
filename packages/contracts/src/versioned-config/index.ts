@@ -132,8 +132,6 @@ export interface VersionedConfig<T> {
    * checks "row absent?" first and only then asks this.
    */
   parseOutcome: (raw: unknown, storedVersion?: number) => VersionedParseOutcome<T>;
-  readonly default: T;
-  readonly currentVersion: number;
 }
 
 const versionProbeSchema = z.object({ schemaVersion: z.int().optional() });
@@ -210,8 +208,6 @@ export function defineVersionedConfig<T>(def: VersionedConfigDef<T>): VersionedC
       return parseOutcome(raw, storedVersion).value;
     },
     parseOutcome,
-    default: def.default,
-    currentVersion: def.version,
   };
 }
 

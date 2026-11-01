@@ -15,7 +15,7 @@ import type { AnalyticsResult } from "#discovery";
 import type { EmbedPassResult } from "#embeddings";
 import type { CatalogRefreshResult } from "#inference";
 import type { RefineryScoreSweepResult } from "#refinery";
-import type { ReconcileStatsWorkloadResult } from "#stats";
+import type { ReconcileStatsResult } from "#stats";
 import { storedImportWindowSchema } from "../chat/backfill.ts";
 
 /** A maintenance pass's counts + the `dryRun` echo (assets backfill/gc, import-st). */
@@ -60,8 +60,6 @@ export interface ImportTokenUsageBackfillResult {
   readonly alreadyMeasured: number;
   readonly alreadyEstimated: number;
   readonly compareAndSetSkipped: number;
-  readonly ownersScanned: number;
-  readonly ownersReconciled: number;
   readonly dryRun: boolean;
 }
 
@@ -89,7 +87,7 @@ export interface WorkloadResultByKind {
   "import-st": MaintenanceResult;
   "import-token-usage-backfill": ImportTokenUsageBackfillResult;
   "import-bundle": BundleImportWorkloadResult;
-  "reconcile-stats": ReconcileStatsWorkloadResult;
+  "reconcile-stats": ReconcileStatsResult;
   "refresh-model-catalog": CatalogRefreshResult;
   "reconcile-world-state": DeferredResult;
   "databank-ingest": IngestRunResult;
@@ -132,8 +130,6 @@ export const importTokenUsageBackfillResultSchema = z.strictObject({
   alreadyMeasured: z.number(),
   alreadyEstimated: z.number(),
   compareAndSetSkipped: z.number(),
-  ownersScanned: z.number(),
-  ownersReconciled: z.number(),
   dryRun: z.boolean(),
 }) satisfies z.ZodType<ImportTokenUsageBackfillResult>;
 
