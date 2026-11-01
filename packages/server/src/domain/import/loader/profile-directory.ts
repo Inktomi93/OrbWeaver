@@ -817,6 +817,7 @@ function contextFor(deps: ProfileDirImportDeps, store: StoreAvatarAsset): Return
       enqueueImportIndex: (): Promise<void> => Promise.resolve(),
       ...(deps.importPreset !== undefined ? { importPreset: deps.importPreset } : {}),
       ...(deps.importTheme !== undefined ? { importTheme: deps.importTheme } : {}),
+      ...(deps.adoptDefaultPersona !== undefined ? { adoptDefaultPersona: deps.adoptDefaultPersona } : {}),
       ...(deps.importPresetScripts !== undefined ? { importPresetScripts: deps.importPresetScripts } : {}),
     },
   });

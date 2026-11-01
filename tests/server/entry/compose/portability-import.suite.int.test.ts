@@ -195,3 +195,41 @@ test("the composed profile reader admits an ordinary settings leaf but refuses a
   expect(outcome).toMatchObject({ status: "rejected", reason: { code: "import_infra_failure", operation: "readFile", cause: { code: "ELOOP" } } });
   expect(await readFile(external, "utf8")).toBe(privateSettings);
 });
+
+async function importProfilePersonas(args: {
+  readonly importStagingDir: string;
+  readonly app: ServerTestHarness["app"];
+  readonly clock: { now: () => number };
+  readonly target: Principal;
+  readonly token: string;
+}): Promise<void> {
+  const { importStagingDir, app, clock, target, token } = args;
+  const root = join(importStagingDir, target.userId, token, "profile");
+  await mkdir(root, { recursive: true });
+  const settings = { ["power_user"]: { personas: { "alpha.png": "Alpha", "beta.png": "Beta" }, ["default_persona"]: "beta.png" } };
+  await writeFile(join(root, ST_SETTINGS_FILE), JSON.stringify(settings));
+  await app.workloadContributions["import-st"].run(
+    { ownerId: target.userId, userId: target.userId, funderUserId: null, now: () => clock.now() },
+    { stagedDir: token },
+    () => undefined,
+    new AbortController().signal,
+  );
+}
+
+test("a profile import crowns its ST default persona when the owner has no default", async ({ harness, app, importStagingDir, clock }) => {
+  const [, target] = await owners(harness);
+  await importProfilePersonas({ importStagingDir, app, clock, target, token: "profile-default-fresh" });
+  const personas = await app.services.persona.list({ principal: target });
+  const beta = personas.find((persona) => persona.name === "Beta");
+  const seeds = (await app.services.settings.getUserSettings({ principal: target })).config.seeds;
+  expect(beta).toBeDefined();
+  expect(seeds.defaultPersonaId).toBe(beta?.id);
+});
+
+test("a profile import never overrides a default persona the owner already chose", async ({ harness, app, importStagingDir, clock }) => {
+  const [, target] = await owners(harness);
+  const chosen = await app.services.persona.create({ principal: target, input: { name: "Chosen", description: "The owner's own crown." } });
+  await app.services.settings.updateUserSettingsSection({ principal: target, input: { section: "seeds", patch: { defaultPersonaId: chosen.id } } });
+  await importProfilePersonas({ importStagingDir, app, clock, target, token: "profile-default-kept" });
+  expect((await app.services.settings.getUserSettings({ principal: target })).config.seeds.defaultPersonaId).toBe(chosen.id);
+});

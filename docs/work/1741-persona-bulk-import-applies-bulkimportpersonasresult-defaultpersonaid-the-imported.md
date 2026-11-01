@@ -11,16 +11,16 @@ plan: unwired-code
 
 ## What
 
-The change, in a sentence.
+A profile import crowns the ST default persona (`BulkImportPersonasResult.defaultPersonaId`) through a settings-owned null-only op, so an existing default is never overwritten.
 
 ## Why
 
-The symptom or the ruling behind it.
+The imported default flag was computed and then dropped. The persona rulings say the crown is the user's default and import never changes a chosen value silently, so the import fills only an empty `seeds.defaultPersonaId`.
 
 ## Done when
 
-The observable bar a verifier can check.
+Importing an ST profile with `default_persona` onto an owner with no default sets that persona as default; an owner with a default keeps it.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+tests/server/entry/compose/portability-import.suite.int.test.ts: fresh-owner test red on old source (default null), green after; keep-chosen test green both sides.

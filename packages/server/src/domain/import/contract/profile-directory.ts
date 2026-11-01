@@ -13,6 +13,7 @@ import type { Clock } from "@orb/kit/time";
 import type { ImportContextWiring } from "./build-context.ts";
 import type { CollectResult } from "./collection.ts";
 import type { ImportReport } from "./results.ts";
+import type { AdoptDefaultPersona } from "./service.ts";
 
 /** The settings-owned `appearance` landing op (`createApplyImportedAppearance`). */
 type ApplyImportedAppearance = (ownerId: UserId, imported: ImportedAppearance) => Promise<ImportedAppearanceOutcome>;
@@ -57,6 +58,8 @@ export interface ProfileDirImportDeps {
    *  orb-native `orb.theme` bytes. Optional on the `importPreset` precedent: absent ⇒ the theme plane does
    *  not restore and every converted theme is reported skipped-with-reason, never silently dropped. */
   readonly importTheme?: ImportThemeOp;
+  /** The settings-owned null-only default-persona crown (`createAdoptImportedDefaultPersona`). */
+  readonly adoptDefaultPersona?: AdoptDefaultPersona;
   /** The CAS store for the ST `backgrounds/` plane. Optional: absent ⇒ no background imports (and every
    *  collected file is reported skipped-with-reason). */
   readonly storeBackground?: ImportBackgroundStore;
