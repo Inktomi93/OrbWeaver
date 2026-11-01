@@ -35,7 +35,7 @@ async function pinLore(
   h: ChatRoot,
   principal: Principal,
   personaId: PersonaId,
-  entryFields: Pick<CreateEntryInput, "content" | "keys">,
+  entryFields: Pick<CreateEntryInput, "content" | "keys" | "priority">,
 ): Promise<{ readonly bookId: WorldBookId; readonly entryId: WorldEntryId }> {
   const book = await h.root.services.worldInfo.createBook({ principal, input: createBookSchema.parse({ name: "Pin book" }) });
   const entry = await h.root.services.worldInfo.createEntry({
@@ -90,7 +90,7 @@ async function inheritedPersonaBooks(h: ChatRoot, principal: Principal = h.owner
   return books.filter((book) => book.inherited?.source === "persona").map((book) => book.inherited?.name);
 }
 
-test("the pin's book feeds a turn whose speaker is another persona, once, in the wire, the trace, the preview and the rack", async () => {
+test("the pin's book feeds a turn whose speaker is another persona, in the wire, the trace, the preview and the rack", async () => {
   await using h = await textRoom(REPLIES);
   const pinned = await seatPersona(h, h.owner, "Ledgerkeeper", "The pinned persona.");
   await pinLore(h, h.owner, pinned.id, { content: PINNED_LORE });
@@ -109,7 +109,7 @@ test("the pin's book feeds a turn whose speaker is another persona, once, in the
   expect(wire).toContain(SEAT_LORE);
 });
 
-test("a pin whose owner left keeps its book for every remaining speaker, and no member reads the book", async () => {
+test("a pin whose owner left keeps its book for the host and a member, and a member's rack and preview stay closed", async () => {
   await using h = await textRoom(REPLIES);
   const carol = await invitePerson(h);
   await heldPinRoom(h);
@@ -234,7 +234,7 @@ test("the host's member-lore switch governs a member's pin as it governs a membe
   expect((await previewOf(h)).text).toContain("HOST-PIN-LORE");
 });
 
-test("every character's turn and every non-send door carries the held pin's book", async () => {
+test("group rounds, a forced turn and an automation turn carry the held pin's book", async () => {
   const characters = [
     createCharacterSchema.parse({ handle: "aria", name: "Aria", description: "Aria is a warden of the ford." }),
     createCharacterSchema.parse({ handle: "kai", name: "Kai", description: "Kai is a wandering bard." }),
@@ -304,4 +304,95 @@ test("a held pin keeps the system blocks identical across senders; a re-pin is o
   expect(second).toBe(first);
   expect(third).not.toContain(PINNED_RENDERED);
   expect(fourth).toBe(third);
+});
+
+async function memberSendDrained(h: ChatRoot, between: () => Promise<void>): Promise<string> {
+  const carol = await invitePerson(h);
+  await heldPinRoom(h);
+  await h.root.services.chat.send({ principal: carol, chatId: h.chatId, content: "An owed reply." });
+  expect(await wireBodies(h)).toHaveLength(0);
+  await between();
+  using _online = await hostOnline(h);
+  await expect.poll(async () => (await wireBodies(h)).length, { timeout: 15_000 }).toBeGreaterThan(0);
+  await h.root.settleBackground();
+  return await newestWire(h);
+}
+
+test("a deferred drain carries the held pin's book", async () => {
+  await using h = await textRoom(REPLIES, { group: { policy: "list", output: "per-speaker" } });
+  expect(await memberSendDrained(h, () => Promise.resolve())).toContain(PINNED_RENDERED);
+});
+
+test("a deferred drain reads the pin at drain time, so a pin cleared while it waited sends no book", async () => {
+  await using h = await textRoom(REPLIES, { group: { policy: "list", output: "per-speaker" } });
+  expect(await memberSendDrained(h, () => pin(h, null))).not.toContain(PINNED_RENDERED);
+});
+
+test("generate, continue and impersonate carry the held pin's book", async () => {
+  await using h = await textRoom(REPLIES);
+  await heldPinRoom(h);
+  await send(h);
+
+  const beforeGenerate = (await wireBodies(h)).length;
+  const generated = await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId });
+  expect((await wireBodies(h)).length).toBeGreaterThan(beforeGenerate);
+  expect(await newestWire(h)).toContain(PINNED_RENDERED);
+
+  const tail = generated.messages.at(-1);
+  if (tail === undefined) {
+    throw new Error("generate returned no message");
+  }
+  const beforeContinue = (await wireBodies(h)).length;
+  await h.root.services.chat.continueTurn({ principal: h.owner, chatId: h.chatId, messageId: tail.id });
+  expect((await wireBodies(h)).length).toBeGreaterThan(beforeContinue);
+  expect(await newestWire(h)).toContain(PINNED_RENDERED);
+
+  const beforeImpersonate = (await wireBodies(h)).length;
+  for await (const _delta of h.root.services.chat.impersonateStream({ principal: h.owner, chatId: h.chatId })) {
+    // The stream only runs while it is drained.
+  }
+  expect((await wireBodies(h)).length).toBeGreaterThan(beforeImpersonate);
+  expect(await newestWire(h)).toContain(PINNED_RENDERED);
+});
+
+test.for([
+  ["older", true],
+  ["newer", false],
+] as const)("a book the seat and a pin %s than it both hold renders against the seat", async ([, pinFirst]) => {
+  await using h = await textRoom(REPLIES);
+  const first = await seatPersona(h, h.owner, pinFirst ? "Pinned" : "Speaking", "The older persona.");
+  const second = await seatPersona(h, h.owner, pinFirst ? "Speaking" : "Pinned", "The newer persona.");
+  const [pinned, speaking] = pinFirst ? [first, second] : [second, first];
+  const { bookId } = await pinLore(h, h.owner, pinned.id, { content: "SHARED {{user}} walks" });
+  await h.root.services.worldInfo.attachToPersona({ principal: h.owner, personaId: speaking.id, bookId });
+  await h.root.services.persona.setActivePersona({ principal: h.owner, chatId: h.chatId, personaId: speaking.id });
+  await pin(h, pinned.id);
+
+  expect((await previewOf(h)).text).toContain("SHARED Speaking walks");
+  await send(h);
+  const wire = await newestWire(h);
+  expect(wire).toContain("SHARED Speaking walks");
+  expect(wire).not.toContain("SHARED Pinned walks");
+});
+
+test("a pin book joins the ordinary budget walk: a lower entry drops and the trace names it", async () => {
+  await using h = await textRoom(REPLIES);
+  const lower = await h.root.services.worldInfo.createBook({ principal: h.owner, input: createBookSchema.parse({ name: "Chat book" }) });
+  const dropped = await h.root.services.worldInfo.createEntry({
+    principal: h.owner,
+    bookId: lower.id,
+    input: createEntrySchema.parse({ title: "Chat entry", content: "LOWER-CHAT-ENTRY ".repeat(20), priority: 1 }),
+  });
+  await h.root.services.worldInfo.attachToChat({ principal: h.owner, chatId: h.chatId, bookId: lower.id });
+  await h.root.services.settings.updateUserSettingsSection({ principal: h.owner, input: { section: "worldInfo", patch: { tokenBudget: 150 } } });
+  const pinned = await seatPersona(h, h.owner, "Ledgerkeeper", "The pinned persona.");
+  await pin(h, pinned.id);
+  await seatPersona(h, h.owner, "Wanderer", "The persona speaking now.");
+  expect((await previewOf(h)).text).toContain("LOWER-CHAT-ENTRY");
+
+  await pinLore(h, h.owner, pinned.id, { content: "HIGHER-PIN-ENTRY ".repeat(20), priority: 100 });
+  const { prompt, trace } = await h.root.services.chat.previewAssembly({ principal: h.owner, chatId: h.chatId });
+  expect(prompt.static).toContain("HIGHER-PIN-ENTRY");
+  expect(prompt.static).not.toContain("LOWER-CHAT-ENTRY");
+  expect(trace.worldInfoDropped).toEqual([{ id: dropped.id, reason: "budget" }]);
 });

@@ -201,7 +201,7 @@ The block changes only on a join, a leave (`leftSeq`), a persona swap, a descrip
 - Axis: the world-info pool joins the books of the consented seats' personas and the room's pin (`lorePersonaIdsOf`, `packages/server/src/domain/chat/substrate/participants-humans.ts`). The seats are the people block's membership. An offline member keeps their lore; a leave drops it.
 - Pin: the pin's books join on every turn for any speaker, as long as the pin holds, including after its owner leaves or is disabled (ADR 0315). A pin change is one prompt-cache miss.
 - Switch: `memberPersonaLore` off keeps every book owned by another human out of the pool, a pinned persona's included.
-- Scope: a persona-book entry renders against its own persona (`macroPersonaOf`, `packages/server/src/domain/chat/assembly/context.ts`). Bob's `{{user}} hates spiders` reads `Bob hates spiders`.
+- Scope: a persona-book entry renders against its own persona (`macroPersonaOf`, `packages/server/src/domain/chat/assembly/context.ts`). Bob's `{{user}} hates spiders` reads `Bob hates spiders`. A seat outranks the pin: an entry whose book both hold renders against the seat persona.
 
 ## 5. Reattribution (the only writer of a stamp)
 

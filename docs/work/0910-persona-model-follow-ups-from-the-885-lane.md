@@ -41,11 +41,10 @@ Owner rulings:
 - Point 1 (bell entry when the pinned persona is deleted): no bell entry. The room block line already changes and the host sees it where they act. Closed.
 - Point 8 (a disabled but still seated pin owner): leave it. No `enabled` flag on the participant wire. Closed.
 
-Open:
-
-Owner ruling (point 4): yes. A held pin's lore book feeds the chat's lore pool while the pin holds, even when another persona speaks.
+- Point 4: yes. A held pin's lore book feeds the chat's lore pool while the pin holds, even when another persona speaks.
 
 - Fixed. `lorePersonaIdsOf` in `packages/server/src/domain/chat/substrate/participants-humans.ts` adds the pin to the seats, and the turn, the preview and the inherited rack all derive the pool from it. Rule: `docs/law/Chat-Macro-Resolution.md` Persona books, ADR 0315. Test: `tests/server/domain/chat/verbs/turn-pin-lore.int.test.ts` through production `chat.send`, reading the provider request, the assembly trace, the preview and the rack.
 - Lane default, for owner review: `memberPersonaLore` off keeps a member's pinned book out, because the switch's copy promises only the host's, the chat's and the characters' books. The pool's existing owner term enforces it.
-
-Owner ruling (point 5): the stale seed-order header comment in the persona-resolution suite may be corrected; the suite's test code stays untouched and its comments may change.
+- A seat outranks the pin: an entry whose book both hold renders against the seat persona, whichever persona is older. Two seats cannot share an entry: one human holds one seat, a persona has one owner, and the pool requires the book's owner to match the persona's.
+- A pin book joins the ordinary budget walk, so it can drop a lower entry. The drop is visible in `worldInfoDropped`.
+- Point 5: the stale seed-order header comment in the persona-resolution suite may be corrected; the suite's test code stays untouched and its comments may change.

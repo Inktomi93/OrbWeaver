@@ -119,8 +119,9 @@ export function humanSeatPersonasOf(participants: readonly PersonaSeat[], consen
  *  the room's pin. The seats are the present membership the people block renders (pass
  *  {@link humanSeatPersonasOf}'s output), never the online set, so a reconnect cannot rewrite the lore in the
  *  static half. The pin joins past the consent set because it holds when its owner leaves or is disabled (D315).
+ *  Order is precedence: the pool renders a shared entry against the first persona here, so the pin stays last.
  *  Pass `chats.anchorPersonaId`, never a caller-supplied id. The turn and every preview must derive it here, or a
  *  preview reports lore the next turn would not send. PURE. */
 export function lorePersonaIdsOf(humanSeats: readonly HumanSeatPersona[], anchorPersonaId: PersonaId | null): readonly PersonaId[] {
-  return [...new Set([...humanSeats.map((seat) => seat.personaId), anchorPersonaId].flatMap((id) => (id === null ? [] : [id])))];
+  return [...humanSeats.map((seat) => seat.personaId), anchorPersonaId].flatMap((id) => (id === null ? [] : [id]));
 }

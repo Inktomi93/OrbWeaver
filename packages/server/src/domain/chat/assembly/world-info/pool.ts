@@ -139,6 +139,7 @@ async function loadWorldInfoSources(
   globalRows: (BookExpansionRow & { book: Pick<typeof worldBooks.$inferSelect, "id" | "ownerId" | "name" | "description" | "createdAt"> })[];
   personaRows: (BookExpansionRow & {
     book: Pick<typeof worldBooks.$inferSelect, "id" | "ownerId" | "name" | "description" | "createdAt">;
+    personaId: PersonaId;
     personaName: string;
     personaDescription: string;
   })[];
@@ -177,7 +178,7 @@ async function loadWorldInfoSources(
     personaIds.length === 0
       ? Promise.resolve([])
       : db
-          .select({ ...entryColumns, book: bookColumns, personaName: personas.name, personaDescription: personas.description })
+          .select({ ...entryColumns, book: bookColumns, personaId: personas.id, personaName: personas.name, personaDescription: personas.description })
           .from(personaBooks)
           .innerJoin(worldEntries, eq(personaBooks.worldBookId, worldEntries.worldBookId))
           .innerJoin(worldBooks, eq(worldBooks.id, personaBooks.worldBookId))
@@ -192,7 +193,11 @@ async function loadWorldInfoSources(
           ),
   ]);
 
-  return { chatRows, characterRows, globalRows, personaRows };
+  // `inArray` keeps no order and the entry dedupe is first-wins, so `personaIds` order is applied here: a seat
+  // outranks the pin on a book both hold, whichever persona row is older.
+  const personaRank = new Map(personaIds.map((id, rank) => [id, rank]));
+  const rankedPersonaRows = personaRows.toSorted((a, b) => (personaRank.get(a.personaId) ?? 0) - (personaRank.get(b.personaId) ?? 0));
+  return { chatRows, characterRows, globalRows, personaRows: rankedPersonaRows };
 }
 
 /** The inherited rack and the assembler read the same owner-belted eligible entry sources. */
