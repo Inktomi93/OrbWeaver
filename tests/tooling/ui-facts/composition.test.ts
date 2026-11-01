@@ -59,7 +59,7 @@ test("a useQuery whose pending flag picks the render is a ladder, a bare enabled
     ].join("\n"),
   });
   const members = analyse(root, [], null).cohorts.find((entry) => entry.name === "read-shape")?.members ?? [];
-  expect(members.map((member) => [member.label, member.cells.shape?.value])).toEqual([
+  expect(members.map((member) => [member.label, member.cells["shape"]?.value])).toEqual([
     ["useLadder", "ladder"],
     ["useViaObject", "ladder"],
     ["useGate", "enabled-gate"],
@@ -122,12 +122,12 @@ test("an autosave form that dismisses with Cancel is a defect, and a hook toast 
   });
   const facts = analyse(root, [], null);
   const forms = facts.cohorts.find((entry) => entry.name === "form")?.members ?? [];
-  expect(forms.map((member) => [member.path.split("/").pop(), member.cells.mode?.value, member.cells.fit?.value])).toEqual([
+  expect(forms.map((member) => [member.path.split("/").pop(), member.cells["mode"]?.value, member.cells["fit"]?.value])).toEqual([
     ["autosave-dialog.tsx", "autosave", "autosave says Cancel"],
     ["saved-dialog.tsx", "saved", "ok"],
   ]);
   const feedback = facts.cohorts.find((entry) => entry.name === "feedback")?.members ?? [];
-  expect(feedback.map((member) => [member.label, member.cells.failure?.value])).toEqual([["useSaveThing", "toast+inline"]]);
+  expect(feedback.map((member) => [member.label, member.cells["failure"]?.value])).toEqual([["useSaveThing", "toast+inline"]]);
 });
 
 test("a section's list boundary is the shell, the boundary or none", ({ scratch }) => {

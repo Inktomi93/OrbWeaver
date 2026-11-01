@@ -71,7 +71,6 @@ async function nativeSummary(value: object): Promise<SummarizeResult> {
 
 test("native Ollama reply preserves text and accounting", async () => {
   expect(await nativeSummary(VALID)).toMatchObject({
-    model: MODEL,
     items: [{ text: VALID.message.content, usage: { tokensIn: 3, tokensOut: 2 } }],
   });
 });

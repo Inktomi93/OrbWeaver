@@ -2,11 +2,11 @@
 kind: bug
 status: open
 updated: 2026-11-01
-priority: P1
-area: server
+priority: P3
+area: plugins
 ---
 
-# Secrecy leak: a member's refused send during the host's turn retires every scrubber in the chat, so the rest of a <lie> span reaches member bytes live, on replay and in memberText; a terminal must name the turn it closes
+# Showcase bundle bytes change without a manifest version bump, so seeded installs keep the old bytes
 
 ## What
 

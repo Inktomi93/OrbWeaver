@@ -2,12 +2,12 @@
 kind: bug
 status: open
 updated: 2026-11-01
-priority: P2
-plan: test-foundation
-area: tooling
+priority: P3
+area: client
+plan: unwired-code
 ---
 
-# The e2e run-marker sweep crashes the run's teardown when /proc/<pid>/environ of another user's process is unreadable (EACCES), so the summary and error details never print
+# Import and inbox rendered review P3 bundle (P3-1 to P3-8, inbox-and-import side-eye report), plus importTree taking an abort signal
 
 ## What
 
