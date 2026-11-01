@@ -32,6 +32,7 @@ import { useOpenRequests } from "#lib";
 import { selectCharacter } from "#state";
 import { useCreateCharacter } from "../hooks/use-character-mutations.ts";
 import { characterDoors } from "../lib/character-door-requests.ts";
+import { CHARACTER_DESCRIPTION_FIELD_NAME, CHARACTER_IMPORT_NAME, CHARACTER_NAME_FIELD_NAME, CHARACTER_NEW_NAME } from "../lib/character-names.ts";
 import { characterRefusalCopy } from "../lib/character-refusal-notice.ts";
 import { CharacterImportDialog } from "./character-import-dialog.tsx";
 
@@ -82,7 +83,7 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
       description="Give them a name and a one-line description — you can flesh out the rest in the editor."
       onOpenChange={onOpenChange}
       open={open}
-      title="New character"
+      title={CHARACTER_NEW_NAME}
     >
       <Stack gap="field">
         {/* The four-voice grammar (density §2.3): a field caption is the NAME OF ONE DATUM → `label`.
@@ -100,7 +101,7 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
             the NAME (a duplicate handle is derived from it), so the binding is unconditional on the field
             rather than routed per code. */}
         <Input
-          aria-label="Character name"
+          aria-label={CHARACTER_NAME_FIELD_NAME}
           onValueChange={onNameChange}
           placeholder="e.g. Elara Vance"
           value={name}
@@ -118,7 +119,7 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
           Description
         </Text>
         <Textarea
-          aria-label="Character description"
+          aria-label={CHARACTER_DESCRIPTION_FIELD_NAME}
           onChange={(event): void => setDescription(event.target.value)}
           placeholder="A wandering cartographer with a sharp tongue."
           value={description}
@@ -197,7 +198,7 @@ function CharacterCreateButton({ onOpen }: { readonly onOpen: () => void }): Rea
         <Icon icon={Plus} size="sm" />
         New
       </Button>
-      <Button aria-label="New character" className={CREATE_ICON_ARM} onClick={onOpen} size="sm" square={true} type="button">
+      <Button aria-label={CHARACTER_NEW_NAME} className={CREATE_ICON_ARM} onClick={onOpen} size="sm" square={true} type="button">
         <Icon icon={Plus} size="sm" />
       </Button>
     </>
@@ -271,7 +272,7 @@ export function CharacterCreateActions(): ReactElement {
             display boxes that would have shrunk the visible target beside the `sm` New primary. */}
         {/* THE SAME SECONDARY-ENTRY RULING AS `CharacterLandingDoors` (#1256) — the band's own icon-only
             twin of the same Import door, beside the same `New` primary. */}
-        <Button aria-label="Import a character card" variant="ghost" ink="muted" onClick={(): void => setImportOpen(true)} size="sm" square={true}>
+        <Button aria-label={CHARACTER_IMPORT_NAME} variant="ghost" ink="muted" onClick={(): void => setImportOpen(true)} size="sm" square={true}>
           <Icon icon={Upload} size="sm" />
         </Button>
         <CharacterCreateButton onOpen={(): void => setCreateOpen(true)} />

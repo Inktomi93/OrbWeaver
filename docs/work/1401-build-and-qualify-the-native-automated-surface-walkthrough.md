@@ -24,7 +24,7 @@ Phase A, now: land the infrastructure and stop.
 3. A `verifier` reviews the branch; then it merges. The existing journey drivers merge frozen: no extension until phase B.
 4. This item then moves to `parked`, blocked on the UI program.
 
-Phase B, parked until the UI program settles (the tone role tier and variant vocabulary, the page-template tier in the cross-surface acceptance item, and importing test labels from production): rework the journeys, then qualify.
+Phase B runs beside steps 2 to 6 of `docs/plans/cross-surface-consistency/design.md`: rework the journeys, then qualify.
 
 ### Method for phase B
 
@@ -35,13 +35,12 @@ Phase B, parked until the UI program settles (the tone role tier and variant voc
 - Iterate on one case at a time with the measurement pass. Run the full evidence pass once per surface when its journeys pass.
 - Group evidence findings by rule per surface and board one item per rule per surface. Findings do not gate the walkthrough.
 - Run one walk at a time on the box.
-- Split lanes by driver file on Sonnet: chat (`tests/e2e/support/surface-chat.ts`), config (`tests/e2e/support/surface-config.ts`), and the rails (`tests/e2e/support/surface-sections.ts`). One owner holds the shared runner, collectors, spec registry and `tests/e2e/support/surface-character.ts`.
+- Split lanes by driver file on Sonnet: chat (`tests/e2e/support/surface-chat.ts`), config (`tests/e2e/support/surface-config.ts`), and the rails (`tests/e2e/support/surface-sections.ts`). One owner holds the shared runner, collectors, spec registry, `tests/e2e/support/surface-walker.ts` and `tests/e2e/support/surface-character.ts`. The per-file work is in the plan's driver handover.
 
-### Known state at parking
+### Known state
 
-- The drivers are hand-scripted per control and hard-code hundreds of accessible names, so UI copy or flow changes break them. The triage in `reports/surface-walk-status.md` lists each driver function as delete (generic coverage), keep (outcome check) or shared helper.
-- Collector controls pass. A synthetic desktop evidence run reached Characters, Chat and part of Config; almost every case failed on product findings, led by label and accessible-name mismatches, heading order, promoted-layer offsets and text over art. Rails were not reached.
-- Chat's polish, oracle and arcade journeys are empty and pass vacuously. Chat menu items, plugin-page actions, Refinery runs, Databank ingestion and several Config categories are not exercised.
+- `tests/e2e/support/surface-walker.ts` owns coverage bookkeeping and the generic walk. Every driver publishes through it. A skip names a reason from `SURFACE_SKIP_REASONS`; a skip without one fails the case.
+- Character navigation is deleted. Its outcome journeys still hand-type names; production copy modules for them are not built.
 - On a phone, the bottom navigation stays focusable under the full-screen context sheet; board it with the phase A findings.
 
 ## Why
@@ -58,37 +57,33 @@ Phase B: the agreed surface, flow, device and pane coverage runs through one doc
 
 ## Surface status
 
-Source: the synthetic `desktop-1440-all-panes-evidence` walk in private run `surface-AJZ3dB`, which covered cases 0-29 of the spec. Case numbers name that run's `agent-cases/<n>.json`. Coverage counts are inventory dispositions. Two driver fixes are not yet re-run; their rows say so.
-
-Every executed case except three fails. Almost all failures are evidence findings (axe, design audit, design population incomplete, names audit), not driver failures. Board evidence findings per rule per surface (see `docs/plans/surface-walk/design.md`, "Journey authoring method"); do not gate journey work on them.
+Source: synthetic `desktop-1440-all-panes-measurement` runs of the walker branch. The measurement pass proves reach and journey outcome, not evidence findings. A full evidence pass per surface is still owed.
 
 ### Per surface
 
-| Surface | Driver file | Journey exists | Executes | Coverage gaps | Driver bugs left |
-| - | - | - | - | - | - |
-| Characters (incl. Tags) | `surface-character.ts` | yes, 12 areas (cases 0-11) | yes, all 12 | none in inventory; library 10/10 to editor 56/26 visited/observed; trust-actions 1 skipped, 1 excluded | none seen |
-| Chat list and composer | `surface-chat.ts` | yes (12) | yes | 18 unvisited: menu-leaf activation on originals | none |
-| Chat Context | `surface-chat.ts` | yes (13) | yes | 3 unvisited | none |
-| Chat group room | `surface-chat.ts` | yes (14) | yes | 18 unvisited menu-leaf activations | none |
-| Chat game room | `surface-chat.ts` | yes (15) | yes | 16 unvisited menu-leaf activations | none |
-| Chat held arrival | `surface-chat.ts` | yes (16) | yes | none | none |
-| Chat polish, oracle, arcade | `surface-chat.ts` | yes (17-19) | pass with only one not-applicable row each | journeys are effectively empty | needs real journeys or deletion |
-| Chat generation and cancel | `surface-chat.ts` | yes (20) | failed | coverage failure follows the driver error | painted-text comparison fixed (display regex); re-run owed |
-| Chat lifecycle commands | `surface-chat.ts` | yes (21) | yes | 4 unvisited | none |
-| Chat message operations | `surface-chat.ts` | yes (22) | yes | none; 121 visited, 10 not-applicable | none; persona pre-open check passed with the hard assertion |
-| Chat held media | `surface-chat.ts` | yes (23) | yes | none | none |
-| Chat reading styles | `surface-chat.ts` | yes | not reached | unknown | unknown |
-| Config map, recovery, settings | `surface-config.ts` | yes (24-26) | yes | none | none |
-| Config personas | `surface-config.ts` | yes (28) | yes | 35 skipped, 3 excluded | none |
-| Config appearance | `surface-config.ts` | yes (29) | yes | 76 skipped, 34 excluded | none; dead-CSS failures on the theme builder are a detector question (below) |
-| Config chat-behavior, workloads, backup, connections, automation, admin, about, regex, worldInfo, rosterPreset, plugins | `surface-config.ts` | yes, one case per `CONFIG_GROUP_IDS` member | not reached | unknown | unknown |
-| Refinery execution | `surface-sections.ts` | yes (27) | failed at the first stage | stage runs unvisited | structured-connection binding fixed; re-run owed |
-| Home, Corpus and Insights, Extensions plugin pages, Databank, Presets, Refinery rail | `surface-sections.ts` | yes, one case per owned `SECTION_IDS` member | not reached | unknown | unknown |
-| Boot diagnostic, multi-human admission | spec | yes | not reached | unknown | unknown |
+| Surface | Driver file | Executes | Open work |
+| - | - | - | - |
+| Characters library, source-context, editor, relations, look, history, trust-actions | `surface-character.ts` | pass | names from production |
+| Characters greeting, history-recovery, look-recovery, commands, library-recovery | `surface-character.ts` | not re-run on the walker branch | re-run; names from production |
+| Chat polish, oracle, arcade | `surface-chat.ts` | pass with real journeys | none |
+| Chat generation and cancel | `surface-chat.ts` | pass | none |
+| Chat message operations | `surface-chat.ts` | pass | none |
+| Chat reading styles | `surface-chat.ts` | every style reached; whisper and ripple pass in the whole walk | the `reachMessage` progress poll fails in bubble, flat, document, hush and tide; echo fails on a `chat.listMessages` 404 for a deleted chat |
+| Chat list, Context, group, game, arrival, lifecycle commands, media | `surface-chat.ts` | not re-run on the walker branch | re-run; replace `inspectMenu` with the walker |
+| Config appearance, connections, personas, plugins | `surface-config.ts` | pass on `SurfaceWalk` | names from production |
+| Config about, admin, automation, backup, chat-behavior, regex, rosterPreset, workloads, worldInfo, map, recovery, settings | `surface-config.ts` | not re-run on `SurfaceWalk` | re-run; names from production |
+| Refinery execution | `surface-sections.ts` | pass | none |
+| Extensions rail | `surface-sections.ts` | pass | none |
+| Home rail | `surface-sections.ts` | reached | Databank tile document rows need a witness |
+| Corpus rail | `surface-sections.ts` | reached | semantic target queries unexercised |
+| Databank rail | `surface-sections.ts` | reached | none; `databank/maintenance` is `excluded` on original documents |
+| Presets rail | `surface-sections.ts` | timed out in the control census | census a re-rendering list through element handles, not `nth` locators; explain the `preset.get` 404 after deletion |
+| Refinery rail | `surface-sections.ts` | pass | none; `refinery/runs` is `excluded` on an original session |
+| Boot diagnostic, multi-human admission | spec | pass | none |
 
 World Info, Regex, Rosters, admin and plugin management are Config categories, not rails. Tags live in Characters. Insights live in Corpus modes.
 
-### Evidence findings in that walk
+### Evidence findings in the phase A walk
 
 | Source | Rule and count |
 | - | - |
@@ -104,20 +99,12 @@ World Info, Regex, Rosters, admin and plugin management are Config categories, n
 
 ### Driver triage
 
-Classes: (a) navigation the generic walker already covers: delete; (b) outcome assertion: keep; (c) generic helper: keep, or move to shared when marked `*` (defined in more than one driver). The class is a first pass from each function's body: a production write, reload, file or response read is (b); a function named for a shared step or called from four or more sites is (c); a body of clicks, checkpoints and reveals is (a). Confirm each (a) before deleting it. An exported `walk*` function in (a) is a registered journey; deleting it removes a case from the spec.
+Classes: (a) navigation the generic walker already covers: delete; (b) outcome assertion: keep; (c) generic helper: keep, or move to shared when marked `*` (defined in more than one driver). Rows list what remains in each driver; line numbers are stale. The class is a first pass from each function's body: a production write, reload, file or response read is (b); a function named for a shared step or called from four or more sites is (c); a body of clicks, checkpoints and reveals is (a). Confirm each (a) before deleting it. An exported `walk*` function in (a) is a registered journey; deleting it removes a case from the spec.
 
 #### tests/e2e/support/surface-sections.ts
 
-Totals: a navigation 29, b outcome 24, c helper 42.
-
 | Class | Function | Line | Lines | Call sites in file |
 | - | - | - | - | - |
-| a navigation | `switchListScreen` | 198 | 7 | 2 |
-| a navigation | `menuBody` | 327 | 27 | 2 |
-| a navigation | `terminalMenu` | 366 | 10 | 1 |
-| a navigation | `inspectMenuTrigger` | 390 | 25 | 3 |
-| a navigation | `contextMenuTabs` | 415 | 35 | 1 |
-| a navigation | `pressableChoices` | 876 | 19 | 1 |
 | a navigation | `home` | 895 | 65 | 0 |
 | a navigation | `returnHome` | 960 | 7 | 1 |
 | a navigation | `homeSectionDoor` | 985 | 17 | 2 |
@@ -137,7 +124,6 @@ Totals: a navigation 29, b outcome 24, c helper 42.
 | a navigation | `databankMaintenanceConfirmation` | 2197 | 8 | 1 |
 | a navigation | `refinery` | 2419 | 39 | 0 |
 | a navigation | `refineryWorkbench` | 2458 | 26 | 2 |
-| a navigation | `readonlyDialog` | 2831 | 31 | 3 |
 | a navigation | `refinerySetup` | 2873 | 11 | 1 |
 | a navigation | `refineryVersions` | 2884 | 33 | 1 |
 | a navigation | `walkSection` (export) | 3008 | 29 | 0 |
@@ -165,31 +151,12 @@ Totals: a navigation 29, b outcome 24, c helper 42.
 | b outcome | `refineryVersionRestore` | 2770 | 24 | 1 |
 | b outcome | `disposableRefinery` | 2794 | 37 | 1 |
 | b outcome | `extensions` | 2925 | 50 | 0 |
-| c helper | `usesProgrammaticScroll` | 79 | 4 | 3 |
-| c helper | `expectSubject* ` | 83 | 6 | 14 |
-| c helper | `observe` | 89 | 6 | 74 |
-| c helper | `pane` | 95 | 4 | 64 |
-| c helper | `content` | 99 | 4 | 57 |
-| c helper | `ready` | 103 | 11 | 29 |
-| c helper | `checkpoint* ` | 114 | 14 | 30 |
 | c helper | `enter` | 128 | 26 | 9 |
 | c helper | `sectionLabel` | 154 | 16 | 1 |
-| c helper | `reveal` | 170 | 28 | 20 |
-| c helper | `tabBodies` | 205 | 38 | 2 |
-| c helper | `disclosures* ` | 243 | 52 | 1 |
-| c helper | `nativeDetails* ` | 295 | 32 | 3 |
 | c helper | `presetMenuFamily` | 354 | 12 | 1 |
-| c helper | `menus` | 376 | 14 | 1 |
 | c helper | `loadNativePages` | 572 | 28 | 2 |
 | c helper | `loadCorpusCatalog` | 600 | 14 | 2 |
 | c helper | `loadRefineryPicker` | 614 | 14 | 1 |
-| c helper | `scrollWindows` | 628 | 51 | 1 |
-| c helper | `scrollWindow` | 679 | 91 | 1 |
-| c helper | `nativeWheel` | 770 | 43 | 2 |
-| c helper | `interiorInapplicable` | 813 | 4 | 4 |
-| c helper | `scrollGeometry` | 817 | 24 | 5 |
-| c helper | `windowReached` | 841 | 17 | 2 |
-| c helper | `inspect` | 858 | 7 | 31 |
 | c helper | `context* ` | 865 | 11 | 8 |
 | c helper | `homeOperation` | 967 | 18 | 11 |
 | c helper | `homeRosterApplied` | 1083 | 4 | 1 |
@@ -204,13 +171,10 @@ Totals: a navigation 29, b outcome 24, c helper 42.
 | c helper | `refineryRequestCursor` | 2675 | 4 | 2 |
 | c helper | `refineryRequestReceipt` | 2679 | 12 | 2 |
 | c helper | `refineryDialogs` | 2862 | 11 | 1 |
-| c helper | `dismissContext` | 2917 | 8 | 7 |
 | c helper | `platformGestures` | 2975 | 28 | 1 |
 | c helper | `sectionJourney` | 3003 | 5 | 4 |
 
 #### tests/e2e/support/surface-chat.ts
-
-Totals: a navigation 20, b outcome 21, c helper 48.
 
 | Class | Function | Line | Lines | Call sites in file |
 | - | - | - | - | - |
@@ -255,9 +219,6 @@ Totals: a navigation 20, b outcome 21, c helper 48.
 | b outcome | `walkChatOracle` (export) | 2323 | 90 | 0 |
 | b outcome | `walkChatPolish` (export) | 2413 | 53 | 0 |
 | b outcome | `walkChatArrival` (export) | 2481 | 103 | 0 |
-| c helper | `expectChat` | 67 | 6 | 19 |
-| c helper | `record* ` | 73 | 6 | 65 |
-| c helper | `checkpoint* ` | 79 | 5 | 31 |
 | c helper | `publish` | 84 | 16 | 10 |
 | c helper | `readChats` | 100 | 19 | 2 |
 | c helper | `displayTitle` | 119 | 4 | 3 |
@@ -282,8 +243,6 @@ Totals: a navigation 20, b outcome 21, c helper 48.
 | c helper | `activeContext` | 695 | 4 | 11 |
 | c helper | `contextReady` | 699 | 7 | 4 |
 | c helper | `closeContextOverlay` | 706 | 18 | 10 |
-| c helper | `disclosures* ` | 724 | 53 | 1 |
-| c helper | `nativeDetails* ` | 777 | 32 | 3 |
 | c helper | `context* ` | 959 | 27 | 6 |
 | c helper | `wheel` | 1001 | 5 | 5 |
 | c helper | `scrollViewport` | 1006 | 15 | 5 |
@@ -306,17 +265,9 @@ Totals: a navigation 20, b outcome 21, c helper 48.
 
 #### tests/e2e/support/surface-character.ts
 
-Totals: a navigation 9, b outcome 22, c helper 15.
-
 | Class | Function | Line | Lines | Call sites in file |
 | - | - | - | - | - |
-| a navigation | `creationDialogs` | 244 | 10 | 1 |
-| a navigation | `tagsJourney` | 302 | 22 | 1 |
 | a navigation | `toggleGreetingStudio` | 355 | 5 | 3 |
-| a navigation | `greetingJourney` | 360 | 14 | 1 |
-| a navigation | `facetJourney` | 482 | 33 | 1 |
-| a navigation | `relationsJourney` | 515 | 35 | 2 |
-| a navigation | `trustJourney` | 698 | 12 | 2 |
 | a navigation | `sourceCharacter` | 825 | 28 | 1 |
 | a navigation | `walkCharacterArea` (export) | 1333 | 44 | 0 |
 | b outcome | `openCard` | 136 | 17 | 7 |
@@ -341,15 +292,11 @@ Totals: a navigation 9, b outcome 22, c helper 15.
 | b outcome | `deleteCommandCharacters` | 1163 | 38 | 1 |
 | b outcome | `cleanupCommandSubjects` | 1201 | 54 | 1 |
 | b outcome | `disposableArea` | 1280 | 53 | 1 |
-| c helper | `expectSubject* ` | 82 | 5 | 11 |
 | c helper | `alternateFont` | 87 | 8 | 2 |
 | c helper | `record* ` | 95 | 6 | 52 |
-| c helper | `recordState` | 101 | 11 | 15 |
-| c helper | `closeOverlay` | 112 | 8 | 10 |
 | c helper | `openList` | 120 | 16 | 10 |
 | c helper | `contextTab` | 153 | 27 | 15 |
 | c helper | `dialogCancel` | 180 | 9 | 12 |
-| c helper | `inspectorWitness` | 469 | 13 | 1 |
 | c helper | `releaseHistory` | 588 | 10 | 1 |
 | c helper | `historyJourney` | 598 | 28 | 1 |
 | c helper | `originalContextJourney` | 760 | 40 | 1 |
@@ -358,8 +305,6 @@ Totals: a navigation 9, b outcome 22, c helper 15.
 | c helper | `commandsJourney` | 1255 | 25 | 1 |
 
 #### tests/e2e/support/surface-config.ts
-
-Totals: a navigation 18, b outcome 6, c helper 19.
 
 | Class | Function | Line | Lines | Call sites in file |
 | - | - | - | - | - |
@@ -392,8 +337,6 @@ Totals: a navigation 18, b outcome 6, c helper 19.
 | c helper | `map` | 53 | 18 | 20 |
 | c helper | `category` | 71 | 27 | 11 |
 | c helper | `inViewport` | 98 | 15 | 4 |
-| c helper | `unavailableControl` | 113 | 52 | 1 |
-| c helper | `identity` | 165 | 19 | 13 |
 | c helper | `controls` | 184 | 4 | 4 |
 | c helper | `observedControl` | 213 | 14 | 2 |
 | c helper | `scroll` | 319 | 28 | 10 |
@@ -410,3 +353,16 @@ Totals: a navigation 18, b outcome 6, c helper 19.
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+### Phase B: typed skips, Config on the shared walker
+
+- `pnpm test tests/support/iso/surface-coverage.test.ts tests/support/node/surface-index-reporter.test.ts`: 16 pass. A probe against the previous `tests/support/iso/surface-coverage.ts` accepted the planted unlisted skip.
+- Synthetic `desktop-1440-all-panes-measurement` run: Characters editor, relations, look, history; Config appearance, plugins; Refinery rail. All pass, 113 skips, none unlisted. Config plugins takes about 37 seconds; it had exceeded the 600-second case budget.
+- Whole synthetic walk on `desktop-1440-all-panes-measurement`: 56 cases completed in 4900 seconds, inside the 90-minute native budget. The 1-minute load was 22.9 on 24 cores at start. 46 pass, 1 skipped, 9 fail: Home and Corpus on their open handover items, Presets on the census timeout, and six reading styles. No skip was unlisted.
+- The run before it passed Config personas, connections and Chat reading tide. It failed bubble and document in `reachMessage`, Config appearance on a disclosure filed under the census's `control` kind, Config plugins at the case budget, and the Refinery rail on `refinery/runs`.
+
+### Phase B step 2: accessible names from production copy (lane cb-walk-names)
+
+- `tests/e2e/support/surface-character.ts`: 27 distinct Character names now import from `packages/client/src/features/character/lib/character-names.ts`, which the components read too (library, filter rail, create and import dialogs, editor form, actions menu, confirm titles, history, tags row, links tab). The count-built bulk titles use `characterBulkTagTitle` and `characterBulkDeleteTitle`. Reach entry in `.dependency-cruiser.ts`.
+- Cases: `Characters independent library` and `Characters independent trust-actions` on `desktop-1440-all-panes-measurement`, both exit 0, `completed=2 unexpected=0`.
+- Remaining in `surface-character.ts`: shared-grammar names (Cancel, Create, Done, Retry, Close, Name, Description, Restore, Accept, Discard, Edit, Studio, Back), names built by shared components (Make new, Expand to edit, Start from a theme…, From a URL…, Background image URL, Font, Corner radius, Hex, Add images, Your images, gallery title), `Select <name>` via `selectActionName`, and the per-facet strings. `surface-sections.ts`, `surface-config.ts` and `surface-chat.ts` untouched.
