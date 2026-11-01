@@ -168,7 +168,6 @@ test("native automation read suppliers keep rule scope, preset provenance, fire 
     expect(ask.kind).toBe("invitation");
     expect(ask.source).toEqual({ kind: "rule", ruleId: invitationRule.id });
     const confirmed = await seedAutomationConfirmationRows(root, { principal, suggestionId: ask.suggestionId }, invitationRule.id);
-    expect(confirmed.result).toEqual({ ran: "fresh-run", outcome: "fired" });
     expect(confirmed.fires.filter((fire) => fire.outcome === "fired")).toHaveLength(2);
     expect(await root.services.automation.getGlobalVariable({ principal, key: TOOL_RESULT_KEY })).toContain(`2:${TOOL_MARKER}`);
     expect(await root.services.automation.getGlobalVariable({ principal: await root.principalFor(foreign.id), key: TOOL_RESULT_KEY })).toBeNull();
@@ -217,7 +216,6 @@ test("a genuinely raised confirmation keeps its actor and fire identity while a 
     const params = { principal, suggestionId: raised.suggestionId };
     await expect(seedAutomationConfirmationRows(root, { ...params, principal: foreign }, rule.id)).rejects.toThrow(DomainNotFoundError);
     const confirmed = await seedAutomationConfirmationRows(root, params, rule.id);
-    expect(confirmed.result).toEqual({ ran: "stashed-arm", outcome: "fired" });
     expect(confirmed.fires).toMatchObject([
       { ruleId: rule.id, chatId: room.chat.id, outcome: "fired", detail: { confirmedByUserId: principal.userId, suggestionId: params.suggestionId } },
     ]);

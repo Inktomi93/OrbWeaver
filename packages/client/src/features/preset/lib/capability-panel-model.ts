@@ -120,11 +120,12 @@ export function verbosityLevelsFor(capability: GenerationCapability): readonly V
 
 // ── The quality dial (the primary ergonomic control) ─────────────────────────
 
-/** Keyed by the canonical union so a new quality level is a `tsc` error until it has copy. */
-const QUALITY_META: Record<Quality, { readonly label: string; readonly description: string }> = {
-  fast: { label: "Fast", description: "Snappy replies — minimal reasoning, cheaper." },
-  balanced: { label: "Balanced", description: "The everyday default — reasons when it helps." },
-  deep: { label: "Deep", description: "Thorough — more reasoning, higher quality, slower." },
+/** Keyed by the canonical union so a new quality level is a `tsc` error until it has a label. The deck's
+ *  one-line gloss (`qualityDeckGloss`) already says what a level does, so there is no description here. */
+const QUALITY_META: Record<Quality, { readonly label: string }> = {
+  fast: { label: "Fast" },
+  balanced: { label: "Balanced" },
+  deep: { label: "Deep" },
 };
 
 /** One quality-dial option (the dial's segmented picker). */
