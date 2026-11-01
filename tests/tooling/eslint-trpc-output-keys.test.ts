@@ -119,11 +119,24 @@ test.for([
     keys: ["`ownerId`"],
   },
   { name: "a mapped callback spreading a view into a contract array", source: "export const rows: ProbeView[] = [view].map((one) => ({ ...one }));", keys: [] },
+  { name: "a spread bound to an annotated contract variable", source: "export const made: ProbeView = { ...row };", keys: ["`ownerId`"] },
   {
-    name: "a spread handed to a contract-typed argument or variable",
-    source: "export const sink: ProbeView[] = [];\nsink.push({ ...row });\nexport const made: ProbeView = { ...row };",
+    name: "a spread pushed onto a contract-typed array",
+    source: "export const sink: ProbeView[] = [];\nsink.push({ ...row });",
+    keys: ["`ownerId`"],
+  },
+  {
+    name: "a spread handed to a contract-typed call argument",
+    source: "declare function take(view: ProbeView): void;\ntake({ ...row });",
     keys: [],
   },
+  {
+    name: "a spread pushed onto a non-array with a push method",
+    source: "declare const bag: { push(view: ProbeView): void };\nbag.push({ ...row });",
+    keys: [],
+  },
+  { name: "a view-shaped spread bound to a contract variable", source: "export const made: ProbeView = { ...view };", keys: [] },
+  { name: "an unannotated variable holding a wider spread", source: "export const made = { ...row };", keys: [] },
   {
     name: "a spread into an intersection branch of a union output",
     source: 'procedure.output(branchOut).query(() => ({ over: "a" as const, ...row }));',

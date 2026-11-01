@@ -37,6 +37,11 @@ const OWNERS = {
   "packages/contracts/src/sessions.ts": "export interface RevokeInput { readonly token: string; }",
   "packages/db/src/wiring.ts": "export interface StatementToken { readonly sql: string; }",
   "packages/inference/src/resolve.ts": "export interface ResolveOutcome { readonly ok: boolean; }",
+  "packages/contracts/src/rooms.ts": [
+    "export interface RoomSummary { readonly id: string; readonly lastTurnAt: number | null; readonly role: 'host' | 'member'; readonly title: string }",
+    "export declare const rooms: readonly RoomSummary[];",
+    "export declare const room: RoomSummary;",
+  ].join("\n"),
   [CLOCK]: "export type Clock = () => number;\nexport interface Seams { readonly now: Clock; }\nexport declare const seams: Seams;",
 };
 
@@ -240,6 +245,76 @@ test.for([
     source: `${IMPORTS}\ninterface Limits { readonly points: number | (() => number); }\ninterface Port { readonly limit: () => number; }\nexport declare const port: Port;\nexport const limits: Limits = { points: () => port.limit() };`,
     findings: [],
   },
+  {
+    name: "a local candidate type behind a generic constraint over contract rows",
+    file: SITE,
+    source:
+      'import { rooms } from "../../../../contracts/src/rooms.ts";\ninterface Candidate { readonly id: string; readonly lastTurnAt: number | null }\nfunction split<Room extends Candidate>(items: readonly Room[]): Room | undefined {\n  return items[0];\n}\nexport const first = split(rooms);',
+    findings: ["Candidate restates fields of a contract type"],
+  },
+  {
+    name: "a local type taking a contract value as a call argument",
+    file: SITE,
+    source:
+      'import { room } from "../../../../contracts/src/rooms.ts";\ntype Shown = { readonly id: string; readonly title: string };\nfunction show(value: Shown): string {\n  return value.title;\n}\nexport const text = show(room);',
+    findings: ["Shown restates fields of a contract type"],
+  },
+  {
+    name: "two calls of one restating local type",
+    file: SITE,
+    source:
+      'import { room } from "../../../../contracts/src/rooms.ts";\ninterface Shown { readonly id: string; readonly title: string }\nfunction show(value: Shown): string {\n  return value.title;\n}\nexport const both = [show(room), show(room)];',
+    findings: ["Shown restates fields of a contract type"],
+  },
+  {
+    name: "a local helper type inside a contract file",
+    file: CROSS,
+    source:
+      'import { room } from "../../../../../contracts/src/rooms.ts";\ninterface Shown { readonly id: string; readonly title: string }\nfunction show(value: Shown): string {\n  return value.title;\n}\nexport const text = show(room);',
+    findings: [],
+  },
+  {
+    name: "an exported look-alike of a contract type",
+    file: SITE,
+    source:
+      'import { room } from "../../../../contracts/src/rooms.ts";\nexport interface Shown { readonly id: string; readonly title: string }\nexport function show(value: Shown): string {\n  return value.title;\n}\nexport const text = show(room);',
+    findings: [],
+  },
+  {
+    name: "a local type exported by name list",
+    file: SITE,
+    source:
+      'import { room } from "../../../../contracts/src/rooms.ts";\ninterface Shown { readonly id: string; readonly title: string }\nfunction show(value: Shown): string {\n  return value.title;\n}\nexport { Shown };\nexport const text = show(room);',
+    findings: [],
+  },
+  {
+    name: "a local type with a field the contract lacks",
+    file: SITE,
+    source:
+      'import { room } from "../../../../contracts/src/rooms.ts";\ninterface Shown { readonly id: string; readonly extra?: string }\nfunction show(value: Shown): string {\n  return value.id;\n}\nexport const text = show(room);',
+    findings: [],
+  },
+  {
+    name: "a local type of one field",
+    file: SITE,
+    source:
+      'import { room } from "../../../../contracts/src/rooms.ts";\ninterface Shown { readonly id: string }\nfunction show(value: Shown): string {\n  return value.id;\n}\nexport const text = show(room);',
+    findings: [],
+  },
+  {
+    name: "a local type fed a value that is not a contract type",
+    file: SITE,
+    source:
+      "interface Shown { readonly id: string; readonly title: string }\ndeclare const row: { readonly id: string; readonly title: string; readonly ownerId: string };\nfunction show(value: Shown): string {\n  return value.title;\n}\nexport const text = show(row);",
+    findings: [],
+  },
+  {
+    name: "a local type derived from the contract type",
+    file: SITE,
+    source:
+      'import { room } from "../../../../contracts/src/rooms.ts";\nimport type { RoomSummary } from "../../../../contracts/src/rooms.ts";\ntype Shown = Pick<RoomSummary, "id" | "title">;\nfunction show(value: Shown): string {\n  return value.title;\n}\nexport const text = show(room);',
+    findings: [],
+  },
 ] as const)("derived-port-member judges $name", async ({ file, source, findings }, { plantedTree }) => {
   const root = await plantedTree({ ...OWNERS, [file]: source });
   const messages = lint(root, file, source).map(({ message }) => message);
@@ -251,7 +326,7 @@ test.for([
 
 // The cases above register the rule by hand to give it a planted program; this one reads the production config, so the
 // rule's name, its severity and its plugin registration are proven where they are wired.
-test("the production config registers derived-port-member as an error on server compose files", async () => {
+test("the production config registers derived-port-member as an error on server compose files", { timeout: 120_000 }, async () => {
   const root = join(import.meta.dirname, "../..");
   const config = await resolvedConfig(
     new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: root }),

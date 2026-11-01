@@ -1509,7 +1509,18 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       },
     },
     { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/trpc-payload-declared-keys": "error" } },
-    { files: ["packages/server/src/**/*.ts", "packages/inference/src/**/*.ts"], rules: { "orb/trpc-output-declared-keys": "error" } },
+    {
+      files: [
+        "packages/server/src/**/*.ts",
+        "packages/inference/src/**/*.ts",
+        "packages/client/src/**/*.{ts,tsx}",
+        "packages/kit/src/**/*.ts",
+        "packages/ui/src/**/*.{ts,tsx}",
+      ],
+      rules: { "orb/trpc-output-declared-keys": "error" },
+    },
+    { files: ["packages/*/src/**/*.{ts,tsx}"], rules: { "orb/no-unsafe-cast": "error" } },
+    { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/mutation-vars-derived": "error", "orb/trpc-error-code-via-helper": "error" } },
     { files: ["packages/client/src/**/*.tsx"], rules: { "orb/no-raw-intrinsic-paint": "error" } },
     { files: ["packages/client/src/**/*.tsx"], rules: { "orb/text-voice-only": "error" } },
     // Tooling is outside: its CLI flags share the `--appearance-` prefix (`--appearance-preset`).

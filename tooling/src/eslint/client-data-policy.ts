@@ -19,6 +19,9 @@ const STORAGE_NAMES = ["localStorage", "sessionStorage", "indexedDB"];
 // tree is authored that way, and an annotation is what the registry's `Def` type is checked through.
 const declaredAs = (typeName: string): string => `VariableDeclarator[id.typeAnnotation.typeAnnotation.typeName.name='${typeName}']`;
 
+// `{ data?: { code?: string } }`, the shape a hand cast gives a tRPC error to read its code.
+const ERROR_CODE_CAST = "TSTypeLiteral:has(TSPropertySignature[key.name='data'] TSPropertySignature[key.name='code'])";
+
 export const CLIENT_DATA_RESTRICTIONS = [
   {
     id: "persistence-boundary",
@@ -70,6 +73,25 @@ export const CLIENT_DATA_RESTRICTIONS = [
         selector: wholeModule("@tanstack/react-query"),
         message:
           "The whole `@tanstack/react-query` module taken by namespace, `export *` or dynamic import outside data/create-entity-mutation.ts: import the hooks you need by name, so a raw `useMutation` stays visible (client-architecture-state-and-gates.md §11, §14).",
+      },
+    ],
+  },
+  {
+    id: "mutation-vars-derived",
+    selectors: [
+      {
+        selector: "CallExpression[callee.name='createEntityMutation'] > TSTypeParameterInstantiation > TSTypeLiteral:first-child",
+        message:
+          'A hand-written literal type for createEntityMutation\'s variables: derive them from the procedure (`type XVars = inferInput<Trpc["domain"]["verb"]>`) so the input shape has one home.',
+      },
+    ],
+  },
+  {
+    id: "trpc-error-code-via-helper",
+    selectors: [
+      {
+        selector: `TSAsExpression > ${ERROR_CODE_CAST}, TSAsExpression > TSUnionType > ${ERROR_CODE_CAST}`,
+        message: "A hand cast of a tRPC error's `data.code`: read it with `trpcErrorCode(error)` from the client lib (lib/trpc-error-reason.ts).",
       },
     ],
   },
