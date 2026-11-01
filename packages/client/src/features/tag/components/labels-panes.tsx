@@ -16,7 +16,7 @@ import { QueryErrorState, useTRPC } from "#data";
 import { CORPUS_MODE_LABELS, tagUsageLabel, USAGE_KIND_TITLES } from "#lib";
 import { clearLabelSelection, useSelectedLabelId } from "#state";
 import { useTagName } from "../hooks/use-tag-library.ts";
-import { LabelsLibrarySurface } from "../surfaces/labels-library-surface.tsx";
+import { LabelsLandingSurface } from "../surfaces/labels-landing-surface.tsx";
 import { TagMemberSurface } from "../surfaces/tag-member-surface.tsx";
 import { LabelAttachedEntities } from "./label-attached-entities.tsx";
 
@@ -36,7 +36,7 @@ export function LabelsContent(): ReactElement {
     <Container className="block-full min-block-0">
       <Stack className="relative overflow-y-auto overscroll-contain py-section block-full min-block-0" data-slot="labels-content">
         {tagId === null ? (
-          <LabelsLibrarySurface returning={editorWasOpen} />
+          <LabelsLandingSurface returning={editorWasOpen} />
         ) : (
           <QueryBoundary
             fallback={exit}
