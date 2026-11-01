@@ -11,16 +11,18 @@ plan: unwired-code
 
 ## What
 
-Left open. Product question: should the registry's `advanced: true` sections (the Appearance fold) be hidden from Settings search and the palette unless the reader types `@advanced`?
+Delete the `@advanced` search token, its hint, the `advanced` filter axis, the `GroupSearchRows` branch and `ConfigSearchEntry.advanced`. The palette lists every entry.
 
 ## Why
 
-`ConfigSearchEntry.advanced` is set false at all three build sites in `packages/client/src/features/config/lib/config-search.ts`, so `@advanced` always returns nothing. Wiring it needs `advanced` on `ConfigSubcategory` (the partition drops it in `packages/client/src/state/config-section-registry.ts`) and hides fold settings from default search, which makes them harder to find. Deleting it removes the `@advanced` token and its hint. Both change what a user sees.
+Owner ruling: advanced settings appear through a visible control (a show-more toggle, dropdown or show-advanced option), never through a typed `@advanced` search token. `ConfigSearchEntry.advanced` was false at every build site, so the token always returned nothing.
+
+The visible control already exists: the Appearance group's `advancedFold` ("Customize this look", `packages/client/src/features/config/lib/appearance-group.tsx`) is a collapsed disclosure that holds the `advanced: true` sections (`packages/client/src/features/config/surfaces/config-content-surface.tsx`). Search indexes those sections like any other, and a search hit or list click on a folded section opens the fold before it scrolls (`config-content-surface.tsx`, the `landingNonce` branch). A group-level hit names no section and leaves the fold closed.
 
 ## Done when
 
-The owner picks wire or delete; then the flag, the filter axis, the `@advanced` token and `GroupSearchRows` branch either carry real data or are gone together.
+No `@advanced` token, `advanced` filter or `ConfigSearchEntry.advanced` in `packages/client/src`. Search still finds every setting, folded ones included.
 
 ## Evidence
 
-No change landed.
+Typecheck for `packages/client/tsconfig.json`, `tsconfig.tests-dom.json` and `tsconfig.node.json`, the config-search CT (3 tests), eslint on the touched files, `pnpm depcruise` and `pnpm knip` all pass. Literal `rg` for `@advanced`, `entry.advanced` and `parsed.advanced` across `packages` and `tests` returns no matches.

@@ -8,8 +8,7 @@
 //
 // The FILTER half (`filterConfigEntries`) is pure over a parsed query + the derived modified map, so the
 // token semantics are unit-testable without a browser: `@shelf:`/`@in:` narrow by address, `@plugin:` narrows
-// to the plugins group and searches the slug, `@advanced` FLIPS the advanced axis (advanced rows are hidden
-// by default — the D107 progressive-disclosure arm), `@modified` keeps only entries that differ from their
+// to the plugins group and searches the slug, `@modified` keeps only entries that differ from their
 // defaults AT THEIR OWN GRAIN — a leaf answers for its own key, never for its section's (#1099 F16)
 // (`use-modified-sections.ts` derives both grains; this file only consumes them).
 
@@ -25,8 +24,6 @@ interface ConfigSearchEntryBase {
   readonly shelf: ConfigShelf;
   readonly groupId: ConfigGroupId;
   readonly groupLabel: string;
-  /** Hidden by default; surfaced only under `@advanced` (§3.3). */
-  readonly advanced: boolean;
   /** Every human-readable token — label + navLabel + keywords + the group label. */
   readonly keywords: readonly string[];
 }
@@ -48,7 +45,6 @@ function groupEntry(group: ConfigGroupDefinition): ConfigSearchEntry {
     groupLabel: group.label,
     subId: null,
     settingId: null,
-    advanced: false,
     keywords: [group.label, group.description],
   };
 }
@@ -63,7 +59,6 @@ function sectionEntries(group: ConfigGroupDefinition, sub: ConfigSubcategory): C
     groupLabel: group.label,
     subId: sub.id,
     settingId: null,
-    advanced: false,
     // BOTH names: the hit READS as the full `label` (it lands on that heading), but a reader who typed the
     // abbreviation they saw in the LIST row must find it too — an abbreviation that hides its own section
     // from search would be worse than the truncation it replaced.
@@ -79,7 +74,6 @@ function sectionEntries(group: ConfigGroupDefinition, sub: ConfigSubcategory): C
       groupLabel: group.label,
       subId: sub.id,
       settingId: setting.id,
-      advanced: false,
       keywords: [setting.label, ...(setting.keywords ?? []), sub.label, group.label],
     }),
   );
@@ -111,7 +105,6 @@ export function buildConfigSearchEntries(
 /** The typed-token narrowing the parser feeds (pure — the fuzzy TERM match runs after this). */
 export interface ConfigEntryFilter {
   readonly modified: boolean;
-  readonly advanced: boolean;
   readonly shelf?: string;
   readonly group?: string;
   readonly plugin?: string;
@@ -173,17 +166,13 @@ export function isConfigEntryModified(entry: ConfigSearchEntry, modified: Config
   return entry.subId === null ? true : subs.has(entry.subId);
 }
 
-/** Apply the `@` filters. `@advanced` FLIPS the axis (hidden by default, only-advanced when asked — the
- *  VS Code `@tag:advanced` posture); an unknown `@shelf:`/`@in:` value matches nothing, which is honest. */
+/** Apply the `@` filters. An unknown `@shelf:`/`@in:` value matches nothing, which is honest. */
 export function filterConfigEntries(
   entries: readonly ConfigSearchEntry[],
   filter: ConfigEntryFilter,
   modified: ConfigModifiedMap,
 ): readonly ConfigSearchEntry[] {
   return entries.filter((entry) => {
-    if (entry.advanced !== filter.advanced) {
-      return false;
-    }
     if (filter.shelf !== undefined && !shelfMatches(entry.shelf, filter.shelf)) {
       return false;
     }
