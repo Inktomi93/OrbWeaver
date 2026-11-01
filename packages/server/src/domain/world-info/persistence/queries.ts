@@ -89,7 +89,7 @@ async function countByBook(db: Db, table: SQLiteTable, bookCol: SQLiteColumn, id
     .from(table)
     .where(inArray(bookCol, [...ids]))
     .groupBy(bookCol);
-  return Object.fromEntries(rows.map((r) => [r.bookId, r.n]));
+  return Object.fromEntries(rows.map((r): [string, number] => [String(r.bookId), r.n]));
 }
 
 /** Every owned book plus its entry count and its four-scope attachment rollup (the Configuration

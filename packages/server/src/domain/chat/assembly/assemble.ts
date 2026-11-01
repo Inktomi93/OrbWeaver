@@ -257,7 +257,7 @@ function dedupeNonEmpty(parts: readonly MergedContribution[]): MergedContributio
  * the prompt and the trace otherwise only says "merged".
  */
 function allocateMergedFallback(parts: readonly MergedContribution[], cap: number): { texts: string[]; truncated: string[] } {
-  const points = parts.map((p) => [...p.text]);
+  const points = parts.map((p) => Array.from(p.text));
   const separators = Math.max(parts.length - 1, 0) * MERGED_JOIN.length;
   const budget = Math.max(cap - separators, 0);
   if (points.reduce((n, c) => n + c.length, 0) <= budget) {

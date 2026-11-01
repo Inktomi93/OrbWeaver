@@ -80,7 +80,7 @@ function scatter(
   raw: readonly Float32Array[],
   finalize: (vec: Float32Array) => Float32Array<ArrayBuffer>,
 ): (Float32Array<ArrayBuffer> | null)[] {
-  const vectors: (Float32Array<ArrayBuffer> | null)[] = new Array(total).fill(null);
+  const vectors: (Float32Array<ArrayBuffer> | null)[] = new Array<Float32Array<ArrayBuffer> | null>(total).fill(null);
   for (let j = 0; j < kept.length; j += 1) {
     const slot = kept[j];
     const vec = raw[j];
