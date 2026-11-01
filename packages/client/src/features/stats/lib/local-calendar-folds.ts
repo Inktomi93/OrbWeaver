@@ -125,12 +125,10 @@ export function rhythmOf(days: readonly LocalDay[]): Rhythm {
   return { activeDays: active.length, longestStreakDays, busiestDay };
 }
 
-/** One character's replies in the two compared months. */
+/** One character's swing in replies between the two compared months. */
 interface MomentumRow {
   readonly characterId: CharacterId;
   readonly name: string;
-  readonly current: number;
-  readonly prev: number;
   readonly delta: number;
 }
 
@@ -170,7 +168,7 @@ export function localMomentum(buckets: readonly MomentumBucket[], position: (epo
   const rows = [...new Set([...current.keys(), ...before.keys()])].map((characterId): MomentumRow => {
     const now = current.get(characterId) ?? 0;
     const then = before.get(characterId) ?? 0;
-    return { characterId, name: names.get(characterId) ?? "", current: now, prev: then, delta: now - then };
+    return { characterId, name: names.get(characterId) ?? "", delta: now - then };
   });
   return {
     latest: latest.month,

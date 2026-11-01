@@ -2,7 +2,7 @@
 // (recurring auto-enqueue via workloads.createSchedule/updateSchedule). DOM-free. Backs both the create
 // and edit dialogs (one value shape).
 
-import type { IndexSource, ScheduleCadence, WorkloadMode } from "@orb/contracts/workloads";
+import type { ScheduleCadence, WorkloadMode } from "@orb/contracts/workloads";
 import { SCHEDULE_CADENCES, WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
 import type { WorkloadRunValues } from "./workloads-model.ts";
 import { isMaintenanceWorkloadKind, isRunnableWorkloadKind, RUNNABLE_WORKLOAD_KINDS } from "./workloads-model.ts";
@@ -39,15 +39,11 @@ export const SCHEDULE_CADENCE_ITEMS: readonly { value: string; label: string }[]
 
 /** The schedule form values. Backs both the create and edit dialogs; the param slots mirror the run form
  *  so `buildStartInput` assembles the same wire input a manual run would. */
-export interface CreateScheduleFormValues {
+export interface CreateScheduleFormValues extends WorkloadRunValues {
   readonly kind: string;
   readonly cadence: ScheduleCadence;
   /** Owner-only bulk (all-owners recurring sweep) toggle — a non-owner's dialog never renders the field. */
   readonly bulk: boolean;
-  readonly force: boolean;
-  readonly dryRun: boolean;
-  readonly k: number | null;
-  readonly source: IndexSource;
 }
 
 export const CREATE_SCHEDULE_FORM_DEFAULTS: CreateScheduleFormValues = {

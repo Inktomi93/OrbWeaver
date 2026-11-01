@@ -1,4 +1,4 @@
-import type { ViewTransitionSettlement } from "../lib/view-transition-settlement.ts";
+import type { ViewTransitionSettlement, ViewTransitionVisibility } from "../lib/view-transition-settlement.ts";
 import { isDocumentHidden, observeViewTransition } from "../lib/view-transition-settlement.ts";
 
 type RouterUpdate = () => Promise<void>;
@@ -9,8 +9,7 @@ interface RouterViewTransitionPort {
   startViewTransition: (update: RouterUpdate) => void;
 }
 
-interface ViewTransitionDocument {
-  readonly visibilityState?: string;
+interface ViewTransitionDocument extends ViewTransitionVisibility {
   startViewTransition?: ((update: NativeStartArgument) => ViewTransitionSettlement | undefined) | undefined;
 }
 

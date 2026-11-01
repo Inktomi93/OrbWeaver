@@ -306,7 +306,7 @@ function leafNodeOf(row: ForgeFieldRow): Record<string, unknown> {
 /** The flat display columns → one `x-orb-ui` object, or null when the author hinted nothing. `tone` only
  *  survives on a node that actually declares the members it names (a tone for a member that is not in the
  *  enum is meaningless to the renderer). */
-function hintOf(row: ForgeFieldRow | ForgeHintRow, members?: readonly string[]): Record<string, unknown> | null {
+function hintOf(row: ForgeFieldRow | ForgeHintRow): Record<string, unknown> | null {
   const hint: Record<string, unknown> = {};
   // The well-known CORE is the sole hero (it is the card's score stamp and every library sort rides its
   // one scale, so the transpiler splices it as `role:"hero"` unconditionally, below). An author row that
@@ -327,7 +327,7 @@ function hintOf(row: ForgeFieldRow | ForgeHintRow, members?: readonly string[]):
   if (row.chart !== undefined) {
     hint["chart"] = row.chart;
   }
-  const known = members ?? ("enum" in row ? row.enum : undefined);
+  const known = "enum" in row ? row.enum : undefined;
   const tones = (row.tones ?? []).filter((t) => known === undefined || known.includes(t.member));
   if (tones.length > 0) {
     hint["tone"] = Object.fromEntries(tones.map((t) => [t.member, t.tone]));

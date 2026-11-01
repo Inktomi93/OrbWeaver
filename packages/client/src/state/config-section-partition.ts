@@ -27,7 +27,7 @@ import type { ConfigSectionContribution } from "./config-section-registry.ts";
  *  Self-cleaning in BOTH directions (the D50 producer-coverage DEFERRED discipline): a key that GAINS a section
  *  REDs its stale entry, and a cite for a key that no longer exists (or for a namespace no section claims)
  *  REDs too. */
-export interface UnclaimedSettingsKey {
+interface UnclaimedSettingsKey {
   readonly section: UserSettingsSection;
   readonly key: string;
   /** WHY there is no editor — an unclaimed knob is the settings-side twin of a dead switch (D107). */
@@ -120,13 +120,8 @@ function collectClaims(registry: ContributorRegistry<ConfigSectionContribution>)
 /** THROWS on overlap (two sections write one key → clobber), on a GAP (a knob with no editor inside a
  *  claimed namespace → D107) that is not cited in {@link UNCLAIMED_SETTINGS_KEYS}, and on a STALE cite (a
  *  cited key that is now claimed, no longer exists, or sits in a namespace no section claims). Called once
- *  at the composition root, right after the config-section registry is assembled. `exemptions` defaults
- *  to the live cite list and is injectable so each arm is unit-testable against a fixture. */
-export function assertSettingsKeyPartition(
-  registry: ContributorRegistry<ConfigSectionContribution>,
-  defaults: UserSettings,
-  exemptions: readonly UnclaimedSettingsKey[] = UNCLAIMED_SETTINGS_KEYS,
-): void {
+ *  at the composition root, right after the config-section registry is assembled. */
+export function assertSettingsKeyPartition(registry: ContributorRegistry<ConfigSectionContribution>, defaults: UserSettings): void {
   const owners = collectClaims(registry);
   const claimedSections = new Set<UserSettingsSection>();
   for (const contribution of registry.list()) {
@@ -134,7 +129,7 @@ export function assertSettingsKeyPartition(
       claimedSections.add(contribution.owns.section);
     }
   }
-  const cited = validateCites(exemptions, owners, claimedSections, defaults);
+  const cited = validateCites(UNCLAIMED_SETTINGS_KEYS, owners, claimedSections, defaults);
   assertNoGaps(claimedSections, defaults, owners, cited);
   assertLeafKeyBindings(registry, defaults);
 }

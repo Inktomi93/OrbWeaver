@@ -315,7 +315,6 @@ function ChatThread({
         chatId={chatId}
         chatStyle={chatStyle}
         streaming={phase === "streaming" || phase === "stopping"}
-        rowCharacterId={ghostSpeakerCharacterId}
         attribution={ghostAttribution}
         avatarSize={messageAppearance.avatarSize}
         avatarShape={messageAppearance.avatarShape}

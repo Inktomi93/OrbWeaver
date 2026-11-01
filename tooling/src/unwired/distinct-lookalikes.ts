@@ -134,7 +134,6 @@ export const DISTINCT_LOOKALIKES = [
   {
     shape: "packages/client/src/features/discovery/components/corpus-controls.tsx#ParamToggleOption",
     distinctFrom: [
-      "packages/client/src/features/preset/lib/assembly-model.ts#ToggleItem",
       "packages/client/src/state/config-group-registry.ts#ConfigSettingOption",
       "packages/contracts/src/plugin/ui.ts#PluginSelectOption",
       "packages/kit/src/macro/user-macros.ts#UserMacroInputOption",

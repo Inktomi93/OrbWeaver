@@ -131,7 +131,6 @@ const QUALITY_META: Record<Quality, { readonly label: string; readonly descripti
 interface QualityOption {
   readonly value: Quality;
   readonly label: string;
-  readonly description: string;
 }
 
 // The quality-dial options in canonical order (fast → balanced → deep). The raw descriptor knobs
@@ -140,7 +139,6 @@ interface QualityOption {
 const QUALITY_OPTIONS: readonly QualityOption[] = QUALITY_LEVELS.map((value) => ({
   value,
   label: QUALITY_META[value].label,
-  description: QUALITY_META[value].description,
 }));
 
 /** The select's OFF arm (owner ruling O-18: the segmented strip dies, quality becomes a dropdown with a

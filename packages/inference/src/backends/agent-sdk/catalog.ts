@@ -14,7 +14,7 @@ import { ProviderError } from "#contract";
 import type { AgentSdkDeps, AgentSdkLog } from "../../contract/agent-sdk-backend.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
 import { redactSecretsFromText } from "../wire/openai-body.ts";
-import { disciplineOptions, observabilityOptions } from "./translate.ts";
+import { disciplineOptions } from "./translate.ts";
 import { assertSdkMessageRead } from "./wire-read.ts";
 
 const DISCOVERY_TIMEOUT_MS = 15_000;
@@ -133,7 +133,7 @@ async function probeAccountInfo(query: Query, deps: AgentSdkDeps): Promise<Verif
 }
 
 /** The subscription auth verify: `maxTurns: 1`, no resume, no tools (the firewall base). */
-export async function verifyAuth(req: DiagnosticRequestCommon, deps: AgentSdkDeps, log: AgentSdkLog): Promise<VerifyAuthResult> {
+export async function verifyAuth(req: DiagnosticRequestCommon, deps: AgentSdkDeps): Promise<VerifyAuthResult> {
   const { connection } = req;
   await using lease = deps.execution.open(
     connection,
@@ -141,7 +141,6 @@ export async function verifyAuth(req: DiagnosticRequestCommon, deps: AgentSdkDep
       prompt: VERIFY_PROMPT,
       options: {
         ...disciplineOptions(deps.childEnv(connection)),
-        ...observabilityOptions(deps.debug, log),
         model: connection.model,
         maxTurns: 1,
       },

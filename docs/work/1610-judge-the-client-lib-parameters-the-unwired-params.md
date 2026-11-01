@@ -33,4 +33,15 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Six rows: six applied, none kept, none handed off, no owner questions.
+
+| Row | Result |
+| - | - |
+| `publicBugReportIssueUrl.maxLength` | applied in `packages/client/src/lib/bug-report-public.ts`; the one caller `bug-report-button.tsx:100` passes the report only |
+| `downloadTextFile.mime` | applied in `packages/client/src/lib/download-json.ts`; callers `regex-collection-rows.tsx:118`, `appearance-looks-section.tsx:80`, `persona-editor.tsx:122`, `world-info-collection-rows.tsx:87` pass two arguments |
+| `downloadUrl.filename` | applied, same file; the caller `export-library-section.tsx:42` passes the href |
+| `logClock.d` | applied in `packages/client/src/lib/log-clock.ts`; twelve callers across `bus-devlog`, `motion-flaggers`, `long-task-tracer`, `motion-stats`, `render-profiler`, `trpc-devlog` pass none |
+| `installDeadClassFlagger.#0.readDefined` | applied in `packages/client/src/lib/motion-dead-class-flagger.ts`; the one caller `motion-flaggers.ts:410` does not set it |
+| `recordSafeError.context` | applied in `packages/client/src/lib/safe-error-ring.ts`; the three calls in `installSafeErrorRing` pass two arguments |
+
+Survey: literal `rg` for each name over `packages tests/client tests/support scripts tooling/src` and over all of `tests` for the injection forms; no test supplies a removed argument. Proof: client typecheck clean.

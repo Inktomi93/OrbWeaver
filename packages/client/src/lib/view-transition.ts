@@ -24,14 +24,14 @@
 
 import { prefersReducedMotionNow } from "@orb/ui/lib";
 import { SHELL_SWAP_DEADLINE_PROPERTY } from "./view-transition-names.ts";
+import type { ViewTransitionVisibility } from "./view-transition-settlement.ts";
 import { isDocumentHidden, observeViewTransition } from "./view-transition-settlement.ts";
 
 type VtUpdate = () => void | Promise<void>;
 type VtStartArgument = VtUpdate | { readonly update: VtUpdate; readonly types?: readonly string[] };
-interface VtDocument {
+interface VtDocument extends ViewTransitionVisibility {
   readonly documentElement?: unknown;
   readonly querySelector?: (selector: string) => unknown;
-  readonly visibilityState?: string;
   startViewTransition?: (update: VtStartArgument) =>
     | {
         readonly ready?: Promise<unknown>;

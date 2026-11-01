@@ -132,7 +132,7 @@ test.for(ABSENCE_ROWS)("public SEND omits tools for $label", async (row) => {
   await ownerGuest(h, row.installed);
   await h.caller.connection.setBinding({ task: "chat", connectionId: row.capable ? capable : incapable });
   const chatId = await startCoreChat(h);
-  expect(h.root.app.toolUse.listDrivableToolNames(h.owner.userId).includes(WIRE_NAME)).toBe(row.installed);
+  expect((await h.root.services.plugin.list({ caller: h.owner })).some(({ slug }) => slug === MANIFEST.id)).toBe(row.installed);
   const outcome = await h.root.services.chat.send({ principal: h.owner, chatId, content: "Reply without an attachable tool." });
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages.filter((message) => message.role === "assistant")).toMatchObject([
@@ -156,7 +156,6 @@ test("native plugin deactivation removes its tool from the next actual SEND rath
   expect((await h.root.services.chat.send(params)).aborted).toBe(false);
   expect(JSON.stringify(wires[0]?.["tools"])).toContain(WIRE_NAME);
   await h.root.services.plugin.setEnabled({ caller: h.owner, pluginId: own.id, enabled: false });
-  expect(h.root.app.toolUse.listDrivableToolNames(h.owner.userId)).not.toContain(WIRE_NAME);
   expect((await h.root.services.chat.send(params)).aborted).toBe(false);
   expect(wires).toHaveLength(2);
   expect(wires[1]?.["tools"]).toBeUndefined();
@@ -172,8 +171,7 @@ test("two real installers with the same namespaced tool attach the frozen host's
   await installGuest(h.root, h.owner, HOST_DESCRIPTION);
   await h.caller.connection.setBinding({ task: "chat", connectionId: capable });
   const chatId = await startCoreChat(h);
-  expect(h.root.app.toolUse.listDrivableToolNames(stranger.userId)).toContain(WIRE_NAME);
-  expect(h.root.app.toolUse.listDrivableToolNames(h.owner.userId)).toContain(WIRE_NAME);
+  expect((await h.root.services.plugin.list({ caller: stranger })).some(({ slug }) => slug === MANIFEST.id)).toBe(true);
   expect((await h.root.services.chat.send({ principal: h.owner, chatId, content: "Use only my tool declaration." })).aborted).toBe(false);
   expect(wires).toHaveLength(1);
   const tools = JSON.stringify(wires[0]?.["tools"]);

@@ -3,17 +3,12 @@
 
 import { Field } from "@orb/ui/field";
 import { Textarea } from "@orb/ui/textarea";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
+import type { BoundFieldShellProps } from "./use-bound-field.ts";
 import { useBoundField } from "./use-bound-field.ts";
 
-export interface TextareaFieldProps {
-  readonly label: ReactNode;
-  readonly description?: ReactNode;
-  /** A hover-tip explainer beside the label (`@orb/ui/field` `hint`) — for copy that doesn't need to
-   *  stay always-visible. */
-  readonly hint?: ReactNode;
+export interface TextareaFieldProps extends BoundFieldShellProps {
   readonly placeholder?: string;
-  readonly disabled?: boolean;
   readonly rows?: number;
 }
 

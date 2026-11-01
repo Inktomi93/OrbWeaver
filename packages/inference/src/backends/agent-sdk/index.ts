@@ -71,7 +71,6 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
     scheduleTimeout: deps.scheduleTimeout,
     scheduleIdleTimeout: deps.scheduleIdleTimeout,
     ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
-    debug: deps.debug ?? false,
     childEnv,
   };
   const logFor = (connection: Pick<Resolved, "providerId">): ReturnType<typeof createAgentSdkLog> => createAgentSdkLog(deps.log, connection.providerId);
@@ -93,7 +92,7 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
     runChatTurn: chatTurn,
     summarize: sideGen,
     structured: sideGen,
-    verifyAuth: (req: DiagnosticRequestCommon): Promise<VerifyAuthResult> => verifyAuth(req, resolved, logFor(req.connection)),
+    verifyAuth: (req: DiagnosticRequestCommon): Promise<VerifyAuthResult> => verifyAuth(req, resolved),
     listModels: async (req: ListModelsRequest): Promise<ModelListing> => {
       try {
         const models = await fetchAgentSdkModels(req.connection, resolved, logFor(req.connection));

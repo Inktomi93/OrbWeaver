@@ -38,8 +38,6 @@ export interface TagPickerDialogProps {
   /** The confirm button's label for the ATTACH-EXISTING arm (e.g. "Apply"). The create arm overrides it
    *  with its own `Create "<name>"` so the click always says which of the two things it does. */
   readonly confirmLabel: string;
-  /** The text input's placeholder. @defaultValue "Search or create a tag" */
-  readonly placeholder?: string;
   /** Tag names ALREADY on the target — dropped from the suggestions (offering a tag that is already
    *  attached is a no-op affordance) and the reason the "everything is attached" empty state exists.
    *  Omit where the target is a SET whose members disagree (the bulk bar tags N characters at once). */
@@ -51,18 +49,7 @@ export interface TagPickerDialogProps {
 
 /** The tag-name prompt — a suggesting "Tag name" field over the existing library + a required-non-empty
  *  confirm that names its arm, over FormDialog. */
-export function TagPickerDialog({
-  open,
-  onOpenChange,
-  title,
-  description,
-  confirmLabel,
-  // The field's PRIMARY job is finding a tag you already have; "e.g. adventure" invited inventing a name in
-  // the one place where inventing one is the failure mode (side-eye 2026-08-03 P3).
-  placeholder = "Search or create a tag",
-  attachedNames = [],
-  onSubmit,
-}: TagPickerDialogProps): ReactElement {
+export function TagPickerDialog({ open, onOpenChange, title, description, confirmLabel, attachedNames = [], onSubmit }: TagPickerDialogProps): ReactElement {
   const trpc = useTRPC();
   const [name, setName] = useState("");
   const helperId = useId();
@@ -148,7 +135,9 @@ export function TagPickerDialog({
           // `inline` requires an unconditional open (Base UI forces it internally regardless); an empty
           // `items` is what collapses the list, so `matches` above is the real gate.
           open={true}
-          placeholder={placeholder}
+          // The field's PRIMARY job is finding a tag you already have; "e.g. adventure" invited inventing a
+          // name in the one place where inventing one is the failure mode.
+          placeholder="Search or create a tag"
           value={name}
         />
         <Row align="center" gap="field">

@@ -48,4 +48,23 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+22 rows: 4 deleted, 5 derived, 9 kept, 2 handed off, 2 under owner question Q2.
+
+| Row | Result |
+| - | - |
+| `AuthedComposition.chatContextContributors`, `.chatContextRegions` | deleted from the type and from the object `createAuthedComposition` returns; the two locals stay because the chats section takes them. No reader in production, `tests/support`, tooling or tests |
+| `ConfigSettingLeaf.advanced` | deleted with the `setting.advanced ?? false` default branch: `config-search.ts` now writes `advanced: false` for a leaf entry. No leaf in the repo sets it, so `@advanced` behaves as before |
+| `ConfigSearchMatch.memberId` | deleted with its four writes (`config-search-input.tsx`, `config-palette-source.ts`); `setting-teach-row.tsx` reads `group`, `sub` and `setting` only |
+| `ConfigFocus.group`, `.sub`, `.setting` | derived: `focusedLeafAddress` in `config-context.tsx` read them through an inline twin of the type; it now takes `ConfigFocus \| null` |
+| `ImageSubject.dims.w`, `.h` | derived: `dims` is handed whole to `MessageMedia`, which reads `dims.w` and `dims.h` (`packages/ui/src/content/message-media/message-media.tsx:65` and `:74`); the field is `MessageMediaProps["dims"]` |
+| `PersistedCharacterLibraryState.sortMode`, `.viewMode`, `.favoritesOnly`, `.showArchived`, `.tagFilter`, `.spoilerBlur`, `.filtersOpen` | kept: `migrate` reads each as `p.<key>` off `Partial<Record<keyof PersistedCharacterLibraryState, unknown>>` (`character-library-store.ts:119-131`), and zustand `persist` writes the `partialize` result |
+| `PersistedShellState.activeSection`, `.panelOverrides` | kept: same shape at `shell-store.ts:148-151`. The item's own decision for these nine rows is keep and teach the scan the persisted-state read |
+| `AuthedComposition.configGroups` | handed off. Only test files read it: `tests/client/state/registry-definitions.dom.test.ts:46`, `:51`, `:63`, `:128`. Production builds it and passes the local to `makeConfigSection` |
+| `SectionWithList.listSearch` | handed off. Only a type test reads it: `tests/client/state/section-registry.dom.test-d.ts:5` (`Pick<SectionDefinition, "listSearch">`). Production writes `listSearch: "required"` in nine section definitions and reads it nowhere, so it is delete work once that test is rewritten |
+| `UnclaimedSettingsKey.reason`, `DeviceLocalClassification.why` | owner question Q2; nothing changed |
+
+Q2 (default: keep). Both fields are the required rationale of a compile-time registry that production never reads: `reason` is demanded by the partition gate's own message (`config-section-partition.ts:228`), and `why` is required of every `DEVICE_LOCAL_REGISTRY` entry by `satisfies Record<string, DeviceLocalClassification>`. The law (`docs/law/UI-Primitives-and-Reuse.md:89`) names the registry's keys, not the prose. Keep the prose as typed data, or delete the fields and turn the prose into comments (the `why` type then has no members)?
+
+New orphan for the next scan: none from this item.
+
+Survey: `codegraph_explore` on the state files named by the item; ast-grep (`-l ts` 5904, `-l tsx` 1522 files) on `setConfigSearchMatch($$$)` (4 writes), `useConfigSearchMatch()` (1 reader), `createAuthedComposition($$$)` (5 callers, 3 test files, `ct-data-providers.tsx`, `authed-app.tsx`), `focusedLeafAddress($$$)` (1). Typecheck: `pnpm typecheck packages/client/tsconfig.json tsconfig.tests-dom.json` exit 0, which is the probe that no twin type or test reads the four deleted fields. Tests: `pnpm test` on `registry-definitions.dom` and `authed-composition.dom`, 25 passed. CT: `config-search-input` and `config-content-surface` mount the search writes and `SettingRow`, 7 passed. Lint: `pnpm lint:eslint` on the touched trees exit 0.

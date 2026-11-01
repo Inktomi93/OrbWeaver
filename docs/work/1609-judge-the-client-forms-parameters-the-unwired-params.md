@@ -27,4 +27,6 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+One row: one applied, none kept, none handed off, no owner questions.
+
+`SavedEntityFormConfig.save` and the `config.save` fallback are removed in `packages/client/src/forms/editor/create-saved-entity-form.ts`; the call-time `SavedEntityFormArgs.save` is the only seam and now carries the doc. All `createSavedEntityForm` factory calls (`use-add-connection-form.ts`, `use-add-model-on-key-form.ts`, `login-signup-form.tsx`, `use-scrape-form.ts`, `use-invite-form.ts`, `use-create-user-form.ts` and the rest) pass `defaultValues` and `options` only. `createAutosaveEntityForm` has its own `config.save` and is a different factory. Proof: client typecheck clean.

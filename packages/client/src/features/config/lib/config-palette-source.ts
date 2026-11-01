@@ -42,7 +42,7 @@ function toRow(entry: ConfigSearchEntry): PaletteCommandRow {
     keywords: [...entry.keywords],
     run: (): void => {
       openConfigTo(entry.groupId, entry.subId ?? undefined, entry.settingId ?? undefined);
-      setConfigSearchMatch({ group: entry.groupId, sub: entry.subId, setting: entry.settingId, memberId: null });
+      setConfigSearchMatch({ group: entry.groupId, sub: entry.subId, setting: entry.settingId });
     },
   };
 }

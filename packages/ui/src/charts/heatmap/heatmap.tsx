@@ -20,7 +20,6 @@ export interface HeatmapProps {
   /** Pre-formatted cell display for the text equivalent (no Intl in ui). */
   readonly countFormatter?: (count: number) => string;
   readonly height?: number | "100%";
-  readonly className?: string;
   readonly onChartReady?: ((instance: OrbEChartsInstance) => void) | undefined;
 }
 
@@ -28,14 +27,13 @@ function defaultCountFormatter(count: number): string {
   return String(count);
 }
 
-export function Heatmap({ matrix, label, countFormatter = defaultCountFormatter, height, className, onChartReady }: HeatmapProps): ReactElement {
+export function Heatmap({ matrix, label, countFormatter = defaultCountFormatter, height, onChartReady }: HeatmapProps): ReactElement {
   // Called unconditionally (before the empty-state branch) to satisfy rules-of-hooks.
   const colors = useChartTheme();
   const isEmpty = matrix.rows.length === 0 || matrix.cols.length === 0;
 
   return (
     <LabeledChartFrame
-      className={className}
       isEmpty={isEmpty}
       label={label}
       slot="heatmap"

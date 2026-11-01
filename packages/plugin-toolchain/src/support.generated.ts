@@ -461,6 +461,10 @@ export const PLUGIN_AUTHOR_SUPPORT = {
         target: "composer-media",
         registrationWorld: "main",
       },
+      {
+        target: "topbar",
+        registrationWorld: "main",
+      },
     ],
   },
 } as const satisfies PluginAuthorSupport;

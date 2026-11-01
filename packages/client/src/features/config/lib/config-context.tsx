@@ -172,7 +172,7 @@ function memberArm(group: CollectionGroupDefinition, memberId: string, title: st
 }
 
 /** The focused leaf's address for `useConfigLeaf`, or null when no LEAF is focused. */
-function focusedLeafAddress(focus: { readonly group: ConfigGroupId; readonly sub: string; readonly setting: string | null } | null): ConfigSettingRef | null {
+function focusedLeafAddress(focus: ConfigFocus | null): ConfigSettingRef | null {
   return focus === null || focus.setting === null ? null : { group: focus.group, sub: focus.sub, setting: focus.setting };
 }
 

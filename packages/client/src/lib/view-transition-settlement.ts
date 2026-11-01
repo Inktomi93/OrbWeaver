@@ -1,7 +1,13 @@
+/** The native ViewTransition members settlement observes. */
 export interface ViewTransitionSettlement {
   readonly ready?: Promise<unknown>;
   readonly finished?: Promise<unknown>;
   readonly updateCallbackDone?: Promise<unknown>;
+}
+
+/** The document member `isDocumentHidden` reads. */
+export interface ViewTransitionVisibility {
+  readonly visibilityState?: string;
 }
 
 // Chrome skips a transition on a hidden document with InvalidStateError; superseded and timed-out ones use the other two.
@@ -12,7 +18,7 @@ function isSkippedTransition(error: unknown): boolean {
 }
 
 /** A hidden document cannot paint a transition: the browser would skip it, so callers apply the update directly. */
-export function isDocumentHidden(transitionDocument: { readonly visibilityState?: string } | undefined): boolean {
+export function isDocumentHidden(transitionDocument: ViewTransitionVisibility | undefined): boolean {
   return transitionDocument?.visibilityState === "hidden";
 }
 

@@ -10,7 +10,6 @@ import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { cn, viewImageActionName } from "#lib";
 import type { ArtViewer } from "../hooks/art-viewer-context.tsx";
-import type { BubbleDecorationArgs } from "../lib/art-decorations.ts";
 import { artRequestWidth } from "../lib/art-decorations.ts";
 import type { RowAttribution } from "../lib/attribution.ts";
 import { messageNumberLabel } from "../lib/message-readout.ts";
@@ -58,7 +57,6 @@ export function renderRowAvatar(args: {
    *  trailing one. Inert below the crossover and inert for every `anchored` skin, where the row body is
    *  still a flex line and `justify-self` has no grid to resolve against. */
   readonly gutterRail: "none" | "leading" | "trailing";
-  readonly imageUrlFor?: BubbleDecorationArgs["imageUrlFor"];
   /** The transcript's art viewer; null outside one, which leaves the avatar plain paint. */
   readonly viewArt: ArtViewer | null;
   readonly artControl: ArtView["control"];
@@ -70,8 +68,7 @@ export function renderRowAvatar(args: {
   if (args.avatarTreatment === "none") {
     return null;
   }
-  // Static illustration art (`imageUrlFor`) has no owned blob to open full size.
-  const target = viewTargetFor(args.viewArt, args.imageUrlFor === undefined ? args.attribution.avatarHash : null, args.attribution.name);
+  const target = viewTargetFor(args.viewArt, args.attribution.avatarHash, args.attribution.name);
   if (args.avatarTreatment === "sticky-portrait") {
     return stickyPortrait(args, target);
   }
@@ -91,7 +88,7 @@ export function renderRowAvatar(args: {
     fallbackDelay: 0,
     hueSeed: args.attribution.hueSeed,
     // exactOptionalPropertyTypes idiom: OMIT the prop rather than pass `undefined` (`avatarSrcProp`).
-    ...(args.imageUrlFor === undefined ? avatarSrcProp(args.attribution.avatarHash) : { src: args.imageUrlFor("icon") }),
+    ...avatarSrcProp(args.attribution.avatarHash),
   } as const;
   const initials = initialsFor(args.attribution.name);
   if (target === null) {
@@ -163,9 +160,9 @@ function artViewOf(target: ViewTarget, control: ArtView["control"]): ArtView {
   return { label: viewImageActionName(target.name), control, open: (opener) => target.open({ hash: target.hash, name: target.name }, opener) };
 }
 
-/** The portrait URL at the width its slot renders at (times the pixel ratio); undefined with no hash or static art. */
-function portraitSource(hash: string | null, owned: boolean): ((cssWidth: number) => string) | undefined {
-  return hash === null || !owned ? undefined : (cssWidth: number): string => blobPortraitUrl(hash, artRequestWidth(cssWidth));
+/** The portrait URL at the width its slot renders at (times the pixel ratio); undefined with no hash. */
+function portraitSource(hash: string | null): ((cssWidth: number) => string) | undefined {
+  return hash === null ? undefined : (cssWidth: number): string => blobPortraitUrl(hash, artRequestWidth(cssWidth));
 }
 
 // Ripple's portrait sticks to the top of its card as the row scrolls; wrapped, the button is the sticky flex item.
@@ -183,8 +180,7 @@ function stickyPortrait(args: Parameters<typeof renderRowAvatar>[0], target: Vie
       hueSeed={args.attribution.hueSeed}
       // Unwrapped, the portrait is the sticky flex item; wrapped, the button is.
       className={cn(target === null ? STICKY_TOP : undefined, PORTRAIT_WIDTH) ?? ""}
-      urlAt={portraitSource(args.attribution.avatarHash, args.imageUrlFor === undefined)}
-      {...(args.imageUrlFor === undefined ? {} : { src: args.imageUrlFor("portrait") })}
+      urlAt={portraitSource(args.attribution.avatarHash)}
     >
       <FallbackLetter className="absolute inset-0" initials={initialsFor(args.attribution.name ?? "")} />
     </PortraitAvatar>

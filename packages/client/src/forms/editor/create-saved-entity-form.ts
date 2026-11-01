@@ -13,15 +13,6 @@ import { useAppForm } from "./use-app-form.ts";
 export interface SavedEntityFormConfig<TValues extends object> {
   /** Fallback defaults for a CREATE (no server row yet). */
   readonly defaultValues: TValues;
-  /**
-   * Persist the values; resolves to the saved row (the re-baseline source). Optional because a
-   * module-scope save can't close over runtime context (tRPC client / entity id) — the surface
-   * supplies it at call time via `SavedEntityFormArgs.save` instead (which wins).
-   *
-   * Receives the FULL `TValues` — this factory does not diff to changed keys. A consumer needing
-   * per-field clear semantics must project at its own save seam (see `characterUpdateDiff`).
-   */
-  readonly save?: (values: TValues) => Promise<TValues>;
   /** Extra `useAppForm` options (validators etc.) spread verbatim. */
   readonly options?: Partial<Omit<AppFormOptions<TValues>, "defaultValues" | "onSubmit">>;
 }
@@ -31,7 +22,13 @@ export interface SavedEntityFormArgs<TValues extends object> {
   readonly entityId: string;
   /** The server row (undefined while loading / for a create). */
   readonly serverValues: TValues | undefined;
-  /** Call-time persist fn; wins over `config.save`. Resolves to the saved row. */
+  /**
+   * Persist the values; resolves to the saved row (the re-baseline source). Supplied at call time because
+   * a module-scope factory can't close over runtime context (tRPC client / entity id).
+   *
+   * Receives the FULL `TValues` — this factory does not diff to changed keys. A consumer needing
+   * per-field clear semantics must project at its own save seam (see `characterUpdateDiff`).
+   */
   readonly save?: (values: TValues) => Promise<TValues>;
 }
 
@@ -40,9 +37,7 @@ export interface SavedEntityFormArgs<TValues extends object> {
 export function createSavedEntityForm<TValues extends object>(config: SavedEntityFormConfig<TValues>) {
   // biome-ignore lint/correctness/noComponentHookFactories: the D54 §13.1 editor-factory pattern — factories run at MODULE scope (const useCharacterForm = createSavedEntityForm(...)), so the returned hook has a stable identity the Compiler can analyze; a per-render creation is what the rule fears and cannot happen here.
   // biome-ignore lint/nursery/useExplicitReturnType: inference-carried (see the factory header).
-  return function useSavedEntityForm({ entityId, serverValues, save: callTimeSave }: SavedEntityFormArgs<TValues>) {
-    const save = callTimeSave ?? config.save;
-
+  return function useSavedEntityForm({ entityId, serverValues, save }: SavedEntityFormArgs<TValues>) {
     // onSubmit stores the saved row + bumps the tick; the effect below re-baselines outside the submit
     // path (isSubmitSuccessful alone can't carry the saved value).
     const savedRef = useRef<TValues | null>(null);
@@ -68,7 +63,7 @@ export function createSavedEntityForm<TValues extends object>(config: SavedEntit
         // FLAG[#58] parse-on-submit not wired: `value` is the form's input type; a Standard-Schema
         // transform's output is not applied here.
         if (save === undefined) {
-          throw new Error("createSavedEntityForm: no save function supplied (neither config.save nor a call-time save)");
+          throw new Error("createSavedEntityForm: no save function supplied");
         }
         const epoch = submitEpoch.current + 1;
         submitEpoch.current = epoch;

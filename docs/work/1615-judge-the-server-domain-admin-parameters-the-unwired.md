@@ -27,4 +27,8 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+1 row: applied 0, kept 1, handed off 0, owner questions 0.
+
+Kept: `AdminCardEmbedDeps.store.input.force`. The param type is the shared `CardTextStoreInput` (`packages/contracts/src/embeddings/card-store.ts:15`), and its `force` is supplied by the embeddings corpus sweep (`packages/server/src/domain/embeddings/verbs/embed-corpus.ts:44` through `CardTextStoreParams`) and read at `verbs/store.ts:96`. Only the admin caller (`domain/admin/verbs/card-embed.ts:20`) omits it; deleting the field would break the sweep.
+
+Survey: codegraph_explore on AdminCardEmbedDeps and the card embed ops; literal `rg` for `CardTextStoreInput` and `force` across packages and tests; ast-grep not applicable (type member, no call).

@@ -86,7 +86,8 @@ function TrackerRow({
   readonly index: number;
   readonly onCommit: (next: RpgTrackerDef) => void;
 }): ReactElement {
-  const patch = (fields: Partial<RpgTrackerDef>): void => onCommit({ ...def, ...fields });
+  const patch = (fields: Partial<Pick<RpgTrackerDef, "label" | "max" | "pinned" | "locked" | "write" | "appliesTo" | "hint">>): void =>
+    onCommit({ ...def, ...fields });
   const writeGlossId = useId();
   // ONE string, two jobs: the accessible NAME an icon-only button has no visible text to supply, and the
   // tooltip. Spelled once here so the two can never drift apart.

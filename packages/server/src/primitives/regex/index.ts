@@ -19,16 +19,16 @@ const APPLY_SCRIPT = new vm.Script("text.replace(regex, replacer)", {
 });
 
 /**
- * Build a node:vm-sandboxed `applyReplace` bound to `timeoutMs`. Throws on timeout or on any error
+ * Build a node:vm-sandboxed `applyReplace` bound to {@link REGEX_APPLY_TIMEOUT_MS}. Throws on timeout or on any error
  * raised by the replacer — both surface to the kit executor's `onScriptFailure`. It does not
  * swallow-and-return the unmodified text: a silent pass-through would defeat the guard's observability.
  */
-export function createRegexApplyReplace(timeoutMs: number = REGEX_APPLY_TIMEOUT_MS): (text: string, regex: RegExp, replacer: RegexReplacer) => string {
+export function createRegexApplyReplace(): (text: string, regex: RegExp, replacer: RegexReplacer) => string {
   return (text: string, regex: RegExp, replacer: RegexReplacer): string => {
     // The contextified object IS the sandbox's global — no ambient host globals. codeGeneration off is
     // belt-and-suspenders: the fixed script never eval()s.
     const context = vm.createContext({ text, regex, replacer }, { codeGeneration: { strings: false, wasm: false } });
-    const result: unknown = APPLY_SCRIPT.runInContext(context, { timeout: timeoutMs });
+    const result: unknown = APPLY_SCRIPT.runInContext(context, { timeout: REGEX_APPLY_TIMEOUT_MS });
     if (typeof result !== "string") {
       throw new TypeError(`regex applyReplace produced a non-string result (${typeof result})`);
     }
@@ -46,15 +46,15 @@ const TEST_SCRIPT = new vm.Script("regex.test(haystack)", {
 });
 
 /**
- * Build a node:vm-sandboxed `regex.test(haystack)` bound to `timeoutMs`. Throws on timeout (V8's execution
+ * Build a node:vm-sandboxed `regex.test(haystack)` bound to {@link REGEX_APPLY_TIMEOUT_MS}. Throws on timeout (V8's execution
  * watchdog interrupts the backtrack) or on a non-boolean result. The world-info key matcher
  * ({@link matchEntryKeys}) injects this as its `testRegex` seam and routes a throw to `onKeyCompileFailure`,
  * so a ReDoS key never hangs the turn and never silently passes as a match.
  */
-export function createRegexTest(timeoutMs: number = REGEX_APPLY_TIMEOUT_MS): (regex: RegExp, haystack: string) => boolean {
+export function createRegexTest(): (regex: RegExp, haystack: string) => boolean {
   return (regex: RegExp, haystack: string): boolean => {
     const context = vm.createContext({ regex, haystack }, { codeGeneration: { strings: false, wasm: false } });
-    const result: unknown = TEST_SCRIPT.runInContext(context, { timeout: timeoutMs });
+    const result: unknown = TEST_SCRIPT.runInContext(context, { timeout: REGEX_APPLY_TIMEOUT_MS });
     if (typeof result !== "boolean") {
       throw new TypeError(`regex test produced a non-boolean result (${typeof result})`);
     }

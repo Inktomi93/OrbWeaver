@@ -5,14 +5,12 @@
 /** Total, closed, read-only view over a vocabulary tuple. `get` throws on an id absent from the map —
  *  reachable only via a bad cast, since `Id` is closed by construction. */
 export interface Registry<Id extends string, Def> {
-  readonly name: string;
   readonly get: (id: Id) => Def;
   readonly list: () => readonly Def[];
 }
 
 /** Open-ended contributor view — no fixed vocabulary, ids arrive with the contributions themselves. */
 export interface ContributorRegistry<Def extends { readonly id: string }> {
-  readonly name: string;
   readonly get: (id: string) => Def;
   readonly list: () => readonly Def[];
   readonly has: (id: string) => boolean;
@@ -26,7 +24,6 @@ export interface ContributorRegistry<Def extends { readonly id: string }> {
 export function createRegistry<Id extends string, Def>(name: string, ids: readonly Id[], definitions: Record<Id, Def>): Registry<Id, Def> {
   const map = new Map<Id, Def>(ids.map((id) => [id, definitions[id]]));
   return {
-    name,
     get(id): Def {
       const def = map.get(id);
       if (def === undefined) {
@@ -54,7 +51,6 @@ export function createContributorRegistry<Def extends { readonly id: string }>(n
     map.set(def.id, def);
   }
   return {
-    name,
     get(id): Def {
       const def = map.get(id);
       if (def === undefined) {

@@ -114,14 +114,8 @@ async function resolveOne(macro: RegisteredMacro, chat: InvocationChat | null, d
   }
 }
 
-/** Build the process-wide plugin-macro registry on the root's scoped `scheduleTimeout`. `deadlineMs` is a getter
- *  (read per resolution) and injectable so a deadline test runs fast + deterministic — the
- *  `createPromptTransformRegistry` seam, same reason. */
-export function createPluginMacroRegistry(
-  logger: Logger,
-  scheduleTimeout: ScheduleOp,
-  deadlineMs: () => number = () => PLUGIN_MACRO_RESOLVE_DEADLINE_MS,
-): PluginMacroRegistry {
+/** Build the process-wide plugin-macro registry on the root's scoped `scheduleTimeout`. */
+export function createPluginMacroRegistry(logger: Logger, scheduleTimeout: ScheduleOp): PluginMacroRegistry {
   /** installer → slug → that plugin's registered macros. Two levels because the READ is per-installer and the
    *  WRITE/UNREGISTER is per-plugin; one flat map would make either the linear scan. */
   const byInstaller = new Map<UserId, Map<string, readonly RegisteredMacro[]>>();
@@ -186,7 +180,7 @@ export function createPluginMacroRegistry(
     const chat: InvocationChat = { chatId, canWrite: false, automationDepth: 0 };
     let cancelTimer: (() => void) | undefined;
     const deadline = new Promise<null>((resolve) => {
-      cancelTimer = scheduleTimeout(() => resolve(null), deadlineMs());
+      cancelTimer = scheduleTimeout(() => resolve(null), PLUGIN_MACRO_RESOLVE_DEADLINE_MS);
     });
     try {
       const values = await Promise.all(macros.map((macro) => resolveOne(macro, chat, deadline, logger)));

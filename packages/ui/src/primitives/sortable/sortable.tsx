@@ -9,7 +9,7 @@ import type { DragEndEvent, DragMoveEvent } from "@dnd-kit/react";
 import { DragDropProvider, useDragDropMonitor } from "@dnd-kit/react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
-import { cn, usePrefersReducedMotion } from "#lib";
+import { usePrefersReducedMotion } from "#lib";
 import { GripVertical, Icon } from "#primitives/icons";
 import { sortableVariants } from "./variants.ts";
 
@@ -41,7 +41,6 @@ export interface SortableListProps<T> {
    *  Falls back to "item". */
   readonly itemLabel?: (item: T) => string;
   readonly disabled?: boolean;
-  readonly className?: string;
   /** Names the `<ul>` root, the `VirtualList` twin — a rack among sibling racks is otherwise an unnamed
    *  list in the a11y tree. Omit it when a heading directly above already names the group. */
   readonly "aria-label"?: string;
@@ -246,7 +245,6 @@ export function SortableList<T>({
   handle = false,
   itemLabel,
   disabled = false,
-  className,
   "aria-label": ariaLabel,
   fixedTail = [],
 }: SortableListProps<T>): ReactElement {
@@ -272,7 +270,7 @@ export function SortableList<T>({
           `<ul>`/`<li>` rather than roles (tailwind preflight strips the marker/indent, so the skin is
           unchanged and no suppression is owed). The rank rides each item as `aria-posinset`, which is also
           the only channel a list with no VISIBLE rank has for saying where a row sits. */}
-      <ul aria-label={ariaLabel} className={cn(slots.root(), className)} data-slot="sortable-root">
+      <ul aria-label={ariaLabel} className={slots.root()} data-slot="sortable-root">
         {items.map((item, index) => (
           <SortableItem
             count={count}

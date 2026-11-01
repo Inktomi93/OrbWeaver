@@ -18,14 +18,14 @@
 // store/sweep SKIPS that owner and says so, never a throw into a bus handler.
 
 import { embedDtypeOf, embedSpaceOf, servesImageVectors } from "@orb/contracts/inference";
-import type { RoleClientsFor, RoleClientTask } from "@orb/contracts/role-clients";
+import type { RoleClientsFor } from "@orb/contracts/role-clients";
 import type { UserId } from "@orb/kit/ids";
 import type { LiveEmbedSpaceDeps } from "../contract/live-embed-space.ts";
 import type { ImageSpace } from "../contract/results.ts";
 
-/** The LIVE space tag for `task`, or `null` when the owner has no connection bound for it. */
-export async function requireTaskModel(ctx: LiveEmbedSpaceDeps, ownerId: UserId, task: RoleClientTask): Promise<string | null> {
-  const resolved = await (await ctx.roleClientsFor(ownerId)).resolved(task);
+/** The LIVE `embed` space tag, or `null` when the owner has no connection bound for it. */
+export async function requireTaskModel(ctx: LiveEmbedSpaceDeps, ownerId: UserId): Promise<string | null> {
+  const resolved = await (await ctx.roleClientsFor(ownerId)).resolved("embed");
   return resolved === null ? null : embedSpaceOf(resolved.model, embedDtypeOf(resolved.capability));
 }
 

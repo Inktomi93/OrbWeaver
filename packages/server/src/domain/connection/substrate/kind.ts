@@ -9,7 +9,7 @@ import type { ConnectionContext } from "../contract/service.ts";
 // How fresh a kind read must be. A write that may move the index warms the catalog first; a read that lists rows,
 // previews a change or binds a non-vector role reads only the facts already held, so a host that does not answer
 // cannot hold it.
-type KindRead = Parameters<ConnectionContext["runtime"]["modelKind"]>[1];
+type KindRead = Parameters<ConnectionContext["runtime"]["modelTasks"]>[1];
 
 /** The tasks this row may be bound to — provider × the model's kind. */
 export async function servableTasks(ctx: Pick<ConnectionContext, "runtime">, row: UserConnection, read: KindRead = {}): Promise<readonly RoutableTask[]> {
