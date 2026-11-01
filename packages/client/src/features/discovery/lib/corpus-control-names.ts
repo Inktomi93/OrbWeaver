@@ -8,3 +8,6 @@ export const CORPUS_SEARCH_TARGET_NAME = "Search target";
 export const CORPUS_DISTILLED_CATALOG_NAME = "Distilled catalog";
 export const CORPUS_MODE_NAME = "Corpus mode";
 export const CORPUS_SEARCH_NAME = "Search your corpus";
+
+/** What a meaning-search target prints when it answers nothing. */
+export const CORPUS_NO_RESULT_TEXT = "No result in this preview.";

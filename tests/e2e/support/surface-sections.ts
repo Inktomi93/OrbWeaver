@@ -42,6 +42,7 @@ import { DATABANK_SECTION_LABEL } from "#client/features/databank/lib/databank-s
 import {
   CORPUS_DISTILLED_CATALOG_NAME,
   CORPUS_MODE_NAME,
+  CORPUS_NO_RESULT_TEXT,
   CORPUS_SEARCH_NAME,
   CORPUS_SEARCH_TARGET_NAME,
 } from "#client/features/discovery/lib/corpus-control-names.ts";
@@ -822,7 +823,7 @@ async function corpusSemanticQuery(journey: Journey, target: Extract<CorpusTarge
   const list = pane(journey, "list");
   const witness =
     count === 0
-      ? list.getByText(new RegExp(`^Nothing.*${RegExp.escape(name)}`, "u"))
+      ? list.getByText(CORPUS_NO_RESULT_TEXT, { exact: true })
       : list.getByRole("status").filter({ hasText: new RegExp(`^${String(count)} (?:nearest )?results? in ${RegExp.escape(target.label)}`, "u") });
   const search = journey.page.getByRole("combobox", { name: CORPUS_SEARCH_NAME, exact: true });
   await journey.action(id, {
@@ -2320,6 +2321,7 @@ async function refineryVersionRestore(journey: Journey, sessionId: RefinerySessi
   await journey.action("refinery/execution/version-restore", {
     action: async () => {
       await versions.getByRole("button", { name: DIALOG_VERBS.restore, exact: true }).click();
+      await journey.page.getByRole("alertdialog").getByRole("button", { name: DIALOG_VERBS.restore, exact: true }).click();
     },
     ready: async () => {
       await expect.poll(async () => (await journey.client.character.get.query({ characterId })).description).toBe(description);

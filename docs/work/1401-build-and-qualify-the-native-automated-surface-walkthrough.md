@@ -386,3 +386,7 @@ Not done: the layout-stability matrix, the evidence pass, and any other project 
 
 - `Characters independent editor` and `greeting` failed on a stale driver name. fddfd1ad49 renamed the Opening labels to Greeting on purpose. The driver now reads `greetingOrdinalLabel` from `packages/client/src/features/character/lib/greeting-copy.ts`. Both pass.
 - `homeCreatedRoom` keeps its delete-while-open order. The Home case in `surface-KkZ0K0` logged no console error and no HTTP failure with that order. Three attempts to leave first all failed the case: `returnHome` does not clear the active room, so the delete's 404s and a stale `stream.attach` appeared, and a reload per door tripped the general rate limit.
+- Row Delete now runs `mutateAsync().then(...)`. The confirm stays open until its delete settles, so a second Delete cannot start during the first. `preset-row-delete.ct.tsx` holds the first remove: red on the per-`mutate` callback at the open-confirm assertion, green on the fix.
+- `orb/dialog-needs-dismiss` now accepts a shared-verb Cancel, Close or Done button.
+- `corpusSemanticQuery` reads `CORPUS_NO_RESULT_TEXT` for an empty target. Refinery Restore has a confirm from main, and the driver accepts it. On the merged tip, `Rail independent corpus`, `presets`, `databank`, `refinery` and `Refinery disposable stage execution and versions` pass, load 12.
+

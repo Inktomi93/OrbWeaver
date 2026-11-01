@@ -169,21 +169,17 @@ function PresetList({
       .catch(() => notify.error("Couldn't duplicate the preset."));
   };
 
-  const onDelete = (id: PresetId): void => {
+  const onDelete = (id: PresetId): Promise<void> => {
     if (activeId === id) {
       setDefault.mutate({ section: "seeds", patch: { defaultPresetId: null } });
     }
-    remove.mutate(
-      { id },
-      {
-        // The open editor reads this id: left selected, every refetch answers 404.
-        onSuccess: (): void => {
-          if (getSelectedPresetId() === id) {
-            presetSectionSelection.clear();
-          }
-        },
-      },
-    );
+    // Not a per-`mutate` callback: a second Delete on this hook drops it. The open editor reads this id, and left
+    // selected, every refetch answers 404.
+    return remove.mutateAsync({ id }).then((): void => {
+      if (getSelectedPresetId() === id) {
+        presetSectionSelection.clear();
+      }
+    });
   };
 
   const qualifiers = rowQualifiers(
