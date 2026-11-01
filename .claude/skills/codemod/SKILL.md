@@ -43,7 +43,8 @@ Copy the closest existing codemod to start a new one. Do not run `codemod init`;
 9. When the rewrite adds a call to a helper, skip the helper's own file. Cover it with a fixture.
 10. When the rewrite adds a value import, never merge it into an `import type` line. Cover it with a fixture; `tooling/src/codemods/trpc-error-code/scripts/codemod.ts` shows the check.
 11. Skip callbacks that run in another realm and cover them with a no-op fixture. See "Gotchas".
-12. Write a codemod instead of running `eslint --fix` over the tree. A bulk fixer can write unparseable code, weaken assertions and change truthiness. Read a rule's fixer before you run it.
+12. Ship a one-off ast-grep rewrite over more than a handful of files as a codemod with fixtures. The codemod engine is ast-grep, so a script loses only the fixtures, the dry-run diff and the kept transform.
+13. Write a codemod instead of running `eslint --fix` over the tree. A bulk fixer can write unparseable code, weaken assertions and change truthiness. Read a rule's fixer before you run it.
 
 ## Assert mode
 
