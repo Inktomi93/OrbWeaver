@@ -143,6 +143,23 @@ test("a span held across two continues stays hidden until the second closes it",
   }
 });
 
+test("an upper-case open held across a continue stays out of a member's bytes and their fork", async () => {
+  await using room = await openRoom();
+  const { device, guest } = await memberWatching(room, "upper-continue");
+  try {
+    room.answerWith(`${OPENING} ${CUT_OPEN.replace("<lie", "<LIE")}`);
+    await room.send();
+    await continueReply(room, device, CLOSED_TAIL, closeArrived);
+    expect(await leaks(room, device, guest)).toEqual([]);
+    const chatId = await soleMemberFork(room, guest);
+    const { id: messageId } = await replyBody(room, guest, chatId);
+    expect(carriesSecret((await room.root.services.chat.undoContinue({ principal: guest, chatId, messageId })).content)).toBe(false);
+    expect(carriesSecret((await room.root.services.chat.revertContinue({ principal: guest, chatId, messageId })).content)).toBe(false);
+  } finally {
+    await device.close();
+  }
+});
+
 test("a swipe of a cut reply is a new body, so its bytes reach the member from the first token", async () => {
   await using room = await openRoom();
   const { device, guest } = await memberWatching(room, "swipe-member");

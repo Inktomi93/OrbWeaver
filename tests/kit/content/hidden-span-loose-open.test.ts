@@ -2,10 +2,13 @@
 // @subject packages/kit/src/content/index.ts
 
 import {
+  concealsBrokenHiddenTag,
   contentSpanRaw,
   createHiddenSpanStreamScrubber,
+  HIDDEN_TAGS,
   projectBodyForPreview,
   projectBodyForSummary,
+  scanHiddenSpans,
   stripHiddenSpans,
   tokenizeContent,
 } from "@orb/kit/content";
@@ -30,6 +33,16 @@ const concealed: readonly (readonly [string, string])[] = [
   ["an unquoted value that never closes", `Before <lie truth=${SECRET} and more words`],
   ["a trailing newline after an attr", `Before <lie truth="${SECRET}"\n`],
   ["the second registered name", `Before <ofilter reason="${SECRET}"> after`],
+  ["a mixed-case name", `Before <Lie truth="${SECRET}"> after`],
+  ["an upper-case name with no close", `Before <LIE truth=${SECRET} and more`],
+  ["an upper-case name cut at the end", `Before <OFILTER reason="${SECRET}`],
+];
+
+const closed: readonly (readonly [string, string])[] = [
+  ["a mixed-case name", `<Lie truth="${SECRET}"/>`],
+  ["an upper-case name", `<LIE truth="${SECRET}"/>`],
+  ["an odd-case name", `<lIe character="W" truth="${SECRET}"/>`],
+  ["the second registered name", `<oFilter reason="${SECRET}"/>`],
 ];
 
 const prose: readonly (readonly [string, string])[] = [
@@ -37,6 +50,9 @@ const prose: readonly (readonly [string, string])[] = [
   ["a name a later word shapes like an attr", "She will <lie down on the bed and rest a=b"],
   ["an HTML-style name alone", "She said <lie> and left"],
   ["a bare word closed like HTML", "She said <lie truth> and left"],
+  ["an HTML-style element", `She said <lie>${SECRET}</lie> and left`],
+  ["an upper-case HTML-style element", `She said <LIE>${SECRET}</LIE> and left`],
+  ["an upper-case bare name", "She will <LIE down on the bed"],
 ];
 
 /** One stream of `body`, fed in the given pieces, as a member's bytes. */
@@ -54,6 +70,21 @@ test.each(concealed)("%s is hidden from members to the end of the body", (_name,
   expect(stripHiddenSpans(body)).toEqual({ content: LEAD, hadHidden: true });
   expect(projectBodyForSummary(body)).toBe(LEAD);
   expect(projectBodyForPreview(body)).toBe(LEAD.trim());
+});
+
+test.each(closed)("%s is one hidden tag on every plane that reads tags", (_name, tag) => {
+  const body = `Before ${tag} after`;
+  expect(stripHiddenSpans(body)).toEqual({ content: "Before  after", hadHidden: true });
+  expect(projectBodyForSummary(body)).toBe("Before  after");
+  expect(projectBodyForPreview(body)).toBe("Before after");
+  expect(streamed(cutsOf(body)[Math.floor(body.length / 2)] ?? [])).toBe("Before  after");
+  expect(streamed([...body])).toBe("Before  after");
+  expect(tokenizeContent(body).map(contentSpanRaw).join("")).toBe(body);
+});
+
+test.each(closed)("%s reaches the reveal under its registered name", (_name, tag) => {
+  const registered = new Set(HIDDEN_TAGS.map((def) => def.tag));
+  expect(scanHiddenSpans(tag).map((span) => registered.has(span.tag))).toEqual([true]);
 });
 
 test.each(concealed)("%s stays literal on the render and wire grammar", (_name, body) => {
@@ -78,6 +109,18 @@ test.each([...concealed.map(([, body]) => body), ...prose.map(([, body]) => body
   }
 });
 
+test("only a tag that broke counts as broken", () => {
+  const broken = [
+    `${LEAD}<lie truth="${SECRET}"> after`,
+    `${LEAD}<LIE truth=${SECRET} and more`,
+    `${LEAD}<lie\ntruth="${SECRET}"/>`,
+    `${LEAD}<lie character="W"\n truth="${SECRET}`,
+  ];
+  const sound = [`${LEAD}<lie truth="${SECRET}"/>`, `${LEAD}<lie truth="${SECRET}`, `${LEAD}<LIE truth="${SECRET}`, ...prose.map(([, text]) => text), "plain"];
+  expect(broken.filter((body) => !concealsBrokenHiddenTag(body))).toEqual([]);
+  expect(sound.filter(concealsBrokenHiddenTag)).toEqual([]);
+});
+
 test("a prefix cut in front of a held open keeps the prose the commit strip keeps", () => {
   const body = `${LEAD}<lie<lie truth="${SECRET}`;
   expect(stripHiddenSpans(body).content).toBe(`${LEAD}<lie`);
@@ -92,6 +135,14 @@ test("the stream and the commit strip agree across seeded random tag fragments",
     "<ofilter",
     "<li",
     "<",
+    "<Lie",
+    "<LIE",
+    "<lIe",
+    "<oFilter",
+    "<OFILTER",
+    "<L",
+    "<LI",
+    "<OF",
     " ",
     "\n",
     'truth="x"',

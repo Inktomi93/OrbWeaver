@@ -62,7 +62,7 @@
 // and the fork copy (a non-host forker of a deception game must not launder a member→host reasoning leak).
 
 import type { ChatBusEvent, ChatDeltaEvent, DurableChatBusEvent, MemberCardView, MessageView } from "@orb/contracts/chat";
-import { projectViewForMember } from "@orb/contracts/chat";
+import { HIDDEN_TAG_BROKEN_CODE, projectViewForMember } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { HiddenSpanStreamScrubber } from "@orb/kit/content";
 import { createHiddenSpanStreamScrubber, stripHiddenSpans } from "@orb/kit/content";
@@ -209,6 +209,11 @@ function isViewCarrying(event: ChatBusEvent): event is ViewCarryingEvent {
  *  ⇒ body-only, the pre-P3 behavior). A `null` return means WITHHOLD (the durable replay / live fan-out skips it). */
 export function stripChatEventForMember(event: ChatBusEvent, reasoningHostOnly = false): ChatBusEvent | null {
   if (reasoningHostOnly && event.type === "reasoningStreamDone") {
+    return null;
+  }
+  // SECURITY: this warning says a span exists, which is the fact a member must not reason about. Live fan-out and the
+  // durable replay both land here, so one arm covers publication, replay and a late join.
+  if (event.type === "warning" && event.code === HIDDEN_TAG_BROKEN_CODE) {
     return null;
   }
   if (!isViewCarrying(event)) {

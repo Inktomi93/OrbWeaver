@@ -6,8 +6,8 @@
 // THE ENCODING (D45-amend + the span grammar): a message body is `string` (D26 one content
 // home). Embedded structured spans:
 //   • an image is `![alt](target)` where `target` is `asset:<assetId>` or `http(s)://…` (gated at resolve).
-//   • a HIDDEN-class tag is a self-closing `<name key="value" …/>` whose name is in the OPEN `HIDDEN_TAGS`
-//     registry (§3.2a — lie/ofilter are the first two REGISTRANTS; a third channel is a registry row).
+//   • a HIDDEN-class tag is a self-closing `<name key="value" …/>` whose name, in any case, is in the OPEN
+//     `HIDDEN_TAGS` registry (§3.2a — lie/ofilter are the first two REGISTRANTS; a third channel is a registry row).
 //   • a DIRECTIVE FENCE is `:::name key="value"` on its own line … body … `:::` on its own line, for any
 //     name in the OPEN `DIRECTIVE_FENCE_NAMES` registry (§3.2b — card/choices first; a new fence is a member
 //     + a projection arm). Unknown attrs on a fence are IGNORED, never fatal (version-tolerant, graft #V4),
@@ -101,6 +101,12 @@ export const HIDDEN_TAGS: readonly HiddenTagDef[] = [
 /** The registered hidden-tag NAMES, derived from the registry above — the membership test the tokenizer and
  *  the §3.6 trust boundary both dispatch on (a new registrant is a row above, never a second list). */
 const HIDDEN_TAG_NAMES: ReadonlySet<string> = new Set(HIDDEN_TAGS.map((d) => d.tag));
+
+/** Is `tag` a registered hidden name? SECURITY: in any case (D285). A model writes `<Lie …/>` as readily as `<lie …/>`, and
+ *  every reader of a hidden name goes through here, because a case-sensitive one hands a member the `truth` attr. */
+function isHiddenTagName(tag: string): boolean {
+  return HIDDEN_TAG_NAMES.has(tag.toLowerCase());
+}
 
 /** The directive-fence registry — card/choices are the FIRST TWO REGISTRANTS (graft #V3: a new fence is a
  *  member here + a `FENCE_BUILDERS` row + a render/wire projection arm; the fence recognizer is shared). */
@@ -337,7 +343,7 @@ function skipAttrGap(src: string, from: number): number {
  *  Past the first word nothing else is read, so a later `a=b` in a sentence never turns prose into a tag. */
 function scanLooseHiddenOpen(content: string, start: number): TagScanOutcome {
   const tag = TAG_NAME_RE.exec(content.slice(start, start + IDENT_WINDOW))?.[1];
-  if (tag === undefined || !HIDDEN_TAG_NAMES.has(tag)) {
+  if (tag === undefined || !isHiddenTagName(tag)) {
     return TAG_MALFORMED;
   }
   const key = skipAttrGap(content, start + 1 + tag.length);
@@ -363,7 +369,7 @@ function walkWithEscalation(content: string, start: number): TagScanOutcome {
   if (bounded.kind === "tag" || bounded.kind === "malformed") {
     return bounded;
   }
-  if (!HIDDEN_TAG_NAMES.has(bounded.tag)) {
+  if (!isHiddenTagName(bounded.tag)) {
     return TAG_MALFORMED;
   }
   return bounded.kind === "capped" ? walkSelfClosingTag(content, start, Math.min(content.length, start + MAX_HIDDEN_TAG_SCAN)) : bounded;
@@ -411,7 +417,7 @@ function hiddenTagRuns(content: string, posture: BrokenHiddenPosture): readonly 
       i = content.indexOf("<", i + 1);
       continue;
     }
-    if (HIDDEN_TAG_NAMES.has(outcome.scan.tag)) {
+    if (isHiddenTagName(outcome.scan.tag)) {
       runs.push({ start: i, end: outcome.scan.end });
     }
     i = content.indexOf("<", outcome.scan.end);
@@ -823,8 +829,8 @@ function structuralPass(env: ScanEnv): Piece[] {
  *  allowlist-strip class (`unknown-directive` — command-shaped); unregistered WITHOUT attrs (a `<br/>`, an
  *  `<hr/>`) → null = literal text (ordinary prose markup, never stripped). */
 function classifyTag(scan: TagScan, raw: string): ContentSpan | null {
-  if (HIDDEN_TAG_NAMES.has(scan.tag)) {
-    return { kind: "hidden", tag: scan.tag, attrs: scan.attrs, raw };
+  if (isHiddenTagName(scan.tag)) {
+    return { kind: "hidden", tag: scan.tag.toLowerCase(), attrs: scan.attrs, raw };
   }
   return scan.attrCount > 0 ? { kind: "unknown-directive", raw } : null;
 }
@@ -853,7 +859,7 @@ function scanTags(text: string, brokenHidden: BrokenHiddenPosture): Expanded[] {
       if (i > last) {
         out.push({ kind: "text", text: text.slice(last, i) });
       }
-      out.push({ kind: "span", span: { kind: "hidden", tag: outcome.tag, attrs: {}, raw: text.slice(i) } });
+      out.push({ kind: "span", span: { kind: "hidden", tag: outcome.tag.toLowerCase(), attrs: {}, raw: text.slice(i) } });
       return out;
     }
     const span = outcome.kind === "tag" ? classifyTag(outcome.scan, text.slice(i, outcome.scan.end)) : null;
@@ -1096,6 +1102,13 @@ export function projectHiddenSpans(
   };
 }
 
+/** Did the strip lose the rest of this body to a hidden tag that broke the grammar, as opposed to one the input cut
+ *  short? A loose open conceals to the end of the body, so it can only be the last span. */
+export function concealsBrokenHiddenTag(content: string): boolean {
+  const last = scanHiddenSpans(content).at(-1);
+  return last !== undefined && scanSelfClosingTag(last.raw, 0).kind === "loose";
+}
+
 /** The STRIP'S TWIN (§3.6): every hidden-class span in a body, in document order — what the host-reveal eye
  *  shows and what {@link stripHiddenSpans} removes, from the ONE pass above. A reveal built on the plain
  *  `tokenizeContent` grammar would miss exactly the spans a fence hides, which is how the host lost in-card
@@ -1130,7 +1143,7 @@ export function scanHiddenSpans(content: string): readonly HiddenContentSpan[] {
 /** Does the buffer end inside what may yet be a hidden-tag NAME (`<`, `<l`, `<ofil`)? This covers only the bytes the
  *  tag scan cannot judge, because no complete name exists yet. Past the name, `scanSelfClosingTag` decides. */
 function endsInsideHiddenName(text: string, lt: number): boolean {
-  const name = text.slice(lt + 1);
+  const name = text.slice(lt + 1).toLowerCase();
   return HIDDEN_TAGS.some((d) => d.tag.startsWith(name));
 }
 

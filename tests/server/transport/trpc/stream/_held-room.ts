@@ -23,7 +23,7 @@ import {
   seedInvitedChatParticipant,
 } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
-import { coreProse } from "../../../domain/chat/engine/core-physical.ts";
+import { coreFrame, coreProse, coreSse } from "../../../domain/chat/engine/core-physical.ts";
 import { signedInMember } from "../../../entry/_auth-roots.ts";
 
 export const THOUGHT = "Weighing the witness. ";
@@ -153,6 +153,8 @@ export interface Room extends AsyncDisposable {
   readonly rearm: () => void;
   /** Answer every later provider request at once with this finished text. */
   readonly answerWith: (text: string) => void;
+  /** Answer every later provider request at once with these tokens, one stream frame each. */
+  readonly answerInChunks: (chunks: readonly string[]) => void;
   /** The bytes of every chat completion request so far: what the model actually received. */
   readonly prompts: () => readonly string[];
   readonly send: () => Promise<unknown>;
@@ -215,6 +217,10 @@ export async function openRoom(): Promise<Room> {
     },
     answerWith: (text): void => {
       reply = { ...reply, respond: (): Response => coreProse(text) };
+    },
+    answerInChunks: (chunks): void => {
+      const usage = terminalSseLine({ usage: { promptTokens: 4, completionTokens: 2 } });
+      reply = { ...reply, respond: (): Response => coreSse([...chunks.map((content) => coreFrame({ choices: [{ delta: { content } }] })), usage]) };
     },
     prompts: () => prompts,
     send: () => root.services.chat.send({ principal: host, chatId, content: "Begin the witness turn." }),
