@@ -70,8 +70,8 @@ export function evaluatePredicate(predicateCel: string | null, env: AutomationCe
 /** The primary rendered template of an arm — the string the preview shows. Arms with no template return
  *  `undefined` (nothing to render). */
 function armTemplate(action: AutomationAction): string | undefined {
-  // The `surface_quick_reply` arm joins its choice send-templates; every other arm exposes ONE template
-  // field. A property-bag read (not a discriminated switch) is deliberate: biome's type engine resolves
+  // The `surface_quick_reply` arm joins its choice send-templates; every other arm exposes ONE PREVIEWED
+  // template field (`generate_image`'s `negative` is checked beside it, see `negativeError`). A property-bag read (not a discriminated switch) is deliberate: biome's type engine resolves
   // the zod-inferred `AutomationAction` union as `never` across the `#imagery`-`.extend`ed member (a
   // cross-subpath-import inference gap — tsgo resolves the union correctly), so a `switch (action.type)`
   // trips noUnnecessaryConditions "unreachable" on every case. The reserved arms carry no template field
@@ -95,6 +95,14 @@ function armTemplate(action: AutomationAction): string | undefined {
   return typeof template === "string" ? template : undefined;
 }
 
+/** The strict-render error of a `generate_image` arm's `negative`, which the live arm renders too but the
+ *  preview does not show. */
+function negativeError(action: AutomationAction, render: ArmPreviewContext): string | undefined {
+  const rec: Record<string, unknown> = action;
+  const negative = rec["negative"];
+  return typeof negative === "string" ? renderArmTemplate({ ...render, template: negative }).error : undefined;
+}
+
 /** Everything a preview render needs EXCEPT the template itself — a slice of the ONE render seam
  *  ({@link ArmTemplateRender}) rather than a second parameter list, so `chatScoped` and the injected
  *  clock/PRNG cannot drift between the dry run and the live arm. Also what keeps this under the 4-param bar. */
@@ -105,6 +113,10 @@ type ArmPreviewContext = Omit<ArmTemplateRender, "template" | "macroEnv">;
  *  turn's live target text, unknown at test time) — the preview seeds it EMPTY so the render exercises the
  *  rest of the template without a strict `unknown-macro` error on the absent draft. */
 export function renderArmPreview(action: AutomationAction, render: ArmPreviewContext): ArmPreview {
+  const error = negativeError(action, render);
+  if (error !== undefined) {
+    return { type: action.type, error };
+  }
   const template = armTemplate(action);
   if (template === undefined) {
     return { type: action.type };

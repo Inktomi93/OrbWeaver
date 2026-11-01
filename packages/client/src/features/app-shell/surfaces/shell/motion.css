@@ -33,7 +33,7 @@
   }
   @keyframes shell-trail-flip {
     from {
-      translate: var(--shell-track-shrink) 0;
+      translate: calc(var(--shell-track-shrink) + var(--shell-trail-self) - var(--shell-trail-was)) 0;
     }
   }
   @keyframes shell-centre-flip {
@@ -61,7 +61,9 @@
   }
 
   /* The topbar trail is pinned to `.shell-main`'s end edge, so its own delta is the width change, not the start
-   * edge's travel; a second animation in lockstep, not an exemption, or the trail shears against the chrome. */
+   * edge's travel; a second animation in lockstep, not an exemption, or the trail shears against the chrome. The
+   * trail's own width can change in the same step (`--shell-trail-was` is its width at the stamp, `--shell-trail-self` its live
+   * width), so the counter carries the difference and its start edge stays where it rested. */
   .shell-grid:is([data-list-flip], [data-context-flip]) .shell-topbar-trail {
     animation: shell-trail-flip var(--shell-motion) var(--shell-ease);
   }
@@ -113,7 +115,7 @@
     translate: var(--shell-main-flip-from) 0;
   }
   .shell-grid:is([data-list-settle], [data-context-settle]) .shell-topbar-trail {
-    translate: var(--shell-track-shrink) 0;
+    translate: calc(var(--shell-track-shrink) + var(--shell-trail-self) - var(--shell-trail-was)) 0;
   }
   .shell-grid:is([data-list-settle], [data-context-settle]) :is(.orb-chat-track, .orb-composer-track) {
     translate: var(--shell-centre-flip-from) 0;

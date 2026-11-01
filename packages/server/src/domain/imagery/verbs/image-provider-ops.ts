@@ -5,7 +5,7 @@ import { generationOf } from "@orb/inference";
 import type { ImageProviderDeps, ImageProviderOps } from "../contract/generation-ops.ts";
 import type { ImageryWarning } from "../contract/results.ts";
 
-const IMAGERY_WARNING_CODES = new Set<string>(["image_edit_dropped"]);
+const IMAGERY_WARNING_CODES = new Set<string>(["image_edit_dropped", "image_count_dropped", "image_size_dropped"]);
 
 function isImageryWarningCode(code: string): code is ImageryWarning["code"] {
   return IMAGERY_WARNING_CODES.has(code);

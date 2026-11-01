@@ -219,17 +219,18 @@ export type SizePresetName = z.infer<typeof sizePresetSchema>;
 // Request numeric bounds (named — `noMagicNumbers`). `n` clamp mirrors the leaf's per-call fan-out cap
 // (one provider call fans out `n`, never a per-image loop).
 const MAX_PROMPT_CHARS = 2000;
-const MIN_IMAGE_COUNT = 1;
-const MAX_IMAGE_COUNT = 4;
+export const MIN_IMAGE_COUNT = 1;
+export const MAX_IMAGE_COUNT = 4;
+// Shorter than the prompt cap: a negative is a keyword list, not a scene description.
+export const MAX_NEGATIVE_CHARS = 1000;
 
 /** The chat-client wire for `chat.generateImage` → `imagery.generatePicture`.
- *  Free mode requires a nonempty prompt; the Phase-7 fields
- *  (`negative`/`subjectCharacterId`/`useAvatarReference`/`reuse`) are additive optionals. `gallery` is the
- *  per-request opt-out of the auto-add: absent or `true` joins each picture to the room character's gallery,
- *  `false` keeps it out (SillyTavern's `gallery=false`). */
+ *  Free mode requires a nonempty prompt. `gallery` is the per-request opt-out of the auto-add: absent or
+ *  `true` joins each picture to the room character's gallery, `false` keeps it out. */
 const generatePictureRequestFields = z.object({
   n: z.int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).optional(),
   size: sizePresetSchema.optional(),
+  negative: z.string().max(MAX_NEGATIVE_CHARS).optional(),
   gallery: z.boolean().optional(),
 });
 const freePromptSchema = z
@@ -257,9 +258,6 @@ export const MODE_TRIGGERS = {
   background: "background",
 } as const satisfies Record<string, PromptTemplateMode>;
 
-// The negative-prompt cap for the action arm (named — `noMagicNumbers`). Shorter than the prompt cap: a
-// negative is a keyword list, not a scene description.
-const MAX_NEGATIVE_CHARS = 1000;
 export const DEFAULT_ACTION_MODE = "scenario" satisfies PromptTemplateMode;
 const DEFAULT_IMAGE_COUNT = 1;
 
@@ -291,11 +289,13 @@ export interface GeneratedPictureImage {
   readonly block: MessageContentBlock;
 }
 
-/** The imagery drop codes surfaced to a caller: `image_edit_dropped` = the whole edit/
- *  avatar reference dropped for a non-edit model.
+const IMAGERY_WARNING_CODES = ["image_edit_dropped", "image_count_dropped", "image_size_dropped"] as const;
+
+/** The imagery drop codes surfaced to a caller: `image_edit_dropped` = the whole edit/avatar reference dropped
+ *  for a non-edit model; `image_count_dropped` and `image_size_dropped` = the wire could not carry that knob.
  *  The imagery-owned provider operation projects the runtime warnings onto this image-only shape. */
 export interface ImageryWarning {
-  readonly code: "image_edit_dropped";
+  readonly code: (typeof IMAGERY_WARNING_CODES)[number];
   readonly detail: string;
 }
 
@@ -343,7 +343,7 @@ const generatedPictureImageSchema = z.strictObject({
 }) satisfies z.ZodType<GeneratedPictureImage>;
 
 const imageryWarningSchema = z.strictObject({
-  code: z.literal("image_edit_dropped"),
+  code: z.enum(IMAGERY_WARNING_CODES),
   detail: z.string(),
 }) satisfies z.ZodType<ImageryWarning>;
 

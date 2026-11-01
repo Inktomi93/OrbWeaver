@@ -9,7 +9,9 @@
 // persist/emit pattern of `turn.ts` `persistUserMessage` (the D26 canon-write dance + the durable-first bus emit).
 
 import type { ChatWarningCode, MessageView } from "@orb/contracts/chat";
+import type { ChatId } from "@orb/kit/ids";
 import type { ChatContext, PostNarratorMessageDeps } from "../contract/context.ts";
+import type { EmitDurableChatEventOp } from "../contract/engine-context.ts";
 import type { GenerateImageParams } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireParticipant } from "../guard.ts";
@@ -28,17 +30,28 @@ const GENERATED_IMAGE_ALT = "generated image";
 /** Chat OWNS its bus warning vocabulary: it maps imagery's native warning codes onto its own `ChatWarningCode`
  *  (the turnAbortNotice precedent — a foreign domain never dictates chat's bus codes). An unmapped imagery code
  *  is dropped rather than emitted as an unknown code. The imagery drop code:
- *  `image_edit_dropped` = the whole edit strip. The code is spelled identically across the two vocabularies —
+ *  `image_edit_dropped` = the whole edit strip; `image_count_dropped` and `image_size_dropped` = that knob. The code is spelled identically across the two vocabularies —
  *  a match against this compile-checked `ChatWarningCode` subset yields the chat code (no re-spell).
  *
  *  The subset EXCLUDES `settings_adjusted` (#1440), and that exclusion is load-bearing rather than tidy: that
  *  code's bus member REQUIRES its structured `adjustment`, which the imagery vocabulary has no notion of — so
  *  a bare `{ code }` emit below is only well-typed while the subset cannot contain it. */
 type ImageryChatWarningCode = Exclude<ChatWarningCode, "settings_adjusted">;
-const IMAGERY_WARNING_CODES: readonly ImageryChatWarningCode[] = ["image_edit_dropped"];
+const IMAGERY_WARNING_CODES: readonly ImageryChatWarningCode[] = ["image_edit_dropped", "image_count_dropped", "image_size_dropped"];
 
 function toChatWarningCode(imageryCode: string): ImageryChatWarningCode | null {
   return IMAGERY_WARNING_CODES.find((code) => code === imageryCode) ?? null;
+}
+
+/** Surface a picture's imagery warnings onto the chat `warning` bus so the room can render a notice. Shared by the
+ *  explicit generate verb and a rule-fired picture, so both owe the room the same notices. */
+export async function emitPictureWarnings(emit: EmitDurableChatEventOp, chatId: ChatId, warnings: readonly { readonly code: string }[]): Promise<void> {
+  await Promise.all(
+    warnings.flatMap((warning) => {
+      const code = toChatWarningCode(warning.code);
+      return code === null ? [] : [emit({ type: "warning", chatId, code })];
+    }),
+  );
 }
 
 export function createGenerateImage(ctx: ChatContext, deps: PostNarratorMessageDeps): Pick<ChatService, "generateImage"> {
@@ -107,12 +120,7 @@ export function createGenerateImage(ctx: ChatContext, deps: PostNarratorMessageD
       await deps.emit({ type: "messageCommitted", chatId, messageId: view.id, view });
       // Surface any imagery warning (e.g. an avatar reference / edit dropped for a non-edit model — doc 03 §2)
       // onto the one chat `warning` bus so the client can render a notice; the message itself still committed.
-      await Promise.all(
-        picture.warnings.flatMap((warning) => {
-          const code = toChatWarningCode(warning.code);
-          return code === null ? [] : [deps.emit({ type: "warning", chatId, code })];
-        }),
-      );
+      await emitPictureWarnings(deps.emit, chatId, picture.warnings);
       // PD user-bus lane: a new image message moved chat-list recency → fan `chatsChanged` (list-only) to every
       // present human member (cross-device + multi-human).
       await ctx.emitChatChanged(chatId);

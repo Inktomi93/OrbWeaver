@@ -28,6 +28,7 @@ import {
 } from "@orb/testkit/node/composed";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { proseOverrideFromLegacy } from "#contracts/prose-slot/index.ts";
+import { SIZE_PRESETS } from "#server/domain/imagery/substrate/size.ts";
 
 const HOST_MODEL = "imagery-host-utility";
 const LIVE_MODEL = "imagery-host-utility-live";
@@ -269,7 +270,146 @@ test("a member's room image uses the host's image connection and live negative p
   expect(await root.services.assets.listOwned({ principal: room.host, kind: "generated", limit: 10 })).toEqual(stored);
 });
 
-test("imagery retains a real dropped-edit warning and filters a real native unsupported-count warning", async () => {
+test("the count, size and negative on chat.generateImage reach the provider request, and every picture posts in one message", async () => {
+  const wire = physicalExecution([]);
+  await using root = await createServerHarness({ startJobs: false, providerFetch: wire.execute, secretBoxKey: Buffer.alloc(32, 3) });
+  const room = await policyRoom(root);
+  wire.images.push(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
+  const negative = "extra fingers, watermark";
+  const caller = await root.internalCallerFor(room.member.userId);
+  const posted = await caller.chat.generateImage({
+    chatId: room.chat.id,
+    mode: "free",
+    prompt: "The orbital loom.",
+    n: 2,
+    size: "portrait",
+    negative,
+    gallery: false,
+    timeZone: UTC_TIME_ZONE,
+  });
+  expect(wire.requests).toHaveLength(1);
+  const portrait = SIZE_PRESETS.portrait;
+  expect(await wire.requests[0]?.clone().json()).toMatchObject({
+    n: 2,
+    size: `${portrait.width}x${portrait.height}`,
+    prompt: expect.stringContaining(negative),
+  });
+  const stored = await root.services.assets.listOwned({ principal: room.host, kind: "generated", limit: 10 });
+  expect(stored).toHaveLength(2);
+  for (const asset of stored) {
+    expect(posted.content).toContain(`asset:${asset.assetId}`);
+  }
+});
+
+test("a chat-completions image wire warns of the count and size it dropped, a default size stays quiet, and a rule-fired picture warns the same", async () => {
+  const wire = physicalExecution([]);
+  let pixels: Uint8Array = new Uint8Array();
+  const reply = (): Response =>
+    Response.json({
+      id: "image-reply",
+      object: "chat.completion",
+      created: 0,
+      model: IMAGE_MODEL,
+      choices: [
+        {
+          index: 0,
+          ["finish_reason"]: "stop",
+          message: {
+            role: "assistant",
+            content: "",
+            images: [{ type: "image_url", ["image_url"]: { url: `data:image/png;base64,${Buffer.from(pixels).toString("base64")}` } }],
+          },
+        },
+      ],
+    });
+  await using root = await createServerHarness({
+    startJobs: false,
+    secretBoxKey: Buffer.alloc(32, 3),
+    networkExecution: { resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]) },
+    providerFetch: async (input, init) => {
+      const request = new Request(input, init);
+      return request.method === "POST" ? reply() : await wire.execute(request);
+    },
+  });
+  const room = await policyRoom(root);
+  pixels = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
+  const credential = await root.services.credentials.add({ principal: room.host, provider: "openrouter", key: HOST_KEY });
+  const modalities = await root.services.connection.create({
+    principal: room.host,
+    providerId: "openrouter",
+    credentialId: credential.id,
+    baseUrl: null,
+    model: IMAGE_MODEL,
+    allowBackground: true,
+    declared: {
+      kind: "generation",
+      generation: { context: { window: 32_000 }, output: { modalities: ["text", "image"] } },
+      features: { detectServer: false, images: "chat-modalities" },
+    },
+  });
+  await root.services.connection.setBinding({ principal: room.host, task: "generateImage", connectionId: modalities.id });
+  const warned: string[] = [];
+  using subscription = new DisposableStack();
+  subscription.defer(
+    root.app.liveBuses.chat.subscribeAllChatEvents(({ event }) => {
+      if (event.chatId === room.chat.id && event.type === "warning") {
+        warned.push(event.code);
+      }
+    }),
+  );
+  const caller = await root.internalCallerFor(room.host.userId);
+  const request = { chatId: room.chat.id, mode: "free", prompt: "The orbital loom.", gallery: false, timeZone: UTC_TIME_ZONE } as const;
+  await caller.chat.generateImage(request);
+  expect(warned).toEqual([]);
+  pixels = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
+  await caller.chat.generateImage({ ...request, n: 2, size: "portrait" });
+  expect(warned).toEqual([WARNING_CODE.imageCountDropped, WARNING_CODE.imageSizeDropped]);
+
+  // A rule-fired picture spends the same wire, so it owes the room the same notices.
+  warned.length = 0;
+  pixels = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
+  const rule = await root.services.automation.createRule({
+    principal: room.host,
+    chatId: room.chat.id,
+    name: "Two tall drawings",
+    trigger: { bus: "chat", type: "chatOpened" },
+    predicateCel: null,
+    actions: [
+      { type: "generate_image", mode: "free", prompt: "a lighthouse", n: 2, size: "portrait", useAvatarReference: false, reuse: "never", quiet: false },
+    ],
+    timeZone: UTC_TIME_ZONE,
+  });
+  await root.services.automation.setRuleEnabled({ principal: room.host, ruleId: rule.id, enabled: true });
+  await root.services.automation.handleEvent({ type: "chatOpened", chatId: room.chat.id });
+  expect(warned).toEqual([WARNING_CODE.imageCountDropped, WARNING_CODE.imageSizeDropped]);
+
+  // The notices are room-wide: the host who owns the picture and the member who only watches both replay both pictures' notices.
+  const replayed = async (principal: Principal): Promise<readonly string[]> =>
+    (await root.services.chat.replayChatEvents({ principal, chatId: room.chat.id })).flatMap(({ event }) => (event.type === "warning" ? [event.code] : []));
+  const both = [WARNING_CODE.imageCountDropped, WARNING_CODE.imageSizeDropped, WARNING_CODE.imageCountDropped, WARNING_CODE.imageSizeDropped];
+  expect(await replayed(room.host)).toEqual(both);
+  expect(await replayed(room.member)).toEqual(both);
+});
+
+test("a count, size or negative skips the reuse gate under default reuse, and that picture is never reused", async () => {
+  const wire = physicalExecution([CAPTION, CAPTION, CAPTION, CAPTION]);
+  await using root = await createServerHarness({ startJobs: false, providerFetch: wire.execute, secretBoxKey: Buffer.alloc(32, 3) });
+  const room = await policyRoom(root);
+  for (let index = 0; index < 5; index += 1) {
+    wire.images.push(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
+  }
+  const portrait = { caller: room.host, mode: CAPTION_MODE, subjectCharacterId: room.character.id } as const;
+  const plain = await root.services.imagery.generatePicture(portrait);
+  expect(plain.reused).toBe(false);
+  expect((await root.services.imagery.generatePicture(portrait)).reused).toBe(true);
+  for (const knob of [{ n: 2 }, { size: "landscape" }, { negative: "extra fingers" }] as const) {
+    expect(await root.services.imagery.generatePicture({ ...portrait, ...knob })).toMatchObject({ reused: false });
+  }
+  const after = await root.services.imagery.generatePicture(portrait);
+  expect(after).toMatchObject({ reused: true, images: [{ assetId: plain.images[0]?.assetId }] });
+});
+
+test("imagery retains a real dropped-edit warning and a real native dropped-count warning", async () => {
   const endpoint = "https://native-warning-image.test/v1beta";
   const model = "native-warning-image";
   const requests: Request[] = [];
@@ -328,7 +468,7 @@ test("imagery retains a real dropped-edit warning and filters a real native unsu
   const { resolved } = await root.services.connection.resolve({ principal, task: "generateImage" });
   const nativeConnection: Resolved<"generateImage"> = { ...resolved, task: "generateImage" };
   const native = await root.app.runtime.executor.generateImage({ connection: nativeConnection, prompt: "The orbital loom.", n: 2, edit: { image: pixels } });
-  expect(native.warnings.map(({ code }) => code)).toEqual([WARNING_CODE.sdkUnsupportedSetting, WARNING_CODE.imageEditDropped]);
+  expect(native.warnings.map(({ code }) => code)).toEqual([WARNING_CODE.imageCountDropped, WARNING_CODE.imageEditDropped]);
   const avatar = await root.services.assets.store({
     principal,
     bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)),
@@ -349,7 +489,10 @@ test("imagery retains a real dropped-edit warning and filters a real native unsu
     useAvatarReference: true,
     reuse: "never",
   });
-  expect(filtered.warnings).toEqual([{ code: WARNING_CODE.imageEditDropped, detail: expect.stringContaining(model) }]);
+  expect(filtered.warnings).toEqual([
+    { code: WARNING_CODE.imageEditDropped, detail: expect.stringContaining(model) },
+    { code: WARNING_CODE.imageCountDropped, detail: expect.stringContaining(model) },
+  ]);
   const image = filtered.images[0];
   if (image === undefined) {
     throw new Error("the actual imagery warning path stored no generated image");

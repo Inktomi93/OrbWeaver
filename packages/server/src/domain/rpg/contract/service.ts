@@ -17,6 +17,7 @@
 import type {
   ClaimChatOp,
   GetMembership,
+  GetPendingUserText,
   ReadChatUserMacrosOp,
   ResolveRpgCardCorpus,
   ResolveRpgParticipants,
@@ -181,6 +182,7 @@ export type NewRpgTurnToolCalls = typeof rpgTurnToolCalls.$inferInsert;
  *  returns it; the pure `substrate/reveal` projection consumes it. */
 export interface RevealBodyRow {
   readonly messageId: MessageId;
+  readonly createdAt: number;
   readonly content: string;
 }
 
@@ -630,6 +632,8 @@ export interface RpgContext {
   /** rpg gates every verb through the membership read, never a chat-table read. `null` is one leak-free answer for
    *  not a present member and no such chat. */
   readonly getMembership: GetMembership;
+  /** The latest user message's text, for a gather whose turn carries none of its own (a swipe, a drained send). */
+  readonly getPendingUserText: GetPendingUserText;
   /** #1528 — the member-facing reads' PROJECTION verdict (hidden-span posture + the D16 floor), resolved by
    *  chat's one cross-domain op. Distinct from `getMembership` on purpose: that answers "may this caller ACT"
    *  (the ENFORCEMENT class `guard.ts` gates on), this answers "what may this viewer SEE" (the DATA-PROJECTION
@@ -856,7 +860,7 @@ export type HandStateWrite =
  *  `./results` (the two internal results). */
 export interface RpgService {
   /** Host. Mints the game row (lite only; `"full"` → `RpgModeUnbuiltError`), seeds the born snapshot, writes
-   *  the opaque pointer. Returns the birth summary (incl. `trackersReadOnly`). */
+   *  the opaque pointer. Returns the birth summary. */
   readonly createGame: (params: CreateGameParams) => Promise<CreateGameResult>;
   /** Host. The ONE config write door: profile mutability matrix + `steeringNote` + the `gmPresetId` +
    *  `extractionMode` knobs. */

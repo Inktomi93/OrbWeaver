@@ -69,17 +69,18 @@ for (const populated of [false, true]) {
     await expect(header).toBeVisible();
     const freshness = header.locator('[data-slot="rpg-freshness"]');
     const recordedCue = await freshness.allTextContents();
+    // The room has no model connection, so the tracker view reports read-only and the header must show the badge.
+    const tracker = await caller.rpg.getTrackerView({ chatId });
+    expect(tracker.trackersReadOnly).toBe(true);
     const readOnly = header.getByText("Read-only", { exact: true });
-    const readOnlyCount = await readOnly.count();
-    expect(recordedCue.length + readOnlyCount).toBeGreaterThan(0);
+    await expect(readOnly).toHaveCount(1);
     await page.getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true }).click();
     await expect(page.getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true })).toHaveAttribute("aria-selected", "true");
     await expect(freshness).toHaveText(recordedCue);
-    await expect(readOnly).toHaveCount(readOnlyCount);
+    await expect(readOnly).toHaveCount(1);
     const size = await resolvedLength(page, populated ? `var(${TOKENS["size.meter-hero"].cssVar})` : `var(${TOKENS["size.meter-sm"].cssVar})`);
     await expect.poll(async () => (await stone.boundingBox())?.height).toBe(size);
     await expect(header).toContainText(populated ? "The observatory" : "No ambient set");
-    const tracker = await caller.rpg.getTrackerView({ chatId });
     expect(tracker.trackerOrbs).toContainEqual(expect.objectContaining({ key: TRACKER.key, value: VALUE, max: TRACKER.max }));
     const satellite = header.locator('[data-slot="rpg-band-satellites"]');
     await expect(satellite).toContainText(`${TRACKER.label} ${VALUE}/${TRACKER.max}`);

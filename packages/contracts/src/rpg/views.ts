@@ -64,11 +64,9 @@ export interface RpgGameView {
   readonly chatId: ChatId;
   readonly mode: RpgGameMode;
   readonly status: RpgGameStatus;
-  /** Derived per-turn from connection capability (§4.6) — never stored. `true` ⇒ the read-only pill. */
-  readonly trackersReadOnly: boolean;
   /** Can the room's connection run the HOST born-state round (`populateFromCharacter`)? Capability-derived off
-   *  the SAME one resolve `trackersReadOnly` rides (`hasStructuredWriter` — the structured-output writer the
-   *  round needs), and DISTINCT from it: the delivery knob's tools-capability verdict does not answer this
+   *  the SAME one resolve the tracker view's `trackersReadOnly` rides (`hasStructuredWriter` — the structured-output
+   *  writer the round needs), and DISTINCT from it: the delivery knob's tools-capability verdict does not answer this
    *  question, so reusing it would either hide the button on a working connection or leave it enabled on one
    *  that silently no-ops. `false` ⇒ the takeover's populate button disables with the honest reason. */
   readonly canPopulate: boolean;
@@ -347,6 +345,8 @@ export interface RpgRevealedSpan {
  *  stored (selected-variant) body, in emission order. Host-gated server-side; a member never receives this. */
 export interface RpgRevealedMessage {
   readonly messageId: MessageId;
+  /** The message's wall time (epoch ms), so a host can match the span to the transcript's own timestamp. */
+  readonly createdAt: number;
   readonly spans: readonly RpgRevealedSpan[];
 }
 
@@ -402,7 +402,6 @@ export const rpgGameViewSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
   mode: rpgGameModeSchema,
   status: rpgGameStatusSchema,
-  trackersReadOnly: z.boolean(),
   canPopulate: z.boolean(),
   extractionMode: rpgGameConfigSchema.shape.extractionMode,
   effectiveDelivery: rpgEffectiveDeliverySchema,
@@ -513,6 +512,7 @@ const rpgRevealedSpanSchema = z.strictObject({
 }) satisfies z.ZodType<RpgRevealedSpan>;
 const rpgRevealedMessageSchema = z.strictObject({
   messageId: typeIdSchema(ID_PREFIX.message),
+  createdAt: z.number(),
   spans: z.array(rpgRevealedSpanSchema).readonly(),
 }) satisfies z.ZodType<RpgRevealedMessage>;
 const rpgStandingLieSchema = z.strictObject({
