@@ -15,10 +15,10 @@ import { pickKeys } from "@orb/kit/objects";
 import { Row, Section } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#components";
-import type { SectionPatchVars } from "#data";
-import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
+import { useUpdateReading } from "../hooks/appearance-reading-section-mutations.ts";
 import { APPEARANCE_READING_KEYS, APPEARANCE_READING_SUBCATEGORY } from "../lib/appearance-reading-model.ts";
 
 const READING_LINE_HEIGHT_MIN = 1.2;
@@ -35,12 +35,6 @@ const READING_SCALE_MAX = 1.6;
 const READING_SCALE_STEP = 0.05;
 
 type ReadingForm = Pick<AppearanceSettings, (typeof APPEARANCE_READING_KEYS)[number]>;
-
-const useUpdateReading = createEntityMutation<SectionPatchVars<"appearance">, unknown>({
-  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
-  errorToast: "Couldn't save your reading settings.",
-});
 
 const ReadingAutosaveForm = createAutosaveEntityForm<ReadingForm>({
   defaultValues: pickKeys(DEFAULT_APPEARANCE_SETTINGS, APPEARANCE_READING_KEYS),

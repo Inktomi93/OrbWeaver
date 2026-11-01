@@ -7,15 +7,9 @@
 import { Section } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, SettingSwitchRow } from "#components";
-import type { SectionPatchVars } from "#data";
-import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { useSetPersonaPrefs } from "../hooks/persona-notifications-section-mutations.ts";
 import { PERSONA_NOTIFICATIONS_SUBCATEGORY } from "../lib/personas-nav.ts";
-
-const useSetPersonaPrefs = createEntityMutation<SectionPatchVars<"persona">, unknown>({
-  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't save your persona settings.",
-});
 
 export function PersonaNotificationsSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   return (

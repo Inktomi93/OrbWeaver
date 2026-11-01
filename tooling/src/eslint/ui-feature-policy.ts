@@ -177,14 +177,65 @@ export const UI_FEATURE_RESTRICTIONS = [
     id: "no-raw-interactive-intrinsics",
     selectors: [
       {
-        selector: `JSXOpeningElement[name.type='JSXIdentifier'][name.name=${alternation(["button", "input", "select", "textarea"])}]`,
+        selector: `JSXOpeningElement[name.type='JSXIdentifier'][name.name=${alternation(["button", "input", "select", "textarea", "ul", "ol", "label", "hr", "h1", "h2", "h3", "h4", "h5", "h6", "dialog", "table"])}]`,
         message:
-          "A raw interactive intrinsic in a feature (D62) — interactivity comes from an @orb/ui primitive (Button, TextField, Select, TextArea, Link), never a hand-rolled <button>/<input>/<select>/<textarea>.",
+          "A raw interactive or structural intrinsic in a feature (D62) — it comes from an @orb/ui primitive (Button, Input, Select, Textarea, Link, Field, Heading, Separator, Table), never a hand-rolled <button>, <input>, <select>, <textarea>, <label>, <ul>, <ol>, <hr>, <h1>-<h6>, <dialog> or <table>.",
       },
       {
         // An `<a>` with no href is an anchor TARGET, not a control.
         selector: "JSXOpeningElement[name.type='JSXIdentifier'][name.name='a']:has(> JSXAttribute[name.name='href'])",
         message: "A raw `<a href>` in a feature (D62) — use the @orb/ui Link primitive.",
+      },
+    ],
+  },
+  {
+    // The dialogs that build their own footer. ConfirmDialog, ViewerDialog and PickerDialog carry a built-in dismiss.
+    id: "dialog-needs-dismiss",
+    selectors: [
+      {
+        selector: [
+          "JSXElement[openingElement.name.name=/^(FormDialog|ContentDialog|FlowDialog)$/][openingElement.selfClosing=false]",
+          // A dialog that mounts a `...Body` component hands it the footer; that file is read as a whole by `pnpm ui-facts`.
+          ":not(:has(JSXOpeningElement[name.name=/Body$/]))",
+          ":not(:has(JSXOpeningElement[name.name=/^(FormSubmitButton|DialogClose|AlertDialogClose|ContentDialogClose)$/]))",
+          ":not(:has(JSXOpeningElement > JSXAttribute[name.name=/^(submit|dismissLabel|closeButton|footer|headerActions)$/]))",
+          ":not(:has(JSXElement[openingElement.name.name='Button'] > JSXText[value=/^\\s*(Cancel|Close|Done|Back|Dismiss|Discard|Keep editing)\\s*$/]))",
+        ].join(""),
+        message:
+          "A dialog needs a dismiss path: a `dismissLabel`, a `submit` footer (it carries Cancel), a `FormSubmitButton`, a `DialogClose`, or a Cancel or Close button.",
+      },
+    ],
+  },
+  {
+    // The files where a factory may be called are the config block's `ignores`; a component or surface imports the hook.
+    id: "mutation-factory-in-hooks-file",
+    selectors: [
+      {
+        selector: "CallExpression[callee.name='createEntityMutation']",
+        message: "A `createEntityMutation` call lives in a hooks file (`hooks/`, `*-mutations.ts` or `data/`); the component imports the hook it makes.",
+      },
+    ],
+  },
+  {
+    id: "copy-ellipsis",
+    selectors: [
+      {
+        selector: ":matches(JSXAttribute[name.name='placeholder'] > Literal, JSXText)[value=/\\.\\.\\./]",
+        message: "Write the ellipsis as one character `…`, never three dots.",
+      },
+      {
+        selector: "JSXAttribute[name.name='placeholder'] > Literal[value=/^(Search|Filter)\\b/]:not([value=/…$/])",
+        message: "A search or filter placeholder ends in `…`.",
+      },
+    ],
+  },
+  {
+    id: "no-single-row-textarea",
+    selectors: [
+      {
+        selector:
+          "JSXOpeningElement[name.name='Textarea']:has(> JSXAttribute[name.name='rows'][value.expression.value=1]):not(:has(> JSXAttribute[name.name='maxRows']))",
+        message: "A one-row Textarea with no `maxRows` is an Input's job: use Input, or name the ceiling it grows to with `maxRows`.",
       },
     ],
   },

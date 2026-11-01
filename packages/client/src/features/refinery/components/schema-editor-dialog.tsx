@@ -260,7 +260,7 @@ function RefineRow({
   return (
     <>
       <Field className="flex-1 min-inline-0" label="Refine the draft">
-        <Textarea defaultValue="" placeholder='e.g. "add a per-issue severity enum"' ref={instructionRef} rows={1} />
+        <Textarea defaultValue="" placeholder='e.g. "add a per-issue severity enum"' ref={instructionRef} rows={1} maxRows={6} />
       </Field>
       <Button
         disabled={busy}

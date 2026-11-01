@@ -15,7 +15,7 @@
 // never per-keystroke and never by opening the editor. A save that races the mint awaits the same promise,
 // so it can never patch the seed it was customizing.
 
-import type { Theme, ThemeRadius } from "@orb/contracts/theme";
+import type { Theme } from "@orb/contracts/theme";
 import { THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/contracts/theme";
 import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { Button } from "@orb/ui/button";
@@ -35,7 +35,7 @@ import { AutosaveStatus, createAutosaveEntityForm } from "#forms/editor";
 // The THEME-shaped appearance table. It used to ride the settings feature's own
 // `appearance-select-items.ts`; SET-SEAMS stage 1 split that file into its chat- and app-shell-owned halves,
 // so the table three features render homes at the `#lib` shared-vocabulary floor.
-import { DENSITY_ITEMS } from "#lib";
+import { DENSITY_ITEMS, THEME_RADIUS_LABELS } from "#lib";
 import type { ThemeAutosaveDeps } from "../hooks/use-theme-autosave.ts";
 import { useThemeAutosave } from "../hooks/use-theme-autosave.ts";
 import { contrastRatio } from "../lib/theme-contrast.ts";
@@ -56,15 +56,9 @@ const FONT_ITEMS: SelectItems<string> = THEME_FONT_ALLOWLIST.map((value) => ({
   label: value,
   labelStyle: { fontFamily: value },
 }));
-const RADIUS_LABELS: Record<ThemeRadius, string> = {
-  base: "Base",
-  control: "Tight",
-  card: "Card",
-  full: "Round",
-};
 const RADIUS_ITEMS: SelectItems<string> = THEME_RADII.map((value) => ({
   value,
-  label: RADIUS_LABELS[value],
+  label: THEME_RADIUS_LABELS[value],
 }));
 
 // The session-boundary autosave form (D78 §1, mirroring the preset editor's `PresetForm`). Module-scope so

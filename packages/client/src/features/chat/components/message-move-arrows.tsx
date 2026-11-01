@@ -10,22 +10,15 @@ import { ChevronDown, ChevronUp, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQueryClient } from "@tanstack/react-query";
-import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import type { Trpc } from "#data";
-import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { isLiveTurnPhase, useTurnPhase } from "#state";
+import { useMoveMessageMutation } from "../hooks/message-move-arrows-mutations.ts";
 import { MESSAGE_MOVE_DOWN_NAME, MESSAGE_MOVE_FAILED, MESSAGE_MOVE_NEIGHBOUR_GONE, MESSAGE_MOVE_UP_NAME } from "../lib/message-action-names.ts";
 import type { MoveNeighbours } from "../lib/move-neighbours.ts";
 import { moveReasons } from "../lib/move-neighbours.ts";
-
-const useMoveMessageMutation = createEntityMutation<inferInput<Trpc["chat"]["moveMessage"]>, unknown>({
-  options: (trpc) => trpc.chat.moveMessage.mutationOptions(),
-  busDriven: true,
-  errorToast: MESSAGE_MOVE_FAILED,
-});
 
 export interface MessageMoveArrowsProps {
   readonly message: MessageView;

@@ -2,25 +2,13 @@
 // so the item is disabled with its reason during a live turn; the verb refuses the same call at the server.
 
 import type { MessageView } from "@orb/contracts/chat";
-import type { ChatId, MessageId } from "@orb/kit/ids";
 import { CopyPlus } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 import { DescribedMenuItem } from "#components";
-import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useTRPC } from "#data";
 import { isLiveTurnPhase, useTurnPhase } from "#state";
+import { useDuplicateMutation } from "../hooks/message-duplicate-item-mutations.ts";
 import { MESSAGE_DUPLICATE_GENERATING, MESSAGE_DUPLICATE_NAME } from "../lib/message-action-names.ts";
-
-interface DuplicateVars {
-  readonly chatId: ChatId;
-  readonly messageId: MessageId;
-}
-
-// The verb emits `messageCommitted` for the new tail slot, so the transcript refetches off the bus.
-const useDuplicateMutation = createEntityMutation<DuplicateVars, unknown>({
-  options: (trpc) => trpc.chat.duplicateMessage.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't duplicate that message.",
-});
 
 export function MessageDuplicateItem({ message }: { readonly message: MessageView }): ReactElement {
   const trpc = useTRPC();

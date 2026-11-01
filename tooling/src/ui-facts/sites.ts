@@ -71,7 +71,12 @@ export const KINDS: Readonly<Record<string, KindInfo>> = {
   "raw-heading": { area: "B", what: "raw <h1>..<h6>", replacement: "Heading (@orb/ui/text)", guard: null },
   "div-onclick": { area: "B", what: "non-interactive element with onClick", replacement: "Button, or ListRow for a row", guard: RAW_INTRINSICS },
   "div-role": { area: "B", what: "non-interactive element with role=", replacement: "the primitive that owns that role", guard: null },
-  "textarea-single-row": { area: "B", what: "Textarea rows={1} doing an Input's job", replacement: "Input (@orb/ui/input)", guard: null },
+  "textarea-single-row": {
+    area: "B",
+    what: "Textarea rows={1} doing an Input's job",
+    replacement: "Input (@orb/ui/input)",
+    guard: "orb/no-single-row-textarea",
+  },
 };
 
 export interface Site {

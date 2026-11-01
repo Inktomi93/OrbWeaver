@@ -13,7 +13,7 @@ export function ArtRecipesStory({ image = false, theme = "mocha" }: { readonly i
         <Text voice="monogram" halo={true} data-case="halo">
           Wordmark
         </Text>
-        <Swatch indeterminate={true} fill="primaryFaint" className="block-px inline-full" data-case="hairline" />
+        <Swatch indeterminate={true} fill="primaryFaint" className="inline-full" data-case="hairline" />
         <Stack container="size" style={{ inlineSize: 240, blockSize: 160 }}>
           <Text voice="monogram" artScale="portrait" solidLine={true} data-case="portrait-initial">
             P

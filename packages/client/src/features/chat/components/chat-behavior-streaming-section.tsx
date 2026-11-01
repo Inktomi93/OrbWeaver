@@ -14,10 +14,10 @@ import { pickKeys } from "@orb/kit/objects";
 import { Row, Section } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#components";
-import type { SectionPatchVars } from "#data";
-import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
+import { useUpdateStreaming } from "../hooks/chat-behavior-streaming-section-mutations.ts";
 import {
   CHAT_STREAMING_KEYS,
   CHAT_STREAMING_SUBCATEGORY,
@@ -27,12 +27,6 @@ import {
 } from "../lib/chat-behavior-streaming-model.ts";
 
 type StreamingForm = Pick<ChatSettings, (typeof CHAT_STREAMING_KEYS)[number]>;
-
-const useUpdateStreaming = createEntityMutation<SectionPatchVars<"chat">, unknown>({
-  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
-  errorToast: "Couldn't save your streaming settings.",
-});
 
 const StreamingAutosaveForm = createAutosaveEntityForm<StreamingForm>({
   defaultValues: pickKeys(DEFAULT_CHAT_SETTINGS, CHAT_STREAMING_KEYS),

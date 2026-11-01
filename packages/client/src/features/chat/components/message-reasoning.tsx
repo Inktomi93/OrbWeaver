@@ -8,13 +8,12 @@ import { Button } from "@orb/ui/button";
 import { Check, Eraser, Icon, Pencil, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Textarea } from "@orb/ui/textarea";
-import type { inferInput } from "@trpc/tanstack-react-query";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
-import type { Trpc } from "#data";
-import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useTRPC } from "#data";
 import { cancelEditingReasoning, setReasoningEditDraft, startEditingReasoning, useIsEditingReasoning, useReasoningEditDraftText } from "#state";
+import { useClearReasoningMutation, useEditReasoningMutation } from "../hooks/message-reasoning-mutations.ts";
 import {
   MESSAGE_REASONING_CANCEL_NAME,
   MESSAGE_REASONING_CLEAR_CONFIRM,
@@ -26,18 +25,6 @@ import {
   MESSAGE_REASONING_SAVE_NAME,
 } from "../lib/message-action-names.ts";
 import { ReasoningBlock } from "./reasoning-block.tsx";
-
-const useEditReasoningMutation = createEntityMutation<inferInput<Trpc["chat"]["editReasoning"]>, unknown>({
-  options: (trpc) => trpc.chat.editReasoning.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't save that reasoning.",
-});
-
-const useClearReasoningMutation = createEntityMutation<inferInput<Trpc["chat"]["clearReasoning"]>, unknown>({
-  options: (trpc) => trpc.chat.clearReasoning.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't clear that reasoning.",
-});
 
 /** The inline field. Edit mode and the draft live in the edit-draft store beside the body editor's, because the
  *  transcript is windowed and a row scrolled out mid-edit remounts. */

@@ -19,21 +19,15 @@ import { pickKeys } from "@orb/kit/objects";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, SettingSwitchRow, SettingTrackRow } from "#components";
-import type { SectionPatchVars } from "#data";
-import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
+import { useUpdateEffects } from "../hooks/appearance-effects-section-mutations.ts";
 import { BLUR_STRENGTH_MAX, BLUR_STRENGTH_MIN } from "../lib/appearance-bounds.ts";
 import { APPEARANCE_EFFECTS_KEYS, APPEARANCE_EFFECTS_SUBCATEGORY } from "../lib/appearance-effects-model.ts";
 import { BLUR_SURFACE_ITEMS, SURFACE_TEXTURE_ITEMS } from "../lib/appearance-select-items.ts";
 
 type EffectsForm = Pick<AppearanceSettings, (typeof APPEARANCE_EFFECTS_KEYS)[number]>;
-
-const useUpdateEffects = createEntityMutation<SectionPatchVars<"appearance">, unknown>({
-  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
-  errorToast: "Couldn't save your effect settings.",
-});
 
 const EffectsAutosaveForm = createAutosaveEntityForm<EffectsForm>({
   defaultValues: pickKeys(DEFAULT_APPEARANCE_SETTINGS, APPEARANCE_EFFECTS_KEYS),

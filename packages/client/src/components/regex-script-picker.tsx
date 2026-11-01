@@ -27,10 +27,11 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { createEntityMutation, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { COLLECTION_LARGE_GROUP, regexScriptScent, regexScriptTitle, timeLib } from "#lib";
 import { RegexScopeOrder } from "./regex-scope-order.tsx";
 import { scopeOrderShowsGrips } from "./regex-scope-order-model.ts";
+import { useAttachCharacter, useAttachChat, useAttachPreset, useDetachCharacter, useDetachChat, useDetachPreset } from "./regex-script-picker-mutations.ts";
 
 // Every regex verb is `busDriven` (`regexChanged` path-invalidates the whole router), so no call site
 // hand-invalidates its own attached-list read. The six factories live at the BOTTOM of this file, next to
@@ -352,34 +353,3 @@ function useToggleAttachment({
     }
   };
 }
-
-const useAttachCharacter = createEntityMutation<{ readonly characterId: CharacterId; readonly scriptId: RegexScriptId }, void>({
-  options: (trpc) => trpc.regex.attachToCharacter.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't attach that script to this character.",
-});
-const useDetachCharacter = createEntityMutation<{ readonly characterId: CharacterId; readonly scriptId: RegexScriptId }, { readonly detached: boolean }>({
-  options: (trpc) => trpc.regex.detachFromCharacter.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't detach that script from this character.",
-});
-const useAttachPreset = createEntityMutation<{ readonly presetId: PresetId; readonly scriptId: RegexScriptId }, void>({
-  options: (trpc) => trpc.regex.attachToPreset.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't attach that script to this preset.",
-});
-const useDetachPreset = createEntityMutation<{ readonly presetId: PresetId; readonly scriptId: RegexScriptId }, { readonly detached: boolean }>({
-  options: (trpc) => trpc.regex.detachFromPreset.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't detach that script from this preset.",
-});
-const useAttachChat = createEntityMutation<{ readonly chatId: ChatId; readonly scriptId: RegexScriptId }, void>({
-  options: (trpc) => trpc.regex.attachToChat.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't attach that script to this chat.",
-});
-const useDetachChat = createEntityMutation<{ readonly chatId: ChatId; readonly scriptId: RegexScriptId }, { readonly detached: boolean }>({
-  options: (trpc) => trpc.regex.detachFromChat.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't detach that script from this chat.",
-});

@@ -32,15 +32,10 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { ConfirmDialog, StoredConfigUnreadableNotice } from "#components";
-import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useTRPC } from "#data";
 import { SaveUnwritableContext } from "#forms";
 import { SETTINGS_UNREADABLE_COPY, unreadableConfigCause } from "#lib";
-
-const useResetUserConfig = createEntityMutation<void, unknown>({
-  options: (trpc) => trpc.settings.resetUserConfig.mutationOptions(),
-  busDriven: true, // resetUserConfig emits settingsChanged → USER_BUS covers getUserSettings.
-  errorToast: "Couldn't reset your settings.",
-});
+import { useResetUserConfig } from "../hooks/settings-unreadable-notice-mutations.ts";
 
 /** The pane gate: transparent while the stored blob reads fine, the state + its door when it does not. */
 export function SettingsUnreadableGate({ children }: { readonly children: ReactNode }): ReactElement {

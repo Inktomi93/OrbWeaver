@@ -33,13 +33,11 @@ import { ChevronDown, ChevronUp, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { SortableItemKey } from "@orb/ui/sortable";
 import { SortableList } from "@orb/ui/sortable";
-import type { QueryKey } from "@tanstack/react-query";
-import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
-import type { Trpc } from "#data";
-import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useTRPC } from "#data";
 import { COLLECTION_LARGE_GROUP, regexScriptTitle } from "#lib";
 import { ORDERABLE_MINIMUM } from "./regex-scope-order-model.ts";
+import { useApplyRegexScopeOrder } from "./regex-scope-order-mutations.ts";
 
 export interface RegexScopeOrderProps {
   /** WHICH junction the rewrite addresses — the `@orb/contracts/regex` union the router validates. */
@@ -156,55 +154,3 @@ function reseat(ids: readonly RegexScriptId[], from: number, to: number): readon
   const moving = ids.slice(from, from + 1);
   return [...rest.slice(0, to), ...moving, ...rest.slice(to)];
 }
-
-/** WHICH read the rewrite is authoritative for — one key per scope arm, exhaustive so a fifth scope is a
- *  compile error rather than a reorder that silently paints stale. */
-function scopeReadKey(trpc: Trpc, scope: RegexAttachScope): QueryKey {
-  switch (scope.kind) {
-    case "global":
-      return trpc.regex.listGlobal.queryKey();
-    case "character":
-      return trpc.regex.listForCharacter.queryKey({ characterId: scope.characterId });
-    case "preset":
-      return trpc.regex.listForPreset.queryKey({ presetId: scope.presetId });
-    case "chat":
-      return trpc.regex.listForChat.queryKey({ chatId: scope.chatId });
-    default:
-      return assertNeverScope(scope);
-  }
-}
-
-function assertNeverScope(scope: never): never {
-  throw new Error(`unhandled regex attach scope: ${JSON.stringify(scope)}`);
-}
-
-/** The cached list re-sorted by the order being written. Ids the read doesn't carry are dropped and rows
- *  the write doesn't name keep their relative tail — the verb's own posture (`apply-scope-order.ts`), so
- *  the optimistic paint and the server's answer agree. */
-function applyOrder(rows: readonly RegexScriptRow[], orderedIds: readonly RegexScriptId[]): RegexScriptRow[] {
-  const byId = new Map(rows.map((row) => [row.id, row]));
-  const named = new Set(orderedIds);
-  const moved = orderedIds.flatMap((id) => {
-    const row = byId.get(id);
-    return row === undefined ? [] : [row];
-  });
-  return [...moved, ...rows.filter((row) => !named.has(row.id))];
-}
-
-// TVars is spelled from the CONTRACT union, not `inferInput`: the router validates `scope` through
-// `typeIdSchema`, whose transform-backed arms infer as `unknown`-fielded — so the inferred input would
-// erase exactly the branding that makes `scopeReadKey` exhaustive and type-safe. The stricter shape stays
-// assignable to the proc's own input, so nothing is cast.
-const useApplyRegexScopeOrder = createEntityMutation<
-  { readonly scope: RegexAttachScope; readonly orderedScriptIds: RegexScriptId[] },
-  inferOutput<Trpc["regex"]["applyScopeOrder"]>,
-  RegexScriptRow[]
->({
-  options: (trpc) => trpc.regex.applyScopeOrder.mutationOptions(),
-  busDriven: true, // applyScopeOrder emits regexChanged → the invalidation map covers regex.pathFilter().
-  optimistic: {
-    readKey: (trpc, vars) => scopeReadKey(trpc, vars.scope),
-    update: (old, vars) => (old === undefined ? old : applyOrder(old, vars.orderedScriptIds)),
-  },
-  errorToast: "Couldn't save that run order.",
-});

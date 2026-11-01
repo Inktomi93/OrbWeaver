@@ -16,18 +16,10 @@ import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Row } from "@orb/ui/layout";
-import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import type { Trpc } from "#data";
-import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-
-/** The verb WRITES no settings — it only materializes the asset and hands the entry back; the library row
- *  lands through the appearance autosave patch, which owns that reconciliation. So nothing to invalidate. */
-const useAddExternalBackground = createEntityMutation<inferInput<Trpc["settings"]["addExternalBackground"]>, BackgroundLibraryEntry>({
-  options: (trpc) => trpc.settings.addExternalBackground.mutationOptions(),
-  invalidates: () => [],
-});
+import { useInvalidation, useTRPC } from "#data";
+import { useAddExternalBackground } from "../hooks/external-background-field-mutations.ts";
 
 /** The inline refusal copy — the verb's own leak-free message when it threw one, else the generic fallback
  *  (a transport/unknown failure carries no user-facing reason). `null` ⇒ no error row. */
