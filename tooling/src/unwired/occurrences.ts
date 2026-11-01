@@ -54,8 +54,9 @@ import {
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
-import { TypeFlags } from "@typescript/native/sync";
+import { all, TypeFlags } from "@typescript/native/sync";
 import type { Site } from "./classify.ts";
+import { siteKey } from "./classify.ts";
 import type { Flow } from "./handoffs.ts";
 import { handoffFlows } from "./handoffs.ts";
 import type { NativeWorld } from "./native.ts";
@@ -64,8 +65,8 @@ import { constituents, declarationKeys, hasFlag, propertiesNamed } from "./nativ
 /** Declaration key to the sites that resolve to it. */
 export type ReferenceIndex = ReadonlyMap<string, readonly Site[]>;
 
-function credit(index: Map<string, Site[]>, symbol: NativeSymbol | undefined, site: Site): void {
-  for (const key of symbol === undefined ? [] : declarationKeys(symbol)) {
+function credit(index: Map<string, Site[]>, keys: readonly string[], site: Site): void {
+  for (const key of keys) {
     const sites = index.get(key);
     if (sites === undefined) {
       index.set(key, [site]);
@@ -226,7 +227,7 @@ function* keyNames(checker: Checker, key: Node): APIRequestGenerator<readonly st
  *  contextual type gives it (a literal kept by `satisfies` is read through its own keys), a spread value's member
  *  and the same-named member of the type it is spread into, a member typed `Owner["m"]` and `Owner.m`, and an
  *  overload implementation's parameter member and each overload's. */
-interface Link {
+export interface Link {
   readonly from: readonly string[];
   readonly to: readonly string[];
 }
@@ -264,11 +265,12 @@ function* reflected(world: NativeWorld, { value, target, names }: ReflectedShape
   if (target === undefined) {
     return { reads: properties, links: [], flows: [] };
   }
+  const named = yield* all(...properties.map((property) => propertiesNamed(checker, target, property.name)));
   const reads: NativeSymbol[] = [];
   const links: Link[] = [];
   const flows: Flow[] = [];
-  for (const property of properties) {
-    const into = (yield* propertiesNamed(checker, target, property.name)).filter((member) => member !== undefined);
+  for (const [at, property] of properties.entries()) {
+    const into = (named[at] ?? []).filter((member) => member !== undefined);
     if (into.some((member) => member.declarations.every((handle) => world.fileOf(handle) === null))) {
       reads.push(property);
     } else if (into.length > 0) {
@@ -298,19 +300,12 @@ function spreadTarget(value: Node): Expression | null {
 
 // All of a value's properties, or those a computed key's literal type names.
 function* reflectedProperties(checker: Checker, value: Type, names: readonly string[] | null): APIRequestGenerator<NativeSymbol[]> {
-  const found: NativeSymbol[] = [];
-  for (const type of yield* constituents(value)) {
-    if (names === null) {
-      found.push(...(yield* checker.getPropertiesOfType.gen(type)));
-    }
-    for (const name of names ?? []) {
-      const property = yield* checker.getPropertyOfType.gen(type, name);
-      if (property !== undefined) {
-        found.push(property);
-      }
-    }
+  const types = yield* constituents(value);
+  if (names === null) {
+    return (yield* all(...types.map((type) => checker.getPropertiesOfType.gen(type)))).flat();
   }
-  return found;
+  const found = yield* all(...types.flatMap((type) => names.map((name) => checker.getPropertyOfType.gen(type, name))));
+  return found.filter((property) => property !== undefined);
 }
 
 const keysOf = (symbols: readonly (NativeSymbol | undefined)[]): readonly string[] =>
@@ -358,41 +353,30 @@ function typePairs(
 function* overloadLinks(checker: Checker, pair: { readonly overload: TypeNode; readonly implementation: TypeNode }): APIRequestGenerator<readonly Link[]> {
   const implementation = yield* checker.getPropertiesOfType.gen(yield* checker.getTypeAtLocation.gen(pair.implementation));
   const overload = yield* checker.getTypeAtLocation.gen(pair.overload);
-  const links: Link[] = [];
-  for (const property of implementation) {
-    links.push({ from: declarationKeys(property), to: keysOf(yield* propertiesNamed(checker, overload, property.name)) });
-  }
-  return links;
+  const named = yield* all(...implementation.map((property) => propertiesNamed(checker, overload, property.name)));
+  return implementation.map((property, at) => ({ from: declarationKeys(property), to: keysOf(named[at] ?? []) }));
 }
 
 // Every type an interface extends, directly or through its bases, a generic base through its generic target.
 function* ancestors(type: Type): APIRequestGenerator<readonly Type[]> {
   const origin = type.isTypeReference() ? yield* type.getTarget.gen() : type;
   const direct = (yield* origin.getBaseTypes.gen()) ?? [];
-  const all: Type[] = [...direct];
-  for (const base of direct) {
-    all.push(...(yield* ancestors(base)));
-  }
-  return all;
+  return [...direct, ...(yield* all(...direct.map((base) => ancestors(base)))).flat()];
 }
 
 // An interface member that redeclares a base member is its own symbol: a use of it is a use of each member it redeclares.
 function* redeclarations(checker: Checker, declaration: InterfaceDeclaration): APIRequestGenerator<readonly Link[]> {
   const symbol = yield* checker.getSymbolAtLocation.gen(declaration.name);
   const bases = symbol === undefined ? [] : yield* ancestors(yield* checker.getDeclaredTypeOfSymbol.gen(symbol));
-  const links: Link[] = [];
-  for (const member of declaration.members) {
-    if (!((isPropertySignatureDeclaration(member) || isMethodSignatureDeclaration(member)) && isPropertyName(member.name))) {
-      continue;
-    }
-    const own = yield* checker.getSymbolAtLocation.gen(member.name);
-    const inherited: (NativeSymbol | undefined)[] = [];
-    for (const base of bases) {
-      inherited.push(yield* checker.getPropertyOfType.gen(base, member.name.text));
-    }
-    links.push({ from: keysOf([own]), to: keysOf(inherited) });
-  }
-  return links;
+  const names = declaration.members.flatMap((member) =>
+    (isPropertySignatureDeclaration(member) || isMethodSignatureDeclaration(member)) && isPropertyName(member.name) ? [member.name] : [],
+  );
+  return yield* all(
+    ...names.map(function* (name): APIRequestGenerator<Link> {
+      const [own, inherited] = yield* all(checker.getSymbolAtLocation.gen(name), all(...bases.map((base) => checker.getPropertyOfType.gen(base, name.text))));
+      return { from: keysOf([own]), to: keysOf(inherited) };
+    }),
+  );
 }
 
 /** A world's property sites: `index` joins every link and flow. `direct` holds the sites that name each declaration and
@@ -400,6 +384,15 @@ function* redeclarations(checker: Checker, declaration: InterfaceDeclaration): A
 export interface PropertyReferences {
   readonly index: ReferenceIndex;
   readonly direct: ReferenceIndex;
+}
+
+/** What a world's files say before any join: each site with the declarations it resolves to, in walk order. */
+export interface PropertyFacts {
+  readonly credits: readonly { readonly site: Site; readonly keys: readonly string[] }[];
+  readonly links: readonly Link[];
+  readonly flows: readonly Flow[];
+  /** The {@link siteKey} of every written name. */
+  readonly written: ReadonlySet<string>;
 }
 
 /** Every property site of a world resolved to the property declarations it means. A spread, computed key, `for…in`
@@ -410,17 +403,22 @@ export function propertyIndex(world: NativeWorld): ReferenceIndex {
 
 /** {@link propertyIndex} beside the sites no link joined. */
 export function propertyReferences(world: NativeWorld): PropertyReferences {
+  return joinFacts([propertyFacts(world)]);
+}
+
+/** The unjoined facts of a world's files. */
+export function propertyFacts(world: NativeWorld): PropertyFacts {
   const lookups: Lookup[] = [];
   const extending: InterfaceDeclaration[] = [];
   const reflections: (Reflection & { readonly site: Site })[] = [];
   const indexed: { readonly member: Node; readonly owner: Node; readonly name: string }[] = [];
   const implementations: Signature[] = [];
-  const written = new Set<Site>();
+  const written = new Set<string>();
   const lookUp = (node: PropertyName): void => {
     const named = lookupsOf(world, node);
     lookups.push(...named);
     for (const lookup of isWrittenName(node) ? named : []) {
-      written.add(lookup.site);
+      written.add(siteKey(lookup.site));
     }
   };
   walk(world, (node) => {
@@ -461,31 +459,43 @@ export function propertyReferences(world: NativeWorld): PropertyReferences {
   );
   const overloaded = world.batch(implementations.flatMap(overloadPairs).map((pair) => overloadLinks(checker, pair)));
   const redeclared = world.batch(extending.map((declaration) => redeclarations(checker, declaration)));
-  const index = new Map<string, Site[]>();
+  const credits: { readonly site: Site; readonly keys: readonly string[] }[] = [];
   const links: Link[] = [...derived, ...overloaded.flat(), ...redeclared.flat()];
   const flows: Flow[] = [...handoffFlows(world)];
   for (const [at, lookup] of lookups.entries()) {
     const { symbols, own } = found[at] ?? { symbols: [], own: undefined };
-    for (const symbol of symbols) {
-      credit(index, symbol, lookup.site);
-    }
+    credits.push({ site: lookup.site, keys: keysOf(symbols) });
     if (own !== undefined) {
       // An uncontextual literal's key is its own declaration, and the write a later hand-off carries on.
-      credit(index, own, lookup.site);
+      credits.push({ site: lookup.site, keys: declarationKeys(own) });
       links.push({ from: declarationKeys(own), to: keysOf(symbols) });
     }
   }
   for (const [at, reflection] of reflections.entries()) {
     const { reads: symbols, links: spread, flows: carried } = reads[at] ?? { reads: [], links: [], flows: [] };
-    for (const symbol of symbols) {
-      credit(index, symbol, reflection.site);
-    }
+    credits.push({ site: reflection.site, keys: keysOf(symbols) });
     links.push(...spread);
     flows.push(...carried);
   }
-  const { down, up } = flowEdges(flows);
-  const isWrite = (site: Site): boolean => written.has(site);
-  const isOther = (site: Site): boolean => !written.has(site);
+  return { credits, links, flows, written };
+}
+
+/** The indexes the facts of several file sets make together, every link and flow joined once over all of them. */
+export function joinFacts(facts: readonly PropertyFacts[]): PropertyReferences {
+  const index = new Map<string, Site[]>();
+  const written = new Set<string>();
+  for (const part of facts) {
+    for (const { site, keys } of part.credits) {
+      credit(index, keys, site);
+    }
+    for (const key of part.written) {
+      written.add(key);
+    }
+  }
+  const links = facts.flatMap((part) => part.links);
+  const { down, up } = flowEdges(facts.flatMap((part) => part.flows));
+  const isWrite = (site: Site): boolean => written.has(siteKey(site));
+  const isOther = (site: Site): boolean => !isWrite(site);
   const joined = linked(index, links);
   return {
     index: withCarried(withCarried(joined, carriedAlong(joined, down, isWrite)), carriedAlong(joined, up, isOther)),
@@ -501,7 +511,7 @@ function linked(index: ReadonlyMap<string, readonly Site[]>, links: readonly Lin
       const known = sources.get(key) ?? new Set();
       sources.set(
         key,
-        from.reduce((all, source) => all.add(source), known),
+        from.reduce((held, source) => held.add(source), known),
       );
     }
   }
@@ -608,11 +618,11 @@ export function valueIndex(world: NativeWorld): ReferenceIndex {
   });
   const index = new Map<string, Site[]>();
   for (const [at, symbol] of world.symbolsAt(plain).entries()) {
-    credit(index, symbol, world.siteOf(plain[at] as Node));
+    credit(index, symbol === undefined ? [] : declarationKeys(symbol), world.siteOf(plain[at] as Node));
   }
   for (const [at, symbol] of world.shorthandValues(shorthand).entries()) {
     const assignment = shorthand[at] as Node & { readonly name: Node };
-    credit(index, symbol, world.siteOf(assignment.name));
+    credit(index, symbol === undefined ? [] : declarationKeys(symbol), world.siteOf(assignment.name));
   }
   return index;
 }

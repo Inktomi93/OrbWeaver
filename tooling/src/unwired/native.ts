@@ -4,7 +4,7 @@ import { relative } from "node:path";
 import type { Expression, Node, SourceFile } from "@typescript/native/ast";
 import { getTouchingPropertyName } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, LanguageService, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
-import { API, SymbolFlags } from "@typescript/native/sync";
+import { API, all, SymbolFlags } from "@typescript/native/sync";
 import type { Site } from "./classify.ts";
 import { bridgedConfigText } from "./worlds.ts";
 
@@ -21,12 +21,14 @@ const isWorldSource = (name: string): boolean => !(name.includes("/node_modules/
 
 type Request = APIRequestGenerator extends Generator<infer Yielded, unknown, unknown> ? Yielded : never;
 
-interface Pending<T> {
-  readonly generator: APIRequestGenerator<T>;
-  readonly at: number;
+interface Pending {
+  readonly generator: APIRequestGenerator;
+  readonly finish: (value: unknown) => void;
   readonly key: string;
   readonly request: Request;
 }
+
+const isAll = (request: Request): request is Extract<Request, { readonly method: "__all" }> => "method" in request && request.method === "__all";
 
 function* ask(request: Request): APIRequestGenerator<unknown> {
   return yield request;
@@ -96,35 +98,57 @@ export class NativeWorld implements Disposable {
   // later asks and same-round repeats share its answer. `API.batch` itself only deduplicates `initialize`.
   #settle<T>(generators: readonly APIRequestGenerator<T>[]): T[] {
     const results: T[] = [];
-    let waiting: Pending<T>[] = [];
-    const advance = (generator: APIRequestGenerator<T>, at: number, first: unknown): void => {
+    let waiting: Pending[] = [];
+    const run = (generator: APIRequestGenerator, finish: (value: unknown) => void, first: unknown): void => {
       let step = generator.next(first);
       while (step.done !== true) {
-        const key = JSON.stringify(step.value);
+        const request = step.value as Request;
+        if (isAll(request)) {
+          joined(request.generators as readonly APIRequestGenerator[], (answers) => run(generator, finish, answers));
+          return;
+        }
+        const key = JSON.stringify(request);
         if (!this.#answers.has(key)) {
-          waiting.push({ generator, at, key, request: step.value as Request });
+          waiting.push({ generator, finish, key, request });
           return;
         }
         step = generator.next(this.#answers.get(key));
       }
-      results[at] = step.value;
+      finish(step.value);
     };
-    for (const [at, generator] of generators.entries()) {
-      advance(generator, at, undefined);
-    }
+    const joined = (children: readonly APIRequestGenerator[], finish: (answers: readonly unknown[]) => void): void => {
+      const answers: unknown[] = [];
+      let left = children.length;
+      const landing =
+        (at: number) =>
+        (value: unknown): void => {
+          answers[at] = value;
+          left -= 1;
+          if (left === 0) {
+            finish(answers);
+          }
+        };
+      if (left === 0) {
+        finish(answers);
+      }
+      for (const [at, child] of children.entries()) {
+        run(child, landing(at), undefined);
+      }
+    };
+    joined(generators, (answers) => results.push(...(answers as T[])));
     while (waiting.length > 0) {
       const round = waiting;
       waiting = [];
-      const distinct = new Map(round.map(({ key, request }) => [key, request]));
-      for (const start of pageStarts(distinct.size)) {
-        const page = [...distinct].slice(start, start + BATCH);
+      const distinct = [...new Map(round.map(({ key, request }) => [key, request]))];
+      for (const start of pageStarts(distinct.length)) {
+        const page = distinct.slice(start, start + BATCH);
         const answers = this.#api.batch(...page.map(([, request]) => ask(request)));
         for (const [at, [key]] of page.entries()) {
           this.#answers.set(key, answers[at]);
         }
       }
-      for (const { generator, at, key } of round) {
-        advance(generator, at, this.#answers.get(key));
+      for (const { generator, finish, key } of round) {
+        run(generator, finish, this.#answers.get(key));
       }
     }
     return results;
@@ -182,20 +206,14 @@ export class NativeWorld implements Disposable {
 
   *#referencesOf(site: Site): APIRequestGenerator<Site[]> {
     const file = this.#sourceOf.get(site.file);
-    const found: Site[] = [];
     if (file === undefined) {
-      return found;
+      return [];
     }
     const node = getTouchingPropertyName(file, site.position);
-    for (const group of yield* this.#languageService.getReferencedSymbolsForNode.gen(node, site.position)) {
-      for (const handle of group.references.filter((candidate) => this.fileOf(candidate) !== null)) {
-        const reference = yield* handle.resolve.gen();
-        if (reference !== undefined) {
-          found.push(this.siteOf(reference));
-        }
-      }
-    }
-    return found;
+    const groups = yield* this.#languageService.getReferencedSymbolsForNode.gen(node, site.position);
+    const handles = groups.flatMap((group) => group.references.filter((candidate) => this.fileOf(candidate) !== null));
+    const references = yield* all(...handles.map((handle) => handle.resolve.gen()));
+    return references.flatMap((reference) => (reference === undefined ? [] : [this.siteOf(reference)]));
   }
 
   /** A node's site in one of the world's files. */
@@ -217,11 +235,7 @@ export function* constituents(type: Type): APIRequestGenerator<readonly Type[]> 
 /** The properties named `name` on `type`, one per union member when the type is a union. */
 export function* propertiesNamed(checker: Checker, type: Type, name: string): APIRequestGenerator<(NativeSymbol | undefined)[]> {
   const members = yield* constituents(type);
-  const found: (NativeSymbol | undefined)[] = [];
-  for (const member of members) {
-    found.push(yield* checker.getPropertyOfType.gen(member, name));
-  }
-  return found;
+  return yield* all(...members.map((member) => checker.getPropertyOfType.gen(member, name)));
 }
 
 /** The keys a symbol's declarations go by: one occurrence counts toward every declaration it resolves to. */

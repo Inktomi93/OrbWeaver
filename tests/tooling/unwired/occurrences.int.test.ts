@@ -47,6 +47,28 @@ test("a request repeated in one round or a later batch crosses to the compiler o
   sent.mockRestore();
 });
 
+test("the wider a type, the same number of compiler rounds", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const roundsFor = async (members: number): Promise<number> => {
+    const names = Array.from({ length: members }, (_, at) => `m${at}: string`).join("; ");
+    const root = await plantedTree({
+      [WORLD]: plantedTsconfig({ lib: LIB }),
+      "packages/a/src/wide.ts": [
+        `export interface Wide { ${names} }`,
+        `export interface Twin { ${names} }`,
+        "export const hand = (wide: Wide): Twin => wide;",
+        "export const spread = (wide: Wide): Twin => ({ ...wide });",
+      ].join("\n"),
+    });
+    using world = NativeWorld.open(root, WORLD);
+    const sent = vi.spyOn(API.prototype, "batch");
+    propertyIndex(world);
+    const rounds = sent.mock.calls.length;
+    sent.mockRestore();
+    return rounds;
+  };
+  expect(await roundsFor(40)).toBe(await roundsFor(4));
+});
+
 test("a site linked more than once lands in the index once", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(SPREADS);
   using world = NativeWorld.open(root, WORLD);
