@@ -21,8 +21,12 @@ export interface Cohort {
   readonly info?: readonly string[];
   /** Values that are a defect whatever the majority: column to the values. */
   readonly defects?: Readonly<Record<string, readonly string[]>>;
+  /** Per column: read straight off the syntax, or inferred from it. A column absent here is unlabelled. */
+  readonly basis?: Readonly<Record<string, ColumnBasis>>;
   readonly members: readonly Member[];
 }
+
+type ColumnBasis = "measured" | "heuristic";
 
 interface Outlier {
   readonly at: string;
@@ -44,6 +48,7 @@ export interface Comparison {
   /** Members holding a value the cohort names a defect, whatever the majority. */
   readonly defects: readonly Outlier[];
   readonly informational: boolean;
+  readonly basis: ColumnBasis | null;
 }
 
 export const NOT_APPLICABLE = "n/a";
@@ -85,6 +90,7 @@ function compareColumn(cohort: Cohort, column: string, informational = false): C
     outliers: informational ? [] : rows.filter((row) => row.cell.value !== top[0]).map(outlierOf),
     defects: rows.filter((row) => cohort.defects?.[column]?.includes(row.cell.value) === true).map(outlierOf),
     informational,
+    basis: cohort.basis?.[column] ?? null,
   };
 }
 

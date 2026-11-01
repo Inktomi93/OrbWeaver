@@ -9,8 +9,8 @@ import { expect, test } from "@orb/testkit/node";
 
 test.each([
   ["trailing punctuation", "Aria!!", "aria"],
-  ["leading punctuation and a stranded mark", "-́-Aria", "aria"],
-  ["a trailing mark stays", "का-", "का"],
+  ["leading punctuation and a stranded mark", "-\u0301-Aria", "aria"],
+  ["a trailing mark stays", "क\u093E-", "क\u093E"],
 ])("handle edges: %s", (_name, name, handle) => {
   expect(slugifyHandle(name)).toBe(handle);
 });
