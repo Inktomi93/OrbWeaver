@@ -1,5 +1,6 @@
 import { expect, plantDir, plantFile, test } from "@orb/testkit/tooling";
 import { analyse } from "../../../tooling/src/ui-facts/analysis.ts";
+import { skeletonCohortOf } from "../../../tooling/src/ui-facts/skeleton.ts";
 
 const FEATURE = "packages/client/src/features/probe";
 const UI_PACKAGE = JSON.stringify({ exports: { "./button": "./src/primitives/button/index.ts", "./layout": "./src/layout/index.ts" } });
@@ -119,6 +120,16 @@ test("a spread of object literals writes its axes, and a spread the syntax canno
   expect(resolved("size", "md")).toBe(1);
   expect(axis("variant")?.unresolved).toEqual({ "spread of a prop, parameter or import": 1 });
   expect(axis("size")?.unresolved).toEqual({ "spread of a prop, parameter or import": 1 });
+});
+
+test("the skeleton cohorts hold list panes and context bodies, not the transcript, the host or the wiring file", () => {
+  const feature = "packages/client/src/features";
+  expect(skeletonCohortOf(`${feature}/tag/surfaces/labels-list-surface.tsx`)).toBe("surface:list");
+  expect(skeletonCohortOf(`${feature}/chat/surfaces/message-list-surface.tsx`)).toBe("surface:other");
+  expect(skeletonCohortOf(`${feature}/regex/components/regex-context-body.tsx`)).toBe("context-tab");
+  expect(skeletonCohortOf(`${feature}/refinery/components/context-tabs.tsx`)).toBe("context-tab");
+  expect(skeletonCohortOf(`${feature}/app-shell/components/context-tabs-panel.tsx`)).toBeNull();
+  expect(skeletonCohortOf(`${feature}/refinery/components/refinery-context-tabs.tsx`)).toBeNull();
 });
 
 test("an autosave form that dismisses with Cancel is a defect, and a hook toast beside an inline error is a repeated failure", ({ scratch }) => {

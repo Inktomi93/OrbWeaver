@@ -51,11 +51,11 @@ function BookAttachmentsBody({ bookId }: BookAttachmentsProps): ReactElement {
     ],
   });
   return (
-    <Stack gap="section" padding="block">
+    <>
       <GlobalSection bookId={bookId} isGlobal={globalBooks.some((book) => book.id === bookId)} />
       <PersonasSection bookId={bookId} attachments={attachments} personas={personas} />
       <CharactersSection bookId={bookId} attachments={attachments} attachedCount={usage.find((book) => book.id === bookId)?.usage.characters ?? 0} />
-    </Stack>
+    </>
   );
 }
 

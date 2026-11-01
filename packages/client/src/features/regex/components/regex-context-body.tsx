@@ -39,7 +39,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { RegexScopeOrder, SettingSwitchRow } from "#components";
+import { ContextTabBody, RegexScopeOrder, SettingSwitchRow } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { deriveChatTitle, regexScriptTitle, rowQualifiers, timeLib } from "#lib";
 import { useAttachRegexGlobal, useDetachRegexGlobal } from "../hooks/use-regex-library.ts";
@@ -98,9 +98,7 @@ function RegexScopePanel({
   };
 
   return (
-    // `padding="block"` — the same inset its sibling arm (`BookAttachments`) uses, so one context slot has
-    // one edge.
-    <Stack data-slot="regex-context-body" gap="block" padding="block">
+    <ContextTabBody data-slot="regex-context-body">
       {/* THE HOUSE SWITCH ROW, NOT A HAND-ROLL: a hand-rolled row in the same orientation is mechanism
           drift, which is how two rows end up disagreeing later. The shared row gives three things: the label is a real `Field.Label`, so clicking the words
           toggles the switch; the gloss becomes the `description`, which is `aria-describedby`-wired and
@@ -149,7 +147,7 @@ function RegexScopePanel({
           </Stack>
         </Section>
       ) : null}
-    </Stack>
+    </ContextTabBody>
   );
 }
 

@@ -8,6 +8,7 @@
 import { EmptyState } from "@orb/ui/empty-state";
 import { BookOpen, Icon } from "@orb/ui/icons";
 import type { ReactElement } from "react";
+import { ContextTabBody } from "#components";
 import { useSuspenseQuery, useTRPC } from "#data";
 import { BookAttachments } from "./book-attachments.tsx";
 
@@ -26,5 +27,9 @@ export function WorldInfoContextBody({ memberId }: { readonly memberId: string }
       />
     );
   }
-  return <BookAttachments bookId={book.id} />;
+  return (
+    <ContextTabBody>
+      <BookAttachments bookId={book.id} />
+    </ContextTabBody>
+  );
 }
