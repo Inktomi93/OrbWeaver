@@ -2,7 +2,7 @@
 // control the scan must leave alone. The kit ids module is a stub at the real path; the scan reads brands from the checker.
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { scanBrandFlow } from "../../../tooling/src/brand-flow/index.ts";
-import { LIB, WORLD } from "../unwired/_planted.ts";
+import { JSX_NAMESPACE, LIB, WORLD } from "../unwired/_planted.ts";
 
 const IDS = [
   "declare const brand: unique symbol;",
@@ -143,4 +143,99 @@ test("the brand-flow scan reports each class with its slot, and leaves the contr
     ]),
   );
   expect(report.scanned.doubleCounted).toBe(0);
+});
+
+// A zod-like input shape in a contract: its `typeIdSchema` field takes `string` on the input side by design, its
+// `z.string()` field is a real plain slot, and an array element has no declaration the scan can read.
+const CONTRACT = [
+  'import { typeIdSchema } from "../../kit/src/ids/index.ts";',
+  "declare const z: { readonly string: () => string };",
+  'const chatId = typeIdSchema("chat");',
+  "export const shape = { chatId, note: z.string() };",
+  "export type Input = { [K in keyof typeof shape]: string };",
+].join("\n");
+
+const WIRE_USE = [
+  'import type { Input } from "../../contracts/src/inputs.ts";',
+  'import type { ChatId } from "../../kit/src/ids/index.ts";',
+  "export function send(value: Input): Input {",
+  "  return value;",
+  "}",
+  "export function call(chat: ChatId): Input {",
+  "  return send({ chatId: chat, note: chat });",
+  "}",
+  "export function listed(chat: ChatId): string[] {",
+  "  return [chat];",
+  "}",
+  'import type { Service } from "./contract/service.ts";',
+  "export function open(service: Service, chat: ChatId): void {",
+  "  service.open(chat);",
+  "}",
+].join("\n");
+
+// A module's own contract directory is a contract layer whatever the package.
+const SERVICE = "export interface Service {\n  readonly open: (id: string) => void;\n}";
+
+// A kind, status and role field typed string, set, tested and switched on with literals; a field typed as a literal union
+// is no candidate.
+const JOBS = [
+  "export interface Job {",
+  "  readonly status: string;",
+  "  readonly kind: string;",
+  '  readonly role: "a" | "b";',
+  "}",
+  'export const queued: Job = { status: "queued", kind: "build", role: "a" };',
+  "export function finished(job: Job): number {",
+  '  return job.status === "done" ? 1 : 0;',
+  "}",
+  "export function failed(job: Job): void {",
+  "  switch (job.status) {",
+  '    case "failed":',
+  "      break;",
+  "    default:",
+  "      break;",
+  "  }",
+  "}",
+].join("\n");
+
+// A component prop takes a brand as a string, and its React `key` is a cache key the scan leaves alone.
+const ROW = [
+  'import type { ChatId } from "../../kit/src/ids/index.ts";',
+  "declare function Row(props: { readonly seed: string }): JSX.Element;",
+  "export function view(chat: ChatId): JSX.Element {",
+  "  return <Row key={chat} seed={chat} />;",
+  "}",
+].join("\n");
+
+const WIRE_TREE = {
+  [WORLD]: plantedTsconfig({ lib: LIB, jsx: "preserve", include: ["src", "../kit/src", "../contracts/src"] }),
+  "packages/a/src/jsx.d.ts": JSX_NAMESPACE,
+  "packages/a/src/row.tsx": ROW,
+  "packages/kit/src/ids/index.ts": IDS,
+  "packages/contracts/src/inputs.ts": CONTRACT,
+  "packages/a/src/wire-use.ts": WIRE_USE,
+  "packages/a/src/jobs.ts": JOBS,
+  "packages/a/src/contract/service.ts": SERVICE,
+};
+
+test("a brand handed to a brand schema field is no contract defect, and a closed vocabulary lists its values", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const root = await plantedTree(WIRE_TREE);
+  const report = scanBrandFlow({ root, worlds: [WORLD], log: () => undefined });
+  const use = report.widens.filter(({ file }) => file === "packages/a/src/wire-use.ts");
+  expect(use.map(({ slot, layer }) => ({ slot: slot.name, declared: slot.declared, layer }))).toEqual(
+    expect.arrayContaining([
+      { slot: "{…}.chatId", declared: "brand-schema", layer: "schema-input" },
+      { slot: "{…}.note", declared: "plain", layer: "contract" },
+      { slot: "[…] element", declared: "unknown", layer: "unknown" },
+      { slot: "open(id)", declared: "plain", layer: "contract" },
+    ]),
+  );
+  expect(report.widens.filter(({ file }) => file === "packages/a/src/row.tsx").map(({ slot }) => slot.name)).toEqual(["<Row seed>"]);
+  const jobs = report.vocabularies.filter(({ file }) => file === "packages/a/src/jobs.ts");
+  expect(jobs.map(({ name, values, assigned, compared, cased }) => ({ name, values, assigned, compared, cased }))).toEqual([
+    { name: "status", values: ["done", "failed", "queued"], assigned: 1, compared: 1, cased: 1 },
+    { name: "kind", values: ["build"], assigned: 1, compared: 0, cased: 0 },
+  ]);
 });

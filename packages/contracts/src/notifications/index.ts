@@ -342,7 +342,7 @@ export interface PresenceView {
 }
 
 /** Which half of the caller's inbox `notifications.list` pages. */
-export const INBOX_STATES = ["active", "dismissed"] as const;
+const INBOX_STATES = ["active", "dismissed"] as const;
 export type InboxState = (typeof INBOX_STATES)[number];
 
 /** Newest-first rows of one {@link InboxState}. */

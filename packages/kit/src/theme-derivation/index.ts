@@ -278,26 +278,59 @@ export function compositeSrgb(top: Rgb, alpha: number, under: Rgb): Rgb {
   };
 }
 
+/** A re-derived prose ink: the lightness, and the chroma where the author's own could not clear its hosts. */
+export interface ProseInkCorrection {
+  readonly l: number;
+  readonly c: number;
+}
+
+const PROSE_CHROMA_STEP = 0.01;
+
+// A chromatic candidate must carry the derivation margin the browser's gamut mapping spends; a neutral one may settle for what its end point reaches.
+function proseInkAim(endpoint: number, neutral: boolean): number {
+  return neutral ? Math.max(AA_NORMAL_RATIO, Math.min(AA_NORMAL_DERIVATION_RATIO, endpoint)) : AA_NORMAL_DERIVATION_RATIO;
+}
+
 /**
  * The #204 §7a prose-ink clamp decision — for the four AUTHOR-PICKED transcript inks
  * (`speaker`/`dialogueColor`/`narrationColor`/`bodyColor`), the only inks exempt from the house
- * "a foreground is never picked, only derived" law. Judged against the theme's own BASE surface
- * (post-#204 every reading plate derives from that one base, so base-legibility is plate-legibility):
- *   • `null`  — the authored ink already clears AA against the base: keep it BYTE-IDENTICAL
+ * "a foreground is never picked, only derived" law. Judged against the surfaces it is read on, at the worse of the float colour and the 8-bit pixel:
+ *   • `null`  — the authored ink already clears AA on every host: keep it BYTE-IDENTICAL
  *     (the no-op-where-the-card-was-sensible guarantee; the dark-art rooms do not move a pixel);
- *   • a number — the ink fails AA there: the LIGHTNESS to re-derive it at, keeping the author's hue and
- *     chroma and using the same measured polarity/render-target solver as every derived foreground.
+ *   • a correction — the ink fails AA there: the least move from the author's lightness toward the polarity's end
+ *     point that clears them, keeping the author's hue and chroma where it can.
  * `inkAlpha < 1` composites the ink over the base first — a naive ratio on a translucent ink lies. (The
  * comparison stays INSIDE the backticks: tsdoc reads a bare `<` followed by a space as a malformed HTML
  * element and the eslint tsdoc/syntax rule reds the file.)
+ *
+ * `hosts` are the surfaces the ink is read on, the base alone unless a carried palette names its reading hosts
+ * ({@link carriedReadingHosts}), so a pick that clears its page moves only as far as those hosts need. Near the crossover
+ * chroma itself spends more luminance than any lightness returns, so only there the chroma steps down: on a mid-grey page
+ * the hue gives way before the reading floor does (D202). A solved lightness also keeps the chroma inside sRGB, because
+ * clipping there moves the hue.
  */
-export function proseInkLightness(ink: Oklch, inkAlpha: number, base: Oklch): number | null {
-  const baseRgb = oklchToSrgb(base);
-  const inkRgb = inkAlpha < 1 ? compositeSrgb(oklchToSrgb(ink), inkAlpha, baseRgb) : oklchToSrgb(ink);
-  if (wcagContrastRatio(inkRgb, baseRgb) >= AA_NORMAL_RATIO) {
+export function proseInkCorrection(ink: Oklch, inkAlpha: number, base: Oklch, hosts: readonly Oklch[] = [base]): ProseInkCorrection | null {
+  const grounds = hosts.map((host) => oklchToSrgb(host));
+  const authored = oklchToSrgb(ink);
+  const clearsAuthored = (ground: Rgb): boolean =>
+    worstTextContrast(inkAlpha < 1 ? compositeSrgb(authored, inkAlpha, ground) : authored, [ground]) >= AA_NORMAL_RATIO;
+  if (grounds.every(clearsAuthored)) {
     return null;
   }
-  return derivedForegroundLightness(base);
+  const direction = surfacePolarity(base) === "light" ? -1 : 1;
+  const steps = Math.ceil(ink.c / PROSE_CHROMA_STEP);
+  for (let step = 0; step <= steps; step += 1) {
+    const c = step === 0 ? ink.c : Number(Math.max(0, ink.c - step * PROSE_CHROMA_STEP).toFixed(FOREGROUND_L_DECIMALS));
+    const contrast = (lightness: number): number => worstTextContrast(oklchToSrgb({ l: lightness, c: gamutChroma(lightness, c, ink.h), h: ink.h }), grounds);
+    const aim = proseInkAim(contrast(direction > 0 ? 1 : 0), step === steps);
+    const l = nearestClearingLightness(ink.l, direction, (candidate) => contrast(candidate) >= aim);
+    if (l !== null) {
+      const painted = gamutChroma(l, c, ink.h);
+      return { l: Number(l.toFixed(FOREGROUND_L_DECIMALS)), c: painted === c ? c : Math.floor(painted / FOREGROUND_L_STEP) / (1 / FOREGROUND_L_STEP) };
+    }
+  }
+  // Hosts on both sides of the crossover admit no one ink, so a pick that holds its base keeps it.
+  return clearsAuthored(oklchToSrgb(base)) ? null : { l: derivedForegroundLightness(base), c: 0 };
 }
 
 const SURFACE_POLARITIES = ["dark", "light"] as const;
@@ -391,8 +424,8 @@ export function derivedForegroundLightness(surface: Oklch): number {
   return neutralInkLightness(polarity, [surfaceRgb], initial, neutralInkTarget(polarity, surfaceRgb));
 }
 
-/** A shared foreground for a documented family of nearby hosts (background/card/raised). */
-export function derivedForegroundLightnessForSurfaces(surfaces: readonly Oklch[]): number {
+/** A shared foreground for a documented family of nearby hosts (background/card/raised), and any composited fills that ink also sits on. */
+export function derivedForegroundLightnessForSurfaces(surfaces: readonly Oklch[], composited: readonly Rgb[] = []): number {
   const anchor = surfaces[0];
   if (anchor === undefined) {
     throw new Error("foreground requires at least one surface");
@@ -400,12 +433,7 @@ export function derivedForegroundLightnessForSurfaces(surfaces: readonly Oklch[]
   const polarity = surfacePolarity(anchor);
   const initial = polarity === "light" ? THEME_DERIVATION.fgLMin : THEME_DERIVATION.fgLMax;
   const anchorRgb = oklchToSrgb(anchor);
-  return neutralInkLightness(
-    polarity,
-    surfaces.map((surface) => oklchToSrgb(surface)),
-    initial,
-    neutralInkTarget(polarity, anchorRgb),
-  );
+  return neutralInkLightness(polarity, [...surfaces.map((surface) => oklchToSrgb(surface)), ...composited], initial, neutralInkTarget(polarity, anchorRgb));
 }
 
 /** One neutral ramp surface: the base with only L shifted (hue + chroma held), as the clamp emits. */
@@ -415,30 +443,29 @@ export function rampSurface(base: Oklch, deltaL: number): Oklch {
 
 export interface MutedForegroundPair {
   readonly lightness: number;
-  readonly inputAlpha: number;
+  /** The lightness the input fill washes at {@link THEME_DERIVATION}'s `inputAlpha`. */
+  readonly inputWash: number;
 }
 
-/** The shared low-emphasis ink plus the translucent input alpha it must clear. The authored base stays
- * fixed; derived ramp projection happens upstream, and only the fill alpha steps toward transparent when
- * its legacy 0.12 would pull an input below the anchor's attainable render target. */
+/** The shared low-emphasis ink plus the input wash it must clear. The wash lifts toward the ink, the way every
+ * seed spells it; where that lift would pull an input below the anchor's attainable render target it runs the
+ * other way, at the same alpha, so the fill stays visible and only gains contrast against the ink. */
 export function derivedMutedForegroundPair(base: Oklch, opaqueSurfaces: readonly Oklch[], inputBackings: readonly Oklch[]): MutedForegroundPair {
   const polarity = surfacePolarity(base);
   const initial = polarity === "light" ? THEME_DERIVATION.mutedLMin : THEME_DERIVATION.mutedLMax;
   const target = neutralInkTarget(polarity, oklchToSrgb(base));
-  const alphaSteps = Math.round(THEME_DERIVATION.inputAlpha / FOREGROUND_L_STEP);
-  const inputInk = oklchToSrgb({ l: derivedForegroundLightness(base), c: 0, h: base.h });
-  for (let step = alphaSteps; step >= 0; step -= 1) {
-    const inputAlpha = Number((step * FOREGROUND_L_STEP).toFixed(FOREGROUND_L_DECIMALS));
-    const surfaces = [
-      ...opaqueSurfaces.map((surface) => oklchToSrgb(surface)),
-      ...inputBackings.map((backing) => compositeSrgb(inputInk, inputAlpha, oklchToSrgb(backing))),
-    ];
-    const lightness = tryNeutralInkLightness(polarity, surfaces, initial, target);
-    if (lightness !== null) {
-      return { lightness, inputAlpha };
-    }
+  const opaque = opaqueSurfaces.map((surface) => oklchToSrgb(surface));
+  const solve = (inputWash: number): MutedForegroundPair | null => {
+    const wash = oklchToSrgb({ l: inputWash, c: 0, h: base.h });
+    const fills = inputBackings.map((backing) => compositeSrgb(wash, THEME_DERIVATION.inputAlpha, oklchToSrgb(backing)));
+    const lightness = tryNeutralInkLightness(polarity, [...opaque, ...fills], initial, target);
+    return lightness === null ? null : { lightness, inputWash };
+  };
+  const pair = solve(derivedForegroundLightness(base)) ?? solve(polarity === "light" ? 1 : 0);
+  if (pair === null) {
+    throw new Error("unable to derive a contrast-safe muted/input pair");
   }
-  throw new Error("unable to derive a contrast-safe muted/input pair");
+  return pair;
 }
 
 /** The sRGB grey whose WCAG relative luminance is `target` — the inverse of {@link relativeLuminance} for a
@@ -475,7 +502,7 @@ const PLATE_ALPHA_STEPS = Math.round((1 - THEME_DERIVATION.readingPlate.alpha) /
  * done-bar room read narration 3.48:1 / dialogue 4.09:1 over the bright wallpaper regions and 4.94/5.39
  * over the dark ones — the same ink, the same alpha, the scroll position deciding the verdict.
  *
- * THE REFERENCE INK, and why it is not AA itself. The §7a clamp (`proseInkLightness`) guarantees an ink
+ * THE REFERENCE INK, and why it is not AA itself. The §7a clamp (`proseInkCorrection`) guarantees an ink
  * clears AA_NORMAL against the BASE. That floor is unreachable on the plate at ANY alpha: the plate is
  * `deltaL` darker than the base, so even at α = 1 an ink sitting exactly on 4.5 vs the base measures
  * ~4.1 vs the plate — preserving the base guarantee would need `deltaL` to move to 0, i.e. the plate to
@@ -632,7 +659,7 @@ export function shadowIngredients(base: Oklch): ShadowIngredients {
 
 /** The eight neutral-surface lightness deltas one picked base derives its chrome from — the ramp. */
 export interface RampDeltas {
-  /** The rail: the one member that RECEDES on both polarities. */
+  /** The rail: the one member that RECEDES on both arms, and rises on a mirrored ramp, where every member flips. */
   readonly sidebar: number;
   /** The elevation-ramp mid panel (`shell-grid[data-elevation=ramp]`). */
   readonly surfaceRaised: number;
@@ -672,7 +699,7 @@ export interface RampDeltas {
  * black/white endpoint clears it. Accent and sidebar-accent are exempt because each owns a dedicated
  * surface foreground, with one D336 exception: accent shares its ink with muted (the neutral tone's two tints), so
  * where that family has no ink the accent delta retracts toward the base ({@link accentFamilyDelta}). The
- * authored base is never projected; the three seeds never trigger the retraction; and every semantic
+ * authored base is never projected; and every semantic
  * foreground therefore has a clearing endpoint without an importer-only refusal band.
  *
  * Foregrounds are solved separately against each ramp member; ramp direction therefore never narrows the
@@ -717,11 +744,9 @@ function accentFamilyDelta(base: Oklch, desired: number, muted: number): number 
   return 0;
 }
 
-export function rampDeltas(base: Oklch): RampDeltas {
-  const polarity = surfacePolarity(base);
-  const arm = polarity === "light" ? THEME_DERIVATION.ramp.light : THEME_DERIVATION.ramp.dark;
+function projectedRamp(base: Oklch, arm: RampDeltas, polarity: SurfacePolarity): RampDeltas {
   const muted = contrastSafeRampDelta(base, arm.muted, polarity);
-  const projected: RampDeltas = {
+  return {
     sidebar: contrastSafeRampDelta(base, arm.sidebar, polarity),
     surfaceRaised: contrastSafeRampDelta(base, arm.surfaceRaised, polarity),
     card: contrastSafeRampDelta(base, arm.card, polarity),
@@ -732,7 +757,34 @@ export function rampDeltas(base: Oklch): RampDeltas {
     secondary: contrastSafeRampDelta(base, arm.secondary, polarity),
     muted,
   };
-  return Object.entries(projected).every(([role, delta]) => delta === arm[role as keyof RampDeltas]) ? arm : projected;
+}
+
+/** How much lightness a projection took back from its arm: what a ramp loses of the steps that tell its members apart. */
+function rampRetraction(arm: RampDeltas, projected: RampDeltas): number {
+  return Object.entries(projected).reduce((lost, [role, delta]) => lost + Math.abs(arm[role as keyof RampDeltas] - delta), 0);
+}
+
+function mirroredArm(arm: RampDeltas): RampDeltas {
+  return Object.fromEntries(Object.entries(arm).map(([role, delta]) => [role, -delta])) as unknown as RampDeltas;
+}
+
+/**
+ * Both arms step toward the black/white crossover, so a base near it has no room on its arm's side: projection flattens
+ * the members into one value there, and hover and selection stop reading. The room is on the far side, where the
+ * polarity's ink only gains contrast, so a base whose arm does not fit takes the arm mirrored whenever that keeps more of
+ * the ramp. An arm that fits is returned as authored.
+ */
+export function rampDeltas(base: Oklch): RampDeltas {
+  const polarity = surfacePolarity(base);
+  const arm = polarity === "light" ? THEME_DERIVATION.ramp.light : THEME_DERIVATION.ramp.dark;
+  const projected = projectedRamp(base, arm, polarity);
+  const lost = rampRetraction(arm, projected);
+  if (lost === 0) {
+    return arm;
+  }
+  const mirror = mirroredArm(arm);
+  const mirrored = projectedRamp(base, mirror, polarity);
+  return rampRetraction(mirror, mirrored) < lost ? mirrored : projected;
 }
 
 export type ChartRamp = readonly [Oklch, Oklch, Oklch, Oklch, Oklch];
@@ -886,7 +938,7 @@ export type AccentFill = { readonly kind: "clears" } | { readonly kind: "correct
  * THE ACCENT FILL'S LIGHTNESS for a carried base — the §7a ink clamp's shape, applied to the one PICKED
  * token that paints a GRAPHIC rather than an ink (#692). `clears` ⇒ the accent already clears against the
  * card it is painted on, so the caller passes it through (the no-op-where-the-pick-was-sensible guarantee
- * `proseInkLightness` states); `corrected` ⇒ the fill re-derived at a new lightness, keeping the author's hue
+ * `proseInkCorrection` states); `corrected` ⇒ the fill re-derived at a new lightness, keeping the author's hue
  * and chroma as far as the sRGB gamut allows.
  *
  * THE MOTIVATING MEASUREMENT (#692, and it is not a light-arm ramp defect): `--color-primary` is never
@@ -900,31 +952,36 @@ export type AccentFill = { readonly kind: "clears" } | { readonly kind: "correct
  *
  * THE SURFACE IS THE CARD, not the base: every low-emphasis graphic this protects (the arc meter's value
  * arc, a ring gauge's fill, a track bar) is painted on a panel, and the card is the ramp member panels
- * take. The floor is {@link AA_NON_TEXT_RATIO} (3:1) because a fill IS a non-text graphical object.
+ * take. The floor is {@link AA_NON_TEXT_RATIO} (3:1) because a fill IS a non-text graphical object. The neutral tint-active
+ * is judged too, because a glyph paints the fill on the tone's tints.
  *
- * THE FIRST DIRECTION IS THE CARD'S measured polarity: on a light card the accent goes DARKER first; on a dark
+ * THE DIRECTION IS THE CARD'S measured polarity: on a light card the accent goes DARKER; on a dark
  * card, lighter. The search walks `ACCENT_L_STEP` at a time
  * and stops at the FIRST clearing lightness — the smallest move that buys legibility, so an author's pick
  * is nudged rather than replaced. A translucent accent is composited over the card before judging (a naive
- * ratio on a translucent fill lies, `proseInkLightness`'s own trap) and the caller re-emits it OPAQUE.
+ * ratio on a translucent fill lies, `proseInkCorrection`'s own trap) and the caller re-emits it OPAQUE.
  *
- * The walk tries both directions a step at a time, the card's own direction first, and returns the nearest
- * clearing lightness. The corrected fill is the opaque sRGB pixel at that lightness, so the caller paints exactly
+ * The walk takes the page ink's side first and the other only if that side holds no fill: a fill on the ink's side leaves
+ * the tone's tints the page's side, where the same ink reads on them, so the nearest lightness overall is not the answer. The corrected fill is the opaque sRGB pixel at that lightness, so the caller paints exactly
  * the colour this judged: an out-of-gamut chroma never reaches the CSS.
  *
  * `none` means NO lightness in `[fgLMin, fgLMax]` clears — a card that cannot carry this hue at all. Failing open
  * to the authored accent is the pre-#692 behaviour, and inventing a colour is what this file exists not to do.
  */
 export function accentFillLightness(accent: Oklch, accentAlpha: number, base: Oklch): AccentFill {
-  const card = oklchToSrgb(rampSurface(base, rampDeltas(base).card));
+  const deltas = rampDeltas(base);
+  const card = oklchToSrgb(rampSurface(base, deltas.card));
+  // The neutral tint-active stands in for the tone's own tints, which sit a separation off every host: a glyph paints the fill on them.
+  const tint = oklchToSrgb(rampSurface(base, deltas.accent));
+  const clears = (fill: Rgb): boolean => Math.min(fillVsCardRatio(fill, card), fillVsCardRatio(fill, tint)) >= AA_NON_TEXT_RATIO;
   const opaque = oklchToSrgb(accent);
-  if (fillVsCardRatio(accentAlpha < 1 ? compositeSrgb(opaque, accentAlpha, card) : opaque, card) >= AA_NON_TEXT_RATIO) {
+  if (clears(accentAlpha < 1 ? compositeSrgb(opaque, accentAlpha, card) : opaque)) {
     return { kind: "clears" };
   }
   const first = surfacePolarity(base) === "light" ? -1 : 1;
   const maxSteps = Math.round(Math.max(accent.l - THEME_DERIVATION.fgLMin, THEME_DERIVATION.fgLMax - accent.l) / ACCENT_L_STEP);
-  for (let step = 1; step <= maxSteps; step += 1) {
-    for (const sign of [first, -first]) {
+  for (const sign of [first, -first]) {
+    for (let step = 1; step <= maxSteps; step += 1) {
       // Re-round: accent.l + n×0.001 accumulates binary-float dust that would reach the CSS literal.
       const l = Math.round((accent.l + sign * step * ACCENT_L_STEP) / ACCENT_L_STEP) * ACCENT_L_STEP;
       if (l < THEME_DERIVATION.fgLMin || l > THEME_DERIVATION.fgLMax) {
@@ -932,8 +989,8 @@ export function accentFillLightness(accent: Oklch, accentAlpha: number, base: Ok
       }
       // Judged OPAQUE at the re-derived lightness: the caller emits it opaque for the same reason the ink
       // clamp does — a minimal alpha sits on the boundary and re-judging it is a fixed point that never passes.
-      const pixel = oklchToSrgb({ l, c: accent.c, h: accent.h });
-      if (fillVsCardRatio(pixel, card) >= AA_NON_TEXT_RATIO) {
+      const pixel = oklchToSrgb(onHue(l, accent.c, accent.h));
+      if (clears(pixel)) {
         return { kind: "corrected", fill: srgbToOklch(pixel) };
       }
     }
@@ -1109,31 +1166,36 @@ export function tonePaletteOn(palette: TonePalette<CarriedToneHost>, host: ToneH
     : { ...palette, host: palette.hosts[host], hostInks: { foreground: ink } };
 }
 
-/** A carried palette's low-emphasis ink and the input-fill alpha it clears, judged over the hosts that ink is painted on. */
+/** The panels a form control sits on, each of which the input wash composites over. */
+function fieldPanels(base: Oklch, deltas: RampDeltas): readonly Oklch[] {
+  return [base, rampSurface(base, deltas.surfaceRaised), rampSurface(base, deltas.card), rampSurface(base, deltas.popover), rampSurface(base, deltas.sidebar)];
+}
+
+/** A carried palette's low-emphasis ink and the input wash it clears, judged over the hosts that ink is painted on. */
 function carriedMutedForegroundPair(base: Oklch): MutedForegroundPair {
   const deltas = rampDeltas(base);
-  const card = rampSurface(base, deltas.card);
-  const popover = rampSurface(base, deltas.popover);
-  const hosts = [
-    base,
-    card,
-    popover,
-    rampSurface(base, deltas.sidebar),
-    rampSurface(base, deltas.secondary),
-    rampSurface(base, deltas.muted),
-    rampSurface(base, deltas.accent),
-  ];
-  return derivedMutedForegroundPair(base, hosts, [base, card, popover]);
+  const panels = fieldPanels(base, deltas);
+  const hosts = [...panels, rampSurface(base, deltas.secondary), rampSurface(base, deltas.muted), rampSurface(base, deltas.accent)];
+  return derivedMutedForegroundPair(base, hosts, panels);
 }
 
 function opaquePixel(color: Oklch): Oklch {
   return srgbToOklch(oklchToSrgb(color));
 }
 
-/** The shared ink of the background, raised and card host family. */
-function carriedForegroundLightness(base: Oklch): number {
+/**
+ * The shared ink of the background, raised and card host family, of a field's value on the input wash over each panel,
+ * and of a row that keeps this ink on a neutral tint. A carried palette has no call-site sweep to lean on, and `rampDeltas`
+ * holds both tints where the polarity's end point clears them.
+ */
+function carriedForegroundLightness(base: Oklch, inputWash: number): number {
   const deltas = rampDeltas(base);
-  return derivedForegroundLightnessForSurfaces([base, rampSurface(base, deltas.surfaceRaised), rampSurface(base, deltas.card)]);
+  const wash = oklchToSrgb({ l: inputWash, c: 0, h: base.h });
+  const fields = fieldPanels(base, deltas).map((panel) => compositeSrgb(wash, THEME_DERIVATION.inputAlpha, oklchToSrgb(panel)));
+  return derivedForegroundLightnessForSurfaces(
+    [base, rampSurface(base, deltas.surfaceRaised), rampSurface(base, deltas.card), rampSurface(base, deltas.accent), rampSurface(base, deltas.muted)],
+    fields,
+  );
 }
 
 /** The accent ink covers the accent and muted host family: it is the neutral tone's text on both of its tints (D336). */
@@ -1170,6 +1232,12 @@ export function familyForegroundLightness(family: readonly Oklch[]): number | nu
   return null;
 }
 
+/** The surfaces a carried palette's prose is read on: the page, a card, and the fill each message bubble paints. */
+export function carriedReadingHosts(base: Oklch): readonly Oklch[] {
+  const { user, ai, system } = bubbleFills(base);
+  return [base, rampSurface(base, rampDeltas(base).card), bubbleFillColor(base, user), bubbleFillColor(base, ai), bubbleFillColor(base, system)];
+}
+
 /** The neutral inks a carried base solves: each is a search, so a caller solves them once and hands them to every derivation. */
 export interface CarriedInks {
   /** The page ink over the background, raised and card family. */
@@ -1180,7 +1248,8 @@ export interface CarriedInks {
 }
 
 export function carriedInks(base: Oklch): CarriedInks {
-  return { foreground: carriedForegroundLightness(base), accentForeground: carriedAccentInkLightness(base), muted: carriedMutedForegroundPair(base) };
+  const muted = carriedMutedForegroundPair(base);
+  return { foreground: carriedForegroundLightness(base, muted.inputWash), accentForeground: carriedAccentInkLightness(base), muted };
 }
 
 /** The painted pixels of a carried base's ramp hosts, the palette its tone roles resolve against; `inks` are {@link carriedInks} of the base. */
@@ -1419,7 +1488,7 @@ export function toneRoleColors<Role extends string, Knob extends string, Host ex
 }
 
 /** The WCAG ratio a role pair paints: the worse of the float colour and the 8-bit framebuffer pixel. */
-function toneContrast(ink: Oklch, surface: Oklch): number {
+export function toneContrast(ink: Oklch, surface: Oklch): number {
   return worstTextContrast(oklchToSrgb(ink), [oklchToSrgb(surface)]);
 }
 
@@ -1641,6 +1710,14 @@ export const TONE_HUE_ADJACENT_DEGREES = 45;
 // About one 8-bit step in OKLab at the mid lightnesses where tints sit: what quantizing two tints can spend of their separation.
 const TINT_PIXEL_HEADROOM = 0.004;
 
+// How far past the nearest ink-clearing tint a search looks for the solid's floor: a tint this far off is no longer the tone's tint, and an unreachable floor must not walk the whole range.
+const TINT_MARK_SEARCH_STEPS = 1000;
+// Every clamp render pays this search on a palette whose floor is out of reach, so it samples rather than walks. Odd, because the walk alternates sides.
+const TINT_MARK_SEARCH_STRIDE = 3;
+
+// A browser can round a pixel one level off the solve's own 8-bit reading, so a tint landing on the separation can paint just under it.
+const TINT_ROUNDING_MARGIN = 0.001;
+
 /**
  * The least chroma a tint keeps where its tone and the gamut allow: two tints at this chroma, one lightness and the
  * adjacency bound apart in hue sit {@link TONE_TINT_SEPARATION} apart after quantization, so non-adjacent tints never merge.
@@ -1725,7 +1802,8 @@ function bubbleFillColor(base: Oklch, { delta, neutral }: BubbleFill): Oklch {
 
 /**
  * The fill a ramp member keeps as a bubble: its own when it paints {@link BUBBLE_PAGE_SEPARATION} off the page, else the
- * nearest offset that does, on the member's side of the page first and then the other, and then neutral.
+ * nearest offset that does, on the polarity's side of the page first, where the page's prose ink only gains contrast, and
+ * then the other, and then neutral.
  */
 function bubbleFillApart(base: Oklch, host: BubbleHost, rampDelta: number): BubbleFill {
   const page = opaquePixel(base);
@@ -1736,7 +1814,7 @@ function bubbleFillApart(base: Oklch, host: BubbleHost, rampDelta: number): Bubb
     if (apart(own)) {
       return own;
     }
-    for (const side of rampDelta < 0 ? [-1, 1] : [1, -1]) {
+    for (const side of surfacePolarity(base) === "light" ? [1, -1] : [-1, 1]) {
       for (let step = 1; step <= steps; step += 1) {
         const fill = { delta: side * step * BUBBLE_DELTA_STEP, neutral };
         if (apart(fill)) {
@@ -1758,6 +1836,12 @@ export function bubbleFills(base: Oklch): BubbleFills {
   };
 }
 
+/** A picked bubble fill's inset step, which inline code paints on, and the one ink that covers the fill and that step. */
+export function bubbleInset(fill: Oklch): { readonly muted: Oklch; readonly foreground: number } {
+  const muted = rampSurface(fill, rampDeltas(fill).muted);
+  return { muted: opaquePixel(muted), foreground: derivedForegroundLightnessForSurfaces([fill, muted]) };
+}
+
 /** The bubble roles whose fill paints closer to the page than {@link BUBBLE_PAGE_SEPARATION}. */
 export function bubblePageMisses(page: Oklch, fills: Readonly<Partial<Record<BubbleHost, Oklch>>>): readonly BubblePageMiss[] {
   return BUBBLE_HOSTS.flatMap((host) => {
@@ -1777,12 +1861,17 @@ function inSrgbGamut(color: Oklch): boolean {
 
 /** The pixel at lightness `l` on hue `h`, at chroma `c` or the most the sRGB gamut holds there, whichever is less. */
 function onHue(l: number, c: number, h: number): Oklch {
+  return opaquePixel({ l, c: gamutChroma(l, c, h), h });
+}
+
+/** Chroma `c`, or the most the sRGB gamut holds at `l` and `h`: clipping past it moves the hue. */
+function gamutChroma(l: number, c: number, h: number): number {
   // Black and white hold no chroma, so the search's end points are exactly the achromatic inks.
   if (l <= 0 || l >= 1) {
-    return opaquePixel({ l, c: 0, h });
+    return 0;
   }
   if (inSrgbGamut({ l, c, h })) {
-    return opaquePixel({ l, c, h });
+    return c;
   }
   let inside = 0;
   let outside = c;
@@ -1794,7 +1883,7 @@ function onHue(l: number, c: number, h: number): Oklch {
       outside = middle;
     }
   }
-  return opaquePixel({ l, c: inside, h });
+  return inside;
 }
 
 const ROLE_L_STEP = 0.001;
@@ -1812,6 +1901,24 @@ function* lightnessWalk(start: number, first: 1 | -1): Generator<number> {
       if (l >= 0 && l <= 1) {
         yield l;
       }
+    }
+  }
+}
+
+/** The lightness walk a tint search takes: every step, then a bounded sample once a tint has cleared its inks but missed the solid's floor. */
+function* tintLightnessWalk(start: number, first: 1 | -1, unmarked: () => boolean): Generator<number> {
+  let past = 0;
+  for (const l of lightnessWalk(start, first)) {
+    if (!unmarked()) {
+      yield l;
+      continue;
+    }
+    past += 1;
+    if (past > TINT_MARK_SEARCH_STEPS) {
+      return;
+    }
+    if (past % TINT_MARK_SEARCH_STRIDE === 0) {
+      yield l;
     }
   }
 }
@@ -1869,6 +1976,8 @@ interface TintSpec {
   readonly inks: readonly Oklch[];
   /** The surfaces the tint may sit over ({@link TONE_HOSTS}), each of which it keeps the separation from. */
   readonly hosts: readonly Oklch[];
+  /** The tone's solid, which a glyph paints on this tint (an active rail cell): held at the non-text floor where the tint can reach it. */
+  readonly mark: Oklch;
 }
 
 /**
@@ -1880,9 +1989,10 @@ interface TintSpec {
  *
  * The inks are the page-family inks a selected row, an active tab or a compare panel keep on a tint (D336). Each aims at
  * its own pair with the page, capped at the derivation ratio and never below the floor; the page ink's end point clears
- * whatever those inks clear, so `text-on-tint` always has a solution too.
+ * whatever those inks clear, so `text-on-tint` always has a solution too. The tone's solid on the tint holds
+ * {@link AA_NON_TEXT_RATIO} when a candidate does; the inks outrank it, so where none does the nearest that keeps them wins.
  */
-function solveTint<Host extends string>(palette: TonePalette<Host>, base: Oklch, { percent, weakestPercent, inks, hosts }: TintSpec): Oklch {
+function solveTint<Host extends string>(palette: TonePalette<Host>, base: Oklch, { percent, weakestPercent, inks, hosts, mark }: TintSpec): Oklch {
   const { background, foreground } = palette;
   const floorChroma = Math.min(base.c, (TONE_TINT_MIN_CHROMA * percent) / weakestPercent);
   const chroma = Math.max((base.c * percent) / PERCENT, floorChroma);
@@ -1890,26 +2000,36 @@ function solveTint<Host extends string>(palette: TonePalette<Host>, base: Oklch,
     ink: luminances(oklchToSrgb(ink)),
     aim: Math.max(AA_NORMAL_RATIO, Math.min(AA_NORMAL_DERIVATION_RATIO, toneContrast(ink, background))),
   }));
+  const markLuminance = luminances(oklchToSrgb(mark));
   let nearest: Oklch | undefined;
-  for (const l of lightnessWalk(mixOklab(base, percent, background).l, foreground.l < background.l ? 1 : -1)) {
+  let unmarked: Oklch | undefined;
+  const keepsFloors = (candidate: Oklch): boolean => {
+    const pixel = [luminances(paintedForms(candidate).srgb)];
+    return (
+      hosts.every((host) => paintedDistance(candidate, host) >= TONE_TINT_SEPARATION + TINT_ROUNDING_MARGIN) &&
+      aims.every(({ ink, aim }) => worstLuminanceContrast(ink, pixel) >= aim)
+    );
+  };
+  const holdsMark = (candidate: Oklch): boolean => worstLuminanceContrast(markLuminance, [luminances(paintedForms(candidate).srgb)]) >= AA_NON_TEXT_RATIO;
+  for (const l of tintLightnessWalk(mixOklab(base, percent, background).l, foreground.l < background.l ? 1 : -1, () => unmarked !== undefined)) {
     const candidate = onHue(l, chroma, base.h);
-    if (hosts.some((host) => paintedDistance(candidate, host) < TONE_TINT_SEPARATION)) {
+    if (!keepsFloors(candidate)) {
       continue;
     }
-    const candidatePixel = [luminances(paintedForms(candidate).srgb)];
-    if (aims.some(({ ink, aim }) => worstLuminanceContrast(ink, candidatePixel) < aim)) {
-      continue;
-    }
-    if (candidate.c >= floorChroma - CHROMA_TOLERANCE) {
+    if (!holdsMark(candidate)) {
+      unmarked ??= candidate;
+    } else if (candidate.c >= floorChroma - CHROMA_TOLERANCE) {
       return candidate;
+    } else {
+      nearest ??= candidate;
     }
-    nearest ??= candidate;
   }
-  if (nearest === undefined) {
+  const tint = nearest ?? unmarked;
+  if (tint === undefined) {
     // Black and white sit at least the separation off any host family and clear AA against each other's side.
     throw new Error("unable to derive a tint that keeps its separation from every host");
   }
-  return nearest;
+  return tint;
 }
 
 /**
@@ -1976,7 +2096,7 @@ export function solveCarriedToneRoles<Role extends string, Knob extends string>(
     const floors = TONE_HOSTS.flatMap((host) => roleFloors(recipes[role], tone, tonePaletteOn(palette, host)));
     const inks = [...new Set(floors.map((over) => ("role" in over ? colors[over.role] : palette.hosts[over.host])))];
     const weakestPercent = weakest === undefined ? defaults[step.mix] : defaults[weakest.step.mix];
-    const tint = solveTint(palette, tone.base, { percent: defaults[step.mix], weakestPercent, inks, hosts });
+    const tint = solveTint(palette, tone.base, { percent: defaults[step.mix], weakestPercent, inks, hosts, mark: tone.base });
     colors[role] = tint;
     literals[role] = tint;
   }

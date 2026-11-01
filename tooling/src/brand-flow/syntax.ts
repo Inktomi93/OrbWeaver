@@ -50,7 +50,7 @@ export interface Handed {
   readonly index: number;
 }
 
-const COMPARISONS: ReadonlySet<SyntaxKind> = new Set([
+export const COMPARISONS: ReadonlySet<SyntaxKind> = new Set([
   SyntaxKind.EqualsEqualsEqualsToken,
   SyntaxKind.ExclamationEqualsEqualsToken,
   SyntaxKind.EqualsEqualsToken,
@@ -61,6 +61,7 @@ const COMPARISONS: ReadonlySet<SyntaxKind> = new Set([
 const TEXT_PRESERVING = new Set(["trim", "toLowerCase", "toUpperCase", "normalize"]);
 
 const CAST_ID = "castId";
+const REACT_KEY = "key";
 // The calls that mint a brand from the ids module: a parse schema, or an id source.
 export const PARSE_MINTS: ReadonlySet<string> = new Set(["typeIdSchema", "brandedId"]);
 const SOURCE_MINTS: ReadonlySet<string> = new Set(["mintTypeId", "mintUserId", "mintRpgQuestId", "mintSocketId", "typeId", "userId", "rpgQuestId"]);
@@ -104,6 +105,14 @@ function listed(node: Node): readonly Handed[] {
   return values.flatMap((value, index) => (isSpreadElement(value) ? [] : [{ value, kind, container: node, index }]));
 }
 
+// A JSX attribute's value. React's `key` identifies a sibling for reconciliation: a cache key, not an id slot.
+function jsxHanded(expression: Node & { readonly expression?: Node }, attribute: Node & { readonly name: Node }): readonly Handed[] {
+  if (attribute.name.getText() === REACT_KEY || expression.expression === undefined) {
+    return [];
+  }
+  return [{ value: expression.expression, kind: "jsx-prop", container: attribute, index: 0 }];
+}
+
 function handedAt(node: Node): readonly Handed[] {
   const one = (value: Node | undefined, kind: HandedKind, container: Node): readonly Handed[] =>
     value === undefined ? [] : [{ value, kind, container, index: 0 }];
@@ -126,7 +135,7 @@ function handedAt(node: Node): readonly Handed[] {
     return one(node.name, "property", node);
   }
   if (isJsxExpression(node) && isJsxAttribute(node.parent)) {
-    return one(node.expression, "jsx-prop", node.parent);
+    return jsxHanded(node, node.parent);
   }
   return isBinaryExpression(node) && node.operatorToken.kind === SyntaxKind.EqualsToken ? one(node.right, "assign", node) : [];
 }

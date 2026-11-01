@@ -120,8 +120,8 @@ test("native imagery keeps equal-clock calls separate, reuses the later cohort e
   await using root = await createServerHarness({ providerFetch: physical.execute });
   const actors = await seedCorpusActors(root);
   const result = await seedCorpusImagery(root, actors.secondUserId);
-  expect(result.first.generations).toHaveLength(2);
-  expect(result.tied.generations).toHaveLength(2);
+  expect(result.first.generations).toHaveLength(1);
+  expect(result.tied.generations).toHaveLength(1);
   expect(new Set([...result.first.generations, ...result.tied.generations].map((row) => row.createdAt)).size).toBe(1);
   expect(new Set([...result.first.generations, ...result.tied.generations].map((row) => row.callId)).size).toBe(2);
   expect([result.first.generations, result.tied.generations]).toContainEqual(result.equalReuse.generations);

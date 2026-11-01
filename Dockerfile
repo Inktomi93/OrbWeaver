@@ -112,6 +112,11 @@ FROM deps AS build
 # Ref-only .git metadata belongs to git-refs; copying it here makes prepare mistake the build for a checkout.
 COPY --exclude=packages/server --exclude=packages/db --exclude=packages/inference --exclude=packages/default-content \
      --exclude=docker --exclude=.git . .
+# The root tsconfig.json is a solution file that references every package's tsconfig, and vite's transform loads
+# every reference to place a file: a referenced config that is missing fails the build. So the excluded packages'
+# tsconfig files ride along (configs only, no source). The cost: an edit to one of those tsconfig files re-runs
+# the client build; an edit to their sources still does not.
+COPY --parents packages/server/tsconfig*.json packages/db/tsconfig*.json packages/inference/tsconfig*.json packages/default-content/tsconfig*.json ./
 # theme.css + tokens/index.ts are GENERATED from tokens.json before the client build consumes them
 # (`pnpm build` = the ui tokens build + `vite build`; one script, shared with the bare-metal docs).
 RUN pnpm build

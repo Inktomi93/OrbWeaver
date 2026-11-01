@@ -57,6 +57,8 @@ export const THEME_SCOPE_EMIT_VARS = [
   "--color-border",
   "--color-sidebar-border",
   "--color-input",
+  // A text field's fill: the solved input wash on a dark carried palette, whose page ink is judged on it.
+  "--color-field-fill",
   // The form-control edge (D159): solved over the scope's own panels and below its focus ring.
   "--color-input-border",
   // A carried palette cannot inherit one static polarity arm around the L=.62 pivot: derive five
@@ -156,6 +158,7 @@ export const THEME_SCOPE_STATIC_SEED_VARS = [
   "--color-chart-3",
   "--color-chart-4",
   "--color-chart-5",
+  "--color-field-fill",
   "--color-input-border",
 ] as const;
 
