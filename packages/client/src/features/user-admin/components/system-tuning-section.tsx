@@ -120,7 +120,7 @@ function SystemTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getAppSettingsWithOverrides.queryOptions());
-  const save = useUpdateAppOverrides({ trpc, invalidation, failureShownInline: true });
+  const save = useUpdateAppOverrides({ trpc, invalidation });
 
   const resolved = data.resolved;
   const overrides = data.overrides;

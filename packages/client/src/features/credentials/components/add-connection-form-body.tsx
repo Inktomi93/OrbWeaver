@@ -95,10 +95,10 @@ export function AddConnectionFormBody({
   providerOf,
 }: AddConnectionFormBodyProps): ReactElement {
   const deps = { trpc, invalidation };
-  const addCredential = useAddCredentialOwned({ ...deps, failureShownInline: true });
+  const addCredential = useAddCredentialOwned(deps);
   const createConnection = useCreateConnection({ ...deps, failureShownInline: true });
   const checkSignIn = useSignInCheckAfterSave(deps);
-  const draftModels = useDraftCatalogModels({ ...deps, failureShownInline: true });
+  const draftModels = useDraftCatalogModels(deps);
   const [listing, setListing] = useState<DraftListing | null>(null);
   const [held, setHeld] = useState<HeldKey | null>(null);
   // The failed submit's error itself (a caught value) and the draft it failed for, stated once inline by

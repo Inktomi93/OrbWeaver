@@ -86,7 +86,7 @@ function RunWorkloadFormBody({
 }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const start = useStartWorkload({ trpc, invalidation, failureShownInline: true });
+  const start = useStartWorkload({ trpc, invalidation });
   const paidRun = useModelRunConfirm();
 
   const targetItems = users.filter((user) => user.enabled).map((user) => ({ value: user.id as string, label: user.handle as string }));

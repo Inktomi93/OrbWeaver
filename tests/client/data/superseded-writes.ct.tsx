@@ -1,10 +1,10 @@
-// No failure is silent: a consumer's claim covers only its newest, unreset write.
+// No failure is silent: an older write that fails after a newer one, or after the error was cleared, still toasts.
 import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import type { ClaimedWritesStory } from "./_mutation-failure-claim-stories.tsx";
+import type { SupersededWritesStory } from "./_superseded-writes-stories.tsx";
 
-const STORY = "tests/client/data/_mutation-failure-claim-stories/ClaimedWritesStory";
+const STORY = "tests/client/data/_superseded-writes-stories/SupersededWritesStory";
 const SAVE_FAILED = "Couldn't save the setting.";
 const settle = (): Promise<void> => new Promise<void>((done) => setTimeout(done, 400));
 
@@ -16,7 +16,7 @@ test("a write that fails after a newer write succeeded is still said", async ({ 
     ...serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings"]),
     ...serveCorpusProcedures(caller, ["settings.updateAppSettings"], (input) => (input.partial.promptCacheMinDepth === 1 ? hold : undefined)),
   });
-  await mount<typeof ClaimedWritesStory>(STORY, {});
+  await mount<typeof SupersededWritesStory>(STORY, {});
 
   await page.getByRole("button", { name: "Write first", exact: true }).click();
   await hold.requested;
@@ -34,7 +34,7 @@ test("a write whose error was cleared before it failed is still said", async ({ 
     ...serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings"]),
     ...serveCorpusProcedures(caller, ["settings.updateAppSettings"], (input) => (input.partial.promptCacheMinDepth === 1 ? hold : undefined)),
   });
-  await mount<typeof ClaimedWritesStory>(STORY, {});
+  await mount<typeof SupersededWritesStory>(STORY, {});
 
   await page.getByRole("button", { name: "Write first", exact: true }).click();
   await hold.requested;

@@ -87,8 +87,8 @@ function ScheduleFormBody({
 }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const create = useCreateSchedule({ trpc, invalidation, failureShownInline: true });
-  const update = useUpdateSchedule({ trpc, invalidation, failureShownInline: true });
+  const create = useCreateSchedule({ trpc, invalidation });
+  const update = useUpdateSchedule({ trpc, invalidation });
   const paidRun = useModelRunConfirm();
   const isEdit = schedule !== undefined;
 

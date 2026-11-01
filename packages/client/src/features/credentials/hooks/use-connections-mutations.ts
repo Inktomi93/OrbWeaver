@@ -68,7 +68,7 @@ export const useReplaceCredential = createEntityMutation<inferInput<Trpc["creden
   errorToast: "Couldn't replace that key — check the value and try again.",
 });
 
-/** The add dialog's key mint. The dialog states the failure inline and claims it with `failureShownInline`; a mint that fails after the dialog closed toasts. */
+/** The add dialog's key mint. The dialog also states the failure inline; the toast is there if no surface is left to say it. */
 export const useAddCredentialOwned = createEntityMutation<inferInput<Trpc["credentials"]["add"]>, CredentialView>({
   options: addCredentialOptions,
   invalidates: (trpc) => [trpc.credentials.list.pathFilter()],

@@ -143,7 +143,7 @@ function MemoryTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getAppSettingsWithOverrides.queryOptions());
-  const save = useUpdateAppOverrides({ trpc, invalidation, failureShownInline: true });
+  const save = useUpdateAppOverrides({ trpc, invalidation });
 
   const stored = data.overrides.memoryDefaults ?? null;
   // The effective memoryDefaults baseline = the floor ⊕ stored override (per field), every knob present.

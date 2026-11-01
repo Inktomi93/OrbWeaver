@@ -37,7 +37,7 @@ export function AdminLinkSsoDialog(props: AdminUserDialogProps): ReactElement {
 function LinkSsoBody({ userId, onDone }: { readonly userId: UserId; readonly onDone: () => void }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const link = useLinkSsoIdentity({ trpc, invalidation, failureShownInline: true });
+  const link = useLinkSsoIdentity({ trpc, invalidation });
   const [subject, setSubject] = useState("");
   const trimmed = subject.trim();
 
@@ -45,9 +45,8 @@ function LinkSsoBody({ userId, onDone }: { readonly userId: UserId; readonly onD
     if (trimmed.length === 0) {
       return;
     }
-    // The failure is rendered by the `link.error !== null` line in this component while it is mounted
-    // (`failureShownInline` stands the toast down); useLinkSsoIdentity's `errorToast` speaks it if the dialog has
-    // closed. Ends if either stops.
+    // The failure is rendered by the `link.error !== null` line in this component and also toasted by
+    // useLinkSsoIdentity's `errorToast`; the dialog stays open. Ends if either stops.
     try {
       await link.mutateAsync({ userId, externalId: castId<ExternalId>(trimmed) });
     } catch {

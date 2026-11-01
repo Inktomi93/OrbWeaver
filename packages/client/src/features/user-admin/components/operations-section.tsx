@@ -46,7 +46,7 @@ function OperationsBody({ anchorId, sectionId }: { readonly anchorId: string; re
   const [{ data }, { data: viewer }] = useSuspenseQueries({
     queries: [trpc.settings.getAppSettingsWithOverrides.queryOptions(), trpc.sessions.me.queryOptions()],
   });
-  const save = useUpdateAppOverrides({ trpc, invalidation, failureShownInline: true });
+  const save = useUpdateAppOverrides({ trpc, invalidation });
 
   const resolved = data.resolved;
   const overrides = data.overrides;

@@ -32,7 +32,7 @@ test("with no persona the first-run ask is forced open: no close control, Escape
   await expect(create).toBeDisabled();
 });
 
-test("a refused create says so once: the ask's own sentence, with no second toast from the mutation", async ({ corpus, mount, page }) => {
+test("a refused create is said by the ask's own sentence", async ({ corpus, mount, page }) => {
   const { firstBoot } = corpus;
   if (firstBoot === undefined) {
     throw new Error("The corpus has no first-boot cohort");
@@ -53,5 +53,4 @@ test("a refused create says so once: the ask's own sentence, with no second toas
 
   const alerts = page.getByRole("region", { name: "Alerts", exact: true });
   await expect(alerts.getByText("Couldn't create your persona — try again.", { exact: true })).toBeVisible();
-  await expect(alerts.getByText(/^Couldn't create (?:the|your) persona/u)).toHaveCount(1);
 });

@@ -4,7 +4,7 @@ import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 
-// The production factory over a real write, shaped like a settings section's: a toast, and a claim by the mounted section.
+// The production factory over a real write, shaped like a settings section's: a toast, and a section that also renders its own error.
 const useProbeWrite = createEntityMutation<{ readonly partial: { readonly promptCacheMinDepth: number } }, unknown>({
   options: (trpc) => trpc.settings.updateAppSettings.mutationOptions(),
   invalidates: () => [],
@@ -14,7 +14,7 @@ const useProbeWrite = createEntityMutation<{ readonly partial: { readonly prompt
 function Writes(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const save = useProbeWrite({ trpc, invalidation, failureShownInline: true });
+  const save = useProbeWrite({ trpc, invalidation });
   return (
     <Stack>
       <Button onClick={(): void => save.mutate({ partial: { promptCacheMinDepth: 1 } })}>Write first</Button>
@@ -24,8 +24,8 @@ function Writes(): ReactElement {
   );
 }
 
-/** A claimed write under the production providers: writes from one mounted section. */
-export function ClaimedWritesStory(): ReactElement {
+/** A write under the production providers: writes from one mounted section. */
+export function SupersededWritesStory(): ReactElement {
   return (
     <CtClientProviders>
       <Writes />

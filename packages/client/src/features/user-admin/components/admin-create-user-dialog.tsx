@@ -2,7 +2,7 @@
 // (`orb/surface-consumes-container` refuses a surface's own modal root). The form is the §13.4 factory (`useCreateUserForm` — ≥3 fields +
 // validation), button-gated: Create runs `form.handleSubmit()` whose `save` fires the `createUser`
 // mutation and closes on success; a failure keeps the dialog open and the sticky mutation error renders
-// inline (`failureShownInline` stands the toast down while the dialog is mounted). Base UI unmounts the popup content
+// inline, and the mutation's errorToast speaks it too. Base UI unmounts the popup content
 // while closed, so every open mounts a FRESH form — a reopened dialog never shows the previous
 // attempt's values.
 
@@ -45,7 +45,7 @@ export function AdminCreateUserDialog({ open, onOpenChange, viewerIsOwner }: Adm
 function CreateUserFormBody({ viewerIsOwner, onDone }: { readonly viewerIsOwner: boolean; readonly onDone: () => void }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const createUser = useCreateUser({ trpc, invalidation, failureShownInline: true });
+  const createUser = useCreateUser({ trpc, invalidation });
 
   const save = async (values: CreateUserFormValues): Promise<CreateUserFormValues> => {
     await createUser.mutateAsync({

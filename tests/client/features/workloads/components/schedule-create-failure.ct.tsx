@@ -7,7 +7,7 @@ import type { ScheduleDialogDismissalStory } from "./_schedule-dialog-dismissal-
 
 const STORY = "tests/client/features/workloads/components/_schedule-dialog-dismissal-stories/ScheduleDialogDismissalStory";
 
-test("a refused schedule create says so once, in the open dialog", async ({ mount, page }) => {
+test("a refused schedule create is said in the open dialog, and the submit adds no second message", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const caller = await root.internalCallerFor(root.ownerId);
   await routeTrpc(page, {
@@ -29,5 +29,6 @@ test("a refused schedule create says so once, in the open dialog", async ({ moun
   await dialog.getByRole("button", { name: "Create schedule", exact: true }).click();
   await expect(dialog.getByText("Couldn't create the schedule. Try again.", { exact: true })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Create schedule", exact: true })).toBeEnabled();
-  await expect(page.getByText(/^Couldn't (?:create|save) the schedule/u)).toHaveCount(1);
+  // The mutation's toast is the only other message: the submit's rethrow adds none.
+  await expect(page.getByRole("region", { name: "Alerts", exact: true }).getByRole("alert")).toHaveCount(1);
 });

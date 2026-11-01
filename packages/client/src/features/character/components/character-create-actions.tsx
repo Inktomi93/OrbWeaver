@@ -40,9 +40,8 @@ import { CharacterImportDialog } from "./character-import-dialog.tsx";
 function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; readonly onOpenChange: (open: boolean) => void }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  // Only a coded refusal, and only while this dialog is open, has a line here; the toast speaks every other failure,
-  // including a refusal that lands after Cancel or after the name was edited.
-  const create = useCreateCharacter({ trpc, invalidation, failureShownInline: (error) => open && characterRefusalCopy(error) !== null });
+  // A coded refusal also has a line here while the dialog shows it; the toast speaks every failure.
+  const create = useCreateCharacter({ trpc, invalidation });
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   /** The refusal line's own id — what `aria-errormessage` on the Name field points at (#548). */

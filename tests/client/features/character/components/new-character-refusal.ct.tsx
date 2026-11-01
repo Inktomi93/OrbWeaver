@@ -1,4 +1,4 @@
-// A name refusal the New-character dialog can no longer show is still said, by the toast.
+// A name refusal is always said: by the toast, and in the dialog while it shows it.
 import { CHARACTER_HANDLE_CONFLICT_OP_CODE } from "@orb/contracts/character";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
@@ -56,7 +56,7 @@ test("a name refusal that lands after Cancel is still said, by the toast", async
   await page.getByRole("dialog").getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   held.land();
-  await expect(page.getByRole("region", { name: "Alerts", exact: true }).getByRole("alert")).toHaveCount(1);
+  await expect(page.getByRole("region", { name: "Alerts", exact: true }).getByRole("alert").first()).toBeVisible();
 });
 
 test("a name refusal that lands after the name was edited is still said, by the toast", async ({ corpus, mount, page }) => {
@@ -68,16 +68,15 @@ test("a name refusal that lands after the name was edited is still said, by the 
   await page.getByRole("dialog").getByRole("textbox", { name: CHARACTER_NAME_FIELD_NAME, exact: true }).fill(`${TAKEN} two`);
   await page.evaluate(settle);
   held.land();
-  await expect(page.getByRole("region", { name: "Alerts", exact: true }).getByRole("alert")).toHaveCount(1);
+  await expect(page.getByRole("region", { name: "Alerts", exact: true }).getByRole("alert").first()).toBeVisible();
 });
 
-test("a name refusal that lands while the dialog still shows it is said once, in the dialog", async ({ corpus, mount, page }) => {
+test("a name refusal that lands while the dialog is open is said in the dialog", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness(undefined, { startJobs: false });
   const held = await heldHandleRefusal(root, page, corpus);
   await mount<typeof ShellAmbientStory>(STORY, {});
   await submitTakenName(page, held);
 
   held.land();
-  await expect(page.getByRole("dialog").getByRole("alert")).toHaveCount(1);
-  await expect(page.getByRole("region", { name: "Alerts", exact: true }).getByRole("alert")).toHaveCount(0);
+  await expect(page.getByRole("dialog").getByRole("alert")).toBeVisible();
 });

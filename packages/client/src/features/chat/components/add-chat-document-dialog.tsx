@@ -59,7 +59,7 @@ export interface AddChatDocumentDialogProps {
 export function AddChatDocumentDialog({ chatId, open, onOpenChange, activeIds }: AddChatDocumentDialogProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const attach = useAttachDocumentToChat({ trpc, invalidation, failureShownInline: open });
+  const attach = useAttachDocumentToChat({ trpc, invalidation });
   const ownedRef = useRef(false);
   const [failure, setFailure] = useState<string | null>(null);
 

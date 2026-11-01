@@ -71,7 +71,7 @@ function RateLimitsBody({ anchorId, sectionId }: { readonly anchorId: string; re
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getAppSettingsWithOverrides.queryOptions());
-  const save = useUpdateAppOverrides({ trpc, invalidation, failureShownInline: true });
+  const save = useUpdateAppOverrides({ trpc, invalidation });
 
   const baseline = data.resolved.rateLimits;
   const stored = data.overrides.rateLimits ?? null;
