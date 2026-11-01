@@ -26,9 +26,14 @@ interface CorpusSearchState {
    *  `resolveSearchTarget` maps an unknown/absent id to the first target, so the default lives in the ONE
    *  place that owns the axis instead of being re-spelled here (state cannot import a feature lib). */
   readonly targetId: string;
+  /** The owner asked for a cross-encoder rerank of the unified targets' hits. */
+  readonly rerank: boolean;
 }
 
-const useCorpusSearchStore = createGatedStore<CorpusSearchState>("corpus-search", (): CorpusSearchState => ({ query: "", targetId: "", scrollTop: 0 }));
+const useCorpusSearchStore = createGatedStore<CorpusSearchState>(
+  "corpus-search",
+  (): CorpusSearchState => ({ query: "", targetId: "", rerank: false, scrollTop: 0 }),
+);
 
 /** Write the omnibox text (every keystroke / a picked suggestion). */
 export function setCorpusSearchQuery(query: string): void {
@@ -38,6 +43,16 @@ export function setCorpusSearchQuery(query: string): void {
 /** Write the active target axis id (a target-picker click). */
 export function setCorpusSearchTarget(targetId: string): void {
   useCorpusSearchStore.setState({ targetId, scrollTop: 0 }, false, "corpus-search/target");
+}
+
+/** Write the rerank ask (the omnibox rerank switch). */
+export function setCorpusSearchRerank(rerank: boolean): void {
+  useCorpusSearchStore.setState({ rerank, scrollTop: 0 }, false, "corpus-search/rerank");
+}
+
+/** Reactive: whether the owner asked for a rerank. Whether a Rerank model can serve it is the surface's call. */
+export function useCorpusSearchRerank(): boolean {
+  return useCorpusSearchStore((s) => s.rerank);
 }
 
 /** Reactive: the omnibox text (`""` = the rest state). A single-field primitive selector. */

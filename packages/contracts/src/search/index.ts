@@ -158,13 +158,6 @@ export interface CharacterCardHit {
   readonly elevatorPitch: string | null;
 }
 
-/** blockKey.tier is 0 (segments are tier-0 verbatim blocks); scopedCharacterId is the caller's egocentric POV. */
-export interface SegmentSearchHit {
-  readonly blockKey: BlockKey;
-  readonly score: number;
-  readonly text: string;
-}
-
 /** A block that survived the joint digest+segment rerank, block-level dedupe, and content-hash collapse. */
 export interface CorpusHit {
   readonly source: CorpusSource;
@@ -266,7 +259,6 @@ export type UnifiedSearchRows =
   | { readonly over: "entities"; readonly hits: readonly SearchHit[] }
   | { readonly over: "characters"; readonly hits: readonly CharacterCardHit[] }
   | ({ readonly over: "discover" } & DiscoverResult)
-  | { readonly over: "segments"; readonly hits: readonly SegmentSearchHit[] }
   | { readonly over: "digests"; readonly hits: readonly DigestSourceHit[] }
   | { readonly over: "corpus"; readonly hits: readonly CorpusHit[] }
   | { readonly over: "images"; readonly hits: readonly ImageSearchHit[] }
@@ -331,12 +323,6 @@ const characterCardHitSchema = searchHitSchema.extend({
   elevatorPitch: z.string().nullable(),
 }) satisfies z.ZodType<CharacterCardHit>;
 
-const segmentSearchHitSchema = z.strictObject({
-  blockKey: blockKeySchema,
-  score: z.number(),
-  text: z.string(),
-}) satisfies z.ZodType<SegmentSearchHit>;
-
 const corpusHitSchema = z.strictObject({
   source: strictCorpusSource,
   blockKeys: z.array(blockKeySchema).readonly(),
@@ -394,20 +380,18 @@ const unifiedSearchRowsSchema = z.discriminatedUnion("over", [
   z.strictObject({ over: z.literal("entities"), hits: z.array(searchHitSchema).readonly() }),
   z.strictObject({ over: z.literal("characters"), hits: z.array(characterCardHitSchema).readonly() }),
   discoverResultSchema.extend({ over: z.literal("discover") }),
-  z.strictObject({ over: z.literal("segments"), hits: z.array(segmentSearchHitSchema).readonly() }),
   z.strictObject({ over: z.literal("digests"), hits: z.array(digestSourceHitSchema).readonly() }),
   z.strictObject({ over: z.literal("corpus"), hits: z.array(corpusHitSchema).readonly() }),
   z.strictObject({ over: z.literal("images"), hits: z.array(imageSearchHitSchema).readonly() }),
   z.strictObject({ over: z.literal("documents"), hits: z.array(documentChunkHitSchema).readonly() }),
 ]) satisfies z.ZodType<UnifiedSearchRows>;
 
-const [entitiesRows, charactersRows, discoverRows, segmentRows, digestRows, corpusRows, imageRows, documentRows] = unifiedSearchRowsSchema.options;
+const [entitiesRows, charactersRows, discoverRows, digestRows, corpusRows, imageRows, documentRows] = unifiedSearchRowsSchema.options;
 const searchCoverageFields = { coverage: searchCoverageSchema };
 export const unifiedSearchResultSchema = z.discriminatedUnion("over", [
   entitiesRows.extend(searchCoverageFields),
   charactersRows.extend(searchCoverageFields),
   discoverRows.extend(searchCoverageFields),
-  segmentRows.extend(searchCoverageFields),
   digestRows.extend(searchCoverageFields),
   corpusRows.extend(searchCoverageFields),
   imageRows.extend(searchCoverageFields),
@@ -443,23 +427,18 @@ interface RetrievalFallback<T> {
 export type RetrievalDegrade = <T>(run: () => Promise<T>, degraded: RetrievalFallback<T>) => Promise<T>;
 
 /** WHERE a unified search runs. `owner` = the whole corpus (all the user's cards/chats); `chat` = one
- *  authorized chat (the egocentric `scopedCharacterId` is the verbatim-lens POV, required by the
- *  `segments` target); `character` = this character ACROSS ALL the owner's chats — the membership-widened
+ *  authorized chat; `character` = this character ACROSS ALL the owner's chats — the membership-widened
  *  scope (D16) that credits co-star blocks via the `chat_digest_speakers` OR-branch, not just the digests
  *  the character egocentrically produced. Single importable union — never re-declared inline. */
 export type SearchScope =
   | { readonly kind: "owner" }
-  | {
-      readonly kind: "chat";
-      readonly chatId: ChatId;
-      readonly scopedCharacterId?: CharacterId | undefined;
-    }
+  | { readonly kind: "chat"; readonly chatId: ChatId }
   | { readonly kind: "character"; readonly characterId: CharacterId };
 
 // The retrieval-surface axis the unified `search()` dispatches over — one member per underlying verb.
 //  A new member fails `tsc` at the `UnifiedSearchResult` union + the exhaustive dispatch (no inline
 //  re-declaration; `SEARCH_TARGETS` is the one home).
-const SEARCH_TARGETS = ["entities", "characters", "discover", "segments", "digests", "corpus", "images", "documents"] as const;
+const SEARCH_TARGETS = ["entities", "characters", "discover", "digests", "corpus", "images", "documents"] as const;
 export type SearchTarget = (typeof SEARCH_TARGETS)[number];
 
 const searchScopeInputSchema = z.discriminatedUnion("kind", [
@@ -467,7 +446,6 @@ const searchScopeInputSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("chat"),
     chatId: typeIdSchema(ID_PREFIX.chat),
-    scopedCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
   }),
   z.strictObject({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
 ]) satisfies z.ZodType<SearchScope>;

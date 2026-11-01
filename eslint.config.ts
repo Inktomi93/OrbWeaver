@@ -1409,6 +1409,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       },
     },
     { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/trpc-payload-declared-keys": "error" } },
+    { files: ["packages/server/src/**/*.ts", "packages/inference/src/**/*.ts"], rules: { "orb/trpc-output-declared-keys": "error" } },
     { files: ["packages/client/src/**/*.tsx"], rules: { "orb/no-raw-intrinsic-paint": "error" } },
     { files: ["packages/client/src/**/*.tsx"], rules: { "orb/text-voice-only": "error" } },
     // Tooling is outside: its CLI flags share the `--appearance-` prefix (`--appearance-preset`).

@@ -130,7 +130,6 @@ interface NearestSegmentsParams {
   readonly model: string;
   readonly generationId?: EmbedGenerationId | undefined;
   readonly chatIds: readonly ChatId[];
-  readonly candidates?: readonly BlockKey[] | undefined;
   readonly limit: number;
 }
 
@@ -160,7 +159,6 @@ export async function nearestSegments(db: ReadOnlyDb, params: NearestSegmentsPar
           model: params.model,
           generationId: params.generationId,
           chatIds: params.chatIds,
-          candidates: params.candidates,
         }),
         eq(chatSegments.dim, params.queryVector.length),
       ),

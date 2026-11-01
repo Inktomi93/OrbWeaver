@@ -7,7 +7,6 @@ import type {
   GuidedSteer,
   HandoffOffer,
   JoinHistoryVisibility,
-  MessageContentBlock,
   OpeningPolicy,
   PreviewInviteInput,
   ReactionEmoji,
@@ -15,6 +14,7 @@ import type {
   RedeemInviteInput,
   RegexTierKey,
   RoomOverrides,
+  SendContentBlock,
   ToolCallEditAction,
 } from "@orb/contracts/chat";
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
@@ -176,7 +176,8 @@ export interface ChatEventBoundsParams extends ChatScopedParams {
 export interface SendParams extends ChatScopedParams, ViewerClockParams {
   readonly content: string;
   readonly personaId?: PersonaId | null | undefined;
-  readonly blocks?: readonly MessageContentBlock[] | undefined;
+  /** Structured content that replaces `content`, which must be empty. It compiles into the one stored body. */
+  readonly blocks?: readonly SendContentBlock[] | undefined;
   /** The inline images the user attached to this send; each must be owned by the actor. */
   readonly attachmentAssetIds?: readonly AssetId[] | undefined;
   readonly intent?: UserIntent | undefined;

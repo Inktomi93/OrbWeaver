@@ -36,6 +36,10 @@ interface RuleActionVars {
   readonly chatId: ChatId | null;
 }
 
+/** The flip verbs carry the scope beside their strict wire input, so the factory names what crosses the wire. */
+type SetRuleEnabledVars = inferInput<Trpc["automation"]["setRuleEnabled"]> & { readonly chatId: ChatId | null };
+type SetRuleSuggestOnRefusalVars = inferInput<Trpc["automation"]["setRuleSuggestOnRefusal"]> & { readonly chatId: ChatId | null };
+
 /** The cached rule LIST one scope's rules live in — the ONE scope→list mapping, read by every settle
  *  invalidate and by the optimistic enable patch. */
 function ruleListFilter(trpc: Trpc, chatId: ChatId | null): ReturnType<Trpc["automation"]["listRules"]["queryFilter"]> {
@@ -103,12 +107,9 @@ export const useReorderRules = createEntityMutation<
 /** Enable/disable a rule (host-only; the consent act). OPTIMISTIC on the `listRules` cache so the switch
  *  paints before the round trip — a discrete-write control outside any autosave form — then reconciled by
  *  the settle invalidate (createEntityMutation's onSettled always repaints from the true server state). */
-export const useSetRuleEnabled = createEntityMutation<
-  inferInput<Trpc["automation"]["setRuleEnabled"]> & { readonly chatId: ChatId | null },
-  inferOutput<Trpc["automation"]["setRuleEnabled"]>,
-  RuleList
->({
-  options: (trpc) => trpc.automation.setRuleEnabled.mutationOptions(),
+export const useSetRuleEnabled = createEntityMutation<SetRuleEnabledVars, inferOutput<Trpc["automation"]["setRuleEnabled"]>, RuleList>({
+  options: (trpc) =>
+    withProcedureInput(trpc.automation.setRuleEnabled.mutationOptions(), (vars: SetRuleEnabledVars) => ({ ruleId: vars.ruleId, enabled: vars.enabled })),
   optimistic: {
     readKey: (trpc, vars) => ruleListKey(trpc, vars.chatId),
     update: (old, vars) => (old === undefined ? old : old.map((rule) => (rule.id === vars.ruleId ? { ...rule, enabled: vars.enabled } : rule))),
@@ -122,11 +123,15 @@ export const useSetRuleEnabled = createEntityMutation<
  *  autosave form has to paint on press, and the settle invalidate reconciles it from the true server state.
  *  Its own procedure server-side (the rule PUT would clear the rule's mint provenance), so its own hook. */
 export const useSetRuleSuggestOnRefusal = createEntityMutation<
-  inferInput<Trpc["automation"]["setRuleSuggestOnRefusal"]> & { readonly chatId: ChatId | null },
+  SetRuleSuggestOnRefusalVars,
   inferOutput<Trpc["automation"]["setRuleSuggestOnRefusal"]>,
   RuleList
 >({
-  options: (trpc) => trpc.automation.setRuleSuggestOnRefusal.mutationOptions(),
+  options: (trpc) =>
+    withProcedureInput(trpc.automation.setRuleSuggestOnRefusal.mutationOptions(), (vars: SetRuleSuggestOnRefusalVars) => ({
+      ruleId: vars.ruleId,
+      suggestOnRefusal: vars.suggestOnRefusal,
+    })),
   optimistic: {
     readKey: (trpc, vars) => ruleListKey(trpc, vars.chatId),
     update: (old, vars) =>

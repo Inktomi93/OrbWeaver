@@ -28,10 +28,6 @@ export const SCOPE_INSTRUCTIONS = {
     query: "Retrieve the lived roleplay scene whose character has experienced moments like this.",
     rerank: "Given a query, retrieve the roleplay conversation moment whose character best fits the request.",
   },
-  segments: {
-    query: "Retrieve the verbatim roleplay conversation moment that best matches the request.",
-    rerank: "Given a query, retrieve the verbatim roleplay excerpt most relevant to it.",
-  },
   digests: {
     query: "Retrieve the roleplay scene or story-arc summary that best matches the request.",
     rerank: "Given a query, retrieve the roleplay scene or arc summary most relevant to it.",

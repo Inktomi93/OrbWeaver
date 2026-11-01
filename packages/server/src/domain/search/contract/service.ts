@@ -26,7 +26,6 @@ import type {
   FindCharactersParams,
   ImagesParams,
   KnnParams,
-  SegmentsParams,
   SimilarArtParams,
   SuggestParams,
   UnifiedSearchParams,
@@ -38,7 +37,6 @@ import type {
   ImageSearchHit,
   SearchHit,
   SearchSuggestion,
-  SegmentSearchHit,
   SimilarArtHit,
   UnifiedSearchResult,
 } from "./results.ts";
@@ -109,7 +107,6 @@ export interface SearchService {
   readonly findCharacters: (params: FindCharactersParams) => Promise<CharacterCardHit[]>;
   /** Returns ranked hits each carrying its BlockKey — the compose root maps these into ChatContext. */
   readonly digests: SearchDigestHitsOp;
-  readonly segments: (params: SegmentsParams) => Promise<SegmentSearchHit[]>;
   readonly corpus: SearchCorpusHitsOp;
   /** Ranks on raw cosine distance — hub_score is deliberately not applied on this cross-modal path. */
   readonly images: (params: ImagesParams) => Promise<ImageSearchHit[]>;
