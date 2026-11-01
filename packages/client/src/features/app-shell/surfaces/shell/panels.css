@@ -27,6 +27,20 @@
       block-size: var(--height-scroll-sm);
     }
   }
+  /* The same answer for a bracketed Context pane, at a taller step because its header and bands can fill the pane: its
+   * tab body keeps a floor and the pane body scrolls past them. */
+  @container shell-panel (height <= 24rem) {
+    .shell-panel-body:has([data-context-bracket]) {
+      overflow-x: hidden;
+    }
+    [data-context-bracket] {
+      block-size: auto;
+      min-block-size: 100%;
+    }
+    [data-context-bracket] > [role="region"] {
+      flex: 1 0 var(--height-scroll-sm);
+    }
+  }
   /* The panes and `<main>` take focus only programmatically; the ring belongs on the controls inside them. */
   .shell-panel:focus-visible,
   .shell-content:focus-visible {

@@ -71,7 +71,7 @@ import { clearNewChatIntent, closeModal, openModal, useNewChatIntent } from "#st
 const SKELETON_ROW_COUNT = 6;
 
 /** Intrinsic label, icon and padding widths determine whether the footer can share a row at the active font scale. */
-const ACTION_BUTTON = "flex-1 min-inline-max @cq-28:flex-none";
+const ACTION_BUTTON = "grow basis-auto @cq-28:flex-none";
 
 /** The Start button's full label — also its accessible name at `@cq-28` and up. */
 function startLabelFor(count: number, pending: boolean): string {
@@ -163,12 +163,13 @@ export function NewChatPicker(): ReactElement {
         </Row>
       ) : null}
       {hasRosters ? (
-        <Row justify="end" padding="block">
+        <Row className="flex-wrap" justify="end" padding="block">
           {/* #26 — hop to the saved-roster picker (the slot is the destination — no feature import). The
               intent is cleared like any dismiss: a roster start carries its own creation parameters. */}
           <Button
             variant="ghost"
             size="sm"
+            wrap={true}
             onClick={(): void => {
               clearNewChatIntent();
               closeModal();
@@ -200,7 +201,7 @@ export function NewChatPicker(): ReactElement {
         <Text as="span" className="sr-only" role="status">
           {selectionStatusFor(selectedCount)}
         </Text>
-        <Button className={ACTION_BUTTON} disabled={isPending} variant="ghost" onClick={(): void => found([])}>
+        <Button className={ACTION_BUTTON} disabled={isPending} variant="ghost" wrap={true} onClick={(): void => found([])}>
           <Icon icon={Plus} size="sm" />
           {BLANK_CHAT_NAME}
         </Button>

@@ -20,8 +20,9 @@ export const dialogVariants = tv({
     // and a base `p-gutter` were two padding classes tailwind-merge could not dedupe; with the spacing scale
     // registered they DO dedupe last-wins, and per-size stays because a size arm STATING its own gutter is
     // legible where an arm neutralising an inherited one is not.
-    viewport: "fixed inset-0 z-(--z-modal) flex justify-center",
-    popup: `relative flex flex-col overflow-y-auto overscroll-contain max-block-full ${MODAL_SURFACE} ${OVERLAY_MOTION.modalPopup}`,
+    viewport: "@container fixed inset-0 z-(--z-modal) flex justify-center",
+    popup: `relative flex flex-col overflow-x-hidden overflow-y-auto overscroll-contain max-block-full ${MODAL_SURFACE} @max-cq-20:p-field ${OVERLAY_MOTION.modalPopup}
+    `,
     header: "flex shrink-0 items-center justify-between gap-row border-be border-border pbe-field",
     title: "text-title leading-title font-semibold",
     description: "mbs-field text-body leading-body text-muted-foreground",
@@ -31,10 +32,17 @@ export const dialogVariants = tv({
   },
   variants: {
     spaced: { true: { popup: "gap-block" }, false: {} },
-    // A float, not padding: the title clears only the corner a pinned close button holds, so at enlarged text the lines
-    // below it take the whole width instead of a thin column the height of the title.
+    // A float, not padding: the title clears only the corner a pinned close button holds. Under the narrow step the
+    // close takes its own line, because a word beside it would break letter by letter.
     clearsClose: {
-      true: { title: "wrap-break-word before:float-end before:content-[''] before:block-(--size-control-md) before:inline-(--size-control-md)" },
+      true: {
+        title: `
+            wrap-break-word
+            before:float-end before:content-[''] before:block-(--size-control-md) before:inline-(--size-control-md)
+            @max-cq-20:pbs-(--size-control-md)
+            @max-cq-20:before:hidden
+          `,
+      },
       false: {},
     },
     // A header that stays in view while the body scrolls under it (a drawer's title and close), on the card fill so

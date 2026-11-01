@@ -188,6 +188,33 @@
     justify-self: end;
   }
 
+  /* A two-row composer in a room this short keeps its height, because squeezed its controls lie on the text being typed. */
+  @container shell-main (height <= 20rem) {
+    [data-slot="composer-input"][data-field-wrapped] {
+      flex: none;
+    }
+    [data-slot="chat-room-surface"] > :has([data-slot="composer-input"][data-field-wrapped]) {
+      flex-shrink: 0;
+    }
+    /* The field scrolls its own text past this, so the tools, the field and Send can share what a keyboard leaves. */
+    [data-slot="composer-input"][data-field-wrapped] textarea {
+      max-block-size: var(--dimension-chrome-row);
+    }
+  }
+  /* A room this short, or a column this narrow where the name wraps, has no height to spend on a pinned name. */
+  @container shell-main (height <= 20rem) or (inline-size < 20rem) {
+    [data-slot="message-name-row"][data-sticky] {
+      position: static;
+    }
+  }
+  /* A column this narrow at the enlarged root reads a few characters a line, so the card gives back its share and inset. */
+  @container shell-main (inline-size < 20rem) {
+    [data-slot="message-bubble"] {
+      max-inline-size: 100%;
+      padding-inline: var(--spacing-field);
+    }
+  }
+
   :root[data-keyboard-up] [data-slot="composer-guided-refusal"] {
     display: block;
     overflow: hidden;

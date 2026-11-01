@@ -4,19 +4,23 @@
 // same way, but a `rem` inside a media query stays at the platform default, so a browser whose own default is 200% would
 // also flip the shell regime. Every surface runs every cell of EVERY_CELL; an exception is named beside it in QUALIFIED.
 
-import { contextToggleLabel, testId } from "@orb/client/lib";
-import type { CharacterId } from "@orb/kit/ids";
+import { BLANK_CHAT_NAME, contextToggleLabel, testId } from "@orb/client/lib";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
-import { channelName } from "@orb/testkit/ct";
+import { channelName, emulateSoftKeyboard, ROOM_PROCEDURES, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
-import type { AppShellCharacterStory, AppShellStory } from "./_app-shell-stories.tsx";
+import { CHARACTER_IMPORT_NAME } from "#client/features/character/lib/character-names.ts";
+import { VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME } from "#client/features/chat/lib/message-action-names.ts";
+import type { AppShellCharacterStory, AppShellModalStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { PlantedControlsStory } from "./_text-scale-probe-stories.tsx";
-import { routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
+import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
+const ROOM_STORY = `${SHELL_STORIES}/AppShellRoomStory`;
 const PROBE_STORIES = "tests/client/features/app-shell/surfaces/_text-scale-probe-stories";
 const PHONE = { name: "phone", touch: true, size: { width: 390, height: 844 } } as const;
 const NARROW = { name: "narrow phone", touch: true, size: { width: 320, height: 568 } } as const;
@@ -25,6 +29,7 @@ const TEXT_200 = { name: "200% text", factor: 2 } as const;
 const LAYOUT_300 = { name: "300% layout", factor: 3 } as const;
 // The character band's chip row scrolls by ruling: it keeps each chip whole rather than wrap into a ragged void.
 const SIDEWAYS_STRIPS = 'input, textarea, [role="tablist"], [role="toolbar"], [data-slot="character-context-band"] > * > *';
+const BAND_MENU_TRIGGER = '[data-slot="list-pane-action"] [data-slot="overflow-actions-trigger"]';
 const TRAIL_MENU_TRIGGER = '.shell-topbar-trail [data-slot="overflow-actions-trigger"]';
 const FONT_SCALE_PROPERTY = channelName("fontScale");
 // Layout rounding can read a box a fraction past its container with nothing clipped; a one-pixel box is a screen-reader span.
@@ -47,10 +52,36 @@ const EVERY_CELL = [
 // 300% on the narrowest phone leaves under seven rem of width: two touch targets and their gap do not fit one row.
 const NARROW_CELL = [NARROW, TEXT_200] as const satisfies readonly [Viewport, Scale];
 
+const ROOM_PANEL_PROCEDURES = [
+  ...SECTION_PROCEDURES,
+  ...ROOM_PROCEDURES,
+  "chat.listForks",
+  "rpg.getGame",
+  "rpg.listTurnToolCalls",
+  "rpg.getTrackerView",
+  "rpg.getConfigView",
+  "rpg.listJournal",
+  "rpg.revealHidden",
+] as const;
+// A height a reader can scan: the phone's 200% header leaves a little under half of its transcript, and that reads.
+const READING_SHARE = 0.4;
+// The transcript at 300% on a phone: a word split without a hyphen stays the exception, not one in eleven.
+const SPLIT_WORD_SHARE = 0.03;
+const LONG_REPLY = Array.from({ length: 24 }, () => "The traveller witnesses the orbital loom and walks the long gallery beside the keeper.").join(" ");
+const TYPED_DRAFT = "A draft long enough to fill the field past its second line, so the line being typed is the last one.";
+// A keyboard that leaves the phone about 500px: the room's field must stay above it.
+const PHONE_KEYBOARD = 340;
+
 const QUALIFIED = {
+  readingWindow: EVERY_CELL,
   topbar: [...EVERY_CELL, NARROW_CELL],
   contextHeader: EVERY_CELL,
   roomContext: [...EVERY_CELL, NARROW_CELL],
+  gameRoomMembers: EVERY_CELL,
+  focusedField: EVERY_CELL,
+  screenName: [...EVERY_CELL, NARROW_CELL],
+  importOpen: EVERY_CELL,
+  newChat: EVERY_CELL,
   // At 200% on the desktop the trail keeps every action in the row, so it renders no menu to measure.
   topbarMenu: [
     [PHONE, TEXT_200],
@@ -86,13 +117,32 @@ const COMPOSER_MOVED_COUNT: Record<string, number> = {
 };
 
 let root: Root;
+let longRoomId: ChatId;
+let gameRoomId: ChatId;
+
+/** A corpus room whose last turn is a long reply, so its swipe foot sits past a reading window. */
+async function seedLongReplyRoom(): Promise<ChatId> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  for (const row of (await caller.chat.listChats({ limit: 100 })).items) {
+    const reply = (await caller.chat.listMessages({ chatId: row.id })).messages.at(-1);
+    if (reply?.role === "assistant") {
+      await caller.chat.editMessage({ chatId: row.id, messageId: reply.id, content: LONG_REPLY, timeZone: UTC_TIME_ZONE });
+      return row.id;
+    }
+  }
+  throw new Error("The corpus has no room that ends on a reply");
+}
 
 test.beforeAll(async () => {
   root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  longRoomId = await seedLongReplyRoom();
+  gameRoomId = (await caller.chat.startChat({ characterIds: [], opening: "none" })).chat.id;
+  await seedRpgGame(root, { principal: await root.principalFor(root.ownerId), chatId: gameRoomId, mode: "lite", ruleset: "d20" });
 });
 
 test.beforeEach(async ({ corpus, page }) => {
-  await routeRoom(page, corpus, await root.internalCallerFor(root.ownerId));
+  await routeShell(page, corpus, await root.internalCallerFor(root.ownerId), ROOM_PANEL_PROCEDURES);
 });
 
 test.afterAll(async () => {
@@ -162,7 +212,10 @@ function clippedControls(subject: Element, { reachable, subpixel }: { readonly r
       return null;
     }
     const cover = coveredBy(element, box);
-    return cover === null ? null : `${label(element)} ${at} is covered at its centre by ${label(cover)} ${cover.className}`;
+    // A pinned footer lies over the rows scrolling under it by design.
+    return cover === null || cover.closest('[class*="sticky"]') !== null
+      ? null
+      : `${label(element)} ${at} is covered at its centre by ${label(cover)} ${cover.className}`;
   };
   return [...subject.querySelectorAll(reachable)]
     .filter(
@@ -215,13 +268,22 @@ function overlappingControls(subject: Element, { reachable, subpixel }: { readon
       !element.matches('input[type="file"]') &&
       element.getBoundingClientRect().width > subpixel,
   );
+  // A pinned footer lies over the rows scrolling under it by design.
+  const pinned = (element: Element): boolean => {
+    for (let up: Element | null = element; up !== null; up = up.parentElement) {
+      if (getComputedStyle(up).position === "sticky") {
+        return true;
+      }
+    }
+    return false;
+  };
   return painted.flatMap((element, index) =>
     painted.slice(index + 1).flatMap((other) => {
       const [a, b] = [element.getBoundingClientRect(), other.getBoundingClientRect()];
       const inline = Math.min(a.right, b.right) - Math.max(a.left, b.left);
       const block = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
       const overlap = inline > subpixel && block > subpixel && !element.contains(other) && !other.contains(element);
-      return overlap && scrollerOf(element) === scrollerOf(other) ? [`"${name(element)}" overlaps "${name(other)}"`] : [];
+      return overlap && !pinned(element) && !pinned(other) && scrollerOf(element) === scrollerOf(other) ? [`"${name(element)}" overlaps "${name(other)}"`] : [];
     }),
   );
 }
@@ -241,12 +303,71 @@ function sidewaysColumns(subject: Element, { strips, subpixel }: { readonly stri
     );
 }
 
+/** A scroller holding content in a box shorter than one line of it: touch cannot reach what it holds. */
+function collapsedScrollers(subject: Element, { subpixel }: { readonly subpixel: number }): string[] {
+  const line = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+  return [subject, ...subject.querySelectorAll("*")]
+    .filter((element) => {
+      const scrolls = /auto|scroll/u.test(getComputedStyle(element).overflowY);
+      const painted = element.checkVisibility({ visibilityProperty: true }) && element.getBoundingClientRect().width > subpixel;
+      return scrolls && painted && !element.matches("textarea") && element.clientHeight < line && element.scrollHeight > element.clientHeight + subpixel;
+    })
+    .map(
+      (element) =>
+        `${element.getAttribute("data-slot") ?? element.tagName.toLowerCase()} is ${String(element.clientHeight)} tall over ${String(element.scrollHeight)}`,
+    );
+}
+
+/** The words a line break cut in two: each word's text range paints on more than one line. */
+function splitWords(subject: Element): { readonly total: number; readonly split: readonly string[] } {
+  const walker = document.createTreeWalker(subject, NodeFilter.SHOW_TEXT);
+  const split: string[] = [];
+  let total = 0;
+  for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+    for (const word of (node.textContent ?? "").matchAll(/\S+/gu)) {
+      const range = document.createRange();
+      range.setStart(node, word.index);
+      range.setEnd(node, word.index + word[0].length);
+      total += 1;
+      if (new Set([...range.getClientRects()].filter((rect) => rect.width > 0).map((rect) => Math.round(rect.top))).size > 1) {
+        split.push(word[0]);
+      }
+    }
+  }
+  return { total, split };
+}
+
 async function findings(scope: Locator): Promise<string[]> {
   const controls = await scope.evaluate(clippedControls, { reachable: REACHABLE, subpixel: SUBPIXEL });
   const overlaps = await scope.evaluate(overlappingControls, { reachable: REACHABLE, subpixel: SUBPIXEL });
   const text = await scope.evaluate(cutOffText, { subpixel: SUBPIXEL });
   const columns = await scope.evaluate(sidewaysColumns, { strips: SIDEWAYS_STRIPS, subpixel: SUBPIXEL });
-  return [...controls, ...overlaps, ...text, ...columns];
+  const collapsed = await scope.evaluate(collapsedScrollers, { subpixel: SUBPIXEL });
+  return [...controls, ...overlaps, ...text, ...columns, ...collapsed];
+}
+
+/** What takes a press at a control's centre instead of the control, or null when the control takes it. */
+function coverOf(button: Element): string | null {
+  const box = button.getBoundingClientRect();
+  const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+  // A disabled control takes no press itself, so its own row answering is the row leaving it uncovered.
+  const inert = getComputedStyle(button).pointerEvents === "none" && top === button.parentElement;
+  return (top !== null && button.contains(top)) || inert ? null : `${top?.getAttribute("data-slot") ?? top?.tagName ?? "nothing"} ${top?.className ?? ""}`;
+}
+
+/** The share of the transcript left to read once a pinned header has taken its place, scrolled into the long reply. */
+function readableShare(list: Element, subpixel: number): number {
+  const rows = [...list.querySelectorAll('[data-slot="message-bubble"]')];
+  const tallest = rows.toSorted((a, b) => b.getBoundingClientRect().height - a.getBoundingClientRect().height)[0];
+  if (tallest === undefined) {
+    throw new Error("The room painted no message");
+  }
+  const box = tallest.getBoundingClientRect();
+  list.scrollTop += box.top + box.height / 2 - list.getBoundingClientRect().top;
+  const top = list.getBoundingClientRect().top;
+  const atTop = [...list.querySelectorAll("[data-pinned]")].filter((header) => Math.abs(header.getBoundingClientRect().top - top) <= subpixel);
+  const covered = Math.max(0, ...atTop.map((header) => header.getBoundingClientRect().bottom - top));
+  return (list.clientHeight - covered) / list.clientHeight;
 }
 
 async function scaleRoot(page: Page, factor: number): Promise<void> {
@@ -264,18 +385,17 @@ async function firstCharacterId(): Promise<CharacterId> {
   return character.id;
 }
 
-/** Opens the corpus' first chat room on the production shell and returns its message field; `mountShell` mounts the shell story. */
-async function openFirstRoom(mountShell: () => Promise<unknown>, page: Page): Promise<Locator> {
+/** Mounts the production shell on one room, opened the way a Chats row opens it, and returns its message field. */
+async function openRoom(mountRoom: (chatId: ChatId) => Promise<unknown>, page: Page, chatId: ChatId): Promise<Locator> {
   await seedShellState(page, { activeSection: "chats" });
-  await mountShell();
-  // The boot already lands in Chats. A rail press on the active section still raises a view transition, and a row press that
-  // lands inside it is released over the transition's overlay, so the pointer-up misses the row and no click reaches it.
-  await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "chats");
-  await page.getByRole("list", { name: "Chats list", exact: true }).getByRole("button").first().click();
+  await mountRoom(chatId);
   const input = page.getByRole("textbox", { name: "Message", exact: true });
   await expect(input).toBeVisible();
   return input;
 }
+
+const openLongRoom = (mountRoom: (chatId: ChatId) => Promise<unknown>, page: Page): Promise<Locator> => openRoom(mountRoom, page, longRoomId);
+const openGameRoom = (mountRoom: (chatId: ChatId) => Promise<unknown>, page: Page): Promise<Locator> => openRoom(mountRoom, page, gameRoomId);
 
 /** Opens the Context panel through whichever door the topbar kept: its toggle in the row, or its item in the row's menu. */
 async function openContextPanel(page: Page): Promise<void> {
@@ -349,12 +469,190 @@ for (const [viewport, scale] of QUALIFIED.roomContext) {
     test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
 
     test("keeps every control reachable", async ({ mount, page }) => {
-      await openFirstRoom(() => mount<typeof AppShellStory>(STORY, {}), page);
+      await openLongRoom((chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }), page);
       await scaleRoot(page, scale.factor);
       await openContextPanel(page);
       const panel = page.locator(".shell-panel[data-panel-side='context']");
       await expect(panel.locator("[data-slot='context-bracket-header']")).toBeInViewport();
       await expect.poll(() => findings(panel)).toEqual([]);
+      expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
+    });
+  });
+}
+
+for (const [viewport, scale] of QUALIFIED.gameRoomMembers) {
+  test.describe(`Members in a game room at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    test("keeps the roster's body and its doors reachable", async ({ mount, page }) => {
+      await openGameRoom((chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }), page);
+      await expect(page.getByRole("textbox", { name: "Message", exact: true })).toBeVisible();
+      await scaleRoot(page, scale.factor);
+      await openContextPanel(page);
+      const panel = page.locator(".shell-panel[data-panel-side='context']");
+      await panel.getByRole("tab", { name: /^Members/u }).click();
+      const door = panel.getByRole("button", { name: "Add a character", exact: true });
+      await door.scrollIntoViewIfNeeded();
+      await expect(door).toBeInViewport({ ratio: 0.5 });
+      await expect.poll(() => door.evaluate(coverOf)).toBeNull();
+      await expect.poll(() => findings(panel)).toEqual([]);
+    });
+  });
+}
+
+for (const [viewport, scale] of QUALIFIED.readingWindow) {
+  test.describe(`reading a long reply at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    test("leaves the transcript to the reply and keeps the swipe foot pressable", async ({ mount, page }) => {
+      await openLongRoom((chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }), page);
+      await expect(page.locator('[data-slot="message-bubble"]').last()).toBeVisible();
+      await scaleRoot(page, scale.factor);
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      await expect.poll(() => list.evaluate(readableShare, 2 * SUBPIXEL)).toBeGreaterThanOrEqual(READING_SHARE);
+      await list.evaluate((node) => {
+        node.scrollTop = node.scrollHeight;
+      });
+      const foot = page.locator('[data-slot="swipe-strip"]');
+      await foot.scrollIntoViewIfNeeded();
+      const next = foot
+        .getByRole("button", { name: VARIANT_NEXT_NAME, exact: true })
+        .or(foot.getByRole("button", { name: VARIANT_GENERATE_NAME, exact: true }));
+      for (const button of [foot.getByRole("button", { name: VARIANT_PREV_NAME, exact: true }), next]) {
+        await button.scrollIntoViewIfNeeded();
+        await expect(button).toBeInViewport({ ratio: 1 });
+        await expect.poll(() => button.evaluate(coverOf)).toBeNull();
+      }
+    });
+  });
+}
+
+test.describe("the transcript at 300% layout on the phone", () => {
+  test.use({ viewport: PHONE.size, hasTouch: true, isMobile: true });
+
+  test("breaks between words, with a split word the exception", async ({ mount, page }) => {
+    await openLongRoom((chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }), page);
+    await scaleRoot(page, LAYOUT_300.factor);
+    const { total, split } = await page.locator('[data-slot="message-list-scroll"]').evaluate(splitWords);
+    expect(split.length / total).toBeLessThanOrEqual(SPLIT_WORD_SHARE);
+  });
+});
+
+for (const [viewport, scale] of QUALIFIED.focusedField) {
+  test.describe(`writing at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    test("keeps the field clear of the controls and every line being typed in view", async ({ mount, page }) => {
+      await openLongRoom((chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }), page);
+      const input = page.getByRole("textbox", { name: "Message", exact: true });
+      await expect(input).toBeVisible();
+      await scaleRoot(page, scale.factor);
+      await input.scrollIntoViewIfNeeded();
+      await input.focus();
+      if (viewport.touch) {
+        await emulateSoftKeyboard(page, PHONE_KEYBOARD);
+      }
+      await input.fill(TYPED_DRAFT);
+      await expect.poll(() => findings(page.locator('[data-slot="composer"]'))).toEqual([]);
+      await input.scrollIntoViewIfNeeded();
+      await expect(input).toBeInViewport({ ratio: 1 });
+      const send = page.getByRole("button", { name: "Send message", exact: true });
+      await send.scrollIntoViewIfNeeded();
+      await expect(send).toBeInViewport({ ratio: 1 });
+      if (viewport.touch) {
+        await emulateSoftKeyboard(page, 0);
+      }
+    });
+  });
+}
+
+for (const [viewport, scale] of QUALIFIED.screenName) {
+  test.describe(`the screen's name at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    const nameFloor = (page: Page): Promise<number> =>
+      page.evaluate((length) => {
+        const probe = document.createElement("span");
+        probe.style.cssText = `position:absolute;visibility:hidden;inline-size:${length}`;
+        document.querySelector(".shell-topbar")?.append(probe);
+        const { width } = probe.getBoundingClientRect();
+        probe.remove();
+        return width;
+      }, `var(${TOKENS["dimension.shell-title-floor"].cssVar})`);
+    // A named screen paints at least half the title floor somewhere on screen, in the topbar or the list's band.
+    const named = (page: Page): Promise<number> =>
+      page.evaluate(() => {
+        const names = [
+          ...document.querySelectorAll(".shell-topbar-title, .shell-topbar-identity h1, .shell-topbar-identity h2, [data-slot='list-pane-title']"),
+        ];
+        return Math.max(
+          0,
+          ...names
+            .filter((name) => name.checkVisibility({ visibilityProperty: true }) && name.textContent.trim() !== "")
+            .map((name) => {
+              const box = name.getBoundingClientRect();
+              return Math.min(box.right, innerWidth) - Math.max(box.left, 0);
+            }),
+        );
+      });
+
+    test("names a section's roster on screen", async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: "characters" });
+      await mount<typeof AppShellStory>(STORY, {});
+      await expect(page.locator(".shell-topbar")).toBeVisible();
+      await scaleRoot(page, scale.factor);
+      const floor = await nameFloor(page);
+      await expect.poll(() => named(page)).toBeGreaterThanOrEqual(floor / 2);
+    });
+
+    test("names a room on screen, where a phone has no tab bar", async ({ mount, page }) => {
+      await openLongRoom((chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }), page);
+      await expect(page.getByRole("textbox", { name: "Message", exact: true })).toBeVisible();
+      await scaleRoot(page, scale.factor);
+      const floor = await nameFloor(page);
+      await expect.poll(() => named(page)).toBeGreaterThanOrEqual(floor / 2);
+    });
+  });
+}
+
+for (const [viewport, scale] of QUALIFIED.importOpen) {
+  test.describe(`character Import opened at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    test("opens on its heading, whole words only", async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: "characters" });
+      await mount<typeof AppShellStory>(STORY, {});
+      await expect(page.locator(".shell-topbar")).toBeVisible();
+      await scaleRoot(page, scale.factor);
+      const door = page.getByRole("button", { name: CHARACTER_IMPORT_NAME, exact: true });
+      const menu = page.locator(`${BAND_MENU_TRIGGER}, ${TRAIL_MENU_TRIGGER}`).first();
+      await expect(door.or(menu).first()).toBeVisible();
+      if (await door.isVisible()) {
+        await door.click();
+      } else {
+        await menu.click();
+        await page.getByRole("menuitem", { name: CHARACTER_IMPORT_NAME, exact: true }).click();
+      }
+      const dialog = page.getByRole("dialog", { name: CHARACTER_IMPORT_NAME, exact: true });
+      const heading = dialog.getByRole("heading", { name: CHARACTER_IMPORT_NAME, exact: true });
+      await expect(heading).toBeInViewport({ ratio: 1 });
+      expect((await heading.evaluate(splitWords)).split).toEqual([]);
+    });
+  });
+}
+
+for (const [viewport, scale] of QUALIFIED.newChat) {
+  test.describe(`New chat at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    test("keeps its rows inside the dialog and its actions reachable", async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: "chats" });
+      await mount<typeof AppShellModalStory>(`${SHELL_STORIES}/AppShellModalStory`, { modalId: "newChat" });
+      const dialog = page.getByRole("dialog");
+      await expect(dialog).toBeVisible();
+      await scaleRoot(page, scale.factor);
+      await expect(dialog.getByRole("button", { name: BLANK_CHAT_NAME, exact: true })).toBeVisible();
+      await expect.poll(() => findings(dialog)).toEqual([]);
       expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
     });
   });
@@ -423,7 +721,7 @@ for (const [viewport, scale] of QUALIFIED.roomHeader) {
     test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
 
     test("keeps every header control reachable and the overflow trigger in the row", async ({ mount, page }) => {
-      await openFirstRoom(() => mount<typeof AppShellStory>(STORY, {}), page);
+      await openLongRoom((chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }), page);
       await scaleRoot(page, scale.factor);
       await expect.poll(() => findings(page.locator(".shell-topbar"))).toEqual([]);
       expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
@@ -436,7 +734,7 @@ for (const [viewport, scale] of QUALIFIED.room) {
     test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
 
     test("keeps the transcript, the message field and Send reachable", async ({ mount, page }) => {
-      const input = await openFirstRoom(() => mount<typeof AppShellStory>(STORY, {}), page);
+      const input = await openLongRoom((chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }), page);
       await scaleRoot(page, scale.factor);
       await expect(page.getByRole("button", { name: "Send message", exact: true })).toBeVisible();
       // The room scrolls once the composer and a readable transcript cannot share it, so both are reachable, not both on screen.
@@ -455,7 +753,7 @@ for (const [viewport, scale] of QUALIFIED.room) {
 
     // Each action the row may hand over is in exactly one place: its row button, or the Reply group of the menu.
     test("keeps every secondary action in the row or in the Message tools menu, never both", async ({ mount, page }) => {
-      await openFirstRoom(() => mount<typeof AppShellStory>(STORY, {}), page);
+      await openLongRoom((chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }), page);
       // At the default scale every action sits in the row, so the names production gives them are read off the buttons.
       const nameOf = async (id: Parameters<typeof testId>[0]): Promise<string> => {
         const name = await page.getByTestId(testId(id)).getAttribute("aria-label");
@@ -491,7 +789,7 @@ for (const [viewport, scale] of QUALIFIED.jumpToLatest) {
     // The pill is mounted while hidden and takes its width from the same label it shows, so its box is the one a
     // pending arrival would paint; the flank row clips on x, so a pill wider than the row loses its ends.
     test("stays inside the flank row it overlays", async ({ mount, page }) => {
-      await openFirstRoom(() => mount<typeof AppShellStory>(STORY, {}), page);
+      await openLongRoom((chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }), page);
       await scaleRoot(page, scale.factor);
       const row = page.locator('[data-slot="chat-room-flank-row"]');
       const pill = page.locator('[data-slot="jump-to-latest"] button');
@@ -587,8 +885,8 @@ for (const [viewport, scale] of QUALIFIED.importDialog) {
     test("fits its frame and keeps both exits reachable", async ({ mount, page }) => {
       await seedShellState(page, { activeSection: "characters" });
       await mount<typeof AppShellStory>(STORY, {});
-      await page.getByRole("button", { name: /^Import/u }).click();
-      const dialog = page.getByRole("dialog");
+      await page.getByRole("button", { name: CHARACTER_IMPORT_NAME, exact: true }).click();
+      const dialog = page.getByRole("dialog", { name: CHARACTER_IMPORT_NAME, exact: true });
       await expect(dialog).toBeVisible();
       await scaleRoot(page, scale.factor);
       // The popup is its own scroller on a short viewport, so an exit is reachable once scrolled to.

@@ -438,7 +438,9 @@ Dynamic Type remains deferred. Adopting `-apple-system-body` changes the approve
 - Keep fine-pointer finder reveal-transition imagery unqualified. A recent-shelf focus image does not establish that behavior.
 - The topbar, the list and Context panels, the room and the Import dialog are qualified on Chromium and WebKit at 200% text and 300% layout on the phone and desktop, in `tests/client/features/app-shell/surfaces/platform-text-scale.suite.ct.tsx`. 300% on a 320px phone stays unqualified: two touch targets do not fit one row.
 - Qualify 300% layout separately. Room measurements at the base scale do not cover enlarged text.
-- A shell pane or the room that is 20rem tall or less at the enlarged root scrolls as a whole and keeps its rows or transcript at a floor. The floor yields while the composer holds focus.
+- A shell pane or the room that is 20rem tall or less at the enlarged root scrolls as a whole and keeps its rows or transcript at a floor. The floor yields while the message field holds focus. A bracketed Context pane takes the same floor at 24rem.
+- A message's name row stops pinning in a room 20rem tall or less, or a column under 20rem wide.
+- A phone 16rem wide or less gives the topbar a second line for the screen's name, except while the keyboard is up.
 - Keep broader user text-spacing and zoom qualification separate from the scoped component evidence.
 - Perform independent rendered review over the actual changed population. Main owns integration and shared verification.
 - Keep real-device gaps open: notch insets including the bottom edge, keyboard with dynamic viewport, standalone status bar and theme color, rubber-banding and focus zoom.

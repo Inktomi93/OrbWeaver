@@ -209,7 +209,6 @@
   --radius-pill: 1.125rem;
   --breakpoint-shell: 48rem;
   --breakpoint-shell-dock: 64rem;
-  --breakpoint-shell-short: 20rem;
   --breakpoint-inline-narrow: 30rem;
   --dimension-rail: 3.5rem;
   --dimension-chrome-row: 3rem;
@@ -274,6 +273,7 @@
   --leading-label-relaxed: round(up, 1.25rem, 1px);
   --leading-code-field: round(up, max(1.5rem, 24px), 1px);
   --leading-micro: round(up, 0.8125rem, 1px);
+  --container-cq-16: 16rem;
   --container-cq-20: 20rem;
   --container-cq-24: 24rem;
   --container-cq-28: 28rem;
@@ -399,7 +399,6 @@
 @custom-variant shell-desktop (@media (width > 48rem));
 @custom-variant shell-mobile (@media (width <= 48rem));
 @custom-variant shell-narrow (@media (width <= 64rem));
-@custom-variant shell-short (@media (height <= 20rem));
 @custom-variant inline-narrow (@media (width <= 30rem));
 
 @layer theme {
@@ -416,6 +415,7 @@
     --orb-grid-cell-fixed: 8.5rem;
     --orb-density-comfortable-cell-fixed: 8.5rem;
     --orb-density-compact-cell-fixed: 7.5rem;
+    --dimension-shell-topbar-block: calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-16) + var(--dimension-device-pixel) - 100dvw) * 1000), var(--dimension-chrome-row)));
     --immersive-whisper-banner-inline-cap: calc(var(--immersive-whisper-banner-cap) * var(--aspect-banner));
     --immersive-whisper-banner-cap: calc(var(--immersive-whisper-banner-viewport-cap) * 1svh);
     --tone-mix-primary-hover: var(--tone-mix-hover);
