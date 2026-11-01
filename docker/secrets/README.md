@@ -26,7 +26,9 @@ here stay out of git, but a directory outside the checkout survives a `git clean
 | `credentials_key` | `CREDENTIALS_KEY` (32 bytes, hex/base64 — losing it orphans every stored provider key) | any mode storing provider keys, to pin the key — otherwise generated into the data volume |
 | `openrouter_api_key` | `OPENROUTER_API_KEY` | only to seed OpenRouter at boot |
 
-The trailing newline `openssl rand | tee` leaves is stripped. An explicit nonempty env value wins over the file.
+Trailing newlines and carriage returns are stripped. An explicit nonempty env value wins over the file.
+
+`DATABASE_URL_FILE` also works, for a remote `DATABASE_URL` that carries a token. It is not in the overlay, because compose refuses a missing secret file and most deployments keep the default local database. Mount the file yourself and set `DATABASE_URL_FILE` to its path. An empty file means unset, so the default local database opens. A URL with leading or trailing whitespace refuses boot.
 
 The app reads the files after dropping to `PUID`/`PGID`. Keep each file readable by that numeric user, not just container root.
 Unreadable files refuse boot and name the `*_FILE` key.

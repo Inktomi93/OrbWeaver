@@ -72,8 +72,9 @@ export type { BugReportInspectors } from "../contract/debug.ts";
 const RING_READ_DEPTH = 2000;
 /** Lines of `git status --short` kept when the tree is dirty — enough to see WHAT is uncommitted, not a diff. */
 const STATUS_HEAD_LINES = 40;
-/** Environment keys whose VALUES are scrubbed out of a report by literal match. */
-const SECRET_KEY_RE = /(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)/iu;
+/** Environment keys whose VALUES are scrubbed out of a report by literal match. `DATABASE_URL`: a remote URL can carry
+ *  a token. */
+const SECRET_KEY_RE = /(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|DATABASE_URL)/iu;
 /** Below this length a "secret" is a common substring and scrubbing it by value would shred the report. */
 const MIN_SECRET_LENGTH = 8;
 /** How much of a report id the markdown quotes as a lookup key — enough to be unique among a session's

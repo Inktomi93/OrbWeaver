@@ -124,18 +124,13 @@ function publishKeyfile(keyPath: string, key: Buffer, reportKeyfile: KeyfileRepo
  *  A keyfile that exists but is not a 32-byte hex/base64 key, or cannot be read, FAILS CLOSED: it returns
  *  null and is never overwritten. A filesystem fault on first write also returns null.
  *  @remarks Creation is atomic and never clobbers: two boots racing on an empty data dir both return the one
- *  key that won the path. `generate` is the entropy source, injectable so a test can interleave a second
- *  creator between the absence check and the publish. */
-export function loadOrCreateKeyfile(
-  keyPath: string,
-  reportKeyfile: KeyfileReport,
-  generate: () => Buffer = () => randomBytes(CREDENTIALS_KEY_BYTES),
-): Buffer | null {
+ *  key that won the path. */
+export function loadOrCreateKeyfile(keyPath: string, reportKeyfile: KeyfileReport): Buffer | null {
   // owned by the injected `reportKeyfile` (stderr, silent only under a test build — `keyfileReport`) and by the null return: `settleBootSecrets` hands it to `entry/lifecycle.ts`, which refuses a cookie mode whose session secret is null, and a null credentials key leaves the SecretBox disabled. Fail-closed so no caller re-keys over the only recovery copy. Ends if a caller stops receiving the null.
   try {
     // lstat, not exists: a dangling symlink is an entry, and it must fail closed rather than read as absent.
     if (lstatSync(keyPath, { throwIfNoEntry: false }) === undefined) {
-      const fresh = generate();
+      const fresh = randomBytes(CREDENTIALS_KEY_BYTES);
       if (publishKeyfile(keyPath, fresh, reportKeyfile)) {
         reportKeyfile(`generated ${keyPath} (mode 0600). Back it up with the database.`);
         return fresh;

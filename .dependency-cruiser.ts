@@ -478,6 +478,17 @@ const SERVER_TEST_REACHES = {
   "tests/server/entry/boot/identity-ownership.int.test.ts": {
     "foundation/data-layout": "SECRET_FILE_NAMES: the suite plants the boot secret files by their production names",
   },
+  "tests/server/entry/boot/secret-boot-process.int.test.ts": {
+    "foundation/data-layout":
+      "DATA_LAYOUT_DIRS, SECRET_FILE_NAMES and DATABASE_URL_KEY: the suite plants the session keyfile and the database key by their production names",
+    "foundation/env": "APP_SECRET_ENV_KEYS: the boot scrub's own list, which the suite plants and then looks for in a child's env",
+  },
+  "tests/server/foundation/env/record/secret-file.int.test.ts": {
+    "foundation/data-layout": "DATABASE_URL_KEY: the suite plants the database key by its production name",
+  },
+  "tests/server/foundation/observability/bug-report-diagnostics.test.ts": {
+    "foundation/data-layout": "DATABASE_URL_KEY: the suite sets the database key by its production name",
+  },
   "tests/server/entry/compose/share-acme.int.test.ts": {
     "foundation/data-layout": "IP_CERTIFICATE_FILE_NAMES: the suite reads and corrupts the stored certificate files by their production names",
   },
