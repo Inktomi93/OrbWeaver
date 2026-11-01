@@ -3,9 +3,9 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
+import { cruiseRules, fires, unresolvable } from "./_native-cruise.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const ordinary = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
@@ -794,7 +794,7 @@ test.for([
   { name: "dynamic domain import", from: VERB, dynamic: true, blocked: true },
   { name: "request seam", from: `${SERVER}/entry/auth/seam.ts`, blocked: false },
   { name: "frozen-host bridge", from: `${SERVER}/entry/compose/chat.ts`, blocked: false },
-] as const)("the native Principal mint boundary judges $name", async (row, { plantedTree, repoRoot }) => {
+] as const)("the native Principal mint boundary judges $name", async (row, { plantedTree }) => {
   const specifier = relative(dirname(row.from), MINT);
   const source = JSON.stringify(specifier.startsWith(".") ? specifier : `./${specifier}`);
   const root = await plantedTree({
@@ -804,14 +804,7 @@ test.for([
         ? `export const read=import(${source}).then(m=>m.mintPrincipal);`
         : `import { mintPrincipal } from ${source}; export const read=mintPrincipal;`,
   });
-  const result = runNicedSync(
-    join(repoRoot, "node_modules/.bin/depcruise"),
-    [row.from, "--config", join(repoRoot, ".dependency-cruiser.ts"), "--output-type", "err-long"],
-    { cwd: root },
-  );
-  const output = result.stdout + result.stderr;
-  expect(result.errorCode, output).toBeUndefined();
-  expect(output).not.toContain("not-to-unresolvable");
-  expect(result.status === 0, output).toBe(!row.blocked);
-  expect(output.includes("principal-mint-owners"), output).toBe(row.blocked);
+  const violations = await cruiseRules(root, [row.from], ["principal-mint-owners"]);
+  expect(unresolvable(violations)).toEqual([]);
+  expect(fires(violations, "principal-mint-owners", [row.from])).toBe(row.blocked);
 });

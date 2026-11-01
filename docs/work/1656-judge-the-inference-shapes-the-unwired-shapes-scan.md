@@ -60,6 +60,7 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 31 rows: applied 23, kept 8, handed off 0, owner question 0. No request shaping, executor or wire code changed: only type re-export paths. Scan: a per-statement import and export scanner over 7437 ts and tsx files under `packages tests tooling` (`git ls-files`), plus ast-grep (`-l ts`, `-l tsx`, 5200 and 1450 files); the first scan filtered out server importers of `BindingActor` by mistake, which the server typecheck then caught, and I fixed it with the codemod below.
 
 Applied (23):
+
 - `SessionEntryWriter` (rows 1, 2, 14): the forwards in `backends/agent-sdk/index.ts`, `backends/agent-sdk/session/index.ts` and `src/index.ts` are deleted. The package root still exports it through `export * from "./contract/index.ts"`, which exports it from `contract/agent.ts`, its home. The server import from `@orb/inference` is unchanged.
 - `LocalLightModelSlot`, `LOCAL_LIGHT_MODEL_SLOTS` (rows 3, 4, 16, 18): the forwards in `backends/local-light/index.ts` and the explicit root export are deleted; the same `export *` carries them from `contract/runtime.ts`.
 - `LocalLightModelCache`, `LocalLightPrefetchTarget` (rows 5, 6, 15, 17): the forwards in `local-light/index.ts`, `model-cache.ts` and `prefetch.ts` are deleted; the root exports them from `contract/local-light.ts`.
@@ -72,6 +73,7 @@ Applied (23):
 - `BindingActor` (rows 13, 22): `deps.ts` and `contract/runtime.ts` no longer forward it, and the root no longer exports it. `precedence.ts` and `role-clients.ts` import it from `@orb/contracts/inference`, and the 7 server files that imported it from `@orb/inference` now import it from `@orb/contracts/inference`, moved with `move-import-names` (dry run listed exactly the 7 planned files).
 
 Kept (8):
+
 - `BindingStore`, `ConnectionStore`, `InferenceDeps`, `ProviderSnapshot`, `ProviderStore`, `SnapshotStore` (rows 23 to 28): `deps.ts` is the sanctioned package-root composition seam that re-exports the port shapes owned by `contract/runtime.ts`, and `src/index.ts` exports that seam. `docs/law/Tier-3b-Providers.md` (the `deps.ts` seam section) and `docs/adr/0015-every-importable-module-directory-module.md` name it as one of the two permitted root files, and 14 internal and server importers use it.
 - `DiagnosticRequestCommon` / `WakeRequest` (row 7): `WakeRequest` in `backends/openai-compat/index.ts` is a private structural port of what the wake reads from any task request (connection and cancel). `DiagnosticRequestCommon` is the diagnostics surface's request base. Same two fields, different owners.
 - `ProviderCapabilityDrop` / `WireWarning` (row 9): `WireWarning` lives in the server observability foundation, which stays free of provider-package types; `ProviderCapabilityDrop` is the inference package's own drop record.

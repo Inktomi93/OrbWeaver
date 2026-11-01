@@ -1,7 +1,6 @@
 // The existing native direct-import boundary judges resolved bus-module edges, not identifier spelling.
-import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { cruiseRules, fires, unresolvable } from "./_native-cruise.ts";
 
 const CONTRACTS = "packages/contracts/src";
 const RULE = "bus-contract-no-credentials";
@@ -61,7 +60,7 @@ test.for([
     source: 'import type { CredentialId } from "../foreign/index.ts"; export type Event={type:"changed"; credentialId?:CredentialId};',
     blocked: false,
   },
-] as const)("the installed native bus import boundary judges $name", async (row, { plantedTree, repoRoot }) => {
+] as const)("the installed native bus import boundary judges $name", async (row, { plantedTree }) => {
   const entry = `${CONTRACTS}/${row.home}/probe${"generated" in row ? ".gen" : ""}${"declaration" in row ? ".d" : ""}.ts`;
   const root = await plantedTree({
     [`${CONTRACTS}/credentials/index.ts`]: 'export interface SecretCarrier { readonly apiKey: string; } export const secret="private";',
@@ -69,16 +68,7 @@ test.for([
     [`${CONTRACTS}/chat/barrel.ts`]: "barrel" in row ? 'export type { SecretCarrier } from "../credentials/index.ts";' : "export {};",
     [entry]: row.source,
   });
-  const result = runNicedSync(
-    join(repoRoot, "node_modules/.bin/depcruise"),
-    [entry, "--config", join(repoRoot, ".dependency-cruiser.ts"), "--output-type", "err-long"],
-    { cwd: root },
-  );
-  const output = result.stdout + result.stderr;
-  expect(result.errorCode, output).toBeUndefined();
-  expect(output).not.toContain("not-to-unresolvable");
-  expect(result.status === 0, output).toBe(!row.blocked);
-  expect(output.includes(RULE), output).toBe(row.blocked);
-  const violatingPath = "barrel" in row ? `${CONTRACTS}/chat/barrel.ts` : entry;
-  expect(output).toContain(row.blocked ? violatingPath : "no dependency violations found");
+  const violations = await cruiseRules(root, [entry], [RULE]);
+  expect(unresolvable(violations)).toEqual([]);
+  expect(fires(violations, RULE, ["barrel" in row ? `${CONTRACTS}/chat/barrel.ts` : entry])).toBe(row.blocked);
 });
