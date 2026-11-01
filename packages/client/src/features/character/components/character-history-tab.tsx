@@ -15,6 +15,7 @@ import { ConfirmDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import { useRestoreCharacter, useSnapshotCharacter } from "../hooks/use-character-context-mutations.ts";
+import { CHARACTER_RESTORE_SNAPSHOT_TITLE, CHARACTER_SNAPSHOT_NOW_NAME } from "../lib/character-names.ts";
 
 export interface CharacterHistoryTabProps {
   readonly characterId: CharacterId;
@@ -72,7 +73,7 @@ function HistoryTabBody({ characterId }: CharacterHistoryTabProps): ReactElement
   return (
     <Stack gap="block">
       <Button disabled={snapshot.isPending} variant="outline" onClick={takeSnapshot}>
-        Snapshot now
+        {CHARACTER_SNAPSHOT_NOW_NAME}
       </Button>
 
       {rows.length === 0 ? (
@@ -108,7 +109,7 @@ function RestoreConfirm({ onConfirm }: { readonly onConfirm: () => void | Promis
       confirmLabel="Restore"
       description="This replaces the character's current card with this snapshot. Your current state is snapshotted first, so you can undo it."
       onConfirm={onConfirm}
-      title="Restore this snapshot?"
+      title={CHARACTER_RESTORE_SNAPSHOT_TITLE}
       trigger={<Button variant="ghost">Restore</Button>}
     />
   );

@@ -6,7 +6,6 @@
 
 import type {
   AutomationRuleTools,
-  ConfirmSuggestionResult,
   CreateRuleFromPresetOp,
   DeleteRuleOp,
   EmitAutomationEvent,
@@ -189,7 +188,7 @@ export interface AutomationService {
   /** S4 — CONFIRM a pending ask (host-only). Take-once by id; re-checks rule-enabled + the AUTHOR's host
    *  authority; then either executes the STASHED arm (confirm class) or runs the rule fresh (invitation
    *  class). The confirmer AUTHORIZES; the executed frame stays the author's. */
-  readonly confirmSuggestion: (params: ConfirmSuggestionParams) => Promise<ConfirmSuggestionResult>;
+  readonly confirmSuggestion: (params: ConfirmSuggestionParams) => Promise<void>;
   /** S4 — the explicit dismiss (host-only): take the ask and run nothing. Idempotent-by-collapse — a
    *  second dismiss finds nothing and refuses leak-free, exactly like a double confirm. */
   readonly dismissSuggestion: (params: DismissSuggestionParams) => Promise<void>;

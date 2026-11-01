@@ -68,12 +68,9 @@ function useSlotImage(urlAt: ((cssWidth: number) => string) | undefined): {
   return { attach: setElement, url, failed };
 }
 
-/** A speaker's art as the control that opens it full size. The bare style: a tint over the art would read as a smudge,
- *  and the press scale already answers a tap. The picture button sizes itself from its child, so wrapped art keeps its box. */
-export function ArtButton({
-  view,
-  ...button
-}: Omit<PictureButtonProps, "aria-label" | "onClick" | "ref" | "variant"> & { readonly view: ArtView }): ReactElement {
+// A speaker's art as the control that opens it full size. The bare style: a tint over the art would read as a smudge,
+// and the press scale already answers a tap. The picture button sizes itself from its child, so wrapped art keeps its box.
+function ArtButton({ view, ...button }: Omit<PictureButtonProps, "aria-label" | "onClick" | "ref" | "variant"> & { readonly view: ArtView }): ReactElement {
   return (
     <PictureButton
       {...button}
@@ -219,8 +216,62 @@ function useFailedReport(failed: boolean, onFailedChange: ArtFailedReport | unde
 }
 
 /** Ripple's portrait: the Avatar asking for its image at the width its slot renders at (times the pixel ratio),
- *  not a fixed size. With no image the Avatar's own fallback shows. */
-export function PortraitAvatar({ urlAt, ...avatar }: AvatarProps & { readonly urlAt: ((cssWidth: number) => string) | undefined }): ReactElement {
-  const { attach, url } = useSlotImage(urlAt);
-  return <Avatar ref={attach} {...avatar} {...(url === undefined ? {} : { src: url })} />;
+ *  not a fixed size. With no image the Avatar's own fallback shows. The portrait opens full size through `view`;
+ *  one whose image failed to load is plain paint with no tap target, like whisper's band and echo's tile.
+ *  `stickyClassName` pins the portrait to the card's top: on the portrait itself unwrapped, on its button wrapped. */
+export function PortraitAvatar({
+  urlAt,
+  view,
+  stickyClassName,
+  className,
+  ...avatar
+}: AvatarProps & {
+  readonly urlAt: ((cssWidth: number) => string) | undefined;
+  readonly view: ArtView | null;
+  readonly stickyClassName: string;
+}): ReactElement {
+  const { attach, url, failed } = useSlotImage(urlAt);
+  const tappable = view !== null && !failed;
+  const portrait = (
+    <Avatar
+      ref={attach}
+      {...avatar}
+      className={cn(tappable ? undefined : stickyClassName, className) ?? ""}
+      {...(url === undefined || failed ? {} : { src: url })}
+    />
+  );
+  if (!tappable) {
+    return portrait;
+  }
+  return (
+    <ArtButton view={view} cardCorners={avatar.cardCorners} className={cn(stickyClassName, "shrink-0") ?? ""}>
+      {portrait}
+    </ArtButton>
+  );
+}
+
+/** The gutter chip: the Avatar with its image, opening full size through `view`. A chip whose image failed to load
+ *  keeps the Avatar's initials and drops the tap target, like the other styles' art. `layoutClassName` seats the chip on
+ *  whichever element is outermost: the chip, or the button that opens it. */
+export function ChipAvatar({
+  src,
+  view,
+  layoutClassName,
+  ...avatar
+}: Omit<AvatarProps, "className" | "src"> & {
+  readonly src?: string;
+  readonly view: ArtView | null;
+  readonly layoutClassName: string;
+}): ReactElement {
+  const { attach, failed } = useSlotImage(src === undefined ? undefined : (): string => src);
+  const tappable = view !== null && !failed;
+  const chip = <Avatar ref={attach} {...avatar} className={tappable ? "" : layoutClassName} {...(src === undefined || failed ? {} : { src })} />;
+  if (!tappable) {
+    return chip;
+  }
+  return (
+    <ArtButton view={view} className={layoutClassName}>
+      {chip}
+    </ArtButton>
+  );
 }

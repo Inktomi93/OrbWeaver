@@ -10,7 +10,7 @@ import { authConfigSchema } from "@orb/contracts/auth-config";
 import { AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { AgentSdkSpawn } from "@orb/inference";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
+import { APP_SECRET_ENV_KEYS, DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
 import { EnvRefusedError } from "@orb/server/foundation/env/refusal";
 import { createCas } from "@orb/server/infra/storage/cas";
 import { CORPUS_SDK_QUERY } from "./corpus-sdk-protocol.ts";
@@ -89,16 +89,15 @@ test("a composed row follows its source: an asset the product stores lands in th
   }
 });
 
-// The suite shares one module registry, so a test never writes the process environment (eslint.config.ts). The
-// developer's own HOME and PATH are the shell variables the old allowlist copied into every agent child.
-test("the developer's shell variables do not reach the agent child: its env is the root's fixed one", async () => {
+// One real agent turn, returning the env each spawned child received.
+async function agentChildEnvs(hostEnv?: Readonly<Record<string, string>>): Promise<readonly Readonly<Record<string, string | undefined>>[]> {
   const wire = createCorpusSdkExecution({ prompts: [CORPUS_SDK_QUERY] });
-  const children: { readonly home: string | undefined; readonly path: string | undefined }[] = [];
+  const children: Readonly<Record<string, string | undefined>>[] = [];
   const spawn: AgentSdkSpawn = (options) => {
-    children.push({ home: options.env["HOME"], path: options.env["PATH"] });
+    children.push(options.env);
     return wire.spawn(options);
   };
-  await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: spawn });
+  await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: spawn, ...(hostEnv === undefined ? {} : { hostEnv }) });
   const actor = await seedCorpusSdkActor(root);
   const { resolved } = await root.app.runtime.resolve({ principal: actor.principal, connectionId: actor.connection.id, task: "chat", cachedFacts: true });
   if (resolved.task !== "chat") {
@@ -112,7 +111,36 @@ test("the developer's shell variables do not reach the agent child: its env is t
     systemPrompt: { static: "", dynamic: "" },
   });
   await wire.settle();
-  expect(children).toEqual([{ home: undefined, path: dirname(execPath) }]);
+  return children;
+}
+
+// The suite shares one module registry, so a test never writes the process environment (eslint.config.ts). The
+// developer's own HOME and PATH are the shell variables the old allowlist copied into every agent child.
+test("the developer's shell variables do not reach the agent child: its env is the root's fixed one", async () => {
+  expect((await agentChildEnvs()).map((env) => ({ home: env["HOME"], path: env["PATH"] }))).toEqual([{ home: undefined, path: dirname(execPath) }]);
+});
+
+// The allowlist is the firewall: nothing but its own members leaves the host env, so a planted value must not surface
+// under any name. HOME is the control that the planted env reached the builder at all.
+test("every app secret and every ambient runtime or Claude variable planted in the host env stays out of the agent child", async () => {
+  const planted = "planted-host-value-0123456789abcdef";
+  const controlHome = "/planted-control-home";
+  // The builder pins several Claude keys after the baseline, so only an unpinned one can catch the namespace joining it.
+  const unpinnedClaudeKey = "CLAUDE_CODE_USE_BEDROCK";
+  const refused = [
+    ...APP_SECRET_ENV_KEYS,
+    unpinnedClaudeKey,
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_BASE_URL",
+    "CLAUDE_CONFIG_DIR",
+    "MAX_THINKING_TOKENS",
+    "NODE_OPTIONS",
+    "LD_PRELOAD",
+  ];
+  const [env, ...others] = await agentChildEnvs({ ...Object.fromEntries(refused.map((key) => [key, planted])), ["HOME"]: controlHome });
+  expect(others).toEqual([]);
+  expect(env?.["HOME"]).toBe(controlHome);
+  expect(Object.entries(env ?? {}).filter(([, value]) => value === planted)).toEqual([]);
 });
 
 test("the sign-in source states whether the record set AUTH_MODE, whatever the process that loaded the module had", async () => {

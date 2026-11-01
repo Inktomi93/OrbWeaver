@@ -17,7 +17,7 @@ down unchanged. Three tiers, one direction:
 
 | Tier | Home | Does | Never does |
 | - | - | - | - |
-| VERIFICATION | `infra/auth` (sealed, db-free) | headers → pre-row `ResolvedIdentity` + signals (`via`, `hasCsrfHeader`) | upsert, derive role, mint `Principal` |
+| VERIFICATION | `infra/auth` (sealed, db-free) | headers → pre-row `ResolvedIdentity` + the `via` signal; the `hasCsrfHeader` predicate each route gate calls | upsert, derive role, mint `Principal` |
 | RESOLUTION | `domain/sessions` | users-row upsert, `determineRole`, cookie `validate` | construct `Principal` |
 | CONSTRUCTION | `packages/server/src/entry/auth/seam.ts` | the one `Principal` mint | re-verify |
 

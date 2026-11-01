@@ -845,7 +845,7 @@ export type AutomationSuggestionKind = (typeof AUTOMATION_SUGGESTION_KINDS)[numb
 /** The rendered ask's cap. A card is one line of host-facing prose, not a preview pane. */
 export const AUTOMATION_SUGGESTION_SUMMARY_MAX = 200;
 
-// What ONE dispatch of a rule DID, as a VERB RESULT reports it (`runRuleNow`, `confirmSuggestion`): a fire
+// What ONE dispatch of a rule DID, as a VERB RESULT reports it (`runRuleNow`): a fire
 //  terminal, or one of the two NON-FIRE terminals below.
 //
 //  Neither `suggested` nor `paused` is a member of {@link AUTOMATION_FIRE_OUTCOMES}, and the distinction is the
@@ -1292,16 +1292,6 @@ export interface RunRuleNowResult {
   readonly outcome: AutomationRunOutcome;
 }
 
-/** S4 — what a confirm did. `ran` names WHICH of the two classes executed: the STASHED arm (confirm class —
- *  the act the host was shown, in the author's own frame) or a FRESH rule dispatch (invitation class — a
- *  pre-predicate refusal had nothing to stash, so its confirm is R7). `outcome` is the fire terminal either
- *  way, in the fire log's own vocabulary: a stashed arm terminates `fired` or `action_error`; a fresh run can
- *  additionally come back `predicate_false` — the honest answer when the rule's condition has since moved. */
-export interface ConfirmSuggestionResult {
-  readonly ran: "stashed-arm" | "fresh-run";
-  readonly outcome: AutomationRunOutcome;
-}
-
 export const ruleViewSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.automationRule),
   chatId: typeIdSchema(ID_PREFIX.chat).nullable(),
@@ -1354,10 +1344,6 @@ export const testRunResultSchema = z.strictObject({
 }) satisfies z.ZodType<TestRunResult>;
 
 export const runRuleNowResultSchema = z.strictObject({ outcome: automationRunOutcomeSchema }) satisfies z.ZodType<RunRuleNowResult>;
-export const confirmSuggestionResultSchema = z.strictObject({
-  ran: z.literal(["stashed-arm", "fresh-run"]),
-  outcome: automationRunOutcomeSchema,
-}) satisfies z.ZodType<ConfirmSuggestionResult>;
 
 export const automationChatInputSchema = z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat) });
 

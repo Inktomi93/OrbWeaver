@@ -24,6 +24,7 @@ import { useInvalidation } from "#data";
 import { useBulkAddCardTag, useBulkArchiveCharacters, useBulkRemoveCharacters } from "../hooks/use-character-mutations.ts";
 import type { CHARACTER_ACTION_SCOPE_IDS } from "../lib/character-actions.ts";
 import { characterActionsForScope } from "../lib/character-actions.ts";
+import { characterBulkDeleteTitle, characterBulkTagTitle } from "../lib/character-names.ts";
 
 /** File-local — exactly the verbs the `bulk` scope offers. */
 type BulkActionId = (typeof CHARACTER_ACTION_SCOPE_IDS)["bulk"][number];
@@ -105,7 +106,7 @@ export function CharacterBulkBar({ ids, selectedCount, onClear, onRemoveSubmitte
         onOpenChange={setTagOpen}
         onSubmit={applyTag}
         open={tagOpen}
-        title={`Tag ${selectedCount} character${selectedCount === 1 ? "" : "s"}`}
+        title={characterBulkTagTitle(selectedCount)}
       />
       <ConfirmDialog
         confirmLabel="Delete"
@@ -113,7 +114,7 @@ export function CharacterBulkBar({ ids, selectedCount, onClear, onRemoveSubmitte
         onConfirm={confirmDelete}
         onOpenChange={setDeleteOpen}
         open={deleteOpen}
-        title={`Delete ${selectedCount} character${selectedCount === 1 ? "" : "s"}?`}
+        title={characterBulkDeleteTitle(selectedCount)}
       />
     </>
   );

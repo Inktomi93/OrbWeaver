@@ -25,6 +25,7 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import { selectAnalyticsCharacterFromList, setAnalyticsSearchQuery, useAnalyticsSearchQuery, useSelectedAnalyticsCharacterId } from "#state";
+import { ANALYTICS_SEARCH_NAME } from "../lib/analytics-names.ts";
 import {
   ANALYTICS_DEFAULT_SORT,
   ANALYTICS_SORT_OPTIONS,
@@ -76,7 +77,7 @@ export function AnalyticsListSurface(): ReactElement {
       }
       ref={surfaceRef}
       // The search is the reach past the page cap; the sort orders the page that comes back.
-      search={<Input aria-label="Search characters" onValueChange={setAnalyticsSearchQuery} placeholder="Search characters" value={search} />}
+      search={<Input aria-label={ANALYTICS_SEARCH_NAME} onValueChange={setAnalyticsSearchQuery} placeholder={ANALYTICS_SEARCH_NAME} value={search} />}
     >
       <LeaderboardRows sort={sort} search={search} />
     </ListPage>

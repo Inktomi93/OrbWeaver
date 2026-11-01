@@ -199,7 +199,7 @@ export interface EmbeddingsService {
    *  the end of every build pass; an ordinary pass deletes nothing. */
   readonly pruneMemoryBlocks: (params: PruneMemoryBlocksParams) => Promise<void>;
   /** the reindex-shrink seam. After the ingest upserts a document's current chunks,
-   *  this deletes the strays (shrunk tail `chunkIdx >= keepCount` + retired-space `model != model`), scoped to
+   *  this deletes the shrunk tail (`chunkIdx >= keepCount`) of the active generation, scoped to
    *  the one document. databank never touches `document_chunks` directly (single-write-path invariant). */
   readonly pruneDocumentChunks: PruneDocumentChunksOp;
   /** The DocumentView chunk-count read (per document, active model) — embeddings owns `document_chunks`, so

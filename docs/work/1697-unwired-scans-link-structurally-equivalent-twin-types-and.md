@@ -15,7 +15,7 @@ Engine one follows a value across a compiler-checked hand-off. `tooling/src/unwi
 
 ## Why
 
-The rows in [ts71-engine-disagreements.md](../plans/unwired-code/ts71-engine-disagreements.md) classes B2, A2 and G are false until these forms are followed. Under the one-way audit they would report as findings.
+The rows in [1715](1715-unwired-engine-one-judges-and-find-references-audits.md) classes B2, A2 and G are false until these forms are followed. Under the one-way audit they would report as findings.
 
 ## Done when
 
@@ -25,7 +25,9 @@ The rows in [ts71-engine-disagreements.md](../plans/unwired-code/ts71-engine-dis
 
 ## Evidence
 
-`tests/tooling/unwired/flows.int.test.ts`, each form with a found case and a control:
+Restated twins and whole-object hand-offs are the same shape as the spread link, and find-references cannot see them for the same reason. Treat them as new `Link` sources in engine one, not as engine two work (engine rules: item 1715). The forms are covered; the landed state is below.
+
+Landing evidence: the cases are in `tests/tooling/unwired/flows.int.test.ts`, each form with a found case and a control:
 
 | Form | Site | State |
 | - | - | - |
@@ -48,3 +50,5 @@ Not followed:
 - The conditional that builds a union member (`packages/ui/src/lib/clipboard.ts:23`, [1645](1645-judge-the-ui-union-members-the-unwired-unions.md)): that is the unions scan.
 
 Owed by the owner: the full before and after, peak memory and wall time. The hand-off pass was not measured on this tree.
+
+The class B1 rows are real `never-written` findings and belong to their judgement items.

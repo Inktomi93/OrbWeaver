@@ -167,7 +167,7 @@ async function sourceDataset(parent: string, withEmbeddings = false): Promise<So
     const owner = await root.principalFor(root.ownerId);
     await root.services.admin.resetPassword({ principal: owner, userId: owner.userId, password: SOURCE_PASSWORD });
     await root.services.credentials.add({ principal: owner, provider: "custom-openai", key: SOURCE_SECRET });
-    await root.services.sessions.create({ userId: owner.userId });
+    await root.app.sessions.create({ userId: owner.userId });
     const card = await root.services.character.create({
       principal: owner,
       input: createCharacterSchema.parse({ handle: "retained-card", name: "Retained", description: "Original fixture text" }),
