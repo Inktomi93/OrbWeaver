@@ -153,8 +153,8 @@ export interface Room extends AsyncDisposable {
   readonly rearm: () => void;
   /** Answer every later provider request at once with this finished text. */
   readonly answerWith: (text: string) => void;
-  /** Answer every later provider request at once with these tokens, one stream frame each. */
-  readonly answerInChunks: (chunks: readonly string[]) => void;
+  /** Answer every later provider request at once with these tokens, one stream frame each, ending on `finishReason`. */
+  readonly answerInChunks: (chunks: readonly string[], finishReason?: string) => void;
   /** The bytes of every chat completion request so far: what the model actually received. */
   readonly prompts: () => readonly string[];
   readonly send: () => Promise<unknown>;
@@ -218,8 +218,8 @@ export async function openRoom(): Promise<Room> {
     answerWith: (text): void => {
       reply = { ...reply, respond: (): Response => coreProse(text) };
     },
-    answerInChunks: (chunks): void => {
-      const usage = terminalSseLine({ usage: { promptTokens: 4, completionTokens: 2 } });
+    answerInChunks: (chunks, finishReason): void => {
+      const usage = terminalSseLine({ usage: { promptTokens: 4, completionTokens: 2 }, ...(finishReason === undefined ? {} : { finishReason }) });
       reply = { ...reply, respond: (): Response => coreSse([...chunks.map((content) => coreFrame({ choices: [{ delta: { content } }] })), usage]) };
     },
     prompts: () => prompts,

@@ -28,9 +28,6 @@ import type { InlineReplyImageProjection, PlacedInlineImage } from "../contract/
 /** The alt ceiling — a model that captions a picture with three paragraphs is not writing alt text, and the
  *  string is permanent. Matches imagery's own `ALT_MAX_CHARS` so the two picture writers read alike. */
 const ALT_MAX_CHARS = 300;
-const ALT_LINE_BREAKS = /[\r\n]+/gu;
-const TICK = "`";
-const CODE_FENCE_MARK = "```";
 
 /** Sentence terminators the alt mint splits the preceding prose on. Deliberately not a locale-aware
  *  segmenter: the fallback is `""`, so a miss costs an empty alt, never a wrong one. */
@@ -73,8 +70,8 @@ function skipWhile(text: string, from: number, keep: (char: string) => boolean):
  *  the member CAN see — laundering it past the hidden-span scrub, which only ever removes the span itself.
  *  Card bodies and choices blocks drop for the same reason they never read aloud well.
  *
- *  SECURITY: the strip runs first, on the fence-blind hidden scan. The render grammar alone keeps a tag as literal text
- *  when a fence line inside its quoted value splits it, or when it never closes, and the alt is not a hidden span, so no
+ *  SECURITY: the strip runs first, on the hidden scan. The render grammar alone keeps a tag as literal text inside a code
+ *  block, when a fence line in its quoted value splits it, or when it never closes, and the alt is not a hidden span, so no
  *  later strip would remove those bytes (D285). */
 function precedingProse(content: string, upTo: number): string {
   return tokenizeContent(stripHiddenSpans(content.slice(0, upTo)).content, { committed: true })
@@ -82,22 +79,10 @@ function precedingProse(content: string, upTo: number): string {
     .join("");
 }
 
-/** A spot the splice cannot change how the hidden scan reads the body. SECURITY: both moves stop a tag reaching a member
- *  whole (D285). A splice inside a tag's name or first attr name leaves bytes the walker reads as prose, so `at` leaves
- *  the run. The splice also ends one line and starts the next, which moves the fence state: a tick run it splits stops
- *  being a fence, and ticks it lifts to a line start become one. The strip leaves every tag inside a fence, so `at` steps
- *  past the run. */
-function safeSpliceOffset(content: string, runs: readonly HiddenRun[], offset: number): number {
-  let at = runs.find((run) => offset > run.start && offset < run.end)?.end ?? offset;
-  const splitsRun = content.charAt(at - 1) === TICK && content.charAt(at) === TICK;
-  const liftsFence = at > 0 && content.charAt(at - 1) !== "\n" && content.startsWith(CODE_FENCE_MARK, at);
-  if (!(splitsRun || liftsFence)) {
-    return at;
-  }
-  while (content.charAt(at) === TICK) {
-    at += 1;
-  }
-  return at;
+/** `at`, moved past the hidden run it falls inside. SECURITY: a splice inside a tag's name or first attr name leaves bytes
+ *  the walker reads as prose, so the whole tag, `truth` included, reaches a member (D285). */
+function pastHiddenRun(runs: readonly HiddenRun[], at: number): number {
+  return runs.find((run) => at > run.start && at < run.end)?.end ?? at;
 }
 
 // F22's mint: the last complete sentence of the prose in front of the picture, trimmed and capped; `""`
@@ -111,9 +96,7 @@ function mintInlineImageAlt(content: string, atChars: number): string {
   // the `replyMedia` contract asked for; everything earlier is the scene, which is not what this picture is.
   const last = afterLastSentenceEnd(prose).trim();
   const chosen = last.length > 0 ? last : prose.trim();
-  // SECURITY: one line. A line break would let the alt write a fence line into canon, and that fence would keep the
-  // strip off every hidden tag after the picture (D285).
-  return chosen.replace(ALT_LINE_BREAKS, " ").slice(0, ALT_MAX_CHARS).trim();
+  return chosen.slice(0, ALT_MAX_CHARS).trim();
 }
 
 /** The markdown a stored picture becomes in canon. One home — the two other picture writers spell their own
@@ -154,7 +137,7 @@ export function projectInlineReplyImages(
   let out = "";
   let cursor = 0;
   for (const image of images) {
-    const at = safeSpliceOffset(content, hiddenRuns, Math.min(Math.max(image.atChars, cursor), content.length));
+    const at = pastHiddenRun(hiddenRuns, Math.min(Math.max(image.atChars, cursor), content.length));
     for (const [index, offset] of offsets.entries()) {
       const event = offsetEvents[index];
       const beforeImage = offset < at || (offset === at && event !== undefined && image.eventOrdinal !== undefined && event < image.eventOrdinal);
