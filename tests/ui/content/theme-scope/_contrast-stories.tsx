@@ -1,10 +1,13 @@
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { CtIsolation } from "@orb/testkit/browser";
+import { Badge } from "@orb/ui/badge";
+import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { ListRow } from "@orb/ui/list-row";
 import { Markdown } from "@orb/ui/markdown";
 import { MessageBubble } from "@orb/ui/message-bubble";
 import { TrackBar } from "@orb/ui/meter";
+import { Text } from "@orb/ui/text";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ToneRole } from "@orb/ui/tokens";
@@ -522,6 +525,55 @@ export function PickedRoomStory({
               </ThemeScope>
             </div>
           </ThemeScope>
+        </ThemeScope>
+      </div>
+    </CtIsolation>
+  );
+}
+
+const BOX_PROSE = ["> Quoted letter.", "", "| Head |", "| - |", "| Cell |", "", "[A link](https://example.com)"].join("\n");
+
+function BoxElements({ card, name }: { readonly card: ThemeScopeTokens; readonly name: string }): ReactElement {
+  return (
+    <ThemeScope tokens={card}>
+      <MessageBubble messageRole="assistant">
+        <ThemeScope tokens={card} className="contents">
+          <Text as="span" voice="label" ink="speaker" data-element="speaker name">
+            {name}
+          </Text>
+        </ThemeScope>
+        <Markdown trust="trusted" mode="static">
+          {BOX_PROSE}
+        </Markdown>
+        <Text as="span" voice="meta" ink="muted" data-element="swipe foot">
+          2/3
+        </Text>
+        <Button variant="ghost" size="sm" data-element="kebab">
+          More
+        </Button>
+        <Badge data-element="soft chip">Modified</Badge>
+      </MessageBubble>
+    </ThemeScope>
+  );
+}
+
+/** A card's assistant turn with each primitive a bubble holds, its row and its attribution scopes shaped as the transcript stamps them. */
+export function BoxElementsStory({
+  theme,
+  card,
+  second,
+}: {
+  readonly theme?: keyof typeof SEED_THEME_VALUE_SETS;
+  readonly card: ThemeScopeTokens;
+  readonly second?: ThemeScopeTokens;
+}): ReactElement {
+  const seed = theme === undefined ? TOKENS["color.background"].value : SEED_THEME_VALUE_SETS[theme].vars[TOKENS["color.background"].cssVar];
+  return (
+    <CtIsolation subject="ThemeScope" isolates="A bubble box as a whole surface for what it holds">
+      <div data-theme={theme}>
+        <ThemeScope tokens={{}} ambientBackground={seed} ambientAccent={TOKENS["color.primary"].value}>
+          <BoxElements card={card} name="Pamela" />
+          {second === undefined ? null : <BoxElements card={second} name="Mira" />}
         </ThemeScope>
       </div>
     </CtIsolation>

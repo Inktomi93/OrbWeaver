@@ -13,6 +13,7 @@ import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_NON_PALETTE_VARS } from "@orb/ui/the
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
 import type {
+  BoxElementsStory,
   BubbleSeparationStory,
   InheritedInkStory,
   NestedSeedStory,
@@ -31,6 +32,7 @@ import type {
 
 import {
   BASES,
+  BOX_ELEMENT_CASES,
   CARRIED_BUBBLE_PALETTES,
   INHERITED_INK_CASE,
   keepsHue,
@@ -280,6 +282,46 @@ for (const { name, background, fills } of CARRIED_BUBBLE_PALETTES) {
     });
   }
 }
+
+const BOX_ELEMENTS = {
+  blockquote: "blockquote p",
+  "table cell": "td",
+  link: '[data-streamdown="link"]',
+  "swipe foot": '[data-element="swipe foot"]',
+  kebab: '[data-element="kebab"]',
+  "soft chip": '[data-element="soft chip"]',
+  "speaker name": '[data-element="speaker name"]',
+} as const;
+
+for (const { name, theme, card, carried } of BOX_ELEMENT_CASES) {
+  for (const [element, selector] of Object.entries(BOX_ELEMENTS)) {
+    test(`${name}: ${element} clears AA inside the box`, async ({ mount, page }) => {
+      const tokens = carried === undefined ? card : { ...card, background: carried };
+      const component = await mount<typeof BoxElementsStory>("tests/ui/content/theme-scope/_contrast-stories/BoxElementsStory", {
+        ...(theme === undefined ? {} : { theme }),
+        card: tokens,
+      });
+      const receipt = await pixelContrast(page, component.locator(selector).first());
+      expect(receipt.ratio, receipt.describe).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+    });
+  }
+}
+
+test("a group room's two speakers each read on their own picked fill", async ({ mount, page }) => {
+  const [dark, light] = BOX_ELEMENT_CASES;
+  const component = await mount<typeof BoxElementsStory>("tests/ui/content/theme-scope/_contrast-stories/BoxElementsStory", {
+    theme: "light",
+    card: dark.card,
+    second: light.card,
+  });
+  const samples = component.locator(Object.values(BOX_ELEMENTS).join(", "));
+  await expect(samples).toHaveCount(14);
+  for (const sample of await samples.all()) {
+    await sample.scrollIntoViewIfNeeded();
+    const receipt = await pixelContrast(page, sample);
+    expect(receipt.ratio, `${await sample.textContent()}: ${receipt.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+  }
+});
 
 test("an inherited narration pick clears a bubble fill a nested scope picked", async ({ mount, page }) => {
   const component = await mount<typeof InheritedInkStory>("tests/ui/content/theme-scope/_contrast-stories/InheritedInkStory", {

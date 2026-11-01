@@ -107,7 +107,7 @@ export function ThemeScope({ tokens, children, className, ambientBackground, amb
             inks: clamped.proseInks,
             fills: clamped.bubbleFills,
             scopes: clamped.bubbleScopes,
-            inside: tokens.background === undefined ? scopeAmbient.inside : undefined,
+            inside: scopeAmbient.inside,
           }}
         >
           <div className={className} style={style} data-slot="theme-scope" {...(clamped.density === undefined ? {} : { "data-density": clamped.density })}>

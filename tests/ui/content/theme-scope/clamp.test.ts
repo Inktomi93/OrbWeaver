@@ -117,6 +117,7 @@ test("a picked fill restates its inks on its own box and leaves the scope's vars
   expect(clamped.vars[narrationVar]).toBeUndefined();
   expect(clamped.vars[TOKENS["color.muted"].cssVar]).toBeUndefined();
   expect(clamped.bubbleScopes.assistant?.vars[narrationVar]).toContain("oklch(from");
+  expect(Object.keys(clamped.bubbleScopes.assistant?.vars ?? {})).toContain(TOKENS["color.muted-foreground"].cssVar);
   expect(clamped.bubbleScopes.user).toBeUndefined();
   expect(
     clampThemeTokens({ aiBubble: { bg: "oklch(0.2 0.02 35)" } }, page, undefined, { palette: "carried", inks }).bubbleScopes.assistant?.vars[narrationVar],

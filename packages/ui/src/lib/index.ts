@@ -5,7 +5,7 @@
 export { isRenderableColor, isSafeColor } from "@orb/kit/safe-color";
 export { ACCENT_HOVER } from "./accent-hover.ts";
 export { copyActionName, hideActionName, removeActionName, revealActionName, selectActionName } from "./action-names.ts";
-export type { AmbientScope, BubbleFillPixels, BubbleScope, BubbleScopes, ProseInks } from "./ambient-scope.ts";
+export type { AmbientScope, BubbleScope, BubbleScopes, PickedFill, PickedFills, ProseInks } from "./ambient-scope.ts";
 export { AmbientScopeContext, PROSE_INK_FIELDS } from "./ambient-scope.ts";
 export { ANCHOR_GAP_INPUT, ANCHOR_GAP_TRIGGER } from "./anchor-gap.ts";
 export { CARD_CORNERS } from "./card-corners.ts";

@@ -61,6 +61,14 @@ export const CARRIED_BUBBLE_PALETTES = [
   { name: "custom dark", background: "oklch(0.2 0.02 250)", fills: [FILL_NEAR_BLACK, FILL_NEAR_WHITE] },
 ] as const;
 
+/** A card's picks on each polarity of fill, over a seed and with a carried background across the crossover from the fill. */
+export const BOX_ELEMENT_CASES = [
+  { name: "dark fill over the light seed", theme: "light", card: { aiBubble: { bg: FILL_NEAR_BLACK } }, carried: undefined },
+  { name: "light fill over the hearth seed", theme: undefined, card: { aiBubble: { bg: FILL_NEAR_WHITE } }, carried: undefined },
+  { name: "dark fill on a carried light background", theme: undefined, card: { aiBubble: { bg: FILL_NEAR_BLACK } }, carried: "oklch(0.98 0.004 75)" },
+  { name: "light fill on a carried dark background", theme: undefined, card: { aiBubble: { bg: FILL_NEAR_WHITE } }, carried: "oklch(0.2 0.02 250)" },
+] as const;
+
 interface RoomFills {
   readonly opposed: string;
   readonly matched: string;

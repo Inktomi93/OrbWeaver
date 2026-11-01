@@ -34,7 +34,7 @@ import { isDeterministicColor, isSafeColor } from "@orb/kit/safe-color";
 import type { Oklch } from "@orb/kit/theme-derivation";
 import { bubbleInset, carriedReadingHosts, derivedForegroundLightness, proseInkCorrection, surfacePolarity } from "@orb/kit/theme-derivation";
 import { z } from "zod";
-import type { AmbientScope, BubbleFillPixels, BubbleScope, BubbleScopes, ProseInks } from "#lib";
+import type { AmbientScope, BubbleScope, BubbleScopes, PickedFill, PickedFills, ProseInks } from "#lib";
 import { PROSE_INK_FIELDS } from "#lib";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "#tokens";
 import type { ParsedOklch } from "./color-parse.ts";
@@ -143,7 +143,7 @@ export interface ClampedTheme {
   /** The validated prose inks a nested scope inherits, judging-only like {@link ClampedTheme.accentSource}: they never reach the emit surface as a var of their own. */
   readonly proseInks: ProseInks;
   /** The fill each role paints under this scope, which a nested scope hands on. Judging-only, like {@link ClampedTheme.proseInks}. */
-  readonly bubbleFills: BubbleFillPixels;
+  readonly bubbleFills: PickedFills;
   /** What `MessageBubble` restates on its own box: fill-judged vars never reach this scope's emit surface. */
   readonly bubbleScopes: BubbleScopes;
   /** Opaque pixel this scope's authored background paints over its ambient; judging/context only. */
@@ -165,6 +165,8 @@ export type AmbientPalette = (typeof AMBIENT_PALETTES)[number];
 /** What a scope inherits beside its ambient base and accent: who painted that base, and the prose inks picked above it. */
 export interface ScopeAmbient extends AmbientScope {
   readonly palette?: AmbientPalette | undefined;
+  /** This solve is a box's own palette, so its background is the fill, not a nested card's. */
+  readonly asBox?: boolean;
 }
 
 /** The D336 primary fallback a scope took: the fill it paints and the hover and active percents the solve raised to. */
@@ -227,8 +229,12 @@ function proseInkOn(picked: string | undefined, base: ParsedOklch | null, hosts:
 }
 
 /** The surfaces a picked prose ink is judged on with no picked bubble around it: the reading hosts of the base under it, carried or seed. */
-function readingHostsOn(inkBase: ParsedOklch | null): readonly Oklch[] {
-  return inkBase === null ? [] : carriedReadingHosts({ l: inkBase.l, c: inkBase.c, h: inkBase.h });
+function readingHostsOn(inkBase: ParsedOklch | null, seedHosts: readonly Oklch[] | null): readonly Oklch[] {
+  if (inkBase === null) {
+    return [];
+  }
+  const base = { l: inkBase.l, c: inkBase.c, h: inkBase.h };
+  return seedHosts === null ? carriedReadingHosts(base) : [base, ...seedHosts];
 }
 
 /** The token each prose field overrides, read for a seed's static value. */
@@ -239,25 +245,46 @@ const PROSE_INK_TOKENS = {
   bodyColor: "color.prose-body",
 } as const satisfies Record<(typeof PROSE_INK_FIELDS)[number], keyof typeof TOKENS>;
 
-/** A seed's inks are static CSS that no scope hands down, so its base names them: the root palette's, or the value set that paints that base. */
-function seedInksOf(background: string | undefined): ProseInks {
+/** A seed's value for a token, read through its base: the root palette's, or the value set that paints that base. `null` when no seed paints it. */
+function seedValuesOf(background: string | undefined): ((token: keyof typeof TOKENS) => string) | null {
   if (background === undefined) {
-    return {};
+    return null;
   }
   const backgroundVar = TOKENS["color.background"].cssVar;
   const set = Object.values(SEED_THEME_VALUE_SETS).find(({ vars }) => (vars as Readonly<Record<string, string>>)[backgroundVar] === background);
   if (set === undefined && background !== TOKENS["color.background"].value) {
-    return {};
+    return null;
   }
   const seeded = set?.vars as Readonly<Record<string, string>> | undefined;
-  return Object.fromEntries(
-    PROSE_INK_FIELDS.map((field) => [field, seeded?.[TOKENS[PROSE_INK_TOKENS[field]].cssVar] ?? TOKENS[PROSE_INK_TOKENS[field]].value]),
-  );
+  return (token) => seeded?.[TOKENS[token].cssVar] ?? TOKENS[token].value;
 }
 
-/** What a scope's prose inks are judged over: the base under them, or the fill they sit inside. */
+/** A seed's inks are static CSS that no scope hands down, so its base names them. */
+function seedInksOf(background: string | undefined): ProseInks {
+  const seed = seedValuesOf(background);
+  return seed === null ? {} : Object.fromEntries(PROSE_INK_FIELDS.map((field) => [field, seed(PROSE_INK_TOKENS[field])]));
+}
+
+const SEED_READING_HOSTS = ["color.card", "color.user-bubble", "color.ai-bubble", "color.system-bubble"] as const;
+
+/** The surfaces a pick is read on over a seed: the ones it paints, which its generated block retunes away from the derived ramp. */
+function seedReadingHosts(background: string | undefined): readonly Oklch[] | null {
+  const seed = seedValuesOf(background);
+  return seed === null ? null : SEED_READING_HOSTS.flatMap((token) => toOklch(seed(token)) ?? []);
+}
+
+function insideBox(t: ThemeScopeTokens, inside: boolean): ThemeScopeTokens {
+  if (!inside) {
+    return t;
+  }
+  const { background: _background, userBubble: _user, aiBubble: _ai, systemBubble: _system, ...held } = t;
+  return held;
+}
+
+/** What a scope's prose inks are judged over: the base under them, the seed's painted hosts over a seed, or the fill they sit inside. */
 interface ProseInkGrounds {
   readonly inkBase: ParsedOklch | null;
+  readonly seedHosts: readonly Oklch[] | null;
   readonly inside: ParsedOklch | null;
 }
 
@@ -266,13 +293,13 @@ function proseInkVars(
   raw: unknown,
   t: ThemeScopeTokens,
   carried: CarriedPalette | null,
-  { inkBase, inside }: ProseInkGrounds,
+  { inkBase, seedHosts, inside }: ProseInkGrounds,
 ): Readonly<Record<string, string>> {
   const hostsOn = (): readonly Oklch[] | undefined => {
     if (inside !== null) {
       return [inside];
     }
-    return PROSE_INK_FIELDS.some((field) => t[field] !== undefined) ? readingHostsOn(inkBase) : undefined;
+    return PROSE_INK_FIELDS.some((field) => t[field] !== undefined) ? readingHostsOn(inkBase, seedHosts) : undefined;
   };
   const hosts = hostsOn();
   const out: Record<string, string> = {};
@@ -285,6 +312,8 @@ function proseInkVars(
   return out;
 }
 
+const THEME_OVERRIDE_FOREGROUND = "--color-foreground";
+
 const BUBBLE_PICKS = [
   ["user", "userBubble"],
   ["system", "systemBubble"],
@@ -292,37 +321,63 @@ const BUBBLE_PICKS = [
 ] as const satisfies readonly (readonly [MessageRole, keyof ThemeScopeTokens])[];
 
 /** The fill each role paints, as an opaque pixel: this scope's picks over the ones around it. A carried background repaints what those sat on, so it keeps only its own. */
-function bubbleFillsOn(t: ThemeScopeTokens, under: string | undefined, ambient: BubbleFillPixels): BubbleFillPixels {
-  const fills: Partial<Record<MessageRole, string>> = t.background === undefined ? { ...ambient } : {};
+function bubbleFillsOn(t: ThemeScopeTokens, under: string | undefined, ambient: PickedFills): PickedFills {
+  const fills: Partial<Record<MessageRole, PickedFill>> = t.background === undefined ? { ...ambient } : {};
   for (const [role, field] of BUBBLE_PICKS) {
     const picked = t[field]?.bg;
     const pixel = picked === undefined ? null : compositedBase(picked, under);
     if (pixel !== null) {
-      fills[role] = serializeOpaqueOklch(pixel);
+      fills[role] = { pixel: serializeOpaqueOklch(pixel), paint: picked ?? "" };
     }
   }
   return fills;
 }
 
+// The solve is a whole palette, and every row of a card's room asks for the same one.
+const BOX_SOLVES = new Map<string, ClampedTheme>();
+const BOX_SOLVE_LIMIT = 64;
+
+/** A box's links paint the accent as text, so inside it the accent holds the text floor on the fill, not the graphic one a card asks. */
+function boxAccentOn(pixel: string, accent: string | undefined): string | undefined {
+  const fill = toOklch(pixel);
+  const source = accent === undefined ? null : toOklch(accent);
+  if (fill === null || source === null) {
+    return accent;
+  }
+  const fix = proseInkCorrection({ l: source.l, c: source.c, h: source.h }, source.alpha, { l: fill.l, c: fill.c, h: fill.h });
+  return fix === null ? accent : serializeOpaqueOklch({ l: fix.l, c: fix.c, h: source.h });
+}
+
+function boxSolve(pixel: string, inks: ProseInks, ambientAccent: string | undefined): ClampedTheme {
+  const accent = boxAccentOn(pixel, ambientAccent);
+  const key = JSON.stringify([pixel, inks, accent]);
+  const known = BOX_SOLVES.get(key);
+  if (known !== undefined) {
+    return known;
+  }
+  const solved = clampThemeTokens({ ...inks, background: pixel }, undefined, accent, { inside: pixel, asBox: true });
+  if (BOX_SOLVES.size >= BOX_SOLVE_LIMIT) {
+    BOX_SOLVES.clear();
+  }
+  BOX_SOLVES.set(key, solved);
+  return solved;
+}
+
 /**
- * The vars each picked fill's box restates. The box is the only surface these hold on: a fill across the crossover from
- * the page admits no ink for both, and a skin with no box never renders one, so the page keeps its own inks. Each prose ink
- * in force is judged on the fill alone, and inline code's `bg-muted` takes the fill's own step.
+ * The palette each picked fill's box restates: the fill solved as a carried base, so what the box holds reads it as a whole
+ * surface, foreground to tone tints. The box is the only surface these hold on: a fill across the crossover from the page
+ * admits no ink for both, and a skin with no box never renders one, so the page keeps its own palette. Each prose ink in
+ * force is judged on the fill alone. Inside the box the role's fill var is the opaque pixel and its ink the box's foreground.
  */
-function bubbleScopesOn(fills: BubbleFillPixels, inks: ProseInks): BubbleScopes {
+function bubbleScopesOn(fills: PickedFills, inks: ProseInks, accent: string | undefined): BubbleScopes {
   const scopes: Partial<Record<MessageRole, BubbleScope>> = {};
-  for (const [role] of BUBBLE_PICKS) {
+  for (const [role, field] of BUBBLE_PICKS) {
     const fill = fills[role];
-    const pixel = fill === undefined ? null : toOklch(fill);
-    if (fill !== undefined && pixel !== null) {
-      const vars: Record<string, string> = { "--color-muted": serializeOpaqueOklch(bubbleInset(pixel).muted) };
-      for (const field of PROSE_INK_FIELDS) {
-        const ink = proseInkOn(inks[field], pixel, [pixel]);
-        if (ink !== undefined) {
-          vars[THEME_OVERRIDE_COLOR_VARS[field]] = ink;
-        }
-      }
-      scopes[role] = { fill, vars };
+    if (fill !== undefined) {
+      const solved = boxSolve(fill.pixel, inks, accent);
+      const names = THEME_OVERRIDE_COLOR_VARS[field];
+      const ink = solved.vars[THEME_OVERRIDE_FOREGROUND] ?? "";
+      scopes[role] = { fill, colorScheme: solved.colorScheme, vars: { ...solved.vars, [names.bg]: fill.pixel, [names.fg]: ink } };
     }
   }
   return scopes;
@@ -559,10 +614,11 @@ export function clampThemeTokens(
   raw: unknown,
   ambientBackground?: string,
   ambientAccent?: string,
-  { palette = "seed", inks = {}, fills: ambientFills = {}, inside }: ScopeAmbient = {},
+  { palette = "seed", inks = {}, fills: ambientFills = {}, inside, asBox }: ScopeAmbient = {},
 ): ClampedTheme {
   const parsed = themeScopeTokensSchema.safeParse(raw);
-  const t: ThemeScopeTokens = parsed.success ? parsed.data : {};
+  // Inside a box the box is the surface: a nested scope's background and bubble fills paint nothing there, only its inks hold.
+  const t = insideBox(parsed.success ? parsed.data : {}, inside !== undefined && asBox !== true);
   const vars: Record<string, string> = {};
   const put = (name: string, value: string | undefined): void => {
     if (value !== undefined) {
@@ -597,13 +653,14 @@ export function clampThemeTokens(
   const inkBase = inkBaseFor(t.background, ambientBackground);
   const fillUnder = carriedBase === null ? ambientBackground : serializeOpaqueOklch(carriedBase);
   const fills = bubbleFillsOn(t, fillUnder, ambientFills);
-  const insideFill = t.background === undefined && inside !== undefined ? toOklch(inside) : null;
+  const insideFill = inside === undefined ? null : toOklch(inside);
+  const seedHosts = t.background === undefined ? seedReadingHosts(ambientBackground) : null;
   // A carried base also owns every ABSENT prose pick (#985). Otherwise a legal background-only custom
   // theme inherits all four inks from the outer seed, which can be the opposite polarity. Derive the
   // fallback from the resolved carried pixel; with no carried background there is deliberately no
   // fallback and the cascade remains intact. Explicit picks still take the pass-through/correction arms
   // above, judged on the reading hosts of the base under them.
-  Object.assign(vars, proseInkVars(raw, t, carried, { inkBase, inside: insideFill }));
+  Object.assign(vars, proseInkVars(raw, t, carried, { inkBase, seedHosts, inside: insideFill }));
   const surface = t.background === undefined ? undefined : carriedSurfaceOn(t.background, carried, accent?.painted ?? null);
   Object.assign(vars, surface?.vars);
   // After the surface emit: a picked fill paints over the one its base derives.
@@ -630,7 +687,7 @@ export function clampThemeTokens(
     vars,
     proseInks,
     bubbleFills: fills,
-    bubbleScopes: bubbleScopesOn(fills, { ...seedInksOf(ambientBackground), ...proseInks }),
+    bubbleScopes: bubbleScopesOn(fills, { ...seedInksOf(ambientBackground), ...proseInks }, accentSource),
     ...(t.density === undefined ? {} : { density: t.density }),
     ...(colorScheme === null ? {} : { colorScheme }),
     ...inheritedInkOn(vars),
