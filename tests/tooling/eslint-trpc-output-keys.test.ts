@@ -158,3 +158,118 @@ test.for([
     expect(messages[0]).toContain(key);
   }
 });
+
+// The same rule against the server's real procedure builder and real zod, so an inferred output type is what it judges.
+// One program types every case: each sits in its own block, and a report is matched to its case by line.
+const REPO = join(import.meta.dirname, "../..");
+const REAL_PROGRAM_TIMEOUT_MS = 90_000;
+const REAL_FILE = "packages/server/src/transport/trpc/routers/probe.ts";
+const REAL_IMPORTS = [
+  `import { authedProcedure } from "${join(REPO, "packages/server/src/transport/trpc/trpc.ts")}";`,
+  'import { z } from "zod";',
+  "const viewSchema = z.strictObject({ id: z.string(), name: z.string() });",
+  "type View = z.infer<typeof viewSchema>;",
+  "declare const rows: readonly { readonly id: string; readonly name: string; readonly ownerId: string }[];",
+  "declare const row: { readonly id: string; readonly name: string; readonly ownerId: string };",
+  "declare const views: readonly View[];",
+  "declare function loadRows(): Promise<typeof rows>;",
+].join("\n");
+
+const REAL_CASES = [
+  { name: "an array output returning wider rows", source: "authedProcedure.output(z.array(viewSchema)).query(() => rows);", keys: ["`ownerId`"] },
+  {
+    name: "an array output mapping a spread of each row",
+    source: "authedProcedure.output(z.array(viewSchema)).query(() => rows.map((one) => ({ ...one })));",
+    keys: ["`ownerId`"],
+  },
+  {
+    name: "an array nested in an object output",
+    source: "authedProcedure.output(z.strictObject({ items: z.array(viewSchema) })).query(() => ({ items: rows }));",
+    keys: ["`items.ownerId`"],
+  },
+  {
+    name: "a nested wide result from an awaited call",
+    source: "authedProcedure.output(z.strictObject({ items: z.array(viewSchema) })).query(async () => ({ items: await loadRows() }));",
+    keys: ["`items.ownerId`"],
+  },
+  { name: "a spread hidden by a cast", source: "authedProcedure.output(viewSchema).query(() => ({ ...row }) as View);", keys: ["`ownerId`"] },
+  {
+    name: "a spread under satisfies with no declared return",
+    source: "authedProcedure.output(viewSchema).query(() => ({ ...row }) satisfies View);",
+    keys: ["`ownerId`"],
+  },
+  {
+    name: "a named handler returning wider rows",
+    source: "const handler = () => rows;\nauthedProcedure.output(z.array(viewSchema)).query(handler);",
+    keys: ["`ownerId`"],
+  },
+  {
+    name: "a flatMap producing wider rows",
+    source: "authedProcedure.output(z.array(viewSchema)).query(() => rows.flatMap((one) => [{ ...one }]));",
+    keys: ["`ownerId`"],
+  },
+  {
+    name: "a Promise.all over wider rows",
+    source: "authedProcedure.output(z.array(viewSchema)).query(() => Promise.all(rows.map(async (one) => ({ ...one }))));",
+    keys: ["`ownerId`"],
+  },
+  {
+    name: "an Array.from over wider rows",
+    source: "authedProcedure.output(z.array(viewSchema)).query(() => Array.from(rows, (one) => ({ ...one })));",
+    keys: ["`ownerId`"],
+  },
+  { name: "an array output of declared views", source: "authedProcedure.output(z.array(viewSchema)).query(() => views.map((one) => ({ ...one })));", keys: [] },
+  { name: "a named handler of declared views", source: "const handler = () => views;\nauthedProcedure.output(z.array(viewSchema)).query(handler);", keys: [] },
+  { name: "a void mutation", source: "authedProcedure.output(z.void()).mutation(() => undefined);", keys: [] },
+  {
+    name: "a union output",
+    source: "authedProcedure.output(z.union([viewSchema, z.strictObject({ kind: z.literal('none') })])).query(() => ({ ...views[0]! }));",
+    keys: [],
+  },
+] as const;
+
+test("the output rule on the real procedure reports each case on its own lines", { timeout: REAL_PROGRAM_TIMEOUT_MS }, ({ scratch }) => {
+  const options: ts.CompilerOptions = {
+    strict: true,
+    target: ts.ScriptTarget.ESNext,
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    allowImportingTsExtensions: true,
+    noEmit: true,
+    skipLibCheck: true,
+    types: [],
+    paths: { zod: [join(REPO, "packages/server/node_modules/zod")] },
+  };
+  let line = REAL_IMPORTS.split("\n").length + 1;
+  const spans = REAL_CASES.map((one) => {
+    const start = line + 1;
+    line += one.source.split("\n").length + 2;
+    return { ...one, start, end: line };
+  });
+  const text = `${REAL_IMPORTS}\n${REAL_CASES.map((one) => `{\n${one.source}\n}`).join("\n")}`;
+  mkdirSync(dirname(join(scratch, REAL_FILE)), { recursive: true });
+  writeFileSync(join(scratch, REAL_FILE), text);
+  const program = ts.createProgram({ rootNames: [join(scratch, REAL_FILE)], options });
+  const found = new Linter({ cwd: scratch }).verify(
+    text,
+    {
+      files: ["**/*.ts"],
+      plugins: { orb: { rules: { "trpc-output-declared-keys": trpcOutputKeysRule } } },
+      languageOptions: { parser: tseslint.parser, parserOptions: { programs: [program], project: false, projectService: false } },
+      rules: { [RULE]: "error" },
+    },
+    { filename: join(scratch, REAL_FILE) },
+  );
+  expect(found.filter(({ fatal }) => fatal === true)).toEqual([]);
+  const reported = spans.map((one) => ({
+    name: one.name,
+    keys: one.keys,
+    messages: found.filter(({ line: at }) => at >= one.start && at < one.end).map(({ message }) => message),
+  }));
+  for (const one of reported) {
+    expect({ name: one.name, reported: one.messages.length > 0 }).toEqual({ name: one.name, reported: one.keys.length > 0 });
+    for (const key of one.keys) {
+      expect(one.messages.join("\n")).toContain(key);
+    }
+  }
+});

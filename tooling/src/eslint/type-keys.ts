@@ -25,6 +25,31 @@ export function keysOf(checker: ts.TypeChecker, type: ts.Type): ReadonlySet<stri
   return names;
 }
 
+// The element type of an array or tuple, or undefined for any other type. A union is not one array.
+function elementOf(checker: ts.TypeChecker, type: ts.Type): ts.Type | undefined {
+  return !type.isUnion() && checker.isArrayLikeType(type) ? checker.getIndexTypeOfType(type, ts.IndexKind.Number) : undefined;
+}
+
+// Past this many array levels the walk stops: a recursive element type (a JSON value) never reaches a leaf.
+const ARRAY_DEPTH_MAX = 4;
+
+/** The keys a carried type holds that the declared type does not; two arrays are compared by their elements. */
+export function excessKeys(checker: ts.TypeChecker, carried: ts.Type, declared: ts.Type, depth = 0): readonly string[] {
+  const settledCarried = checker.getNonNullableType(checker.getAwaitedType(carried) ?? carried);
+  const settledDeclared = checker.getNonNullableType(checker.getAwaitedType(declared) ?? declared);
+  const carriedElement = elementOf(checker, settledCarried);
+  const declaredElement = elementOf(checker, settledDeclared);
+  if (carriedElement !== undefined && declaredElement !== undefined) {
+    return depth < ARRAY_DEPTH_MAX ? excessKeys(checker, carriedElement, declaredElement, depth + 1) : [];
+  }
+  const keysDeclared = keysOf(checker, settledDeclared);
+  const keysCarried = keysOf(checker, settledCarried);
+  if (keysDeclared === null || keysCarried === null || keysDeclared.size === 0) {
+    return [];
+  }
+  return [...keysCarried].filter((key) => !keysDeclared.has(key));
+}
+
 function propertyType(checker: ts.TypeChecker, target: ts.Type, name: string, at: ts.Node): ts.Type | null {
   const types = (target.isUnion() ? target.types : [target]).flatMap((member) => {
     const symbol = checker.getPropertyOfType(member, name);
@@ -38,7 +63,8 @@ function propertyType(checker: ts.TypeChecker, target: ts.Type, name: string, at
  *  against its own field's type. A fresh literal's own keys are TypeScript's to refuse. With `whole` off, only a
  *  spread is judged: a variable or call result passed whole is ordinary width subtyping there. */
 export function undeclaredKeys(checker: ts.TypeChecker, expression: ts.Expression, target: ts.Type, whole = true): readonly string[] {
-  if (ts.isParenthesizedExpression(expression) || ts.isSatisfiesExpression(expression)) {
+  // A cast or a non-null assertion hides the value's own keys from tsc's excess check; the value under it is judged.
+  if (ts.isParenthesizedExpression(expression) || ts.isSatisfiesExpression(expression) || ts.isAsExpression(expression) || ts.isNonNullExpression(expression)) {
     return undeclaredKeys(checker, expression.expression, target, whole);
   }
   if (ts.isConditionalExpression(expression)) {
@@ -63,10 +89,5 @@ export function undeclaredKeys(checker: ts.TypeChecker, expression: ts.Expressio
   if (!whole) {
     return [];
   }
-  const declared = keysOf(checker, target);
-  const carried = keysOf(checker, checker.getTypeAtLocation(expression));
-  if (declared === null || carried === null || declared.size === 0) {
-    return [];
-  }
-  return [...carried].filter((key) => !declared.has(key));
+  return excessKeys(checker, checker.getTypeAtLocation(expression), target);
 }

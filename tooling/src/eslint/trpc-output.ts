@@ -6,7 +6,7 @@ import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import ts from "typescript";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
-import { undeclaredKeys } from "./type-keys.ts";
+import { excessKeys, undeclaredKeys } from "./type-keys.ts";
 
 // The procedure builder calls whose function argument is a resolver.
 const RESOLVER_METHODS: ReadonlySet<string> = new Set(["query", "mutation"]);
@@ -65,17 +65,25 @@ export const trpcOutputKeysRule: OrbRule = {
       return {};
     }
     const checker = program.getTypeChecker();
-    // A `.map` callback is typed by inference, so its own contextual return type is a bare type parameter; the element
+    // A `.map` or `.flatMap` callback is typed by inference, so its own contextual return type is a bare type parameter; the element
     // type it must produce is the one the mapped array is headed for.
     const mappedElement = (owner: TSESTree.Node | null): ts.Type | undefined => {
       const call = owner?.parent;
-      if (call?.type !== "CallExpression" || call.arguments[0] !== owner || call.callee.type !== "MemberExpression" || !isNamed(call.callee.property, "map")) {
+      if (call?.type !== "CallExpression" || call.arguments[0] !== owner || call.callee.type !== "MemberExpression") {
+        return undefined;
+      }
+      const flat = isNamed(call.callee.property, "flatMap");
+      if (!(flat || isNamed(call.callee.property, "map"))) {
         return undefined;
       }
       const mapped = toTs.get(call);
       const destination = ts.isSpreadElement(mapped.parent) ? mapped.parent.parent : mapped;
       const array = ts.isExpression(destination) ? checker.getContextualType(destination) : undefined;
-      return array !== undefined && checker.isArrayLikeType(array) ? checker.getIndexTypeOfType(array, ts.IndexKind.Number) : undefined;
+      if (array === undefined || !checker.isArrayLikeType(array)) {
+        return undefined;
+      }
+      // A flatMap callback returns arrays of the destination's elements, so its target is the array itself.
+      return flat ? array : checker.getIndexTypeOfType(array, ts.IndexKind.Number);
     };
     const judge = (returned: TSESTree.Expression, owner: TSESTree.Node | null): void => {
       const expression = toTs.get(returned);
@@ -94,7 +102,34 @@ export const trpcOutputKeysRule: OrbRule = {
         context.report({ node: returned, message: message(keys, resolver) });
       }
     };
+    // A resolver passed by name has no return to walk; its signature's result is compared with the output it must fit.
+    const judgeHandler = (argument: TSESTree.Node): void => {
+      const handler = toTs.get(argument);
+      const expected = ts.isExpression(handler) ? checker.getContextualType(handler) : undefined;
+      const [declared] = expected?.getCallSignatures() ?? [];
+      const [given] = checker.getTypeAtLocation(handler).getCallSignatures();
+      if (declared === undefined || given === undefined) {
+        return;
+      }
+      const keys = excessKeys(checker, checker.getReturnTypeOfSignature(given), checker.getReturnTypeOfSignature(declared));
+      if (keys.length > 0) {
+        context.report({ node: argument, message: message(keys, true) });
+      }
+    };
     return {
+      CallExpression: (node: TSESTree.CallExpression): void => {
+        const [handler] = node.arguments;
+        const callee = node.callee;
+        if (
+          handler !== undefined &&
+          callee.type === "MemberExpression" &&
+          callee.property.type === "Identifier" &&
+          RESOLVER_METHODS.has(callee.property.name) &&
+          (handler.type === "Identifier" || handler.type === "MemberExpression")
+        ) {
+          judgeHandler(handler);
+        }
+      },
       ReturnStatement: (node: TSESTree.ReturnStatement): void => {
         if (node.argument !== null) {
           judge(node.argument, enclosingFunction(node));
