@@ -223,7 +223,8 @@
     @container shell-main (inline-size <= 16rem) {
       .shell-topbar {
         flex-wrap: wrap;
-        align-content: center;
+        align-content: flex-start;
+        row-gap: 0;
       }
       .shell-topbar-lead {
         display: contents;

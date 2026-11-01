@@ -213,7 +213,7 @@ export function NewChatPicker(): ReactElement {
           wrap={true}
           onClick={(): void => found([...selected])}
         >
-          <Icon icon={MessagesSquare} size="sm" />
+          <Icon className="@max-cq-20:hidden" icon={MessagesSquare} size="sm" />
           {/* Both arms are always in the DOM and the container query shows ONE (the message-row pattern) —
               a `display: none` arm is out of the a11y tree too, so the accessible name is always the arm
               on screen. */}
