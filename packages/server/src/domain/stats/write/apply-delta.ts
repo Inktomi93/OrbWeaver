@@ -8,7 +8,7 @@
 //
 // Two merge modes: additive `col = col + excluded.col` for every monotonic counter/sum; extrema MIN/MAX for
 // `firstChatAt`/`lastActivityAt`/`maxContextTokens`/`computedAt` (not additive — merges so a re-rolled turn
-// doesn't double-count). `messageDatesApprox` is OR-merged.
+// doesn't double-count).
 //
 // character_stats has no ownerId (owner derives via characterId→characters.ownerId), so its conflict
 // target is the `characterId` unique index.
@@ -260,7 +260,6 @@ export function applyStatsDelta(batch: BatchStmt[], db: Db, delta: StatsDelta, i
           costSamples: n(delta.costSamples),
           notionalCostSamples: n(delta.notionalCostSamples),
           genTimeMs: n(delta.genTimeMs),
-          messageDatesApprox: delta.messageDatesApprox ?? false,
           computedAt: delta.now,
         })
         .onConflictDoUpdate({
@@ -283,8 +282,6 @@ export function applyStatsDelta(batch: BatchStmt[], db: Db, delta: StatsDelta, i
             costSamples: sql`${dailyStats.costSamples} + excluded.cost_samples`,
             notionalCostSamples: sql`${dailyStats.notionalCostSamples} + excluded.notional_cost_samples`,
             genTimeMs: sql`${dailyStats.genTimeMs} + excluded.gen_time_ms`,
-            // OR the approx flag — once a bucket is flagged migrated-approx it stays so.
-            messageDatesApprox: sql`(${dailyStats.messageDatesApprox} OR excluded.message_dates_approx)`,
             computedAt: sql`MAX(${dailyStats.computedAt}, excluded.computed_at)`,
           },
         }),

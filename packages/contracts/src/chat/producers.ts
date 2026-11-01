@@ -74,11 +74,6 @@ export const chatIdentitySchema = z.discriminatedUnion("kind", [
 /** ONE chat-identity kind's cross-consumer policy. Rule for future fields (the D129 idiom): a policy field joins
  *  only WITH its reader — a verdict nobody consumes is decoration. */
 export interface ChatIdentityKindPolicy {
-  /** Which macro-subject family this kind's name backs — enacted by {@link buildIdentityNameContext}'s routing
-   *  (its policy↔projection agreement):
-   *  `char-subject` → `characterNamesById` (`{{char}}`); `user-subject` → `personaNamesById`
-   *  (`{{user}}`/`{{persona}}`). */
-  readonly macro: "char-subject" | "user-subject";
   /** Whether a live `ParticipantView.avatarHash` outranks the identity entry's — read by
    *  `resolveRowAttribution`'s per-kind avatar precedence (`features/chat/lib/attribution.ts`): a live
    *  participant can carry a per-chat override (`participant-first`); a persona has no participant avatar
@@ -89,8 +84,8 @@ export interface ChatIdentityKindPolicy {
 /** The shipped cells. The `Record<ChatIdentityKind, …>` is the compile-force: a third kind will not build until it
  *  declares its row (the agent wave's explicit macro-subject + avatar-precedence decisions). */
 export const CHAT_IDENTITY_KIND_POLICY: Readonly<Record<ChatIdentityKind, ChatIdentityKindPolicy>> = {
-  character: { macro: "char-subject", avatar: "participant-first" },
-  persona: { macro: "user-subject", avatar: "identity-only" },
+  character: { avatar: "participant-first" },
+  persona: { avatar: "identity-only" },
 };
 
 /** The stable string key — deliberately EXTENDS `speakerKey`'s namespace (`participants.ts`: `c:`; `u:`

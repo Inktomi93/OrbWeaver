@@ -140,7 +140,7 @@ async function askCard(ctx: DiscoveryContext, userId: UserId, characterId: Chara
     grounded = false;
     degraded = true;
   }
-  return { characterId, question, answer, grounded, degraded, sampledMessages: samples.length };
+  return { answer, grounded, degraded, sampledMessages: samples.length };
 }
 
 function buildAskPrompt(name: string, question: string, samples: readonly { content: string }[]): string {

@@ -8,13 +8,13 @@ import { DomainForbiddenError } from "@orb/kit/errors";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
 import { ToolNameCollisionError } from "../contract/errors.ts";
-import type { ToolDefinition, ToolExecutionContext } from "../contract/params.ts";
+import type { ChatToolExecutionContext, ToolDefinition } from "../contract/params.ts";
 import { TOOL_NAME_RE } from "../contract/params.ts";
-import type { RegisteredTool, RunOutcome, ToolRegistry } from "../contract/results.ts";
+import type { BuiltinRegisteredTool, RunOutcome, ToolRegistry } from "../contract/results.ts";
 import { toolRegistryKey } from "../substrate/partition.ts";
 
 // Fused so the typed pair never escapes: parse → gate → invoke.
-function eraseDefinition<A>(def: ToolDefinition<A>): RegisteredTool {
+function eraseDefinition<A>(def: ToolDefinition<A>): BuiltinRegisteredTool {
   // Function-calling args are ALWAYS an object; the MCP projection needs the raw shape (the SDK's tool()
   // takes a shape, not JSON Schema). A non-object schema is a wiring bug — boot-fatal, like a bad name.
   if (!(def.argsSchema instanceof z.ZodObject)) {
@@ -31,7 +31,7 @@ function eraseDefinition<A>(def: ToolDefinition<A>): RegisteredTool {
     owner: null,
     parameters: projectJsonSchema(def.argsSchema),
     argShape: def.argsSchema.shape,
-    run: async (parsedJson: unknown, exec: ToolExecutionContext, gate: () => void): Promise<RunOutcome> => {
+    run: async (parsedJson: unknown, exec: ChatToolExecutionContext, gate: () => void): Promise<RunOutcome> => {
       const parsed = def.argsSchema.safeParse(parsedJson);
       if (!parsed.success) {
         // The zod issue summary IS the correction surface — the model reads it against its own schema.

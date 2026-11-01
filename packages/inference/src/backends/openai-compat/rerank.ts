@@ -93,8 +93,6 @@ function toResult(response: RerankResponse, documents: readonly RerankDocument[]
     .sort((a, b) => b.score - a.score);
   return {
     hits: req.topN === undefined ? hits : hits.slice(0, Math.max(0, req.topN)),
-    model: req.connection.model,
-    usage: { totalTokens: response.usage?.total_tokens ?? null },
   };
 }
 
@@ -133,7 +131,7 @@ export async function runOpenAiCompatRerank(req: RerankRequest, deps: RerankDeps
   const multimodal = capability.input.includes("image");
   const docs = req.documents.filter((doc) => scorable(doc, multimodal));
   if (docs.length === 0) {
-    return { hits: [], model: connection.model, usage: { totalTokens: null } };
+    return { hits: [] };
   }
   const log = providerLogger(deps.log, connection.wire, connection.providerId);
   const sides = clampToWindow(req, docs, capability.maxInputTokens, (entry) =>

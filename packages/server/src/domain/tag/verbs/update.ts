@@ -29,9 +29,6 @@ function buildPatch(input: UpdateTagInput): TagPatch {
   if (input.color2 !== undefined) {
     patch.color2 = input.color2;
   }
-  if (input.source !== undefined) {
-    patch.source = input.source;
-  }
   if (input.folderType !== undefined) {
     patch.folderType = input.folderType;
   }

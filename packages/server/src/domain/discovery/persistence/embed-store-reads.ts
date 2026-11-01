@@ -657,32 +657,10 @@ export async function readSegmentBlockSpans(db: Db, chatIds: readonly ChatId[]):
 }
 
 // ── composed views (home coverage + theme-detail members/timeline) ───────────
-/** Corpus coverage — how much of the owner's library is indexed (catalog size + memory-substrate depth). */
-export async function readCorpusCoverage(db: Db, ownerId: UserId): Promise<{ characters: number; digests: number; segments: number }> {
-  const hosted = and(
-    eq(chatParticipants.kind, "human"),
-    eq(chatParticipants.role, "host"),
-    eq(chatParticipants.userId, ownerId),
-    isNull(chatParticipants.leftSeq),
-  );
-  const [chars, digests, segments] = await Promise.all([
-    db.select({ n: sql<number>`count(*)` }).from(characters).where(ownedRealCharacters(ownerId)),
-    db
-      .select({ n: sql<number>`count(${chatDigests.id})` })
-      .from(chatDigests)
-      .innerJoin(chatParticipants, and(eq(chatParticipants.chatId, chatDigests.chatId), hosted))
-      .where(currentDigest),
-    db
-      .select({ n: sql<number>`count(${chatSegments.id})` })
-      .from(chatSegments)
-      .innerJoin(chatParticipants, and(eq(chatParticipants.chatId, chatSegments.chatId), hosted))
-      .where(currentSegment),
-  ]);
-  return {
-    characters: chars[0]?.n ?? 0,
-    digests: digests[0]?.n ?? 0,
-    segments: segments[0]?.n ?? 0,
-  };
+/** Corpus coverage — how much of the owner's library is indexed (catalog size). */
+export async function readCorpusCoverage(db: Db, ownerId: UserId): Promise<{ characters: number }> {
+  const chars = await db.select({ n: sql<number>`count(*)` }).from(characters).where(ownedRealCharacters(ownerId));
+  return { characters: chars[0]?.n ?? 0 };
 }
 
 /** THE THEME-CLUSTER OWNER PREDICATE, shared by the two `themeDetail` reads (#1480 item 6). `theme_clusters`

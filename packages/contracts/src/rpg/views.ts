@@ -279,7 +279,6 @@ export interface RpgTurnToolCallsView {
    *  synthesized entry would show the reader a tool call that never happened. A record can therefore carry an
    *  EMPTY `calls` list and still be worth rendering — which is exactly the turn the disclosure exists for. */
   readonly failure: string | null;
-  readonly createdAt: number;
 }
 
 /** `getConfigView` (HOST-gated) — the Stats & Trackers editor surface: the full `statProfile` +
@@ -483,7 +482,6 @@ export const rpgTurnToolCallsViewSchema = z.strictObject({
   messageId: typeIdSchema(ID_PREFIX.message),
   calls: z.array(rpgToolCallDisclosureSchema).readonly(),
   failure: z.string().nullable(),
-  createdAt: z.number(),
 }) satisfies z.ZodType<RpgTurnToolCallsView>;
 export const rpgConfigViewSchema = rpgGameConfigSchema
   .pick({
@@ -531,7 +529,6 @@ export const rpgRevealViewSchema = z.strictObject({
 /** A labeled bookmark as members read it. */
 export interface RpgCheckpointView {
   readonly id: RpgCheckpointId;
-  readonly gameId: RpgGameId;
   readonly snapshotId: RpgSnapshotId;
   readonly label: string;
   readonly trigger: RpgCheckpointTrigger;
@@ -539,7 +536,6 @@ export interface RpgCheckpointView {
 }
 export const rpgCheckpointViewSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.rpgCheckpoint),
-  gameId: typeIdSchema(ID_PREFIX.rpgGame),
   snapshotId: typeIdSchema(ID_PREFIX.rpgSnapshot),
   label: z.string(),
   trigger: rpgCheckpointTriggerSchema,

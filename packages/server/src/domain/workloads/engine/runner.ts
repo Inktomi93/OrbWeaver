@@ -226,7 +226,7 @@ async function finalizeFailure(deps: WorkloadRunnerDeps, row: WorkloadRunnableRo
     return;
   }
   const message = args.err instanceof Error ? args.err.message : String(args.err);
-  const error: WorkloadError = { kind: "runtime", message };
+  const error: WorkloadError = { message };
   const moved = await markTerminal(deps.db, {
     id: row.id,
     status: "failed",

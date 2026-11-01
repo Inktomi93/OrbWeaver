@@ -51,7 +51,6 @@ export function createAutomationTeachingContributions(input: { readonly db: Data
   const db = databaseForOwner(input.db);
   return [
     {
-      id: "automation.analysis-guidance",
       order: ANALYSIS_GUIDANCE_ORDER,
       collect: async (tctx: TeachingContext): Promise<TeachingCollection> => {
         const guidance = await selectChatGuidance(db, tctx.chatId, tctx.runAsUserId);

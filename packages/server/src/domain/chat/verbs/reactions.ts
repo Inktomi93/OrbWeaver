@@ -119,7 +119,6 @@ function groupReactions(rows: readonly ReactionRow[]): readonly MessageReactionG
     {
       variantId: MessageVariantId;
       emoji: ReactionEmoji;
-      emojiImageAssetId: ReactionRow["emojiImageAssetId"];
       segmentIndex: number | null;
       segmentSpeaker: string | null;
       segmentSnippet: string | null;
@@ -141,7 +140,6 @@ function groupReactions(rows: readonly ReactionRow[]): readonly MessageReactionG
       byKey.set(key, {
         variantId: row.variantId,
         emoji: token.data,
-        emojiImageAssetId: row.emojiImageAssetId,
         segmentIndex: row.segmentIndex,
         segmentSpeaker: row.segmentSpeaker,
         segmentSnippet: row.segmentSnippet,
@@ -154,7 +152,6 @@ function groupReactions(rows: readonly ReactionRow[]): readonly MessageReactionG
   return [...byKey.values()].map((g) => ({
     variantId: g.variantId,
     emoji: g.emoji,
-    emojiImageAssetId: g.emojiImageAssetId,
     segmentIndex: g.segmentIndex,
     segmentSpeaker: g.segmentSpeaker,
     segmentSnippet: g.segmentSnippet,

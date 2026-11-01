@@ -7,7 +7,7 @@ import type { ToolCallRecord } from "@orb/contracts/chat";
 import type { ToolCallInput } from "@orb/inference";
 import type { ToolCallBatch, ToolExecutionContext } from "../contract/params.ts";
 import type { RegisteredTool, ResolvedToolSet, RunOutcome } from "../contract/results.ts";
-import type { ToolUseContext } from "../contract/service.ts";
+import type { ToolUseContext, ToolUseService } from "../contract/service.ts";
 import { checkToolCapability } from "../substrate/capability.ts";
 
 interface CallOutcome {
@@ -36,7 +36,7 @@ function serializeOutcome(name: string, outcome: RunOutcome): CallOutcome {
   }
 }
 
-async function runCall(ctx: ToolUseContext, entry: RegisteredTool, call: ToolCallInput, exec: ToolExecutionContext): Promise<CallOutcome> {
+async function runCall<E extends ToolExecutionContext>(ctx: ToolUseContext, entry: RegisteredTool<E>, call: ToolCallInput, exec: E): Promise<CallOutcome> {
   let parsedJson: unknown;
   // owned by errorOutcome, whose isError true result lands in the tool-call record the model reads and can retry. Ends if a malformed-arguments call stops producing an isError record.
   try {
@@ -48,10 +48,8 @@ async function runCall(ctx: ToolUseContext, entry: RegisteredTool, call: ToolCal
   return serializeOutcome(call.name, outcome);
 }
 
-export function createExecuteToolCalls(
-  ctx: ToolUseContext,
-): (set: ResolvedToolSet, calls: ToolCallBatch, exec: ToolExecutionContext) => Promise<readonly ToolCallRecord[]> {
-  return async (set, calls, exec): Promise<readonly ToolCallRecord[]> => {
+export function createExecuteToolCalls(ctx: ToolUseContext): ToolUseService["executeToolCalls"] {
+  return async <E extends ToolExecutionContext>(set: ResolvedToolSet<E>, calls: ToolCallBatch, exec: E): Promise<readonly ToolCallRecord[]> => {
     const byName = new Map(set.entries.map((entry) => [entry.name, entry]));
     const records: ToolCallRecord[] = [];
     for (const call of calls) {

@@ -17,10 +17,7 @@ type NeverWireOutputPaths<TPath extends TrpcProcedurePath = TrpcProcedurePath> =
   : never;
 
 const completeSettingsOutput = {
-  userId: "user_complete_wire",
-  schemaVersion: 1,
   config: DEFAULT_USER_SETTINGS,
-  updatedAt: 0,
   configUnreadable: null,
 } satisfies TrpcWireOutput<"settings.getUserSettings">;
 

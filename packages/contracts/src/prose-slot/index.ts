@@ -19,23 +19,15 @@ import { z } from "zod";
 const PROSE_HOMES = ["preset", "user"] as const;
 export type ProseHome = (typeof PROSE_HOMES)[number];
 
-// The macro power a slot's text resolves under (PROSE-1 §6.1). `names-only` = the `{{user}}`/`{{char}}`
-//  identity registry ONLY (the steer-neutralization posture); `full` = the whole macro engine; `none` = the
-//  bytes ship verbatim, braces and all.
-const PROSE_MACRO_MODES = ["none", "names-only", "full"] as const;
-type ProseMacroMode = (typeof PROSE_MACRO_MODES)[number];
-
 /** One model-facing prose slot: the shipped default + everything the edit surface and the gate need. */
 export interface ProseSlotDef {
-  readonly id: ProseSlotId;
   readonly home: ProseHome;
   /** Bumped in the SAME commit as any `text` change — enforced by `prose-baseline.json` (PROSE-1 §4.4). */
   readonly version: number;
   /** The shipped default. An absent override resolves to these exact bytes. */
   readonly text: string;
-  readonly macros: ProseMacroMode;
   /** Macros whose ABSENCE from an override is a lint in the editor — never a block (PROSE-1 §6.3). A
-   *  `macros:"none"` slot may still list one: `resolveProseText`'s optional PRE-SUBSTITUTION tokens are
+   *  slot whose text skips the macro engine may still list one: `resolveProseText`'s optional PRE-SUBSTITUTION tokens are
    *  spliced by the CALLER (the `{{person}}`/`{{base}}` guided precedent — a plain string replace, never the
    *  macro engine), and an override that drops the token drops the value it carried. */
   readonly requiredMacros: readonly string[];
@@ -327,10 +319,6 @@ export const proseOverridesViewSchema = z.partialRecord(proseSlotIdSchema, prose
 
 export interface ProseResolution {
   readonly text: string;
-  readonly source: "default" | "override";
-  /** The shipped default moved on since this override was authored — the edit surface offers the new text;
-   *  nothing is ever silently swapped (PROSE-1 §4.4 rung 3). */
-  readonly stale: boolean;
 }
 
 // The pre-PROSE-1 override fields (`formatStrings.*`, `UserSettings.imagery.*`) store a BARE string with no
@@ -363,9 +351,9 @@ export function proseOverrideFromLegacy(text: string | undefined): ProseOverride
  *  literally puts EMPTY BYTES on the wire. Healed at the READ, per `#prose`'s own long-form reasoning. */
 export function resolveProseFrom(slot: ProseSlotDef, override: ProseOverride | undefined): ProseResolution {
   if (override === undefined || override.text.trim() === "") {
-    return { text: slot.text, source: "default", stale: false };
+    return { text: slot.text };
   }
-  return { text: override.text, source: "override", stale: override.baseVersion < slot.version };
+  return { text: override.text };
 }
 
 // The pre-substitution token regexes, memoized by token NAME (an assembler resolves the same handful of

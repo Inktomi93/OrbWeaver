@@ -43,8 +43,8 @@ test("admin output captures retain native identities and clocks while excluding 
     lastSeenAt: root.clock.now(),
     revokedAt: null,
     userAgent: "Admin-view native device",
-    createdAt: root.clock.now(),
   });
+  expect(session.row.createdAt).toBe(root.clock.now());
   expect(session.row.oidcIdTokenCiphertext).not.toBeNull();
 
   const usersBefore = await caller.admin.listUsers();

@@ -41,7 +41,7 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
   switch (event.type) {
     // ── Stream-transient (the local buffer; nothing durable changed yet) ──
     case "delta":
-      deps.stream.appendDelta(event.delta);
+      deps.stream.appendDelta(event.turnId, event.delta);
       return;
     // A turn was ACCEPTED — open the slot NOW (before arbitration) so Stop renders through a hung smart
     // arbitration that fires `turnStarted` only once it completes. `speakerCharacterId` is null on accept;
@@ -52,6 +52,7 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
       // turnAccepted fires before assembly/recall, so this always precedes the turn's own `memoryRecall` events.
       deps.stream.resetRecall(event.chatId);
       deps.stream.beginTurn(event.chatId, {
+        turnId: event.turnId,
         intent: event.intent,
         speakerCharacterId: event.speakerCharacterId,
         targetMessageId: event.targetMessageId,
@@ -59,6 +60,7 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
       return;
     case "turnStarted":
       deps.stream.beginTurn(event.chatId, {
+        turnId: event.turnId,
         intent: event.intent,
         speakerCharacterId: event.speakerCharacterId,
         targetMessageId: event.targetMessageId,
@@ -81,12 +83,12 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
 
     // ── Turn terminals (own the slot lifecycle, then reconcile canon) ──
     case "turnCompleted":
-      deps.stream.completeTurn(event.chatId, event.messageId);
+      deps.stream.completeTurn(event.chatId, event.turnId, event.messageId);
       deps.onTurnSettled?.(event.chatId);
       deps.invalidate(event);
       return;
     case "turnAborted":
-      deps.stream.abortTurn(event.chatId, event.reason);
+      deps.stream.abortTurn(event.chatId, event.turnId, event.reason);
       deps.onTurnAbort?.(event.reason, event.chatId);
       deps.onTurnSettled?.(event.chatId);
       deps.invalidate(event);
@@ -107,7 +109,7 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
       // refetch has not replaced yet (the measured 100-400 ms tail flash). Assistant-only: the caller's
       // own USER row commits inside this same live slot on a send.
       if (event.view?.role === "assistant") {
-        deps.stream.markCommitted(event.chatId, event.messageId);
+        deps.stream.markCommitted(event.chatId, event.messageId, event.turnId);
       }
       deps.invalidate(event);
       return;
@@ -138,8 +140,13 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
       deps.onChatDeleted?.(event.chatId);
       deps.invalidate(event);
       return;
-    case "chatCreated":
     case "chatOpened":
+      if (event.openTurnIds !== undefined) {
+        deps.stream.closeDeadTurn(event.chatId, event.openTurnIds);
+      }
+      deps.invalidate(event);
+      return;
+    case "chatCreated":
     case "historyTruncated":
     case "chatUpdated":
     // An entity this room renders was edited elsewhere in the box (the entity→room bridge). Invalidate-only,

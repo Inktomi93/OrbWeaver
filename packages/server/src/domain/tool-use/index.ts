@@ -7,7 +7,7 @@
 
 export type { ToolDefinition } from "./contract/params.ts";
 
-export type { ResolvedToolSet } from "./contract/results.ts";
+export type { DrivableToolSet, ResolvedToolSet } from "./contract/results.ts";
 export type { ToolUseService } from "./contract/service.ts";
 export { createToolUseService } from "./service.ts";
 // The S2 teaching contribution (D145's 11th root slot): the per-turn attach of the turn HOST's own plugin

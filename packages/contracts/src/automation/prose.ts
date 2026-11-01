@@ -26,44 +26,37 @@ import type { ProseSlotDef, ProseSlotId } from "#prose-slot";
 
 export const AUTOMATION_PROSE_SLOTS = {
   "automation.autobg.task": {
-    id: "automation.autobg.task",
     home: "user",
     version: 1,
     text: "Choose the single background that best fits the current scene.",
-    macros: "none",
     requiredMacros: [],
     requiredTokens: [],
     title: "Background pick — task",
     fires: "Heads the `/autobg` quiet pick, above the scene excerpt and the candidate names.",
   },
   "automation.autobg.reply": {
-    id: "automation.autobg.reply",
     home: "user",
     version: 1,
     // The reply contract is what makes the returned text MATCHABLE against a candidate name. A host who
     // loosens it gets a chattier reply the name-match may miss — the arm then no-ops, never guesses.
     text: "Reply with ONLY the exact name of the chosen background, nothing else.",
-    macros: "none",
     requiredMacros: [],
     requiredTokens: [],
     title: "Background pick — reply contract",
     fires: "Closes the `/autobg` quiet pick — the contract the name-match depends on.",
   },
   "automation.autobg.system": {
-    id: "automation.autobg.system",
     home: "user",
     version: 1,
     // The SYSTEM half of the same contract the reply slot closes — loosening it invites prose the
     // name-match cannot use (the arm then no-ops, never guesses).
     text: "You choose the single best-matching background for a scene. Reply with ONLY the exact background name from the provided list, nothing else.",
-    macros: "none",
     requiredMacros: [],
     requiredTokens: [],
     title: "Background pick — system",
     fires: "The `/autobg` quiet pick's system slot.",
   },
   "automation.analysis.lead": {
-    id: "automation.analysis.lead",
     home: "user",
     version: 1,
     text:
@@ -74,21 +67,18 @@ export const AUTOMATION_PROSE_SLOTS = {
       "pacing scaffolding: if the story is meant to stay chill, domestic, or low-pressure, keep soft ongoing " +
       "tensions instead of a rushing plotline. Retire a twist once it has paid off on-screen; add one when new " +
       "pressure appears; never resurrect a retired twist.",
-    macros: "none",
     requiredMacros: [],
     requiredTokens: [],
     title: "Story analysis — the analyst",
     fires: "Heads every `run_analysis` pass — who the analyst is and what the arc/twist scaffolding means.",
   },
   "automation.analysis.arc": {
-    id: "automation.analysis.arc",
     home: "user",
     version: 1,
     text:
       'Set arcStatus to "completed" and provide successorArc ONLY when the current arc has fully resolved ' +
       'on-screen and a new one should begin; otherwise keep "active" and either refresh the arc via updatedArc or ' +
       "leave it null to carry the current arc forward.",
-    macros: "none",
     requiredMacros: [],
     // The wire fields this clause teaches — the enforced response schema requires them, so an override
     // that drops one teaches a contract the model cannot follow.
@@ -97,28 +87,24 @@ export const AUTOMATION_PROSE_SLOTS = {
     fires: "Every `run_analysis` pass — when the arc completes vs refreshes vs carries.",
   },
   "automation.analysis.steer": {
-    id: "automation.analysis.steer",
     home: "user",
     version: 1,
     text:
       "Write guidance: ONE concrete instruction the narrator can act on next turn — plant, foreshadow, or " +
       "complicate. Guidance steers the NARRATOR's choices, never the players': never script what any human " +
       "character says or does next. When nothing needs steering, return an empty string — that is the common case.",
-    macros: "none",
     requiredMacros: [],
     requiredTokens: ["guidance"],
     title: "Story analysis — the guidance ask",
     fires: "A `run_analysis` pass whose arm enables the steer route.",
   },
   "automation.analysis.lore": {
-    id: "automation.analysis.lore",
     home: "user",
     version: 1,
     text:
       "Distill the SETTLED section of the transcript into at most a few durable, keyed lore entries — established " +
       "on-screen facts only, never secrets that have not appeared, never speculation. Give each a short stable key. " +
       "Return an empty list when nothing settled is worth keeping — that is the common case.",
-    macros: "none",
     requiredMacros: [],
     // "SETTLED" is the user prompt's section label — the clause and the transcript label must keep naming
     // the same thing.
@@ -127,18 +113,15 @@ export const AUTOMATION_PROSE_SLOTS = {
     fires: "A `run_analysis` pass whose arm enables the lore route and whose settled span is non-empty.",
   },
   "automation.analysis.suggest": {
-    id: "automation.analysis.suggest",
     home: "user",
     version: 1,
     text: "You may offer at most ONE optional suggestion for a turn the host could ask for, phrased as a narrator instruction. Most passes should offer none.",
-    macros: "none",
     requiredMacros: [],
     requiredTokens: [],
     title: "Story analysis — the suggestion ask",
     fires: "A `run_analysis` pass whose arm enables the suggest route.",
   },
   "automation.analysis.rewrite": {
-    id: "automation.analysis.rewrite",
     home: "user",
     version: 1,
     // The legacy prose-audit's proven posture, authored fresh: CLEAN is the common verdict, the rewrite is
@@ -151,7 +134,6 @@ export const AUTOMATION_PROSE_SLOTS = {
       'common verdict. When it is "flawed", name the flaw in one short phrase as rewrite.issue and put the FULL ' +
       "corrected reply in rewrite.text — a conservative repair that keeps the original voice, length and every " +
       "story fact, changing only what the flaw requires. Never continue the scene and never add new events.",
-    macros: "none",
     requiredMacros: [],
     // The wire fields this clause teaches + the user-prompt section label it points at — an override that
     // drops one teaches a contract the enforced schema cannot be filled against.
@@ -160,49 +142,41 @@ export const AUTOMATION_PROSE_SLOTS = {
     fires: "A `run_analysis` pass whose arm enables the rewrite route and whose chat has an auditable reply.",
   },
   "automation.analysis.vars": {
-    id: "automation.analysis.vars",
     home: "user",
     version: 1,
     // The 0..10 range is `ANALYSIS_SCORE_MAX`'s (contracts/automation) — the applier CLAMPS to that bound
     // regardless of what an override teaches, so a drifted override degrades the model's aim, never the wall.
     text: "Score the current narrative tension as score, an integer from 0 (fully at rest) to 10 (peak crisis).",
-    macros: "none",
     requiredMacros: [],
     requiredTokens: ["score"],
     title: "Story analysis — the tension score",
     fires: "A `run_analysis` pass whose arm enables the vars route (the needle's host-opt-in publication).",
   },
   "automation.analysis.close": {
-    id: "automation.analysis.close",
     home: "user",
     version: 1,
     text: "Obey the host's standing direction when one is given. When in doubt, do less.",
-    macros: "none",
     requiredMacros: [],
     requiredTokens: [],
     title: "Story analysis — the closing posture",
     fires: "Closes every `run_analysis` system contract — the when-in-doubt-do-less law.",
   },
   "automation.analysis.firstArc": {
-    id: "automation.analysis.firstArc",
     home: "user",
     version: 1,
     text: "No arc yet — invent the first private arc from the play below.",
-    macros: "none",
     requiredMacros: [],
     requiredTokens: [],
     title: "Story analysis — the cold start",
     fires: "A `run_analysis` pass over a rule whose state row has no arc yet (the first pass).",
   },
   "automation.guidance.frame": {
-    id: "automation.guidance.frame",
     home: "preset",
     version: 1,
     // The one delimiter around the model-authored standing guidance. On a model that folds a system note into
     // user text the guidance lands in a player's message, so it must never read as their words (owner ruling).
     // The token is spliced, never macro-rendered: the guidance bytes ride inside verbatim.
     text: "[Story direction for your reply — not part of anyone's message:\n\n{{guidance}}\n]",
-    macros: "none",
     requiredMacros: ["{{guidance}}"],
     requiredTokens: [],
     title: "Story-direction frame",

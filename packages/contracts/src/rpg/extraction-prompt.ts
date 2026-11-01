@@ -75,12 +75,10 @@ function rpgProse(ctx: ExtractionPromptContext, id: keyof typeof RPG_PROSE_SLOTS
   return spliceProseTokens(resolveProseFrom(RPG_PROSE_SLOTS[id], ctx.prose?.[id]).text, tokens);
 }
 
-// One row per model-writable extraction plane: the schema field (the ratchet key), its teaching-fragment
-//  builder (config/refs aware), and the cheap-mode tool name it maps to (for the tool-round framing). A
-//  fragment builder returns the plane's teaching prose, or `null` when the plane is disabled this game.
+// One row per model-writable extraction plane: the schema field (the ratchet key) and its teaching-fragment
+//  builder (config/refs aware). A fragment builder returns the plane's teaching prose, or `null` when the plane is disabled this game.
 interface ExtractionPlanePrompt {
   readonly plane: keyof RpgExtraction;
-  readonly toolName: string;
   readonly fragment: (ctx: ExtractionPromptContext) => string | null;
 }
 
@@ -129,7 +127,6 @@ function actorTrackerFragment(ctx: ExtractionPromptContext): string | null {
 const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
   {
     plane: "scene",
-    toolName: "update_scene",
     fragment: (ctx) => {
       const lines: string[] = [];
       lines.push(rpgProse(ctx, "rpg.extract.scene.core", { timeOfDayValues: [...TIME_OF_DAY].join("/") }));
@@ -158,7 +155,6 @@ const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
   },
   {
     plane: "party",
-    toolName: "update_party",
     fragment: (ctx) => {
       const base = rpgProse(ctx, "rpg.extract.plane.party");
       // R2/R6 — the game's OWN trackers, by name + host gloss. Static prose here would teach a vocabulary
@@ -169,12 +165,10 @@ const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
   },
   {
     plane: "inventory",
-    toolName: "update_inventory",
     fragment: (ctx) => rpgProse(ctx, "rpg.extract.plane.inventory"),
   },
   {
     plane: "trackers",
-    toolName: "set_tracker",
     // The GAME-subject trackers (the retired widget plane) — enumerated by name + host gloss, never as bare
     // keys. `null` when the game defines none, in which case the schema drops the plane entirely.
     fragment: (ctx) => {
@@ -187,7 +181,6 @@ const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
   },
   {
     plane: "quests",
-    toolName: "upsert_quest",
     // EXT-4c — the slot carries the two objective gestures in prose (never extra schema): the model has to
     // learn that ticking one objective off is `completeObjectives`, not a re-listing, or it restates the list
     // on every beat.
@@ -195,7 +188,6 @@ const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
   },
   {
     plane: "journal",
-    toolName: "add_journal_entry",
     // R4c — teach the `custom` escape + the host's own type glosses. The seven built-ins are combat-flavoured
     // on a plane that fires on 79% of turns; a host who defines "ritual" or "gossip" gets it taught by name.
     fragment: (ctx) => {

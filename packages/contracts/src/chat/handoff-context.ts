@@ -6,9 +6,7 @@ export interface HandoffCardPair {
   readonly characterId: CharacterId;
 }
 
-export interface HandoffCardCopy extends HandoffCardPair {
-  readonly minted: boolean;
-}
+export interface HandoffCardCopy extends HandoffCardPair {}
 
 /** Cross-domain handoff data; the chat verb resolves authority before invoking its owning-domain operations. */
 export interface HandoffHealArgs {

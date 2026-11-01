@@ -189,7 +189,6 @@ export async function listForUser(db: Db, userId: UserId): Promise<SessionView[]
   const rows = await db
     .select({
       id: sessions.id,
-      createdAt: sessions.createdAt,
       lastSeenAt: sessions.lastSeenAt,
       expiresAt: sessions.expiresAt,
       revokedAt: sessions.revokedAt,

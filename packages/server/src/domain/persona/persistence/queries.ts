@@ -275,7 +275,6 @@ export function detailOf({ persona: row, avatar }: PersonaWithAvatar): PersonaDe
     avatarAssetId: row.avatarAssetId,
     avatarHash: avatar?.hash ?? null,
     metadata: personaMetadataSchema.nullable().catch(null).parse(row.metadata),
-    createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
 }

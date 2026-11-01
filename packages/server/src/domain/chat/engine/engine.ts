@@ -7,7 +7,7 @@
 // canon + stats delta in one atomic batch → emit messageCommitted + turnCompleted → release lock. On any
 // error after turnStarted: emit turnAborted then rethrow, never swallow. Pre-start refusals throw a coded
 // ChatOperationError and emit nothing — UNLESS the caller already opened the client's turn slot
-// (`TurnPrep.slotAccepted`, set by every verb that emits `turnAccepted`), in which case the refusal ALSO emits
+// (`TurnPrep.acceptedTurnId`, set by every verb that emits `turnAccepted`), in which case the refusal ALSO emits
 // `turnAborted` to close it (`closePreStartRefusal`): the engine is the only party that knows `turnStarted`
 // never fired, and an accepted-but-unresolved slot is a stuck Stop button. A turn nobody accepted (the
 // founding `opening` turn — every other turn-starting verb accepts) keeps the historical bus-silent refusal,
@@ -18,7 +18,6 @@
 
 import type {
   AssembleContext,
-  ChatDeltaEvent,
   ChatReasoningPart,
   ChatWarning,
   ContentSignatures,
@@ -97,7 +96,6 @@ import {
   readRetainedCanonContributions,
 } from "../persistence/queries.ts";
 import { prepareRetainedCanonStats } from "../persistence/retained-canon.ts";
-import { insertChatStreamEventStatements } from "../persistence/stream-events.ts";
 import { buildHistoryBudget, fitCeiling, historyTurnTokens } from "../substrate/assembly-access.ts";
 import { isCoveredByCompaction } from "../substrate/compaction-coverage.ts";
 import { continuedSignatureMetadata } from "../substrate/content-signatures.ts";
@@ -568,6 +566,7 @@ function buildCommitPlan(args: {
  *  `messageCommitted`. Funding stays frozen; retained accounting follows the canonical cohort. */
 async function commitGeneration(args: {
   readonly observations: GenerationObservationSession;
+  readonly announcedTurnId: ChatTurnId;
   readonly ctx: EngineContext;
   readonly deps: EngineDeps;
   readonly prep: TurnPrep;
@@ -577,9 +576,6 @@ async function commitGeneration(args: {
   readonly nextSeq: number;
   readonly genStartedAt: number;
   readonly genFinishedAt: number;
-  /** The provider deltas already published live, in callback order. They join the destination message in
-   *  the canon batch so only committed turns become resumable token history. */
-  readonly streamDeltas: readonly ChatDeltaEvent[];
   /** §6.7 — the CAS ids of the pictures this generation emitted and the engine already stored, in the order
    *  their spans were spliced into `result.content`. Each gets a `message_assets` link stamped
    *  `inline-reply`, in THIS batch: a body `asset:` span retains its blob only for an owner seated in the
@@ -617,15 +613,6 @@ async function commitGeneration(args: {
         rows: args.inlineReplyAssetIds.map((assetId) => ({ id: ctx.newMessageAssetId(), messageId, assetId })),
         origin: INLINE_REPLY_ORIGIN,
         now,
-      }),
-    );
-    statements.push(
-      ...insertChatStreamEventStatements(ctx.db, {
-        message: { id: messageId, chatId: prep.chatId },
-        deltas: args.streamDeltas,
-        newEventId: ctx.newStreamEventId,
-        newGenerationId: ctx.newStreamGenerationId,
-        createdAt: now,
       }),
     );
 
@@ -682,7 +669,7 @@ async function commitGeneration(args: {
   // committed, and a retry on that same context wrote an empty `variableDelta`. The snapshot is taken at
   // `variantPayloadOf`; only the producer-state reset belongs here, and only on success.
   prep.assembleContext.opLog?.splice(0);
-  await deps.emit({ type: "messageCommitted", chatId: prep.chatId, messageId: view.id, view });
+  await deps.emit({ type: "messageCommitted", chatId: prep.chatId, messageId: view.id, view, turnId: args.announcedTurnId });
   return view;
 }
 
@@ -1642,7 +1629,7 @@ async function runPreStart(ctx: EngineContext, prep: TurnPrep, persist: TurnPers
 }
 
 /** Closes the client turn slot a PRE-START refusal would otherwise strand OPEN (a stuck Stop button). Fires
- *  ONLY for a turn whose caller announced its acceptance (`prep.slotAccepted` — the verb emitted
+ *  ONLY for a turn whose caller announced its acceptance (`prep.acceptedTurnId` — the verb emitted
  *  `turnAccepted`); a turn nobody accepted keeps the historical bus-silent refusal.
  *
  *  `reason:"error"` — a refusal is a fault, not a cancel: it is never the caller's Stop (that arrives through
@@ -1652,16 +1639,22 @@ async function runPreStart(ctx: EngineContext, prep: TurnPrep, persist: TurnPers
  *  Depth rides `TurnPrep.automationDepth` so an automation-initiated refusal is a depth ≥ 1 `turnAborted`
  *  fact and the cascade guard suppresses non-opted retry rules exactly as it does for a real abort. */
 async function closePreStartRefusal(deps: EngineDeps, prep: TurnPrep): Promise<void> {
-  if (prep.slotAccepted !== true) {
+  if (prep.acceptedTurnId === undefined) {
     return;
   }
   await deps.emit({
     type: "turnAborted",
     chatId: prep.chatId,
+    turnId: prep.acceptedTurnId,
     intent: KIND_TO_INTENT[prep.kind],
     reason: "error",
     automationDepth: turnCascadeDepth(prep),
   });
+}
+
+/** The id the room knows this turn by. A round's speakers share their acceptance's, so it is not always `turnId`. */
+function announcedTurn(prep: TurnPrep, turnId: ChatTurnId): ChatTurnId {
+  return prep.acceptedTurnId ?? turnId;
 }
 
 /** The turn body, parametrized by persist mode + lock-freedom: security belts → resolve persist target →
@@ -1687,11 +1680,13 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
   // The turn's ephemeral identity (D58) — minted once, threaded to the tool-exec frame + the rpg
   // turn-end hooks so a turn-scoped registrant correlates the turn's tool writes to its commit/abort flush.
   const turnId = ctx.newChatTurnId();
+  const announcedTurnId = announcedTurn(prep, turnId);
   const observations = createGenerationObservationSession(ctx, observationParentOf(prep.chatId, turnId, target));
   markRpgDiceEligible(ctx, prep, turnId);
   await deps.emit({
     type: "turnStarted",
     chatId: prep.chatId,
+    turnId: announcedTurnId,
     intent,
     api: connection.api,
     provider: connection.providerId,
@@ -1704,7 +1699,6 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
   // tail outside the try so BOTH success and failure terminals must drain it; otherwise a partial stream that
   // throws can publish turnAborted before its already-observed delta reaches the durable bus.
   let deltaTail: Promise<void> = Promise.resolve();
-  const streamDeltas: ChatDeltaEvent[] = [];
   try {
     // PRE-TURN managed-compaction arm (the wedge-state fix): a chat whose context ALREADY overflows the window
     // makes the model fail, and the post-turn arm never runs on a failed turn — so compact BEFORE dispatch when
@@ -1788,8 +1782,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
         signal: prep.signal,
       },
       onDelta: (delta): void => {
-        streamDeltas.push(delta);
-        deltaTail = deltaTail.then(() => deps.emit({ type: "delta", chatId: prep.chatId, slotSeq, delta }));
+        deltaTail = deltaTail.then(() => deps.emit({ type: "delta", chatId: prep.chatId, turnId: announcedTurnId, slotSeq, delta }));
       },
     } satisfies Parameters<typeof runTurnPipeline>[0];
     const firstPass = await runTurnPipeline(pipelineArgs);
@@ -1836,6 +1829,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
     }
     const view = await commitGeneration({
       observations,
+      announcedTurnId,
       ctx,
       deps,
       prep,
@@ -1846,7 +1840,6 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
       nextSeq: maxSeq + 1,
       genStartedAt,
       genFinishedAt,
-      streamDeltas,
     });
     // BEFORE the client-visible `turnCompleted` emit (w4-my-lane S1, option 1): the rpg register is
     // SYNCHRONOUS (`onTurnCompleted` enters the flush barrier before its first await), so firing it
@@ -1873,7 +1866,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
       triggeredBy: prep.triggeredBy,
       signal: prep.signal,
     });
-    await deps.emit({ type: "turnCompleted", chatId: prep.chatId, intent, messageId: view.id });
+    await deps.emit({ type: "turnCompleted", chatId: prep.chatId, turnId: announcedTurnId, intent, messageId: view.id });
     // Fans chatsChanged to every present human member's live channel (chat-list recency); fired once here for
     // the whole turn, not also on messageCommitted above (would triple-invalidate list keys).
     await ctx.emitChatChanged(prep.chatId);
@@ -1964,7 +1957,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
     // slot, so the automation fact-resolver cannot read this back through `getTurnOrigin` — it must ride the
     // event. A depth ≥ 1 abort (this turn was itself automation-initiated) makes the `turnAborted` fact depth
     // ≥ 1, so the cascade guard suppresses non-opted `turnAborted` rules (closes the retry-on-failure self-loop).
-    await deps.emit({ type: "turnAborted", chatId: prep.chatId, intent, reason, automationDepth: abortDepth });
+    await deps.emit({ type: "turnAborted", chatId: prep.chatId, turnId: announcedTurnId, intent, reason, automationDepth: abortDepth });
     // CLEAR the turn's staged tool writes on every abort path (user/stale/error) so a dead turn never flushes
     // into the next turn on this chat (D58 hardening a).
     fireRpgTurnAborted(ctx, prep.chatId, turnId, reason);
@@ -2159,6 +2152,9 @@ export function createTurnEngine<const Context extends EngineContext>(ctx: Engin
       holder: deps.holder,
       now,
       expiresAt: now + deps.lockTtlMs,
+    }).catch(async (err: unknown) => {
+      await closePreStartRefusal(deps, prep);
+      throw err;
     });
     if (!acquired) {
       // The loudest pre-start refusal there is: a swipe/continue/send refused here NEVER reaches `executeTurn`,

@@ -259,7 +259,7 @@ test("native catalog and verify queries close their actual children after native
   expect(children).toHaveLength(1);
   expect(children.every((child) => closed.has(child) && child.exitCode === 0)).toBe(true);
   const verified = await harness.app.runtime.diagnostics.verifyAuth({ connection });
-  expect(verified).toMatchObject({ source: "max-pro-sub", ok: true, reply: "settled native SDK reply" });
+  expect(verified).toMatchObject({ ok: true, reply: "settled native SDK reply" });
   expect(children).toHaveLength(2);
   expect(children.every((child) => closed.has(child) && child.exitCode === 0)).toBe(true);
 });

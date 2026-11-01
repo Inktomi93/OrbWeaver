@@ -112,7 +112,7 @@ export async function openRouterGenerationCost(req: GenerationCostRequest, deps:
   const parsed = generationSchema.parse(
     await authenticatedRead(deps, { connection: req.connection, path, label: "openrouter generation", signal: req.signal }),
   );
-  return { totalCost: parsed.data.total_cost, tokensPrompt: parsed.data.tokens_prompt ?? null, tokensCompletion: parsed.data.tokens_completion ?? null };
+  return { totalCost: parsed.data.total_cost };
 }
 
 /** The model list by the row's dialect: the enriched openrouter catalog, else the `/v1/models` ids. A failed

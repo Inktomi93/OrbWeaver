@@ -46,12 +46,10 @@ export type UpdateBookInput = z.infer<typeof updateBookSchema>;
 //  agents keepers were the other two intended consumers — the rebuild wires them onto the same shape if either
 //  domain returns) stamps onto an entry it owns. `contentHash` is the sha256-hex of the content AS THE WRITER
 //  LEFT IT — the hand-edit-safe belt: a `upsertEntries` re-run that finds the CURRENT content no longer
-//  hashing to this value knows a human curated the entry and SKIPS it (the host's hand always wins). `span`
-//  is the transcript window that produced the entry (display + re-run idempotency). Generic on purpose — the
+//  hashing to this value knows a human curated the entry and SKIPS it (the host's hand always wins). Generic on purpose — the
 //  shared `upsertEntries` mint owns this shape so every machine consumer inherits the same guarantee.
 const loreEntryProvenanceSchema = z.object({
   contentHash: z.string(),
-  span: z.object({ fromSeq: z.int().nonnegative(), toSeq: z.int().nonnegative() }).optional(),
 });
 export type LoreEntryProvenance = z.infer<typeof loreEntryProvenanceSchema>;
 
@@ -95,17 +93,11 @@ const entryMetadataWriteSchema = z.record(z.string(), z.unknown()).superRefine((
 
 export const createEntrySchema = z.strictObject({
   title: z.string().min(1).max(WORLD_INFO_NAME_MAX),
-  /** Author-facing memo (= ST's `comment`). Optional; rendered in the entry list. NEVER prompt. */
-  description: z.string().max(DESCRIPTION_MAX).nullable().optional(),
   content: z.string().min(1).max(CONTENT_MAX),
   /** Keyword triggers — fires the entry when scope=`keyword`. Each key is matched case-insensitively
    *  whole-word against the scan-depth window of recent messages. */
   keys: z.array(z.string().max(KEY_MAX)).max(KEYS_MAX).optional(),
-  enabled: z.boolean().optional(),
   priority: z.int().min(PRIORITY_MIN).max(PRIORITY_MAX).optional(),
-  /** Opt-out of the per-turn WI token budget — must-have lore that should never be silently dropped. */
-  ignoreBudget: z.boolean().optional(),
-  metadata: entryMetadataWriteSchema.nullable().optional(),
 });
 export type CreateEntryInput = z.infer<typeof createEntrySchema>;
 
@@ -126,7 +118,6 @@ export interface BookView {
   id: WorldBookId;
   name: string;
   description: string | null;
-  createdAt: number;
 }
 
 /** Per-scope attachment rollup for one book — "where does this book fire?", read from the book's side.
@@ -192,7 +183,6 @@ export const bookViewSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.worldBook),
   name: z.string(),
   description: z.string().nullable(),
-  createdAt: z.number(),
 }) satisfies z.ZodType<BookView>;
 const bookUsageSchema = z.strictObject({
   characters: z.number(),
@@ -293,21 +283,11 @@ export type BulkImportLorebookResult = BulkImportLorebookResultBase &
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 /** One entry a machine writer upserts. `title` is the upsert key within the book; `keys` drive the keyword
- *  match (a keeper entry is keyed, not constant). `span` is stamped into the entry's
- *  `metadata.provenance.span`. */
+ *  match (a keeper entry is keyed, not constant). */
 export interface UpsertLoreEntryInput {
   readonly title: string;
   readonly keys: readonly string[];
   readonly content: string;
-  readonly span?: { readonly fromSeq: number; readonly toSeq: number } | undefined;
-}
-
-/** The counts one `upsertEntries` run returns. `skippedHandEdited` = entries a human had curated since the
- *  writer last wrote them (the hand-edit guard fired) — surfaced so the caller can report/log them. */
-export interface UpsertEntriesResult {
-  readonly inserted: number;
-  readonly updated: number;
-  readonly skippedHandEdited: number;
 }
 
 /** The shared machine-writer op: upsert `entries` into `bookId` as the book owner `authorUserId`. */
@@ -315,13 +295,12 @@ export type UpsertEntriesOp = (args: {
   readonly authorUserId: UserId;
   readonly bookId: WorldBookId;
   readonly entries: readonly UpsertLoreEntryInput[];
-}) => Promise<UpsertEntriesResult>;
+}) => Promise<void>;
 
 /** One row of a book's entry index — the lean shape a machine writer reads to build its merge/dedup prompt
  *  and count against a per-book cap (never the full `EntryView`). */
 export interface LoreEntryIndexRow {
   readonly title: string;
-  readonly keys: readonly string[];
 }
 
 export type WiBusEvent =

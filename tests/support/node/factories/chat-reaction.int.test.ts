@@ -58,7 +58,6 @@ test("whole-message and segment reactions retain separate canonical rows and exa
       {
         variantId: message.selectedVariantId,
         emoji: "👍",
-        emojiImageAssetId: null,
         segmentIndex: segment.segmentIndex,
         segmentSpeaker: segment.segmentSpeaker,
         segmentSnippet: segment.segmentSnippet,

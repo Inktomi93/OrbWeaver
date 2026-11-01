@@ -91,8 +91,6 @@ async function browseCharacters(db: Db, ownerId: UserId, filter: BrowseFilter = 
       name: characters.name,
       genre: characterSummaries.genre,
       tone: characterSummaries.tone,
-      setting: characterSummaries.setting,
-      tags: characterSummaries.tags,
       elevatorPitch: characterSummaries.elevatorPitch,
       avatarHash: assets.hash,
       createdAt: characters.createdAt,
@@ -109,8 +107,7 @@ async function browseCharacters(db: Db, ownerId: UserId, filter: BrowseFilter = 
     .leftJoin(characterSummaries, eq(characters.id, characterSummaries.characterId))
     .where(scope);
 
-  const items = rows.map((row) => ({ ...row, tags: row.tags ?? [] }));
-  return { items, nextCursor: nextCursorFor(sort, items, pageSize), totalCount: totalRows[0]?.count ?? 0 };
+  return { items: rows, nextCursor: nextCursorFor(sort, rows, pageSize), totalCount: totalRows[0]?.count ?? 0 };
 }
 
 async function characterFacets(db: Db, ownerId: UserId): Promise<CharacterFacets> {

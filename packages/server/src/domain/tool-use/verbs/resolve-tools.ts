@@ -8,7 +8,7 @@
 //
 // THE RESOLUTION IS DRIVER-SCOPED (#677). `driverUserId` is WHOSE contributor shelf a name is looked up on —
 // the turn host for a chat attach (the same identity `listDrivableToolNames` enumerated the names from), the
-// rule author for the `run_tool` arm. It is not the acting principal and it is not a permission check: the
+// rule author for the `run_tool` arm, whose off-turn resolve admits contributor entries alone. It is not the acting principal and it is not a permission check: the
 // ceilings still run at invocation (`substrate/capability.ts` + the PL-C installer gate). It exists because the
 // same namespaced plugin tool name legitimately belongs to N different users, so a name ALONE no longer
 // identifies an entry — `substrate/partition.ts` carries the why. A name only another user installed is
@@ -16,8 +16,9 @@
 
 import type { UserId } from "@orb/kit/ids";
 import { ToolNotFoundError } from "../contract/errors.ts";
-import type { RegisteredTool, ResolvedToolSet, ToolRegistry } from "../contract/results.ts";
+import type { DrivableToolSet, PluginRegisteredTool, RegisteredTool, ResolvedToolSet, ToolRegistry } from "../contract/results.ts";
 import { lookupForDriver } from "../substrate/partition.ts";
+import { isDirectDrivableBy } from "../substrate/reachability.ts";
 
 export function createResolveTools(registry: ToolRegistry): (driverUserId: UserId, names: readonly string[]) => ResolvedToolSet {
   return (driverUserId: UserId, names: readonly string[]): ResolvedToolSet => {
@@ -25,6 +26,20 @@ export function createResolveTools(registry: ToolRegistry): (driverUserId: UserI
     for (const name of names) {
       const entry = lookupForDriver(registry, driverUserId, name);
       if (entry === undefined) {
+        throw new ToolNotFoundError(name);
+      }
+      entries.push(entry);
+    }
+    return { entries };
+  };
+}
+
+export function createResolveDrivableTools(registry: ToolRegistry): (driverUserId: UserId, names: readonly string[]) => DrivableToolSet {
+  return (driverUserId: UserId, names: readonly string[]): DrivableToolSet => {
+    const entries: PluginRegisteredTool[] = [];
+    for (const name of names) {
+      const entry = lookupForDriver(registry, driverUserId, name);
+      if (entry === undefined || entry.source !== "plugin" || !isDirectDrivableBy(entry, driverUserId)) {
         throw new ToolNotFoundError(name);
       }
       entries.push(entry);

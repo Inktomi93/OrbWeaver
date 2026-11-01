@@ -1,11 +1,10 @@
 // @subject tests/support/iso/user-settings-view.ts
 
-import { DEFAULT_USER_SETTINGS, USER_SETTINGS_SCHEMA_VERSION, userSettingsViewSchema } from "@orb/contracts/settings";
+import { DEFAULT_USER_SETTINGS, userSettingsViewSchema } from "@orb/contracts/settings";
+import { VERSIONED_PARSE_FAILURES } from "@orb/contracts/versioned-config";
 
-import { createIdSource } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { ZodError } from "zod";
-import { createSeededIds } from "../iso/ids.ts";
 import { expect, test } from "./fixtures.ts";
 
 describe("production-derived settings builders", () => {
@@ -17,20 +16,16 @@ describe("production-derived settings builders", () => {
     expect(config.seeds).toEqual(DEFAULT_USER_SETTINGS.seeds);
   });
 
-  test("the read envelope preserves supplied identity and uses the owner's current version", async () => {
+  test("the read envelope reports an intact config unless told otherwise", async () => {
     const { userSettingsView } = await import("../iso/user-settings-view.ts");
-    const userId = createIdSource(createSeededIds().next).userId();
-    const view = userSettingsView({}, { userId });
-    expect(view.userId).toBe(userId);
-    expect(view.schemaVersion).toBe(USER_SETTINGS_SCHEMA_VERSION);
-    expect(view.updatedAt).toBe(0);
+    const view = userSettingsView({}, {});
     expect(view.configUnreadable).toBeNull();
     expect(userSettingsViewSchema.parse(view)).toEqual(view);
   });
 
   test("an override cannot produce an envelope the real output parser refuses", async () => {
     const { userSettingsView } = await import("../iso/user-settings-view.ts");
-    expect(() => userSettingsView({}, { schemaVersion: Number.NaN })).toThrow(ZodError);
-    expect(() => userSettingsView({}, { updatedAt: Number.POSITIVE_INFINITY })).toThrow(ZodError);
+    expect(userSettingsView({}, { configUnreadable: VERSIONED_PARSE_FAILURES.schemaRejected }).configUnreadable).toBe(VERSIONED_PARSE_FAILURES.schemaRejected);
+    expect(() => userSettingsView({}, { configUnreadable: "not-a-failure" as never })).toThrow(ZodError);
   });
 });

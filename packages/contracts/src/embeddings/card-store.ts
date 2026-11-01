@@ -5,7 +5,6 @@ import type { EmbeddingTask } from "./accounting.ts";
 
 /** Embed a character card's text. Unique key: `(characterId, model)`; `ownerId` funds its vector space. */
 export interface CardTextStoreInput {
-  readonly kind: "card";
   readonly lens: "card-text";
   readonly ownerId: UserId;
   readonly characterId: CharacterId;
@@ -18,7 +17,6 @@ export interface CardTextStoreInput {
 /** noop = content_hash unchanged, no re-embed/write happened; written = a fresh insert or hash-changed update landed. */
 interface StoreResultFields {
   readonly outcome: "noop" | "written";
-  readonly contentHash: string;
   /** The concrete space of the row that satisfied this write (provider-stamped for a write). */
   readonly model: string;
 }

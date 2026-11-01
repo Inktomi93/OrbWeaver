@@ -11,7 +11,6 @@ import type { UserRoleState } from "#identity";
  *  (that sealed blob has exactly ONE reader — the logout revoke — and is never projected). */
 export interface SessionView {
   id: SessionId;
-  createdAt: number;
   lastSeenAt: number;
   expiresAt: number;
   revokedAt: number | null;
@@ -33,7 +32,6 @@ export const sessionAdminViewSchema = z
     lastSeenAt: z.number(),
     revokedAt: z.number().nullable(),
     userAgent: z.string().nullable(),
-    createdAt: z.number(),
   })
   .readonly() satisfies z.ZodType<SessionAdminView>;
 
