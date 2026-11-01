@@ -71,8 +71,11 @@ export interface RpgCardCorpus {
  *  hostless room: the caller refuses the round. */
 export type ResolveRpgCardCorpus = (chatId: ChatId, characterId: CharacterId) => Promise<RpgCardCorpus | null>;
 
-/** The call args of a game turn's gather. `pendingUserText` and `respondsToLatestUserTurn` are the dice-feed
- *  inputs; `steerIdentity` is chat's resolved `{{user}}`/`{{char}}` pair for the host-authored steering note;
+/** The text of the latest user message, read for a turn that carries none of its own; `null` before any user message. */
+export type GetPendingUserText = (chatId: ChatId) => Promise<string | null>;
+
+/** The call args of a game turn's gather. `pendingUserText` and `respondsToLatestUserTurn` tell it whether this
+ *  turn answers a player's dice stamp; `steerIdentity` is chat's resolved `{{user}}`/`{{char}}` pair for the host-authored steering note;
  *  `regenSlotMessageId` is the assistant slot a swipe or reroll regenerates; `prose` is the turn preset's prose
  *  overrides, absent meaning every slot resolves to its shipped default. */
 export interface GatherTurnContextArgs {

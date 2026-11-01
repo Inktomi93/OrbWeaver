@@ -17,6 +17,7 @@
 import type {
   ClaimChatOp,
   GetMembership,
+  GetPendingUserText,
   ReadChatUserMacrosOp,
   ResolveRpgCardCorpus,
   ResolveRpgParticipants,
@@ -630,6 +631,8 @@ export interface RpgContext {
   /** rpg gates every verb through the membership read, never a chat-table read. `null` is one leak-free answer for
    *  not a present member and no such chat. */
   readonly getMembership: GetMembership;
+  /** The latest user message's text, for a gather whose turn carries none of its own (a swipe, a drained send). */
+  readonly getPendingUserText: GetPendingUserText;
   /** #1528 — the member-facing reads' PROJECTION verdict (hidden-span posture + the D16 floor), resolved by
    *  chat's one cross-domain op. Distinct from `getMembership` on purpose: that answers "may this caller ACT"
    *  (the ENFORCEMENT class `guard.ts` gates on), this answers "what may this viewer SEE" (the DATA-PROJECTION

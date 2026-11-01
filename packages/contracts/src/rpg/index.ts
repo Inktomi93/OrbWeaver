@@ -89,6 +89,7 @@ export {
   rpgGameConfigSchema,
 } from "./config.ts";
 export type {
+  RpgCheckpointTrigger,
   RpgCyoaChoiceBehavior,
   RpgJournalType,
   RpgQuestStatus,

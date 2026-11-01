@@ -40,6 +40,13 @@ async function newestWire(h: ChatRoot): Promise<string> {
   return wireText(body);
 }
 
+/** Run one turn and read the request it made; the flush it schedules settles first, so no bytes cross turns. */
+async function newestWireAfter(h: ChatRoot, turn: () => Promise<{ readonly aborted: boolean }>): Promise<string> {
+  expect((await turn()).aborted).toBe(false);
+  await h.root.settleBackground();
+  return await newestWire(h);
+}
+
 test("the choices teach reaches the model inside its frame, and the frame is the host's to replace", async () => {
   const prose: ProseOverrides = { "chat.teach.choicesFrame": { text: "<<{{teach}}>>", baseVersion: 1 } };
   await using shipped = await textRoom(["ok"]);
@@ -93,6 +100,41 @@ test("in a labelled multi-human room the teach never reads as part of the player
   expect(line).toBeDefined();
   expect(line).not.toContain(CHOICES_TEACH);
   expect(rows.filter((row) => row.includes(CHOICES_TEACH))).toEqual([framed(CHOICES_TEACH)]);
+});
+
+test("the player's dice stamp is honoured by the turns answering it and by no later turn", async () => {
+  const roll = PROSE_SLOTS["rpg.reminder.playerRolledDice"].text;
+  await using h = await turnRpgRoom(Array.from({ length: 6 }, () => (): Response => turnRpgReply("The keeper nods.")));
+  const params = { principal: h.owner, chatId: h.chatId };
+  const { stamp } = await h.root.services.rpg.rollDice({ ...params, notation: "d20" });
+  const rolled = await newestWireAfter(h, () => h.root.services.chat.send({ ...params, content: `I leap the gap. ${stamp}` }));
+  expect(occurrences(rolled, roll)).toBe(1);
+
+  const reply = (await h.root.services.chat.listMessages(params)).messages.findLast(({ role }) => role === "assistant");
+  if (reply === undefined) {
+    throw new Error("the rolled send wrote no reply");
+  }
+  // A swipe of the answering slot reads the stored message: it carries no pending text of its own.
+  const swiped = await newestWireAfter(h, () => h.root.services.chat.swipe({ ...params, messageId: reply.id }));
+  expect(occurrences(swiped, roll)).toBe(1);
+
+  const generated = await newestWireAfter(h, () => h.root.services.chat.generate(params));
+  expect(generated).not.toContain(roll);
+
+  const plain = await newestWireAfter(h, () => h.root.services.chat.send({ ...params, content: "I walk on." }));
+  expect(plain).not.toContain(roll);
+
+  const oldSwipe = await newestWireAfter(h, () => h.root.services.chat.swipe({ ...params, messageId: reply.id }));
+  expect(oldSwipe).not.toContain(roll);
+});
+
+test("a dice stamp quoted as code is not a roll", async () => {
+  const roll = PROSE_SLOTS["rpg.reminder.playerRolledDice"].text;
+  await using h = await turnRpgRoom([(): Response => turnRpgReply("The keeper nods.")]);
+  const params = { principal: h.owner, chatId: h.chatId };
+  const { stamp } = await h.root.services.rpg.rollDice({ ...params, notation: "d20" });
+  const wire = await newestWireAfter(h, () => h.root.services.chat.send({ ...params, content: `Rolls look like \`${stamp}\`.` }));
+  expect(wire).not.toContain(roll);
 });
 
 const GAME_ARMS = [

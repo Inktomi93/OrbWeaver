@@ -3,7 +3,7 @@
 // It lives in lib/ because a component module may export components only (biome
 // `useComponentExportOnlyModules`).
 
-import type { RpgJournalType } from "@orb/contracts/rpg";
+import type { RpgCheckpointTrigger, RpgJournalType } from "@orb/contracts/rpg";
 
 /** The journal-TYPE vocabulary — an exhaustive Record over the contracts tuple (§5.5: a new member fails tsc
  *  here, never renders as a raw slug). The composer Select derives its items from this; the row label reads
@@ -20,6 +20,11 @@ export const JOURNAL_TYPE_LABELS: Readonly<Record<RpgJournalType, string>> = {
   // R4c — the escape: a `custom` entry carries its own free `label`, so the row renders that label
   // when present and this generic word only when the model/host left it blank.
   custom: "Custom",
+};
+
+/** How a mark came to exist, as its row reads. An exhaustive Record, so a new trigger fails `tsc` here. */
+export const CHECKPOINT_TRIGGER_LABELS: Readonly<Record<RpgCheckpointTrigger, string>> = {
+  manual: "Set by hand",
 };
 
 /** The display label for a stored entry — the R4c free `label` when the entry carries one (a `custom` entry's

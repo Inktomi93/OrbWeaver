@@ -396,6 +396,9 @@ function teachingBlocks(input: LiteReminderInput): string[] {
   if (input.features.cyoa) {
     blocks.push(resolveTeach("rpg.reminder.cyoaTeach", input));
   }
+  if (input.playerRolledDice === true) {
+    blocks.push(resolveTeach("rpg.reminder.playerRolledDice", input));
+  }
   return blocks;
 }
 
