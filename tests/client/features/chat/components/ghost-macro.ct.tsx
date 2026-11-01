@@ -1,0 +1,54 @@
+import type { CharacterId, ChatId } from "@orb/kit/ids";
+import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
+import { createCorpusHarness } from "@orb/testkit/node/composed";
+import type { StreamingReplyStory } from "./_ghost-macro-stories.tsx";
+
+const STORY = "tests/client/features/chat/components/_ghost-macro-stories/StreamingReplyStory";
+const STREAM_LABEL = "Stream a reply";
+const PROCEDURES = [
+  "sessions.me",
+  "settings.getUserSettings",
+  "chat.getChat",
+  "chat.listMessages",
+  "chat.listReactions",
+  "chat.listMessageVariants",
+  "chat.previewContextFit",
+  "plugin.list",
+  "plugin.listDisplayTransforms",
+  "plugin.listSurfaces",
+  "regex.listScripts",
+  "regex.listRoomDisplayScripts",
+  "rpg.getGame",
+  "rpg.listTurnToolCalls",
+] as const;
+
+type Harness = Awaited<ReturnType<typeof createCorpusHarness>>;
+
+/** A room seating exactly one character, so the speaker and `{{char}}` are the same name. */
+async function soloRoom(root: Harness): Promise<{ readonly chatId: ChatId; readonly characterId: CharacterId; readonly name: string }> {
+  const owner = await root.internalCallerFor(root.ownerId);
+  for (const room of (await owner.chat.listChats({ limit: 100 })).items) {
+    const characters = (await owner.chat.getChat({ chatId: room.id })).participants.filter((p) => p.kind === "character");
+    const [only] = characters;
+    if (characters.length === 1 && only?.characterId !== null && only?.characterId !== undefined) {
+      return { chatId: room.id, characterId: only.characterId, name: only.displayName };
+    }
+  }
+  throw new Error("The corpus has no room seating exactly one character");
+}
+
+test("a streaming reply resolves {{char}} to the speaker's name, as the settled row does", async ({ mount, page, corpusMedia }) => {
+  await using root = await createCorpusHarness();
+  const { chatId, characterId, name } = await soloRoom(root);
+  const owner = await root.internalCallerFor(root.ownerId);
+  await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
+  await routeTrpc(page, serveCorpusProcedures(owner, PROCEDURES));
+  await corpusMedia();
+  await mount<typeof StreamingReplyStory>(STORY, { chatId, speakerCharacterId: characterId, streamedText: "{{char}} nods slowly.", streamLabel: STREAM_LABEL });
+
+  await page.getByRole("button", { name: STREAM_LABEL, exact: true }).click();
+  const ghost = page.locator('[data-slot="ghost-message-row"]');
+  await expect(ghost.locator('[data-slot="ghost-stream-body"]')).toContainText(`${name} nods slowly.`);
+  await expect(ghost).not.toContainText("{{char}}");
+});
