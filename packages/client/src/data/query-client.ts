@@ -17,6 +17,9 @@ interface AppMeta {
    *  which the chat bus surfaces its own honest notice for — see `isSilencedTurnAbort`); a returned string
    *  still toasts. */
   readonly errorToast?: string | ((error: unknown) => string | null);
+  /** A mounted consumer that renders this failure in its own text answers `true`; the toast stands down while the
+   *  claim is live. A consumer that has unmounted answers `false`, so the toast fires and no failure is silent. */
+  readonly failureClaimed?: (error: unknown) => boolean;
 }
 
 declare module "@tanstack/react-query" {
@@ -35,7 +38,7 @@ function retryUnlessBadRequest(failureCount: number, error: unknown): boolean {
 }
 
 function toastFromMeta(meta: AppMeta | undefined, error: unknown): void {
-  if (meta?.errorToast === undefined) {
+  if (meta?.errorToast === undefined || meta.failureClaimed?.(error) === true) {
     return;
   }
   const message = typeof meta.errorToast === "function" ? meta.errorToast(error) : meta.errorToast;

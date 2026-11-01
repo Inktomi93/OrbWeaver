@@ -46,7 +46,7 @@ function OperationsBody({ anchorId, sectionId }: { readonly anchorId: string; re
   const [{ data }, { data: viewer }] = useSuspenseQueries({
     queries: [trpc.settings.getAppSettingsWithOverrides.queryOptions(), trpc.sessions.me.queryOptions()],
   });
-  const save = useUpdateAppOverrides({ trpc, invalidation });
+  const save = useUpdateAppOverrides({ trpc, invalidation, failureShownInline: true });
 
   const resolved = data.resolved;
   const overrides = data.overrides;
@@ -88,7 +88,7 @@ function OperationsBody({ anchorId, sectionId }: { readonly anchorId: string; re
           sectionLabel={OPERATIONS_SUBCATEGORY.label}
           anyOverridden={autoindexOverridden || logLevelOverridden}
           saving={save.isPending}
-          errored={save.error !== null}
+          error={save.error}
           onReset={(): void => write({ corpusAutoindex: null, logLevel: null })}
         />
         {viewer.globalRole === "owner" ? <RestartServerControl /> : null}

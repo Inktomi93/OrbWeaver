@@ -208,6 +208,57 @@ test("a failed-state mark, a toast that stands down and a catch that sets local 
   ]);
 });
 
+test("a toast that only takes null as an argument still toasts, a setter that is not a failure says nothing, and a form submit's catch is the failure surface", ({
+  scratch,
+}) => {
+  const root = plantDir(scratch, "feedback-false-cases");
+  plant(root, {
+    "hooks/use-more.ts": [
+      "export const useNullArg = createEntityMutation<A, B>({ errorToast: (e) => describe(e, null), busDriven: true });",
+      "export const useCloser = createEntityMutation<A, B>({ busDriven: true });",
+      "export const useForm = createEntityMutation<A, B>({ busDriven: true });",
+    ].join("\n"),
+    "components/more.tsx": [
+      'import { useCloser, useForm, useNullArg } from "../hooks/use-more.ts";',
+      "export const NullArg = (d) => {",
+      "  const save = useNullArg(d);",
+      "  return save.error === null ? null : <p>x</p>;",
+      "};",
+      "export const Closer = (d) => {",
+      "  const save = useCloser(d);",
+      "  const [open, setOpen] = useState(true);",
+      "  const run = async () => { try { await save.mutateAsync({}); } catch { setOpen(false); } };",
+      "  return null;",
+      "};",
+      "export const Form = (d) => {",
+      "  const save = useForm(d);",
+      '  form.handleSubmit().catch(() => notify.error("no"));',
+      "  return null;",
+      "};",
+    ].join("\n"),
+  });
+  const feedback = analyse(root, [], null).cohorts.find((entry) => entry.name === "feedback")?.members ?? [];
+  expect(feedback.map((member) => [member.label, member.cells["failure"]?.value])).toEqual([
+    ["useNullArg", "toast+inline"],
+    ["useCloser", "none"],
+    ["useForm", "inline"],
+  ]);
+});
+
+test("a spread with a computed key or a getter leaves its door's axes unresolved, not zero", ({ scratch }) => {
+  const root = plantDir(scratch, "variant-spread-keys");
+  plant(root, {
+    "components/keys.tsx": [
+      'import { Button } from "@orb/ui/button";',
+      'const KEY = "variant";',
+      'export const A = () => <Button {...{ [KEY]: "ghost" }} />;',
+      'export const B = () => <Button {...{ get variant() { return "ghost"; } }} />;',
+    ].join("\n"),
+  });
+  const variant = analyse(root, [], null).composition.variants.axes.find((entry) => entry.axis === "variant");
+  expect(variant?.unresolved).toEqual({ "spread with a computed key": 1, "spread with a getter or method": 1 });
+});
+
 test("a section's list boundary is the shell, the boundary or none", ({ scratch }) => {
   const root = plantDir(scratch, "structure");
   plant(root, {

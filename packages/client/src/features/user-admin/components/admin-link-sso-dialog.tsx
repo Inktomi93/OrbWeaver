@@ -37,7 +37,7 @@ export function AdminLinkSsoDialog(props: AdminUserDialogProps): ReactElement {
 function LinkSsoBody({ userId, onDone }: { readonly userId: UserId; readonly onDone: () => void }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const link = useLinkSsoIdentity({ trpc, invalidation });
+  const link = useLinkSsoIdentity({ trpc, invalidation, failureShownInline: true });
   const [subject, setSubject] = useState("");
   const trimmed = subject.trim();
 
@@ -45,13 +45,13 @@ function LinkSsoBody({ userId, onDone }: { readonly userId: UserId; readonly onD
     if (trimmed.length === 0) {
       return;
     }
-    // the failure is rendered by the `link.error !== null` line in this
-    // component and toasted by useLinkSsoIdentity's `errorToast` (use-admin-mutations.ts); the dialog just stays open.
-    // Ends if both stop.
+    // The failure is rendered by the `link.error !== null` line in this component while it is mounted
+    // (`failureShownInline` stands the toast down); useLinkSsoIdentity's `errorToast` speaks it if the dialog has
+    // closed. Ends if either stops.
     try {
       await link.mutateAsync({ userId, externalId: castId<ExternalId>(trimmed) });
     } catch {
-      // The sticky mutation error renders below (plus the factory's errorToast) — stay open.
+      // The sticky mutation error renders below — stay open.
       return;
     }
     notify.success("SSO identity linked — their next single sign-on will use this account.");
@@ -64,7 +64,7 @@ function LinkSsoBody({ userId, onDone }: { readonly userId: UserId; readonly onD
         <Input autoComplete="off" onValueChange={(value): void => setSubject(value)} value={subject} data-testid={testId("adminLinkSsoSubject")} />
       </Field>
       {link.error !== null ? (
-        <Text tone="destructive" voice="label">
+        <Text role="alert" tone="destructive" voice="label">
           Couldn't link that identity — the subject may already be linked to another account, or this row is already bound.
         </Text>
       ) : null}

@@ -60,7 +60,7 @@ function MultiUserBody({ anchorId, sectionId }: { readonly anchorId: string; rea
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getAppSettingsWithOverrides.queryOptions());
   const isOwner = useIsBoxOwner();
-  const save = useUpdateAppOverrides({ trpc, invalidation });
+  const save = useUpdateAppOverrides({ trpc, invalidation, failureShownInline: true });
 
   const resolved = data.resolved;
   const overrides = data.overrides;
@@ -145,7 +145,7 @@ function MultiUserBody({ anchorId, sectionId }: { readonly anchorId: string; rea
           dirty={isOwner && allowlistDirty}
           anyOverridden={anyOverridden}
           saving={save.isPending}
-          errored={save.error !== null}
+          error={save.error}
           onSave={saveAllowlist}
           onReset={reset}
         />

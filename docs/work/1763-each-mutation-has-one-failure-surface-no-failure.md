@@ -23,44 +23,50 @@ The observable bar a verifier can check.
 
 ## Evidence
 
-The rule (`docs/law/client-architecture-state-and-gates.md` §10, item 5 "Toasts"): the factory toast is a mutation's one failure message. A persistent mark that reads `error` carries state only. A consumer that renders its own text drops `meta.errorToast`.
+The rule (`docs/law/client-architecture-state-and-gates.md` §10, item 5 "Toasts"): the factory `errorToast` is always the fallback. A mounted consumer that renders the failure in its own text claims it with `failureShownInline`, and the toast stands down only while that claim is live. A failure that lands after the consumer has unmounted toasts. A persistent mark that reads `error` carries state only.
+
+The mechanism: `createEntityMutation` ties the claim to the consumer's mounted lifetime (`packages/client/src/data/create-entity-mutation.ts`). The flag takes `true` or a predicate over the error, and the global handler asks the claim at failure time (`packages/client/src/data/query-client.ts`). A per-call `onSuccess` or `onError` would not fire after unmount, which is why the claim lives on the hook.
 
 Survey before the fixes, from the ui-facts feedback cohort: 318 entity-mutation hooks with 402 consumer sites. Failure surface per consumer: toast only 352, toast and an inline read 24, nothing 16, inline only 10.
 
 ### Fixed
 
-| hook | consumer that renders the text | change |
-| - | - | - |
-| useUpdateAppOverrides (six sections) | AdminOverrideResetRow | factory toast dropped |
-| useCreateUser, useLinkSsoIdentity, useResetPassword | the admin dialogs | factory toast dropped |
-| useStartWorkload, useCreateSchedule, useUpdateSchedule | the run and schedule dialogs | factory toast dropped |
-| useCreateRefinerySchema, useUpdateRefinerySchema | the schema editor's RefusalNote | factory toast dropped |
-| useAttachDocumentToCharacter, useDetachDocumentFromCharacter | the attachments row with its retry | factory toast dropped |
-| useDraftCatalogModels | the model picker's listing | factory toast dropped |
-| useAttachBookToChat, useAttachDocumentToChat, useAttachScriptToChat | the attach pickers | factory toast dropped |
-| useCreateRule, useUpdateRule | the rule editor beside the autosave status | factory toast dropped |
-| useCreateCharacter | the New-character dialog, for a coded refusal | the toast answers `null` for a coded refusal and still toasts any other failure |
-| useCreatePersona, useUpdatePersona, useSetPersonaSeed | the first-run dialog's own `notify.error` | the dialog passes `failureShownInline: true` |
+Every factory keeps its `errorToast`. These consumers render the failure text and claim it:
 
-Already one surface, so unchanged: useUpdateLibrary and useSetMemoryEnabled (the save-status mark carries state, the toast carries the message), and useSetUserMacroValues, useRecomputeStats, useStartSharing and useEnableIpCertificate (the toast answers `null` for the coded failure the consumer says).
+| hook | consumer that claims |
+| - | - |
+| useUpdateAppOverrides (six sections) | AdminOverrideResetRow, which now says the real message |
+| useCreateUser, useLinkSsoIdentity, useResetPassword | the admin dialogs |
+| useStartWorkload, useCreateSchedule, useUpdateSchedule | the run and schedule dialogs |
+| useCreateRefinerySchema, useUpdateRefinerySchema | the schema editor |
+| useAttachDocumentToCharacter, useDetachDocumentFromCharacter | the attachments row |
+| useDraftCatalogModels | the model picker and the add-connection form |
+| useAttachBookToChat, useAttachDocumentToChat, useAttachScriptToChat | the attach pickers |
+| useCreateRule, useUpdateRule | the rule editor |
+| useCreateCharacter | the New-character dialog, claiming only a coded refusal (a predicate) |
+| useCreatePersona, useUpdatePersona, useSetPersonaSeed | the first-run dialog |
 
-Red-first samples, one per shape:
+Also fixed:
 
-- Consumer text plus a factory toast: `tests/client/features/chat/components/chat-attach-pickers.ct.tsx`, "a refused attach is said once" (three matches on the old source, one after).
-- Consumer toast plus a factory toast: `tests/client/features/persona/anchors/first-run-persona-dialog.ct.tsx`, "a refused create says so once" (two toasts on the old source, one after).
-- Scanner shapes (state mark, a toast that answers `null`, a catch that sets local state): `tests/tooling/ui-facts/composition.test.ts`.
+- `form.handleSubmit().catch(...)` in the schedule, run-workload, create-user and https-certificate dialogs no longer adds a second message.
+- The inline failure lines are `role="alert"`.
+- `AddChatScriptDialog` refuses to close while an attach is in flight, as the book and document pickers do.
+- The Links tab and the Overview card are keyed by character, so a failed read does not stick to the next character.
+
+Red-first, on the sources before these fixes:
+
+- A rule edit flushed by Close editor that then fails is toasted: `tests/client/features/automation/components/rule-editor-unmount-failure.ct.tsx`.
+- A refused schedule create is said once: `tests/client/features/workloads/components/schedule-create-failure.ct.tsx`.
+- A script attach in flight keeps its picker open and says its failure once: `tests/client/features/chat/components/chat-attach-pickers.ct.tsx`.
+- A failed read for one character does not stick on the next: `tests/client/features/character/components/platform-context-recovery.suite.ct.tsx`.
+- Scanner cases: `tests/tooling/ui-facts/composition.test.ts`.
 
 ### Scanner
 
-The feedback scanner (`tooling/src/ui-facts/feedback.ts`) now reads a state mark (`saveStateOf`, `useReportSaveStatus`) as state, a function-form toast that can answer `null` as a split, and a `try/catch` or `.catch(...)` or per-call `onError` on the mutation's own call that sets local state or toasts as the consumer's surface. It still cannot follow a failure that reaches the screen through another function.
+The feedback scanner (`tooling/src/ui-facts/feedback.ts`) reads a state mark as state, a function-form toast whose returned value can be `null` as a split, a setter that names a failure or a `notify.error` in a `try/catch`, `.catch(...)` or `form.handleSubmit().catch(...)` on the mutation, and a per-call `onError`. A setter such as `setOpen` is not a failure. A call that takes `null` as an argument is not a `null` return. The variant scanner reads a spread with a computed key or a getter as unresolved.
 
-After the fixes the cohort reads: toast only 336, inline 38, toast and inline 14, nothing 14.
+### Open
 
-### Still open
+The new claim also governs the earlier users of `failureShownInline`. `first-model-setup.tsx` and `add-connection-dialog.tsx` hand-roll a notice after close for the Chat binding. That binding is the dialog's own mutation, so the dialog's claim covers it while it is mounted. No test closes either dialog with a write in flight.
 
-Toast and inline, 14 sites the sharper scanner now shows. Several are scanner false positives (the persona-list create catch does nothing by its own comment); none is read yet: useAbortMutation, useImportRegexScriptFile, useCancelWorkload, useImportWorldBookFile, useConfirmSuggestion and useDismissSuggestion, useUpdateCharacter in character-hero-band, useImportThemeFile, useImportPersonaFile, useCreatePreset, labels-suggestions (three), useEmbedCharacterCard.
-
-Nothing, 14 sites. Documented as deliberate in the hook or its consumer: useReapHuskMutation, useReapTemporaryChats (janitor, never retried), useReportUiCrash (telemetry), useMarkAllNotificationsRead (the unread dot stays lit), useAddToGallery (two) and useRemoveFromGallery, usePreviewInvite, usePruneUnusedTags and useRemoveTag (the confirm dialog shows a failure line), useRollDice (the consumer toasts in a catch the scanner counts only partly). Scanner misses: useCreateRule and useUpdateRule (the failure reaches the rule editor through a queue), useDraftCatalogModels in add-connection-form-body (the listing carries it).
-Filled at landing: what ran and where its output is.
-
-- Rule (claude-b, under the owner's delegated direction, on the lane's recommendation): the toast is the one message, a persistent mark is state only, and a consumer that renders its own text drops the factory toast. The law line cites this item.
+The toast and inline sites that were never read are listed in item 1816.

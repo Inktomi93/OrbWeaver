@@ -115,12 +115,12 @@ export const useDetachDocumentGlobal = createEntityMutation<inferInput<Trpc["dat
 export const useAttachDocumentToCharacter = createEntityMutation<inferInput<Trpc["databank"]["attachToCharacter"]>, unknown>({
   options: (trpc) => trpc.databank.attachToCharacter.mutationOptions(),
   busDriven: true,
-  // No errorToast: the attachments row renders the failure with a retry.
+  errorToast: "Couldn't attach the document to that character.",
 });
 
 /** Stop a document following one of the owner's characters into chats. */
 export const useDetachDocumentFromCharacter = createEntityMutation<inferInput<Trpc["databank"]["detachFromCharacter"]>, unknown>({
   options: (trpc) => trpc.databank.detachFromCharacter.mutationOptions(),
   busDriven: true,
-  // No errorToast: the attachments row renders the failure with a retry.
+  errorToast: "Couldn't detach the document from that character.",
 });

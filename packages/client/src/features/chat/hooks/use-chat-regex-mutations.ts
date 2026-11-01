@@ -52,7 +52,7 @@ export const useSetRegexScriptEnabled = createEntityMutation<
 export const useAttachScriptToChat = createEntityMutation<{ readonly chatId: ChatId; readonly scriptId: RegexScriptId }, void>({
   options: (trpc) => trpc.regex.attachToChat.mutationOptions(),
   busDriven: true,
-  // No errorToast: the attach picker renders the failure text.
+  errorToast: "Couldn't attach that script to this chat.",
 });
 
 export const useDetachScriptFromChat = createEntityMutation<

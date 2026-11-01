@@ -41,7 +41,7 @@ export function RefusalNote({ error }: { error: unknown }): ReactElement | null 
   return (
     <Stack data-testid={testId("refinerySchemaRefusal")} gap="tight">
       {refusalLines(error).map((line) => (
-        <Text key={line} voice="gloss">
+        <Text key={line} role="alert" voice="gloss">
           {line}
         </Text>
       ))}

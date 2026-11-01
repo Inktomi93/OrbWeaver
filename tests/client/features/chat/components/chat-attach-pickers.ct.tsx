@@ -1,8 +1,9 @@
 // The three attach pickers on the production This-chat tab: a failed library read is a failed read, not an empty library,
 // and a refused attach says so in the picker once.
+import { createRegexScriptSchema } from "@orb/contracts/regex";
 import type { ChatId } from "@orb/kit/ids";
 import type { TrpcRoutes } from "@orb/testkit/ct";
-import { routeAuthConfig, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { holdServed, routeAuthConfig, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
@@ -19,6 +20,7 @@ const TAB_PROCEDURES = [
   "databank.listActiveForChat",
   "worldInfo.listForChat",
   "regex.listForChat",
+  "regex.listRoomDisplayScripts",
   "chat.listEffectiveRegex",
   "chat.getUserMacroPicks",
   "chat.getVariablePicks",
@@ -106,4 +108,33 @@ test("a refused attach is said once, in the picker, with no second toast from th
   await expect(page.getByRole("button", { name: `Attach ${book.name} to this chat`, exact: true })).toBeEnabled();
   // The picker's sentence and the mutation's toast would quote the same text; one match means no toast.
   await expect(page.getByText("Couldn't attach the world book to this chat.", { exact: true })).toHaveCount(1);
+});
+
+test("a script attach in flight keeps the picker open, so its failure is said once, in the picker", async ({ mount, page, corpusMedia }) => {
+  await using root = await createCorpusHarness();
+  const { chatId, host } = await hostRoom(root);
+  const script = await host.regex.createScript({
+    input: createRegexScriptSchema.parse({ name: "Held script", findRegex: "x", replaceString: "y", placement: [] }),
+  });
+  const hold = holdServed();
+  await openTab(root, page, host, {
+    ...serveCorpusProcedures(host, ["regex.listScripts"]),
+    ...serveCorpusProcedures(host, ["regex.attachToChat"], () => hold),
+  });
+  await corpusMedia();
+  await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
+
+  await page.getByRole("button", { name: /^Regex/u }).click();
+  await page.getByRole("button", { name: "Attach a script", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("checkbox", { name: `Attach ${script.name} to this chat`, exact: true }).click();
+  await dialog.getByRole("button", { name: "Attach to this chat", exact: true }).click();
+  await hold.requested;
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  // Let a dialog that does close finish its exit transition before asserting that this one stayed.
+  await page.evaluate(() => new Promise<void>((settled) => setTimeout(settled, 800)));
+  await expect(dialog).toBeVisible();
+  hold.fail();
+  await expect(dialog.getByText("Couldn't attach those scripts to this chat.", { exact: true })).toBeVisible();
+  await expect(page.getByText(/^Couldn't attach (?:those|that) scripts? to this chat\./u)).toHaveCount(1);
 });

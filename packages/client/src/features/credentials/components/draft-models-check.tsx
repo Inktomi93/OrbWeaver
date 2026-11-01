@@ -65,7 +65,7 @@ export function DraftModelsCheck({
   onListing,
   onUrlRefusal,
 }: DraftModelsCheckProps): ReactElement {
-  const list = useDraftCatalogModels({ trpc, invalidation });
+  const list = useDraftCatalogModels({ trpc, invalidation, failureShownInline: true });
   const auth = dialAuth(keyValue, heldCredentialId);
   // An endpoint needs its URL (its key is optional); a hosted list needs the key it is read under.
   const ready = !credentialUnavailable && (baseUrl === null ? Object.keys(auth).length > 0 : baseUrl.trim() !== "");

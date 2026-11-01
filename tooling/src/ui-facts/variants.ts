@@ -137,13 +137,19 @@ function objectAxis(object: ts.ObjectLiteralExpression, axis: string, sf: ts.Sou
     if (ts.isSpreadAssignment(property)) {
       return resolveSpread(property.expression, axis, sf, hops + 1);
     }
-    if (!(ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property))) {
-      return NONE;
+    // A computed key can name any axis, so it is unread, not absent.
+    if (ts.isComputedPropertyName(property.name)) {
+      return unresolved("spread with a computed key");
     }
     if (property.name.getText(sf).replace(/^["']|["']$/gu, "") !== axis) {
       return NONE;
     }
-    return ts.isPropertyAssignment(property) ? resolve(property.initializer, sf, hops + 1) : unresolved("identifier from a prop, parameter or import");
+    if (ts.isPropertyAssignment(property)) {
+      return resolve(property.initializer, sf, hops + 1);
+    }
+    return ts.isShorthandPropertyAssignment(property)
+      ? unresolved("identifier from a prop, parameter or import")
+      : unresolved("spread with a getter or method");
   });
   return merge(NONE, ...parts);
 }

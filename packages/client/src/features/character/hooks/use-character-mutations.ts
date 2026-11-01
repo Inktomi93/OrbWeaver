@@ -2,7 +2,7 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { SectionPatchVars, Trpc } from "#data";
 import { createEntityMutation } from "#data";
-import { characterBulkTagRefusal, characterMutationToast, characterRefusalCopy } from "../lib/character-refusal-notice.ts";
+import { characterBulkTagRefusal, characterMutationToast } from "../lib/character-refusal-notice.ts";
 
 // The character CRUD mutations used by the LIST (mirrors use-persona-mutations.ts) — the ONE mutation
 // factory (`createEntityMutation`) instanced per verb. Every character verb emits `charactersChanged` on
@@ -24,8 +24,7 @@ type CharacterDetail = inferOutput<Trpc["character"]["update"]>;
 export const useCreateCharacter = createEntityMutation<inferInput<Trpc["character"]["create"]>, inferOutput<Trpc["character"]["create"]>>({
   options: (trpc) => trpc.character.create.mutationOptions(),
   busDriven: true,
-  // A coded refusal is rendered beside the name field by the New-character dialog, so only an uncoded failure toasts.
-  errorToast: (error) => (characterRefusalCopy(error) === null ? "Couldn't create the character." : null),
+  errorToast: (error) => characterMutationToast(error, "Couldn't create the character."),
 });
 
 /** Immediate-commit identity patch (§2/§4.4): the row's star chip fires `{ characterId, starred }`; the

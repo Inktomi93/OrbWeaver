@@ -37,7 +37,7 @@ export function AdminResetPasswordDialog(props: AdminUserDialogProps): ReactElem
 function ResetPasswordBody({ userId, onDone }: { readonly userId: UserId; readonly onDone: () => void }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const resetPassword = useResetPassword({ trpc, invalidation });
+  const resetPassword = useResetPassword({ trpc, invalidation, failureShownInline: true });
   const [password, setPassword] = useState("");
   const [showTooShort, setShowTooShort] = useState(false);
 
@@ -49,7 +49,7 @@ function ResetPasswordBody({ userId, onDone }: { readonly userId: UserId; readon
     try {
       await resetPassword.mutateAsync({ userId, password });
     } catch {
-      // The sticky mutation error renders below (plus the factory's errorToast) — stay open.
+      // The sticky mutation error renders below, and the toast stands down while this dialog is mounted — stay open.
       return;
     }
     notify.success("Password reset — their sessions were revoked.");
@@ -75,7 +75,7 @@ function ResetPasswordBody({ userId, onDone }: { readonly userId: UserId; readon
         </Text>
       ) : null}
       {!showTooShort && resetPassword.error !== null ? (
-        <Text tone="destructive" voice="label">
+        <Text role="alert" tone="destructive" voice="label">
           Couldn't reset the password — try again.
         </Text>
       ) : null}

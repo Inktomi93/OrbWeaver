@@ -71,7 +71,7 @@ function RateLimitsBody({ anchorId, sectionId }: { readonly anchorId: string; re
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getAppSettingsWithOverrides.queryOptions());
-  const save = useUpdateAppOverrides({ trpc, invalidation });
+  const save = useUpdateAppOverrides({ trpc, invalidation, failureShownInline: true });
 
   const baseline = data.resolved.rateLimits;
   const stored = data.overrides.rateLimits ?? null;
@@ -122,7 +122,7 @@ function RateLimitsBody({ anchorId, sectionId }: { readonly anchorId: string; re
           dirty={dirty}
           anyOverridden={anyOverridden}
           saving={save.isPending}
-          errored={save.error !== null}
+          error={save.error}
           onSave={onSave}
           onReset={onReset}
         />

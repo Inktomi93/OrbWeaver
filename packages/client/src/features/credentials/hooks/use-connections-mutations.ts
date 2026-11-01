@@ -50,7 +50,7 @@ export const useDraftCatalogModels = createEntityMutation<inferInput<Trpc["conne
   // `gcTime: 0` for the same reason as `addCredentialOptions`: the variables can carry a draft key.
   options: (trpc) => ({ ...trpc.connection.draftCatalogModels.mutationOptions(), gcTime: 0 }),
   invalidates: () => [],
-  // No errorToast: the picker renders the failure inline.
+  errorToast: "Couldn't list that provider's models.",
 });
 
 /** `gcTime: 0`: the mutation cache keeps a settled mutation's VARIABLES — here the plaintext key — for the

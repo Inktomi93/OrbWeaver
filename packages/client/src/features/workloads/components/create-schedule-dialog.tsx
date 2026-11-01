@@ -17,7 +17,6 @@ import type { ReactElement } from "react";
 import { FormDialog, FormSubmitButton, ModelRunConfirmDialog, useModelRunConfirm } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
 import { useCreateScheduleForm } from "../hooks/use-create-schedule-form.ts";
 import { useCreateSchedule, useUpdateSchedule } from "../hooks/use-workload-mutations.ts";
 import { buildStartInput, isMaintenanceWorkloadKind, isStartableWorkloadKind, WORKLOAD_KIND_LABELS, workloadKindItems } from "../lib/workloads-model.ts";
@@ -88,8 +87,8 @@ function ScheduleFormBody({
 }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const create = useCreateSchedule({ trpc, invalidation });
-  const update = useUpdateSchedule({ trpc, invalidation });
+  const create = useCreateSchedule({ trpc, invalidation, failureShownInline: true });
+  const update = useUpdateSchedule({ trpc, invalidation, failureShownInline: true });
   const paidRun = useModelRunConfirm();
   const isEdit = schedule !== undefined;
 
@@ -153,7 +152,7 @@ function ScheduleFormBody({
         </form.Subscribe>
       ) : null}
       {hasError ? (
-        <Text tone="destructive" voice="label">
+        <Text role="alert" tone="destructive" voice="label">
           {isEdit ? "Couldn't update the schedule. Try again." : "Couldn't create the schedule. Try again."}
         </Text>
       ) : null}
@@ -161,7 +160,7 @@ function ScheduleFormBody({
         disabled={isPending}
         label={submitLabel}
         onSubmit={(): void => {
-          form.handleSubmit().catch(() => notify.error("Couldn't save the schedule."));
+          form.handleSubmit().catch(globalThis.reportError);
         }}
         testKey={isEdit ? "editScheduleSubmit" : "createScheduleSubmit"}
       />

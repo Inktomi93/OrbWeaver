@@ -9,7 +9,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { notify, timeLib } from "#lib";
+import { timeLib } from "#lib";
 import { useIpCertificateForm } from "../hooks/use-ip-certificate-form.ts";
 import { useDisableIpCertificate, useEnableIpCertificate } from "../hooks/use-share-mutations.ts";
 import type { IpCertificateFormValues } from "../lib/share-model.ts";
@@ -174,7 +174,7 @@ function Offer({ initial }: { readonly initial: IpCertificateSetting | null }): 
           size="sm"
           loading={enable.isPending}
           onClick={(): void => {
-            form.handleSubmit().catch(() => notify.error("Couldn't turn on https."));
+            form.handleSubmit().catch(globalThis.reportError);
           }}
         >
           {initial === null ? "Get a certificate" : "Try again"}

@@ -35,7 +35,7 @@ type ActiveChatDocuments = inferOutput<Trpc["databank"]["listActiveForChat"]>;
 export const useAttachDocumentToChat = createEntityMutation<inferInput<Trpc["databank"]["attachToChat"]>, unknown>({
   options: (trpc) => trpc.databank.attachToChat.mutationOptions(),
   busDriven: true,
-  // No errorToast: the add picker renders the failure text.
+  errorToast: "Couldn't add the document to this chat.",
 });
 
 export const useDetachDocumentFromChat = createEntityMutation<inferInput<Trpc["databank"]["detachFromChat"]>, unknown>({

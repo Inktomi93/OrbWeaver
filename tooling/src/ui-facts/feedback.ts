@@ -35,9 +35,43 @@ function toastOf(options: ts.Expression | undefined): FactoryToast {
   if (property === undefined || !ts.isPropertyAssignment(property)) {
     return { toasts: hasProperty(options, "errorToast"), suppresses: false };
   }
-  const value = property.initializer;
-  const isFunction = ts.isArrowFunction(value) || ts.isFunctionExpression(value);
-  return { toasts: true, suppresses: isFunction && anyNode(value, (node) => node.kind === ts.SyntaxKind.NullKeyword) };
+  return { toasts: true, suppresses: returnsNull(property.initializer) };
+}
+
+/** A returned leaf is the `null` literal. A call that merely takes `null` as an argument answers unknown, so it does not count. */
+function isNullLeaf(expression: ts.Expression | undefined): boolean {
+  if (expression === undefined) {
+    return false;
+  }
+  if (ts.isParenthesizedExpression(expression)) {
+    return isNullLeaf(expression.expression);
+  }
+  if (ts.isConditionalExpression(expression)) {
+    return isNullLeaf(expression.whenTrue) || isNullLeaf(expression.whenFalse);
+  }
+  return expression.kind === ts.SyntaxKind.NullKeyword;
+}
+
+/** A function-form toast that can answer `null`: a returned leaf, not any `null` inside the body. */
+function returnsNull(value: ts.Expression): boolean {
+  if (!(ts.isArrowFunction(value) || ts.isFunctionExpression(value))) {
+    return false;
+  }
+  if (!ts.isBlock(value.body)) {
+    return isNullLeaf(value.body);
+  }
+  const returned: ts.Expression[] = [];
+  const collect = (node: ts.Node): void => {
+    if (ts.isFunctionLike(node) && node !== value) {
+      return;
+    }
+    if (ts.isReturnStatement(node) && node.expression !== undefined) {
+      returned.push(node.expression);
+    }
+    ts.forEachChild(node, collect);
+  };
+  collect(value.body);
+  return returned.some(isNullLeaf);
 }
 
 /** Mutation hooks minted by the factory at module scope, with how the factory toasts. */
@@ -67,17 +101,17 @@ function isStateMark(node: ts.Node): boolean {
   return false;
 }
 
-/** A busy flag is not a failure surface: `setPending(false)` in a catch says nothing about what failed. */
-const BUSY_FLAG = /(?:Pending|Busy|Loading|Submitting|Saving)$/u;
+/** A setter says a failure only when its name does: `setOpen(false)` or `setPending(false)` in a catch says nothing about what failed. */
+const FAILURE_SETTER = /^set\w*(?:Error|Failure|Fail|Message|Refusal|Notice|Problem)\w*$/u;
 
-/** The consumer says the failure itself: a call that sets local state (not a busy flag) or toasts. */
+/** The consumer says the failure itself: a call that sets failure state or toasts. */
 function isFailureStatement(node: ts.Node): boolean {
   if (!ts.isCallExpression(node)) {
     return false;
   }
   const callee = node.expression;
   if (ts.isIdentifier(callee)) {
-    return /^set[A-Z]/u.test(callee.text) && !BUSY_FLAG.test(callee.text);
+    return FAILURE_SETTER.test(callee.text);
   }
   return ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) && callee.expression.text === "notify" && callee.name.text === "error";
 }
@@ -89,6 +123,10 @@ function mentionsMutation(root: ts.Node, handles: ReadonlySet<string>): boolean 
   return anyNode(root, (node) => ts.isIdentifier(node) && handles.has(node.text));
 }
 
+function isSubmit(receiver: ts.Expression): boolean {
+  return ts.isCallExpression(receiver) && ts.isPropertyAccessExpression(receiver.expression) && receiver.expression.name.text === "handleSubmit";
+}
+
 /** Where the mutation promise rejects: a `try/catch` around its call or a `.catch(...)` chained on it, saying the failure. */
 function catchSaysFailure(root: ts.Node, handles: ReadonlySet<string>): boolean {
   return anyNode(root, (node) => {
@@ -97,7 +135,9 @@ function catchSaysFailure(root: ts.Node, handles: ReadonlySet<string>): boolean 
       return ts.isTryStatement(attempt) && mentionsMutation(attempt.tryBlock, handles) && anyNode(node.block, isFailureStatement);
     }
     const isPromiseCatch = ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === "catch";
-    return isPromiseCatch && mentionsMutation(node.expression.expression, handles) && node.arguments.some((argument) => anyNode(argument, isFailureStatement));
+    // A form submit rethrows the save's failure, so `form.handleSubmit().catch(...)` is where the mutation's failure lands.
+    const reachesMutation = (receiver: ts.Expression): boolean => mentionsMutation(receiver, handles) || isSubmit(receiver);
+    return isPromiseCatch && reachesMutation(node.expression.expression) && node.arguments.some((argument) => anyNode(argument, isFailureStatement));
   });
 }
 

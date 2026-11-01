@@ -50,10 +50,10 @@ function RelationBoundary({ heading, noun, children }: { readonly heading: strin
 export function CharacterRelationsTab({ characterId }: CharacterRelationsTabProps): ReactElement {
   return (
     <Stack gap="section">
-      <RelationBoundary heading="Linked world books" noun="linked world books">
+      <RelationBoundary heading="Linked world books" key={`books-${characterId}`} noun="linked world books">
         <LinkedBooksSection characterId={characterId} />
       </RelationBoundary>
-      <RelationBoundary heading="Connected personas" noun="connected personas">
+      <RelationBoundary heading="Connected personas" key={`personas-${characterId}`} noun="connected personas">
         <ConnectedPersonasSection characterId={characterId} />
       </RelationBoundary>
     </Stack>

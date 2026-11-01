@@ -390,6 +390,61 @@ for (const regime of REGIMES) {
   });
 }
 
+async function createSecondCharacter(caller: Caller): Promise<string> {
+  const other = await caller.character.create({
+    input: createCharacterSchema.parse({ handle: "context-second-cartographer", name: "The second cartographer", description: "A second card." }),
+  });
+  return other.name;
+}
+
+async function showContextTab(page: Page, tab: string): Promise<void> {
+  if ((await page.locator('.shell-panel[data-panel-side="context"]').getAttribute("data-panel-mode")) === "collapsed") {
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
+  }
+  await page.locator('.shell-panel[data-panel-side="context"]').getByRole("tab", { name: tab, exact: true }).click();
+}
+
+test("Links: a failed read for one character does not stick on the next", async ({ page, corpus, mount }) => {
+  await using root = await createCorpusHarness(undefined, { startJobs: false });
+  const { caller, card, reads } = await prepare(root, page, corpus);
+  const other = await createSecondCharacter(caller);
+  await routeTrpc(page, {
+    ...reads,
+    ...serveCorpusProcedures(caller, ["persona.list", "persona.listConnectedToCharacter", "worldInfo.listBooks"]),
+    ...serveCorpusProcedures(caller, ["worldInfo.listForCharacter"], ({ characterId }) =>
+      characterId === card.id ? trpcError({ code: "BAD_REQUEST", message: "refused" }) : undefined,
+    ),
+  });
+  await mount<typeof ShellAmbientStory>(STORY, {});
+  await openCharacterContext(page, "Links");
+  const context = page.locator('.shell-panel[data-panel-side="context"]');
+  await expect(context.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+  await selectCharacter(page, other);
+  await showContextTab(page, "Links");
+  await expect(context.getByText("No world books linked.", { exact: true })).toBeVisible();
+  await expect(context.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
+});
+
+test("Overview: a failed read for one character does not stick on the next", async ({ page, corpus, mount }) => {
+  await using root = await createCorpusHarness(undefined, { startJobs: false });
+  const { caller, card, reads } = await prepare(root, page, corpus);
+  const other = await createSecondCharacter(caller);
+  await routeTrpc(page, {
+    ...reads,
+    ...serveCorpusProcedures(caller, ["chat.listChats"], (input) =>
+      input?.limit === 1 && input.characterId === card.id ? trpcError({ code: "BAD_REQUEST", message: "refused" }) : undefined,
+    ),
+  });
+  await mount<typeof ShellAmbientStory>(STORY, {});
+  await openCharacterContext(page, "Overview");
+  const context = page.locator('.shell-panel[data-panel-side="context"]');
+  await expect(context.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+  await selectCharacter(page, other);
+  await showContextTab(page, "Overview");
+  await expect(context.getByText("Never", { exact: true })).toBeVisible();
+  await expect(context.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
+});
+
 test("Look's Reset all to Inherit asks first: Cancel writes nothing, Reset writes once", async ({ page, corpus, mount }) => {
   await using root = await createCorpusHarness(undefined, { startJobs: false });
   const { caller, card, reads } = await prepare(root, page, corpus);

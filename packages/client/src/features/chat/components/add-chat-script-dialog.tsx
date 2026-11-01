@@ -25,8 +25,8 @@ import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
-import { useState } from "react";
+import type { ReactElement, RefObject } from "react";
+import { useRef, useState } from "react";
 import { FormDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { regexScriptScent, regexScriptTitle, timeLib } from "#lib";
@@ -45,16 +45,22 @@ export interface AddChatScriptDialogProps {
 }
 
 export function AddChatScriptDialog({ chatId, open, onOpenChange, attachedIds }: AddChatScriptDialogProps): ReactElement {
+  // The dialog stays open while an attach is in flight, so the picker that states its failure is still mounted to say it.
+  const ownedRef = useRef(false);
   return (
     <FormDialog
       description="Its rules run on this room's prompts, in the order the section shows — and only here. A script stays in your library; detaching it from this chat leaves every other chat alone."
-      onOpenChange={onOpenChange}
+      onOpenChange={(next): void => {
+        if (next || !ownedRef.current) {
+          onOpenChange(next);
+        }
+      }}
       open={open}
       title="Attach a script to this chat"
     >
       {/* The picker reads inside its own boundary: the dialog frame paints at once and the candidate list fills in, so opening the
           picker never blanks the panel behind it through a shared suspense boundary. */}
-      <PickerBody attachedIds={attachedIds} chatId={chatId} onClose={(): void => onOpenChange(false)} />
+      <PickerBody attachedIds={attachedIds} chatId={chatId} onClose={(): void => onOpenChange(false)} ownedRef={ownedRef} />
     </FormDialog>
   );
 }
@@ -63,6 +69,7 @@ interface PickerBodyProps {
   readonly attachedIds: readonly RegexScriptId[];
   readonly chatId: ChatId;
   readonly onClose: () => void;
+  readonly ownedRef: RefObject<boolean>;
 }
 
 // The boundary is the dialog body's own, so a failed library read says so with a Retry instead of reading as "no scripts".
@@ -77,10 +84,10 @@ function PickerBody(props: PickerBodyProps): ReactElement {
   );
 }
 
-function ScriptPicker({ attachedIds, chatId, onClose }: PickerBodyProps): ReactElement {
+function ScriptPicker({ attachedIds, chatId, onClose, ownedRef }: PickerBodyProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const attach = useAttachScriptToChat({ trpc, invalidation });
+  const attach = useAttachScriptToChat({ trpc, invalidation, failureShownInline: true });
   const { data: scripts } = useSuspenseQuery(trpc.regex.listScripts.queryOptions());
   const [filter, setFilter] = useState("");
   const [picked, setPicked] = useState<readonly RegexScriptId[]>([]);
@@ -103,6 +110,10 @@ function ScriptPicker({ attachedIds, chatId, onClose }: PickerBodyProps): ReactE
   const matches = needle === "" ? scripts : scripts.filter((script) => regexScriptTitle(script).toLowerCase().includes(needle));
 
   const commit = async (): Promise<void> => {
+    if (ownedRef.current) {
+      return;
+    }
+    ownedRef.current = true;
     setFailure(null);
     try {
       // Sequential rather than parallel: each attach appends to the SAME junction, and the room's run order
@@ -115,6 +126,8 @@ function ScriptPicker({ attachedIds, chatId, onClose }: PickerBodyProps): ReactE
       onClose();
     } catch {
       setFailure("Couldn't attach those scripts to this chat.");
+    } finally {
+      ownedRef.current = false;
     }
   };
 

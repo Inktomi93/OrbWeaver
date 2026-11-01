@@ -21,6 +21,7 @@ import type {
   UseMutationOptions,
 } from "@tanstack/react-query";
 import { hashKey, useMutation } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { notify } from "#lib";
 import type { Invalidation } from "./invalidation.ts";
 import type { Trpc } from "./trpc.ts";
@@ -186,15 +187,29 @@ function releaseOptimisticOwner(queryClient: QueryClient, owner: OptimisticOwner
   }
 }
 
+/** Which failures a mounted consumer renders in its own text: all of them, or the ones the predicate accepts. */
+export type FailureClaim = boolean | ((error: unknown) => boolean);
+
 /** Build the mutation hook once at module scope; features call the returned hook. Deps (trpc +
- *  invalidation) arrive per-call so the factory itself stays import-pure. A caller that renders the failure in
- *  its own open surface (the surface stays as the retry) passes `failureShownInline`, so the global
- *  `errorToast` does not say it a second time. */
+ *  invalidation) arrive per-call so the factory itself stays import-pure. A consumer that renders the failure in
+ *  its own text passes `failureShownInline`: the global `errorToast` stands down only while that consumer is
+ *  mounted. A failure that lands after it unmounts (a flushed save, a cancelled dialog) toasts, so none is silent
+ *  and none shows twice. */
 export function createEntityMutation<TVars, TData, TRead = unknown>(
   config: EntityMutationConfig<TVars, TData, TRead>,
-): (deps: { trpc: Trpc; invalidation: Invalidation; failureShownInline?: boolean }) => EntityMutationResult<TVars, TData> {
+): (deps: { trpc: Trpc; invalidation: Invalidation; failureShownInline?: FailureClaim }) => EntityMutationResult<TVars, TData> {
   // biome-ignore lint/correctness/noComponentHookFactories: the D54 §13.1 editor-factory pattern — factories run at MODULE scope (const useDeleteCharacter = createEntityMutation(...)), so the returned hook has a stable identity (see forms/editor/create-saved-entity-form.ts).
   return function useEntityMutation({ trpc, invalidation, failureShownInline = false }): EntityMutationResult<TVars, TData> {
+    // The claim lives exactly as long as the consumer's mount: the cleanup withdraws it, so a late failure toasts.
+    const claim = useRef<FailureClaim>(false);
+    useEffect(() => {
+      claim.current = failureShownInline;
+      return (): void => {
+        claim.current = false;
+      };
+    }, [failureShownInline]);
+    const failureClaimed = (error: unknown): boolean => (typeof claim.current === "function" ? claim.current(error) : claim.current);
+
     async function echoResponse(data: TData, vars: TVars, client: QueryClient): Promise<void> {
       const echo = config.echo;
       if (echo === undefined) {
@@ -220,7 +235,7 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
 
     const mutation = useMutation<TData, DefaultError, TVars, OptimisticContext<TRead>>({
       ...config.options(trpc),
-      ...(config.errorToast === undefined || failureShownInline ? {} : { meta: { errorToast: config.errorToast } }),
+      ...(config.errorToast === undefined ? {} : { meta: { errorToast: config.errorToast, failureClaimed } }),
       onMutate: async (vars, context): Promise<OptimisticContext<TRead>> => {
         if (config.optimistic === undefined) {
           return { snapshot: undefined, readKey: null, owner: null };

@@ -30,8 +30,8 @@ export function useRuleAutosave(deps: {
 } {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const create = useCreateRule({ trpc, invalidation });
-  const update = useUpdateRule({ trpc, invalidation });
+  const create = useCreateRule({ trpc, invalidation, failureShownInline: true });
+  const update = useUpdateRule({ trpc, invalidation, failureShownInline: true });
   const [acknowledged, setAcknowledged] = useState<Rule | null>(null);
   // One slot for the save, not a merge of the two mutations' sticky errors: a later successful save clears it.
   const [failure, setFailure] = useState<Error | null>(null);

@@ -143,7 +143,7 @@ function MemoryTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getAppSettingsWithOverrides.queryOptions());
-  const save = useUpdateAppOverrides({ trpc, invalidation });
+  const save = useUpdateAppOverrides({ trpc, invalidation, failureShownInline: true });
 
   const stored = data.overrides.memoryDefaults ?? null;
   // The effective memoryDefaults baseline = the floor ⊕ stored override (per field), every knob present.
@@ -212,7 +212,7 @@ function MemoryTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
           dirty={dirty}
           anyOverridden={anyDefaultsOverridden}
           saving={save.isPending}
-          errored={save.error !== null}
+          error={save.error}
           onSave={(): void => writeMemoryDefaults(patch)}
           onReset={resetMemoryDefaults}
         />
