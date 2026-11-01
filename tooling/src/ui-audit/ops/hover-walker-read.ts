@@ -201,6 +201,8 @@ export const HOVER_FORCE_READ = `
       complexStateSelector: hoverComplexPaint,
       unresolvableStateSubject: hoverUnresolvedSubject,
       unreadableColor: hoverUnreadableColor,
+      srOnly: hoverSrOnly,
+      srOnlyUnreadable: hoverSrOnlyUnreadable,
       overBudget: hoverOverBudget,
       sheetsRead: hoverSheetsRead,
       sheetsUnreadable: hoverSheetsUnreadable,
