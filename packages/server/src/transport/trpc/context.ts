@@ -117,7 +117,7 @@ export interface Context {
   readonly services: Services;
   /** @internal */
   readonly rateLimit: RateLimitGate;
-  /** SSE subscriptions call presence.connect(userId, signal) to ref-count device liveness.
+  /** The stream socket counts device liveness here, and releases when the stream ends.
    * @internal
    */
   readonly presence: PresenceRegistry;

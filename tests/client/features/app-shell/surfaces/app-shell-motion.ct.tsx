@@ -353,7 +353,11 @@ function recordFlipKeyframes(page: Page): Promise<void> {
           ? event.target.getAnimations().find((candidate) => (candidate as CSSAnimation).animationName === event.animationName)
           : undefined;
       const translate = animation?.effect instanceof KeyframeEffect ? animation.effect.getKeyframes()[0]?.["translate"] : undefined;
-      seen[event.animationName] = typeof translate === "string" ? Number.parseFloat(translate) : Number.NaN;
+      // A `calc()` with a percentage (the trail's counter reads its own width) has no px to read before it resolves, so it is not recorded.
+      const px = typeof translate === "string" ? Number.parseFloat(translate) : Number.NaN;
+      if (Number.isFinite(px)) {
+        seen[event.animationName] = px;
+      }
     });
   });
 }

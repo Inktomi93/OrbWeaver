@@ -191,6 +191,8 @@ export interface BorderContrastInput {
   readonly inactiveKind: InactiveKind;
   readonly sides: readonly BorderContrastSide[];
   readonly surround: Backdrop;
+  /** Viewport box of the control. The pixel pass reads the band outside it when `surround` is unresolved. */
+  readonly box?: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
 }
 
 // ── Census reach — the interactive census's own denominator (#653) ───────────────────────────────────

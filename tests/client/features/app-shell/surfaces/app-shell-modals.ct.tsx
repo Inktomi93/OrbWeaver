@@ -216,6 +216,18 @@ test.describe("on the corpus owner's own settings", () => {
     });
   }
 
+  test("the You drawer keeps the More doors above the inbox, however long the inbox runs", async ({ mount, page }) => {
+    await page.setViewportSize({ width: 320, height: 640 });
+    await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "you" });
+    const more = page.getByRole("group", { name: "More", exact: true });
+    const inbox = page.locator('[data-slot="drawer-popup"] [role="group"][aria-labelledby="notifications-inbox-heading"]');
+    await expect(more).toBeVisible();
+    await expect(inbox).toBeAttached();
+    const moreBox = await more.boundingBox();
+    const inboxBox = await inbox.boundingBox();
+    expect(moreBox?.y ?? Number.POSITIVE_INFINITY).toBeLessThan(inboxBox?.y ?? Number.NEGATIVE_INFINITY);
+  });
+
   test("the You drawer's sticky header sits on the raised stratum and paints above its scrolled content", async ({ mount, page }) => {
     await page.setViewportSize({ width: 1024, height: 320 });
     await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "you" });

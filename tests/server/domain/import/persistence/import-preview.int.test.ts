@@ -69,6 +69,17 @@ test("a dry run names what each kind would bring and what it would skip, writes 
   expect(again.kinds.characters.items[0]).toMatchObject({ name: "Aria", inLibrary: true });
 });
 
+test("a persona with no avatar file is listed by its name as importing without art, not as a skipped file", async () => {
+  await using root = await harness();
+
+  const preview = await dryRun(root, profile(root));
+
+  expect(preview.kinds.personas.items).toEqual([expect.objectContaining({ name: "Bob", withoutArt: true })]);
+  expect(preview.skipped.items.map((item) => item.source)).not.toContain("bob.png");
+  const merged = mergeImportPreviews([preview, preview]);
+  expect(merged.kinds.personas.items[0]).toMatchObject({ name: "Bob", withoutArt: true });
+});
+
 test("a hostile folder's names are clipped, its lists capped with an exact total, and no server path or credential reaches the preview", async () => {
   await using root = await harness();
   const over = IMPORT_PREVIEW_LIST_MAX + 1;

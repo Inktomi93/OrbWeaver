@@ -6,6 +6,8 @@ import { buildContext, classifiable, classifySite, clusterKey } from "./classify
 import { buildCohorts } from "./cohorts.ts";
 import type { Cohort, Comparison } from "./compare.ts";
 import { compareCohort } from "./compare.ts";
+import type { Composition } from "./composition.ts";
+import { analyseComposition } from "./composition.ts";
 import { buildCopyCohorts } from "./copy.ts";
 import { scanCss } from "./css.ts";
 import type { DuplicateGroup } from "./duplicates.ts";
@@ -44,6 +46,7 @@ export interface UiFacts {
   readonly shapes: readonly ShapeGroup[];
   readonly adoption: readonly SectionAdoption[];
   readonly variants: readonly VariantUse[];
+  readonly composition: Composition;
   readonly sections: readonly string[];
 }
 
@@ -86,7 +89,9 @@ export function analyse(root: string, exceptions: readonly ExceptionEntry[], sel
   const live = raw.filter((site) => !isExcepted(site, exceptions));
   const context = buildContext(live, clusterFilesOf(live), loadLengthTokens(root));
   const sites = live.map((site) => (classifiable(site) ? classifySite(site, context) : site));
-  const cohorts = [...buildCohorts(files), ...buildCopyCohorts(files), buildMutationCohort(sources)];
+  const declared = declaredVariants(root);
+  const { cohorts: compositionCohorts, composition } = analyseComposition(sources, files, declared);
+  const cohorts = [...buildCohorts(files), ...buildCopyCohorts(files), buildMutationCohort(sources), ...compositionCohorts];
   return {
     scanned: countFiles(sources, selection),
     selection,
@@ -97,7 +102,8 @@ export function analyse(root: string, exceptions: readonly ExceptionEntry[], sel
     duplicates: findDuplicateMaps(sources),
     shapes: findShapes(files),
     adoption: adoptionBySection(files),
-    variants: variantUsage(files, declaredVariants(root)),
+    variants: variantUsage(files, declared),
+    composition,
     sections,
   };
 }

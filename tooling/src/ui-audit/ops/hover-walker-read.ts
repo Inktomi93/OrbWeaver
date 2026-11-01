@@ -100,7 +100,9 @@ export const HOVER_FORCE_READ = `
     var cand = hoverCandidates[idx];
     var forcedStyle = getComputedStyle(cand.el);
     var forcedColor = parseRgb(forcedStyle.color);
+    var forcedRect = cand.el.getBoundingClientRect();
     return {
+      box: { x: forcedRect.x, y: forcedRect.y, width: forcedRect.width, height: forcedRect.height },
       index: idx,
       color: forcedColor === null ? null : { r: forcedColor.r, g: forcedColor.g, b: forcedColor.b },
       backdrop: resolveBackdrop(cand.el),

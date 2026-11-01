@@ -40,6 +40,10 @@ export interface ContrastInput {
   /** Viewport-coordinate box of the text element, present from the live walker (absent in the fixture
    *  sample sets that predate it). The pixel sampler needs it to settle an `unresolved` backdrop. */
   readonly box?: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+  /** Viewport box of the element's own text (Range rects), carried only when the element box is materially
+   *  larger. The backdrop ring is taken just outside this box, so a letter in a big tile reads the tile's
+   *  solid centre and not the tile's feathered edge. */
+  readonly inkBox?: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
   /** What the compositor says is painted at this box's visible centre, when it is NOT this element (#211's
    *  test, carried only for `unresolved` samples). Non-null means a pixel sample would measure the
    *  OCCLUDER — the runner refuses the verdict instead. */

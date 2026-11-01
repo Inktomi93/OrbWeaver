@@ -18,6 +18,7 @@ import type { VerdictDenominator } from "../../floor/verdict/evidence.ts";
 import { printEvidenceGaps } from "../../floor/verdict/evidence.ts";
 import {
   backdropRefusalSummary,
+  populationRuleVerdicts,
   populationWithheldSummary,
   printBackdropRefusals,
   printCensusReach,
@@ -105,10 +106,22 @@ export function designAuditDenominators(measurement: DesignAuditMeasurement | nu
   };
 }
 
+/** `population-verdict` is the run-level word; these two say how partial it is, per rule, so one withheld
+ *  rule does not read as a verdict on the other rules. */
+function ruleVerdictPairs(measurement: DesignAuditMeasurement): readonly ResultPair[] {
+  const verdicts = populationRuleVerdicts(measurement.populationAccounting);
+  const noVerdict = verdicts.filter((entry) => entry.verdict === "no-verdict").map((entry) => entry.rule);
+  return [
+    ["population-rules-complete", `${String(verdicts.length - noVerdict.length)}/${String(verdicts.length)}`],
+    ["population-rules-no-verdict", noVerdict.length === 0 ? "none" : noVerdict.join("+")],
+  ];
+}
+
 function severityPairs(measurement: DesignAuditMeasurement, failOn: string): readonly ResultPair[] {
   return [
     ["findings", measurement.findings.length],
     ["population-verdict", measurement.verdicts.population === null ? "complete" : "NO-VERDICT"],
+    ...ruleVerdictPairs(measurement),
     ["population-withheld", populationWithheldSummary(measurement.populationAccounting)],
     ["no-verdict-reasons", backdropRefusalSummary(measurement.backdropRefusals)],
     ["p0", measurement.counts.P0],

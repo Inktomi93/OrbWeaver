@@ -31,7 +31,7 @@ import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Crown, Ellipsis, Icon, Volume2, VolumeX, Zap } from "@orb/ui/icons";
-import { Row } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Swatch } from "@orb/ui/swatch";
 import { Text } from "@orb/ui/text";
@@ -40,7 +40,7 @@ import { useId, useRef, useState } from "react";
 import { ConfirmDialog, SettingCheckboxRow } from "#components";
 import { rowActionsName } from "#lib";
 import type { MEMBER_ROW_CONFIRMS, MemberCharacterRow, MemberPersonRow, MemberRowActions, MemberRowFocusProps } from "../lib/member-rows.ts";
-import { rowAccessibleName } from "../lib/member-rows.ts";
+import { lastSeenPhrase, rowAccessibleName } from "../lib/member-rows.ts";
 import { buildMenuItems } from "./member-row-menu.tsx";
 import { TalkativenessPopover } from "./talkativeness-popover.tsx";
 
@@ -74,6 +74,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
       aria-label={rowAccessibleName(row)}
       {...(responding ? { "aria-describedby": descriptionId } : {})}
       className="flex-1 justify-start min-inline-0"
+      wrap={true}
       ref={(el: HTMLButtonElement | null): void => {
         bodyRef.current = el;
         registerRef(row.key, el);
@@ -97,24 +98,23 @@ export function MemberRow(props: MemberRowProps): ReactElement {
         {initialsFor(row.displayName)}
       </Avatar>
       {row.kind === "person" ? <PresenceDot online={row.online} /> : null}
-      <Text as="span" voice="label" ink={row.kind === "character" && row.disabled ? "muted" : undefined} className="truncate min-inline-0">
-        {/* Identity ONLY. The ` · ${handle}` suffix that used to sit here rendered the raw login handle —
-            an EMAIL under AUTH_MODE=oidc — beside every human's name (#162); `MemberPersonRow` no longer
-            carries a handle at all, so the suffix has nothing to come back from. */}
-        {row.displayName}
-      </Text>
-      <RowStateBadges row={row} />
-      {responding ? (
-        <>
-          {/* Visual mark aria-hidden; the state rides the accessible DESCRIPTION (no aria-live). */}
-          <Text as="span" voice="gloss" aria-hidden={true} pulse={true}>
-            responding…
-          </Text>
-          <Text as="span" id={descriptionId} className="sr-only">
-            responding
-          </Text>
-        </>
-      ) : null}
+      {/* The name owns its line. Last seen and the chips share a wrapping line below it, because beside the name
+          each `shrink-0` chip takes its width from the only thing that can give, and the name reaches zero. */}
+      <Stack className="flex-1 text-start min-inline-0">
+        <Text
+          as="span"
+          voice="label"
+          data-slot="member-name"
+          ink={row.kind === "character" && row.disabled ? "muted" : undefined}
+          className="truncate min-inline-0"
+        >
+          {/* Identity ONLY. The ` · ${handle}` suffix that used to sit here rendered the raw login handle —
+              an EMAIL under AUTH_MODE=oidc — beside every human's name (#162); `MemberPersonRow` no longer
+              carries a handle at all, so the suffix has nothing to come back from. */}
+          {row.displayName}
+        </Text>
+        <RowMeta row={row} responding={responding} descriptionId={descriptionId} />
+      </Stack>
     </Button>
   );
 
@@ -183,6 +183,48 @@ function PresenceDot({ online }: { readonly online: boolean | null }): ReactElem
       fill={online ? "success" : "none"}
       shape="pill"
     />
+  );
+}
+
+/** The row's second line: last seen, the state chips and the responding mark. `empty:hidden`, so a row with
+ *  nothing to say keeps its one-line height. */
+function RowMeta({
+  row,
+  responding,
+  descriptionId,
+}: {
+  readonly row: MemberPersonRow | MemberCharacterRow;
+  readonly responding: boolean;
+  readonly descriptionId: string;
+}): ReactElement {
+  return (
+    <Row gap="tight" align="center" className="flex-wrap min-inline-0 empty:hidden">
+      <LastSeen row={row} />
+      <RowStateBadges row={row} />
+      {responding ? (
+        <>
+          {/* Visual mark aria-hidden; the state rides the accessible DESCRIPTION (no aria-live). */}
+          <Text as="span" voice="gloss" aria-hidden={true} pulse={true}>
+            responding…
+          </Text>
+          <Text as="span" id={descriptionId} className="sr-only">
+            responding
+          </Text>
+        </>
+      ) : null}
+    </Row>
+  );
+}
+
+/** When an offline member was last around. The row's accessible name carries the same words. */
+function LastSeen({ row }: { readonly row: MemberPersonRow | MemberCharacterRow }): ReactElement | null {
+  if (row.kind !== "person" || row.lastSeenAt === null) {
+    return null;
+  }
+  return (
+    <Text as="span" voice="gloss" ink="muted" className="shrink-0" data-slot="member-last-seen">
+      {lastSeenPhrase(row.lastSeenAt)}
+    </Text>
   );
 }
 

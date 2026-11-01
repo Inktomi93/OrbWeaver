@@ -3,6 +3,7 @@ import type { UiFacts } from "./analysis.ts";
 import { isClassified } from "./analysis.ts";
 import { CLASSIFICATION_RULE, CLUSTER_MIN_FILES, LITERAL_MIN_FILES, LITERAL_MIN_SITES } from "./classify.ts";
 import type { Comparison } from "./compare.ts";
+import { compositionLines } from "./composition-report.ts";
 import { CANNOT_SEE, NOT_LINTABLE, ruleCandidates } from "./rules.ts";
 import type { Classified, Site, SiteClass } from "./sites.ts";
 import { KINDS, SITE_CLASSES } from "./sites.ts";
@@ -247,9 +248,10 @@ function comparisonLines(scope: Scope): string[] {
     out.push(`### ${cohort}`, "", what, "");
     out.push(
       ...table(
-        ["column", "majority", "votes", "tied", "distribution"],
+        ["column", "basis", "majority", "votes", "tied", "distribution"],
         comparisons.map((entry) => [
           entry.column,
+          entry.basis ?? "unlabelled",
           entry.majority,
           `${entry.votes}/${entry.total}`,
           entry.tied ? "yes" : "no",
@@ -372,6 +374,7 @@ export function renderReport(facts: UiFacts, command: string): string {
     ...rankingLines(scope, "B"),
     ...sectionLines(scope),
     ...comparisonLines(scope),
+    ...compositionLines(facts, scope.inScope),
     ...duplicateLines(scope),
     ...ruleLines(facts),
     "## What this cannot see",

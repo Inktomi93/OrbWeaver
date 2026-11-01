@@ -6,7 +6,7 @@ import type { Page } from "@playwright/test";
 import sharp from "sharp";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { Viewport } from "../../floor/instrument/argv.ts";
-import { ringBackdrop } from "../../floor/instrument/pixel-backdrop.ts";
+import { uniformRingBackdrop } from "../../floor/instrument/pixel-backdrop.ts";
 import type { Rgb } from "../../floor/instrument/wcag.ts";
 import type { ContrastBox, ContrastMeasured } from "../contract/contrast.ts";
 import { parseRgbString } from "../lib/contrast-verdict.ts";
@@ -30,7 +30,8 @@ async function pixelSampleBackdrop(page: Page, box: ContrastBox, viewport: Viewp
   try {
     const decoded = sharp(buffer).raw().toBuffer({ resolveWithObject: true });
     const { data, info } = await Promise.resolve(decoded);
-    return { rgb: ringBackdrop(data, info.width, info.height, info.channels) };
+    const rgb = uniformRingBackdrop(data, info.width, info.height, info.channels);
+    return rgb === null ? { error: "the box's perimeter ring is not one backdrop (luminance spread over the uniformity bound)" } : { rgb };
   } catch (error) {
     return { error: `pixel decode failed: ${errorMessage(error)}` };
   }

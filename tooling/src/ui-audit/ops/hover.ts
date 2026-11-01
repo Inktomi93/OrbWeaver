@@ -40,6 +40,7 @@ import { attrRestored, candidateIndices, groupReadResult, hoverCensusResult, pag
 import { HOVER_CENSUS } from "./hover-walker.ts";
 import { HOVER_DENOMINATOR } from "./hover-walker-groups.ts";
 import { HOVER_FORCE_READ } from "./hover-walker-read.ts";
+import { settleHeldBackdrops } from "./pixels.ts";
 import { WALKER_CORE } from "./walker/core.ts";
 import { WALKER_GROUP_VARIANT } from "./walker/group-variant.ts";
 import { WALKER_RESOLVE } from "./walker/resolve.ts";
@@ -151,7 +152,8 @@ async function readGroup(session: HoverSession, groupIndex: number, group: Hover
     }
     const raw = pageJsonString(await page.evaluate(`JSON.stringify(window.__orbHover.read(${String(groupIndex)}))`), "hover group read");
     const result = groupReadResult(raw, session.candidates, "hover group read");
-    return { rows: result.reads, shadows: result.shadows, radials: result.radials, failure: null };
+    // Still held: the screenshot must show the hovered paint, so it is taken before the release below.
+    return { rows: await settleHeldBackdrops(page, result.reads), shadows: result.shadows, radials: result.radials, failure: null };
   } catch (e) {
     return { rows: [], shadows: [], radials: [], failure: errorMessage(e) };
   } finally {

@@ -157,7 +157,7 @@ plan: unwired-code
 | `inboxViewFields.dismissedAt` | `contracts/src/notifications/index.ts:285` | unreferenced | delete | delete the key |
 | `inboxViewFields.createdAt` | `contracts/src/notifications/index.ts:286` | unreferenced | delete | delete the key |
 | `PresenceView.userId` | `contracts/src/notifications/index.ts:331` | never-read | delete | delete the field and its writes (`server/src/transport/trpc/presence-registry.ts:54`) |
-| `PresenceView.lastSeenAt` | `contracts/src/notifications/index.ts:333` | never-read | delete | delete the field and its writes (`server/src/transport/trpc/presence-registry.ts:54`) |
+| `PresenceView.lastSeenAt` | `contracts/src/notifications/index.ts:333` | read | keep | `readPresenceDisclosure` (`server/src/transport/trpc/presence-disclosure.ts`) copies it into `PresenceSnapshot.lastSeen` for the member roster |
 | `ListInboxResult.nextCursor` | `contracts/src/notifications/index.ts:339` | never-read | delete | delete the field and its writes (`server/src/domain/notifications/verbs/list.ts:28`) and the 5 test references |
 | `MarkAllReadResult.markedCount` | `contracts/src/notifications/index.ts:343` | never-read | delete | delete the field and its writes (`server/src/domain/notifications/verbs/read.ts:18`) and the 3 test references |
 | `personaMetadataSchema.seededDefault` | `contracts/src/persona/schemas.ts:34` | never-written | unknown | name the outside writer if a parse fills it; otherwise delete the key and the default branch at `server/src/domain/persona/verbs/find-seeded-default.ts:7` |

@@ -32,7 +32,7 @@ import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../../floor/cli/exit-contract.ts";
 import type { EvidenceGap, VerdictDenominator } from "../../../floor/verdict/evidence.ts";
 import type { DesignAuditSeverity } from "../../../ui-audit/index.ts";
-import { isAtOrAboveSeverity, isValidSeverity } from "../../../ui-audit/index.ts";
+import { isAtOrAboveSeverity, isValidSeverity, populationRuleVerdicts } from "../../../ui-audit/index.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmRunInstance, ArmSharedContext } from "../../contract/arms.ts";
 import type { Args } from "../../contract/types.ts";
 import { DESIGN_AUDIT_SESSION_CALL_BASE_MS } from "../../lib/budgets.ts";
@@ -122,6 +122,7 @@ async function writeAuditArtifact(name: string, opts: Args, measurement: DesignA
         obscuredUnaskable: measurement.samples?.obscuredScan?.subjects ?? [],
         hoverPass: measurement.hover,
         populationAccounting: measurement.populationAccounting,
+        populationRuleVerdicts: populationRuleVerdicts(measurement.populationAccounting),
         censusCaps: caps,
         // The page's own frame against the viewport it was judged at — carried whether or not it
         // refused, because a JSON consumer reading a CLEAN geometry verdict is entitled to the numbers
