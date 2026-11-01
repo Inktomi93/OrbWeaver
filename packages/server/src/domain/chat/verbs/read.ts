@@ -342,7 +342,6 @@ function toChatSummary({ row, stat, viewerLastTurnAt, participants, viewerUserId
     // caller is a present member on every listing path (membership-gated), so the `find` resolves; fail to
     // the least-privileged `member` on the impossible miss (never grant host by default).
     viewerRole: participants.find((p) => p.userId === viewerUserId)?.role ?? captureParticipantRole("member"),
-    createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
 }
@@ -920,7 +919,6 @@ function cardRenderContext(
     // Required on the ctx type, but the macro option mapper never reads it (card fields render off
     // `character`/`pinnedPersona` only) — the system default satisfies the type without a preset read.
     promptConfig: DEFAULT_PROMPT_CONFIG,
-    recentMessages: [],
     variableValues: {},
     // A card field's `{{time}}`/`{{date}}` reads the viewer's clock, as the turn that sends the card does.
     timezone: clock.timezone,

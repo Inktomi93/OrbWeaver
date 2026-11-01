@@ -20,7 +20,6 @@ export type ToolCapability = { readonly scope: "chat"; readonly action: ChatActi
  *  registration — never through this context. */
 export interface ToolExecutionData {
   readonly principal: Principal;
-  readonly triggeredBy: UserId;
   /** `null` on non-chat consumers. */
   readonly chatId: ChatId | null;
   /** The turn's ephemeral identity (chat GATHER→loop), threaded so a turn-scoped registrant correlates a

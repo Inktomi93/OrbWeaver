@@ -74,20 +74,17 @@ const CONSOLIDATION_SYSTEM_TEXT = [
 
 export const CHAT_PROSE_SLOTS = {
   "chat.assembly.anchorIdentity": {
-    id: "chat.assembly.anchorIdentity",
     home: "user",
     version: 1,
     // Composed as `[<text> <anchor name>: <description>]` — the brackets, the name and the description are
     // the injection's GRAMMAR (§2.11) and stay in the assembler; only the lead-in clause is the voice.
     text: "The person the character knows as the user is",
-    macros: "none",
     requiredMacros: [],
     requiredTokens: [],
     title: "Anchor-persona identity lead-in",
     fires: "Card context, on a turn where the speaking persona differs from the chat's anchor persona.",
   },
   "chat.arbiter.system": {
-    id: "chat.arbiter.system",
     home: "user",
     version: 4,
     // Re-versioned (D132(A)/§4.4) because the bytes changed: the arbiter answers through a structured-output
@@ -99,7 +96,6 @@ export const CHAT_PROSE_SLOTS = {
       "character the last message is addressed to, by name or by role (a question about the road goes to the " +
       "guide), or else whoever would most naturally answer. Usually choose one. Choose several only when several " +
       "are addressed directly or each has a strong, immediate reason to respond.",
-    macros: "none",
     requiredMacros: [],
     requiredTokens: [],
     title: "Turn-arbiter prompt",
@@ -108,25 +104,21 @@ export const CHAT_PROSE_SLOTS = {
     fires: `Every group round while the room's speaker order is "${GROUP_POLICY_LABELS.smart}" with "${SMART_UTILITY_SWITCH_LABEL}" on.`,
   },
   "chat.compaction.system": {
-    id: "chat.compaction.system",
     home: "user",
     version: 1,
     text:
       "You are a precise conversation summarizer. Produce a faithful, compact summary of the roleplay so far " +
       "that preserves the key facts, character states, decisions, locations, and unresolved threads. Do not " +
       "invent details and do not add commentary — output only the summary.",
-    macros: "none",
     requiredMacros: [],
     requiredTokens: [],
     title: "Compaction summarizer",
     fires: "Each compaction pass — the chat's own model rebuilding the portable summary marker.",
   },
   "chat.memory.digestSystem": {
-    id: "chat.memory.digestSystem",
     home: "user",
     version: 1,
     text: DIGEST_SYSTEM_TEXT,
-    macros: "none",
     requiredMacros: [],
     // The retrieval unit's PARSE contract (`memory/generate/substrate/parse`): the topic-anchor brackets and the
     // `keywords:` line are what the parser keys on. An override that drops either still stores — it just
@@ -136,31 +128,26 @@ export const CHAT_PROSE_SLOTS = {
     fires: "Every aged-out transcript block the memory build distills into a tier-0 digest.",
   },
   "chat.memory.consolidationSystem": {
-    id: "chat.memory.consolidationSystem",
     home: "user",
     version: 1,
     text: CONSOLIDATION_SYSTEM_TEXT,
-    macros: "none",
     requiredMacros: [],
     requiredTokens: ["[entities — scene]", "keywords:"],
     title: "Memory consolidation prompt",
     fires: "Each upward consolidation pass, folding a fan-out of digests into one higher-tier digest.",
   },
   "chat.memory.consolidationLead": {
-    id: "chat.memory.consolidationLead",
     home: "user",
     version: 1,
     // The user-prompt LEAD only. The numbered child facets that follow it are data the builder appends —
     // they are not authorable, and homing them here would need §4.5's template machinery (S4).
     text: "Prior digests to consolidate (synthesize the arc across these — do not repeat each):",
-    macros: "none",
     requiredMacros: [],
     requiredTokens: [],
     title: "Memory consolidation lead-in",
     fires: "Heads the consolidation user prompt, above the numbered child digests.",
   },
   "chat.group.characterHeading": {
-    id: "chat.group.characterHeading",
     home: "preset",
     version: 2,
     // The heading over every roster member's card beside the primary, on both roster layouts: a narrator round
@@ -189,49 +176,41 @@ export const CHAT_PROSE_SLOTS = {
     // crossed word for another. `Heading` is not a concept word at all; it is the suffix this slot's own group
     // siblings already carry (`chat.group.scenarioHeading` / `chat.group.exampleHeading`). Nothing minted.
     text: "[Character — {{name}}]",
-    macros: "none",
     requiredMacros: ["{{name}}"],
     requiredTokens: [],
     title: "Character heading",
     fires: "A narrator round or a per-speaker merged turn, once per character whose card rides beside the primary.",
   },
   "chat.group.scenarioHeading": {
-    id: "chat.group.scenarioHeading",
     home: "preset",
     version: 1,
     text: "[{{name}}'s scenario]",
-    macros: "none",
     requiredMacros: ["{{name}}"],
     requiredTokens: [],
     title: "Merged co-speaker scenario heading",
     fires: "A merged group turn, for each present member whose card carries a scenario.",
   },
   "chat.group.exampleHeading": {
-    id: "chat.group.exampleHeading",
     home: "preset",
     version: 1,
     text: "[{{name}}'s example dialogue]",
-    macros: "none",
     requiredMacros: ["{{name}}"],
     requiredTokens: [],
     title: "Merged co-speaker example-dialogue heading",
     fires: "A merged group turn, for each present member whose card carries example dialogue.",
   },
   "chat.group.personaHeading": {
-    id: "chat.group.personaHeading",
     home: "preset",
     version: 1,
     // The heading over each OTHER present human's persona in the `persona` marker's people block. The voice
     // persona (the one `{{user}}` names) stays unheaded and first, so position alone marks the addressee.
     text: "[Person — {{name}}]",
-    macros: "none",
     requiredMacros: ["{{name}}"],
     requiredTokens: [],
     title: "Person heading",
     fires: "A room with more than one present human, once per other human whose seat holds a persona.",
   },
   "chat.group.roundNudge": {
-    id: "chat.group.roundNudge",
     home: "preset",
     version: 2,
     // The per-speaker fence on a MULTI-speaker round — the one line that stops the model voicing all the seated
@@ -243,14 +222,12 @@ export const CHAT_PROSE_SLOTS = {
       "[Write the next reply only as {{name}}. Stay in {{name}}'s voice — their dialogue, actions and " +
       "thoughts only. Do not write lines for the other characters or for the user, and do not open the " +
       "reply with a name label.]",
-    macros: "none",
     requiredMacros: ["{{name}}"],
     requiredTokens: [],
     title: "Group round speaker nudge",
     fires: "Every speaker of a MULTI-speaker group round, and any other turn whose system prompt does not name the speaking character.",
   },
   "chat.group.narratorNudge": {
-    id: "chat.group.narratorNudge",
     home: "preset",
     version: 1,
     // The NARRATOR twin of `roundNudge`. A narrator round is ONE generation voicing all the seated characters, so the
@@ -260,14 +237,12 @@ export const CHAT_PROSE_SLOTS = {
       "[Continue the scene, voicing the present characters ({{names}}) as the moment calls for. This is ONE " +
       "reply covering the whole scene — voice as many or as few of them as it needs, in any order, with " +
       "narration in between. Never write lines or actions for the user.]",
-    macros: "none",
     requiredMacros: ["{{names}}"],
     requiredTokens: [],
     title: "Narrator round nudge",
     fires: "Every MULTI-member narrator round with the group nudge on (a one-character round sends no nudge).",
   },
   "chat.group.speakerTags": {
-    id: "chat.group.speakerTags",
     home: "preset",
     version: 2,
     // v2 is a VOCABULARY fix on the `chat.arbiter.system` v2 precedent, not a behavior change: the default
@@ -288,41 +263,35 @@ export const CHAT_PROSE_SLOTS = {
       "changes. Use the name exactly as it is spelled in the room — never a nickname, a pronoun or a title. " +
       "Leave narration, scene description and anything not attributable to one character OUTSIDE the tags. " +
       "Never write lines for the user.]",
-    macros: "none",
     requiredMacros: [],
     requiredTokens: ["<speaker>", "</speaker>"],
     title: "Narrator speaker-tag instruction",
     fires: 'Every MULTI-member narrator round with "Label each speaker" on (`GroupConfig.speakerTags`, on by default in narrator mode).',
   },
   "chat.injection.userNote": {
-    id: "chat.injection.userNote",
     home: "preset",
     version: 1,
     // A user-role injection is the OPERATOR speaking through the user channel, not an in-character turn —
     // the frame is what keeps the model from reading it as dialogue.
     text: "[Note from user: {{note}}]",
-    macros: "none",
     requiredMacros: ["{{note}}"],
     requiredTokens: [],
     title: "User-note frame",
     fires: "Every user-role injection — author's note, host steering.",
   },
   "chat.injection.assistantNote": {
-    id: "chat.injection.assistantNote",
     home: "preset",
     version: 1,
     // An assistant-role injection just above the tail re-roles to USER text so it never merges into the model's
     // last committed reply (the cached prefix). The frame names no speaker: the line is not the user's words.
     // Modelled on Guided Generations' `[Take the following into special consideration for your next message: …]`.
     text: "[Take the following into special consideration for your next message: {{note}}]",
-    macros: "none",
     requiredMacros: ["{{note}}"],
     requiredTokens: [],
     title: "Re-roled assistant-note frame",
     fires: "An assistant-role injection just above the tail, re-roled to user text to keep the cached reply intact.",
   },
   "chat.assembly.continuationNudge": {
-    id: "chat.assembly.continuationNudge",
     home: "preset",
     version: 1,
     // The trailing-user CUE for a turn the operator did not type into: a force/auto/empty-opening round whose
@@ -331,27 +300,23 @@ export const CHAT_PROSE_SLOTS = {
     // one — not the seated characters, not the operator — actually said, which is exactly why its wording is a preset's
     // business: a terse table and a florid one want different words for "your move".
     text: "[Continue the conversation.]",
-    macros: "none",
     requiredMacros: [],
     requiredTokens: [],
     title: "Continuation cue",
     fires: "A force/auto/empty-opening round with no user input whose history would otherwise end on the model's own reply.",
   },
   "chat.teach.choicesFrame": {
-    id: "chat.teach.choicesFrame",
     home: "preset",
     version: 1,
     // The one delimiter around the offer-choices teach. On a model that folds a system note into user text the
     // teach lands in the player's message, so it must never read as the player's words (owner ruling).
     text: "[Instruction for your reply — not part of anyone's message:\n\n{{teach}}\n]",
-    macros: "none",
     requiredMacros: ["{{teach}}"],
     requiredTokens: [],
     title: "Choices-teach frame",
     fires: "Every turn with Offer choices on — wraps the choices teach, unless the game already taught it.",
   },
   "chat.recovery.narrativeContinuation": {
-    id: "chat.recovery.narrativeContinuation",
     home: "user",
     version: 1,
     // The ONE ask of the recovery pass (dogfood EMPTYGEN-REASONING, owner ruling 2026-08-07 — RECOVER, do not
@@ -366,14 +331,12 @@ export const CHAT_PROSE_SLOTS = {
     // instructions: the whole prompt is still in front of the model, so repeating them earns a re-run of the
     // reasoning that produced no prose the first time. Short, on purpose.
     text: "[The state changes for this beat are already recorded — do not describe them or mention updating anything. Now write the scene itself: continue the story from where it stands, in your usual voice.]",
-    macros: "none",
     requiredMacros: [],
     requiredTokens: [],
     title: "Prose-less turn recovery ask",
     fires: "A completion that produced tool calls and no prose — the recovery pass that rescues the turn instead of discarding it.",
   },
   "chat.tool.reactDescription": {
-    id: "chat.tool.reactDescription",
     home: "user",
     version: 1,
     // The B7 `react` tool's model-facing contract (the `imagery.tool.generateImageDescription` shape:
@@ -387,7 +350,6 @@ export const CHAT_PROSE_SLOTS = {
       "optionally names whose lines within that message the reaction points at (omit it to react to the " +
       "whole message). The reaction appears as a small chip on the message for everyone in the room; it " +
       "posts no text and does not replace your reply.",
-    macros: "none",
     requiredMacros: [],
     requiredTokens: [],
     title: "react tool description",

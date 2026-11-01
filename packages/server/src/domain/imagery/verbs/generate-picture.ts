@@ -158,14 +158,6 @@ async function reuseGate(
   return { identityHash, hit: first !== undefined ? reusedResult(p.mode, hits, first) : null };
 }
 
-/** The hash written to the generation's provenance: the internal subject-character gate's hash wins (portrait
- *  modes own reuse); else, in `free` mode ONLY, an external consumer's precomputed hash (D58 — the
- *  additive passthrough letting a non-character consumer's OWN reuse gate short-circuit via `readProvenance`);
- *  null everywhere else (the additive-only guarantee — free/scenario/edit without a hash stay byte-identical). */
-function provenanceHash(gateHash: string | null, p: GeneratePictureParams): string | null {
-  return gateHash ?? (p.mode === "free" ? (p.identityHash ?? null) : null);
-}
-
 /** Step 1 — the gallery the pictures join: the requested character when the picture's owner (the run-as
  *  principal) owns it, else none. Runs before any spend, so a picture never lands in the gallery of a
  *  character its owner does not hold. */
@@ -207,7 +199,7 @@ export function createGeneratePicture(ctx: ImageryContext, deps: { readonly reso
     if (gate.hit !== null) {
       return await curate(ctx, runAs, target, gate.hit);
     }
-    const identityHash = provenanceHash(gate.identityHash, p);
+    const identityHash = gate.identityHash;
 
     // Step 3: resolve the prompt (user | captioned | extracted).
     const resolved = await orchestratorPrompt(deps.resolvePrompt, p, runAs);

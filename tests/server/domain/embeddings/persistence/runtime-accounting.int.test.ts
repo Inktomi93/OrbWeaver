@@ -33,7 +33,6 @@ test("the real executor attributes and settles each completed embedding batch un
 }) => {
   const connection = await fundingConnection({ ownerCaller, harness, task: "embed" });
   const result = await app.runtime.executor.embed({ connection, input: "banana" });
-  expect(result.usage.promptTokens).toBe(1);
   expect(result.vectors).toEqual([new Float32Array([1, 0, 0])]);
   expect(fundingProvider.calls).toEqual(["/v1/embeddings"]);
   expect(await db.select().from(embeddingCalls).where(eq(embeddingCalls.connectionId, connection.connectionId))).toMatchObject([

@@ -22,7 +22,7 @@
 // fingerprint — and a stale trio DEGRADES to whole-message rather than mis-attaching (MA-2 §2; the one
 // rule is kit's `resolveSegmentAnchor`, shared by the client display and the server attribution read).
 
-import type { AssetId, ChatParticipantId, MessageVariantId } from "@orb/kit/ids";
+import type { ChatParticipantId, MessageVariantId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
@@ -55,10 +55,8 @@ export const CHAT_REACTION_SLOT_WINDOW = 200;
  *  in the chip's title. Ids only — a participant's display name is the roster's projection, resolved by the
  *  surface that already holds it, never re-spelled onto this shape.
  *
- *  `emojiImageAssetId` is BORN AND TYPED, always `null` through MR0-MR2 (Open-Q D — custom emoji ships, its
- *  picker surface does not ship here). The COLUMN exists now because the schema is baseline-squashed
- *  pre-launch and a CAS-referencing column costs a whole merge window to add later; the WIRE stays
- *  unicode-only, so a custom-emoji ask is refused by {@link reactionEmojiSchema} until its arm lands. */
+ *  The wire is unicode-only: a custom-emoji ask is refused by {@link reactionEmojiSchema}. The
+ *  `message_reactions.emoji_image_asset_id` column stays for the custom-emoji arm. */
 export interface MessageReactionGroup {
   readonly variantId: MessageVariantId;
   /** The segment anchor (B7/MR3), or all-null for a whole-message reaction. The trio is stored FROM THE
@@ -77,8 +75,6 @@ export interface MessageReactionGroup {
    *  writer can produce — and would make the picker's own pressed-state comparison a cast. When the custom
    *  arm lands it WIDENS this union in one place and both sides follow. */
   readonly emoji: ReactionEmoji;
-  /** The custom-emoji image (D21 CAS), typed-and-unwired through MR0-MR2 — see the type's note. */
-  readonly emojiImageAssetId: AssetId | null;
   readonly reactorParticipantIds: readonly ChatParticipantId[];
 }
 
@@ -143,7 +139,6 @@ const messageReactionGroupSchema = z.strictObject({
   segmentSpeaker: z.string().nullable(),
   segmentSnippet: z.string().nullable(),
   emoji: reactionEmojiSchema,
-  emojiImageAssetId: typeIdSchema(ID_PREFIX.asset).nullable(),
   reactorParticipantIds: z.array(typeIdSchema(ID_PREFIX.chatParticipant)).readonly(),
 }) satisfies z.ZodType<MessageReactionGroup>;
 

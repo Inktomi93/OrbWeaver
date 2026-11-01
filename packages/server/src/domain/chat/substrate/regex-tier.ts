@@ -126,13 +126,12 @@ export function resolveRegexTiers(sources: HostTierRegexSources, labels: RegexTi
       // unresolved preset stays UNNAMED (the key is omitted, not set to a placeholder): the section prints
       // the bare `From the preset` rather than a name that might be the wrong preset's.
       ...(slice.scope === "preset" && labels.preset !== null ? { label: labels.preset } : {}),
-      rows: slice.scripts.map((script, position): RegexTierRowView => {
+      rows: slice.scripts.map((script): RegexTierRowView => {
         // A rank belongs to the occurrence that CLAIMED it: a deduped script draws its numeral at its
         // earliest allowed tier and a bare `+1` chip at the later one, never the same numeral twice.
         const claimed = claim.get(script.id);
         return {
           script,
-          position,
           runsAt: claimed !== undefined && claimed.scope === slice.scope ? claimed.runsAt : null,
           attachedElsewhere: (tierCount.get(script.id) ?? 0) > 1,
         };

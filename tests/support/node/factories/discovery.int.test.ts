@@ -66,7 +66,7 @@ test("real admitted embedding and distillation produce owned summaries, vectors,
       funderUserId: root.ownerId,
       characterId: id,
     });
-    expect(distilled.result).toMatchObject({ distilled: 1, failed: 0, skipped: 0 });
+    expect(distilled.result).toMatchObject({ distilled: 1, skipped: 0 });
     expect(distilled.summaries).toMatchObject([{ characterId: id, model: CORPUS_TEXT_MODEL, genre: "science-fiction", tags: ["loom", "traveller", "orbit"] }]);
   }
   const pairs = await seedDuplicateCharacterPairsRows(root, { ownerId: root.ownerId });

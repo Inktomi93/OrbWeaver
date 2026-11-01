@@ -24,8 +24,6 @@ async function swipeHotspots(db: Db, ownerId: UserId, chatId: ChatId, limit: num
   return rows.map((r) => ({
     messageId: r.messageId,
     seq: r.seq,
-    characterId: r.characterId,
-    characterName: r.characterName,
     variantCount: r.variantCount,
     snippet: (r.snippet ?? "").slice(0, SNIPPET_MAX_CHARS),
   }));

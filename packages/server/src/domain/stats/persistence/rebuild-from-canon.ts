@@ -64,21 +64,11 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
   const now = opts.now();
   const idSource = opts.idSource;
   let totalChars = 0;
-  let totalBuckets = 0;
-  let totalModels = 0;
   for (const ownerId of owners) {
     const built = await untilCanonStable(db, ownerId, opts.signal, () => computeOwner(db, ownerId, now, idSource));
     totalChars += built.charCount;
-    totalBuckets += built.bucketCount;
-    totalModels += built.modelCount;
   }
-  return {
-    owners: owners.length,
-    characters: totalChars,
-    buckets: totalBuckets,
-    models: totalModels,
-    computedAt: now,
-  };
+  return { owners: owners.length, characters: totalChars };
 }
 
 /** Rebuild ONLY the `daily_stats` timeline of every owner whose rollups record activity — a turn, a chat, any

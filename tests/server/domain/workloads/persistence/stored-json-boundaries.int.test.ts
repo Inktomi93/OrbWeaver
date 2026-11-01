@@ -163,7 +163,7 @@ for (const field of ["progress", "params", "result"] as const) {
         workloadId: poisoned.id,
         kind: "assets-backfill",
         at: harness.clock.now(),
-        error: { kind: "runtime", message: "unrecognized or malformed workload data: assets-backfill" },
+        error: { message: "unrecognized or malformed workload data: assets-backfill" },
       },
     ]);
     expect(JSON.stringify(events)).not.toContain("stored corruption");

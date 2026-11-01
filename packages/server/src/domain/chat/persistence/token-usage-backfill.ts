@@ -24,7 +24,7 @@ export function createListImportedTokenUsageCandidates(input: DatabaseHandle): L
   const db = databaseForOwner(input);
   return async ({ hostUserId, afterVariantId, limit }): Promise<readonly ImportedTokenUsageCandidate[]> => {
     // ONE CANDIDATE PER VARIANT. A plain `role='host'` join emits one row PER matching host seat, and a
-    // room that ever yields two double-counts every variant in it: `scanned`, `ownersScanned` and
+    // room that ever yields two double-counts every variant in it: `scanned` and
     // `compareAndSetSkipped` all inflate (the CAS itself is idempotent, so only the audit numbers lie) and
     // the loser host is never reconciled. Two things now make that impossible, and BOTH are load-bearing:
     // (1) `chat_participants_chat_host_unique` — a partial UNIQUE over (chatId) WHERE role='host' AND

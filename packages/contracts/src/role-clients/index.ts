@@ -12,10 +12,10 @@
 // FLAG: only the four DERIVE roles below are buildable — chat/generateImage join when their
 // result contracts land (confirm with lead before wiring a chat member here).
 
-import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { ModelId, UserId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
 import { z } from "zod";
-import type { Capability, ProviderId } from "#inference";
+import type { Capability } from "#inference";
 import type { RolePresetParams } from "#preset";
 import type { EmbedResult, RerankResult, SummarizeResult } from "#providers";
 
@@ -29,16 +29,13 @@ import type { EmbedResult, RerankResult, SummarizeResult } from "#providers";
 const responseFormatSchema = z.object({
   /** Schema name (OpenAI `json_schema.name`; Anthropic tool name). */
   name: z.string(),
-  /** JSON Schema — projected by `projectJsonSchema` (`additionalProperties:false` pinned). The exported TS
-   *  type PINS this to {@link WireReady}; the zod stays a loose `z.record` (a type-only anchor — nothing
-   *  `.parse`s a `ResponseFormat`, `@typeonly-ok` above). */
-  schema: z.record(z.string(), z.unknown()),
   description: z.string().optional(),
 });
 /** `schema` is PINNED to {@link WireReady} (the rest rides the zod infer): only `projectJsonSchema` output
  *  can fill it, so a raw/stored/unprojected schema at any structured-output send-site fails to typecheck —
- *  the compile-time enforcement of task #41's wire-closure convention. */
-export type ResponseFormat = Omit<z.infer<typeof responseFormatSchema>, "schema"> & { schema: WireReady };
+ *  the compile-time enforcement of task #41's wire-closure convention. The zod carries no `schema` key:
+ *  nothing parses a `ResponseFormat`, so the pinned type is the only declaration. */
+export type ResponseFormat = z.infer<typeof responseFormatSchema> & { schema: WireReady };
 
 /** Image bytes or a filesystem path. Lib-clean: `Uint8Array | string` (a node `Buffer` IS a
  *  `Uint8Array`, so it still satisfies this; `string` = a path the image family reads). */
@@ -105,8 +102,6 @@ export type RoleClientTask = (typeof ROLE_CLIENT_TASKS)[number];
  *  object (inference program §7.5-1b: replaces the six per-role getters). The credential never rides. */
 export interface ResolvedTaskView {
   readonly model: ModelId;
-  readonly connectionId: UserConnectionId;
-  readonly providerId: ProviderId;
   readonly capability: Capability;
 }
 

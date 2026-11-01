@@ -110,9 +110,6 @@ export interface CharacterRegexSlice {
  *  (the mock design §7.1). */
 export interface RegexTierRowView {
   readonly script: RegexScriptRow;
-  /** The row's 0-based index WITHIN its tier — the chat tier's drag order, and every other tier's read-only
-   *  junction order. Not a rank: {@link RegexTierRowView.runsAt} is the rank. */
-  readonly position: number;
   /** The 1-based rank in the room's effective run order, or `null` when this row does not run here (its tier
    *  is off, the master is off, its library `enabled` is false, or an earlier tier already claimed it). The
    *  section draws the numeral only when it is a number — an off row shows `—`, never a lying rank. */
@@ -178,7 +175,6 @@ export const hostTierRegexAllowSchema = z
   .transform((view) => ({ enabled: view.enabled, tiers: view.tiers })) satisfies z.ZodType<HostTierRegexAllow>;
 const regexTierRowViewSchema = z.strictObject({
   script: regexScriptViewSchema,
-  position: z.number(),
   runsAt: z.number().nullable(),
   attachedElsewhere: z.boolean(),
 }) satisfies z.ZodType<RegexTierRowView>;

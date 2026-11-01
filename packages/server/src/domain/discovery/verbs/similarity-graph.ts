@@ -11,7 +11,6 @@ import type { SimilarityGraph, SimilarityGraphEdge } from "../contract/results.t
 import type { DiscoveryContext, DiscoveryService } from "../contract/service.ts";
 import { readOwnedCardDisplay } from "../persistence/card-reads.ts";
 import { readOwnedCharacterVectors } from "../persistence/embed-store-reads.ts";
-import { readOwnedCardFacets } from "../persistence/summary-reads.ts";
 import { pairsAboveThreshold } from "../substrate/pair-cosine.ts";
 
 const DEFAULT_MIN_SIMILARITY = 0.65;
@@ -76,16 +75,8 @@ async function similarityGraph(db: Db, ownerId: UserId, opts: SimilarityGraphOpt
   );
   const keptEdges = edges.filter((e) => kept.has(e.source) && kept.has(e.target));
 
-  // Two reads, two questions (issue #154): the NAME is the card row (every node has one, distilled or not);
-  // the GENRE is the distill pass's output and stays null until it has run.
-  const [display, facets] = await Promise.all([readOwnedCardDisplay(db, ownerId), readOwnedCardFacets(db, ownerId)]);
+  const display = await readOwnedCardDisplay(db, ownerId);
   const nameById = new Map(display.map((d) => [d.characterId, d.name]));
-  const genreById = new Map(facets.map((f) => [f.characterId, f.genre]));
-  const nodes = [...kept].map((id) => ({
-    characterId: id,
-    name: nameById.get(id) ?? "Unknown",
-    degree: degree.get(id) ?? 0,
-    genre: genreById.get(id) ?? null,
-  }));
+  const nodes = [...kept].map((id) => ({ characterId: id, name: nameById.get(id) ?? "Unknown" }));
   return { nodes, edges: keptEdges };
 }

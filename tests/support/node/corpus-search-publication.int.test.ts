@@ -283,7 +283,6 @@ test("settled search publication survives native authenticated clone reads and r
       expect(fallback.reads.imagesRaw.output.hits.length).toBeGreaterThan(0);
       expect(fallback.reads.imagesRaw.output.hits.every((hit) => hit.lens === "image-captioned")).toBe(true);
       expect(fallback.reads.similarRaw.output.length).toBeGreaterThan(0);
-      expect(fallback.reads.similarRaw.output.every((hit) => hit.lens === "image-captioned")).toBe(true);
       expect(fallback.reads.imagesRaw.input.lens).toBe("image-raw");
       await caller.connection.setBinding({ task: "imageEmbed", connectionId: images.connection.id });
       expect(await settleCorpusSearchImages(root)).toMatchObject([{ kind: "index", status: "succeeded", params: { source: "image" } }]);

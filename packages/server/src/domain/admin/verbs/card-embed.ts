@@ -17,7 +17,7 @@ export function createAdminCardEmbed(deps: AdminCardEmbedDeps): AdminContext["em
       if (space === null) {
         return false;
       }
-      await deps.store({ kind: "card", lens: "card-text", ownerId: principal.userId, characterId, content: text, model: space.model });
+      await deps.store({ lens: "card-text", ownerId: principal.userId, characterId, content: text, model: space.model });
       return true;
     },
   };

@@ -62,15 +62,14 @@ test("source windows distinguish unavailable endpoints from a resolved empty pag
 
 test("freshness requires the rollup timestamp exactly when data exists", () => {
   for (const value of [
-    { hasData: false, computedAt: null, stale: false },
-    { hasData: true, computedAt: 0, stale: false },
+    { hasData: false, computedAt: null },
+    { hasData: true, computedAt: 0 },
   ]) {
     expect(statsFreshnessSchema.parse(value)).toEqual(value);
   }
   for (const value of [
-    { hasData: true, computedAt: null, stale: false },
-    { hasData: false, computedAt: 0, stale: false },
-    { hasData: true, computedAt: 1, stale: true },
+    { hasData: true, computedAt: null },
+    { hasData: false, computedAt: 0 },
   ]) {
     expect(statsFreshnessSchema.safeParse(value).success).toBe(false);
   }

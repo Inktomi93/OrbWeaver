@@ -57,10 +57,8 @@ function restoreReadingOrder(ranked: readonly DocumentCandidate[]): DocumentChun
         documentId: c.documentId,
         documentName: c.documentName,
         chunkId: c.chunkId,
-        chunkIdx: c.chunkIdx,
         content: c.content,
         score: c.score,
-        contentHash: c.contentHash,
       });
     }
   }

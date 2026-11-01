@@ -42,9 +42,6 @@ export async function readDuplicateCharacters(db: Db, ownerId: UserId, opts: Dup
       nameA: charA.name,
       nameB: charB.name,
       similarity: duplicateCharacterPairs.similarity,
-      cslsScore: duplicateCharacterPairs.cslsScore,
-      model: duplicateCharacterPairs.model,
-      computedAt: duplicateCharacterPairs.computedAt,
     })
     .from(duplicateCharacterPairs)
     .innerJoin(charA, eq(charA.id, duplicateCharacterPairs.characterIdA))
@@ -97,10 +94,7 @@ export async function readDuplicateChats(db: Db, ownerId: UserId, opts: Duplicat
       titleA: chatA.title,
       titleB: chatB.title,
       similarity: duplicateChatPairs.similarity,
-      cslsScore: duplicateChatPairs.cslsScore,
       relation: duplicateChatPairs.relation,
-      model: duplicateChatPairs.model,
-      computedAt: duplicateChatPairs.computedAt,
     })
     .from(duplicateChatPairs)
     .innerJoin(chatA, eq(chatA.id, duplicateChatPairs.chatIdA))

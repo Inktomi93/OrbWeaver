@@ -1,20 +1,14 @@
 // The member-safe, present-tense connection selected for this room's next chat turn.
-// A non-host member may see provider/model but never the host's custom label.
+// A non-host member may see the provider label but never the host's custom label.
 
-import type { ModelId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
-import type { ProviderId } from "../inference/provider-id.ts";
-import { providerIdSchema } from "../inference/provider-id.ts";
 
 export type NextTurnConnectionView =
   | { readonly state: "unset" }
   | {
       readonly state: "configured";
       readonly connectionLabel: string | null;
-      readonly provider: ProviderId;
       readonly providerLabel: string;
-      readonly model: ModelId;
     };
 
 export const nextTurnConnectionViewSchema = z.discriminatedUnion("state", [
@@ -22,8 +16,6 @@ export const nextTurnConnectionViewSchema = z.discriminatedUnion("state", [
   z.strictObject({
     state: z.literal("configured"),
     connectionLabel: z.string().nullable(),
-    provider: providerIdSchema,
     providerLabel: z.string(),
-    model: brandedId("ModelId"),
   }),
 ]) satisfies z.ZodType<NextTurnConnectionView>;

@@ -81,7 +81,7 @@ async function rankKeys(params: RerankPickParams, line: TranscriptLine, named: r
   return result.hits.toSorted((a, b) => b.score - a.score).map((h) => h.id);
 }
 
-const refOf = (characterId: CharacterId): SpeakerRef => ({ kind: "character", characterId });
+const refOf = (characterId: CharacterId): SpeakerRef => ({ characterId });
 
 /** The addressed characters (each named unambiguously), ordered by rank. With no ranking (`null`) they keep
  *  mention order: `toSorted` is stable and every rank is then equal. */

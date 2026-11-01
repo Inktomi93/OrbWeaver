@@ -36,7 +36,7 @@ interface UpsertOutcome {
 }
 
 function provenanceOf(input: UpsertLoreEntryInput): LoreEntryProvenance {
-  return { contentHash: sha256Hex(input.content), ...(input.span !== undefined ? { span: input.span } : {}) };
+  return { contentHash: sha256Hex(input.content) };
 }
 
 /** True when a prior entry was hand-edited since the writer last stamped it (stored hash ≠ current content). */
@@ -107,7 +107,7 @@ export function createUpsertEntries(ctx: WorldInfoContext): WorldInfoService["up
     const byTitle = new Map((await listBookEntries(ctx.db, bookId)).map((row: EntryRow) => [row.title, row]));
     const chatIds = await listChatIdsForBook(ctx.db, bookId);
     const at = ctx.now();
-    const counts = { inserted: 0, updated: 0, skippedHandEdited: 0 };
+    let landed = false;
 
     for (const input of entries) {
       const { outcome, entryId, scope, row } = await upsertOne(ctx, { bookId, input, prior: byTitle.get(input.title), at });
@@ -120,19 +120,17 @@ export function createUpsertEntries(ctx: WorldInfoContext): WorldInfoService["up
       // and its callers have no per-entry error channel to refuse through.
       byTitle.set(input.title, row);
       if (outcome === "skip") {
-        counts.skippedHandEdited += 1;
         continue;
       }
-      counts[outcome === "insert" ? "inserted" : "updated"] += 1;
+      landed = true;
       await emitEntry(ctx.emitWiEvent, chatIds, entryId, scope);
     }
 
-    if (counts.inserted > 0 || counts.updated > 0) {
+    if (landed) {
       ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
       // The ROOM plane (entity→room bridge §3.6) — inside the same "something actually landed" guard: a run
       // that skipped every hand-edited entry wrote nothing, so there is no assembly change to announce.
       ctx.emit({ type: "world-info.updated", bookId });
     }
-    return counts;
   };
 }

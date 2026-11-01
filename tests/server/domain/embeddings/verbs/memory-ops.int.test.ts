@@ -26,7 +26,6 @@ test("a later foreign-owner segment refuses the entire flood; a departed host re
     embeddings: { resolveGeneration: async () => null, store: vi.fn(), storeSegments, pruneMemoryBlocks: vi.fn() },
   });
   const base: StoreSegmentParams = {
-    lens: "segment",
     ownerId: ownHost.userId,
     model: generation.space,
     generationId: generation.id,

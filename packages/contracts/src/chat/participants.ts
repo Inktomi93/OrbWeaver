@@ -33,7 +33,6 @@ export const isUserBacked = (k: ParticipantKind): boolean => (USER_BACKED_KINDS 
 
 /** The identity of ONE AI-driven speaker (D60). A `character` FKs `characters.id` */
 export interface SpeakerRef {
-  readonly kind: "character";
   readonly characterId: CharacterId;
 }
 
@@ -126,7 +125,6 @@ function assertNeverMessageKind(kind: never): never {
 export interface MessageKindPolicy {
   readonly prompt: "conversation" | "system-channel" | "never";
   readonly memory: "ingest" | "exclude";
-  readonly reading: "show";
 }
 
 /** The shipped cells. The `Record<MessageKind, …>` is the compile-force: a fourth member will not build until
@@ -134,9 +132,9 @@ export interface MessageKindPolicy {
  *  coupled sites become tsc errors rather than a sweep. An `aside` kind is a NAMED DOORWAY, not minted —
  *  D41's no-code-without-an-emit-site rule says a kind waits for its writer. */
 export const MESSAGE_KIND_POLICY: Readonly<Record<MessageKind, MessageKindPolicy>> = {
-  standard: { prompt: "conversation", memory: "ingest", reading: "show" },
-  narrator: { prompt: "system-channel", memory: "ingest", reading: "show" },
-  comment: { prompt: "never", memory: "exclude", reading: "show" },
+  standard: { prompt: "conversation", memory: "ingest" },
+  narrator: { prompt: "system-channel", memory: "ingest" },
+  comment: { prompt: "never", memory: "exclude" },
 };
 
 /** The kinds a memory build ingests — DERIVED from {@link MESSAGE_KIND_POLICY}, never re-spelled, so the
