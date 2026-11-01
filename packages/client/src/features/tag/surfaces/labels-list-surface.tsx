@@ -5,12 +5,10 @@ import { EllipsisVertical, Icon, Trash } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Select } from "@orb/ui/select";
-import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { ListPage, QueryBoundary } from "#components";
-import { QueryErrorState } from "#data";
+import { LibrarySurfaceShell, ListPage } from "#components";
 import { useFocusOnMount } from "#lib";
 import { selectLabelFromList, setLabelFilter, setTagPruneConfirmOpen, useLabelFilter, useMobileViewport, useSectionListMode, useSelectedLabelId } from "#state";
 import { TagCollectionRows } from "../components/tag-collection-rows.tsx";
@@ -46,12 +44,9 @@ export function LabelsListSurface(): ReactElement {
         </>
       }
     >
-      <QueryBoundary
-        fallback={<Skeleton className="block-(--height-row-placeholder) inline-full" />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="tags" onRetry={retry} />}
-      >
+      <LibrarySurfaceShell errorLabel="tags" loadingLabel="Loading tags…">
         <TagCollectionRows view={{ selectedId, onSelect: selectLabelFromList, filter }} />
-      </QueryBoundary>
+      </LibrarySurfaceShell>
     </ListPage>
   );
 }
