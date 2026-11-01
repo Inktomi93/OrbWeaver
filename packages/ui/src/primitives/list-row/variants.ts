@@ -26,9 +26,11 @@ export const listRowVariants = tv({
     // `group-hover` / `group-focus-within` selectors. Dropping the unnamed group leaves the action painted
     // but pointer-inert over the clickable body (the body intercepts every attempted press).
     root: "group group/row @container/list-row relative flex flex-wrap items-center gap-row inline-full min-inline-0",
-    // Keeps `min-w-0` so it can shrink and let `title`'s `truncate` engage. Its basis is the title-column floor: where
-    // the row cannot seat that and the actions, the root wraps them under the body instead of starving the name, and
-    // a floor that is a basis cannot push a row wider than its pane at enlarged text (north-star N2). Selected reads as a 2px left ember bar + the primary tone's tint
+    // Its automatic minimum is its padding, the leading element and `content`'s title floor, so where the row cannot
+    // seat those and the actions, the root wraps the actions under the body instead of starving the name (north-star N2).
+    // The body is capped at the row and clips sideways, so a pane too narrow for the floor alone cuts the name instead
+    // of scrolling the list.
+    // Selected reads as a 2px left ember bar + the primary tone's tint
     // (rides the accent, so custom themes retint it), not a flat `--color-accent` fill (north-star §4 N2).
     //
     // THE LEFT EMBER BAR IS OWNER-RATIFIED (2026-08-22, issue #485) AND ITS SPELLING LEFT THIS FILE (#1823).
@@ -46,15 +48,15 @@ export const listRowVariants = tv({
     // (#1823). Three hand-copies of a ratified pair is how a ratified pair drifts.
     body: [
       `
-        group group/body flex flex-1 basis-(--width-title-floor) items-center gap-row rounded-control px-row py-field outline-none min-block-(--size-control-md)
-        min-inline-0
+        group group/body flex flex-1 items-center gap-row overflow-x-clip rounded-control px-row py-field outline-none max-inline-full
+        min-block-(--size-control-md) min-inline-auto
       `,
       `${SELECTION_RAIL} ${DISABLED_STATE}`,
       // A disclosure header that is open holds the tint-active fill under its on-tint ink (`aria-expanded`, D336).
       "aria-expanded:bg-tone-tint-active aria-expanded:text-tone-text-on-tint",
     ],
     leading: "flex shrink-0 items-center justify-center text-muted-foreground",
-    content: "flex flex-1 flex-col min-inline-0",
+    content: "flex flex-1 flex-col min-inline-(--width-title-floor)",
     // The title line: the truncating title, plus an optional trailing meta (relative-time) pinned to the
     // end so it never gets clipped by the title's truncate.
     titleRow: "flex items-baseline gap-field min-inline-0",

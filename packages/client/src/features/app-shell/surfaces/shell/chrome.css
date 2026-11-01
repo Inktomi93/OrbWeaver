@@ -151,8 +151,9 @@
     box-shadow: inset 0 calc(var(--border-width-control) * -1) 0 var(--color-sidebar-border);
   }
   /* A pane narrower than this cannot seat its tabs beside the row's own controls at the enlarged root, so the strip
-   * takes a whole line and the controls keep their trailing edge on the next. */
-  @container shell-panel (inline-size < 20rem) {
+   * takes a whole line and the controls keep their trailing edge on the next. The default-text slide-over (17rem) seats
+   * both on one row, and a second line there would push the notice stack past a keyboard-shortened viewport. */
+  @container shell-panel (inline-size < 16rem) {
     .shell-context-header {
       flex-wrap: wrap;
       justify-content: flex-end;
