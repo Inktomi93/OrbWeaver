@@ -107,10 +107,6 @@ export function YouSheet(): ReactElement {
         ))}
       </Stack>
 
-      {overflowLenses.map((entry) => (
-        <SheetChromeEntry active={false} entry={entry} key={entry.id} mobile={curation.get(entry.id) ?? "sheet"} />
-      ))}
-
       {overflowSections.length === 0 ? null : (
         // "More" IS A HEADING (side-eye 2026-08-19 ARIA). It looked like one and announced as a paragraph, so
         // the sheet's overflow rows belonged to nothing a heading walk could find — the block above it is a
@@ -135,6 +131,11 @@ export function YouSheet(): ReactElement {
           ))}
         </Stack>
       )}
+
+      {/* Last, because an inbox has no fixed height: above the doors, its pages push them thousands of pixels down. */}
+      {overflowLenses.map((entry) => (
+        <SheetChromeEntry active={false} entry={entry} key={entry.id} mobile={curation.get(entry.id) ?? "sheet"} />
+      ))}
     </Stack>
   );
 }

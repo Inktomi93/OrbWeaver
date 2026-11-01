@@ -62,6 +62,39 @@ test("a valid-shaped payload cannot redirect its owned row to another recipient"
   expect(await disposition(harness.db, raised.id)).toEqual({ readAt: null, dismissedAt: null });
 });
 
+test("the dismissed history skips an unreadable row and every later page stays reachable, without repeats", async ({ harness, notificationActors: actors }) => {
+  const svc = harness.services.notifications;
+  const raised: Awaited<ReturnType<typeof svc.record>>[] = [];
+  for (let n = 0; n < 5; n += 1) {
+    const row = await svc.record({ event: actors.aliceInvite });
+    await svc.dismiss({ principal: actors.alice, notificationId: row.id });
+    raised.push(row);
+  }
+  const [oldest, torn] = [raised[0], raised[2]];
+  if (oldest === undefined || torn === undefined) {
+    throw new Error("expected five raised rows");
+  }
+  await corruptPayload(harness.db, oldest.id, JSON.stringify({ ...actors.aliceInvite, inviteId: false }));
+  await corruptPayload(harness.db, torn.id, "{");
+
+  const seen: string[] = [];
+  let cursor: number | undefined;
+  for (let pages = 0; pages < 20; pages += 1) {
+    const page = await svc.list({ principal: actors.alice, state: "dismissed", limit: 2, ...(cursor === undefined ? {} : { cursor }) });
+    seen.push(...page.items.map((item) => item.id));
+    if (page.nextCursor === null) {
+      break;
+    }
+    cursor = page.nextCursor;
+  }
+  expect(new Set(seen).size).toBe(seen.length);
+  expect(seen).not.toContain(oldest.id);
+  expect(seen).not.toContain(torn.id);
+  for (const row of raised.filter((candidate) => candidate.id !== oldest.id && candidate.id !== torn.id)) {
+    expect(seen).toContain(row.id);
+  }
+});
+
 test("the stored discriminator must agree with its parsed payload before a disposition", async ({
   harness,
   notificationActors: actors,

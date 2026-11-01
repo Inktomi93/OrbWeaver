@@ -3,7 +3,7 @@
 // markAllRead/dismiss/list are caller-scoped off the resolved Principal — a user only ever touches its own inbox.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { NotificationEvent, NotificationType } from "@orb/contracts/notifications";
+import type { InboxState, NotificationEvent, NotificationType } from "@orb/contracts/notifications";
 import type { StatementToken } from "@orb/db/wiring";
 import type { NotificationId } from "@orb/kit/ids";
 
@@ -46,9 +46,11 @@ export interface DismissParams extends NotificationActorParams {
 }
 
 export interface ListInboxParams extends NotificationActorParams {
-  /** Newest-first cursor: fetch active notifications with seq strictly below this; omit for the first page. */
+  /** Newest-first cursor: fetch notifications with seq strictly below this; omit for the first page. */
   readonly cursor?: number;
   readonly limit?: number;
+  /** @defaultValue "active" */
+  readonly state?: InboxState;
 }
 
 /** The socket's durable RESUME read (#1459) — the caller's own active rows ABOVE a watermark, oldest-first.
