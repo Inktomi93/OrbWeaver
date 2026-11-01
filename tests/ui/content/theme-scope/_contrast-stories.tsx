@@ -175,27 +175,38 @@ const HUE_SAMPLE_ROLES = ["solid", "tint", "tint-active"] as const satisfies rea
  * Each colored tone's text on the page and its solid and tints as fills, inside a custom ThemeScope on `background`, with
  * Hearth's base and accent as the ambient the shell root hands down.
  */
-export function ToneHueStory({ background }: { readonly background: string }): ReactElement {
+export function ToneHueStory({ background, theme }: { readonly background?: string; readonly theme?: keyof typeof SEED_THEME_VALUE_SETS }): ReactElement {
+  const samples = <ToneHueSamples />;
   return (
-    <CtIsolation subject="Tone hues" isolates="Literal tone roles a custom ThemeScope emits over a mid-lightness page">
-      <ThemeScope tokens={{ background }} ambientBackground={TOKENS["color.background"].value} ambientAccent={TOKENS["color.primary"].value}>
-        <div
-          data-sample="ground"
-          style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, display: "grid", gridTemplateColumns: GRID_COLUMNS, padding: "1rem" }}
-        >
-          {TONES.filter((tone) => tone !== "neutral").map((tone) => (
-            <div key={tone} data-tone={tone} style={{ display: "grid", gap: "0.5rem" }}>
-              <p data-sample="text" style={{ ...SAMPLE_STYLE, color: `var(${TOKENS["color.tone-text"].cssVar})`, fontWeight: 700 }}>
-                {`${tone} text`}
-              </p>
-              {HUE_SAMPLE_ROLES.map((role) => (
-                <div key={role} data-sample={role} style={{ ...SAMPLE_STYLE, backgroundColor: `var(${TOKENS[`color.tone-${role}`].cssVar})` }} />
-              ))}
-            </div>
+    <CtIsolation subject="Tone hues" isolates="Tone roles a custom ThemeScope emits over a mid-lightness page, and a seed palette's own">
+      {background === undefined ? (
+        <div data-theme={theme}>{samples}</div>
+      ) : (
+        <ThemeScope tokens={{ background }} ambientBackground={TOKENS["color.background"].value} ambientAccent={TOKENS["color.primary"].value}>
+          {samples}
+        </ThemeScope>
+      )}
+    </CtIsolation>
+  );
+}
+
+function ToneHueSamples(): ReactElement {
+  return (
+    <div
+      data-sample="ground"
+      style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, display: "grid", gridTemplateColumns: GRID_COLUMNS, padding: "1rem" }}
+    >
+      {TONES.filter((tone) => tone !== "neutral").map((tone) => (
+        <div key={tone} data-tone={tone} style={{ display: "grid", gap: "0.5rem" }}>
+          <p data-sample="text" style={{ ...SAMPLE_STYLE, color: `var(${TOKENS["color.tone-text"].cssVar})`, fontWeight: 700 }}>
+            {`${tone} text`}
+          </p>
+          {HUE_SAMPLE_ROLES.map((role) => (
+            <div key={role} data-sample={role} style={{ ...SAMPLE_STYLE, backgroundColor: `var(${TOKENS[`color.tone-${role}`].cssVar})` }} />
           ))}
         </div>
-      </ThemeScope>
-    </CtIsolation>
+      ))}
+    </div>
   );
 }
 

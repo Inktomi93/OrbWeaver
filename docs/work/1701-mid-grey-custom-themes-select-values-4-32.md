@@ -23,7 +23,7 @@ Both ramp arms step toward the crossover, so a mid-luminance base had no room on
 - A page ink on a neutral tint, and a prose pick on a card or bubble, clear 4.5:1 on `oklch(0.43 0 0)`, `oklch(0.5 0 0)` and `oklch(0.6 0 0)`.
 - The input rail keeps `inputAlpha` and paints apart from the card.
 - The accent fill paints apart from muted and popover.
-- Hearth, Mocha, Light and `oklch(0.93 0.02 90)` keep their ramp and ink values.
+- Every shipped palette holds a tone's solid at 3:1 on its tints.
 
 ## Evidence
 

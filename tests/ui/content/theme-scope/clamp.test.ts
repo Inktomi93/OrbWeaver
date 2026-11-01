@@ -1,4 +1,4 @@
-import { carriedLiteralRoles } from "@orb/kit/theme-derivation";
+import { carriedLiteralRoles, proseInkCorrection } from "@orb/kit/theme-derivation";
 import { expect, test } from "@orb/testkit/node";
 import type { ToneMixKnob } from "@orb/ui/tokens";
 import { TOKENS, TONE_MIX_DEFAULTS, TONE_MIX_KNOBS, TONE_ROLE_RECIPES, TONES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
@@ -97,4 +97,14 @@ test("a carried scope paints the primary it judged, and reports when the solid s
   const shared = clampThemeTokens({ background: DARK_BASE, accent: "oklch(0.3 0.1 260)" });
   expect(shared.toneFallback?.accent).toBe(shared.vars[TOKENS["color.primary"].cssVar]);
   expect(shared.toneFallback?.active).toBeGreaterThan(TONE_MIX_DEFAULTS.active);
+});
+
+test("an ink-only scope over a seed base is judged on that base's reading hosts, and moves only as far as they need", () => {
+  const ink = "oklch(0.55 0.08 60)";
+  const page = parsed("oklch(0.98 0.004 75)");
+  expect(proseInkCorrection(parsed(ink), 1, page)).toBeNull();
+  const emitted = clampThemeTokens({ dialogueColor: ink }, "oklch(0.98 0.004 75)").vars[TOKENS["color.dialogue"].cssVar] ?? "";
+  const lightness = Number(/ ([\d.]+) c h \/ 1\)$/u.exec(emitted)?.[1]);
+  expect(lightness).toBeLessThan(0.55);
+  expect(lightness).toBeGreaterThan(0.5);
 });

@@ -165,9 +165,9 @@ for (const { name, background } of BASES.slice(0, 4)) {
   });
 }
 
-for (const { name, background } of BASES) {
+for (const { name, ...props } of SEMANTIC_CASES) {
   test(`${name}: every colored tone's solid holds the non-text floor as a glyph on its own tints`, async ({ mount, page }) => {
-    const component = await mount<typeof ToneHueStory>("tests/ui/content/theme-scope/_contrast-stories/ToneHueStory", { background });
+    const component = await mount<typeof ToneHueStory>("tests/ui/content/theme-scope/_contrast-stories/ToneHueStory", props);
     const tones = await component.locator("[data-tone]").all();
     expect(tones.length).toBeGreaterThan(0);
     for (const tone of tones) {

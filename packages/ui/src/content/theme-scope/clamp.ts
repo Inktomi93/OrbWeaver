@@ -13,7 +13,7 @@
 // (`speaker`/`dialogueColor`/`narrationColor`/`bodyColor`) through the §7a conditional lightness clamp
 // below (pass-through byte-identical when the pairing clears AA on every reading host; otherwise the least L
 // move that clears them, the ink made OPAQUE, hue+chroma kept where they can be, so a pick that clears its page
-// moves only as far as a carried palette's cards and bubbles need; fail-open only when neither a standards-readable
+// moves only as far as the cards and bubbles over that base need; fail-open only when neither a standards-readable
 // color nor an ambient backing exists (`currentColor` or an invalid safe bare word in a provider-less mount).
 //
 // THE INK'S BASE IS THE CARRIED ONE, ELSE THE AMBIENT ONE (#236). An override that picks inks and NO
@@ -212,18 +212,10 @@ function proseInkOn(picked: string | undefined, base: ParsedOklch | null, hosts:
   return `oklch(from ${picked} ${fix.l} ${fix.c === ink.c ? "c" : fix.c} h / 1)`;
 }
 
-/**
- * The surfaces a picked prose ink is judged on beyond its base: a carried palette's reading hosts, whether this scope
- * carries it or sits inside one. A seed's bubbles and cards are its own generated block, so a seed ambient judges the base alone.
- */
-function readingHostsOn(
-  t: ThemeScopeTokens,
-  inkBase: ParsedOklch | null,
-  ambientPalette: AmbientPalette,
-  ambient: string | undefined,
-): readonly Oklch[] | undefined {
+/** The surfaces a picked prose ink is judged on: the reading hosts of the base under it, carried or seed, with this scope's picked bubble fills. */
+function readingHostsOn(t: ThemeScopeTokens, inkBase: ParsedOklch | null, ambient: string | undefined): readonly Oklch[] | undefined {
   const picksInk = [t.speaker, t.dialogueColor, t.narrationColor, t.bodyColor].some((ink) => ink !== undefined);
-  if (!picksInk || inkBase === null || (t.background === undefined && ambientPalette !== "carried")) {
+  if (!picksInk || inkBase === null) {
     return;
   }
   const painted = (fill: string | undefined): PickedBubbleFills[keyof PickedBubbleFills] => {
@@ -482,12 +474,12 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
   // carried background is precisely the case where the composed surface IS knowable. The residual
   // provider-less fail-open (neither side statically readable) stands unchanged.
   const inkBase = inkBaseFor(t.background, ambientBackground);
-  const inkHosts = readingHostsOn(t, inkBase, ambientPalette, ambientBackground);
+  const inkHosts = readingHostsOn(t, inkBase, ambientBackground);
   // A carried base also owns every ABSENT prose pick (#985). Otherwise a legal background-only custom
   // theme inherits all four inks from the outer seed, which can be the opposite polarity. Derive the
   // fallback from the resolved carried pixel; with no carried background there is deliberately no
   // fallback and the cascade remains intact. Explicit picks still take the pass-through/correction arms
-  // above, judged on the reading hosts under a carried palette.
+  // above, judged on the reading hosts of the base under them.
   put(THEME_OVERRIDE_COLOR_VARS.speaker, proseInkOn(t.speaker, inkBase, inkHosts, absentProseInkOn(raw, "speaker", t.background, carried)));
   put(THEME_OVERRIDE_COLOR_VARS.dialogueColor, proseInkOn(t.dialogueColor, inkBase, inkHosts, absentProseInkOn(raw, "dialogueColor", t.background, carried)));
   put(

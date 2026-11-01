@@ -697,7 +697,7 @@ export interface RampDeltas {
  * black/white endpoint clears it. Accent and sidebar-accent are exempt because each owns a dedicated
  * surface foreground, with one D336 exception: accent shares its ink with muted (the neutral tone's two tints), so
  * where that family has no ink the accent delta retracts toward the base ({@link accentFamilyDelta}). The
- * authored base is never projected; the three seeds never trigger the retraction; and every semantic
+ * authored base is never projected; and every semantic
  * foreground therefore has a clearing endpoint without an importer-only refusal band.
  *
  * Foregrounds are solved separately against each ramp member; ramp direction therefore never narrows the
@@ -770,7 +770,7 @@ function mirroredArm(arm: RampDeltas): RampDeltas {
  * Both arms step toward the black/white crossover, so a base near it has no room on its arm's side: projection flattens
  * the members into one value there, and hover and selection stop reading. The room is on the far side, where the
  * polarity's ink only gains contrast, so a base whose arm does not fit takes the arm mirrored whenever that keeps more of
- * the ramp. An arm that fits is returned as authored, which is what keeps the seed recipes byte-identical.
+ * the ramp. An arm that fits is returned as authored.
  */
 export function rampDeltas(base: Oklch): RampDeltas {
   const polarity = surfacePolarity(base);
@@ -1496,7 +1496,7 @@ export function toneRoleColors<Role extends string, Knob extends string, Host ex
 }
 
 /** The WCAG ratio a role pair paints: the worse of the float colour and the 8-bit framebuffer pixel. */
-function toneContrast(ink: Oklch, surface: Oklch): number {
+export function toneContrast(ink: Oklch, surface: Oklch): number {
   return worstTextContrast(oklchToSrgb(ink), [oklchToSrgb(surface)]);
 }
 
