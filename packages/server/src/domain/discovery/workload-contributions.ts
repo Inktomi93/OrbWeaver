@@ -227,13 +227,23 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
       // (the column owner) internally — one op, and the queue never touches the embeddings rows. Search ranks
       // cards, digests, segments and images on these columns, so one run scores all four kinds; the digest
       // story-time backfill rides along because it stamps rows the same corpus pass reads.
-      run: async (ctx, _params, report, _signal): Promise<AnalyticsResult> => {
+      run: async (ctx, _params, report, signal): Promise<AnalyticsResult> => {
         try {
-          report({ message: "computing hub scores (CSLS)" });
-          const characters = await deps.discovery.computeCharacterHubScores(ctx);
-          const digests = await deps.discovery.computeDigestHubScores(ctx);
-          const segments = await deps.discovery.computeSegmentHubScores(ctx);
-          const images = await deps.discovery.computeImageHubScores(ctx);
+          // The abort is checked between passes and, inside each pass, at every yield of the hub math.
+          const scope = { ...ctx, signal };
+          report({ message: "computing character hub scores (CSLS)" });
+          const characters = await deps.discovery.computeCharacterHubScores(scope);
+          signal.throwIfAborted();
+          report({ message: "computing digest hub scores (CSLS)" });
+          const digests = await deps.discovery.computeDigestHubScores(scope);
+          signal.throwIfAborted();
+          report({ message: "computing segment hub scores (CSLS)" });
+          const segments = await deps.discovery.computeSegmentHubScores(scope);
+          signal.throwIfAborted();
+          report({ message: "computing image hub scores (CSLS)" });
+          const images = await deps.discovery.computeImageHubScores(scope);
+          signal.throwIfAborted();
+          report({ message: "stamping digest story times" });
           await deps.discovery.backfillDigestStoryTime(ctx);
           // `rowsScored` IS the read census (every vector a pass loads gets exactly one hub update), so a zero
           // total means no embeddings of any kind exist, never that the calibration found nothing to say.

@@ -83,9 +83,9 @@ async function runHubPass<T extends HubRow>(rows: readonly T[], cfg: HubPassConf
       (r) => r.contentHash,
       (r) => r.id,
     );
-    const hubs = computeGroupHubs(
+    const hubs = await computeGroupHubs(
       reps.map((r) => r.embedding),
-      { k: opts.k, denseMax: opts.denseMax },
+      { k: opts.k, denseMax: opts.denseMax, signal: opts.signal },
     );
     for (let i = 0; i < group.length; i += 1) {
       const row = group[i];

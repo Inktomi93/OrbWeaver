@@ -28,3 +28,8 @@ The existing `csls` workload (no new kind, no migration) now runs the character,
 - `tests/server/domain/discovery/persistence/hub-score-workload.int.test.ts` fails before the change (digest and segment `hub_score` stay null after a `csls` run) and passes after.
 - `tests/support/node/corpus-knowledge-hub-scores.int.test.ts` does the same for `image_embeddings.hub_score`.
 - Search already reads `hub_score` on digest, segment and image rows (`packages/server/src/domain/search/persistence/digest-rows.ts`, `image-nearest.ts`); no read-side change was needed.
+
+The hub math is cooperative: `computeGroupHubs` (`packages/server/src/domain/discovery/substrate/hub-math.ts`) yields to the event loop every `HUB_YIELD_WORK_BUDGET` units of work and throws the run's abort reason at each yield. `csls` checks the signal between passes and reports each pass.
+
+- `tests/server/domain/discovery/substrate/hub-math.test.ts` counts event-loop turns during a 2,000-vector group on both strategies, checks both give equal scores, and checks a cancel stops the pass at the next yield.
+- `tests/server/domain/discovery/persistence/hub-score-workload.int.test.ts` fails when the backfill call, the digest pass or the first between-pass abort check is removed (mutation runs). It also asserts search digest scores move once the hub scores exist.
