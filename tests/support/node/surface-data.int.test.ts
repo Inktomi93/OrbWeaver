@@ -8,6 +8,7 @@ import process from "node:process";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, DEFAULT_USER_HANDLE_KEY, OWNER_HANDLES_KEY } from "@orb/contracts/identity";
 import type { PluginManifest } from "@orb/contracts/plugin";
+import { RATE_LIMIT_CAP_MIN } from "@orb/contracts/settings";
 import {
   assets,
   characterEmbeddings,
@@ -484,6 +485,77 @@ test("standalone owner startup owns its native listener while restoring enabled 
   expect(runs).toHaveLength(1);
   await expect(lstat(join(privateRoot, runs[0] ?? "", "dataset"))).rejects.toMatchObject({ code: "ENOENT" });
   successful = true;
+});
+
+test("the walk lifts every windowed cap on its disposable copy while a default root still refuses on the same bucket", { tags: "slow" }, async () => {
+  const parent = await mkdtemp(join(tmpdir(), "orb-surface-caps-"));
+  await using ownership = new AsyncDisposableStack();
+  ownership.defer(() => rm(parent, { recursive: true, force: true }));
+  const source = await sourceDataset(parent);
+  const sourceDb = await createDb(source.layout.databaseUrl);
+  try {
+    await using root = await createServerHarness({
+      db: sourceDb,
+      ownerId: source.ownerId,
+      startJobs: false,
+      temporaryParentDir: parent,
+      casDir: source.layout.assets,
+    });
+    await root.services.settings.updateAppSettings({
+      principal: await root.principalFor(source.ownerId),
+      partial: { rateLimits: { authed: RATE_LIMIT_CAP_MIN, login: RATE_LIMIT_CAP_MIN } },
+    });
+  } finally {
+    await preCloseHousekeeping(sourceDb);
+  }
+  const privateRoot = join(parent, "private");
+  await mkdir(privateRoot, { mode: 0o700 });
+  await using prepared = await prepareSurfaceData({ dataMode: "owner", privateRoot, ownerDataDirectory: source.layout.root, environment: LOCAL_ENVIRONMENT });
+  const clientDistDir = join(prepared.runRoot, "client");
+  await mkdir(clientDistDir, { mode: 0o700 });
+  await writeFile(join(clientDistDir, "index.html"), "<!doctype html><title>Rate limit control</title>", { mode: 0o600 });
+  const clock = createFrozenClock();
+  using timers = createControlledTimers(clock);
+  const time = { now: clock.now, monotonicNow: clock.now, timers };
+  await using server = await openPreparedSurfaceRoot(prepared, { clientDistDir, time, environment: LOCAL_ENVIRONMENT });
+  await using shipped = await createServerHarness({
+    ownerId: prepared.owner.userId,
+    db: server.root.db,
+    startJobs: false,
+    time,
+    idSource: server.root.idSource,
+    temporaryParentDir: prepared.runRoot,
+    casDir: prepared.layout.assets,
+    rolePolicyConfig: { [DEFAULT_USER_HANDLE_KEY]: prepared.owner.handle, [OWNER_HANDLES_KEY]: prepared.owner.handle },
+    env: { [AUTH_MODE_KEY]: "single-user" },
+  });
+  const lifted = server.root.services.settings.getEffectiveConfig().rateLimits;
+  const floors = shipped.services.settings.getEffectiveConfig().rateLimits;
+  expect(lifted).toEqual({
+    aiTurn: server.root.env.RATE_LIMIT_AI_TURN,
+    publicIp: server.root.env.RATE_LIMIT_PUBLIC_IP,
+    authed: server.root.env.RATE_LIMIT_AUTHED,
+    login: server.root.env.RATE_LIMIT_LOGIN,
+  });
+  for (const key of ["aiTurn", "publicIp", "authed", "login"] as const) {
+    expect(lifted[key], key).toBeGreaterThan(floors[key]);
+  }
+  const viewerStatus = async (origin: string): Promise<number> => {
+    const response = await fetch(`${origin}/api/trpc/sessions.me`);
+    await response.arrayBuffer();
+    return response.status;
+  };
+  const shippedOrigin = `http://127.0.0.1:${String((await shipped.listen()).port)}`;
+  // Both roots share this frozen window, so the walk root's own admission requests already spent part of the floor.
+  let admitted = 0;
+  let status = await viewerStatus(shippedOrigin);
+  while (status === 200 && admitted <= floors.authed) {
+    admitted += 1;
+    status = await viewerStatus(shippedOrigin);
+  }
+  expect(status).toBe(429);
+  expect(admitted).toBeLessThanOrEqual(floors.authed);
+  expect(await viewerStatus(server.origin), "the same owner, window and bucket stays open only on the walk's own root").toBe(200);
 });
 
 test("an owner clone generates only through its disposable scripted connection and physically cancels held output", { tags: "slow" }, async () => {

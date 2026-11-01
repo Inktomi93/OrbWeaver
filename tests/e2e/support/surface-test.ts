@@ -2,15 +2,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { observeSurfaceSession } from "@orb/testkit/browser/spec";
 import { SURFACE_PASSES } from "@orb/testkit/iso";
 import type { SurfaceRunConfig, SurfaceWalkOptions } from "@orb/testkit/node/helpers";
-import {
-  attachNativeFile,
-  readSurfaceCaseAdmission,
-  readSurfaceRunConfig,
-  SURFACE_CASE_REPORT_TIMEOUT_MS,
-  surfaceArtifactModes,
-  surfaceCaseDelayMs,
-} from "@orb/testkit/node/helpers";
-import { budget } from "@orb/tooling/floor/host/load-budget";
+import { attachNativeFile, readSurfaceRunConfig, surfaceArtifactModes } from "@orb/testkit/node/helpers";
 import { test as base, expect } from "@playwright/test";
 import { authenticateBrowserContext, browserActorRequestHeaders } from "./browser-actors.ts";
 import type { SurfaceFlow } from "./surface-flow.ts";
@@ -24,7 +16,6 @@ const defaults = appearanceSettingsSchema.parse({});
 const nativeRun = await readSurfaceRunConfig();
 
 interface SurfaceWalkFixtures {
-  readonly caseAdmission: undefined;
   readonly run: SurfaceRunConfig;
   readonly client: TrpcClient;
   readonly flow: SurfaceFlow;
@@ -36,33 +27,10 @@ export const test = base.extend<SurfaceWalkOptions & SurfaceWalkFixtures>({
   requestedPanes: [{ kind: "desktop", panes: { list: true, context: true } }, { option: true }],
   chatStyle: [defaults.chatStyle, { option: true }],
   fontScale: [defaults.fontScale, { option: true }],
-  run: async ({}, use) => {
+  run: async ({}, use, info) => {
+    expect(info.config.workers, "Independent surface cases share one owner's settings and scripted peer and require serial native workers").toBe(1);
     await use(nativeRun);
   },
-  caseAdmission: [
-    async ({ run }, use, info) => {
-      expect(info.config.workers, "Independent surface cases share one principal budget and require serial native workers").toBe(1);
-      await expect.poll(() => readSurfaceCaseAdmission(run.runRoot)?.testId, { timeout: budget(SURFACE_CASE_REPORT_TIMEOUT_MS) }).toBe(info.testId);
-      const admission = readSurfaceCaseAdmission(run.runRoot);
-      if (admission === null) {
-        throw new Error("The native reporter admission disappeared before case setup");
-      }
-      const startedAt = Date.now();
-      const delayMs = surfaceCaseDelayMs(admission.completedAt, startedAt, run.rateLimitWindowMs);
-      await expect
-        .poll(() => surfaceCaseDelayMs(admission.completedAt, Date.now(), run.rateLimitWindowMs), {
-          timeout: run.rateLimitWindowMs + budget(SURFACE_CASE_REPORT_TIMEOUT_MS),
-          intervals: [Math.max(1, delayMs)],
-        })
-        .toBe(0);
-      info.annotations.push({
-        type: "surface-case-pacing",
-        description: JSON.stringify({ previousCompletedAt: admission.completedAt, startedAt, admittedAt: Date.now(), windowMs: run.rateLimitWindowMs }),
-      });
-      await use(undefined);
-    },
-    { timeout: nativeRun.rateLimitWindowMs + budget(SURFACE_CASE_REPORT_TIMEOUT_MS) },
-  ],
   client: async ({ context, run }, use) => {
     const headers = run.authentication.mode === "local" ? await browserActorRequestHeaders(context, run.origin) : {};
     const client = createTrpcClient(run.origin, headers);
@@ -73,7 +41,7 @@ export const test = base.extend<SurfaceWalkOptions & SurfaceWalkFixtures>({
   flow: async ({ page, client, requestedPanes, run, chatStyle, fontScale, surfacePass }, use, info) => {
     await use(createSurfaceFlow({ page, client, requestedPanes, run, chatStyle, fontScale, info, pass: surfacePass }));
   },
-  context: async ({ context, run, caseAdmission: _caseAdmission, surfacePass, trace, screenshot, video }, use, info) => {
+  context: async ({ context, run, surfacePass, trace, screenshot, video }, use, info) => {
     const posture = { pass: surfacePass, trace, screenshot, video };
     await attachNativeFile(info, info, "artifact-posture", { body: JSON.stringify(posture, null, 2), contentType: "application/json" });
     const artifacts = surfaceArtifactModes(posture);
