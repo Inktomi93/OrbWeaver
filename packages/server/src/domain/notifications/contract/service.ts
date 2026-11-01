@@ -2,6 +2,7 @@ import type { InboxView, ListInboxResult, MarkAllReadResult, ResolveStandingAsks
 import type { Db } from "@orb/db";
 import type { IdSource } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
+import type { Logger } from "#foundation/observability";
 import type { DismissParams, ListInboxParams, MarkAllReadParams, RecordParams, RefreshStandingParams, ReplaySinceParams, RetractParams } from "./params.ts";
 
 // The typed API surface: the DI bundle and the 4-verb interface.
@@ -13,6 +14,7 @@ export interface NotificationsContext {
   db: Db;
   now: Clock;
   readonly idSource: IdSource;
+  readonly logger: Logger;
   /** The ONE cross-feature read this domain consumes — which of a page's chat-owned decisions are
    *  still standing, so `list`/`replaySince` can stamp `InboxView.actionable`. Typed in
    *  `@orb/contracts/notifications` and supplied by `entry/compose` from the chat domain; NOT optional, because a

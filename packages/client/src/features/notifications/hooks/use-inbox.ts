@@ -1,16 +1,24 @@
 // The durable per-user inbox reads/writes — the bell's data layer over the `notifications` router. All
 // shapes are tRPC-inferred so a wire reshape breaks here at compile time. The inbox is NOT covered by
 // the chat bus or the user bus — its driver is the router's own durable-first subscription
-// (use-inbox-stream.ts), so the write verbs below carry an explicit `invalidates`. The bell reads one
-// bounded first page (server default limit 50), not an infinite archive.
+// (use-inbox-stream.ts), so the write verbs below carry an explicit `invalidates`. Older rows load on request,
+// so the bell's counts cover the pages loaded so far.
 
-import { useQuery } from "@tanstack/react-query";
+import type { InboxState } from "@orb/contracts/notifications";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { createEntityMutation, useTRPC } from "#data";
+import { createCollectionSurface, createEntityMutation, useTRPC } from "#data";
 
-/** The `notifications.list` page — `items` are the recipient's active (undismissed) inbox rows. */
+/** One `notifications.list` page. */
 type InboxPage = inferOutput<Trpc["notifications"]["list"]>;
+
+/** The keyset-paged inbox. An omitted `state` is the active inbox. */
+export const useInboxCollection = createCollectionSurface({
+  query: (trpc: Trpc, params: { readonly state?: InboxState }) =>
+    trpc.notifications.list.infiniteQueryOptions(params, { getNextPageParam: (page: InboxPage) => page.nextCursor }),
+  itemsOf: (page: InboxPage) => page.items,
+  idOf: (item: InboxPage["items"][number]) => item.id,
+});
 
 export interface InboxRead {
   /** The active inbox rows (newest-first), `[]` until the read lands (the bell never suspends chrome). */
@@ -31,18 +39,28 @@ export interface InboxRead {
    *  apart (`unreadCount` is also the mark-read trigger); the You tab's badge needs the whole, and both
    *  must be one derivation over one read or the two surfaces disagree about whether anything is waiting. */
   readonly waitingCount: number;
+  /** The read's paging: more rows may sit below the loaded pages. */
+  readonly hasNextPage: boolean;
+  readonly isFetchingNextPage: boolean;
+  /** The last read failed. */
+  readonly failed: boolean;
+  readonly loadMore: () => void;
 }
 
 /** The bell's inbox read — non-suspense (topbar chrome degrades to an empty inbox, never a fallback). */
 export function useInbox(): InboxRead {
   const trpc = useTRPC();
-  const { data } = useQuery(trpc.notifications.list.queryOptions({}));
-  const items = data?.items ?? [];
+  const inbox = useInboxCollection({ trpc }, {});
+  const { items } = inbox;
   return {
     items,
     unreadCount: items.filter((item) => item.readAt === null).length,
     pendingCount: items.filter((item) => item.actionable).length,
     waitingCount: items.filter((item) => item.readAt === null || item.actionable).length,
+    hasNextPage: inbox.hasNextPage,
+    isFetchingNextPage: inbox.isFetchingNextPage,
+    failed: inbox.error !== null,
+    loadMore: inbox.listProps.onEndApproach,
   };
 }
 
