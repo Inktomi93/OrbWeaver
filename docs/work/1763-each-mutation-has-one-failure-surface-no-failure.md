@@ -24,3 +24,5 @@ The observable bar a verifier can check.
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+- Rule (claude-b, under the owner's delegated direction, on the lane's recommendation): the toast is the one message, a persistent mark is state only, and a consumer that renders its own text drops the factory toast. The law line cites this item.
