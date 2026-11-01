@@ -86,7 +86,7 @@ export function RuleImageFields({
             <Stack gap="tight">
               <field.SelectField label="Image size" items={SIZE_PRESET_NAMES.map((value) => ({ value, label: value }))} />
               <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange(undefined)}>
-                Use connection's image size
+                Use the image mode's default size
               </Button>
             </Stack>
           )

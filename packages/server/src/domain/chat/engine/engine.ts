@@ -2260,6 +2260,10 @@ function toChatWarning(warning: ResolvedWarning): ChatWarning {
     // `verbs/generate-image.ts`) — mapped rather than carried because the two vocabularies agree on it.
     case "image_edit_dropped":
       return { code: "image_edit_dropped" };
+    case "image_count_dropped":
+      return { code: "image_count_dropped" };
+    case "image_size_dropped":
+      return { code: "image_size_dropped" };
     // The SDK refused a TOOL (an unknown provider-defined tool, or `strict` on a provider with no strict
     // mode): the turn ran tool-less, which is exactly what the existing chat code already means.
     case "sdk_unsupported_tool":

@@ -28,14 +28,14 @@ const GENERATED_IMAGE_ALT = "generated image";
 /** Chat OWNS its bus warning vocabulary: it maps imagery's native warning codes onto its own `ChatWarningCode`
  *  (the turnAbortNotice precedent — a foreign domain never dictates chat's bus codes). An unmapped imagery code
  *  is dropped rather than emitted as an unknown code. The imagery drop code:
- *  `image_edit_dropped` = the whole edit strip. The code is spelled identically across the two vocabularies —
+ *  `image_edit_dropped` = the whole edit strip; `image_count_dropped` and `image_size_dropped` = that knob. The code is spelled identically across the two vocabularies —
  *  a match against this compile-checked `ChatWarningCode` subset yields the chat code (no re-spell).
  *
  *  The subset EXCLUDES `settings_adjusted` (#1440), and that exclusion is load-bearing rather than tidy: that
  *  code's bus member REQUIRES its structured `adjustment`, which the imagery vocabulary has no notion of — so
  *  a bare `{ code }` emit below is only well-typed while the subset cannot contain it. */
 type ImageryChatWarningCode = Exclude<ChatWarningCode, "settings_adjusted">;
-const IMAGERY_WARNING_CODES: readonly ImageryChatWarningCode[] = ["image_edit_dropped"];
+const IMAGERY_WARNING_CODES: readonly ImageryChatWarningCode[] = ["image_edit_dropped", "image_count_dropped", "image_size_dropped"];
 
 function toChatWarningCode(imageryCode: string): ImageryChatWarningCode | null {
   return IMAGERY_WARNING_CODES.find((code) => code === imageryCode) ?? null;

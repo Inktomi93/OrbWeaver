@@ -23,8 +23,8 @@
 // the image posts into the room whether or not this modal is still open, and nothing used to say so.
 
 import { viewerGalleryCharacter } from "@orb/contracts/chat";
-import type { GeneratePicturePrompt, PromptTemplateMode } from "@orb/contracts/imagery";
-import { EXTRACTION_MODES } from "@orb/contracts/imagery";
+import type { GeneratePicturePrompt, PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
+import { EXTRACTION_MODES, MIN_IMAGE_COUNT } from "@orb/contracts/imagery";
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
@@ -45,6 +45,7 @@ import type { ImagineSeed } from "#state";
 import { closeModal, useImagineSeed } from "#state";
 import { useExtractPrompt, useGeneratePicture } from "../hooks/use-imagery-mutations.ts";
 import { formatCost } from "../lib/format-cost.ts";
+import { ImagineOptions } from "./imagine-options.tsx";
 
 // free-first: the prompt-verbatim mode, then the four extraction modes (derived from the contract tuple —
 // never a re-spelled member list). The multimodal caption modes are a Phase-7 avatar concern, not /imagine.
@@ -88,6 +89,9 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
   const [prompt, setPrompt] = useState(seed.prompt);
   const [receipt, setReceipt] = useState<ExtractedPromptResult | undefined>(undefined);
   const [toGallery, setToGallery] = useState(true);
+  const [count, setCount] = useState(MIN_IMAGE_COUNT);
+  const [size, setSize] = useState<SizePresetName | undefined>(undefined);
+  const [negative, setNegative] = useState("");
   const modeLabelId = useId();
   const galleryLabelId = useId();
   const galleryCheckboxId = useId();
@@ -130,8 +134,9 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
     }
     // A present prompt IS the image — sent verbatim as free mode (an extraction mode previewed-then-edited
     // lands here too). An extraction mode with no prompt defers resolution to the server.
-    const base = { chatId: seed.chatId, gallery: toGallery, timeZone: viewerTimeZone() };
-    const request = { ...base, ...generationPrompt };
+    const base = { chatId: seed.chatId, gallery: toGallery, timeZone: viewerTimeZone(), n: count };
+    const excluded = negative.trim();
+    const request = { ...base, ...generationPrompt, ...(size === undefined ? {} : { size }), ...(excluded.length === 0 ? {} : { negative: excluded }) };
     void generate
       .mutateAsync(request)
       .then(() => closeModal())
@@ -204,6 +209,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
           </Stack>
         ) : null}
       </Stack>
+      <ImagineOptions busy={busy} count={count} negative={negative} onCount={setCount} onNegative={setNegative} onSize={setSize} size={size} />
       {galleryCharacterName === undefined ? null : (
         <Row align="center" gap="field">
           <Checkbox

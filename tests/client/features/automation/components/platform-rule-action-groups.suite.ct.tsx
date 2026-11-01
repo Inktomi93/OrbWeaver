@@ -1,5 +1,6 @@
 import { ROW_DELETE_NAME } from "@orb/client/lib";
-import { AUTOMATION_RULE_NAME_MAX_CHARS, automationRuleEditableSchema } from "@orb/contracts/automation";
+import { AUTOMATION_RULE_NAME_MAX_CHARS, automationActionSchema, automationRuleEditableSchema, automationTriggerFor } from "@orb/contracts/automation";
+import { SIZE_PRESET_NAMES } from "@orb/contracts/imagery";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -245,5 +246,39 @@ test.describe("rule editor field rows", () => {
     expect(alertBox.y).toBeGreaterThanOrEqual(lastSwitchBox.y);
     const ink = (locator: typeof warning): Promise<string> => locator.evaluate((node) => getComputedStyle(node).color);
     expect(await ink(warning)).not.toBe(await ink(outputs.getByText("Outputs", { exact: true })));
+  });
+
+  test("the image action's negative prompt and size controls drive the saved rule", async ({ mount, page }) => {
+    const size = SIZE_PRESET_NAMES[2];
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    const appearance = appearanceSettingsSchema.parse({});
+    await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });
+    await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
+    const captured = (await caller.automation.listOwnerRules())[0];
+    if (captured === undefined) {
+      throw new Error("The corpus must contain an owned library rule");
+    }
+    await caller.automation.updateRule({
+      ...automationRuleEditableSchema.strip().parse(captured),
+      trigger: automationTriggerFor("character.updated"),
+      actions: [automationActionSchema.parse({ type: "generate_image", mode: "character_multimodal", quiet: true })],
+      ruleId: captured.id,
+      timeZone: captured.timeZone ?? UTC_TIME_ZONE,
+    });
+    const calls = await routeTrpc(page, serveCorpusProcedures(caller, READS));
+    await mount<typeof RuleActionGroupsStory>(STORY, { width: 960, appearance });
+    await page
+      .getByRole("button")
+      .filter({ has: page.getByText(captured.name, { exact: true }) })
+      .click();
+    await page.getByRole("button", { name: `Edit ${captured.name}`, exact: true }).click();
+    const editor = page.getByRole("region", { name: "Rule editor", exact: true });
+    await editor.getByRole("button", { name: "Add negative prompt", exact: true }).click();
+    await editor.getByRole("textbox", { name: "Negative prompt", exact: true }).fill("extra fingers");
+    await editor.getByRole("button", { name: "Choose image size", exact: true }).click();
+    await editor.getByRole("combobox", { name: "Image size", exact: true }).click();
+    await page.getByRole("option", { name: size, exact: true }).click();
+    await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).toMatchObject({ type: "generate_image", negative: "extra fingers", size });
   });
 });

@@ -1,11 +1,14 @@
 // @subject packages/server/src/domain/automation/engine/dispatch.ts
 // @subject packages/server/src/domain/automation/service.ts
 
+import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import { createBookSchema } from "@orb/contracts/world-info";
 import { DomainNotFoundError } from "@orb/kit/errors";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, makeAssetBytes, readRoomCanon } from "@orb/testkit/node/composed";
+import { SIZE_PRESETS } from "#server/domain/imagery/substrate/size.ts";
 import { enabledRule } from "../runtime.fixtures.ts";
 import { portraits, portraitTest } from "./dispatch.fixtures.ts";
 
@@ -48,6 +51,65 @@ portraitTest("a rule-fired free-mode generate_image reaches the image provider a
   expect(provenance).toMatchObject({ mode: "free", prompt });
   // The provider's own default negatives stay; the rule's are added to them.
   expect(provenance?.negativePrompt).toContain(negative);
+});
+
+portraitTest("a rule's image count, size and rendered negative reach the provider, and every picture posts into the room", async ({ portrait }) => {
+  const { root, character, images, imageRequests } = portrait;
+  const principal = await root.principalFor(root.ownerId);
+  const { chat } = await root.services.chat.startChat({ principal, characterIds: [character.id], opening: "none" });
+  images.push(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
+  await enabledRule(root, {
+    chatId: chat.id,
+    name: "Two wide drawings",
+    trigger: { bus: "chat", type: "chatOpened" },
+    predicateCel: null,
+    actions: [
+      {
+        type: "generate_image",
+        mode: "free",
+        prompt: "a lighthouse",
+        negative: "crowds {{expr::1 + 1}}",
+        n: 2,
+        size: "landscape",
+        useAvatarReference: false,
+        reuse: "never",
+        quiet: false,
+      },
+    ],
+  });
+  await root.services.automation.handleEvent({ type: "chatOpened", chatId: chat.id });
+  const landscape = SIZE_PRESETS.landscape;
+  expect(imageRequests).toHaveLength(1);
+  expect(await imageRequests[0]?.clone().json()).toMatchObject({
+    n: 2,
+    size: `${landscape.width}x${landscape.height}`,
+    prompt: expect.stringContaining("crowds 2"),
+  });
+  const pictures = await root.services.assets.listOwned({ principal, kind: "generated", limit: ASSET_LIST_LIMIT_MAX });
+  expect(pictures).toHaveLength(2);
+  const post = (await readRoomCanon(root, principal, chat.id)).at(-1);
+  for (const { assetId } of pictures) {
+    expect(post?.content).toContain(`asset:${assetId}`);
+  }
+});
+
+portraitTest("a dry run renders an image rule's negative and reports the macro error the live arm would raise", async ({ portrait }) => {
+  const { root, character, physical } = portrait;
+  const principal = await root.principalFor(root.ownerId);
+  const { chat } = await root.services.chat.startChat({ principal, characterIds: [character.id], opening: "none" });
+  const preview = async (negative: string): ReturnType<typeof root.services.automation.testRule> => {
+    const rule = await enabledRule(root, {
+      chatId: chat.id,
+      name: `Preview ${negative}`,
+      trigger: { bus: "chat", type: "chatOpened" },
+      predicateCel: null,
+      actions: [{ type: "generate_image", mode: "free", prompt: "a lighthouse", negative, n: 1, useAvatarReference: false, reuse: "never", quiet: true }],
+    });
+    return await root.services.automation.testRule({ principal, ruleId: rule.id });
+  };
+  expect((await preview("crowds {{expr::1 + 1}}")).arms).toEqual([{ type: "generate_image", renderedPreview: "a lighthouse" }]);
+  expect((await preview("{{bad hands}}")).arms).toEqual([{ type: "generate_image", error: expect.stringMatching(/unknown macro/iu) }]);
+  expect(physical.requests.filter((request) => request.startsWith("POST "))).toEqual([]);
 });
 
 async function prepareChain(
