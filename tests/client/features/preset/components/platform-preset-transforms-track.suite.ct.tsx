@@ -3,6 +3,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.tsx";
 
@@ -25,24 +26,27 @@ interface TrackGeometry {
 }
 
 function resolveTrackGeometry(group: Locator): Promise<TrackGeometry> {
-  return group.evaluate((host) => {
-    const px = (value: string): number => {
-      const probe = document.createElement("div");
-      probe.style.inlineSize = value;
-      host.append(probe);
-      const resolved = probe.getBoundingClientRect().width;
-      probe.remove();
-      return resolved;
-    };
-    const style = getComputedStyle(host);
-    return {
-      labelTrack: px("var(--width-control-col)"),
-      step: px("var(--container-cq-32)"),
-      laidOutTrack: Number.parseFloat(style.gridTemplateColumns),
-      laidOutGap: Number.parseFloat(style.columnGap),
-      groupWidth: host.getBoundingClientRect().width,
-    };
-  });
+  return group.evaluate(
+    (host, { widthControlCol, containerCq32 }) => {
+      const px = (value: string): number => {
+        const probe = document.createElement("div");
+        probe.style.inlineSize = value;
+        host.append(probe);
+        const resolved = probe.getBoundingClientRect().width;
+        probe.remove();
+        return resolved;
+      };
+      const style = getComputedStyle(host);
+      return {
+        labelTrack: px(`var(${widthControlCol})`),
+        step: px(`var(${containerCq32})`),
+        laidOutTrack: Number.parseFloat(style.gridTemplateColumns),
+        laidOutGap: Number.parseFloat(style.columnGap),
+        groupWidth: host.getBoundingClientRect().width,
+      };
+    },
+    { widthControlCol: TOKENS["width.control-col"].cssVar, containerCq32: TOKENS["container.cq-32"].cssVar },
+  );
 }
 
 async function boxOf(locator: Locator, what: string): Promise<{ readonly x: number; readonly width: number }> {

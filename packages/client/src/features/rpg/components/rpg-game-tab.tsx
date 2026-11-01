@@ -21,7 +21,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { HintTrigger } from "@orb/ui/hint-trigger";
-import { Crown, Eye, EyeOff, Icon, Lock, LockOpen, Plus, RotateCcw, Trash2 } from "@orb/ui/icons";
+import { Crown, Eye, EyeOff, Icon, Lock, LockOpen, Plus, RotateCcw, Trash } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
@@ -86,7 +86,8 @@ function TrackerRow({
   readonly index: number;
   readonly onCommit: (next: RpgTrackerDef) => void;
 }): ReactElement {
-  const patch = (fields: Partial<RpgTrackerDef>): void => onCommit({ ...def, ...fields });
+  const patch = (fields: Partial<Pick<RpgTrackerDef, "label" | "max" | "pinned" | "locked" | "write" | "appliesTo" | "hint">>): void =>
+    onCommit({ ...def, ...fields });
   const writeGlossId = useId();
   // ONE string, two jobs: the accessible NAME an icon-only button has no visible text to supply, and the
   // tooltip. Spelled once here so the two can never drift apart.
@@ -148,7 +149,7 @@ function TrackerRow({
           </Tip>
           <Tip text={removeLabel}>
             <Button aria-label={removeLabel} variant="ghost" size="sm" square={true} onClick={(): void => onCommit({ ...def, key: "" })}>
-              <Icon icon={Trash2} size="xs" />
+              <Icon icon={Trash} size="xs" />
             </Button>
           </Tip>
         </Row>

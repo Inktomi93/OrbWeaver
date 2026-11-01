@@ -95,6 +95,6 @@ test("upstream failures retain HTTP diagnostics and malformed success bytes reac
   await expect(client.sessions.me.query()).rejects.toThrow(`failed (503): ${productBytes}`);
   status = 200;
   body = "not a JSON response";
-  await expect(client.sessions.me.query()).rejects.toThrow();
+  await expect(client.sessions.me.query()).rejects.toMatchObject({ cause: { name: "SyntaxError" } });
   expect(paths).toEqual(Array.from({ length: 3 }, () => "/api/trpc/sessions.me?batch=1&input=%7B%7D"));
 });

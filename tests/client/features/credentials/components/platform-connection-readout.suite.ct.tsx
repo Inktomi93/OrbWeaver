@@ -6,6 +6,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, TestInfo } from "@playwright/test";
 import type { ConnectionActionGroupsStory } from "./_connection-action-groups-stories.tsx";
 import type { ConnectionReadoutStory } from "./_connection-readout-stories.tsx";
@@ -137,7 +138,7 @@ async function expectModelFacts(row: Locator, entry: ModelCatalogEntry, testInfo
 for (const regime of REGIMES) {
   test.describe(regime.name, () => {
     test.use({ viewport: regime.viewport, isMobile: regime.touch, hasTouch: regime.touch });
-    test("drilling a connection removes only the redundant list-heading paint and retains group, anchor and focus", async ({ mount, page }, testInfo) => {
+    test("drilling a connection keeps the unpainted list heading, group, anchor and focus", async ({ mount, page }, testInfo) => {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
       await using root = await createServerHarness({
         startJobs: false,
@@ -153,7 +154,7 @@ for (const regime of REGIMES) {
       const group = page.getByRole("heading", { name: "Connections", level: 2, exact: true });
       const heading = page.getByRole("heading", { name: "Connections", level: 3, exact: true });
       await expect(group).toBeVisible();
-      expect((await settledBox(heading)).height).toBeGreaterThan(1);
+      expect((await settledBox(heading)).height).toBeLessThanOrEqual(1);
       const anchorId = await heading.locator("..").getAttribute("id");
       if (anchorId === null || anchorId === "") {
         throw new Error("The real Connections section omitted its navigation anchor");
@@ -172,7 +173,7 @@ for (const regime of REGIMES) {
       await page.locator('[data-slot="config-content"]').screenshot({ path: testInfo.outputPath("connection-drilled-heading.png") });
       await done.click();
       await expect(opener).toBeFocused();
-      expect((await settledBox(heading)).height).toBeGreaterThan(1);
+      expect((await settledBox(heading)).height).toBeLessThanOrEqual(1);
     });
 
     test("keyless, attached and removed credentials have distinct honest Essential readouts", async ({ mount, page }, testInfo) => {
@@ -266,8 +267,8 @@ for (const regime of REGIMES) {
       await page.getByRole("menuitem", { name: /^Add another model on this key/u }).click();
       const dialog = page.getByRole("dialog", { name: "Add another model on this key", exact: true });
       const bounds = await settledBox(dialog);
-      const dialogCap = await resolvedLength(page, "var(--width-dialog-lg)", dialog);
-      const inset = await resolvedLength(page, "var(--spacing-field)", dialog);
+      const dialogCap = await resolvedLength(page, `var(${TOKENS["width.dialog-lg"].cssVar})`, dialog);
+      const inset = await resolvedLength(page, `var(${TOKENS["spacing.field"].cssVar})`, dialog);
       const viewportWidth = await page.evaluate(() => innerWidth);
       await testInfo.attach("model-picker-dialog-width", {
         body: JSON.stringify({ bounds, cap: dialogCap, inset, viewportWidth }),

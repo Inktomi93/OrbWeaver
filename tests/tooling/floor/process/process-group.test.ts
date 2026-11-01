@@ -147,8 +147,8 @@ test("recycled identities and newly ambiguous lineage refuse before any taskkill
     } else {
       edge.state.rows = [{ pid: owned[1].pid, ppid: owned[0].pid, identity: "30" }];
     }
-    expect(tree.alive).toThrow();
-    expect(() => tree.signal("SIGKILL")).toThrow();
+    expect(tree.alive).toThrow(/process-tree (?:identity changed|lineage ambiguous)/u);
+    expect(() => tree.signal("SIGKILL")).toThrow(/process-tree (?:identity changed|lineage ambiguous)/u);
     expect(edge.tasks()).toEqual([]);
   }
 });
@@ -158,7 +158,7 @@ test("failed and malformed observations refuse instead of becoming empty process
   for (const stdout of invalid) {
     const edge = windows(owned);
     edge.state.observation = { status: 0, stdout, stderr: "" };
-    expect(() => captureProcessGroup(owned[0].pid, edge.deps)).toThrow();
+    expect(() => captureProcessGroup(owned[0].pid, edge.deps)).toThrow(/process-tree (?:observation|root)/u);
     expect(edge.tasks()).toEqual([]);
   }
   const edge = windows(owned);

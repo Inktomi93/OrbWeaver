@@ -11,11 +11,11 @@
 import { RPG_HINT_MAX } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
 import { GlyphButton } from "@orb/ui/glyph-button";
-import { Icon, Plus, Trash2 } from "@orb/ui/icons";
+import { Icon, Plus, Trash } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { removeActionName } from "@orb/ui/lib";
 import type { ReactElement, ReactNode } from "react";
 import { Tip } from "#components";
-import { removeActionName } from "#lib";
 import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
 import { AddRow, HintEditor } from "./tracker-blocks/index.ts";
@@ -67,7 +67,7 @@ export function RpgHintMapEditor({ kicker, emptyLine, labelNoun, addPlaceholder,
                   onCommit(rest);
                 }}
               >
-                <Icon icon={Trash2} size="xs" />
+                <Icon icon={Trash} size="xs" />
               </GlyphButton>
             </Tip>
           </Row>

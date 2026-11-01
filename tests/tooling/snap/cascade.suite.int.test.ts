@@ -236,7 +236,7 @@ test("a disconnected browser and runtime cleanup fail visibly", { timeout: scale
     await session.browser.close();
     await expect(runtime.query(session.page, [{ selector: "#layered", property: "color" }])).rejects.toThrow("cascade browser is disconnected");
     await runtime.close();
-    await expect(access(runtime.profileDir)).rejects.toThrow();
+    await expect(access(runtime.profileDir)).rejects.toMatchObject({ code: "ENOENT" });
   } finally {
     await fixture.close();
     await runtime.close();

@@ -44,7 +44,7 @@
 // The two doors that survive are the row radio (list-side commitment) and the editor header's Activate.
 
 import type { PresetId } from "@orb/kit/ids";
-import { AlertTriangle, Circle, Download, Icon, Lock } from "@orb/ui/icons";
+import { Circle, Download, Icon, Lock, TriangleAlert } from "@orb/ui/icons";
 import { InlineToken } from "@orb/ui/inline-token";
 import { MenuItem } from "@orb/ui/menu";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -134,7 +134,7 @@ export function PresetLibraryRow({
         : {
             subtitleLead: (
               <InlineToken className="me-field" tone="warning">
-                <Icon icon={AlertTriangle} size="xs" />
+                <Icon icon={TriangleAlert} size="xs" />
                 {PRESET_UNREADABLE_ROW_MARKER[unreadableConfigCause(preset.configUnreadable)]}
               </InlineToken>
             ),

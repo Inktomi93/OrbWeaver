@@ -7,11 +7,7 @@ export { AssetContentRejectedError } from "./contract/errors.ts";
 export type { ImportAssetPort } from "./contract/import-store.ts";
 export type { MaterializeBackgroundDeps } from "./contract/materialize.ts";
 export type { SeedAvatarOps } from "./contract/seed-art.ts";
-export type {
-  AssetsAssemblyContext as AssetsContext,
-  AssetsService,
-  AssetsWorkloadAssemblyDeps as AssetsWorkloadDeps,
-} from "./contract/service.ts";
+export type { AssetsAssemblyContext, AssetsService, AssetsWorkloadAssemblyDeps } from "./contract/service.ts";
 export { createAssetsService } from "./service.ts";
 export { createAssetEmbeddingReads } from "./verbs/asset-embedding-reads.ts";
 export { createBackgroundStore } from "./verbs/background-store.ts";

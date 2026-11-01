@@ -27,4 +27,10 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+One row: one applied, none kept, none handed off, no owner questions.
+
+| Row | Result |
+| - | - |
+| `CharacterLibrarySurface.#0.ariaLabel` | applied: props interface and parameter removed in `packages/client/src/features/character/surfaces/character-library-surface.tsx`; the body receives the literal `Character library`. The one mount is `<CharacterLibrarySurface />` at `packages/client/src/features/character/lib/characters-section.tsx:63` |
+
+Survey: `codegraph_explore` on the symbol; literal `rg` for `CharacterLibrarySurface`, `CharacterLibrarySurfaceProps`, `ariaLabel` over `packages tests tooling scripts` (the component is not passed as a value anywhere). Proof: client typecheck clean.

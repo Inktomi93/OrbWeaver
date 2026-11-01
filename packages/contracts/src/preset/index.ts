@@ -8,6 +8,7 @@
 // Sibling module (D15 directory-module law: internals flat, this index re-exports):
 //   • prose.ts — the per-PRESET PROSE-1 slot table; the ONE home for the BYTES of every guided-action
 //     template + format string this file's schema defaults read.
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import type { ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -1176,7 +1177,7 @@ export const TEMPLATE_DEFS = [
     caps: STEER_CAPS,
     defaultSlot: "preset.guided.rewrite",
   },
-  { id: "opening", kind: "steer", label: "Opening", fires: "A new chat's first message", caps: STEER_CAPS, defaultSlot: "preset.guided.opening" },
+  { id: "opening", kind: "steer", label: "Greeting", fires: "A new chat's first message", caps: STEER_CAPS, defaultSlot: "preset.guided.opening" },
   // ── THE REWRITE MODAL'S ONE-CLICK STEER VOCABULARY (the templating fork, ARM B — owner 2026-08-09) ────
   // The seven toggle sentences the Rewrite modal joins into the correction steer. `steer` kind, and they sit
   // under the Rewrite row they compose into: their bytes reach the model INSIDE that steer, by exactly the
@@ -2123,8 +2124,8 @@ export const TEMPLATE_DEFS = [
   {
     id: "rpg.populate.openingBlock",
     kind: "extract",
-    label: "Opening block",
-    fires: "Born-state round — the room has posted an opening",
+    label: "Greeting block",
+    fires: "Born-state round — the room has posted a greeting",
     caps: [{ kind: "tokens", tokens: ["{{opening}}"] }],
     defaultSlot: "rpg.populate.openingBlock",
     cluster: "round",
@@ -2579,28 +2580,32 @@ export function proseCarrierMisses(prose: ProseOverrides): readonly ProseCarrier
  *  ONE guard, TWO enumerations — the carrier-token refusal over `FORMAT_STRING_CARRIER_TOKENS` (the
  *  `formatStrings` field) and over `PROSE_CARRIER_TOKENS` (the `prose` blob). Blank/absent is legal on both:
  *  blank means "the shipped default rides", the storage semantic everywhere in this schema. */
-export const promptConfigWriteSchema = promptConfigSchema.superRefine((config, ctx): void => {
-  const formatStrings = config.formatStrings;
-  if (formatStrings !== undefined) {
-    for (const { key, token } of FORMAT_STRING_CARRIER_TOKENS) {
-      const text = formatStrings[key];
-      if (text !== undefined && text.trim().length > 0 && !text.includes(token)) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["formatStrings", key],
-          message: `${key} must contain ${token} — that is where the wrapped content lands, so without it the content is dropped. Leave it blank to use the default.`,
-        });
+export const promptConfigWriteSchema = promptConfigSchema
+  // The read schema's `.catch({})` heals a stored blob; on a write it would silently reset every knob over one
+  // stray key, so the write door takes `params` strictly and refuses (Spine-Config "Degrading is read-only").
+  .extend({ params: userIntentSchema.default({}) })
+  .superRefine((config, ctx): void => {
+    const formatStrings = config.formatStrings;
+    if (formatStrings !== undefined) {
+      for (const { key, token } of FORMAT_STRING_CARRIER_TOKENS) {
+        const text = formatStrings[key];
+        if (text !== undefined && text.trim().length > 0 && !text.includes(token)) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["formatStrings", key],
+            message: `${key} must contain ${token} — that is where the wrapped content lands, so without it the content is dropped. Leave it blank to use the default.`,
+          });
+        }
       }
     }
-  }
-  for (const { slotId, token } of proseCarrierMisses(config.prose)) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["prose", slotId, "text"],
-      message: `${slotId} must contain ${token} — that is where the injection's own content lands, so without it the note ships as an empty frame. Leave it blank to use the default.`,
-    });
-  }
-}) satisfies z.ZodType<PromptConfig>;
+    for (const { slotId, token } of proseCarrierMisses(config.prose)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["prose", slotId, "text"],
+        message: `${slotId} must contain ${token} — that is where the injection's own content lands, so without it the note ships as an empty frame. Leave it blank to use the default.`,
+      });
+    }
+  }) satisfies z.ZodType<PromptConfig>;
 
 // ── The lift chain (maps a blob at version N → N+1; the versioned-config primitive walks it) ───────
 type RawSection = Record<string, unknown>;
@@ -3808,9 +3813,9 @@ export const effectivePresetSchema = z.strictObject({
   qualityMapping: qualityMappingSchema.nullable(),
 }) satisfies z.ZodType<EffectivePreset>;
 
-export const presetIdInputSchema = z.object({ id: typeIdSchema(ID_PREFIX.preset) });
+export const presetIdInputSchema = z.strictObject({ id: typeIdSchema(ID_PREFIX.preset) });
 
-export const resolveEffectivePresetInputSchema = z.object({ id: typeIdSchema(ID_PREFIX.preset), target: capabilityTargetSchema.optional() });
+export const resolveEffectivePresetInputSchema = z.strictObject({ id: typeIdSchema(ID_PREFIX.preset), target: capabilityTargetSchema.optional() });
 
 /** A missing or foreign preset is optional; operational failures are not. */
 export type LoadOptionalPreset = (userId: UserId, id: PresetId) => Promise<PresetDetail | null>;

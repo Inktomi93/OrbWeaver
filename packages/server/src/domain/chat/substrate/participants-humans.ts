@@ -20,19 +20,15 @@
 // {@link presentAndEnabledHumanUserIdsOf} is the fix: the ONE async narrowing every consumer that can reach
 // an injected `ctx.resolveUserEnabled` now calls, instead of re-deriving the enabled filter per call site.
 
-import type { AnchorState, ParticipantKind } from "@orb/contracts/chat";
-import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AnchorState } from "@orb/contracts/chat";
+import type { PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context.ts";
 import type { HumanSeatPersona } from "../contract/foreign.ts";
 import { classifyParticipant, isBackingUserEnabled } from "../persistence/participant.ts";
 
-/** The columns the human-seat lens reads — structural, so the raw `chat_participants` row (`loadParticipants`)
- *  passes unchanged (the row shape is never re-spelled here). */
-interface HumanSeat {
-  readonly kind: ParticipantKind;
-  readonly userId: UserId | null;
-  readonly characterId: CharacterId | null;
-}
+/** The columns the human-seat lens reads — {@link classifyParticipant}'s own row shape, so the raw
+ *  `chat_participants` row (`loadParticipants`) passes unchanged. */
+type HumanSeat = Parameters<typeof classifyParticipant>[0];
 
 /** The room's PERSONA CONSENT SET: every human seat's `userId`, deduped (see the file header). Routes
  *  through {@link classifyParticipant} — the one-home XOR discriminator (2026-08-15 consolidation).
@@ -115,10 +111,13 @@ export function humanSeatPersonasOf(participants: readonly PersonaSeat[], consen
   });
 }
 
-/** The personas whose books join a round's world-info pool: each consented seat's persona, in seat order. The
- *  same present membership the people block renders (pass {@link humanSeatPersonasOf}'s output), never the
- *  online set, so a reconnect cannot rewrite the lore in the static half. The turn and every preview must
- *  derive it here, or a preview reports lore the next turn would not send. PURE. */
-export function memberPersonaIdsOf(humanSeats: readonly HumanSeatPersona[]): readonly PersonaId[] {
-  return humanSeats.flatMap((seat) => (seat.personaId === null ? [] : [seat.personaId]));
+/** The personas whose books join a round's world-info pool: each consented seat's persona, in seat order, then
+ *  the room's pin. The seats are the present membership the people block renders (pass
+ *  {@link humanSeatPersonasOf}'s output), never the online set, so a reconnect cannot rewrite the lore in the
+ *  static half. The pin joins past the consent set because it holds when its owner leaves or is disabled (D315).
+ *  Order is precedence: the pool renders a shared entry against the first persona here, so the pin stays last.
+ *  Pass `chats.anchorPersonaId`, never a caller-supplied id. The turn and every preview must derive it here, or a
+ *  preview reports lore the next turn would not send. PURE. */
+export function lorePersonaIdsOf(humanSeats: readonly HumanSeatPersona[], anchorPersonaId: PersonaId | null): readonly PersonaId[] {
+  return [...humanSeats.map((seat) => seat.personaId), anchorPersonaId].flatMap((id) => (id === null ? [] : [id]));
 }

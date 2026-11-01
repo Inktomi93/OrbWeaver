@@ -1,7 +1,6 @@
 // Host-rendered homes for the closed plugin command placement vocabulary. Plugin metadata chooses only a
 // target, label and curated glyph; the house owns ordering, attribution, overflow and invocation.
 
-import type { PluginCommandPlacementTarget } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import { Blocks, Icon, PanelRightOpen } from "@orb/ui/icons";
@@ -10,58 +9,16 @@ import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, Me
 import type { ReactElement } from "react";
 import { pluginCommandAuditAttributes, pluginMenuAuditAttributes } from "#lib";
 import { revealContextPanel } from "#state";
-import { usePluginCommands, useRunPluginCommand, useSharedPluginNames } from "../hooks/use-plugin-commands.ts";
+import type { PlacedCommand } from "../hooks/use-placed-commands.ts";
+import { placedItemGlyph, placedItemLabel, usePlacedCommands } from "../hooks/use-placed-commands.ts";
+import { useRunPluginCommand } from "../hooks/use-plugin-commands.ts";
 import { useHasChatPluginPanels } from "../hooks/use-visible-anchored-surfaces.ts";
-import { pluginCommandShownName } from "../lib/plugin-command-copy.ts";
-import { PLUGIN_ICON_GLYPHS } from "../lib/plugin-icon-glyphs.ts";
 import { CHAT_PLUGINS_OPEN_LABEL } from "../lib/plugin-panel-copy.ts";
-
-interface PlacedCommand {
-  readonly command: ReturnType<typeof usePluginCommands>[number];
-  readonly label: string;
-  readonly icon: keyof typeof PLUGIN_ICON_GLYPHS | undefined;
-  /** What the composer calls the plugin: its display name, plus the slug only when another install shares it. */
-  readonly shownName: string;
-}
 
 interface PlacedCommandGroup {
   readonly id: string;
   readonly label: string;
   readonly commands: readonly PlacedCommand[];
-}
-
-function placedItemLabel(item: PlacedCommand): string {
-  return `${item.shownName} · ${item.command.group ?? "Commands"} · ${item.label}`;
-}
-
-// Host order: the shown attribution (name, then slug), then group, then the label shown at THIS target. The
-// plugin id keeps each install's entries contiguous; the catalog order keys on command names, not these labels.
-function comparePlaced(a: PlacedCommand, b: PlacedCommand): number {
-  return (
-    a.command.pluginName.localeCompare(b.command.pluginName) ||
-    a.command.slug.localeCompare(b.command.slug) ||
-    a.command.pluginId.localeCompare(b.command.pluginId) ||
-    (a.command.group ?? "").localeCompare(b.command.group ?? "") ||
-    a.label.localeCompare(b.label) ||
-    a.command.name.localeCompare(b.command.name)
-  );
-}
-
-function usePlacedCommands(target: PluginCommandPlacementTarget): readonly PlacedCommand[] {
-  const commands = usePluginCommands(true);
-  // A display name is not an identity, so the slug stays on screen exactly when two installs share a name.
-  const shared = useSharedPluginNames();
-  return commands
-    .filter(
-      (command) =>
-        target === "composer-action" || (command.composerDraft !== true && !command.placements.some((placement) => placement.target === "composer-action")),
-    )
-    .flatMap((command) => {
-      const placement = command.placements.find((candidate) => candidate.target === target);
-      const shownName = pluginCommandShownName(command.pluginName, command.slug, shared);
-      return placement === undefined ? [] : [{ command, label: placement.label, icon: placement.icon, shownName }];
-    })
-    .toSorted(comparePlaced);
 }
 
 function groupPlacedCommands(placed: readonly PlacedCommand[]): readonly PlacedCommandGroup[] {
@@ -108,7 +65,7 @@ export function PluginComposerActions({ chatId }: { readonly chatId: ChatId }): 
             <MenuGroup key={group.id}>
               <MenuGroupLabel>{group.label}</MenuGroupLabel>
               {group.commands.map((item) => {
-                const glyph = item.icon === undefined ? Blocks : PLUGIN_ICON_GLYPHS[item.icon];
+                const glyph = placedItemGlyph(item);
                 return (
                   <MenuItem
                     aria-label={placedItemLabel(item)}
@@ -153,7 +110,7 @@ export function PluginComposerMediaItems({ chatId }: { readonly chatId: ChatId }
         <MenuGroup key={group.id}>
           <MenuGroupLabel>{group.label}</MenuGroupLabel>
           {group.commands.map((item) => {
-            const glyph = item.icon === undefined ? Blocks : PLUGIN_ICON_GLYPHS[item.icon];
+            const glyph = placedItemGlyph(item);
             return (
               <MenuItem
                 aria-label={placedItemLabel(item)}

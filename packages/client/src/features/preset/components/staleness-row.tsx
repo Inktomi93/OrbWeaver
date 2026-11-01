@@ -6,7 +6,7 @@ import type { SamplerKnob } from "@orb/contracts/inference";
 import { DEFAULT_SAMPLER_KEYS, SAMPLER_KNOBS } from "@orb/contracts/inference";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
-import { AlertTriangle, Icon } from "@orb/ui/icons";
+import { Icon, TriangleAlert } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -85,7 +85,7 @@ export function StalenessRow({ form, stale, spelling }: StalenessRowProps): Reac
     <Card tone="warning" variant="soft">
       <Stack gap="field">
         <Row align="center" gap="field">
-          <Icon icon={AlertTriangle} size="sm" tone="warning" />
+          <Icon icon={TriangleAlert} size="sm" tone="warning" />
           <Text className="wrap-anywhere min-inline-0" voice="label">
             Set but not honored by this model: {stale.map((entry) => `${staleWireName(entry.knob, spelling)} ${String(entry.value)}`).join(" · ")}
           </Text>

@@ -26,6 +26,7 @@ import {
   uploadResultSchema,
 } from "@orb/contracts/databank";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
@@ -34,26 +35,28 @@ const TEXT_MIN = 1;
 export const databankRouter = t.router({
   createFromText: authedProcedure
     .output(uploadResultSchema)
-    .input(z.object({ name: z.string().min(1).max(DATABANK_NAME_MAX), text: z.string().min(TEXT_MIN), destination: documentDestinationSchema.optional() }))
+    .input(
+      z.strictObject({ name: z.string().min(1).max(DATABANK_NAME_MAX), text: z.string().min(TEXT_MIN), destination: documentDestinationSchema.optional() }),
+    )
     .mutation(({ ctx, input }) =>
       ctx.services.databank.createFromText({ principal: ctx.auth, name: input.name, text: input.text, destination: input.destination }),
     ),
 
   scrapeWeb: authedProcedure
     .output(uploadResultSchema)
-    .input(z.object({ url: z.url(), destination: documentDestinationSchema.optional() }))
+    .input(z.strictObject({ url: z.url(), destination: documentDestinationSchema.optional() }))
     .mutation(({ ctx, input }) => ctx.services.databank.scrapeWeb({ principal: ctx.auth, url: input.url, destination: input.destination })),
 
   scrapeYoutube: authedProcedure
     .output(uploadResultSchema)
-    .input(z.object({ url: z.url(), lang: z.string().default("en"), destination: documentDestinationSchema.optional() }))
+    .input(z.strictObject({ url: z.url(), lang: z.string().default("en"), destination: documentDestinationSchema.optional() }))
     .mutation(({ ctx, input }) =>
       ctx.services.databank.scrapeYoutube({ principal: ctx.auth, url: input.url, lang: input.lang, destination: input.destination }),
     ),
 
   scrapeWiki: authedProcedure
     .output(uploadResultSchema)
-    .input(z.object({ url: z.url(), destination: documentDestinationSchema.optional() }))
+    .input(z.strictObject({ url: z.url(), destination: documentDestinationSchema.optional() }))
     .mutation(({ ctx, input }) => ctx.services.databank.scrapeWiki({ principal: ctx.auth, url: input.url, destination: input.destination })),
 
   get: authedProcedure
@@ -89,26 +92,29 @@ export const databankRouter = t.router({
 
   rename: authedProcedure
     .output(documentViewSchema.strict())
-    .input(z.object({ id: typeIdSchema(ID_PREFIX.document), name: z.string().min(1).max(DATABANK_NAME_MAX) }))
+    .input(z.strictObject({ id: typeIdSchema(ID_PREFIX.document), name: z.string().min(1).max(DATABANK_NAME_MAX) }))
     .mutation(({ ctx, input }) => ctx.services.databank.rename({ principal: ctx.auth, id: input.id, name: input.name })),
 
   remove: authedProcedure
-    .input(z.object({ id: typeIdSchema(ID_PREFIX.document) }))
+    .output(z.void())
+    .input(z.strictObject({ id: typeIdSchema(ID_PREFIX.document) }))
     .mutation(({ ctx, input }) => ctx.services.databank.remove({ principal: ctx.auth, id: input.id })),
 
   reindex: authedProcedure
     .output(reindexResultSchema)
-    .input(z.object({ scope: reindexScopeSchema, mode: reindexModeSchema.optional() }))
+    .input(strictTwin(z.strictObject({ scope: reindexScopeSchema, mode: reindexModeSchema.optional() })))
     .mutation(({ ctx, input }) =>
       ctx.services.databank.reindex({ principal: ctx.auth, scope: input.scope, ...(input.mode !== undefined ? { mode: input.mode } : {}) }),
     ),
 
   attachGlobal: authedProcedure
-    .input(z.object({ documentId: typeIdSchema(ID_PREFIX.document) }))
+    .output(z.void())
+    .input(z.strictObject({ documentId: typeIdSchema(ID_PREFIX.document) }))
     .mutation(({ ctx, input }) => ctx.services.databank.attachGlobal({ principal: ctx.auth, documentId: input.documentId })),
 
   detachGlobal: authedProcedure
-    .input(z.object({ documentId: typeIdSchema(ID_PREFIX.document) }))
+    .output(z.void())
+    .input(z.strictObject({ documentId: typeIdSchema(ID_PREFIX.document) }))
     .mutation(({ ctx, input }) => ctx.services.databank.detachGlobal({ principal: ctx.auth, documentId: input.documentId })),
 
   // D-1: the library row's `Everywhere` state as ONE read — the `worldInfo.listGlobal`
@@ -116,32 +122,36 @@ export const databankRouter = t.router({
   listGlobal: authedProcedure.output(z.array(documentIdSchema)).query(({ ctx }) => ctx.services.databank.listGlobal({ principal: ctx.auth })),
 
   attachToChat: authedProcedure
-    .input(z.object({ documentId: typeIdSchema(ID_PREFIX.document), chatId: typeIdSchema(ID_PREFIX.chat) }))
+    .output(z.void())
+    .input(z.strictObject({ documentId: typeIdSchema(ID_PREFIX.document), chatId: typeIdSchema(ID_PREFIX.chat) }))
     .mutation(({ ctx, input }) => ctx.services.databank.attachToChat({ principal: ctx.auth, documentId: input.documentId, chatId: input.chatId })),
 
   detachFromChat: authedProcedure
-    .input(z.object({ documentId: typeIdSchema(ID_PREFIX.document), chatId: typeIdSchema(ID_PREFIX.chat) }))
+    .output(z.void())
+    .input(z.strictObject({ documentId: typeIdSchema(ID_PREFIX.document), chatId: typeIdSchema(ID_PREFIX.chat) }))
     .mutation(({ ctx, input }) => ctx.services.databank.detachFromChat({ principal: ctx.auth, documentId: input.documentId, chatId: input.chatId })),
 
   attachToCharacter: authedProcedure
-    .input(z.object({ documentId: typeIdSchema(ID_PREFIX.document), characterId: typeIdSchema(ID_PREFIX.character) }))
+    .output(z.void())
+    .input(z.strictObject({ documentId: typeIdSchema(ID_PREFIX.document), characterId: typeIdSchema(ID_PREFIX.character) }))
     .mutation(({ ctx, input }) =>
       ctx.services.databank.attachToCharacter({ principal: ctx.auth, documentId: input.documentId, characterId: input.characterId }),
     ),
 
   detachFromCharacter: authedProcedure
-    .input(z.object({ documentId: typeIdSchema(ID_PREFIX.document), characterId: typeIdSchema(ID_PREFIX.character) }))
+    .output(z.void())
+    .input(z.strictObject({ documentId: typeIdSchema(ID_PREFIX.document), characterId: typeIdSchema(ID_PREFIX.character) }))
     .mutation(({ ctx, input }) =>
       ctx.services.databank.detachFromCharacter({ principal: ctx.auth, documentId: input.documentId, characterId: input.characterId }),
     ),
 
   listAttachments: authedProcedure
     .output(documentAttachmentsViewSchema)
-    .input(z.object({ id: typeIdSchema(ID_PREFIX.document) }))
+    .input(z.strictObject({ id: typeIdSchema(ID_PREFIX.document) }))
     .query(({ ctx, input }) => ctx.services.databank.listAttachments({ principal: ctx.auth, id: input.id })),
 
   listActiveForChat: authedProcedure
     .output(z.array(activeChatDocumentViewSchema))
-    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
+    .input(z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat) }))
     .query(({ ctx, input }) => ctx.services.databank.listActiveForChat({ principal: ctx.auth, chatId: input.chatId })),
 });

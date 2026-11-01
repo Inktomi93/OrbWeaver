@@ -14,7 +14,7 @@ import type { GenerationCapability } from "@orb/contracts/inference";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
-import { AlertTriangle, Icon } from "@orb/ui/icons";
+import { Icon, TriangleAlert } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -177,7 +177,7 @@ function EffectiveProfileFailure({ error, onRetry }: { readonly error: unknown; 
   return (
     <Card tone="warning" variant="soft">
       <Row align="start" gap="field" role="alert">
-        <Icon icon={AlertTriangle} size="sm" tone="warning" />
+        <Icon icon={TriangleAlert} size="sm" tone="warning" />
         <Stack gap="tight">
           <Text prose={true} voice="label">
             {copy.headline}

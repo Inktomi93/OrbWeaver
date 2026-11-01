@@ -3,7 +3,7 @@ import type { TagWithUsage } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { ColorSwatch } from "@orb/ui/color-field";
-import { Icon, Trash2 } from "@orb/ui/icons";
+import { Icon, Trash } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
 import { SortableList } from "@orb/ui/sortable";
@@ -268,7 +268,7 @@ function TagCollectionRow({
         name: tag.name,
         menuItemsAfter: (
           <MenuItem onClick={onDelete}>
-            <Icon icon={Trash2} size="sm" />
+            <Icon icon={Trash} size="sm" />
             Delete
           </MenuItem>
         ),

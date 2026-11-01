@@ -1,6 +1,7 @@
 // The connection's prompt-cache settings: a user preference, so its own column (`user_connections.prompt_cache`),
 // never a `declared.features` line (a statement about the server). NULL on the row is `SHIPPED_PROMPT_CACHE`,
 // which is byte-identical to the wire before the settings existed.
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import { z } from "zod";
 

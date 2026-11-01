@@ -1,7 +1,8 @@
 // Attachment reads remain member-gated and entry reads remain owner-gated.
 
+import type { PluginWorldInfoReads } from "@orb/contracts/plugin";
 import { PLUGIN_READ_CONTENT_MAX_CHARS } from "@orb/contracts/plugin";
-import type { PluginWorldInfoReadDeps, PluginWorldInfoReads } from "../contract/plugin-reads.ts";
+import type { PluginWorldInfoReadDeps } from "../contract/plugin-reads.ts";
 
 /** Reduce world-info reads after their owning membership and book gates. */
 

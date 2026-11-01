@@ -30,6 +30,7 @@ import {
 } from "@orb/contracts/workloads";
 
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
 import { requireOwner } from "#domain/admin";
 import { authedProcedure, t } from "../trpc.ts";
@@ -38,14 +39,16 @@ export const workloadsRouter = t.router({
   start: authedProcedure
     .output(workloadRefSchema)
     .input(
-      z.object({
-        input: startWorkloadEnvelope,
-        // The run mode (default singular). A bulk CREATE-kind additionally carries the mint target.
-        mode: workloadModeSchema.default("singular"),
-        targetOwnerId: brandedId("UserId").optional(),
-        dependsOn: z.array(typeIdSchema(ID_PREFIX.workload)).optional(),
-        scheduledAt: z.number().optional(),
-      }),
+      strictTwin(
+        z.strictObject({
+          input: startWorkloadEnvelope,
+          // The run mode (default singular). A bulk CREATE-kind additionally carries the mint target.
+          mode: workloadModeSchema.default("singular"),
+          targetOwnerId: brandedId("UserId").optional(),
+          dependsOn: z.array(typeIdSchema(ID_PREFIX.workload)).optional(),
+          scheduledAt: z.number().optional(),
+        }),
+      ),
     )
     .mutation(({ ctx, input }) => {
       // LAYER-1: a BULK run is BOX-OWNER-only. `requireOwner` throws FORBIDDEN for a non-owner; the verb
@@ -68,12 +71,14 @@ export const workloadsRouter = t.router({
   estimateModelCalls: authedProcedure
     .output(modelCallEstimateSchema)
     .input(
-      z.object({
-        input: startWorkloadEnvelope,
-        mode: workloadModeSchema.default("singular"),
-        targetOwnerId: brandedId("UserId").optional(),
-        assumeAdmitted: z.boolean().optional(),
-      }),
+      strictTwin(
+        z.strictObject({
+          input: startWorkloadEnvelope,
+          mode: workloadModeSchema.default("singular"),
+          targetOwnerId: brandedId("UserId").optional(),
+          assumeAdmitted: z.boolean().optional(),
+        }),
+      ),
     )
     .query(({ ctx, input }) => {
       if (input.mode === "bulk") {
@@ -91,17 +96,17 @@ export const workloadsRouter = t.router({
   // The size of a retry before a person confirms it: the clone's own row and owner, under `retry`'s gates.
   estimateRetryModelCalls: authedProcedure
     .output(modelCallEstimateSchema)
-    .input(z.object({ id: typeIdSchema(ID_PREFIX.workload) }))
+    .input(z.strictObject({ id: typeIdSchema(ID_PREFIX.workload) }))
     .query(({ ctx, input }) => ctx.services.workloads.estimateRetryModelCalls({ id: input.id, caller: ctx.auth })),
 
   cancel: authedProcedure
     .output(cancelWorkloadResultSchema)
-    .input(z.object({ id: typeIdSchema(ID_PREFIX.workload) }))
+    .input(z.strictObject({ id: typeIdSchema(ID_PREFIX.workload) }))
     .mutation(({ ctx, input }) => ctx.services.workloads.cancel({ id: input.id, caller: ctx.auth })),
 
   retry: authedProcedure
     .output(workloadRefSchema)
-    .input(z.object({ id: typeIdSchema(ID_PREFIX.workload) }))
+    .input(z.strictObject({ id: typeIdSchema(ID_PREFIX.workload) }))
     .mutation(({ ctx, input }) => ctx.services.workloads.retry({ id: input.id, caller: ctx.auth })),
 
   // Also the cross-tenant sweep's IDOR probe target (an id-taking read is what proves owner-scoping). It
@@ -110,7 +115,7 @@ export const workloadsRouter = t.router({
   // exemption is deleted rather than left standing as a false claim about who calls this.
   get: authedProcedure
     .output(workloadRowAnyKindSchema)
-    .input(z.object({ id: typeIdSchema(ID_PREFIX.workload) }))
+    .input(z.strictObject({ id: typeIdSchema(ID_PREFIX.workload) }))
     .query(({ ctx, input }) => ctx.services.workloads.get({ id: input.id, caller: ctx.auth })),
 
   list: authedProcedure
@@ -132,12 +137,14 @@ export const workloadsRouter = t.router({
   createSchedule: authedProcedure
     .output(workloadScheduleRefSchema)
     .input(
-      z.object({
-        input: startWorkloadEnvelope,
-        cadence: scheduleCadenceSchema,
-        mode: workloadModeSchema.default("singular"),
-        enabled: z.boolean().optional(),
-      }),
+      strictTwin(
+        z.strictObject({
+          input: startWorkloadEnvelope,
+          cadence: scheduleCadenceSchema,
+          mode: workloadModeSchema.default("singular"),
+          enabled: z.boolean().optional(),
+        }),
+      ),
     )
     .mutation(({ ctx, input }) => {
       if (input.mode === "bulk") {
@@ -156,12 +163,14 @@ export const workloadsRouter = t.router({
   updateSchedule: authedProcedure
     .output(workloadScheduleViewSchema)
     .input(
-      z.object({
-        id: typeIdSchema(ID_PREFIX.workloadSchedule),
-        input: startWorkloadEnvelope.optional(),
-        cadence: scheduleCadenceSchema.optional(),
-        mode: workloadModeSchema.optional(),
-      }),
+      strictTwin(
+        z.strictObject({
+          id: typeIdSchema(ID_PREFIX.workloadSchedule),
+          input: startWorkloadEnvelope.optional(),
+          cadence: scheduleCadenceSchema.optional(),
+          mode: workloadModeSchema.optional(),
+        }),
+      ),
     )
     .mutation(({ ctx, input }) => {
       if (input.mode === "bulk") {
@@ -177,12 +186,13 @@ export const workloadsRouter = t.router({
     }),
 
   deleteSchedule: authedProcedure
-    .input(z.object({ id: typeIdSchema(ID_PREFIX.workloadSchedule) }))
+    .output(z.void())
+    .input(z.strictObject({ id: typeIdSchema(ID_PREFIX.workloadSchedule) }))
     .mutation(({ ctx, input }) => ctx.services.workloads.deleteSchedule({ id: input.id, caller: ctx.auth })),
 
   setScheduleEnabled: authedProcedure
     .output(workloadScheduleViewSchema)
-    .input(z.object({ id: typeIdSchema(ID_PREFIX.workloadSchedule), enabled: z.boolean() }))
+    .input(z.strictObject({ id: typeIdSchema(ID_PREFIX.workloadSchedule), enabled: z.boolean() }))
     .mutation(({ ctx, input }) =>
       ctx.services.workloads.setScheduleEnabled({
         id: input.id,

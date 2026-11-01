@@ -17,8 +17,9 @@
 
 import type { MemoryRecallCandidate, MemoryRecallSlice, MemoryRecallVerdict } from "@orb/contracts/chat";
 import { MEMORY_RECALL_REJECTS_SHOWN } from "@orb/contracts/chat";
-import type { BlockKey, ScoredBlock } from "@orb/contracts/search";
+import type { ScoredBlock } from "@orb/contracts/search";
 import type { CharacterId } from "@orb/kit/ids";
+import type { BlockKey } from "@orb/kit/recall";
 import { blockKeyStr, computeBridge, formatMemory, inLiveWindow } from "@orb/kit/recall";
 import type { ChatContext } from "#src/domain/chat/contract/context.ts";
 import type { RecallMemoryArgs } from "../../contract/memory.ts";

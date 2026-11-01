@@ -1,13 +1,13 @@
 // Image normalization contracts stay with the sealed adapter and contain no sharp implementation types.
 
 /** Container formats accepted by the image adapter. */
-export const IMAGE_FORMATS = ["webp", "png", "jpeg"] as const;
+export const IMAGE_FORMATS = ["webp", "png"] as const;
 
 export type ImageFormat = (typeof IMAGE_FORMATS)[number];
 
 /** Options for {@link ImageAdapter.transform}. `width` is OPTIONAL: omit it to normalize/strip metadata
  *  without resizing (e.g. sanitizing an uploaded original); supply an already-snapped width to produce a
- *  variant. `format` defaults to webp; `quality` applies to the lossy encoders (webp/jpeg). */
+ *  variant. `format` defaults to webp; `quality` applies to the lossy encoder (webp). */
 export interface ImageTransformOptions {
   /** Target width in px (already snapped to the domain's ladder). Omitted ⇒ no resize. Never enlarges. */
   width?: number;
@@ -24,18 +24,8 @@ export interface ImageTransformOptions {
    *  exists at all, not a stylistic choice). */
   position?: "attention";
   format?: ImageFormat;
-  /** Lossy-encoder quality 1–100 (webp/jpeg). */
+  /** Lossy-encoder quality 1–100 (webp). */
   quality?: number;
-}
-
-/** Decoded image dimensions/format — the return of {@link ImageAdapter.probe}. */
-export interface ImageInfo {
-  /** The detected container format (e.g. `"png"`, `"jpeg"`, `"webp"`). */
-  format: string;
-  /** Decoded pixel width. */
-  width: number;
-  /** Decoded pixel height. */
-  height: number;
 }
 
 /** The sharp image adapter. `entry/` constructs it once and injects `transform` into
@@ -45,7 +35,4 @@ export interface ImageAdapter {
   frameCount: (bytes: Uint8Array) => Promise<number>;
   /** Decode → auto-orient → optional resize → re-encode, stripping all metadata. Rejects non-images. */
   transform: (bytes: Uint8Array, opts?: ImageTransformOptions) => Promise<Uint8Array>;
-  /** Decode just the header to report format + dimensions. Rejects (throws) on non-image bytes — the
-   *  validation seam for an upload that must be a real raster image. */
-  probe: (bytes: Uint8Array) => Promise<ImageInfo>;
 }

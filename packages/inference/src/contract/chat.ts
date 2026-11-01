@@ -2,19 +2,17 @@
 // the runtime handed it and calls the executor; it never sees sessions, seed frames, child env or transport
 // spelling. Discriminated on `api` (the protocol axis) — never on a wire or a provider id.
 
-import type { ChatContentPart, TextSignature, VariantProviderMetadata } from "@orb/contracts/chat";
+import type { ChatContentPart, ChatDeltaEvent, TextSignature, VariantProviderMetadata } from "@orb/contracts/chat";
 import type { AttachmentQuality, ChatApi, ChatUsage, NormalizedFinishReason } from "@orb/contracts/inference";
 import type { EffortLevel, ReasoningTagPair, ResponseCacheControl, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { ZodRawShape } from "zod";
-import type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events.ts";
+import type { ChatEvent, RateLimitSnapshot } from "./events.ts";
 import type { GeneratedImage } from "./generation.ts";
 import type { Resolved } from "./resolved.ts";
 import type { ChatPosture } from "./side-gen.ts";
-
-export type { ResponseFormat } from "@orb/contracts/role-clients";
 
 // Deliberately not kit MESSAGE_ROLES: `tool` exists only between the engine request seam and a converter;
 // `system` normally rides `systemPrompt` — the ONE exception is a capability-kept mid-conversation system
@@ -93,7 +91,7 @@ export interface ChatToolExecution {
  *  every decision about what happens after a call, whichever side drives the loop. */
 export interface ChatToolOffer {
   readonly definitions: readonly ChatToolDefinition[];
-  readonly execute: (call: ToolCallInput) => Promise<ChatToolExecution>;
+  readonly execute: (call: Pick<ToolCallInput, "toolCallId" | "name" | "arguments">) => Promise<ChatToolExecution>;
   /** The round ceiling a backend that owns the loop enforces. A caller-owned loop enforces its own. */
   readonly turnLimit: number;
 }
@@ -240,7 +238,6 @@ export type ChatTurnInput = ChatRequestCommon & {
  * chat turn. The format passes through untouched — the backend plans how it rides.
  */
 export interface StructuredChatInput {
-  readonly onObservedResult?: GenerationObservationCallback | undefined;
   readonly connection: Resolved<"chat">;
   /** The wire-capture correlation key; only the backends whose request carries a chat id stamp it. */
   readonly chatId: ChatId;

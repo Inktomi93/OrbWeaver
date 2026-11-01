@@ -8,6 +8,7 @@ import {
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  connectDevice,
   createCorpusProviderExecution,
   createServerHarness,
   seedCorpusActors,
@@ -37,7 +38,7 @@ test("a real member continuation restores the exact canonical snapshot through t
   const invitation = await root.services.chat.createInvite({ principal: owner, chatId, input: { invitedHandle: member.handle } });
   await root.services.chat.acceptInvite({ principal: member, inviteId: invitation.invite.id });
   const presence = new AbortController();
-  root.app.presence.connect(owner.userId, presence.signal);
+  await connectDevice(root, owner.userId, presence.signal);
   try {
     const first = await root.services.chat.send({ principal: owner, chatId, content: "Begin the role receipt." });
     const reply = first.messages.find(({ role }) => role === "assistant");

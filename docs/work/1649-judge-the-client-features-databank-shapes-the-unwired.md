@@ -27,4 +27,6 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+1 row: applied 0, kept 1, handed off 0, owner question 0. No code changed.
+
+- `DatabankRenameDialogProps` / `PresetRenameDialogProps`: kept. Each is the prop contract of its own component and each is used only in its own file (ast-grep inline rule, `-l ts` and `-l tsx`, `packages tests`, 5199 ts and 1450 tsx files scanned; 2 hits each, declaration and use). The shapes are equal, but the databank feature cannot import from the preset feature (sideways import), and a third home in `#components` for four fields would be an abstraction for two callers. The honest duplicate is the two dialog components, not the type; merging them is a component design call outside this row.

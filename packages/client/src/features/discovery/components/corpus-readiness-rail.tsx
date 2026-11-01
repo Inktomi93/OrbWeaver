@@ -29,6 +29,9 @@
 // so the dedupe is the same read and a run started from either place is visible from both; while a run holds
 // the floor the button gives way to the stage sentence at the rail's own datum weight (a progress BAR here
 // would be a second box on a deliberately boxless grouping, CD1).
+//
+// EVERY ROW ALSO STATES WHAT ITS PASS NEEDS AND OFFERS THAT PASS ALONE (`lib/corpus-readiness-passes.ts`). Those
+// doors are quiet outline or ghost controls in both phases, so the one primary above stays the only solid door.
 
 import { Button } from "@orb/ui/button";
 import { Check, Circle, Icon } from "@orb/ui/icons";
@@ -36,11 +39,15 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { ModelRunConfirmDialog, useUtilityModel } from "#components";
+import { ModelRunConfirmDialog, UtilityModelDoor, useUtilityModel } from "#components";
 import { QueryErrorState } from "#data";
 import { openConfigTo } from "#state";
+import type { ReadinessPassesView } from "../hooks/use-readiness-passes.ts";
+import { useReadinessPasses } from "../hooks/use-readiness-passes.ts";
 import { useUnderstandingPass, useUnderstandingPassTail } from "../hooks/use-understanding-pass.ts";
-import type { CorpusReadinessStage } from "../lib/corpus-analysis-state.ts";
+import type { CorpusReadinessStage, CorpusReadinessStageId } from "../lib/corpus-analysis-state.ts";
+import type { ReadinessAction } from "../lib/corpus-readiness-passes.ts";
+import { READINESS_PASSES } from "../lib/corpus-readiness-passes.ts";
 import { UnderstandingPassUtilityNote } from "./understanding-pass-utility-note.tsx";
 
 export interface CorpusReadinessRailProps {
@@ -54,6 +61,7 @@ export interface CorpusReadinessRailProps {
 }
 
 export function CorpusReadinessRail({ stages, showRerun, queue }: CorpusReadinessRailProps): ReactElement {
+  const passes = useReadinessPasses();
   return (
     // THE ROWS KEEP THEIR OWN PITCH, AND THE ISLAND OWNS THE LEFTOVER (side-eye corpus re-pass #2,
     // 2026-08-19 P2-1 — this REVERSES the distribute that landed hours earlier, and both readings are kept).
@@ -88,28 +96,23 @@ export function CorpusReadinessRail({ stages, showRerun, queue }: CorpusReadines
           // the two cannot share one, the label keeps its intrinsic width (no `truncate`), and the datum
           // keeps `shrink-0` so a measurement never breaks mid-number. At every width both facts are whole;
           // what varies is how many lines the row spends, which is the honest thing to trade.
-          <Row
-            align="center"
-            className="flex-wrap py-field"
-            divider="between"
-            data-slot="readiness-stage"
-            gap="row"
-            justify="between"
-            key={stage.id}
-            role="listitem"
-          >
-            <Row className="min-inline-0" gap="field">
-              <Icon {...(stage.done ? ({ tone: "primary" } as const) : ({ ink: "muted" } as const))} icon={stage.done ? Check : Circle} size="xs" />
-              <Text as="span" className="min-inline-0" voice="label">
-                {stage.label}
+          <Stack className="py-field" data-slot="readiness-stage" divider="between" gap="tight" key={stage.id} role="listitem">
+            <Row align="center" className="flex-wrap" gap="row" justify="between">
+              <Row className="min-inline-0" gap="field">
+                <Icon {...(stage.done ? ({ tone: "primary" } as const) : ({ ink: "muted" } as const))} icon={stage.done ? Check : Circle} size="xs" />
+                <Text as="span" className="min-inline-0" voice="label">
+                  {stage.label}
+                </Text>
+              </Row>
+              <Text as="span" className="shrink-0" ink={stage.done ? undefined : "muted"} voice="datum">
+                {stage.datum}
               </Text>
             </Row>
-            <Text as="span" className="shrink-0" ink={stage.done ? undefined : "muted"} voice="datum">
-              {stage.datum}
-            </Text>
-          </Row>
+            <ReadinessPassLine passes={passes} stage={stage.id} />
+          </Stack>
         ))}
       </Stack>
+      <ModelRunConfirmDialog {...passes.confirm} />
       {/* THE READ BEHIND THE RAIL'S OWN VERDICTS, WHEN IT BROKE (#1546). Three of the five rows read
           "unknown" in this state, which is honest but inert on its own — the reader is owed what could not
           be asked and a way to ask again. It sits UNDER the rows and above the re-run for the reason the
@@ -204,5 +207,52 @@ function CorpusReadinessRerun(): ReactElement {
         All jobs in Settings → Jobs
       </Button>
     </Stack>
+  );
+}
+
+interface ReadinessDoorProps {
+  readonly stage: CorpusReadinessStageId;
+  readonly passes: ReadinessPassesView;
+}
+
+/** Each door state's control. Total over {@link ReadinessAction}, so a new state fails to compile until it has one. */
+const READINESS_DOORS: Record<ReadinessAction, (props: ReadinessDoorProps) => ReactElement | null> = {
+  running: () => (
+    <Text as="span" ink="muted" voice="datum">
+      Running
+    </Text>
+  ),
+  "box-owner-only": () => (
+    <Text as="span" ink="muted" voice="gloss">
+      The box owner runs this pass
+    </Text>
+  ),
+  // The visible "Turn on" leads the accessible name, so speech input still matches what the reader sees.
+  "turn-on-memory": () => (
+    <Button aria-label="Turn on chat memory" ink="muted" onClick={(): void => openConfigTo("chat-behavior", "memory")} size="sm" variant="ghost">
+      Turn on
+    </Button>
+  ),
+  "pick-helper-model": () => <UtilityModelDoor />,
+  // The gating reads have not answered; a door that might be the wrong one waits for them.
+  settling: () => null,
+  run: ({ stage, passes }) => (
+    <Button disabled={passes.starting} onClick={(): void => passes.start(stage)} size="sm" variant="outline">
+      {READINESS_PASSES[stage].runLabel}
+    </Button>
+  ),
+};
+
+/** A row's second line: what its pass needs, and the door that pass offers right now. */
+function ReadinessPassLine({ stage, passes }: ReadinessDoorProps): ReactElement {
+  const action = passes.actionFor(stage);
+  const Door = READINESS_DOORS[action];
+  return (
+    <Row align="center" className="flex-wrap" data-pass-action={action} data-slot="readiness-pass" gap="field" justify="between">
+      <Text ink="muted" voice="gloss">
+        {READINESS_PASSES[stage].needs}
+      </Text>
+      <Door passes={passes} stage={stage} />
+    </Row>
   );
 }

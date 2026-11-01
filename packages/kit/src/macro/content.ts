@@ -51,11 +51,6 @@ export function swapIdentityMacros(text: string, mapping: IdentityMapping): stri
   return text.replace(IDENTITY_MACRO_RE, (_match, token: string) => (token.toLowerCase() === "char" ? mapping.char : mapping.user));
 }
 
-export interface TrimContentOptions {
-  /** `false` skips the indent-dedent (the ends are still trimmed). Default `true`. */
-  trimIndent?: boolean;
-}
-
 // Leading run of indentation characters (spaces/tabs) — counted per line for the common-dedent.
 function indentWidth(line: string): number {
   let i = 0;
@@ -70,24 +65,22 @@ function indentWidth(line: string): number {
  *  both ends. Blank lines don't vote on the common indent (they'd force it to 0) and dedent to at most
  *  their own width. Dedent counts CHARACTERS (space or tab), not visual columns — a body mixing tabs and
  *  spaces across lines dedents by the shorter run, never eats a non-whitespace char. */
-export function trimContent(content: string, opts: TrimContentOptions = {}): string {
+export function trimContent(content: string): string {
   let text = content;
-  if (opts.trimIndent !== false) {
-    const lines = text.split("\n");
-    let common = Number.POSITIVE_INFINITY;
-    for (let i = 1; i < lines.length; i += 1) {
-      const line = lines[i] ?? "";
-      if (line.trim() === "") {
-        continue;
-      }
-      const width = indentWidth(line);
-      if (width < common) {
-        common = width;
-      }
+  const lines = text.split("\n");
+  let common = Number.POSITIVE_INFINITY;
+  for (let i = 1; i < lines.length; i += 1) {
+    const line = lines[i] ?? "";
+    if (line.trim() === "") {
+      continue;
     }
-    if (Number.isFinite(common) && common > 0) {
-      text = lines.map((line, i) => (i === 0 ? line : line.slice(Math.min(common, indentWidth(line))))).join("\n");
+    const width = indentWidth(line);
+    if (width < common) {
+      common = width;
     }
+  }
+  if (Number.isFinite(common) && common > 0) {
+    text = lines.map((line, i) => (i === 0 ? line : line.slice(Math.min(common, indentWidth(line))))).join("\n");
   }
   return text.trim();
 }

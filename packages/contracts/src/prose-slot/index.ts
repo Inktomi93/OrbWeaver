@@ -5,6 +5,7 @@
 // `no-circular` cycle (`#prose` → `#preset` → `#prose`). Consumers import `@orb/contracts/prose`, which
 // re-exports everything here — only the domain slot TABLES import this module directly.
 //
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import { isPlainObject } from "@orb/kit/guards";
 import { z } from "zod";

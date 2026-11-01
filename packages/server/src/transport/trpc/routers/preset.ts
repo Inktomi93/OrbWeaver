@@ -18,6 +18,7 @@ import {
   resolveEffectivePresetInputSchema,
 } from "@orb/contracts/preset";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
@@ -30,11 +31,13 @@ export const presetRouter = t.router({
   create: authedProcedure
     .output(presetDetailSchema)
     .input(
-      z.object({
-        name: z.string().min(1),
-        kind: z.string().min(1),
-        config: promptConfigWriteSchema.optional(),
-      }),
+      strictTwin(
+        z.strictObject({
+          name: z.string().min(1),
+          kind: z.string().min(1),
+          config: promptConfigWriteSchema.optional(),
+        }),
+      ),
     )
     .mutation(({ ctx, input }) =>
       ctx.services.preset.create({
@@ -55,31 +58,34 @@ export const presetRouter = t.router({
   update: authedProcedure
     .output(presetDetailSchema)
     .input(
-      z.object({
-        id: typeIdSchema(ID_PREFIX.preset),
-        name: z.string().min(1).optional(),
-        kind: z.string().min(1).optional(),
-        config: promptConfigWriteSchema.optional(),
-        // The copy-on-write fork intent (only meaningful when `id` is the system default) — absent means
-        // `converge`, the historical silent behavior. `name` is required and non-empty on the "new" arm so a
-        // nameless mint is unrepresentable; the verb de-collides it (`nextFreeName`).
-        fork: z
-          .discriminatedUnion("mode", [z.object({ mode: z.literal("converge") }), z.object({ mode: z.literal("new"), name: z.string().min(1) })])
-          .optional(),
-      }),
+      strictTwin(
+        z.strictObject({
+          id: typeIdSchema(ID_PREFIX.preset),
+          name: z.string().min(1).optional(),
+          config: promptConfigWriteSchema.optional(),
+          // The copy-on-write fork intent (only meaningful when `id` is the system default) — absent means
+          // `converge`, the historical silent behavior. `name` is required and non-empty on the "new" arm so a
+          // nameless mint is unrepresentable; the verb de-collides it (`nextFreeName`).
+          fork: z
+            .discriminatedUnion("mode", [z.strictObject({ mode: z.literal("converge") }), z.strictObject({ mode: z.literal("new"), name: z.string().min(1) })])
+            .optional(),
+        }),
+      ),
     )
     .mutation(({ ctx, input }) =>
       ctx.services.preset.update({
         userId: ctx.auth.userId,
         id: input.id,
         ...(input.name !== undefined ? { name: input.name } : {}),
-        ...(input.kind !== undefined ? { kind: input.kind } : {}),
         ...(input.config !== undefined ? { config: input.config } : {}),
         ...(input.fork !== undefined ? { fork: input.fork } : {}),
       }),
     ),
 
-  remove: authedProcedure.input(presetIdInputSchema).mutation(({ ctx, input }) => ctx.services.preset.remove({ userId: ctx.auth.userId, id: input.id })),
+  remove: authedProcedure
+    .output(z.void())
+    .input(presetIdInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.preset.remove({ userId: ctx.auth.userId, id: input.id })),
 
   resetToDefault: authedProcedure
     .output(presetDetailSchema)
@@ -107,6 +113,6 @@ export const presetRouter = t.router({
   // so the merge/collision semantics are the bundle's by construction. The file is UTF-8 JSON text.
   importFile: authedProcedure
     .output(presetImportOutcomeSchema)
-    .input(z.object({ fileText: z.string().max(MAX_PRESET_FILE_CHARS) }))
+    .input(z.strictObject({ fileText: z.string().max(MAX_PRESET_FILE_CHARS) }))
     .mutation(({ ctx, input }) => ctx.services.preset.importFile({ userId: ctx.auth.userId, fileText: input.fileText })),
 });

@@ -7,6 +7,7 @@
 
 import type { AssetId, CharacterId, ChatId, DocumentChunkId, DocumentId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import type { BlockKey } from "@orb/kit/recall";
 import { z } from "zod";
 import type { ImageLens } from "../embeddings/index.ts";
 import { imageLensSchema } from "../embeddings/index.ts";
@@ -27,18 +28,6 @@ const SEARCH_SUGGEST_MAX_LIMIT = 100;
  *  top-N over a growing embedding corpus — just spelled `topN`; an over-bound ask is a BAD_REQUEST rather
  *  than an unbounded ranked fetch. Clients ask ≤ 20. */
 export const SEARCH_TOP_N_MAX = 200;
-
-/** The block-level identity of one digest/segment block. `search.corpus` dedupes ranked blocks by this
- *  key, and `memory`'s tiered bridge passes the surviving keys as `MemoryQueryOptions.candidates`.
- *  `scopedCharacterId` carries the egocentric POV: two scoped-group characters can produce digests for
- *  the SAME `(chatId, tier, blockIdx)` from different POVs, so it's part of the key — always a real
- *  branded `CharacterId`, never `''` or null. */
-export interface BlockKey {
-  chatId: ChatId;
-  tier: number;
-  blockIdx: number;
-  scopedCharacterId: CharacterId;
-}
 
 /** ONE RANKED BLOCK as retrieval hands it back across the domain seam — the block's identity plus BOTH
  *  ranking readouts, so a caller that has to EXPLAIN a result (memory's recall trace, #250) is not left
@@ -483,21 +472,21 @@ const SEARCH_TARGETS = ["entities", "characters", "discover", "segments", "diges
 export type SearchTarget = (typeof SEARCH_TARGETS)[number];
 
 const searchScopeInputSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("owner") }),
-  z.object({
+  z.strictObject({ kind: z.literal("owner") }),
+  z.strictObject({
     kind: z.literal("chat"),
     chatId: typeIdSchema(ID_PREFIX.chat),
     scopedCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
   }),
-  z.object({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
+  z.strictObject({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
 ]) satisfies z.ZodType<SearchScope>;
 
-const similarCharactersInput = z.object({
+const similarCharactersInput = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   topN: z.int().positive().max(SEARCH_TOP_N_MAX),
 });
 
-export const unifiedSearchInputSchema = z.object({
+export const unifiedSearchInputSchema = z.strictObject({
   query: z.string().min(1),
   topN: z.int().positive().max(SEARCH_TOP_N_MAX),
   over: z.enum(SEARCH_TARGETS),
@@ -506,9 +495,9 @@ export const unifiedSearchInputSchema = z.object({
   lens: imageLensSchema.optional(),
 });
 
-export const fieldSearchInputSchema = z.object({ query: z.string().min(1), topN: z.int().positive().max(SEARCH_TOP_N_MAX) });
+export const fieldSearchInputSchema = z.strictObject({ query: z.string().min(1), topN: z.int().positive().max(SEARCH_TOP_N_MAX) });
 
-export const searchSuggestInputSchema = z.object({ query: z.string().min(1), limit: z.int().positive().max(SEARCH_SUGGEST_MAX_LIMIT) });
+export const searchSuggestInputSchema = z.strictObject({ query: z.string().min(1), limit: z.int().positive().max(SEARCH_SUGGEST_MAX_LIMIT) });
 
 export const similarArtInputSchema = similarCharactersInput.extend({
   lens: imageLensSchema.optional(),

@@ -266,10 +266,10 @@ test.describe("maintained browser boundaries", () => {
     expect(await frameFingerprint(page.locator("#first"))).toBe("50:70:90");
     expect(await frameFingerprintPair(page.locator("#first, #second"))).toEqual(["50:70:90", "3:5:7"]);
     expect(await frameFingerprint(page.locator("#occupied"))).toBe("no-ctx");
-    await expect(frameFingerprintPair(page.locator("#absent"))).rejects.toThrow();
-    await expect(frameFingerprintPair(page.locator("#first"))).rejects.toThrow();
-    await expect(frameFingerprintPair(page.locator("canvas"))).rejects.toThrow();
-    await expect(frameFingerprint(page.locator("#not-canvas"))).rejects.toThrow();
+    await expect(frameFingerprintPair(page.locator("#absent"))).rejects.toThrow("expected exactly 2 canvases");
+    await expect(frameFingerprintPair(page.locator("#first"))).rejects.toThrow("expected exactly 2 canvases");
+    await expect(frameFingerprintPair(page.locator("canvas"))).rejects.toThrow("expected exactly 2 canvases");
+    await expect(frameFingerprint(page.locator("#not-canvas"))).rejects.toThrow("expected a canvas element");
   });
 
   test("canvas bands preserve backing-store coordinates, alpha counts and native DPR", async ({ page }) => {
@@ -293,8 +293,8 @@ test.describe("maintained browser boundaries", () => {
     expect(band).toEqual({ widthPx: 3, bandHeightPx: 2, dpr: 2, columnInk: [2, 1, 0], dominantColor: "255,0,0" });
     expect(solidColumns(band)).toEqual([0]);
     expect(lastInkColumn(band)).toBe(1);
-    await expect(readCanvasBandInk(page.locator("#occupied"), 0, 1)).rejects.toThrow();
-    await expect(readCanvasBandInk(page.locator("#not-canvas"), 0, 1)).rejects.toThrow();
+    await expect(readCanvasBandInk(page.locator("#occupied"), 0, 1)).rejects.toThrow("has no 2d context");
+    await expect(readCanvasBandInk(page.locator("#not-canvas"), 0, 1)).rejects.toThrow("expected a canvas element");
   });
 
   test("name cloning removes descriptions and hidden text without changing the source control", async ({ page }) => {
@@ -340,7 +340,7 @@ test.describe("maintained browser boundaries", () => {
     await sink.evaluate((node) => {
       node.textContent = "{";
     });
-    await expect(readAutosaveStatusTranscript(page)).rejects.toThrow();
+    await expect(readAutosaveStatusTranscript(page)).rejects.toThrow("JSON");
     await sink.evaluate((node) => {
       node.remove();
     });

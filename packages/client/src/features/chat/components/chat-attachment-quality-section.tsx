@@ -3,16 +3,13 @@ import { DEFAULT_ATTACHMENT_QUALITY } from "@orb/contracts/inference";
 import { Row, Section } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, SettingTrackRow } from "#components";
+import type { SectionPatchVars } from "#data";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
 import { ATTACHMENT_QUALITY_LABELS, ATTACHMENT_QUALITY_SUBCATEGORY, IMAGE_DETAIL_ITEMS, VIDEO_RESOLUTION_ITEMS } from "../lib/chat-attachment-quality-model.ts";
 
-interface QualityUpdate {
-  readonly section: "chat";
-  readonly patch: { readonly attachmentQuality: AttachmentQuality };
-}
-const useUpdateQuality = createEntityMutation<QualityUpdate, unknown>({
+const useUpdateQuality = createEntityMutation<SectionPatchVars<"chat">, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't save your attachment quality.",

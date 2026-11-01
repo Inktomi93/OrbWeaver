@@ -2,6 +2,7 @@
 import { setTimeout as physicalDelay } from "node:timers/promises";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import { MS_PER_SECOND } from "@orb/kit/time";
 import { seedCorpusConnections } from "../corpus-actors.ts";
 import {
@@ -91,8 +92,8 @@ test("native cancellation outputs distinguish queued, running and terminal work 
       ownerId: principal.userId,
       funderUserId: principal.userId,
     });
-    await expect(service.get({ caller: foreign, id: active.id })).rejects.toThrow();
-    await expect(service.cancel({ caller: foreign, id: active.id })).rejects.toThrow();
+    await expect(service.get({ caller: foreign, id: active.id })).rejects.toThrow(DomainNotFoundError);
+    await expect(service.cancel({ caller: foreign, id: active.id })).rejects.toThrow(DomainNotFoundError);
     expect(await service.cancel({ caller: principal, id: active.id })).toEqual({ status: "cancelling" });
     expect(await service.get({ caller: principal, id: active.id })).toMatchObject({ id: active.id, status: "cancelling", ownerId: principal.userId });
   } finally {

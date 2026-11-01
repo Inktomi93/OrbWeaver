@@ -1,10 +1,11 @@
+import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Page, TestInfo } from "@playwright/test";
 import { attachNativeFile } from "../node/native-attachments.ts";
 import type { SurfacePaneRequest } from "../node/surface-audit.ts";
 
 /** Preserve the requested layout separately from the shell's resolved modes, capabilities, and actual content box. */
 export async function surfaceTopology(info: TestInfo, { page, requested }: { readonly page: Page; readonly requested: SurfacePaneRequest }): Promise<void> {
-  const actual = await page.locator(".shell-grid").evaluate((grid) => {
+  const actual = await page.locator(".shell-grid").evaluate((grid, pointerCoarse) => {
     const content = grid.querySelector<HTMLElement>(".shell-content");
     const list = grid.querySelector<HTMLElement>('.shell-panel[data-panel-side="list"]');
     const context = grid.querySelector<HTMLElement>('.shell-panel[data-panel-side="context"]');
@@ -41,12 +42,12 @@ export async function surfaceTopology(info: TestInfo, { page, requested }: { rea
     const box = content.getBoundingClientRect();
     return {
       section: grid.getAttribute("data-section"),
-      viewport: { width: innerWidth, height: innerHeight, coarsePointer: matchMedia("(pointer: coarse)").matches },
+      viewport: { width: innerWidth, height: innerHeight, coarsePointer: matchMedia(pointerCoarse).matches },
       list: panel(list),
       context: panel(context),
       content: { x: box.x, y: box.y, width: box.width, height: box.height, inert: content.inert, display: getComputedStyle(content).display },
       gridTemplateColumns: getComputedStyle(grid).gridTemplateColumns,
     };
-  });
+  }, MEDIA_QUERIES["pointer-coarse"]);
   await attachNativeFile(info, info, "pane-topology", { body: JSON.stringify({ requested, actual }, null, 2), contentType: "application/json" });
 }

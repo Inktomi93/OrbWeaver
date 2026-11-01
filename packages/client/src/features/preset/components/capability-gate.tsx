@@ -35,7 +35,7 @@
 // construction a read that has not landed.
 
 import { Card } from "@orb/ui/card";
-import { AlertTriangle, Icon } from "@orb/ui/icons";
+import { Icon, TriangleAlert } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -87,7 +87,7 @@ export function CapabilityGate({ error }: CapabilityGateProps): ReactElement {
     <Section kicker="Sampling · reasoning · output">
       <Card tone="warning" variant="soft">
         <Row align="start" gap="field">
-          <Icon icon={AlertTriangle} size="sm" tone="warning" />
+          <Icon icon={TriangleAlert} size="sm" tone="warning" />
           <Stack gap="tight">
             <Text prose={true} voice="label">
               {routing

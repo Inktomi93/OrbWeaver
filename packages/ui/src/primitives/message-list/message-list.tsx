@@ -1,5 +1,4 @@
 import type { ScrollMode } from "@orb/kit/scroll-mode";
-import type { Range } from "@tanstack/react-virtual";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
@@ -14,10 +13,10 @@ import { MESSAGE_LIST_ROW_SLOT, useRowRoving } from "./row-roving.ts";
 
 // Chat rows are tall and expensive Markdown trees. Two rows covers a fast scroll gesture without parsing
 // multiple offscreen viewports of multi-kilobyte messages during cold room entry.
-const DEFAULT_OVERSCAN = 2;
+const OVERSCAN = 2;
 
 // 80px reads as "pinned to end" for real content; the library's 1px default is too tight for sub-pixel rounding.
-const DEFAULT_SCROLL_END_THRESHOLD_PX = 80;
+const SCROLL_END_THRESHOLD_PX = 80;
 
 // Tolerance for matching virtual-core's own last scrollTop write vs. a genuine external scroll.
 const PROGRAMMATIC_SCROLL_EPSILON_PX = 2;
@@ -43,8 +42,6 @@ export interface MessageListProps<T> {
   readonly getItemKey: RowRovingOptions<T>["getItemKey"];
   /** Initial size guess per row (px, main axis) — rows re-measure themselves after mount. */
   readonly estimateSize: (index: number) => number;
-  /** Rows rendered beyond the visible window on each side; default is deeper than virtual-list's. */
-  readonly overscan?: number;
   /** Gap between rows as a spacing intent token. */
   readonly gapToken?: GapToken;
   /** Block-axis breathing INSIDE the scroll content (virtual-core `paddingStart`/`paddingEnd`), as a
@@ -52,8 +49,6 @@ export interface MessageListProps<T> {
    *  resolves against the scroller's CONTENT box, so container padding pinned the sticky band below the
    *  visible top over a guillotined strip of its own prose (#204). Same token map as `gapToken`. */
   readonly blockPaddingToken?: GapToken;
-  /** How close to the true end (px) still counts as "pinned" for `followOnAppend`. */
-  readonly scrollEndThreshold?: number;
   /**
    * Keep the tail pinned as content resizes while the reader is at the bottom, not just on append.
    * Default `true` — a just-sent message + streaming ghost re-measure far past their `estimateSize`
@@ -68,21 +63,11 @@ export interface MessageListProps<T> {
    */
   readonly scrollMode?: ScrollMode;
   /**
-   * Low-level index-space override for the rendered range. Composes as the base window when
-   * `keepMounted` is also set; the library default otherwise.
-   */
-  readonly rangeExtractor?: (range: Range) => number[];
-  /**
    * Predicate naming which items must stay mounted as real DOM nodes even off-screen — for stateful
    * rows (edit-in-place, a Tier-B `sandbox-frame` iframe). Cap the matched set; heavy pinning defeats
    * virtualization.
    */
   readonly keepMounted?: (item: T) => boolean;
-  /**
-   * Passthrough for virtual-core's measurement-cache freeze — a static bypass a caller must toggle
-   * live (e.g. an `<Activity>`-hidden pane, whose collapse would otherwise wipe measured heights).
-   */
-  readonly useCachedMeasurements?: boolean;
   /**
    * `"none"` (default) leaves every row's controls in the document tab order — right for a short,
    * bounded log. `"roving"` makes the WHOLE list one tab stop (see `row-roving.ts` for the why and the
@@ -109,15 +94,11 @@ export function MessageList<T>({
   items,
   getItemKey,
   estimateSize,
-  overscan = DEFAULT_OVERSCAN,
   gapToken,
   blockPaddingToken,
-  scrollEndThreshold = DEFAULT_SCROLL_END_THRESHOLD_PX,
   followTail = true,
   scrollMode = "follow",
-  rangeExtractor,
   keepMounted,
-  useCachedMeasurements = false,
   rowNavigation = "none",
   renderItem,
   className,
@@ -167,7 +148,7 @@ export function MessageList<T>({
   // The ONE tabbable row's index (-1 when the mode is off) — see row-roving.ts for the whole technique.
   const activeIndex = useRowRoving({ enabled: roving, getItemKey, items, scrollToIndex, viewportRef: viewportNodeRef });
 
-  const composedRangeExtractor = composeRangeExtractor(items, keepMounted, rangeExtractor, activeIndex);
+  const composedRangeExtractor = composeRangeExtractor(items, keepMounted, activeIndex);
 
   // pin-prompt never auto-follows an append (the pin owns placement); otherwise today's behavior
   // (instant when tail-follow is on — see the scrollToFn note below — else virtual-core's smooth).
@@ -193,7 +174,7 @@ export function MessageList<T>({
     // at half a pixel of estimate error per unmeasured row, which the estimate is already wrong by more
     // than, in both directions, by its own calibration.
     estimateSize: (index): number => Math.round(estimateSize(index)),
-    overscan,
+    overscan: OVERSCAN,
     gap: Math.round(gapPxFor(gapToken)),
     paddingStart: Math.round(gapPxFor(blockPaddingToken)),
     // pin-prompt's bottom spacer: extra scrollable height below the last row so a short reply's pinned
@@ -229,8 +210,8 @@ export function MessageList<T>({
           },
         }
       : {}),
-    scrollEndThreshold,
-    useCachedMeasurements,
+    scrollEndThreshold: SCROLL_END_THRESHOLD_PX,
+    useCachedMeasurements: false,
     directDomUpdates: true,
     // "position" mode (plain top writes) avoids a new stacking context per row, which would break
     // portaled/fixed descendants (future edit-in-place overlays, Tier-B iframes).
@@ -309,7 +290,7 @@ export function MessageList<T>({
     if (expected !== null && Math.abs(el.scrollTop - expected) <= PROGRAMMATIC_SCROLL_EPSILON_PX) {
       return;
     }
-    setFollowing(el.scrollHeight - el.scrollTop - el.clientHeight <= scrollEndThreshold);
+    setFollowing(el.scrollHeight - el.scrollTop - el.clientHeight <= SCROLL_END_THRESHOLD_PX);
   };
 
   // Stable ref (virtualizer identity is stable) so React runs it only on real mount/unmount — an

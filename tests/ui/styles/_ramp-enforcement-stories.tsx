@@ -15,6 +15,7 @@ import { Heading, Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
+import { TOKENS } from "@orb/ui/tokens";
 import { WeaveGlyph } from "@orb/ui/web-weave";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -23,7 +24,7 @@ export function RampControlsStory(): ReactElement {
   const [pressed, setPressed] = useState(false);
   return (
     <CtIsolation subject="Token-backed public controls" isolates="Primitive ink, chrome and pointer hit geometry have no application state dependency.">
-      <div style={{ display: "grid", gap: "var(--spacing-section)", padding: "var(--spacing-section)" }}>
+      <div style={{ display: "grid", gap: `var(${TOKENS["spacing.section"].cssVar})`, padding: `var(${TOKENS["spacing.section"].cssVar})` }}>
         <div data-slot="icon-samples">
           <Icon icon={Lock} label="Small icon" size="xs" weight="hairline" />
           <Icon icon={Lock} label="Regular icon" size="md" />
@@ -67,7 +68,7 @@ export function RampChartsStory({
       isolates="Public chart components and their real ECharts instance exercise live theme, density and font metrics without application data."
     >
       <ThemeScope tokens={{ font, density }}>
-        <div data-live-token-root="" style={{ inlineSize: "100%", maxInlineSize: "var(--width-lane)" }}>
+        <div data-live-token-root="" style={{ inlineSize: "100%", maxInlineSize: `var(${TOKENS["width.lane"].cssVar})` }}>
           <Text voice="label" data-slot="chart-font-reference">
             12345 tokens
           </Text>

@@ -81,7 +81,6 @@ export interface Services {
  */
 export interface RateLimitDecision {
   readonly path: string;
-  readonly type: "query" | "mutation" | "subscription";
   readonly principal: Principal | null;
   readonly clientIp: string | null;
 }

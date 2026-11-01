@@ -61,6 +61,14 @@ export interface CooccurrenceStats {
 
 // ── hubness ─────────────────────────────────────────────────────────────────
 /** The `computeCharacterHubScores` summary. */
+/** One stored vector a hub pass reads: the row id, its embed model, the vector and its content hash. */
+export interface HubVector {
+  readonly id: string;
+  readonly model: string;
+  readonly embedding: Float32Array;
+  readonly contentHash: string;
+}
+
 export interface HubStats {
   /** Vectors scored — and therefore also the pass's INPUT-PLANE CENSUS: every vector it loads gets exactly
    *  one hub update, so `0` means the embedding table was empty, not that the maths found nothing. The `csls`
@@ -71,8 +79,6 @@ export interface HubStats {
 }
 
 export type {
-  Archetype,
-  ArchetypeMember,
   AskCardAnswer,
   BrowseCharacter,
   BrowseCharactersPage,
@@ -95,7 +101,6 @@ export type {
   ImageFacetMember,
   ImageFacets,
   KeywordCount,
-  ModelRoutingRow,
   PortraitAlignment,
   PortraitAlignmentReport,
   SimilarChat,
@@ -107,6 +112,4 @@ export type {
   ThemeDetail,
   ThemeDriftBucket,
   ThemeDriftTheme,
-  ThemeRow,
-  VisualArchetype,
 } from "@orb/contracts/discovery";

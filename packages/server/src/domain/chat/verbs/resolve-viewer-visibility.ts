@@ -19,9 +19,10 @@
 // resolver's inputs widen (e.g. role-aware "authority implies visibility"), this op passes the whole loaded
 // membership row through, so it inherits the change instead of drifting from it.
 
+import type { ResolveViewerVisibility } from "@orb/contracts/chat";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { ChatContext, ResolveViewerVisibility } from "../contract/context.ts";
+import type { ChatContext } from "../contract/context.ts";
 import { loadPresentVisibilityRow } from "../persistence/participants-read.ts";
 import { resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { viewerReadsHidden } from "../substrate/member-visibility.ts";

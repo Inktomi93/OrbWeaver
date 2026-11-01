@@ -6,8 +6,6 @@ import { progressVariants } from "./variants.ts";
 const slots = progressVariants();
 
 export interface ProgressProps extends Omit<BaseRootProps, "className"> {
-  className?: string;
-  trackClassName?: string;
   /** Visible, auto-associated label — renders `Progress.Label`. */
   label?: ReactNode;
   /** Render the formatted "72%" readout (`Progress.Value`); hidden while indeterminate. @defaultValue false */
@@ -21,7 +19,7 @@ export interface ProgressProps extends Omit<BaseRootProps, "className"> {
  * (pulsing bar, no readout). NOT `<Meter>` — this is task completion, not a magnitude readout.
  */
 export function Progress(props: ProgressProps): ReactElement {
-  const { className, trackClassName, label, showValue = false, formatValue, ...rest } = props;
+  const { label, showValue = false, formatValue, ...rest } = props;
   const hasLabel = label !== undefined && label !== null;
   // The readout is Base UI's OWN formatted string, never re-derived. Base UI 1.7 (#5095) computes it
   // from `valueToPercent(value, min, max)` clamped to 0–100 — the SAME number that drives the
@@ -32,7 +30,7 @@ export function Progress(props: ProgressProps): ReactElement {
   const format = formatValue ?? ((formatted: string | null, value: number | null): ReactNode => (value === null ? null : formatted));
 
   return (
-    <BaseProgress.Root className={slots.root({ className })} data-slot="progress-root" {...rest}>
+    <BaseProgress.Root className={slots.root()} data-slot="progress-root" {...rest}>
       {hasLabel || showValue ? (
         <div className={slots.header()} data-slot="progress-header">
           {hasLabel ? (
@@ -47,7 +45,7 @@ export function Progress(props: ProgressProps): ReactElement {
           ) : null}
         </div>
       ) : null}
-      <BaseProgress.Track className={slots.track({ className: trackClassName })} data-slot="progress-track">
+      <BaseProgress.Track className={slots.track()} data-slot="progress-track">
         <BaseProgress.Indicator className={slots.indicator()} data-slot="progress-indicator" />
       </BaseProgress.Track>
     </BaseProgress.Root>

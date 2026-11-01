@@ -5,8 +5,6 @@ import type { ExamplePluginSeeder, ExamplePluginSeederDeps as ShowcaseSeedDeps }
 import { createExamplePluginSeeder as createShowcaseSeedPolicy } from "#domain/plugin";
 import type { Logger } from "#foundation/observability";
 
-export type { ExamplePluginSeeder } from "#domain/plugin";
-
 /** The original graph port; shipped slugs are bound here rather than imported by a domain. */
 export interface ExamplePluginSeederDeps {
   readonly logger: Logger;

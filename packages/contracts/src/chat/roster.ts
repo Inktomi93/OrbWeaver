@@ -4,6 +4,7 @@
 // join-history visibility clamp + its resolved `HistoryFloorSeq` brand, and the phase-independent
 // carried appearance (the true-solo composition both takeovers gate on). The
 // LIFECYCLE logic is `domain/chat`; these are just the wire shapes.
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import type { AssetId, CharacterId, ChatId, ChatParticipantId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -78,7 +79,7 @@ export const TALKATIVENESS_DEFAULT = 0.5;
  *  the `roster_preset_members` junction's talkativeness/disabled columns and `applyToChat`'s `setSeatKnobs`
  *  patch project exactly this shape. Founding character sets stay unbuilt (they graft onto the same shape if they
  *  return). `talkativeness` absent = inherit the chat default ({@link TALKATIVENESS_DEFAULT}). */
-export const seatKnobsSchema = z.object({
+export const seatKnobsSchema = z.strictObject({
   talkativeness: z.number().min(TALKATIVENESS_MIN).max(TALKATIVENESS_MAX).optional(),
   disabled: z.boolean().optional(),
 });
@@ -92,7 +93,7 @@ export type SeatKnobs = z.infer<typeof seatKnobsSchema>;
  *  `human` is UNREPRESENTABLE by design (invites are the only human join path — a template cannot carry an
  *  invite's runtime preconditions); `observer` and `agent` were purged 2026-07-25 (the rebuild re-adds
  *  their arms here if either domain returns). */
-export const characterMemberSpecSchema = z.object({
+export const characterMemberSpecSchema = z.strictObject({
   kind: z.literal("character"),
   characterId: typeIdSchema(ID_PREFIX.character),
   position: z.int().nonnegative(),
@@ -609,7 +610,7 @@ export const SIGNUP_INVITES_MINTABLE: Record<AuthMode, boolean> = {
 /** Create an invite (host action). Two creation paths: a share-link (no target) OR targeted-by-handle
  *  (`invitedHandle`, resolved to a user server-side). The `token` is CSPRNG-minted + stored HASHED on the
  *  server — NEVER a client input, never returned in a view. `role` is server-forced `member` on redeem. */
-export const createInviteSchema = z.object({
+export const createInviteSchema = z.strictObject({
   /** OMITTED = the verb's safe single-use default; an EXPLICIT `null` = unlimited, the same
    *  say-it-out-loud escape hatch `expiresAt` carries. Nullable because the mint dialog offers unlimited
    *  and had no way to spell it: omission is what the safe default claims, so "unlimited" needed a word. */
@@ -625,13 +626,13 @@ export const createInviteSchema = z.object({
 export type CreateInviteInput = z.infer<typeof createInviteSchema>;
 
 /** Preview an invite before confirming (the accept = preview-then-confirm flow). Carries the raw token. */
-export const previewInviteSchema = z.object({
+export const previewInviteSchema = z.strictObject({
   token: z.string().min(INVITE_TOKEN_MIN),
 });
 export type PreviewInviteInput = z.infer<typeof previewInviteSchema>;
 
 /** Redeem an invite (the ONE participant-insert chokepoint, atomic). Carries the raw token. */
-export const redeemInviteSchema = z.object({
+export const redeemInviteSchema = z.strictObject({
   token: z.string().min(INVITE_TOKEN_MIN),
 });
 export type RedeemInviteInput = z.infer<typeof redeemInviteSchema>;
@@ -642,7 +643,7 @@ export type RedeemInviteInput = z.infer<typeof redeemInviteSchema>;
  *  the `inviteId` the durable `invite` notification carries — the same handle `declineInvite` takes. A
  *  share-link (untargeted) invite is NOT acceptable by id (token-only); a foreign/invalid id is a leak-free
  *  NOT_FOUND downstream. */
-export const acceptInviteSchema = z.object({
+export const acceptInviteSchema = z.strictObject({
   inviteId: typeIdSchema(ID_PREFIX.chatInvite),
 });
 

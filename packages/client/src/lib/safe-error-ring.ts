@@ -83,7 +83,7 @@ function clockMs(): number {
   return Math.round(performance.timeOrigin + performance.now());
 }
 
-/** The browser facts one recording reads, injectable so a node test drives the reduction with no DOM. */
+/** The browser facts one recording reads. */
 interface RecordContext {
   readonly at: number;
   readonly origin: string;
@@ -107,7 +107,8 @@ function liveContext(): RecordContext {
 }
 
 // Reduce errors before retention so the production ring cannot retain reported messages.
-function recordSafeError(source: SafeErrorSource, values: readonly unknown[], context: RecordContext = liveContext()): void {
+function recordSafeError(source: SafeErrorSource, values: readonly unknown[]): void {
+  const context = liveContext();
   const error = values.find((value): value is Error => value instanceof Error);
   ring.push({
     source,

@@ -24,7 +24,7 @@ import {
   createSuggestionStore,
 } from "#domain/automation";
 import { findPluginCardData, readPluginCardData, writePluginCardData } from "#domain/character";
-import { createPluginChatAuthority, requireHost } from "#domain/chat";
+import { createPluginChatAuthority, requireWiredHost } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import type { DatabankService } from "#domain/databank";
 import type { ImageryService } from "#domain/imagery";
@@ -318,7 +318,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       listMessages: (chatId, opts) => loadPluginMessages(db, chatId, opts),
       resolveViewerVisibility: deps.resolveViewerVisibility,
       requireHost: async (chatId, installerUserId) => {
-        await requireHost({ db, can }, await deps.resolveOwnerPrincipal(installerUserId), chatId);
+        await requireWiredHost({ db, can }, await deps.resolveOwnerPrincipal(installerUserId), chatId);
       },
       listCharacters: (chatId) => loadPluginCharacters(db, chatId),
       getVariables: automationOps.chat.readVariables,

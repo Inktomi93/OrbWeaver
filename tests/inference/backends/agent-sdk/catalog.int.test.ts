@@ -1,6 +1,7 @@
 // @subject packages/inference/src/backends/agent-sdk/catalog.ts
 // @subject packages/inference/src/catalog/listing.ts
 
+import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { SECRET_BOX_TEST_KEY } from "@orb/testkit/node/helpers";
@@ -28,7 +29,7 @@ test("native daemon discovery uses the caller's current saved credential and nor
   const foreign = await root.actor();
   await expect(
     root.services.connection.draftCatalogModels({ principal: await root.principalFor(foreign.id), providerId: "claude-sub", credentialId: key.id }),
-  ).rejects.toThrow();
+  ).rejects.toMatchObject({ code: CONNECTION_OP_CODES.credentialForeign });
   expect(edge.children).toHaveLength(0);
   const draft = { principal, providerId: "claude-sub", credentialId: key.id };
   expect(await root.services.connection.draftCatalogModels(draft)).toMatchObject({ listed: true, models: [{ id: "sonnet", name: "Sonnet" }] });

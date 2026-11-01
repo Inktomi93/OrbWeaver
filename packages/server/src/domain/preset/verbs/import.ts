@@ -26,7 +26,7 @@ function readJson(bytes: Uint8Array): { ok: true; value: unknown } | { ok: false
   }
 }
 
-export function createImport(input: DbAssemblyInput<PresetContext>): ImportPreset {
+export function createImportPresets(input: DbAssemblyInput<PresetContext>): ImportPreset {
   const ctx: PresetContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, bytes }): Promise<PresetImportOutcome> => {
     const decoded = readJson(bytes);

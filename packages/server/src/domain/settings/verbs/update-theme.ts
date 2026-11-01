@@ -3,8 +3,7 @@
 // "cannot edit a seed" guard to forget). Runs the same write-boundary validation
 // as `createTheme` for any field actually present.
 
-import type { ThemeView } from "@orb/contracts/settings";
-import type { UpdateThemeInput } from "@orb/contracts/theme";
+import type { Theme, UpdateThemeInput } from "@orb/contracts/theme";
 import { themeOverrideSchema } from "@orb/contracts/theme";
 import { validateThemeCss } from "@orb/kit/css-validate";
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
@@ -35,7 +34,7 @@ function buildThemePatch(input: UpdateThemeInput, now: number): Parameters<typeo
 }
 
 export function createUpdateTheme(ctx: SettingsContext): Pick<SettingsService, "updateTheme"> {
-  async function updateTheme(params: UpdateThemeParams): Promise<ThemeView> {
+  async function updateTheme(params: UpdateThemeParams): Promise<Theme> {
     const ownerId = params.principal.userId;
     const { input } = params;
     const at = ctx.now();

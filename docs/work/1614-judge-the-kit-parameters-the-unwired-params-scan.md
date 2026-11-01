@@ -31,4 +31,11 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+5 rows: applied 3, handed off 2, kept 0, owner questions 0.
+
+Applied: `trimContent.opts` (and `TrimContentOptions`); `queryMacros.q.prefix` and `.q.category` (both props gone, so `q` went; the filter loop was dead and the two callers passed `{}`).
+
+Handed off (only a test file supplies them): `createTimeLib.config.now` and `.config.locale`. The one supplier is `tests/client/lib/platform-polyfills.test.ts:78`; production, scripts and tooling callers (`packages/client/src/lib/time.ts:23`, `scripts/corpus-fixture-lifetime.ts:9`, `tooling/src/floor/browser/browser-diagnostics.ts:27`, `tooling/src/floor/browser/browser-diagnostic-events.ts:8`) pass `timeZone` only. The test is not rewritten.
+
+Survey: codegraph_explore on trimContent, queryMacros, createTimeLib. ast-grep over packages, tests, tooling, scripts (5929 .ts and 1524 .tsx files scanned each): trimContent 1 call, queryMacros 2 calls, createTimeLib 9 calls. Literal `rg` for trimContent, trimIndent, TrimContentOptions, queryMacros: no other writer; no macro router takes a prefix or category input.
+Ran: `pnpm typecheck packages/kit/tsconfig.json packages/client/tsconfig.json tsconfig.tests-iso.json tsconfig.tests-dom.json` exit 2 on a single error, `tests/support/node/portability-box.ts(58,128)` TS2322, a file this change does not touch; every other program is clean. `pnpm test` argument-enforcement, variable-rendering, platform-polyfills: 3 files, 42 passed.

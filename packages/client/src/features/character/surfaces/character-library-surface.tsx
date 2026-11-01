@@ -125,12 +125,8 @@ const useCharacterLibraryCollection = createCollectionSurface({
   totalOf: (page: CharacterListPage) => page.totalCount,
 });
 
-export interface CharacterLibrarySurfaceProps {
-  readonly ariaLabel?: string;
-}
-
 /** The character library: header + favorites + filters + the flat/categorized paged list + bulk mode. */
-export function CharacterLibrarySurface({ ariaLabel = CHARACTER_LIBRARY_NAME }: CharacterLibrarySurfaceProps = {}): ReactElement {
+export function CharacterLibrarySurface(): ReactElement {
   const trpc = useTRPC();
   const surfaceRef = useRef<HTMLDivElement>(null);
   const { startChat } = useStartChat();
@@ -297,7 +293,7 @@ export function CharacterLibrarySurface({ ariaLabel = CHARACTER_LIBRARY_NAME }: 
     >
       <Stack className="flex-1 min-block-(--height-scroll-md)">
         <CharacterLibraryBody
-          ariaLabel={ariaLabel}
+          ariaLabel={CHARACTER_LIBRARY_NAME}
           categorized={viewMode === "categorized"}
           error={collection.error}
           filtered={items}

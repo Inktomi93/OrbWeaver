@@ -173,6 +173,10 @@ interface HoverCensusCounters {
   readonly complexStateSelector: number;
   readonly unresolvableStateSubject: number;
   readonly unreadableColor: number;
+  /** Screen-reader-only text (the walker's `srOnlyText`): it paints no pixels, so it is EXCLUDED; a box
+   *  that predicate could not read is WITHHELD as `srOnlyUnreadable`. */
+  readonly srOnly: number;
+  readonly srOnlyUnreadable: number;
   readonly overBudget: number;
   readonly sheetsRead: number;
   readonly sheetsUnreadable: number;

@@ -1,7 +1,7 @@
 // Private role decoding is a native module boundary, independently of imported spelling.
-import { dirname, join, relative } from "node:path";
+import { dirname, relative } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { cruiseRules, fires, unresolvable } from "./_native-cruise.ts";
 
 const SERVER = "packages/server/src";
 const DECODER = `${SERVER}/primitives/role-data/decode/index.ts`;
@@ -59,7 +59,7 @@ test.for([
     body: "import { userRoleValue } from FOREIGN; const data={userRoleValue:1}; export const read=[data.userRoleValue,userRoleValue];",
     blocked: false,
   },
-] as const)("the native role decoder boundary judges $name", async (row, { plantedTree, repoRoot }) => {
+] as const)("the native role decoder boundary judges $name", async (row, { plantedTree }) => {
   const entry =
     "owner" in row
       ? `${SERVER}/${row.owner}`
@@ -74,15 +74,8 @@ test.for([
     [FOREIGN]: 'export const userRoleValue="foreign";',
     [entry]: row.body.replaceAll("SOURCE", source).replaceAll("FOREIGN", JSON.stringify(relative(dirname(entry), FOREIGN))),
   });
-  const result = runNicedSync(
-    join(repoRoot, "node_modules/.bin/depcruise"),
-    [entry, "--config", join(repoRoot, ".dependency-cruiser.ts"), "--output-type", "err-long"],
-    { cwd: root },
-  );
-  const output = result.stdout + result.stderr;
-  expect(result.errorCode, output).toBeUndefined();
-  expect(output).not.toContain("not-to-unresolvable");
-  expect(result.status === 0, output).toBe(!row.blocked);
-  expect(output.includes("rule" in row ? row.rule : RULE), output).toBe(row.blocked);
-  expect(output).toContain(row.blocked ? entry : "no dependency violations found");
+  const rule = "rule" in row ? row.rule : RULE;
+  const violations = await cruiseRules(root, [entry], [rule]);
+  expect(unresolvable(violations)).toEqual([]);
+  expect(fires(violations, rule, [entry])).toBe(row.blocked);
 });

@@ -8,7 +8,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PersonaId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
-import { addPersona, readRoomCanon } from "@orb/testkit/node/composed";
+import { addPersona, connectDevice, readRoomCanon } from "@orb/testkit/node/composed";
 import { inputMessages, inputSystem, invitePerson, messageText, personaInputs, personaRoom } from "./persona-cache-physical.ts";
 
 const VOICE_PROBE: PromptSection = { type: "literal", id: "voice", name: "voice", role: "system", enabled: true, content: "PROMPT_USER=<{{user}}>" };
@@ -136,8 +136,8 @@ test("in a two-human room each stored line resolves {{user}} to the persona it w
   const bob = await invitePerson(h);
   const online = new AbortController();
   using _presence = { [Symbol.dispose]: (): void => online.abort() };
-  h.root.app.presence.connect(h.owner.userId, online.signal);
-  h.root.app.presence.connect(bob.userId, online.signal);
+  await connectDevice(h.root, h.owner.userId, online.signal);
+  await connectDevice(h.root, bob.userId, online.signal);
   const nova = await addPersona(h, h.owner, "Nova", { description: "Nova leads" });
   const juno = await addPersona(h, bob, "Juno", { description: "Juno follows" });
   await seat(h, nova);

@@ -34,15 +34,13 @@ interface WebSpinnerOwnProps {
   size?: VariantProps<typeof spinnerVariants>["size"];
   /** Accessible name announced by `role="status"` — required (a spinner is a live status). */
   label: string;
-  /** Layout only: the loader's placement. */
-  className?: string;
 }
 
 export type WebSpinnerProps = WebSpinnerOwnProps & ToneInkSelection;
 
 /** The brand loader — indeterminate waits at every scale (the sanctioned spinner; skeletons still
  *  own layout loading). Inherits `currentColor`; `tone="primary"` for brand waits. */
-export function WebSpinner({ size = "md", label, tone, ink, className }: WebSpinnerProps): ReactElement {
+export function WebSpinner({ size = "md", label, tone, ink }: WebSpinnerProps): ReactElement {
   const slots = spinnerVariants({ tone, ink, size });
   const reduced = usePrefersReducedMotion();
   const compact = size === "sm" || size === "md";
@@ -58,7 +56,7 @@ export function WebSpinner({ size = "md", label, tone, ink, className }: WebSpin
       data-slot="web-spinner"
       role="status"
       data-animate={reduced ? undefined : ""}
-      className={slots.root({ className })}
+      className={slots.root()}
       style={dashVars}
       {...variantAttrs(spinnerVariants, { tone, size }, tone ?? null)}
     >

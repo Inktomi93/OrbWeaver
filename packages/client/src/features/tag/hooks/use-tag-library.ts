@@ -27,6 +27,15 @@ function uniqueNewTagName(rows: readonly TagWithUsage[], alsoTaken: ReadonlySet<
   return name;
 }
 
+/** One fact about the whole library. Unlike a collection insight, `open` may act on a set of members (the prune
+ *  door acts on every unused tag), so it is present only when the fact has a verb behind it. */
+export interface TagLibraryFact {
+  readonly id: string;
+  readonly label: string;
+  readonly value: string;
+  readonly open?: { readonly label: string; readonly run: () => void };
+}
+
 /** The tag library read, non-suspending. `enabled: false` fetches nothing — the phone-title hook runs in every
  *  Corpus mode, and this read is large on a big library. */
 function useTagRows(enabled = true): readonly TagWithUsage[] | undefined {
@@ -38,14 +47,6 @@ function useTagRows(enabled = true): readonly TagWithUsage[] | undefined {
  *  settles under it. */
 export function useTagCensus(enabled = true): number | undefined {
   return useTagRows(enabled)?.length;
-}
-
-/** One fact about the whole library. `open` is present only when the fact has a verb behind it. */
-export interface TagLibraryFact {
-  readonly id: string;
-  readonly label: string;
-  readonly value: string;
-  readonly open?: { readonly label: string; readonly run: () => void };
 }
 
 /**

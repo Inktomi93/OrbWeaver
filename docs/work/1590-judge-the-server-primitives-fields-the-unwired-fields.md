@@ -52,4 +52,16 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 26 rows = applied 5, derived 0, kept 21, handed off 0, owner questions 0.
+
+Method: codegraph on the serde symbols; compiler probe `pnpm typecheck tsconfig.node.json` exit 0; `ast-grep -l ts` (5890 files) and `-l tsx` (1526 files) for `$A.isBranch`, none outside the deleted writes; suites `tests/support/node/factories/chat-import.int.test.ts`, `tests/server/primitives/serde/chat-bundle/chat-bundle-serde.contract.test.ts`, `tests/server/domain/import/loader/library-planes.int.test.ts` (one timeout under load, passed solo), `tests/server/domain/rpg/persistence/portable-json-boundaries.int.test.ts`.
+
+| Rows | Class | Reader or reason |
+| - | - | - |
+| `ParsedScriptInject.key`, `ParsedChat.isBranch`, `ParsedChat.sourceMetadata`, `JsonSerde.schemaKind`, `JsonSerde.schemaVersion` | applied | no reader; the parse and export-chat writes went with them |
+| `PortableSeatCard.importHash/textHash/fileHash`, `wireChatSchema.seatCards.*` | kept | `import-chat-bundle.ts:52` destructures `({ handle, ...hashes })`, so the hashes are read through the rest spread; the keys are the exported bundle file format |
+| `wireVariantSchema.tokenProvenance` | kept | `resolveTokenProvenance(v)` reads it at `chat-bundle/index.ts:449` |
+| `wireInjectionSchema.order` | kept | written by the serializer at `chat-bundle/index.ts:575` and read back at `:625`; exported bundle files carry it |
+| `PersonaPlacement.*` | kept | `stableStringify(incoming.placement) !== stableStringify(owned.placement)` at `serde/persona/index.ts:160` compares the whole value |
+| `userSettingsSerde.bodySchema.settings` | kept | `fromWire: (body) => takeShareSafe(body.settings)` in `serde/user-settings/index.ts` |
+| `fileEntrySchema.*` | kept | the parsed row is handed whole as a `BulkImportLorebookInput` entry; the schema keys are the exported lorebook file format |

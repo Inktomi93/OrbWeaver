@@ -15,7 +15,6 @@ export interface NextTurnInputs {
   readonly chatFailed: boolean;
   /** The room's pre-send verdict: `null` = serveable, a cause = refused, `undefined` = unresolved. */
   readonly availabilityCause: UnavailableCause | null | undefined;
-  readonly availabilityFailed: boolean;
   /** The host viewer's own chat-role resolution (`connection.resolveChatCapability`). */
   readonly resolved: Pick<ResolvedConnectionView, "connectionId" | "providerId" | "model"> | undefined;
   readonly resolveFailed: boolean;

@@ -3,6 +3,7 @@
 // each name-worthy cluster LLM-named → `theme_clusters` + `digest_theme_assignments`. Group-room digests
 // are excluded (they belong to the synthetic group character, not an owner's solo theme space).
 
+import type { ThemeLevel } from "@orb/contracts/discovery";
 import type { RolePresetParams } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { RoleClients, SummarizeInput } from "@orb/contracts/role-clients";
@@ -13,7 +14,7 @@ import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/query";
 import { resolveSideGenSampling } from "@orb/inference";
 import type { ThemeClusterId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import type { ComputeThemesOptions, ThemeLevel, ThemeNameEstimateOptions } from "../contract/params.ts";
+import type { ComputeThemesOptions, ThemeNameEstimateOptions } from "../contract/params.ts";
 import type { ThemeComputeStats } from "../contract/results.ts";
 import type { ComputeThemesDeps } from "../contract/service.ts";
 import type { readOwnedDigestVectors } from "../persistence/embed-store-reads.ts";

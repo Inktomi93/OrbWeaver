@@ -6,7 +6,8 @@ import type {
   WireSchemaMode,
   WireSchemaViolation,
 } from "@orb/contracts/inference";
-import type { ResponseFormat, ToolChoice, WireTool } from "./chat.ts";
+import type { ResponseFormat } from "@orb/contracts/role-clients";
+import type { ToolChoice, WireTool } from "./chat.ts";
 
 /** What a caller needs. A plan with `formats` produces one structured payload; `tools` alone is a tool turn. */
 export interface StructuredAsk {

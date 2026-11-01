@@ -2,10 +2,10 @@ import type { AutomationActionType } from "@orb/contracts/automation";
 import { AUTOMATION_ACTION_ARMS_MAX, AUTOMATION_ACTION_TYPES, AUTOMATION_ARM_SCOPE, automationTriggerFor } from "@orb/contracts/automation";
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Card } from "@orb/ui/card";
-import { Icon, Trash2 } from "@orb/ui/icons";
+import { Icon, Trash } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
+import { Separator } from "@orb/ui/separator";
 import { SortableList } from "@orb/ui/sortable";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -83,33 +83,33 @@ export function RuleEditorActions({
                 if (action === undefined) {
                   return null;
                 }
+                // A rule between actions, not a card inside the editor's card: the editor is already the one box.
                 return (
-                  <Card>
-                    <Stack gap="block">
-                      <Row gap="field" align="center">
-                        {grip}
-                        <Text className="flex-1 min-inline-0">
-                          {index + 1}. {armTitle(action.type)}
-                        </Text>
-                        <Button
-                          variant="ghost"
-                          square={true}
-                          aria-label={`Remove action ${index + 1}`}
-                          onClick={(): void => {
-                            Promise.all([
-                              form.removeFieldValue("actions", index),
-                              form.removeFieldValue("actionIds", index),
-                              form.removeFieldValue("choiceIds", index),
-                              form.removeFieldValue("keywordIds", index),
-                            ]).catch(() => notify.error("Couldn't remove the action."));
-                          }}
-                        >
-                          <Icon icon={Trash2} size="sm" />
-                        </Button>
-                      </Row>
-                      <RuleActionFields form={form} index={index} action={action} chatId={chatId} />
-                    </Stack>
-                  </Card>
+                  <Stack gap="block">
+                    {index > 0 ? <Separator /> : null}
+                    <Row gap="field" align="center">
+                      {grip}
+                      <Text className="flex-1 min-inline-0">
+                        {index + 1}. {armTitle(action.type)}
+                      </Text>
+                      <Button
+                        variant="ghost"
+                        square={true}
+                        aria-label={`Remove action ${index + 1}`}
+                        onClick={(): void => {
+                          Promise.all([
+                            form.removeFieldValue("actions", index),
+                            form.removeFieldValue("actionIds", index),
+                            form.removeFieldValue("choiceIds", index),
+                            form.removeFieldValue("keywordIds", index),
+                          ]).catch(() => notify.error("Couldn't remove the action."));
+                        }}
+                      >
+                        <Icon icon={Trash} size="sm" />
+                      </Button>
+                    </Row>
+                    <RuleActionFields form={form} index={index} action={action} chatId={chatId} />
+                  </Stack>
                 );
               }}
             />

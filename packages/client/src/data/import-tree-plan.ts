@@ -16,6 +16,7 @@ import type { StProfileHandledEntry, TreeLayoutDeclaration } from "@orb/contract
 import { admitTreeBatch, chatDirCardCandidates, isStSecretsFile, ST_SECRETS_FILE, ST_SETTINGS_FILE, stProfileEntryDisposition } from "@orb/contracts/import";
 import { PORTABLE_DIRECTORIES, PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
 import { slugifyHandle } from "@orb/kit/slug";
+import { z } from "zod";
 import { relativePathOf } from "./import-tree.ts";
 import { UploadPacker } from "./import-tree-packer.ts";
 
@@ -36,7 +37,6 @@ const NO_FRAMING: TreeUploadFraming = { perUpload: 0, perFile: () => 0 };
 
 /** One picked file the plan will not send, with the reason the preflight and the summary print. */
 export interface SkippedTreeFile {
-  readonly path: string;
   readonly reason: string;
 }
 
@@ -44,9 +44,8 @@ export interface TreeImportPlan {
   /** The uploads, in send order. Each is a complete import on its own. */
   readonly batches: readonly (readonly File[])[];
   readonly skipped: readonly SkippedTreeFile[];
-  /** Files and bytes the batches carry (a file repeated across uploads counts once). */
+  /** Files the batches carry (a file repeated across uploads counts once). */
   readonly files: number;
-  readonly bytes: number;
   /** The layout every upload declares, or null when each upload is recognized on its own. */
   readonly layout: TreeLayoutDeclaration | null;
 }
@@ -95,20 +94,19 @@ interface GroupShape {
   readonly chats: readonly string[];
 }
 
+// Only the two lists the plan reads, each optional like the server's parse; a non-object definition fails the parse and plans as an empty group.
+const GROUP_DEFINITION = z.object({ members: z.unknown().optional(), chats: z.unknown().optional() });
+
 function stringList(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
 }
 
-async function readGroupShape(file: File, readText: (file: File) => Promise<string>): Promise<GroupShape> {
+async function readGroupShape(file: File): Promise<GroupShape> {
   // the group definition is still packed and sent (`planTreeImport`'s `packer.add`), and the server parse
   // (`collectGroups` in loader/collect.ts) lists it in `unreadableGroups`, which the import report prints. Ends if the server stops reporting unreadable groups.
   try {
-    const raw: unknown = JSON.parse(await readText(file));
-    if (typeof raw !== "object" || raw === null) {
-      return { members: [], chats: [] };
-    }
-    const record = raw as Record<string, unknown>;
-    return { members: stringList(record["members"]), chats: stringList(record["chats"]) };
+    const record = GROUP_DEFINITION.parse(JSON.parse(await file.text()));
+    return { members: stringList(record.members), chats: stringList(record.chats) };
   } catch {
     return { members: [], chats: [] };
   }
@@ -147,19 +145,12 @@ function packerFor(caps: TreeImportCaps, framing: TreeUploadFraming, always: rea
   );
 }
 
-/** The finished uploads, with each rejected file joining `skipped` and the files and bytes the uploads carry
+/** The finished uploads, with each rejected file joining `skipped` and the files the uploads carry
  *  counted once each (shared files repeat across uploads). */
 function finishPlan(packer: UploadPacker<PlannedFile>, skipped: SkippedTreeFile[]): Omit<TreeImportPlan, "layout"> {
   const { batches, rejected } = packer.finish();
-  for (const f of rejected) {
-    skipped.push({ path: f.path, reason: OVER_UPLOAD_CAP_REASON });
-  }
-  const sent = new Set(batches.flat());
-  let bytes = 0;
-  for (const file of sent) {
-    bytes += file.size;
-  }
-  return { batches, skipped, files: sent.size, bytes };
+  skipped.push(...rejected.map(() => ({ reason: OVER_UPLOAD_CAP_REASON })));
+  return { batches, skipped, files: new Set(batches.flat()).size };
 }
 
 /** A greedy split in the given order; an over-cap file joins `skipped`. */
@@ -172,7 +163,7 @@ function packGeneric(
   const packer = packerFor(caps, framing, []);
   for (const f of planned) {
     if (f.file.size > caps.fileBytes) {
-      skipped.push({ path: f.path, reason: OVER_FILE_CAP_REASON });
+      skipped.push({ reason: OVER_FILE_CAP_REASON });
       continue;
     }
     packer.add([], [f]);
@@ -199,7 +190,7 @@ function planGeneric(picked: readonly PlannedFile[], caps: TreeImportCaps, frami
     return { ...whole, layout: null };
   }
   const nativeEntry = (f: PlannedFile): boolean => admitTreeBatch([f.path], "orb").kind === "orb";
-  const outside = planned.filter((f) => !nativeEntry(f)).map((f) => ({ path: f.path, reason: UNHANDLED_FALLBACK }));
+  const outside = planned.filter((f) => !nativeEntry(f)).map(() => ({ reason: UNHANDLED_FALLBACK }));
   return { ...packGeneric(planned.filter(nativeEntry), caps, framing, outside), layout: "orb" };
 }
 
@@ -283,7 +274,7 @@ function classifySt(planned: readonly PlannedFile[], caps: TreeImportCaps): StCl
     const role = roleOf(f, caps);
     switch (role.kind) {
       case "skip":
-        out.skipped.push({ path: f.path, reason: role.reason });
+        out.skipped.push({ reason: role.reason });
         break;
       case "shared":
         out.shared.push(f);
@@ -314,14 +305,11 @@ function classifySt(planned: readonly PlannedFile[], caps: TreeImportCaps): StCl
   return out;
 }
 
-async function groupUnits(
-  classified: StClassification,
-  readText: (file: File) => Promise<string>,
-): Promise<{ readonly groups: GroupUnit[]; readonly unclaimedGroupChats: PlannedFile[] }> {
+async function groupUnits(classified: StClassification): Promise<{ readonly groups: GroupUnit[]; readonly unclaimedGroupChats: PlannedFile[] }> {
   const claimed = new Set<string>();
   const groups: GroupUnit[] = [];
   for (const definition of classified.groupFiles) {
-    const shape = await readGroupShape(definition.file, readText);
+    const shape = await readGroupShape(definition.file);
     const chats: PlannedFile[] = [];
     for (const leaf of shape.chats) {
       const chat = classified.groupChats.get(leaf);
@@ -337,15 +325,9 @@ async function groupUnits(
 }
 
 /** Plan a picked folder's uploads against the served caps, charging each upload `framing` on top of its file
- *  bytes. `readText` reads a group definition's text (the default is `File.text`); it is injectable so a node
- *  test can plan without a DOM `File`.
+ *  bytes.
  *  @throws Error when the folder has no supported layout, or the caps leave no room for any file. */
-export async function planTreeImport(
-  files: readonly File[],
-  caps: TreeImportCaps,
-  framing: TreeUploadFraming = NO_FRAMING,
-  readText: (file: File) => Promise<string> = (f) => f.text(),
-): Promise<TreeImportPlan> {
+export async function planTreeImport(files: readonly File[], caps: TreeImportCaps, framing: TreeUploadFraming = NO_FRAMING): Promise<TreeImportPlan> {
   const rawPaths = files.map(relativePathOf);
   const wrapper = commonWrapper(rawPaths);
   const planned: PlannedFile[] = files.map((file, i) => {
@@ -365,7 +347,7 @@ export async function planTreeImport(
   }
   const inProfile = layout.stagePrefix === "" ? planned.map((f) => ({ ...f, segments: f.segments.slice(1) })) : planned;
   const classified = classifySt(inProfile, caps);
-  const { groups, unclaimedGroupChats } = await groupUnits(classified, readText);
+  const { groups, unclaimedGroupChats } = await groupUnits(classified);
 
   const packer = packerFor(caps, framing, classified.shared);
   // Base plane first: presets, themes, backgrounds, orphan chats, unclaimed group chats.

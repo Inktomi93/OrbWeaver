@@ -83,12 +83,19 @@ export function TextFinishStory(): ReactElement {
         <Icon icon={ChevronDown} label="open chevron" openTurn={true} />
       </div>
       <span data-case="away">elsewhere</span>
-      <Probe name="foreground" style={{ color: "var(--color-foreground)" }} />
-      <Probe name="prose" style={{ color: "var(--color-prose-body)" }} />
-      <Probe name="onPrimary" style={{ color: "var(--color-primary-foreground)" }} />
-      <Probe name="muted" style={{ color: "var(--color-muted-foreground)" }} />
-      <Probe name="lead" style={{ fontSize: "var(--text-body)", fontWeight: 600, fontFamily: "var(--font-sans)" }} />
-      <Probe name="datum" style={{ fontSize: "var(--text-micro)", fontFamily: "var(--font-sans)", color: "var(--color-foreground)" }} />
+      <Probe name="foreground" style={{ color: `var(${TOKENS["color.foreground"].cssVar})` }} />
+      <Probe name="prose" style={{ color: `var(${TOKENS["color.prose-body"].cssVar})` }} />
+      <Probe name="onPrimary" style={{ color: `var(${TOKENS["color.primary-foreground"].cssVar})` }} />
+      <Probe name="muted" style={{ color: `var(${TOKENS["color.muted-foreground"].cssVar})` }} />
+      <Probe name="lead" style={{ fontSize: `var(${TOKENS["text.body"].cssVar})`, fontWeight: 600, fontFamily: `var(${TOKENS["font.sans"].cssVar})` }} />
+      <Probe
+        name="datum"
+        style={{
+          fontSize: `var(${TOKENS["text.micro"].cssVar})`,
+          fontFamily: `var(${TOKENS["font.sans"].cssVar})`,
+          color: `var(${TOKENS["color.foreground"].cssVar})`,
+        }}
+      />
     </CtIsolation>
   );
 }
@@ -134,11 +141,11 @@ export function ButtonFinishStory(): ReactElement {
         resting row
       </Button>
       <span data-case="away">elsewhere</span>
-      <Probe name="primary" style={{ color: "var(--color-primary)", backgroundColor: "var(--color-primary)" }} />
-      <Probe name="foreground" style={{ color: "var(--color-foreground)" }} />
-      <Probe name="muted" style={{ color: "var(--color-muted-foreground)" }} />
-      <Probe name="sidebar" style={{ color: "var(--color-sidebar)" }} />
-      <Probe name="accent" style={{ color: "var(--color-accent)" }} />
+      <Probe name="primary" style={{ color: `var(${TOKENS["color.primary"].cssVar})`, backgroundColor: `var(${TOKENS["color.primary"].cssVar})` }} />
+      <Probe name="foreground" style={{ color: `var(${TOKENS["color.foreground"].cssVar})` }} />
+      <Probe name="muted" style={{ color: `var(${TOKENS["color.muted-foreground"].cssVar})` }} />
+      <Probe name="sidebar" style={{ color: `var(${TOKENS["color.sidebar"].cssVar})` }} />
+      <Probe name="accent" style={{ color: `var(${TOKENS["color.accent"].cssVar})` }} />
       <Probe name="transparent" style={{ color: "transparent", backgroundColor: "transparent" }} />
     </CtIsolation>
   );
@@ -172,8 +179,15 @@ export function CardFinishStory(): ReactElement {
         <Card data-case="glow-none">static</Card>
       </div>
       <span data-case="away">elsewhere</span>
-      <Probe name="radius-card" style={{ borderRadius: "var(--radius-card)", padding: "var(--spacing-field)" }} />
-      <Probe name="bubble" style={{ backgroundColor: "var(--color-user-bubble)", paddingBlock: "var(--spacing-row)", paddingInline: "var(--spacing-block)" }} />
+      <Probe name="radius-card" style={{ borderRadius: `var(${TOKENS["radius.card"].cssVar})`, padding: `var(${TOKENS["spacing.field"].cssVar})` }} />
+      <Probe
+        name="bubble"
+        style={{
+          backgroundColor: `var(${TOKENS["color.user-bubble"].cssVar})`,
+          paddingBlock: `var(${TOKENS["spacing.row"].cssVar})`,
+          paddingInline: `var(${TOKENS["spacing.block"].cssVar})`,
+        }}
+      />
       <Probe name="primary" tone="primary" style={{ borderColor: role("solid"), backgroundColor: "transparent" }} />
     </CtIsolation>
   );
@@ -181,11 +195,11 @@ export function CardFinishStory(): ReactElement {
 
 const GROUNDS = ["background", "card", "popover", "raised", "sidebar"] as const;
 const GROUND_FILLS = {
-  background: "var(--color-background)",
-  card: "var(--color-card)",
-  popover: "var(--color-popover)",
-  raised: "var(--color-surface-raised)",
-  sidebar: "var(--color-sidebar)",
+  background: `var(${TOKENS["color.background"].cssVar})`,
+  card: `var(${TOKENS["color.card"].cssVar})`,
+  popover: `var(${TOKENS["color.popover"].cssVar})`,
+  raised: `var(${TOKENS["color.surface-raised"].cssVar})`,
+  sidebar: `var(${TOKENS["color.sidebar"].cssVar})`,
 } as const;
 
 /** The layout-box axes the drain added: dividers, grounds, plates and the state treatments. */
@@ -255,14 +269,14 @@ export function LayoutFinishStory(): ReactElement {
         </Row>
       </div>
       <span data-case="away">elsewhere</span>
-      <Probe name="primary" style={{ borderColor: "var(--color-primary)" }} />
+      <Probe name="primary" style={{ borderColor: `var(${TOKENS["color.primary"].cssVar})` }} />
       {GROUNDS.map((ground) => (
         <Probe key={ground} name={`ground-${ground}`} style={{ backgroundColor: GROUND_FILLS[ground] }} />
       ))}
-      <Probe name="ground-faint" style={{ backgroundColor: mix("--color-card", 40) }} />
-      <Probe name="reading-plate" style={{ backgroundColor: "var(--color-reading-plate)" }} />
-      <Probe name="card" style={{ backgroundColor: "var(--color-card)" }} />
-      <Probe name="foreground" style={{ color: "var(--color-foreground)" }} />
+      <Probe name="ground-faint" style={{ backgroundColor: mix(TOKENS["color.card"].cssVar, 40) }} />
+      <Probe name="reading-plate" style={{ backgroundColor: `var(${TOKENS["color.reading-plate"].cssVar})` }} />
+      <Probe name="card" style={{ backgroundColor: `var(${TOKENS["color.card"].cssVar})` }} />
+      <Probe name="foreground" style={{ color: `var(${TOKENS["color.foreground"].cssVar})` }} />
       <Probe name="transparent" style={{ backgroundColor: "transparent" }} />
     </CtIsolation>
   );
@@ -331,18 +345,18 @@ export function PartsFinishStory(): ReactElement {
           <MenuItem>always</MenuItem>
         </MenuPopup>
       </Menu>
-      <Probe name="foreground" style={{ color: "var(--color-foreground)" }} />
+      <Probe name="foreground" style={{ color: `var(${TOKENS["color.foreground"].cssVar})` }} />
       <Probe name="separator" tone="primary" style={{ backgroundColor: role("edge") }} />
-      <Probe name="radius-base" style={{ borderRadius: "var(--radius-base)" }} />
-      <Probe name="mono" style={{ fontFamily: "var(--font-mono)" }} />
-      <Probe name="accent" style={{ backgroundColor: "var(--color-accent)" }} />
+      <Probe name="radius-base" style={{ borderRadius: `var(${TOKENS["radius.base"].cssVar})` }} />
+      <Probe name="mono" style={{ fontFamily: `var(${TOKENS["font.mono"].cssVar})` }} />
+      <Probe name="accent" style={{ backgroundColor: `var(${TOKENS["color.accent"].cssVar})` }} />
       <Probe name="primary" tone="primary" style={{ color: role("text"), borderColor: role("edge") }} />
       <Probe name="primary-solid" tone="primary" style={{ color: role("solid") }} />
-      <Probe name="title" style={{ fontSize: "var(--text-title)" }} />
-      <Probe name="sidebar" style={{ backgroundColor: "var(--color-sidebar)" }} />
-      <Probe name="success" style={{ backgroundColor: "var(--color-success)" }} />
-      <Probe name="muted-ink" style={{ borderColor: "var(--color-muted-foreground)" }} />
-      <Probe name="step2" style={{ backgroundColor: mix("--color-foreground", 32) }} />
+      <Probe name="title" style={{ fontSize: `var(${TOKENS["text.title"].cssVar})` }} />
+      <Probe name="sidebar" style={{ backgroundColor: `var(${TOKENS["color.sidebar"].cssVar})` }} />
+      <Probe name="success" style={{ backgroundColor: `var(${TOKENS["color.success"].cssVar})` }} />
+      <Probe name="muted-ink" style={{ borderColor: `var(${TOKENS["color.muted-foreground"].cssVar})` }} />
+      <Probe name="step2" style={{ backgroundColor: mix(TOKENS["color.foreground"].cssVar, 32) }} />
     </CtIsolation>
   );
 }

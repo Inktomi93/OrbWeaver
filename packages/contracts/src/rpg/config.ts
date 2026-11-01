@@ -4,6 +4,7 @@
 // `houseRules`/`imagery`/`assist`) graft as ADDITIVE defaulted fields — a JSON-column additive lift
 // self-heals at the parse seam (no version stamp needed, unlike `user_settings`: rpg tables carry no
 // versioned-config columns, so the schema_version DEFAULT question is moot).
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import { z } from "zod";
 import { MAX_USER_MACROS, userMacroSchema } from "#preset";

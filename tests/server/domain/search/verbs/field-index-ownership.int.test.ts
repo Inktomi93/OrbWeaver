@@ -77,5 +77,5 @@ test("a same-ID sibling's card writes and disposal cannot evict or replace a war
   await second[Symbol.asyncDispose]();
   expect((await suggest(first, FIRST_NAME)).map((row) => row.suggestion)).toEqual([FIRST_NAME.toLowerCase()]);
   expect(firstReads).not.toHaveBeenCalled();
-  await expect(suggest(second, NEXT_NAME)).rejects.toThrow();
+  await expect(suggest(second, NEXT_NAME)).rejects.toMatchObject({ name: "AbortError" });
 });

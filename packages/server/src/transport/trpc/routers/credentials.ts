@@ -30,7 +30,7 @@ export const credentialsRouter = t.router({
 
   add: authedProcedure
     .input(
-      z.object({
+      z.strictObject({
         provider: z.string().min(1),
         label: z.string().optional(),
         key: z.string().trim().min(1),
@@ -50,28 +50,32 @@ export const credentialsRouter = t.router({
 
   /** The explicit rotation: the named row keeps its id and label and takes the new secret. `add` never rotates. */
   replace: authedProcedure
-    .input(z.object({ credentialId: typeIdSchema(ID_PREFIX.userCredential), key: z.string().trim().min(1) }))
+    .input(z.strictObject({ credentialId: typeIdSchema(ID_PREFIX.userCredential), key: z.string().trim().min(1) }))
     .output(credentialViewSchema)
     .mutation(({ ctx, input }) => ctx.services.credentials.replace({ principal: ctx.auth, credentialId: input.credentialId, key: input.key })),
 
   remove: authedProcedure
-    .input(z.object({ credentialId: typeIdSchema(ID_PREFIX.userCredential) }))
+    .output(z.void())
+    .input(z.strictObject({ credentialId: typeIdSchema(ID_PREFIX.userCredential) }))
     .mutation(({ ctx, input }) => ctx.services.credentials.remove({ principal: ctx.auth, credentialId: input.credentialId })),
 
   markRevokedByUser: authedProcedure
-    .input(z.object({ credentialId: typeIdSchema(ID_PREFIX.userCredential), reason: z.string().optional() }))
+    .output(z.void())
+    .input(z.strictObject({ credentialId: typeIdSchema(ID_PREFIX.userCredential) }))
     .mutation(({ ctx, input }) =>
       ctx.services.credentials.markRevokedByUser({
         principal: ctx.auth,
         credentialId: input.credentialId,
-        ...(input.reason !== undefined ? { reason: input.reason } : {}),
       }),
     ),
 
-  clearRevoked: authedProcedure.input(z.object({ credentialId: typeIdSchema(ID_PREFIX.userCredential) })).mutation(({ ctx, input }) =>
-    ctx.services.credentials.clearRevoked({
-      principal: ctx.auth,
-      credentialId: input.credentialId,
-    }),
-  ),
+  clearRevoked: authedProcedure
+    .output(z.void())
+    .input(z.strictObject({ credentialId: typeIdSchema(ID_PREFIX.userCredential) }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.credentials.clearRevoked({
+        principal: ctx.auth,
+        credentialId: input.credentialId,
+      }),
+    ),
 });

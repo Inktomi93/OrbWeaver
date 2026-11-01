@@ -44,10 +44,8 @@ const JSON_SERDE_ROW_POLICIES = ["drop", "reject-file"] as const;
  *  F7 named was that the split existed and was never ruled. */
 export type JsonSerdeRowPolicy = (typeof JSON_SERDE_ROW_POLICIES)[number];
 
-/** A family's serde: the envelope constants it stamps, plus the two directions over its canonical value. */
+/** A family's serde: the two directions over its canonical value. */
 export interface JsonSerde<Value> {
-  readonly schemaKind: string;
-  readonly schemaVersion: number;
   /** Serialize the canonical value to the portable file bytes (the inverse of `parse`). Deterministic key
    *  order, so a re-serialize is byte-identical. */
   readonly build: (value: Value) => Uint8Array;
@@ -65,14 +63,17 @@ interface EnvelopeSpec {
   readonly schemaKind: string;
   /** The version this build emits, and the ceiling parse accepts. */
   readonly schemaVersion: number;
-  /** Version keys accepted BESIDES `schemaVersion`, forever (world-info's `version`). */
+}
+
+/** The two envelope relaxations a family may declare; each factory's spec carries only the one it uses. */
+interface EnvelopeRelaxations {
   readonly legacyVersionKeys?: readonly string[];
-  /** True when a file with NO envelope is still accepted (persona / regex shipped envelope-less). Build
-   *  always emits the envelope regardless. */
   readonly envelopeOptional?: boolean;
 }
 
 export interface JsonRowsSerdeSpec<Value, Row, Header> extends EnvelopeSpec {
+  /** Version keys accepted BESIDES `schemaVersion`, forever (world-info's `version`). */
+  readonly legacyVersionKeys?: readonly string[];
   /** The wire key holding the row array (`themes`, `tags`, `items`, `entries`, `documents`). */
   readonly plural: string;
   readonly rowSchema: z.ZodType<Row>;
@@ -85,6 +86,9 @@ export interface JsonRowsSerdeSpec<Value, Row, Header> extends EnvelopeSpec {
 }
 
 export interface JsonObjectSerdeSpec<Value, Body extends object> extends EnvelopeSpec {
+  /** True when a file with NO envelope is still accepted (persona / regex shipped envelope-less). Build
+   *  always emits the envelope regardless. */
+  readonly envelopeOptional?: boolean;
   /** Parses the whole body (the envelope keys are stripped before it runs). */
   readonly bodySchema: z.ZodType<Body>;
   readonly toWire: (value: Value) => Body;
@@ -140,7 +144,7 @@ export function decodePortableObject(bytes: Uint8Array): PortableParse<Record<st
 
 /** The declared version of a decoded file: `schemaVersion`, else the first present legacy key, else (only
  *  for an envelope-less legacy file) the implied v1. */
-function readVersion(raw: Record<string, unknown>, spec: EnvelopeSpec, hasKind: boolean): number | null {
+function readVersion(raw: Record<string, unknown>, spec: EnvelopeRelaxations, hasKind: boolean): number | null {
   for (const key of ["schemaVersion", ...(spec.legacyVersionKeys ?? [])]) {
     const value = raw[key];
     if (typeof value === "number" && Number.isInteger(value) && value > 0) {
@@ -154,7 +158,7 @@ function readVersion(raw: Record<string, unknown>, spec: EnvelopeSpec, hasKind: 
 }
 
 /** Read + gate the envelope. `null` = the envelope is acceptable; otherwise the refusal reason. */
-function checkEnvelope(raw: Record<string, unknown>, spec: EnvelopeSpec): PortableParseFailure | null {
+function checkEnvelope(raw: Record<string, unknown>, spec: EnvelopeSpec & EnvelopeRelaxations): PortableParseFailure | null {
   const kind = raw["schemaKind"];
   const hasKind = kind !== undefined;
   if (hasKind ? kind !== spec.schemaKind : spec.envelopeOptional !== true) {
@@ -222,8 +226,6 @@ export const NO_JSON_HEADER: EmptyJsonHeader = {};
 /** Define the serde for a portable file that carries a ROW COLLECTION. */
 export function defineJsonRowsSerde<Value, Row, Header>(spec: JsonRowsSerdeSpec<Value, Row, Header>): JsonSerde<Value> {
   return {
-    schemaKind: spec.schemaKind,
-    schemaVersion: spec.schemaVersion,
     build: (value): Uint8Array => {
       const { header, rows } = spec.toWire(value);
       return emit({ ...envelopeOf(spec), ...header, [spec.plural]: rows });
@@ -254,8 +256,6 @@ export function defineJsonRowsSerde<Value, Row, Header>(spec: JsonRowsSerdeSpec<
 /** Define the serde for a portable file that IS one object. */
 export function defineJsonObjectSerde<Value, Body extends object>(spec: JsonObjectSerdeSpec<Value, Body>): JsonSerde<Value> {
   return {
-    schemaKind: spec.schemaKind,
-    schemaVersion: spec.schemaVersion,
     build: (value): Uint8Array => emit({ ...envelopeOf(spec), ...spec.toWire(value) }),
     parse: (bytes): PortableParse<Value> => {
       const decoded = decodeObject(bytes);

@@ -3,7 +3,8 @@ import { Autocomplete as BaseAutocomplete } from "@base-ui/react/autocomplete";
 import type { ReactElement, ReactNode } from "react";
 import type { VariantProps } from "tailwind-variants";
 import type { PortalContainer } from "#lib";
-import { ANCHOR_GAP_INPUT, cn, formatSuggestionCount, usePortalContainer, variantAttrs } from "#lib";
+import { ANCHOR_GAP_INPUT, formatSuggestionCount, usePortalContainer, variantAttrs } from "#lib";
+import type { ComboboxGroup } from "#primitives/combobox";
 import { useFieldIdentity } from "#primitives/field";
 import { Icon, X } from "#primitives/icons";
 import { autocompleteVariants } from "./variants.ts";
@@ -17,14 +18,6 @@ const slots = autocompleteVariants();
  *  seal can never drift from it. Optional at our seam: the inline-select shortcut synthesizes a change
  *  with no originating Base UI event. */
 type AutocompleteChangeDetails = Parameters<NonNullable<BaseRootProps<string>["onValueChange"]>>[1];
-
-/** A category of suggestions rendered under a `GroupLabel` header. Values stay plain strings. */
-export interface AutocompleteGroup {
-  /** The category header text. */
-  label: string;
-  /** The suggestions in this category (the display strings themselves). */
-  items: readonly string[];
-}
 
 type AutocompleteSize = VariantProps<typeof autocompleteVariants>["size"];
 
@@ -52,7 +45,7 @@ export interface AutocompleteProps extends AutocompletePassthrough {
    * still plain strings, not object-items/multi-select (that's the Combobox seal's job). Takes
    * precedence over `items` when set.
    */
-  groups?: readonly AutocompleteGroup[];
+  groups?: readonly ComboboxGroup[];
   /**
    * List/inline behaviour, forwarded to Base UI Root: `list` (default, filters items) · `both`
    * (filter + inline autocompletion) · `inline` (static + inline) · `none` (static, no filter).
@@ -83,8 +76,6 @@ export interface AutocompleteProps extends AutocompletePassthrough {
   size?: AutocompleteSize;
   /** Accessible name for the clear button. @defaultValue "Clear" */
   clearLabel?: string;
-  /** Applied to the input (the in-flow element). */
-  className?: string;
   id?: BaseRootProps<string>["id"];
   /** Render an arrow pointing at the input inside the popup. @defaultValue false */
   arrow?: boolean;
@@ -172,7 +163,6 @@ function AutocompleteField({
   inline,
   ariaLabel,
   ariaDescribedby,
-  className,
   clearLabel,
   id,
   name,
@@ -183,7 +173,6 @@ function AutocompleteField({
   readonly inline: boolean;
   readonly ariaLabel: string | undefined;
   readonly ariaDescribedby: string | undefined;
-  readonly className: string | undefined;
   readonly clearLabel: string;
   readonly id: BaseRootProps<string>["id"];
   readonly name: string | undefined;
@@ -196,7 +185,7 @@ function AutocompleteField({
       <BaseAutocomplete.Input
         aria-describedby={ariaDescribedby}
         aria-label={ariaLabel}
-        className={cn(slots.input(), className)}
+        className={slots.input()}
         data-slot="autocomplete-input"
         id={id}
         {...(name === undefined ? {} : { name })}
@@ -234,7 +223,6 @@ export function Autocomplete({
   "aria-describedby": ariaDescribedby,
   clearLabel = "Clear",
   size,
-  className,
   id,
   arrow = false,
   side,
@@ -262,7 +250,7 @@ export function Autocomplete({
             {item}
           </BaseAutocomplete.Item>
         )
-      : (group: AutocompleteGroup): ReactNode => (
+      : (group: ComboboxGroup): ReactNode => (
           <BaseAutocomplete.Group className={slots.group()} data-slot="autocomplete-group" items={group.items} key={group.label}>
             <BaseAutocomplete.GroupLabel className={slots.groupLabel()} data-slot="autocomplete-group-label">
               {group.label}
@@ -283,7 +271,6 @@ export function Autocomplete({
         size={size}
         ariaDescribedby={ariaDescribedby}
         ariaLabel={ariaLabel}
-        className={className}
         clearLabel={clearLabel}
         id={identity.id}
         inline={inline}

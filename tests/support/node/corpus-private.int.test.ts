@@ -210,7 +210,7 @@ test("private intake retains the existing singleton owner and nonempty content i
   const beforeQueuedRefusal = await readFile(database);
   const queuedDirectory = join(intakeParent, "refused-queued-source");
   await expect(createCorpusCapsule({ ...intake, directory: queuedDirectory })).rejects.toThrow('"activeWorkloads":1');
-  await expect(access(queuedDirectory)).rejects.toThrow();
+  await expect(access(queuedDirectory)).rejects.toMatchObject({ code: "ENOENT" });
   expect((await readFile(database)).equals(beforeQueuedRefusal)).toBe(true);
   const futureSource = await createDb(layout.databaseUrl);
   try {
@@ -241,6 +241,6 @@ test("private intake retains the existing singleton owner and nonempty content i
   const beforeRefusal = await readFile(database);
   const failedDirectory = join(intakeParent, "refused-scheduled-source");
   await expect(createCorpusCapsule({ ...intake, directory: failedDirectory })).rejects.toThrow("copied enabled schedules");
-  await expect(access(failedDirectory)).rejects.toThrow();
+  await expect(access(failedDirectory)).rejects.toMatchObject({ code: "ENOENT" });
   expect((await readFile(database)).equals(beforeRefusal)).toBe(true);
 });

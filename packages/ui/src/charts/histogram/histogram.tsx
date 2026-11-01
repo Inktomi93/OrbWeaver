@@ -9,8 +9,6 @@ import { LabeledChartFrame } from "../labeled-chart-frame/index.ts";
 import type { HistogramBucket } from "./option.ts";
 import { buildHistogramOption } from "./option.ts";
 
-export type { HistogramBucket } from "./option.ts";
-
 export interface HistogramProps {
   /** Pre-binned buckets, in domain order (left to right). */
   readonly buckets: readonly HistogramBucket[];
@@ -20,7 +18,6 @@ export interface HistogramProps {
    *  everywhere else is two number vocabularies on one screen. */
   readonly countFormatter?: (count: number) => string;
   readonly height?: number | "100%";
-  readonly className?: string;
   readonly onChartReady?: ((instance: OrbEChartsInstance) => void) | undefined;
 }
 
@@ -28,14 +25,13 @@ function defaultCountFormatter(count: number): string {
   return String(count);
 }
 
-export function Histogram({ buckets, label, countFormatter = defaultCountFormatter, height, className, onChartReady }: HistogramProps): ReactElement {
+export function Histogram({ buckets, label, countFormatter = defaultCountFormatter, height, onChartReady }: HistogramProps): ReactElement {
   // Called unconditionally (before the empty-state branch) to satisfy rules-of-hooks.
   const colors = useChartTheme();
   const isEmpty = buckets.length === 0;
 
   return (
     <LabeledChartFrame
-      className={className}
       isEmpty={isEmpty}
       label={label}
       slot="histogram"

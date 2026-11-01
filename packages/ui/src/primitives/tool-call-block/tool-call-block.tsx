@@ -1,12 +1,10 @@
 import type { ReactElement } from "react";
-import { cn } from "#lib";
 import { Badge } from "#primitives/badge";
-import { AlertTriangle, Check, Icon } from "#primitives/icons";
+import { Check, Icon, TriangleAlert } from "#primitives/icons";
 import { toolCallBlockVariants } from "./variants.ts";
 
 // ui-local structural mirror of @orb/contracts/chat's ToolCallRecord — ui never imports contracts.
 export interface ToolCallBlockRecord {
-  readonly toolCallId: string;
   readonly name: string;
   /** The model's raw JSON-string arguments (provenance-faithful — may be malformed). */
   readonly arguments: string;
@@ -19,9 +17,6 @@ export interface ToolCallBlockRecord {
 
 export interface ToolCallBlockProps {
   readonly record: ToolCallBlockRecord;
-  /** Initial open state of the native `<details>` — the browser owns toggling after mount. */
-  readonly defaultOpen?: boolean;
-  readonly className?: string;
 }
 
 // Declared ONCE as an `as const` tuple, the union derived (§7.5 no-inline-union-redecl).
@@ -54,13 +49,13 @@ function prettyOrRaw(raw: string): string {
  * Generic tool-invocation block — the fallback every unregistered tool name falls back to. Three
  * states driven only by the record, never by parsing prose: error, unexecuted (`result === null`), success.
  */
-export function ToolCallBlock({ record, defaultOpen, className }: ToolCallBlockProps): ReactElement {
+export function ToolCallBlock({ record }: ToolCallBlockProps): ReactElement {
   const slots = toolCallBlockVariants();
   const state = stateOf(record);
   const argumentsText = prettyOrRaw(record.arguments);
 
   return (
-    <details className={cn(slots.root(), className)} data-slot="tool-call-block" open={defaultOpen}>
+    <details className={slots.root()} data-slot="tool-call-block">
       <summary className={slots.summary()} data-slot="tool-call-block-summary">
         <span className={slots.name()} data-slot="tool-call-block-name">
           {record.name}
@@ -68,7 +63,7 @@ export function ToolCallBlock({ record, defaultOpen, className }: ToolCallBlockP
         <span aria-live="polite" className={slots.status()} data-slot="tool-call-block-status">
           {state === "error" ? (
             <Badge tone="destructive" variant="solid">
-              <Icon icon={AlertTriangle} size="xs" /> Error
+              <Icon icon={TriangleAlert} size="xs" /> Error
             </Badge>
           ) : null}
           {state === "unexecuted" ? <Badge>Requested, not run</Badge> : null}

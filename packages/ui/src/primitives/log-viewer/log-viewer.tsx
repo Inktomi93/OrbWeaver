@@ -2,7 +2,7 @@ import type { ReactElement, UIEvent } from "react";
 import { useLayoutEffect, useRef } from "react";
 import { cn, prefersReducedMotionNow } from "#lib";
 import { CopyButtonFallback, CopyButtonRoot, CopyButtonStatus, CopyButtonSubject, CopyButtonTrigger } from "#primitives/copy-button";
-import { AlertTriangle, CircleAlert, Icon, Info } from "#primitives/icons";
+import { CircleAlert, Icon, Info, TriangleAlert } from "#primitives/icons";
 import type { MessageListHandle } from "#primitives/message-list";
 import { MessageList } from "#primitives/message-list";
 import { logViewerVariants } from "./variants.ts";
@@ -12,7 +12,7 @@ export type LogLevel = (typeof LOG_LEVELS)[number];
 
 const LEVEL_GLYPH: Record<LogLevel, typeof Info> = {
   info: Info,
-  warn: AlertTriangle,
+  warn: TriangleAlert,
   error: CircleAlert,
 };
 

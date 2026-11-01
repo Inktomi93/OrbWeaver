@@ -8,12 +8,12 @@ import type { CharacterCard, CharacterOwnedOp } from "@orb/contracts/character";
 import type { CallerInChatOp, ResolveRoomRunAsOp } from "@orb/contracts/chat";
 import type { Principal, ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { GeneratePicture, PromptTemplateMode } from "@orb/contracts/imagery";
-import type { GenerationCapability, GenerationUsage } from "@orb/contracts/inference";
+import type { BindingActor, GenerationCapability, GenerationUsage } from "@orb/contracts/inference";
 import type { ApplyStatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
-import type { BindingActor, GeneratedImage, ImageGenerateRequest as InferenceImageGenerateRequest, Resolved } from "@orb/inference";
+import type { GeneratedImage, ImageGenerateRequest as InferenceImageGenerateRequest, Resolved } from "@orb/inference";
 import type { CharacterId, ChatId, ImageryCallId, ImageryGenerationId, UserId } from "@orb/kit/ids";
 import type { Clock, IanaTimeZone } from "@orb/kit/time";
 import type { EditImageParams, ExtractionMode, ExtractPromptParams, MultimodalMode, ReadProvenanceParams } from "./params.ts";
@@ -67,8 +67,6 @@ export type ResolvePrompt = (args: ResolvePromptArgs) => Promise<ResolvedPrompt>
 interface ImageryCard extends CharacterCard {
   readonly contentHash: string;
 }
-
-export type { GeneratedImage } from "@orb/inference";
 
 /** The text→image request the domain hands the sealed executor. Free mode fills the connection/prompt/
  *  negativePrompt/size/n fields; `edit` rides B3/editImage (I4).

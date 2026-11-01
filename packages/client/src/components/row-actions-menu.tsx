@@ -13,7 +13,7 @@
 import { Button } from "@orb/ui/button";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import type { LucideIcon } from "@orb/ui/icons";
-import { Icon, MoreHorizontal, Trash2 } from "@orb/ui/icons";
+import { Ellipsis, Icon, Trash } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
 import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
@@ -27,7 +27,7 @@ import { ConfirmDialog } from "./confirm-dialog.tsx";
 export interface RowDestructiveAction {
   /** The menu item label. @defaultValue `ROW_DELETE_NAME` */
   readonly label?: string;
-  /** The menu item glyph. @defaultValue Trash2 */
+  /** The menu item glyph. @defaultValue Trash */
   readonly icon?: LucideIcon;
   /** The confirm dialog heading. */
   readonly title: ReactNode;
@@ -52,7 +52,7 @@ export interface RowActionsMenuProps {
   readonly label: string;
   /** The non-destructive menu items. */
   readonly children?: ReactNode;
-  /** The trigger glyph. @defaultValue MoreHorizontal */
+  /** The trigger glyph. @defaultValue Ellipsis */
   readonly icon?: LucideIcon;
   /** Popup alignment. @defaultValue "end" */
   readonly align?: "center" | "end" | "start";
@@ -174,7 +174,7 @@ function actionsTrigger({
 export function RowActionsMenu({
   label,
   children,
-  icon = MoreHorizontal,
+  icon = Ellipsis,
   align = "end",
   triggerSize = "icon",
   shape = "control",
@@ -207,7 +207,7 @@ export function RowActionsMenu({
             <>
               {destructive.separator === false ? null : <MenuSeparator />}
               <MenuItem onClick={(): void => setConfirmOpen(true)}>
-                <Icon icon={destructive.icon ?? Trash2} size="sm" />
+                <Icon icon={destructive.icon ?? Trash} size="sm" />
                 {destructiveLabel}
               </MenuItem>
             </>

@@ -24,12 +24,11 @@ export interface SelectEntranceEvidence {
   readonly firstForTrigger: boolean;
 }
 
-interface MutableEntrance {
-  id: number;
-  startedAt: number;
-  confirmedAt?: number;
-  endedAt?: number;
-  firstForTrigger: boolean;
+// The evidence fields derive from the published `SelectEntranceEvidence`, so the observer writes and the LoAF
+// ring's readers share one declaration; the rest is observer-only state.
+type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+
+interface MutableEntrance extends Mutable<SelectEntranceEvidence> {
   trigger: Element;
   activeProperties: Set<string>;
   popup: Element | undefined;

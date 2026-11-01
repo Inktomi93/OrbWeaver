@@ -9,9 +9,8 @@
 // emits no bus event, so its settle is Activity's only freshness driver and must carry that chat-scoped read
 // alongside the per-rule fire log.
 //
-// `chatId` rides the vars of the ruleId-keyed verbs PURELY to address the rule LIST for invalidation — the
-// wire schema is `{ruleId, …}` and zod strips the extra key server-side (the setChatInjection precedent,
-// where the id addresses the list filter).
+// `chatId` rides the vars of the ruleId-keyed verbs PURELY to address the rule LIST for invalidation. The wire input
+// is strict and declares no `chatId`, so `withProcedureInput` names what crosses the wire.
 //
 // C5 — `chatId: null` ADDRESSES THE OWNER-GLOBAL LIST. The same five verbs drive both surfaces (the rule
 // guard answers for a rule's scope server-side, so there are no second procedures), and what differs is
@@ -23,7 +22,7 @@
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { createEntityMutation } from "#data";
+import { createEntityMutation, withProcedureInput } from "#data";
 import { ruleDraftOwnerCurrent } from "#state";
 
 /** The `listRules` read this section reconciles — tRPC-inferred (`readonly RuleView[]`), so the optimistic
@@ -64,18 +63,7 @@ export const useCreateRule = createEntityMutation<
   inferOutput<Trpc["automation"]["createRule"]>,
   RuleList
 >({
-  options: (trpc) => {
-    const options = trpc.automation.createRule.mutationOptions();
-    return {
-      mutationKey: options.mutationKey,
-      mutationFn: (vars, context) => {
-        if (options.mutationFn === undefined) {
-          throw new Error("The rule creation transport is unavailable.");
-        }
-        return options.mutationFn(vars.input, context);
-      },
-    };
-  },
+  options: (trpc) => withProcedureInput(trpc.automation.createRule.mutationOptions(), (vars) => vars.input),
   echo: {
     readKey: (trpc, vars) => ruleListKey(trpc, vars.chatId),
     allowed: (vars) => ruleDraftOwnerCurrent(vars.cacheOwnerId),
@@ -92,18 +80,7 @@ export const useUpdateRule = createEntityMutation<
   inferOutput<Trpc["automation"]["updateRule"]>,
   RuleList
 >({
-  options: (trpc) => {
-    const options = trpc.automation.updateRule.mutationOptions();
-    return {
-      mutationKey: options.mutationKey,
-      mutationFn: (vars, context) => {
-        if (options.mutationFn === undefined) {
-          throw new Error("The rule update transport is unavailable.");
-        }
-        return options.mutationFn(vars.input, context);
-      },
-    };
-  },
+  options: (trpc) => withProcedureInput(trpc.automation.updateRule.mutationOptions(), (vars) => vars.input),
   echo: {
     readKey: (trpc, vars) => ruleListKey(trpc, vars.chatId),
     allowed: (vars) => ruleDraftOwnerCurrent(vars.cacheOwnerId),
@@ -162,7 +139,7 @@ export const useSetRuleSuggestOnRefusal = createEntityMutation<
 /** Delete a rule (host-only). No optimistic removal — a failed delete flashing a row back is worse than the
  *  brief settle-refetch, and the row carries no in-flight state a member could act on meanwhile. */
 export const useDeleteRule = createEntityMutation<RuleActionVars, inferOutput<Trpc["automation"]["deleteRule"]>>({
-  options: (trpc) => trpc.automation.deleteRule.mutationOptions(),
+  options: (trpc) => withProcedureInput(trpc.automation.deleteRule.mutationOptions(), (vars: RuleActionVars) => ({ ruleId: vars.ruleId })),
   invalidates: (trpc, vars) => [ruleListFilter(trpc, vars.chatId)],
   errorToast: "Couldn't delete that rule.",
 });
@@ -171,7 +148,7 @@ export const useDeleteRule = createEntityMutation<RuleActionVars, inferOutput<Tr
  *  The verb logs a `test_run` fire row, so the settle invalidates the fire log; the caller reads the
  *  returned `TestRunResult` (predicate verdict + per-arm previews) via `mutateAsync` to show it inline. */
 export const useTestRule = createEntityMutation<RuleActionVars, inferOutput<Trpc["automation"]["testRule"]>>({
-  options: (trpc) => trpc.automation.testRule.mutationOptions(),
+  options: (trpc) => withProcedureInput(trpc.automation.testRule.mutationOptions(), (vars: RuleActionVars) => ({ ruleId: vars.ruleId })),
   invalidates: (trpc, vars) => [
     trpc.automation.listFires.queryFilter({ ruleId: vars.ruleId }),
     ...(vars.chatId === null ? [] : [trpc.automation.listChatActivity.queryFilter({ chatId: vars.chatId })]),
@@ -183,7 +160,7 @@ export const useTestRule = createEntityMutation<RuleActionVars, inferOutput<Trpc
  *  bus-driven fire would, so the settle invalidates both the fire log (the new row) and the rules list
  *  (`lastFiredAt`/`lastError` moved). The caller reads the returned outcome to confirm what happened. */
 export const useRunRuleNow = createEntityMutation<RuleActionVars, inferOutput<Trpc["automation"]["runRuleNow"]>>({
-  options: (trpc) => trpc.automation.runRuleNow.mutationOptions(),
+  options: (trpc) => withProcedureInput(trpc.automation.runRuleNow.mutationOptions(), (vars: RuleActionVars) => ({ ruleId: vars.ruleId })),
   invalidates: (trpc, vars) => [trpc.automation.listFires.queryFilter({ ruleId: vars.ruleId }), ruleListFilter(trpc, vars.chatId)],
   errorToast: "Couldn't run that rule.",
 });

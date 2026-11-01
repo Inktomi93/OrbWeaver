@@ -16,6 +16,7 @@
 //
 // Profile vocabulary is editable independently of the ruleset. The editor supports manual changes,
 // not a packaged-profile picker (D281); applying a ruleset never replaces those host-owned edits.
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import { z } from "zod";
 import type { RpgStatProfile } from "./profile.ts";

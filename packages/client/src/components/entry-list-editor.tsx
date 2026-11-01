@@ -4,11 +4,11 @@
 import { Button } from "@orb/ui/button";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
+import { removeActionName } from "@orb/ui/lib";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { Key, ReactElement, ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
-import { removeActionName } from "#lib";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
 
 export interface EntryListEditorProps<TItem> {
@@ -28,14 +28,6 @@ export interface EntryListEditorProps<TItem> {
   readonly onAdd: () => void;
   readonly onRemove: (index: number) => void;
   readonly onEdit: (index: number) => void;
-  /** The consequence sentence in the Remove confirm, under "Remove <title>?". Per-LIST copy (what deleting
-   *  this kind of entry costs), never per-row. Omit for the bare title-only confirm. */
-  readonly removeDescription?: ReactNode;
-  /** An extra per-row control, rendered in the trailing slot BEFORE Remove — for a scope/state switch that
-   *  belongs to the row itself. It exists because the alternative shipped once and was a defect: the regex
-   *  pane listed every script a SECOND time, 400px lower, purely to give each one a global switch (X-6). A
-   *  property of a row lives on the row. */
-  readonly renderRowAction?: (item: TItem, index: number) => ReactNode;
   /** The currently-edited index (`null` = no editor open). */
   readonly editIndex: number | null;
   /** Render the editor dialog for the given index (called only when `editIndex` is non-null). */
@@ -57,8 +49,6 @@ export function EntryListEditor<TItem>({
   onEdit,
   editIndex,
   renderEditor,
-  removeDescription,
-  renderRowAction,
 }: EntryListEditorProps<TItem>): ReactElement {
   const [removal, setRemoval] = useState<{ readonly items: readonly TItem[]; readonly index: number | null; readonly invalidated: boolean }>({
     items,
@@ -102,7 +92,6 @@ export function EntryListEditor<TItem>({
             <ListRow
               actions={
                 <Row align="center" gap="field">
-                  {renderRowAction?.(item, index)}
                   {/* NAMED BY THE ROW IT KILLS: six rows each offering an unqualified "Remove" gave a
                       screen-reader user six identical buttons for six different scripts. */}
                   <ConfirmDialog
@@ -110,7 +99,6 @@ export function EntryListEditor<TItem>({
                     onOpenChange={(open): void => setRemoval({ items, index: open ? index : null, invalidated: false })}
                     {...(removal.invalidated ? { finalFocus: addButton } : {})}
                     confirmLabel="Remove"
-                    description={removeDescription}
                     // Callers can nest this list in a dialog, where Base UI otherwise suppresses its backdrop.
                     forceRender={true}
                     onConfirm={(): void => onRemove(index)}

@@ -1,6 +1,6 @@
 // Canonical save status: failures are body-scale alerts; incomplete and pristine drafts are distinct.
 import { Button } from "@orb/ui/button";
-import { AlertTriangle, Icon } from "@orb/ui/icons";
+import { Icon, TriangleAlert } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -33,7 +33,7 @@ export function AutosaveStatus({ state, onRetry, retryable = true }: AutosaveSta
     // = an implicit aria-live="assertive" live region; the retry stays a real focusable affordance).
     return (
       <Row className="flex-wrap" gap="field" align="center" data-slot="autosave-status" role="alert">
-        <Icon tone="destructive" icon={AlertTriangle} size="sm" />
+        <Icon tone="destructive" icon={TriangleAlert} size="sm" />
         <Text tone="destructive" voice="reading">
           {AUTOSAVE_SAVE_FAILED_TEXT}
           {retryable ? " —" : ""}
@@ -64,13 +64,14 @@ export function AutosaveStatus({ state, onRetry, retryable = true }: AutosaveSta
     // over it, which is the only status in the set that is actively false. It stays POLITE, unlike `error`:
     // the interrupting announcement belongs to the field's own error/alert (the REASON); this is the STATE,
     // and it is what a screen-reader user hears when they leave the field expecting an autosave. No retry —
-    // retrying an invalid form does nothing; the fix is in the field.
+    // retrying an invalid form does nothing; the fix is in the field. Body-scale like `error`: it qualifies the
+    // whole form, so it cannot sit a step under the fields it blocks.
     return (
       <Row align="center" data-slot="autosave-status" gap="field" role="status" aria-live="polite">
-        <Text tone="destructive" voice="gloss">
+        <Text tone="destructive" voice="reading">
           Not saved
         </Text>
-        <Text voice="gloss">Review this form before saving.</Text>
+        <Text voice="reading">Review this form before saving.</Text>
       </Row>
     );
   }

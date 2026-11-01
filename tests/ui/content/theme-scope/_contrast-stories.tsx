@@ -47,18 +47,26 @@ function SemanticPairs(): ReactElement {
   return (
     <div style={{ display: "grid", gridTemplateColumns: GRID_COLUMNS }}>
       {SEMANTIC_PAIRS.map(([surface, ink]) => (
-        <p key={`${surface}-${ink}`} style={{ ...SAMPLE_STYLE, backgroundColor: `var(--color-${surface})`, color: `var(--color-${ink})` }}>
+        <p
+          key={`${surface}-${ink}`}
+          style={{ ...SAMPLE_STYLE, backgroundColor: `var(${TOKENS[`color.${surface}`].cssVar})`, color: `var(${TOKENS[`color.${ink}`].cssVar})` }}
+        >
           {`${ink} on ${surface}`}
         </p>
       ))}
       {MUTED_HOSTS.map((surface) => (
-        <p key={`muted-${surface}`} style={{ ...SAMPLE_STYLE, backgroundColor: `var(--color-${surface})`, color: "var(--color-muted-foreground)" }}>
+        <p
+          key={`muted-${surface}`}
+          style={{ ...SAMPLE_STYLE, backgroundColor: `var(${TOKENS[`color.${surface}`].cssVar})`, color: `var(${TOKENS["color.muted-foreground"].cssVar})` }}
+        >
           {`muted on ${surface}`}
         </p>
       ))}
       {INPUT_HOSTS.map((surface) => (
-        <div key={`input-${surface}`} style={{ backgroundColor: `var(--color-${surface})` }}>
-          <p style={{ ...SAMPLE_STYLE, backgroundColor: "var(--color-input)", color: "var(--color-muted-foreground)" }}>{`input on ${surface}`}</p>
+        <div key={`input-${surface}`} style={{ backgroundColor: `var(${TOKENS[`color.${surface}`].cssVar})` }}>
+          <p
+            style={{ ...SAMPLE_STYLE, backgroundColor: `var(${TOKENS["color.input"].cssVar})`, color: `var(${TOKENS["color.muted-foreground"].cssVar})` }}
+          >{`input on ${surface}`}</p>
         </div>
       ))}
     </div>
@@ -115,7 +123,9 @@ export function ToneRoleContrastStory({
         ) : (
           <ThemeScope
             tokens={{ background }}
-            {...(ambient === undefined ? {} : { ambientBackground: ambient["--color-background"], ambientAccent: ambient["--color-primary"] })}
+            {...(ambient === undefined
+              ? {}
+              : { ambientBackground: ambient[TOKENS["color.background"].cssVar], ambientAccent: ambient[TOKENS["color.primary"].cssVar] })}
           >
             <ToneFloorPairs />
           </ThemeScope>
@@ -136,7 +146,10 @@ export function ToneHueStory({ background }: { readonly background: string }): R
   return (
     <CtIsolation subject="Tone hues" isolates="Literal tone roles a custom ThemeScope emits over a mid-lightness page">
       <ThemeScope tokens={{ background }} ambientBackground={TOKENS["color.background"].value} ambientAccent={TOKENS["color.primary"].value}>
-        <div data-sample="ground" style={{ backgroundColor: "var(--color-background)", display: "grid", gridTemplateColumns: GRID_COLUMNS, padding: "1rem" }}>
+        <div
+          data-sample="ground"
+          style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, display: "grid", gridTemplateColumns: GRID_COLUMNS, padding: "1rem" }}
+        >
           {TONES.filter((tone) => tone !== "neutral").map((tone) => (
             <div key={tone} data-tone={tone} style={{ display: "grid", gap: "0.5rem" }}>
               <p data-sample="text" style={{ ...SAMPLE_STYLE, color: `var(${TOKENS["color.tone-text"].cssVar})`, fontWeight: 700 }}>
@@ -238,7 +251,7 @@ export function SelectedRowStory({ background }: { readonly background: string }
   return (
     <CtIsolation subject="Selected ListRow" isolates="The selection rail's tint under a custom ThemeScope">
       <ThemeScope tokens={{ background }} ambientBackground={TOKENS["color.background"].value} ambientAccent={TOKENS["color.primary"].value}>
-        <div style={{ backgroundColor: "var(--color-background)", padding: "1rem", inlineSize: "20rem" }}>
+        <div style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, padding: "1rem", inlineSize: "20rem" }}>
           <ListRow title="Connections" clickable={true} data-selected="" />
         </div>
       </ThemeScope>
@@ -250,7 +263,11 @@ export function SelectedRowStory({ background }: { readonly background: string }
 export function ToneMarkStory({ theme }: { readonly theme?: keyof typeof SEED_THEME_VALUE_SETS }): ReactElement {
   return (
     <CtIsolation subject="Tone marks" isolates="The meter zone fills and the status Card edges over a seed palette">
-      <div data-theme={theme} data-mark="ground" style={{ backgroundColor: "var(--color-background)", padding: "1rem", display: "grid", gap: "1rem" }}>
+      <div
+        data-theme={theme}
+        data-mark="ground"
+        style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, padding: "1rem", display: "grid", gap: "1rem" }}
+      >
         {(["info", "warning"] as const).map((accent) => (
           <div key={accent} data-mark={`meter-${accent}`}>
             <TrackBar value={50} max={100} accent={accent} />
@@ -275,7 +292,7 @@ export function BubbleSeparationStory({
   readonly theme?: keyof typeof SEED_THEME_VALUE_SETS;
 }): ReactElement {
   const content = (
-    <div style={{ backgroundColor: "var(--color-background)", padding: "1rem" }}>
+    <div style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, padding: "1rem" }}>
       <div data-sample="page" style={{ minHeight: "2rem" }} />
       {MESSAGE_ROLES.map((role) => (
         <MessageBubble key={role} messageRole={role} data-bubble={role}>
@@ -298,13 +315,33 @@ export function ReadingBandStory({ background }: { readonly background: string }
         <div style={{ display: "grid", gridTemplateColumns: GRID_COLUMNS }}>
           {["black", "white"].map((art) => (
             <section key={art} aria-label={`${art} art`} style={{ backgroundColor: art }}>
-              <p style={{ ...SAMPLE_STYLE, backgroundColor: "var(--color-reading-band)", color: "var(--color-reading-plate-foreground)" }}>Reading band</p>
               <p
-                style={{ ...SAMPLE_STYLE, backgroundColor: "oklch(from var(--color-reading-plate) l c h / 1)", color: "var(--color-reading-plate-foreground)" }}
+                style={{
+                  ...SAMPLE_STYLE,
+                  backgroundColor: `var(${TOKENS["color.reading-band"].cssVar})`,
+                  color: `var(${TOKENS["color.reading-plate-foreground"].cssVar})`,
+                }}
+              >
+                Reading band
+              </p>
+              <p
+                style={{
+                  ...SAMPLE_STYLE,
+                  backgroundColor: `oklch(from var(${TOKENS["color.reading-plate"].cssVar}) l c h / 1)`,
+                  color: `var(${TOKENS["color.reading-plate-foreground"].cssVar})`,
+                }}
               >
                 Opaque plate reference
               </p>
-              <p style={{ ...SAMPLE_STYLE, backgroundColor: "var(--color-reading-plate)", color: "var(--color-reading-plate-foreground)" }}>Reading plate</p>
+              <p
+                style={{
+                  ...SAMPLE_STYLE,
+                  backgroundColor: `var(${TOKENS["color.reading-plate"].cssVar})`,
+                  color: `var(${TOKENS["color.reading-plate-foreground"].cssVar})`,
+                }}
+              >
+                Reading plate
+              </p>
             </section>
           ))}
         </div>

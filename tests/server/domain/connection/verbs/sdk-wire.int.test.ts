@@ -2,9 +2,28 @@
 // @subject packages/inference/src/backends/agent-sdk/runner.ts
 // @subject packages/inference/src/backends/agent-sdk/catalog.ts
 import type { ChatDeltaEvent } from "@orb/contracts/chat";
+import type { ToolCallInput } from "@orb/inference";
 import { ProviderError, toChatRequest } from "@orb/inference";
 import { expect, test } from "@orb/testkit/node";
+import { z } from "zod";
 import { MODEL, rootFor, SDK_TOKEN, savedConnection } from "./sdk-wire.fixtures.ts";
+
+const PROBE_PARAMETERS = { type: "object", properties: { label: { type: "string" } }, required: ["label"], additionalProperties: false };
+const probeReportSchema = z.object({
+  servers: z.array(z.string()),
+  allowedTools: z.string(),
+  replies: z.array(
+    z.object({
+      result: z
+        .object({
+          serverInfo: z.json().optional(),
+          tools: z.array(z.object({ name: z.string() })).optional(),
+          content: z.json().optional(),
+        })
+        .optional(),
+    }),
+  ),
+});
 
 test("native SDK numeric accounting preserves two real model costs without coercion", async () => {
   await using root = await rootFor("valid");
@@ -25,6 +44,37 @@ test("native SDK numeric accounting preserves two real model costs without coerc
   expect(result.reply).toBe("native wire reply");
   expect(result.usage.costUsd).toBe(3);
   expect(observed).toEqual([3]);
+});
+
+test("the mounted tool server keeps the namespace every tool name is prefixed with, and answers the runtime's handshake", async () => {
+  await using root = await rootFor("mcp-probe");
+  const connection = await savedConnection(root);
+  const calls: ToolCallInput[] = [];
+  const result = await root.app.runtime.executor.runChatTurn(
+    toChatRequest({
+      connection,
+      params: {},
+      systemPrompt: { static: "", dynamic: "" },
+      history: [{ role: "user", content: [{ type: "text", text: "wire control" }] }],
+      tools: {
+        offer: {
+          definitions: [{ name: "probe", description: "Record the probe.", parameters: PROBE_PARAMETERS, inputShape: { label: z.string() } }],
+          execute: (call) => {
+            calls.push(call);
+            return Promise.resolve({ text: "probed", isError: false });
+          },
+          turnLimit: 1,
+        },
+      },
+    }),
+  );
+  const wire = probeReportSchema.parse(JSON.parse(result.reply));
+  expect(wire.allowedTools).toBe("mcp__orbweaver__*");
+  expect(wire.servers).toEqual(["orbweaver"]);
+  expect(wire.replies[0]?.result?.serverInfo).toEqual({ name: "orbweaver", version: "1.0.0" });
+  expect(wire.replies[1]?.result?.tools?.map((tool) => tool.name)).toEqual(["probe"]);
+  expect(wire.replies[2]?.result?.content).toEqual([{ type: "text", text: "probed" }]);
+  expect(calls).toEqual([{ toolCallId: "mcp_probe_1", name: "probe", arguments: '{"label":"wire"}' }]);
 });
 
 test.each(["bad-cost", "bad-tokens", "bad-text"])("native SDK %s refuses before a malformed terminal can reach the observer", async (mode) => {

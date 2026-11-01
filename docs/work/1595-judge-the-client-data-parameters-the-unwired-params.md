@@ -28,4 +28,15 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Two rows: two applied, none kept, none handed off, no owner questions.
+
+| Row | Result |
+| - | - |
+| `createCollectionSurface.config.endApproachRows` | applied: config prop removed in `packages/client/src/data/create-collection-surface.ts`; the 12-row threshold is now the one constant `END_APPROACH_ROWS`. `CollectionSurface.listProps.endApproachRows` stays: six surfaces read it (`character-library-body.tsx:172`, `chat-list-surface.tsx:378`, `corpus-browse-view.tsx:183`, `databank-library-surface.tsx:234`, `chats-with-character-pane.tsx:138`) |
+| `planTreeImport.readText` | applied: parameter removed in `packages/client/src/data/import-tree-plan.ts`; `groupUnits` and `readGroupShape` read `file.text()` directly. The only caller outside tests is `import-tree-served.ts:13` (three arguments); `tests/client/data/import-tree-plan.int.test.ts` calls with two or three and never passes a reader |
+
+Survey: `codegraph_explore` on `createCollectionSurface endApproachRows planTreeImport readText`; `ast-grep -p 'createCollectionSurface($$$A)'` (`-l ts` 5929 files, `-l tsx` 1524 files) with no `endApproachRows` key; literal `rg` for both names read.
+
+Reading `file.text()` directly tripped `orb/wire-json-parsed-at-consumer` on the old cast, so `readGroupShape` now parses the definition with a small zod schema (`GROUP_DEFINITION`); a non-object definition still plans as an empty group.
+
+Proof: client typecheck clean; `tests/client/data/import-tree-plan.int.test.ts` 15 passed; eslint clean on the file.

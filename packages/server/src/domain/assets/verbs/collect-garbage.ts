@@ -17,10 +17,10 @@ import { selectAllReferencedAssetIds } from "../persistence/asset-refs.ts";
 import { loadOwnerAssetRows } from "../persistence/maintenance.ts";
 import { purgeAsset } from "../substrate/purge-asset.ts";
 
-/** The grace-window floor (epoch-ms): a blob touched within this of `now` is skipped even if unreferenced —
+/** The grace window (epoch-ms): a blob touched within this of `now` is skipped even if unreferenced —
  *  it may be a just-stored, not-yet-linked import. One hour generously covers a single import request's
- *  put→link gap; an operator can widen it via `graceMs`. */
-const DEFAULT_GRACE_MS = 3_600_000;
+ *  put→link gap. */
+const GRACE_MS = 3_600_000;
 
 interface SweepInput {
   readonly db: Db;
@@ -29,7 +29,6 @@ interface SweepInput {
   readonly ownerId: UserId;
   readonly referenced: ReadonlySet<AssetId>;
   readonly now: number;
-  readonly graceMs: number;
   readonly dryRun: boolean;
   readonly signal: AbortSignal | undefined;
 }
@@ -50,7 +49,7 @@ async function sweepOwner(input: SweepInput): Promise<{ scanned: number; reclaim
       continue; // live — a registry column points at it.
     }
     const mtime = await input.cas.mtimeMs(input.ownerId, hash);
-    if (mtime !== undefined && input.now - mtime < input.graceMs) {
+    if (mtime !== undefined && input.now - mtime < GRACE_MS) {
       continue; // within grace — a possibly-just-stored, not-yet-linked blob.
     }
     if (input.dryRun) {
@@ -73,7 +72,7 @@ async function sweepOwner(input: SweepInput): Promise<{ scanned: number; reclaim
 }
 
 export function createCollectGarbage(ctx: AssetsContext): AssetsService["collectGarbage"] {
-  return async ({ dryRun = false, graceMs = DEFAULT_GRACE_MS, signal }) => {
+  return async ({ dryRun = false, signal }) => {
     const referenced = await selectAllReferencedAssetIds(ctx.db);
     const now = ctx.now();
     let scanned = 0;
@@ -88,7 +87,6 @@ export function createCollectGarbage(ctx: AssetsContext): AssetsService["collect
         ownerId: castId<UserId>(owner),
         referenced,
         now,
-        graceMs,
         dryRun,
         signal,
       });

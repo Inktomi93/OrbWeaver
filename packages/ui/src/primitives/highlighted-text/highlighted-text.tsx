@@ -1,20 +1,14 @@
+import type { Span } from "@orb/kit/chunk";
 import type { ComponentProps, ReactElement } from "react";
 import { useEffect, useRef } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
 import { highlightedTextVariants } from "./variants.ts";
 
-export interface HighlightedTextRange {
-  /** Inclusive start char offset. */
-  readonly start: number;
-  /** Exclusive end char offset. */
-  readonly end: number;
-}
-
 export interface HighlightedTextProps extends Omit<ComponentProps<"div">, "children">, VariantProps<typeof highlightedTextVariants> {
   readonly text: string;
   /** `[start, end)` char-offset ranges to render as `<mark>`. Overlapping/adjacent ranges are merged before splitting. */
-  readonly ranges: readonly HighlightedTextRange[];
+  readonly ranges: readonly Span[];
 }
 
 interface TextRun {
@@ -22,7 +16,7 @@ interface TextRun {
   readonly highlighted: boolean;
 }
 
-function mergeRanges(text: string, ranges: readonly HighlightedTextRange[]): HighlightedTextRange[] {
+function mergeRanges(text: string, ranges: readonly Span[]): Span[] {
   const valid = ranges
     .map((range) => ({
       start: Math.max(0, Math.min(range.start, range.end)),
@@ -31,7 +25,7 @@ function mergeRanges(text: string, ranges: readonly HighlightedTextRange[]): Hig
     .filter((range) => range.start < range.end)
     .sort((a, b) => a.start - b.start);
 
-  const merged: HighlightedTextRange[] = [];
+  const merged: Span[] = [];
   for (const range of valid) {
     const last = merged.at(-1);
     if (last !== undefined && range.start <= last.end) {
@@ -43,7 +37,7 @@ function mergeRanges(text: string, ranges: readonly HighlightedTextRange[]): Hig
   return merged;
 }
 
-function splitRuns(text: string, ranges: readonly HighlightedTextRange[]): TextRun[] {
+function splitRuns(text: string, ranges: readonly Span[]): TextRun[] {
   const merged = mergeRanges(text, ranges);
   if (merged.length === 0) {
     return [{ text, highlighted: false }];

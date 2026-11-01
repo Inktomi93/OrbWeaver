@@ -12,6 +12,7 @@
 // mechanism, so a proven-stale digest (its hash mismatch is what queued the rebuild) stayed live in recall
 // for as long as the summarizer kept returning nothing — see `storeTier0`/`storeConsolidationTier`.
 
+import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { RolePresetParams } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { SummarizeInput } from "@orb/contracts/role-clients";
@@ -24,7 +25,7 @@ import { GenerationSupersededError } from "#primitives/embedding-generation";
 import type { ChatContext } from "#src/domain/chat/contract/context.ts";
 import { resolveCfg } from "../constants.ts";
 import { loadCanonThroughSeq, loadChatMeta, loadDigestHashes, loadDigestSpeakers, loadDigestsForScope, loadTranscriptNames } from "../persistence/queries.ts";
-import type { BlockSpan, DigestRow, MemoryConfig, MemoryEmbedSpace, MemoryPassCounts, MemoryScope, WitnessInterval } from "../types.ts";
+import type { BlockSpan, DigestRow, MemoryConfig, MemoryPassCounts, MemoryScope, Tier0Counts, WitnessInterval } from "../types.ts";
 import { parseDigest } from "./substrate/parse.ts";
 import { consolidationSystemPrompt, consolidationUserPrompt, digestSystemPrompt, digestUserPrompt } from "./substrate/prompts.ts";
 import {
@@ -47,7 +48,6 @@ interface GenerateDigestsArgs {
   readonly config?: MemoryConfig | null | undefined;
   readonly witnessing?: readonly WitnessInterval[] | undefined;
   readonly signal?: AbortSignal | undefined;
-  readonly embedSpace?: MemoryEmbedSpace | undefined;
   readonly embedOwnerId?: UserId | undefined;
 }
 
@@ -128,14 +128,6 @@ async function outputReserve(ctx: ChatContext, funderUserId: UserId): Promise<nu
   return (await summarizerOpts(ctx, funderUserId)).maxOutputTokens ?? DEFAULT_OUTPUT_RESERVE_TOKENS;
 }
 
-/** The mutable tier-0 pass accumulator (the observability counts the build trace reports). */
-interface Tier0Counts {
-  written: number;
-  skipped: number;
-  skippedTokenGuard: number;
-  skippedEmpty: number;
-}
-
 /** A consolidation pass's fold. `skippedEmpty` counts BOTH a blank summarizer result AND a bodyless arc (the
  *  #329 P1b output-shape guard) — a consolidation whose facts body is empty is skipped-and-retried, not stored. */
 interface PassCounts {
@@ -202,7 +194,7 @@ export async function planDigests(ctx: ChatContext, args: GenerateDigestsArgs): 
   if (summarizerContextTokens < SUMMARIZER_CONTEXT_FLOOR) {
     logBuild(ctx, args.scope, { startedAt, counts: EMPTY_TIER0_COUNTS, note: "summarizer context below floor" });
   }
-  const embedSpace = args.embedSpace ?? (await ctx.resolveMemoryEmbedSpace(args.embedOwnerId ?? args.funderUserId));
+  const embedSpace = await ctx.resolveMemoryEmbedSpace(args.embedOwnerId ?? args.funderUserId);
 
   const canon = await loadCanonThroughSeq(ctx.db, chatId, cutoff);
   const macroNames = await loadTranscriptNames(ctx.db, canon);

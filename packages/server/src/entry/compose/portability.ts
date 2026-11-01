@@ -6,13 +6,14 @@ import { PORTABILITY_ROUTES, PORTABLE_DIRECTORIES } from "@orb/contracts/portabi
 import type { ExportRegexScripts, ImportCardScripts, ImportRegexScript } from "@orb/contracts/regex";
 import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
 import type { ImportStandaloneLorebook, ImportWorldInfoPort } from "@orb/contracts/world-info";
+import type { SchemaTableName } from "@orb/db/wiring";
 import type { Clock } from "@orb/kit/time";
 import { hostTimeZone } from "@orb/kit/time";
-import type { AssetsContext } from "#domain/assets";
+import type { AssetsAssemblyContext } from "#domain/assets";
 import { createExportAssets, createExportGallery, createImportAsset, createImportAvatarStore, createImportGallery } from "#domain/assets";
 import type { ImportCharacterPort } from "#domain/character";
 import { createCharacterImportOps } from "#domain/character";
-import type { DatabankPortabilityContext } from "#domain/databank";
+import type { DatabankPortabilityAssemblyContext } from "#domain/databank";
 import { createExportDocument, createImportDocument, createListOwnedDocumentIds } from "#domain/databank";
 import type { ExportService, PortableExportDeps } from "#domain/export";
 import { createPortableExports } from "#domain/export";
@@ -20,28 +21,28 @@ import type { ImageryPortabilityService } from "#domain/imagery";
 import type { ImportProfileDeps } from "#domain/import";
 import { createPortableImports } from "#domain/import";
 import type { PersonaService } from "#domain/persona";
-import type { PresetContext } from "#domain/preset";
+import type { PresetAssemblyContext } from "#domain/preset";
 import { createExportPresets, createImportPresets } from "#domain/preset";
-import type { SettingsContext } from "#domain/settings";
+import type { SettingsAssemblyContext } from "#domain/settings";
 import { createExportTheme, createExportUserSettings, createImportTheme, createImportUserSettings } from "#domain/settings";
-import type { TagContext } from "#domain/tag";
+import type { TagAssemblyContext } from "#domain/tag";
 import { createImportedCardTag, createTagLibraryExport, createTagLibraryImport } from "#domain/tag";
-import type { WorldInfoExportContext } from "#domain/world-info";
+import type { WorldInfoExportAssemblyContext } from "#domain/world-info";
 import { createExportWorldBook, createImportWorldBook, createListOwnedBookIds } from "#domain/world-info";
 import { CHAT_BUNDLE_EXT } from "#primitives/serde/chat-bundle";
-import type { LifecycleDoors, NonPortableCanon, PortabilityTableName } from "../contract/portability.ts";
+import type { LifecycleDoors, NonPortableCanon } from "../contract/portability.ts";
 
 /** What the registry builder needs from the composition root to compose each descriptor. */
 export interface PortabilityDeps {
   readonly now: Clock;
-  readonly tagCtx: TagContext;
-  readonly settingsCtx: SettingsContext;
-  readonly presetCtx: PresetContext;
-  readonly worldInfoExportCtx: WorldInfoExportContext;
+  readonly tagCtx: TagAssemblyContext;
+  readonly settingsCtx: SettingsAssemblyContext;
+  readonly presetCtx: PresetAssemblyContext;
+  readonly worldInfoExportCtx: WorldInfoExportAssemblyContext;
   readonly importStandaloneLorebook: ImportStandaloneLorebook;
-  readonly assetsCtx: AssetsContext;
+  readonly assetsCtx: AssetsAssemblyContext;
   readonly imagery: ImageryPortabilityService;
-  readonly databankCtx: DatabankPortabilityContext;
+  readonly databankCtx: DatabankPortabilityAssemblyContext;
   readonly persona: Pick<PersonaService, "export" | "import" | "list">;
   readonly exportService: Pick<ExportService, "exportCharacter" | "exportChatBundle" | "listHostChats">;
   readonly character: ImportCharacterPort;
@@ -175,7 +176,7 @@ export const PORTABLE_CANON_TABLES = {
   gallery: ["galleryItems"],
   assets: ["assets"],
   imagery: ["imageryGenerations", "imageryImportCalls"],
-} as const satisfies Record<PortableKind, readonly PortabilityTableName[]>;
+} as const satisfies Record<PortableKind, readonly SchemaTableName[]>;
 
 /** Explicit omissions retain their portability reason and end condition. */
 export const NON_PORTABLE_CANON = {
@@ -295,7 +296,7 @@ export const NON_PORTABLE_CANON = {
       "state the table exists to prevent. Absent, the restored box reads as `unrecorded` and serves its live space " +
       "until its first sweep records one. Ends never.",
   },
-} as const satisfies Partial<Record<PortabilityTableName, NonPortableCanon>>;
+} as const satisfies Partial<Record<SchemaTableName, NonPortableCanon>>;
 
 /** Single-entity doors or the explicit decision that the family has none. */
 export const LIFECYCLE_DOORS = {

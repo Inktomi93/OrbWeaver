@@ -7,12 +7,14 @@
 // ChunkParams by `satisfies` — drift fails tsc HERE, not at a call site), the retrieval/settings blobs, and
 // the client-facing DocumentView. `extractedText` is deliberately NOT on DocumentView (list payloads would
 // haul megabytes — a dedicated `get` with `includeText` returns it).
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import type { ChunkParams } from "@orb/kit/chunk";
 import type { CharacterId, ChatId, DocumentId, WorkloadId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { Principal } from "#identity";
+import { pageDirectionShape } from "#rpc";
 import type { VisibleRoomRef } from "../chat/visible-rooms.ts";
 import { visibleRoomRefSchema } from "../chat/visible-rooms.ts";
 
@@ -114,7 +116,7 @@ export interface BankHealthView {
 //  millisecond, which a bulk import produces by the dozen). `id` breaks the tie, so no row is served twice
 //  and none is skipped. An OFFSET would do neither: it re-counts from the top of a list whose head moves
 //  every time an ingest bumps a row's `updatedAt` (the `character.list` keyset precedent).
-const documentListCursorSchema = z.object({
+const documentListCursorSchema = z.strictObject({
   updatedAt: z.int(),
   id: documentIdSchema,
 });
@@ -462,9 +464,9 @@ const DATABANK_LIST_LIMIT_MAX = 500;
  *  page the client asks for. */
 export const HOME_RECENT_DOCUMENTS_LIMIT = 4;
 
-export const getDocumentInputSchema = z.object({ id: typeIdSchema(ID_PREFIX.document), includeText: z.boolean().optional() });
+export const getDocumentInputSchema = z.strictObject({ id: typeIdSchema(ID_PREFIX.document), includeText: z.boolean().optional() });
 
-export const listDocumentsInputSchema = z.object({
+export const listDocumentsInputSchema = z.strictObject({
   origin: docOriginSchema.optional(),
   // Bounded like every other free-text lens: a needle longer than the longest storable name can only
   // match nothing, and an unbounded `like` argument is a request-size hole.
@@ -472,6 +474,7 @@ export const listDocumentsInputSchema = z.object({
   phase: ingestPhaseSchema.optional(),
   limit: z.int().min(DATABANK_LIST_LIMIT_MIN).max(DATABANK_LIST_LIMIT_MAX).optional(),
   cursor: documentListCursorSchema.nullish(),
+  ...pageDirectionShape,
 });
 export type {
   CaptureDatabankRoomReachOp,

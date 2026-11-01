@@ -10,17 +10,11 @@ import { useEffect, useId } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useSuspenseQuery, useTRPC } from "#data";
 import { clearChatMoment, setActiveSection, useChatMoment } from "#state";
+import type { TranscriptEdges } from "../lib/move-neighbours.ts";
 
 type HistoryPage = inferOutput<Trpc["chat"]["listMessages"]>;
 type CanonPage = Pick<HistoryPage, "messages" | "identities">;
 type AnchoredPage = inferOutput<Trpc["chat"]["getMessageWindow"]>;
-/** Whether canon exists beyond the loaded rows, from the paging query's own previous/next signal. */
-export interface TranscriptEdges {
-  readonly earlier: boolean;
-  /** The loaded pages do not yet reach the live tail, so a row beside the gap has an unloaded neighbour. */
-  readonly settling: boolean;
-  readonly later: boolean;
-}
 
 interface TranscriptWindowProps {
   readonly chatId: ChatId;

@@ -27,7 +27,7 @@ import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
-import { Icon, MessagesSquare, Trash2, UserPlus, Users } from "@orb/ui/icons";
+import { Icon, MessagesSquare, Trash, UserPlus, Users } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -114,7 +114,7 @@ function RosterRow(props: {
           {/* The destructive door keeps a bare name: the counts inform CONSENT to apply, and a delete that
               recited them would read as though it were deleting the members too. */}
           <Button disabled={busy} variant="ghost" size="sm" square={true} onClick={(): void => onDelete(roster)} aria-label={`Delete ${roster.name}`}>
-            <Icon icon={Trash2} size="sm" />
+            <Icon icon={Trash} size="sm" />
           </Button>
         </Row>
       </Row>
@@ -266,7 +266,7 @@ export function RosterPicker(): ReactElement {
   // The catalogue is a static CODE catalogue and every door in this surface needs it: the include-line's
   // knob gloss, and the apply report's naming of a REFUSED rule (which can happen from the library plane,
   // with no room open at all — so it is not gated on hosting the way the capture read is).
-  const catalogue = useRulePresetCatalogue(true);
+  const catalogue = useRulePresetCatalogue();
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const create = useCreateRosterPreset({ trpc, invalidation });

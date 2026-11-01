@@ -30,4 +30,13 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+4 rows: applied 2, kept 1, owner ruled 1 (wired), handed off 0.
+
+Applied: `QueryEmbedConnection.imageEmbed.opts` (the optional `{ signal }`; the only calls, `verbs/images.ts:94`, pass the input alone, and the embeddings snapshot still satisfies the narrower type); `nearestDocumentChunks.params.generationId` (the one caller, `verbs/documents.ts:106`, supplies `generationFingerprint` only, so the active-space condition is now built from the fingerprint alone with the same result).
+
+Kept: `SearchService.segments.params.candidates`. `SegmentsParams` is an alias of the contracts wire shape `MemoryQueryOptions` (`packages/server/src/domain/search/contract/params.ts:29`); `candidates` is read by the segments verb (`verbs/segments.ts:31,64`) and supplied by memory recall (`domain/chat/memory/recall/recall.ts:320` spreads `candidates` into the query) and read by the digests verb of the same shape (`verbs/digests.ts:123,146`). It is a wire field, not a dead parameter of this verb.
+
+Owner ruling: `QueryEmbedConnection.imageEmbed.input.instruction` stays and is wired. This replaces the Decision column for this row. The wiring and proof are in the [1623 evidence](1623-judge-the-server-domain-embeddings-parameters-the-unwired.md#evidence).
+
+Survey: codegraph_explore on QueryEmbedConnection, SearchService segments, nearestDocumentChunks; ast-grep `nearestDocumentChunks($$$)` on -l ts and -l tsx over packages, tests, tooling, scripts (5929 .ts, 1524 .tsx): 1 call (tsx 0); literal `rg` for candidates, generationId, imageEmbed across the search domain.
+Ran: `pnpm typecheck packages/server/tsconfig.json tsconfig.tests-iso.json tsconfig.node.json` exit 0; `pnpm test` current-document-scope and rerank-consumers: 2 files, 14 passed.

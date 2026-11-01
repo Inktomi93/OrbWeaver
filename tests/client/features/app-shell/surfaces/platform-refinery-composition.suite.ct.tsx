@@ -8,6 +8,7 @@ import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProc
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import type { RefineryCompositionShellStory } from "./_refinery-composition-stories.tsx";
 
@@ -277,7 +278,7 @@ async function expectWide(title: Locator): Promise<void> {
 }
 
 async function expectOriginalMeasure(paragraph: Locator, widerHost = false): Promise<void> {
-  const measure = await resolvedLength(paragraph.page(), "var(--reading-measure-prose)", paragraph);
+  const measure = await resolvedLength(paragraph.page(), `var(${TOKENS["reading.measure-prose"].cssVar})`, paragraph);
   const facts = await paragraph.evaluate((node) => {
     const parent = node.parentElement;
     if (parent === null) {

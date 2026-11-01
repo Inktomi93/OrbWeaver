@@ -1,4 +1,4 @@
-import type { PluginBudgets } from "@orb/contracts/plugin";
+import type { InvocationChat, PluginBridge, PluginBudgets } from "@orb/contracts/plugin";
 // The Sandbox — one guest instance = one QuickJSContext (own globals, own memory cap, own interrupt budget).
 // It provides the skeleton (boot/teardown, injected-seam realm, per-invocation DoS budget, the async promise
 // bridge) and the MEMBRANE: the capability-gated host-fn call surface (membrane.ts),
@@ -38,7 +38,7 @@ import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle, QuickJSWASM
 import { GUEST_MAX_STACK_BYTES, HOST_FN_DEADLINE_MS, PLUGIN_INVOCATION_CPU_MS, PLUGIN_INVOKE_ARGS_MAX_BYTES, PLUGIN_MEMORY_LIMIT_BYTES } from "./budgets.ts";
 import type { PluginNetEgress } from "./contract/net-egress.ts";
 import { installCpuGuard, openCpuWindow, pumpGuestJobs } from "./cpu-guard.ts";
-import type { InFlightCounter, InvocationChat, MembraneRuntime, PluginBridge } from "./membrane.ts";
+import type { InFlightCounter, MembraneRuntime } from "./membrane.ts";
 import { getPluginQuickJS } from "./module.ts";
 
 import type { HostSeams, LogMirror } from "./realm.ts";
@@ -359,7 +359,7 @@ export class Sandbox implements Disposable {
   }
 
   /** The UI COMMANDS `main.js` registered at activation — read directly by
-   *  `plugin.listCommands` (which the `/plugin` dispatcher and the Plugins chrome menu both fan off); each
+   *  `plugin.listCommands` (which the `/plugin` dispatcher and the command palette both fan off); each
    *  command's `onRun` handle lives in `handlers` (disposed at teardown alongside every other resident handler).
    *  No external registrar, for the same reason a surface has none: a command is instance-resident data. */
   get collectedCommands(): readonly PluginCommandRegistration[] {

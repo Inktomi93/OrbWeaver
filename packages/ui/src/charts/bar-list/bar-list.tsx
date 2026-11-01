@@ -10,7 +10,7 @@ import { LabeledChartFrame } from "../labeled-chart-frame/index.ts";
 import type { BarListIntent, BarListItem } from "./option.ts";
 import { buildBarListOption } from "./option.ts";
 
-export type { BarListIntent, BarListItem } from "./option.ts";
+export type { BarListIntent } from "./option.ts";
 
 export interface BarListProps {
   /** Pre-sorted rank order — index 0 renders as the TOP row. */
@@ -33,7 +33,6 @@ export interface BarListProps {
    */
   readonly valueMax?: number | undefined;
   readonly height?: number | "100%";
-  readonly className?: string;
   readonly onChartReady?: ((instance: OrbEChartsInstance) => void) | undefined;
 }
 
@@ -51,7 +50,6 @@ export function BarList({
   intent = "accent",
   valueMax,
   height,
-  className,
   onChartReady,
 }: BarListProps): ReactElement {
   // Called unconditionally (before the empty-state branch) to satisfy rules-of-hooks.
@@ -62,7 +60,6 @@ export function BarList({
 
   return (
     <LabeledChartFrame
-      className={className}
       isEmpty={isEmpty}
       label={label}
       ref={frameRef}

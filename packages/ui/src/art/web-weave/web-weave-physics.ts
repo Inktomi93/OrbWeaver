@@ -1,6 +1,6 @@
 // WebWeave PHYSICS — how the silk answers a touch and the weather. A pure
 // DISPLACEMENT FIELD composed over the already-built geometry: nothing here rebuilds a web, nothing
-// here reads a clock, and with no plucks and no wind every function is the identity — so the settled
+// here reads a clock, and with no plucks every function is the identity — so the settled
 // web looks byte-for-byte as it did before this module existed (its `swayGain` returns exactly 1).
 //
 // Three effects, one composition order (the render module applies them in this order):
@@ -89,33 +89,18 @@ export const decayShiver = (shiver: number, dt: number): number => {
   return next < SHIVER_FLOOR ? 0 : next;
 };
 
-/** Sway multiplier at full wind — a stiff breeze roughly triples the ambient breath. */
-const WIND_SWAY_GAIN = 2.6;
 /** Sway multiplier at full shiver. */
 const SHIVER_SWAY_GAIN = 2.2;
-/** The gust: two slow frequencies, the faster one carrying a spatial phase across the web's width, so
- *  one side gusts before the other. Scaled by wind — at wind 0 the gust term vanishes entirely. */
-const GUST_SLOW_HZ = 3e-4;
-const GUST_FAST_HZ = 7.3e-4;
-const GUST_WAVELENGTH = 0.002;
-const GUST_HALF = 0.5;
 
 export interface SwayGainInput {
-  /** Wall-clock ms. */
-  readonly now: number;
-  /** The sampled point's x (the gust varies across the width). */
-  readonly x: number;
-  /** 0..1 weather dial. */
-  readonly wind: number;
   /** 0..1 decaying "the web felt that" boost. */
   readonly shiver: number;
 }
 
-/** The ambient sway's amplitude multiplier. EXACTLY 1 with no wind and no shiver — the inert default
- *  is what keeps the settled web unchanged for every host that never touches these props. */
-export function swayGain({ now, x, wind, shiver }: SwayGainInput): number {
-  const gust = 1 + (Math.sin(now * GUST_SLOW_HZ) * GUST_HALF + Math.sin(now * GUST_FAST_HZ + x * GUST_WAVELENGTH) * GUST_HALF) * wind;
-  return (1 + wind * WIND_SWAY_GAIN + shiver * SHIVER_SWAY_GAIN) * gust;
+/** The ambient sway's amplitude multiplier. EXACTLY 1 with no shiver — the inert default
+ *  is what keeps the settled web unchanged for every host that never touches the web. */
+export function swayGain({ shiver }: SwayGainInput): number {
+  return 1 + shiver * SHIVER_SWAY_GAIN;
 }
 
 /** Where a pointer landed on the web: the strand it struck and the index-fraction of the strike. */

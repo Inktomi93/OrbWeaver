@@ -40,7 +40,7 @@ import type { ResolveCharacterDistillatesOp } from "@orb/contracts/discovery";
 import type { EmbeddingsPruneBlocksOp, MemoryEmbedSpace, ResolveMemoryEmbedSpaceOp } from "@orb/contracts/embeddings";
 import type { Can, Principal, ResolveHandleOp, ResolveUserEnabled } from "@orb/contracts/identity";
 import type { GeneratePicturePrompt, SizePresetName } from "@orb/contracts/imagery";
-import type { SendAvailability } from "@orb/contracts/inference";
+import type { BindingActor, SendAvailability } from "@orb/contracts/inference";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ResolveConnectedPersonaOp, ResolveCurrentPersonaOp, ResolveDefaultPersonaOp, ResolveUserPublicsOp } from "@orb/contracts/persona";
 import type { ChoiceBlockSpec, ResolveUtilityPresetParams, RolePresetParams, UserIntent } from "@orb/contracts/preset";
@@ -52,7 +52,7 @@ import type { CopyHandoffBooksArgs, CountHandoffBooks } from "@orb/contracts/wor
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { StatementToken } from "@orb/db/wiring";
-import type { BindingActor, Resolved, RoleClientsWithSignal, SummarizeResult, WireTool } from "@orb/inference";
+import type { Resolved, RoleClientsWithSignal, SummarizeResult, WireTool } from "@orb/inference";
 import type {
   AssetId,
   CharacterId,
@@ -83,8 +83,6 @@ import type { ResolveChatUserMacroDefs } from "./macro-readers.ts";
 import type { MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
 import type { RpgTurnOps } from "./rpg-turn.ts";
 import type { HashTokenOp, SignupInviteCapability, SignupInviteDeps } from "./signup.ts";
-
-export type { ResolveViewerVisibility, StoreSegmentParams } from "@orb/contracts/chat";
 
 export type {
   BoundToolExecution,

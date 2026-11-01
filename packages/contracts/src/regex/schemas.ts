@@ -31,6 +31,7 @@
 // directions, so "a depth field on a leg that cannot execute it" and "the depth-scoped leg with no depth
 // scope" are equally unrepresentable, and the client derives the pair at its ONE save boundary (the
 // `withDerivedTierFlags` precedent) rather than validating it in a form.
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -341,10 +342,10 @@ export type RegexAttachScope =
   | { readonly kind: "chat"; readonly chatId: ChatId };
 
 export const regexAttachScopeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("global") }),
-  z.object({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
-  z.object({ kind: z.literal("preset"), presetId: typeIdSchema(ID_PREFIX.preset) }),
-  z.object({ kind: z.literal("chat"), chatId: typeIdSchema(ID_PREFIX.chat) }),
+  z.strictObject({ kind: z.literal("global") }),
+  z.strictObject({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
+  z.strictObject({ kind: z.literal("preset"), presetId: typeIdSchema(ID_PREFIX.preset) }),
+  z.strictObject({ kind: z.literal("chat"), chatId: typeIdSchema(ID_PREFIX.chat) }),
 ]) satisfies z.ZodType<RegexAttachScope>;
 
 /** The three scopes a PICKER attaches (global is the library surface's own switch — see above). Spelled
@@ -442,10 +443,10 @@ export const bulkResultSchema = z.strictObject({ affected: z.number() }) satisfi
 export const importScriptFileResultSchema = z.strictObject({ created: z.boolean() });
 export type ImportScriptFileResult = z.output<typeof importScriptFileResultSchema>;
 
-export const regexScriptIdInputSchema = z.object({ scriptId: typeIdSchema(ID_PREFIX.regexScript) });
+export const regexScriptIdInputSchema = z.strictObject({ scriptId: typeIdSchema(ID_PREFIX.regexScript) });
 
-export const regexCharacterInputSchema = z.object({ characterId: typeIdSchema(ID_PREFIX.character) });
+export const regexCharacterInputSchema = z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character) });
 
-export const regexPresetInputSchema = z.object({ presetId: typeIdSchema(ID_PREFIX.preset) });
+export const regexPresetInputSchema = z.strictObject({ presetId: typeIdSchema(ID_PREFIX.preset) });
 
-export const regexChatInputSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });
+export const regexChatInputSchema = z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat) });

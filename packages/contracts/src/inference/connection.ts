@@ -2,6 +2,7 @@
 // them, the runtime's `ConnectionStore`/`BindingStore` ports carry them, `@orb/db`'s tables mirror them
 // (`schema/connection.ts`, producer `domain/connection`). Secrets never ride here: a row references its
 // credential by id; the runtime resolves the secret through its own port at call time.
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";

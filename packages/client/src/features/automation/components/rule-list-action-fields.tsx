@@ -2,8 +2,9 @@ import { QUICK_REPLY_MAX_CHOICES, QUICK_REPLY_MODES } from "@orb/contracts/autom
 import type { ChatId } from "@orb/kit/ids";
 import { ENTRY_POSITIONS } from "@orb/kit/world-info";
 import { Button } from "@orb/ui/button";
-import { Icon, Trash2 } from "@orb/ui/icons";
+import { Icon, Trash } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { removeActionName } from "@orb/ui/lib";
 import { Separator } from "@orb/ui/separator";
 import { SortableList } from "@orb/ui/sortable";
 import { Text } from "@orb/ui/text";
@@ -11,7 +12,7 @@ import type { ReactElement } from "react";
 import { useEffect, useId, useRef } from "react";
 import type { AutosaveSession } from "#forms/editor";
 import { touchedFieldError } from "#forms/editor";
-import { notify, removeActionName } from "#lib";
+import { notify } from "#lib";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { RuleBookField } from "./rule-book-field.tsx";
 
@@ -146,7 +147,9 @@ function ReplyList({ form, index, action, ids }: ReplyFieldsProps & { readonly i
             {choice > 0 ? <Separator /> : null}
             <Row gap="field" align="center">
               {grip}
-              <Text className="flex-1 min-inline-0">Reply {choice + 1}</Text>
+              <Text className="flex-1 min-inline-0" voice="label">
+                Reply {choice + 1}
+              </Text>
               <Button
                 ref={(button): void => {
                   if (button === null) {
@@ -165,7 +168,7 @@ function ReplyList({ form, index, action, ids }: ReplyFieldsProps & { readonly i
                   );
                 }}
               >
-                <Icon icon={Trash2} size="sm" />
+                <Icon icon={Trash} size="sm" />
               </Button>
             </Row>
             <form.AppField name={`actions[${index}].choices[${choice}].label`}>

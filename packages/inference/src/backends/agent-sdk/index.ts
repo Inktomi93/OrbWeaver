@@ -32,9 +32,6 @@ import { createAgentSdkLog } from "./log.ts";
 import { runChatTurn } from "./runner.ts";
 import { SessionCache } from "./session/index.ts";
 
-export type { SessionEntryWriter } from "./session/index.ts";
-
-const DEFAULT_TOOL_SERVER_NAME = "orbweaver";
 const CLAUDE_TOOL = "claude";
 
 function isSessionStore(value: unknown): value is AgentSdkDeps["sessionStore"] {
@@ -73,7 +70,6 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
     scheduleTimeout: deps.scheduleTimeout,
     scheduleIdleTimeout: deps.scheduleIdleTimeout,
     ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
-    debug: deps.debug ?? false,
     childEnv,
   };
   const logFor = (connection: Pick<Resolved, "providerId">): ReturnType<typeof createAgentSdkLog> => createAgentSdkLog(deps.log, connection.providerId);
@@ -95,7 +91,7 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
     runChatTurn: chatTurn,
     summarize: sideGen,
     structured: sideGen,
-    verifyAuth: (req: DiagnosticRequestCommon): Promise<VerifyAuthResult> => verifyAuth(req, resolved, logFor(req.connection)),
+    verifyAuth: (req: DiagnosticRequestCommon): Promise<VerifyAuthResult> => verifyAuth(req, resolved),
     listModels: async (req: ListModelsRequest): Promise<ModelListing> => {
       try {
         const models = await fetchAgentSdkModels(req.connection, resolved, logFor(req.connection));
@@ -112,7 +108,7 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
 // ── The SDK-free tool-server seam (agent mode) ─────────────────────────────────────────────────────────
 
 /** Build an opaque {@link AgentToolServer} from domain-supplied tool specs WITHOUT the domain importing the SDK. */
-export function createAgentToolServer(opts: { readonly name?: string; readonly version?: string; readonly tools: readonly AgentToolSpec[] }): AgentToolServer {
+export function createAgentToolServer(opts: { readonly name: string; readonly version: string; readonly tools: readonly AgentToolSpec[] }): AgentToolServer {
   const sdkTools = opts.tools.map((spec) =>
     tool(spec.name, spec.description, spec.inputSchema, async (args: Record<string, unknown>) => {
       const result = await spec.handler(args);
@@ -122,7 +118,7 @@ export function createAgentToolServer(opts: { readonly name?: string; readonly v
       };
     }),
   );
-  return createSdkMcpServer({ name: opts.name ?? DEFAULT_TOOL_SERVER_NAME, ...(opts.version !== undefined ? { version: opts.version } : {}), tools: sdkTools });
+  return createSdkMcpServer({ name: opts.name, version: opts.version, tools: sdkTools });
 }
 
 export type { AgentSdkBackend, AgentSdkBackendDeps, AgentToolSpec } from "../../contract/agent-sdk-backend.ts";

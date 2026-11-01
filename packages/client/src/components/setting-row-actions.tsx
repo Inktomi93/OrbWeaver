@@ -40,12 +40,13 @@ import { Row } from "@orb/ui/layout";
 import { MenuItem, MenuSeparator } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { copyWithNotice, IS_DEV, rowActionsName } from "#lib";
+import type { ConfigSettingRef } from "#state";
 import { formatConfigLink } from "#state";
 import { DescribedMenuItem } from "./described-menu-item.tsx";
 
 import { RowActionsMenu } from "./row-actions-menu.tsx";
 
-import type { ConfigLeafAddress, ConfigLeafValue } from "./use-config-leaf.ts";
+import type { ConfigLeafValue } from "./use-config-leaf.ts";
 
 /** A failed copy's next step: the toast description carries the text itself, where it can be selected. */
 function manualCopyStep(text: string): string {
@@ -54,7 +55,7 @@ function manualCopyStep(text: string): string {
 
 export interface SettingRowActionsProps {
   /** The row's address — Copy id copies its dotted spelling, Copy link its `/config?to=` form. */
-  readonly address: ConfigLeafAddress;
+  readonly address: ConfigSettingRef;
   /** The row's visible label — every affordance here is named for it. */
   readonly label: string;
   /** The leaf's value seam, `null` when the leaf declares no `key`. */

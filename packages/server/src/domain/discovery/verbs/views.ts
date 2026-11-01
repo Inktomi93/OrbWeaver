@@ -4,10 +4,10 @@
 // root) since a verb file may not reach sideways into a sibling subsystem folder directly. characterDossier
 // composes discovery's OWN portrait alignment (in-RAM cosine) with the injected `similar` search seam.
 
+import type { ThemeLevel } from "@orb/contracts/discovery";
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { cosineSim } from "@orb/kit/vector-math";
-import type { ThemeLevel } from "../contract/params.ts";
 import type { CharacterDossier, HomeView, ThemeDetail } from "../contract/results.ts";
 import type { DiscoveryContext, DiscoveryService, ViewsDeps } from "../contract/service.ts";
 import {

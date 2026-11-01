@@ -22,7 +22,7 @@ export type BindingView = z.output<typeof bindingViewSchema>;
 
 /** The actor a binding belongs to, from the caller's side; absent means the caller's own `user` bindings. */
 export const bindingActorSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("automation-rule"), ruleId: typeIdSchema(ID_PREFIX.automationRule) }),
-  z.object({ kind: z.literal("plugin-grant"), pluginId: typeIdSchema(ID_PREFIX.plugin) }),
+  z.strictObject({ kind: z.literal("automation-rule"), ruleId: typeIdSchema(ID_PREFIX.automationRule) }),
+  z.strictObject({ kind: z.literal("plugin-grant"), pluginId: typeIdSchema(ID_PREFIX.plugin) }),
 ]);
-export const listBindingsInputSchema = z.object({ actor: bindingActorSchema.optional() }).optional();
+export const listBindingsInputSchema = z.strictObject({ actor: bindingActorSchema.optional() }).optional();

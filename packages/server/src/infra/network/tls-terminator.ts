@@ -168,9 +168,7 @@ export function startTlsTerminator(options: TlsTerminatorOptions): Promise<TlsTe
     server.once("error", onError);
     server.listen({ port: options.port, ...(options.host === undefined ? {} : { host: options.host }) }, () => {
       server.off("error", onError);
-      const address = server.address();
       resolve({
-        port: typeof address === "object" && address !== null ? address.port : options.port,
         replaceCertificate: (certificatePem, keyPem): void => {
           server.setSecureContext({ cert: certificatePem, key: keyPem, minVersion: MIN_TLS_VERSION });
         },

@@ -5,7 +5,8 @@
 import type { ResolvedWarning, StructuredVehicle, WireSchemaMode, WireSchemaViolation } from "@orb/contracts/inference";
 import { countWireSchemas, describeWireSchemaViolation, scrubViolations, scrubWireSchema, WIRE_SUBSETS } from "@orb/contracts/inference";
 import type { RolePresetParams } from "@orb/contracts/preset";
-import type { ResponseFormat, ToolChoice, WireTool } from "../contract/chat.ts";
+import type { ResponseFormat } from "@orb/contracts/role-clients";
+import type { ToolChoice, WireTool } from "../contract/chat.ts";
 import { assertNever, ProviderError, SCHEMA_REJECTED_DETAIL } from "../contract/errors.ts";
 
 import type { Resolved } from "../contract/resolved.ts";
@@ -302,7 +303,7 @@ export function planStructuredFor(connection: Resolved, ask: StructuredAsk): Str
 }
 
 /** Side-generation preview with the same role parameters and reasoning posture as the request. */
-export function structuredFitFor(connection: Resolved, format: ResponseFormat, params: RolePresetParams): StructuredFit {
+export function structuredFitFor(connection: Resolved, format: Pick<ResponseFormat, "name" | "schema">, params: RolePresetParams): StructuredFit {
   const reasoningOff =
     connection.capability.kind === "generation" &&
     resolveChat(params, connection.capability.generation, { posture: "side-gen", wire: connection.wire }).reasoning.offChosen === true;

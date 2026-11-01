@@ -16,6 +16,7 @@ import { seedCorpusLibraries } from "./corpus-seed.ts";
 import { makePluginBundle } from "./factories/plugin.ts";
 import { seedCharacterRows, seedInstalledPluginRows, seedPluginGrantRows } from "./factories/rows.ts";
 import { expect, test } from "./fixtures.ts";
+import { connectDevice } from "./presence.ts";
 import { createServerHarness } from "./server.ts";
 
 const SLUG = "injection-ledger";
@@ -155,7 +156,7 @@ test("native plugin values render once in authored injections without re-expandi
   await using presenceLifetime = new AsyncDisposableStack();
   const online = new AbortController();
   presenceLifetime.defer(() => online.abort());
-  root.app.presence.connect(root.ownerId, online.signal);
+  await connectDevice(root, root.ownerId, online.signal);
   const priorRequests = bodies.length;
   expect((await send(member, persona.id)).aborted).toBe(false);
   expect(bodies).toHaveLength(priorRequests + 1);

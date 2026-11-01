@@ -19,7 +19,7 @@ import { readSeedBackground, SEED_BACKGROUND_PLATES } from "@orb/default-content
 import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { AssetsContext, AssetsService, BackgroundStoreDeps, MaterializeBackgroundDeps } from "#domain/assets";
+import type { AssetsAssemblyContext, AssetsService, BackgroundStoreDeps, MaterializeBackgroundDeps } from "#domain/assets";
 import { createAssetsService, createBackgroundStore, createMaterializeBackground, createSeedPlateStore } from "#domain/assets";
 import type { CharacterService, DefaultCharacterSeeder, GreetingCompletionDeps } from "#domain/character";
 import {
@@ -80,7 +80,7 @@ export interface AssetsCharacterComposeDeps {
   readonly cas: Cas;
   readonly variants: VariantCache;
   readonly imageAdapter: ImageAdapter;
-  readonly emit: AssetsContext["emit"];
+  readonly emit: AssetsAssemblyContext["emit"];
   readonly audit: AuditWiring["log"];
   readonly tag: Pick<TagService, "attachCardTagByName" | "detachCardTagByName">;
   /** The per-FUNDER role-client binder (§8.5b) — the greeting studio spends the CALLER's own `summarize` row. */
@@ -90,7 +90,7 @@ export interface AssetsCharacterComposeDeps {
   /** LIVE effective per-image byte cap (the background materialize belt reads it per download). */
   readonly maxImageBytes: NonNullable<BackgroundStoreDeps["maxBytes"]>;
   /** LIVE effective image-variant quality (item 6) — folded into the variant cache key so a retune regenerates. */
-  readonly imageVariantQuality: NonNullable<AssetsContext["imageVariantQuality"]>;
+  readonly imageVariantQuality: NonNullable<AssetsAssemblyContext["imageVariantQuality"]>;
   readonly settings: Pick<SettingsService, "getUserSettings" | "updateUserSettingsSection">;
   /** Mints one `appearance.backgroundLibrary` row id — the SAME minter the settings service uses for an
    *  upload/`addExternalBackground` entry, so a seeded plate's row is indistinguishable from a user's own. */
@@ -113,10 +113,10 @@ export interface AssetsCharacterComposeDeps {
 /** The assets/character compose product. `materializeBackgroundOp` is the constructed op the keystone rebinds
  *  onto its late-bound holder now that `assets` is live. */
 export interface AssetsCharacterComposeResult {
-  readonly assetsCtx: AssetsContext;
+  readonly assetsCtx: AssetsAssemblyContext;
   readonly assets: AssetsService;
   readonly character: CharacterService;
-  readonly galleryCtx: AssetsContext;
+  readonly galleryCtx: AssetsAssemblyContext;
   readonly characterSeeder: DefaultCharacterSeeder;
   readonly personaSeeder: DefaultPersonaSeeder;
   /** The per-user SCENE-PLATE seeder — boot + the first-authed-request hook run `ensureSeeded`; the card and
@@ -146,7 +146,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
   const characterOwned = createCharacterOwned(db);
 
   // Captured as a named const so the portability registry's gallery descriptor can reuse it.
-  const assetsCtx: AssetsContext = {
+  const assetsCtx: AssetsAssemblyContext = {
     db,
     cas,
     variants,
@@ -211,7 +211,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
 
   // The live assets ctx extended with the two character-handle resolvers the gallery export/import verbs
   // need. Wired after `character` so the forward reference resolves.
-  const galleryCtx: AssetsContext = { ...assetsCtx, ...createGalleryCharacterOps(db, character) };
+  const galleryCtx: AssetsAssemblyContext = { ...assetsCtx, ...createGalleryCharacterOps(db, character) };
 
   // The SCENE-PLATE seeder, built BEFORE the card seeder because the card pack's dressing resolves its
   // plate through this one (`resolveSeededBackground` below). It is the composition point where the three

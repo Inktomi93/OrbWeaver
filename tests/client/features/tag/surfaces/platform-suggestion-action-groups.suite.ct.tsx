@@ -7,6 +7,7 @@ import { routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@or
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { SuggestionActionGroupsStory } from "./_suggestion-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/tag/surfaces/_suggestion-action-groups-stories/SuggestionActionGroupsStory";
@@ -114,7 +115,7 @@ for (const regime of REGIMES) {
         expect(
           (await actionGroupGeometry(page.getByRole("group", { name: "Suggestion action host", exact: true }), [apply, reject])).inlineOverflow,
         ).toBeLessThanOrEqual(1);
-        const floor = await resolvedLength(page, "var(--size-control-sm)", row);
+        const floor = await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`, row);
         for (const box of geometry.controls) {
           expect(box.height).toBeGreaterThanOrEqual(floor);
         }

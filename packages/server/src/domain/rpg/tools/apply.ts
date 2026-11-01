@@ -327,13 +327,13 @@ export function applyUpdateInventory(
   return { actorState: withActor(state.actorState, { actor: { ...resolved.actor, volatile }, index: resolved.index }) };
 }
 
-/** Pick the field that WINS a npc merge: the tool's value if provided, else the existing value, else the
- *  default. Kills the nested-ternary spread in the npc merge below. */
-function pick<T>(next: T | undefined, existing: T | undefined, fallback: T): T {
+/** Pick the string field that WINS a npc merge: the tool's value if provided, else the existing value, else
+ *  empty. Kills the nested-ternary spread in the npc merge below. */
+function pick(next: string | undefined, existing: string | undefined): string {
   if (next !== undefined) {
     return next;
   }
-  return existing ?? fallback;
+  return existing ?? "";
 }
 
 /** Optional carry: the tool's value if provided, else keep the existing (omit when both absent). */
@@ -367,8 +367,8 @@ function mergeNpcIdentity(up: NonNullable<UpdateSceneArgs["presentUpsert"]>[numb
     // The model's spelling of the name is the DISPLAY name and wins on every upsert (that is how a story
     // renames an NPC); the SLUG it resolves to is what keys the row, so a re-spelling never mints a sibling.
     name: up.name,
-    emoji: pick(up.emoji, existing?.emoji, ""),
-    mood: pick(up.mood, existing?.mood, ""),
+    emoji: pick(up.emoji, existing?.emoji),
+    mood: pick(up.mood, existing?.mood),
     relationship: mergeRelationship(up.relationship, existing?.relationship),
     ...(appearance !== undefined ? { appearance } : {}),
     ...(outfit !== undefined ? { outfit } : {}),

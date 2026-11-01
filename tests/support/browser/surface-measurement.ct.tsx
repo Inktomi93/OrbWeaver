@@ -19,6 +19,7 @@ import {
 import { SURFACE_HTTP_ANNOTATION, SURFACE_PASSES } from "@orb/testkit/iso";
 import { webVitalsSource } from "@orb/testkit/node/helpers";
 import { readBrowserAcceleration } from "@orb/tooling/floor/browser/browser-acceleration";
+import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { TestInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { attachNativeFile } from "../node/native-attachments.ts";
@@ -293,9 +294,9 @@ test("production density variants conform to their own tokens and off-token over
   await attachNativeFile(info, info, "production-density-healthy", { body: JSON.stringify(healthy, null, 2), contentType: "application/json" });
   expect(healthy.samples.tierDrifts?.length).toBeGreaterThan(0);
   expect(healthy.audit.findings.filter(({ rule }) => rule === "tier-drift")).toEqual([]);
-  await page.getByRole("textbox", { name: "Title field", exact: true }).evaluate((element) => {
-    element.style.setProperty("font-size", "var(--text-micro)");
-  });
+  await page.getByRole("textbox", { name: "Title field", exact: true }).evaluate((element, textMicro) => {
+    element.style.setProperty("font-size", `var(${textMicro})`);
+  }, TOKENS["text.micro"].cssVar);
   const broken = await readSurfaceDesignAudit(page);
   await attachNativeFile(info, info, "production-density-broken", { body: JSON.stringify(broken, null, 2), contentType: "application/json" });
   expect(broken.audit.findings.some(({ rule, value }) => rule === "tier-drift" && value.includes("input-root"))).toBe(true);
@@ -309,9 +310,9 @@ test("cohort geometry compares the same declared variant rather than every butto
   const healthy = await readSurfaceDesignAudit(page);
   await attachNativeFile(info, info, "production-cohort-healthy", { body: JSON.stringify(healthy, null, 2), contentType: "application/json" });
   expect(healthy.audit.findings.filter(({ rule }) => rule === "cohort-anatomy")).toEqual([]);
-  await target.evaluate((element) => {
-    element.style.setProperty("block-size", "var(--size-control-md)");
-  });
+  await target.evaluate((element, sizeControlMd) => {
+    element.style.setProperty("block-size", `var(${sizeControlMd})`);
+  }, TOKENS["size.control-md"].cssVar);
   const broken = await readSurfaceDesignAudit(page);
   await attachNativeFile(info, info, "production-cohort-broken", { body: JSON.stringify(broken, null, 2), contentType: "application/json" });
   expect(broken.audit.findings.some(({ rule, selector }) => rule === "cohort-anatomy" && selector.includes("Small control three"))).toBe(true);
@@ -346,8 +347,8 @@ test("the design walk restores real nested scroll positions after a native revea
 
 for (const [styleKind, originalStyle] of [
   ["absent", null],
-  ["present", "color: var(--color-foreground);  font-family: inherit;"],
-  ["important", "color: var(--color-foreground) !important;  font-size: var(--text-body) !important;"],
+  ["present", `color: var(${TOKENS["color.foreground"].cssVar});  font-family: inherit;`],
+  ["important", `color: var(${TOKENS["color.foreground"].cssVar}) !important;  font-size: var(${TOKENS["text.body"].cssVar}) !important;`],
 ] as const) {
   test(`the design walk restores exact inline styles after a token probe throws (${styleKind})`, async ({ mount, page }, info) => {
     await mount<typeof SurfaceDesignStory>("tests/support/browser/surface-design-fixtures/SurfaceDesignStory", { width: 640 });
@@ -621,7 +622,7 @@ test("Suspense and Activity dormant content is not covered until its actual stat
       witnesses: [page.getByRole("button", { name: "Resolved action", exact: true })],
       checks: ["names"],
     }),
-  ).rejects.toThrow();
+  ).rejects.toThrow("required loaded content must render");
   expect((await accessibilityScan(page)).violations).toEqual([]);
   await page.getByRole("button", { name: "Resolve content", exact: true }).click();
   await expect(page.getByRole("button", { name: "Resolved action", exact: true })).toBeVisible();
@@ -732,7 +733,7 @@ test.describe("coarse-pointer framework controls", () => {
   });
   test("production wrappers keep reachable targets while dormant controls remain outside the population", async ({ mount, page }) => {
     await mount<typeof SurfaceFrameworkStory>("tests/support/browser/surface-framework-fixtures/SurfaceFrameworkStory");
-    expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    expect(await page.evaluate((pointerCoarse) => matchMedia(pointerCoarse).matches, MEDIA_QUERIES["pointer-coarse"])).toBe(true);
     await expect(page.getByRole("region", { name: "Activity control", exact: true })).toHaveCount(0);
     expect(await touchTargetFindings(page)).toEqual([]);
     await page.getByRole("button", { name: "Open portal", exact: true }).click();

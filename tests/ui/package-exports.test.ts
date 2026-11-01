@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+import assert, { AssertionError } from "node:assert/strict";
 import { globSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
@@ -86,7 +86,9 @@ test("UI public doors match the actual tree and reject missing, malformed or unr
     ];
     for (const [index, files] of cases.entries()) {
       const root = plant(join(importStagingDir, `invalid-${index}`), files);
-      expect(() => assertUiExports(root), JSON.stringify(files)).toThrow();
+      expect(() => assertUiExports(root), JSON.stringify(files)).toThrow(
+        /incorrect module export|has no index\.ts file|Cannot find module|needs a package-relative/u,
+      );
     }
   }
 
@@ -130,22 +132,22 @@ test("UI public doors match the actual tree and reject missing, malformed or unr
       if (source !== undefined) {
         writeFileSync(join(root, "package.json"), source);
       }
-      expect(() => assertUiExports(root)).toThrow();
+      expect(() => assertUiExports(root)).toThrow(/ENOENT|JSON|invalid_type/u);
     }
     const invalidUtf8 = plant(join(importStagingDir, "invalid-utf8"), buttonFiles);
     const validPrefix = JSON.stringify({ name: "@orb/ui", exports: buttonExports }).slice(0, -1);
     writeFileSync(join(invalidUtf8, "package.json"), Buffer.concat([Buffer.from(`${validPrefix},"note":"`), Buffer.from([0xff]), Buffer.from('"}')]));
-    expect(() => assertUiExports(invalidUtf8)).toThrow();
+    expect(() => assertUiExports(invalidUtf8)).toThrow(expect.objectContaining({ code: "ERR_ENCODING_INVALID_ENCODED_DATA" }));
     const manifestLink = plant(join(importStagingDir, "linked-manifest"), { "manifest.json": manifestText(buttonExports), ...buttonFiles });
     symlinkSync(join(manifestLink, "manifest.json"), join(manifestLink, "package.json"));
-    expect(() => assertUiExports(manifestLink)).toThrow();
+    expect(() => assertUiExports(manifestLink)).toThrow(AssertionError);
     const admitted = join(importStagingDir, "admitted-ui");
     mkdirSync(join(admitted, "packages"), { recursive: true });
     const external = plant(join(importStagingDir, "external-ui"), { "package.json": manifestText({}), "src/styles/private.css": ":root {}" });
     expect(() => assertUiExports(external)).not.toThrow();
     const directoryLink = join(admitted, "packages/ui");
     symlinkSync(external, directoryLink, "dir");
-    expect(() => assertUiExports(directoryLink, admitted)).toThrow();
+    expect(() => assertUiExports(directoryLink, admitted)).toThrow(AssertionError);
     const canonicalBase = join(importStagingDir, "canonical-ui");
     plant(join(canonicalBase, "packages/ui"), { "package.json": manifestText(buttonExports), ...buttonFiles });
     const admittedAlias = join(importStagingDir, "admitted-ui-alias");

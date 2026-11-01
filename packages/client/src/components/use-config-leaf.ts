@@ -19,20 +19,14 @@
 import type { UserSettings, UserSettingsSection } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { useQuery } from "@tanstack/react-query";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import { use } from "react";
 import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import type { ContributorRegistry } from "#lib";
 import { settingsValueAtPath, settingsValueDiffers } from "#lib";
-import type { ConfigGroupId, ConfigSectionContribution } from "#state";
+import type { ConfigSectionContribution, ConfigSettingRef } from "#state";
 import { configSectionRegistryContext } from "#state";
-
-/** The row/teacher address of one leaf — the `configFocus` vocabulary, structurally. */
-export interface ConfigLeafAddress {
-  readonly group: ConfigGroupId;
-  readonly sub: string;
-  readonly setting: string;
-}
 
 /** What a bound leaf READS — the raw stored pair (`unknown`; the consumer formats) and the `@modified`
  *  compare at leaf grain. The half with no write in it, so the roster (which resolves MANY leaves at once
@@ -56,11 +50,7 @@ export function configLeafKey(address: { readonly sub: string; readonly setting:
   return `${address.sub}/${address.setting}`;
 }
 
-interface ResetLeafVars {
-  readonly section: UserSettingsSection;
-  readonly patch: Record<string, unknown>;
-}
-const useResetLeaf = createEntityMutation<ResetLeafVars, unknown>({
+const useResetLeaf = createEntityMutation<inferInput<Trpc["settings"]["updateUserSettingsSection"]>, unknown>({
   options: (trpc: Trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
   errorToast: "Couldn't reset the setting.",
@@ -72,7 +62,7 @@ const useResetLeaf = createEntityMutation<ResetLeafVars, unknown>({
  * no value chrome", never an error (the partition assert owns the only illegal shape: a declared key
  * outside its section's claim).
  */
-export function useConfigLeaf(address: ConfigLeafAddress | null): ConfigLeafValue | null {
+export function useConfigLeaf(address: ConfigSettingRef | null): ConfigLeafValue | null {
   const registry = use(configSectionRegistryContext.Context);
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -106,7 +96,7 @@ export function useConfigLeaf(address: ConfigLeafAddress | null): ConfigLeafValu
  * the map (a composite row, an app-tier section, a leaf with no `key`) — the caller renders those rows
  * without a value, never with a wrong one.
  */
-export function useConfigLeafReadings(addresses: readonly ConfigLeafAddress[]): ReadonlyMap<string, ConfigLeafReading> {
+export function useConfigLeafReadings(addresses: readonly ConfigSettingRef[]): ReadonlyMap<string, ConfigLeafReading> {
   const registry = use(configSectionRegistryContext.Context);
   const trpc = useTRPC();
   const { data: user } = useQuery(trpc.settings.getUserSettings.queryOptions());
@@ -129,7 +119,7 @@ export function useConfigLeafReadings(addresses: readonly ConfigLeafAddress[]): 
 function resolveLeaf(
   registry: ContributorRegistry<ConfigSectionContribution>,
   config: UserSettings,
-  address: ConfigLeafAddress,
+  address: ConfigSettingRef,
 ): (ConfigLeafReading & { readonly section: UserSettingsSection; readonly key: string }) | null {
   const contribution = registry.list().find((c) => c.anchor === address.group && c.nav.id === address.sub);
   const leaf = (contribution?.nav.settings ?? []).find((s) => s.id === address.setting);

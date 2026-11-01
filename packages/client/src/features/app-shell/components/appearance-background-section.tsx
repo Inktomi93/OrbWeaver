@@ -14,17 +14,18 @@ import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { pickKeys } from "@orb/kit/objects";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
-import { Icon, Trash2 } from "@orb/ui/icons";
+import { Icon, Trash } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
+import { removeActionName } from "@orb/ui/lib";
 import type { MediaGridItem } from "@orb/ui/media-grid";
 import { MediaGrid } from "@orb/ui/media-grid";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#components";
+import type { SectionPatchVars } from "#data";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { removeActionName } from "#lib";
 import { APPEARANCE_BACKGROUND_KEYS, APPEARANCE_BACKGROUND_SUBCATEGORY } from "../lib/appearance-background-model.ts";
 import { BACKGROUND_BLUR_MAX, BACKGROUND_BLUR_MIN, BACKGROUND_DIM_MAX, BACKGROUND_DIM_MIN, BACKGROUND_DIM_STEP } from "../lib/appearance-bounds.ts";
 import { BACKGROUND_FIT_ITEMS } from "../lib/appearance-select-items.ts";
@@ -33,11 +34,7 @@ import { ExternalBackgroundField } from "./external-background-field.tsx";
 
 type BackgroundForm = Pick<AppearanceSettings, (typeof APPEARANCE_BACKGROUND_KEYS)[number]>;
 
-interface UpdateBackgroundVars {
-  readonly section: "appearance";
-  readonly patch: BackgroundForm;
-}
-const useUpdateBackground = createEntityMutation<UpdateBackgroundVars, unknown>({
+const useUpdateBackground = createEntityMutation<SectionPatchVars<"appearance">, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
   errorToast: "Couldn't save your background settings.",
@@ -157,7 +154,7 @@ function BackgroundBody({
                 values.backgroundImageKind === "asset" ? values.backgroundLibrary.find((entry) => entry.assetId === values.backgroundAssetId) : undefined;
               return picked === undefined ? null : (
                 <Button className="self-start" variant="ghost" onClick={(): void => removeEntry(picked)} size="sm" type="button">
-                  <Icon icon={Trash2} size="sm" />
+                  <Icon icon={Trash} size="sm" />
                   {removeActionName(picked.name)}
                 </Button>
               );

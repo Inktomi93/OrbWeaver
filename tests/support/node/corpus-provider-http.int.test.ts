@@ -53,7 +53,7 @@ test("native corpus provider serves the existing script and retires its socket",
   } finally {
     await provider[Symbol.asyncDispose]();
   }
-  await expect(fetch(endpoint, { signal: AbortSignal.timeout(1000) })).rejects.toThrow();
+  await expect(fetch(endpoint, { signal: AbortSignal.timeout(1000) })).rejects.toThrow("fetch failed");
   await provider[Symbol.asyncDispose]();
 });
 
@@ -65,7 +65,7 @@ test("native corpus provider releases its listener when script construction fail
       return Promise.reject(new Error("script unavailable"));
     }),
   ).rejects.toThrow("script unavailable");
-  await expect(fetch(`${endpoint}/models`, { signal: AbortSignal.timeout(1000) })).rejects.toThrow();
+  await expect(fetch(`${endpoint}/models`, { signal: AbortSignal.timeout(1000) })).rejects.toMatchObject({ cause: { code: "ECONNREFUSED" } });
 });
 
 test("request-sensitive corpus embeddings preserve real near-duplicates without collapsing a nonempty native workload population", {

@@ -54,7 +54,7 @@
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { FileTrigger } from "@orb/ui/file-trigger";
-import { Icon, ListChecks, MoreVertical, Plus, Upload } from "@orb/ui/icons";
+import { EllipsisVertical, Icon, ListChecks, Plus, Upload } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
@@ -314,7 +314,7 @@ function ImportOverflow({ door }: { readonly door: NonNullable<CollectionContrib
           <MenuTrigger
             render={
               <Button aria-label="More library actions" variant="ghost" size="sm" square={true}>
-                <Icon icon={MoreVertical} size="sm" />
+                <Icon icon={EllipsisVertical} size="sm" />
               </Button>
             }
           />

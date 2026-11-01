@@ -35,4 +35,9 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 7 rows = 6 applied, 1 kept with reason. 0 handed off, 0 owner questions.
+
+- `ImportedAppearance`, `ImportedAppearanceOutcome`, `ImportedThemeLanding`, `SettingsImportOutcome` reexport-chain: applied. The `contract/portability.ts` re-export is deleted; 3 importers take the types from `@orb/contracts/settings`. `SeededPlateAsset` reexport-chain: applied. The `contract/seeder.ts` re-export is deleted; its importer takes it from `@orb/contracts/assets`. Plan built from importers of each module (ast-grep ts 5949 / tsx 1525 tracked files).
+- `createSettingsContext` / `createSettingsAssemblyContext` and `SettingsContext` / `SettingsAssemblyContext` renamed-reexport: applied. The door exports the declared names; `entry/compose/services.ts`, 3 more importers and `tests/server/entry/compose/query-capability.test-d.ts` use them. `context.ts` keeps a private `createSettingsContext` and `contract/service.ts` an inner `SettingsContext`, so neither declaration can take the old name.
+- `UpdateUserSettingsSectionInput` / `ResetLeafVars`: kept. The server type is the verb input for `updateUserSettingsSection`; `ResetLeafVars` is the client mutation variables in `packages/client/src/components/use-config-leaf.ts`. They sit in different packages and the client cannot import a server type (`docs/law/Core-0-Architecture-and-Structure.md` section 1, principle 1). The client side belongs to the client lane: a `…Vars` type derives from the router input (the plan's field rule), which fixes that duplicate without a cross-package import.
+- Check: `pnpm typecheck packages/server/tsconfig.json tsconfig.tests-iso.json` exit 0.

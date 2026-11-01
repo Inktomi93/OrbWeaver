@@ -25,9 +25,9 @@
 //                          neither moves a pending ask.
 
 import type { AutomationBusEvent, AutomationEmitSource, AutomationSuggestionKind, SuggestionCardDetail } from "@orb/contracts/automation";
-import type { AutomationSuggestionId, ChatId } from "@orb/kit/ids";
+import type { AutomationSuggestionId } from "@orb/kit/ids";
 
-/** One pending ask as the card renders it — the bus payload, kept whole. There is no fuller shape to fetch:
+/** One pending ask as the card renders it — the bus payload's card fields. There is no fuller shape to fetch:
  *  the record itself is in the server's RAM and never crosses as anything but this. */
 export interface PendingAsk {
   readonly id: AutomationSuggestionId;
@@ -35,7 +35,6 @@ export interface PendingAsk {
    *  post-#24). The same `AutomationEmitSource` the chips carry, and the same replace-per-kind key the server
    *  stores under, so this fold and that store agree about which card a new ask replaces. */
   readonly source: AutomationEmitSource;
-  readonly chatId: ChatId;
   readonly kind: AutomationSuggestionKind;
   readonly summary: string;
   readonly expiresAt: number;
@@ -65,7 +64,6 @@ const AUTOMATION_EVENT_ARMS: AutomationEventArms = {
     {
       id: event.suggestionId,
       source: event.source,
-      chatId: event.chatId,
       kind: event.kind,
       summary: event.summary,
       expiresAt: event.expiresAt,

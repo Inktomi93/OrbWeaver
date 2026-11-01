@@ -33,7 +33,7 @@ test("the composed guarded audit stays adjacent and atomic with the password and
   });
   await using refusal = await refuseWrites(db, { table: auditLogs, event: "INSERT", when: "NEW.action = 'admin.resetPassword'", message: "audit refused" });
   const params = { principal: await principal(harness, actor.id), userId: target.id, password: PASSWORD };
-  await expect(app.services.admin.resetPassword(params)).rejects.toThrow();
+  await expect(app.services.admin.resetPassword(params)).rejects.toMatchObject({ code: "SQLITE_CONSTRAINT" });
   expect(await storedHash()).toBe(originalHash);
   expect(await app.sessions.validate(session.token)).toMatchObject({ userId: target.id });
   expect(evicted).not.toHaveBeenCalled();

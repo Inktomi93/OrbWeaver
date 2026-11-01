@@ -278,15 +278,14 @@ state is honest. Two BOUND-COLLECTION arms make cardinality data instead of stru
 at resolve) with one grid-level `tileAction`, and an image's `assetFrom: { $state }`. State-sourced asset ids
 pass the same format wall and the same owner-scoped resolve as declared ones — a foreign id paints nothing.
 
-**Commands** (`ui.registerCommand`) ride `/plugin <your-slug> <name> …`, the Plugins wand menu, and the
-command palette. Declare typed `args` (string/number/enum/boolean, required?) and the platform collects,
+**Commands** (`ui.registerCommand`) ride `/plugin <your-slug> <name> …` and the command palette. Declare typed `args` (string/number/enum/boolean, required?) and the platform collects,
 autocompletes and validates them on both surfaces before `onRun` sees the typed `values` bag; the raw `args`
 remainder always arrives too. The SDK infers `values` from a literal `args` declaration: a required arg is
 present, an enum value narrows to its members, and an undeclared name is a type error. An enum arg must name
 its `enumValues`. A static surface's `onAction` receives only the action ids its spec declares, and the
-toolchain refuses a `setState` or `openDialog` target that names no registered surface. Optional `group` nests a command inside the attributed Plugins menu; optional
-`placements` exposes it at most once in each closed composer target (`composer-action`, `composer-media`) with
-a bounded label and curated icon. **Toasts** (`ui.toast`) are transient, app-stamped with your name, rate-floored
+toolchain refuses a `setState` or `openDialog` target that names no registered surface. Optional `group` nests a command inside its attributed placement; optional
+`placements` exposes it at most once in each closed target (`composer-action`, `composer-media`, `topbar`) with
+a bounded label and curated icon. `topbar` shows one icon button, and the top bar shows nothing for a plugin that places nothing there. **Toasts** (`ui.toast`) are transient, app-stamped with your name, rate-floored
 (10 s per plugin), and delivered on the round-trip the person just made — durable notices are `notify`.
 **Dialogs** open only via `ui.openDialog(id)` of your OWN registered `dialog` surface, only as a round-trip
 outcome: spontaneous modals are unspellable.

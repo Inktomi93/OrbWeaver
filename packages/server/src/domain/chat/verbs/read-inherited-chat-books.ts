@@ -1,5 +1,5 @@
 // The room's inherited world-book projection. Reuses the runtime pool and its owner belts, present roster,
-// enabled-human persona consent, owned-card resolver and memberPersonaLore posture. Personal library headers
+// enabled-human persona consent, held pin, owned-card resolver and memberPersonaLore posture. Personal library headers
 // are host-only; room-attached books remain the world-info verb's member-readable consent surface.
 
 import type { Principal } from "@orb/contracts/identity";
@@ -13,7 +13,7 @@ import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadInheritedWorldBooks } from "../substrate/assembly-access.ts";
 import { viewerReadsHidden } from "../substrate/member-visibility.ts";
-import { humanSeatPersonasOf, memberPersonaIdsOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
+import { humanSeatPersonasOf, lorePersonaIdsOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
 
 export function createReadInheritedChatBooks(input: DbAssemblyInput<Pick<ChatContext, "db" | "can" | "getCard" | "resolveUserEnabled">>) {
   const ctx = { ...input, db: databaseForOwner(input.db) };
@@ -34,7 +34,7 @@ export function createReadInheritedChatBooks(input: DbAssemblyInput<Pick<ChatCon
       chatId,
       ownerId,
       characterIds: characterIds.filter((_id, index) => cards[index] !== null),
-      personaIds: memberPersonaIdsOf(humanSeatPersonasOf(participants, consent)),
+      personaIds: lorePersonaIdsOf(humanSeatPersonasOf(participants, consent), membership.chat.anchorPersonaId),
       memberPersonaLore: membership.chat.metadata.memberPersonaLore !== false,
     });
     // A handoff/leave while the cross-feature card reads await must not return the outgoing host's headers.

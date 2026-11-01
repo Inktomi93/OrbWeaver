@@ -999,8 +999,8 @@ For example, a three-line sign is enough:
     macros: "none",
     requiredMacros: ["{{opening}}"],
     requiredTokens: [],
-    title: "Opening block",
-    fires: "The born-state user turn, only when the room has posted an opening line.",
+    title: "Greeting block",
+    fires: "The born-state user turn, only when the room has posted a greeting.",
   },
   "rpg.populate.targetLine": {
     id: "rpg.populate.targetLine",

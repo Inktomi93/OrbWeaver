@@ -1,16 +1,13 @@
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
-import { cn, SELECTION_RAIL_TONE, selectActionName } from "#lib";
+import { cn } from "#lib";
 import { Button } from "#primitives/button";
-import { Checkbox } from "#primitives/checkbox";
 import { EmptyState } from "#primitives/empty-state";
 import type { LucideIcon } from "#primitives/icons";
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, ChevronUp, Icon } from "#primitives/icons";
 import { tableVariants } from "./variants.ts";
 
 const DEFAULT_PAGE_SIZE = 10;
-// A frozen stable default — a fresh new Set() every render would break referential equality for no reason.
-const EMPTY_SELECTION: ReadonlySet<string> = new Set();
 
 export interface TableColumn<TData> {
   /** Stable column id — the sort key and the column's React key. */
@@ -27,8 +24,6 @@ export interface TableColumn<TData> {
   /** Enables the click-to-sort header button + `aria-sort`. @defaultValue false */
   readonly sortable?: boolean;
   readonly align?: "start" | "center" | "end";
-  /** A CSS length (`"8rem"`, `"20%"`) applied to the header cell's `width` — a data-driven layout value. */
-  readonly width?: string;
 }
 
 export interface TableSort {
@@ -46,36 +41,20 @@ export interface TableProps<TData> {
   readonly data: readonly TData[];
   /**
    * Stable per-row id — must be id-based, never the array index: sorting reorders rows, so an
-   * index key would silently reassign a row's React identity, and selection state is keyed by it.
+   * index key would silently reassign a row's React identity.
    */
   readonly getRowId: (row: TData, index: number) => string;
-  /** Builds a row's accessible name for its selection checkbox (`"Select {label}"`). Falls back to
-   * a positional label ("row 3") when omitted. */
-  readonly getRowLabel?: (row: TData) => string;
-  readonly density?: "default" | "compact";
 
   /** Controlled sort state. Omit to run uncontrolled off `defaultSorting`. */
   readonly sorting?: TableSort | null;
   readonly defaultSorting?: TableSort | null;
   readonly onSortingChange?: (sort: TableSort | null) => void;
 
-  /** Controlled pagination state. Omit to run uncontrolled off `defaultPagination`. Pagination is
-   * always applied client-side over `data`; the footer controls self-suppress when everything
-   * fits on one page. To opt out entirely, pass a `pageSize` \>= `data.length`. */
-  readonly pagination?: TablePagination;
+  /** Initial pagination. Pagination is always applied client-side over `data`; the footer controls
+   * self-suppress when everything fits on one page. To opt out entirely, pass a `pageSize` \>=
+   * `data.length`. */
   readonly defaultPagination?: TablePagination;
-  readonly onPaginationChange?: (pagination: TablePagination) => void;
 
-  /** Enables the leading checkbox column + row selection. @defaultValue false */
-  readonly selectable?: boolean;
-  /** Controlled selection state (a set of `getRowId` values). Omit to run uncontrolled off
-   * `defaultSelectedRowIds`. "Select all" selects every row in `data`, not just the current page. */
-  readonly selectedRowIds?: ReadonlySet<string>;
-  readonly defaultSelectedRowIds?: ReadonlySet<string>;
-  readonly onSelectedRowIdsChange?: (ids: ReadonlySet<string>) => void;
-
-  /** Rendered in place of the body when `data` is empty. Defaults to a plain EmptyState. */
-  readonly emptyState?: ReactNode;
   readonly className?: string;
   /** Accessible name for the `<table>` element (no built-in visible caption — compose a heading
    * above the table for a visible title). */
@@ -118,19 +97,17 @@ function compareValues(a: unknown, b: unknown, sign: number): number {
   return sign * (comparePrimitive(a, b) ?? cellValueText(a).localeCompare(cellValueText(b)));
 }
 
-/** A row paired with its stable id + original position — computed once so sorting never needs to
+/** A row paired with its stable id — computed once so sorting never needs to
  * re-derive a row's identity via an O(n), possibly-ambiguous `data.indexOf(row)`. */
 interface TableEntry<TData> {
   readonly row: TData;
   readonly id: string;
-  readonly originalIndex: number;
 }
 
 function toEntries<TData>(data: readonly TData[], getRowId: (row: TData, index: number) => string): readonly TableEntry<TData>[] {
-  return data.map((row, originalIndex) => ({
+  return data.map((row, index) => ({
     row,
-    id: getRowId(row, originalIndex),
-    originalIndex,
+    id: getRowId(row, index),
   }));
 }
 
@@ -181,29 +158,19 @@ function ariaSortFor(column: Pick<TableColumn<unknown>, "id" | "sortable">, sort
 }
 
 /**
- * Table — the general-purpose data-grid: sortable/paginated/selectable columns over `data`, dressed
- * in the token skin. Hand-rolled (no `@tanstack/react-table`): sorting, pagination, and selection
- * are pure derivations over the `data` array plus a controlled-or-uncontrolled state triple.
- * Semantic markup throughout: `<table>`/`<thead>`/`<tbody>`/`<th scope="col">`, `aria-sort` on
- * sortable header cells, and the `Checkbox` primitive for the optional selection column.
+ * Table — the general-purpose data-grid: sortable/paginated columns over `data`, dressed in the token
+ * skin. Hand-rolled (no `@tanstack/react-table`): sorting and pagination are pure derivations over the
+ * `data` array plus state. Semantic markup throughout: `<table>`/`<thead>`/`<tbody>`/`<th scope="col">`
+ * and `aria-sort` on sortable header cells.
  */
 export function Table<TData>({
   columns,
   data,
   getRowId,
-  getRowLabel,
-  density = "default",
   sorting: controlledSorting,
   defaultSorting = null,
   onSortingChange,
-  pagination: controlledPagination,
   defaultPagination,
-  onPaginationChange,
-  selectable = false,
-  selectedRowIds: controlledSelectedRowIds,
-  defaultSelectedRowIds,
-  onSelectedRowIdsChange,
-  emptyState,
   className,
   "aria-label": ariaLabel,
 }: TableProps<TData>): ReactElement {
@@ -211,15 +178,9 @@ export function Table<TData>({
   const isSortingControlled = controlledSorting !== undefined;
   const sorting = isSortingControlled ? controlledSorting : uncontrolledSorting;
 
-  const [uncontrolledPagination, setUncontrolledPagination] = useState<TablePagination>(defaultPagination ?? { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE });
-  const isPaginationControlled = controlledPagination !== undefined;
-  const requestedPagination = isPaginationControlled ? controlledPagination : uncontrolledPagination;
+  const [requestedPagination, setPagination] = useState<TablePagination>(defaultPagination ?? { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE });
 
-  const [uncontrolledSelectedIds, setUncontrolledSelectedIds] = useState<ReadonlySet<string>>(defaultSelectedRowIds ?? EMPTY_SELECTION);
-  const isSelectionControlled = controlledSelectedRowIds !== undefined;
-  const selectedIds = isSelectionControlled ? controlledSelectedRowIds : uncontrolledSelectedIds;
-
-  const slots = tableVariants({ density });
+  const slots = tableVariants();
 
   function toggleSort(columnId: string): void {
     let next: TableSort | null = { columnId, direction: "asc" };
@@ -230,34 +191,6 @@ export function Table<TData>({
       setUncontrolledSorting(next);
     }
     onSortingChange?.(next);
-  }
-
-  function setPagination(next: TablePagination): void {
-    if (!isPaginationControlled) {
-      setUncontrolledPagination(next);
-    }
-    onPaginationChange?.(next);
-  }
-
-  function setSelected(next: ReadonlySet<string>): void {
-    if (!isSelectionControlled) {
-      setUncontrolledSelectedIds(next);
-    }
-    onSelectedRowIdsChange?.(next);
-  }
-
-  function toggleRow(id: string): void {
-    const next = new Set(selectedIds);
-    if (next.has(id)) {
-      next.delete(id);
-    } else {
-      next.add(id);
-    }
-    setSelected(next);
-  }
-
-  function toggleAll(ids: readonly string[], isAllSelected: boolean): void {
-    setSelected(isAllSelected ? new Set() : new Set(ids));
   }
 
   const entries = toEntries(data, getRowId);
@@ -275,11 +208,6 @@ export function Table<TData>({
     setPagination({ pageIndex: Math.min(Math.max(nextIndex, 0), pageCount - 1), pageSize });
   }
 
-  const allIds = entries.map((entry) => entry.id);
-  const allSelected = allIds.length > 0 && allIds.every((id) => selectedIds.has(id));
-  const someSelected = !allSelected && allIds.some((id) => selectedIds.has(id));
-
-  const columnCount = columns.length + (selectable ? 1 : 0);
   const showPager = pageCount > 1;
 
   return (
@@ -288,28 +216,11 @@ export function Table<TData>({
         <table aria-label={ariaLabel} className={slots.table()} data-slot="table">
           <thead className={slots.thead()}>
             <tr>
-              {selectable ? (
-                <th className={slots.th({ align: "center" })} data-slot="table-select-header" scope="col">
-                  <Checkbox
-                    aria-label="Select all rows"
-                    checked={allSelected}
-                    indeterminate={someSelected}
-                    onCheckedChange={(): void => toggleAll(allIds, allSelected)}
-                  />
-                </th>
-              ) : null}
               {columns.map((column) => {
                 const align = column.align ?? "start";
                 const isSorted = sorting?.columnId === column.id;
                 return (
-                  <th
-                    aria-sort={ariaSortFor(column, sorting)}
-                    className={slots.th({ align })}
-                    data-slot="table-header-cell"
-                    key={column.id}
-                    scope="col"
-                    style={column.width === undefined ? undefined : { width: column.width }}
-                  >
+                  <th aria-sort={ariaSortFor(column, sorting)} className={slots.th({ align })} data-slot="table-header-cell" key={column.id} scope="col">
                     {column.sortable === true ? (
                       <button className={slots.sortButton()} data-slot="table-sort-button" onClick={(): void => toggleSort(column.id)} type="button">
                         <span>{column.header}</span>
@@ -326,36 +237,24 @@ export function Table<TData>({
           <tbody className={slots.tbody()}>
             {pageEntries.length === 0 ? (
               <tr>
-                <td className={slots.emptyCell()} colSpan={columnCount}>
-                  {/* action={null}: the default is a bare fact; a caller with a next step passes `emptyState`. */}
-                  {emptyState ?? <EmptyState action={null} title="No data" />}
+                <td className={slots.emptyCell()} colSpan={columns.length}>
+                  {/* action={null}: the empty body is a bare fact. */}
+                  <EmptyState action={null} title="No data" />
                 </td>
               </tr>
             ) : (
-              pageEntries.map(({ row, id, originalIndex }) => {
-                const isSelected = selectedIds.has(id);
-                return (
-                  <tr className={slots.tr()} data-selected={isSelected ? "" : undefined} data-slot="table-row" data-tone={SELECTION_RAIL_TONE} key={id}>
-                    {selectable ? (
-                      <td className={slots.td({ align: "center" })} data-slot="table-select-cell">
-                        <Checkbox
-                          aria-label={selectActionName(getRowLabel === undefined ? `row ${originalIndex + 1}` : getRowLabel(row))}
-                          checked={isSelected}
-                          onCheckedChange={(): void => toggleRow(id)}
-                        />
+              pageEntries.map(({ row, id }) => (
+                <tr className={slots.tr()} data-slot="table-row" key={id}>
+                  {columns.map((column) => {
+                    const value = column.accessor(row);
+                    return (
+                      <td className={slots.td({ align: column.align ?? "start" })} key={column.id}>
+                        {column.cell === undefined ? defaultCell(value) : column.cell(value, row)}
                       </td>
-                    ) : null}
-                    {columns.map((column) => {
-                      const value = column.accessor(row);
-                      return (
-                        <td className={slots.td({ align: column.align ?? "start" })} key={column.id}>
-                          {column.cell === undefined ? defaultCell(value) : column.cell(value, row)}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })
+                    );
+                  })}
+                </tr>
+              ))
             )}
           </tbody>
         </table>

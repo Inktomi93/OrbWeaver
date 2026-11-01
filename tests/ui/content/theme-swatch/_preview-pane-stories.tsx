@@ -2,6 +2,7 @@ import { CtIsolation } from "@orb/testkit/browser";
 import { Card } from "@orb/ui/card";
 import { Surface } from "@orb/ui/layout";
 import { ThemePreviewPane } from "@orb/ui/theme-swatch";
+import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 import type { SeedScopeProps } from "../../primitives/_seed-scope.tsx";
 import { SeedScope } from "../../primitives/_seed-scope.tsx";
@@ -10,21 +11,21 @@ const FILLS = ["background", "accent", "sidebar", "sidebarEdge", "translucent"] 
 
 // What each probe paints, so a pane reads against the colour or step it stands for.
 const PROBES = {
-  "bg-background": { backgroundColor: "var(--color-background)" },
-  "bg-accent": { backgroundColor: "var(--color-accent)" },
-  "bg-sidebar": { backgroundColor: "var(--color-sidebar)" },
-  "bg-card": { backgroundColor: "var(--color-card)" },
-  "bg-translucent": { backgroundColor: "color-mix(in oklab, var(--color-card) 80%, transparent)" },
-  "ink-card": { color: "var(--color-card-foreground)" },
-  "ink-accent": { color: "var(--color-accent-foreground)" },
-  "ink-sidebar": { color: "var(--color-sidebar-foreground)" },
-  "edge-tone": { borderColor: "var(--color-tone-edge)", borderStyle: "solid" },
-  "edge-sidebar": { borderColor: "var(--color-sidebar-border)", borderStyle: "solid" },
-  "radius-base": { borderRadius: "var(--radius-base)" },
-  "radius-control": { borderRadius: "var(--radius-control)" },
-  "radius-inset": { borderRadius: "var(--radius-inset)" },
-  "pad-block": { padding: "var(--spacing-block)" },
-  "pad-row": { padding: "var(--spacing-row)" },
+  "bg-background": { backgroundColor: `var(${TOKENS["color.background"].cssVar})` },
+  "bg-accent": { backgroundColor: `var(${TOKENS["color.accent"].cssVar})` },
+  "bg-sidebar": { backgroundColor: `var(${TOKENS["color.sidebar"].cssVar})` },
+  "bg-card": { backgroundColor: `var(${TOKENS["color.card"].cssVar})` },
+  "bg-translucent": { backgroundColor: `color-mix(in oklab, var(${TOKENS["color.card"].cssVar}) 80%, transparent)` },
+  "ink-card": { color: `var(${TOKENS["color.card-foreground"].cssVar})` },
+  "ink-accent": { color: `var(${TOKENS["color.accent-foreground"].cssVar})` },
+  "ink-sidebar": { color: `var(${TOKENS["color.sidebar-foreground"].cssVar})` },
+  "edge-tone": { borderColor: `var(${TOKENS["color.tone-edge"].cssVar})`, borderStyle: "solid" },
+  "edge-sidebar": { borderColor: `var(${TOKENS["color.sidebar-border"].cssVar})`, borderStyle: "solid" },
+  "radius-base": { borderRadius: `var(${TOKENS["radius.base"].cssVar})` },
+  "radius-control": { borderRadius: `var(${TOKENS["radius.control"].cssVar})` },
+  "radius-inset": { borderRadius: `var(${TOKENS["radius.inset"].cssVar})` },
+  "pad-block": { padding: `var(${TOKENS["spacing.block"].cssVar})` },
+  "pad-row": { padding: `var(${TOKENS["spacing.row"].cssVar})` },
 } as const;
 
 /** Every fill and shape of a pane, tier-less and inside an instrument Surface, beside probes. */
@@ -32,7 +33,14 @@ export function PreviewPaneStory(props: SeedScopeProps): ReactElement {
   return (
     <CtIsolation subject="ThemePreviewPane" isolates="Each fill and shape of a preview pane, tier-less and inside an instrument Surface, beside probes">
       <SeedScope {...props}>
-        <div style={{ display: "grid", gap: "0.5rem", backgroundColor: "var(--color-background)", color: "var(--color-foreground)" }}>
+        <div
+          style={{
+            display: "grid",
+            gap: "0.5rem",
+            backgroundColor: `var(${TOKENS["color.background"].cssVar})`,
+            color: `var(${TOKENS["color.foreground"].cssVar})`,
+          }}
+        >
           {FILLS.map((fill) => (
             <ThemePreviewPane key={fill} data-case={`fill-${fill}`} fill={fill}>
               {fill}

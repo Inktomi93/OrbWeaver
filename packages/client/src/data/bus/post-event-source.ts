@@ -37,7 +37,6 @@ type ScheduleOp = (fn: () => void, ms: number) => () => void;
 
 /** Native init options, per-operation replay policy and bounded scheduling seams. */
 interface PostEventSourceInit {
-  readonly withCredentials?: boolean;
   readonly schedule?: ScheduleOp;
   readonly reconnect?: boolean;
   readonly maxRetries?: number;

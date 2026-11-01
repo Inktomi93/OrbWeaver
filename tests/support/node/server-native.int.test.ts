@@ -140,7 +140,7 @@ test("same-ID native roots singleflight their own listeners and out-of-order clo
   expect(foreign).toEqual({ authenticated: false, handle: null, role: null });
   await first[Symbol.asyncDispose]();
   await expect(first.listen()).rejects.toThrow("HTTP lifetime is closed");
-  await expect(fetch(`${firstOrigin}/healthz`)).rejects.toThrow();
+  await expect(fetch(`${firstOrigin}/healthz`)).rejects.toMatchObject({ cause: { code: "ECONNREFUSED" } });
   const stillLive = await fetch(`${secondOrigin}/healthz`);
   expect(stillLive.status).toBe(200);
   await stillLive.arrayBuffer();
@@ -191,7 +191,7 @@ test("native socket disposal joins the held actual room pump before closing ingr
     gate.release();
     await disposal;
     expect(harness.app.sockets.liveSocketCount()).toBe(0);
-    await expect(fetch(`${origin}/healthz`)).rejects.toThrow();
+    await expect(fetch(`${origin}/healthz`)).rejects.toMatchObject({ cause: { code: "ECONNREFUSED" } });
     expect(harness.timers.pending()).toBe(0);
     expect(await held.db.all(sql`select 1 as retained`)).toEqual([{ retained: 1 }]);
   } finally {

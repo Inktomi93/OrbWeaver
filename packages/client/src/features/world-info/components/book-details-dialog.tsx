@@ -11,15 +11,15 @@ import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
 import { Textarea } from "@orb/ui/textarea";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog } from "#components";
+import type { Trpc } from "#data";
 
-interface BookDetailsPatch {
-  readonly name: string;
-  /** The trimmed description (`""` clears it — `updateBook` has no null form). */
-  readonly description: string;
-}
+// The dialog sends the wire patch whole (`input: patch`), so the type is the router's own. The description is
+// trimmed and `""` clears it — `updateBook` has no null form.
+type BookDetailsPatch = inferInput<Trpc["worldInfo"]["updateBook"]>["input"];
 
 export interface BookDetailsDialogProps {
   readonly open: boolean;

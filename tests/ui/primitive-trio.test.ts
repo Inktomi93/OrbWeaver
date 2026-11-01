@@ -4,6 +4,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { forEachNonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 
 const PRIMITIVES = fileURLToPath(new URL("../../packages/ui/src/primitives", import.meta.url));
@@ -26,26 +27,30 @@ const files = (name: string): string[] => readdirSync(join(PRIMITIVES, name));
 const TV_EXPORT = /^export const (?<id>\w+) = tv\(/gmu;
 const DEFAULT_EXPORT = /^export default\b/mu;
 
-test("the primitives directory is read from the tree", () => {
-  expect(NAMES.length).toBeGreaterThan(0);
+forEachNonEmpty(NAMES, "primitive directories", (name) => {
+  test(`${name} has the component file and the index`, () => {
+    expect(files(name)).toEqual(expect.arrayContaining([`${componentOf(name)}.tsx`, "index.ts"]));
+  });
+
+  test(`${name} has no default export`, () => {
+    const defaults = files(name)
+      .filter((file) => /\.tsx?$/u.test(file))
+      .filter((file) => DEFAULT_EXPORT.test(read(name, file)));
+    expect(defaults).toEqual([]);
+  });
 });
 
-test.for(NAMES)("%s has the component file and the index", (name) => {
-  expect(files(name)).toEqual(expect.arrayContaining([`${componentOf(name)}.tsx`, "index.ts"]));
-});
-
-test.for(NAMES)("%s has no default export", (name) => {
-  const defaults = files(name)
-    .filter((file) => /\.tsx?$/u.test(file))
-    .filter((file) => DEFAULT_EXPORT.test(read(name, file)));
-  expect(defaults).toEqual([]);
-});
-
-test.for(NAMES.filter((name) => !VARIANTS_EXEMPT.has(name)))("%s has one tv() export named for it", (name) => {
-  expect(files(name)).toContain("variants.ts");
-  const exported = [...read(name, "variants.ts").matchAll(TV_EXPORT)].map((match) => match.groups?.["id"]);
-  expect(exported).toEqual([`${camel(componentOf(name))}Variants`]);
-});
+forEachNonEmpty(
+  NAMES.filter((name) => !VARIANTS_EXEMPT.has(name)),
+  "primitives with a variants file",
+  (name) => {
+    test(`${name} has one tv() export named for it`, () => {
+      expect(files(name)).toContain("variants.ts");
+      const exported = [...read(name, "variants.ts").matchAll(TV_EXPORT)].map((match) => match.groups?.["id"]);
+      expect(exported).toEqual([`${camel(componentOf(name))}Variants`]);
+    });
+  },
+);
 
 test.for([...VARIANTS_EXEMPT])("the variants exemption for %s names a primitive that has no variants file", (name) => {
   expect(NAMES).toContain(name);

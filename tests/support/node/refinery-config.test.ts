@@ -1,6 +1,7 @@
 // @subject tests/support/iso/refinery-config.ts
 
 import { DEFAULT_REFINERY_STAGE_CONFIG } from "@orb/contracts/refinery";
+import { ZodError } from "zod";
 import { makeRefineryStageConfig } from "../iso/refinery-config.ts";
 import { expect, test } from "./fixtures.ts";
 
@@ -12,5 +13,5 @@ test("a stage mode override preserves its fixed provenance and sibling stages", 
 });
 
 test("switching to custom provenance without a genuine schema reference is refused", () => {
-  expect(() => makeRefineryStageConfig({ score: { kind: "custom" } })).toThrow();
+  expect(() => makeRefineryStageConfig({ score: { kind: "custom" } })).toThrow(ZodError);
 });

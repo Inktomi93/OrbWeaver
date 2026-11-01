@@ -179,4 +179,22 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 139 rows = 1 deleted + 101 kept + 9 owner questions + 28 Plugin API rows left and listed.
+
+- Deleted: `WORKLOAD_RESUME_POLICIES.checkpointed` (`packages/contracts/src/workloads/execution.ts:23-25`). No contribution declares it, the only reader of `resume` is `boot-reclaim.ts:95` (`=== "none"`), the value is never stored, and no ADR or law line names it as deliberate. The comment that called it a dormant doorway went with it.
+- Kept, 89 rows: every `IMAGE_*` member (`IMAGE_ART_STYLES`, `_BODY_TYPES`, `_CAMERA_ANGLES`, `_CHEST_SIZES`, `_CLOTHING_STATES`, `_COVERAGES`, `_EXPOSED_PARTS`, `_GENDERS`, `_MOODS`, `_NUDITY_LEVELS`, `_OUTFIT_TYPES`, `_PALETTES`, `_RATINGS`, `_SHOT_TYPES`, `_SKIN_TONES`). The model's structured output fills them through `z.enum` (`packages/contracts/src/embeddings/index.ts:180`); the row's own decision says keep while the vocabulary is offered. Dropping a member reshapes the request schema, so it is an inference decision for the owner.
+- Kept, 12 rows, each with its source:
+  - `EVIDENCE_TIERS.advertised`: `packages/inference/src/resolve/resolve-task.ts:123` builds `Evidence["advertised"]`.
+  - `PROMPT_CACHE_FORMATS.openai-breakpoint`: written by `packages/inference/src/capability/sources/curated/openai.ts:20` and read at `packages/inference/src/backends/openai-compat/body.ts:292` and `chat.ts:77`.
+  - `RESPONSE_CACHE_STATUSES.hit`, `.miss`: parsed from the provider's cache header at `packages/inference/src/backends/http/response-cache.ts:120`, and stored in usage rows.
+  - `REFINERY_REWRITE_MODES.conservative`, `.expansive`: stored in `refinery_sessions.stage_config` and run `payloadConfig`, and chosen through the stage-config input; `packages/contracts/src/refinery/prose.ts:334,356` documents both.
+  - `FORGE_FIELD_TYPES.integer`: model-authored schema leaf type, handled in `packages/contracts/src/refinery/schema-authoring.ts:180`.
+  - `RPG_QUEST_ACTIONS.complete`, `.fail`: model tool arguments, branches at `packages/server/src/domain/rpg/tools/apply.ts:538,541`.
+  - `USER_SETTINGS_SECTIONS.groupDefaults`: stored settings key, `packages/contracts/src/settings/index.ts:719,994`.
+  - `LEADERBOARD_SORTS.totalGenTimeMs`, `.lastActivityAt`: the client toggle sends them, `packages/client/src/features/stats/lib/analytics-view-model.ts:33,35`; `packages/server/src/domain/stats/persistence/rollups.ts:131` is a `Record` over the union.
+- Owner questions, 9 rows, not applied (they shape an inference request or its capability ordering):
+  - `SIDE_GEN_KINDS.arbiter`, `.quiet_generate`, `.extract_quiet`, `.greeting_studio`, `.schema_forge`, `.theme_name`, `.memory_digest`: D299 asks to pass each kind at its task's call or delete the task's sampling posture. Which task still exists is the owner's call.
+  - `EVIDENCE_TIERS.family-floor`, `.kind-floor`: no producer outside the tuple; `packages/inference/src/capability/synthesize.ts` folds in tier order. Deleting changes the capability fold.
+- Plugin API, 28 rows left and listed: `PLUGIN_ICON_NAMES` 23 rows, `PLUGIN_FREE_NAMESPACES.grants`, `.ids`, `PLUGIN_BADGE_INTENTS.danger`, `PLUGIN_PAGE_STAGE_KINDS.browse`, `PLUGIN_SELECT_HOST_SOURCES.owned-lore-books` (`packages/contracts/src/plugin/`).
+- Survey: codegraph_explore `RESPONSE_CACHE_STATUSES REFINERY_REWRITE_MODES FORGE_FIELD_TYPES RPG_QUEST_ACTIONS USER_SETTINGS_SECTIONS LEADERBOARD_SORTS WORKLOAD_RESUME_POLICIES`; ast-grep string-literal scan over `packages tests tooling` (5913 `.ts`, 1524 `.tsx`): `"checkpointed"` 5 ts (all test probe strings in `migrate-data-layout.int.test.ts`, one tuple), `"conservative"` 3, `"expansive"` 1, `"groupDefaults"` 1, `"hit"` 15 ts + 3 tsx; rg of each literal over `packages tests tooling`.
+- Checks: `pnpm typecheck packages/contracts/tsconfig.json packages/server/tsconfig.json` exit 0; `pnpm test tests/server/domain/workloads/persistence/funded-tenant-rows.int.test.ts` 5 passed. No behavior change, so no red test.

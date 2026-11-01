@@ -1,5 +1,7 @@
 // @subject packages/server/src/domain/notifications/verbs/read.ts
 // @subject packages/server/src/domain/notifications/persistence/queries.ts
+
+import { DomainNotFoundError } from "@orb/kit/errors";
 import { describe } from "vitest";
 import { expect, test } from "../_fixtures.ts";
 
@@ -64,7 +66,7 @@ describe("dismiss — recipient-scope + idempotence", () => {
   test("another user cannot dismiss it — throws not-found", async ({ harness, notificationActors: actors }) => {
     const svc = harness.services.notifications;
     const view = await svc.record({ event: actors.aliceInvite });
-    await expect(svc.dismiss({ principal: actors.bob, notificationId: view.id })).rejects.toThrow();
+    await expect(svc.dismiss({ principal: actors.bob, notificationId: view.id })).rejects.toThrow(DomainNotFoundError);
     const page = await svc.list({ principal: actors.alice });
     expect(page.items).toHaveLength(1);
   });

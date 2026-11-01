@@ -46,16 +46,16 @@ export interface InferenceRuntime {
    *  load failed reads `model-load-failed`. The Connections readout asks it without probing endpoints. */
   readonly loadVerdict: (resolved: ResolveOutcome["resolved"]) => SendAvailability;
   /** The kind a saved row's model is, as the resolver reads it: the row's declaration, its server's or catalog's
-   *  stated kind (warmed first), the curated rows, else `generation`. `cachedFacts` reads only the facts already held,
-   *  in memory or persisted, and dials nothing, for a read that lists rows or previews a change. `coldAs` is the kind
-   *  such a read answers while a warm could still change it (anything short of the row's own declaration): a preview
-   *  that must err toward the change that asks the user first. */
-  readonly modelKind: (
+   *  stated kind (warmed first), the curated rows, else `generation`. */
+  readonly modelKind: (connection: UserConnection) => Promise<ModelKind>;
+  /** Tasks whose actual capability requirements this model meets. `cachedFacts` reads only the facts already held,
+   *  in memory or persisted, and dials nothing, for a read that lists rows or previews a change; it never opens
+   *  credentials. `coldAs` is the kind such a read answers while a warm could still change it (anything short of the
+   *  row's own declaration): a preview that must err toward the change that asks the user first. */
+  readonly modelTasks: (
     connection: UserConnection,
     options?: { readonly cachedFacts?: boolean | undefined; readonly coldAs?: ModelKind | undefined },
-  ) => Promise<ModelKind>;
-  /** Tasks whose actual capability requirements this model meets; cached reads never open credentials or dial. */
-  readonly modelTasks: (connection: UserConnection, options?: Parameters<InferenceRuntime["modelKind"]>[1]) => Promise<readonly Task[]>;
+  ) => Promise<readonly Task[]>;
   readonly executor: ProviderExecutor;
   readonly embeddingExecution: (connection: Pick<ResolveOutcome["resolved"], "wire" | "features">) => EmbeddingExecution;
   readonly capabilities: {

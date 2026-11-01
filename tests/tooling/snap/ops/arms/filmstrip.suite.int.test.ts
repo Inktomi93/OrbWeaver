@@ -221,7 +221,9 @@ test("start, ack, stop, and detach failures remain explicit and cleanup failures
   stop.frame(Buffer.from("frame"), 1);
   await expect(controller.stop()).rejects.toMatchObject({
     name: "AggregateError",
-    errors: expect.arrayContaining([expect.any(Error), expect.any(Error), expect.any(Error)]),
+    errors: expect.arrayContaining(
+      ["Page.screencastFrameAck", "Page.stopScreencast", "detach"].map((method) => expect.objectContaining({ message: expect.stringContaining(method) })),
+    ),
   });
 });
 

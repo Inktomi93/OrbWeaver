@@ -21,7 +21,7 @@ import { stagedOwnerRoot } from "@orb/server/domain/import";
 import type { SessionsRolePolicy } from "@orb/server/domain/sessions";
 import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
 import type { ShareGraph, ShareGraphOptions } from "@orb/server/domain/share";
-import type { WorkloadRunnerDeps } from "@orb/server/domain/workloads";
+import type { WorkloadRunnerAssemblyDeps } from "@orb/server/domain/workloads";
 import { loadWorkload, runWorkload, tickWorkloadSchedules } from "@orb/server/domain/workloads";
 import { authConfigFromEnv, createHostPrincipalResolver } from "@orb/server/entry/auth";
 import type { BootOwner } from "@orb/server/entry/boot";
@@ -138,22 +138,20 @@ interface UnclaimedActorSpec extends Pick<ActorSpec, "handle" | "enabled" | "ext
   readonly email?: string;
 }
 
+/** A tRPC caller bound to a user's row-derived Principal; `signal` ends the subscriptions it opens. */
+type InternalCallerFor = (userId: UserId | null, signal?: AbortSignal) => Promise<ReturnType<typeof createCaller>>;
+
 class ComposedServerRoot {
   readonly #app: ServicesResult;
   readonly #db: Db;
-  readonly #internalCallerFor: (userId: UserId | null) => Promise<ReturnType<typeof createCaller>>;
+  readonly #internalCallerFor: InternalCallerFor;
   readonly #http: Pick<OwnedHttpRequests, "request" | "routes">;
 
   static holds(root: ComposedServerRoot): boolean {
     return #internalCallerFor in root;
   }
 
-  constructor(
-    app: ServicesResult,
-    db: Db,
-    internalCallerFor: (userId: UserId | null) => Promise<ReturnType<typeof createCaller>>,
-    http: Pick<OwnedHttpRequests, "request" | "routes">,
-  ) {
+  constructor(app: ServicesResult, db: Db, internalCallerFor: InternalCallerFor, http: Pick<OwnedHttpRequests, "request" | "routes">) {
     this.#app = app;
     this.#db = db;
     this.#internalCallerFor = internalCallerFor;
@@ -172,7 +170,7 @@ class ComposedServerRoot {
     return this.#db;
   }
 
-  get internalCallerFor(): (userId: UserId | null) => Promise<ReturnType<typeof createCaller>> {
+  get internalCallerFor(): InternalCallerFor {
     return this.#internalCallerFor;
   }
 
@@ -216,7 +214,7 @@ export interface ServerTestHarness extends ComposedServerRoot, AsyncDisposable {
   /** The funder's role clients through the runtime's own binder, under that user's row-derived Principal. */
   readonly roleClientsFor: (userId: UserId) => Promise<ReturnType<ServicesResult["runtime"]["roleClientsFor"]>>;
   /** Internal row-derived tRPC calls, not request authentication; HTTP owns cookie/session admission proof. */
-  readonly internalCallerFor: (userId: UserId | null) => Promise<ReturnType<typeof createCaller>>;
+  readonly internalCallerFor: InternalCallerFor;
   readonly actor: (spec?: ActorSpec) => Promise<ActorAccount>;
   readonly http: Pick<OwnedHttpRequests, "request" | "routes">;
   readonly listen: () => Promise<Readonly<AddressInfo>>;
@@ -232,7 +230,7 @@ export interface ServerTestHarness extends ComposedServerRoot, AsyncDisposable {
   readonly settleBackground: ServicesResult["settleBackground"];
   readonly workloadExecutionSignal?: ServerHarnessOptions["workloadExecutionSignal"];
   /** The runner deps this root's own workload driver uses, so a suite runs one admitted row the way it does. */
-  readonly workloadExecution: WorkloadRunnerDeps;
+  readonly workloadExecution: WorkloadRunnerAssemblyDeps;
   readonly runAdmittedWorkload?: (id: WorkloadId, signal: AbortSignal) => Promise<void>;
   readonly tickWorkloadSchedules?: () => Promise<void>;
   readonly settleSharing: ShareGraph["settle"];
@@ -580,7 +578,7 @@ function shareInputsFor(options: ServerHarnessOptions | UnclaimedServerHarnessOp
 // decides which admitted row runs and when. It calls the production front doors with deps bound to their type.
 function workloadsFor(
   app: ServicesResult,
-  execution: WorkloadRunnerDeps,
+  execution: WorkloadRunnerAssemblyDeps,
   shutdown: AbortSignal,
   startJobs: ServerHarnessOptions["startJobs"],
 ): Pick<ServerTestHarness, "runAdmittedWorkload" | "tickWorkloadSchedules"> {
@@ -720,7 +718,7 @@ export async function createServerHarness(
     audit: audit.log,
     emitEvent: app.workloadEvents.emitWorkloadEvent,
     scheduleInterval: timers.interval,
-  } satisfies WorkloadRunnerDeps;
+  } satisfies WorkloadRunnerAssemblyDeps;
   const principalFor = createHostPrincipalResolver(app.sessions);
   const credentialsKeyOk = await app.services.credentials.probeKeyDecrypt();
   const configuredOidc = await configuredOidcFor(app, { ...inputs, db: wiringDb, secretsDir });
@@ -754,7 +752,7 @@ export async function createServerHarness(
   // biome-ignore lint/nursery/useDisposables: httpLifetime owns this resource through closeHarnessGraph's share-first teardown; local disposal would close the returned harness.
   const http = createOwnedHttpRequests(httpApp, timers.timeout, bind.host);
   httpLifetime = http;
-  const internalCallerFor = async (userId: UserId | null): Promise<ReturnType<typeof createCaller>> =>
+  const internalCallerFor: InternalCallerFor = async (userId, signal) =>
     createCaller(
       app.trpcContext({
         auth: userId === null ? null : await principalFor(userId),
@@ -762,6 +760,7 @@ export async function createServerHarness(
         csrfHeaderPresent: false,
         clientIp: IN_PROCESS_CLIENT_IP,
       }),
+      signal === undefined ? undefined : { signal },
     );
   const actor = actorFor({ app, idSource }, ownerId, principalFor);
   const workloadDriver = workloadsFor(app, workloadExecution, manualWorkloadAbort.signal, options.startJobs);

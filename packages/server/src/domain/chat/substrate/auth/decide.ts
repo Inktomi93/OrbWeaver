@@ -12,7 +12,7 @@
 // chat-coded error VOCAB (`not_host`/`not_author`) — admin's `can()` throws `DomainForbiddenError`, and chat
 // re-expresses that verdict as its known-existence coded refusal. `can` is INJECTED (never an admin import).
 
-import type { Can, ChatAction, ParticipantRoleState, Principal } from "@orb/contracts/identity";
+import type { Can, ParticipantRoleState, Principal } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "#src/domain/chat/contract/errors.ts";
@@ -32,12 +32,12 @@ export function assertParticipant<T>(membership: T | undefined, chatId: ChatId):
   return membership;
 }
 
-/** Route a chat-resource action through the ONE injected `can()` seam, returning the verdict as a boolean (a
+/** Route the chat `host` action through the ONE injected `can()` seam, returning the verdict as a boolean (a
  *  `DomainForbiddenError` from the seam = deny). `can()` makes the DECISION; the chat-coded/leak-free error
  *  shaping is the caller's. A non-forbidden error (a real bug) is never swallowed — it propagates. */
-function permits(can: Can, principal: Principal, action: ChatAction, role: ParticipantRoleState): boolean {
+function permits(can: Can, principal: Principal, role: ParticipantRoleState): boolean {
   try {
-    can(principal, action, { kind: "chat", membership: { role } });
+    can(principal, "host", { kind: "chat", membership: { role } });
     return true;
   } catch (err) {
     if (err instanceof DomainForbiddenError) {
@@ -55,7 +55,7 @@ function permits(can: Can, principal: Principal, action: ChatAction, role: Parti
  * invites/kick/handoff/anchor-reassignment/memberCardVisibility.
  */
 export function assertHost(can: Can, principal: Principal, role: ParticipantRoleState, chatId: ChatId): void {
-  if (!permits(can, principal, "host", role)) {
+  if (!permits(can, principal, role)) {
     throw new ChatOperationError(CHAT_OP_CODES.notHost, `chat ${chatId}: this action requires the room host`);
   }
 }
@@ -80,7 +80,7 @@ export function assertHost(can: Can, principal: Principal, role: ParticipantRole
  *   but must not read deception truth), and it can only do that if it has its own home.
  */
 export function permitsHost(can: Can, principal: Principal, role: ParticipantRoleState): boolean {
-  return permits(can, principal, "host", role);
+  return permits(can, principal, role);
 }
 
 /**
@@ -103,7 +103,7 @@ export function assertAuthorOrHost(
   if (authorUserId !== null && authorUserId === principal.userId) {
     return;
   }
-  if (!permits(can, principal, "host", role)) {
+  if (!permits(can, principal, role)) {
     throw new ChatOperationError(CHAT_OP_CODES.notAuthor, `chat ${chatId}: this action requires the message author or the room host`);
   }
 }
