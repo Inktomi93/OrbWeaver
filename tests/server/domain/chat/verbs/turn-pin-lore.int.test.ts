@@ -10,6 +10,7 @@ import { createBookSchema, createEntrySchema, updateEntrySchema } from "@orb/con
 import type { PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
+import { connectDevice } from "@orb/testkit/node/composed";
 import {
   attachPersonaLore,
   inputSystemBlocks,
@@ -65,9 +66,9 @@ async function send(h: ChatRoot, principal: Principal = h.owner, content = "Go o
 }
 
 /** A member's send generates only while the host is online; otherwise the turn defers. */
-function hostOnline(h: ChatRoot): Disposable {
+async function hostOnline(h: ChatRoot): Promise<Disposable> {
   const online = new AbortController();
-  h.root.app.presence.connect(h.owner.userId, online.signal);
+  await connectDevice(h.root, h.owner.userId, online.signal);
   return { [Symbol.dispose]: (): void => online.abort() };
 }
 
@@ -112,7 +113,7 @@ test("a pin whose owner left keeps its book for every remaining speaker, and no 
   await using h = await textRoom(REPLIES);
   const carol = await invitePerson(h);
   await heldPinRoom(h);
-  using _online = hostOnline(h);
+  using _online = await hostOnline(h);
 
   await send(h);
   expect(await newestWire(h)).toContain(PINNED_RENDERED);
@@ -290,7 +291,7 @@ test("a held pin keeps the system blocks identical across senders; a re-pin is o
   const carol = await invitePerson(h);
   await heldPinRoom(h);
   const hostPersona = await seatPersona(h, h.owner, "Wanderer", "The host's seat.");
-  using _online = hostOnline(h);
+  using _online = await hostOnline(h);
 
   await send(h);
   await send(h, carol, "Carol speaks.");
