@@ -21,6 +21,24 @@ describe("list — recipient-scope", () => {
 });
 
 describe("list — ordering + paging", () => {
+  test("a page that ends the list offers no cursor, in either state", async ({ harness, notificationActors: actors }) => {
+    const svc = harness.services.notifications;
+    await svc.record({ event: actors.aliceInvite });
+    await svc.record({ event: actors.aliceInvite });
+    const active = await svc.list({ principal: actors.alice, limit: 2 });
+    expect(active.items).toHaveLength(2);
+    expect(active.nextCursor).toBeNull();
+    for (const { id } of active.items) {
+      await svc.dismiss({ principal: actors.alice, notificationId: id });
+    }
+    // Counted, because the actors fixture may already hold dismissed rows of its own.
+    const { length } = (await svc.list({ principal: actors.alice, state: "dismissed", limit: NOTIFICATIONS_LIST_MAX_LIMIT })).items;
+    const dismissed = await svc.list({ principal: actors.alice, state: "dismissed", limit: length });
+    expect(dismissed.items).toHaveLength(length);
+    expect(dismissed.nextCursor).toBeNull();
+    expect((await svc.list({ principal: actors.alice, state: "dismissed", limit: length - 1 })).nextCursor).not.toBeNull();
+  });
+
   test("newest-first by seq; nextCursor pages the remainder, then null", async ({ harness, notificationActors: actors }) => {
     const svc = harness.services.notifications;
     const a = await svc.record({ event: actors.aliceInvite });

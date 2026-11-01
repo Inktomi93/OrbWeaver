@@ -110,7 +110,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { items, unreadCount, pendingCount, hasNextPage, isFetchingNextPage, loading, readFailed, loadMoreFailed, loadMore, retry } = useInbox();
-  const pageFocus = usePageFocus({ rowCount: items.length, loadMore, failed: loadMoreFailed });
+  const pageFocus = usePageFocus({ rowCount: items.length, loadMore });
   const popupRef = useRef<HTMLDivElement>(null);
   useInboxStream({ invalidation });
   const markAllRead = useMarkAllNotificationsRead({ trpc, invalidation });

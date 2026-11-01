@@ -6,9 +6,8 @@ import { useState } from "react";
 
 interface PageFocusArgs {
   readonly rowCount: number;
-  readonly loadMore: () => void;
-  /** A failed press keeps its rows and its button, so focus stays on the button for the retry. */
-  readonly failed: boolean;
+  /** Resolves whether the press added rows. */
+  readonly loadMore: () => Promise<boolean>;
   /** A row to land on as soon as it mounts, for a list that opens on a reader's press. */
   readonly firstRow?: number;
 }
@@ -19,15 +18,21 @@ interface PageFocus {
   readonly rowRef: (index: number) => RefCallback<HTMLElement> | undefined;
 }
 
-export function usePageFocus({ rowCount, loadMore, failed, firstRow }: PageFocusArgs): PageFocus {
+export function usePageFocus({ rowCount, loadMore, firstRow }: PageFocusArgs): PageFocus {
   const [landing, setLanding] = useState<number | null>(firstRow ?? null);
   return {
     loadNextPage: (): void => {
       setLanding(rowCount);
-      loadMore();
+      // A press that added no row must disarm here: the landing row may never mount, and a later refetch that
+      // puts a row at this index would then pull focus with no press behind it.
+      void loadMore().then((added) => {
+        if (!added) {
+          setLanding(null);
+        }
+      });
     },
     rowRef: (index) =>
-      index === landing && !failed
+      index === landing
         ? (element): void => {
             if (element !== null) {
               element.focus();

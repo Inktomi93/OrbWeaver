@@ -191,7 +191,7 @@ interface InboxPageQuery {
 
 interface InboxPage {
   readonly rows: NotificationRow[];
-  /** The `seq` of the last row READ (decodable or not) when a full page came back, else `null`. */
+  /** The `seq` of the last row READ (decodable or not) when a row follows it, else `null`. */
   readonly nextCursor: number | null;
   /** Dismissed rows whose stored bytes no longer decode; always empty for the active state. */
   readonly unreadable: readonly NotificationId[];
@@ -209,8 +209,15 @@ export async function selectInbox(db: Db, recipientUserId: NotificationEvent["re
     state === "active" ? isNull(notifications.dismissedAt) : and(isNotNull(notifications.dismissedAt), ne(notifications.type, STANDING_ASK_TYPE)),
     cursor === undefined ? undefined : lt(notifications.seq, cursor),
   );
-  const stored = await db.select(TEXT_ROW_COLS).from(notifications).where(scoped).orderBy(desc(notifications.seq)).limit(limit);
-  const nextCursor = stored.length === limit ? (stored.at(-1)?.seq ?? null) : null;
+  // One row past the page proves another follows: a cursor on any full page offers Load more on an exact multiple.
+  const read = await db
+    .select(TEXT_ROW_COLS)
+    .from(notifications)
+    .where(scoped)
+    .orderBy(desc(notifications.seq))
+    .limit(limit + 1);
+  const stored = read.slice(0, limit);
+  const nextCursor = read.length > limit ? (stored.at(-1)?.seq ?? null) : null;
   if (state === "active") {
     return { rows: stored.map(decodeNotificationRow), nextCursor, unreadable: [] };
   }

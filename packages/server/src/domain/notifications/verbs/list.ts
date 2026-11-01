@@ -1,7 +1,7 @@
 // verb: list — one state of the CALLER's OWN inbox. Recipient-scoped to
 // `principal.userId` (the scope is in the persistence WHERE clause — there is no cross-user read),
 // newest-first, cursor-paged on the monotonic `seq`. `nextCursor` is the last row's `seq` when a
-// full page came back (more may remain below it), else `null` (inbox exhausted).
+// row follows it, else `null` (inbox exhausted).
 
 import type { ListInboxResult } from "@orb/contracts/notifications";
 import { NOTIFICATIONS_LIST_MAX_LIMIT } from "@orb/contracts/notifications";

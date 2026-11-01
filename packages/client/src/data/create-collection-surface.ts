@@ -4,7 +4,7 @@
 
 import type { DefaultError, InfiniteData, QueryKey, UseInfiniteQueryOptions } from "@tanstack/react-query";
 import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Trpc } from "./trpc.ts";
 
 /** What the tRPC proxy's `.infiniteQueryOptions(input, opts)` returns — wrapped, never re-spelled.
@@ -65,8 +65,9 @@ export interface CollectionSurface<TItem> {
    *  `isPending`/`error` on the refetch. */
   readonly refetch: () => void;
   /** The next page for a reader's explicit press. Unlike `listProps.onEndApproach`, a press is one intent that no
-   *  later scroll repeats, so a running background refetch yields to it instead of swallowing it. */
-  readonly loadMore: () => void;
+   *  later scroll repeats, so it ends in a page or in `loadMoreFailed`. Resolves whether the press added rows.
+   *  A press while one is in flight joins it. */
+  readonly loadMore: () => Promise<boolean>;
   /** The last {@link CollectionSurface.loadMore} press failed. Only a press moves this; `error` also tracks
    *  background refetches, which say nothing about the page the reader asked for. */
   readonly loadMoreFailed: boolean;
@@ -79,8 +80,38 @@ export interface CollectionSurface<TItem> {
   };
 }
 
+/** The slice of an infinite-query fetch result a press reads. */
+interface PressResult<TPage> {
+  readonly data?: { readonly pages: readonly TPage[] } | undefined;
+  readonly hasNextPage: boolean;
+  readonly isFetchNextPageError: boolean;
+}
+
 /** Rows-from-the-tail threshold that triggers the next-page fetch. */
 const END_APPROACH_ROWS = 12;
+
+/** An invalidate cancels an in-flight page: one attempt, one that joins the refetch, one that fetches after it. */
+const PRESS_ATTEMPTS = 3;
+
+/** Fetch the next page for a press: the pages it ended on, or `null` when it ended in neither a page nor the list's
+ *  end. A cancelled page resolves like a quiet success, so this reads the page count, not only the error flag. After
+ *  a cancel it waits for the refetch that cancelled it, because cancelling that too would lose the invalidate. */
+async function pressForPage<TPage>(
+  fetchNext: (options?: { readonly cancelRefetch: boolean }) => Promise<PressResult<TPage>>,
+  pagesBefore: number,
+): Promise<readonly TPage[] | null> {
+  for (let attempt = 0; attempt < PRESS_ATTEMPTS; attempt += 1) {
+    const result = await fetchNext(attempt === 0 ? undefined : { cancelRefetch: false });
+    if (result.isFetchNextPageError) {
+      return null;
+    }
+    const pages = result.data?.pages ?? [];
+    if (pages.length > pagesBefore || !result.hasNextPage) {
+      return pages;
+    }
+  }
+  return null;
+}
 
 export function createCollectionSurface<TItem, TPage, TParams, TPageParam = unknown, TError = DefaultError, TKey extends QueryKey = QueryKey>(
   config: CollectionSurfaceConfig<TItem, TPage, TParams, TPageParam, TError, TKey>,
@@ -94,26 +125,40 @@ export function createCollectionSurface<TItem, TPage, TParams, TPageParam = unkn
 
     const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set<string>());
     const [loadMoreFailed, setLoadMoreFailed] = useState(false);
+    const press = useRef<Promise<boolean> | null>(null);
 
     const items = query.data === undefined ? [] : query.data.pages.flatMap((p) => config.itemsOf(p));
     const firstPage = query.data?.pages[0];
     const totalCount = config.totalOf === undefined || firstPage === undefined ? null : config.totalOf(firstPage);
 
     // Destructured so the callback closes over exact slices, not the fresh-proxy-per-render `query` object.
-    const { hasNextPage, isFetching, isFetchingNextPage, fetchNextPage, refetch } = query;
+    const { hasNextPage, isFetching, fetchNextPage, refetch } = query;
     const onEndApproach = (): void => {
       if (hasNextPage && !isFetching) {
         fetchNextPage().catch(() => undefined); // Query state owns the fetch error.
       }
     };
-    const loadMore = (): void => {
-      if (!hasNextPage || isFetchingNextPage) {
-        return;
+    const loadMore = (): Promise<boolean> => {
+      if (press.current !== null) {
+        return press.current;
+      }
+      if (!hasNextPage) {
+        return Promise.resolve(false);
       }
       setLoadMoreFailed(false);
-      fetchNextPage()
-        .then((result) => setLoadMoreFailed(result.isFetchNextPageError))
-        .catch(() => undefined); // The resolved result carries the failure.
+      const pagesBefore = query.data?.pages.length ?? 0;
+      press.current = pressForPage(fetchNextPage, pagesBefore)
+        .then((pages) => {
+          if (pages === null) {
+            setLoadMoreFailed(true);
+            return false;
+          }
+          return pages.flatMap((page) => config.itemsOf(page)).length > items.length;
+        })
+        .finally(() => {
+          press.current = null;
+        });
+      return press.current;
     };
     const retry = (): void => {
       refetch().catch(() => undefined); // Query state owns the retry error.

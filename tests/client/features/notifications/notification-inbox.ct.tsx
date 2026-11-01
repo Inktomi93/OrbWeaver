@@ -11,6 +11,8 @@ import type { NotificationInboxStory } from "./_ct-stories.tsx";
 const STORY = "tests/client/features/notifications/_ct-stories/NotificationInboxStory";
 const INBOX_PROCEDURES = ["notifications.list", "notifications.markAllRead", "notifications.dismiss", "plugin.list"] as const;
 const BELL = /^Notifications/u;
+// The server's default page, which the client's list asks for by omission.
+const PAGE_SIZE = 50;
 const POPUP = '[data-slot="popover-popup"]';
 const ROW = '[data-slot="inbox-row"]';
 const DISMISSED_ROW = '[data-slot="inbox-dismissed-row"]';
@@ -31,6 +33,20 @@ async function seededInbox(root: CorpusRoot, readerUserId: string): Promise<{ re
     await root.services.notifications.record({ event: seed.payload });
   }
   return { rpc, firstPage: (await rpc.notifications.list({})).items.length };
+}
+
+/** Top the reader's active inbox up to exactly `total` rows, so a test owns where the pages end. */
+async function inboxOfExactly(root: CorpusRoot, readerUserId: string, total: number): Promise<ReaderCaller> {
+  const rpc = await root.internalCallerFor(brandedId("UserId").parse(readerUserId));
+  const { items } = await rpc.notifications.list({});
+  const seed = items[0];
+  if (seed === undefined) {
+    throw new Error("The shared corpus omitted the reader's inbox rows");
+  }
+  for (let count = items.length; count < total; count += 1) {
+    await root.services.notifications.record({ event: seed.payload });
+  }
+  return rpc;
 }
 
 async function openBell(page: Page): Promise<void> {
@@ -359,4 +375,122 @@ test("an unbroken notice wraps inside its row", async ({ corpus, mount, page }) 
     return copy === null ? Number.POSITIVE_INFINITY : copy.getBoundingClientRect().right - inline;
   });
   expect(overflow).toBeLessThanOrEqual(0);
+});
+
+test("an inbox that ends on a page boundary offers no Load more", async ({ corpus, mount, page }) => {
+  const reader = corpus.memberIdentities?.notificationReader.viewer;
+  if (reader === undefined) {
+    throw new Error("The shared corpus omitted its native notification reader");
+  }
+  await using root = await createCorpusHarness();
+  const rpc = await inboxOfExactly(root, reader.userId, PAGE_SIZE);
+  await routeTrpc(page, serveCorpusProcedures(rpc, INBOX_PROCEDURES));
+  await mount<typeof NotificationInboxStory>(STORY, {});
+  await openBell(page);
+  await expect(page.locator(ROW)).toHaveCount(PAGE_SIZE);
+  await expect(page.getByRole("button", { name: "Load more", exact: true })).toHaveCount(0);
+});
+
+test("a press that brings no row leaves nothing armed, so a later refetch cannot move focus", async ({ corpus, mount, page }) => {
+  const reader = corpus.memberIdentities?.notificationReader.viewer;
+  if (reader === undefined) {
+    throw new Error("The shared corpus omitted its native notification reader");
+  }
+  await using root = await createCorpusHarness();
+  const rpc = await inboxOfExactly(root, reader.userId, PAGE_SIZE + 1);
+  const newest = (await rpc.notifications.list({})).items[0];
+  const oldest = (await rpc.notifications.list({ limit: PAGE_SIZE + 1 })).items.at(PAGE_SIZE);
+  if (newest === undefined || oldest === undefined) {
+    throw new Error("The reader's seeded inbox is short");
+  }
+  const trpc = await routeTrpc(page, serveCorpusProcedures(rpc, INBOX_PROCEDURES));
+  await mount<typeof NotificationInboxStory>(STORY, {});
+  await openBell(page);
+  const rows = page.locator(ROW);
+  await expect(rows).toHaveCount(PAGE_SIZE);
+  // The row the cursor promised leaves on another device, so the pressed page lands empty.
+  await rpc.notifications.dismiss({ notificationId: oldest.id });
+  const loadMore = page.getByRole("button", { name: "Load more", exact: true });
+  await loadMore.click();
+  await expect(loadMore).toHaveCount(0);
+  await root.services.notifications.record({ event: newest.payload });
+  await root.services.notifications.record({ event: newest.payload });
+  const reads = trpc.count("notifications.list");
+  await rows
+    .first()
+    .getByRole("button", { name: /^Dismiss/u })
+    .click();
+  await expect.poll(() => trpc.count("notifications.list")).toBeGreaterThan(reads);
+  await expect(rows).toHaveCount(PAGE_SIZE + 1);
+  await expect(rows.nth(PAGE_SIZE)).not.toBeFocused();
+});
+
+test("a list invalidate during a pressed page still ends in that page", async ({ corpus, mount, page }) => {
+  const reader = corpus.memberIdentities?.notificationReader.viewer;
+  if (reader === undefined) {
+    throw new Error("The shared corpus omitted its native notification reader");
+  }
+  await using root = await createCorpusHarness();
+  const { rpc, firstPage } = await seededInbox(root, reader.userId);
+  const hold = holdServed();
+  let armed = true;
+  await routeTrpc(
+    page,
+    serveCorpusProcedures(rpc, INBOX_PROCEDURES, (input) => {
+      if (armed && input !== undefined && "cursor" in input) {
+        armed = false;
+        return hold;
+      }
+    }),
+  );
+  await mount<typeof NotificationInboxStory>(STORY, {});
+  await openBell(page);
+  const rows = page.locator(ROW);
+  await expect(rows).toHaveCount(firstPage);
+  await page.getByRole("button", { name: "Load more", exact: true }).click();
+  await hold.requested;
+  await rows
+    .first()
+    .getByRole("button", { name: /^Dismiss/u })
+    .click();
+  await expect.poll(() => rows.count()).toBeGreaterThan(firstPage);
+  hold.release();
+});
+
+test("the dismissed list takes the same press: an invalidate cannot drop its page", async ({ corpus, mount, page }) => {
+  const reader = corpus.memberIdentities?.notificationReader.viewer;
+  if (reader === undefined) {
+    throw new Error("The shared corpus omitted its native notification reader");
+  }
+  await using root = await createCorpusHarness();
+  const { rpc } = await seededInbox(root, reader.userId);
+  const { items } = await rpc.notifications.list({ limit: NOTIFICATIONS_LIST_MAX_LIMIT });
+  for (const { id } of items.slice(1)) {
+    await rpc.notifications.dismiss({ notificationId: id });
+  }
+  const hold = holdServed();
+  let armed = true;
+  await routeTrpc(
+    page,
+    serveCorpusProcedures(rpc, INBOX_PROCEDURES, (input) => {
+      if (armed && input !== undefined && "cursor" in input && input.state === "dismissed") {
+        armed = false;
+        return hold;
+      }
+    }),
+  );
+  await mount<typeof NotificationInboxStory>(STORY, {});
+  await openBell(page);
+  await page.getByRole("button", { name: "Show dismissed", exact: true }).click();
+  const older = page.locator(DISMISSED_ROW);
+  await expect(older).toHaveCount(PAGE_SIZE);
+  await page.getByRole("button", { name: "Load more dismissed", exact: true }).click();
+  await hold.requested;
+  await page
+    .locator(ROW)
+    .first()
+    .getByRole("button", { name: /^Dismiss/u })
+    .click();
+  await expect.poll(() => older.count()).toBeGreaterThan(PAGE_SIZE);
+  hold.release();
 });

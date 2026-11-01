@@ -47,7 +47,7 @@ function DismissedRows(): ReactElement {
   const trpc = useTRPC();
   const dismissed = useInboxCollection({ trpc }, { state: "dismissed" });
   // Starts at row 0: the reveal itself is the first page, and without the move the press changes only its label.
-  const pageFocus = usePageFocus({ rowCount: dismissed.items.length, loadMore: dismissed.loadMore, failed: dismissed.loadMoreFailed, firstRow: 0 });
+  const pageFocus = usePageFocus({ rowCount: dismissed.items.length, loadMore: dismissed.loadMore, firstRow: 0 });
   return (
     <Stack gap="block">
       {dismissed.isEmpty ? (

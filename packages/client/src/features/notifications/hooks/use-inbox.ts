@@ -48,7 +48,7 @@ export interface InboxRead {
   readonly readFailed: boolean;
   /** The reader's last Load more press failed. */
   readonly loadMoreFailed: boolean;
-  readonly loadMore: () => void;
+  readonly loadMore: () => Promise<boolean>;
   readonly retry: () => void;
 }
 
