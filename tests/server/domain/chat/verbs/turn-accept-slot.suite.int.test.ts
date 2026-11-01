@@ -100,7 +100,7 @@ const MISSING: Omit<typeof INVOKE, "generate"> = {
   forceCharacterTurn: async ({ h }: SlotRoom) =>
     await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: h.root.ids.typeId(ID_PREFIX.character) }),
 };
-const ACCEPTED: Record<Verb, (f: SlotRoom) => Extract<ChatBusEvent, { type: "turnAccepted" }>> = {
+const ACCEPTED: Record<Verb, (f: SlotRoom) => Omit<Extract<ChatBusEvent, { type: "turnAccepted" }>, "turnId">> = {
   swipe: ({ h, reply }) => ({ type: "turnAccepted", chatId: h.chatId, intent: "swipe", targetMessageId: reply.id, speakerCharacterId: reply.characterId }),
   continueTurn: ({ h, reply }) => ({
     type: "turnAccepted",
