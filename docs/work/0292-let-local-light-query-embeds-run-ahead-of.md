@@ -3,6 +3,7 @@ kind: bug
 status: blocked
 updated: 2026-10-02
 priority: P3
+plan: inference-flow
 area: inference
 blocked: owner
 ---

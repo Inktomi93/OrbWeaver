@@ -3,6 +3,7 @@ kind: tooling
 status: open
 updated: 2026-10-04
 priority: P3
+plan: surface-walk
 area: tooling
 ---
 

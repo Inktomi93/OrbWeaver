@@ -3,6 +3,7 @@ kind: work
 status: blocked
 updated: 2026-10-12
 priority: P3
+plan: unwired-code
 area: infra
 blocked: owner
 ---
