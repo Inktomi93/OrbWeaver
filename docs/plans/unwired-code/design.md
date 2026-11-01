@@ -37,11 +37,11 @@ Each scan ships fixtures for a found case and a false-positive control. Each del
 
 ## Deleted keys
 
-A deleted tRPC input key strips silently under `z.object`. [deleted-key-sweep.md](deleted-key-sweep.md) holds the sweep of every landed deletion and its result.
+A deleted tRPC input key strips silently under `z.object`. A sweep of every landed deletion found no live sender of a deleted key. The sweep and its method are in the Evidence of [1711](../../work/1711-a-deletion-branch-fails-when-a-removed-contract.md), which automates the check.
 
 ## Engine disagreements
 
-[ts71-engine-disagreements.md](ts71-engine-disagreements.md) classifies the fields scan's disagreements, tests the tsconfig world question, shows where the scan's time goes, and recommends the engine design.
+The fields scan's two engines disagree on some rows. Every row is decidable inside one program, so the cause is not a gap between tsconfig worlds. Engine one judges, and find-references audits one way: a disagreement means engine two found a production site in a role engine one lacks. [1715](../../work/1715-unwired-engine-one-judges-and-find-references-audits.md) owns that change and holds the classification, the program sets, the time and memory profile, and the TypeScript 6 retirement order. [1697](../../work/1697-unwired-scans-link-structurally-equivalent-twin-types-and.md) owns the write and read forms neither engine follows.
 
 ## Judging a finding
 

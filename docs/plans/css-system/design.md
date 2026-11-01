@@ -518,7 +518,7 @@ The UI law owns placement, density, reading geometry, motion and theme compositi
 
 The source-owner table identifies generators and retained checks. The restoration register and item 1299 retain unfinished application and qualification work.
 
-[theme-color-validators.md](theme-color-validators.md) explains why the wire and render theme schemas validate colors with different kit predicates, and recommends keeping the layering.
+The wire theme schema (`packages/contracts/src/theme/override.ts`) and the render clamp (`packages/ui/src/content/theme-scope/clamp.ts`) both gate colors through `packages/kit/src/safe-color/index.ts`. The wire schema also asks `isRenderableColor`; the render clamp asks `isSafeColor` only. Every value the wire schema keeps, the render clamp keeps. Keep the two schemas over the layered kit predicates and change no logic. `docs/law/UI-Theming-and-Content.md` §12.5 names the pairing, and `tests/ui/content/theme-scope/wire-subset-of-render.test.ts` pins the subset.
 
 ## Test plan
 
