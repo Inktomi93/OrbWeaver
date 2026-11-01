@@ -17,6 +17,23 @@ export function hasFlag(flags: number, flag: number): boolean {
   return (flags & flag) !== 0;
 }
 
+const isWorldSource = (name: string): boolean => !(name.includes("/node_modules/") || name.endsWith(".d.ts"));
+
+type Request = APIRequestGenerator extends Generator<infer Yielded, unknown, unknown> ? Yielded : never;
+
+interface Pending<T> {
+  readonly generator: APIRequestGenerator<T>;
+  readonly at: number;
+  readonly key: string;
+  readonly request: Request;
+}
+
+function* ask(request: Request): APIRequestGenerator<unknown> {
+  return yield request;
+}
+
+const pageStarts = (size: number): readonly number[] => Array.from({ length: Math.ceil(size / BATCH) }, (_, page) => page * BATCH);
+
 /** One world's program in its own TypeScript 7.1 process. */
 export class NativeWorld implements Disposable {
   readonly config: string;
@@ -28,6 +45,7 @@ export class NativeWorld implements Disposable {
   readonly #root: string;
   readonly #fileOfPath: ReadonlyMap<string, string>;
   readonly #sourceOf: ReadonlyMap<string, SourceFile>;
+  readonly #answers = new Map<string, unknown>();
 
   private constructor(root: string, config: string, api: API) {
     this.config = config;
@@ -42,7 +60,7 @@ export class NativeWorld implements Disposable {
     }
     this.checker = project.checker;
     this.#languageService = project.languageService;
-    const names = project.program.getSourceFileNames().filter((name) => !(name.includes("/node_modules/") || name.endsWith(".d.ts")));
+    const names = project.program.getSourceFileNames().filter(isWorldSource);
     this.files = this.batch(names.map((name) => project.program.getSourceFile.gen(name))).flatMap((file) => (file === undefined ? [] : [file]));
     this.#fileOfPath = new Map(this.files.map((file) => [file.path, relative(root, file.fileName)]));
     this.#sourceOf = new Map(this.files.map((file) => [relative(root, file.fileName), file]));
@@ -52,11 +70,62 @@ export class NativeWorld implements Disposable {
     return new NativeWorld(root, config, new API({ cwd: root }));
   }
 
+  /** The repository-relative source files of every world, listed in one session rather than one process per world. */
+  static fileLists(root: string, configs: readonly string[]): ReadonlyMap<string, ReadonlySet<string>> {
+    using api = new API({ cwd: root });
+    const files = Object.fromEntries(configs.map((config) => [`${root}/${config}`, bridgedConfigText(root, config)]));
+    const snapshot = api.createSnapshot({ openProjects: Object.keys(files), fileSystem: { kind: "layer", files } });
+    return new Map(
+      configs.map((config) => {
+        const names = snapshot.getConfiguredProject(`${root}/${config}`)?.program.getSourceFileNames() ?? [];
+        return [config, new Set(names.filter(isWorldSource).map((name) => relative(root, name)))];
+      }),
+    );
+  }
+
   /** Run request generators in pages of {@link BATCH}, keeping their order. */
   batch<T>(requests: readonly APIRequestGenerator<T>[]): T[] {
     const results: T[] = [];
     for (let start = 0; start < requests.length; start += BATCH) {
-      results.push(...this.#api.batch(...requests.slice(start, start + BATCH)));
+      results.push(...this.#settle(requests.slice(start, start + BATCH)));
+    }
+    return results;
+  }
+
+  // Every query is pure in one snapshot, so each distinct request crosses to the compiler once in this world's life:
+  // later asks and same-round repeats share its answer. `API.batch` itself only deduplicates `initialize`.
+  #settle<T>(generators: readonly APIRequestGenerator<T>[]): T[] {
+    const results: T[] = [];
+    let waiting: Pending<T>[] = [];
+    const advance = (generator: APIRequestGenerator<T>, at: number, first: unknown): void => {
+      let step = generator.next(first);
+      while (step.done !== true) {
+        const key = JSON.stringify(step.value);
+        if (!this.#answers.has(key)) {
+          waiting.push({ generator, at, key, request: step.value as Request });
+          return;
+        }
+        step = generator.next(this.#answers.get(key));
+      }
+      results[at] = step.value;
+    };
+    for (const [at, generator] of generators.entries()) {
+      advance(generator, at, undefined);
+    }
+    while (waiting.length > 0) {
+      const round = waiting;
+      waiting = [];
+      const distinct = new Map(round.map(({ key, request }) => [key, request]));
+      for (const start of pageStarts(distinct.size)) {
+        const page = [...distinct].slice(start, start + BATCH);
+        const answers = this.#api.batch(...page.map(([, request]) => ask(request)));
+        for (const [at, [key]] of page.entries()) {
+          this.#answers.set(key, answers[at]);
+        }
+      }
+      for (const { generator, at, key } of round) {
+        advance(generator, at, this.#answers.get(key));
+      }
     }
     return results;
   }
@@ -132,7 +201,7 @@ export class NativeWorld implements Disposable {
   /** A node's site in one of the world's files. */
   siteOf(node: Node): Site {
     const source = node.getSourceFile();
-    return { file: relative(this.#root, source.fileName), position: node.getStart(source) };
+    return { file: this.#fileOfPath.get(source.path) ?? relative(this.#root, source.fileName), position: node.getStart(source) };
   }
 
   [Symbol.dispose](): void {
