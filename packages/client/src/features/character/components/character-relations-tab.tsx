@@ -6,11 +6,10 @@
 
 import type { CharacterId, PersonaId, WorldBookId } from "@orb/kit/ids";
 import { Section, Stack } from "@orb/ui/layout";
-import { useQuery } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type { RelationManagerItem } from "#components";
-import { RelationManagerSection } from "#components";
-import { QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, RelationManagerSection } from "#components";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import {
   useAttachBookToCharacter,
   useConnectPersonaToCharacter,
@@ -23,11 +22,40 @@ export interface CharacterRelationsTabProps {
   readonly characterId: CharacterId;
 }
 
+const RELATION_SKELETON_ROWS = 2;
+
+// A RELATION SECTION IS ATOMIC, so a failed half fails the whole (#1500). Both reads feed one control: the
+// attached list IS the section's answer, and the catalogue is what the picker offers. With either one unknown
+// every affordance states something false — an empty `attached` says "none linked" about a character that may
+// have five. The section's own boundary settles both reads together and offers the re-read.
+function RelationBoundary({ heading, noun, children }: { readonly heading: string; readonly noun: string; readonly children: ReactNode }): ReactElement {
+  return (
+    <QueryBoundary
+      fallback={
+        <Section heading={heading}>
+          <SkeletonRows count={RELATION_SKELETON_ROWS} />
+        </Section>
+      }
+      renderError={(_error, retry): ReactElement => (
+        <Section heading={heading}>
+          <QueryErrorState label={`this character's ${noun}`} onRetry={retry} />
+        </Section>
+      )}
+    >
+      {children}
+    </QueryBoundary>
+  );
+}
+
 export function CharacterRelationsTab({ characterId }: CharacterRelationsTabProps): ReactElement {
   return (
     <Stack gap="section">
-      <LinkedBooksSection characterId={characterId} />
-      <ConnectedPersonasSection characterId={characterId} />
+      <RelationBoundary heading="Linked world books" noun="linked world books">
+        <LinkedBooksSection characterId={characterId} />
+      </RelationBoundary>
+      <RelationBoundary heading="Connected personas" noun="connected personas">
+        <ConnectedPersonasSection characterId={characterId} />
+      </RelationBoundary>
     </Stack>
   );
 }
@@ -35,32 +63,15 @@ export function CharacterRelationsTab({ characterId }: CharacterRelationsTabProp
 function LinkedBooksSection({ characterId }: CharacterRelationsTabProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const attachedQuery = useQuery(trpc.worldInfo.listForCharacter.queryOptions({ characterId }));
-  const allBooksQuery = useQuery(trpc.worldInfo.listBooks.queryOptions());
+  const [{ data: attached }, { data: allBooks }] = useSuspenseQueries({
+    queries: [trpc.worldInfo.listForCharacter.queryOptions({ characterId }), trpc.worldInfo.listBooks.queryOptions()],
+  });
   const attach = useAttachBookToCharacter({ trpc, invalidation });
   const detach = useDetachBookFromCharacter({ trpc, invalidation });
-
-  // A RELATION SECTION IS ATOMIC, so a failed half fails the whole (#1500). Both reads feed one control:
-  // the attached list IS the section's answer, and the catalogue is what the Link picker offers. With either
-  // one unknown every affordance here states something false — an empty `attached` says "no world books
-  // linked" about a character that may have five, and an empty catalogue says "every book is already linked"
-  // about a library the pane never read. So the section says what actually happened and offers the re-read
-  // rather than rendering half a truth.
-  if (attachedQuery.isError || allBooksQuery.isError) {
-    return (
-      <Section heading="Linked world books">
-        <QueryErrorState
-          label="this character's linked world books"
-          onRetry={(): void => void Promise.all([attachedQuery.refetch(), allBooksQuery.refetch()]).catch(globalThis.reportError)}
-        />
-      </Section>
-    );
-  }
-  const attached = attachedQuery.data ?? [];
   const attachedIds = new Set(attached.map((b) => b.id));
 
   const items: readonly RelationManagerItem<WorldBookId>[] = attached.map((book) => ({ id: book.id, title: book.name, subtitle: book.role ?? "auxiliary" }));
-  const available: readonly RelationManagerItem<WorldBookId>[] = (allBooksQuery.data ?? [])
+  const available: readonly RelationManagerItem<WorldBookId>[] = allBooks
     .filter((book) => !attachedIds.has(book.id))
     .map((book) => ({ id: book.id, title: book.name, ...(book.description === null ? {} : { subtitle: book.description }) }));
 
@@ -84,23 +95,11 @@ function LinkedBooksSection({ characterId }: CharacterRelationsTabProps): ReactE
 function ConnectedPersonasSection({ characterId }: CharacterRelationsTabProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const connectedQuery = useQuery(trpc.persona.listConnectedToCharacter.queryOptions({ characterId }));
-  const allPersonasQuery = useQuery(trpc.persona.list.queryOptions());
+  const [{ data: connected }, { data: allPersonas }] = useSuspenseQueries({
+    queries: [trpc.persona.listConnectedToCharacter.queryOptions({ characterId }), trpc.persona.list.queryOptions()],
+  });
   const connect = useConnectPersonaToCharacter({ trpc, invalidation });
   const disconnect = useDisconnectPersonaFromCharacter({ trpc, invalidation });
-
-  // The same atomicity as the books section above, for the same reason.
-  if (connectedQuery.isError || allPersonasQuery.isError) {
-    return (
-      <Section heading="Connected personas">
-        <QueryErrorState
-          label="this character's connected personas"
-          onRetry={(): void => void Promise.all([connectedQuery.refetch(), allPersonasQuery.refetch()]).catch(globalThis.reportError)}
-        />
-      </Section>
-    );
-  }
-  const connected = connectedQuery.data ?? [];
   const connectedIds = new Set(connected.map((p) => p.id));
 
   const items: readonly RelationManagerItem<PersonaId>[] = connected.map((persona) => ({
@@ -108,7 +107,7 @@ function ConnectedPersonasSection({ characterId }: CharacterRelationsTabProps): 
     title: persona.name,
     ...(persona.title === null ? {} : { subtitle: persona.title }),
   }));
-  const available: readonly RelationManagerItem<PersonaId>[] = (allPersonasQuery.data ?? [])
+  const available: readonly RelationManagerItem<PersonaId>[] = allPersonas
     .filter((persona) => !connectedIds.has(persona.id))
     .map((persona) => ({ id: persona.id, title: persona.name, ...(persona.title === null ? {} : { subtitle: persona.title }) }));
 
