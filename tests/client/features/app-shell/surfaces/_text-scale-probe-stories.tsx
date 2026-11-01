@@ -1,4 +1,4 @@
-// Two planted controls for the text-scale probe: one clipped by an ancestor that does not scroll, one its own scroller reaches.
+// Planted layouts for the text-scale probe: a clipped control, one its own strip reaches, a column that stopped reflowing and a stacked pair.
 import { CtIsolation } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
@@ -10,8 +10,15 @@ export function PlantedControlsStory(): ReactElement {
       <Stack className="overflow-hidden inline-(--size-touch-target)" data-planted="clipped">
         <Button className="shrink-0 min-inline-(--width-popup-floor)">Clipped</Button>
       </Stack>
-      <Stack className="overflow-x-auto inline-(--size-touch-target)" data-planted="scrolled">
+      <Stack className="overflow-x-auto inline-(--size-touch-target)" data-planted="scrolled" role="toolbar">
         <Button className="shrink-0 min-inline-(--width-popup-floor)">Scrolled</Button>
+      </Stack>
+      <Stack className="overflow-x-auto inline-(--size-touch-target)" data-planted="sideways">
+        <Button className="shrink-0 min-inline-(--width-popup-floor)">Sideways</Button>
+      </Stack>
+      <Stack data-planted="stacked">
+        <Button>Under</Button>
+        <Button className="-mbs-(--size-control-md)">Over</Button>
       </Stack>
     </CtIsolation>
   );

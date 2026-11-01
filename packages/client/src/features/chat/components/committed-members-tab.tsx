@@ -172,7 +172,7 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
                   this cluster wraps within it, which is what makes the honest spelling affordable at every
                   width the pane can be. The budget the words are priced against is recorded in
                   `members-panel.tsx`'s header — read it before changing either label. */}
-              <Button type="button" variant="ghost" size="sm" onClick={(): void => openModal("savedRosters")}>
+              <Button type="button" variant="ghost" size="sm" wrap={true} onClick={(): void => openModal("savedRosters")}>
                 <Icon icon={Users} size="sm" />
                 Saved rosters…
               </Button>

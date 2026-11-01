@@ -11,5 +11,6 @@ export interface RoomFlankAnchorProps {
 
 /** Provide the container box the thread-and-flank row consumes. */
 export function RoomFlankAnchor({ children }: RoomFlankAnchorProps): ReactElement {
-  return <Container className="relative flex-1 min-block-0">{children}</Container>;
+  // The fit probe's sentinel is wider than the room at enlarged text; the clip keeps it from scrolling the room sideways.
+  return <Container className="relative flex-1 overflow-x-clip min-block-0">{children}</Container>;
 }

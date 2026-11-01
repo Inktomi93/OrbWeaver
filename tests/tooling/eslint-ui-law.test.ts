@@ -171,7 +171,7 @@ const CASES = [
   [CLASSES, "a shell variant in a feature", classed("shell-mobile:hidden"), FEATURE, 1],
   [CLASSES, "a stacked shell variant in a feature", classed("hover:shell-desktop:flex"), FEATURE, 1],
   [CLASSES, "a narrow shell variant in client code outside features", classed("shell-narrow:flex"), `${CLIENT}components/probe.tsx`, 1],
-  [CLASSES, "a short shell variant in a ui primitive", classed("shell-short:hidden"), UI, 1],
+  [CLASSES, "a narrow shell variant in a ui primitive", classed("shell-narrow:hidden"), UI, 1],
   [CLASSES, "a shell variant in the app shell", classed("shell-mobile:hidden"), `${CLIENT}features/app-shell/surfaces/probe.tsx`, 0],
   [CLASSES, "a class that only starts with shell", classed("shell-panel"), FEATURE, 0],
 ] as const;

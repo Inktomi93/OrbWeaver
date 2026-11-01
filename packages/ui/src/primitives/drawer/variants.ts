@@ -15,7 +15,7 @@ export const drawerVariants = tv({
       data-swiping:transition-none
     `,
     // `flex-1 min-h-0` (not `h-full`) so the content scroll region resolves against the popup's max-h cap.
-    content: "relative flex flex-1 flex-col overflow-y-auto overscroll-contain p-section inline-full min-block-0",
+    content: "relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-contain p-section inline-full min-block-0",
     swipeArea: "fixed z-(--z-overlay) touch-none",
     indent: "transition-transform duration-(--motion-layout) ease-out-expo data-active:scale-95",
     indentBackground: `pointer-events-none opacity-0 ${SCRIM_BASE} transition-opacity duration-(--motion-layout) ease-out-expo data-active:opacity-100`,

@@ -43,5 +43,9 @@
       block-size: auto;
       overflow: visible;
     }
+    /* The screen's size containment would collapse an auto-height page to nothing. */
+    .shell-main {
+      container-type: inline-size;
+    }
   }
 }

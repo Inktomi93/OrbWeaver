@@ -25,11 +25,10 @@ export const listRowVariants = tv({
     // client-shared HOVER_REVEAL.hover posture and this variant's floated-action hit-test arm use the unnamed
     // `group-hover` / `group-focus-within` selectors. Dropping the unnamed group leaves the action painted
     // but pointer-inert over the clickable body (the body intercepts every attempted press).
-    root: "group group/row @container/list-row relative flex items-center gap-row inline-full min-inline-0",
-    // Keeps `min-w-0` so it can shrink and let `title`'s `truncate` engage — starvation is prevented by
-    // `content`'s own `min-w-(--width-title-floor)` floor below (a floor RAISES a min-content contribution, so if it lived
-    // here on `body` it would pin `body` to the title's full width and force a horizontal scrollbar in a
-    // narrow panel; north-star N2). Selected reads as a 2px left ember bar + the primary tone's tint
+    root: "group group/row @container/list-row relative flex flex-wrap items-center gap-row inline-full min-inline-0",
+    // Keeps `min-w-0` so it can shrink and let `title`'s `truncate` engage. Its basis is the title-column floor: where
+    // the row cannot seat that and the actions, the root wraps them under the body instead of starving the name, and
+    // a floor that is a basis cannot push a row wider than its pane at enlarged text (north-star N2). Selected reads as a 2px left ember bar + the primary tone's tint
     // (rides the accent, so custom themes retint it), not a flat `--color-accent` fill (north-star §4 N2).
     //
     // THE LEFT EMBER BAR IS OWNER-RATIFIED (2026-08-22, issue #485) AND ITS SPELLING LEFT THIS FILE (#1823).
@@ -46,15 +45,16 @@ export const listRowVariants = tv({
     // carrier that is NOT a ListRow — the config band, a `Button`, which cannot inherit it by composition
     // (#1823). Three hand-copies of a ratified pair is how a ratified pair drifts.
     body: [
-      "group group/body flex flex-1 items-center gap-row rounded-control px-row py-field outline-none min-block-(--size-control-md) min-inline-0",
+      `
+        group group/body flex flex-1 basis-(--width-title-floor) items-center gap-row rounded-control px-row py-field outline-none min-block-(--size-control-md)
+        min-inline-0
+      `,
       `${SELECTION_RAIL} ${DISABLED_STATE}`,
       // A disclosure header that is open holds the tint-active fill under its on-tint ink (`aria-expanded`, D336).
       "aria-expanded:bg-tone-tint-active aria-expanded:text-tone-text-on-tint",
     ],
     leading: "flex shrink-0 items-center justify-center text-muted-foreground",
-    // `min-w-(--width-title-floor)` is the title-column floor: name/subtitle never collapse below a readable width, so
-    // `actions` yields (shrinks + clips) instead.
-    content: "flex flex-1 flex-col min-inline-(--width-title-floor)",
+    content: "flex flex-1 flex-col min-inline-0",
     // The title line: the truncating title, plus an optional trailing meta (relative-time) pinned to the
     // end so it never gets clipped by the title's truncate.
     titleRow: "flex items-baseline gap-field min-inline-0",

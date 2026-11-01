@@ -54,8 +54,9 @@ function contrastOutcome(input: ContrastInput): ContrastOutcome {
   // (`.scroll-fade-x`/`.scroll-fade-y`) fades the PAINTED alpha toward transparent at a live scroll
   // offset — `color`/`foregroundOpacity` still report the full-strength authored value, so resolving
   // this sample as if it were opaque would be a fabricated ratio, and pixel-sampling it would measure
-  // whatever scroll position happened to be live when the walk ran, not a stable fact. WITHHELD, checked
-  // before every other branch so a masked sample can never fall through to a flat/gradient/image verdict.
+  // whatever scroll position happened to be live when the walk ran, not a stable fact. EXCLUDED from the
+  // population (no ratio exists to judge), checked before every other branch so a masked sample can never
+  // fall through to a flat/gradient/image verdict.
   if (input.foregroundMasked === true) {
     return { kind: "maskedForeground" };
   }
@@ -353,10 +354,17 @@ function tallyReadingSurface(tallies: ReadingSurfaceTallies, outcome: ContrastOu
   const { contrast, overArt, inactive } = tallies;
   switch (outcome.kind) {
     case "dimmed":
-    case "unresolvedBackdrop":
-    case "maskedForeground": {
+    case "unresolvedBackdrop": {
       for (const tally of [contrast, overArt, inactive]) {
         count(tally.withheld, outcome.kind);
+      }
+      return;
+    }
+    // A mask-image fade is a measured fact about the paint: the glyph's alpha follows a live scroll offset,
+    // so no stable ratio exists to withhold. It proves the colour rules inapplicable, not unmeasured.
+    case "maskedForeground": {
+      for (const tally of [contrast, overArt, inactive]) {
+        count(tally.excluded, outcome.kind);
       }
       return;
     }

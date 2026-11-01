@@ -110,25 +110,26 @@ export function settledPopulationAccounting(rule: string, row: RulePopulationAcc
  *  the rest print exactly as before rather than carrying invented advice. Adding a remedy is a one-line
  *  edit HERE, never a second spelling at a print site. */
 const WITHHELD_REMEDIES: Readonly<Record<string, string>> = {
-  // #1114: a surface whose selection idiom only exists once driven is STRUCTURALLY no-verdict at rest —
-  // every rest arm withholds here, and only the driven arm can reach `complete`.
-  // THE REMEDY IS CONDITIONAL, AND SAYING SO IS THE HONEST HALF (#1704). This read as an unconditional
-  // instruction with one surface's command baked in, so three Characters passes followed it, watched the
-  // withholding survive, and had no way to tell "wrong command" from "no command can do this" — the
-  // cohorts were never named. They are now (see `withheldSubjects`), and the text no longer asserts that a
-  // drive exists: a cohort whose carriers are ALL unselected at rest may have no reachable selected twin
-  // on this surface at all, and design-audit is read-only (`cli.ts`), so it cannot mint one.
-  unmatchedUnselected:
-    "drive the surface so a SELECTED member of the named cohort is rendered beside its unselected siblings (e.g. pnpm snap /chats --open-chat <id-or-title> --design-audit). If no interaction on this surface can select one, the cohort is structurally unjudgeable here and the withholding is the correct verdict — say so in the review rather than re-running",
-  // THE OLD TEXT NAMED THE WRONG SHAPE (#1840). It read "a one-row list cannot answer this rule", which is
-  // one of TWO ways a cohort ends up all-selected and not the common one: measured on Backup & Restore
-  // (side-eye 2026-09-06), the withheld cohort was ELEVEN checkboxes, every one checked because the group's
-  // default is everything selected — so the reader followed the remedy, looked for a one-row list, and
-  // found eleven. The subject now carries its own census ("N of M chosen", `census-selection.ts`), so the
-  // remedy names the action for each shape and asserts neither.
+  // A cohort with nothing chosen at rest is excluded by the walker, so only the all-selected shape is withheld.
+  // The subject carries its own census ("N of M chosen", `census-selection.ts`), so the remedy names the
+  // action for each shape and asserts neither.
   unmatchedSelected:
     "read the cohort census printed beside the subject. M of M chosen is a BULK-DEFAULT group (every member starts selected): drive the surface so one member is DEselected beside its chosen siblings. 1 of 1 is a single-member cohort, which no drive can twin — the withholding is the correct verdict there, so say so in the review rather than re-running",
 };
+
+/** One rule's completeness. A rule is `no-verdict` only when ITS OWN candidates were withheld; every other
+ *  rule keeps the verdict its judged population earned. */
+export interface PopulationRuleVerdict {
+  readonly rule: string;
+  readonly verdict: "complete" | "no-verdict";
+}
+
+export function populationRuleVerdicts(accounting: PopulationAccounting): readonly PopulationRuleVerdict[] {
+  return Object.entries(accounting).map(([rule, row]) => ({
+    rule,
+    verdict: Object.entries(row.withheld).some(([reason, count]) => !PRESENTATION_WITHHELD.has(reason) && count > 0) ? "no-verdict" : "complete",
+  }));
+}
 
 export function populationEvidenceGap(accounting: PopulationAccounting): EvidenceGap | null {
   const incomplete: string[] = [];
@@ -156,10 +157,11 @@ export function populationEvidenceGap(accounting: PopulationAccounting): Evidenc
       }
     }
   }
+  const total = Object.keys(accounting).length;
   return incomplete.length === 0
     ? null
     : {
         evidence: "rule population completeness",
-        detail: `${incomplete.join("; ")} — candidates were withheld from judgment, so emitted findings are partial and this run has NO VERDICT${remedies.size === 0 ? "" : `. Remedy — ${[...remedies].join("; ")}`}`,
+        detail: `${incomplete.join("; ")} — candidates were withheld from judgment, so those ${String(incomplete.length)} of ${String(total)} rule(s) have NO VERDICT and the run is partial; the other ${String(total - incomplete.length)} rule(s) keep their verdicts${remedies.size === 0 ? "" : `. Remedy — ${[...remedies].join("; ")}`}`,
       };
 }
