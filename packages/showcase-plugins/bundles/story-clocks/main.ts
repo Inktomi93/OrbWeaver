@@ -80,16 +80,25 @@ const EMPTY = "○";
 
 // ── clock model (pure helpers over the `"cur/max"` value grammar) ──────────────────────────────────────────
 
+function trimUnderscores(text: string): string {
+  let start = 0;
+  let end = text.length;
+  while (start < end && text.charAt(start) === "_") {
+    start += 1;
+  }
+  while (end > start && text.charAt(end - 1) === "_") {
+    end -= 1;
+  }
+  return text.slice(start, end);
+}
+
 /** Lowercase a human name into the variable-key slug: `The Ritual` → `the_ritual`. Returns null for input
  *  that leaves nothing (symbols only) — a clock needs a name a person can say. */
 function slugify(name: unknown): string | null {
   if (typeof name !== "string") {
     return null;
   }
-  const slug = name
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, "_")
-    .replaceAll(/^_+|_+$/g, "");
+  const slug = trimUnderscores(name.toLowerCase().replaceAll(/[^a-z0-9]+/g, "_"));
   return slug.length === 0 ? null : slug.slice(0, SLUG_MAX);
 }
 

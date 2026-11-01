@@ -20,6 +20,7 @@ import { LOG_LEVELS } from "@orb/contracts/settings";
 import { ALLOWED_HOSTS_KEY, parseAllowedHosts } from "@orb/kit/allowed-hosts";
 import { handleKey } from "@orb/kit/handle-key";
 import type { Handle } from "@orb/kit/ids";
+import { trimEndWhile } from "@orb/kit/strings";
 import { SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
 import { z } from "zod";
 import type { DataLayout } from "#foundation/data-layout";
@@ -717,7 +718,7 @@ export function parseEnv({ source, envFileKeys, host, readFile }: EnvParseInput)
     }
     let value: string;
     try {
-      value = readFile(file).replace(/[\r\n]+$/u, "");
+      value = trimEndWhile(readFile(file), "\r\n");
     } catch (err) {
       throw new EnvRefusedError(
         new z.ZodError([{ code: "custom", path: [fileKey], message: "The named secret file is unreadable; check its path and permissions." }]),

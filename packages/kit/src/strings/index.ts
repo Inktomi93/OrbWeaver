@@ -89,7 +89,6 @@ export function formatBytes(bytes: number): string {
 // all). The fix is positional, not a new engine: split the sign and the fraction off, group only the
 // integer run, reassemble. `.toLocaleString()`/`Intl.NumberFormat` stay banned repo-wide
 // (`no-raw-intl-time` — un-memoized Intl by the back door), so the hand-rolled spelling stays.
-const THOUSANDS_RE = /\B(?=(\d{3})+(?!\d))/gu;
 
 /** Group a count for display, locale-agnostically: `1170` → `1,170`, `999` → `999`, `-1234` → `-1,234`,
  *  `1234.5678` → `1,234.5678` (the fraction is never grouped). The house separator is the comma — one
@@ -103,7 +102,7 @@ export function groupThousands(value: number): string {
   const dot = unsigned.indexOf(".");
   const whole = dot === -1 ? unsigned : unsigned.slice(0, dot);
   const fraction = dot === -1 ? "" : unsigned.slice(dot);
-  return `${negative ? "-" : ""}${whole.replace(THOUSANDS_RE, ",")}${fraction}`;
+  return `${negative ? "-" : ""}${groupDigitRuns(whole)}${fraction}`;
 }
 
 // ── dollar amounts ───────────────────────────────────────────────────────────────────────────────────
@@ -229,6 +228,95 @@ const BLANK = " ";
 /** `text` with every character but a newline replaced by spaces, keeping its UTF-16 length. */
 export function blankText(text: string): string {
   return text.replace(/[^\n]/gu, (char) => BLANK.repeat(char.length));
+}
+
+// ── linear edge trims and tag spans ──────────────────────────────────────────────────────────────────
+// `/x+$/` and `/<[^>]*>/` go quadratic on a long run of `x` or of `<` with no terminator: the engine retries the
+// match from every start inside the run. These scan once, so a run in model or card text costs its length.
+
+/** What a trim drops: a string lists the characters (single UTF-16 units), a function judges one character. */
+export type TrimSet = string | ((char: string) => boolean);
+
+/** One whitespace character, exactly `\s` (and what `String.prototype.trim` strips). */
+export function isSpaceChar(char: string): boolean {
+  return char.trim() === "";
+}
+
+function drops(set: TrimSet, char: string): boolean {
+  return typeof set === "string" ? set.includes(char) : set(char);
+}
+
+/** `text` without its trailing characters that `set` drops: `replace(/[set]+$/u, "")`, in linear time. */
+export function trimEndWhile(text: string, set: TrimSet): string {
+  let end = text.length;
+  while (end > 0 && drops(set, text.charAt(end - 1))) {
+    end -= 1;
+  }
+  return text.slice(0, end);
+}
+
+/** `text` without its leading characters that `set` drops: `replace(/^[set]+/u, "")`. */
+export function trimStartWhile(text: string, set: TrimSet): string {
+  let start = 0;
+  while (start < text.length && drops(set, text.charAt(start))) {
+    start += 1;
+  }
+  return text.slice(start);
+}
+
+/** `text` without leading and trailing characters that `set` drops: `replace(/^[set]+|[set]+$/g, "")`. */
+export function trimEdgesWhile(text: string, set: TrimSet): string {
+  return trimEndWhile(trimStartWhile(text, set), set);
+}
+
+/** Replaces every `<…>` span with `replacement`: `replace(/<[^>]*>/g, r)` when `allowEmpty`, else `replace(/<[^>]+>/g, r)`
+ *  (a `<>` is left alone). An opener with no `>` after it ends the scan, since no later opener has one either. */
+export function replaceAngleSpans(text: string, replacement: string, allowEmpty: boolean): string {
+  let out = "";
+  let copied = 0;
+  let search = 0;
+  for (;;) {
+    const open = text.indexOf("<", search);
+    const close = open === -1 ? -1 : text.indexOf(">", open + 1);
+    if (close === -1) {
+      return out + text.slice(copied);
+    }
+    if (close === open + 1 && !allowEmpty) {
+      search = open + 1;
+      continue;
+    }
+    out += text.slice(copied, open) + replacement;
+    copied = close + 1;
+    search = copied;
+  }
+}
+
+const ASCII_WORD = /\w/u;
+const GROUP_WIDTH = 3;
+
+/** `text.replace(/\B(?=(\d{3})+(?!\d))/g, ",")` in linear time, on any string: a comma goes before a digit that has a
+ *  word character ahead of it and a multiple of three digits left in its run. */
+export function groupDigitRuns(text: string): string {
+  let out = "";
+  let index = 0;
+  while (index < text.length) {
+    const char = text.charAt(index);
+    if (char < "0" || char > "9") {
+      out += char;
+      index += 1;
+      continue;
+    }
+    let end = index;
+    while (end < text.length && text.charAt(end) >= "0" && text.charAt(end) <= "9") {
+      end += 1;
+    }
+    for (let at = index; at < end; at += 1) {
+      const open = at > 0 && (end - at) % GROUP_WIDTH === 0 && (at > index || ASCII_WORD.test(text.charAt(at - 1)));
+      out += open ? `,${text.charAt(at)}` : text.charAt(at);
+    }
+    index = end;
+  }
+  return out;
 }
 
 /** A signed integer delta for a momentum bar-end label: `+5` · `-3` · `0`. The sign lives only in this label. */

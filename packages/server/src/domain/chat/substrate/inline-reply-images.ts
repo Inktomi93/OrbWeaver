@@ -21,6 +21,7 @@
 
 import { tokenizeContent } from "@orb/kit/content";
 import type { AssetId } from "@orb/kit/ids";
+import { isSpaceChar } from "@orb/kit/strings";
 import type { InlineReplyImageProjection, PlacedInlineImage } from "../contract/results.ts";
 
 /** The alt ceiling — a model that captions a picture with three paragraphs is not writing alt text, and the
@@ -29,7 +30,38 @@ const ALT_MAX_CHARS = 300;
 
 /** Sentence terminators the alt mint splits the preceding prose on. Deliberately not a locale-aware
  *  segmenter: the fallback is `""`, so a miss costs an empty alt, never a wrong one. */
-const SENTENCE_END = /[.!?…]+["'”’)\]]*\s+/u;
+const TERMINATORS = ".!?…";
+const CLOSERS = "\"'”’)]";
+
+/** The text after the last `[.!?…]+["'”’)\]]*\s+` match, or all of `text` without one: the final piece of a split on
+ *  that pattern, scanned once. A terminator run either reaches closers and a space together, or no start inside it
+ *  can, so a run that fails is skipped whole (the pattern retries every start in a long `.....` run). */
+function afterLastSentenceEnd(text: string): string {
+  let tail = 0;
+  let at = 0;
+  while (at < text.length) {
+    if (!TERMINATORS.includes(text.charAt(at))) {
+      at += 1;
+      continue;
+    }
+    at = skipWhile(text, at, (char) => TERMINATORS.includes(char));
+    const afterClosers = skipWhile(text, at, (char) => CLOSERS.includes(char));
+    const end = skipWhile(text, afterClosers, isSpaceChar);
+    if (end > afterClosers) {
+      tail = end;
+      at = end;
+    }
+  }
+  return text.slice(tail);
+}
+
+function skipWhile(text: string, from: number, keep: (char: string) => boolean): number {
+  let at = from;
+  while (at < text.length && keep(text.charAt(at))) {
+    at += 1;
+  }
+  return at;
+}
 
 /** The PROSE in front of an offset, with every non-text span removed. Tokenizing rather than slicing is the
  *  whole point and it is a VISIBILITY rule, not tidiness: a `<lie …>` hidden span is host-only bytes, and an
@@ -51,8 +83,7 @@ function mintInlineImageAlt(content: string, atChars: number): string {
   }
   // The LAST sentence, not the whole paragraph: the sentence immediately before the picture is the caption
   // the `replyMedia` contract asked for; everything earlier is the scene, which is not what this picture is.
-  const sentences = prose.split(SENTENCE_END);
-  const last = (sentences.at(-1) ?? "").trim();
+  const last = afterLastSentenceEnd(prose).trim();
   const chosen = last.length > 0 ? last : prose.trim();
   return chosen.slice(0, ALT_MAX_CHARS).trim();
 }

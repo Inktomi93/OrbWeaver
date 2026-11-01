@@ -16,7 +16,7 @@ const PAIR_FINDER = /([*_]{1,2})([\s\S]*?)\1/g;
 // (start-marker)(unicode whitespace+) OR (unicode whitespace+)(end-marker) — every Unicode space the
 // emphasis run might pad with, so `* x *` → `*x*` regardless of which space the model used.
 const SPACE_CLASS = "\\t \\u00a0\\u1680\\u2000-\\u200a\\u202f\\u205f\\u3000\\ufeff";
-const PAIR_INNER_WHITESPACE = new RegExp(`(\\*|_)([${SPACE_CLASS}]+)|([${SPACE_CLASS}]+)(\\*|_)`, "g");
+const PAIR_SPACE = new RegExp(`^[${SPACE_CLASS}]$`);
 
 // A `<speaker` open-tag marker (case-insensitive, optional attrs). The narrator render
 // (parse-speaker-spans.ts) splits the body on well-formed `<speaker>Name</speaker>` markers; a
@@ -52,10 +52,44 @@ function stripInnerWhitespace(text: string): string {
   let next = text;
   // Descending index order keeps each splice from invalidating the indices still to be applied.
   for (const { index, full } of matches.toReversed()) {
-    const inner = full.replace(PAIR_INNER_WHITESPACE, "$1$4");
+    const inner = stripMarkerPadding(full);
     next = next.slice(0, index) + inner + next.slice(index + full.length);
   }
   return next;
+}
+
+const isMarker = (char: string): boolean => char === "*" || char === "_";
+
+/** Drops the spaces that touch a marker, left to right: a marker takes the spaces after it, else a space run takes the
+ *  marker after it. A hand scan of `replace(/(\*|_)([space]+)|([space]+)(\*|_)/g, "$1$4")`, which retries every start
+ *  inside a long space run that no marker touches. */
+function stripMarkerPadding(text: string): string {
+  let out = "";
+  let at = 0;
+  while (at < text.length) {
+    const char = text.charAt(at);
+    if (isMarker(char)) {
+      out += char;
+      at = spaceRunEnd(text, at + 1);
+    } else if (PAIR_SPACE.test(char)) {
+      const end = spaceRunEnd(text, at);
+      const next = text.charAt(end);
+      out += isMarker(next) ? next : text.slice(at, end);
+      at = isMarker(next) ? end + 1 : end;
+    } else {
+      out += char;
+      at += 1;
+    }
+  }
+  return out;
+}
+
+function spaceRunEnd(text: string, from: number): number {
+  let end = from;
+  while (end < text.length && PAIR_SPACE.test(text.charAt(end))) {
+    end += 1;
+  }
+  return end;
 }
 
 /** Close unpaired `**`, `*`, and `"` at end-of-line so a half-open span doesn't swallow the rest of

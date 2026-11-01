@@ -7,11 +7,11 @@
       "ui.js": "b17ba5d6eaa91ce1daebfc19d93e25302a3cc955eee054e58c3c1eef860ac107"
     },
     "card-atlas": {
-      "main.js": "86b27546960f0206402683d81752d909e9c7f01df7c5aa5de5e383eea3ccd627",
+      "main.js": "4ab55b2a407973e7c8a77b9d7b24a7c1bb6561b34fb8e358158ae350101da28d",
       "manifest.json": "f2d089693977927289de8a194061a7897ef887a15fd95ac826e4888d07a6c64a"
     },
     "draft-polish": {
-      "main.js": "10d62b54d74dfa7e586893bb9550ea7d46545662981e08d938d87478adb51ac8",
+      "main.js": "ffc6f850db735c80676b63aaa348f637d423de63e8ede855ad155dc738b205d3",
       "manifest.json": "07c6c7a278404b59c44b6122aa708f3bb5fe522e1d942b98cba239dc1447c3d5"
     },
     "keepsake-camera": {
@@ -36,7 +36,7 @@
       "manifest.json": "3d69b406de28aade7a2d320699f536dc8f31ad25f66f84289932ea966d4ca399"
     },
     "story-clocks": {
-      "main.js": "14e296a1907430a05d78382da8f275b61e76cad4bca55d407d14b94d8dc81ad1",
+      "main.js": "6ad1a2570cd9eadc8cfd1154d66639221b9fb507808613eac0ed98ab37f893d7",
       "manifest.json": "e7f1965cfdf921e191bef559cb0fee181fbd865c85f814f7862c8b68b20b59af"
     }
   }
