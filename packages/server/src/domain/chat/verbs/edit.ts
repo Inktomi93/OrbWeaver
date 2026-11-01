@@ -1114,6 +1114,8 @@ function createDuplicateMessage(ctx: ChatContext, emit: EmitDurableChatEventOp, 
         chatId,
         seq,
         role: slot.role,
+        // The kind decides whether the row reaches the prompt and how a narrator row renders.
+        kind: slot.kind,
         authorUserId: slot.authorUserId,
         characterId: slot.characterId,
         personaId: slot.personaId,

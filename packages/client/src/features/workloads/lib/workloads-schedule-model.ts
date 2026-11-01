@@ -55,7 +55,7 @@ export const CREATE_SCHEDULE_FORM_DEFAULTS: CreateScheduleFormValues = {
   dryRun: false,
   k: null,
   source: "all",
-  assetKind: ASSET_KINDS[0],
+  assetKind: "",
 };
 
 // Extract the run-param slots from a schedule row's stored `params` blob — the inverse of `buildStartInput`, seeding the edit dialog's controls.
@@ -69,7 +69,7 @@ function scheduleParamsToRunValues(params: Record<string, unknown>): WorkloadRun
     dryRun: params["dryRun"] === true,
     k: typeof k === "number" ? k : null,
     source: source === "text" || source === "image" || source === "all" ? source : "all",
-    assetKind: ASSET_KINDS.find((kind) => kind === params["kind"]) ?? ASSET_KINDS[0],
+    assetKind: ASSET_KINDS.find((kind) => kind === params["kind"]) ?? "",
   };
 }
 

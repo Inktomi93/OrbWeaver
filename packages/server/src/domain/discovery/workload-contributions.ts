@@ -190,13 +190,13 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
       // Both dedup arms run in the one pass; counts are summed. The user/param `threshold` is a raw-COSINE
       // floor — it drives the CHARACTER arm only. The chat arm is Jaccard of segment content-hash sets (a
       // set-overlap fraction, not a cosine), an incompatible scale, so it keeps its own floor internally.
-      run: async (ctx, params, report, _signal): Promise<AnalyticsResult> => {
+      run: async (ctx, params, report, signal): Promise<AnalyticsResult> => {
         try {
           const settings = await deps.loadUserSettings(ctx.userId);
           const threshold = params.threshold ?? settings.workloads.dupThreshold;
           report({ message: "finding duplicate pairs" });
           const [chars, chatPairs] = await Promise.all([
-            deps.discovery.computeDuplicatePairs({ ...ctx, ...(threshold !== undefined ? { threshold } : {}) }),
+            deps.discovery.computeDuplicatePairs({ ...ctx, signal, ...(threshold !== undefined ? { threshold } : {}) }),
             deps.discovery.computeChatDuplicatePairs(ctx),
           ]);
           const scanned = chars.charactersScanned + chatPairs.chatsScanned;

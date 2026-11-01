@@ -9,6 +9,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import {
   MESSAGE_ACTIONS_MENU_NAME,
+  MESSAGE_REATTRIBUTE_GENERATING,
   MESSAGE_REATTRIBUTE_NAME,
   MESSAGE_REATTRIBUTE_NO_OTHER_SEAT,
   MESSAGE_REATTRIBUTE_VOICE_NAME,
@@ -109,6 +110,21 @@ test("the host re-voices a reply through its Reattribute submenu, which lists th
   await mounted.unmount();
   await mount<typeof RoomTranscriptStory>(STORY, storyProps(room.chatId));
   await expect(page.locator(`[data-message-id="${room.reply.id}"]`).getByText(SECOND_VOICE, { exact: true })).toBeVisible();
+});
+
+test("while a turn is generating the voice door stays in the menu, disabled, and says why", async ({ mount, page, corpusMedia }) => {
+  await using root = await createCorpusHarness();
+  const room = await soloRoom(root);
+  await seatSecondVoice(room);
+  await serveAs(root, page, room.host);
+  await corpusMedia();
+  await mount<typeof RoomTranscriptStory>(STORY, storyProps(room.chatId));
+  await expect(page.locator(`[data-message-id="${room.reply.id}"]`)).toBeVisible();
+  await page.getByRole("button", { name: "Start a turn", exact: true }).click();
+
+  await openRowMenu(page, room.reply);
+  await expect(page.getByRole("menuitem", { name: MESSAGE_REATTRIBUTE_VOICE_NAME, exact: true })).toBeDisabled();
+  await expect(page.getByText(MESSAGE_REATTRIBUTE_GENERATING, { exact: true })).toBeVisible();
 });
 
 test("with no other seat the door stays in the menu, disabled, and says why", async ({ mount, page, corpusMedia }) => {

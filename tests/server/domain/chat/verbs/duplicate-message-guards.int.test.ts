@@ -1,8 +1,11 @@
 // @subject packages/server/src/domain/chat/verbs/edit.ts
+import { createCharacterSchema } from "@orb/contracts/character";
 import { TURN_LOCKED_OP_CODE } from "@orb/contracts/chat";
 import { expect, test } from "@orb/testkit/node";
 import { createChatRoot } from "@orb/testkit/node/composed";
-import { textProvider } from "../scenario-physical.ts";
+import { textProvider, wireBodies, wireText } from "../scenario-physical.ts";
+
+const ADA = createCharacterSchema.parse({ handle: "dup-ada", name: "Ada Vane", description: "The first voice." });
 
 const CONCURRENT_COPIES = 4;
 
@@ -62,3 +65,37 @@ test("concurrent duplicates of one message each land on their own seq", async ()
   const rows = (await chat.listMessages({ principal: h.owner, chatId: h.chatId })).messages;
   expect(rows.filter((row) => row.content === "first")).toHaveLength(CONCURRENT_COPIES + 1);
 });
+
+test("a duplicated comment stays a comment and never reaches the prompt; a duplicated narrator row stays narrator", async () => {
+  const aside = "an out-of-band aside the model must never see";
+  const narration = "the group narrates";
+  await using h = await createChatRoot({
+    memoryEnabled: false,
+    providerFetch: textProvider(["The reply."]),
+    characters: [ADA],
+    transcript: [
+      { role: "user", content: "a human line" },
+      { role: "assistant", kind: "narrator", content: narration },
+      { role: "assistant", kind: "comment", speakerHandle: ADA.handle, content: aside },
+    ],
+  });
+  const { chat } = h.root.services;
+  const rows = (await chat.listMessages({ principal: h.owner, chatId: h.chatId })).messages;
+  const comment = rows.find((row) => row.content === aside);
+  const narrator = rows.find((row) => row.content === narration);
+  if (comment === undefined || narrator === undefined) {
+    throw new Error("the imported room lost its rows");
+  }
+  const commentCopy = await chat.duplicateMessage({ principal: h.owner, chatId: h.chatId, messageId: comment.id });
+  const narratorCopy = await chat.duplicateMessage({ principal: h.owner, chatId: h.chatId, messageId: narrator.id });
+  expect(commentCopy.kind).toBe("comment");
+  expect(narratorCopy.kind).toBe("narrator");
+
+  // Drop the original aside so only the copy could carry it onto the wire.
+  await chat.deleteMessages({ principal: h.owner, chatId: h.chatId, messageIds: [comment.id] });
+  await chat.send({ principal: h.owner, chatId: h.chatId, content: "go on" });
+  await h.root.settleBackground();
+  const bodies = await wireBodies(h);
+  expect(bodies.length).toBeGreaterThan(0);
+  expect(bodies.map(wireText).join("\n")).not.toContain(aside);
+}, 60_000);

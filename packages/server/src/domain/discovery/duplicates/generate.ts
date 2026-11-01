@@ -94,7 +94,7 @@ export async function computeDuplicatePairs(db: Db, deps: ComputeDuplicatesDeps,
     const repVecs = reps.map((r) => r.embedding);
     // This workload promises no n×n allocation at any admitted size. Hub math therefore uses its existing
     // O(n)-row branch even below the general-purpose dense threshold.
-    const hubs = await computeGroupHubs(repVecs, { denseMax: 0 });
+    const hubs = await computeGroupHubs(repVecs, { denseMax: 0, signal: opts.signal });
     const remainingPairs = MAX_DUPLICATE_PAIRS_PER_RUN - inserts.length;
     for (const pair of pairsAboveThreshold(repVecs, hubs, threshold, {
       maxVectors: MAX_DUPLICATE_VECTORS_PER_SPACE,

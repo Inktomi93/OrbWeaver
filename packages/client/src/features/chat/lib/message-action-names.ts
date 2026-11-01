@@ -40,6 +40,7 @@ export const MESSAGE_REATTRIBUTE_VOICE_NAME = "Reattribute";
 
 /** The disabled reason beside that door, and the toast its refusal raises. */
 export const MESSAGE_REATTRIBUTE_NO_OTHER_SEAT = "No other character is in this chat.";
+export const MESSAGE_REATTRIBUTE_GENERATING = "Wait for the reply to finish before changing its voice.";
 export const MESSAGE_REATTRIBUTE_VOICE_FAILED = "Couldn't reattribute that message.";
 
 /** The host-only door to the prompt a reply was generated from, in the row's overflow menu. */

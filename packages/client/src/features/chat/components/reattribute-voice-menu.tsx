@@ -9,7 +9,13 @@ import { MenuItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/u
 import type { ReactElement } from "react";
 import { DescribedMenuItem } from "#components";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { MESSAGE_REATTRIBUTE_NO_OTHER_SEAT, MESSAGE_REATTRIBUTE_VOICE_FAILED, MESSAGE_REATTRIBUTE_VOICE_NAME } from "../lib/message-action-names.ts";
+import { isLiveTurnPhase, useTurnPhase } from "#state";
+import {
+  MESSAGE_REATTRIBUTE_GENERATING,
+  MESSAGE_REATTRIBUTE_NO_OTHER_SEAT,
+  MESSAGE_REATTRIBUTE_VOICE_FAILED,
+  MESSAGE_REATTRIBUTE_VOICE_NAME,
+} from "../lib/message-action-names.ts";
 
 interface ReattributeVoiceVars {
   readonly chatId: ChatId;
@@ -46,12 +52,17 @@ export function ReattributeVoiceMenu({ viewerIsHost, message, seats }: Reattribu
   return viewerIsHost && isReattributableReply(message) ? <VoiceSubmenu message={message} seats={seats} /> : null;
 }
 
-// With nowhere to move the reply, the door stays in the menu and says why.
+// With nowhere to move the reply, or a turn generating (the verb refuses a re-voice then), the door stays in the
+// menu and says why.
 function VoiceSubmenu({ message, seats }: VoiceSubmenuProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const reattribute = useReattributeVoice({ trpc, invalidation });
+  const liveTurn = isLiveTurnPhase(useTurnPhase(message.chatId));
   const targets = targetSeats(message, seats);
+  if (liveTurn) {
+    return <DescribedMenuItem detail={MESSAGE_REATTRIBUTE_GENERATING} disabled={true} icon={Users} label={MESSAGE_REATTRIBUTE_VOICE_NAME} />;
+  }
   if (targets.length === 0) {
     return <DescribedMenuItem detail={MESSAGE_REATTRIBUTE_NO_OTHER_SEAT} disabled={true} icon={Users} label={MESSAGE_REATTRIBUTE_VOICE_NAME} />;
   }

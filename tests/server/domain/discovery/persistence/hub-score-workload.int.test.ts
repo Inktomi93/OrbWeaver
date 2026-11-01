@@ -4,6 +4,7 @@
 // @subject packages/server/src/domain/discovery/verbs/compute-hub-scores.ts
 
 import { chatDigests, chatSegments, digestThemeAssignments } from "@orb/db";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
 import {
@@ -17,6 +18,7 @@ import {
   seedRecallCorpus,
 } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
+
 import { executeAdmitted } from "../../workloads/funding.fixtures.ts";
 
 const QUERY = "orbital ledger";
@@ -108,6 +110,35 @@ test("a csls run scores digests and segments, search reads the scores, and the s
   expect(assignments.every((row) => row.at !== null)).toBe(true);
   // The ranking signal the search reads moves once the scores are computed.
   expect(await search()).not.toEqual(scoresBefore);
+});
+
+// One statement is tens of microseconds of synchronous driver work, so a batch past this many holds the loop long.
+const MAX_STATEMENTS_PER_BATCH = 1000;
+
+test("a csls run over more segments than one batch should hold writes its scores in bounded batches and lands every row", async () => {
+  const { root } = await memoryWorld();
+  await using _root = root;
+  const owner = await root.principalFor(root.ownerId);
+  const [template] = await root.db.select().from(chatSegments).limit(1);
+  if (template === undefined) {
+    throw new Error("the recall corpus produced no segment to widen");
+  }
+  const widened = Array.from({ length: MAX_STATEMENTS_PER_BATCH + 100 }, (_, index) => ({
+    ...template,
+    id: root.idSource.typeId(ID_PREFIX.chatSegment),
+    blockIdx: 100_000 + index,
+    chunkIdx: 0,
+  }));
+  await root.db.insert(chatSegments).values(widened);
+
+  using batch = vi.spyOn(root.db, "batch");
+  const ref = await root.services.workloads.start({ caller: owner, mode: "singular", ownerId: owner.userId, input: { kind: "csls", params: {} } });
+  await executeAdmitted(root, ref.id);
+
+  expect(await root.services.workloads.get({ caller: owner, id: ref.id })).toMatchObject({ status: "succeeded" });
+  const sizes = batch.mock.calls.map(([statements]) => statements.length);
+  expect(Math.max(...sizes)).toBeLessThanOrEqual(MAX_STATEMENTS_PER_BATCH);
+  expect((await root.db.select({ score: chatSegments.hubScore }).from(chatSegments)).every((row) => row.score !== null)).toBe(true);
 });
 
 test("a cancelled csls run stops between passes without scoring the later kinds", async () => {

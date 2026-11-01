@@ -52,6 +52,24 @@ test("a large group gives the event loop a turn for every work budget it spends,
   expect(new Set(dense).size).toBeGreaterThan(1);
 });
 
+test("a single row longer than one work budget still yields inside the row, with the same scores", async () => {
+  const wideDim = 131_072;
+  const group = Array.from({ length: 64 }, (_, row) =>
+    Float32Array.from({ length: wideDim }, (__, col) => Math.abs(Math.sin(row * 12.9898 + col * 78.233)) + 0.25),
+  );
+  // One row alone costs 2 * wideDim * 64 units, over two budgets, so a yield per row is not enough.
+  const rowUnits = group.length * wideDim * 2;
+  expect(rowUnits).toBeGreaterThan(2 * HUB_YIELD_WORK_BUDGET);
+  const minimumTurns = 2 * group.length;
+
+  let streaming: number[] = [];
+  const turns = await turnsDuring(async () => {
+    streaming = await computeGroupHubs(group, { denseMax: 0 });
+  });
+  expect(turns).toBeGreaterThanOrEqual(minimumTurns);
+  expect(streaming).toEqual(await computeGroupHubs(group, { denseMax: group.length }));
+}, 60_000);
+
 test("a cancelled run stops at the next yield instead of finishing the group", async () => {
   const controller = new AbortController();
   const group = vectors(2000);

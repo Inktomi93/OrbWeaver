@@ -126,8 +126,23 @@ export function createAssetsWorkloadContributions(input: DbAssemblyInput<AssetsW
       resume: "idempotent-restart",
       run: async (_ctx, params, report, signal): Promise<MaintenanceResult> => {
         report({ message: `rebuilding the ${params.kind} index from the files on disk` });
-        const result = await deps.assets.rebuildFromTree({ kind: params.kind, signal });
-        return { scanned: result.scanned, changed: result.rebuilt, dryRun: false };
+        const result = await deps.assets.rebuildFromTree({
+          kind: params.kind,
+          signal,
+          onOwner: ({ ownersWalked, scanned, rebuilt }) => {
+            report({ message: `rebuilding the ${params.kind} index — ${ownersWalked} owner folders walked, ${scanned} files seen, ${rebuilt} rows created` });
+          },
+        });
+        for (const owner of result.skippedOwners) {
+          report({ message: `skipped the files folder ${owner}: it belongs to no user` });
+        }
+        // `failed` counts the owner folders skipped; the sweep that remains is theirs to resolve by hand.
+        return {
+          scanned: result.scanned,
+          changed: result.rebuilt,
+          dryRun: false,
+          ...(result.skippedOwners.length > 0 ? { failed: result.skippedOwners.length } : {}),
+        };
       },
     },
   ];

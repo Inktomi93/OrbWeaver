@@ -233,6 +233,11 @@ export function workloadKindNeedsBulkTarget(kind: string): boolean {
   return isRunnableWorkloadKind(kind) && WORKLOAD_KIND_MODES[kind].bulkRequiresTarget;
 }
 
+/** Whether a run of this kind needs the asset kind chosen: a blob on disk carries no kind, so the rebuild never guesses one. */
+export function workloadKindNeedsAssetKind(kind: string): boolean {
+  return isRunnableWorkloadKind(kind) && WORKLOAD_PARAM_SHAPE_BY_KIND[kind] === "assetKind";
+}
+
 /** The run dialog's form values. `kind` is a plain string; {@link isRunnableWorkloadKind} narrows at the save seam. */
 export interface RunWorkloadFormValues extends WorkloadRunValues {
   readonly kind: string;
@@ -254,7 +259,7 @@ export const RUN_WORKLOAD_FORM_DEFAULTS: RunWorkloadFormValues = {
   dryRun: false,
   k: null,
   source: "all",
-  assetKind: ASSET_KINDS[0],
+  assetKind: "",
   runAt: "",
   dependsOn: [],
 };
@@ -267,8 +272,8 @@ export interface WorkloadRunValues {
   readonly k: number | null;
   /** The `index` kind's embed source. Inert for every other kind. */
   readonly source: IndexSource;
-  /** The `assets-rebuild-index` kind's asset kind. Inert for every other kind. */
-  readonly assetKind: AssetKind;
+  /** The `assets-rebuild-index` kind's asset kind; `""` = not chosen yet, which the forms refuse. Inert for every other kind. */
+  readonly assetKind: AssetKind | "";
 }
 
 type StartWorkloadWire = inferInput<Trpc["workloads"]["start"]>;

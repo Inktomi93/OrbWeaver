@@ -52,7 +52,9 @@ export function WorkloadParamFields<TValues extends WorkloadRunValues & { readon
         }
         if (shape === "assetKind") {
           return (
-            <form.AppField name="assetKind">{(field): ReactElement => <field.SelectField label="What to rebuild" items={ASSET_KIND_ITEMS} />}</form.AppField>
+            <form.AppField name="assetKind">
+              {(field): ReactElement => <field.SelectField label="What to rebuild" items={ASSET_KIND_ITEMS} placeholder="Choose what to rebuild…" />}
+            </form.AppField>
           );
         }
         if (shape === "k") {

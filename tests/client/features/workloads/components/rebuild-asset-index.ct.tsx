@@ -13,6 +13,37 @@ const CHOSEN_KIND = "gallery";
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
+test("scheduling the asset index rebuild without choosing a kind saves nothing", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  await caller.settings.updateUserSettingsSection({ section: "appearance", patch: DEFAULT_APPEARANCE_SETTINGS });
+  await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
+  await routeTrpc(
+    page,
+    serveCorpusProcedures(caller, [
+      "sessions.me",
+      "workloads.listSchedules",
+      "workloads.createSchedule",
+      "workloads.estimateModelCalls",
+      "admin.listUsers",
+      "settings.getUserSettings",
+      "connection.listBindings",
+      "connection.list",
+    ]),
+  );
+  await mount<typeof ScheduleDialogDismissalStory>(STORY, { width: 1440 });
+
+  await page.getByTestId(testId("scheduleCreateButton")).click();
+  const dialog = page.getByTestId(testId("createScheduleDialog"));
+  await dialog.getByRole("combobox", { name: "Job", exact: true }).click();
+  await page.getByRole("option", { name: WORKLOAD_KIND_LABELS["assets-rebuild-index"], exact: true }).click();
+  await page.getByTestId(testId("createScheduleSubmit")).click();
+
+  // The dialog stays up and nothing was created: the form refuses instead of stamping a default kind.
+  await expect(dialog).toBeVisible();
+  expect((await caller.workloads.listSchedules({})).filter((schedule) => schedule.kind === "assets-rebuild-index")).toEqual([]);
+});
+
 test("scheduling the asset index rebuild offers the asset kind and saves the one picked", async ({ mount, page }) => {
   const label = ASSET_KIND_ITEMS.find((item) => "value" in item && item.value === CHOSEN_KIND);
   if (label === undefined || !("label" in label)) {

@@ -11,6 +11,8 @@ export type { ThemeLevel } from "@orb/contracts/discovery";
 /** Options for the `computeDuplicatePairs` recompute. `threshold` is the raw-cosine floor a pair must clear. */
 export type ComputeDuplicatesOptions = WorkloadRunScope & {
   readonly threshold?: number;
+  /** The workload's cooperative abort, checked at every yield of the hub math. */
+  readonly signal?: AbortSignal | undefined;
 };
 
 /** Options for the `computeThemes` recompute. `seed` pins the k-means++ seeding PRNG for determinism. */

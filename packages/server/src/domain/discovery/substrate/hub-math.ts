@@ -12,8 +12,8 @@ const CSLS_K = 10;
 /** The dense-vs-streaming switch (≈100MB N×N float32 matrix at N=5000). */
 export const HUBNESS_DENSE_MAX = 5000;
 
-/** Multiply-adds (or offer steps) between two yields: a few milliseconds of synchronous work, so the in-process
- *  worker never holds HTTP, SSE or heartbeats for the length of a large group. */
+/** Multiply-adds (or offer steps) between two yields: about a hundred milliseconds of synchronous work, so the
+ *  in-process worker never holds HTTP, SSE or heartbeats for the length of a large group. */
 export const HUB_YIELD_WORK_BUDGET = 8_000_000;
 
 /** Relative cost of one top-K offer against one multiply-add (an insertion sort step). */
@@ -103,15 +103,23 @@ async function denseHubs(vecs: readonly Float32Array[], n: number, k: number, pa
 async function streamingHubs(vecs: readonly Float32Array[], n: number, k: number, pace: Pace): Promise<number[]> {
   const hubs = new Array<number>(n);
   const dim = vecs[0]?.length ?? 0;
+  const sliceLength = Math.max(1, Math.ceil(HUB_YIELD_WORK_BUDGET / Math.max(1, dim * 2)));
   for (let i = 0; i < n; i += 1) {
     const target = vecs[i];
     if (target === undefined) {
       hubs[i] = 0;
       continue;
     }
-    const row = cosineToMany(target, vecs);
+    // A row of a large group is itself longer than one work budget, so it is scored in slices with a pace
+    // between them; each cosine is independent, so the row equals the unsliced one bit for bit.
+    const row = new Float32Array(n);
+    for (let from = 0; from < n; from += sliceLength) {
+      const slice = vecs.slice(from, from + sliceLength);
+      row.set(cosineToMany(target, slice), from);
+      await pace(slice.length * dim * 2);
+    }
     hubs[i] = topKMean((j) => row[j] ?? 0, n, i, k);
-    await pace(n * (dim * 2 + OFFER_COST));
+    await pace(n * OFFER_COST);
   }
   return hubs;
 }
