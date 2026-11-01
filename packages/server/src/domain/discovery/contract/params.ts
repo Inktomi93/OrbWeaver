@@ -9,6 +9,8 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 /** Options for the `computeDuplicatePairs` recompute. `threshold` is the raw-cosine floor a pair must clear. */
 export type ComputeDuplicatesOptions = WorkloadRunScope & {
   readonly threshold?: number;
+  /** The workload's cooperative abort, checked at every yield of the hub math. */
+  readonly signal?: AbortSignal | undefined;
 };
 
 /** Options for the `computeThemes` recompute. `seed` pins the k-means++ seeding PRNG for determinism. */
@@ -26,6 +28,8 @@ export type ThemeNameEstimateOptions = WorkloadEstimateScope & Pick<ComputeTheme
 export type ComputeHubScoresOptions = WorkloadRunScope & {
   readonly k?: number;
   readonly denseMax?: number;
+  /** The workload's cooperative abort, checked at every yield of the hub math. */
+  readonly signal?: AbortSignal | undefined;
 };
 
 /** Options for the `distillCharacters` pass. `characterId` narrows to one card; absent = whole-library batch. */

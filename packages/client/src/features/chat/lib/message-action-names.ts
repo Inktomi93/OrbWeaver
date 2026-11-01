@@ -26,8 +26,22 @@ export const MESSAGE_EDIT_NAME = "Edit message";
 /** The row's fork door — branches the conversation at this message. */
 export const MESSAGE_FORK_NAME = "Fork chat here";
 
+/** The row's overflow-menu door that copies the message to a new slot at the end of the chat. */
+export const MESSAGE_DUPLICATE_NAME = "Duplicate message";
+
+/** Why the duplicate door is disabled while a turn is generating in the room. */
+export const MESSAGE_DUPLICATE_GENERATING = "Wait for the reply to finish.";
+
 /** The viewer's own user row's restamp door: their lines from this one onward take their current persona. */
 export const MESSAGE_REATTRIBUTE_NAME = "Reattribute from here";
+
+/** The host's submenu on a reply: it re-voices the row onto another character seated in the room. */
+export const MESSAGE_REATTRIBUTE_VOICE_NAME = "Reattribute";
+
+/** The disabled reason beside that door, and the toast its refusal raises. */
+export const MESSAGE_REATTRIBUTE_NO_OTHER_SEAT = "No other character is in this chat.";
+export const MESSAGE_REATTRIBUTE_GENERATING = "Wait for the reply to finish before changing its voice.";
+export const MESSAGE_REATTRIBUTE_VOICE_FAILED = "Couldn't reattribute that message.";
 
 /** The host-only door to the prompt a reply was generated from, in the row's overflow menu. */
 export const MESSAGE_VIEW_WIRE_TRACE_NAME = "View wire trace…";
