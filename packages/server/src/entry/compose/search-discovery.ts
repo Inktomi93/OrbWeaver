@@ -321,6 +321,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   });
   const notifications = createNotificationsService({
     idSource: deps.idSource,
+    logger: deps.logger,
     db,
     now,
     // THE #1799 CROSS-FEATURE JOIN, made here and only here. The inbox needs to know which of a page's

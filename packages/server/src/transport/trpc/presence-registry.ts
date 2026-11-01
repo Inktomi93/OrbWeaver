@@ -19,8 +19,10 @@ interface PresenceCell {
 }
 
 export interface PresenceRegistry {
-  /** Register one live device connection for `userId`; releases (decrements) on `signal` abort. */
-  readonly connect: (userId: UserId, signal: AbortSignal) => void;
+  /** Register one live device connection for `userId`. Releases once, on `signal` abort or the returned call.
+   *  @remarks The call is not redundant: a stream the server ended (a takeover, an eviction) never aborts its
+   *  request signal, and a generator nobody pulled never reaches its `finally`. Each path needs its own edge. */
+  readonly connect: (userId: UserId, signal: AbortSignal) => () => void;
   readonly read: (userId: UserId) => PresenceView;
 }
 
@@ -36,16 +38,26 @@ export function createPresenceRegistry(now: () => number): PresenceRegistry {
     }
   }
 
-  function connect(userId: UserId, signal: AbortSignal): void {
+  function connect(userId: UserId, signal: AbortSignal): () => void {
     const cell = cells.get(userId) ?? { count: 0, lastSeenAt: null };
     cell.count += 1;
     cell.lastSeenAt = null;
     cells.set(userId, cell);
-    if (signal.aborted) {
+    let released = false;
+    const release = (): void => {
+      if (released) {
+        return;
+      }
+      released = true;
+      signal.removeEventListener("abort", release);
       decrement(cell);
-      return;
+    };
+    if (signal.aborted) {
+      release();
+    } else {
+      signal.addEventListener("abort", release, { once: true });
     }
-    signal.addEventListener("abort", () => decrement(cell), { once: true });
+    return release;
   }
 
   function read(userId: UserId): PresenceView {

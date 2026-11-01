@@ -33,6 +33,15 @@ import { runSocket } from "../stream/socket.ts";
 import { withSubscriptionErrors } from "../subscriptions.ts";
 import { authedProcedure, t } from "../trpc.ts";
 
+/** End presence with the stream, whichever way it ended. Outside `runSocket`, so a throw in its setup counts. */
+async function* releasingOnEnd<T>(stream: AsyncGenerator<T>, release: () => void): AsyncGenerator<T> {
+  try {
+    yield* stream;
+  } finally {
+    release();
+  }
+}
+
 export const streamRouter = t.router({
   // The ONE socket. `withSubscriptionErrors` wraps it for a genuine SOCKET-level fault; a single room's
   // fault never gets here — it is a `roomFailed` control frame and the socket survives (§5.2).
@@ -50,9 +59,10 @@ export const streamRouter = t.router({
       // Presence + the host-return drain, in the RESOLVER for the same reason as the adopt: they must happen
       // when the connection is ACCEPTED, not on the consumer's first pull. That is also exactly where the
       // deleted `notifications.notifications` handler ran them, so the ref-count edge is unchanged in timing —
-      // only in which stream it counts (§5.6). Released on `sig` abort, so a reconnect re-counts.
+      // only in which stream it counts (§5.6). Released when the stream ends, by client abort, takeover or
+      // eviction: during a takeover the successor is counted before this ends, so no offline edge appears.
       const wasOnline = ctx.presence.read(ctx.auth.userId).online;
-      ctx.presence.connect(ctx.auth.userId, sig);
+      const releasePresence = ctx.presence.connect(ctx.auth.userId, sig);
       // Host-return drain (chat Part III §5): a genuinely-offline host reconnecting reclaims the AI turns that
       // DEFERRED onto their box while it was dark. Only on the offline→online edge (not a within-grace
       // reconnect, not a second device/tab). Fire-and-forget — real generation must not block the connect, and
@@ -62,19 +72,22 @@ export const streamRouter = t.router({
           .drainDeferredTurns({ hostUserId: ctx.auth.userId })
           .catch((err: unknown) => getLog(ctx.logger).error({ err, userId: ctx.auth.userId }, "host-return: deferred-turn drain failed"));
       }
-      return withSubscriptionErrors(
-        runSocket({
-          logger: ctx.logger,
-          serverInstanceId: ctx.serverInstanceId,
-          traces: ctx.traces,
-          registry: ctx.sockets,
-          cell,
-          principal: ctx.auth,
-          services: ctx.services,
-          liveBuses: ctx.liveBuses,
-          signal: sig,
-        }),
-        ctx.logger,
+      return releasingOnEnd(
+        withSubscriptionErrors(
+          runSocket({
+            logger: ctx.logger,
+            serverInstanceId: ctx.serverInstanceId,
+            traces: ctx.traces,
+            registry: ctx.sockets,
+            cell,
+            principal: ctx.auth,
+            services: ctx.services,
+            liveBuses: ctx.liveBuses,
+            signal: sig,
+          }),
+          ctx.logger,
+        ),
+        releasePresence,
       );
     }),
 

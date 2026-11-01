@@ -3,15 +3,16 @@
 // nothing. markRead/dismiss set the timestamp via `COALESCE(col, :now)` so a re-flip keeps the original
 // instant.
 
-import type { NotificationEvent, NotificationType } from "@orb/contracts/notifications";
+import type { InboxState, NotificationEvent, NotificationType } from "@orb/contracts/notifications";
 import { notificationEventSchema } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import { notifications } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import type { NotificationId } from "@orb/kit/ids";
-import { and, asc, desc, eq, gt, isNull, lt, not, notExists, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNotNull, isNull, lt, ne, not, notExists, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
+import { z } from "zod";
 
 /** A new notification row — the verb mints `id` + parses the closed `event` + passes its injected clock. */
 type NotificationInsert = Pick<typeof notifications.$inferSelect, "id" | "recipientUserId" | "type" | "payload" | "createdAt">;
@@ -179,21 +180,60 @@ export async function insertNotification(db: Db, row: NotificationInsert, extras
   return inserted[0] as NotificationRow;
 }
 
-/** The caller's active inbox page — recipient-scoped, dismissed excluded, newest-first by `seq`, paged with
- *  `seq < cursor` when a cursor is given. */
-export async function selectInbox(
-  db: Db,
-  recipientUserId: NotificationEvent["recipientUserId"],
-  cursor: number | undefined,
-  limit: number,
-): Promise<NotificationRow[]> {
+// A standing ask's dismissed rows are mostly the producer's supersedes and retractions, which no reader did.
+const STANDING_ASK_TYPE: NotificationType = "plugins-awaiting-consent";
+
+interface InboxPageQuery {
+  readonly state: InboxState;
+  readonly cursor: number | undefined;
+  readonly limit: number;
+}
+
+interface InboxPage {
+  readonly rows: NotificationRow[];
+  /** The `seq` of the last row READ (decodable or not) when a row follows it, else `null`. */
+  readonly nextCursor: number | null;
+  /** Dismissed rows whose stored bytes no longer decode; always empty for the active state. */
+  readonly unreadable: readonly NotificationId[];
+}
+
+/** One inbox page of `state` — recipient-scoped, newest-first by `seq`, paged with `seq < cursor` when a cursor
+ *  is given.
+ *
+ *  The active list is loud: an undecodable row throws, because it may be an actionable ask. The dismissed list is
+ *  read-only history, so an undecodable row is skipped and reported in `unreadable`; the cursor is taken from the
+ *  rows READ, so a skipped row can neither end the walk early nor strand the rows below it. */
+export async function selectInbox(db: Db, recipientUserId: NotificationEvent["recipientUserId"], { state, cursor, limit }: InboxPageQuery): Promise<InboxPage> {
   const scoped = and(
     eq(notifications.recipientUserId, recipientUserId),
-    isNull(notifications.dismissedAt),
+    state === "active" ? isNull(notifications.dismissedAt) : and(isNotNull(notifications.dismissedAt), ne(notifications.type, STANDING_ASK_TYPE)),
     cursor === undefined ? undefined : lt(notifications.seq, cursor),
   );
-  const rows = await db.select(TEXT_ROW_COLS).from(notifications).where(scoped).orderBy(desc(notifications.seq)).limit(limit);
-  return rows.map(decodeNotificationRow);
+  // One row past the page proves another follows: a cursor on any full page offers Load more on an exact multiple.
+  const read = await db
+    .select(TEXT_ROW_COLS)
+    .from(notifications)
+    .where(scoped)
+    .orderBy(desc(notifications.seq))
+    .limit(limit + 1);
+  const stored = read.slice(0, limit);
+  const nextCursor = read.length > limit ? (stored.at(-1)?.seq ?? null) : null;
+  if (state === "active") {
+    return { rows: stored.map(decodeNotificationRow), nextCursor, unreadable: [] };
+  }
+  const rows: NotificationRow[] = [];
+  const unreadable: NotificationId[] = [];
+  for (const row of stored) {
+    try {
+      rows.push(decodeNotificationRow(row));
+    } catch (error) {
+      if (!(error instanceof SyntaxError || error instanceof z.ZodError)) {
+        throw error;
+      }
+      unreadable.push(row.id);
+    }
+  }
+  return { rows, nextCursor, unreadable };
 }
 
 /** The RESUME page — recipient-scoped, dismissed excluded, `seq` strictly ABOVE the watermark, OLDEST-first.
