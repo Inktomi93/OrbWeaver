@@ -4,7 +4,8 @@
 
 import type { ImportWindow } from "@orb/contracts/chat";
 import { importWindowSchema, mergeImportWindows } from "@orb/contracts/chat";
-import type { CardImportResult } from "@orb/contracts/import";
+import type { CardImportResult, ImportPreview } from "@orb/contracts/import";
+import { importPreviewSchema } from "@orb/contracts/import";
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES, PORTABLE_KINDS } from "@orb/contracts/portability";
 import type { TreeImportPlan } from "#data";
@@ -107,6 +108,13 @@ export function asBundleCounts(result: unknown): BundleCounts {
     notes: Array.isArray(notes) ? notes.filter((note): note is string => typeof note === "string") : [],
     memoryScope: memoryScope.success ? memoryScope.data : null,
   };
+}
+
+/** The preview a finished dry run reports, or null for any other result. */
+export function asImportPreview(result: unknown): ImportPreview | null {
+  const preview = typeof result === "object" && result !== null ? (result as Record<string, unknown>)["preview"] : undefined;
+  const parsed = importPreviewSchema.safeParse(preview);
+  return parsed.success ? parsed.data : null;
 }
 
 /** Sum two uploads' counts — a planned folder import is several sequential workloads reporting one result. */

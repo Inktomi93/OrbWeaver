@@ -1,7 +1,7 @@
 import { ST_PROFILE_UNHANDLED_REASONS, ST_SETTINGS_UNHANDLED_REASONS } from "@orb/contracts/import";
 import type { ImportReport } from "../contract/results.ts";
 
-function unhandledReason(name: string): string | undefined {
+export function unhandledReason(name: string): string | undefined {
   return ST_PROFILE_UNHANDLED_REASONS.get(name) ?? ST_SETTINGS_UNHANDLED_REASONS.get(name);
 }
 

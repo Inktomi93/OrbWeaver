@@ -5,6 +5,7 @@ import { constants as fsConstants } from "node:fs";
 import type { FileHandle } from "node:fs/promises";
 import { lstat, open, realpath, rm } from "node:fs/promises";
 import { resolve, sep } from "node:path";
+import type { ImportPreview } from "@orb/contracts/import";
 import type { BundleImportWorkloadResult, ImportTokenUsageBackfillResult, MaintenanceResult, ReportProgress } from "@orb/contracts/workloads";
 import { importBundleWorkloadParams, importStWorkloadParams, maintenanceWorkloadParams } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
@@ -21,6 +22,11 @@ import { createBackfillTokenUsage } from "./verbs/backfill-token-usage.ts";
 /** The result's merged persona keys, present only when a persona was merged. */
 function mergedField(mergedKeys: readonly string[] | undefined): { readonly mergedKeys?: readonly string[] } {
   return mergedKeys !== undefined && mergedKeys.length > 0 ? { mergedKeys } : {};
+}
+
+/** The result's preview, present only on a dry run. */
+function previewField(preview: ImportPreview | undefined): { readonly preview?: ImportPreview } {
+  return preview !== undefined ? { preview } : {};
 }
 
 async function refreshPlannerAfterImport(
@@ -230,6 +236,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           ...mergedField(result.mergedKeys),
           ...(result.reportPath !== undefined ? { reportPath: result.reportPath } : {}),
           ...(dryRun ? {} : { memoryScope: result.memoryScope }),
+          ...previewField(result.preview),
         };
       },
     },
