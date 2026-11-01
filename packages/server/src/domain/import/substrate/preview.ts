@@ -39,7 +39,6 @@ function skippedItems(collected: ProfileCollected): ImportPreviewSkip[] {
     ...collected.unreadableCards.map((file) => skip(file, "not a readable character card")),
     ...collected.skippedChats.map((file) => skip(file, "the chat file is over the size limit")),
     ...collected.missingGroupChats.map((leaf) => skip(leaf, "a group lists this chat, but its file is missing or unreadable")),
-    ...collected.missingPersonaAvatars.map((name) => skip(name, "this persona's avatar file is missing, so it would import without one")),
     ...collected.unreadableGroups.map((file) => skip(file, "not a readable group")),
     ...collected.unreadableWorlds.map((file) => skip(file, "not a readable world book")),
     ...collected.unreadablePresets.map((file) => skip(file, "not a readable preset")),
@@ -72,7 +71,12 @@ export function buildImportPreview(collected: ProfileCollected, inLibrary: Reado
         ...collected.groups.flatMap((group) => chatItems(group.parsed.name, group.chats)),
         ...collected.orphanBundles.flatMap((orphan) => chatItems(orphan.dirName, orphan.chats)),
       ]),
-      personas: listOf(collected.personas.map(({ parsed }) => item(parsed.avatarFile, parsed.name))),
+      personas: listOf(
+        collected.personas.map(({ parsed, avatarBytes }) => ({
+          ...item(parsed.avatarFile, parsed.name),
+          ...(avatarBytes === undefined ? { withoutArt: true as const } : {}),
+        })),
+      ),
       worlds: listOf(collected.worlds.map(({ book }) => item(book.name, book.name))),
       presets: listOf(collected.presets.map(({ parsed, sourceFile }) => item(sourceFile, parsed.name))),
       themes: listOf(collected.themes.map(({ parsed, sourceFile }) => item(sourceFile, parsed.name))),

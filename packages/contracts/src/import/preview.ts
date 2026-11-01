@@ -20,6 +20,8 @@ const importPreviewItemSchema = z.strictObject({
   name: previewText,
   /** A character the owner already has; a run imports nothing for it. Absent otherwise. */
   inLibrary: z.literal(true).optional(),
+  /** A persona whose avatar file is missing or unreadable: it imports, without art. Absent otherwise. */
+  withoutArt: z.literal(true).optional(),
 });
 export type ImportPreviewItem = z.infer<typeof importPreviewItemSchema>;
 
