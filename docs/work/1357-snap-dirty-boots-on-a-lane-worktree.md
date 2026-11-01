@@ -3,6 +3,7 @@ kind: bug
 status: open
 updated: 2026-10-25
 priority: P3
+plan: test-foundation
 area: tooling
 ---
 

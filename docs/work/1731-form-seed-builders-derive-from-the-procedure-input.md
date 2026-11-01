@@ -3,6 +3,7 @@ kind: work
 status: open
 updated: 2026-11-01
 priority: P3
+plan: cross-surface-consistency
 area: client
 ---
 
