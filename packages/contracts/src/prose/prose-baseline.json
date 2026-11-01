@@ -509,8 +509,8 @@
       "sha256": "841fa81ee5043a49bcc6126c8d1481290ce016cd8b6131a3f064231b70703e67"
     },
     "rpg.extract.tool.updateInventory": {
-      "version": 6,
-      "sha256": "a6930d66813fdf3bc7fc2be1436baf171568221be31228d6370cce78ab8f0e16"
+      "version": 7,
+      "sha256": "2dde62b3ad6477d23b8607dcf903433b9e29c1978f128fd276ebe82a2752d776"
     },
     "rpg.extract.tool.updateScene": {
       "version": 1,

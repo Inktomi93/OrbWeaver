@@ -513,10 +513,11 @@ For example, a three-line sign is enough:
     // none, so this description is the fold's ONLY write-surface teaching. Compressed (a description budget is
     // tighter than a system prompt's): the plane clause's "calls update_inventory with an add" collapses to
     // "calls add" inside the tool's own description, and "exactly what add exists for" loses the adverb.
-    version: 6,
+    version: 7,
     text:
-      "Items and coin on an actor. Call it only when an item or coin actually changes hands or changes where it is " +
-      "carried; do not call it for a mere mention of an item, or for stats and conditions (update_party). add: new items — ALWAYS give a `description` and a `location` (where it's " +
+      "Items and coin on an actor. Call it when an item or coin is gained, used, lost or given away, or when its " +
+      "quantity, description or carrying location changes; do not call it for a mere mention of an item, or for " +
+      "stats and conditions (update_party). add: new items — ALWAYS give a `description` and a `location` (where it's " +
       "carried: 'belt pouch', 'sheathed'), plus quantity. A beat where anyone buys, takes, pockets, receives, or " +
       "stows something ALWAYS calls add — an EMPTY pack is never a reason to skip; first acquisitions are what " +
       "add exists for. update: existing items whose description, quantity, or " +

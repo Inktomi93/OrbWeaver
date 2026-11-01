@@ -375,8 +375,9 @@ const UPDATE_SCENE_INPUT_EXAMPLES: readonly Record<string, unknown>[] = [
 ];
 
 /** The state tools with `update_scene`'s worked examples attached. Only the dedicated cheap round sends these:
- *  examples add the `advanced-tool-use-2025-11-20` beta header on the Anthropic wire, which is unprobed on the
- *  folded character turn and on proxies, where a refused header would fail the whole turn. */
+ *  examples add the `advanced-tool-use-2025-11-20` beta header on the Anthropic wire, which is unprobed. A
+ *  refused header on the cheap round costs that round's state write; on the folded character turn it would fail
+ *  the whole turn, so the folded turn mounts the plain tools. */
 export function withStateToolExamples(tools: readonly RpgStateRoundTool[]): RpgStateRoundTool[] {
   return tools.map((tool) => (tool.name === "update_scene" ? { ...tool, inputExamples: UPDATE_SCENE_INPUT_EXAMPLES } : tool));
 }
