@@ -33,7 +33,7 @@ const listSchema = z.object({ data: z.array(rowSchema) }).loose();
 /** Ollama resolves an untagged name to `:latest`, so `llama3` and `llama3:latest` are one model. A `:` that
  *  precedes a `/` is a registry port, not a tag. */
 function withImplicitLatest(id: string): string {
-  return /:[^/]*$/u.test(id) ? id : `${id}:latest`;
+  return id.lastIndexOf(":") > id.lastIndexOf("/") ? id : `${id}:latest`;
 }
 
 /** Whether a listed id names `model` on a server read through `reader`: exact, except that Ollama's untagged

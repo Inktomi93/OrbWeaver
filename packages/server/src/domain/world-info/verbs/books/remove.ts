@@ -40,6 +40,5 @@ export function createRemoveBook(ctx: WorldInfoContext): WorldInfoService["remov
     // the captured-set fan repaints their fit/preview. Post-cascade, so the reach was snapshotted pre-write.
     // Live-only + past the delete's success path — it cannot fault the write that already committed.
     fanReach();
-    return { deleted: true };
   };
 }

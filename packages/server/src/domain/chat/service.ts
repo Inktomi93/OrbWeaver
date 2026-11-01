@@ -64,7 +64,7 @@ export function createChatService(
     ...input,
     trackBackground: (work, chatId): void => {
       admission.track(chatId, work);
-      input.trackBackground?.(work, chatId);
+      input.trackBackground(work, chatId);
     },
   });
   // The quiet-generation seam: a non-canon generation through the chat's OWN resolved connection (the marker
@@ -100,7 +100,7 @@ export function createChatService(
       promptTransforms: ctx.promptTransforms,
       timers: ctx.timers,
       ...(ctx.backgroundSignal === undefined ? {} : { backgroundSignal: ctx.backgroundSignal }),
-      ...(ctx.trackBackground === undefined ? {} : { trackBackground: ctx.trackBackground }),
+      trackBackground: ctx.trackBackground,
       ...(ctx.recordTurnOutcome === undefined ? {} : { recordTurnOutcome: ctx.recordTurnOutcome }),
       rpg:
         ctx.rpg === null

@@ -3,14 +3,12 @@
 // ONCE from the label the host typed and never re-derived on a later rename (a rename that re-slugged the key
 // would orphan every stored value, which is exactly the name-addressing bug the unification killed).
 
+import { trimEdgesWhile } from "@orb/kit/strings";
+
 /** Slug `label` into an addressable key, suffixed until unique among `taken`. Empty/symbol-only labels fall
  *  back to `fallback` (the caller's noun — "tracker"/"attribute"). */
 export function mintDefKey(label: string, taken: Iterable<string>, fallback: string): string {
-  const base =
-    label
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "") || fallback;
+  const base = trimEdgesWhile(label.toLowerCase().replace(/[^a-z0-9]+/g, "_"), "_") || fallback;
   const keys = new Set(taken);
   if (!keys.has(base)) {
     return base;

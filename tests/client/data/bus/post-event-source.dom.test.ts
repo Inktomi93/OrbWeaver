@@ -8,6 +8,7 @@ import type { TrpcReadError } from "@orb/client/data";
 import { createTrpcClient } from "@orb/client/data";
 import type { ImpersonateStreamDelta } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { isSubscriptionErrorFrame } from "@orb/contracts/rpc";
 import type { StreamFrame } from "@orb/contracts/stream";
 import { STREAM_INACTIVITY_TIMEOUT_MS, streamConnectInputSchema } from "@orb/contracts/stream";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -79,7 +80,7 @@ test("native POST subscriptions preserve input and CSRF, resume only committed f
     const client = createTrpcClient(`http://127.0.0.1:${address.port}/api/trpc?transportMarker=kept`);
     const subscription = client.stream.connect.subscribe(INPUT, {
       onData: (packet) => {
-        if ("__subscriptionError" in packet.data) {
+        if (isSubscriptionErrorFrame(packet.data)) {
           failed.reject(new Error(packet.data.message));
           return;
         }
@@ -156,7 +157,7 @@ test.for([
   const received: StreamFrame[] = [];
   const subscription = createTrpcClient(CLIENT_URL).stream.connect.subscribe(INPUT, {
     onData: (packet) => {
-      if (!("__subscriptionError" in packet.data)) {
+      if (!isSubscriptionErrorFrame(packet.data)) {
         received.push(packet.data);
       }
     },
@@ -228,7 +229,7 @@ test("unsubscribe suppresses a queued late frame and releases the response reade
   const received: StreamFrame[] = [];
   const subscription = createTrpcClient(CLIENT_URL).stream.connect.subscribe(INPUT, {
     onData: (packet) => {
-      if (!("__subscriptionError" in packet.data)) {
+      if (!isSubscriptionErrorFrame(packet.data)) {
         received.push(packet.data);
         delivered.resolve();
       }

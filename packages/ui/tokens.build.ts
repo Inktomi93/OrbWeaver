@@ -5,6 +5,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, posix } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { trimEdgesWhile } from "@orb/kit/strings";
 import StyleDictionary from "style-dictionary";
 import type { DesignTokens, TransformedToken } from "style-dictionary/types";
 import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_NON_PALETTE_VARS, THEME_SCOPE_STATIC_SEED_VARS } from "./src/content/theme-scope/emit-vars.ts";
@@ -342,7 +343,7 @@ function renderRootCss(tokens: readonly GeneratedCssValue[], declarations: reado
 
 /** A served block inside the `theme` cascade layer, where the seed value-sets and the pointer override belong. */
 function themeLayer(css: string): string {
-  const body = css.replace(/^\n+/u, "").replace(/\n+$/u, "");
+  const body = trimEdgesWhile(css, "\n");
   return body === "" ? "" : `\n@layer theme {\n${body.replace(/^(?=.)/gmu, "  ")}\n}\n`;
 }
 
@@ -538,7 +539,8 @@ function staticSeedResets(portableByPath: ReadonlyMap<string, string>): readonly
 }
 
 const NON_PALETTE_EMIT_VARS: ReadonlySet<string> = new Set(THEME_SCOPE_NON_PALETTE_VARS);
-const DECLARED_NAME_RE = /^\s*(--[\w-]+):/gmu;
+// Leading blanks are matched within one line: `\s*` also crossed newlines, retrying every blank-line start.
+const DECLARED_NAME_RE = /^[^\S\n\r\u2028\u2029]*(--[\w-]+):/gmu;
 
 /** Fails the build when a seed palette block leaves a palette variable a ThemeScope emits to the cascade, where a nested seed would paint the scope's value. */
 function assertSeedBlockRestatesEmitSurface(block: string, label: string): void {

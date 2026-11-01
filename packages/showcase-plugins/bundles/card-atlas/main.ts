@@ -320,6 +320,28 @@ function postJson(url: string, body: Readonly<Record<string, unknown>>, headers?
 }
 
 const str = (v: unknown): string | undefined => (typeof v === "string" && v.length > 0 ? v : undefined);
+
+/** Each `<…>` span (one or more characters inside) becomes a space. A scan, not `/<[^>]+>/g`: that retries every `<` of a
+ *  long unclosed run, and the text is a mirror's description. An opener with no `>` after it ends the scan. */
+function stripTags(text: string): string {
+  let out = "";
+  let copied = 0;
+  let search = 0;
+  for (;;) {
+    const open = text.indexOf("<", search);
+    const close = open === -1 ? -1 : text.indexOf(">", open + 1);
+    if (close === -1) {
+      return out + text.slice(copied);
+    }
+    if (close === open + 1) {
+      search = open + 1;
+      continue;
+    }
+    out += `${text.slice(copied, open)} `;
+    copied = close + 1;
+    search = copied;
+  }
+}
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
 /** Downloads arrive as a number (most hubs) or a compact string like "16.3k" (RisuRealm). ONE parser to a
@@ -1617,8 +1639,7 @@ const SOURCES = {
       }
       // Janitor descriptions arrive as HTML fragments; the markdown node escapes tags (untrusted tier),
       // so they would render as literal `<p>` noise — strip the tags, keep the words.
-      const blurb = (str(character["description"]) ?? str(character["rawDescription"]) ?? "")
-        .replace(/<[^>]+>/g, " ")
+      const blurb = stripTags(str(character["description"]) ?? str(character["rawDescription"]) ?? "")
         .replace(/\s{2,}/g, " ")
         .trim();
       return { blurb: blurb.slice(0, BLURB_MAX_CHARS), raw: character };

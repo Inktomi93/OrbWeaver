@@ -3,10 +3,12 @@
 // `domain-no-cross-subsystem`. Was the previous codebase’s `corpus/cooccurrence/utils.ts` (the `/u` regex flags dropped —
 // the patterns are ASCII, and `useUnicodeRegex` is deliberately removed from biome.json).
 
+import { isSpaceChar, trimEndWhile } from "@orb/kit/strings";
+
 // A leading English article (folded so "the crown" and "crown" collapse to one key).
 const LEADING_ARTICLE = /^(?:the|a|an)\s+/;
 // Trailing whitespace/punctuation (trimmed so "duel." and "duel" collapse).
-const TRAILING_PUNCT = /[\s.,;:!?'"]+$/;
+const TRAILING_PUNCT = ".,;:!?'\"";
 // Minimum keyword length — shorter tokens are noise / hub-prone and are dropped.
 const MIN_KEYWORD_LEN = 4;
 
@@ -17,6 +19,6 @@ const MIN_KEYWORD_LEN = 4;
 export function normalizeKeyword(kw: string): string | null {
   let k = kw.trim().toLowerCase();
   k = k.replace(LEADING_ARTICLE, "");
-  k = k.replace(TRAILING_PUNCT, "").trim();
+  k = trimEndWhile(k, (char) => TRAILING_PUNCT.includes(char) || isSpaceChar(char)).trim();
   return k.length >= MIN_KEYWORD_LEN ? k : null;
 }

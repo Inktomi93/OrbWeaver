@@ -53,6 +53,12 @@ interface Group {
   dirName?: string;
 }
 
+/** One profile directory with its own listing, which says what each plane really is. */
+interface ListedProfile {
+  readonly dir: string;
+  readonly entries: readonly { readonly name: string; readonly kind: string }[];
+}
+
 interface CollectState {
   readonly byHandle: Map<string, Group>;
   readonly skip: ReadonlySet<string>;
@@ -68,6 +74,7 @@ interface CollectState {
   readonly skippedBackgrounds: { file: string; reason: string }[];
   readonly unreadableGroups: string[];
   readonly unreadableCards: string[];
+  readonly missingPersonaAvatars: string[];
   readonly skippedChats: string[];
   readonly skippedCharacters: string[];
   /** Top-level profile entries the importer does not process (assets/backgrounds/extensions/presets/…). */
@@ -201,6 +208,17 @@ function rethrowInfraFailure(error: unknown, path: string, operation: string): v
   }
 }
 
+// The files a plane holds, for resolving a name read from file content. Such a name only selects an entry this
+// listing already returned and never reaches the filesystem itself, so a climb, an absolute path or a separator has
+// nothing to match. A link is neither a "file" nor a "directory" entry, so a linked file or plane stays out of reach.
+async function planeFiles(fs: ImportFsPort, profile: ListedProfile, plane: string, state: CollectState): Promise<ReadonlySet<string>> {
+  if (!profile.entries.some((ent) => ent.name === plane && ent.kind === "directory")) {
+    return new Set();
+  }
+  const entries = await listDir(fs, fs.join(profile.dir, plane), state);
+  return new Set(entries.filter((ent) => ent.kind === "file").map((ent) => ent.name));
+}
+
 // Numeric suffix instead of silently overwriting the first card on a slug collision. THE seam where a
 // filename-derived slug becomes a card handle — castId here, so every downstream position stays branded.
 function disambiguate(state: CollectState, base: string): CharacterHandle {
@@ -286,6 +304,7 @@ async function collectChatsForDir(args: {
     group(state, handle).chats.push({
       parsed,
       importedFrom: fileEnt.name,
+      sourceFile: fs.join(CHATS_DIR, dirName, fileEnt.name),
       importHash: chatContentHash(parsed),
       fileHash: importFileHash(bytes),
     });
@@ -418,16 +437,22 @@ async function collectSettingsPreset(fs: ImportFsPort, profileDir: string, state
 async function collectGroupChats(args: {
   readonly fs: ImportFsPort;
   readonly profileDir: string;
+  /** The plane's own files: `leaves` come from a group file, so they may only select one of these. */
+  readonly files: ReadonlySet<string>;
   readonly leaves: readonly string[];
   readonly groupName: string;
   readonly wallClockZone: string | undefined;
 }): Promise<Pick<CollectedGroup, "chats" | "missingChatLeaves">> {
-  const { fs, profileDir, leaves, groupName, wallClockZone } = args;
+  const { fs, profileDir, files, leaves, groupName, wallClockZone } = args;
   const dir = fs.join(profileDir, GROUP_CHATS_DIR);
   const chats: CollectedChat[] = [];
   const missingChatLeaves: string[] = [];
   for (const leaf of leaves) {
     const fileName = `${leaf}.jsonl`;
+    if (!files.has(fileName)) {
+      missingChatLeaves.push(fileName);
+      continue;
+    }
     const filePath = fs.join(dir, fileName);
     let bytes: Uint8Array;
     // the catch pushes the leaf onto `missingChatLeaves`, which
@@ -458,15 +483,23 @@ async function collectGroupChats(args: {
       missingChatLeaves.push(fileName);
       continue;
     }
-    chats.push({ parsed, importedFrom: fileName, importHash: chatContentHash(parsed), fileHash: importFileHash(bytes) });
+    chats.push({
+      parsed,
+      importedFrom: fileName,
+      sourceFile: fs.join(GROUP_CHATS_DIR, fileName),
+      importHash: chatContentHash(parsed),
+      fileHash: importFileHash(bytes),
+    });
   }
   return { chats, missingChatLeaves };
 }
 
 // ST groups: `<profileDir>/groups/*.json`. Members stay UNRESOLVED here (card filenames) — the filename →
 // characterId mapping only exists after the character wave, so the driver owns the resolve.
-async function collectGroups(fs: ImportFsPort, profileDir: string, state: CollectState, wallClockZone: string | undefined): Promise<void> {
+async function collectGroups(fs: ImportFsPort, profile: ListedProfile, state: CollectState, wallClockZone: string | undefined): Promise<void> {
+  const profileDir = profile.dir;
   const groupsDir = fs.join(profileDir, GROUPS_DIR);
+  const files = await planeFiles(fs, profile, GROUP_CHATS_DIR, state);
   for (const ent of await listDir(fs, groupsDir, state)) {
     if (ent.kind !== "file" || !JSON_EXT.test(ent.name)) {
       continue;
@@ -478,21 +511,21 @@ async function collectGroups(fs: ImportFsPort, profileDir: string, state: Collec
       state.unreadableGroups.push(sourceFile);
       continue;
     }
-    const { chats, missingChatLeaves } = await collectGroupChats({ fs, profileDir, leaves: parsed.chatLeaves, groupName: parsed.name, wallClockZone });
-    state.groups.push({ parsed, chats, missingChatLeaves });
+    const { chats, missingChatLeaves } = await collectGroupChats({ fs, profileDir, files, leaves: parsed.chatLeaves, groupName: parsed.name, wallClockZone });
+    state.groups.push({ parsed, sourceFile, chats, missingChatLeaves });
   }
 }
 
 // Enumerate what the importer does NOT process: every top-level profile entry the contracts tuple omits, plus
 // every settings.json top-level section outside HANDLED_SETTINGS. Feeds the import report so a whole-folder
 // import is honest about what it left behind (presets, quick replies, themes, extension configs, …).
-async function collectUnhandled(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
-  for (const ent of await listDir(fs, profileDir, state)) {
+async function collectUnhandled(fs: ImportFsPort, profile: ListedProfile, state: CollectState): Promise<void> {
+  for (const ent of profile.entries) {
     if (!stProfileEntryDisposition(ent.name, ent.kind === "directory").handled) {
       state.unhandled.push(ent.kind === "directory" ? `${ent.name}/` : ent.name);
     }
   }
-  const settingsPath = fs.join(profileDir, ST_SETTINGS_FILE);
+  const settingsPath = fs.join(profile.dir, ST_SETTINGS_FILE);
   // `rethrowInfraFailure` escalates real infra
   // faults; a missing/corrupt settings.json is documented below as nothing-to-report (personas collection
   // records its own absence separately).
@@ -652,8 +685,9 @@ async function collectTags(fs: ImportFsPort, profileDir: string): Promise<Readon
   }
 }
 
-// Best-effort: a missing/corrupt settings.json yields []; a missing avatar yields an avatar-less persona.
-async function collectPersonas(fs: ImportFsPort, profileDir: string): Promise<CollectedPersona[]> {
+// Best-effort: a missing/corrupt settings.json yields []; a missing avatar yields an avatar-less persona, recorded.
+async function collectPersonas(fs: ImportFsPort, profile: ListedProfile, state: CollectState): Promise<CollectedPersona[]> {
+  const profileDir = profile.dir;
   let settingsRaw: unknown;
   const settingsPath = fs.join(profileDir, ST_SETTINGS_FILE);
   // `rethrowInfraFailure` escalates real infra
@@ -667,8 +701,15 @@ async function collectPersonas(fs: ImportFsPort, profileDir: string): Promise<Co
   }
   const { personas } = parseStPersonas(settingsRaw);
   const avatarsDir = fs.join(profileDir, AVATARS_DIR);
+  // `personas` keys come from settings.json, so a name may only select a file this listing holds.
+  const avatarFiles = await planeFiles(fs, profile, AVATARS_DIR, state);
   const out: CollectedPersona[] = [];
   for (const parsed of personas) {
+    if (!avatarFiles.has(parsed.avatarFile)) {
+      state.missingPersonaAvatars.push(parsed.avatarFile);
+      out.push({ parsed });
+      continue;
+    }
     let avatarBytes: Uint8Array | undefined;
     const avatarPath = fs.join(avatarsDir, parsed.avatarFile);
     // `rethrowInfraFailure` escalates real infra
@@ -708,6 +749,7 @@ export async function collectBundlesFromDir(
     skippedBackgrounds: [],
     unreadableGroups: [],
     unreadableCards: [],
+    missingPersonaAvatars: [],
     skippedChats: [],
     skippedCharacters: [],
     unhandled: [],
@@ -715,14 +757,15 @@ export async function collectBundlesFromDir(
     truncatedDirs: [],
   };
 
+  const profile: ListedProfile = { dir: profileDir, entries: await listDir(fs, profileDir, state) };
   await collectCards(fs, profileDir, state);
   await collectWorlds(fs, profileDir, state);
   await collectPresetDir(fs, profileDir, state);
   await collectSettingsPreset(fs, profileDir, state);
   await collectThemes(fs, profileDir, state);
   await collectBackgrounds(fs, profileDir, state);
-  await collectGroups(fs, profileDir, state, wallClockZone);
-  await collectUnhandled(fs, profileDir, state);
+  await collectGroups(fs, profile, state, wallClockZone);
+  await collectUnhandled(fs, profile, state);
 
   const chatsDir = fs.join(profileDir, CHATS_DIR);
   for (const dirEnt of await listDir(fs, chatsDir, state)) {
@@ -732,7 +775,7 @@ export async function collectBundlesFromDir(
   }
 
   fuzzyPair(state);
-  const personas = await collectPersonas(fs, profileDir);
+  const personas = await collectPersonas(fs, profile, state);
   const tagsByEntityKey = await collectTags(fs, profileDir);
   const appearance = await collectAppearance(fs, profileDir);
   const globalRegex = await collectGlobalRegexScripts(fs, profileDir);
@@ -777,6 +820,7 @@ export async function collectBundlesFromDir(
     refusedThemes: state.refusedThemes,
     skippedBackgrounds: state.skippedBackgrounds,
     unreadableGroups: state.unreadableGroups,
+    missingPersonaAvatars: state.missingPersonaAvatars,
     skippedChats: state.skippedChats,
     skippedCharacters: state.skippedCharacters,
     unhandled: state.unhandled,

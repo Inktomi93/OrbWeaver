@@ -18,6 +18,7 @@
 // at the move — the `pnpm sse-tap` script now carries the flag at the front door, and this guard
 // fail-louds when the op is reached without it.
 import process from "node:process";
+import { isSubscriptionErrorFrame } from "@orb/contracts/rpc";
 import type { ChatId, SocketId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server/transport/trpc";
@@ -138,7 +139,7 @@ export async function sseOp(argv: readonly string[]): Promise<number> {
           const { data } = envelope;
           // Narrow on the `__subscriptionError` sentinel before touching the frame, which only
           // real frames carry (see withSubscriptionErrors, transport/trpc/subscriptions.ts).
-          if ("__subscriptionError" in data) {
+          if (isSubscriptionErrorFrame(data)) {
             process.stdout.write(`${ts}  ord=${envelope.id}  ! socket-error  code=${data.code}  ${data.message}\n`);
             return;
           }

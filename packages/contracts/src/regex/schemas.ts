@@ -410,12 +410,6 @@ export const portableRegexScriptSchema = createRegexScriptSchema.extend({
 
 export type PortableRegexScript = z.infer<typeof portableRegexScriptSchema>;
 
-/** `removeScript` — `deleted` is always `true` on success (a not-owned/missing target throws
- *  `RegexNotFoundError` instead; the DB CASCADE clears every junction row). */
-export interface RemoveResult {
-  readonly deleted: boolean;
-}
-
 /** `detachFrom{Character,Preset,Chat}` / `detachGlobal` — `false` when the junction row was already absent
  *  (idempotent no-op), `true` when a row was removed. */
 export interface DetachResult {
@@ -435,7 +429,6 @@ export interface BulkResult {
   readonly affected: number;
 }
 
-export const removeResultSchema = z.strictObject({ deleted: z.boolean() }) satisfies z.ZodType<RemoveResult>;
 export const detachResultSchema = z.strictObject({ detached: z.boolean() }) satisfies z.ZodType<DetachResult>;
 export const reorderResultSchema = z.strictObject({ reordered: z.number() }) satisfies z.ZodType<ReorderResult>;
 export const bulkResultSchema = z.strictObject({ affected: z.number() }) satisfies z.ZodType<BulkResult>;
