@@ -1,5 +1,5 @@
-// The CONTEXT tab body template: the one column a context pane's body lays its content in. Layout only; the body
-// owns its reads, its gone state and its boundary, and the host owns the tier.
+// A tier 2 composite (`components/`): the one column a context pane's body lays its content in. It renders no
+// Surface, so the density tier is the host's; the body owns its reads, its gone state and its boundary.
 
 import type { StackProps } from "@orb/ui/layout";
 import { Stack } from "@orb/ui/layout";
