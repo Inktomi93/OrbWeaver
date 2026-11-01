@@ -24,3 +24,5 @@ The observable bar a verifier can check.
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+- The 34 `orb/no-raw-id` suppressions in code are sites to drain or type properly, not exceptions.

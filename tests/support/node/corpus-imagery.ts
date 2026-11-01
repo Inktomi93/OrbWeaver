@@ -52,7 +52,7 @@ export async function seedCorpusImagery(root: ServerTestHarness, foreignUserId: 
     },
   });
   await caller.connection.setBinding({ task: "generateImage", connectionId: connection.id });
-  // A plain request: a custom count neither reads nor seeds the reuse rows these cohorts witness.
+  // A request with a customized count never reads or seeds the reuse rows, so the reuse cohorts use the default count.
   const params = { caller: principal, chatId: room.chat.id, subjectCharacterId: character.id, mode: "character" } as const;
   const first = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
   const tied = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });

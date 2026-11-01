@@ -1,6 +1,7 @@
 ---
 kind: plan
-status: active
+status: parked
+blocked: wake gone docs/plans/type-law/design.md
 updated: 2026-10-30
 ---
 
@@ -190,6 +191,29 @@ Legacy paths below are relative to the external reference source named in [Spine
 An unlisted area is unreviewed, not missing. Neither filenames nor test counts establish whether its behaviors need restoration.
 
 Update the existing row with its replacement commit's changes; do not append another completion record for the same scope. Name uncovered cases when marking a scope partial. Keep links to maintained tests here when the owning work item closes. A completed row may reopen only with a specific missing behavior, failing regression or changed product contract.
+
+## Choosing what to test (not yet built)
+
+Status: parked until the type plan and cleanup finish. A read-only report, never a gate. A presence gate produced filler before, and the report must not recreate one.
+
+The unit is an outcome at an edge, not a file, verb or export.
+
+1. Edges come from one generic list: each package's exports map, plus registries where the real entry is dynamic, such as tRPC procedures, HTTP routes, jobs and section registries. Config is data, with no per-package code.
+2. Keep callable edges only: functions, components, hooks and schemas. Drop types, constants and re-exports.
+3. Derive outcomes from types: success, each typed error, each union member. Schemas owe accept and refuse. Components owe loading, error and empty states.
+4. The edge's kind suggests the layer from `docs/law/Spine-Testing.md` §10. It is a suggestion.
+
+Evidence of reach: native V8 coverage used as a hit map, never a percentage, reported separately for Vitest and Playwright. A hit does not prove an assertion. Refusals match on error classes through `orb/no-bare-throw-assertion`, so failure paths are exact and success paths stay softer.
+
+Rank the worklist by writes and authorization, then complexity times change frequency, then unasserted outcomes, then defect history. Filter barrels and composition files. Weight a fix commit by how few files it touches, and divide by file size. Mark code that changed since its last hit as a gap.
+
+The highest-risk modules get hand-planted mutants in a lane brief: a throwaway script that edits one line, runs named tests, records the result and reverts. Keep nothing in the repository.
+
+A case judged not worth a test is recorded once with its reason.
+
+First step: run the ledger read-only on `packages/kit` and `domain/tag`. Stop if the output is noise.
+
+Rejected: a test per export, because constants and re-exports produce filler; StrykerJS, because it needed a sandbox patch, an ignorer plugin and a gate, and was deleted for its upkeep; a coverage percentage, because it does not show that a test asserts behavior.
 
 ## Rejected
 

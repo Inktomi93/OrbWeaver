@@ -12,7 +12,9 @@ import { brandConstraint, sharesBrand, TypeReader, takesAnyString } from "./fact
 import { layerOf, slotOf, stateIndex } from "./slots.ts";
 import type { Gathered } from "./syntax.ts";
 import { calleeName, enclosingFunction, gather, insideCallTo, ownerOf, PARSE_MINTS, peel, rootNames } from "./syntax.ts";
-import type { MintClass, MintSite, MintVia, Provenance, RawShape, Slot, Where, WidenSite } from "./types.ts";
+import type { MintClass, MintSite, MintVia, Provenance, RawShape, Slot, VocabObservation, Where, WidenSite } from "./types.ts";
+import type { VocabDeclaration } from "./vocab.ts";
+import { collectVocab } from "./vocab.ts";
 
 /** A comparison with a brand on one side, kept until the widen edges of every world are known. */
 export interface CompareCandidate extends Where {
@@ -41,6 +43,8 @@ export interface WorldRecords {
   readonly compares: readonly CompareCandidate[];
   readonly declarations: readonly DeclarationCandidate[];
   readonly seen: readonly string[];
+  readonly vocabDeclarations: readonly VocabDeclaration[];
+  readonly vocabObservations: readonly VocabObservation[];
 }
 
 // A hook of a zod schema parses the value it is handed; a cast inside one sits behind the parse.
@@ -250,7 +254,7 @@ function brandedProbes(world: NativeWorld, reader: TypeReader, handed: Gathered[
 function collectCastWidens(world: NativeWorld, reader: TypeReader, found: Gathered): WidenSite[] {
   const targets = reader.read(world.typesAt(found.asExpressions));
   const operands = reader.read(world.typesAt(found.asExpressions.map((node) => (node as Node & { readonly expression: Node }).expression)));
-  const slot: Slot = { kind: "cast", name: "as string", owner: null, declSite: null, declFile: null, lib: false };
+  const slot: Slot = { kind: "cast", name: "as string", owner: null, declSite: null, declFile: null, lib: false, declared: "plain" };
   return found.asExpressions.flatMap((node, at): WidenSite[] => {
     const brands = (operands[at] as TypeFacts).brands;
     return brands.length > 0 && takesAnyString(targets[at] as TypeFacts)
@@ -328,13 +332,16 @@ export function collectWorld(world: NativeWorld, home: ReadonlySet<string>): Wor
   const files = world.files.filter((file) => home.has(world.siteOf(file).file));
   const constraint = brandConstraint(world);
   const base = { config: world.config, files: files.length };
-  if (constraint === null) {
-    return { ...base, brandless: true, mints: [], widens: [], compares: [], declarations: [], seen: [] };
-  }
   const reader = new TypeReader(world, constraint);
+  const vocab = collectVocab(world, reader, files);
+  const vocabulary = { vocabDeclarations: vocab.declarations, vocabObservations: vocab.observations };
+  if (constraint === null) {
+    return { ...base, ...vocabulary, brandless: true, mints: [], widens: [], compares: [], declarations: [], seen: [] };
+  }
   const found = gather(files);
   return {
     ...base,
+    ...vocabulary,
     brandless: false,
     mints: collectMints(world, reader, found),
     widens: collectWidens(world, reader, found),

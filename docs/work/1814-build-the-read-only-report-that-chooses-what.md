@@ -1,13 +1,14 @@
 ---
-kind: decision
+kind: work
 status: blocked
 updated: 2026-11-01
-priority: P2
-area: server
-blocked: owner
+priority: P3
+area: testing
+blocked: wake gone docs/plans/type-law/design.md
+plan: restoration-register
 ---
 
-# Decide whether the hidden-span exception for code blocks stays, after the strip fixpoint write-up (it caused two leaks)
+# Build the read-only report that chooses what to test, per the restoration-register plan's selection section
 
 ## What
 

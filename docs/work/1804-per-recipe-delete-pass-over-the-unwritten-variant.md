@@ -1,13 +1,14 @@
 ---
-kind: bug
-status: open
+kind: work
+status: blocked
 updated: 2026-11-01
-priority: P1
+priority: P2
 area: ui
+blocked: owner
 plan: cross-surface-consistency
 ---
 
-# Mid-grey custom themes: select values 4.32:1 on the field fill, slider track solved to alpha 0.001, muted/accent/secondary/popover collapse to one value, card reading ink 4.36:1 (step-4 review P2s)
+# Per-recipe delete pass over the unwritten variant values once the owner rules on the triage list: each value deleted, wired or kept with a reason
 
 ## What
 

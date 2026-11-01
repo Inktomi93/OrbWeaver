@@ -1,4 +1,4 @@
-import { carriedLiteralRoles } from "@orb/kit/theme-derivation";
+import { carriedLiteralRoles, proseInkCorrection } from "@orb/kit/theme-derivation";
 import { expect, test } from "@orb/testkit/node";
 import type { ToneMixKnob } from "@orb/ui/tokens";
 import { TOKENS, TONE_MIX_DEFAULTS, TONE_MIX_KNOBS, TONE_ROLE_RECIPES, TONES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
@@ -74,7 +74,7 @@ test("a scope that paints its own accent over a seed palette resets the primary 
 });
 
 test("an accent-only scope over a carried palette emits its primary alone, so every other tone keeps the outer solve", () => {
-  const { vars } = clampThemeTokens({ accent: "oklch(0.6 0.2 300)" }, MID_BASE, HEARTH_ACCENT, "carried");
+  const { vars } = clampThemeTokens({ accent: "oklch(0.6 0.2 300)" }, MID_BASE, HEARTH_ACCENT, { palette: "carried" });
   const primaryLiterals = LITERAL_ROLES.map((role) => toneLiteralVar("primary", role));
   const primarySteps = ["hover", "active"] as const satisfies readonly ToneMixKnob[];
   expect(Object.keys(vars).toSorted()).toEqual(
@@ -97,4 +97,29 @@ test("a carried scope paints the primary it judged, and reports when the solid s
   const shared = clampThemeTokens({ background: DARK_BASE, accent: "oklch(0.3 0.1 260)" });
   expect(shared.toneFallback?.accent).toBe(shared.vars[TOKENS["color.primary"].cssVar]);
   expect(shared.toneFallback?.active).toBeGreaterThan(TONE_MIX_DEFAULTS.active);
+});
+
+test("an ink-only scope over a seed base is judged on that base's reading hosts, and moves only as far as they need", () => {
+  const ink = "oklch(0.55 0.08 60)";
+  const page = parsed("oklch(0.98 0.004 75)");
+  expect(proseInkCorrection(parsed(ink), 1, page)).toBeNull();
+  const emitted = clampThemeTokens({ dialogueColor: ink }, "oklch(0.98 0.004 75)").vars[TOKENS["color.dialogue"].cssVar] ?? "";
+  const lightness = Number(/ ([\d.]+) c h \/ 1\)$/u.exec(emitted)?.[1]);
+  expect(lightness).toBeLessThan(0.55);
+  expect(lightness).toBeGreaterThan(0.5);
+});
+
+test("a picked fill restates its inks on its own box and leaves the scope's vars to the page", () => {
+  const page = "oklch(0.158 0.006 60)";
+  const narrationVar = TOKENS["color.narration"].cssVar;
+  const inks = { narrationColor: "oklch(0.67 0.03 260)" };
+  const clamped = clampThemeTokens({ aiBubble: { bg: "oklch(0.34 0.06 35)" } }, page, undefined, { palette: "carried", inks });
+  expect(clamped.vars[narrationVar]).toBeUndefined();
+  expect(clamped.vars[TOKENS["color.muted"].cssVar]).toBeUndefined();
+  expect(clamped.bubbleScopes.assistant?.vars[narrationVar]).toContain("oklch(from");
+  expect(Object.keys(clamped.bubbleScopes.assistant?.vars ?? {})).toContain(TOKENS["color.muted-foreground"].cssVar);
+  expect(clamped.bubbleScopes.user).toBeUndefined();
+  expect(
+    clampThemeTokens({ aiBubble: { bg: "oklch(0.2 0.02 35)" } }, page, undefined, { palette: "carried", inks }).bubbleScopes.assistant?.vars[narrationVar],
+  ).toBe(inks.narrationColor);
 });

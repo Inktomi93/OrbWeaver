@@ -7,7 +7,8 @@ import type { CompareCandidate, DeclarationCandidate, WorldRecords } from "./col
 import { collectWorld } from "./collect.ts";
 import { BrandTable, sharesBrand } from "./facts.ts";
 import { layerOf } from "./slots.ts";
-import type { CrossBrandSite, GenericId, MintSite, MissingSite, RenarrowSite, Where, WidenSite } from "./types.ts";
+import type { CrossBrandSite, GenericId, MintSite, MissingSite, RenarrowSite, VocabField, Where, WidenSite } from "./types.ts";
+import { joinVocab } from "./vocab.ts";
 
 export interface BrandFlowOptions {
   readonly root: string;
@@ -38,6 +39,7 @@ export interface BrandFlowReport {
   readonly missing: readonly MissingSite[];
   readonly generic: readonly GenericId[];
   readonly crossBrand: readonly CrossBrandSite[];
+  readonly vocabularies: readonly VocabField[];
 }
 
 const count = (values: readonly string[]): Record<string, number> => {
@@ -107,7 +109,15 @@ function missingOf(declarations: readonly DeclarationCandidate[], table: BrandTa
       unmatched.set(declared.name, entry);
       continue;
     }
-    const slot = { kind: "property" as const, name: declared.name, owner: declared.owner, declSite: null, declFile: declared.file, lib: false };
+    const slot = {
+      kind: "property" as const,
+      name: declared.name,
+      owner: declared.owner,
+      declSite: null,
+      declFile: declared.file,
+      lib: false,
+      declared: "plain" as const,
+    };
     missing.push({ ...declared, brand: match.brand, match: match.match, layer: layerOf(slot, declared.file), provenance: "heuristic" });
   }
   const generic = [...unmatched]
@@ -220,5 +230,6 @@ export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
     missing,
     generic,
     crossBrand: crossBrandOf(table, mints, widens, compares),
+    vocabularies: joinVocab(worlds.map((world) => ({ declarations: world.vocabDeclarations, observations: world.vocabObservations }))),
   };
 }

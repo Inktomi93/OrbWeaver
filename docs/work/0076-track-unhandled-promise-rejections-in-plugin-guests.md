@@ -25,3 +25,7 @@ A guest that rejects a promise without a handler produces one log-ring entry nam
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+## Blocker
+
+The real blocker is upstream. In quickjs-emscripten-core 0.32.0, `promiseRejectionHandler` is typed `TODO<...>`, which resolves to `never`, and the dist build has no rejection-tracker code. Recheck when a newer quickjs-emscripten release exposes it. The board grammar has no upstream blocker, so the item stays `blocked: owner` until then.

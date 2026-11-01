@@ -1,7 +1,15 @@
 // An unclosed registered hidden open runs to the end of the body for members; the model wire and the host render keep it.
 // @subject packages/kit/src/content/index.ts
 
-import { contentSpanRaw, projectBodyForPreview, projectBodyForSummary, scanHiddenSpans, stripHiddenSpans, tokenizeContent } from "@orb/kit/content";
+import {
+  contentSpanRaw,
+  createHiddenSpanStreamScrubber,
+  projectBodyForPreview,
+  projectBodyForSummary,
+  scanHiddenSpans,
+  stripHiddenSpans,
+  tokenizeContent,
+} from "@orb/kit/content";
 import { expect, test } from "@orb/testkit/node";
 
 const LEAD = "A cut reply. ";
@@ -46,9 +54,36 @@ test("an open that swallows a code fence delimiter conceals past it", () => {
   expect(projectBodyForPreview(body)).toBe(LEAD.trim());
 });
 
-test("an open inside an author's code fence stays literal, the ratified exclusion", () => {
-  const body = `\`\`\`\n<lie truth="${SECRET_LETTERS}`;
-  expect(stripHiddenSpans(body)).toEqual({ content: body, hadHidden: false });
+test("a code block is no shelter: a tag inside one strips, and an open inside one conceals the rest", () => {
+  const closed = `\`\`\`\n<lie truth="${SECRET_LETTERS}"/>\n\`\`\`\nafter`;
+  expect(stripHiddenSpans(closed)).toEqual({ content: "```\n\n```\nafter", hadHidden: true });
+  const open = `\`\`\`\n<lie truth="${SECRET_LETTERS}\n\`\`\`\nafter`;
+  expect(stripHiddenSpans(open)).toEqual({ content: "```\n", hadHidden: true });
+  expect(projectBodyForSummary(open)).not.toContain(SECRET_LETTERS);
+  expect(projectBodyForPreview(open)).not.toContain(SECRET_LETTERS);
+});
+
+test.each([
+  ["a tag in another tag's quoted value", `Bob. <gm text="<lie truth='${SECRET_LETTERS}'/>"/> after`, 'Bob. <gm text="'],
+  ["an escaped tag in another tag's quoted value", `Bob. <gm text="<lie truth=\\"${SECRET_LETTERS}\\"/>"/> after`, 'Bob. <gm text="'],
+  ["a tag whose value holds the other tag's close", `Bob. <gm x="<lie truth="/>${SECRET_LETTERS}"/> after`, 'Bob. <gm x=" after'],
+  ["a sheltered tag in a code block", `\`\`\`\n<gm text="<lie truth='${SECRET_LETTERS}'/>"/>\n\`\`\`\nafter`, '```\n<gm text="'],
+])("another tag is no shelter: %s", (_name, body, visible) => {
+  expect(stripHiddenSpans(body)).toEqual({ content: visible, hadHidden: true });
+  expect(projectBodyForSummary(body)).not.toContain(SECRET_LETTERS);
+  expect(projectBodyForPreview(body)).not.toContain(SECRET_LETTERS);
+  expect(scanHiddenSpans(body).length).toBeGreaterThan(0);
+  expect(tokenizeContent(body, { committed: true }).map(contentSpanRaw).join("")).toBe(body);
+  const splits = [...Array.from({ length: body.length + 1 }, (_, at) => [body.slice(0, at), body.slice(at)]), [...body]];
+  for (const deltas of splits) {
+    const scrubber = createHiddenSpanStreamScrubber();
+    expect(deltas.map((delta) => scrubber.push(delta)).join("") + scrubber.flush(), deltas.join("|")).toBe(visible);
+  }
+});
+
+test("the render and the wire grammar still show a code block's tag as written", () => {
+  const body = `\`\`\`\n<lie truth="${SECRET_LETTERS}"/>\n\`\`\``;
+  expect(tokenizeContent(body, { committed: true })).toEqual([{ kind: "text", text: body }]);
 });
 
 test("an unclosed open inside a card still leaves the fence bytes around it", () => {
