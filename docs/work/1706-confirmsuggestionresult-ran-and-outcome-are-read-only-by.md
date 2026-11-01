@@ -11,16 +11,16 @@ plan: unwired-code
 
 ## What
 
-The change, in a sentence.
+Delete `ConfirmSuggestionResult` and its schema; `confirmSuggestion` returns `void`, like `dismissSuggestion`.
 
 ## Why
 
-The symptom or the ruling behind it.
+The client never reads the confirm result (`packages/client/src/features/automation/components/suggestion-card-mount.tsx` only retires the card). Only tests read `ran` and `outcome`, and a test alone is not a consumer. Wiring a reader needs the rule name for the notice copy, which the ask does not carry.
 
 ## Done when
 
-The observable bar a verifier can check.
+No `ConfirmSuggestionResult` or `confirmSuggestionResultSchema` in `packages/`, `tests/`, `tooling/` or `scripts/`. The confirm effects (fires, variables, world entries) stay asserted by the dispatch and execution-outputs suites.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Targeted tests, typecheck, lint, depcruise and knip results are in the landing commit message.

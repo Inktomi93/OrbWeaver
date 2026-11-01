@@ -103,10 +103,7 @@ test("the arms behind a real confirm-first question wait for the human instead o
     if (event.done || event.value.type !== "suggestionRaised") {
       throw new Error("the real confirm-first arm did not raise its pending question");
     }
-    expect(await root.services.automation.confirmSuggestion({ principal, suggestionId: event.value.suggestionId })).toEqual({
-      ran: "stashed-arm",
-      outcome: "fired",
-    });
+    await root.services.automation.confirmSuggestion({ principal, suggestionId: event.value.suggestionId });
     expect((await root.services.worldInfo.listEntries({ principal, bookId: book.id })).map((entry) => entry.content)).toEqual(["The keeper records the loom."]);
     expect(await root.services.automation.getGlobalVariable({ principal, key: "after" })).toBe("1");
     expect((await root.services.automation.listFires({ principal, ruleId: rule.id })).map((fire) => fire.outcome)).toEqual(["fired"]);

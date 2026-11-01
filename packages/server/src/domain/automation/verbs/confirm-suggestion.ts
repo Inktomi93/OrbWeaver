@@ -39,7 +39,7 @@
 // with the confirmer in `detail`. Adding a `suggested` terminal is a CHECK edit on a generated baseline and
 // is recorded-unbuilt as R5, together with the per-rule `suggestOnRefusal` opt-out column.
 
-import type { AutomationRunOutcome, ConfirmSuggestionResult } from "@orb/contracts/automation";
+import type { AutomationRunOutcome } from "@orb/contracts/automation";
 import type { Principal } from "@orb/contracts/identity";
 import type { AutomationRuleId, PluginId } from "@orb/kit/ids";
 import { SuggestionNotFoundError, SuggestionRefusedError } from "../contract/errors.ts";
@@ -299,7 +299,7 @@ async function executeStashedArm(ctx: AutomationContext, pending: PendingSuggest
 }
 
 export function createConfirmSuggestion(ctx: AutomationContext): AutomationService["confirmSuggestion"] {
-  return async ({ principal, suggestionId }: ConfirmSuggestionParams): Promise<ConfirmSuggestionResult> => {
+  return async ({ principal, suggestionId }: ConfirmSuggestionParams): Promise<void> => {
     const nowMs = ctx.now();
     const seen = ctx.suggestions.peek(suggestionId, nowMs);
     if (seen === null) {
@@ -333,17 +333,17 @@ export function createConfirmSuggestion(ctx: AutomationContext): AutomationServi
     if (claimed.source.kind === "plugin") {
       const { pluginId } = claimed.source;
       await assertPluginStillLive(ctx, claimed, pluginId);
-      return { ran: "stashed-arm", outcome: await runPluginAct(ctx, claimed, pluginId) };
+      await runPluginAct(ctx, claimed, pluginId);
+      return;
     }
     const rule = await assertRuleStillLive(ctx, claimed, claimed.source.ruleId);
     if (claimed.kind === "confirm") {
-      return { ran: "stashed-arm", outcome: await runStashedArm(ctx, claimed, rule, principal) };
+      await runStashedArm(ctx, claimed, rule, principal);
+      return;
     }
     // The invitation class: no payload existed to stash, so the confirm is a FRESH host run (R7).
-    const outcome = await dispatchRuleNow(ctx, rule, claimed.chatId, principal.userId);
-    if (outcome === null) {
+    if ((await dispatchRuleNow(ctx, rule, claimed.chatId, principal.userId)) === null) {
       throw new SuggestionRefusedError("not_runnable", "this rule cannot be run on demand");
     }
-    return { ran: "fresh-run", outcome };
   };
 }
