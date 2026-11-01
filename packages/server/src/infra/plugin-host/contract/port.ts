@@ -40,10 +40,10 @@ export interface PluginHostSeamDeps {
   readonly traces: TraceRing;
 }
 
-/** A Worker-local runtime schedules nothing, fetches nothing and launches no broker itself: the app process owns the
+/** A Worker-local runtime schedules nothing, fetches nothing and launches no broker itself (so it takes no `spawn`): the app process owns the
  *  timers, the broker connect clock, the broker launch config and the scoped egress, and the Worker forwards every
  *  guest fetch to it through `netEgress`. */
-export type LocalPluginHostSeams = Omit<PluginHostSeamDeps, "timers" | "monotonicNow" | "safeFetch" | "env" | "log" | "traces"> & {
+export type LocalPluginHostSeams = Omit<PluginHostSeamDeps, "timers" | "monotonicNow" | "safeFetch" | "env" | "log" | "traces" | "spawn"> & {
   /** The broker Worker's forwarding egress: the app performs every plugin fetch against its own copy of the
    *  instance's `netHosts`. */
   readonly netEgress: PluginNetEgress;

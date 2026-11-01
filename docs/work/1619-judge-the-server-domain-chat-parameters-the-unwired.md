@@ -35,4 +35,13 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+9 rows: applied 7, kept 1, handed off 1, owner questions 0.
+
+Applied: `spliceInChatInjections.opts.excludePromptTail` (its only reader, `isPromptTailInjection`, went with it; the sole caller is `assembly/shape.ts:653`); `generateDigests.args.embedSpace` and `generateSegments.args.embedSpace` (callers `memory/generate/turn.ts` and `substrate/backfill.ts:158,179` pass `embedOwnerId` only); `appendVariantStatements.params.selectActive` (`engine/engine.ts:523`, `verbs/edit.ts:365`); `loadParticipants.includePast` (32 calls, none with a third argument); `loadAncestorChain.maxDepth` (the 64 cap is now the named `MAX_ANCESTOR_DEPTH`); `permits.action` (all three calls ask "host").
+
+Kept: `withToolReplay.wire.prefixRows`. `WireRow.prefixRows` is a live field: `withToolReplay` itself sets it (`substrate/wire-history.ts:625`) and it is read at `wire-history.ts:740,781,789,935` and `engine/pipeline.ts:804`. Only the input wire omits it, which is the type's optionality, not a dead parameter.
+
+Handed off (only a test file supplies it): `createMemoryRecallRecorder.deps.limit`, supplied by `tests/server/domain/chat/memory/recall/recorder.test.ts:20`; production passes `{ now }` only (`entry/compose/services.ts:1052`). The test is not rewritten.
+
+Survey: codegraph_explore on the nine symbols; ast-grep over packages, tests, tooling, scripts (5929 .ts, 1524 .tsx): spliceInChatInjections 1 call, appendVariantStatements 2, loadAncestorChain 1, loadParticipants 32 (tsx 0 for each); literal `rg` for excludePromptTail, selectActive, includePast, maxDepth, embedSpace, prefixRows: no spread or `as const` writer.
+Ran: `pnpm typecheck packages/server/tsconfig.json tsconfig.tests-iso.json tsconfig.node.json` exit 0; `pnpm test` joined-speaker-label, member-visibility, backfill-estimate, imported-opening-row, prompt-cache-prefix, memory-backfill-room: 6 files, 27 passed.

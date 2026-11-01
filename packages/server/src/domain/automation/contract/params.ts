@@ -4,14 +4,7 @@
 // vocabulary (trigger/action shapes) lives in `@orb/contracts/automation`; these are server-internal call
 // shapes.
 
-import type {
-  AutomationActionInput,
-  AutomationRuleEditableInput,
-  AutomationRuleReorder,
-  RulePresetId,
-  RulePresetKnobValues,
-  TriggerFact,
-} from "@orb/contracts/automation";
+import type { AutomationActionInput, AutomationRuleEditableInput, AutomationRuleReorder, RulePresetId, RulePresetKnobValues } from "@orb/contracts/automation";
 import type { Principal } from "@orb/contracts/identity";
 import type { AutomationRuleCreationId, AutomationRuleId, AutomationSuggestionId, ChatId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
@@ -118,11 +111,10 @@ export interface SetOwnerBudgetsParams extends AutomationActorParams {
   readonly maxFiresPerHour?: number;
 }
 
-/** The dry-run: a host-supplied `sampleEvent` (or a synthesized minimal fact from the rule's trigger) is
- *  evaluated + every arm rendered, executing nothing. */
+/** The dry-run: a minimal fact synthesized from the rule's trigger is evaluated + every arm rendered,
+ *  executing nothing. */
 export interface TestRuleParams extends AutomationActorParams {
   readonly ruleId: AutomationRuleId;
-  readonly sampleEvent?: TriggerFact;
 }
 
 /** R7 — the host's "run this rule now" (§6 R7): ONE fresh dispatch of `ruleId` at cascade depth 0. The

@@ -130,15 +130,14 @@ export async function isPresentParticipant(db: Db, chatId: ChatId, userId: UserI
   return rows.length > 0;
 }
 
-/** The roster read (listParticipants / arbitration substrate). Default = PRESENT members only
- *  (`leftSeq IS NULL` — Part III §1); `includePast` returns the full history (kicked/left rows) for the host
- *  audit + `from-join`/`full` visibility resolution. Ordered by join order (`joinSeq`, then row id). */
-export async function loadParticipants(db: Db, chatId: ChatId, includePast = false): Promise<ParticipantRow[]> {
-  const base = db.select().from(chatParticipants).$dynamic();
-  const scoped = includePast
-    ? base.where(eq(chatParticipants.chatId, chatId))
-    : base.where(and(eq(chatParticipants.chatId, chatId), isNull(chatParticipants.leftSeq)));
-  return (await scoped.orderBy(asc(chatParticipants.joinSeq), asc(chatParticipants.id))).map(captureParticipantRow);
+/** The roster read (listParticipants / arbitration substrate). PRESENT members only
+ *  (`leftSeq IS NULL` — Part III §1). Ordered by join order (`joinSeq`, then row id). */
+export async function loadParticipants(db: Db, chatId: ChatId): Promise<ParticipantRow[]> {
+  const present = db
+    .select()
+    .from(chatParticipants)
+    .where(and(eq(chatParticipants.chatId, chatId), isNull(chatParticipants.leftSeq)));
+  return (await present.orderBy(asc(chatParticipants.joinSeq), asc(chatParticipants.id))).map(captureParticipantRow);
 }
 
 /**

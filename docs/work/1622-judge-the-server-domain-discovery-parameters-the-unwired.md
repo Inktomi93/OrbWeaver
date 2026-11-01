@@ -27,4 +27,9 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+1 row: applied 1, kept 0, handed off 0, owner questions 0.
+
+Applied: `readOwnedSegmentVectorsByChat.cap`. The only caller, `domain/discovery/verbs/similar-chats.ts:42`, passes none. The OOM guard keeps its name: the limit now reads `SIMILAR_CHATS_SEG_CAP` (20_000) directly.
+
+Survey: codegraph_explore on the function via the discovery persistence reads; ast-grep `readOwnedSegmentVectorsByChat($$$)` on -l ts and -l tsx over packages, tests, tooling, scripts (5929 .ts, 1524 .tsx): 1 call; literal `rg`: same hit.
+Ran: `pnpm typecheck packages/server/tsconfig.json tsconfig.node.json` exit 0; `pnpm lint:eslint` on the two edited server files exit 0; `pnpm test tests/support/node/corpus-knowledge.int.test.ts` (similar chats) passed with import-bundle: 2 files, 21 passed.
