@@ -169,9 +169,9 @@ export function solveCarriedToneMix(scheme: CarriedToneScheme, tones: readonly C
   return { scope, raised };
 }
 
-/** The mix one tone's roles read: the scope's knobs with that tone's raised steps over them. */
-export function toneMixOf(mix: CarriedToneMix, tone: Tone): Readonly<Record<ToneMixKnob, number>> {
-  return { ...mix.scope, ...mix.raised[tone] };
+/** The mix the primary's roles read: the scope's knobs with the primary's raised steps over them. */
+export function primaryToneMix(mix: CarriedToneMix): Readonly<Record<ToneMixKnob, number>> {
+  return { ...mix.scope, ...mix.raised.primary };
 }
 
 /**
@@ -218,7 +218,7 @@ function toneLiteralEntries(scheme: CarriedToneScheme, tone: ColoredTone, tones:
  * and solid steps solved on that palette. Every other knob and literal stays the outer scope's solve through the cascade.
  */
 export function primaryToneVars(scheme: CarriedToneScheme, mix: CarriedToneMix, tones: readonly CarriedTone[]): Readonly<Record<string, string>> {
-  const steps = toneMixOf(mix, "primary");
+  const steps = primaryToneMix(mix);
   return Object.fromEntries([
     ...STEP_KNOBS.map((knob) => [toneKnobVar("primary", knob), `${steps[knob]}%`] as const),
     ...toneLiteralEntries(scheme, "primary", tones),

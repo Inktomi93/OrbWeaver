@@ -21,12 +21,11 @@ export interface ThemeSwatchStripProps {
   /** The theme's REAL stored override values — clamped and derived by `<ThemeScope>`, never re-spelled. */
   readonly tokens: ThemeScopeTokens;
   readonly size?: "row" | "card";
-  readonly className?: string;
 }
 
 /** The three-cell stripe: base surface · card surface · accent, painted by the theme's own derivation.
  *  Decorative (`aria-hidden`) — the NAME beside it carries the identity. */
-export function ThemeSwatchStrip({ tokens, size = "row", className }: ThemeSwatchStripProps): ReactElement {
+export function ThemeSwatchStrip({ tokens, size = "row" }: ThemeSwatchStripProps): ReactElement {
   const slots = themeSwatchVariants({ size });
   return (
     // `aria-hidden` rides a wrapper — ThemeScope's own root takes no ARIA props by design (its API is the
@@ -35,7 +34,7 @@ export function ThemeSwatchStrip({ tokens, size = "row", className }: ThemeSwatc
     // slot the audit identifies the swatch by — `ThemeScope`, which wears the sized classes, takes only
     // `tokens`/`className` by design (its API is the clamp boundary), so it is not a stampable element.
     <span aria-hidden={true} data-slot="theme-swatch-strip" {...variantAttrs(themeSwatchVariants, { size })}>
-      <ThemeScope className={cn(slots.strip(), className) ?? ""} tokens={tokens}>
+      <ThemeScope className={slots.strip()} tokens={tokens}>
         <span className={cn(slots.cell(), "bg-background") ?? ""} />
         <span className={cn(slots.cell(), "bg-card") ?? ""} />
         <span className={cn(slots.cell(), "bg-primary") ?? ""} />

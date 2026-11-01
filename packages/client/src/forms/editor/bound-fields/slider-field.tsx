@@ -7,16 +7,14 @@
 
 import { Field } from "@orb/ui/field";
 import { Slider as UiSlider } from "@orb/ui/slider";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
+import type { BoundFieldShellProps } from "./use-bound-field.ts";
 import { useBoundField } from "./use-bound-field.ts";
 
-export interface BoundSliderFieldProps {
-  readonly label: ReactNode;
-  readonly description?: ReactNode;
+export interface BoundSliderFieldProps extends BoundFieldShellProps {
   readonly min?: number;
   readonly max?: number;
   readonly step?: number;
-  readonly disabled?: boolean;
 }
 
 export function BoundSliderField(props: BoundSliderFieldProps): ReactElement {

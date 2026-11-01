@@ -31,4 +31,11 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+5 rows: applied 3, kept 2, handed off 0, owner questions 0.
+
+Applied: `createRpgFlushBarrier.timeoutMs` (the 15 s bound stays as `BARRIER_TIMEOUT_MS`; the one caller is `tools/rounds/observers.ts:88`); `pick.fallback` (both calls, `tools/apply.ts:370-371`, passed `""`; `pick` is now string-only); `createRpgTraceRecorder.deps.limit` (the ring depth stays as `DEFAULT_LIMIT`; the one caller is `entry/compose/services.ts:1176`, and no test builds one).
+
+Kept: `RpgRoundsDeps.connection.resolve.params.actor` and `.connectionId`. The param type is the shared inference `ResolveTaskParams`; the rpg callers pass `{ task, principal }`, but the same type is the runtime resolve's input, which reads both (`packages/inference/src/contract/task-resolution.ts`, `resolve/resolve-task.ts`). Narrowing the rpg dep alone needs a new `Pick` type, which is a design call, not a delete.
+
+Survey: codegraph_explore on RpgRoundsDeps, createRpgFlushBarrier, createRpgTraceRecorder, pick; ast-grep on createRpgFlushBarrier, createRpgTraceRecorder and pick, -l ts and -l tsx over packages, tests, tooling, scripts (5929 .ts, 1524 .tsx): 1, 1 and 2 calls; literal `rg` for timeoutMs, limit and the three names in tests: no writer.
+Ran: `pnpm typecheck packages/server/tsconfig.json tsconfig.tests-iso.json tsconfig.node.json` exit 0; `pnpm test` delta-own-keys, tracker-delta-snapshot, authority.suite, corpus-rpg-flight: 4 files, 25 passed.

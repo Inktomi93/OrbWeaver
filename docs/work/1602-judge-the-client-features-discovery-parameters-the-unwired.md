@@ -28,4 +28,11 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Two rows: two applied, none kept, none handed off, no owner questions.
+
+| Row | Result |
+| - | - |
+| `ParamSelect.#0.testId` | applied in `packages/client/src/features/discovery/components/corpus-controls.tsx`; the ten `<ParamSelect>` uses (`corpus-home-charts`, `-similarity-tab`, `-browse-view`, `-archetypes-tab`, `-visuals-tab`) pass none, and a literal `rg testId=` over discovery finds none |
+| `plural.many` | applied in `packages/client/src/features/discovery/lib/corpus-analysis-state.ts`; the three callers pass two arguments (`spelled` and `spelledInline` are other functions and keep theirs) |
+
+Proof: client typecheck clean; `tests/client/features/discovery` CTs in the lane report.

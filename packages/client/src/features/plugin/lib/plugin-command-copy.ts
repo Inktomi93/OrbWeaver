@@ -34,7 +34,3 @@ export function sharedPluginNames(plugins: readonly { readonly pluginId: PluginI
 export function pluginCommandShownName(pluginName: string, slug: string, shared: ReadonlySet<string>): string {
   return shared.has(pluginName) ? pluginCommandAttribution(pluginName, slug) : pluginName;
 }
-
-export function pluginCommandAttributedActionLabel(shownName: string, group: string, label: string): string {
-  return `${shownName} · ${group} · ${pluginCommandActionLabel(label)}`;
-}

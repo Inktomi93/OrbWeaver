@@ -27,4 +27,6 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+One row: one applied, none kept, none handed off, no owner questions.
+
+`assertSettingsKeyPartition` in `packages/client/src/state/config-section-partition.ts` takes `(registry, defaults)` and reads `UNCLAIMED_SETTINGS_KEYS` directly. The one caller, `packages/client/src/compose/config-sections.ts:137`, passes two arguments; literal `rg` over all of `tests` finds no call that injects a cite list. Proof: client typecheck clean.

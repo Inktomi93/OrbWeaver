@@ -359,7 +359,7 @@ export class Sandbox implements Disposable {
   }
 
   /** The UI COMMANDS `main.js` registered at activation — read directly by
-   *  `plugin.listCommands` (which the `/plugin` dispatcher and the Plugins chrome menu both fan off); each
+   *  `plugin.listCommands` (which the `/plugin` dispatcher and the command palette both fan off); each
    *  command's `onRun` handle lives in `handlers` (disposed at teardown alongside every other resident handler).
    *  No external registrar, for the same reason a surface has none: a command is instance-resident data. */
   get collectedCommands(): readonly PluginCommandRegistration[] {

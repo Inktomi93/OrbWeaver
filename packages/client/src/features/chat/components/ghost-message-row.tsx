@@ -31,7 +31,7 @@ import type { CardTrust } from "@orb/contracts/chat";
 import type { GhostContentSegment } from "@orb/kit/content";
 import { scanGhostContent } from "@orb/kit/content";
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
 import { speakerTagsToPlain, stripLeadingSpeakerName } from "@orb/kit/speaker-label";
 import { Card } from "@orb/ui/card";
 import { Stack } from "@orb/ui/layout";
@@ -41,8 +41,6 @@ import { TypingDots, useSmoothText } from "@orb/ui/stream";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import type { MessageRenderContext } from "#lib";
-import { renderMessageForDisplay } from "#lib";
 import { useArtViewer } from "../hooks/art-viewer-context.tsx";
 import { useArtControl } from "../hooks/use-art-control.ts";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
@@ -199,8 +197,6 @@ export interface GhostMessageRowProps {
   readonly chatStyle: keyof typeof MESSAGE_ROW_SKINS;
   /** Pacing (and the streaming caret) run only while true; pending shows the typing dots instead. */
   readonly streaming: boolean;
-  readonly renderContext?: MessageRenderContext | undefined;
-  readonly rowCharacterId?: CharacterId | null | undefined;
   /** The live turn's resolved identity, the same shape resolveRowAttribution produces for the settled
    *  row. Undefined ⇒ no sibling avatar, no immersive decoration. */
   readonly attribution?: RowAttribution | undefined;
@@ -241,8 +237,6 @@ export function GhostMessageRow({
   chatId,
   chatStyle,
   streaming,
-  renderContext,
-  rowCharacterId,
   attribution,
   avatarSize = "lg",
   avatarShape = "round",
@@ -262,11 +256,9 @@ export function GhostMessageRow({
   const arrival = useEnterMotion(enterMotion);
   const viewArt = useArtViewer();
   const artControl = useArtControl();
-  const rawText = useGhostText(chatId);
-  const rawReasoning = useGhostReasoning(chatId);
+  const text = useGhostText(chatId);
+  const reasoning = useGhostReasoning(chatId);
   const thinking = useGhostThinking(chatId);
-  const text = renderContext === undefined ? rawText : renderMessageForDisplay(rawText, renderContext, rowCharacterId);
-  const reasoning = renderContext === undefined ? rawReasoning : renderMessageForDisplay(rawReasoning, renderContext, rowCharacterId);
   const paced = useSmoothText(text, { enabled: streaming && smoothStream, cps: smoothStreamCps });
   // The live speaker's own name (the same value the server's per-speaker clean strips against). In a
   // speakerTags group turn the model, trained on the `Name:`-prefixed transcript, echoes its own `JFC: `

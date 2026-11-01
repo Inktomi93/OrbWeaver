@@ -151,7 +151,7 @@ export function CopyButtonTrigger({ iconOnly = false, variant = "outline", size 
 
 /** The always-mounted polite live region. It carries the outcome as `data-outcome`. Place it on the side
  *  of the trigger away from the row's anchor, so its text grows away from the button. */
-export function CopyButtonStatus({ className }: { readonly className?: string }): ReactElement {
+export function CopyButtonStatus(): ReactElement {
   const { copiedHint, settled, statusId } = useCopyContext("CopyButtonStatus");
   const slots = copyButtonVariants();
   return (
@@ -159,7 +159,7 @@ export function CopyButtonStatus({ className }: { readonly className?: string })
       aria-atomic="true"
       aria-live="polite"
       as="span"
-      className={cn(slots.status(), className)}
+      className={slots.status()}
       data-outcome={settled?.outcome}
       data-slot="copy-button-status"
       id={statusId}

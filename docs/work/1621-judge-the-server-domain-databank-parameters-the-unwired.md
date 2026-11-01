@@ -27,4 +27,8 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+1 row: applied 0, kept 1, handed off 0, owner questions 0.
+
+Kept: `DatabankService.listAttachments.params.includeText`. `listAttachments` takes `GetDocumentParams` (`packages/server/src/domain/databank/contract/service.ts:257`), shared with `databank.get`, whose `includeText` is a live tRPC input key (`packages/contracts/src/databank/index.ts:465`, `transport/trpc/routers/databank.ts:63`) and is read by `verbs/get.ts:14`. A router input key with writers is wire; the field is not dead. Narrowing `listAttachments` to its own params type is a new type, not a delete.
+
+Survey: codegraph_explore on DatabankService listAttachments includeText; literal `rg` for includeText across packages, tests, tooling, scripts: writers in the router, the client (`databank-detail-surface.tsx:278`) and nine tests.

@@ -32,4 +32,6 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Six rows: six applied, none kept, none handed off, no owner questions.
+
+`patch` in `TrackerRow` (`packages/client/src/features/rpg/components/rpg-game-tab.tsx`) takes `Partial<Pick<RpgTrackerDef, "label" | "max" | "pinned" | "locked" | "write" | "appliesTo" | "hint">>`: exactly the seven keys its seven call sites write. `key`, `shape`, `subject`, `color`, `icon` and `sort` stay on `RpgTrackerDef` (contract type, untouched). Proof: client typecheck clean; no CT mounts the game tab directly.

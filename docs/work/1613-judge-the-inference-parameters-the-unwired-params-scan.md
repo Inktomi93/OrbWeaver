@@ -42,4 +42,15 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+16 rows: applied 6, kept 3, owner questions 7, handed off 0.
+
+Applied: `createAgentSdkBackend.deps.debug` (also the internal `AgentSdkDeps.debug`, `observabilityOptions` and its two spreads, and the then-unused `log` parameter of `verifyAuth`); `decodeEmbeddingVector.expectedDimensions`; `detectServer.args.signal` (`answer` still takes the deadline signal); `createMirror.args.ttlMs`; `InferenceRuntime.modelKind.options` (deleting it left `cachedKind` with no caller, so it went too; the `coldAs`/`cachedFacts` options now live on `modelTasks`, which supplies them from `connection/substrate/kind.ts`); `runStructuredChat.input.onObservedResult` (the rpg rounds inject the observer through the wrapped executor, `rpg/tools/rounds/round-connection.ts` `withGenerationObservation`).
+
+Kept: `resolveTaskWithBaseline.args.actor`, `.signal`, `.cachedFacts`. The shared `ResolveArgs` is read by `resolveTaskFold`, which `resolveTask` reaches with all three supplied (`packages/inference/src/index.ts` `resolve`). Narrowing only the baseline wrapper needs a split argument type and keeps the fold reads; that is a design call, not a delete.
+
+Owner questions (shape a provider request, so not a delete under the lane rule): `createAgentToolServer.opts.name`, `.opts.version` (the MCP server name prefixes every tool name the model sees); `ChatToolOffer.execute.call.thoughtSignature`, `.openrouter`, `.atChars`, `.partOrdinal` (tool-call replay context); `structuredFitFor.format.description` (the structured tool description).
+
+Survey: codegraph_explore on the item symbols; literal `rg` for debug, ttlMs, expectedDimensions, onObservedResult, modelKind, cachedKind, coldAs across packages, tests, tooling (ts and tsx): no writer through a spread or `as const`; `tests/server/domain/connection/verbs/sdk-wire.int.test.ts` onObservedResult hits belong to `toChatRequest`, not `runStructuredChat`.
+Ran: `pnpm typecheck packages/inference/tsconfig.json packages/server/tsconfig.json tsconfig.tests-iso.json tsconfig.node.json` exit 0 (router config included); `pnpm test` detect, agent-sdk catalog, private-diagnostics, sdk-wire, runtime-ownership: 5 files, 29 tests passed.
+
+Ast-grep scan added after review (packages, tests, tooling, scripts; 5929 .ts and 1524 .tsx files each): createAgentSdkBackend 1 call, decodeEmbeddingVector 1, detectServer 1, runStructuredChat 2, createMirror 4 (ts); tsx 0 for each. Literal rg earlier found no other writer of debug, ttlMs, expectedDimensions, onObservedResult for these.

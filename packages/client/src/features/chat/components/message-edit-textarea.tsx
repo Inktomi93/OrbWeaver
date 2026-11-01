@@ -1,8 +1,7 @@
 // Edit-in-place's textarea half — swapped in for MessageContent while a row is editing. The mode flag
 // and in-progress text both live in the external message-edit-draft store, never useState: the chat
 // surface does not keepMounted editing rows, so a component-local draft would silently drop on a
-// scroll-driven unmount/remount. An optional onSave overrides the chat.editMessage verb path (the draft
-// greeting seam, which persists sync to the draft-config store instead).
+// scroll-driven unmount/remount.
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
@@ -34,14 +33,12 @@ const useEditMessageMutation = createEntityMutation<EditMessageVars, unknown>({
 
 export interface MessageEditTextareaProps {
   readonly message: MessageView;
-  /** Overrides the chat.editMessage verb path; empty is allowed on this path. */
-  readonly onSave?: ((text: string) => void) | undefined;
   /** The host's Move up / Move down ride this toolbar; absent ⇒ no arrows. The verb is host-only, so only the
    *  host's row passes it. */
   readonly moveNeighbours?: MoveNeighbours | undefined;
 }
 
-export function MessageEditTextarea({ message, onSave, moveNeighbours }: MessageEditTextareaProps): ReactElement {
+export function MessageEditTextarea({ message, moveNeighbours }: MessageEditTextareaProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const editMessage = useEditMessageMutation({ trpc, invalidation });
@@ -62,11 +59,6 @@ export function MessageEditTextarea({ message, onSave, moveNeighbours }: Message
   };
 
   const save = async (): Promise<void> => {
-    if (onSave !== undefined) {
-      onSave(text);
-      cancelEditingMessage(message.id);
-      return;
-    }
     if (editMessage.isPending || text.length === 0) {
       return;
     }
@@ -125,7 +117,7 @@ export function MessageEditTextarea({ message, onSave, moveNeighbours }: Message
           variant="outline"
           size="sm"
           loading={editMessage.isPending}
-          disabled={onSave === undefined && text.length === 0}
+          disabled={text.length === 0}
           aria-label="Save edit"
           onClick={(): void => void save().catch(globalThis.reportError)}
         >

@@ -244,7 +244,7 @@ interface BugReportFrameProps {
 }
 
 /** Where the form opens. The sheet discloses it inline under a sheet row: a popover inside the You sheet would
- *  be a second layer over a layer (the plugin wand's sheet presentation is the precedent). A `ListRow`, not
+ *  be a second layer over a layer (the plugin top bar commands' sheet presentation is the precedent). A `ListRow`, not
  *  the Collapsible trigger: a touch drag that starts on that trigger does not scroll the drawer. */
 function BugReportFrame({ presentation, open, onOpenChange, children }: BugReportFrameProps): ReactElement {
   if (presentation === "sheet") {

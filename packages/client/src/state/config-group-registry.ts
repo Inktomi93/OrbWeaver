@@ -85,9 +85,6 @@ export interface ConfigSettingLeaf {
   readonly id: string;
   readonly label: string;
   readonly keywords?: readonly string[];
-  /** Hidden from search unless the reader asks with `@advanced` (§3.3 — the D107 progressive-disclosure
-   *  axis). Absent = an ordinary row. */
-  readonly advanced?: boolean;
   /** The teaching, LOCKED to the leaf so they cannot drift apart (R-TEACH). */
   readonly teach: SettingTeachDecl;
   /** The settings KEY this leaf's control writes, inside the owning contribution's USER-tier `owns` claim

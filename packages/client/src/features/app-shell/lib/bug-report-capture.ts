@@ -37,7 +37,6 @@ import { consoleErrorRing } from "#src/lib/console-error-ring.ts";
 
 export type BugReportCaptureInput = Pick<Parameters<typeof buildBugReportClientBundle>[0], "note"> & {
   readonly windowMinutes: Parameters<typeof resolveEvidenceWindow>[1];
-  readonly now?: Parameters<typeof resolveEvidenceWindow>[0];
 };
 
 /** The route the debug capture POSTs to — the same same-origin, gate-behind-`/api/_debug` idiom
@@ -142,7 +141,7 @@ function absentSource(source: string): EvidenceSlice<unknown> {
 
 /** Assemble the client bundle from whatever the page can actually see. */
 export function captureBugReportBundle(input: BugReportCaptureInput): BugReportClientBundle {
-  const window = resolveEvidenceWindow(input.now ?? captureClockMs(), input.windowMinutes);
+  const window = resolveEvidenceWindow(captureClockMs(), input.windowMinutes);
   const orb = readAgentDebugHandle();
   const consoleErrors = consoleErrorRing();
   const slices: Record<string, EvidenceSlice<unknown>> = {

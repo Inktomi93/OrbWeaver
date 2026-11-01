@@ -287,13 +287,13 @@ function fittedText(text: string, fits: (candidate: string) => boolean): string 
  * fit, the error lines go first and then the end of the user's text, each marked in the issue itself; the
  * full summary is what the clipboard carries either way.
  */
-export function publicBugReportIssueUrl(report: PublicBugReport, maxLength = BUG_REPORT_ISSUE_URL_MAX): { readonly url: string; readonly truncated: boolean } {
+export function publicBugReportIssueUrl(report: PublicBugReport): { readonly url: string; readonly truncated: boolean } {
   const whole = issueUrl(report.title, report.bundle.whatHappened, report.diagnostics);
-  if (whole.length <= maxLength) {
+  if (whole.length <= BUG_REPORT_ISSUE_URL_MAX) {
     return { url: whole, truncated: false };
   }
   const compact = diagnosticsMarkdown(report.bundle, false);
-  const fits = (whatHappened: string): boolean => issueUrl(report.title, whatHappened, compact).length <= maxLength;
+  const fits = (whatHappened: string): boolean => issueUrl(report.title, whatHappened, compact).length <= BUG_REPORT_ISSUE_URL_MAX;
   if (fits(report.bundle.whatHappened)) {
     return { url: issueUrl(report.title, report.bundle.whatHappened, compact), truncated: true };
   }
