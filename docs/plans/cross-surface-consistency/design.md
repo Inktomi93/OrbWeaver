@@ -22,12 +22,12 @@ Judge a surface only after every planned change to it has landed. Steps 2 to 6 r
 | - | - | - |
 | 1 | Use-specific extraction and the tone-ink floors | a rendered review of step 4 on the owner-data clone |
 | 3 | Enlarged text | with the push barrier, 1299 |
-| 4 | Chat styles match the Moonlit reference | [0913](../../work/0913-chat-art-polish-broken-image-chip-flash-initial.md) |
+| 4 | Chat styles match the Moonlit reference | 0913 |
 | 5 | Page templates | the page-template tier |
 | 6 | Visible labels and accessible names | [1426](../../work/1426-import-ct-and-e2e-accessible-name-labels-from.md) |
 | Beside 2 to 6 | The automated walkthrough | [1401](../../work/1401-build-and-qualify-the-native-automated-surface-walkthrough.md) phase B |
 | 7 | Comparative acceptance | [1392](../../work/1392-complete-cross-surface-composition-acceptance.md), then [1397](../../work/1397-complete-characters-and-chat-comparative-acceptance.md); the persona and plugin reviews [0908](../../work/0908-side-eye-the-persona-switcher-room-block-and.md) and [0909](../../work/0909-side-eye-the-plugin-column-overlay-and-phone.md) run inside them |
-| 7a | Open findings and small builds in a family land, or close with the capture that shows them gone, before acceptance scores that family | [0910](../../work/0910-persona-model-follow-ups-from-the-885-lane.md), [0621](../../work/0621-corpus-readiness-rows-say-why-a-pass-did.md), [0927](../../work/0927-third-party-topbar-extensions-render-their-own-button.md), [0341](../../work/0341-resolve-rpg-rest-position-and-target-audit-findings.md) |
+| 7a | Open findings and small builds in a family land, or close with the capture that shows them gone, before acceptance scores that family | 0910, 0621, 0927, [0341](../../work/0341-resolve-rpg-rest-position-and-target-audit-findings.md) |
 | 8 | Integrated verification | [1396](../../work/1396-complete-integrated-consistency-verification.md) |
 
 ## Page templates
