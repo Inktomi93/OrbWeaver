@@ -3,6 +3,7 @@ kind: work
 status: open
 updated: 2026-10-30
 priority: P3
+plan: surface-walk
 area: client
 ---
 

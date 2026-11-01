@@ -1,12 +1,13 @@
 ---
-kind: bug
+kind: work
 status: open
 updated: 2026-11-01
-priority: P1
-area: server
+priority: P2
+area: client
+plan: type-law
 ---
 
-# Presence never releases after a same-socket takeover: a member reads online after both connections closed, which skews cast gating and host-return
+# T4 orb/mutation-vars-derived drains to zero by codemod; WakeRequest derives its port member
 
 ## What
 

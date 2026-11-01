@@ -1,12 +1,13 @@
 ---
-kind: bug
+kind: work
 status: open
 updated: 2026-11-01
-priority: P1
+priority: P2
 area: server
+plan: type-law
 ---
 
-# Stripping a hidden tag can rejoin bytes into a new tag
+# T3 orb/no-unsafe-cast drains to zero: double casts, JSON.parse and untyped-to-contract casts parse with the owning schema; a homes list carries reasons
 
 ## What
 

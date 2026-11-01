@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-01
 priority: P2
 area: ui
-plan: cross-surface-consistency
+plan: type-law
 ---
 
 # Every dialog has a dismiss path by type: FormDialog owns its footer with submit required and Cancel always rendered, replacing orb/dialog-needs-dismiss

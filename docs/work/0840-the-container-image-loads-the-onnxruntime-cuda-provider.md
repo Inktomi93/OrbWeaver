@@ -3,6 +3,7 @@ kind: bug
 status: open
 updated: 2026-10-10
 priority: P3
+plan: inference-flow
 area: embeddings
 ---
 

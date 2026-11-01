@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-01
 priority: P2
 area: ui
-plan: cross-surface-consistency
+plan: type-law
 ---
 
 # DestructiveAction takes its confirm copy as a required prop, replacing most of orb/destructive-needs-confirm and its exempt list

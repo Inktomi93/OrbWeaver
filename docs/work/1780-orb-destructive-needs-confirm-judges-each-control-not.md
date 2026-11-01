@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-01
 priority: P2
 area: tooling
-plan: cross-surface-consistency
+plan: type-law
 ---
 
 # orb/destructive-needs-confirm judges each control, not each file, so a second destructive control beside one confirm fails

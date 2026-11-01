@@ -3,6 +3,7 @@ kind: work
 status: open
 updated: 2026-10-04
 priority: P2
+plan: inference-flow
 area: rpg
 ---
 

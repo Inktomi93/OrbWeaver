@@ -3,6 +3,7 @@ kind: bug
 status: open
 updated: 2026-10-11
 priority: P2
+plan: unwired-code
 area: server
 ---
 
