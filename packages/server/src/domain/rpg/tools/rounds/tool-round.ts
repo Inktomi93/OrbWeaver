@@ -12,7 +12,7 @@ import type { PromptInputs, RpgRoundsAssemblyDeps } from "#src/domain/rpg/contra
 import type { RpgRunToolRound, RpgStateDelta } from "#src/domain/rpg/contract/service.ts";
 import { fallbackStateRound, primaryStateRound } from "#src/domain/rpg/substrate/readonly-axis.ts";
 import { buildRunExtraction } from "./extraction.ts";
-import { buildExtractionUserPrompt, resolveExtractionRefs, toolRoundSystem, toolRoundUserPrompt } from "./prompts.ts";
+import { buildExtractionUserPrompt, cheapRoundTools, resolveExtractionRefs, toolRoundSystem, toolRoundUserPrompt } from "./prompts.ts";
 import { withGenerationObservation } from "./round-connection.ts";
 import { isCancelled, logCancelled, logStructuredFallback, logToolRoundUsage, roundFailure, warnIfStructuredUnavailable } from "./round-log.ts";
 import { foldRoundCalls, runStructuredStateRound, structuredRound, structuredShapes, withInventoryAudit } from "./structured.ts";
@@ -79,7 +79,7 @@ export function buildRunToolRound(inputDeps: RpgRoundsAssemblyDeps): RpgRunToolR
       chatId,
       systemPrompt: toolRoundSystem(inputs),
       history,
-      tools: wireTools,
+      tools: cheapRoundTools(conn, wireTools),
       signal,
     };
     let calls: readonly RpgToolCall[];

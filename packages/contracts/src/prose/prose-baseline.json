@@ -509,8 +509,8 @@
       "sha256": "841fa81ee5043a49bcc6126c8d1481290ce016cd8b6131a3f064231b70703e67"
     },
     "rpg.extract.tool.updateInventory": {
-      "version": 5,
-      "sha256": "a3af6d6431144c3149b50a0323112f23dd6f67474f00d4b919d417e675852077"
+      "version": 6,
+      "sha256": "a6930d66813fdf3bc7fc2be1436baf171568221be31228d6370cce78ab8f0e16"
     },
     "rpg.extract.tool.updateScene": {
       "version": 1,
@@ -521,8 +521,8 @@
       "sha256": "6fa8e335400fb9d915cf089a192d2000378080fde3b4b2ef202051c6a2832f6c"
     },
     "rpg.extract.tool.upsertQuest": {
-      "version": 1,
-      "sha256": "4689da8fbdeeaec101a0b1e8d430ec484a1acbbb1ab0f3245e59064930d86406"
+      "version": 2,
+      "sha256": "0a0ca116ea012a3872ea9e3dc0b68bf1bcc315767b09b1d64459cd2b18668b8c"
     },
     "rpg.extract.tool.addJournalEntry": {
       "version": 2,

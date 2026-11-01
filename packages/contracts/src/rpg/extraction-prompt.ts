@@ -346,15 +346,17 @@ export const RPG_BASELINE_TOOL_DESCRIPTIONS: ReadonlyMap<string, string> = build
 });
 
 /** `update_scene`'s worked inputs, shown beside its schema where the wire has a slot for them. They are game-free
- *  (no tracker or actor refs) so they stay valid against every game's constrained schema and keep the tool list
- *  byte-stable for the folded turn's cached prefix. */
+ *  (no tracker or actor refs) and carry every field `constrainExtractionSchema` can mark required on a scene
+ *  (location, timeOfDay, a non-empty presentUpsert), so each validates against the schema in every establish state;
+ *  an invalid example is a provider 400. */
 const UPDATE_SCENE_INPUT_EXAMPLES: readonly Record<string, unknown>[] = [
   {
+    location: "Chapel of Ash",
     timeOfDay: "evening",
     presentUpsert: [
       {
         name: "Sister Vesna",
-        emoji: "🕯️",
+        emoji: "\u{1F56F}\u{FE0F}",
         mood: "warming",
         appearance: "tall, silver-haired",
         outfit: "patched grey habit",
@@ -364,8 +366,20 @@ const UPDATE_SCENE_INPUT_EXAMPLES: readonly Record<string, unknown>[] = [
     ],
     recentEvent: "Vesna softened as you shared road news",
   },
-  { location: "Chapel of Ash", timeOfDay: "night", weather: { type: "indoors", label: "" } },
+  {
+    location: "Chapel of Ash",
+    timeOfDay: "night",
+    weather: { type: "indoors", label: "" },
+    presentUpsert: [{ name: "Corvin", mood: "wary", thoughts: "watching the door" }],
+  },
 ];
+
+/** The state tools with `update_scene`'s worked examples attached. Only the dedicated cheap round sends these:
+ *  examples add the `advanced-tool-use-2025-11-20` beta header on the Anthropic wire, which is unprobed on the
+ *  folded character turn and on proxies, where a refused header would fail the whole turn. */
+export function withStateToolExamples(tools: readonly RpgStateRoundTool[]): RpgStateRoundTool[] {
+  return tools.map((tool) => (tool.name === "update_scene" ? { ...tool, inputExamples: UPDATE_SCENE_INPUT_EXAMPLES } : tool));
+}
 
 /** Build the per-game, per-actor wire tools for a state round / a folded turn (R6 + R2). The parameters come
  *  from ONE projection of the extraction schema constrained by this call's refs — so the tool a model is handed
@@ -395,7 +409,7 @@ export function buildToolRoundWireTools(refs: ExtractionRefs, config: RpgGameCon
   const tools: RpgStateRoundTool[] = [
     { name: "update_party", description: describeTool("update_party"), parameters: itemSchemaOf("party") ?? { type: "object" } },
     { name: "update_inventory", description: describeTool("update_inventory"), parameters: itemSchemaOf("inventory") ?? { type: "object" } },
-    { name: "update_scene", description: describeTool("update_scene"), parameters: sceneSchema, inputExamples: UPDATE_SCENE_INPUT_EXAMPLES },
+    { name: "update_scene", description: describeTool("update_scene"), parameters: sceneSchema },
   ];
   // The game-subject tracker tool — present ONLY when this game defines one (R6 "a disabled feature's tool is
   // omitted entirely"). `itemSchemaOf` returns undefined exactly when the constraint pruned the plane.

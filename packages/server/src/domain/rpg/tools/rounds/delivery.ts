@@ -12,7 +12,7 @@ import type { RpgContext } from "#src/domain/rpg/contract/service.ts";
 import { findGameByChat } from "#src/domain/rpg/persistence/games.ts";
 import { deriveTrackersReadOnly, hasStructuredWriter, primaryStateRound, structuredVehicleUnavailable } from "#src/domain/rpg/substrate/readonly-axis.ts";
 import { stateRoundNeededTokens } from "#src/domain/rpg/substrate/state-round-fit.ts";
-import { buildExtractionUserPrompt, extractionSystem, resolveExtractionRefs, toolRoundSystem, toolRoundUserPrompt } from "./prompts.ts";
+import { buildExtractionUserPrompt, cheapRoundTools, extractionSystem, resolveExtractionRefs, toolRoundSystem, toolRoundUserPrompt } from "./prompts.ts";
 import { resolveFunderChat, roomWindowed } from "./round-connection.ts";
 import { structuredRound, structuredShapes } from "./structured.ts";
 
@@ -51,14 +51,18 @@ export function buildResolveStateDelivery(input: RpgRoundsAssemblyDeps): RpgCont
   };
 }
 
+/** Which request a state round prices: the structured extraction, the in-turn cheap tool round, or the host resync's tool round. */
+export type StateRoundVehicle = "extraction" | "cheap-tools" | "resync-tools";
+
 /**
  * The text the state round's first request carries on `conn`: its system prompt, its user prompt, and its tool or
- * schema payload. The caller supplies its dispatcher's tool-round choice: API support alone does not select
- * the resync vehicle. The same builders produce the priced and sent payloads.
+ * schema payload. The caller supplies its dispatcher's choice: API support alone does not select the resync
+ * vehicle. Only the dedicated in-turn round (`cheap-tools`) sends the tool cue and the tool examples; the host
+ * resync (`resync-tools`) sends neither. The same builders produce the priced and sent payloads.
  */
-export function stateRoundRequestText(conn: Resolved<"chat">, inputs: PromptInputs, userPrompt: string, toolRound: boolean): readonly string[] {
+export function stateRoundRequestText(conn: Resolved<"chat">, inputs: PromptInputs, userPrompt: string, vehicle: StateRoundVehicle): readonly string[] {
   const { refs, config, prose } = inputs;
-  if (!toolRound) {
+  if (vehicle === "extraction") {
     return [extractionSystem(inputs), userPrompt, JSON.stringify(constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs))];
   }
   const wireTools = buildToolRoundWireTools(refs, config, prose);
@@ -69,7 +73,9 @@ export function stateRoundRequestText(conn: Resolved<"chat">, inputs: PromptInpu
     const round = structuredRound(primary, shapes.schemas()[primary], wireTools, { lead: toolRoundSystem(inputs), prose });
     return [round.systemPrompt, userPrompt, JSON.stringify(round.format.schema)];
   }
-  return [toolRoundSystem(inputs), toolRoundUserPrompt(userPrompt, prose), JSON.stringify(wireTools)];
+  return vehicle === "cheap-tools"
+    ? [toolRoundSystem(inputs), toolRoundUserPrompt(userPrompt, prose), JSON.stringify(cheapRoundTools(conn, wireTools))]
+    : [toolRoundSystem(inputs), userPrompt, JSON.stringify(wireTools)];
 }
 
 /** Build the `resolveStateRoundFit` op: price the round a turn would run on the funder's connection over `baseState`
@@ -92,7 +98,7 @@ export function buildResolveStateRoundFit(input: RpgRoundsAssemblyDeps): RpgCont
     const userPrompt = buildExtractionUserPrompt([], baseState, config, prose);
     const sent = await roomWindowed(deps, chatId, conn);
     const windowTokens = generationOf(sent).context.window;
-    return stateRoundNeededTokens(stateRoundRequestText(sent, inputs, userPrompt, carriesForcedToolRound(sent))) > windowTokens
+    return stateRoundNeededTokens(stateRoundRequestText(sent, inputs, userPrompt, carriesForcedToolRound(sent) ? "cheap-tools" : "extraction")) > windowTokens
       ? { connectionId: conn.connectionId, windowTokens }
       : null;
   };

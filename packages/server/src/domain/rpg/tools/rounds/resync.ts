@@ -17,7 +17,7 @@ import { stateRoundNeededTokens } from "#src/domain/rpg/substrate/state-round-fi
 import { buildActorRefIndex, extractionToStateDelta } from "../apply.ts";
 import { createExtractionMints } from "../mints.ts";
 import { stateRoundRequestText } from "./delivery.ts";
-import { buildExtractionUserPrompt, extractionSystem, resolveExtractionRefs, toolRoundSystem, toolRoundUserPrompt } from "./prompts.ts";
+import { buildExtractionUserPrompt, extractionSystem, resolveExtractionRefs, toolRoundSystem } from "./prompts.ts";
 import { extractStructured, isUnresolvable, roomWindowed, withGenerationObservation } from "./round-connection.ts";
 import { logExtractionOutcome, logStrippedKeys, logStructuredFallback, logToolRoundUsage, safeJson, warnIfStructuredUnavailable } from "./round-log.ts";
 import { foldRoundCalls, requestStructuredCalls, STRUCTURED_ROUND_VEHICLE, structuredRound, structuredShapes } from "./structured.ts";
@@ -105,7 +105,7 @@ async function resyncViaToolRound(
         // the moment an operator is reading the wire ring for that chat.
         chatId,
         systemPrompt: toolRoundSystem(inputs),
-        history: [{ role: "user", content: [{ type: "text", text: toolRoundUserPrompt(userPrompt, prose) }] }],
+        history: [{ role: "user", content: [{ type: "text", text: userPrompt }] }],
         tools,
       }),
     );
@@ -172,7 +172,7 @@ async function resyncViaStructuredRound(
 }
 
 function resyncNeededTokens(conn: Resolved<"chat">, inputs: PromptInputs, userPrompt: string, toolRound: boolean): number {
-  const primary = stateRoundNeededTokens(stateRoundRequestText(conn, inputs, userPrompt, toolRound));
+  const primary = stateRoundNeededTokens(stateRoundRequestText(conn, inputs, userPrompt, toolRound ? "resync-tools" : "extraction"));
   if (!toolRound) {
     return primary;
   }

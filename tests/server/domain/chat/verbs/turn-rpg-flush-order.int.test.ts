@@ -92,9 +92,9 @@ test("the post-commit state round's provider request carries the turn's own repl
   expect(stateRound[0]).toContain(reply);
 });
 
-test("the cheap tool round's user message ends on the state-tool cue, and the folded turn's narrator prompt does not carry it", async () => {
+test("the cheap tool round's user message ends on the state-tool cue; the folded narrator prompt and the host resync do not carry it", async () => {
   const cue = resolveProseText("rpg.extract.toolRoundUserLine", {});
-  const wire: Record<"cheap" | "folded", string[]> = { cheap: [], folded: [] };
+  const wire: Record<"cheap" | "folded" | "resync", string[]> = { cheap: [], folded: [], resync: [] };
   for (const mode of ["cheap", "folded"] as const) {
     await using h = await turnRpgRoom(
       [
@@ -110,15 +110,24 @@ test("the cheap tool round's user message ends on the state-tool cue, and the fo
           wire[mode].push(JSON.stringify(await turnWireBody(request)));
           return turnRpgReply("", "Registered observatory");
         },
+        async (request): Promise<Response> => {
+          wire.resync.push(JSON.stringify(await turnWireBody(request)));
+          return turnRpgReply("", "Resynced observatory");
+        },
       ],
       {},
       mode,
     );
     await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Reach the registered beat." });
     await h.root.settleBackground();
+    if (mode === "cheap") {
+      await h.root.services.rpg.resyncFromStory({ principal: h.owner, chatId: h.chatId });
+    }
   }
   expect(wire.cheap).toHaveLength(2);
   expect(wire.cheap[0]).not.toContain(cue);
   expect(wire.cheap[1]).toContain(cue);
   expect(wire.folded.join("")).not.toContain(cue);
+  expect(wire.resync).toHaveLength(1);
+  expect(wire.resync[0]).not.toContain(cue);
 });

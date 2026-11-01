@@ -2017,7 +2017,7 @@ export const TEMPLATE_DEFS = [
     id: "rpg.extract.toolRoundUserLine",
     kind: "extract",
     label: "Tool round cue",
-    fires: "The cheap tool round and a host resync, last line of the user message",
+    fires: "The cheap tool round and its inventory audit, last line of the user message",
     caps: [],
     defaultSlot: "rpg.extract.toolRoundUserLine",
     cluster: "round",
