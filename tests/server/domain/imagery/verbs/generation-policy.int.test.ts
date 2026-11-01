@@ -301,7 +301,7 @@ test("the count, size and negative on chat.generateImage reach the provider requ
   }
 });
 
-test("a chat-completions image wire warns of the count and size it dropped, and a default size stays quiet", async () => {
+test("a chat-completions image wire warns of the count and size it dropped, a default size stays quiet, and a rule-fired picture warns the same", async () => {
   const wire = physicalExecution([]);
   let pixels: Uint8Array = new Uint8Array();
   const reply = (): Response =>
@@ -364,6 +364,31 @@ test("a chat-completions image wire warns of the count and size it dropped, and 
   pixels = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
   await caller.chat.generateImage({ ...request, n: 2, size: "portrait" });
   expect(warned).toEqual([WARNING_CODE.imageCountDropped, WARNING_CODE.imageSizeDropped]);
+
+  // A rule-fired picture spends the same wire, so it owes the room the same notices.
+  warned.length = 0;
+  pixels = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
+  const rule = await root.services.automation.createRule({
+    principal: room.host,
+    chatId: room.chat.id,
+    name: "Two tall drawings",
+    trigger: { bus: "chat", type: "chatOpened" },
+    predicateCel: null,
+    actions: [
+      { type: "generate_image", mode: "free", prompt: "a lighthouse", n: 2, size: "portrait", useAvatarReference: false, reuse: "never", quiet: false },
+    ],
+    timeZone: UTC_TIME_ZONE,
+  });
+  await root.services.automation.setRuleEnabled({ principal: room.host, ruleId: rule.id, enabled: true });
+  await root.services.automation.handleEvent({ type: "chatOpened", chatId: room.chat.id });
+  expect(warned).toEqual([WARNING_CODE.imageCountDropped, WARNING_CODE.imageSizeDropped]);
+
+  // The notices are room-wide: the host who owns the picture and the member who only watches both replay both pictures' notices.
+  const replayed = async (principal: Principal): Promise<readonly string[]> =>
+    (await root.services.chat.replayChatEvents({ principal, chatId: room.chat.id })).flatMap(({ event }) => (event.type === "warning" ? [event.code] : []));
+  const both = [WARNING_CODE.imageCountDropped, WARNING_CODE.imageSizeDropped, WARNING_CODE.imageCountDropped, WARNING_CODE.imageSizeDropped];
+  expect(await replayed(room.host)).toEqual(both);
+  expect(await replayed(room.member)).toEqual(both);
 });
 
 test("a count, size or negative skips the reuse gate under default reuse, and that picture is never reused", async () => {

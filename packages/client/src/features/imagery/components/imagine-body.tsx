@@ -28,6 +28,7 @@ import { EXTRACTION_MODES, MIN_IMAGE_COUNT } from "@orb/contracts/imagery";
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
+import { DialogFooter } from "@orb/ui/dialog";
 import { Row, Stack } from "@orb/ui/layout";
 import { WebSpinner } from "@orb/ui/spinner";
 import { Text } from "@orb/ui/text";
@@ -40,7 +41,7 @@ import type { ReactElement } from "react";
 import { useEffect, useId, useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { viewerTimeZone } from "#lib";
+import { ROOM_PICTURES_NOTE, viewerTimeZone } from "#lib";
 import type { ImagineSeed } from "#state";
 import { closeModal, useImagineSeed } from "#state";
 import { useExtractPrompt, useGeneratePicture } from "../hooks/use-imagery-mutations.ts";
@@ -96,7 +97,8 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
   const galleryLabelId = useId();
   const galleryCheckboxId = useId();
   const trpc = useTRPC();
-  const galleryCharacterName = useGalleryCharacterName(trpc, seed.chatId);
+  const room = useImagineRoom(trpc, seed.chatId);
+  const galleryCharacterName = room.galleryCharacterName;
   const invalidation = useInvalidation();
   const extract = useExtractPrompt({ trpc, invalidation });
   const generate = useGeneratePicture({ trpc, invalidation });
@@ -149,6 +151,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
         Generate an image into this chat. Every image is a real charge — and the modes that read the conversation spend a second, smaller call to build the
         prompt first.
       </Text>
+      <RoomPicturesNote shared={room.shared} />
       <Stack gap="field">
         <Text as="span" id={modeLabelId} voice="label">
           Mode
@@ -189,11 +192,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
         />
         {isExtraction ? (
           <Stack gap="tight">
-            {blindDoubleSpend ? (
-              <Text className="max-inline-(--reading-measure-prose)" data-slot="imagine-double-spend" voice="reading">
-                Generate now and this mode charges TWICE: one call to read the chat into a prompt, then the image itself.
-              </Text>
-            ) : null}
+            <DoubleSpendNotice blind={blindDoubleSpend} count={count} />
             <Row align="center" className="flex-wrap" gap="field">
               <Button disabled={busy} variant="outline" onClick={preview} size="sm" type="button">
                 Read the chat first
@@ -209,7 +208,16 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
           </Stack>
         ) : null}
       </Stack>
-      <ImagineOptions busy={busy} count={count} negative={negative} onCount={setCount} onNegative={setNegative} onSize={setSize} size={size} />
+      <ImagineOptions
+        busy={busy}
+        count={count}
+        hostPays={room.hostPays}
+        negative={negative}
+        onCount={setCount}
+        onNegative={setNegative}
+        onSize={setSize}
+        size={size}
+      />
       {galleryCharacterName === undefined ? null : (
         <Row align="center" gap="field">
           <Checkbox
@@ -227,29 +235,67 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
           </label>
         </Row>
       )}
-      {generate.isPending ? (
-        <Stack data-slot="imagine-generating" gap="tight">
-          <PendingLine label="Generating the image" verb="Generating the image…" />
-          <Text className="max-inline-(--reading-measure-prose)" voice="reading">
-            Usually 5-60 seconds. You can close this — the image posts into the chat when it's ready.
-          </Text>
-        </Stack>
-      ) : null}
-      <Row justify="end">
+      <GeneratingNotice pending={generate.isPending} />
+      {/* Pinned to the dialog footer, with the count in the label, so the spend stays on screen however tall the options grow. */}
+      <DialogFooter>
         <Button disabled={!canGenerate} onClick={runGenerate} type="button">
-          {generate.isPending ? "Generating…" : "Generate"}
+          {generateLabel(generate.isPending, count)}
         </Button>
-      </Row>
+      </DialogFooter>
     </Stack>
   );
 }
 
-/** The name of the character whose gallery this viewer's picture joins, or `undefined` when there is none. The
- *  server names that character (`viewerGalleryCharacterId`) only for its owner, so a guest gets `undefined`
- *  and is offered no add the server would refuse. The room read is cache-first. */
-function useGalleryCharacterName(trpc: Trpc, chatId: ChatId): string | undefined {
+/** The shared-room sentence D300 owes the person about to spend: where the picture lands and whose it is. */
+function RoomPicturesNote({ shared }: { readonly shared: boolean }): ReactElement | null {
+  return shared ? (
+    <Text className="max-inline-(--reading-measure-prose)" data-slot="imagine-room-pictures-note" voice="gloss">
+      {ROOM_PICTURES_NOTE}
+    </Text>
+  ) : null;
+}
+
+function DoubleSpendNotice({ blind, count }: { readonly blind: boolean; readonly count: number }): ReactElement | null {
+  return blind ? (
+    <Text className="max-inline-(--reading-measure-prose)" data-slot="imagine-double-spend" voice="reading">
+      Generate now and this mode charges TWICE: one call to read the chat into a prompt, then {count > MIN_IMAGE_COUNT ? "the images" : "the image itself"}.
+    </Text>
+  ) : null;
+}
+
+function GeneratingNotice({ pending }: { readonly pending: boolean }): ReactElement | null {
+  return pending ? (
+    <Stack data-slot="imagine-generating" gap="tight">
+      <PendingLine label="Generating the image" verb="Generating the image…" />
+      <Text className="max-inline-(--reading-measure-prose)" voice="reading">
+        Usually 5-60 seconds. You can close this — the image posts into the chat when it's ready.
+      </Text>
+    </Stack>
+  ) : null;
+}
+
+function generateLabel(pending: boolean, count: number): string {
+  if (pending) {
+    return "Generating…";
+  }
+  return count > MIN_IMAGE_COUNT ? `Generate ${count} images` : "Generate";
+}
+
+const SHARED_ROOM_FLOOR = 2;
+
+/** What the room read says about this picture: the character whose gallery it joins (named only for its owner,
+ *  so a guest is offered no add the server would refuse), whether the room is shared, and whether the host pays
+ *  (D298: a member's picture runs on the host's bill). The room read is cache-first. */
+function useImagineRoom(
+  trpc: Trpc,
+  chatId: ChatId,
+): { readonly galleryCharacterName: string | undefined; readonly shared: boolean; readonly hostPays: boolean } {
   const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
-  return chat === undefined ? undefined : viewerGalleryCharacter(chat)?.displayName;
+  if (chat === undefined) {
+    return { galleryCharacterName: undefined, shared: false, hostPays: false };
+  }
+  const members = chat.participants.filter((person) => person.kind === "human" && person.leftSeq === null).length;
+  return { galleryCharacterName: viewerGalleryCharacter(chat)?.displayName, shared: members >= SHARED_ROOM_FLOOR, hostPays: !chat.viewerIsHost };
 }
 
 /** The read call's one line: what it will cost you before, what it DID cost after. `costUsd: null` means the

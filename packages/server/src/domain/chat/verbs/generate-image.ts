@@ -9,7 +9,9 @@
 // persist/emit pattern of `turn.ts` `persistUserMessage` (the D26 canon-write dance + the durable-first bus emit).
 
 import type { ChatWarningCode, MessageView } from "@orb/contracts/chat";
+import type { ChatId } from "@orb/kit/ids";
 import type { ChatContext, PostNarratorMessageDeps } from "../contract/context.ts";
+import type { EmitDurableChatEventOp } from "../contract/engine-context.ts";
 import type { GenerateImageParams } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireParticipant } from "../guard.ts";
@@ -39,6 +41,17 @@ const IMAGERY_WARNING_CODES: readonly ImageryChatWarningCode[] = ["image_edit_dr
 
 function toChatWarningCode(imageryCode: string): ImageryChatWarningCode | null {
   return IMAGERY_WARNING_CODES.find((code) => code === imageryCode) ?? null;
+}
+
+/** Surface a picture's imagery warnings onto the chat `warning` bus so the room can render a notice. Shared by the
+ *  explicit generate verb and a rule-fired picture, so both owe the room the same notices. */
+export async function emitPictureWarnings(emit: EmitDurableChatEventOp, chatId: ChatId, warnings: readonly { readonly code: string }[]): Promise<void> {
+  await Promise.all(
+    warnings.flatMap((warning) => {
+      const code = toChatWarningCode(warning.code);
+      return code === null ? [] : [emit({ type: "warning", chatId, code })];
+    }),
+  );
 }
 
 export function createGenerateImage(ctx: ChatContext, deps: PostNarratorMessageDeps): Pick<ChatService, "generateImage"> {
@@ -107,12 +120,7 @@ export function createGenerateImage(ctx: ChatContext, deps: PostNarratorMessageD
       await deps.emit({ type: "messageCommitted", chatId, messageId: view.id, view });
       // Surface any imagery warning (e.g. an avatar reference / edit dropped for a non-edit model — doc 03 §2)
       // onto the one chat `warning` bus so the client can render a notice; the message itself still committed.
-      await Promise.all(
-        picture.warnings.flatMap((warning) => {
-          const code = toChatWarningCode(warning.code);
-          return code === null ? [] : [deps.emit({ type: "warning", chatId, code })];
-        }),
-      );
+      await emitPictureWarnings(deps.emit, chatId, picture.warnings);
       // PD user-bus lane: a new image message moved chat-list recency → fan `chatsChanged` (list-only) to every
       // present human member (cross-device + multi-human).
       await ctx.emitChatChanged(chatId);

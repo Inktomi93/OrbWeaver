@@ -25,6 +25,8 @@ const NEGATIVE_MAX_ROWS = 6;
 
 export interface ImagineOptionsProps {
   readonly busy: boolean;
+  /** A room member's picture runs on the host's connection and bill (D298). */
+  readonly hostPays: boolean;
   readonly count: number;
   readonly onCount: (count: number) => void;
   readonly size: SizePresetName | undefined;
@@ -35,7 +37,7 @@ export interface ImagineOptionsProps {
 
 /** The imagine modal's advanced image controls, collapsed by default. Disabled mid-spend like the mode strip:
  *  the in-flight request already carries the old values. */
-export function ImagineOptions({ busy, count, onCount, size, onSize, negative, onNegative }: ImagineOptionsProps): ReactElement {
+export function ImagineOptions({ busy, hostPays, count, onCount, size, onSize, negative, onNegative }: ImagineOptionsProps): ReactElement {
   const countLabelId = useId();
   const sizeLabelId = useId();
   return (
@@ -47,9 +49,11 @@ export function ImagineOptions({ busy, count, onCount, size, onSize, negative, o
             <Text as="span" id={countLabelId} voice="label">
               Number of images
             </Text>
+            {/* Filled cells share the dialog's width, so a single digit still meets the touch floor on a phone. */}
             <ToggleGroup
               aria-labelledby={countLabelId}
               disabled={busy}
+              fill={true}
               onValueChange={(next): void => {
                 if (next[0] !== undefined) {
                   onCount(Number(next[0]));
@@ -58,16 +62,19 @@ export function ImagineOptions({ busy, count, onCount, size, onSize, negative, o
               value={[String(count)]}
             >
               {IMAGE_COUNTS.map((value) => (
-                <Toggle variant="outline" key={value} size="sm" value={value}>
+                <Toggle variant="outline" key={value} size="chip" value={value}>
                   {value}
                 </Toggle>
               ))}
             </ToggleGroup>
-            {count > MIN_IMAGE_COUNT ? (
-              <Text className="max-inline-(--reading-measure-prose)" data-slot="imagine-count-spend" voice="reading">
-                Asks for {count} images. You pay for each one that comes back, and some connections make only one.
-              </Text>
-            ) : null}
+            {/* Mounted before it has words, so a screen reader announces the spend the moment a count above one is picked. */}
+            <Stack aria-live="polite" role="status">
+              {count > MIN_IMAGE_COUNT ? (
+                <Text className="max-inline-(--reading-measure-prose)" data-slot="imagine-count-spend" voice="reading">
+                  Asks for {count} images. {hostPays ? "The room's host pays" : "You pay"} for each one that comes back, and some connections make only one.
+                </Text>
+              ) : null}
+            </Stack>
           </Stack>
           <Stack gap="field">
             <Text as="span" id={sizeLabelId} voice="label">

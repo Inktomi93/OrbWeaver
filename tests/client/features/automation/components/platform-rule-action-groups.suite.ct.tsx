@@ -1,6 +1,6 @@
 import { ROW_DELETE_NAME } from "@orb/client/lib";
 import { AUTOMATION_RULE_NAME_MAX_CHARS, automationActionSchema, automationRuleEditableSchema, automationTriggerFor } from "@orb/contracts/automation";
-import { SIZE_PRESET_NAMES } from "@orb/contracts/imagery";
+import { MAX_IMAGE_COUNT, MIN_IMAGE_COUNT, SIZE_PRESET_NAMES } from "@orb/contracts/imagery";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -280,5 +280,15 @@ test.describe("rule editor field rows", () => {
     await editor.getByRole("combobox", { name: "Image size", exact: true }).click();
     await page.getByRole("option", { name: size, exact: true }).click();
     await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).toMatchObject({ type: "generate_image", negative: "extra fingers", size });
+
+    // The count walks only inside the contract's range, so the stepper is the error message.
+    const decrease = editor.getByRole("button", { name: "Decrease Image count", exact: true });
+    const increase = editor.getByRole("button", { name: "Increase Image count", exact: true });
+    await expect(decrease).toBeDisabled();
+    for (let step = MIN_IMAGE_COUNT; step < MAX_IMAGE_COUNT; step += 1) {
+      await increase.click();
+    }
+    await expect(increase).toBeDisabled();
+    await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).toMatchObject({ n: MAX_IMAGE_COUNT });
   });
 });
