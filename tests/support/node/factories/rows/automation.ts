@@ -1,6 +1,6 @@
 // Automation rows a production verb left, read behind the rows door for persistence-tier and corpus captures.
 
-import { confirmSuggestionResultSchema, ruleViewSchema } from "@orb/contracts/automation";
+import { ruleViewSchema } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { automationFires, automationOwnerBudgets, automationRuleState, automationRules, globalVariables } from "@orb/db";
 import { and, eq } from "drizzle-orm";
@@ -36,7 +36,7 @@ export async function seedCreatedAutomationRuleRows(
   return { view, row };
 }
 
-/** Consume a genuinely raised rule ask and preserve its native outcome with the resulting provenance. */
+/** Consume a genuinely raised rule ask and preserve the resulting provenance. */
 export async function seedAutomationConfirmationRows(
   root: ServerProducerRoot,
   params: Parameters<AutomationService["confirmSuggestion"]>[0],
@@ -44,8 +44,8 @@ export async function seedAutomationConfirmationRows(
 ): Promise<SeededAutomationConfirmation> {
   const db = root.db;
   const confirm = root.services.automation.confirmSuggestion;
-  const result = confirmSuggestionResultSchema.parse(await confirm(params));
-  return { result, ...(await captureAutomationExecution(db, ruleId)) };
+  await confirm(params);
+  return await captureAutomationExecution(db, ruleId);
 }
 
 export async function seedAutomationOwnerBudgetRows(

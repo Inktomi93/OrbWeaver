@@ -75,7 +75,7 @@ function selectEntry(entry: ConfigSearchEntry): void {
 
 /** One group's DYNAMIC rows (members / persona names) — its own component so `useSearchRows` runs in its
  *  own fiber (never a hooks-in-a-loop at the search). Applies the same token narrowing as the static half
- *  (`@modified`/`@advanced` exclude member rows — a member is data, not a knob) and fuzzy-filters by the
+ *  (`@modified` excludes member rows — a member is data, not a knob) and fuzzy-filters by the
  *  free-text terms. */
 function GroupSearchRows({
   group,
@@ -87,7 +87,7 @@ function GroupSearchRows({
   readonly terms: string;
 }): ReactNode {
   const rows = group.useSearchRows?.() ?? [];
-  if (parsed.modified || parsed.advanced || parsed.plugin !== undefined) {
+  if (parsed.modified || parsed.plugin !== undefined) {
     return null;
   }
   if (parsed.shelf !== undefined && !shelfMatches(group.shelf, parsed.shelf)) {

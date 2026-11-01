@@ -24,7 +24,6 @@ import {
   automationRuleTimeZoneSchema,
   automationRuleToolsSchema,
   automationRuleUpdateSchema,
-  confirmSuggestionResultSchema,
   fireViewSchema,
   ownerBudgetViewSchema,
   rulePresetIdSchema,
@@ -135,7 +134,7 @@ export const automationRouter = t.router({
   // reaches the client on the host-only `suggestionRaised` bus event and comes back here. Take-once lives in
   // the verb, so a double-click's loser gets NOT_FOUND rather than a second execution.
   confirmSuggestion: authedProcedure
-    .output(confirmSuggestionResultSchema)
+    .output(z.void())
     .input(z.strictObject({ suggestionId: typeIdSchema(ID_PREFIX.automationSuggestion) }))
     .mutation(({ ctx, input }) => ctx.services.automation.confirmSuggestion({ principal: ctx.auth, suggestionId: input.suggestionId })),
 

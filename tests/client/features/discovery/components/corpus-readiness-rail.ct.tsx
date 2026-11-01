@@ -4,7 +4,7 @@
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
-import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
@@ -20,27 +20,31 @@ type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 type Caller = Awaited<ReturnType<Root["internalCallerFor"]>>;
 
 /** Serve the overview's reads and the doors' writes from `caller`, then mount the production Corpus content. */
-async function serveOverview(page: Page, caller: Caller): Promise<void> {
+async function serveOverview(page: Page, caller: Caller, intercept?: Parameters<typeof serveCorpusProcedures>[2]): Promise<void> {
   await routeTrpc(
     page,
-    serveCorpusProcedures(caller, [
-      "discovery.home",
-      "discovery.catalog",
-      "discovery.visualArchetypes",
-      "discovery.forgottenGems",
-      "discovery.topKeywords",
-      "discovery.unusedCharacters",
-      "discovery.modelRouting",
-      "discovery.themeDrift",
-      "workloads.list",
-      "workloads.start",
-      "workloads.estimateModelCalls",
-      "connection.listBindings",
-      "connection.list",
-      "settings.getUserSettings",
-      "settings.getAppSettingsWithOverrides",
-      "sessions.me",
-    ]),
+    serveCorpusProcedures(
+      caller,
+      [
+        "discovery.home",
+        "discovery.catalog",
+        "discovery.visualArchetypes",
+        "discovery.forgottenGems",
+        "discovery.topKeywords",
+        "discovery.unusedCharacters",
+        "discovery.modelRouting",
+        "discovery.themeDrift",
+        "workloads.list",
+        "workloads.start",
+        "workloads.estimateModelCalls",
+        "connection.listBindings",
+        "connection.list",
+        "settings.getUserSettings",
+        "settings.getAppSettingsWithOverrides",
+        "sessions.me",
+      ],
+      intercept,
+    ),
   );
 }
 
@@ -200,4 +204,28 @@ test("a member's keywords row names the box owner instead of offering a run the 
   await expect(line).toHaveAttribute("data-pass-action", "box-owner-only");
   await expect(line).toContainText("The box owner runs this pass");
   await expect(line.getByRole("button")).toHaveCount(0);
+});
+
+test("a paid door reads busy and cannot be pressed again while its spend is being counted", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const owner = await root.internalCallerFor(root.ownerId);
+  const counting = holdServed();
+  // Only the spend count is held; the overview's own reads must answer for the rail to mount.
+  await serveOverview(page, owner, (request) => (typeof request === "object" && "mode" in request ? counting : undefined));
+  await mount<typeof CorpusCoverageStory>(STORY, {});
+  const rail = await visibleRail(page);
+  const door = passLine(rail, "Story themes").getByRole("button", { name: READINESS_PASSES.storyThemes.runLabel, exact: true });
+
+  await door.click();
+  await counting.requested;
+  await expect(door).toHaveAttribute("aria-busy", "true");
+  await expect(door).toBeDisabled();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+
+  counting.release();
+  const dialog = page.getByRole("alertdialog", { name: READINESS_PASSES.storyThemes.confirmTitle, exact: true });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(door).not.toHaveAttribute("aria-busy", "true");
+  await expect(door).toBeEnabled();
 });

@@ -10,16 +10,15 @@ import { applyAsCopyResultSchema, applyFieldsResultSchema, REFINERY_STAGE_PAYLOA
 import { applyRosterPresetInputSchema, HOME_ROSTER_PREVIEW_LIMIT } from "@orb/contracts/roster-preset";
 import { streamAttachInputSchema } from "@orb/contracts/stream";
 import type { CharacterId, ChatId, RefinerySessionId, RosterPresetId } from "@orb/kit/ids";
-import type { DisclosureWalkHooks } from "@orb/testkit/browser/spec";
-import { controlledPanel, publishSurfaceInventory, usesProgrammaticScroll, walkDisclosures } from "@orb/testkit/browser/spec";
+import { controlledPanel, usesProgrammaticScroll } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS } from "@orb/testkit/ct";
-import type { SurfaceCoverageDisposition, SurfaceCoverageInventory, SurfaceProviderEvidence } from "@orb/testkit/iso";
+import type { SurfaceProviderEvidence } from "@orb/testkit/iso";
 import { parseSurfaceProviderEvidence } from "@orb/testkit/iso";
 import { CORPUS_STRUCTURED_REPLIES } from "@orb/testkit/node/composed";
 import { attachNativeFile, isTrpcRequestFor, matchesTrpcRequestInput, readTrpcOutput, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Locator, Request, Response } from "@playwright/test";
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 import { CHARACTERS_SECTION_LABEL } from "#client/features/character/lib/characters-section-label.ts";
 import { CHATS_SECTION_LABEL } from "#client/features/chat/lib/chats-section-label.ts";
 import { homeAlsoOpenVisible } from "#client/features/chat/lib/home-also-open-visibility.ts";
@@ -34,11 +33,12 @@ import { PRESETS_SECTION_LABEL } from "#client/features/preset/lib/presets-secti
 import { REFINERY_SECTION_LABEL } from "#client/features/refinery/lib/refinery-section-label.ts";
 import { homeRostersVisible } from "#client/features/roster-preset/lib/home-rosters-visibility.ts";
 import { rosterCountsSuffix } from "#client/features/roster-preset/lib/roster-copy.ts";
+import { ANALYTICS_SEARCH_NAME } from "#client/features/stats/lib/analytics-names.ts";
 import { ANALYTICS_DEFAULT_SORT, ANALYTICS_SORT_OPTIONS } from "#client/features/stats/lib/analytics-view-model.ts";
 import { LEADERBOARD_ROW_ATTR } from "#client/features/stats/lib/leaderboard-row-attr.ts";
+import { TAG_FILTER_NAME } from "#client/features/tag/lib/tag-list-name.ts";
 import { BLANK_CHAT_NAME, START_TEMP_CHAT_NAME } from "#client/lib/chat-launch-names.ts";
 import { deriveChatTitle } from "#client/lib/chat-title.ts";
-import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { CORPUS_MODE_LABELS, CORPUS_MODES } from "#client/lib/corpus-modes.ts";
 import { ROW_DELETE_NAME, ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
@@ -46,108 +46,57 @@ import type { SectionId } from "#client/state/section-ids.ts";
 import { SECTION_IDS } from "#client/state/section-ids.ts";
 import { messageRow, waitForAppReady } from "./chat-room.ts";
 import type { SurfaceFlow } from "./surface-flow.ts";
+import type { SurfaceWalk } from "./surface-walker.ts";
+import {
+  checkpoint,
+  content,
+  createSurfaceWalk,
+  dismissContext,
+  expectSubject,
+  nativeWheel,
+  observe,
+  pane,
+  publishWalk,
+  ready,
+  reveal,
+  skip,
+  switchListScreen,
+  walkChoices,
+  walkDoor,
+  walkMenuTrigger,
+  walkScope,
+} from "./surface-walker.ts";
 
-const MAX_DEPTH = 8;
-const MAX_DISCLOSURES = 100;
-const MAX_SCROLL_REGIONS = 32;
-const SCROLL_TOLERANCE = 2;
-const MAX_SCROLL_ADVANCES = 64;
 const SEARCH_MISS = "surface-walk-no-result-6af7c21";
 const EMPTY_FIELD_QUERY = "6af7c21a4c29f6d0e87b1935d2a48cf0";
 
 type OwnedSection = Exclude<SectionId, "chats" | "characters" | "config">;
 
-interface Observation {
-  readonly id: string;
-  readonly kind: string;
-  readonly status: SurfaceCoverageDisposition;
-  readonly reason: string;
-}
-
-interface Journey {
-  readonly flow: SurfaceFlow;
-  readonly observations: Observation[];
-  readonly expected: SurfaceCoverageInventory["expected"][number][];
+type Journey = SurfaceWalk & {
   readonly presetMenus: { readonly id: string; readonly family: string; readonly leaves: readonly string[] }[];
-}
-
-interface ScrollGeometry {
-  readonly position: number;
-  readonly extent: number;
-  readonly total: number;
-  readonly maximum: number;
-  readonly virtual: boolean;
-  readonly snap: string;
-  readonly terminal: { readonly start: number; readonly end: number; readonly position: string | null } | null;
-  readonly port: { readonly start: number; readonly end: number };
-}
-
-function expectSubject(journey: Journey, id: string, kind: string): void {
-  if (!journey.expected.some((subject) => subject.id === id && subject.kind === kind)) {
-    journey.expected.push({ id, kind });
-  }
-}
-
-function observe(journey: Journey, id: string, status: SurfaceCoverageDisposition, reason: string): void {
-  const kind = journey.expected.find((subject) => subject.id === id)?.kind ?? "surface";
-  expectSubject(journey, id, kind);
-  journey.observations.push({ id, kind, status, reason });
-}
-
-function pane(journey: Journey, side: "list" | "context"): Locator {
-  return journey.flow.page.locator(`.shell-panel[data-panel-side="${side}"]`);
-}
-
-function content(journey: Journey): Locator {
-  return journey.flow.page.locator("main");
-}
-
-async function ready(scope: Locator): Promise<void> {
-  await expect(scope).toBeVisible();
-  await expect(scope.locator('[data-slot="skeleton"]:visible')).toHaveCount(0);
-  // Native field values are not child text, including legitimately empty editor fields.
-  if (await scope.evaluate((node) => node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement)) {
-    return;
-  }
-  await expect(scope).not.toBeEmpty();
-  await expect(scope).toContainText(/\S/u);
-}
-
-async function checkpoint(journey: Journey, id: string, scope: Locator, witness: Locator = scope): Promise<void> {
-  await ready(scope);
-  const errors = scope.locator('[data-slot="query-error"]:visible');
-  const error = (await errors.count()) > 0;
-  await journey.flow.checkpoint({ name: id, scope, state: error ? "error" : "loaded", witnesses: [error ? errors.first() : witness], checks: SURFACE_CHECKS });
-  observe(
-    journey,
-    id,
-    error ? "failed" : "visited",
-    error ? "Actual production query-error state; not a loaded-content acceptance" : "Actual selected production body rendered without a loading skeleton",
-  );
-  expect(error, `${id}: unexpected production read failure; the error-state checkpoint and failed inventory observation retain its diagnostics`).toBe(false);
-}
+};
 
 async function enter(journey: Journey, section: OwnedSection): Promise<void> {
-  await journey.flow.page.goto("/");
-  await waitForAppReady(journey.flow.page);
+  await journey.page.goto("/");
+  await waitForAppReady(journey.page);
   const label = sectionLabel(section);
-  const rail = journey.flow.page.getByRole("navigation", { name: "Primary", exact: true });
+  const rail = journey.page.getByRole("navigation", { name: "Primary", exact: true });
   const direct = rail.getByRole("button", { name: label, exact: true });
-  await journey.flow.action(`rail/${section}`, {
+  await journey.action(`rail/${section}`, {
     action: async () => {
       if (await direct.isVisible()) {
         await direct.click();
       } else {
         await rail.getByRole("button", { name: "You", exact: true }).click();
-        await journey.flow.page.getByRole("dialog").getByRole("button", { name: label, exact: true }).click();
+        await journey.page.getByRole("dialog").getByRole("button", { name: label, exact: true }).click();
       }
     },
     ready: async () => {
-      await expect(journey.flow.page.getByRole("dialog")).toHaveCount(0);
-      await expect(journey.flow.page.locator(".shell-grid")).toHaveAttribute("data-section", section);
+      await expect(journey.page.getByRole("dialog")).toHaveCount(0);
+      await expect(journey.page.locator(".shell-grid")).toHaveAttribute("data-section", section);
     },
   });
-  await journey.flow.requestPanes();
+  await journey.requestPanes();
   observe(journey, `rail/${section}`, "visited", "Native Primary/You navigation completed with requested pane intent applied before surface capture");
   const requested = (await content(journey).isVisible()) ? content(journey) : pane(journey, "list");
   await checkpoint(journey, `${section}/requested-pane-composition`, requested);
@@ -170,215 +119,16 @@ function sectionLabel(section: OwnedSection): string | RegExp {
   }
 }
 
-async function reveal(journey: Journey, side: "list" | "context"): Promise<boolean> {
-  const region = pane(journey, side);
-  const available = await region.getAttribute("data-panel-available");
-  if (available === "false") {
-    return false;
-  }
-  await expect(region).toHaveAttribute("data-panel-available", "true");
-  if (side === "list") {
-    await dismissContext(journey);
-  }
-  if ((await region.getAttribute("data-panel-mode")) === "collapsed") {
-    if (side === "list") {
-      await switchListScreen(journey);
-    } else {
-      await journey.flow.page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
-    }
-    observe(
-      journey,
-      `extra-pane/${side}`,
-      "visited",
-      "Explicit navigation/inspection pane state in addition to the requested composition captured at rail entry",
-    );
-  }
-  await expect(region).not.toHaveAttribute("data-panel-mode", "collapsed");
-  await expect(region).toBeVisible();
-  return true;
-}
-
-async function switchListScreen(journey: Journey): Promise<void> {
-  const control = journey.flow.page.locator(".shell-topbar-lead > button");
-  await expect(control).toHaveCount(1);
-  await expect(control).toHaveAccessibleName(/\S/u);
-  await control.click();
-}
-
-async function tabBodies(journey: Journey, scope: Locator, prefix: string, depth = 0): Promise<void> {
-  const lists = await scope.getByRole("tablist").all();
-  if (depth >= MAX_DEPTH) {
-    observe(journey, `${prefix}/nested-tabs`, "unvisited", `${String(lists.length)} tablists exceed the explicit traversal bound`);
-    return;
-  }
-  for (const [listIndex, list] of lists.entries()) {
-    const tabs = await list.getByRole("tab").all();
-    const expected = await Promise.all(tabs.map((tab) => tab.ariaSnapshot()));
-    for (const index of tabs.keys()) {
-      expectSubject(journey, `${prefix}/tabs-${String(listIndex)}/${String(index)}`, "tab");
-    }
-    await attachNativeFile(journey.flow.info, journey.flow.info, `${prefix}-tabs-${String(listIndex)}-expected`, {
-      body: JSON.stringify(expected),
-      contentType: "application/json",
-    });
-    for (const [index, tab] of tabs.entries()) {
-      const id = `${prefix}/tabs-${String(listIndex)}/${String(index)}`;
-      if (await tab.isDisabled()) {
-        observe(journey, id, "skipped", "Production tab is disabled; no body acceptance claimed");
-        continue;
-      }
-      await journey.flow.action(id, {
-        action: async () => {
-          await tab.click();
-        },
-        ready: async () => {
-          await expect(tab).toHaveAttribute("aria-selected", "true");
-          await ready(await controlledPanel(tab));
-        },
-      });
-      const body = await controlledPanel(tab);
-      await inspect(journey, body, id);
-      await tabBodies(journey, body, id, depth + 1);
-    }
-  }
-}
-
-function disclosureHooks(journey: Journey): DisclosureWalkHooks {
-  return {
-    limit: MAX_DISCLOSURES,
-    depthLimit: MAX_DEPTH,
-    completed: "visited",
-    id: (path, kind, index) => `${path}/${kind}-${String(index)}`,
-    expect: (id, kind) => expectSubject(journey, id, kind),
-    action: async (id, step) => journey.flow.action(id, step),
-    checkpoint: async (id, scope) => checkpoint(journey, id, scope),
-    record: (id, status, reason) => observe(journey, id, status, reason),
-    ready,
-    summary: (path) => ({ disclosures: `${path}/disclosures`, nestedDetails: `${path}/nested-details` }),
-  };
-}
-
-async function menuBody(journey: Journey, menu: Locator, prefix: string, depth: number): Promise<void> {
-  await checkpoint(journey, prefix, menu);
-  await attachNativeFile(journey.flow.info, journey.flow.info, `${prefix}-items`, { body: await menu.ariaSnapshot(), contentType: "text/plain" });
-  const items = menu.locator('[role^="menuitem"]:not([aria-disabled="true"]):not([disabled])');
-  await terminalMenu(journey, menu, items, prefix);
-  const submenus = await menu.locator('[role="menuitem"][aria-haspopup="menu"]:not([aria-disabled="true"]):not([disabled])').all();
-  if (depth >= MAX_DEPTH) {
-    observe(journey, `${prefix}/submenus`, "unvisited", `${String(submenus.length)} nested menus beyond the traversal bound`);
-    return;
-  }
-  for (const [index, trigger] of submenus.entries()) {
-    await trigger.focus();
-    await trigger.press("ArrowRight");
-    await expect(trigger).toHaveAttribute("aria-expanded", "true");
-    const child = journey.flow.page.getByRole("menu").last();
-    await menuBody(journey, child, `${prefix}/${String(index)}`, depth + 1);
-    await child.press("Escape");
-    await expect(trigger).toBeFocused();
-  }
-  const leaves = (await menu.locator('[role^="menuitem"]:not([aria-haspopup]):not([aria-disabled="true"])').allTextContents()).map((label) => label.trim());
-  if (prefix.startsWith("presets/")) {
-    const family = await presetMenuFamily(journey, menu, prefix);
-    journey.presetMenus.push({ id: prefix, family, leaves });
-  }
-  observe(journey, `${prefix}/leaf-actions`, "unvisited", `Actual enabled commands awaiting named execution: ${leaves.join("; ")}`);
-}
-
 async function presetMenuFamily(journey: Journey, menu: Locator, prefix: string): Promise<string> {
   if (prefix.startsWith("presets/library/")) {
     return "library";
   }
   for (const name of ["Add", "Section actions"]) {
-    if ((await menu.and(journey.flow.page.getByRole("menu", { name, exact: true })).count()) === 1) {
+    if ((await menu.and(journey.page.getByRole("menu", { name, exact: true })).count()) === 1) {
       return name;
     }
   }
   return "unclassified";
-}
-
-async function terminalMenu(journey: Journey, menu: Locator, items: Locator, prefix: string): Promise<void> {
-  if ((await items.count()) === 0) {
-    observe(journey, `${prefix}/terminal`, "skipped", "All actual items are disabled");
-    return;
-  }
-  await menu.press("End");
-  await expect(items.last()).toBeFocused();
-  await checkpoint(journey, `${prefix}/terminal`, menu, items.last());
-}
-
-async function menus(journey: Journey, scope: Locator, prefix: string): Promise<void> {
-  if (prefix.startsWith("corpus/labels") && (await scope.getByRole("textbox", { name: "Filter tags", exact: true }).count()) === 1) {
-    await labelMenus(journey, scope, prefix);
-    return;
-  }
-  const triggers = await scope.locator('button[aria-haspopup="menu"]:visible').all();
-  for (const index of triggers.keys()) {
-    expectSubject(journey, `${prefix}/menu-${String(index)}`, "menu");
-  }
-  for (const [index, trigger] of triggers.entries()) {
-    await inspectMenuTrigger(journey, trigger, `${prefix}/menu-${String(index)}`);
-  }
-}
-
-async function inspectMenuTrigger(journey: Journey, trigger: Locator, id: string): Promise<void> {
-  if (await trigger.isDisabled()) {
-    observe(journey, id, "skipped", "Actual menu trigger is disabled");
-    return;
-  }
-  await journey.flow.action(id, {
-    action: async () => {
-      await trigger.click();
-    },
-    ready: async () => {
-      await expect(trigger).toHaveAttribute("aria-expanded", "true");
-      await expect(journey.flow.page.getByRole("menu")).toHaveCount(1);
-    },
-  });
-  const menu = journey.flow.page.getByRole("menu");
-  await menuBody(journey, menu, id, 0);
-  if ((await menu.and(journey.flow.page.getByRole("menu", { name: "All Corpus tabs", exact: true })).count()) === 1) {
-    await contextMenuTabs(journey, trigger, menu, id);
-    return;
-  }
-  await menu.press("Escape");
-  await expect(menu).toBeHidden();
-  await expect(trigger).toBeFocused();
-}
-
-async function contextMenuTabs(journey: Journey, trigger: Locator, menu: Locator, id: string): Promise<void> {
-  const names = (await menu.getByRole("menuitemradio").allTextContents()).map((label) => label.trim());
-  expect(names.length).toBeGreaterThan(0);
-  for (const [index, name] of names.entries()) {
-    if (index > 0) {
-      await trigger.click();
-      await ready(menu);
-    }
-    const tab = pane(journey, "context").getByRole("tab", { name, exact: true });
-    await journey.flow.action(`${id}/activate/${name}`, {
-      action: async () => {
-        await menu.getByRole("menuitemradio", { name, exact: true }).click();
-      },
-      ready: async () => {
-        await expect(menu).toBeHidden();
-        await expect(tab).toHaveAttribute("aria-selected", "true");
-        await ready(await controlledPanel(tab));
-        await expect(trigger).toBeFocused();
-      },
-    });
-    observe(
-      journey,
-      `${id}/leaf-${String(index)}`,
-      "visited",
-      `Actual overflow radio ${name} activated its registry-owned tab and loaded body; focus returned to the native trigger`,
-    );
-  }
-  observe(
-    journey,
-    `${id}/leaf-actions`,
-    "visited",
-    `All ${String(names.length)} actual native overflow tab radios activated with loaded-panel and focus-return witnesses`,
-  );
 }
 
 async function labelMenus(journey: Journey, scope: Locator, prefix: string): Promise<void> {
@@ -388,12 +138,12 @@ async function labelMenus(journey: Journey, scope: Locator, prefix: string): Pro
       tagId: node.closest("[data-label-row]")?.getAttribute("data-label-row") ?? null,
     })),
   );
-  await attachNativeFile(journey.flow.info, journey.flow.info, `${prefix}-native-menu-roster`, {
+  await attachNativeFile(journey.info, journey.info, `${prefix}-native-menu-roster`, {
     body: JSON.stringify(roster),
     contentType: "application/json",
   });
-  const tags = await journey.flow.client.tag.listTagsWithUsage.query();
-  const filter = scope.getByRole("textbox", { name: "Filter tags", exact: true });
+  const tags = await journey.client.tag.listTagsWithUsage.query();
+  const filter = scope.getByRole("textbox", { name: TAG_FILTER_NAME, exact: true });
   const priorFilter = await filter.inputValue();
   for (const index of roster.keys()) {
     expectSubject(journey, `${prefix}/menu-${String(index)}`, "menu");
@@ -402,15 +152,15 @@ async function labelMenus(journey: Journey, scope: Locator, prefix: string): Pro
     for (const [index, entry] of roster.entries()) {
       const id = `${prefix}/menu-${String(index)}`;
       if (entry.tagId === null) {
-        await inspectMenuTrigger(journey, scope.locator(`[id=${JSON.stringify(entry.triggerId)}]`), id);
+        await walkMenuTrigger(journey, scope.locator(`[id=${JSON.stringify(entry.triggerId)}]`), id);
         continue;
       }
       const tag = tags.find(({ id: tagId }) => tagId === entry.tagId);
-      if (tag === undefined || !journey.flow.run.subjects.tags.some(({ id: tagId }) => tagId === tag.id)) {
+      if (tag === undefined || !journey.run.subjects.tags.some(({ id: tagId }) => tagId === tag.id)) {
         throw new Error("The native Labels menu census must retain an admitted original tag identity");
       }
       const row = scope.locator(`[data-label-row=${JSON.stringify(tag.id)}]`);
-      await journey.flow.action(`${id}/reveal-original`, {
+      await journey.action(`${id}/reveal-original`, {
         action: async () => {
           await filter.fill(tag.name);
         },
@@ -423,7 +173,7 @@ async function labelMenus(journey: Journey, scope: Locator, prefix: string): Pro
       const trigger = row.locator('button[aria-haspopup="menu"]');
       await expect(trigger).toHaveCount(1);
       await expect(trigger).toHaveCSS("opacity", "1");
-      await inspectMenuTrigger(journey, trigger, id);
+      await walkMenuTrigger(journey, trigger, id);
     }
     await disposableLabelDelete(journey, scope, prefix);
     for (const [index, entry] of roster.entries()) {
@@ -441,11 +191,11 @@ async function labelMenus(journey: Journey, scope: Locator, prefix: string): Pro
     const overflowIndex = roster.findIndex((entry) => entry.triggerId === overflowId);
     expect(overflowIndex).toBeGreaterThanOrEqual(0);
     await overflow.click();
-    await expect(journey.flow.page.getByRole("menu").getByRole("menuitem")).toHaveText(["Prune unused tags"]);
-    const prune = journey.flow.page.getByRole("menu").getByRole("menuitem", { name: "Prune unused tags", exact: true });
+    await expect(journey.page.getByRole("menu").getByRole("menuitem")).toHaveText(["Prune unused tags"]);
+    const prune = journey.page.getByRole("menu").getByRole("menuitem", { name: "Prune unused tags", exact: true });
     await expect(prune).toBeVisible();
     await prune.click();
-    const confirm = journey.flow.page.getByRole("alertdialog");
+    const confirm = journey.page.getByRole("alertdialog");
     await expect(confirm).toHaveCount(1);
     await ready(confirm);
     await checkpoint(journey, `${prefix}/prune/confirm`, confirm);
@@ -466,27 +216,27 @@ async function labelMenus(journey: Journey, scope: Locator, prefix: string): Pro
 }
 
 async function disposableLabelDelete(journey: Journey, scope: Locator, prefix: string): Promise<void> {
-  const tag = await journey.flow.client.tag.createTag.mutate({ input: { name: `Surface menu ${crypto.randomUUID()}` } });
-  expect(journey.flow.run.subjects.tags.some(({ id }) => id === tag.id)).toBe(false);
+  const tag = await journey.client.tag.createTag.mutate({ input: { name: `Surface menu ${crypto.randomUUID()}` } });
+  expect(journey.run.subjects.tags.some(({ id }) => id === tag.id)).toBe(false);
   try {
-    await scope.getByRole("textbox", { name: "Filter tags", exact: true }).fill(tag.name);
+    await scope.getByRole("textbox", { name: TAG_FILTER_NAME, exact: true }).fill(tag.name);
     const row = scope.locator(`[data-label-row=${JSON.stringify(tag.id)}]`);
     await expect(row).toBeVisible();
     await row.hover();
     await row.locator('button[aria-haspopup="menu"]').click();
-    const menu = journey.flow.page.getByRole("menu");
+    const menu = journey.page.getByRole("menu");
     await expect(menu.getByRole("menuitem")).toHaveText([ROW_DELETE_NAME]);
     await menu.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
-    const confirm = journey.flow.page.getByRole("alertdialog", { name: `Delete "${tag.name}"?`, exact: true });
+    const confirm = journey.page.getByRole("alertdialog", { name: `Delete "${tag.name}"?`, exact: true });
     await expect(confirm).toBeVisible();
     await checkpoint(journey, `${prefix}/disposable/Delete/confirm`, confirm);
-    await journey.flow.action(`${prefix}/disposable/${tag.id}/Delete`, {
+    await journey.action(`${prefix}/disposable/${tag.id}/Delete`, {
       action: async () => {
         await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
       },
       ready: async () => {
         await expect(confirm).toBeHidden();
-        await expect.poll(async () => (await journey.flow.client.tag.listTagsWithUsage.query()).some(({ id }) => id === tag.id)).toBe(false);
+        await expect.poll(async () => (await journey.client.tag.listTagsWithUsage.query()).some(({ id }) => id === tag.id)).toBe(false);
         await expect(row).toHaveCount(0);
       },
     });
@@ -497,8 +247,8 @@ async function disposableLabelDelete(journey: Journey, scope: Locator, prefix: s
       `Native row menu/confirm deleted production-created ${tag.id}; canonical owner read and native row absence agree`,
     );
   } finally {
-    if ((await journey.flow.client.tag.listTagsWithUsage.query()).some(({ id }) => id === tag.id)) {
-      await journey.flow.client.tag.removeTag.mutate({ tagId: tag.id });
+    if ((await journey.client.tag.listTagsWithUsage.query()).some(({ id }) => id === tag.id)) {
+      await journey.client.tag.removeTag.mutate({ tagId: tag.id });
     }
   }
 }
@@ -511,7 +261,7 @@ async function loadNativePages(
   let loaded = await readLoaded();
   while (loaded < total) {
     const before = loaded;
-    await journey.flow.action(`${id}/page-after-${String(before)}`, {
+    await journey.action(`${id}/page-after-${String(before)}`, {
       action: async () => {
         await list.hover();
         await nativeWheel(journey, list, "y", await list.evaluate((node) => node.scrollHeight));
@@ -527,7 +277,7 @@ async function loadNativePages(
     journey,
     id,
     "visited",
-    `${String(loaded)} actual rows loaded through ${usesProgrammaticScroll(journey.flow.page, journey.flow.info) ? "CSSOM positioning, not wheel or touch proof" : "native scrolling"} against the exact production query census`,
+    `${String(loaded)} actual rows loaded through ${usesProgrammaticScroll(journey.page, journey.info) ? "CSSOM positioning, not wheel or touch proof" : "native scrolling"} against the exact production query census`,
   );
 }
 
@@ -536,7 +286,7 @@ async function loadCorpusCatalog(journey: Journey): Promise<void> {
   if ((await list.count()) === 0) {
     return;
   }
-  const census = await journey.flow.client.discovery.browseCharacters.query({});
+  const census = await journey.client.discovery.browseCharacters.query({});
   await loadNativePages(journey, {
     list,
     total: census.totalCount,
@@ -550,7 +300,7 @@ async function loadRefineryPicker(journey: Journey): Promise<void> {
   if ((await list.count()) === 0) {
     return;
   }
-  const census = await journey.flow.client.character.list.query({});
+  const census = await journey.client.character.list.query({});
   await loadNativePages(journey, {
     list,
     total: census.totalCount,
@@ -559,280 +309,23 @@ async function loadRefineryPicker(journey: Journey): Promise<void> {
   });
 }
 
-async function scrollWindows(journey: Journey, scope: Locator, prefix: string): Promise<void> {
-  const regions = await scope.evaluate((root) => {
-    const pathOf = (node: Element): string => {
-      const parts: string[] = [];
-      let cursor = node;
-      while (cursor !== root) {
-        const parent = cursor.parentElement;
-        if (parent === null) {
-          throw new Error("A scroll subject left its declared scope");
-        }
-        parts.unshift(`:nth-child(${String([...parent.children].indexOf(cursor) + 1)})`);
-        cursor = parent;
-      }
-      return parts.join(" > ");
-    };
-    const axesOf = (node: HTMLElement): string[] => {
-      const style = getComputedStyle(node);
-      const axes: string[] = [];
-      if (/auto|scroll/u.test(style.overflowY) && node.scrollHeight > node.clientHeight + 2 && node.clientHeight > 0) {
-        axes.push("y");
-      }
-      if (/auto|scroll/u.test(style.overflowX) && node.scrollWidth > node.clientWidth + 2 && node.clientWidth > 0) {
-        axes.push("x");
-      }
-      return axes;
-    };
-    const nodes = [root, ...root.querySelectorAll("*")];
-    return nodes.flatMap((node) => {
-      if (!(node instanceof HTMLElement)) {
-        return [];
-      }
-      return axesOf(node).map((axis) => ({ axis, path: pathOf(node) }));
-    });
-  });
-  for (const [index, region] of regions.slice(0, MAX_SCROLL_REGIONS).entries()) {
-    const viewport = region.path === "" ? scope : scope.locator(`:scope > ${region.path}`);
-    for (const ratio of [0, 0.5, 1]) {
-      expectSubject(journey, `${prefix}/scroll-${String(index)}-${String(ratio)}`, "scroll-window");
-    }
-    for (const ratio of [0, 0.5, 1]) {
-      await scrollWindow(journey, viewport, { axis: region.axis, ratio, id: `${prefix}/scroll-${String(index)}-${String(ratio)}` });
-    }
-  }
-  observe(
-    journey,
-    `${prefix}/scroll-regions`,
-    regions.length > MAX_SCROLL_REGIONS ? "unvisited" : "visited",
-    `${String(regions.length)} native overflowing regions; beginning/interior/tail windows, not a claim of every virtualized row`,
-  );
-}
-
-async function scrollWindow(
-  journey: Journey,
-  viewport: Locator,
-  request: { readonly axis: string; readonly ratio: number; readonly id: string },
-): Promise<void> {
-  const { axis, ratio, id } = request;
-  const before = await scrollGeometry(viewport, axis);
-  const deliveries: Awaited<ReturnType<typeof nativeWheel>>[] = [];
-  try {
-    if (interiorInapplicable(before, ratio)) {
-      observe(
-        journey,
-        id,
-        "not-applicable",
-        `Measured scroll range ${String(before.maximum)}px has no interior outside both ${String(SCROLL_TOLERANCE)}px edge neighborhoods; start/end remain independently required`,
-      );
-      return;
-    }
-    await journey.flow.action(id, {
-      action: async () => {
-        await viewport.hover();
-        for (let step = 0; step < MAX_SCROLL_ADVANCES; step += 1) {
-          const state = await scrollGeometry(viewport, axis);
-          if (interiorInapplicable(state, ratio) || windowReached(state, ratio)) {
-            break;
-          }
-          const delta = state.maximum * ratio - state.position;
-          deliveries.push(await nativeWheel(journey, viewport, axis, delta));
-        }
-      },
-      ready: async () => {
-        let previous = "";
-        await expect
-          .poll(async () => {
-            const state = await scrollGeometry(viewport, axis);
-            const signature = JSON.stringify(state);
-            const settled = signature === previous;
-            previous = signature;
-            return settled && (interiorInapplicable(state, ratio) || windowReached(state, ratio));
-          })
-          .toBe(true);
-      },
-    });
-  } finally {
-    await attachNativeFile(journey.flow.info, journey.flow.info, `${id}-scroll-geometry`, {
-      body: JSON.stringify({
-        requestedRatio: ratio,
-        before,
-        after: await scrollGeometry(viewport, axis),
-        deliveries,
-        input: usesProgrammaticScroll(journey.flow.page, journey.flow.info) ? "programmatic-positioning; not wheel or touch proof" : "native-wheel",
-        subject: await viewport.evaluate((node) => ({
-          tag: node.tagName,
-          slot: node.getAttribute("data-slot"),
-          className: node.getAttribute("class"),
-          overflow: getComputedStyle(node).overflow,
-          ancestors: [
-            ...(function* () {
-              let parent = node.parentElement;
-              while (parent !== null) {
-                yield {
-                  tag: parent.tagName,
-                  slot: parent.getAttribute("data-slot"),
-                  overflow: getComputedStyle(parent).overflow,
-                  position: parent.scrollTop,
-                  height: parent.clientHeight,
-                  total: parent.scrollHeight,
-                };
-                parent = parent.parentElement;
-              }
-            })(),
-          ],
-        })),
-        coverage: "current loaded extent; not a whole-database census",
-      }),
-      contentType: "application/json",
-    });
-  }
-  const after = await scrollGeometry(viewport, axis);
-  if (interiorInapplicable(after, ratio)) {
-    observe(
-      journey,
-      id,
-      "not-applicable",
-      `Settled scroll range ${String(after.maximum)}px has no distinct interior outside both ${String(SCROLL_TOLERANCE)}px edge neighborhoods; no interior checkpoint accepted`,
-    );
-    return;
-  }
-  await checkpoint(journey, id, viewport);
-}
-
-async function nativeWheel(
-  journey: Journey,
-  viewport: Locator,
-  axis: string,
-  delta: number,
-): Promise<{ target: string; defaultPrevented: boolean; reached: boolean } | null> {
-  if (usesProgrammaticScroll(journey.flow.page, journey.flow.info)) {
-    await test.step("Programmatic positioning (mobile WebKit; not wheel or touch evidence)", async () => {
-      await viewport.evaluate((node, input) => node.scrollBy(input.axis === "x" ? input.delta : 0, input.axis === "y" ? input.delta : 0), { axis, delta });
-      await viewport.evaluate(async () => await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-    });
-    return null;
-  }
-  const delivery = await viewport.evaluateHandle((node) => {
-    let facts: { target: string; defaultPrevented: boolean; reached: boolean } | null = null;
-    const listener = (event: WheelEvent): void => {
-      queueMicrotask(() => {
-        const target = event.target;
-        facts = {
-          target: target instanceof Element ? `${target.tagName}[data-slot=${String(target.getAttribute("data-slot"))}]` : "non-element",
-          defaultPrevented: event.defaultPrevented,
-          reached: event.composedPath().includes(node),
-        };
-      });
-    };
-    node.ownerDocument.addEventListener("wheel", listener, { once: true });
-    return {
-      read: () => facts,
-      stop: () => {
-        node.ownerDocument.removeEventListener("wheel", listener);
-      },
-    };
-  });
-  try {
-    await journey.flow.page.mouse.wheel(axis === "x" ? delta : 0, axis === "y" ? delta : 0);
-    await viewport.evaluate(async () => await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-    return await delivery.evaluate((state) => state.read());
-  } finally {
-    await delivery.evaluate((state) => state.stop());
-    await delivery.dispose();
-  }
-}
-
-function interiorInapplicable(state: ScrollGeometry, ratio: number): boolean {
-  return ratio === 0.5 && state.maximum <= 2 * SCROLL_TOLERANCE;
-}
-
-async function scrollGeometry(viewport: Locator, axis: string): Promise<ScrollGeometry> {
-  return await viewport.evaluate((node, horizontal) => {
-    const box = node.getBoundingClientRect();
-    const measurement = horizontal
-      ? { position: node.scrollLeft, extent: node.clientWidth, total: node.scrollWidth, start: box.left + node.clientLeft }
-      : { position: node.scrollTop, extent: node.clientHeight, total: node.scrollHeight, start: box.top + node.clientTop };
-    const edges = (rectangle: DOMRect): { start: number; end: number } =>
-      horizontal ? { start: rectangle.left, end: rectangle.right } : { start: rectangle.top, end: rectangle.bottom };
-    const terminal = [...node.querySelectorAll("[aria-posinset][aria-setsize]")].find(
-      (row) => row.closest('[data-slot="virtual-list-scroll"]') === node && row.getAttribute("aria-posinset") === row.getAttribute("aria-setsize"),
-    );
-    return {
-      position: measurement.position,
-      extent: measurement.extent,
-      total: measurement.total,
-      maximum: measurement.total - measurement.extent,
-      virtual: node.matches('[data-slot="virtual-list-scroll"]'),
-      snap: getComputedStyle(node).scrollSnapType,
-      terminal: terminal === undefined ? null : { ...edges(terminal.getBoundingClientRect()), position: terminal.getAttribute("aria-posinset") },
-      port: { start: measurement.start, end: measurement.start + measurement.extent },
-    };
-  }, axis === "x");
-}
-
-function windowReached(state: ScrollGeometry, ratio: number): boolean {
-  if (ratio === 0) {
-    return state.position <= SCROLL_TOLERANCE;
-  }
-  if (ratio === 1) {
-    const edge = state.terminal === null ? !state.virtual : state.terminal.end <= state.port.end + SCROLL_TOLERANCE && state.terminal.end > state.port.start;
-    return state.maximum - state.position <= SCROLL_TOLERANCE && edge;
-  }
-  const midpoint = state.total / 2;
-  return (
-    state.position > SCROLL_TOLERANCE &&
-    state.maximum - state.position > SCROLL_TOLERANCE &&
-    state.position < midpoint &&
-    state.position + state.extent > midpoint
-  );
-}
-
-async function inspect(journey: Journey, scope: Locator, id: string): Promise<void> {
-  await checkpoint(journey, id, scope);
-  await walkDisclosures(scope, id, disclosureHooks(journey));
-  await menus(journey, scope, id);
-  await scrollWindows(journey, scope, id);
-}
-
 async function context(journey: Journey, prefix: string): Promise<void> {
   if (!(await reveal(journey, "context"))) {
-    observe(journey, `${prefix}/context`, "skipped", "Production section declares no Context pane");
+    observe(journey, `${prefix}/context`, "not-applicable", "Production section declares no Context pane");
     return;
   }
   const region = pane(journey, "context");
-  await inspect(journey, region, `${prefix}/context`);
-  await tabBodies(journey, region, `${prefix}/context`);
+  await walkScope(journey, region, `${prefix}/context`);
   await dismissContext(journey);
-}
-
-async function pressableChoices(journey: Journey, group: Locator, body: Locator, prefix: string): Promise<void> {
-  const choices = await group.getByRole("button").all();
-  for (const [index, radio] of choices.entries()) {
-    if (await radio.isDisabled()) {
-      observe(journey, `${prefix}/${String(index)}`, "skipped", "Production mode is disabled");
-      continue;
-    }
-    await journey.flow.action(`${prefix}/${String(index)}`, {
-      action: async () => {
-        await radio.click();
-      },
-      ready: async () => {
-        await expect(radio).toHaveAttribute("aria-pressed", "true");
-      },
-    });
-    await inspect(journey, body, `${prefix}/${String(index)}`);
-  }
 }
 
 async function home(journey: Journey): Promise<void> {
   await enter(journey, "home");
   const main = content(journey);
   await ready(main);
-  const rooms = await journey.flow.client.chat.listChats.query({ limit: HOME_RECENT_CHATS_LIMIT });
-  const rosters = await journey.flow.client.rosterPreset.count.query();
-  const mobile = await journey.flow.page.evaluate((query) => matchMedia(query).matches, MEDIA_QUERIES["shell-mobile"]);
+  const rooms = await journey.client.chat.listChats.query({ limit: HOME_RECENT_CHATS_LIMIT });
+  const rosters = await journey.client.rosterPreset.count.query();
+  const mobile = await journey.page.evaluate((query) => matchMedia(query).matches, MEDIA_QUERIES["shell-mobile"]);
   const expected = HOME_TILE_IDS.filter((id) => {
     if (id === ALSO_OPEN_TILE_ID) {
       return homeAlsoOpenVisible(rooms.items.length);
@@ -859,7 +352,7 @@ async function home(journey: Journey): Promise<void> {
       continue;
     }
     const tile = main.locator(`[data-home-tile=${JSON.stringify(id)}]:visible`);
-    await journey.flow.action(`home/tile/${id}/reveal`, {
+    await journey.action(`home/tile/${id}/reveal`, {
       action: async () => {
         await tile.scrollIntoViewIfNeeded();
       },
@@ -875,15 +368,15 @@ async function home(journey: Journey): Promise<void> {
           .toBe(true);
       },
     });
-    await inspect(journey, tile, `home/tile/${id}`);
+    await walkScope(journey, tile, `home/tile/${id}`);
   }
-  await inspect(journey, main, "home/whole-scroller");
-  await attachNativeFile(journey.flow.info, journey.flow.info, "home-registry-admission", {
+  await walkScope(journey, main, "home/whole-scroller");
+  await attachNativeFile(journey.info, journey.info, "home-registry-admission", {
     body: JSON.stringify({ registered: HOME_TILE_IDS, expected, inputs: { roomCount: rooms.items.length, rosterCount: rosters, mobile } }, null, 2),
     contentType: "application/json",
   });
   await homeNavigation(journey);
-  await journey.flow.requestPanes();
+  await journey.requestPanes();
 }
 
 interface HomeOperation {
@@ -892,17 +385,17 @@ interface HomeOperation {
 }
 
 async function returnHome(journey: Journey): Promise<void> {
-  await journey.flow.page.getByRole("navigation", { name: "Primary", exact: true }).getByRole("button", { name: SECTION_LABELS.home, exact: true }).click();
-  await expect(journey.flow.page.locator(".shell-grid")).toHaveAttribute("data-section", "home");
+  await journey.page.getByRole("navigation", { name: "Primary", exact: true }).getByRole("button", { name: SECTION_LABELS.home, exact: true }).click();
+  await expect(journey.page.locator(".shell-grid")).toHaveAttribute("data-section", "home");
   await ready(content(journey));
-  await journey.flow.requestPanes();
+  await journey.requestPanes();
 }
 
 async function homeOperation(journey: Journey, operations: readonly HomeOperation[], button: Locator, run: (id: string) => Promise<void>): Promise<void> {
   const snapshot = await button.ariaSnapshot();
-  const matches = operations.filter((candidate) => candidate.snapshot === snapshot);
-  expect(matches, "The native Home action must retain a unique original rendered identity").toHaveLength(1);
-  const operation = matches.at(0);
+  // Two rooms can render alike, so the first action of that identity no earlier step completed is this one.
+  const done = new Set(journey.observations.filter(({ disposition }) => disposition === "visited").map(({ id }) => id));
+  const operation = operations.find((candidate) => candidate.snapshot === snapshot && !done.has(candidate.id));
   if (operation === undefined) {
     throw new Error("The selected Home action has no admitted native identity");
   }
@@ -917,9 +410,9 @@ async function homeOperation(journey: Journey, operations: readonly HomeOperatio
 }
 
 async function homeSectionDoor(journey: Journey, button: Locator, label: string, id: string): Promise<void> {
-  const destination = journey.flow.page.getByRole("main");
-  const selected = journey.flow.page.getByRole("navigation", { name: "Primary", exact: true }).getByRole("button", { name: label, exact: true });
-  await journey.flow.action(id, {
+  const destination = journey.page.getByRole("main");
+  const selected = journey.page.getByRole("navigation", { name: "Primary", exact: true }).getByRole("button", { name: label, exact: true });
+  await journey.action(id, {
     action: async () => {
       await button.focus();
       await button.press("Enter");
@@ -929,12 +422,12 @@ async function homeSectionDoor(journey: Journey, button: Locator, label: string,
       await ready(destination);
     },
   });
-  await journey.flow.requestPanes();
+  await journey.requestPanes();
   await checkpoint(journey, id, destination);
 }
 
 async function homeCreatedRoom(journey: Journey, id: string, activate: () => Promise<void>, presetId?: RosterPresetId): Promise<void> {
-  const originalIds = new Set(journey.flow.run.subjects.chats.map((room) => room.id));
+  const originalIds = new Set(journey.run.subjects.chats.map((room) => room.id));
   const created = new Set<ChatId>();
   const starts: StartChatInput[] = [];
   const applied = new Set<ChatId>();
@@ -975,15 +468,15 @@ async function homeCreatedRoom(journey: Journey, id: string, activate: () => Pro
       },
     });
   };
-  journey.flow.page.on("request", onRequest);
-  journey.flow.page.on("response", onResponse);
+  journey.page.on("request", onRequest);
+  journey.page.on("response", onResponse);
   try {
-    await journey.flow.action(id, {
+    await journey.action(id, {
       action: activate,
       ready: async () => {
         await expect.poll(() => starts.length).toBe(1);
         await expect.poll(() => created.size).toBe(1);
-        await expect(journey.flow.page.getByRole("group", { name: "Message composer", exact: true })).toBeVisible();
+        await expect(journey.page.getByRole("group", { name: "Message composer", exact: true })).toBeVisible();
       },
     });
     const chatId = [...created].at(0);
@@ -994,22 +487,22 @@ async function homeCreatedRoom(journey: Journey, id: string, activate: () => Pro
     if (presetId !== undefined) {
       await homeRosterApplied(applied, chatId);
     }
-    const detail = await journey.flow.client.chat.getChat.query({ chatId });
+    const detail = await journey.client.chat.getChat.query({ chatId });
     expect(detail.viewerIsHost).toBe(true);
     expect(detail.temporary).toBe(input.temporary === true);
-    expect(input.characterIds.every((characterId) => journey.flow.run.subjects.characters.some(({ id: original }) => original === characterId))).toBe(true);
-    await attachNativeFile(journey.flow.info, journey.flow.info, `${id}-created-identity`, {
+    expect(input.characterIds.every((characterId) => journey.run.subjects.characters.some(({ id: original }) => original === characterId))).toBe(true);
+    await attachNativeFile(journey.info, journey.info, `${id}-created-identity`, {
       body: JSON.stringify({ chatId, input, original: false }),
       contentType: "application/json",
     });
-    await journey.flow.requestPanes();
-    await checkpoint(journey, `${id}/created`, content(journey), journey.flow.page.getByRole("group", { name: "Message composer", exact: true }));
+    await journey.requestPanes();
+    await checkpoint(journey, `${id}/created`, content(journey), journey.page.getByRole("group", { name: "Message composer", exact: true }));
   } finally {
-    journey.flow.page.off("request", onRequest);
-    journey.flow.page.off("response", onResponse);
+    journey.page.off("request", onRequest);
+    journey.page.off("response", onResponse);
     for (const chatId of created) {
       expect(originalIds.has(chatId)).toBe(false);
-      await journey.flow.client.chat.delete.mutate({ chatId });
+      await journey.client.chat.delete.mutate({ chatId });
     }
   }
 }
@@ -1019,7 +512,7 @@ async function homeRosterApplied(applied: ReadonlySet<ChatId>, chatId: ChatId): 
 }
 
 async function homeChatDoors(journey: Journey, operations: readonly HomeOperation[]): Promise<void> {
-  const rooms = await journey.flow.client.chat.listChats.query({ limit: HOME_RECENT_CHATS_LIMIT });
+  const rooms = await journey.client.chat.listChats.query({ limit: HOME_RECENT_CHATS_LIMIT });
   const { hearth, rest } = splitHearth(rooms.items);
   const recents = content(journey).locator(`[data-home-tile=${JSON.stringify(CHAT_RECENTS_TILE_ID)}]`);
   const resume = recents.getByRole("button", { name: /^Resume /u });
@@ -1043,25 +536,25 @@ async function homeChatDoors(journey: Journey, operations: readonly HomeOperatio
 }
 
 async function homeResume(journey: Journey, button: Locator, chatId: ChatId, id: string): Promise<void> {
-  expect(journey.flow.run.subjects.chats.some((room) => room.id === chatId)).toBe(true);
-  const page = await journey.flow.client.chat.listMessages.query({ chatId });
+  expect(journey.run.subjects.chats.some((room) => room.id === chatId)).toBe(true);
+  const page = await journey.client.chat.listMessages.query({ chatId });
   const tail = page.messages.at(-1);
-  const witness = tail === undefined ? journey.flow.page.getByRole("group", { name: "Message composer", exact: true }) : messageRow(journey.flow.page, tail.id);
-  await journey.flow.action(id, {
+  const witness = tail === undefined ? journey.page.getByRole("group", { name: "Message composer", exact: true }) : messageRow(journey.page, tail.id);
+  await journey.action(id, {
     action: async () => {
       await button.click();
     },
     ready: async () => {
-      await expect(journey.flow.page.locator(".shell-grid")).toHaveAttribute("data-section", "chats");
+      await expect(journey.page.locator(".shell-grid")).toHaveAttribute("data-section", "chats");
       await expect(witness).toBeVisible();
     },
   });
-  await journey.flow.requestPanes();
+  await journey.requestPanes();
   await checkpoint(journey, id, content(journey), witness);
 }
 
 async function homeQuickPickDoors(journey: Journey, operations: readonly HomeOperation[]): Promise<void> {
-  const picks = await journey.flow.client.character.list.query({ limit: HOME_QUICK_PICKS_LIMIT });
+  const picks = await journey.client.character.list.query({ limit: HOME_QUICK_PICKS_LIMIT });
   for (const character of picks.items) {
     const tile = content(journey).locator(`[data-home-tile=${JSON.stringify(QUICK_PICKS_TILE_ID)}]`);
     const pick = tile.getByRole("button", { name: character.name, exact: true });
@@ -1071,11 +564,7 @@ async function homeQuickPickDoors(journey: Journey, operations: readonly HomeOpe
           await pick.click();
         });
       });
-    } else if (
-      (await pick.count()) === 1 &&
-      character.lastChatId !== null &&
-      journey.flow.run.subjects.chats.some((room) => room.id === character.lastChatId)
-    ) {
+    } else if ((await pick.count()) === 1 && character.lastChatId !== null && journey.run.subjects.chats.some((room) => room.id === character.lastChatId)) {
       const chatId = character.lastChatId;
       await homeOperation(journey, operations, pick, async (id) => {
         await homeResume(journey, pick, chatId, id);
@@ -1094,7 +583,7 @@ async function homeQuickPickDoors(journey: Journey, operations: readonly HomeOpe
 
 async function homeCreationDoors(journey: Journey, operations: readonly HomeOperation[]): Promise<void> {
   await homeQuickPickDoors(journey, operations);
-  const rosters = await journey.flow.client.rosterPreset.list.query({ limit: HOME_ROSTER_PREVIEW_LIMIT });
+  const rosters = await journey.client.rosterPreset.list.query({ limit: HOME_ROSTER_PREVIEW_LIMIT });
   for (const roster of rosters) {
     const start = content(journey)
       .locator(`[data-home-tile=${JSON.stringify(ROSTERS_TILE_ID)}]`)
@@ -1117,7 +606,7 @@ async function homeCreationDoors(journey: Journey, operations: readonly HomeOper
     await homeOperation(journey, operations, temporary, async (id) => {
       await homeCreatedRoom(journey, id, async () => {
         await temporary.click();
-        const picker = journey.flow.page.getByRole("dialog", { name: "New chat", exact: true });
+        const picker = journey.page.getByRole("dialog", { name: "New chat", exact: true });
         await ready(picker);
         await picker.getByRole("button", { name: BLANK_CHAT_NAME, exact: true }).click();
       });
@@ -1173,12 +662,12 @@ async function homeNavigation(journey: Journey): Promise<void> {
   if ((await add.count()) === 1) {
     await homeOperation(journey, operations, add, async (id) => {
       await add.click();
-      const dialog = journey.flow.page.getByRole("dialog", { name: "Add a document", exact: true });
-      await inspect(journey, dialog, id);
+      const dialog = journey.page.getByRole("dialog", { name: "Add a document", exact: true });
+      await walkScope(journey, dialog, id);
       await dialog.getByRole("button", { name: "Close", exact: true }).click();
     });
   }
-  const last = new Map(journey.observations.map((observation) => [observation.id, observation.status]));
+  const last = new Map(journey.observations.map((observation) => [observation.id, observation.disposition]));
   const missing = operations.filter((operation) => last.get(operation.id) !== "visited");
   observe(
     journey,
@@ -1189,32 +678,32 @@ async function homeNavigation(journey: Journey): Promise<void> {
 }
 
 async function homeSavedRosters(journey: Journey, trigger: Locator, id: string): Promise<void> {
-  const rosters = await journey.flow.client.rosterPreset.list.query();
-  const originalIds = new Set(journey.flow.run.subjects.rosters.map((roster) => roster.id));
-  const dialog = journey.flow.page.getByRole("dialog", { name: "Saved rosters", exact: true });
+  const rosters = await journey.client.rosterPreset.list.query();
+  const originalIds = new Set(journey.run.subjects.rosters.map((roster) => roster.id));
+  const dialog = journey.page.getByRole("dialog", { name: "Saved rosters", exact: true });
   const rows = dialog.locator('[data-slot="roster-row"]');
-  await journey.flow.action(`${id}/open-saved-rosters`, {
+  await journey.action(`${id}/open-saved-rosters`, {
     action: async () => {
       await trigger.click();
     },
     ready: async () => {
       await ready(dialog);
       await expect(rows).toHaveCount(rosters.length);
-      await expect(journey.flow.page.locator(".shell-grid")).toHaveAttribute("data-section", "home");
+      await expect(journey.page.locator(".shell-grid")).toHaveAttribute("data-section", "home");
     },
   });
-  await inspect(journey, dialog, `${id}/saved-rosters`);
+  await walkScope(journey, dialog, `${id}/saved-rosters`);
   for (const roster of rosters.filter((candidate) => originalIds.has(candidate.id))) {
     const row = rows.filter({
-      has: journey.flow.page.getByRole("button", { name: `Start a chat with ${roster.name}${rosterCountsSuffix(roster)}`, exact: true }),
+      has: journey.page.getByRole("button", { name: `Start a chat with ${roster.name}${rosterCountsSuffix(roster)}`, exact: true }),
     });
     await expect(row).toHaveCount(1);
     await expect(row).toContainText(roster.name);
     const remove = row.getByRole("button", { name: `Delete ${roster.name}`, exact: true });
-    const confirm = journey.flow.page.getByRole("alertdialog", { name: "Delete this roster?", exact: true });
+    const confirm = journey.page.getByRole("alertdialog", { name: "Delete this roster?", exact: true });
     const operation = `${id}/roster/${roster.id}/delete-cancel`;
     expectSubject(journey, operation, "roster-operation");
-    await journey.flow.action(operation, {
+    await journey.action(operation, {
       action: async () => {
         await remove.click();
       },
@@ -1238,7 +727,7 @@ async function homeSavedRosters(journey: Journey, trigger: Locator, id: string):
   await dialog.getByRole("button", { name: "Close", exact: true }).click();
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
-  await expect(journey.flow.page.locator(".shell-grid")).toHaveAttribute("data-section", "home");
+  await expect(journey.page.locator(".shell-grid")).toHaveAttribute("data-section", "home");
   observe(
     journey,
     `${id}/saved-rosters-actions`,
@@ -1248,10 +737,10 @@ async function homeSavedRosters(journey: Journey, trigger: Locator, id: string):
 }
 
 async function corpusTarget(journey: Journey, target: (typeof CORPUS_SEARCH_TARGETS)[number]): Promise<void> {
-  const select = journey.flow.page.getByRole("combobox", { name: "Search target", exact: true });
+  const select = journey.page.getByRole("combobox", { name: "Search target", exact: true });
   await select.click();
-  const option = journey.flow.page.getByRole("option", { name: target.label, exact: true });
-  await journey.flow.action(`corpus/explore/target/${target.id}`, {
+  const option = journey.page.getByRole("option", { name: target.label, exact: true });
+  await journey.action(`corpus/explore/target/${target.id}`, {
     action: async () => {
       await option.click();
     },
@@ -1263,33 +752,33 @@ async function corpusTarget(journey: Journey, target: (typeof CORPUS_SEARCH_TARG
   if (target.id === "characters") {
     await loadCorpusCatalog(journey);
   }
-  await inspect(journey, pane(journey, "list"), `corpus/explore/target/${target.id}`);
+  await walkScope(journey, pane(journey, "list"), `corpus/explore/target/${target.id}`);
   if (target.kind !== "fields") {
     observe(
       journey,
       `corpus/explore/target/${target.id}/query`,
-      journey.flow.run.generation.canonicalSyntheticEmbedding ? "unvisited" : "excluded",
-      journey.flow.run.generation.canonicalSyntheticEmbedding
+      journey.run.generation.canonicalSyntheticEmbedding ? "unvisited" : "excluded",
+      journey.run.generation.canonicalSyntheticEmbedding
         ? "The canonical synthetic embedding boundary is admitted, but this target's query execution has not been exercised"
         : "This owner run admits only the maintained text stand-in; owner-provider query embedding execution is refused by the production-composed external boundary. Existing owner embeddings remain original, and no synthetic vectors replace them",
     );
     return;
   }
-  const subject = journey.flow.run.subjects.characters.at(0);
+  const subject = journey.run.subjects.characters.at(0);
   if (subject === undefined) {
-    observe(journey, "corpus/text/query", "skipped", "No original character is available as a lexical query subject");
+    skip(journey, "corpus/text/query", "no-subject", "No original character is available as a lexical query subject");
     return;
   }
-  const character = await journey.flow.client.character.get.query({ characterId: subject.id });
-  const search = journey.flow.page.getByRole("combobox", { name: "Search your corpus", exact: true });
-  const result = await journey.flow.client.search.fields.query({ query: character.name, topN: CORPUS_SEARCH_TOP_N });
+  const character = await journey.client.character.get.query({ characterId: subject.id });
+  const search = journey.page.getByRole("combobox", { name: "Search your corpus", exact: true });
+  const result = await journey.client.search.fields.query({ query: character.name, topN: CORPUS_SEARCH_TOP_N });
   const resultWitness =
     result.hits.length === 0
       ? pane(journey, "list").getByText(new RegExp(`^Nothing.*${RegExp.escape(character.name)}`, "u"))
       : pane(journey, "list")
           .getByRole("status")
           .filter({ hasText: new RegExp(`^${String(result.hits.length)} results? in ${RegExp.escape(target.label)}$`, "u") });
-  await journey.flow.action("corpus/text/query", {
+  await journey.action("corpus/text/query", {
     action: async () => {
       await search.fill(character.name);
     },
@@ -1299,15 +788,15 @@ async function corpusTarget(journey: Journey, target: (typeof CORPUS_SEARCH_TARG
       await ready(pane(journey, "list"));
     },
   });
-  await inspect(journey, pane(journey, "list"), "corpus/text/results");
-  const emptyResult = await journey.flow.client.search.fields.query({ query: EMPTY_FIELD_QUERY, topN: CORPUS_SEARCH_TOP_N });
+  await walkScope(journey, pane(journey, "list"), "corpus/text/results");
+  const emptyResult = await journey.client.search.fields.query({ query: EMPTY_FIELD_QUERY, topN: CORPUS_SEARCH_TOP_N });
   expect(emptyResult.hits, "The lexical empty-state control must actually have zero production hits").toHaveLength(0);
-  await attachNativeFile(journey.flow.info, journey.flow.info, "corpus-lexical-empty-control", {
+  await attachNativeFile(journey.info, journey.info, "corpus-lexical-empty-control", {
     body: JSON.stringify({ query: EMPTY_FIELD_QUERY, hits: emptyResult.hits.length }),
     contentType: "application/json",
   });
   const empty = pane(journey, "list").getByText(new RegExp(RegExp.escape(EMPTY_FIELD_QUERY), "u"));
-  await journey.flow.action("corpus/text/empty-query", {
+  await journey.action("corpus/text/empty-query", {
     action: async () => {
       await search.fill(EMPTY_FIELD_QUERY);
     },
@@ -1315,8 +804,8 @@ async function corpusTarget(journey: Journey, target: (typeof CORPUS_SEARCH_TARG
       await expect(empty).toBeVisible();
     },
   });
-  await journey.flow.checkpoint({ name: "corpus/text/empty", scope: pane(journey, "list"), state: "empty", witnesses: [empty], checks: SURFACE_CHECKS });
-  await journey.flow.action("corpus/text/recover-browse", {
+  await journey.checkpoint({ name: "corpus/text/empty", scope: pane(journey, "list"), state: "empty", witnesses: [empty], checks: SURFACE_CHECKS });
+  await journey.action("corpus/text/recover-browse", {
     action: async () => {
       await search.fill("");
     },
@@ -1338,16 +827,16 @@ async function corpusMember(journey: Journey, mode: (typeof CORPUS_MODES)[number
     return;
   }
   if (mode === "labels") {
-    const rows = await journey.flow.client.tag.listTagsWithUsage.query();
-    const subject = rows.find((item) => journey.flow.run.subjects.tags.some(({ id }) => id === item.id));
+    const rows = await journey.client.tag.listTagsWithUsage.query();
+    const subject = rows.find((item) => journey.run.subjects.tags.some(({ id }) => id === item.id));
     if (subject === undefined) {
-      observe(journey, "corpus/labels/member", "skipped", "No original readable tag subject");
+      skip(journey, "corpus/labels/member", "no-subject", "No original readable tag subject");
       return;
     }
     await reveal(journey, "list");
-    const filter = pane(journey, "list").getByRole("textbox", { name: "Filter tags", exact: true });
+    const filter = pane(journey, "list").getByRole("textbox", { name: TAG_FILTER_NAME, exact: true });
     const row = pane(journey, "list").locator(`[data-label-row=${JSON.stringify(subject.id)}]`);
-    await journey.flow.action(`corpus/labels/member/${subject.id}/reveal-original`, {
+    await journey.action(`corpus/labels/member/${subject.id}/reveal-original`, {
       action: async () => {
         await filter.fill(subject.name);
       },
@@ -1356,7 +845,7 @@ async function corpusMember(journey: Journey, mode: (typeof CORPUS_MODES)[number
         await expect(row).toBeVisible();
       },
     });
-    await journey.flow.action(`corpus/labels/member/${subject.id}/open`, {
+    await journey.action(`corpus/labels/member/${subject.id}/open`, {
       action: async () => {
         await row.getByRole("button", { name: subject.name, exact: true }).click();
       },
@@ -1364,7 +853,7 @@ async function corpusMember(journey: Journey, mode: (typeof CORPUS_MODES)[number
         await expect(content(journey).getByRole("textbox", { name: "Name", exact: true })).toHaveValue(subject.name);
       },
     });
-    await inspect(journey, content(journey), `corpus/labels/member/${subject.id}`);
+    await walkScope(journey, content(journey), `corpus/labels/member/${subject.id}`);
     return;
   }
   await reveal(journey, "list");
@@ -1373,7 +862,7 @@ async function corpusMember(journey: Journey, mode: (typeof CORPUS_MODES)[number
     throw new Error("The production leaderboard default must be in its actual sort vocabulary");
   }
   await expect(pane(journey, "list").getByRole("button", { name: `Sort by ${defaultSort.label}`, exact: true })).toHaveAttribute("aria-pressed", "true");
-  const leaderboard = await journey.flow.client.stats.leaderboard.query({ sort: ANALYTICS_DEFAULT_SORT });
+  const leaderboard = await journey.client.stats.leaderboard.query({ sort: ANALYTICS_DEFAULT_SORT });
   if (leaderboard.rows.length === 0) {
     await ready(pane(journey, "list").getByText("No characters have any rolled-up activity yet.", { exact: true }));
     observe(
@@ -1384,13 +873,13 @@ async function corpusMember(journey: Journey, mode: (typeof CORPUS_MODES)[number
     );
     return;
   }
-  const subject = leaderboard.rows.find(({ characterId }) => journey.flow.run.subjects.characters.some(({ id }) => id === characterId));
+  const subject = leaderboard.rows.find(({ characterId }) => journey.run.subjects.characters.some(({ id }) => id === characterId));
   if (subject === undefined) {
     throw new Error("The actual leaderboard page has no admitted original character identity");
   }
-  const search = pane(journey, "list").getByRole("textbox", { name: "Search characters", exact: true });
+  const search = pane(journey, "list").getByRole("textbox", { name: ANALYTICS_SEARCH_NAME, exact: true });
   const row = pane(journey, "list").locator(`[${LEADERBOARD_ROW_ATTR}=${JSON.stringify(subject.characterId)}]`);
-  await journey.flow.action(`corpus/insights/character/${subject.characterId}/reveal-original`, {
+  await journey.action(`corpus/insights/character/${subject.characterId}/reveal-original`, {
     action: async () => {
       await search.fill(subject.name);
     },
@@ -1399,16 +888,16 @@ async function corpusMember(journey: Journey, mode: (typeof CORPUS_MODES)[number
       await expect(row).toBeVisible();
     },
   });
-  await attachNativeFile(journey.flow.info, journey.flow.info, "corpus-insights-original-subject", {
+  await attachNativeFile(journey.info, journey.info, "corpus-insights-original-subject", {
     body: JSON.stringify({ subject, native: await row.ariaSnapshot(), sort: ANALYTICS_DEFAULT_SORT }),
     contentType: "application/json",
   });
-  const stats = await journey.flow.client.stats.character.query({ characterId: subject.characterId });
+  const stats = await journey.client.stats.character.query({ characterId: subject.characterId });
   if (stats === null) {
     throw new Error("The canonical leaderboard subject has no readable character stats");
   }
   const statsBody = content(journey).locator('[data-slot="analytics-content"]:visible');
-  await journey.flow.action(`corpus/insights/character/${subject.characterId}/open`, {
+  await journey.action(`corpus/insights/character/${subject.characterId}/open`, {
     action: async () => {
       await row.getByRole("button").click();
     },
@@ -1416,7 +905,7 @@ async function corpusMember(journey: Journey, mode: (typeof CORPUS_MODES)[number
       await expect(statsBody.locator('[data-shell-identity="defer"]')).toHaveText(stats.name);
     },
   });
-  await inspect(journey, statsBody, `corpus/insights/character/${subject.characterId}`);
+  await walkScope(journey, statsBody, `corpus/insights/character/${subject.characterId}`);
   observe(
     journey,
     "corpus/insights/character",
@@ -1432,10 +921,10 @@ async function corpus(journey: Journey): Promise<void> {
   }
   await reveal(journey, "list");
   for (const mode of CORPUS_MODES) {
-    const radio = journey.flow.page
+    const radio = journey.page
       .getByRole("radiogroup", { name: "Corpus mode", exact: true })
       .getByRole("radio", { name: CORPUS_MODE_LABELS[mode], exact: true });
-    await journey.flow.action(`corpus/mode/${mode}`, {
+    await journey.action(`corpus/mode/${mode}`, {
       action: async () => {
         await radio.click();
       },
@@ -1448,11 +937,11 @@ async function corpus(journey: Journey): Promise<void> {
     if (mode === "explore") {
       await loadCorpusCatalog(journey);
     }
-    await inspect(journey, pane(journey, "list"), `corpus/${mode}/finder`);
+    await walkScope(journey, pane(journey, "list"), `corpus/${mode}/finder`);
     await context(journey, `corpus/${mode}/whole`);
     await corpusMember(journey, mode);
     await context(journey, `corpus/${mode}/selected`);
-    await journey.flow.requestPanes();
+    await journey.requestPanes();
     await reveal(journey, "list");
   }
   observe(
@@ -1466,10 +955,10 @@ async function corpus(journey: Journey): Promise<void> {
 async function presets(journey: Journey): Promise<void> {
   await enter(journey, "presets");
   await reveal(journey, "list");
-  await inspect(journey, pane(journey, "list"), "presets/library");
+  await walkScope(journey, pane(journey, "list"), "presets/library");
   await context(journey, "presets/no-selection");
-  const rows = await journey.flow.client.preset.list.query();
-  const originals = rows.filter((item) => journey.flow.run.subjects.presets.some(({ id }) => id === item.id));
+  const rows = await journey.client.preset.list.query();
+  const originals = rows.filter((item) => journey.run.subjects.presets.some(({ id }) => id === item.id));
   const subject = originals.find((item) => originals.filter((candidate) => candidate.name === item.name).length === 1);
   if (subject === undefined) {
     observe(journey, "presets/editor", "unvisited", "No unambiguously named original preset; no built-in fork or synthetic replacement created");
@@ -1477,8 +966,8 @@ async function presets(journey: Journey): Promise<void> {
     return;
   }
   const row = pane(journey, "list").getByRole("button", { name: subject.name, exact: true });
-  const editor = journey.flow.page.getByRole("region", { name: "Preset editor", exact: true });
-  await journey.flow.action("presets/open-original", {
+  const editor = journey.page.getByRole("region", { name: "Preset editor", exact: true });
+  await journey.action("presets/open-original", {
     action: async () => {
       await row.click();
     },
@@ -1487,8 +976,8 @@ async function presets(journey: Journey): Promise<void> {
     },
   });
   await presetViews(journey, editor, `presets/${subject.id}`);
-  await journey.flow.requestPanes();
-  await inspect(journey, editor, `presets/${subject.id}/requested-panes`);
+  await journey.requestPanes();
+  await walkScope(journey, editor, `presets/${subject.id}/requested-panes`);
   observe(
     journey,
     "presets/original-mutations",
@@ -1496,7 +985,7 @@ async function presets(journey: Journey): Promise<void> {
     "Original preset fields, activation, reset, import and copy-on-write remain untouched; a separate explicitly disposable preset proves persistence",
   );
   await disposablePreset(journey);
-  const commands = await walkPresetCommands(journey.flow, subject.id);
+  const commands = await walkPresetCommands(journey, subject.id);
   for (const expected of commands.expected) {
     expectSubject(journey, expected.id, expected.kind);
   }
@@ -1509,13 +998,13 @@ async function presetViews(journey: Journey, editor: Locator, prefix: string): P
   for (const index of tabs.keys()) {
     expectSubject(journey, `${prefix}/view-${String(index)}`, "preset-view");
   }
-  await attachNativeFile(journey.flow.info, journey.flow.info, `${prefix}-expected-views`, {
+  await attachNativeFile(journey.info, journey.info, `${prefix}-expected-views`, {
     body: JSON.stringify(await Promise.all(tabs.map((tab) => tab.ariaSnapshot()))),
     contentType: "application/json",
   });
   for (const [index, tab] of tabs.entries()) {
     const id = `${prefix}/view-${String(index)}`;
-    await journey.flow.action(id, {
+    await journey.action(id, {
       action: async () => {
         await tab.click();
       },
@@ -1525,7 +1014,7 @@ async function presetViews(journey: Journey, editor: Locator, prefix: string): P
       },
     });
     const body = await controlledPanel(tab);
-    await inspect(journey, body, id);
+    await walkScope(journey, body, id);
     await presetDrills(journey, body, id);
     await context(journey, `${id}/readout`);
   }
@@ -1538,7 +1027,7 @@ async function presetDrills(journey: Journey, body: Locator, prefix: string): Pr
     const trigger = controls.nth(index);
     const id = `${prefix}/drill-${String(index)}`;
     const drill = body.getByRole("region", { name: / — (?:section|template) editor$/u });
-    await journey.flow.action(id, {
+    await journey.action(id, {
       action: async () => {
         await trigger.click();
       },
@@ -1547,9 +1036,9 @@ async function presetDrills(journey: Journey, body: Locator, prefix: string): Pr
         await ready(drill);
       },
     });
-    await inspect(journey, drill, id);
+    await walkScope(journey, drill, id);
     const back = drill.getByRole("button", { name: /^Back to (?:rack|actions)$/u });
-    await journey.flow.action(`${id}/return`, {
+    await journey.action(`${id}/return`, {
       action: async () => {
         await back.click();
       },
@@ -1570,10 +1059,10 @@ async function presetDrills(journey: Journey, body: Locator, prefix: string): Pr
 type ListedPreset = Awaited<ReturnType<SurfaceFlow["client"]["preset"]["list"]["query"]>>[number];
 
 async function expectPresetIdentity(journey: Journey, name: string): Promise<void> {
-  const editor = journey.flow.page.getByRole("region", { name: "Preset editor", exact: true });
+  const editor = journey.page.getByRole("region", { name: "Preset editor", exact: true });
   const identities = [
     editor.locator('[data-shell-identity="defer"]'),
-    journey.flow.page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title'),
+    journey.page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title'),
   ];
   await expect
     .poll(async () => {
@@ -1592,26 +1081,26 @@ async function expectPresetIdentity(journey: Journey, name: string): Promise<voi
 
 async function createDisposablePreset(journey: Journey, onCreated: (created: ListedPreset) => void): Promise<ListedPreset> {
   await reveal(journey, "list");
-  const before = new Set((await journey.flow.client.preset.list.query()).map(({ id }) => id));
-  const editor = journey.flow.page.getByRole("region", { name: "Preset editor", exact: true });
+  const before = new Set((await journey.client.preset.list.query()).map(({ id }) => id));
+  const editor = journey.page.getByRole("region", { name: "Preset editor", exact: true });
   let created: ListedPreset | undefined;
-  await journey.flow.action("presets/disposable/create", {
+  await journey.action("presets/disposable/create", {
     action: async () => {
       const [response] = await Promise.all([
-        journey.flow.page.waitForResponse((item) => new URL(item.url()).origin === journey.flow.run.origin && isTrpcRequestFor(item.url(), "preset.create")),
+        journey.page.waitForResponse((item) => new URL(item.url()).origin === journey.run.origin && isTrpcRequestFor(item.url(), "preset.create")),
         pane(journey, "list").getByRole("button", { name: "New", exact: true }).click(),
       ]);
       created = await readTrpcOutput(response, "preset.create", presetDetailSchema);
       expect(
-        journey.flow.run.subjects.presets.some(({ id }) => id === created?.id),
+        journey.run.subjects.presets.some(({ id }) => id === created?.id),
         "Disposable mutation must never select an original preset",
       ).toBe(false);
       onCreated(created);
     },
     ready: async () => {
-      await expect.poll(async () => (await journey.flow.client.preset.list.query()).filter(({ id }) => !before.has(id)).length).toBe(1);
+      await expect.poll(async () => (await journey.client.preset.list.query()).filter(({ id }) => !before.has(id)).length).toBe(1);
       const committed = created;
-      if (committed === undefined || !(await journey.flow.client.preset.list.query()).some(({ id }) => id === committed.id)) {
+      if (committed === undefined || !(await journey.client.preset.list.query()).some(({ id }) => id === committed.id)) {
         throw new Error("Native New left no committed disposable identity");
       }
       await ready(editor);
@@ -1625,20 +1114,20 @@ async function createDisposablePreset(journey: Journey, onCreated: (created: Lis
 }
 
 async function renameDisposablePreset(journey: Journey, created: ListedPreset): Promise<string> {
-  const editor = journey.flow.page.getByRole("region", { name: "Preset editor", exact: true });
+  const editor = journey.page.getByRole("region", { name: "Preset editor", exact: true });
   await editor.getByRole("button", { name: "Rename preset", exact: true }).click();
-  const dialog = journey.flow.page.getByRole("dialog", { name: "Rename preset", exact: true });
+  const dialog = journey.page.getByRole("dialog", { name: "Rename preset", exact: true });
   const field = dialog.getByRole("textbox", { name: "Preset name", exact: true });
   await expect(field).toHaveValue(created.name);
   const renamed = `Surface walk ${created.id}`;
   await field.fill(renamed);
-  await journey.flow.action("presets/disposable/rename", {
+  await journey.action("presets/disposable/rename", {
     action: async () => {
       await dialog.getByRole("button", { name: "Save", exact: true }).click();
     },
     ready: async () => {
       await expect(dialog).toBeHidden();
-      await expect.poll(async () => (await journey.flow.client.preset.get.query({ id: created.id })).name).toBe(renamed);
+      await expect.poll(async () => (await journey.client.preset.get.query({ id: created.id })).name).toBe(renamed);
       await expectPresetIdentity(journey, renamed);
     },
   });
@@ -1652,15 +1141,15 @@ async function runDisposablePreset(flow: SurfaceFlow): Promise<{ readonly expect
   try {
     const created = await createDisposablePreset(journey, ({ id }) => createdIds.add(id));
     const renamed = await renameDisposablePreset(journey, created);
-    const editor = journey.flow.page.getByRole("region", { name: "Preset editor", exact: true });
-    await journey.flow.page.reload();
-    await waitForAppReady(journey.flow.page);
-    await journey.flow.requestPanes();
+    const editor = journey.page.getByRole("region", { name: "Preset editor", exact: true });
+    await journey.page.reload();
+    await waitForAppReady(journey.page);
+    await journey.requestPanes();
     await reveal(journey, "list");
     const row = pane(journey, "list").getByRole("button", { name: renamed, exact: true });
     await expect(row).toBeVisible();
-    await expect.poll(async () => (await journey.flow.client.preset.get.query({ id: created.id })).name).toBe(renamed);
-    await journey.flow.action("presets/disposable/reload-reselect", {
+    await expect.poll(async () => (await journey.client.preset.get.query({ id: created.id })).name).toBe(renamed);
+    await journey.action("presets/disposable/reload-reselect", {
       action: async () => {
         await row.click();
       },
@@ -1669,7 +1158,7 @@ async function runDisposablePreset(flow: SurfaceFlow): Promise<{ readonly expect
         await expectPresetIdentity(journey, renamed);
       },
     });
-    await inspect(journey, editor, "presets/disposable/persisted");
+    await walkScope(journey, editor, "presets/disposable/persisted");
     observe(
       journey,
       "presets/disposable/reload",
@@ -1685,16 +1174,16 @@ async function runDisposablePreset(flow: SurfaceFlow): Promise<{ readonly expect
     return { expected: journey.expected, observations: journey.observations };
   } finally {
     for (const id of createdIds) {
-      expect(journey.flow.run.subjects.presets.some(({ id: originalId }) => originalId === id)).toBe(false);
-      await journey.flow.client.preset.remove.mutate({ id });
-      await expect.poll(async () => (await journey.flow.client.preset.list.query()).some(({ id: remaining }) => remaining === id)).toBe(false);
+      expect(journey.run.subjects.presets.some(({ id: originalId }) => originalId === id)).toBe(false);
+      await journey.client.preset.remove.mutate({ id });
+      await expect.poll(async () => (await journey.client.preset.list.query()).some(({ id: remaining }) => remaining === id)).toBe(false);
     }
     observe(journey, "presets/disposable/cleanup", "visited", "Production remove verified the explicitly disposable preset is gone");
   }
 }
 
 async function disposablePreset(journey: Journey): Promise<void> {
-  const result = await runDisposablePreset(journey.flow);
+  const result = await runDisposablePreset(journey);
   journey.expected.push(...result.expected);
   journey.observations.push(...result.observations);
 }
@@ -1714,7 +1203,7 @@ function rememberPresetCommand(run: PresetCommandRun, command: string, reason: s
 function presetLibraryRow(journey: Journey, name: string): Locator {
   return pane(journey, "list")
     .locator('[data-slot="list-row-root"]')
-    .filter({ has: journey.flow.page.getByRole("button", { name, exact: true }) });
+    .filter({ has: journey.page.getByRole("button", { name, exact: true }) });
 }
 
 async function openPresetRowMenu(journey: Journey, name: string): Promise<Locator> {
@@ -1723,7 +1212,7 @@ async function openPresetRowMenu(journey: Journey, name: string): Promise<Locato
   await expect(row).toHaveCount(1);
   await row.hover();
   await row.locator('button[aria-haspopup="menu"]').click();
-  const menu = journey.flow.page.getByRole("menu");
+  const menu = journey.page.getByRole("menu");
   await expect(menu).toHaveCount(1);
   return menu;
 }
@@ -1747,7 +1236,7 @@ async function walkPresetCommands(
   try {
     await enter(journey, "presets");
     const menu = await openPresetRowMenu(journey, source.name);
-    await journey.flow.action("presets/commands/library/Duplicate", {
+    await journey.action("presets/commands/library/Duplicate", {
       action: async () => {
         const [response] = await Promise.all([
           flow.page.waitForResponse((item) => new URL(item.url()).origin === flow.run.origin && isTrpcRequestFor(item.url(), "preset.create")),
@@ -1773,10 +1262,8 @@ async function walkPresetCommands(
       throw new Error("Native Duplicate left no captured preset identity");
     }
     const copied = await flow.client.preset.get.query({ id: copiedId });
-    expect((await journey.flow.client.preset.get.query({ id: copied.id })).config).toEqual(
-      (await journey.flow.client.preset.get.query({ id: source.id })).config,
-    );
-    const editor = journey.flow.page.getByRole("region", { name: "Preset editor", exact: true });
+    expect((await journey.client.preset.get.query({ id: copied.id })).config).toEqual((await journey.client.preset.get.query({ id: source.id })).config);
+    const editor = journey.page.getByRole("region", { name: "Preset editor", exact: true });
     await expect(editor.getByRole("heading", { name: copied.name, exact: true })).toBeAttached();
     const name = await renameDisposablePreset(journey, copied);
     const run: PresetCommandRun = { journey, presetId: copied.id, proofs, created };
@@ -1792,9 +1279,9 @@ async function walkPresetCommands(
     return { expected: journey.expected, observations: journey.observations, proofs };
   } finally {
     for (const id of created) {
-      await journey.flow.client.preset.remove.mutate({ id });
+      await journey.client.preset.remove.mutate({ id });
     }
-    await journey.flow.requestPanes();
+    await journey.requestPanes();
     await attachNativeFile(flow.info, flow.info, "preset-command-segment", {
       body: JSON.stringify({ expected: journey.expected, observations: journey.observations, proofs: [...proofs] }),
       contentType: "application/json",
@@ -1829,31 +1316,31 @@ function settlePresetMenus(journey: Journey, proofs: ReadonlyMap<string, string>
 
 async function presetSectionCommands(run: PresetCommandRun): Promise<void> {
   const { journey, presetId } = run;
-  const editor = journey.flow.page.getByRole("region", { name: "Preset editor", exact: true });
+  const editor = journey.page.getByRole("region", { name: "Preset editor", exact: true });
   const prompt = editor.getByRole("tab", { name: "Prompt", exact: true });
   await prompt.click();
   const body = await controlledPanel(prompt);
   const add = body.getByRole("button", { name: "Add", exact: true });
   await add.click();
-  const addMenu = journey.flow.page.getByRole("menu");
+  const addMenu = journey.page.getByRole("menu");
   await ready(addMenu);
   await expect(addMenu.getByRole("menuitem")).not.toHaveCount(0);
   const options = (await addMenu.getByRole("menuitem").allTextContents()).map((label) => label.trim());
-  await journey.flow.page.getByRole("menu").press("Escape");
+  await journey.page.getByRole("menu").press("Escape");
   let literalId: string | null = null;
   for (const label of options) {
-    const before = (await journey.flow.client.preset.get.query({ id: presetId })).config.sections;
+    const before = (await journey.client.preset.get.query({ id: presetId })).config.sections;
     await add.click();
-    await journey.flow.action(`presets/commands/Add/${label}`, {
+    await journey.action(`presets/commands/Add/${label}`, {
       action: async () => {
-        await journey.flow.page.getByRole("menu").getByRole("menuitem", { name: label, exact: true }).click();
+        await journey.page.getByRole("menu").getByRole("menuitem", { name: label, exact: true }).click();
       },
       ready: async () => {
-        await expect.poll(async () => (await journey.flow.client.preset.get.query({ id: presetId })).config.sections.length).toBe(before.length + 1);
+        await expect.poll(async () => (await journey.client.preset.get.query({ id: presetId })).config.sections.length).toBe(before.length + 1);
         await ready(body.getByRole("region", { name: / — section editor$/u }));
       },
     });
-    const added = (await journey.flow.client.preset.get.query({ id: presetId })).config.sections.filter(
+    const added = (await journey.client.preset.get.query({ id: presetId })).config.sections.filter(
       (candidate) => !before.some(({ id }) => id === candidate.id),
     );
     expect(added).toHaveLength(1);
@@ -1873,13 +1360,13 @@ async function presetSectionCommands(run: PresetCommandRun): Promise<void> {
   if (literalId === null) {
     throw new Error("The actual Add menu must offer its authorable literal section");
   }
-  const sections = (await journey.flow.client.preset.get.query({ id: presetId })).config.sections;
+  const sections = (await journey.client.preset.get.query({ id: presetId })).config.sections;
   const marker = sections.find((section) => section.type === "marker" && section.marker !== "chat_history");
   if (marker === undefined) {
     throw new Error("The copied preset has no structural section for the actual marker menu");
   }
   for (const id of [marker.id, literalId]) {
-    const section = (await journey.flow.client.preset.get.query({ id: presetId })).config.sections.find((candidate) => candidate.id === id);
+    const section = (await journey.client.preset.get.query({ id: presetId })).config.sections.find((candidate) => candidate.id === id);
     if (section === undefined) {
       throw new Error("Disposable section left its canonical preset");
     }
@@ -1891,7 +1378,7 @@ async function presetSectionCommands(run: PresetCommandRun): Promise<void> {
     const uniqueName = `Surface section ${crypto.randomUUID()}`;
     await drill.getByRole("textbox", { name: "Name", exact: true }).fill(uniqueName);
     await expect
-      .poll(async () => (await journey.flow.client.preset.get.query({ id: presetId })).config.sections.find((candidate) => candidate.id === id)?.name)
+      .poll(async () => (await journey.client.preset.get.query({ id: presetId })).config.sections.find((candidate) => candidate.id === id)?.name)
       .toBe(uniqueName);
     await moveDisposableSection(run, drill, id);
     await moveDisposableSection(run, drill, id);
@@ -1906,25 +1393,25 @@ async function presetSectionCommands(run: PresetCommandRun): Promise<void> {
 async function moveDisposableSection(run: PresetCommandRun, drill: Locator, sectionId: string): Promise<void> {
   const { journey, presetId } = run;
   await drill.getByRole("button", { name: "Section actions", exact: true }).click();
-  const item = journey.flow.page.getByRole("menu").getByRole("menuitem", { name: /^Move (?:above|below) the conversation$/u });
+  const item = journey.page.getByRole("menu").getByRole("menuitem", { name: /^Move (?:above|below) the conversation$/u });
   await expect(item).toHaveCount(1);
   const label = (await item.textContent())?.trim();
   if (label === undefined) {
     throw new Error("The actual Move command has no label");
   }
-  const before = (await journey.flow.client.preset.get.query({ id: presetId })).config.sections;
-  await journey.flow.action(`presets/commands/${sectionId}/${label}`, {
+  const before = (await journey.client.preset.get.query({ id: presetId })).config.sections;
+  await journey.action(`presets/commands/${sectionId}/${label}`, {
     action: async () => {
       await item.click();
     },
     ready: async () => {
       await expect
-        .poll(async () => (await journey.flow.client.preset.get.query({ id: presetId })).config.sections.map(({ id }) => id))
+        .poll(async () => (await journey.client.preset.get.query({ id: presetId })).config.sections.map(({ id }) => id))
         .not.toEqual(before.map(({ id }) => id));
       await expect(drill).toBeVisible();
     },
   });
-  const sections = (await journey.flow.client.preset.get.query({ id: presetId })).config.sections;
+  const sections = (await journey.client.preset.get.query({ id: presetId })).config.sections;
   const pivot = sections.findIndex((section) => section.type === "marker" && section.marker === "chat_history");
   const position = sections.findIndex(({ id }) => id === sectionId);
   expect(pivot).toBeGreaterThanOrEqual(0);
@@ -1939,18 +1426,18 @@ async function moveDisposableSection(run: PresetCommandRun, drill: Locator, sect
 
 async function duplicateAndDeleteSection(run: PresetCommandRun, drill: Locator, sectionId: string): Promise<void> {
   const { journey, presetId } = run;
-  const before = (await journey.flow.client.preset.get.query({ id: presetId })).config.sections;
+  const before = (await journey.client.preset.get.query({ id: presetId })).config.sections;
   await drill.getByRole("button", { name: "Section actions", exact: true }).click();
-  await journey.flow.action(`presets/commands/${sectionId}/Duplicate`, {
+  await journey.action(`presets/commands/${sectionId}/Duplicate`, {
     action: async () => {
-      await journey.flow.page.getByRole("menu").getByRole("menuitem", { name: "Duplicate", exact: true }).click();
+      await journey.page.getByRole("menu").getByRole("menuitem", { name: "Duplicate", exact: true }).click();
     },
     ready: async () => {
-      await expect.poll(async () => (await journey.flow.client.preset.get.query({ id: presetId })).config.sections.length).toBe(before.length + 1);
+      await expect.poll(async () => (await journey.client.preset.get.query({ id: presetId })).config.sections.length).toBe(before.length + 1);
       await expect(drill).toBeVisible();
     },
   });
-  const after = (await journey.flow.client.preset.get.query({ id: presetId })).config.sections;
+  const after = (await journey.client.preset.get.query({ id: presetId })).config.sections;
   const duplicated = after.filter((section) => !before.some(({ id }) => id === section.id));
   expect(duplicated).toHaveLength(1);
   const original = before.find(({ id }) => id === sectionId);
@@ -1964,17 +1451,17 @@ async function duplicateAndDeleteSection(run: PresetCommandRun, drill: Locator, 
   expect(copyFields).toEqual(originalFields);
   rememberPresetCommand(run, "Section actions/Duplicate", `${presetId}/${sectionId}: native Duplicate persisted ${copyId} with the same section fields`);
   await drill.getByRole("button", { name: "Section actions", exact: true }).click();
-  await journey.flow.page.getByRole("menu").getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
-  const confirm = journey.flow.page.getByRole("alertdialog", { name: "Delete this section?", exact: true });
+  await journey.page.getByRole("menu").getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
+  const confirm = journey.page.getByRole("alertdialog", { name: "Delete this section?", exact: true });
   await checkpoint(journey, `presets/commands/${sectionId}/Delete/confirm`, confirm);
-  await journey.flow.action(`presets/commands/${sectionId}/Delete`, {
+  await journey.action(`presets/commands/${sectionId}/Delete`, {
     action: async () => {
       await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
     },
     ready: async () => {
       await expect(confirm).toBeHidden();
       const expectedIds = after.filter(({ id }) => id !== sectionId).map(({ id }) => id);
-      await expect.poll(async () => (await journey.flow.client.preset.get.query({ id: presetId })).config.sections.map(({ id }) => id)).toEqual(expectedIds);
+      await expect.poll(async () => (await journey.client.preset.get.query({ id: presetId })).config.sections.map(({ id }) => id)).toEqual(expectedIds);
       await expect(drill).toBeHidden();
     },
   });
@@ -1988,11 +1475,11 @@ async function duplicateAndDeleteSection(run: PresetCommandRun, drill: Locator, 
 async function exportDisposablePreset(run: PresetCommandRun, name: string): Promise<{ readonly path: string; readonly config: PromptConfig }> {
   const { journey, presetId } = run;
   const menu = await openPresetRowMenu(journey, name);
-  const path = journey.flow.info.outputPath(`preset-${presetId}.json`);
-  const expected = await journey.flow.client.preset.get.query({ id: presetId });
-  await journey.flow.action(`presets/commands/${presetId}/Export`, {
+  const path = journey.info.outputPath(`preset-${presetId}.json`);
+  const expected = await journey.client.preset.get.query({ id: presetId });
+  await journey.action(`presets/commands/${presetId}/Export`, {
     action: async () => {
-      const downloading = journey.flow.page.waitForEvent("download");
+      const downloading = journey.page.waitForEvent("download");
       await menu.getByRole("menuitem", { name: "Export", exact: true }).click();
       await (await downloading).saveAs(path);
     },
@@ -2006,25 +1493,25 @@ async function exportDisposablePreset(run: PresetCommandRun, name: string): Prom
       await expect(menu).toBeHidden();
     },
   });
-  await journey.flow.info.attach("native-preset-export", { path, contentType: "application/json" });
+  await journey.info.attach("native-preset-export", { path, contentType: "application/json" });
   rememberPresetCommand(run, "library/Export", `${presetId}: real native download parsed through parsePresetFile and matched the entire persisted config`);
   return { path, config: expected.config };
 }
 
 async function deleteDisposablePreset(run: PresetCommandRun, name: string): Promise<void> {
   const { journey, presetId } = run;
-  expect(journey.flow.run.subjects.presets.some(({ id }) => id === presetId)).toBe(false);
+  expect(journey.run.subjects.presets.some(({ id }) => id === presetId)).toBe(false);
   const menu = await openPresetRowMenu(journey, name);
   await menu.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
-  const confirm = journey.flow.page.getByRole("alertdialog", { name: `Delete "${name}"?`, exact: true });
+  const confirm = journey.page.getByRole("alertdialog", { name: `Delete "${name}"?`, exact: true });
   await checkpoint(journey, `presets/commands/${presetId}/Delete/confirm`, confirm);
-  await journey.flow.action(`presets/commands/${presetId}/Delete`, {
+  await journey.action(`presets/commands/${presetId}/Delete`, {
     action: async () => {
       await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
     },
     ready: async () => {
       await expect(confirm).toBeHidden();
-      await expect.poll(async () => (await journey.flow.client.preset.list.query()).some(({ id }) => id === presetId)).toBe(false);
+      await expect.poll(async () => (await journey.client.preset.list.query()).some(({ id }) => id === presetId)).toBe(false);
       await expect(presetLibraryRow(journey, name)).toHaveCount(0);
     },
   });
@@ -2039,22 +1526,20 @@ async function importDisposablePreset(
   const importedIds: ListedPreset["id"][] = [];
   await reveal(journey, "list");
   await pane(journey, "list").getByRole("button", { name: "Import a preset", exact: true }).click();
-  const dialog = journey.flow.page.getByRole("dialog", { name: "Import a preset", exact: true });
+  const dialog = journey.page.getByRole("dialog", { name: "Import a preset", exact: true });
   await dialog.locator('input[type="file"]').setInputFiles(exported.path);
   await expect(dialog.getByRole("button", { name: "Import preset", exact: true })).toBeEnabled();
-  await journey.flow.action("presets/commands/import-export-roundtrip", {
+  await journey.action("presets/commands/import-export-roundtrip", {
     action: async () => {
       const [response] = await Promise.all([
-        journey.flow.page.waitForResponse(
-          (item) => new URL(item.url()).origin === journey.flow.run.origin && isTrpcRequestFor(item.url(), "preset.importFile"),
-        ),
+        journey.page.waitForResponse((item) => new URL(item.url()).origin === journey.run.origin && isTrpcRequestFor(item.url(), "preset.importFile")),
         dialog.getByRole("button", { name: "Import preset", exact: true }).click(),
       ]);
       const outcome = await readTrpcOutput(response, "preset.importFile", presetImportOutcomeSchema);
       if (!(outcome.ok && outcome.created) || outcome.presetId === undefined) {
         throw new Error("The native roundtrip import did not create a separate preset");
       }
-      expect(journey.flow.run.subjects.presets.some(({ id }) => id === outcome.presetId)).toBe(false);
+      expect(journey.run.subjects.presets.some(({ id }) => id === outcome.presetId)).toBe(false);
       run.created.add(outcome.presetId);
       importedIds.push(outcome.presetId);
     },
@@ -2067,20 +1552,20 @@ async function importDisposablePreset(
   if (importedId === undefined) {
     throw new Error("The native import left no captured preset identity");
   }
-  const imported = await journey.flow.client.preset.get.query({ id: importedId });
+  const imported = await journey.client.preset.get.query({ id: importedId });
   observe(
     journey,
     "presets/commands/import-export-roundtrip",
     "visited",
     `Real native exported file imported as separate ${imported.id}; no original-name collision or synthetic response`,
   );
-  return await journey.flow.client.preset.get.query({ id: imported.id });
+  return await journey.client.preset.get.query({ id: imported.id });
 }
 
 async function databankAdd(journey: Journey): Promise<void> {
   const add = pane(journey, "list").getByRole("button", { name: "Add", exact: true });
-  const dialog = journey.flow.page.getByRole("dialog", { name: "Add a document", exact: true });
-  await journey.flow.action("databank/add-open", {
+  const dialog = journey.page.getByRole("dialog", { name: "Add a document", exact: true });
+  await journey.action("databank/add-open", {
     action: async () => {
       await add.click();
     },
@@ -2088,14 +1573,14 @@ async function databankAdd(journey: Journey): Promise<void> {
       await ready(dialog);
     },
   });
-  await pressableChoices(journey, dialog.locator('[aria-label="How to add the document"]'), dialog, "databank/add/method");
-  await inspect(journey, dialog, "databank/add/ceremony");
+  await walkChoices(journey, dialog.locator('[aria-label="How to add the document"]'), dialog, "databank/add/method");
+  await walkScope(journey, dialog, "databank/add/ceremony");
   await dialog.getByRole("button", { name: "Close", exact: true }).click();
   await expect(dialog).toBeHidden();
 }
 
 async function databankLibrary(journey: Journey): Promise<void> {
-  const back = journey.flow.page.getByRole("button", { name: `Back to ${DATABANK_SECTION_LABEL}`, exact: true });
+  const back = journey.page.getByRole("button", { name: `Back to ${DATABANK_SECTION_LABEL}`, exact: true });
   if (await back.isVisible()) {
     await back.click();
   }
@@ -2108,7 +1593,7 @@ async function databankMaintenance(journey: Journey, empty: boolean): Promise<vo
   const trigger = pane(journey, "list").getByRole("button", { name: "Databank maintenance", exact: true });
   for (const name of ["Rebuild all documents", "Re-read all documents"]) {
     await trigger.click();
-    const menu = journey.flow.page.getByRole("menu");
+    const menu = journey.page.getByRole("menu");
     const item = menu.getByRole("menuitem", { name, exact: true });
     await expect(item).toBeEnabled({ enabled: !empty });
     if (empty) {
@@ -2130,24 +1615,24 @@ async function databankMaintenance(journey: Journey, empty: boolean): Promise<vo
 
 async function databankMaintenanceConfirmation(journey: Journey, item: Locator, name: string): Promise<void> {
   await item.click();
-  const dialog = journey.flow.page.getByRole("alertdialog", { name: `${name}?`, exact: true });
+  const dialog = journey.page.getByRole("alertdialog", { name: `${name}?`, exact: true });
   await checkpoint(journey, `databank/library/maintenance/${name}/confirmation`, dialog);
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(dialog).toBeHidden();
 }
 
 async function databankDisposable(journey: Journey): Promise<void> {
-  const name = `Surface disposable document ${journey.flow.info.project.name}`;
+  const name = `Surface disposable document ${journey.info.project.name}`;
   const renamed = `${name} renamed`;
-  const text = `Disposable local surface journey source: ${journey.flow.info.project.name}. This document is created by Paste text and removed after persistence checks.`;
-  const editor = journey.flow.page.locator('[data-slot="databank-detail-editor"]');
+  const text = `Disposable local surface journey source: ${journey.info.project.name}. This document is created by Paste text and removed after persistence checks.`;
+  const editor = journey.page.locator('[data-slot="databank-detail-editor"]');
   await databankLibrary(journey);
   await pane(journey, "list").getByRole("button", { name: "Add", exact: true }).click();
-  const add = journey.flow.page.getByRole("dialog", { name: "Add a document", exact: true });
+  const add = journey.page.getByRole("dialog", { name: "Add a document", exact: true });
   await add.getByRole("button", { name: "Paste text", exact: true }).click();
   await add.getByRole("textbox", { name: "Name", exact: true }).fill(name);
   await add.getByRole("textbox", { name: "Text", exact: true }).fill(text);
-  await journey.flow.action("databank/disposable/paste", {
+  await journey.action("databank/disposable/paste", {
     action: async () => {
       await add.getByRole("button", { name: "Add", exact: true }).click();
     },
@@ -2156,19 +1641,19 @@ async function databankDisposable(journey: Journey): Promise<void> {
       await expect(editor.getByRole("heading", { name, exact: true })).toBeAttached();
     },
   });
-  const found = (await journey.flow.client.databank.list.query({ search: name })).items.filter((item) => item.name === name);
+  const found = (await journey.client.databank.list.query({ search: name })).items.filter((item) => item.name === name);
   expect(found).toHaveLength(1);
   const document = found[0];
   if (document === undefined) {
     throw new Error("Native Paste did not create the disposable document");
   }
-  expect(journey.flow.run.subjects.documents.some(({ id }) => id === document.id)).toBe(false);
-  await attachNativeFile(journey.flow.info, journey.flow.info, "databank-disposable-identity", {
+  expect(journey.run.subjects.documents.some(({ id }) => id === document.id)).toBe(false);
+  await attachNativeFile(journey.info, journey.info, "databank-disposable-identity", {
     body: JSON.stringify({ id: document.id, name, provenance: "production-native-paste-disposable", original: false }),
     contentType: "application/json",
   });
   try {
-    const stored = await journey.flow.client.databank.get.query({ id: document.id, includeText: true });
+    const stored = await journey.client.databank.get.query({ id: document.id, includeText: true });
     expect(stored.extractedText).toBe(text);
     observe(
       journey,
@@ -2176,17 +1661,17 @@ async function databankDisposable(journey: Journey): Promise<void> {
       "visited",
       "Native Paste text persisted a separately labelled disposable document; indexing completion is judged separately",
     );
-    await inspect(journey, content(journey), "databank/disposable/detail");
+    await walkScope(journey, content(journey), "databank/disposable/detail");
     await editor.getByRole("button", { name: "View source text", exact: true }).click();
     await expect(editor.getByText(text, { exact: true })).toBeVisible();
-    await inspect(journey, content(journey), "databank/disposable/source-text");
+    await walkScope(journey, content(journey), "databank/disposable/source-text");
     await context(journey, "databank/disposable");
     await reveal(journey, "context");
     const everywhere = pane(journey, "context").getByRole("switch", { name: "Use in every chat", exact: true });
     await expect(everywhere).toBeChecked();
     await everywhere.click();
     await expect(everywhere).not.toBeChecked();
-    await expect.poll(async () => (await journey.flow.client.databank.listGlobal.query()).includes(document.id)).toBe(false);
+    await expect.poll(async () => (await journey.client.databank.listGlobal.query()).includes(document.id)).toBe(false);
     await dismissContext(journey);
     await databankLibrary(journey);
     const search = pane(journey, "list").getByRole("textbox", { name: "Search documents", exact: true });
@@ -2194,21 +1679,21 @@ async function databankDisposable(journey: Journey): Promise<void> {
     const actions = (): Locator => pane(journey, "list").getByRole("button", { name: rowActionsName(name), exact: true });
     await pane(journey, "list").getByRole("button", { name, exact: true }).focus();
     await actions().click();
-    await checkpoint(journey, "databank/disposable/row-menu", journey.flow.page.getByRole("menu"));
-    await attachNativeFile(journey.flow.info, journey.flow.info, "databank-disposable-row-commands", {
-      body: await journey.flow.page.getByRole("menu").ariaSnapshot(),
+    await checkpoint(journey, "databank/disposable/row-menu", journey.page.getByRole("menu"));
+    await attachNativeFile(journey.info, journey.info, "databank-disposable-row-commands", {
+      body: await journey.page.getByRole("menu").ariaSnapshot(),
       contentType: "text/plain",
     });
-    await journey.flow.page.getByRole("menuitem", { name: "Feed every chat", exact: true }).click();
-    await expect.poll(async () => (await journey.flow.client.databank.listGlobal.query()).includes(document.id)).toBe(true);
+    await journey.page.getByRole("menuitem", { name: "Feed every chat", exact: true }).click();
+    await expect.poll(async () => (await journey.client.databank.listGlobal.query()).includes(document.id)).toBe(true);
     await actions().click();
-    await journey.flow.page.getByRole("menuitem", { name: ROW_RENAME_NAME, exact: true }).click();
-    const rename = journey.flow.page.getByRole("dialog", { name: "Rename document", exact: true });
+    await journey.page.getByRole("menuitem", { name: ROW_RENAME_NAME, exact: true }).click();
+    const rename = journey.page.getByRole("dialog", { name: "Rename document", exact: true });
     await rename.getByRole("textbox", { name: "Document name", exact: true }).fill(renamed);
     await rename.getByRole("button", { name: "Save", exact: true }).click();
-    await expect.poll(async () => (await journey.flow.client.databank.get.query({ id: document.id })).name).toBe(renamed);
-    await journey.flow.page.reload();
-    await waitForAppReady(journey.flow.page);
+    await expect.poll(async () => (await journey.client.databank.get.query({ id: document.id })).name).toBe(renamed);
+    await journey.page.reload();
+    await waitForAppReady(journey.page);
     await databankLibrary(journey);
     await pane(journey, "list").getByRole("textbox", { name: "Search documents", exact: true }).fill(renamed);
     await pane(journey, "list").getByRole("button", { name: renamed, exact: true }).click();
@@ -2218,7 +1703,7 @@ async function databankDisposable(journey: Journey): Promise<void> {
     await dismissContext(journey);
     await editor.getByRole("button", { name: "View source text", exact: true }).click();
     await expect(editor.getByText(text, { exact: true })).toBeVisible();
-    await inspect(journey, content(journey), "databank/disposable/reloaded");
+    await walkScope(journey, content(journey), "databank/disposable/reloaded");
     observe(journey, "databank/disposable/persistence", "visited", "Native rename and Context/row global writes survived reload and production reads");
     await databankMaintenance(journey, false);
     await databankLibrary(journey);
@@ -2227,12 +1712,12 @@ async function databankDisposable(journey: Journey): Promise<void> {
     await pane(journey, "list")
       .getByRole("button", { name: rowActionsName(renamed), exact: true })
       .click();
-    await journey.flow.page.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
-    const confirm = journey.flow.page.getByRole("alertdialog", { name: `Delete "${renamed}"?`, exact: true });
+    await journey.page.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
+    const confirm = journey.page.getByRole("alertdialog", { name: `Delete "${renamed}"?`, exact: true });
     await checkpoint(journey, "databank/disposable/delete-confirm", confirm);
     await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
     await expect(confirm).toBeHidden();
-    await expect.poll(async () => (await journey.flow.client.databank.list.query({ search: renamed })).items.some(({ id }) => id === document.id)).toBe(false);
+    await expect.poll(async () => (await journey.client.databank.list.query({ search: renamed })).items.some(({ id }) => id === document.id)).toBe(false);
     await expect(pane(journey, "list").getByText("No matches", { exact: true })).toBeVisible();
     observe(
       journey,
@@ -2241,9 +1726,9 @@ async function databankDisposable(journey: Journey): Promise<void> {
       "Native Delete confirmation removed the disposable document; production list and rendered search verify absence",
     );
   } finally {
-    const remaining = await journey.flow.client.databank.list.query({ search: "Surface disposable document" });
+    const remaining = await journey.client.databank.list.query({ search: "Surface disposable document" });
     if (remaining.items.some(({ id }) => id === document.id)) {
-      await journey.flow.client.databank.remove.mutate({ id: document.id });
+      await journey.client.databank.remove.mutate({ id: document.id });
       observe(
         journey,
         "databank/disposable/failure-cleanup",
@@ -2265,13 +1750,13 @@ async function databank(journey: Journey): Promise<void> {
   await databankLibrary(journey);
   await checkpoint(journey, "databank/library", pane(journey, "list"));
   await databankAdd(journey);
-  let listed = await journey.flow.client.databank.list.query({});
+  let listed = await journey.client.databank.list.query({});
   const documents = [...listed.items];
   while (listed.nextCursor !== null) {
-    listed = await journey.flow.client.databank.list.query({ cursor: listed.nextCursor });
+    listed = await journey.client.databank.list.query({ cursor: listed.nextCursor });
     documents.push(...listed.items);
   }
-  const originals = documents.filter((item) => journey.flow.run.subjects.documents.some(({ id }) => id === item.id));
+  const originals = documents.filter((item) => journey.run.subjects.documents.some(({ id }) => id === item.id));
   observe(
     journey,
     "databank/document-census",
@@ -2297,10 +1782,10 @@ async function databank(journey: Journey): Promise<void> {
   }
   await databankDisposable(journey);
   const search = pane(journey, "list").getByRole("textbox", { name: "Search documents", exact: true });
-  const matches = await journey.flow.client.databank.list.query({ search: subject.name });
+  const matches = await journey.client.databank.list.query({ search: subject.name });
   expect(matches.items.filter(({ id }) => id === subject.id)).toHaveLength(1);
   const row = pane(journey, "list").getByRole("list", { name: "Documents", exact: true }).getByRole("button", { name: subject.name, exact: true });
-  await journey.flow.action(`databank/reveal/${subject.id}`, {
+  await journey.action(`databank/reveal/${subject.id}`, {
     action: async () => {
       await search.fill(SEARCH_MISS);
       await expect(pane(journey, "list").getByText("No matches", { exact: true })).toBeVisible();
@@ -2312,12 +1797,12 @@ async function databank(journey: Journey): Promise<void> {
       await expect(row).toBeVisible();
     },
   });
-  await attachNativeFile(journey.flow.info, journey.flow.info, `databank-${subject.id}-native-row-identity`, {
+  await attachNativeFile(journey.info, journey.info, `databank-${subject.id}-native-row-identity`, {
     body: JSON.stringify({ documentId: subject.id, search: subject.name, nativeRow: await row.ariaSnapshot() }),
     contentType: "application/json",
   });
-  const editor = journey.flow.page.locator('[data-slot="databank-detail-editor"]');
-  await journey.flow.action(`databank/open/${subject.id}`, {
+  const editor = journey.page.locator('[data-slot="databank-detail-editor"]');
+  await journey.action(`databank/open/${subject.id}`, {
     action: async () => {
       await row.click();
     },
@@ -2326,10 +1811,10 @@ async function databank(journey: Journey): Promise<void> {
       await expect(editor.getByRole("heading", { name: subject.name, exact: true })).toBeAttached();
     },
   });
-  await inspect(journey, content(journey), `databank/${subject.id}/detail`);
+  await walkScope(journey, content(journey), `databank/${subject.id}/detail`);
   const source = editor.getByRole("button", { name: "View source text", exact: true });
-  const stored = await journey.flow.client.databank.get.query({ id: subject.id, includeText: true });
-  await journey.flow.action(`databank/${subject.id}/source`, {
+  const stored = await journey.client.databank.get.query({ id: subject.id, includeText: true });
+  await journey.action(`databank/${subject.id}/source`, {
     action: async () => {
       await source.click();
     },
@@ -2338,7 +1823,7 @@ async function databank(journey: Journey): Promise<void> {
       await expect(editor.getByText("Loading the source text…", { exact: true })).toHaveCount(0);
     },
   });
-  await inspect(journey, content(journey), `databank/${subject.id}/source-text`);
+  await walkScope(journey, content(journey), `databank/${subject.id}/source-text`);
   observe(
     journey,
     `databank/${subject.id}/source-read`,
@@ -2346,8 +1831,13 @@ async function databank(journey: Journey): Promise<void> {
     `Actual extracted source length ${String(stored.extractedText?.length ?? 0)}; no source bytes duplicated in coverage metadata`,
   );
   await context(journey, `databank/${subject.id}`);
-  await journey.flow.requestPanes();
-  observe(journey, "databank/maintenance", "unvisited", "Reindex/re-extract, feed-everywhere and destructive original-document operations are not invoked");
+  await journey.requestPanes();
+  observe(
+    journey,
+    "databank/maintenance",
+    "excluded",
+    "Reindex/re-extract, feed-everywhere and destructive operations would rewrite admitted original documents; their confirmations are opened and cancelled",
+  );
 }
 
 async function refinery(journey: Journey): Promise<void> {
@@ -2357,11 +1847,11 @@ async function refinery(journey: Journey): Promise<void> {
   }
   await ready(content(journey));
   await loadRefineryPicker(journey);
-  await inspect(journey, content(journey), "refinery/landing");
+  await walkScope(journey, content(journey), "refinery/landing");
   await reveal(journey, "list");
-  await inspect(journey, pane(journey, "list"), "refinery/sessions");
-  const rows = await journey.flow.client.refinery.listSessions.query();
-  const originals = rows.filter((item) => journey.flow.run.subjects.refinerySessions.some(({ id }) => id === item.id));
+  await walkScope(journey, pane(journey, "list"), "refinery/sessions");
+  const rows = await journey.client.refinery.listSessions.query();
+  const originals = rows.filter((item) => journey.run.subjects.refinerySessions.some(({ id }) => id === item.id));
   observe(
     journey,
     "refinery/session-census",
@@ -2390,7 +1880,7 @@ async function refinery(journey: Journey): Promise<void> {
 }
 
 async function refineryWorkbench(journey: Journey, row: Locator, prefix: string): Promise<void> {
-  await journey.flow.action(`${prefix}/open`, {
+  await journey.action(`${prefix}/open`, {
     action: async () => {
       await row.click();
     },
@@ -2399,18 +1889,17 @@ async function refineryWorkbench(journey: Journey, row: Locator, prefix: string)
       await ready(content(journey));
     },
   });
-  await inspect(journey, content(journey), `${prefix}/workbench`);
-  await refineryDialogs(journey, prefix);
+  await walkScope(journey, content(journey), `${prefix}/workbench`);
+  await refineryDoors(journey, prefix);
   await context(journey, prefix);
-  await refinerySetup(journey, prefix);
   await refineryVersions(journey, prefix);
-  await journey.flow.requestPanes();
-  await inspect(journey, content(journey), `${prefix}/requested-panes`);
+  await journey.requestPanes();
+  await walkScope(journey, content(journey), `${prefix}/requested-panes`);
   observe(
     journey,
     "refinery/runs",
-    "unvisited",
-    "Score/rewrite/analyze, iterate/apply/copy and original session/card mutation are not invoked; existing run payloads are read only",
+    "excluded",
+    "Stage runs, iterate, apply and copy would mutate an admitted original session and card; the Refinery disposable stage execution case runs them on its own subject",
   );
 }
 
@@ -2554,23 +2043,18 @@ export async function walkRefineryExecution(flow: SurfaceFlow): Promise<void> {
       body: JSON.stringify({ observations: journey.observations, expected: journey.expected }),
       contentType: "application/json",
     });
-    await publishSurfaceInventory(flow.info, {
-      name: "refinery/execution",
-      expected: journey.expected,
-      observations: journey.observations.map(({ status, ...observation }) => ({ ...observation, disposition: status })),
-    });
+    await publishWalk(journey, "refinery/execution");
   }
 }
 
 async function refineryStageRun(journey: Journey, sessionId: RefinerySessionId, stage: RefineryStage): Promise<RefineryRun> {
-  const { flow } = journey;
-  const cursor = await refineryRequestCursor(flow);
+  const cursor = await refineryRequestCursor(journey);
   let produced: RefineryRun | undefined;
   const lane = content(journey).locator(`[data-lane="${stage}"]`);
-  await flow.action(`refinery/execution/${stage}`, {
+  await journey.action(`refinery/execution/${stage}`, {
     action: async () => {
       const [response] = await Promise.all([
-        flow.page.waitForResponse((item) => new URL(item.url()).origin === flow.run.origin && isTrpcRequestFor(item.url(), "refinery.runStage")),
+        journey.page.waitForResponse((item) => new URL(item.url()).origin === journey.run.origin && isTrpcRequestFor(item.url(), "refinery.runStage")),
         lane.getByRole("button", { name: `Run ${stage}`, exact: true }).click(),
       ]);
       produced = await readTrpcOutput(response, "refinery.runStage", refineryRunViewSchema);
@@ -2583,7 +2067,7 @@ async function refineryStageRun(journey: Journey, sessionId: RefinerySessionId, 
     throw new Error("Native stage execution did not return a run identity");
   }
   expect(produced.sessionId).toBe(sessionId);
-  expect(produced.model).toBe(flow.run.generation.structuredConnection.model);
+  expect(produced.model).toBe(journey.run.generation.structuredConnection.model);
   const [request] = await refineryRequestReceipt(journey, stage, cursor, 1);
   // The scripted reply is the one keyed by the schema name production itself put on the wire.
   const fixture = request?.structuredSchema === undefined ? undefined : CORPUS_STRUCTURED_REPLIES.get(request.structuredSchema);
@@ -2611,11 +2095,11 @@ async function refineryRequestCursor(flow: SurfaceFlow): Promise<number> {
 }
 
 async function refineryRequestReceipt(journey: Journey, name: string, cursor: number, count: number): Promise<readonly SurfaceProviderEvidence[]> {
-  const requests = parseSurfaceProviderEvidence(await readFile(journey.flow.run.generation.requestEvidencePath, "utf8")).filter(
+  const requests = parseSurfaceProviderEvidence(await readFile(journey.run.generation.requestEvidencePath, "utf8")).filter(
     ({ requestId, request, event }) => requestId > cursor && request === "POST /v1/chat/completions" && event === "request",
   );
   expect(requests, "This native act must own the expected fresh physical stage calls").toHaveLength(count);
-  await attachNativeFile(journey.flow.info, journey.flow.info, `refinery-${name}-physical-requests`, {
+  await attachNativeFile(journey.info, journey.info, `refinery-${name}-physical-requests`, {
     body: JSON.stringify({ cursor, requests }),
     contentType: "application/json",
   });
@@ -2623,18 +2107,17 @@ async function refineryRequestReceipt(journey: Journey, name: string, cursor: nu
 }
 
 async function refineryIterate(journey: Journey, sessionId: RefinerySessionId, runs: RefineryRun[]): Promise<void> {
-  const { flow } = journey;
-  const cursor = await refineryRequestCursor(flow);
-  await flow.action("refinery/execution/iterate", {
+  const cursor = await refineryRequestCursor(journey);
+  await journey.action("refinery/execution/iterate", {
     action: async () => {
       await content(journey).getByRole("button", { name: "Iterate", exact: true }).click();
     },
     ready: async () => {
-      await expect.poll(async () => (await flow.client.refinery.getSession.query({ sessionId })).iterationCount).toBe(1);
+      await expect.poll(async () => (await journey.client.refinery.getSession.query({ sessionId })).iterationCount).toBe(1);
       await expect(content(journey).getByRole("button", { name: "Iterate", exact: true })).toBeEnabled();
     },
   });
-  const stored = await flow.client.refinery.listRuns.query({ sessionId });
+  const stored = await journey.client.refinery.listRuns.query({ sessionId });
   expect(stored.map(({ stage }) => stage)).toEqual([...REFINERY_STAGES, "rewrite", "analyze"]);
   expect(stored.slice(0, runs.length)).toEqual(runs);
   const refined = stored.slice(runs.length);
@@ -2649,12 +2132,11 @@ async function refineryCopy(
   sessionId: RefinerySessionId,
   characters: Set<CharacterId>,
 ): Promise<NonNullable<ApplyAsCopyResult["character"]>> {
-  const { flow } = journey;
   const custody: { character: ApplyAsCopyResult["character"] } = { character: null };
-  await flow.action("refinery/execution/save-as-copy", {
+  await journey.action("refinery/execution/save-as-copy", {
     action: async () => {
       const [response] = await Promise.all([
-        flow.page.waitForResponse((item) => new URL(item.url()).origin === flow.run.origin && isTrpcRequestFor(item.url(), "refinery.applyAsCopy")),
+        journey.page.waitForResponse((item) => new URL(item.url()).origin === journey.run.origin && isTrpcRequestFor(item.url(), "refinery.applyAsCopy")),
         content(journey).getByRole("button", { name: "Save as copy", exact: true }).click(),
       ]);
       const result = await readTrpcOutput(response, "refinery.applyAsCopy", applyAsCopyResultSchema);
@@ -2673,17 +2155,16 @@ async function refineryCopy(
   if (copied === null) {
     throw new Error("Native Save as copy returned no disposable character identity");
   }
-  expect((await flow.client.refinery.getSession.query({ sessionId })).characterId).not.toBe(copied.id);
+  expect((await journey.client.refinery.getSession.query({ sessionId })).characterId).not.toBe(copied.id);
   await checkpoint(journey, "refinery/execution/copy/result", content(journey), content(journey).getByRole("button", { name: "Done", exact: true }));
   return copied;
 }
 
 async function refineryApply(journey: Journey, sessionId: RefinerySessionId, characterId: CharacterId, description: string): Promise<void> {
-  const { flow } = journey;
-  await flow.action("refinery/execution/apply", {
+  await journey.action("refinery/execution/apply", {
     action: async () => {
       const [response] = await Promise.all([
-        flow.page.waitForResponse((item) => new URL(item.url()).origin === flow.run.origin && isTrpcRequestFor(item.url(), "refinery.applyFields")),
+        journey.page.waitForResponse((item) => new URL(item.url()).origin === journey.run.origin && isTrpcRequestFor(item.url(), "refinery.applyFields")),
         content(journey).getByRole("button", { name: "Apply 1 kept", exact: true }).click(),
       ]);
       const result = await readTrpcOutput(response, "refinery.applyFields", applyFieldsResultSchema);
@@ -2693,11 +2174,11 @@ async function refineryApply(journey: Journey, sessionId: RefinerySessionId, cha
     },
     ready: async () => {
       await expect(content(journey)).toContainText("Saved a snapshot first — undo it from the character's History tab.");
-      await expect.poll(async () => (await flow.client.character.get.query({ characterId })).description).toBe(description);
+      await expect.poll(async () => (await journey.client.character.get.query({ characterId })).description).toBe(description);
     },
   });
-  expect((await flow.client.refinery.getSession.query({ sessionId })).status).toBe("completed");
-  expect(await flow.client.character.listSnapshots.query({ characterId })).toHaveLength(1);
+  expect((await journey.client.refinery.getSession.query({ sessionId })).status).toBe("completed");
+  expect(await journey.client.character.listSnapshots.query({ characterId })).toHaveLength(1);
   await checkpoint(journey, "refinery/execution/apply/result", content(journey), content(journey).getByRole("button", { name: "Done", exact: true }));
 }
 
@@ -2710,32 +2191,32 @@ async function refineryVersionRestore(journey: Journey, sessionId: RefinerySessi
   await expect(versions.getByText("description — this version vs live", { exact: true })).toBeVisible();
   await expect(versions.getByText("Loading that version…", { exact: true })).toHaveCount(0);
   await checkpoint(journey, "refinery/execution/version-compare", versions);
-  await journey.flow.action("refinery/execution/version-restore", {
+  await journey.action("refinery/execution/version-restore", {
     action: async () => {
       await versions.getByRole("button", { name: "Restore", exact: true }).click();
     },
     ready: async () => {
-      await expect.poll(async () => (await journey.flow.client.character.get.query({ characterId })).description).toBe(description);
+      await expect.poll(async () => (await journey.client.character.get.query({ characterId })).description).toBe(description);
       await expect(versions.getByRole("button", { name: "Restore", exact: true })).toHaveCount(2);
     },
   });
-  expect(await journey.flow.client.character.listSnapshots.query({ characterId })).toHaveLength(2);
-  expect((await journey.flow.client.refinery.getSession.query({ sessionId })).characterId).toBe(characterId);
+  expect(await journey.client.character.listSnapshots.query({ characterId })).toHaveLength(2);
+  expect((await journey.client.refinery.getSession.query({ sessionId })).characterId).toBe(characterId);
   await checkpoint(journey, "refinery/execution/version-restored", versions);
   await dismissContext(journey);
 }
 
 async function disposableRefinery(journey: Journey): Promise<void> {
-  const character = journey.flow.run.subjects.characters.at(0);
+  const character = journey.run.subjects.characters.at(0);
   if (character === undefined) {
     observe(journey, "refinery/disposable-workbench", "unvisited", "No original owned character can anchor a separately labelled disposable session");
     return;
   }
   const name = `Surface session ${crypto.randomUUID()}`;
-  const session = await journey.flow.client.refinery.startSession.mutate({ characterId: character.id, name });
-  expect(journey.flow.run.subjects.refinerySessions.some(({ id }) => id === session.id)).toBe(false);
+  const session = await journey.client.refinery.startSession.mutate({ characterId: character.id, name });
+  expect(journey.run.subjects.refinerySessions.some(({ id }) => id === session.id)).toBe(false);
   try {
-    const summaries = await journey.flow.client.refinery.listSessions.query();
+    const summaries = await journey.client.refinery.listSessions.query();
     const summary = summaries.find(({ id }) => id === session.id);
     if (summary === undefined) {
       throw new Error("The disposable refinery session has no actual production library identity");
@@ -2745,7 +2226,7 @@ async function disposableRefinery(journey: Journey): Promise<void> {
     const row = pane(journey, "list").getByRole("button", { name: summary.characterName, exact: true });
     await expect(row).toHaveCount(1);
     await expect(row).toBeVisible();
-    await attachNativeFile(journey.flow.info, journey.flow.info, "refinery-disposable-identity", {
+    await attachNativeFile(journey.info, journey.info, "refinery-disposable-identity", {
       body: JSON.stringify({ sessionId: session.id, characterId: character.id, original: false, nativeRow: await row.ariaSnapshot() }),
       contentType: "application/json",
     });
@@ -2757,62 +2238,42 @@ async function disposableRefinery(journey: Journey): Promise<void> {
       "Production-created disposable session exercised actual workbench/dialogs without changing its source character or executing paid stages; not an original-session witness",
     );
   } finally {
-    await journey.flow.client.refinery.deleteSession.mutate({ sessionId: session.id });
-    await expect.poll(async () => (await journey.flow.client.refinery.listSessions.query()).some(({ id }) => id === session.id)).toBe(false);
+    await journey.client.refinery.deleteSession.mutate({ sessionId: session.id });
+    await expect.poll(async () => (await journey.client.refinery.listSessions.query()).some(({ id }) => id === session.id)).toBe(false);
   }
 }
 
-async function readonlyDialog(journey: Journey, trigger: Locator, id: string): Promise<void> {
-  if ((await trigger.count()) === 0) {
-    observe(journey, id, "not-applicable", "The original subject exposes no corresponding read/edit door");
-    return;
-  }
-  if (await trigger.isDisabled()) {
-    observe(journey, id, "skipped", "The actual dialog door is disabled; no click or dialog acceptance claimed");
-    return;
-  }
-  const dialog = journey.flow.page.getByRole("dialog");
-  await journey.flow.action(`${id}/open`, {
-    action: async () => {
-      await trigger.click();
-    },
-    ready: async () => {
-      await expect(dialog).toHaveCount(1);
-      await ready(dialog);
-    },
-  });
-  await inspect(journey, dialog, id);
-  await journey.flow.action(`${id}/close-without-submit`, {
-    action: async () => {
-      await dialog.press("Escape");
-    },
-    ready: async () => {
-      await expect(dialog).toHaveCount(0);
-      await expect(trigger).toBeFocused();
-    },
-  });
+// The workbench's dialogs open from plain buttons, which carry no aria-haspopup, so the generic walk cannot find them.
+const REFINERY_WORKBENCH_DOORS = [
+  { name: "Edit scope", id: "scope-dialog" },
+  { name: "Hand-edit", id: "manual-rewrite-dialog" },
+] as const;
+const REFINERY_SETUP_DOORS = ["View Original card", "Change Score schema", "Change Analyze schema"] as const;
+
+async function openSetupTab(journey: Journey): Promise<Locator> {
+  await reveal(journey, "context");
+  const setup = pane(journey, "context").getByRole("tab", { name: "Setup", exact: true });
+  await setup.click();
+  await expect(setup).toHaveAttribute("aria-selected", "true");
+  return pane(journey, "context");
 }
 
-async function refineryDialogs(journey: Journey, prefix: string): Promise<void> {
-  await readonlyDialog(journey, content(journey).getByRole("button", { name: "Edit scope", exact: true }), `${prefix}/scope-dialog`);
-  await readonlyDialog(journey, content(journey).getByRole("button", { name: "Hand-edit", exact: true }), `${prefix}/manual-rewrite-dialog`);
+async function refineryDoors(journey: Journey, prefix: string): Promise<void> {
+  const dialog = journey.page.getByRole("dialog");
+  for (const door of REFINERY_WORKBENCH_DOORS) {
+    await walkDoor(journey, { id: `${prefix}/${door.id}`, trigger: content(journey).getByRole("button", { name: door.name, exact: true }), body: dialog });
+  }
+  for (const name of REFINERY_SETUP_DOORS) {
+    const setup = await openSetupTab(journey);
+    await walkDoor(journey, { id: `${prefix}/setup/${name}`, trigger: setup.getByRole("button", { name, exact: true }), body: dialog });
+  }
+  await dismissContext(journey);
   observe(
     journey,
     `${prefix}/dialog-submissions`,
     "excluded",
     "Original scope/session/card fields remain unchanged; schema draft generation, rewrite save and paid stage execution are not submitted",
   );
-}
-
-async function refinerySetup(journey: Journey, prefix: string): Promise<void> {
-  for (const name of ["View Original card", "Change Score schema", "Change Analyze schema"]) {
-    await reveal(journey, "context");
-    const setup = pane(journey, "context").getByRole("tab", { name: "Setup", exact: true });
-    await setup.click();
-    await expect(setup).toHaveAttribute("aria-selected", "true");
-    await readonlyDialog(journey, pane(journey, "context").getByRole("button", { name, exact: true }), `${prefix}/setup/${name}`);
-  }
-  await dismissContext(journey);
 }
 
 async function refineryVersions(journey: Journey, prefix: string): Promise<void> {
@@ -2825,7 +2286,7 @@ async function refineryVersions(journey: Journey, prefix: string): Promise<void>
   const comparisons = body.getByRole("button", { name: "Compare", exact: true });
   const count = await comparisons.count();
   for (let index = 0; index < count; index += 1) {
-    await journey.flow.action(`${prefix}/versions/compare-${String(index)}`, {
+    await journey.action(`${prefix}/versions/compare-${String(index)}`, {
       action: async () => {
         await comparisons.nth(index).click();
       },
@@ -2835,7 +2296,7 @@ async function refineryVersions(journey: Journey, prefix: string): Promise<void>
         await expect(body.getByText("description — this version vs live", { exact: true })).toBeVisible();
       },
     });
-    await inspect(journey, body, `${prefix}/versions/compare-${String(index)}`);
+    await walkScope(journey, body, `${prefix}/versions/compare-${String(index)}`);
     await body.getByRole("button", { name: "Hide compare", exact: true }).click();
     await expect(body.getByRole("button", { name: "Hide compare", exact: true })).toHaveCount(0);
   }
@@ -2848,23 +2309,12 @@ async function refineryVersions(journey: Journey, prefix: string): Promise<void>
   await dismissContext(journey);
 }
 
-async function dismissContext(journey: Journey): Promise<void> {
-  const region = pane(journey, "context");
-  if ((await region.getAttribute("data-panel-mode")) === "overlay") {
-    await region
-      .page()
-      .getByRole("button", { name: /^(?:Close (?:.+ details|details|panel)|Hide details)$/u })
-      .click();
-  }
-  await expect(region).not.toHaveAttribute("data-panel-mode", "overlay");
-}
-
 async function extensions(journey: Journey): Promise<void> {
   await enter(journey, "extensions");
   await reveal(journey, "list");
-  await inspect(journey, pane(journey, "list"), "extensions/switcher");
-  const [surfaces, plugins] = await Promise.all([journey.flow.client.plugin.listSurfaces.query(), journey.flow.client.plugin.list.query()]);
-  const originals = surfaces.filter((surface) => surface.anchor === "page" && journey.flow.run.subjects.plugins.some(({ id }) => id === surface.pluginId));
+  await walkScope(journey, pane(journey, "list"), "extensions/switcher");
+  const [surfaces, plugins] = await Promise.all([journey.client.plugin.listSurfaces.query(), journey.client.plugin.list.query()]);
+  const originals = surfaces.filter((surface) => surface.anchor === "page" && journey.run.subjects.plugins.some(({ id }) => id === surface.pluginId));
   for (const surface of originals) {
     expectSubject(journey, `extensions/${surface.pluginId}/${surface.id}`, "plugin-page");
   }
@@ -2881,7 +2331,7 @@ async function extensions(journey: Journey): Promise<void> {
       observe(journey, `extensions/${plugin.id}/${surface.id}`, "unvisited", "No unique native attributed page row; no guessed install selected");
       continue;
     }
-    await journey.flow.action(`extensions/open/${plugin.id}/${surface.id}`, {
+    await journey.action(`extensions/open/${plugin.id}/${surface.id}`, {
       action: async () => {
         await row.click();
       },
@@ -2890,7 +2340,7 @@ async function extensions(journey: Journey): Promise<void> {
         await expect(content(journey).locator('[data-plugin-surface-scale="page"]')).toBeVisible();
       },
     });
-    await inspect(journey, content(journey), `extensions/${plugin.id}/${surface.id}`);
+    await walkScope(journey, content(journey), `extensions/${plugin.id}/${surface.id}`);
     observe(
       journey,
       `extensions/${plugin.id}/${surface.id}/guest-actions`,
@@ -2898,29 +2348,26 @@ async function extensions(journey: Journey): Promise<void> {
       "Host attribution/native content inspected; arbitrary guest action semantics and external execution are not inferred from shell readiness",
     );
   }
-  observe(
-    journey,
-    "extensions/page-inventory",
-    originals.length === 0 ? "skipped" : "visited",
-    `${String(originals.length)} actual page registrations belonging to original installs; disabled/awaiting-consent installs are not enabled`,
-  );
-  await journey.flow.requestPanes();
+  const inventory = `${String(originals.length)} actual page registrations belonging to original installs; disabled/awaiting-consent installs are not enabled`;
+  if (originals.length === 0) {
+    skip(journey, "extensions/page-inventory", "no-subject", inventory);
+  } else {
+    observe(journey, "extensions/page-inventory", "visited", inventory);
+  }
+  await journey.requestPanes();
 }
 
 const JOURNEYS = { home, corpus, extensions, databank, presets, refinery } satisfies Record<OwnedSection, (journey: Journey) => Promise<void>>;
 
 async function platformGestures(journey: Journey): Promise<void> {
-  const active = journey.flow.page
-    .getByRole("navigation", { name: "Primary", exact: true })
-    .getByRole("button")
-    .and(journey.flow.page.locator('[aria-current="page"]'));
+  const active = journey.page.getByRole("navigation", { name: "Primary", exact: true }).getByRole("button").and(journey.page.locator('[aria-current="page"]'));
   await expect(active).toHaveCount(1);
-  await journey.flow.action("platform/gestures", {
+  await journey.action("platform/gestures", {
     action: async () => {
       await active.focus();
       await active.press("Tab");
       await expect(active).not.toBeFocused();
-      await journey.flow.page.keyboard.press("Shift+Tab");
+      await journey.page.keyboard.press("Shift+Tab");
     },
     ready: async () => {
       await expect(active).toBeFocused();
@@ -2938,7 +2385,25 @@ async function platformGestures(journey: Journey): Promise<void> {
 export const SURFACE_SECTION_IDS = SECTION_IDS.filter((id): id is OwnedSection => id !== "chats" && id !== "characters" && id !== "config");
 
 function sectionJourney(flow: SurfaceFlow, section: OwnedSection): Journey {
-  return { flow, observations: [], presetMenus: [], expected: [{ id: section, kind: "rail" }] };
+  const presetMenus: Journey["presetMenus"] = [];
+  const journey: Journey = {
+    ...createSurfaceWalk(flow, [{ id: section, kind: "rail" }], {
+      menus: async (scope, prefix) => {
+        if (!prefix.startsWith("corpus/labels") || (await scope.getByRole("textbox", { name: TAG_FILTER_NAME, exact: true }).count()) !== 1) {
+          return false;
+        }
+        await labelMenus(journey, scope, prefix);
+        return true;
+      },
+      menuLeaves: async (menu, prefix, leaves) => {
+        if (prefix.startsWith("presets/")) {
+          presetMenus.push({ id: prefix, family: await presetMenuFamily(journey, menu, prefix), leaves });
+        }
+      },
+    }),
+    presetMenus,
+  };
+  return journey;
 }
 
 /** One native case owns one real rail so a failed surface cannot hide unrelated journeys. */
@@ -2947,11 +2412,11 @@ export async function walkSection(flow: SurfaceFlow, section: (typeof SURFACE_SE
   try {
     await JOURNEYS[section](journey);
     observe(journey, section, "visited", "Independent native rail itinerary completed; nested omissions retain their own explicit dispositions");
-    observe(
+    skip(
       journey,
       "config/worldInfo",
-      "skipped",
-      "World Info is a production Config collection, not a live rail; Config owner covers its member/entry editors",
+      "another-case",
+      "World Info is a production Config collection, not a live rail; the Config worldInfo case covers its member and entry editors",
     );
     await platformGestures(journey);
   } finally {
@@ -2963,10 +2428,6 @@ export async function walkSection(flow: SurfaceFlow, section: (typeof SURFACE_SE
       ),
       contentType: "application/json",
     });
-    await publishSurfaceInventory(flow.info, {
-      name: `sections/${section}`,
-      expected: journey.expected,
-      observations: journey.observations.map(({ status, ...observation }) => ({ ...observation, disposition: status })),
-    });
+    await publishWalk(journey, `sections/${section}`);
   }
 }

@@ -34,7 +34,7 @@ test("boot continues across a real binding refusal, and the composed post-boot a
     expect(await app.services.connection.list({ principal: await harness.principalFor(user.id) })).toHaveLength(2);
   }
   expect(bound).toEqual([]);
-  const minted = await app.services.sessions.ensureUser(castId("after_boot_refusal"));
+  const minted = await app.sessions.ensureUser(castId("after_boot_refusal"));
   expect(await app.sessions.loadUserById(minted)).toMatchObject({ handle: "after_boot_refusal" });
   const mintedPrincipal = await harness.principalFor(minted);
   const bindingsOf = async (): Promise<NonNullable<Awaited<ReturnType<typeof app.services.connection.listBindings>>[number]["binding"]>[]> =>

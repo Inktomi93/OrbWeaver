@@ -48,8 +48,7 @@ function toRow(entry: ConfigSearchEntry): PaletteCommandRow {
 }
 
 /** The whole visible static index as palette rows — a hook, in the source's own fiber (the palette renders
- *  each source as its own component). Advanced rows stay behind the LIST search's `@advanced` (the palette
- *  has no token grammar). */
+ *  each source as its own component). */
 function useConfigPaletteRows(): readonly PaletteCommandRow[] {
   const viewer = useSettingsViewerView();
   const subcategoriesFor = useConfigSubcategories();
@@ -64,7 +63,7 @@ function useConfigPaletteRows(): readonly PaletteCommandRow[] {
       .map((group) => group.id),
   );
   const entries = buildConfigSearchEntries(groups, (id) => visible.has(id), subcategoriesFor);
-  return entries.filter((entry) => !entry.advanced).map(toRow);
+  return entries.map(toRow);
 }
 
 export const configPaletteSource: CommandPaletteSource = {
