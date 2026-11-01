@@ -235,7 +235,7 @@ export function workloadKindNeedsBulkTarget(kind: string): boolean {
 
 /** Whether a run of this kind needs the asset kind chosen: a blob on disk carries no kind, so the rebuild never guesses one. */
 export function workloadKindNeedsAssetKind(kind: string): boolean {
-  return isRunnableWorkloadKind(kind) && WORKLOAD_PARAM_SHAPE_BY_KIND[kind] === "assetKind";
+  return isStartableWorkloadKind(kind) && WORKLOAD_PARAM_SHAPE_BY_KIND[kind] === "assetKind";
 }
 
 /** The run dialog's form values. `kind` is a plain string; {@link isRunnableWorkloadKind} narrows at the save seam. */

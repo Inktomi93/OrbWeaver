@@ -17,6 +17,7 @@ import {
   seedCorpusConnections,
   seedRecallCorpus,
 } from "@orb/testkit/node/composed";
+import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 
 import { executeAdmitted } from "../../workloads/funding.fixtures.ts";
@@ -130,6 +131,21 @@ test("a csls run over more segments than one batch should hold writes its scores
     chunkIdx: 0,
   }));
   await root.db.insert(chatSegments).values(widened);
+  // The story-time stamp the run ends with writes one update per assigned tier-0 digest; widen those too.
+  const [digest] = await root.db.select().from(chatDigests).where(eq(chatDigests.tier, 0)).limit(1);
+  const [assignment] =
+    digest === undefined ? [] : await root.db.select().from(digestThemeAssignments).where(eq(digestThemeAssignments.digestId, digest.id)).limit(1);
+  if (digest === undefined || assignment === undefined) {
+    throw new Error("the recall corpus produced no assigned tier-0 digest to widen");
+  }
+  const digests = widened.map((segment) => ({
+    ...digest,
+    id: root.idSource.typeId(ID_PREFIX.chatDigest),
+    chatId: template.chatId,
+    blockIdx: segment.blockIdx,
+  }));
+  await root.db.insert(chatDigests).values(digests);
+  await root.db.insert(digestThemeAssignments).values(digests.map((row) => ({ ...assignment, digestId: row.id, msgMidAt: null })));
 
   using batch = vi.spyOn(root.db, "batch");
   const ref = await root.services.workloads.start({ caller: owner, mode: "singular", ownerId: owner.userId, input: { kind: "csls", params: {} } });
@@ -139,6 +155,7 @@ test("a csls run over more segments than one batch should hold writes its scores
   const sizes = batch.mock.calls.map(([statements]) => statements.length);
   expect(Math.max(...sizes)).toBeLessThanOrEqual(MAX_STATEMENTS_PER_BATCH);
   expect((await root.db.select({ score: chatSegments.hubScore }).from(chatSegments)).every((row) => row.score !== null)).toBe(true);
+  expect((await root.db.select({ at: digestThemeAssignments.msgMidAt }).from(digestThemeAssignments)).every((row) => row.at !== null)).toBe(true);
 });
 
 test("a cancelled csls run stops between passes without scoring the later kinds", async () => {

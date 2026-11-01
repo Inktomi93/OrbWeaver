@@ -1,5 +1,6 @@
 // @subject packages/db/src/schema/workloads.ts
 import { assertReferentialIntegrity, closeDb, createDb, runMigrations, workloadSchedules, workloads } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/query";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -7,7 +8,7 @@ import { migrationsBefore, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed
 import { seedUser } from "@orb/testkit/node/rows";
 import { sql } from "drizzle-orm";
 
-const REBUILD_KIND_MIGRATION = "0008_assets-rebuild-index-kind";
+const REBUILD_KIND_MIGRATION = "0009_assets-rebuild-index-kind-checks";
 const REBUILD_KIND = "assets-rebuild-index";
 
 test("the kind migration keeps every stored workload and schedule, and admits the rebuild kind in both tables", async () => {
@@ -35,7 +36,7 @@ test("the kind migration keeps every stored workload and schedule, and admits th
   await expect(
     db.run(sql`insert into workload_schedules (id, owner_id, kind, mode, cadence, next_run_at) values
       (${ids.typeId(ID_PREFIX.workloadSchedule)}, ${owner.id}, ${REBUILD_KIND}, 'bulk', 'weekly', 1000)`),
-  ).rejects.toThrow();
+  ).rejects.toSatisfy((error) => isConstraintViolation(error)?.kind === "check");
 
   await runMigrations(db, SHIPPED_MIGRATIONS);
 
@@ -50,6 +51,8 @@ test("the kind migration keeps every stored workload and schedule, and admits th
   await expect(
     db.run(sql`insert into workloads (id, kind, owner_id, funder_user_id, admission_system, status, mode, admission_key) values
       (${ids.typeId(ID_PREFIX.workload)}, ${REBUILD_KIND}, ${owner.id}, ${owner.id}, 0, 'running', 'bulk', 'none')`),
-  ).rejects.toThrow();
-  await expect(db.run(sql`insert into workloads (id, kind, mode) values (${ids.typeId(ID_PREFIX.workload)}, 'not-a-kind', 'bulk')`)).rejects.toThrow();
+  ).rejects.toSatisfy((error) => isConstraintViolation(error)?.kind === "unique");
+  await expect(db.run(sql`insert into workloads (id, kind, mode) values (${ids.typeId(ID_PREFIX.workload)}, 'not-a-kind', 'bulk')`)).rejects.toSatisfy(
+    (error) => isConstraintViolation(error)?.kind === "check",
+  );
 });

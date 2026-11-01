@@ -69,6 +69,10 @@ export function createRebuildFromTree(ctx: AssetsContext): AssetsService["rebuil
           throw error;
         }
         skippedOwners.push(ownerId);
+        // The folder's files were looked at and left alone, so they are scanned, not unseen.
+        for await (const _hash of ctx.cas.listHashes(ownerId)) {
+          scanned += 1;
+        }
       }
       ownersWalked += 1;
       onOwner?.({ ownersWalked, scanned, rebuilt });

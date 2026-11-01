@@ -96,6 +96,11 @@ const analyticsSummary: WorkloadResultRenderer<"compute-themes"> = (result) =>
 const maintenanceSummary: WorkloadResultRenderer<"assets-gc"> = (result) =>
   summarize([count(result.scanned, "item"), tally(result.changed, "changed"), result.dryRun ? "dry run — nothing written" : null]);
 
+/** The index rebuild: a maintenance sweep that also names the files folders it skipped because no user owns them
+ *  (`failed` counts them). `import-st` keeps the plain sweep line. */
+const rebuildIndexSummary: WorkloadResultRenderer<"assets-rebuild-index"> = (result) =>
+  summarize([maintenanceSummary(result), countIfAny(result.failed, "folder skipped", "folders skipped")]);
+
 /** A backfill sweep (group characters): chats read, chats filled in. */
 const backfillSummary: WorkloadResultRenderer<"group-character-backfill"> = (result) =>
   summarize([count(result.scanned, "chat"), tally(result.changed, "updated")]);
@@ -189,7 +194,7 @@ const WORKLOAD_RESULT_RENDERERS: { readonly [K in WorkloadKind]: ((result: Workl
   "assets-backfill": maintenanceSummary,
   "assets-gc": maintenanceSummary,
   "assets-fsck": fsckSummary,
-  "assets-rebuild-index": maintenanceSummary,
+  "assets-rebuild-index": rebuildIndexSummary,
   "import-st": maintenanceSummary,
   "import-bundle": bundleImportSummary,
   "import-token-usage-backfill": tokenUsageBackfillSummary,

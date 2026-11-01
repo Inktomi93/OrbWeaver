@@ -43,7 +43,7 @@ test("a files folder whose owner is not a user is skipped and counted, and the l
   await dispatch(box, run.id);
 
   const row = await workloadRow(box, run.id);
-  expect(row).toMatchObject({ status: "succeeded", result: { scanned: 1, changed: 1, failed: 1, dryRun: false } });
+  expect(row).toMatchObject({ status: "succeeded", result: { scanned: 2, changed: 1, failed: 1, dryRun: false } });
   // The result carries counts only: no driver error text reaches it.
   expect(JSON.stringify(row)).not.toMatch(/FOREIGN KEY|constraint|SQLITE|insert into/i);
   expect(await box.root.services.assets.listOwned({ principal: box.principal, kind: "avatar", limit: 10 })).toHaveLength(1);

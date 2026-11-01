@@ -244,7 +244,7 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
           const images = await deps.discovery.computeImageHubScores(scope);
           signal.throwIfAborted();
           report({ message: "stamping digest story times" });
-          await deps.discovery.backfillDigestStoryTime(ctx);
+          await deps.discovery.backfillDigestStoryTime(ctx, signal);
           // `rowsScored` IS the read census (every vector a pass loads gets exactly one hub update), so a zero
           // total means no embeddings of any kind exist, never that the calibration found nothing to say.
           // Rendered as "0 rows · 0 written" the two were the same sentence (issue #561).
