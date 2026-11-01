@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-01
 priority: P2
 area: client
+blocked: on 1815
 plan: type-law
 ---
 

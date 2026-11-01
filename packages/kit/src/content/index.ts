@@ -32,17 +32,16 @@
 //      ONE exception, opt-in per call: `committed: true` says no more bytes are coming, so an unterminated
 //      REGISTERED fence closes at EOF (degrade PRESERVING VALUE — see `TokenizeContentOptions.committed`).
 //      Streaming callers never pass it, so mid-stream behavior is byte-identical.
-//   3. MARKDOWN-CODE-FENCE EXCLUSION — tags/fences inside a ``` code fence are the author SHOWING code and
-//      stay literal (the §4.8 hard exclusion, applied to the whole new grammar; image refs keep their
-//      original code-fence-blind behavior for byte-compatibility with stored bodies).
+//   3. MARKDOWN-CODE-FENCE EXCLUSION — on this grammar, tags/fences inside a ``` code fence are the author SHOWING code
+//      and stay literal (the §4.8 hard exclusion, applied to the whole new grammar; image refs keep their original
+//      code-fence-blind behavior for byte-compatibility with stored bodies).
 //
-// THE §3.6 MEMBER-STRIP RIDES A SECOND, FENCE-BLIND PASS (`tokenizeForHiddenScan`, 2026-08-14). The grammar
-// above is the RENDER/WIRE grammar: a closed fence is ONE span carrying its whole body as `raw`. A trust
-// boundary cannot re-emit an opaque `raw`, so the hidden-span derivation the strip + the host reveal share
-// tokenizes with directive-fence recognition OFF. Its totality claim, stated honestly: no hidden-class span
-// survives the member projection anywhere the tokenizer would have recognized one — every directive fence
-// body included; the ``` code-fence exclusion is the one named, ratified hole (§3.2.1 #3 — the reader SEES
-// that tag, so it is a visible model bug, not a silent truth-leak).
+// THE §3.6 MEMBER-STRIP READS NO LINE STRUCTURE. The grammar above is the RENDER/WIRE grammar: a closed fence is ONE span
+// carrying its whole body as `raw`, and a code block is literal. A trust boundary can neither re-emit an opaque `raw` nor
+// leave a secret literal, so the hidden scan walks the whole text with the tag walker alone. Its totality claim: no
+// hidden-class tag survives the member projection anywhere in a body, directive fence and code block bodies included, up
+// to the pass bound, past which the rest of the body conceals. The host's render and the model's wire keep what this
+// grammar keeps.
 //
 // The LENIENT-HTML arm (§4.8) is DETECTION-ONLY here (pure, opt-in via `lenientHtml` — default OFF, zero
 // behavior change): a ≥3-line element-majority naked-HTML block, or a ```html/```svg fence whose body is
@@ -390,6 +389,10 @@ function scanLooseHiddenOpen(content: string, start: number): TagScanOutcome {
   if (name === null) {
     return key < content.length ? TAG_MALFORMED : { kind: "truncated", tag };
   }
+  // SECURITY: a word that fills the window may run past it, and the bytes past a bound cannot prove prose.
+  if (name[0].length === IDENT_WINDOW) {
+    return { kind: "loose", tag };
+  }
   const equals = skipAttrGap(content, key + name[0].length);
   if (equals >= content.length) {
     return { kind: "truncated", tag };
@@ -421,54 +424,20 @@ function scanSelfClosingTag(content: string, start: number): TagScanOutcome {
   return strict.kind === "malformed" ? scanLooseHiddenOpen(content, start) : strict;
 }
 
-const BROKEN_HIDDEN_POSTURES = ["literal", "body", "prefix"] as const;
+const BROKEN_HIDDEN_POSTURES = ["literal", "body"] as const;
 /** How a reader treats an unclosed or loose hidden open. `literal` is the render and wire grammar. `body` is the hidden
- *  scan of a whole body. `prefix` is the hidden scan of text the stream released ahead of a held run: its end is not the
- *  end of the input, so `truncated` there is an artifact of the cut, and every real unclosed open is already held. */
+ *  scan. */
 type BrokenHiddenPosture = (typeof BROKEN_HIDDEN_POSTURES)[number];
 
 /** Does this verdict conceal the rest of its text? An over-cap open does for every reader (#1352). */
 function concealsRest(outcome: TagScanOutcome, posture: BrokenHiddenPosture): outcome is Extract<TagScanOutcome, { kind: "capped" | "truncated" | "loose" }> {
-  return outcome.kind === "capped" || (outcome.kind === "truncated" && posture === "body") || (outcome.kind === "loose" && posture !== "literal");
+  return outcome.kind === "capped" || (posture === "body" && (outcome.kind === "truncated" || outcome.kind === "loose"));
 }
 
 /** One hidden tag's byte range in a body. */
 export interface HiddenRun {
   readonly start: number;
   readonly end: number;
-}
-
-/** Every registered hidden tag's byte range in `content`, found by the SAME quote-aware walker the tag pass
- *  uses and DELIBERATELY without any markdown-fence state — the question these answer is "could this fence
- *  delimiter be inside a hidden tag's attr value?", and a fence-aware answer would beg it. A run the tag pass conceals
- *  to the end, by {@link concealsRest}, runs to the end here. Disjoint and ascending; empty for bodies with no hidden tag,
- *  which is the common case and costs one `indexOf`. */
-function hiddenTagRuns(content: string, posture: BrokenHiddenPosture): readonly HiddenRun[] {
-  const runs: HiddenRun[] = [];
-  let i = content.indexOf("<");
-  while (i !== -1) {
-    const outcome = scanSelfClosingTag(content, i);
-    if (concealsRest(outcome, posture)) {
-      runs.push({ start: i, end: content.length });
-      return runs;
-    }
-    if (outcome.kind !== "tag") {
-      i = content.indexOf("<", i + 1);
-      continue;
-    }
-    if (isHiddenTagName(outcome.scan.tag)) {
-      runs.push({ start: i, end: outcome.scan.end });
-    }
-    i = content.indexOf("<", outcome.scan.end);
-  }
-  return runs;
-}
-
-/** Is `offset` STRICTLY inside one of the runs — past a hidden tag's `<` and before its close? Strictly,
- *  because a line that merely BEGINS a hidden tag keeps every other job it had; only a line the tag has
- *  already swallowed can lose its power to OPEN a markdown fence. */
-function insideHiddenRun(runs: readonly HiddenRun[], offset: number): boolean {
-  return runs.some((run) => offset > run.start && offset < run.end);
 }
 
 // The MEASURED OPEN-LINE reflex (spike §4h) — the `committed` EOF-close's sibling: another measured-leniency
@@ -770,27 +739,6 @@ interface ScanEnv {
   readonly lenient: boolean;
   /** Final-body semantics: a registered fence with no close consumes to EOF (`TokenizeContentOptions`). */
   readonly committed: boolean;
-  /**
-   * Recognize `:::name` DIRECTIVE FENCES. Always true for `tokenizeContent` (the rendering/wire grammar).
-   * FALSE only for the §3.6 hidden-scan pass (`tokenizeForHiddenScan`) — see its comment for why the trust
-   * boundary must not let a fence body become one opaque `raw`.
-   */
-  readonly directiveFences: boolean;
-  /**
-   * Byte ranges the markdown-fence state must IGNORE, because a registered hidden tag has already swallowed
-   * them into a quoted attr value (#1524). EMPTY for the render/wire grammar — this is the §3.6 trust
-   * boundary's own correction, not a change to how anyone reads a document.
-   */
-  readonly hiddenRuns: readonly HiddenRun[];
-  /** What an unclosed or loose hidden open becomes (D285). */
-  readonly brokenHidden: BrokenHiddenPosture;
-  /**
-   * Honor markdown code fences. FALSE only for a released stream prefix. SECURITY: a prefix is a piece of a body, so its
-   * first line may be mid-line in the body and its fence state is unknown. Reading it as a whole body lets ticks at the
-   * start of a delta open a fence the commit strip never sees, and the tag behind them reaches a member. Blind to fences,
-   * the stream can only conceal more than the commit does.
-   */
-  readonly codeFences: boolean;
 }
 
 /** A code-fence delimiter line: toggle the fence state (its own line stays literal); the lenient html arm may
@@ -809,37 +757,13 @@ function stepCodeFenceLine(env: ScanEnv, i: number, inCode: boolean): StepState 
 function stepLine(env: ScanEnv, i: number, inCode: boolean): StepState {
   const line = env.lines[i];
   const text = line === undefined ? "" : matchText(line);
-  // #1524 — A ``` A HIDDEN TAG HAS ALREADY SWALLOWED IS NOT A FENCE OPENER. `<lie truth="SECRET\n```\nmore"/>`
-  // opens the fence from INSIDE its own attr value, and the two passes then disagreed about where that tag
-  // lived: the fence-blind tag walker saw one complete tag, while this line-anchored pass let the ``` toggle
-  // code state and cut the tag into `allowTags:false` pieces, so it was never classified — the whole `truth`
-  // attr reached the member verbatim on BOTH planes with `hadHidden=false`. That is NOT the ratified
-  // code-fence hole (§3.2.1 #3): there the AUTHOR opens a fence and the reader SEES the tag they are being
-  // shown; here the tag opens the fence itself and nobody ever sees it.
-  //
-  // ONLY AN OPENING TOGGLE MAY BE SUPPRESSED — `!inCode` is the whole of that rule, and it is load-bearing
-  // (#1524 second pass, caught by review). Without it, a run computed FENCE-BLIND covers an author-fenced tag
-  // through the author's own CLOSING ``` line; suppressing that close leaves `inCode` true to end of body, so
-  // every LATER hidden tag is emitted `allowTags:false` and never classified. Measured on
-  // "```\n<lie truth=\"x\n```\ny\"/>\ntail\n<lie truth=\"SECRET\"/>\nbye": the second tag's `truth` reached the
-  // member with `hadHidden=false` and zero scanned spans — a NEW leak of the same class as the one being
-  // fixed, and worse, `tokenizeContent` still classified that tag, so the two passes disagreed again in the
-  // leaking direction. An earlier comment here claimed suppression "can only ever un-fence, never re-open a
-  // block the author already opened"; the truth is the opposite — unguarded it never CLOSES one.
-  //
-  // Gating on `!inCode` resolves the recursion (which ``` is real depends on the runs, and which runs are real
-  // depends on the fence state) at the one point where it bites, and the safety argument is monotone:
-  // suppressing an OPEN can only turn code regions into scannable ones, so the strip classifies MORE, never
-  // fewer, hidden tags. A tag the author genuinely fenced still sits inside a block this pass opened and
-  // closed normally, so it stays literal — the ratified hole is untouched.
-  const swallowedOpener = line !== undefined && !inCode && insideHiddenRun(env.hiddenRuns, line.start);
-  if (env.codeFences && text.startsWith(CODE_FENCE_MARK) && !swallowedOpener) {
+  if (text.startsWith(CODE_FENCE_MARK)) {
     return stepCodeFenceLine(env, i, inCode);
   }
   if (inCode) {
     return { pieces: linePiece(env.content, env.lines, i, false), next: i + 1, inCode };
   }
-  const fence = env.directiveFences ? tryDirectiveFence(env.content, env.lines, i, env.committed) : null;
+  const fence = tryDirectiveFence(env.content, env.lines, i, env.committed);
   if (fence !== null) {
     return { ...fence, inCode };
   }
@@ -909,7 +833,9 @@ function scanTags(text: string, brokenHidden: BrokenHiddenPosture): Expanded[] {
       return out;
     }
     const span = outcome.kind === "tag" ? classifyTag(outcome.scan, text.slice(i, outcome.scan.end)) : null;
-    if (outcome.kind !== "tag" || span === null) {
+    // SECURITY: on the hidden scan only a hidden tag owns its bytes. Another tag's quoted value is text a member receives,
+    // so a tag inside it, and a close that lands inside a hidden tag's value, are read like any others (D285).
+    if (outcome.kind !== "tag" || span === null || (brokenHidden === "body" && span.kind !== "hidden")) {
       i = text.indexOf("<", i + 1);
       continue;
     }
@@ -1065,7 +991,7 @@ function scanDiceStamps(text: string): Expanded[] {
   return out;
 }
 
-function expandPieces({ content, brokenHidden }: ScanEnv, pieces: readonly Piece[]): Expanded[] {
+function expandPieces(content: string, pieces: readonly Piece[]): Expanded[] {
   const expanded: Expanded[] = [];
   for (const p of coalesceTextPieces(pieces)) {
     if (p.kind === "span") {
@@ -1074,7 +1000,7 @@ function expandPieces({ content, brokenHidden }: ScanEnv, pieces: readonly Piece
     }
     const text = content.slice(p.start, p.end);
     if (p.allowTags) {
-      expanded.push(...scanTags(text, brokenHidden).flatMap((part) => (part.kind === "text" ? scanDiceStamps(part.text) : [part])));
+      expanded.push(...scanTags(text, "literal").flatMap((part) => (part.kind === "text" ? scanDiceStamps(part.text) : [part])));
     } else {
       expanded.push({ kind: "text", text });
     }
@@ -1090,25 +1016,8 @@ function expandPieces({ content, brokenHidden }: ScanEnv, pieces: readonly Piece
  * DEGRADES, never throws, on all persisted content (D51).
  */
 export function tokenizeContent(content: string, options?: TokenizeContentOptions): ContentSpan[] {
-  return tokenizeWithEnv({
-    content,
-    lines: splitLines(content),
-    lenient: options?.lenientHtml === true,
-    committed: options?.committed === true,
-    directiveFences: true,
-    // The RENDER/WIRE grammar keeps markdown's own fence rule intact — a reader looking at a ``` block is
-    // looking at a code block. The §3.6 correction below is the trust boundary's, and only its.
-    hiddenRuns: [],
-    brokenHidden: "literal",
-    codeFences: true,
-  });
-}
-
-/** The shared tail of every tokenization: run the structural pass, expand its pieces through the inline tag
- *  walker, merge adjacent text runs into maximal spans, then image-tokenize. The ONE body, so the fence-blind
- *  §3.6 pass below can never become a second parser. */
-function tokenizeWithEnv(env: ScanEnv): ContentSpan[] {
-  const expanded = expandPieces(env, structuralPass(env));
+  const env: ScanEnv = { content, lines: splitLines(content), lenient: options?.lenientHtml === true, committed: options?.committed === true };
+  const expanded = expandPieces(content, structuralPass(env));
   const spans: ContentSpan[] = [];
   let pending = "";
   const flush = (): void => {
@@ -1175,48 +1084,22 @@ export function relinkContentAssets(content: string, relink: ReadonlyMap<AssetId
  *  any future hidden-channel consumer share ONE spelling instead of re-`Extract`ing the union member. */
 export type HiddenContentSpan = Extract<ContentSpan, { kind: "hidden" }>;
 
-/**
- * THE §3.6 HIDDEN-SCAN PASS — the ONE derivation of "where are this body's hidden spans", feeding both the
- * member STRIP (which removes them) and the host REVEAL (which shows them). Identical by construction: the
- * reveal can only ever list exactly what the strip removed.
- *
- * IT IS DELIBERATELY FENCE-BLIND (`directiveFences: false`), and that is the whole fix (2026-08-14). The
- * rendering grammar is strict: a CLOSED `:::card` fence swallows its entire body into one span's `raw`, which
- * this projection then re-emits VERBATIM — so a `<lie truth="…"/>` the model wrote inside a card body rode
- * straight into a member's committed payload while the (fence-blind, per-delta) mid-stream scrubber had
- * already shown them a clean live view. Clean while streaming, leaking on reload; and because a card body
- * renders as HTML, the truth was invisible on their screen and present in their DOM. Dropping fence
- * recognition HERE — and only here — makes the strip total without touching the rendering/wire grammar: the
- * fence's own bytes are still re-emitted exactly, only the hidden tag inside it leaves.
- *
- * TOTALITY, stated honestly: no hidden-class span survives this projection anywhere the tokenizer would have
- * recognized one — every directive fence body included; the MARKDOWN code-fence (triple-backtick) exclusion
- * is the one named, ratified hole (§3.2.1 #3 — the author is SHOWING markup, the reader SEES the raw tag, so
- * it is a visible model bug rather than a silent truth-leak, the D51 posture that leaves a malformed tag
- * literal). The module header states the same sentence with the delimiter spelled out.
- *
- * Also deliberately NOT `committed`: an EOF-closed fence would swallow an unterminated tail; strict-close
- * keeps that tail scannable. Fail-closed beats consistent at a trust boundary.
- */
-function tokenizeForHiddenScan(
-  content: string,
-  brokenHidden: Exclude<BrokenHiddenPosture, "literal"> = "body",
-  codeFences: boolean = brokenHidden !== "prefix",
-): ContentSpan[] {
-  return tokenizeWithEnv({
-    content,
-    lines: splitLines(content),
-    lenient: false,
-    committed: false,
-    directiveFences: false,
-    hiddenRuns: codeFences ? hiddenTagRuns(content, brokenHidden) : [],
-    brokenHidden,
-    codeFences,
+/** One pass of THE §3.6 HIDDEN SCAN: the tag walker over the whole text, and nothing else. No directive fence swallows a
+ *  tag into an opaque `raw`, no code block leaves one literal, no other tag shelters one in a quoted value, and no line
+ *  split cuts one in two, so the strip, the reveal and the stream all read one grammar. SECURITY: the render grammar's
+ *  fence rules are a question of how a reader sees a document, and a member must never receive these bytes however a
+ *  document reads. */
+function scanHiddenLayer(text: string): LocatedHiddenSpan[] {
+  let cursor = 0;
+  return scanTags(text, "body").flatMap((part) => {
+    const start = cursor;
+    cursor += part.kind === "text" ? part.text.length : contentSpanRaw(part.span).length;
+    return part.kind === "span" && part.span.kind === "hidden" ? [{ start, end: cursor, span: part.span }] : [];
   });
 }
 
 /** The MEMBER-STRIP primitive (§3.6 — the trust boundary's pure half): removes ONLY `hidden`-class spans
- *  from a body, byte-preserving everything else (fence bytes included — a stripped card is still a card).
+ *  from a body, byte-preserving everything else (fence bytes included — a stripped card or code block keeps its fence).
  *  A body with no hidden spans returns the ORIGINAL string (identity — the common case is free). A registered
  *  name followed by no `name=` shape is prose and is NOT stripped (the D51 posture). An UNCLOSED open, and a LOOSE one
  *  whose `name=` shape breaks the strict grammar, ARE stripped, to the end of the body (D285; see
@@ -1246,15 +1129,6 @@ function originOf(text: string): readonly number[] {
   return Array.from({ length: text.length }, (_, index) => index);
 }
 
-function locateHiddenSpans(spans: readonly ContentSpan[]): LocatedHiddenSpan[] {
-  let cursor = 0;
-  return spans.flatMap((span) => {
-    const start = cursor;
-    cursor += contentSpanRaw(span).length;
-    return span.kind === "hidden" ? [{ start, end: cursor, span }] : [];
-  });
-}
-
 function dropRuns({ text, origin }: SurvivingText, runs: readonly HiddenRun[]): SurvivingText {
   const kept: string[] = [];
   const keptOrigin: number[] = [];
@@ -1269,9 +1143,9 @@ function dropRuns({ text, origin }: SurvivingText, runs: readonly HiddenRun[]): 
   return { text: kept.join(""), origin: keptOrigin };
 }
 
-/** Does a removal fall inside this span or right after it? Only then can it be new: anything else was there for the first
- *  pass, which read it with the fence state the ratified code-fence exclusion rests on. Right after counts, because
- *  removing a tag that ends the body leaves the open in front of it unclosed. */
+/** Does a removal fall inside this span or right after it? Only then is it new: the first pass saw every other open
+ *  followed by bytes and read it as prose. Right after counts, because removing a tag that ends the body leaves the open
+ *  in front of it unclosed. */
 function touchesRemoval({ start, end }: HiddenRun, origin: readonly number[], joinableEnd: number): boolean {
   return (origin[end] ?? joinableEnd) - (origin[start] ?? 0) !== end - start;
 }
@@ -1284,10 +1158,9 @@ function joinableEndAfter(layer: readonly LocatedHiddenSpan[], { text, origin }:
 }
 
 /** Every span the strip removes, in original positions: THE ONE ANSWER the strip, the reveal, the ranges and the position
- *  projection all read. Later passes are blind to fences because a removal can write a fence line, which would hide the
- *  very tag it rejoined; {@link touchesRemoval} keeps that blindness off every tag the first pass left literal. */
-function hiddenSpansToFixpoint(content: string, codeFences = true): readonly LocatedHiddenSpan[] {
-  const first = locateHiddenSpans(tokenizeForHiddenScan(content, "body", codeFences));
+ *  projection all read. */
+function hiddenSpansToFixpoint(content: string): readonly LocatedHiddenSpan[] {
+  const first = scanHiddenLayer(content);
   if (first.length === 0) {
     return first;
   }
@@ -1300,7 +1173,7 @@ function hiddenSpansToFixpoint(content: string, codeFences = true): readonly Loc
     body = dropRuns(body, layer);
     const { text, origin } = body;
     const stop = joinableEnd;
-    layer = locateHiddenSpans(tokenizeForHiddenScan(text, "body", false)).filter((span) => touchesRemoval(span, origin, stop));
+    layer = scanHiddenLayer(text).filter((span) => touchesRemoval(span, origin, stop));
     const next = layer[0];
     if (next === undefined) {
       return found;
@@ -1348,10 +1221,15 @@ export function projectHiddenSpans(
   };
 }
 
-/** Did the strip lose the rest of this body to a hidden tag that broke the grammar, as opposed to one the input cut
- *  short? */
-export function concealsBrokenHiddenTag(content: string): boolean {
-  return scanHiddenSpans(content).some((span) => scanSelfClosingTag(span.raw, 0).kind === "loose");
+/** Did the strip lose the rest of this body to a hidden tag? A tag that broke the grammar counts always. A tag left
+ *  unfinished, one past the scan bound, and a nest past the pass bound count unless `cutOff` says the output stopped
+ *  there: an unfinished tag is then the cut itself, and nothing was written after it. A span whose raw outruns its tag is
+ *  the pass bound's conceal. */
+export function concealsBrokenHiddenTag(content: string, cutOff: boolean): boolean {
+  return scanHiddenSpans(content).some((span) => {
+    const verdict = scanSelfClosingTag(span.raw, 0);
+    return verdict.kind === "loose" || (!cutOff && (verdict.kind !== "tag" || verdict.scan.end < span.raw.length));
+  });
 }
 
 /** The STRIP'S TWIN (§3.6): every hidden-class span in a body, in document order — what the host-reveal eye
@@ -1404,7 +1282,8 @@ function endsInsideHiddenName(text: string, lt: number): boolean {
 /** Where a hold must start for an open forming at `lt`, and how many fragments it reaches back through. SECURITY: bytes
  *  ahead of the open may be the start of a tag that the open's removal will rejoin, and bytes once released cannot rejoin
  *  anything, so a member would read the far side of the tag. Past {@link MAX_FRAGMENT_CHAIN} the turn conceals. `floor` is
- *  the end of the last complete tag: a `<` before it may sit inside that tag's quoted value, and a cut there splits the tag. */
+ *  the end of the last complete hidden tag: a `<` before it may sit inside that tag's quoted value, and a cut there splits
+ *  the tag. */
 function fragmentChain(text: string, lt: number, floor: number): { readonly from: number; readonly depth: number } {
   let from = lt;
   let depth = 0;
@@ -1443,13 +1322,17 @@ function cutAtIncompleteOpen(text: string): StreamCut {
   let lt = text.indexOf("<");
   let floor = 0;
   while (lt !== -1) {
-    // A COMPLETE self-closing tag (hidden OR not) is consumed WHOLE: skip PAST its `/>` so an inner `<` in its
-    // attr value is never mistaken for a new open (the D106 mid-stream leak). `settleDelta` on the released
-    // `safe` prefix drops it if it was hidden; a non-hidden complete tag stays literal — both handled downstream.
+    // A COMPLETE hidden tag is consumed WHOLE: skip PAST its `/>` so an inner `<` in its attr value is never mistaken for
+    // a new open (the D106 mid-stream leak), and `settleDelta` drops it from the released `safe` prefix. Any other complete
+    // tag owns nothing, as on the strip: a tag inside its quoted value is still a tag (D285).
     const outcome = scanSelfClosingTag(text, lt);
     if (outcome.kind === "tag") {
-      floor = outcome.scan.end;
-      lt = text.indexOf("<", floor);
+      if (isHiddenTagName(outcome.scan.tag)) {
+        floor = outcome.scan.end;
+        lt = text.indexOf("<", floor);
+      } else {
+        lt = text.indexOf("<", lt + 1);
+      }
       continue;
     }
     // Not a complete tag. A hidden open whose close hasn't arrived, or a name still arriving, HOLDS the whole run
@@ -1459,7 +1342,7 @@ function cutAtIncompleteOpen(text: string): StreamCut {
       return { kind: depth > MAX_FRAGMENT_CHAIN ? "conceal" : "cut", safe: text.slice(0, from) };
     }
     // A REGISTERED hidden open the commit strip conceals to the end: the stream conceals it the same way.
-    if (concealsRest(outcome, "prefix")) {
+    if (concealsRest(outcome, "body")) {
       return { kind: "conceal", safe: text.slice(0, fragmentChain(text, lt, floor).from) };
     }
     // A `malformed` verdict is prose on both planes, so it passes.
@@ -1468,15 +1351,10 @@ function cutAtIncompleteOpen(text: string): StreamCut {
   return { kind: "cut", safe: text };
 }
 
-/** The commit strip, blind to fences as every stream read is: {@link ScanEnv} says why. */
-function stripStreamBody(text: string): string {
-  return dropRuns({ text, origin: [] }, mergedRuns(hiddenSpansToFixpoint(text, false))).text;
-}
-
 /** One delta's verdict: what a member may read now, what waits for more bytes, and whether the rest of the turn conceals.
  *  A removal joins the bytes around it, so what it leaves is cut again before any of it is emitted. The hold keeps the RAW
- *  bytes, removed tags included, so a later delta and the flush read the seams the commit strip reads. The prefix strip is
- *  the commit strip minus its reading that the prefix ends the input. An open that only a removal exposed holds rather
+ *  bytes, removed tags included, so a later delta and the flush read the seams the commit strip reads. `safe` never ends
+ *  on an unfinished open, because {@link fragmentChain} holds those. An open that only a removal exposed holds rather
  *  than ends the turn: the bytes that would complete it may still be arriving behind a tag the same pass removes. */
 function settleDelta(buffer: string): { readonly emit: string; readonly held: string; readonly concealing: boolean } {
   let rest: SurvivingText = { text: buffer, origin: originOf(buffer) };
@@ -1485,9 +1363,9 @@ function settleDelta(buffer: string): { readonly emit: string; readonly held: st
     const cut = cutAtIncompleteOpen(rest.text);
     // `safe` may contain COMPLETE hidden tags (a `<lie …/>` that finished this tick).
     const terminal = cut.kind === "conceal" && pass === 0;
-    const removed = !terminal && cut.safe.length > 0 ? locateHiddenSpans(tokenizeForHiddenScan(cut.safe, "prefix")) : [];
+    const removed = !terminal && cut.safe.length > 0 ? scanHiddenLayer(cut.safe) : [];
     if (terminal) {
-      return { emit: stripStreamBody(buffer), held: "", concealing: true };
+      return { emit: stripHiddenSpans(buffer).content, held: "", concealing: true };
     }
     if (removed.length === 0) {
       const held = buffer.slice(rest.origin[cut.safe.length] ?? buffer.length);
@@ -1497,7 +1375,7 @@ function settleDelta(buffer: string): { readonly emit: string; readonly held: st
     }
     rest = dropRuns(rest, removed);
   }
-  return { emit: stripStreamBody(buffer), held: "", concealing: true };
+  return { emit: stripHiddenSpans(buffer).content, held: "", concealing: true };
 }
 
 /** A stateful per-subscriber scrubber over ONE turn's text-delta stream (§3.6). Feed each delta's text; get
@@ -1532,7 +1410,7 @@ export function createHiddenSpanStreamScrubber(): HiddenSpanStreamScrubber {
     flush(): string {
       const tail = held;
       held = "";
-      return stripStreamBody(tail);
+      return stripHiddenSpans(tail).content;
     },
   };
 }
@@ -1664,8 +1542,8 @@ export function cardWireStub(title: string | null): string {
  *  summarized long-horizon memory (the live wire keeps it verbatim until coverage; the standing-lie
  *  inventory reads the transcript, not the summary). Everything else re-emits byte-identically. */
 export function projectBodyForSummary(content: string): string {
-  // THE STRIP RUNS FIRST, on the fence-blind hidden scan, so this plane conceals exactly what a member's payload
-  // conceals: fence bodies and an unclosed open included. The render grammar below sees neither.
+  // THE STRIP RUNS FIRST, on the hidden scan, so this plane conceals exactly what a member's payload conceals: fence and
+  // code block bodies and an unclosed open included. The render grammar below sees none of them.
   // COMMITTED: compaction only ever reads finalized canon, and an EOF-closed card is strictly safer here —
   // the whole unterminated blob collapses to the stub instead of being fed to the summarizer verbatim.
   return tokenizeContent(stripHiddenSpans(content).content, { committed: true })

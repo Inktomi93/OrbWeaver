@@ -1,13 +1,13 @@
 ---
-kind: decision
+kind: work
 status: open
 updated: 2026-11-01
-priority: P2
-area: server
-lane: cb-regex-sec
+priority: P3
+area: testing
+plan: cross-surface-consistency
 ---
 
-# Decide whether the hidden-span exception for code blocks stays, after the strip fixpoint write-up (it caused two leaks)
+# The ui-facts feedback scanner follows a failure through a local callback
 
 ## What
 
@@ -24,3 +24,5 @@ The observable bar a verifier can check.
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Known misses: the rule editor and `add-connection-form-body`.

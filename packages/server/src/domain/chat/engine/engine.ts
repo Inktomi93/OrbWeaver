@@ -679,7 +679,7 @@ async function commitGeneration(args: {
   await deps.emit({ type: "messageCommitted", chatId: prep.chatId, messageId: view.id, view, turnId: args.announcedTurnId });
   // Decided here, not in the stream scrub: a turn commits one body, and it is the transformed text members actually read.
   // A scrub sees every delta, sees bytes a receive transform may still rewrite, and sees turns that never commit.
-  if (concealsBrokenHiddenTag(view.content)) {
+  if (concealsBrokenHiddenTag(view.content, view.finishReason !== null && CUT_OFF_FINISH_REASONS.has(view.finishReason))) {
     await deps.emit({ type: "warning", chatId: prep.chatId, code: HIDDEN_TAG_BROKEN_CODE });
   }
   return view;
@@ -1524,6 +1524,8 @@ function assertGeneratedContent(result: Awaited<ReturnType<typeof runTurnPipelin
  *  opaque provenance and is never consulted here (§5.3c class 4). */
 const BUDGET_FINISH_REASON: NormalizedFinishReason = "length";
 const TOOL_FINISH_REASON: NormalizedFinishReason = "tool";
+/** The reasons that end a reply mid-output. `null` and `other` say nothing, so they do not excuse an unfinished tag. */
+const CUT_OFF_FINISH_REASONS: ReadonlySet<NormalizedFinishReason> = new Set<NormalizedFinishReason>([BUDGET_FINISH_REASON, "filter"]);
 
 /**
  * WHAT HAPPENED, not "no text" (dogfood EMPTYGEN-REASONING). The single generic string cost this project a
