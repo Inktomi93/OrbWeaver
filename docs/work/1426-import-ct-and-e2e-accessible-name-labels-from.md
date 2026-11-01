@@ -28,7 +28,7 @@ Partial: the chat rename controls are hoisted, and the item stays open for the r
 Built:
 
 - `packages/client/src/lib/chat-rename-names.ts`, a zero-import module: `RENAME_CHAT_NAME`, `CHAT_NAME_FIELD_NAME`, `CHAT_TITLE_FIELD_NAME`, `renameChatButtonIdentity` and `renameChatButtonName`. `chat-header-title.tsx` and `rename-chat-dialog.tsx` render from it.
-- `tooling/src/codemods/literal-to-binding` now substitutes captured metavariables in a `pattern` rewrite's `expression` (`renameChatButtonIdentity($CAST, $TITLE)`), so a hand-built template label rewrites to a label-producing call. Its fixture in `tests/rewrites` covers the template rewrite and a similar template that must stay.
+- `tooling/src/codemods/literal-to-binding` now substitutes captured metavariables in a `pattern` rewrite's `expression` (`renameChatButtonIdentity($CAST, $TITLE)`), so a hand-built template label rewrites to a label-producing call. Its fixture in `tooling/src/codemods/literal-to-binding/tests/rewrites` covers the template rewrite and a similar template that must stay.
 - Applied to `tests/client/features/app-shell/surfaces/app-shell-topbar.ct.tsx`, `tests/e2e/support/chat-room.ts` and `tests/e2e/support/surface-chat.ts`. The remaining specs of the sweep are not rewritten.
 
 `orb/no-hand-copied-label` reported zero findings over `tests/client`, `tests/e2e` and `tests/ui` before and after (`pnpm exec eslint` on those trees, no rule hits). It judges only label-named constant exports, so it cannot see the 2456 sites; this is why zero findings is not the done line here. Extending it to label-producing functions is item 1509 and was not done: no site in this slice needed it to be found, and `renameChatButtonIdentity` stays unindexed until it is.
@@ -37,7 +37,7 @@ Ran, with `CT_PORT=3421`: `app-shell-topbar.ct.tsx` and `chat-header-title-name.
 
 ## Extended-rule census
 
-`orb/no-hand-copied-label` at scope `all` (item 1509) indexes label-producing functions, zero-import `*-copy.ts` and `*-names.ts` modules, error code objects, route objects and env key constants, beside the label-named exports. The repository config runs it at scope `named`, so no new finding fails lint. The census linted 2118 files under `tests/` with the rule at scope `all` and found 692 findings in 153 files. Reproduce it with the ESLint Node API: `new ESLint({ overrideConfig: { files: ["tests/**/*.{ts,tsx}"], rules: { "orb/no-hand-copied-label": ["warn", { scope: "all" }] } } })` over `tests`.
+`orb/no-hand-copied-label` at scope `all` (item 1509) indexes label-producing functions, zero-import `*-copy.ts` and `*-names.ts` modules, error code objects, route objects and env key constants, beside the label-named exports. The repository config runs it at scope `named`, so no new finding fails lint. The census linted every file under `tests/` with the rule at scope `all`. Reproduce it with the ESLint Node API: `new ESLint({ overrideConfig: { files: ["tests/**/*.{ts,tsx}"], rules: { "orb/no-hand-copied-label": ["warn", { scope: "all" }] } } })` over `tests`.
 
 What the census sizes: the 2456 literal sites in this item are mostly names no production module exports, so the rule cannot find them. Only 12 of the 692 findings are accessible names from a function or a copy module; the rest are 547 env keys, 85 error codes and 48 routes. The label sweep still starts with the copy modules, one per feature, and the rule finds each site once its module exists.
 

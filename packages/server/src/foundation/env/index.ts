@@ -28,9 +28,7 @@ export {
   installKind,
   ownerFallbackCredentialInput,
   ownerFallbackPeerInput,
-  ownerFallbackPeerWarnings,
   personaAutoSeedAdmits,
-  resolveOwnerFallbackPeers,
 } from "./record/index.ts";
 
 // The `.env` file the loader below reads, cwd-relative — exactly the path dotenv resolved

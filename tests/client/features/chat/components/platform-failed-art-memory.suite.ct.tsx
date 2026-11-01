@@ -2,6 +2,7 @@
 // windowed) paints its fallback from its first frame and never asks for the same broken image again, until the network
 // returns or the app is brought back to the foreground.
 
+import { viewImageActionName } from "@orb/client/lib";
 import { BLOB_ROUTE, variantKindSchema } from "@orb/contracts/assets";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -105,6 +106,74 @@ for (const retry of RETRY_EVENTS) {
       await page.evaluate(retry.dispatch);
       await served;
       await expect(letter).toBeHidden();
+    } finally {
+      await room.root[Symbol.asyncDispose]();
+    }
+  });
+}
+
+test("ripple offers no image to open for a portrait that failed, and offers it again once it loads", async ({ corpus, corpusMedia, mount, page }) => {
+  const room = await createReadingRoom();
+  try {
+    const caller = await room.root.internalCallerFor(room.root.ownerId);
+    const picture = corpus.reads["chat.getChat"].find(({ output }) =>
+      output.participants.some((participant) => participant.kind === "character" && participant.avatarHash !== null),
+    );
+    const speaker = picture?.output.participants.find((participant) => participant.kind === "character" && participant.avatarHash !== null);
+    if (picture === undefined || speaker === undefined) {
+      throw new Error("The corpus needs a room with a pictured character");
+    }
+    const pictured = await caller.chat.getChat({ chatId: picture.output.id });
+    await openReadingRoom(page, corpus, room.root, { chatStyle: "ripple", art: false, appearance: { showInChatAvatars: true } });
+    await seedShellState(page, { activeSection: "chats" });
+    await page.route(PORTRAIT_REQUEST, (route) => route.fulfill({ status: 404, body: "" }));
+    await mount<typeof ChatRoomShellStory>(ROOM_STORY, { chatId: pictured.id });
+    const assistantRows = page.locator(`[data-slot="message-row"][data-role="assistant"]`);
+    const openers = assistantRows.getByRole("button", { name: viewImageActionName(speaker.displayName), exact: true });
+    await expect(assistantRows.locator(LETTER).first()).toBeVisible();
+    await expect(openers).toHaveCount(0);
+
+    await page.unroute(PORTRAIT_REQUEST);
+    await corpusMedia();
+    await page.evaluate(() => globalThis.dispatchEvent(new Event("online")));
+    await expect(openers.first()).toBeVisible();
+  } finally {
+    await room.root[Symbol.asyncDispose]();
+  }
+});
+
+for (const chatStyle of ["bubble", "flat"] as const) {
+  test(`${chatStyle} offers no image to open for a gutter chip that failed, and offers it again once it loads`, async ({
+    corpus,
+    corpusMedia,
+    mount,
+    page,
+  }) => {
+    const room = await createReadingRoom();
+    try {
+      const caller = await room.root.internalCallerFor(room.root.ownerId);
+      const picture = corpus.reads["chat.getChat"].find(({ output }) =>
+        output.participants.some((participant) => participant.kind === "character" && participant.avatarHash !== null),
+      );
+      const speaker = picture?.output.participants.find((participant) => participant.kind === "character" && participant.avatarHash !== null);
+      if (picture === undefined || speaker === undefined || speaker.avatarHash === null) {
+        throw new Error("The corpus needs a room with a pictured character");
+      }
+      const pictured = await caller.chat.getChat({ chatId: picture.output.id });
+      const chip = new RegExp(`${RegExp.escape(BLOB_ROUTE)}/${RegExp.escape(speaker.avatarHash)}`);
+      await openReadingRoom(page, corpus, room.root, { chatStyle, art: false, appearance: { showInChatAvatars: true } });
+      await seedShellState(page, { activeSection: "chats" });
+      await page.route(chip, (route) => route.fulfill({ status: 404, body: "" }));
+      await mount<typeof ChatRoomShellStory>(ROOM_STORY, { chatId: pictured.id });
+      const assistantRows = page.locator(`[data-slot="message-row"][data-role="assistant"]`);
+      const openers = assistantRows.getByRole("button", { name: viewImageActionName(speaker.displayName), exact: true });
+      await expect(assistantRows.locator('[data-slot="avatar-root"]').first()).toBeVisible();
+      await expect(openers).toHaveCount(0);
+
+      await page.unroute(chip);
+      await corpusMedia();
+      await page.evaluate(() => globalThis.dispatchEvent(new Event("online")));
+      await expect(openers.first()).toBeVisible();
     } finally {
       await room.root[Symbol.asyncDispose]();
     }

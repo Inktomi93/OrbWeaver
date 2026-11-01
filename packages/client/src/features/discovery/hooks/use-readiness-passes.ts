@@ -5,6 +5,7 @@ import type { WorkloadRef } from "@orb/contracts/workloads";
 import { errorMessage } from "@orb/kit/error-message";
 import { useQuery } from "@tanstack/react-query";
 import type { inferInput } from "@trpc/tanstack-react-query";
+import { useState } from "react";
 import type { ModelRunConfirmDialogProps } from "#components";
 import { useModelRunConfirm, useUtilityModel } from "#components";
 import type { Trpc } from "#data";
@@ -40,6 +41,8 @@ export interface ReadinessPassesView {
   readonly actionFor: (stage: CorpusReadinessStageId) => ReadinessAction;
   readonly start: (stage: CorpusReadinessStageId) => void;
   readonly starting: boolean;
+  /** The row whose spend is being counted, until the count returns and the confirm opens or the run starts. */
+  readonly counting: CorpusReadinessStageId | null;
   readonly confirm: ModelRunConfirmDialogProps;
 }
 
@@ -49,6 +52,7 @@ export function useReadinessPasses(): ReadinessPassesView {
   const invalidation = useInvalidation();
   const startRun = useStartReadinessRun({ trpc, invalidation });
   const paidRun = useModelRunConfirm();
+  const [counting, setCounting] = useState<CorpusReadinessStageId | null>(null);
   const utility = useUtilityModel();
   const viewer = useQuery(trpc.sessions.me.queryOptions());
   const list = useQuery(trpc.workloads.list.queryOptions({}));
@@ -64,11 +68,12 @@ export function useReadinessPasses(): ReadinessPassesView {
   };
 
   const start = (stage: CorpusReadinessStageId): void => {
-    if (startRun.isPending || readinessActionFor(stage, facts) !== "run") {
+    if (startRun.isPending || counting !== null || readinessActionFor(stage, facts) !== "run") {
       return;
     }
     const pass = READINESS_PASSES[stage];
     // A failed count is toasted inside confirmThen and a failed enqueue by the mutation's errorToast.
+    setCounting(stage);
     paidRun
       .confirmThen({
         title: pass.confirmTitle,
@@ -76,13 +81,15 @@ export function useReadinessPasses(): ReadinessPassesView {
         estimates: readinessEstimates(stage),
         run: () => enqueueReadinessPass(stage, (run) => startRun.mutateAsync(run)),
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => setCounting(null));
   };
 
   return {
     actionFor: (stage) => readinessActionFor(stage, facts),
     start,
     starting: startRun.isPending,
+    counting,
     confirm: paidRun.dialog,
   };
 }
