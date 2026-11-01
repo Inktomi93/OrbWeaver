@@ -23,7 +23,7 @@ export const useUpdateRegexScript = createEntityMutation<{ readonly scriptId: Re
   errorToast: "Couldn't save that regex script.",
 });
 
-export const useRemoveRegexScript = createEntityMutation<{ readonly scriptId: RegexScriptId }, { readonly deleted: boolean }>({
+export const useRemoveRegexScript = createEntityMutation<{ readonly scriptId: RegexScriptId }, void>({
   options: (trpc) => trpc.regex.removeScript.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't delete that regex script.",

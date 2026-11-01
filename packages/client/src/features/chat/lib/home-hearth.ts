@@ -2,14 +2,9 @@
 // room someone else was busy in never reads as "where you left off"; one split feeds both tiles, so they never
 // disagree about which room is the hero.
 
-import type { ParticipantRole } from "@orb/contracts/identity";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatSummary } from "@orb/contracts/chat";
 
-interface HearthCandidate {
-  readonly id: ChatId;
-  readonly viewerLastTurnAt: number | null;
-  readonly viewerRole: ParticipantRole;
-}
+type HearthCandidate = Pick<ChatSummary, "id" | "viewerLastTurnAt" | "viewerRole">;
 
 /** The hero and the rest, in page order: the room on this page the viewer spoke in most recently. An account that has
  *  not spoken yet gets the newest room someone invited it into (it is a member there, not the host), else the page's

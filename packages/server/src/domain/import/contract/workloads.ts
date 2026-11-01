@@ -2,7 +2,7 @@
 
 import type { FileHandle } from "node:fs/promises";
 import type { CompareAndSetImportedTokenUsage, ImportWindow, ListImportedTokenUsageCandidates } from "@orb/contracts/chat";
-import type { PersonaCollisionChoices } from "@orb/contracts/import";
+import type { ImportPreview, PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BundleImportWorkloadResult, ImportTokenUsageBackfillResult, ReportProgress } from "@orb/contracts/workloads";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
@@ -31,6 +31,8 @@ interface ImportPassCounts {
   readonly mergedKeys?: readonly string[];
   /** Path to the written import report (what landed / what didn't). Absent on a dry run (nothing written). */
   readonly reportPath?: string;
+  /** What a dry run found. Absent on a real run. */
+  readonly preview?: ImportPreview;
   /** The span in which the run wrote real conversations (null = none): the client's memory-build offer scope. */
   readonly memoryScope: ImportWindow | null;
 }

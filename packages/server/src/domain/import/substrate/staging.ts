@@ -34,6 +34,11 @@ import { resolveDataLayout } from "#foundation/data-layout";
  *  of a bundle that has not been consumed yet. App-owned and cwd-relative (a prod launch runs at the repo root). */
 export const DEFAULT_IMPORT_STAGING_DIR: string = resolveDataLayout({}).importStaging;
 
+/** The name each staged upload starts with. The boot sweep removes only these: the root is operator-configured and
+ *  may hold anything else. */
+export const STAGED_TREE_PREFIX = "import-tree-";
+export const STAGED_BUNDLE_PREFIX = "import-bundle-";
+
 /** The same single-safe-segment charset the staged-handle contract enforces, applied to the owner segment. */
 const OWNER_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 

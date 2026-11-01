@@ -31,6 +31,5 @@ export function createRemove(ctx: RegexContext): RegexService["removeScript"] {
     ctx.emitUserEvent(ownerId, { type: "regexChanged", scriptId });
     // A competing remover can win after the ownership read; only a returned row authorizes the captured fan.
     fanReach(deleted.map((row) => row.id));
-    return { deleted: true };
   };
 }
