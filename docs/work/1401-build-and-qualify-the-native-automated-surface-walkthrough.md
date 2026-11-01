@@ -366,3 +366,19 @@ Filled at landing: what ran and where its output is.
 - `tests/e2e/support/surface-character.ts`: 27 distinct Character names now import from `packages/client/src/features/character/lib/character-names.ts`, which the components read too (library, filter rail, create and import dialogs, editor form, actions menu, confirm titles, history, tags row, links tab). The count-built bulk titles use `characterBulkTagTitle` and `characterBulkDeleteTitle`. Reach entry in `.dependency-cruiser.ts`.
 - Cases: `Characters independent library` and `Characters independent trust-actions` on `desktop-1440-all-panes-measurement`, both exit 0, `completed=2 unexpected=0`.
 - Remaining in `surface-character.ts`: shared-grammar names (Cancel, Create, Done, Retry, Close, Name, Description, Restore, Accept, Discard, Edit, Studio, Back), names built by shared components (Make new, Expand to edit, Start from a theme…, From a URL…, Background image URL, Font, Corner radius, Hex, Add images, Your images, gallery title), `Select <name>` via `selectActionName`, and the per-facet strings. `surface-sections.ts`, `surface-config.ts` and `surface-chat.ts` untouched.
+
+### Phase B step 1: the nine failures (lane cb-walk1401)
+
+Every run below is synthetic on `desktop-1440-all-panes-measurement`. A whole walk has not run on this work, so the walk is not qualified.
+
+- Merge of the driver-names branch: `Characters independent library`, `Chat disposable message operations`, `Config independent category appearance`, `Rail independent extensions`: `completed=5 unexpected=0`, load 25.
+- Setup blocker: `tests/support/node/corpus-imagery.ts` passed `n: 2`, and production now skips the reuse gate for a custom count. The reuse cohorts then asked for more scripted images than exist and every walk failed in preparation. The cohorts are plain requests now.
+- Reading styles: the `reachMessage` poll read the anchor row with a waiting locator. Once the virtualizer unmounted that row, the read waited out the poll deadline. The poll now reads the list once in the page. All eight styles pass, 40 to 76 seconds each, load 35.
+- Echo's `chat.listMessages` 404: the driver deleted a disposable room while the page still had it open. `disposableRoom` now leaves the room first.
+- Presets `preset.get` 404: a product defect. Row Delete left the deleted preset selected, so the open editor kept reading it. Row Delete now clears that selection, and the driver leaves the editor before its API cleanup. The passing Presets runs record no unexpected HTTP response. No run separates the two changes, and no CT covers the product change.
+- Presets timeout: not a hang. The case spent its 600 seconds working, about 28 percent of it in per-control census calls. The census now reads one scope in one page call. The Presets case passes in 281 seconds, Corpus in 118 and Home in 62.
+- Home: `homeDocumentDoors` opens each Recent documents row and asserts the document name. Corpus: `corpusSemanticQuery` runs the four semantic targets and asserts the production result count.
+- After the names codemod: `Rail independent refinery`, `databank`, `presets`, `Chat disposable lifecycle commands`, `Chat library and primary composer`, `Config independent category regex`, `worldInfo`, `Refinery disposable stage execution and versions`: all pass.
+
+Not done: the layout-stability matrix, the evidence pass, and any other project in the device and pane matrix.
+

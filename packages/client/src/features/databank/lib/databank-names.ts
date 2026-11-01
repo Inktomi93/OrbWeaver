@@ -18,3 +18,14 @@ export const DATABANK_USE_IN_EVERY_CHAT_NAME = "Use in every chat";
 
 /** The add dialog's paste choice. */
 export const DATABANK_PASTE_TEXT_NAME = "Paste text";
+export const DATABANK_RECENT_DOCUMENTS_NAME = "Recent documents";
+export const DATABANK_DOCUMENT_NAME_FIELD_NAME = "Document name";
+export const DATABANK_RENAME_NAME = "Rename document";
+export const DATABANK_MAINTENANCE_NAME = "Databank maintenance";
+export const DATABANK_VIEW_SOURCE_NAME = "View source text";
+export const DATABANK_HIDE_SOURCE_NAME = "Hide source text";
+
+/** The source-text toggle's name for its current state. */
+export function databankSourceToggleName(shown: boolean): string {
+  return shown ? DATABANK_HIDE_SOURCE_NAME : DATABANK_VIEW_SOURCE_NAME;
+}

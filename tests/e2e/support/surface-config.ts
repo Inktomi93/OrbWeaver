@@ -8,17 +8,27 @@ import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { LIBRARY_SETTINGS_SUBCATEGORY } from "#client/features/character/lib/library-settings-nav.ts";
-import { CONFIG_CUSTOM_CSS_NAME, CONFIG_IMPORT_THEME_FILE_NAME, CONFIG_THEME_NAME_FIELD_NAME } from "#client/features/config/lib/config-control-names.ts";
+import {
+  CONFIG_ADVANCED_THEME_TOOLS_NAME,
+  CONFIG_BACK_TO_LOOKS_NAME,
+  CONFIG_CUSTOM_CSS_NAME,
+  CONFIG_IMPORT_THEME_FILE_NAME,
+  CONFIG_MORE_LIBRARY_ACTIONS_NAME,
+  CONFIG_THEME_NAME_FIELD_NAME,
+} from "#client/features/config/lib/config-control-names.ts";
 import { CONFIG_SECTION_LABEL } from "#client/features/config/lib/config-copy.ts";
 import {
   REGEX_FIND_PATTERN_NAME,
+  REGEX_REPLACE_WITH_NAME,
   REGEX_SAMPLE_TEXT_NAME,
   REGEX_TEXT_AFTER_STREAM_NAME,
   REGEX_TEXT_GOING_IN_NAME,
 } from "#client/features/regex/lib/regex-names.ts";
 import {
+  WORLD_INFO_BOOK_DETAILS_NAME,
   WORLD_INFO_BOOK_NAME_FIELD_NAME,
   WORLD_INFO_DEPTH_SWITCH_NAME,
+  WORLD_INFO_EDIT_DETAILS_NAME,
   WORLD_INFO_IMPORT_BOOK_NAME,
   WORLD_INFO_NEW_BOOK_NAME,
 } from "#client/features/world-info/lib/world-info-names.ts";
@@ -168,13 +178,13 @@ async function themeBuilder(flow: SurfaceWalk): Promise<string> {
   await expect(editor).toHaveCount(1);
   const target = await controlIdentity(editor);
   await checkpoint(flow, "theme-unminted-editor", editor, title);
-  await content.getByRole("button", { name: "Show advanced theme tools", exact: true }).click();
+  await content.getByRole("button", { name: CONFIG_ADVANCED_THEME_TOOLS_NAME, exact: true }).click();
   await expect(content.getByRole("heading", { name: CONFIG_CUSTOM_CSS_NAME, exact: true })).toBeVisible();
   // eslint-disable-next-line orb/no-hand-copied-label -- This is the theme's scoped live preview heading, not Chat's Preview context tab.
   await expect(content.getByRole("heading", { name: "Preview", exact: true })).toBeVisible();
   // The walk opens each color picker as a dialog door and dismisses it, so nothing mints the theme.
   await walkScope(flow, editor, "config/theme-builder");
-  await content.getByRole("button", { name: "← Back to Looks", exact: true }).click();
+  await content.getByRole("button", { name: CONFIG_BACK_TO_LOOKS_NAME, exact: true }).click();
   expect((await flow.client.settings.listThemes.query()).map(({ id }) => id)).toEqual(before);
   note(flow, { id: THEME_BUILDER_VISIT, kind: "action" }, "visited", "No fields changed; production mint-on-first-edit leaves no new theme.");
   return target;
@@ -540,7 +550,7 @@ async function regex(flow: SurfaceWalk): Promise<void> {
     const editor = content.locator('[data-slot="regex-member-editor"]');
     await expect(editor.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
     await editor.getByRole("textbox", { name: REGEX_FIND_PATTERN_NAME, exact: true }).fill("/surface/g");
-    await editor.getByRole("textbox", { name: "Replace with", exact: true }).fill("walk");
+    await editor.getByRole("textbox", { name: REGEX_REPLACE_WITH_NAME, exact: true }).fill("walk");
     await expect
       .poll(async () => (await flow.client.regex.listScripts.query()).find((script) => script.name === name))
       .toMatchObject({ findRegex: "/surface/g", replaceString: "walk" });
@@ -653,8 +663,8 @@ async function worldInfo(flow: SurfaceWalk): Promise<void> {
       checks: SURFACE_CHECKS,
     });
     const verbs = editor.locator('[data-slot="config-member-verbs"], [data-slot="config-drill-header"]');
-    await verbs.getByRole("button", { name: "Edit details", exact: true }).click();
-    const details = flow.page.getByRole("dialog", { name: "Book details", exact: true });
+    await verbs.getByRole("button", { name: WORLD_INFO_EDIT_DETAILS_NAME, exact: true }).click();
+    const details = flow.page.getByRole("dialog", { name: WORLD_INFO_BOOK_DETAILS_NAME, exact: true });
     const description = "Disposable native surface-walk book";
     await details.getByRole("textbox", { name: "Description", exact: true }).fill(description);
     await checkpoint(flow, "world-info-details", details);
@@ -706,7 +716,7 @@ async function worldInfo(flow: SurfaceWalk): Promise<void> {
     expect(await exported.failure()).toBeNull();
     expect((await stat(path)).size).toBeGreaterThan(0);
     await flow.info.attach("config-world-info-native-export", { path });
-    await content.getByRole("button", { name: "More library actions", exact: true }).click();
+    await content.getByRole("button", { name: CONFIG_MORE_LIBRARY_ACTIONS_NAME, exact: true }).click();
     const chooser = flow.page.waitForEvent("filechooser");
     await flow.page.getByRole("menuitem", { name: WORLD_INFO_IMPORT_BOOK_NAME, exact: true }).click();
     await (await chooser).setFiles(path);

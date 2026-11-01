@@ -15,6 +15,7 @@ import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { DIALOG_VERBS, testId } from "#lib";
 import { DROP_REASON_COPY } from "../lib/reason-copy.ts";
+import { REFINERY_EDIT_SCOPE_NAME } from "../lib/refinery-names.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
 
 type ApplyWire = inferOutput<Trpc["refinery"]["applyFields"]>;
@@ -132,7 +133,7 @@ function OutcomeActions({
         </Button>
       )}
       <Button variant="outline" onClick={onEditScope} size="sm">
-        Edit scope
+        {REFINERY_EDIT_SCOPE_NAME}
       </Button>
       <Button onClick={onRerunRewrite} size="sm">
         Re-run rewrite

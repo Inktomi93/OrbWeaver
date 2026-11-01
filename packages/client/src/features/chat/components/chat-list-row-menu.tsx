@@ -27,6 +27,7 @@ import { useState } from "react";
 import { RowActionsMenu } from "#components";
 import { ROW_RENAME_NAME } from "#lib";
 import type { ChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
+import { CHAT_EXPORT_TRANSCRIPT_NAME } from "../lib/chat-surface-names.ts";
 import { RenameChatDialog } from "./rename-chat-dialog.tsx";
 
 /** The host-gated transcript download route (`GET /api/export/chat/:chatId`), one home for both formats. */
@@ -96,7 +97,7 @@ export function ChatListRowMenu({ actions, chatId, title, displayTitle, rowName,
         <MenuSubmenuRoot>
           <MenuSubmenuTrigger>
             <Icon icon={Download} size="sm" />
-            Export transcript
+            {CHAT_EXPORT_TRANSCRIPT_NAME}
           </MenuSubmenuTrigger>
           <MenuPopup>
             <MenuLinkItem download={true} href={`${exportChatPath(chatId)}?format=orb`}>

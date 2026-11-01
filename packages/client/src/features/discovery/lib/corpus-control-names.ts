@@ -6,3 +6,5 @@ export const CORPUS_SEARCH_TARGET_NAME = "Search target";
 
 /** The browse view's catalog region. */
 export const CORPUS_DISTILLED_CATALOG_NAME = "Distilled catalog";
+export const CORPUS_MODE_NAME = "Corpus mode";
+export const CORPUS_SEARCH_NAME = "Search your corpus";

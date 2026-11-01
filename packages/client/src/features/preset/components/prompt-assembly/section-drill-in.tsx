@@ -64,7 +64,7 @@ import {
 } from "#src/features/preset/lib/assembly-model.ts";
 import { PRESET_NUMBER_FORMAT } from "#src/features/preset/lib/format-count.ts";
 import type { PresetEditorValues } from "../../lib/preset-editor-values.ts";
-import { PRESET_DELETE_SECTION_TITLE } from "../../lib/preset-names.ts";
+import { PRESET_BACK_TO_RACK_NAME, PRESET_DELETE_SECTION_TITLE, PRESET_SECTION_ACTIONS_NAME } from "../../lib/preset-names.ts";
 import { DeliveryCluster } from "../delivery-cluster.tsx";
 import type { DerivedZones } from "./derive-zones.ts";
 import { deriveZones } from "./derive-zones.ts";
@@ -114,7 +114,7 @@ export function SectionDrillIn({ form, section, index, onBack }: SectionDrillInP
       <Row align="center" gap="row" justify="between">
         <Button variant="ghost" onClick={onBack} ref={backRef} size="sm" type="button">
           <Icon icon={ArrowLeft} size="sm" />
-          Back to rack
+          {PRESET_BACK_TO_RACK_NAME}
         </Button>
         {pivot ? null : <SectionActionsMenu form={form} index={index} onBack={onBack} section={section} />}
       </Row>
@@ -399,7 +399,7 @@ function SectionActionsMenu({ form, section, index, onBack }: SectionEditProps &
           return null;
         }
         if (structural) {
-          return <RowActionsMenu label="Section actions">{move}</RowActionsMenu>;
+          return <RowActionsMenu label={PRESET_SECTION_ACTIONS_NAME}>{move}</RowActionsMenu>;
         }
         return (
           <RowActionsMenu
@@ -408,7 +408,7 @@ function SectionActionsMenu({ form, section, index, onBack }: SectionEditProps &
               description: "This removes the section from the preset's prompt arrangement. This can't be undone.",
               onConfirm: onDelete,
             }}
-            label="Section actions"
+            label={PRESET_SECTION_ACTIONS_NAME}
           >
             <MenuItem onClick={(): void => duplicate(form, section, index, ids.uuid)}>
               <Icon icon={Copy} size="sm" />

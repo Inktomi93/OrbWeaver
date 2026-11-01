@@ -17,6 +17,7 @@ import { useState } from "react";
 import { FormDialog } from "#components";
 import type { Trpc } from "#data";
 import { DIALOG_VERBS } from "#lib";
+import { WORLD_INFO_BOOK_DETAILS_NAME } from "../lib/world-info-names.ts";
 
 // The dialog sends the wire patch whole (`input: patch`), so the type is the router's own. The description is
 // trimmed and `""` clears it — `updateBook` has no null form.
@@ -49,10 +50,10 @@ export function BookDetailsDialog({ open, onOpenChange, currentName, currentDesc
         onOpenChange(next);
       }}
       open={open}
-      title="Book details"
+      title={WORLD_INFO_BOOK_DETAILS_NAME}
     >
       <form
-        aria-label="Book details"
+        aria-label={WORLD_INFO_BOOK_DETAILS_NAME}
         onSubmit={(event): void => {
           event.preventDefault();
           if (canSave) {

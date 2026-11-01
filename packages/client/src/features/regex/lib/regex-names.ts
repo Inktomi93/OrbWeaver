@@ -12,3 +12,4 @@ export const REGEX_TEXT_GOING_IN_NAME = "Text going in";
 
 /** The pipeline panel's after-stream output. */
 export const REGEX_TEXT_AFTER_STREAM_NAME = "Text after the whole stream";
+export const REGEX_REPLACE_WITH_NAME = "Replace with";

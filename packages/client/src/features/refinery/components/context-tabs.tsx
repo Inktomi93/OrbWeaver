@@ -26,6 +26,7 @@ import { createEntityMutation, QueryErrorState, SkeletonRows, useGatedQuery, use
 import type { RefineryContextState } from "#lib";
 import { DIALOG_VERBS, testId } from "#lib";
 import type { RefineryWorkbenchDoor } from "#state";
+import { refineryCompareToggleName } from "../lib/refinery-names.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
 
 type RunLedger = inferOutput<Trpc["refinery"]["listRuns"]>;
@@ -355,7 +356,7 @@ export function VersionsTab({ state, liveDescription }: { state: RefineryContext
               </Row>
               <Row className="flex-wrap" gap="field">
                 <Button variant="ghost" onClick={(): void => setCompareId(compareId === snapshot.id ? null : snapshot.id)} size="sm">
-                  {compareId === snapshot.id ? "Hide compare" : "Compare"}
+                  {refineryCompareToggleName(compareId === snapshot.id)}
                 </Button>
                 <Button variant="ghost" onClick={(): void => restore.mutate({ characterId: state.characterId, snapshotId: snapshot.id })} size="sm">
                   {DIALOG_VERBS.restore}

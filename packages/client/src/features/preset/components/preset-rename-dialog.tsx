@@ -16,6 +16,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog } from "#components";
 import { DIALOG_VERBS } from "#lib";
+import { PRESET_NAME_FIELD_NAME, PRESET_RENAME_NAME } from "../lib/preset-names.ts";
 
 export interface PresetRenameDialogProps {
   readonly open: boolean;
@@ -41,10 +42,10 @@ export function PresetRenameDialog({ open, onOpenChange, currentName, onRename }
         onOpenChange(next);
       }}
       open={open}
-      title="Rename preset"
+      title={PRESET_RENAME_NAME}
     >
       <form
-        aria-label="Rename preset"
+        aria-label={PRESET_RENAME_NAME}
         onSubmit={(event): void => {
           event.preventDefault();
           if (canSave) {
@@ -54,7 +55,7 @@ export function PresetRenameDialog({ open, onOpenChange, currentName, onRename }
         }}
       >
         <Stack gap="block">
-          <Input value={name} onValueChange={setName} aria-label="Preset name" placeholder="Preset name" />
+          <Input value={name} onValueChange={setName} aria-label={PRESET_NAME_FIELD_NAME} placeholder="Preset name" />
           <DialogFooter>
             <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
             <Button type="submit" disabled={!canSave}>

@@ -36,6 +36,7 @@ import { LIST_OFF_SCREEN_HINT, useSectionListMode, useSelectedDocumentId } from 
 import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
 import { useReindexDocuments, useRenameDocument } from "../hooks/use-databank-mutations.ts";
 import { characterCount, documentTypeLabel, ingestBadge, ingestEmptyHint, ingestStallHint, originLabel, passageTally } from "../lib/databank-model.ts";
+import { databankSourceToggleName } from "../lib/databank-names.ts";
 
 export function DatabankDetailSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -254,7 +255,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
           <Row justify="start">
             <Button variant="ghost" onClick={(): void => setShowSource((prev) => !prev)} size="sm">
               <Icon icon={FileText} size="sm" />
-              {showSource ? "Hide source text" : "View source text"}
+              {databankSourceToggleName(showSource)}
             </Button>
           </Row>
           {showSource ? <SourceText documentId={documentId} /> : null}

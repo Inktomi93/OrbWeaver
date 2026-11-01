@@ -68,6 +68,7 @@ import type { CollectionContribution, CollectionInsight } from "#lib";
 import { DIALOG_VERBS, useFocusOnSwap } from "#lib";
 import type { CollectionGroupDefinition } from "#state";
 import { selectCollectionMemberFromList, useCollectionSelection } from "#state";
+import { CONFIG_MORE_LIBRARY_ACTIONS_NAME } from "../lib/config-control-names.ts";
 import { ConfigPaneGlance } from "./config-pane-glance.tsx";
 
 export function ConfigCollectionLanding({ group }: { readonly group: CollectionGroupDefinition }): ReactNode {
@@ -313,7 +314,7 @@ function ImportOverflow({ door }: { readonly door: NonNullable<CollectionContrib
         <Menu>
           <MenuTrigger
             render={
-              <Button aria-label="More library actions" variant="ghost" size="sm" square={true}>
+              <Button aria-label={CONFIG_MORE_LIBRARY_ACTIONS_NAME} variant="ghost" size="sm" square={true}>
                 <Icon icon={EllipsisVertical} size="sm" />
               </Button>
             }

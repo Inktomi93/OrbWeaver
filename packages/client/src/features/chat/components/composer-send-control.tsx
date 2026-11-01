@@ -24,7 +24,7 @@ import type { ReactElement } from "react";
 import { useId } from "react";
 import { testId } from "#lib";
 import type { SendRefusal } from "../hooks/use-send-availability.ts";
-import { CHAT_STOPPING_NAME } from "../lib/chat-surface-names.ts";
+import { CHAT_SEND_NAME, CHAT_STOP_NAME, CHAT_STOPPING_NAME, chatStopTooltip } from "../lib/chat-surface-names.ts";
 
 // A draft waiting to send: a compact solid disc at the glyph box (32px; the 44px hit area stays invisible), the
 // messenger convention, without the focal lift: the room's one focal action is not this glyph. With nothing to send
@@ -60,7 +60,7 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
               glyph="lg"
               loading={props.stopping}
               disabled={props.stopping}
-              aria-label={props.stopping ? CHAT_STOPPING_NAME : "Stop generating"}
+              aria-label={props.stopping ? CHAT_STOPPING_NAME : CHAT_STOP_NAME}
               onClick={props.onStop}
               shape="pill"
             >
@@ -68,7 +68,7 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
             </GlyphButton>
           }
         />
-        <TooltipPopup side="top">{props.stopping ? "Stopping generation" : "Stop generating"}</TooltipPopup>
+        <TooltipPopup side="top">{chatStopTooltip(props.stopping)}</TooltipPopup>
       </Tooltip>
     );
   }
@@ -91,7 +91,7 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
             disabled={props.sendDisabled}
             focusableWhenDisabled={props.availability.unavailable}
             loading={props.sendPending}
-            aria-label="Send message"
+            aria-label={CHAT_SEND_NAME}
             onClick={props.onSend}
             shape="pill"
             className="data-disabled:pointer-events-auto"
@@ -100,7 +100,7 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
           </GlyphButton>
         }
       />
-      <TooltipPopup side="top">{props.availability.reason ?? "Send message"}</TooltipPopup>
+      <TooltipPopup side="top">{props.availability.reason ?? CHAT_SEND_NAME}</TooltipPopup>
       {ownReason === undefined ? null : (
         <Text as="span" className="sr-only" id={ownReasonId}>
           {ownReason}

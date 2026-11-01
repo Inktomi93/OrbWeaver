@@ -39,7 +39,7 @@ import { AutosaveStatus, createAutosaveEntityForm } from "#forms/editor";
 import { DENSITY_ITEMS } from "#lib";
 import type { ThemeAutosaveDeps } from "../hooks/use-theme-autosave.ts";
 import { useThemeAutosave } from "../hooks/use-theme-autosave.ts";
-import { CONFIG_CUSTOM_CSS_NAME, CONFIG_THEME_NAME_FIELD_NAME } from "../lib/config-control-names.ts";
+import { CONFIG_ADVANCED_THEME_TOOLS_NAME, CONFIG_CUSTOM_CSS_NAME, CONFIG_THEME_NAME_FIELD_NAME } from "../lib/config-control-names.ts";
 import { contrastRatio } from "../lib/theme-contrast.ts";
 import type { ThemeFormValues } from "../lib/theme-editor-model.ts";
 import { DEFAULT_THEME_FORM, themeFormFromEntity, themeOverrideFromForm } from "../lib/theme-editor-model.ts";
@@ -182,7 +182,7 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
       ) : (
         <Row>
           <Button variant="outline" onClick={(): void => setAdvancedToolsVisible(true)}>
-            Show advanced theme tools
+            {CONFIG_ADVANCED_THEME_TOOLS_NAME}
           </Button>
         </Row>
       )}

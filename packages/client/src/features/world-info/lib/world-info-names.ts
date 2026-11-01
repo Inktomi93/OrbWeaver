@@ -12,3 +12,5 @@ export const WORLD_INFO_IMPORT_BOOK_NAME = "Import a world-info book";
 
 /** The entry editor's depth switch. */
 export const WORLD_INFO_DEPTH_SWITCH_NAME = "Inject at a depth in history";
+export const WORLD_INFO_BOOK_DETAILS_NAME = "Book details";
+export const WORLD_INFO_EDIT_DETAILS_NAME = "Edit details";

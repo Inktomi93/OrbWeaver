@@ -20,15 +20,25 @@ import { expect, test } from "@playwright/test";
 import { CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
 import { CHAT_DELETE_NAME, CHAT_SELECT_MESSAGES_NAME } from "#client/features/chat/lib/chat-options-names.ts";
 import {
+  CHAT_CANCEL_EDIT_NAME,
   CHAT_CLEAR_SEARCH_NAME,
+  CHAT_COMPOSER_NAME,
   CHAT_CONTINUE_REPLY_NAME,
   CHAT_DELETE_MESSAGE_TITLE,
+  CHAT_EARLIER_MESSAGES_NAME,
+  CHAT_EXPORT_TRANSCRIPT_NAME,
+  CHAT_LIST_NAME,
+  CHAT_MESSAGE_INPUT_NAME,
   CHAT_NEXT_GREETING_NAME,
   CHAT_REATTRIBUTE_CONFIRM_NAME,
   CHAT_REATTRIBUTE_CONFIRM_TITLE,
+  CHAT_SAVE_EDIT_NAME,
   CHAT_SAVED_REPLIES_DOOR_NAME,
   CHAT_SAVED_REPLIES_NAME,
   CHAT_SAVED_REPLY_NAME,
+  CHAT_SEARCH_NAME,
+  CHAT_SEND_NAME,
+  CHAT_STOP_NAME,
   CHAT_STOPPING_NAME,
 } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMPOSER_CLEAR_INPUT_NAME, COMPOSER_CORRECTIONS_NAME, COMPOSER_IMAGINE_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
@@ -154,16 +164,16 @@ async function roomRow(flow: Journey, room: ChatSummary): Promise<Locator> {
   }
   const index = matches.findIndex(({ id }) => id === room.id);
   expect(index, "The selected identity must belong to the actual production search result").toBeGreaterThanOrEqual(0);
-  const list = flow.page.getByRole("list", { name: "Chats list", exact: true });
+  const list = flow.page.getByRole("list", { name: CHAT_LIST_NAME, exact: true });
   const virtualRow = list.locator(`[data-slot="virtual-list-row"][aria-posinset="${String(index + 1)}"]`);
   await flow.action(`chat-search-${room.id}`, {
     action: async () => {
-      await flow.page.getByRole("textbox", { name: "Search chats", exact: true }).fill(EMPTY_SEARCH);
+      await flow.page.getByRole("textbox", { name: CHAT_SEARCH_NAME, exact: true }).fill(EMPTY_SEARCH);
       await expect(flow.page.getByText("No matches", { exact: true })).toBeVisible();
-      await flow.page.getByRole("textbox", { name: "Search chats", exact: true }).fill(search);
+      await flow.page.getByRole("textbox", { name: CHAT_SEARCH_NAME, exact: true }).fill(search);
     },
     ready: async () => {
-      await expect(flow.page.getByRole("textbox", { name: "Search chats", exact: true })).toHaveValue(search);
+      await expect(flow.page.getByRole("textbox", { name: CHAT_SEARCH_NAME, exact: true })).toHaveValue(search);
       await expect(list).toBeVisible();
       await expect(list.locator('[data-slot="virtual-list-row"]').first()).toHaveAttribute("aria-setsize", /[1-9]\d*/u);
     },
@@ -233,7 +243,7 @@ async function openRoom(flow: Journey, room: ChatSummary, inspectList = false): 
       await row.click();
     },
     ready: async () => {
-      await expect(flow.page.getByRole("group", { name: "Message composer", exact: true })).toBeVisible();
+      await expect(flow.page.getByRole("group", { name: CHAT_COMPOSER_NAME, exact: true })).toBeVisible();
       await expect(flow.page.locator('[data-slot="chat-header-pending"]')).toHaveCount(0);
       await expect
         .poll(async () =>
@@ -246,7 +256,7 @@ async function openRoom(flow: Journey, room: ChatSummary, inspectList = false): 
   if (flow.requestedPanes.kind === "desktop" && flow.requestedPanes.panes.context) {
     await contextReady(flow);
   }
-  await checkpoint(flow, `chat-room-${room.id}`, flow.page.locator("body"), flow.page.getByRole("group", { name: "Message composer", exact: true }));
+  await checkpoint(flow, `chat-room-${room.id}`, flow.page.locator("body"), flow.page.getByRole("group", { name: CHAT_COMPOSER_NAME, exact: true }));
 }
 
 async function listMenu(flow: Journey, room: ChatSummary, root: Locator): Promise<void> {
@@ -266,7 +276,7 @@ async function emptySearch(flow: Journey): Promise<void> {
   if (await showList.isVisible()) {
     await showList.click();
   }
-  const search = flow.page.getByRole("textbox", { name: "Search chats", exact: true });
+  const search = flow.page.getByRole("textbox", { name: CHAT_SEARCH_NAME, exact: true });
   const empty = flow.page.locator('[data-slot="empty-state-root"]').filter({ has: flow.page.getByText("No matches", { exact: true }) });
   await flow.action("chat-empty-search", {
     action: async () => {
@@ -283,7 +293,7 @@ async function emptySearch(flow: Journey): Promise<void> {
     },
     ready: async () => {
       await expect(search).toHaveValue("");
-      await expect(flow.page.getByRole("list", { name: "Chats list", exact: true })).toBeVisible();
+      await expect(flow.page.getByRole("list", { name: CHAT_LIST_NAME, exact: true })).toBeVisible();
     },
   });
   observe(flow, "chat-search-empty-recovery", "observed", "Server-filtered empty result followed by actual clear-search recovery");
@@ -528,7 +538,7 @@ async function safeSelectionDrill(flow: Journey, command: Locator, id: string): 
 }
 
 async function safeDraftDrill(flow: Journey, command: Locator, id: string): Promise<void> {
-  const input = flow.page.getByRole("textbox", { name: "Message", exact: true });
+  const input = flow.page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
   const original = await input.inputValue();
   try {
     await flow.action(id, {
@@ -539,7 +549,7 @@ async function safeDraftDrill(flow: Journey, command: Locator, id: string): Prom
         await expect(input).toHaveValue("");
       },
     });
-    await checkpoint(flow, id, flow.page.getByRole("group", { name: "Message composer", exact: true }), input);
+    await checkpoint(flow, id, flow.page.getByRole("group", { name: CHAT_COMPOSER_NAME, exact: true }), input);
   } finally {
     await input.fill(original);
     await expect(input).toHaveValue(original);
@@ -564,7 +574,7 @@ async function safeEditDrill(flow: Journey, command: Locator, request: { readonl
     },
   });
   await checkpoint(flow, request.id, row, input);
-  await row.getByRole("button", { name: "Cancel edit", exact: true }).click();
+  await row.getByRole("button", { name: CHAT_CANCEL_EDIT_NAME, exact: true }).click();
   await expect(input).toBeHidden();
 }
 
@@ -654,8 +664,8 @@ async function safeMenuDrills(flow: Journey, trigger: Locator, name: string): Pr
 }
 
 async function composerMenus(flow: Journey, room: ChatSummary): Promise<void> {
-  const composer = flow.page.getByRole("group", { name: "Message composer", exact: true });
-  const input = composer.getByRole("textbox", { name: "Message", exact: true });
+  const composer = flow.page.getByRole("group", { name: CHAT_COMPOSER_NAME, exact: true });
+  const input = composer.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
   const original = await input.inputValue();
   try {
     for (const [phase, value] of [
@@ -975,7 +985,7 @@ async function reachMessage(flow: Journey, message: MessageView, direction: -1 |
         .at(0);
       return { position: element.scrollTop, height: element.clientHeight, anchor: anchor ?? null };
     });
-    const earlier = flow.page.getByRole("button", { name: "Earlier messages", exact: true });
+    const earlier = flow.page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
     const canPage = direction < 0 && before.position <= SCROLL_EPSILON && (await earlier.isVisible()) && (await earlier.isEnabled());
     if (canPage) {
       await flow.action(`reading-earlier-before-${signature.split("|").at(0) ?? message.id}`, {
@@ -992,17 +1002,20 @@ async function reachMessage(flow: Journey, message: MessageView, direction: -1 |
     try {
       await expect
         .poll(async () => {
-          const position = await viewport.evaluate((element) => element.scrollTop);
-          if ((await row.isVisible()) || (position - before.position) * direction > 0 || (await mountedMessageSignature(viewport)) !== signature) {
-            return true;
-          }
-          // Row measurements can compensate scrollTop without reversing the reader's visible movement.
-          const anchor = before.anchor;
-          if (anchor === null) {
-            return false;
-          }
-          const after = await viewport.locator(`[data-message-id=${JSON.stringify(anchor.id)}]`).boundingBox();
-          return after !== null && (anchor.top - after.y) * direction > SCROLL_EPSILON;
+          // One read of the list: a locator on the anchor would wait forever once the virtualizer unmounts it.
+          const progressed = await viewport.evaluate(
+            (element, { position, anchor, delta, epsilon, mounted }) => {
+              const rows = [...element.querySelectorAll<HTMLElement>("[data-message-id]")];
+              if ((element.scrollTop - position) * delta > 0 || rows.map((node) => node.getAttribute("data-message-id")).join("|") !== mounted) {
+                return true;
+              }
+              // Row measurements can compensate scrollTop without reversing the reader's visible movement.
+              const after = rows.find((node) => node.getAttribute("data-message-id") === anchor?.id);
+              return after !== undefined && anchor !== null && (anchor.top - after.getBoundingClientRect().top) * delta > epsilon;
+            },
+            { position: before.position, anchor: before.anchor, delta: direction, epsilon: SCROLL_EPSILON, mounted: signature },
+          );
+          return progressed || (await row.isVisible());
         })
         .toBe(true);
     } catch (error) {
@@ -1398,7 +1411,7 @@ async function commandMenuOwner(menu: Locator): Promise<Locator> {
 
 async function commandExports(flow: Journey, room: ChatSummary): Promise<void> {
   let menu = await chatRowMenu(flow, room);
-  const exportTrigger = menu.getByRole("menuitem", { name: "Export transcript", exact: true });
+  const exportTrigger = menu.getByRole("menuitem", { name: CHAT_EXPORT_TRANSCRIPT_NAME, exact: true });
   await exportTrigger.focus();
   await exportTrigger.press("ArrowRight");
   await expect(exportTrigger).toHaveAttribute("aria-expanded", "true");
@@ -1419,7 +1432,7 @@ async function commandExports(flow: Journey, room: ChatSummary): Promise<void> {
     const id = `commands/export/${label}`;
     menu = await chatRowMenu(flow, room);
     const downloadOwner = await commandMenuOwner(menu);
-    const trigger = menu.getByRole("menuitem", { name: "Export transcript", exact: true });
+    const trigger = menu.getByRole("menuitem", { name: CHAT_EXPORT_TRANSCRIPT_NAME, exact: true });
     await trigger.focus();
     await trigger.press("ArrowRight");
     await expect(trigger).toHaveAttribute("aria-expanded", "true");
@@ -1437,7 +1450,7 @@ async function commandExports(flow: Journey, room: ChatSummary): Promise<void> {
         await flow.info.attach(`disposable-${download.suggestedFilename()}`, { path });
       },
       ready: async () => {
-        await expect(flow.page.getByRole("list", { name: "Chats list", exact: true })).toBeVisible();
+        await expect(flow.page.getByRole("list", { name: CHAT_LIST_NAME, exact: true })).toBeVisible();
       },
     });
     observe(flow, id, "visited", `Actual native download from disposable room ${room.id}; nonempty original response saved in private native output`);
@@ -1470,7 +1483,7 @@ async function commandEdit(flow: Journey, room: ChatSummary): Promise<void> {
   await editor.fill(edited);
   await flow.action(id, {
     action: async () => {
-      await row.getByRole("button", { name: "Save edit", exact: true }).click();
+      await row.getByRole("button", { name: CHAT_SAVE_EDIT_NAME, exact: true }).click();
     },
     ready: async () => {
       await expect(editor).toBeHidden();
@@ -1516,7 +1529,7 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
       ready: async () => {
         await expect(dialog).toBeHidden();
         await expect.poll(async () => (await commandRoom(flow, chat.id, title)).title).toBe(renamed);
-        await expect(flow.page.getByRole("list", { name: "Chats list", exact: true }).getByRole("button", { name: renamed, exact: true })).toBeVisible();
+        await expect(flow.page.getByRole("list", { name: CHAT_LIST_NAME, exact: true }).getByRole("button", { name: renamed, exact: true })).toBeVisible();
       },
     });
     observe(flow, "commands/lifecycle/Rename", "visited", "Native rename Save persisted and repainted the disposable subject");
@@ -1535,7 +1548,7 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
           await expect(starMenu).toBeHidden();
           await expect.poll(async () => (await commandRoom(flow, chat.id, title)).starred).toBe(starred);
           const row = flow.page
-            .getByRole("list", { name: "Chats list", exact: true })
+            .getByRole("list", { name: CHAT_LIST_NAME, exact: true })
             .locator('[data-slot="virtual-list-row"]')
             .filter({ has: flow.page.getByRole("button", { name: renamed, exact: true }) });
           await row.hover();
@@ -1556,7 +1569,7 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
       },
       ready: async () => {
         await expect.poll(async () => (await commandRoom(flow, chat.id, title)).archived).toBe(true);
-        await expect(flow.page.getByRole("list", { name: "Chats list", exact: true }).getByRole("button", { name: renamed, exact: true })).toHaveCount(0);
+        await expect(flow.page.getByRole("list", { name: CHAT_LIST_NAME, exact: true }).getByRole("button", { name: renamed, exact: true })).toHaveCount(0);
       },
     });
     observe(flow, "commands/lifecycle/Archive", "visited", "Native archive persisted and removed the exact disposable subject from the non-archived list");
@@ -1707,7 +1720,7 @@ async function messageSavedReply(flow: Journey): Promise<void> {
       const row = messageRow(flow.page, message.id);
       const custom = "Disposable authored greeting retained beside card alternates.";
       await row.getByRole("textbox", { name: MESSAGE_EDIT_NAME, exact: true }).fill(custom);
-      await row.getByRole("button", { name: "Save edit", exact: true }).click();
+      await row.getByRole("button", { name: CHAT_SAVE_EDIT_NAME, exact: true }).click();
       await expect(row).toContainText(custom);
       const saved = (await readCanon(flow, chat.id)).find(({ id }) => id === message.id);
       if (saved === undefined) {
@@ -1755,7 +1768,7 @@ async function messageEdit(flow: Journey, message: MessageView): Promise<Message
   const row = messageRow(flow.page, message.id);
   const content = `Disposable ${message.role} content saved through the actual row editor.`;
   await row.getByRole("textbox", { name: MESSAGE_EDIT_NAME, exact: true }).fill(content);
-  await row.getByRole("button", { name: "Save edit", exact: true }).click();
+  await row.getByRole("button", { name: CHAT_SAVE_EDIT_NAME, exact: true }).click();
   await expect(row).toContainText(content);
   await expect.poll(async () => (await readCanon(flow, message.chatId)).find(({ id }) => id === message.id)?.content).toBe(content);
   const saved = (await readCanon(flow, message.chatId)).find(({ id }) => id === message.id);
@@ -1940,9 +1953,9 @@ async function runChatMessageOperations(input: SurfaceFlow): Promise<MessageOper
       await messageFork(flow, editedUser, forks);
       await openRoom(flow, room);
       await closeContextOverlay(flow, "message-operations-generation");
-      const composer = flow.page.getByRole("group", { name: "Message composer", exact: true });
-      await composer.getByRole("textbox", { name: "Message", exact: true }).fill("Produce a disposable assistant operation witness.");
-      await composer.getByRole("button", { name: "Send message", exact: true }).click();
+      const composer = flow.page.getByRole("group", { name: CHAT_COMPOSER_NAME, exact: true });
+      await composer.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true }).fill("Produce a disposable assistant operation witness.");
+      await composer.getByRole("button", { name: CHAT_SEND_NAME, exact: true }).click();
       await expect.poll(async () => (await readCanon(flow, room.id)).some(({ role }) => role === "assistant")).toBe(true);
       const assistant = (await readCanon(flow, room.id)).find(({ role }) => role === "assistant");
       if (assistant === undefined) {
@@ -2051,6 +2064,11 @@ async function disposableRoom(
     observe(flow, `${name}-subject`, "observed", `Explicit disposable journey CRUD room ${chat.id}; never an original snapshot reading witness`);
     await run(room, await readCanon(flow, room.id));
   } finally {
+    // An open room refetches its transcript; deleted underneath it, that refetch is a 404 the case fails on.
+    if (flow.page.url() !== "about:blank") {
+      await flow.page.goto("/");
+      await waitForAppReady(flow.page);
+    }
     await flow.client.chat.delete.mutate({ chatId: chat.id });
     await expect
       .poll(async () => (await flow.client.chat.listChats.query({ search: title, limit: CHAT_LIST_MAX_LIMIT })).items.some(({ id }) => id === chat.id))
@@ -2071,15 +2089,15 @@ export async function walkChatGeneration(input: SurfaceFlow): Promise<void> {
     await disposableRoom(flow, { name: "generation", content: "A disposable native Send and Stop witness.", attachments: [] }, async (room) => {
       await openRoom(flow, room);
       await closeContextOverlay(flow, "generation-content");
-      const composer = flow.page.getByRole("group", { name: "Message composer", exact: true });
-      const textbox = composer.getByRole("textbox", { name: "Message", exact: true });
-      const stop = composer.getByRole("button", { name: "Stop generating", exact: true });
+      const composer = flow.page.getByRole("group", { name: CHAT_COMPOSER_NAME, exact: true });
+      const textbox = composer.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
+      const stop = composer.getByRole("button", { name: CHAT_STOP_NAME, exact: true });
       const ghost = flow.page.locator('[data-slot="ghost-message-row"]');
       const prompt = `Complete the disposable native witness ${crypto.randomUUID()}.`;
       await textbox.fill(prompt);
       await flow.action("generation/send-completion", {
         action: async () => {
-          await composer.getByRole("button", { name: "Send message", exact: true }).click();
+          await composer.getByRole("button", { name: CHAT_SEND_NAME, exact: true }).click();
         },
         ready: async () => {
           await expect
@@ -2113,7 +2131,7 @@ export async function walkChatGeneration(input: SurfaceFlow): Promise<void> {
       try {
         await flow.action("generation/send-held-stream", {
           action: async () => {
-            await composer.getByRole("button", { name: "Send message", exact: true }).click();
+            await composer.getByRole("button", { name: CHAT_SEND_NAME, exact: true }).click();
           },
           ready: async () => {
             await expect(stop).toBeVisible();
@@ -2384,7 +2402,7 @@ export async function walkChatPolish(input: SurfaceFlow): Promise<void> {
         await openRoom(flow, room);
         await closeContextOverlay(flow, "polish-content");
         const before = await readCanon(flow, room.id);
-        const textbox = flow.page.getByRole("textbox", { name: "Message", exact: true });
+        const textbox = flow.page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
         const draft = "A  draft ... with `code  ...` kept intact.";
         await textbox.fill(draft);
         await flow.action("polish/replace-visible-draft", {
@@ -2395,7 +2413,7 @@ export async function walkChatPolish(input: SurfaceFlow): Promise<void> {
             await expect(textbox).toHaveValue("A draft … with `code  ...` kept intact.");
           },
         });
-        await checkpoint(flow, "polish-visible-replacement", flow.page.getByRole("group", { name: "Message composer", exact: true }), textbox);
+        await checkpoint(flow, "polish-visible-replacement", flow.page.getByRole("group", { name: CHAT_COMPOSER_NAME, exact: true }), textbox);
         const trigger = flow.page.getByRole("button", { name: "Plugin actions", exact: true });
         await trigger.click();
         const menu = await controlledPanel(trigger);
@@ -2432,7 +2450,7 @@ async function selectHeldRoom(flow: Journey, room: ChatSummary, beforeSelect?: (
   const root = await roomRow(flow, room);
   beforeSelect?.();
   await root.getByRole("button", { name: displayTitle(room), exact: true }).click();
-  await expect(flow.page.getByRole("textbox", { name: "Message", exact: true })).toBeVisible();
+  await expect(flow.page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true })).toBeVisible();
   await flow.requestPanes();
 }
 
@@ -2465,7 +2483,7 @@ export async function walkChatArrival(input: SurfaceFlow): Promise<void> {
             selectHeldRoom(flow, room),
           ]);
           await held.requested;
-          const inputBox = flow.page.getByRole("textbox", { name: "Message", exact: true });
+          const inputBox = flow.page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
           await expect(flow.page.locator('[data-slot="message-row"]')).toHaveCount(0);
           await inputBox.pressSequentially(DRAFT);
           await inputBox.press("ControlOrMeta+Home");

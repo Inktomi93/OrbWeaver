@@ -51,7 +51,7 @@ import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTR
 import { downloadTextFile, notify } from "#lib";
 import { useCreateTheme, useDuplicateTheme, useImportThemeFile, useRemoveTheme, useSelectTheme } from "../hooks/use-theme-mutations.ts";
 import { APPEARANCE_LOOKS_SUBCATEGORY } from "../lib/appearance-looks-nav.ts";
-import { CONFIG_IMPORT_THEME_FILE_NAME } from "../lib/config-control-names.ts";
+import { CONFIG_BACK_TO_LOOKS_NAME, CONFIG_IMPORT_THEME_FILE_NAME } from "../lib/config-control-names.ts";
 import type { ThemeFormValues } from "../lib/theme-editor-model.ts";
 import { DEFAULT_THEME_FORM, themeInputFromForm } from "../lib/theme-editor-model.ts";
 import { ThemeEditor } from "./theme-editor.tsx";
@@ -178,7 +178,7 @@ function LooksBody(): ReactElement {
         <Stack gap="block">
           <Row>
             <Button variant="ghost" onClick={(): void => setEditing(null)}>
-              ← Back to Looks
+              {CONFIG_BACK_TO_LOOKS_NAME}
             </Button>
           </Row>
           {editing.mint === undefined ? <ThemeEditor theme={editing.draft} /> : <ThemeEditor mint={editing.mint} theme={editing.draft} />}

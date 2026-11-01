@@ -29,7 +29,7 @@ import { useDeferredValue, useRef } from "react";
 import { LibraryListRows, LibrarySurfaceShell, ListPage } from "#components";
 import { useInvalidation, useSuspenseQueries, useTRPC, useTRPCClient } from "#data";
 import { downloadJson, notify, rowQualifiers, slugifyFilename, timeLib, useFocusListArrival } from "#lib";
-import { selectPreset, setPresetSearchQuery, usePresetSearchQuery, useSelectedPresetId } from "#state";
+import { getSelectedPresetId, presetSectionSelection, selectPreset, setPresetSearchQuery, usePresetSearchQuery, useSelectedPresetId } from "#state";
 import { PresetLibraryRow } from "../components/preset-library-row.tsx";
 import { useCreatePreset, useRemovePreset, useSetDefaultPreset } from "../hooks/use-preset-mutations.ts";
 import { notifyActivePreset } from "../lib/active-preset-notice.ts";
@@ -167,7 +167,17 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
     if (activeId === id) {
       setDefault.mutate({ section: "seeds", patch: { defaultPresetId: null } });
     }
-    remove.mutate({ id });
+    remove.mutate(
+      { id },
+      {
+        // The open editor reads this id: left selected, every refetch answers 404.
+        onSuccess: (): void => {
+          if (getSelectedPresetId() === id) {
+            presetSectionSelection.clear();
+          }
+        },
+      },
+    );
   };
 
   const qualifiers = rowQualifiers(
