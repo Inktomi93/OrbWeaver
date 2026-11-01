@@ -24,6 +24,7 @@
 // Retiring any twin deletes a whole interaction MODE (keyboard-only, or reader-side), not a redundant echo.
 
 import type { GuidedActionKind, GuidedImpersonatePerson, RewriteToggleId } from "@orb/contracts/preset";
+import { isSubscriptionErrorFrame } from "@orb/contracts/rpc";
 import type { GuidedGameSteerKind } from "@orb/kit/guided";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
@@ -232,7 +233,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
           // `use-chat-bus` gives its own terminal frame).
           onData: (envelope) => {
             const payload = envelope.data;
-            if ("__subscriptionError" in payload) {
+            if (isSubscriptionErrorFrame(payload)) {
               settle(() => reject(new Error(payload.message)));
               return;
             }

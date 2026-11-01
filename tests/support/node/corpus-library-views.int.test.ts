@@ -69,7 +69,7 @@ test("native library projections retain canonical usage, ordering, intake and re
   expect(world.imported.output).toMatchObject({ created: true, renamedFrom: world.book.name });
   expect(world.imported.output.name).not.toBe(world.book.name);
   expect(world.repeated.output).toEqual({ created: false, name: world.imported.output.name, renamedFrom: null });
-  expect(world.deleted.output).toEqual({ deleted: true });
+  expect(world.deleted.output).toBeUndefined();
 
   const regex = result.regex;
   expect(regex.before.output.map((script) => script.id)).toEqual([regex.first.id, regex.second.id]);
@@ -94,7 +94,7 @@ test("native library projections retain canonical usage, ordering, intake and re
   expect(regex.bulk.output).toEqual({ affected: 1 });
   expect(regex.detached.output).toEqual({ detached: true });
   expect(regex.detachedAgain.output).toEqual({ detached: false });
-  expect(regex.deleted.output).toEqual({ deleted: true });
+  expect(regex.deleted.output).toBeUndefined();
 
   const tags = result.tags;
   expect(tags.before.output.find((tag) => tag.id === tags.tag.id)).toMatchObject({ usage: { characters: 0, total: 4 }, pendingSuggestions: 1 });

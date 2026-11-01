@@ -605,6 +605,10 @@ const RUNTIME_ONLY: DependencyType[] = ["type-only", "type-import"];
 // The suites that run a file no door of their cake admits, each line naming the file and why. A feature-private pure
 // model stays off its door because a door forwards only what production consumes through it (`pnpm knip:prod`).
 const PACKAGE_TEST_REACHES = {
+  "tests/contracts/chat/content-policy.contract.test.ts": {
+    "packages/contracts/src/chat/content-blocks.ts":
+      "messageContentBlockSchema: the case parses stored blocks through the schema the send verb reads, which no production caller imports through the chat door",
+  },
   "tests/db/schema/chat-freeze-provenance.repo.int.test.ts": {
     "packages/server/src/entry/boot/index.ts":
       "runBootMigrations: the case proves boot backs up the pre-migration file before the provenance rebuild, and only the persistence tier may seed that schema",

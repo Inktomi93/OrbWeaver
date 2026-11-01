@@ -7,6 +7,7 @@ import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { SLUG_HANDLE_PATTERN, slugifyHandle } from "@orb/kit/slug";
+import { trimEndWhile } from "@orb/kit/strings";
 import { z } from "zod";
 import { cardFaceFields } from "#card-face";
 import type { Principal } from "#identity";
@@ -25,7 +26,6 @@ import { worldBookRoleSchema } from "../world-info/schemas.ts";
 
 const HANDLE_MIN = 1;
 const HANDLE_MAX = 200;
-const TRAILING_HYPHENS = /-+$/u;
 // CARD-CONTENT ceiling (greetings/systemPrompt/…). The FACE fields (name/description/starred/
 // avatarAssetId) spread `cardFaceFields` (D137(E)) — their limits live in `#card-face`, not here.
 const TEXT_MAX = 100_000;
@@ -367,7 +367,7 @@ export function deriveCharacterHandle(source: CharacterHandle, suffix: string): 
     sourceUnits += point.length;
   }
   // A cut that lands just after a separator would leave `--` against the suffix, which the alphabet refuses.
-  boundedSource = boundedSource.replace(TRAILING_HYPHENS, "");
+  boundedSource = trimEndWhile(boundedSource, "-");
   if (boundedSource.length < HANDLE_MIN) {
     throw new Error("a derived character handle must retain a non-empty source");
   }

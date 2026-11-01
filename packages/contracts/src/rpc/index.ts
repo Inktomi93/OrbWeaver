@@ -18,6 +18,11 @@ const subscriptionErrorFrameSchema = z.object({
 /** The transport can retain its native code vocabulary while clients consume the string wire field. */
 export type SubscriptionErrorFrame<Code extends string = string> = Readonly<z.infer<typeof subscriptionErrorFrameSchema>> & { readonly code: Code };
 
+/** Tells a subscription's terminal error frame from a data frame. Every consumer narrows through this, so the sentinel key has one spelling. */
+export function isSubscriptionErrorFrame(frame: unknown): frame is SubscriptionErrorFrame {
+  return typeof frame === "object" && frame !== null && "__subscriptionError" in frame && frame.__subscriptionError === true;
+}
+
 // The page directions TanStack Query hands an infinite query's page function.
 const INFINITE_QUERY_DIRECTIONS = ["forward", "backward"] as const;
 

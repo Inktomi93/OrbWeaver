@@ -3,6 +3,7 @@
 // parser and CSS gamut mapping live at the shared safe-color boundary; this module converts its sRGB
 // result into the OKL coordinates the derivation consumes.
 import { parseCssColorToSrgb } from "@orb/kit/safe-color";
+import { trimEndWhile } from "@orb/kit/strings";
 import { compositeSrgb, oklchToSrgb, srgbToOklch } from "@orb/kit/theme-derivation";
 export interface ParsedOklch {
   readonly l: number;
@@ -14,11 +15,17 @@ export interface ParsedOklch {
 
 const CSS_COLOR_PRECISION = 8;
 
+// Trailing zeros go, and the point they leave behind: `/\.?0+$/`.
+function trimZeros(text: string): string {
+  const trimmed = trimEndWhile(text, "0");
+  return trimmed.length < text.length && trimmed.endsWith(".") ? trimmed.slice(0, -1) : trimmed;
+}
+
 /** Bounded CSS spelling safe to carry back through the 64-byte color gate in a nested ThemeScope. */
 export function serializeOpaqueOklch(color: Pick<ParsedOklch, "l" | "c" | "h">): string {
   // Fixed notation, never an exponent: a near-zero chroma such as 2e-8 is valid CSS but fails the safe-color gate a nested scope reads it back through.
   const component = (value: number): string => {
-    const fixed = value.toFixed(CSS_COLOR_PRECISION).replace(/\.?0+$/u, "");
+    const fixed = trimZeros(value.toFixed(CSS_COLOR_PRECISION));
     return fixed === "-0" || fixed === "" ? "0" : fixed;
   };
   return `oklch(${component(color.l)} ${component(color.c)} ${component(color.h)})`;

@@ -46,11 +46,11 @@ held(
     try {
       await gate.reached;
       gate.disarm();
-      expect(await ownerCaller.regex.removeScript({ scriptId: script.id })).toEqual({ deleted: true });
+      await ownerCaller.regex.removeScript({ scriptId: script.id });
       expect(frames).toEqual([{ seq: null, event: { type: "roomEntityChanged", chatId: chat.id, entity: "regex" } }]);
       frames.length = 0;
       gate.release();
-      expect(await loser).toEqual({ deleted: true });
+      await loser;
       expect(await db.select().from(regexScripts).where(eq(regexScripts.id, script.id))).toEqual([]);
       expect(
         await db
@@ -94,7 +94,7 @@ test("a foreign or missing global book never fans its captured rooms, while an o
   await expect(ownerCaller.worldInfo.removeBook({ bookId: book.id })).toThrowTRPCError("NOT_FOUND");
   await expect(ownerCaller.worldInfo.removeBook({ bookId: ids.typeId(ID_PREFIX.worldBook) })).toThrowTRPCError("NOT_FOUND");
   expect(frames).toEqual([]);
-  expect(await otherCaller.worldInfo.removeBook({ bookId: book.id })).toEqual({ deleted: true });
+  await otherCaller.worldInfo.removeBook({ bookId: book.id });
   expect(frames).toEqual([{ seq: null, event: { type: "roomEntityChanged", chatId: room.id, entity: "world-info" } }]);
   expect(await db.select().from(chatEvents)).toEqual(durableBefore);
   await expect(otherCaller.worldInfo.getBook({ bookId: book.id })).toThrowTRPCError("NOT_FOUND");

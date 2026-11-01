@@ -20,7 +20,6 @@ import type {
   DetachResult,
   EntryView,
   LoreEntryIndexRow,
-  RemoveResult,
   ReorderResult,
   WiBusEvent,
 } from "@orb/contracts/world-info";
@@ -104,7 +103,7 @@ export interface WorldInfoService {
   readonly createBook: (params: CreateBookParams) => Promise<BookView>;
   readonly updateBook: (params: UpdateBookParams) => Promise<BookView>;
   /** DB cascade clears its entries + all junction rows. */
-  readonly removeBook: (params: RemoveBookParams) => Promise<RemoveResult>;
+  readonly removeBook: (params: RemoveBookParams) => Promise<void>;
   /** Deep-copies a book + all its entries into a fresh "<name> (copy)" book, unattached at every scope. */
   readonly duplicateBook: (params: DuplicateBookParams) => Promise<BookView>;
   /** THE single-book export door (F2 — the verbs were built and had ZERO doors, so sharing one lorebook
@@ -121,7 +120,7 @@ export interface WorldInfoService {
   readonly getEntry: (params: GetEntryParams) => Promise<EntryView>;
   readonly createEntry: (params: CreateEntryParams) => Promise<EntryView>;
   readonly updateEntry: (params: UpdateEntryParams) => Promise<EntryView>;
-  readonly removeEntry: (params: RemoveEntryParams) => Promise<RemoveResult>;
+  readonly removeEntry: (params: RemoveEntryParams) => Promise<void>;
   /** Fills the title of every blank-titled entry from its keys (comma-joined). */
   readonly backfillTitles: (params: BackfillTitlesParams) => Promise<BackfillResult>;
   /** Rewrites entry order: position i → priority = N - i. Stale/foreign ids dropped. */

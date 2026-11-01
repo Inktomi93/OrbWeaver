@@ -6,7 +6,7 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatBusEvent, SendContentBlock } from "@orb/contracts/chat";
-import { contentSpansToBlocks, SEND_BLOCK_LIMITS } from "@orb/contracts/chat";
+import { contentSpansToBlocks } from "@orb/contracts/chat";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
 import { tokenizeContent } from "@orb/kit/content";
@@ -29,6 +29,7 @@ import {
   seedInvitedChatParticipant,
 } from "@orb/testkit/node/composed";
 import { onTestFinished } from "vitest";
+import { SEND_BLOCK_LIMITS } from "#contracts/chat/content-blocks.ts";
 import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 
 const PNG = "image/png";

@@ -39,10 +39,10 @@
 //   • global   → `target.ownerId`, unchanged (FLAG[global-scope] above).
 
 import type { AssembleWorldEntry, AssembleWorldEntryAttachment } from "@orb/contracts/chat";
-import type { ChatBookView } from "@orb/contracts/world-info";
+import type { ChatBookView, InheritedBookSource } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, characters, chatBooks, globalBooks, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
-import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { resolveEntryInjection, resolveEntryKeyMode, resolveEntryPosition, resolveEntryScope } from "@orb/kit/world-info";
 import { and, eq, inArray } from "drizzle-orm";
 
@@ -202,16 +202,24 @@ async function loadWorldInfoSources(
 /** The inherited rack and the assembler read the same owner-belted eligible entry sources. */
 export async function loadInheritedWorldBooks(db: Db, target: WorldInfoPoolTarget): Promise<ChatBookView[]> {
   const { characterRows, globalRows, personaRows } = await loadWorldInfoSources(db, target);
+  // Named fields, not `...row.book`: a column added to `bookColumns` must not ride onto the strict wire view.
+  // The rack never shows an inherited book's description, so it is always null.
+  const inherited = (
+    row: { readonly book: { readonly id: WorldBookId; readonly name: string } },
+    source: InheritedBookSource,
+    name: string | null,
+  ): ChatBookView => ({
+    id: row.book.id,
+    name: row.book.name,
+    description: null,
+    role: null,
+    inherited: { source, name },
+  });
   const rows: ChatBookView[] = [
-    ...globalRows.map((row) => ({ ...row.book, role: null, inherited: { source: "global" as const, name: null } })),
-    ...characterRows.map((row) => ({ ...row.book, role: null, inherited: { source: "character" as const, name: row.sourceName } })),
-    ...personaRows.map((row) => ({
-      ...row.book,
-      description: null,
-      role: null,
-      inherited: { source: "persona" as const, name: row.personaName },
-    })),
-  ].map(({ ownerId: _ownerId, ...row }) => ({ ...row, description: null }));
+    ...globalRows.map((row) => inherited(row, "global", null)),
+    ...characterRows.map((row) => inherited(row, "character", row.sourceName)),
+    ...personaRows.map((row) => inherited(row, "persona", row.personaName)),
+  ];
   return rows.filter(
     (row, index) =>
       rows.findIndex((other) => other.id === row.id && other.inherited?.source === row.inherited?.source && other.inherited?.name === row.inherited?.name) ===

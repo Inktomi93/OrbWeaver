@@ -139,7 +139,7 @@ export function createDefaultCharacterSeeder(deps: DefaultCharacterSeederDeps): 
       await deps.seedGallery(principal, characterId, card.input.handle);
     }
     // Last: the identity hashes the dressed card (its lore and art), exactly as its export carries them.
-    await deps.stampOwnIdentity?.(principal, characterId);
+    await deps.stampOwnIdentity(principal, characterId);
   }
 
   /** Does this card still carry NO look of its own? `kind:"none"` is the schema's own "no image", so it

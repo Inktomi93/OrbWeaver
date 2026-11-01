@@ -5,6 +5,7 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import { swapIdentityMacros } from "@orb/kit/macro";
+import { replaceAngleSpans } from "@orb/kit/strings";
 import { clampToTokenBudget, safeTokenWindow } from "@orb/kit/tokens";
 
 type CardEmbedFields = Pick<CharacterCard, "name" | "description" | "personality" | "scenario" | "greetings">;
@@ -26,8 +27,7 @@ type CardEmbedFields = Pick<CharacterCard, "name" | "description" | "personality
 
 /** Strip HTML, collapse runs of whitespace/newlines, trim per line. */
 function cleanText(text: string): string {
-  return text
-    .replace(/<[^>]+>/g, "")
+  return replaceAngleSpans(text, "", false)
     .replace(/\n{3,}/g, "\n\n")
     .replace(/[^\S\n]+/g, " ")
     .split("\n")
