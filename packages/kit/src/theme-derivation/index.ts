@@ -950,7 +950,8 @@ export type AccentFill = { readonly kind: "clears" } | { readonly kind: "correct
  *
  * THE SURFACE IS THE CARD, not the base: every low-emphasis graphic this protects (the arc meter's value
  * arc, a ring gauge's fill, a track bar) is painted on a panel, and the card is the ramp member panels
- * take. The floor is {@link AA_NON_TEXT_RATIO} (3:1) because a fill IS a non-text graphical object.
+ * take. The floor is {@link AA_NON_TEXT_RATIO} (3:1) because a fill IS a non-text graphical object. The neutral tint-active
+ * is judged too, because a glyph paints the fill on the tone's tints.
  *
  * THE FIRST DIRECTION IS THE CARD'S measured polarity: on a light card the accent goes DARKER first; on a dark
  * card, lighter. The search walks `ACCENT_L_STEP` at a time
@@ -966,9 +967,13 @@ export type AccentFill = { readonly kind: "clears" } | { readonly kind: "correct
  * to the authored accent is the pre-#692 behaviour, and inventing a colour is what this file exists not to do.
  */
 export function accentFillLightness(accent: Oklch, accentAlpha: number, base: Oklch): AccentFill {
-  const card = oklchToSrgb(rampSurface(base, rampDeltas(base).card));
+  const deltas = rampDeltas(base);
+  const card = oklchToSrgb(rampSurface(base, deltas.card));
+  // The neutral tint-active stands in for the tone's own tints, which sit a separation off every host: a glyph paints the fill on them.
+  const tint = oklchToSrgb(rampSurface(base, deltas.accent));
+  const clears = (fill: Rgb): boolean => Math.min(fillVsCardRatio(fill, card), fillVsCardRatio(fill, tint)) >= AA_NON_TEXT_RATIO;
   const opaque = oklchToSrgb(accent);
-  if (fillVsCardRatio(accentAlpha < 1 ? compositeSrgb(opaque, accentAlpha, card) : opaque, card) >= AA_NON_TEXT_RATIO) {
+  if (clears(accentAlpha < 1 ? compositeSrgb(opaque, accentAlpha, card) : opaque)) {
     return { kind: "clears" };
   }
   const first = surfacePolarity(base) === "light" ? -1 : 1;
@@ -983,7 +988,7 @@ export function accentFillLightness(accent: Oklch, accentAlpha: number, base: Ok
       // Judged OPAQUE at the re-derived lightness: the caller emits it opaque for the same reason the ink
       // clamp does — a minimal alpha sits on the boundary and re-judging it is a fixed point that never passes.
       const pixel = oklchToSrgb({ l, c: accent.c, h: accent.h });
-      if (fillVsCardRatio(pixel, card) >= AA_NON_TEXT_RATIO) {
+      if (clears(pixel)) {
         return { kind: "corrected", fill: srgbToOklch(pixel) };
       }
     }
@@ -1718,6 +1723,9 @@ export const TONE_HUE_ADJACENT_DEGREES = 45;
 // About one 8-bit step in OKLab at the mid lightnesses where tints sit: what quantizing two tints can spend of their separation.
 const TINT_PIXEL_HEADROOM = 0.004;
 
+// A browser can round a pixel one level off the solve's own 8-bit reading, so a tint landing on the separation can paint just under it.
+const TINT_ROUNDING_MARGIN = 0.001;
+
 /**
  * The least chroma a tint keeps where its tone and the gamut allow: two tints at this chroma, one lightness and the
  * adjacency bound apart in hue sit {@link TONE_TINT_SEPARATION} apart after quantization, so non-adjacent tints never merge.
@@ -1976,7 +1984,7 @@ function solveTint<Host extends string>(palette: TonePalette<Host>, base: Oklch,
   let unmarked: Oklch | undefined;
   for (const l of lightnessWalk(mixOklab(base, percent, background).l, foreground.l < background.l ? 1 : -1)) {
     const candidate = onHue(l, chroma, base.h);
-    if (hosts.some((host) => paintedDistance(candidate, host) < TONE_TINT_SEPARATION)) {
+    if (hosts.some((host) => paintedDistance(candidate, host) < TONE_TINT_SEPARATION + TINT_ROUNDING_MARGIN)) {
       continue;
     }
     const candidatePixel = [luminances(paintedForms(candidate).srgb)];
