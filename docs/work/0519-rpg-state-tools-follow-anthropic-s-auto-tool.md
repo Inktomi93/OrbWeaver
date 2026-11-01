@@ -24,3 +24,5 @@ Descriptions rewritten to the checklist; update_scene carries input_examples; th
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+- Examples ride only the dedicated cheap round on the Anthropic wire. They add the `advanced-tool-use-2025-11-20` beta header, which is unprobed on the default folded turn and on any proxy; the 0472 live probes can widen it. No live run yet.
