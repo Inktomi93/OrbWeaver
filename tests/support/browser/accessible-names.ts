@@ -357,7 +357,7 @@ async function isIdenticalDataDuplicate(page: Page, finding: NameFinding): Promi
   if (finding.role === undefined || finding.subject === undefined) {
     return false;
   }
-  const controls = page.getByRole(finding.role as Parameters<Page["getByRole"]>[0], { name: finding.subject, exact: true });
+  const controls = page.locator(`role=${finding.role}[name=/^${RegExp.escape(finding.subject)}$/]`);
   const rows = await controls.evaluateAll(
     (elements: Element[], selector: string) => elements.map((element) => (element.closest(selector)?.textContent ?? "").replace(/\s+/g, " ").trim()),
     ROW_SELECTOR,

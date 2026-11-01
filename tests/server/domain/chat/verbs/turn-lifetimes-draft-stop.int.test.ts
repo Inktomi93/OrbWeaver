@@ -30,7 +30,7 @@ test("the public Stop operation reaches an active user draft and closes its actu
     try {
       const first = await iter.next();
       expect(first.done).toBe(false);
-      expect(first.value?.delta).toBe("first");
+      expect(first.value).toMatchObject({ delta: "first" });
       expect(peer.stopped()).toBe(false);
       await h.root.services.chat.abort(params);
       expect((await iter.next()).done).toBe(true);

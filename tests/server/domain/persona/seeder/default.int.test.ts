@@ -10,6 +10,7 @@ import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, freshDb, refuseWrites } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
+import { z } from "zod";
 
 // An automation-started stack: the one posture whose persona seeder creates the default instead of asking.
 const AUTOMATION_STACK = { ["E2E_HARNESS"]: "on" } as const;
@@ -67,9 +68,12 @@ test("a lost persona latch heals only its own artifact and independently preserv
   }
   const store = vi.spyOn(services.assets, "store");
   await root.app.contentSeeder.ensureSeeded(actor);
-  expect((await Promise.all(store.mock.results.map((result) => result.value as Promise<{ readonly hash: string }>))).map(({ hash }) => hash)).not.toContain(
-    art.hash,
-  );
+  expect(
+    z
+      .array(z.object({ hash: z.string() }))
+      .parse(await Promise.all(store.mock.results.map((result): unknown => result.value)))
+      .map(({ hash }) => hash),
+  ).not.toContain(art.hash);
   expect(await services.persona.list({ principal: actor })).toHaveLength(2);
   const config = (await services.settings.getUserSettings({ principal: actor })).config;
   expect(config.seeds.defaultPersonaId).toBe(mine.id);

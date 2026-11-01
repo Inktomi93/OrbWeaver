@@ -46,7 +46,7 @@ const tilesSchema = z.object({ tiles: z.array(z.object({ title: z.string(), badg
 
 function card(name: string, extensions: Readonly<Record<string, unknown>> = {}): Card {
   // Tuple-built: every key is a card wire token.
-  const data = Object.fromEntries([
+  const dataEntries: [string, unknown][] = [
     ["name", name],
     ["description", `${name} waits by the gate.`],
     ["personality", ""],
@@ -54,14 +54,16 @@ function card(name: string, extensions: Readonly<Record<string, unknown>> = {}):
     ["first_mes", "Hello."],
     ["mes_example", ""],
     ["extensions", extensions],
-  ]);
-  return Object.fromEntries([
+  ];
+  const data = Object.fromEntries(dataEntries);
+  const cardEntries: [string, unknown][] = [
     ["spec", "chara_card_v2"],
     ["spec_version", "2.0"],
     // Wyvern's detail reads the root description; the import reads `data`.
     ["description", data["description"]],
     ["data", data],
-  ]);
+  ];
+  return Object.fromEntries(cardEntries);
 }
 
 function nameOf(listing: HubListing): string {

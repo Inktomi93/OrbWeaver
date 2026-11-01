@@ -27,7 +27,7 @@ test("a null attribute in a sheet patch clears that attribute and keeps the othe
   }
   const sheet = { principal: owner, chatId, actorRef: { kind: "user", userId: owner.userId } } as const;
   const attributesOf = async (): Promise<Readonly<Record<string, number>> | undefined> =>
-    (await root.services.rpg.getTrackerView({ principal: owner, chatId })).actors.find((actor) => actor.sheet !== null)?.sheet?.attributes;
+    (await root.services.rpg.getTrackerView({ principal: owner, chatId })).actors[0]?.sheet.attributes;
 
   await root.services.rpg.patchSheet({ ...sheet, patch: { attributes: { [first.key]: 14, [second.key]: 9 } } });
   expect(await attributesOf()).toMatchObject({ [first.key]: 14, [second.key]: 9 });

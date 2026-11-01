@@ -10,6 +10,7 @@ import { emulateMedia, releaseEmulatedMedia, resolvedLength, seedShellState, she
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
+import { keysOf } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
@@ -46,7 +47,7 @@ const LIST_DOOR: readonly DoorBox[] = ["main", "trail", "listPanel", "row", "com
 const CONTEXT_DOOR: readonly DoorBox[] = ["main", "trail", "contextPanel", "listAction", "row", "composer"];
 const CARRIERS: readonly DoorBox[] = ["row", "composer"];
 // What an open room offers a door to read, and what a section without a room offers.
-const ROOM_BOXES = Object.keys(DOOR_BOXES) as DoorBox[];
+const ROOM_BOXES = keysOf(DOOR_BOXES);
 const SECTION_BOXES: readonly DoorBox[] = ["main", "trail", "listPanel"];
 // A rounded pixel either side: the panel tracks and the centring margin each round to the device pixel.
 const HOLD_SLACK = 2;

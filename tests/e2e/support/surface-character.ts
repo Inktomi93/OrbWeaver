@@ -1175,7 +1175,7 @@ async function cleanupCommandSubjects(
   const failures = cleanup.filter((result) => result.status === "rejected");
   if (failures.length > 0) {
     throw new AggregateError(
-      failures.map((result) => result.reason),
+      failures.map((result): unknown => result.reason),
       "Disposable Character command cleanup failed",
     );
   }

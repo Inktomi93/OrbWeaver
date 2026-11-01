@@ -4,6 +4,7 @@
 // @subject packages/server/src/domain/chat/memory/recall/recall.ts
 
 import { streamConnectInputSchema } from "@orb/contracts/stream";
+import { decodeStreamChunk } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -282,7 +283,7 @@ async function openRoomStream(
       if (next.done) {
         throw new Error("the room stream ended before its delivery barrier");
       }
-      bytes += decoder.decode(next.value, { stream: true });
+      bytes += decodeStreamChunk(decoder, next.value);
     }
     return bytes;
   };

@@ -208,7 +208,7 @@ test("settled search publication survives native authenticated clone reads and r
         viewerUserId: actors.secondUserId,
         ids: before.ids,
         rooms: memberRooms.map((room) => room.output),
-        reads: Object.fromEntries(Object.entries(memberSplice.searchLibrary.reads).map(([name, read]) => [name, read.output])),
+        reads: Object.fromEntries(Object.entries({ ...memberSplice.searchLibrary.reads }).map(([name, read]) => [name, read.output])),
       });
       expect.soft(() => parseCorpusWire(serialized.replace(sectionMarker, memberPublished))).toThrow("retrieval cohort mismatch");
       const secret = 'native-search-"credential"\\959';

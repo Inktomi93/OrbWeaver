@@ -5,7 +5,8 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { streamConnectInputSchema } from "@orb/contracts/stream";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { decodeStreamChunk } from "@orb/testkit/iso";
 import { expect } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -23,6 +24,7 @@ import {
   seedInvitedChatParticipant,
 } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
+import { z } from "zod";
 import { coreFrame, coreProse, coreSse } from "../../../domain/chat/engine/core-physical.ts";
 import { signedInMember } from "../../../entry/_auth-roots.ts";
 
@@ -37,6 +39,8 @@ export const tokenCount = BEFORE_JOIN.length + 1;
 export const FULL_TEXT = [...BEFORE_JOIN, ...AFTER_JOIN].join("");
 export const OPENING = "The opening stays public.";
 const HOST_PASSWORD = "a-real-late-join-host-password";
+
+const frameSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat), seq: z.number(), event: z.custom<ChatBusEvent>() });
 
 export interface Frame {
   readonly chatId: ChatId;
@@ -72,15 +76,16 @@ export async function openDevice(root: ServerTestHarness, userId: UserId, cookie
     if (next.done) {
       throw new Error("the socket ended before its delivery barrier");
     }
-    pending += decoder.decode(next.value, { stream: true });
+    pending += decodeStreamChunk(decoder, next.value);
     const lines = pending.split("\n");
     pending = lines.pop() ?? "";
     for (const line of lines.filter((candidate) => candidate.startsWith("data: {"))) {
-      const frame = JSON.parse(line.slice("data: ".length)) as { readonly channel?: string; readonly type?: string } & Frame;
-      if (frame.channel === "chat") {
-        frames.push(frame);
+      const raw: unknown = JSON.parse(line.slice("data: ".length));
+      const envelope = z.object({ channel: z.string().optional(), type: z.string().optional() }).parse(raw);
+      if (envelope.channel === "chat") {
+        frames.push(frameSchema.parse(raw));
       } else {
-        controls.push(frame.type);
+        controls.push(envelope.type);
       }
     }
   };

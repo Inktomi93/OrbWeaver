@@ -26,19 +26,50 @@ function classTokens(element: ReactElement): ReadonlySet<string> {
   return new Set((/class="([^"]*)"/u.exec(markup)?.[1] ?? "").split(/\s+/u));
 }
 
-function expectBoxes(component: keyof Box): void {
-  const steps: Readonly<Record<string, boolean>> = BUTTON_BOX_OVERFLOW[component];
-  const render = RENDER[component] as (step: string) => ReactElement;
-  for (const [step, overflows] of Object.entries(steps)) {
-    const tokens = classTokens(render(step));
+interface BoxRow {
+  readonly step: string;
+  readonly overflows: boolean;
+  readonly element: ReactElement;
+}
+
+const CASES: readonly { readonly component: string; readonly rows: readonly BoxRow[] }[] = [
+  {
+    component: "button",
+    rows: keysOf(BUTTON_BOX_OVERFLOW.button).map((step) => ({ step, overflows: BUTTON_BOX_OVERFLOW.button[step], element: RENDER.button(step) })),
+  },
+  {
+    component: "glyphButton",
+    rows: keysOf(BUTTON_BOX_OVERFLOW.glyphButton).map((step) => ({
+      step,
+      overflows: BUTTON_BOX_OVERFLOW.glyphButton[step],
+      element: RENDER.glyphButton(step),
+    })),
+  },
+  {
+    component: "inlineAction",
+    rows: keysOf(BUTTON_BOX_OVERFLOW.inlineAction).map((step) => ({
+      step,
+      overflows: BUTTON_BOX_OVERFLOW.inlineAction[step],
+      element: RENDER.inlineAction(step),
+    })),
+  },
+  {
+    component: "pictureButton",
+    rows: keysOf(BUTTON_BOX_OVERFLOW.pictureButton).map((step) => ({
+      step,
+      overflows: BUTTON_BOX_OVERFLOW.pictureButton[step],
+      element: RENDER.pictureButton(step),
+    })),
+  },
+];
+
+test.for(CASES)("$component hit-area metadata matches what its door renders", ({ component, rows }) => {
+  for (const { step, overflows, element } of rows) {
+    const tokens = classTokens(element);
     expect(tokens.has("before:block-(--size-touch-target)"), `${component} ${step}`).toBe(overflows);
     // An overflowing hit area is layout-neutral: positioned out of flow.
     expect(overflows && !tokens.has("before:absolute"), `${component} ${step}`).toBe(false);
   }
-}
-
-test.for(keysOf(BUTTON_BOX_OVERFLOW))("%s hit-area metadata matches what its door renders", (component) => {
-  expectBoxes(component);
 });
 
 test("a control-row stack floors its rows at the control step", () => {

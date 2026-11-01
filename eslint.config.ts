@@ -664,6 +664,31 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
     rules: {
       // The generic under test is the subject of a type assertion, so a single-use type parameter is the point.
       "@typescript-eslint/no-unnecessary-type-parameters": "off",
+      // A negative assertion calls a member the type removed; the unresolved call is the subject.
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+    },
+  },
+  {
+    // Generic bridges between a runtime value and a conditional or mapped testkit type; an assertion is the only way to build the target.
+    files: [
+      "tests/support/node/ct-corpus-procedures.ts",
+      "tests/support/iso/corpus-admission.ts",
+      "tests/support/node/route-trpc.ts",
+      "tests/support/node/corpus-capture.ts",
+      "tests/support/node/corpus-procedure.ts",
+      "tests/support/node/sdk-process-control.ts",
+      "tests/support/node/route-orb-socket.ts",
+    ],
+    rules: { "@typescript-eslint/no-unsafe-type-assertion": "off", "@typescript-eslint/consistent-type-assertions": "off" },
+  },
+  {
+    // The one home of the deliberately invalid input cast.
+    files: ["tests/support/iso/forged.ts"],
+    rules: {
+      "@typescript-eslint/no-unsafe-type-assertion": "off",
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-unnecessary-type-parameters": "off",
     },
   },
   {

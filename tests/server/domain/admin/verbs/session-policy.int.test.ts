@@ -22,7 +22,7 @@ test("a single-device admin kick ends every target socket, including another dev
   const stranger = await harness.actor();
   const first = await app.sessions.create({ userId: target.id });
   const second = await app.sessions.create({ userId: target.id });
-  const evicted = [vi.fn(), vi.fn(), vi.fn(), vi.fn()];
+  const evicted = [vi.fn<() => void>(), vi.fn<() => void>(), vi.fn<() => void>(), vi.fn<() => void>()];
   const specs = [
     { userId: target.id, sessionId: first.sessionId },
     { userId: target.id, sessionId: second.sessionId },

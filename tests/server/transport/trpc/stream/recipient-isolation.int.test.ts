@@ -4,6 +4,7 @@ import { streamConnectInputSchema } from "@orb/contracts/stream";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { decodeStreamChunk } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { signInWithPassword } from "@orb/testkit/node/auth";
 import { createServerHarness, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
@@ -80,14 +81,14 @@ test("actual authenticated multiplexing enforces socket ownership and withholds 
       if (next.done) {
         throw new Error("the actual subscription ended before its owned delivery barrier");
       }
-      bytes += decoder.decode(next.value, { stream: true });
+      bytes += decodeStreamChunk(decoder, next.value);
     }
   };
   let reading: Promise<void> | undefined;
   try {
     const first = await reader.read();
     expect(first.done).toBe(false);
-    bytes += decoder.decode(first.value, { stream: true });
+    bytes += decodeStreamChunk(decoder, first.value);
     await expect(owner.stream.attach({ socketId, ref: { channel: "chat", chatId: shared.id }, sinceSeq: 0 })).toThrowTRPCError("NOT_FOUND");
     // Draft-tolerant attachment accepts a known foreign ref but must never deliver its private canon.
     await member.stream.attach({ socketId, ref: { channel: "chat", chatId: foreign.id }, sinceSeq: 0 });

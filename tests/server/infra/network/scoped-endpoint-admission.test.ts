@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { setImmediate } from "node:timers/promises";
 import { queryObjects } from "node:v8";
 import { ANY_HOST, createScopedEgress, systemConnector, systemFetch, systemResolver } from "@orb/server/infra/network";
-import { createQuietTimers, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
+import { createQuietTimers, decodeStreamChunk, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createTestLogger } from "@orb/testkit/node/composed";
 import { createTestEnv } from "@orb/testkit/node/helpers";
@@ -135,7 +135,7 @@ test.each([false, true])(
       throw new Error("native egress control requires a response body");
     }
     try {
-      expect(new TextDecoder().decode((await reader.read()).value)).toBe("held physical bytes");
+      expect(decodeStreamChunk(new TextDecoder(), (await reader.read()).value)).toBe("held physical bytes");
       if (forceGc) {
         // Collection of an unowned control proves GC ran while egress must retain the live request's dependent signal.
         await expectRequestCollected(new WeakRef(new Request(url)));
@@ -220,7 +220,7 @@ test.each(["EOF", "error", "cancel"] as const)(
       throw new Error("native Request ownership control requires a response body");
     }
     try {
-      expect(new TextDecoder().decode((await reader.read()).value)).toBe("held");
+      expect(decodeStreamChunk(new TextDecoder(), (await reader.read()).value)).toBe("held");
       await setImmediate();
       queryObjects(Request, { format: "count" });
       expect(normalized?.deref()).toBeDefined();
@@ -230,7 +230,7 @@ test.each(["EOF", "error", "cancel"] as const)(
         (await finish.promise)();
       }
       const remaining = await reader.read().then(
-        (next) => ({ error: false, done: next.done, bytes: new TextDecoder().decode(next.value) }),
+        (next) => ({ error: false, done: next.done, bytes: next.done ? "" : decodeStreamChunk(new TextDecoder(), next.value) }),
         (error: unknown) => ({ error: error instanceof Error, done: false, bytes: "" }),
       );
       expect(remaining).toEqual({ error: terminal === "error", done: terminal === "cancel", bytes: terminal === "EOF" ? " completed" : "" });

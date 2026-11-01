@@ -160,7 +160,7 @@ test("a routed physical 429 retains ProviderError as the actual TRPCError cause 
       throw new Error("the physical 429 unexpectedly resolved");
     }
     expect(rejected.reason).toMatchObject({ name: "TRPCError", code: "TOO_MANY_REQUESTS", cause: expect.any(ProviderError) });
-    expect(rejected.reason.cause).toMatchObject({ kind: "rate_limit" });
+    expect(rejected.reason).toMatchObject({ cause: { kind: "rate_limit" } });
     expect(await outcomes(h)).toEqual([expect.objectContaining({ disposition: "error", terminalReason: "rate_limit" })]);
   });
 });

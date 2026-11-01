@@ -3,6 +3,7 @@ import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { routeAuthConfig, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { forged } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import {
@@ -137,7 +138,7 @@ async function serveAs(root: Harness, page: Page, viewer: Caller, neighbourRead?
   await routeTrpc(page, {
     ...served,
     "chat.listMessages": (input) =>
-      neighbourRead !== undefined && input.limit === 1 && input.cursor?.kind === "before" ? (neighbourRead() as never) : listMessages(input),
+      neighbourRead !== undefined && input.limit === 1 && input.cursor?.kind === "before" ? forged<never>(neighbourRead()) : listMessages(input),
   });
 }
 
@@ -236,8 +237,10 @@ for (const failure of NEIGHBOUR_READ_FAILURES) {
     if (predecessor === undefined) {
       throw new Error("The paged room has no row before its first loaded row");
     }
-    const beforeStart = JSON.parse(JSON.stringify(await host.chat.listMessages({ chatId, cursor: { kind: "before", seq: 0 }, limit: 1 })));
-    expect((beforeStart as { readonly messages: readonly unknown[] }).messages).toEqual([]);
+    const beforeStart = forged<{ readonly messages: readonly unknown[] }>(
+      JSON.parse(JSON.stringify(await host.chat.listMessages({ chatId, cursor: { kind: "before", seq: 0 }, limit: 1 }))),
+    );
+    expect(beforeStart.messages).toEqual([]);
     await serveAs(root, page, host, () => failure.answer(beforeStart));
     await corpusMedia();
     await mount<typeof RoomTranscriptStory>(STORY, storyProps(chatId));

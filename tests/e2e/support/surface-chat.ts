@@ -1015,7 +1015,16 @@ async function reachMessage(flow: Journey, message: MessageView, direction: -1 |
               hit: hit?.outerHTML.slice(0, 500),
               rows: [...element.querySelectorAll<HTMLElement>("[data-message-id]")].map((node) => ({
                 id: node.getAttribute("data-message-id"),
-                rect: node.getBoundingClientRect().toJSON(),
+                rect: ((bounds) => ({
+                  x: bounds.x,
+                  y: bounds.y,
+                  width: bounds.width,
+                  height: bounds.height,
+                  top: bounds.top,
+                  right: bounds.right,
+                  bottom: bounds.bottom,
+                  left: bounds.left,
+                }))(node.getBoundingClientRect()),
               })),
             };
           }),
@@ -1092,7 +1101,16 @@ async function readingChrome(flow: Journey, row: Locator, viewport: Locator, sub
       sticky: element.hasAttribute("data-sticky"),
       pinned: element.hasAttribute("data-pinned"),
       placement: element.getAttribute("data-placement"),
-      rect: element.getBoundingClientRect().toJSON(),
+      rect: ((frame) => ({
+        x: frame.x,
+        y: frame.y,
+        width: frame.width,
+        height: frame.height,
+        top: frame.top,
+        right: frame.right,
+        bottom: frame.bottom,
+        left: frame.left,
+      }))(element.getBoundingClientRect()),
     })),
   );
   await attachNativeFile(flow.info, flow.info, `reading-${name}-identity`, {
@@ -1615,7 +1633,16 @@ async function messageOperationMenu(flow: Journey, message: MessageView): Promis
             return {
               tag: node.tagName,
               slot: node.getAttribute("data-slot"),
-              rect: node.getBoundingClientRect().toJSON(),
+              rect: ((bounds) => ({
+                x: bounds.x,
+                y: bounds.y,
+                width: bounds.width,
+                height: bounds.height,
+                top: bounds.top,
+                right: bounds.right,
+                bottom: bounds.bottom,
+                left: bounds.left,
+              }))(node.getBoundingClientRect()),
               position: style.position,
               zIndex: style.zIndex,
               pointerEvents: style.pointerEvents,

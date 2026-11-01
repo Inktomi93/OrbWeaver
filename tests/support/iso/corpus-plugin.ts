@@ -122,7 +122,7 @@ function publishStage(stage: CorpusPluginStage): z.output<typeof pluginStageSche
   return pluginStageSchema.parse({
     viewerUserId: stage.viewerUserId,
     ids: stage.ids,
-    reads: Object.fromEntries(Object.entries(stage.reads).map(([name, read]) => [name, read.output])),
+    reads: Object.fromEntries(Object.entries({ ...stage.reads }).map(([name, read]) => [name, read.output])),
   });
 }
 

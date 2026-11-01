@@ -188,13 +188,18 @@ async function rerankWorld(shape: Shape): Promise<RerankWorld> {
     await h.caller.connection.setBinding({ task: "rerank", connectionId: connection.id });
   };
   await bindRerank(WIDE_WINDOW_TOKENS);
-  const personas = {} as Record<Arc, CharacterId>;
-  for (const arc of ARCS) {
-    const card = await h.caller.character.create({
-      input: createCharacterSchema.parse({ handle: `persona-${arc}`, name: PERSONA_NAMES[arc], description: itemText(shape, "persona", arc) }),
-    });
-    personas[arc] = card.id;
-  }
+  const createPersona = async (arc: Arc): Promise<CharacterId> =>
+    (
+      await h.caller.character.create({
+        input: createCharacterSchema.parse({ handle: `persona-${arc}`, name: PERSONA_NAMES[arc], description: itemText(shape, "persona", arc) }),
+      })
+    ).id;
+  const personas = {
+    market: await createPersona("market"),
+    storm: await createPersona("storm"),
+    shrine: await createPersona("shrine"),
+    [WANTED]: await createPersona(WANTED),
+  } satisfies Record<Arc, CharacterId>;
   // One chunk per document, so a k cut keeps or drops a whole item.
   await h.caller.settings.updateUserSettingsSection({ section: "databank", patch: { chunk: { chunkSize: 4000 } } });
   for (const arc of ARCS) {

@@ -8,6 +8,7 @@ import { createPersonaSchema } from "@orb/contracts/persona";
 import type { ChatId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { z } from "zod";
 
 test("switching the seat's persona reaches the room's live channel as personaSwitched with a durable seq, and flips the seat", async () => {
   await using root = await createServerHarness();
@@ -24,8 +25,9 @@ test("switching the seat's persona reaches the room's live channel as personaSwi
     await root.services.persona.setActivePersona({ principal, chatId: chat.id, targetUserId: root.ownerId, personaId: persona.id });
     const heard = await next;
     expect(heard.done).toBe(false);
-    expect(heard.value?.event).toEqual({ type: "personaSwitched", chatId: chat.id, from: null, to: persona.id });
-    expect(heard.value?.seq).toBeGreaterThan(0);
+    const delivered = z.object({ event: z.unknown(), seq: z.number() }).parse(heard.value);
+    expect(delivered.event).toEqual({ type: "personaSwitched", chatId: chat.id, from: null, to: persona.id });
+    expect(delivered.seq).toBeGreaterThan(0);
     expect((await caller.chat.getChat({ chatId: chat.id })).viewerActivePersonaId).toBe(persona.id);
   } finally {
     const closed = live.next().catch(() => undefined);

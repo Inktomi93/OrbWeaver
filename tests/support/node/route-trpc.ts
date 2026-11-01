@@ -549,7 +549,7 @@ export async function routeTrpc<const TRoutes extends object>(
       await route.abort("failed");
       return;
     }
-    const responses = procs.map((proc, index) => {
+    const responses = procs.map((proc, index): unknown => {
       const responder: unknown = Reflect.get(routes, proc);
       const input: unknown = Reflect.get(byIndex, String(index));
       return typeof responder === "function" ? Reflect.apply(responder, undefined, [input]) : responder;

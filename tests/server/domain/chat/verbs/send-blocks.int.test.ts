@@ -29,6 +29,7 @@ import {
   seedInvitedChatParticipant,
 } from "@orb/testkit/node/composed";
 import { onTestFinished } from "vitest";
+import { z } from "zod";
 import { SEND_BLOCK_LIMITS } from "#contracts/chat/content-blocks.ts";
 import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 
@@ -118,7 +119,9 @@ function imageUrlOf(part: WireContentPart): string | undefined {
 
 /** The content parts of every user message in one provider request. */
 function userParts(body: string): WireContentPart[][] {
-  const parsed = JSON.parse(body) as { readonly messages: readonly { readonly role: string; readonly content: string | WireContentPart[] }[] };
+  const parsed = z
+    .object({ messages: z.array(z.object({ role: z.string(), content: z.union([z.string(), z.array(z.record(z.string(), z.unknown()))]) })) })
+    .parse(JSON.parse(body));
   return parsed.messages
     .filter((message) => message.role === "user")
     .map((message) => (typeof message.content === "string" ? [{ type: "text", text: message.content }] : message.content));

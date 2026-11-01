@@ -2,6 +2,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { forged } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_DUPLICATE_GENERATING, MESSAGE_DUPLICATE_NAME } from "#client/features/chat/lib/message-action-names.ts";
@@ -65,7 +66,7 @@ async function hostRoom(root: Harness): Promise<{ readonly chatId: ChatId; reado
 
 async function serveAs(root: Harness, page: Page, viewer: Caller, procedures: readonly string[]): Promise<void> {
   await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
-  await routeTrpc(page, serveCorpusProcedures(viewer, procedures as never));
+  await routeTrpc(page, serveCorpusProcedures(viewer, forged<never>(procedures)));
 }
 
 test("the message menu's Duplicate copies the row to a new slot at the end of the chat", async ({ mount, page, corpusMedia }) => {
