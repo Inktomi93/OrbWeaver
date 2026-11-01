@@ -354,6 +354,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/plugin/substrate/plugin-macros.ts": "pluginMacroName: the token rule for a plugin's registered macro",
   "packages/server/src/domain/chat/substrate/reaction-note.ts":
     "reactionNote: the attribution note a reaction writes, which a frame override must collide with",
+  "packages/server/src/domain/discovery/substrate/hub-math.ts":
+    "computeGroupHubs and HUB_YIELD_WORK_BUDGET: the hub math whose yield budget and cancellation the suite holds it to",
   "packages/server/src/domain/discovery/themes/name-prompt.ts": "THEME_NAME_KEYWORDS_LEAD: the lead the scripted provider recognises a naming request by",
   "packages/server/src/domain/rpg/contract/op-codes.ts": "RPG_OP_CODES: the refusal codes rpg suites assert",
   "packages/server/src/domain/preset/constants.ts":
@@ -688,6 +690,17 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/preset/components/macro-text.tsx":
       "MacroText: the preset surface's one template printer, which its two readouts import and no door forwards",
   },
+  "tests/client/features/chat/components/chat-forks-and-duplicate.ct.tsx": {
+    "packages/client/src/features/chat/lib/message-action-names.ts":
+      "MESSAGE_ACTIONS_MENU_NAME and MESSAGE_DUPLICATE_NAME: the row menu trigger and the duplicate item the suite addresses",
+  },
+  "tests/client/features/chat/components/_chat-forks-stories.tsx": {
+    "packages/client/src/features/chat/components/settings-context-tab.tsx":
+      "CommittedSettingsTab: the This-chat tab body, which only the chats section renders and no door forwards",
+  },
+  "tests/client/features/chat/components/message-reattribute-voice.ct.tsx": {
+    "packages/client/src/features/chat/lib/message-action-names.ts": "the row menu trigger, both reattribute doors and the disabled reason the suite addresses",
+  },
   "tests/client/features/chat/components/message-reasoning-and-move.ct.tsx": {
     "packages/client/src/features/chat/lib/message-action-names.ts": "the reasoning and move action names and refusal copy the suite addresses",
   },
@@ -699,6 +712,10 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/chat/lib/appearance-select-items.ts": "CHAT_STYLE_ITEMS: the label and gloss each picker cell prints",
     "packages/client/src/features/chat/lib/appearance-message-style-model.ts":
       "APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: the section heading and the labels of its two switches",
+  },
+  "tests/client/features/workloads/components/rebuild-asset-index.ct.tsx": {
+    "packages/client/src/features/workloads/lib/workloads-model.ts":
+      "ASSET_KIND_ITEMS and WORKLOAD_KIND_LABELS: the job name and the asset kind names the schedule dialog's pickers print",
   },
   "tests/client/features/workloads/components/platform-schedule-dialog-dismissal.suite.ct.tsx": {
     "packages/client/src/features/workloads/lib/workloads-schedule-model.ts":

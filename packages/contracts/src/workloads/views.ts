@@ -18,6 +18,7 @@ import type { WorkloadLane, WorkloadProgress } from "./execution.ts";
 import { WORKLOAD_LANES } from "./execution.ts";
 import type { WorkloadParamsByKind } from "./params.ts";
 import {
+  assetsRebuildIndexWorkloadParams,
   databankIngestWorkloadParams,
   databankReindexWorkloadParams,
   emptyWorkloadParams,
@@ -107,6 +108,7 @@ const workloadOutputShapes = {
   "assets-backfill": { params: maintenanceWorkloadParams.strict(), result: maintenanceResultSchema },
   "assets-gc": { params: maintenanceWorkloadParams.strict(), result: maintenanceResultSchema },
   "assets-fsck": { params: emptyWorkloadParams.strict(), result: fsckReportSchema },
+  "assets-rebuild-index": { params: assetsRebuildIndexWorkloadParams.strict(), result: maintenanceResultSchema },
   "import-st": { params: importStWorkloadParams.strict(), result: maintenanceResultSchema },
   "import-token-usage-backfill": { params: maintenanceWorkloadParams.strict(), result: importTokenUsageBackfillResultSchema },
   "import-bundle": { params: importBundleWorkloadParams.strict(), result: bundleImportWorkloadResultSchema },
@@ -192,6 +194,12 @@ const workloadRunnableRowSchema = z.discriminatedUnion("kind", [
     kind: z.literal("assets-fsck"),
     params: workloadOutputShapes["assets-fsck"].params,
     result: workloadOutputShapes["assets-fsck"].result.nullable(),
+    poison: z.literal(false),
+  }),
+  workloadRowBaseSchema.extend({
+    kind: z.literal("assets-rebuild-index"),
+    params: workloadOutputShapes["assets-rebuild-index"].params,
+    result: workloadOutputShapes["assets-rebuild-index"].result.nullable(),
     poison: z.literal(false),
   }),
   workloadRowBaseSchema.extend({
