@@ -1,8 +1,8 @@
 {
-  "id": "577b5fec-fb08-4d6f-98d8-d308879a8d40",
-  "prevId": "8b0a775c-b5e3-402f-936d-c83cd4701426",
   "version": "6",
   "dialect": "sqlite",
+  "id": "577b5fec-fb08-4d6f-98d8-d308879a8d40",
+  "prevId": "8b0a775c-b5e3-402f-936d-c83cd4701426",
   "tables": {
     "assets": {
       "name": "assets",
@@ -91,11 +91,11 @@
         "assets_owner_id_users_id_fk": {
           "name": "assets_owner_id_users_id_fk",
           "tableFrom": "assets",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -185,11 +185,11 @@
         "audit_logs_actor_user_id_users_id_fk": {
           "name": "audit_logs_actor_user_id_users_id_fk",
           "tableFrom": "audit_logs",
-          "columnsFrom": ["actor_user_id"],
           "tableTo": "users",
+          "columnsFrom": ["actor_user_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -274,20 +274,20 @@
         "automation_fires_rule_id_automation_rules_id_fk": {
           "name": "automation_fires_rule_id_automation_rules_id_fk",
           "tableFrom": "automation_fires",
-          "columnsFrom": ["rule_id"],
           "tableTo": "automation_rules",
+          "columnsFrom": ["rule_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "automation_fires_chat_id_chats_id_fk": {
           "name": "automation_fires_chat_id_chats_id_fk",
           "tableFrom": "automation_fires",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -339,11 +339,11 @@
         "automation_owner_budgets_owner_id_users_id_fk": {
           "name": "automation_owner_budgets_owner_id_users_id_fk",
           "tableFrom": "automation_owner_budgets",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -394,11 +394,11 @@
         "automation_rule_state_rule_id_automation_rules_id_fk": {
           "name": "automation_rule_state_rule_id_automation_rules_id_fk",
           "tableFrom": "automation_rule_state",
-          "columnsFrom": ["rule_id"],
           "tableTo": "automation_rules",
+          "columnsFrom": ["rule_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -611,20 +611,20 @@
         "automation_rules_owner_id_users_id_fk": {
           "name": "automation_rules_owner_id_users_id_fk",
           "tableFrom": "automation_rules",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "automation_rules_chat_id_chats_id_fk": {
           "name": "automation_rules_chat_id_chats_id_fk",
           "tableFrom": "automation_rules",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -690,11 +690,11 @@
         "global_variables_owner_id_users_id_fk": {
           "name": "global_variables_owner_id_users_id_fk",
           "tableFrom": "global_variables",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -752,20 +752,20 @@
         "character_personas_character_id_characters_id_fk": {
           "name": "character_personas_character_id_characters_id_fk",
           "tableFrom": "character_personas",
-          "columnsFrom": ["character_id"],
           "tableTo": "characters",
+          "columnsFrom": ["character_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "character_personas_persona_id_personas_id_fk": {
           "name": "character_personas_persona_id_personas_id_fk",
           "tableFrom": "character_personas",
-          "columnsFrom": ["persona_id"],
           "tableTo": "personas",
+          "columnsFrom": ["persona_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -828,11 +828,11 @@
         "character_snapshots_character_id_characters_id_fk": {
           "name": "character_snapshots_character_id_characters_id_fk",
           "tableFrom": "character_snapshots",
-          "columnsFrom": ["character_id"],
           "tableTo": "characters",
+          "columnsFrom": ["character_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1137,20 +1137,20 @@
         "characters_owner_id_users_id_fk": {
           "name": "characters_owner_id_users_id_fk",
           "tableFrom": "characters",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "characters_avatar_asset_id_assets_id_fk": {
           "name": "characters_avatar_asset_id_assets_id_fk",
           "tableFrom": "characters",
-          "columnsFrom": ["avatar_asset_id"],
           "tableTo": "assets",
+          "columnsFrom": ["avatar_asset_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1215,11 +1215,11 @@
         "chat_events_chat_id_chats_id_fk": {
           "name": "chat_events_chat_id_chats_id_fk",
           "tableFrom": "chat_events",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1485,47 +1485,47 @@
         "chat_generation_observations_chat_id_chats_id_fk": {
           "name": "chat_generation_observations_chat_id_chats_id_fk",
           "tableFrom": "chat_generation_observations",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "chat_generation_observations_source_message_id_messages_id_fk": {
           "name": "chat_generation_observations_source_message_id_messages_id_fk",
           "tableFrom": "chat_generation_observations",
-          "columnsFrom": ["source_message_id"],
           "tableTo": "messages",
+          "columnsFrom": ["source_message_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "chat_generation_observations_source_variant_id_message_variants_id_fk": {
           "name": "chat_generation_observations_source_variant_id_message_variants_id_fk",
           "tableFrom": "chat_generation_observations",
-          "columnsFrom": ["source_variant_id"],
           "tableTo": "message_variants",
+          "columnsFrom": ["source_variant_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "chat_generation_observations_funder_user_id_users_id_fk": {
           "name": "chat_generation_observations_funder_user_id_users_id_fk",
           "tableFrom": "chat_generation_observations",
-          "columnsFrom": ["funder_user_id"],
           "tableTo": "users",
+          "columnsFrom": ["funder_user_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         },
         "chat_generation_observations_connection_id_user_connections_id_fk": {
           "name": "chat_generation_observations_connection_id_user_connections_id_fk",
           "tableFrom": "chat_generation_observations",
-          "columnsFrom": ["connection_id"],
           "tableTo": "user_connections",
+          "columnsFrom": ["connection_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -1609,20 +1609,20 @@
         "chat_handoff_resumptions_chat_id_chats_id_fk": {
           "name": "chat_handoff_resumptions_chat_id_chats_id_fk",
           "tableFrom": "chat_handoff_resumptions",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "chat_handoff_resumptions_accepted_by_user_id_users_id_fk": {
           "name": "chat_handoff_resumptions_accepted_by_user_id_users_id_fk",
           "tableFrom": "chat_handoff_resumptions",
-          "columnsFrom": ["accepted_by_user_id"],
           "tableTo": "users",
+          "columnsFrom": ["accepted_by_user_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1673,20 +1673,20 @@
         "chat_import_claims_chat_id_chats_id_fk": {
           "name": "chat_import_claims_chat_id_chats_id_fk",
           "tableFrom": "chat_import_claims",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "chat_import_claims_character_id_characters_id_fk": {
           "name": "chat_import_claims_character_id_characters_id_fk",
           "tableFrom": "chat_import_claims",
-          "columnsFrom": ["character_id"],
           "tableTo": "characters",
+          "columnsFrom": ["character_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -1771,11 +1771,11 @@
         "chat_injections_chat_id_chats_id_fk": {
           "name": "chat_injections_chat_id_chats_id_fk",
           "tableFrom": "chat_injections",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1909,29 +1909,29 @@
         "chat_invites_chat_id_chats_id_fk": {
           "name": "chat_invites_chat_id_chats_id_fk",
           "tableFrom": "chat_invites",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "chat_invites_invited_user_id_users_id_fk": {
           "name": "chat_invites_invited_user_id_users_id_fk",
           "tableFrom": "chat_invites",
-          "columnsFrom": ["invited_user_id"],
           "tableTo": "users",
+          "columnsFrom": ["invited_user_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "chat_invites_created_by_user_id_users_id_fk": {
           "name": "chat_invites_created_by_user_id_users_id_fk",
           "tableFrom": "chat_invites",
-          "columnsFrom": ["created_by_user_id"],
           "tableTo": "users",
+          "columnsFrom": ["created_by_user_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1996,11 +1996,11 @@
         "chat_locks_chat_id_chats_id_fk": {
           "name": "chat_locks_chat_id_chats_id_fk",
           "tableFrom": "chat_locks",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2115,8 +2115,8 @@
         "chat_participants_chat_host_unique": {
           "name": "chat_participants_chat_host_unique",
           "columns": ["chat_id"],
-          "where": "role = 'host' and left_seq is null",
-          "isUnique": true
+          "isUnique": true,
+          "where": "role = 'host' and left_seq is null"
         },
         "chat_participants_chat_idx": {
           "name": "chat_participants_chat_idx",
@@ -2143,38 +2143,38 @@
         "chat_participants_chat_id_chats_id_fk": {
           "name": "chat_participants_chat_id_chats_id_fk",
           "tableFrom": "chat_participants",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "chat_participants_user_id_users_id_fk": {
           "name": "chat_participants_user_id_users_id_fk",
           "tableFrom": "chat_participants",
-          "columnsFrom": ["user_id"],
           "tableTo": "users",
+          "columnsFrom": ["user_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "chat_participants_character_id_characters_id_fk": {
           "name": "chat_participants_character_id_characters_id_fk",
           "tableFrom": "chat_participants",
-          "columnsFrom": ["character_id"],
           "tableTo": "characters",
+          "columnsFrom": ["character_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "chat_participants_active_persona_id_personas_id_fk": {
           "name": "chat_participants_active_persona_id_personas_id_fk",
           "tableFrom": "chat_participants",
-          "columnsFrom": ["active_persona_id"],
           "tableTo": "personas",
+          "columnsFrom": ["active_persona_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2275,20 +2275,20 @@
         "chat_stream_events_chat_id_chats_id_fk": {
           "name": "chat_stream_events_chat_id_chats_id_fk",
           "tableFrom": "chat_stream_events",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "chat_stream_events_message_id_messages_id_fk": {
           "name": "chat_stream_events_message_id_messages_id_fk",
           "tableFrom": "chat_stream_events",
-          "columnsFrom": ["message_id"],
           "tableTo": "messages",
+          "columnsFrom": ["message_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2492,29 +2492,29 @@
         "chats_pending_host_user_id_users_id_fk": {
           "name": "chats_pending_host_user_id_users_id_fk",
           "tableFrom": "chats",
-          "columnsFrom": ["pending_host_user_id"],
           "tableTo": "users",
+          "columnsFrom": ["pending_host_user_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "chats_anchor_persona_id_personas_id_fk": {
           "name": "chats_anchor_persona_id_personas_id_fk",
           "tableFrom": "chats",
-          "columnsFrom": ["anchor_persona_id"],
           "tableTo": "personas",
+          "columnsFrom": ["anchor_persona_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "chats_parent_chat_id_chats_id_fk": {
           "name": "chats_parent_chat_id_chats_id_fk",
           "tableFrom": "chats",
-          "columnsFrom": ["parent_chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["parent_chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2564,11 +2564,11 @@
         "compaction_spend_owner_id_users_id_fk": {
           "name": "compaction_spend_owner_id_users_id_fk",
           "tableFrom": "compaction_spend",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2631,20 +2631,20 @@
         "message_assets_message_id_messages_id_fk": {
           "name": "message_assets_message_id_messages_id_fk",
           "tableFrom": "message_assets",
-          "columnsFrom": ["message_id"],
           "tableTo": "messages",
+          "columnsFrom": ["message_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "message_assets_asset_id_assets_id_fk": {
           "name": "message_assets_asset_id_assets_id_fk",
           "tableFrom": "message_assets",
-          "columnsFrom": ["asset_id"],
           "tableTo": "assets",
+          "columnsFrom": ["asset_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2728,14 +2728,14 @@
         "message_reactions_whole_message_unique": {
           "name": "message_reactions_whole_message_unique",
           "columns": ["variant_id", "reactor_participant_id", "emoji"],
-          "where": "segment_index is null",
-          "isUnique": true
+          "isUnique": true,
+          "where": "segment_index is null"
         },
         "message_reactions_segment_unique": {
           "name": "message_reactions_segment_unique",
           "columns": ["variant_id", "reactor_participant_id", "emoji", "segment_index"],
-          "where": "segment_index is not null",
-          "isUnique": true
+          "isUnique": true,
+          "where": "segment_index is not null"
         },
         "message_reactions_reactor_idx": {
           "name": "message_reactions_reactor_idx",
@@ -2752,29 +2752,29 @@
         "message_reactions_variant_id_message_variants_id_fk": {
           "name": "message_reactions_variant_id_message_variants_id_fk",
           "tableFrom": "message_reactions",
-          "columnsFrom": ["variant_id"],
           "tableTo": "message_variants",
+          "columnsFrom": ["variant_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "message_reactions_reactor_participant_id_chat_participants_id_fk": {
           "name": "message_reactions_reactor_participant_id_chat_participants_id_fk",
           "tableFrom": "message_reactions",
-          "columnsFrom": ["reactor_participant_id"],
           "tableTo": "chat_participants",
+          "columnsFrom": ["reactor_participant_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "message_reactions_emoji_image_asset_id_assets_id_fk": {
           "name": "message_reactions_emoji_image_asset_id_assets_id_fk",
           "tableFrom": "message_reactions",
-          "columnsFrom": ["emoji_image_asset_id"],
           "tableTo": "assets",
+          "columnsFrom": ["emoji_image_asset_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3158,29 +3158,29 @@
         "message_variants_message_id_messages_id_fk": {
           "name": "message_variants_message_id_messages_id_fk",
           "tableFrom": "message_variants",
-          "columnsFrom": ["message_id"],
           "tableTo": "messages",
+          "columnsFrom": ["message_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "message_variants_connection_id_user_connections_id_fk": {
           "name": "message_variants_connection_id_user_connections_id_fk",
           "tableFrom": "message_variants",
-          "columnsFrom": ["connection_id"],
           "tableTo": "user_connections",
+          "columnsFrom": ["connection_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "message_variants_context_boundary_message_id_messages_id_fk": {
           "name": "message_variants_context_boundary_message_id_messages_id_fk",
           "tableFrom": "message_variants",
-          "columnsFrom": ["context_boundary_message_id"],
           "tableTo": "messages",
+          "columnsFrom": ["context_boundary_message_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3362,47 +3362,47 @@
         "messages_chat_id_chats_id_fk": {
           "name": "messages_chat_id_chats_id_fk",
           "tableFrom": "messages",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "messages_author_user_id_users_id_fk": {
           "name": "messages_author_user_id_users_id_fk",
           "tableFrom": "messages",
-          "columnsFrom": ["author_user_id"],
           "tableTo": "users",
+          "columnsFrom": ["author_user_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "messages_character_id_characters_id_fk": {
           "name": "messages_character_id_characters_id_fk",
           "tableFrom": "messages",
-          "columnsFrom": ["character_id"],
           "tableTo": "characters",
+          "columnsFrom": ["character_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "messages_persona_id_personas_id_fk": {
           "name": "messages_persona_id_personas_id_fk",
           "tableFrom": "messages",
-          "columnsFrom": ["persona_id"],
           "tableTo": "personas",
+          "columnsFrom": ["persona_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "messages_selected_variant_id_message_variants_id_fk": {
           "name": "messages_selected_variant_id_message_variants_id_fk",
           "tableFrom": "messages",
-          "columnsFrom": ["selected_variant_id"],
           "tableTo": "message_variants",
+          "columnsFrom": ["selected_variant_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3498,29 +3498,29 @@
         "pending_turns_chat_id_chats_id_fk": {
           "name": "pending_turns_chat_id_chats_id_fk",
           "tableFrom": "pending_turns",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "pending_turns_triggered_by_users_id_fk": {
           "name": "pending_turns_triggered_by_users_id_fk",
           "tableFrom": "pending_turns",
-          "columnsFrom": ["triggered_by"],
           "tableTo": "users",
+          "columnsFrom": ["triggered_by"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "pending_turns_run_as_user_id_users_id_fk": {
           "name": "pending_turns_run_as_user_id_users_id_fk",
           "tableFrom": "pending_turns",
-          "columnsFrom": ["run_as_user_id"],
           "tableTo": "users",
+          "columnsFrom": ["run_as_user_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3683,20 +3683,20 @@
         "user_connections_owner_id_users_id_fk": {
           "name": "user_connections_owner_id_users_id_fk",
           "tableFrom": "user_connections",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "user_connections_credential_id_user_credentials_id_fk": {
           "name": "user_connections_credential_id_user_credentials_id_fk",
           "tableFrom": "user_connections",
-          "columnsFrom": ["credential_id"],
           "tableTo": "user_credentials",
+          "columnsFrom": ["credential_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3773,20 +3773,20 @@
         "connection_bindings_user_task_unique": {
           "name": "connection_bindings_user_task_unique",
           "columns": ["user_id", "task"],
-          "where": "\"connection_bindings\".\"actor_kind\" = 'user'",
-          "isUnique": true
+          "isUnique": true,
+          "where": "\"connection_bindings\".\"actor_kind\" = 'user'"
         },
         "connection_bindings_rule_task_unique": {
           "name": "connection_bindings_rule_task_unique",
           "columns": ["rule_id", "task"],
-          "where": "\"connection_bindings\".\"actor_kind\" = 'automation-rule'",
-          "isUnique": true
+          "isUnique": true,
+          "where": "\"connection_bindings\".\"actor_kind\" = 'automation-rule'"
         },
         "connection_bindings_plugin_task_unique": {
           "name": "connection_bindings_plugin_task_unique",
           "columns": ["plugin_id", "task"],
-          "where": "\"connection_bindings\".\"actor_kind\" = 'plugin-grant'",
-          "isUnique": true
+          "isUnique": true,
+          "where": "\"connection_bindings\".\"actor_kind\" = 'plugin-grant'"
         },
         "connection_bindings_connection_idx": {
           "name": "connection_bindings_connection_idx",
@@ -3798,38 +3798,38 @@
         "connection_bindings_user_id_users_id_fk": {
           "name": "connection_bindings_user_id_users_id_fk",
           "tableFrom": "connection_bindings",
-          "columnsFrom": ["user_id"],
           "tableTo": "users",
+          "columnsFrom": ["user_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "connection_bindings_rule_id_automation_rules_id_fk": {
           "name": "connection_bindings_rule_id_automation_rules_id_fk",
           "tableFrom": "connection_bindings",
-          "columnsFrom": ["rule_id"],
           "tableTo": "automation_rules",
+          "columnsFrom": ["rule_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "connection_bindings_plugin_id_plugins_id_fk": {
           "name": "connection_bindings_plugin_id_plugins_id_fk",
           "tableFrom": "connection_bindings",
-          "columnsFrom": ["plugin_id"],
           "tableTo": "plugins",
+          "columnsFrom": ["plugin_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "connection_bindings_connection_id_user_connections_id_fk": {
           "name": "connection_bindings_connection_id_user_connections_id_fk",
           "tableFrom": "connection_bindings",
-          "columnsFrom": ["connection_id"],
           "tableTo": "user_connections",
+          "columnsFrom": ["connection_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3905,29 +3905,29 @@
         "plugin_provider_claims_owner_id_users_id_fk": {
           "name": "plugin_provider_claims_owner_id_users_id_fk",
           "tableFrom": "plugin_provider_claims",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "plugin_provider_claims_plugin_id_plugins_id_fk": {
           "name": "plugin_provider_claims_plugin_id_plugins_id_fk",
           "tableFrom": "plugin_provider_claims",
-          "columnsFrom": ["plugin_id"],
           "tableTo": "plugins",
+          "columnsFrom": ["plugin_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "plugin_provider_claims_definition_fk": {
           "name": "plugin_provider_claims_definition_fk",
           "tableFrom": "plugin_provider_claims",
-          "columnsFrom": ["provider_id", "definition_hash"],
           "tableTo": "provider_rows",
+          "columnsFrom": ["provider_id", "definition_hash"],
           "columnsTo": ["id", "definition_hash"],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -4065,8 +4065,8 @@
         "provider_rows_admin_id_unique": {
           "name": "provider_rows_admin_id_unique",
           "columns": ["id"],
-          "where": "\"provider_rows\".\"origin_kind\" = 'admin'",
-          "isUnique": true
+          "isUnique": true,
+          "where": "\"provider_rows\".\"origin_kind\" = 'admin'"
         },
         "provider_rows_origin_user_idx": {
           "name": "provider_rows_origin_user_idx",
@@ -4078,11 +4078,11 @@
         "provider_rows_origin_user_id_users_id_fk": {
           "name": "provider_rows_origin_user_id_users_id_fk",
           "tableFrom": "provider_rows",
-          "columnsFrom": ["origin_user_id"],
           "tableTo": "users",
+          "columnsFrom": ["origin_user_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -4229,11 +4229,11 @@
         "user_credentials_owner_id_users_id_fk": {
           "name": "user_credentials_owner_id_users_id_fk",
           "tableFrom": "user_credentials",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -4274,20 +4274,20 @@
         "character_documents_character_id_characters_id_fk": {
           "name": "character_documents_character_id_characters_id_fk",
           "tableFrom": "character_documents",
-          "columnsFrom": ["character_id"],
           "tableTo": "characters",
+          "columnsFrom": ["character_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "character_documents_document_id_documents_id_fk": {
           "name": "character_documents_document_id_documents_id_fk",
           "tableFrom": "character_documents",
-          "columnsFrom": ["document_id"],
           "tableTo": "documents",
+          "columnsFrom": ["document_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -4328,20 +4328,20 @@
         "chat_documents_chat_id_chats_id_fk": {
           "name": "chat_documents_chat_id_chats_id_fk",
           "tableFrom": "chat_documents",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "chat_documents_document_id_documents_id_fk": {
           "name": "chat_documents_document_id_documents_id_fk",
           "tableFrom": "chat_documents",
-          "columnsFrom": ["document_id"],
           "tableTo": "documents",
+          "columnsFrom": ["document_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -4466,20 +4466,20 @@
         "documents_owner_id_users_id_fk": {
           "name": "documents_owner_id_users_id_fk",
           "tableFrom": "documents",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "documents_source_asset_id_assets_id_fk": {
           "name": "documents_source_asset_id_assets_id_fk",
           "tableFrom": "documents",
-          "columnsFrom": ["source_asset_id"],
           "tableTo": "assets",
+          "columnsFrom": ["source_asset_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -4520,20 +4520,20 @@
         "global_documents_owner_id_users_id_fk": {
           "name": "global_documents_owner_id_users_id_fk",
           "tableFrom": "global_documents",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "global_documents_document_id_documents_id_fk": {
           "name": "global_documents_document_id_documents_id_fk",
           "tableFrom": "global_documents",
-          "columnsFrom": ["document_id"],
           "tableTo": "documents",
+          "columnsFrom": ["document_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -4601,11 +4601,11 @@
         "character_keyword_profiles_character_id_characters_id_fk": {
           "name": "character_keyword_profiles_character_id_characters_id_fk",
           "tableFrom": "character_keyword_profiles",
-          "columnsFrom": ["character_id"],
           "tableTo": "characters",
+          "columnsFrom": ["character_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -4694,11 +4694,11 @@
         "character_summaries_character_id_characters_id_fk": {
           "name": "character_summaries_character_id_characters_id_fk",
           "tableFrom": "character_summaries",
-          "columnsFrom": ["character_id"],
           "tableTo": "characters",
+          "columnsFrom": ["character_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -4749,20 +4749,20 @@
         "digest_theme_assignments_digest_id_chat_digests_id_fk": {
           "name": "digest_theme_assignments_digest_id_chat_digests_id_fk",
           "tableFrom": "digest_theme_assignments",
-          "columnsFrom": ["digest_id"],
           "tableTo": "chat_digests",
+          "columnsFrom": ["digest_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "digest_theme_assignments_theme_cluster_id_theme_clusters_id_fk": {
           "name": "digest_theme_assignments_theme_cluster_id_theme_clusters_id_fk",
           "tableFrom": "digest_theme_assignments",
-          "columnsFrom": ["theme_cluster_id"],
           "tableTo": "theme_clusters",
+          "columnsFrom": ["theme_cluster_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -4849,20 +4849,20 @@
         "duplicate_character_pairs_character_id_a_characters_id_fk": {
           "name": "duplicate_character_pairs_character_id_a_characters_id_fk",
           "tableFrom": "duplicate_character_pairs",
-          "columnsFrom": ["character_id_a"],
           "tableTo": "characters",
+          "columnsFrom": ["character_id_a"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "duplicate_character_pairs_character_id_b_characters_id_fk": {
           "name": "duplicate_character_pairs_character_id_b_characters_id_fk",
           "tableFrom": "duplicate_character_pairs",
-          "columnsFrom": ["character_id_b"],
           "tableTo": "characters",
+          "columnsFrom": ["character_id_b"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -4956,20 +4956,20 @@
         "duplicate_chat_pairs_chat_id_a_chats_id_fk": {
           "name": "duplicate_chat_pairs_chat_id_a_chats_id_fk",
           "tableFrom": "duplicate_chat_pairs",
-          "columnsFrom": ["chat_id_a"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id_a"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "duplicate_chat_pairs_chat_id_b_chats_id_fk": {
           "name": "duplicate_chat_pairs_chat_id_b_chats_id_fk",
           "tableFrom": "duplicate_chat_pairs",
-          "columnsFrom": ["chat_id_b"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id_b"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -5048,11 +5048,11 @@
         "keyword_cooccurrence_owner_id_users_id_fk": {
           "name": "keyword_cooccurrence_owner_id_users_id_fk",
           "tableFrom": "keyword_cooccurrence",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -5141,11 +5141,11 @@
         "theme_clusters_owner_id_users_id_fk": {
           "name": "theme_clusters_owner_id_users_id_fk",
           "tableFrom": "theme_clusters",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -5236,20 +5236,20 @@
         "character_embeddings_character_id_characters_id_fk": {
           "name": "character_embeddings_character_id_characters_id_fk",
           "tableFrom": "character_embeddings",
-          "columnsFrom": ["character_id"],
           "tableTo": "characters",
+          "columnsFrom": ["character_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "character_embeddings_generation_id_embed_generations_id_fk": {
           "name": "character_embeddings_generation_id_embed_generations_id_fk",
           "tableFrom": "character_embeddings",
-          "columnsFrom": ["generation_id"],
           "tableTo": "embed_generations",
+          "columnsFrom": ["generation_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -5285,20 +5285,20 @@
         "chat_digest_speakers_digest_id_chat_digests_id_fk": {
           "name": "chat_digest_speakers_digest_id_chat_digests_id_fk",
           "tableFrom": "chat_digest_speakers",
-          "columnsFrom": ["digest_id"],
           "tableTo": "chat_digests",
+          "columnsFrom": ["digest_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "chat_digest_speakers_character_id_characters_id_fk": {
           "name": "chat_digest_speakers_character_id_characters_id_fk",
           "tableFrom": "chat_digest_speakers",
-          "columnsFrom": ["character_id"],
           "tableTo": "characters",
+          "columnsFrom": ["character_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -5455,29 +5455,29 @@
         "chat_digests_chat_id_chats_id_fk": {
           "name": "chat_digests_chat_id_chats_id_fk",
           "tableFrom": "chat_digests",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "chat_digests_scoped_character_id_characters_id_fk": {
           "name": "chat_digests_scoped_character_id_characters_id_fk",
           "tableFrom": "chat_digests",
-          "columnsFrom": ["scoped_character_id"],
           "tableTo": "characters",
+          "columnsFrom": ["scoped_character_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "chat_digests_generation_id_embed_generations_id_fk": {
           "name": "chat_digests_generation_id_embed_generations_id_fk",
           "tableFrom": "chat_digests",
-          "columnsFrom": ["generation_id"],
           "tableTo": "embed_generations",
+          "columnsFrom": ["generation_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -5603,20 +5603,20 @@
         "chat_segments_chat_id_chats_id_fk": {
           "name": "chat_segments_chat_id_chats_id_fk",
           "tableFrom": "chat_segments",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "chat_segments_generation_id_embed_generations_id_fk": {
           "name": "chat_segments_generation_id_embed_generations_id_fk",
           "tableFrom": "chat_segments",
-          "columnsFrom": ["generation_id"],
           "tableTo": "embed_generations",
+          "columnsFrom": ["generation_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -5745,20 +5745,20 @@
         "document_chunks_document_id_documents_id_fk": {
           "name": "document_chunks_document_id_documents_id_fk",
           "tableFrom": "document_chunks",
-          "columnsFrom": ["document_id"],
           "tableTo": "documents",
+          "columnsFrom": ["document_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "document_chunks_generation_id_embed_generations_id_fk": {
           "name": "document_chunks_generation_id_embed_generations_id_fk",
           "tableFrom": "document_chunks",
-          "columnsFrom": ["generation_id"],
           "tableTo": "embed_generations",
+          "columnsFrom": ["generation_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -5813,20 +5813,20 @@
         "embed_generation_targets_owner_id_users_id_fk": {
           "name": "embed_generation_targets_owner_id_users_id_fk",
           "tableFrom": "embed_generation_targets",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "embed_generation_targets_generation_id_embed_generations_id_fk": {
           "name": "embed_generation_targets_generation_id_embed_generations_id_fk",
           "tableFrom": "embed_generation_targets",
-          "columnsFrom": ["generation_id"],
           "tableTo": "embed_generations",
+          "columnsFrom": ["generation_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -5927,20 +5927,20 @@
         "embed_generations_owner_id_users_id_fk": {
           "name": "embed_generations_owner_id_users_id_fk",
           "tableFrom": "embed_generations",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "embed_generations_connection_id_user_connections_id_fk": {
           "name": "embed_generations_connection_id_user_connections_id_fk",
           "tableFrom": "embed_generations",
-          "columnsFrom": ["connection_id"],
           "tableTo": "user_connections",
+          "columnsFrom": ["connection_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -6019,29 +6019,29 @@
         "embed_space_state_owner_id_users_id_fk": {
           "name": "embed_space_state_owner_id_users_id_fk",
           "tableFrom": "embed_space_state",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "embed_space_state_active_generation_id_embed_generations_id_fk": {
           "name": "embed_space_state_active_generation_id_embed_generations_id_fk",
           "tableFrom": "embed_space_state",
-          "columnsFrom": ["active_generation_id"],
           "tableTo": "embed_generations",
+          "columnsFrom": ["active_generation_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "embed_space_state_candidate_generation_id_embed_generations_id_fk": {
           "name": "embed_space_state_candidate_generation_id_embed_generations_id_fk",
           "tableFrom": "embed_space_state",
-          "columnsFrom": ["candidate_generation_id"],
           "tableTo": "embed_generations",
+          "columnsFrom": ["candidate_generation_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -6223,20 +6223,20 @@
         "embedding_calls_owner_id_users_id_fk": {
           "name": "embedding_calls_owner_id_users_id_fk",
           "tableFrom": "embedding_calls",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         },
         "embedding_calls_connection_id_user_connections_id_fk": {
           "name": "embedding_calls_connection_id_user_connections_id_fk",
           "tableFrom": "embedding_calls",
-          "columnsFrom": ["connection_id"],
           "tableTo": "user_connections",
+          "columnsFrom": ["connection_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -6309,11 +6309,11 @@
         "image_analyses_asset_id_assets_id_fk": {
           "name": "image_analyses_asset_id_assets_id_fk",
           "tableFrom": "image_analyses",
-          "columnsFrom": ["asset_id"],
           "tableTo": "assets",
+          "columnsFrom": ["asset_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -6411,20 +6411,20 @@
         "image_embeddings_asset_id_assets_id_fk": {
           "name": "image_embeddings_asset_id_assets_id_fk",
           "tableFrom": "image_embeddings",
-          "columnsFrom": ["asset_id"],
           "tableTo": "assets",
+          "columnsFrom": ["asset_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "image_embeddings_generation_id_embed_generations_id_fk": {
           "name": "image_embeddings_generation_id_embed_generations_id_fk",
           "tableFrom": "image_embeddings",
-          "columnsFrom": ["generation_id"],
           "tableTo": "embed_generations",
+          "columnsFrom": ["generation_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -6481,11 +6481,11 @@
         "image_index_skips_asset_id_assets_id_fk": {
           "name": "image_index_skips_asset_id_assets_id_fk",
           "tableFrom": "image_index_skips",
-          "columnsFrom": ["asset_id"],
           "tableTo": "assets",
+          "columnsFrom": ["asset_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -6539,8 +6539,8 @@
         "gallery_items_asset_unsubjected_unique": {
           "name": "gallery_items_asset_unsubjected_unique",
           "columns": ["asset_id"],
-          "where": "\"gallery_items\".\"subject_character_id\" IS NULL",
-          "isUnique": true
+          "isUnique": true,
+          "where": "\"gallery_items\".\"subject_character_id\" IS NULL"
         },
         "gallery_items_character_idx": {
           "name": "gallery_items_character_idx",
@@ -6552,20 +6552,20 @@
         "gallery_items_asset_id_assets_id_fk": {
           "name": "gallery_items_asset_id_assets_id_fk",
           "tableFrom": "gallery_items",
-          "columnsFrom": ["asset_id"],
           "tableTo": "assets",
+          "columnsFrom": ["asset_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "gallery_items_subject_character_id_characters_id_fk": {
           "name": "gallery_items_subject_character_id_characters_id_fk",
           "tableFrom": "gallery_items",
-          "columnsFrom": ["subject_character_id"],
           "tableTo": "characters",
+          "columnsFrom": ["subject_character_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -6791,46 +6791,46 @@
         "imagery_generations_import_unique": {
           "name": "imagery_generations_import_unique",
           "columns": ["asset_id", "import_hash"],
-          "where": "\"imagery_generations\".\"import_hash\" is not null",
-          "isUnique": true
+          "isUnique": true,
+          "where": "\"imagery_generations\".\"import_hash\" is not null"
         }
       },
       "foreignKeys": {
         "imagery_generations_asset_id_assets_id_fk": {
           "name": "imagery_generations_asset_id_assets_id_fk",
           "tableFrom": "imagery_generations",
-          "columnsFrom": ["asset_id"],
           "tableTo": "assets",
+          "columnsFrom": ["asset_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "imagery_generations_chat_id_chats_id_fk": {
           "name": "imagery_generations_chat_id_chats_id_fk",
           "tableFrom": "imagery_generations",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "imagery_generations_subject_character_id_characters_id_fk": {
           "name": "imagery_generations_subject_character_id_characters_id_fk",
           "tableFrom": "imagery_generations",
-          "columnsFrom": ["subject_character_id"],
           "tableTo": "characters",
+          "columnsFrom": ["subject_character_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "imagery_generations_connection_id_user_connections_id_fk": {
           "name": "imagery_generations_connection_id_user_connections_id_fk",
           "tableFrom": "imagery_generations",
-          "columnsFrom": ["connection_id"],
           "tableTo": "user_connections",
+          "columnsFrom": ["connection_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -6878,11 +6878,11 @@
         "imagery_import_calls_owner_id_users_id_fk": {
           "name": "imagery_import_calls_owner_id_users_id_fk",
           "tableFrom": "imagery_import_calls",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -6961,11 +6961,11 @@
         "notifications_recipient_user_id_users_id_fk": {
           "name": "notifications_recipient_user_id_users_id_fk",
           "tableFrom": "notifications",
-          "columnsFrom": ["recipient_user_id"],
           "tableTo": "users",
+          "columnsFrom": ["recipient_user_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -7070,20 +7070,20 @@
         "personas_owner_id_users_id_fk": {
           "name": "personas_owner_id_users_id_fk",
           "tableFrom": "personas",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "personas_avatar_asset_id_assets_id_fk": {
           "name": "personas_avatar_asset_id_assets_id_fk",
           "tableFrom": "personas",
-          "columnsFrom": ["avatar_asset_id"],
           "tableTo": "assets",
+          "columnsFrom": ["avatar_asset_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -7159,20 +7159,20 @@
         "admin_distributed_plugins_bundle_asset_id_assets_id_fk": {
           "name": "admin_distributed_plugins_bundle_asset_id_assets_id_fk",
           "tableFrom": "admin_distributed_plugins",
-          "columnsFrom": ["bundle_asset_id"],
           "tableTo": "assets",
+          "columnsFrom": ["bundle_asset_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "admin_distributed_plugins_distributed_by_users_id_fk": {
           "name": "admin_distributed_plugins_distributed_by_users_id_fk",
           "tableFrom": "admin_distributed_plugins",
-          "columnsFrom": ["distributed_by"],
           "tableTo": "users",
+          "columnsFrom": ["distributed_by"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -7223,20 +7223,20 @@
         "plugin_assets_plugin_id_plugins_id_fk": {
           "name": "plugin_assets_plugin_id_plugins_id_fk",
           "tableFrom": "plugin_assets",
-          "columnsFrom": ["plugin_id"],
           "tableTo": "plugins",
+          "columnsFrom": ["plugin_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "plugin_assets_asset_id_assets_id_fk": {
           "name": "plugin_assets_asset_id_assets_id_fk",
           "tableFrom": "plugin_assets",
-          "columnsFrom": ["asset_id"],
           "tableTo": "assets",
+          "columnsFrom": ["asset_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -7303,20 +7303,20 @@
         "plugin_kv_plugin_id_plugins_id_fk": {
           "name": "plugin_kv_plugin_id_plugins_id_fk",
           "tableFrom": "plugin_kv",
-          "columnsFrom": ["plugin_id"],
           "tableTo": "plugins",
+          "columnsFrom": ["plugin_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "plugin_kv_owner_id_users_id_fk": {
           "name": "plugin_kv_owner_id_users_id_fk",
           "tableFrom": "plugin_kv",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -7486,20 +7486,20 @@
         "plugins_owner_id_users_id_fk": {
           "name": "plugins_owner_id_users_id_fk",
           "tableFrom": "plugins",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "plugins_bundle_asset_id_assets_id_fk": {
           "name": "plugins_bundle_asset_id_assets_id_fk",
           "tableFrom": "plugins",
-          "columnsFrom": ["bundle_asset_id"],
           "tableTo": "assets",
+          "columnsFrom": ["bundle_asset_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -7618,20 +7618,20 @@
         "presets_owner_id_users_id_fk": {
           "name": "presets_owner_id_users_id_fk",
           "tableFrom": "presets",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         },
         "presets_forked_from_presets_id_fk": {
           "name": "presets_forked_from_presets_id_fk",
           "tableFrom": "presets",
-          "columnsFrom": ["forked_from"],
           "tableTo": "presets",
+          "columnsFrom": ["forked_from"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -7789,20 +7789,20 @@
         "refinery_runs_session_id_refinery_sessions_id_fk": {
           "name": "refinery_runs_session_id_refinery_sessions_id_fk",
           "tableFrom": "refinery_runs",
-          "columnsFrom": ["session_id"],
           "tableTo": "refinery_sessions",
+          "columnsFrom": ["session_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "refinery_runs_source_run_id_refinery_runs_id_fk": {
           "name": "refinery_runs_source_run_id_refinery_runs_id_fk",
           "tableFrom": "refinery_runs",
-          "columnsFrom": ["source_run_id"],
           "tableTo": "refinery_runs",
+          "columnsFrom": ["source_run_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -7895,11 +7895,11 @@
         "refinery_schemas_owner_id_users_id_fk": {
           "name": "refinery_schemas_owner_id_users_id_fk",
           "tableFrom": "refinery_schemas",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -8022,11 +8022,11 @@
         "refinery_sessions_character_id_characters_id_fk": {
           "name": "refinery_sessions_character_id_characters_id_fk",
           "tableFrom": "refinery_sessions",
-          "columnsFrom": ["character_id"],
           "tableTo": "characters",
+          "columnsFrom": ["character_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -8083,20 +8083,20 @@
         "character_regex_scripts_character_id_characters_id_fk": {
           "name": "character_regex_scripts_character_id_characters_id_fk",
           "tableFrom": "character_regex_scripts",
-          "columnsFrom": ["character_id"],
           "tableTo": "characters",
+          "columnsFrom": ["character_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "character_regex_scripts_regex_script_id_regex_scripts_id_fk": {
           "name": "character_regex_scripts_regex_script_id_regex_scripts_id_fk",
           "tableFrom": "character_regex_scripts",
-          "columnsFrom": ["regex_script_id"],
           "tableTo": "regex_scripts",
+          "columnsFrom": ["regex_script_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -8153,20 +8153,20 @@
         "chat_regex_scripts_chat_id_chats_id_fk": {
           "name": "chat_regex_scripts_chat_id_chats_id_fk",
           "tableFrom": "chat_regex_scripts",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "chat_regex_scripts_regex_script_id_regex_scripts_id_fk": {
           "name": "chat_regex_scripts_regex_script_id_regex_scripts_id_fk",
           "tableFrom": "chat_regex_scripts",
-          "columnsFrom": ["regex_script_id"],
           "tableTo": "regex_scripts",
+          "columnsFrom": ["regex_script_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -8210,11 +8210,11 @@
         "global_regex_scripts_regex_script_id_regex_scripts_id_fk": {
           "name": "global_regex_scripts_regex_script_id_regex_scripts_id_fk",
           "tableFrom": "global_regex_scripts",
-          "columnsFrom": ["regex_script_id"],
           "tableTo": "regex_scripts",
+          "columnsFrom": ["regex_script_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -8266,20 +8266,20 @@
         "preset_regex_scripts_preset_id_presets_id_fk": {
           "name": "preset_regex_scripts_preset_id_presets_id_fk",
           "tableFrom": "preset_regex_scripts",
-          "columnsFrom": ["preset_id"],
           "tableTo": "presets",
+          "columnsFrom": ["preset_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "preset_regex_scripts_regex_script_id_regex_scripts_id_fk": {
           "name": "preset_regex_scripts_regex_script_id_regex_scripts_id_fk",
           "tableFrom": "preset_regex_scripts",
-          "columnsFrom": ["regex_script_id"],
           "tableTo": "regex_scripts",
+          "columnsFrom": ["regex_script_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -8358,11 +8358,11 @@
         "regex_scripts_owner_id_users_id_fk": {
           "name": "regex_scripts_owner_id_users_id_fk",
           "tableFrom": "regex_scripts",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -8420,20 +8420,20 @@
         "roster_preset_members_preset_id_roster_presets_id_fk": {
           "name": "roster_preset_members_preset_id_roster_presets_id_fk",
           "tableFrom": "roster_preset_members",
-          "columnsFrom": ["preset_id"],
           "tableTo": "roster_presets",
+          "columnsFrom": ["preset_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "roster_preset_members_character_id_characters_id_fk": {
           "name": "roster_preset_members_character_id_characters_id_fk",
           "tableFrom": "roster_preset_members",
-          "columnsFrom": ["character_id"],
           "tableTo": "characters",
+          "columnsFrom": ["character_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -8482,11 +8482,11 @@
         "roster_preset_rules_preset_id_roster_presets_id_fk": {
           "name": "roster_preset_rules_preset_id_roster_presets_id_fk",
           "tableFrom": "roster_preset_rules",
-          "columnsFrom": ["preset_id"],
           "tableTo": "roster_presets",
+          "columnsFrom": ["preset_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -8584,20 +8584,20 @@
         "roster_presets_owner_id_users_id_fk": {
           "name": "roster_presets_owner_id_users_id_fk",
           "tableFrom": "roster_presets",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "roster_presets_anchor_persona_id_personas_id_fk": {
           "name": "roster_presets_anchor_persona_id_personas_id_fk",
           "tableFrom": "roster_presets",
-          "columnsFrom": ["anchor_persona_id"],
           "tableTo": "personas",
+          "columnsFrom": ["anchor_persona_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -8675,20 +8675,20 @@
         "rpg_checkpoints_game_id_rpg_games_id_fk": {
           "name": "rpg_checkpoints_game_id_rpg_games_id_fk",
           "tableFrom": "rpg_checkpoints",
-          "columnsFrom": ["game_id"],
           "tableTo": "rpg_games",
+          "columnsFrom": ["game_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "rpg_checkpoints_snapshot_fk": {
           "name": "rpg_checkpoints_snapshot_fk",
           "tableFrom": "rpg_checkpoints",
-          "columnsFrom": ["snapshot_id", "snapshot_kind"],
           "tableTo": "rpg_snapshots",
+          "columnsFrom": ["snapshot_id", "snapshot_kind"],
           "columnsTo": ["id", "kind"],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -8802,29 +8802,29 @@
         "rpg_games_chat_id_chats_id_fk": {
           "name": "rpg_games_chat_id_chats_id_fk",
           "tableFrom": "rpg_games",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "rpg_games_gm_user_id_users_id_fk": {
           "name": "rpg_games_gm_user_id_users_id_fk",
           "tableFrom": "rpg_games",
-          "columnsFrom": ["gm_user_id"],
           "tableTo": "users",
+          "columnsFrom": ["gm_user_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "rpg_games_gm_preset_id_presets_id_fk": {
           "name": "rpg_games_gm_preset_id_presets_id_fk",
           "tableFrom": "rpg_games",
-          "columnsFrom": ["gm_preset_id"],
           "tableTo": "presets",
+          "columnsFrom": ["gm_preset_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -8930,29 +8930,29 @@
         "rpg_journal_game_id_rpg_games_id_fk": {
           "name": "rpg_journal_game_id_rpg_games_id_fk",
           "tableFrom": "rpg_journal",
-          "columnsFrom": ["game_id"],
           "tableTo": "rpg_games",
+          "columnsFrom": ["game_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "rpg_journal_variant_id_message_variants_id_fk": {
           "name": "rpg_journal_variant_id_message_variants_id_fk",
           "tableFrom": "rpg_journal",
-          "columnsFrom": ["variant_id"],
           "tableTo": "message_variants",
+          "columnsFrom": ["variant_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "rpg_journal_source_message_id_messages_id_fk": {
           "name": "rpg_journal_source_message_id_messages_id_fk",
           "tableFrom": "rpg_journal",
-          "columnsFrom": ["source_message_id"],
           "tableTo": "messages",
+          "columnsFrom": ["source_message_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -9045,29 +9045,29 @@
         "rpg_sheets_game_id_rpg_games_id_fk": {
           "name": "rpg_sheets_game_id_rpg_games_id_fk",
           "tableFrom": "rpg_sheets",
-          "columnsFrom": ["game_id"],
           "tableTo": "rpg_games",
+          "columnsFrom": ["game_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "rpg_sheets_character_id_characters_id_fk": {
           "name": "rpg_sheets_character_id_characters_id_fk",
           "tableFrom": "rpg_sheets",
-          "columnsFrom": ["character_id"],
           "tableTo": "characters",
+          "columnsFrom": ["character_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "rpg_sheets_user_id_users_id_fk": {
           "name": "rpg_sheets_user_id_users_id_fk",
           "tableFrom": "rpg_sheets",
-          "columnsFrom": ["user_id"],
           "tableTo": "users",
+          "columnsFrom": ["user_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -9224,8 +9224,8 @@
         "rpg_snapshots_variant_unique": {
           "name": "rpg_snapshots_variant_unique",
           "columns": ["variant_id"],
-          "where": "variant_id is not null",
-          "isUnique": true
+          "isUnique": true,
+          "where": "variant_id is not null"
         },
         "rpg_snapshots_id_kind_unique": {
           "name": "rpg_snapshots_id_kind_unique",
@@ -9252,38 +9252,38 @@
         "rpg_snapshots_game_id_rpg_games_id_fk": {
           "name": "rpg_snapshots_game_id_rpg_games_id_fk",
           "tableFrom": "rpg_snapshots",
-          "columnsFrom": ["game_id"],
           "tableTo": "rpg_games",
+          "columnsFrom": ["game_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "rpg_snapshots_message_id_messages_id_fk": {
           "name": "rpg_snapshots_message_id_messages_id_fk",
           "tableFrom": "rpg_snapshots",
-          "columnsFrom": ["message_id"],
           "tableTo": "messages",
+          "columnsFrom": ["message_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "rpg_snapshots_variant_id_message_variants_id_fk": {
           "name": "rpg_snapshots_variant_id_message_variants_id_fk",
           "tableFrom": "rpg_snapshots",
-          "columnsFrom": ["variant_id"],
           "tableTo": "message_variants",
+          "columnsFrom": ["variant_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "rpg_snapshots_as_of_message_id_messages_id_fk": {
           "name": "rpg_snapshots_as_of_message_id_messages_id_fk",
           "tableFrom": "rpg_snapshots",
-          "columnsFrom": ["as_of_message_id"],
           "tableTo": "messages",
+          "columnsFrom": ["as_of_message_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -9370,29 +9370,29 @@
         "rpg_turn_tool_calls_game_id_rpg_games_id_fk": {
           "name": "rpg_turn_tool_calls_game_id_rpg_games_id_fk",
           "tableFrom": "rpg_turn_tool_calls",
-          "columnsFrom": ["game_id"],
           "tableTo": "rpg_games",
+          "columnsFrom": ["game_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "rpg_turn_tool_calls_message_id_messages_id_fk": {
           "name": "rpg_turn_tool_calls_message_id_messages_id_fk",
           "tableFrom": "rpg_turn_tool_calls",
-          "columnsFrom": ["message_id"],
           "tableTo": "messages",
+          "columnsFrom": ["message_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "rpg_turn_tool_calls_variant_id_message_variants_id_fk": {
           "name": "rpg_turn_tool_calls_variant_id_message_variants_id_fk",
           "tableFrom": "rpg_turn_tool_calls",
-          "columnsFrom": ["variant_id"],
           "tableTo": "message_variants",
+          "columnsFrom": ["variant_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -9482,8 +9482,8 @@
         "session_entries_primary_unique": {
           "name": "session_entries_primary_unique",
           "columns": ["chat_id", "connection_id"],
-          "where": "\"session_entries\".\"is_primary\" = 1",
-          "isUnique": true
+          "isUnique": true,
+          "where": "\"session_entries\".\"is_primary\" = 1"
         },
         "session_entries_connection_idx": {
           "name": "session_entries_connection_idx",
@@ -9495,20 +9495,20 @@
         "session_entries_chat_id_chats_id_fk": {
           "name": "session_entries_chat_id_chats_id_fk",
           "tableFrom": "session_entries",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "session_entries_connection_id_user_connections_id_fk": {
           "name": "session_entries_connection_id_user_connections_id_fk",
           "tableFrom": "session_entries",
-          "columnsFrom": ["connection_id"],
           "tableTo": "user_connections",
+          "columnsFrom": ["connection_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -9793,11 +9793,11 @@
         "sessions_user_id_users_id_fk": {
           "name": "sessions_user_id_users_id_fk",
           "tableFrom": "sessions",
-          "columnsFrom": ["user_id"],
           "tableTo": "users",
+          "columnsFrom": ["user_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -9907,11 +9907,11 @@
         "themes_owner_id_users_id_fk": {
           "name": "themes_owner_id_users_id_fk",
           "tableFrom": "themes",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -9948,11 +9948,11 @@
         "user_seed_ledger_user_id_users_id_fk": {
           "name": "user_seed_ledger_user_id_users_id_fk",
           "tableFrom": "user_seed_ledger",
-          "columnsFrom": ["user_id"],
           "tableTo": "users",
+          "columnsFrom": ["user_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -10003,11 +10003,11 @@
         "user_settings_user_id_users_id_fk": {
           "name": "user_settings_user_id_users_id_fk",
           "tableFrom": "user_settings",
-          "columnsFrom": ["user_id"],
           "tableTo": "users",
+          "columnsFrom": ["user_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -10265,11 +10265,11 @@
         "character_stats_character_id_characters_id_fk": {
           "name": "character_stats_character_id_characters_id_fk",
           "tableFrom": "character_stats",
-          "columnsFrom": ["character_id"],
           "tableTo": "characters",
+          "columnsFrom": ["character_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -10464,11 +10464,11 @@
         "daily_stats_owner_id_users_id_fk": {
           "name": "daily_stats_owner_id_users_id_fk",
           "tableFrom": "daily_stats",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -10655,11 +10655,11 @@
         "model_stats_owner_id_users_id_fk": {
           "name": "model_stats_owner_id_users_id_fk",
           "tableFrom": "model_stats",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -10935,11 +10935,11 @@
         "owner_stats_owner_id_users_id_fk": {
           "name": "owner_stats_owner_id_users_id_fk",
           "tableFrom": "owner_stats",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -10970,11 +10970,11 @@
         "stats_canon_versions_owner_id_users_id_fk": {
           "name": "stats_canon_versions_owner_id_users_id_fk",
           "tableFrom": "stats_canon_versions",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -11026,20 +11026,20 @@
         "character_tags_character_id_characters_id_fk": {
           "name": "character_tags_character_id_characters_id_fk",
           "tableFrom": "character_tags",
-          "columnsFrom": ["character_id"],
           "tableTo": "characters",
+          "columnsFrom": ["character_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "character_tags_tag_id_tags_id_fk": {
           "name": "character_tags_tag_id_tags_id_fk",
           "tableFrom": "character_tags",
-          "columnsFrom": ["tag_id"],
           "tableTo": "tags",
+          "columnsFrom": ["tag_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -11105,29 +11105,29 @@
         "chat_tags_chat_id_chats_id_fk": {
           "name": "chat_tags_chat_id_chats_id_fk",
           "tableFrom": "chat_tags",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "chat_tags_tag_id_tags_id_fk": {
           "name": "chat_tags_tag_id_tags_id_fk",
           "tableFrom": "chat_tags",
-          "columnsFrom": ["tag_id"],
           "tableTo": "tags",
+          "columnsFrom": ["tag_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "chat_tags_owner_id_users_id_fk": {
           "name": "chat_tags_owner_id_users_id_fk",
           "tableFrom": "chat_tags",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -11176,20 +11176,20 @@
         "persona_tags_persona_id_personas_id_fk": {
           "name": "persona_tags_persona_id_personas_id_fk",
           "tableFrom": "persona_tags",
-          "columnsFrom": ["persona_id"],
           "tableTo": "personas",
+          "columnsFrom": ["persona_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "persona_tags_tag_id_tags_id_fk": {
           "name": "persona_tags_tag_id_tags_id_fk",
           "tableFrom": "persona_tags",
-          "columnsFrom": ["tag_id"],
           "tableTo": "tags",
+          "columnsFrom": ["tag_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -11238,20 +11238,20 @@
         "preset_tags_preset_id_presets_id_fk": {
           "name": "preset_tags_preset_id_presets_id_fk",
           "tableFrom": "preset_tags",
-          "columnsFrom": ["preset_id"],
           "tableTo": "presets",
+          "columnsFrom": ["preset_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "preset_tags_tag_id_tags_id_fk": {
           "name": "preset_tags_tag_id_tags_id_fk",
           "tableFrom": "preset_tags",
-          "columnsFrom": ["tag_id"],
           "tableTo": "tags",
+          "columnsFrom": ["tag_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -11351,11 +11351,11 @@
         "tags_owner_id_users_id_fk": {
           "name": "tags_owner_id_users_id_fk",
           "tableFrom": "tags",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -11408,20 +11408,20 @@
         "world_book_tags_world_book_id_world_books_id_fk": {
           "name": "world_book_tags_world_book_id_world_books_id_fk",
           "tableFrom": "world_book_tags",
-          "columnsFrom": ["world_book_id"],
           "tableTo": "world_books",
+          "columnsFrom": ["world_book_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "world_book_tags_tag_id_tags_id_fk": {
           "name": "world_book_tags_tag_id_tags_id_fk",
           "tableFrom": "world_book_tags",
-          "columnsFrom": ["tag_id"],
           "tableTo": "tags",
+          "columnsFrom": ["tag_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -11540,14 +11540,14 @@
         "users_external_id_unique": {
           "name": "users_external_id_unique",
           "columns": ["external_id"],
-          "where": "\"users\".\"external_id\" is not null",
-          "isUnique": true
+          "isUnique": true,
+          "where": "\"users\".\"external_id\" is not null"
         },
         "users_single_owner_unique": {
           "name": "users_single_owner_unique",
           "columns": ["role"],
-          "where": "\"users\".\"role\" = 'owner'",
-          "isUnique": true
+          "isUnique": true,
+          "where": "\"users\".\"role\" = 'owner'"
         },
         "users_owner_user_idx": {
           "name": "users_owner_user_idx",
@@ -11559,11 +11559,11 @@
         "users_owner_user_id_users_id_fk": {
           "name": "users_owner_user_id_users_id_fk",
           "tableFrom": "users",
-          "columnsFrom": ["owner_user_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_user_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -11684,11 +11684,11 @@
         "workload_schedules_owner_id_users_id_fk": {
           "name": "workload_schedules_owner_id_users_id_fk",
           "tableFrom": "workload_schedules",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -11696,7 +11696,7 @@
       "checkConstraints": {
         "workload_schedules_kind_check": {
           "name": "workload_schedules_kind_check",
-          "value": "kind in ('index', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'import-st', 'import-token-usage-backfill', 'import-bundle', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'databank-ingest', 'databank-reindex', 'refine-score-sweep')"
+          "value": "kind in ('index', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'assets-rebuild-index', 'import-st', 'import-token-usage-backfill', 'import-bundle', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'databank-ingest', 'databank-reindex', 'refine-score-sweep')"
         },
         "workload_schedules_mode_check": {
           "name": "workload_schedules_mode_check",
@@ -11852,20 +11852,20 @@
         "workloads_mode_active_singular_owned": {
           "name": "workloads_mode_active_singular_owned",
           "columns": ["kind", "owner_id", "admission_key"],
-          "where": "status in ('queued', 'running', 'cancelling') and mode = 'singular' and admission_system = 0",
-          "isUnique": true
+          "isUnique": true,
+          "where": "status in ('queued', 'running', 'cancelling') and mode = 'singular' and admission_system = 0"
         },
         "workloads_mode_active_singular_system": {
           "name": "workloads_mode_active_singular_system",
           "columns": ["kind", "admission_key"],
-          "where": "status in ('queued', 'running', 'cancelling') and mode = 'singular' and admission_system = 1",
-          "isUnique": true
+          "isUnique": true,
+          "where": "status in ('queued', 'running', 'cancelling') and mode = 'singular' and admission_system = 1"
         },
         "workloads_mode_active_bulk": {
           "name": "workloads_mode_active_bulk",
           "columns": ["kind", "admission_key"],
-          "where": "status in ('queued', 'running', 'cancelling') and mode = 'bulk'",
-          "isUnique": true
+          "isUnique": true,
+          "where": "status in ('queued', 'running', 'cancelling') and mode = 'bulk'"
         },
         "workloads_owner_idx": {
           "name": "workloads_owner_idx",
@@ -11882,20 +11882,20 @@
         "workloads_owner_id_users_id_fk": {
           "name": "workloads_owner_id_users_id_fk",
           "tableFrom": "workloads",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "workloads_funder_user_id_users_id_fk": {
           "name": "workloads_funder_user_id_users_id_fk",
           "tableFrom": "workloads",
-          "columnsFrom": ["funder_user_id"],
           "tableTo": "users",
+          "columnsFrom": ["funder_user_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -11903,7 +11903,7 @@
       "checkConstraints": {
         "workloads_kind_check": {
           "name": "workloads_kind_check",
-          "value": "kind in ('index', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'import-st', 'import-token-usage-backfill', 'import-bundle', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'databank-ingest', 'databank-reindex', 'refine-score-sweep')"
+          "value": "kind in ('index', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'assets-rebuild-index', 'import-st', 'import-token-usage-backfill', 'import-bundle', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'databank-ingest', 'databank-reindex', 'refine-score-sweep')"
         },
         "workloads_status_check": {
           "name": "workloads_status_check",
@@ -11964,20 +11964,20 @@
         "character_books_character_id_characters_id_fk": {
           "name": "character_books_character_id_characters_id_fk",
           "tableFrom": "character_books",
-          "columnsFrom": ["character_id"],
           "tableTo": "characters",
+          "columnsFrom": ["character_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "character_books_world_book_id_world_books_id_fk": {
           "name": "character_books_world_book_id_world_books_id_fk",
           "tableFrom": "character_books",
-          "columnsFrom": ["world_book_id"],
           "tableTo": "world_books",
+          "columnsFrom": ["world_book_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -12031,20 +12031,20 @@
         "chat_books_chat_id_chats_id_fk": {
           "name": "chat_books_chat_id_chats_id_fk",
           "tableFrom": "chat_books",
-          "columnsFrom": ["chat_id"],
           "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "chat_books_world_book_id_world_books_id_fk": {
           "name": "chat_books_world_book_id_world_books_id_fk",
           "tableFrom": "chat_books",
-          "columnsFrom": ["world_book_id"],
           "tableTo": "world_books",
+          "columnsFrom": ["world_book_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -12080,11 +12080,11 @@
         "global_books_world_book_id_world_books_id_fk": {
           "name": "global_books_world_book_id_world_books_id_fk",
           "tableFrom": "global_books",
-          "columnsFrom": ["world_book_id"],
           "tableTo": "world_books",
+          "columnsFrom": ["world_book_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -12128,20 +12128,20 @@
         "persona_books_persona_id_personas_id_fk": {
           "name": "persona_books_persona_id_personas_id_fk",
           "tableFrom": "persona_books",
-          "columnsFrom": ["persona_id"],
           "tableTo": "personas",
+          "columnsFrom": ["persona_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "persona_books_world_book_id_world_books_id_fk": {
           "name": "persona_books_world_book_id_world_books_id_fk",
           "tableFrom": "persona_books",
-          "columnsFrom": ["world_book_id"],
           "tableTo": "world_books",
+          "columnsFrom": ["world_book_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -12212,11 +12212,11 @@
         "world_books_owner_id_users_id_fk": {
           "name": "world_books_owner_id_users_id_fk",
           "tableFrom": "world_books",
-          "columnsFrom": ["owner_id"],
           "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -12327,11 +12327,11 @@
         "world_entries_world_book_id_world_books_id_fk": {
           "name": "world_entries_world_book_id_world_books_id_fk",
           "tableFrom": "world_entries",
-          "columnsFrom": ["world_book_id"],
           "tableTo": "world_books",
+          "columnsFrom": ["world_book_id"],
           "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -12342,9 +12342,9 @@
   "views": {},
   "enums": {},
   "_meta": {
-    "columns": {},
     "schemas": {},
-    "tables": {}
+    "tables": {},
+    "columns": {}
   },
   "internal": {
     "indexes": {

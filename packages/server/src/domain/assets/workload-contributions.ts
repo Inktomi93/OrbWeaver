@@ -1,5 +1,5 @@
 // domain/assets — the domain's OWN background work, raised as `WorkloadContribution`s (the workloads
-// junk-drawer exit: domains raise seams, the worker skims them). Three kinds: the CAS maintenance passes.
+// junk-drawer exit: domains raise seams, the worker skims them). Four kinds: the CAS maintenance passes.
 //
 // This file also RE-HOMES a defect: the `assets-backfill` GATHER (a `db.select` over `characters` plus a
 // per-row CAS probe) used to run at the ENTRY tier, in `compose/runner-env.ts`, purely because the old hub
@@ -11,7 +11,7 @@
 
 import type { FsckReport } from "@orb/contracts/assets";
 import type { MaintenanceResult } from "@orb/contracts/workloads";
-import { emptyWorkloadParams, maintenanceWorkloadParams } from "@orb/contracts/workloads";
+import { assetsRebuildIndexWorkloadParams, emptyWorkloadParams, maintenanceWorkloadParams } from "@orb/contracts/workloads";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterId, UserId } from "@orb/kit/ids";
@@ -20,7 +20,12 @@ import { isAborted } from "#primitives/abort";
 import type { AssetsWorkloadDeps } from "./contract/service.ts";
 import { loadAvatarBackfillCandidates } from "./persistence/maintenance.ts";
 
-type AssetsContributions = readonly [WorkloadContribution<"assets-backfill">, WorkloadContribution<"assets-gc">, WorkloadContribution<"assets-fsck">];
+type AssetsContributions = readonly [
+  WorkloadContribution<"assets-backfill">,
+  WorkloadContribution<"assets-gc">,
+  WorkloadContribution<"assets-fsck">,
+  WorkloadContribution<"assets-rebuild-index">,
+];
 
 /** The staged cards an avatar backfill would re-pair: characters with a recorded card but no linked avatar,
  *  whose card blob is still in the CAS. Grouped per owner (the backfill verb is per-owner). */
@@ -107,6 +112,22 @@ export function createAssetsWorkloadContributions(input: DbAssemblyInput<AssetsW
         report({ message: "checking asset integrity" });
         const result = await deps.assets.fsck({ signal });
         return { danglingRows: result.danglingRows, corruptBlobs: result.corruptBlobs, orphanBlobs: result.orphanBlobs };
+      },
+    },
+    {
+      kind: "assets-rebuild-index",
+      params: assetsRebuildIndexWorkloadParams,
+      // Walks and hashes every owner's blob tree — bulk maintenance, never latency-sensitive.
+      lane: "sweep",
+      // The rebuild writes rows for blobs no row names, which is exactly what a sweep reclaims; the sweep never
+      // runs beside it, and neither runs beside an import that writes blobs before the rows that name them.
+      excludes: ["assets-gc", "import-bundle", "import-st"],
+      // A blob that already has a row is skipped, so a retry re-runs the whole walk safely.
+      resume: "idempotent-restart",
+      run: async (_ctx, params, report, signal): Promise<MaintenanceResult> => {
+        report({ message: `rebuilding the ${params.kind} index from the files on disk` });
+        const result = await deps.assets.rebuildFromTree({ kind: params.kind, signal });
+        return { scanned: result.scanned, changed: result.rebuilt, dryRun: false };
       },
     },
   ];

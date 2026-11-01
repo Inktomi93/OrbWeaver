@@ -86,6 +86,7 @@ export interface WorkloadResultByKind {
   "assets-backfill": MaintenanceResult;
   "assets-gc": MaintenanceResult;
   "assets-fsck": FsckReport;
+  "assets-rebuild-index": MaintenanceResult;
   "import-st": MaintenanceResult;
   "import-token-usage-backfill": ImportTokenUsageBackfillResult;
   "import-bundle": BundleImportWorkloadResult;

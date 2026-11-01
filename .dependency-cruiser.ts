@@ -696,6 +696,10 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/chat/lib/appearance-message-style-model.ts":
       "APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: the section heading and the labels of its two switches",
   },
+  "tests/client/features/workloads/components/rebuild-asset-index.ct.tsx": {
+    "packages/client/src/features/workloads/lib/workloads-model.ts":
+      "ASSET_KIND_ITEMS and WORKLOAD_KIND_LABELS: the job name and the asset kind names the schedule dialog's pickers print",
+  },
   "tests/client/features/workloads/components/platform-schedule-dialog-dismissal.suite.ct.tsx": {
     "packages/client/src/features/workloads/lib/workloads-schedule-model.ts":
       "SCHEDULE_CADENCE_LABELS: the production cadence names used to edit and reopen schedules",

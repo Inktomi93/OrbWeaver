@@ -49,6 +49,7 @@ export type { StartWorkloadOp, StartWorkloadParams, TargetSnapshotOp } from "./o
 export type { StartWorkloadInput, WorkloadParamsByKind } from "./params.ts";
 export {
   asStartWorkloadInput,
+  assetsRebuildIndexWorkloadParams,
   databankIngestWorkloadParams,
   databankReindexWorkloadParams,
   emptyWorkloadParams,

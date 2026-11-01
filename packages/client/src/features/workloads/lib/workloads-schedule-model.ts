@@ -2,6 +2,7 @@
 // (recurring auto-enqueue via workloads.createSchedule/updateSchedule). DOM-free. Backs both the create
 // and edit dialogs (one value shape).
 
+import { ASSET_KINDS } from "@orb/contracts/assets";
 import type { ScheduleCadence, WorkloadMode } from "@orb/contracts/workloads";
 import { SCHEDULE_CADENCES, WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
 import type { WorkloadRunValues } from "./workloads-model.ts";
@@ -54,6 +55,7 @@ export const CREATE_SCHEDULE_FORM_DEFAULTS: CreateScheduleFormValues = {
   dryRun: false,
   k: null,
   source: "all",
+  assetKind: ASSET_KINDS[0],
 };
 
 // Extract the run-param slots from a schedule row's stored `params` blob — the inverse of `buildStartInput`, seeding the edit dialog's controls.
@@ -67,6 +69,7 @@ function scheduleParamsToRunValues(params: Record<string, unknown>): WorkloadRun
     dryRun: params["dryRun"] === true,
     k: typeof k === "number" ? k : null,
     source: source === "text" || source === "image" || source === "all" ? source : "all",
+    assetKind: ASSET_KINDS.find((kind) => kind === params["kind"]) ?? ASSET_KINDS[0],
   };
 }
 

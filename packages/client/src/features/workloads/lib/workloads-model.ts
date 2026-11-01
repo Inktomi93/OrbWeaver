@@ -1,6 +1,8 @@
 // workloads-model — the Workloads pane's pure vocabulary, DOM-free. Everything derives from the
 // canonical tuples in @orb/contracts/workloads, so a kind flipping stub→built needs zero client edits.
 
+import type { AssetKind } from "@orb/contracts/assets";
+import { ASSET_KINDS } from "@orb/contracts/assets";
 import type { IndexSource, WorkloadKind, WorkloadLane, WorkloadProgress, WorkloadStatus } from "@orb/contracts/workloads";
 import { ACTIVE_WORKLOAD_STATUSES, INDEX_SOURCES, WORKLOAD_KIND_MODES, WORKLOAD_KINDS, WORKLOAD_LANES } from "@orb/contracts/workloads";
 import type { BadgeProps } from "@orb/ui/badge";
@@ -44,6 +46,7 @@ export const WORKLOAD_KIND_LABELS: Record<WorkloadKind, string> = {
   "assets-backfill": "Assets backfill",
   "assets-gc": "Assets garbage collection",
   "assets-fsck": "Assets integrity check",
+  "assets-rebuild-index": "Rebuild asset index",
   "import-st": "Import from SillyTavern",
   "import-bundle": "Import backup bundle",
   "import-token-usage-backfill": "Backfill imported token usage",
@@ -87,6 +90,20 @@ export const INDEX_SOURCE_ITEMS: SelectItems<string> = INDEX_SOURCES.map((source
   value: source as string,
   label: INDEX_SOURCE_LABELS[source],
 }));
+
+/** The `assets-rebuild-index` kind's asset-kind picker: the kind stamped on every row the rebuild re-derives. */
+const ASSET_KIND_LABELS: Record<AssetKind, string> = {
+  card: "Character cards",
+  avatar: "Avatars",
+  export: "Exports",
+  generated: "Generated images",
+  gallery: "Gallery",
+  attachment: "Attachments",
+  document: "Documents",
+  background: "Backgrounds",
+  plugin: "Plugin files",
+};
+export const ASSET_KIND_ITEMS: SelectItems<string> = ASSET_KINDS.map((kind) => ({ value: kind as string, label: ASSET_KIND_LABELS[kind] }));
 
 /** Status → row-badge label (exhaustive). */
 export const WORKLOAD_STATUS_LABELS: Record<WorkloadStatus, string> = {
@@ -171,7 +188,7 @@ export function workloadFilterMatches(filter: (typeof WORKLOAD_FILTERS)[number],
 }
 
 /** The per-kind param control shape axis; the server re-parses every start against its own schema regardless. */
-export const WORKLOAD_PARAM_SHAPES = ["none", "force", "dryRun", "k", "managed", "index", "rescore"] as const;
+export const WORKLOAD_PARAM_SHAPES = ["none", "force", "dryRun", "k", "managed", "index", "rescore", "assetKind"] as const;
 
 /** Kind → param-control shape (exhaustive). Stub kinds are `none` (real empty schemas server-side). */
 export const WORKLOAD_PARAM_SHAPE_BY_KIND: Record<WorkloadKind, (typeof WORKLOAD_PARAM_SHAPES)[number]> = {
@@ -186,6 +203,7 @@ export const WORKLOAD_PARAM_SHAPE_BY_KIND: Record<WorkloadKind, (typeof WORKLOAD
   "assets-backfill": "dryRun",
   "assets-gc": "dryRun",
   "assets-fsck": "none",
+  "assets-rebuild-index": "assetKind",
   // `managed` = a server-minted param (route-started, never a picker control).
   "import-st": "dryRun",
   "import-bundle": "managed",
@@ -236,6 +254,7 @@ export const RUN_WORKLOAD_FORM_DEFAULTS: RunWorkloadFormValues = {
   dryRun: false,
   k: null,
   source: "all",
+  assetKind: ASSET_KINDS[0],
   runAt: "",
   dependsOn: [],
 };
@@ -248,6 +267,8 @@ export interface WorkloadRunValues {
   readonly k: number | null;
   /** The `index` kind's embed source. Inert for every other kind. */
   readonly source: IndexSource;
+  /** The `assets-rebuild-index` kind's asset kind. Inert for every other kind. */
+  readonly assetKind: AssetKind;
 }
 
 type StartWorkloadWire = inferInput<Trpc["workloads"]["start"]>;
@@ -275,6 +296,8 @@ export function buildStartInput(kind: WorkloadKind, values: WorkloadRunValues): 
     // The dialog's ONE boolean slot carries whichever re-do switch the active kind has; the wire NAME is the
     // kind's own (`rescoreAll`), never the form's.
     params = { rescoreAll: true };
+  } else if (shape === "assetKind") {
+    params = { kind: values.assetKind };
   }
   return { kind, params } as StartWorkloadWire["input"];
 }

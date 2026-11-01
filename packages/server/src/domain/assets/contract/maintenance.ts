@@ -87,3 +87,9 @@ export interface RebuildOptions {
   readonly kind: AssetKind;
   readonly signal?: AbortSignal;
 }
+
+/** `rebuildFromTree` outcome: blobs walked vs index rows re-derived for blobs no row named. */
+export interface RebuildResult {
+  readonly scanned: number;
+  readonly rebuilt: number;
+}

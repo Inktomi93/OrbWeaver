@@ -189,6 +189,7 @@ const WORKLOAD_RESULT_RENDERERS: { readonly [K in WorkloadKind]: ((result: Workl
   "assets-backfill": maintenanceSummary,
   "assets-gc": maintenanceSummary,
   "assets-fsck": fsckSummary,
+  "assets-rebuild-index": maintenanceSummary,
   "import-st": maintenanceSummary,
   "import-bundle": bundleImportSummary,
   "import-token-usage-backfill": tokenUsageBackfillSummary,
