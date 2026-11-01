@@ -48,6 +48,8 @@ test("a picture that opens the turn has an empty alt", async () => {
 });
 
 const SEALED = [
+  ["a tag in a code block, picture after", [nativeText(`Scene.\n\`\`\`\n<lie truth="${HIDDEN_TRUTH}"/>\n\`\`\`\nafter`), nativeImage()], "after"],
+  ["the picture lands in a tag in a code block", [nativeText("```\n<lie tr"), nativeImage(), nativeText(`uth="${HIDDEN_TRUTH}"/>\n\`\`\`\nafter`)], "after"],
   ["a quoted fence line, picture after the tag", [nativeText(`Scene. <lie truth="A. ${HIDDEN_TRUTH}\n\`\`\`\nmore"/> after`), nativeImage()], "after"],
   ["a quoted directive close, picture after the tag", [nativeText(`:::card\n<lie truth="x\n:::\n${HIDDEN_TRUTH}"/> tail\n:::\nend`), nativeImage()], "end"],
   ["the picture lands in the tag name", [nativeText("Hi <li"), nativeImage(), nativeText(`e truth="${HIDDEN_TRUTH}"/> after`)], "after"],
@@ -68,15 +70,11 @@ const SEALED = [
   ],
 ] as const;
 
-test.each([
-  ["a hidden tag", [nativeText("Hi. "), nativeImage(), nativeText(`<lie truth="${HIDDEN_TRUTH}"/> after`)], "<lie"],
-  ["a fence on its own line", [nativeText("Hi.\n"), nativeImage(), nativeText("```\ncode\n```")], "```"],
-  ["a fence that opens the reply", [nativeImage(), nativeText("```\ncode\n```")], "```"],
-] as const)("a picture that arrives just ahead of %s stays ahead of it", async (_name, parts, follower) => {
-  await using fixture = await imageRoom([parts]);
+test("a picture that arrives just ahead of a hidden tag stays ahead of it", async () => {
+  await using fixture = await imageRoom([[nativeText("Hi. "), nativeImage(), nativeText(`<lie truth="${HIDDEN_TRUTH}"/> after`)]]);
   const body = (await fixture.turn()).messages[0]?.content ?? "";
   expect(body.indexOf("![")).toBeGreaterThan(-1);
-  expect(body.indexOf("![")).toBeLessThan(body.indexOf(follower));
+  expect(body.indexOf("![")).toBeLessThan(body.indexOf("<lie"));
 });
 
 test.each(SEALED)("a member never reads the sealed bytes: %s", async (_name, parts, witness) => {

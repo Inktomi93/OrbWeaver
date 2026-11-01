@@ -347,7 +347,7 @@ function callerHistoryFloorSql(): SQL<number> {
  *  and `totalCount` says it again).
  *
  *  So for a NON-HOST caller the body arm is withheld entirely on a tail that carries ANY hidden tag. SQL cannot
- *  strip a span (no regex in SQLite, and the strip is a real tokenizer — `tokenizeForHiddenScan`), so matching
+ *  strip a span (no regex in SQLite, and the strip is a real tokenizer — `stripHiddenSpans`), so matching
  *  the visible half would mean matching the raw bytes; the honest SQL-expressible verdict is fail-CLOSED. The
  *  cost is FEWER results on exactly the rooms that run the deception grammar, never a leak — and it lands the
  *  member's search back onto exactly "the snippet the row shows" — the snippet

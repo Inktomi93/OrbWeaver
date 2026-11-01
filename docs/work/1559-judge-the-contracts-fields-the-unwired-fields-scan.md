@@ -235,4 +235,3 @@ Kept, with the reader:
 Verification: `pnpm typecheck` on the contracts, inference, server, client, node and tests-dom programs, the targeted suites and the corpus republish named in the commit.
 
 Owner call: `PortableEntity.ext` has only `tests/client/data/import-tree-plan.int.test.ts` as a reader. Delete it and derive the test file names from the exports, or keep it as the descriptor contract.
-

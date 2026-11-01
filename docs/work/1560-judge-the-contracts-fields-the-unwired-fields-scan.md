@@ -263,4 +263,3 @@ Owner calls (a test file is the only reader, or the row is a half-built feature)
 - Single-field regex results `RemoveResult`, `DetachResult`, `ReorderResult`: deleting the field makes the procedure return nothing.
 - `unifiedSearchInputSchema.rerank` and `searchScopeInputSchema.scopedCharacterId`: no client writes them; the search verb still branches on both.
 - Model-facing refinery and rpg schemas listed above: removing a field changes the request the model receives.
-
