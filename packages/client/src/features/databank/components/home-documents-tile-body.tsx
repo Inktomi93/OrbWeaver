@@ -46,6 +46,7 @@ import { timeLib } from "#lib";
 import { openModal, selectDocumentFromList, setActiveSection, setDatabankPhaseFilter } from "#state";
 import { DATABANK_INGEST_GLOSS } from "../lib/databank-copy.ts";
 import { bankHealth, bankHealthLine, documentSubtitle, ingestBadge, ingestPollInterval, showsPhaseChip } from "../lib/databank-model.ts";
+import { DATABANK_ADD_FIRST_DOCUMENT_NAME, DATABANK_ALL_DOCUMENTS_NAME } from "../lib/databank-names.ts";
 
 /** Opening a document from home is a CROSS-SECTION navigation: write databank's own selection, then move
  *  the rail (the `#state` module actions — the sanctioned channel; home never wires this). */
@@ -128,7 +129,7 @@ export function HomeDocumentsTileBody(): ReactElement {
         <Row className="flex-wrap" gap="field">
           <Button variant="outline" onClick={(): void => openModal("addDocument")} size="sm">
             <Icon icon={Plus} size="sm" />
-            Add your first document
+            {DATABANK_ADD_FIRST_DOCUMENT_NAME}
           </Button>
           <Button variant="outline" onClick={(): void => setActiveSection("databank")} size="sm">
             Open Databank
@@ -273,7 +274,7 @@ export function HomeDocumentsTileAction(): ReactElement | null {
   return (
     // The arrow is DECORATIVE (rail sweep P3-14) — the name is "All documents".
     <Button variant="ghost" onClick={(): void => setActiveSection("databank")} size="sm">
-      All documents
+      {DATABANK_ALL_DOCUMENTS_NAME}
       <TrailingArrow />
     </Button>
   );

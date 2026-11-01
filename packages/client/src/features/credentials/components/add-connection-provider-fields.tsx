@@ -16,7 +16,7 @@ import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import type { Invalidation, Trpc } from "#data";
 import { touchedFieldError } from "#forms/editor";
-import { connectionHost } from "#lib";
+import { connectionHost, DIALOG_VERBS } from "#lib";
 import type { useAddConnectionForm } from "../hooks/use-add-connection-form.ts";
 import {
   acceptsKey,
@@ -96,7 +96,7 @@ export function ProviderFields({
   if (keyStorageBlocks(provider, keyStorage)) {
     return (
       <EmptyState
-        action={<DialogClose render={<Button variant="outline">Close</Button>} />}
+        action={<DialogClose render={<Button variant="outline">{DIALOG_VERBS.close}</Button>} />}
         description={KEY_STORAGE_OFF_COPY.description}
         icon={<Icon icon={LockOpen} size="md" />}
         title={KEY_STORAGE_OFF_COPY.title}

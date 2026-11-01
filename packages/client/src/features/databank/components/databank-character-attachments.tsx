@@ -12,6 +12,7 @@ import { useState } from "react";
 import { CharacterPicker, PickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
+import { DIALOG_VERBS } from "#lib";
 import { selectCharacter, setActiveSection } from "#state";
 import { useAttachDocumentToCharacter, useDetachDocumentFromCharacter } from "../hooks/use-databank-mutations.ts";
 
@@ -111,7 +112,7 @@ function MutationRetry({ copy, onRetry }: { readonly copy: string; readonly onRe
       </Text>
       <Row>
         <Button variant="outline" onClick={onRetry} size="sm" type="button">
-          Retry
+          {DIALOG_VERBS.retry}
         </Button>
       </Row>
     </Stack>

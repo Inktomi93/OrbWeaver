@@ -21,6 +21,7 @@ import { useState } from "react";
 import { ConfirmDialog, TagPickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
+import { DIALOG_VERBS } from "#lib";
 import { useBulkAddCardTag, useBulkArchiveCharacters, useBulkRemoveCharacters } from "../hooks/use-character-mutations.ts";
 import type { CHARACTER_ACTION_SCOPE_IDS } from "../lib/character-actions.ts";
 import { characterActionsForScope } from "../lib/character-actions.ts";
@@ -101,7 +102,7 @@ export function CharacterBulkBar({ ids, selectedCount, onClear, onRemoveSubmitte
         </Row>
       </SelectionBar>
       <TagPickerDialog
-        confirmLabel="Apply"
+        confirmLabel={DIALOG_VERBS.apply}
         description="Attach an existing tag, or type a new one to create it."
         onOpenChange={setTagOpen}
         onSubmit={applyTag}

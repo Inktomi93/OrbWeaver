@@ -24,7 +24,7 @@ import { useState } from "react";
 import type { Trpc } from "#data";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import type { RefineryContextState } from "#lib";
-import { testId } from "#lib";
+import { DIALOG_VERBS, testId } from "#lib";
 import type { RefineryWorkbenchDoor } from "#state";
 import { RefineryChip } from "./refinery-chip.tsx";
 
@@ -358,7 +358,7 @@ export function VersionsTab({ state, liveDescription }: { state: RefineryContext
                   {compareId === snapshot.id ? "Hide compare" : "Compare"}
                 </Button>
                 <Button variant="ghost" onClick={(): void => restore.mutate({ characterId: state.characterId, snapshotId: snapshot.id })} size="sm">
-                  Restore
+                  {DIALOG_VERBS.restore}
                 </Button>
               </Row>
               {compareId === snapshot.id ? (

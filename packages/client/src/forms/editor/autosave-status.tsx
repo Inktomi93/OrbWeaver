@@ -4,6 +4,7 @@ import { Icon, TriangleAlert } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { DIALOG_VERBS } from "#lib";
 import type { AutosaveSaveState } from "../create-autosave-entity-form-model.ts";
 import { AUTOSAVE_RESTORED_LEAD, AUTOSAVE_RESUME_NAME, AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "./autosave-status-names.ts";
 
@@ -40,7 +41,7 @@ export function AutosaveStatus({ state, onRetry, retryable = true }: AutosaveSta
         </Text>
         {retryable ? (
           <Button type="button" variant="ghost" size="sm" onClick={onRetry}>
-            Retry
+            {DIALOG_VERBS.retry}
           </Button>
         ) : null}
       </Row>

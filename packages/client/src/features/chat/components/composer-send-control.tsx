@@ -24,6 +24,7 @@ import type { ReactElement } from "react";
 import { useId } from "react";
 import { testId } from "#lib";
 import type { SendRefusal } from "../hooks/use-send-availability.ts";
+import { CHAT_STOPPING_NAME } from "../lib/chat-surface-names.ts";
 
 // A draft waiting to send: a compact solid disc at the glyph box (32px; the 44px hit area stays invisible), the
 // messenger convention, without the focal lift: the room's one focal action is not this glyph. With nothing to send
@@ -59,11 +60,11 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
               glyph="lg"
               loading={props.stopping}
               disabled={props.stopping}
-              aria-label={props.stopping ? "Stopping…" : "Stop generating"}
+              aria-label={props.stopping ? CHAT_STOPPING_NAME : "Stop generating"}
               onClick={props.onStop}
               shape="pill"
             >
-              {props.stopping ? <WebSpinner size="sm" label="Stopping…" /> : <Icon icon={Square} size="sm" />}
+              {props.stopping ? <WebSpinner size="sm" label={CHAT_STOPPING_NAME} /> : <Icon icon={Square} size="sm" />}
             </GlyphButton>
           }
         />

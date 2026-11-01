@@ -21,6 +21,7 @@ import { useRefineryListHeader } from "../hooks/use-refinery-list-header.tsx";
 import { useRefineryCensus, useRefinerySession, useRefinerySessions } from "../hooks/use-refinery-sessions.ts";
 import { RefineryContentSurface } from "../surfaces/refinery-content-surface.tsx";
 import { RefineryListSurface } from "../surfaces/refinery-list-surface.tsx";
+import { REFINERY_VERSIONS_NAME } from "./refinery-names.ts";
 import { REFINERY_SECTION_LABEL } from "./refinery-section-label.ts";
 
 /** The Runs · Setup · Versions tab DEFS (delta 2 arm A) — the array lives with
@@ -39,7 +40,7 @@ const refineryContextTabs: readonly ContextTabDef<RefineryContextState>[] = [
   },
   {
     id: "versions",
-    label: "Versions",
+    label: REFINERY_VERSIONS_NAME,
     body: (state): ReactElement => <VersionsTabBody state={state} />,
   },
 ];

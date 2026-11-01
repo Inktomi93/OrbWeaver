@@ -28,7 +28,7 @@ import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import { FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { useOpenRequests } from "#lib";
+import { DIALOG_VERBS, useOpenRequests } from "#lib";
 import { selectCharacter } from "#state";
 import { useCreateCharacter } from "../hooks/use-character-mutations.ts";
 import { characterDoors } from "../lib/character-door-requests.ts";
@@ -136,9 +136,9 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
         </Text>
       ) : null}
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+        <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
         <Button disabled={incomplete || create.isPending} onClick={onCreate}>
-          Create
+          {DIALOG_VERBS.create}
         </Button>
       </DialogFooter>
     </FormDialog>

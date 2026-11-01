@@ -15,6 +15,7 @@ import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog } from "#components";
+import { DIALOG_VERBS } from "#lib";
 
 export interface PresetRenameDialogProps {
   readonly open: boolean;
@@ -55,9 +56,9 @@ export function PresetRenameDialog({ open, onOpenChange, currentName, onRename }
         <Stack gap="block">
           <Input value={name} onValueChange={setName} aria-label="Preset name" placeholder="Preset name" />
           <DialogFooter>
-            <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+            <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
             <Button type="submit" disabled={!canSave}>
-              Save
+              {DIALOG_VERBS.save}
             </Button>
           </DialogFooter>
         </Stack>

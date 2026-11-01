@@ -35,6 +35,7 @@ import {
 } from "#state";
 import { CorpusBrowseView } from "../components/corpus-browse-view.tsx";
 import { CorpusSearchResults } from "../components/corpus-search-results.tsx";
+import { CORPUS_SEARCH_TARGET_NAME } from "../lib/corpus-control-names.ts";
 import {
   CORPUS_SEARCH_TARGETS,
   CORPUS_SUGGEST_LIMIT,
@@ -109,7 +110,7 @@ export function CorpusListSurface(): ReactElement {
       // select above the omnibox.
       lead={
         <Select
-          aria-label="Search target"
+          aria-label={CORPUS_SEARCH_TARGET_NAME}
           data-testid={testId("corpusSearchTarget")}
           items={TARGET_ITEMS}
           onValueChange={(picked): void => setCorpusSearchTarget(picked ?? DEFAULT_TARGET)}

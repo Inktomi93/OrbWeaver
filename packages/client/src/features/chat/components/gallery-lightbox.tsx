@@ -12,6 +12,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement, RefObject } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ConfirmDialog, ViewerDialog } from "#components";
+import { DIALOG_VERBS } from "#lib";
 
 /** The one image the lightbox shows. `name` is the grid cell's own name, so both say the same thing. */
 interface GalleryLightboxImage {
@@ -99,7 +100,7 @@ export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled
         <DialogClose
           render={
             <Button className="shrink-0" variant="ghost" ref={closeRef} size="sm">
-              Close
+              {DIALOG_VERBS.close}
             </Button>
           }
         />

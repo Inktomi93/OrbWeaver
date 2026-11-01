@@ -19,7 +19,7 @@ import { useState } from "react";
 import { ModelRunConfirmDialog, QueryBoundary, useFirstBootBox, useModelRunConfirm } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
-import { testId } from "#lib";
+import { DIALOG_VERBS, testId } from "#lib";
 import { useCancelWorkload, useRetryWorkload } from "../hooks/use-workload-mutations.ts";
 import { WORKLOADS_JOBS_SUBCATEGORY } from "../lib/workloads-jobs-nav.ts";
 import {
@@ -93,7 +93,7 @@ function WorkloadsJobsBody({ anchorId }: { readonly anchorId: string }): ReactEl
     paidRetry
       .confirmThen({
         title: `Retry ${WORKLOAD_KIND_LABELS[workload.kind]}?`,
-        confirmLabel: "Retry",
+        confirmLabel: DIALOG_VERBS.retry,
         estimates: [{ retryOf: workload.id }],
         run,
       })

@@ -11,6 +11,7 @@ import { Icon, X } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
 import { FlowDialog } from "#components";
+import { DIALOG_VERBS } from "#lib";
 import type { ModalDefinition, ModalSlotId } from "#state";
 import { useModalRegistry } from "#state";
 import { SectionPlaceholder } from "./section-placeholder.tsx";
@@ -111,7 +112,7 @@ function DrawerModal({ body, container, def, onOpenChange }: DrawerModalProps): 
             <DrawerTitle>{def.title}</DrawerTitle>
             <DrawerClose
               render={
-                <Button variant="ghost" square={true} aria-label="Close">
+                <Button variant="ghost" square={true} aria-label={DIALOG_VERBS.close}>
                   <Icon icon={X} size="sm" />
                 </Button>
               }
@@ -194,7 +195,7 @@ function DialogModal({
       headerActions={
         <DialogClose
           render={
-            <Button variant="ghost" square={true} aria-label="Close">
+            <Button variant="ghost" square={true} aria-label={DIALOG_VERBS.close}>
               <Icon icon={X} size="sm" />
             </Button>
           }

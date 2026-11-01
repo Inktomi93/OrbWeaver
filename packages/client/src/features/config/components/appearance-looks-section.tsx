@@ -51,6 +51,7 @@ import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTR
 import { downloadTextFile, notify } from "#lib";
 import { useCreateTheme, useDuplicateTheme, useImportThemeFile, useRemoveTheme, useSelectTheme } from "../hooks/use-theme-mutations.ts";
 import { APPEARANCE_LOOKS_SUBCATEGORY } from "../lib/appearance-looks-nav.ts";
+import { CONFIG_IMPORT_THEME_FILE_NAME } from "../lib/config-control-names.ts";
 import type { ThemeFormValues } from "../lib/theme-editor-model.ts";
 import { DEFAULT_THEME_FORM, themeInputFromForm } from "../lib/theme-editor-model.ts";
 import { ThemeEditor } from "./theme-editor.tsx";
@@ -199,8 +200,8 @@ function LooksBody(): ReactElement {
                     }}
                   >
                     {({ open }): ReactElement => (
-                      <Tip text="Import a theme file">
-                        <Button aria-label="Import a theme file" variant="ghost" onClick={open} square={true}>
+                      <Tip text={CONFIG_IMPORT_THEME_FILE_NAME}>
+                        <Button aria-label={CONFIG_IMPORT_THEME_FILE_NAME} variant="ghost" onClick={open} square={true}>
                           <Icon icon={Upload} size="sm" />
                         </Button>
                       </Tip>

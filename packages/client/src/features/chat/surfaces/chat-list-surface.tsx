@@ -89,6 +89,7 @@ import {
   searchEmptyDescription,
 } from "../lib/chat-list-scope.ts";
 import { chatRowQualifiers } from "../lib/chat-summary-row.ts";
+import { CHAT_CLEAR_SEARCH_NAME } from "../lib/chat-surface-names.ts";
 
 /** The list row, derived off the wire (the `chat-list-row.tsx` / `chat-summary-row.ts` spelling) — the
  *  collection hook deliberately exports no second name for it. */
@@ -105,7 +106,7 @@ const ESTIMATED_ROW_PX = 44;
 // filters behind ONE `ChatListPhoneFilters` row, and this surface picks the arm.
 const SKIP_TO_LIST_LABEL = "Skip to chats";
 const SEARCH_LABEL = "Search chats";
-const CLEAR_SEARCH_LABEL = "Clear the search";
+const CLEAR_SEARCH_LABEL = CHAT_CLEAR_SEARCH_NAME;
 
 export interface ChatListSurfaceProps {
   readonly onSelect: (chatId: ChatId) => void;

@@ -30,7 +30,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog } from "#components";
 import { SkeletonRows, useInvalidation, useTRPC } from "#data";
-import { regexScriptScent, regexScriptTitle, timeLib } from "#lib";
+import { DIALOG_VERBS, regexScriptScent, regexScriptTitle, timeLib } from "#lib";
 import { useAttachScriptToChat } from "../hooks/use-chat-regex-mutations.ts";
 
 /** The candidate list's shape-matched loading skeleton (house loading law — never a spinner/text void). */
@@ -87,7 +87,7 @@ function PickerBody({
       <EmptyState
         // The only next action REACHABLE from inside a modal is leaving it — the library lives behind the
         // rail, which this dialog is covering. Naming that honestly beats a CTA that cannot fire.
-        action={<DialogClose render={<Button variant="outline">Close</Button>} />}
+        action={<DialogClose render={<Button variant="outline">{DIALOG_VERBS.close}</Button>} />}
         description="Write one in your script library — a find/replace rule with the streams it runs on — and it can run in this room."
         icon={<Icon icon={Code} size="lg" />}
         title="You have no regex scripts yet"
@@ -161,7 +161,7 @@ function PickerBody({
         </Text>
       )}
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+        <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
         <Button disabled={picked.length === 0 || attach.isPending} onClick={(): void => void commit().catch(globalThis.reportError)} type="button">
           Attach to this chat
         </Button>

@@ -35,7 +35,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, SettingSwitchRow } from "#components";
 import { QueryErrorState, useInvalidation, useTRPC } from "#data";
-import { notify, viewerTimeZone } from "#lib";
+import { DIALOG_VERBS, notify, viewerTimeZone } from "#lib";
 import { closeModal, openModal } from "#state";
 import { useApplyRosterPreset, useCreateRosterPreset, useRemoveRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
 import type { CapturedRosterRule, RosterRuleCapture } from "../hooks/use-saved-rosters.ts";
@@ -156,7 +156,7 @@ function RosterRulesIncludeLine(props: {
           Couldn't check this room's rules.
         </Text>
         <Button variant="ghost" size="sm" onClick={capture.retry}>
-          Retry
+          {DIALOG_VERBS.retry}
         </Button>
       </Row>
     );

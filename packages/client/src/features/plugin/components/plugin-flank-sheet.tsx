@@ -9,7 +9,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { MenuItem, MenuSeparator } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import { publishFlankHost, setFlankSheetOpen, useFlankHost, useFlankSheetOpen } from "#lib";
+import { DIALOG_VERBS, publishFlankHost, setFlankSheetOpen, useFlankHost, useFlankSheetOpen } from "#lib";
 import { usePluginFlankCollapsed } from "../hooks/use-plugin-chat-visibility.ts";
 import { useFlankInSheet, useVisibleAnchoredSurfaces } from "../hooks/use-visible-anchored-surfaces.ts";
 import { PLUGIN_PANELS_SHEET_LABEL } from "../lib/plugin-copy.ts";
@@ -53,7 +53,7 @@ function FlankSheet({ children }: { readonly children: ReactNode }): ReactElemen
               <DrawerTitle>{PLUGIN_PANELS_SHEET_LABEL}</DrawerTitle>
               <DrawerClose
                 render={
-                  <Button aria-label="Close" variant="ghost" square={true} type="button">
+                  <Button aria-label={DIALOG_VERBS.close} variant="ghost" square={true} type="button">
                     <Icon icon={X} size="sm" />
                   </Button>
                 }

@@ -34,7 +34,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { testId } from "#lib";
+import { DIALOG_VERBS, testId } from "#lib";
 import type { ReviewEntry } from "../lib/review-entries.ts";
 import { reviewTargetLabel } from "../lib/review-entries.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
@@ -212,7 +212,7 @@ function QueueRow({
       {state === "undecided" ? (
         <>
           <Button variant="outline" onClick={(): void => onDecide(false)} size="sm" wrap={true}>
-            Discard
+            {DIALOG_VERBS.discard}
             <Text as="span" className="sr-only">
               {" "}
               {label}

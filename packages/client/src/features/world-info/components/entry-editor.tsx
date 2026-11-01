@@ -41,6 +41,7 @@ import { useRemoveWorldEntry, useUpdateWorldEntry } from "../hooks/use-world-inf
 import { entryDraftStore } from "../lib/entry-draft-store.ts";
 import type { EntryFormValues } from "../lib/entry-editor-model.ts";
 import { entryFormFromEntity, entryUpdateInputFromForm, NEW_ENTRY_FORM } from "../lib/entry-editor-model.ts";
+import { WORLD_INFO_DEPTH_SWITCH_NAME } from "../lib/world-info-names.ts";
 
 // The contract cap on `keys` (contracts/world-info KEYS_MAX) — the chip picker enforces it too.
 const KEYS_MAX = 500;
@@ -198,7 +199,7 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
           injected entry leaves the system half, so the WI anchor bucket is moot). */}
       <form.AppField name="injectEnabled">
         {(field): ReactElement => (
-          <field.SwitchField label="Inject at a depth in history" hint="Splice this entry into the chat history at a depth instead of the system prompt." />
+          <field.SwitchField label={WORLD_INFO_DEPTH_SWITCH_NAME} hint="Splice this entry into the chat history at a depth instead of the system prompt." />
         )}
       </form.AppField>
       <form.Subscribe selector={(state): boolean => state.values.injectEnabled}>
