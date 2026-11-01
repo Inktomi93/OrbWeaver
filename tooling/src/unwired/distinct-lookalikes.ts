@@ -76,11 +76,9 @@ export const DISTINCT_LOOKALIKES = [
       "packages/client/src/features/refinery/surfaces/refinery-content-surface.tsx#setOpen",
       "packages/client/src/features/regex/components/regex-bulk-placement-dialog.tsx#onOpenChange",
       "packages/client/src/features/user-admin/components/admin-create-user-dialog.tsx#onOpenChange",
-      "packages/client/src/features/user-admin/components/admin-link-sso-dialog.tsx#onOpenChange",
+      "packages/client/src/features/user-admin/lib/admin-model.ts#onOpenChange",
       "packages/client/src/features/user-admin/components/admin-override-field.tsx#onSet",
-      "packages/client/src/features/user-admin/components/admin-reset-password-dialog.tsx#onOpenChange",
       "packages/client/src/features/user-admin/components/admin-user-row.tsx#onSetEnabled",
-      "packages/client/src/features/user-admin/components/admin-user-sessions-dialog.tsx#onOpenChange",
       "packages/client/src/features/workloads/components/create-schedule-dialog.tsx#onOpenChange",
       "packages/client/src/features/workloads/components/run-workload-dialog.tsx#onOpenChange",
       "packages/client/src/features/workloads/components/schedules-section.tsx#onToggle",
@@ -136,7 +134,6 @@ export const DISTINCT_LOOKALIKES = [
   {
     shape: "packages/client/src/features/discovery/components/corpus-controls.tsx#ParamToggleOption",
     distinctFrom: [
-      "packages/client/src/features/preset/lib/assembly-model.ts#ToggleItem",
       "packages/client/src/state/config-group-registry.ts#ConfigSettingOption",
       "packages/contracts/src/plugin/ui.ts#PluginSelectOption",
       "packages/kit/src/macro/user-macros.ts#UserMacroInputOption",
@@ -178,19 +175,6 @@ export const DISTINCT_LOOKALIKES = [
     shape: "packages/client/src/features/user-admin/components/admin-create-user-dialog.tsx#AdminCreateUserDialogProps",
     distinctFrom: ["packages/client/src/features/workloads/components/create-schedule-dialog.tsx#CreateScheduleDialogProps"],
     reason: "A user-admin dialog and a workloads dialog with the same three props; no flow.",
-  },
-  {
-    shape: "packages/client/src/features/user-admin/components/admin-link-sso-dialog.tsx#AdminLinkSsoDialogProps",
-    distinctFrom: [
-      "packages/client/src/features/user-admin/components/admin-reset-password-dialog.tsx#AdminResetPasswordDialogProps",
-      "packages/client/src/features/user-admin/components/admin-user-sessions-dialog.tsx#AdminUserSessionsDialogProps",
-    ],
-    reason: "Separate per-user admin dialogs; no dialog renders another.",
-  },
-  {
-    shape: "packages/client/src/features/user-admin/components/admin-reset-password-dialog.tsx#AdminResetPasswordDialogProps",
-    distinctFrom: ["packages/client/src/features/user-admin/components/admin-user-sessions-dialog.tsx#AdminUserSessionsDialogProps"],
-    reason: "Separate per-user admin dialogs; no dialog renders another.",
   },
   {
     shape: "packages/contracts/src/persona/owner-ops.ts#ExportPersonaParams",
@@ -518,18 +502,9 @@ export const DISTINCT_LOOKALIKES = [
     reason: "Each primitive's own public group type; one shared group type is a ui design call, not a census merge.",
   },
   {
-    shape: "packages/ui/src/primitives/highlighted-text/highlighted-text.tsx#HighlightedTextRange",
-    distinctFrom: [
-      "packages/kit/src/content/index.ts#HiddenRun",
-      "packages/ui/src/markdown/dialogue.ts#Range",
-      "packages/ui/src/primitives/message-list/pin-spacer.ts#PinnedSpan",
-    ],
-    reason: "Highlight offsets, virtual-window offsets, hidden tag runs and dialogue ranges: different concepts sharing {start, end}.",
-  },
-  {
     shape: "packages/ui/src/primitives/message-list/pin-spacer.ts#PinnedSpan",
-    distinctFrom: ["packages/kit/src/content/index.ts#HiddenRun", "packages/ui/src/markdown/dialogue.ts#Range"],
-    reason: "Highlight offsets, virtual-window offsets, hidden tag runs and dialogue ranges: different concepts sharing {start, end}.",
+    distinctFrom: ["packages/kit/src/chunk/split.ts#Span", "packages/kit/src/content/index.ts#HiddenRun"],
+    reason: "Virtual-window offsets, the chunker's character spans and hidden tag runs: different concepts sharing {start, end}.",
   },
   {
     shape: "packages/ui/src/stream/shimmer.tsx#StreamShimmerProps",

@@ -4,9 +4,10 @@
 
 import type { ImportWindow } from "@orb/contracts/chat";
 import { importWindowSchema, mergeImportWindows } from "@orb/contracts/chat";
+import type { CardImportResult } from "@orb/contracts/import";
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES, PORTABLE_KINDS } from "@orb/contracts/portability";
-import type { CardImportResult, TreeImportPlan } from "#data";
+import type { TreeImportPlan } from "#data";
 import { skippedByReason } from "#data";
 
 /** One normalized per-file outcome for the report summary. `notes` mirrors the server's per-card

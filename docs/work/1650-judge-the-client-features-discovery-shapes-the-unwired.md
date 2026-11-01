@@ -28,4 +28,7 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+2 rows: applied 0, kept 2, handed off 0, owner question 0. No code changed. Scan: ast-grep inline rule (identifier, type_identifier, property_identifier), `-l ts` and `-l tsx`, `packages tests` (5199 ts and 1450 tsx files scanned); each shape is declared and used only in its own file.
+
+- `ParamToggleOption` / `ToggleItem`: kept. Both are `{ value, label }`, a generic option pair. `ParamToggleOption` is the exported option of discovery's `ParamToggle`; `ToggleItem` is a private item type in the preset assembly model (pure, no React) for the Triggers vocabulary. They share a shape, not a concept, and each feature would have to import the other's file to share it.
+- `CorpusDossierSurfaceProps` / `AnalyticsCharacterSurfaceProps`: kept. Both are `{ characterId, onBack }`, the props of one surface each in different features (discovery, stats). The surfaces change for different reasons; a shared type would couple two features.

@@ -16,6 +16,8 @@
 //   · a part with no readable text is opaque — it contributes no quote characters, which is exactly what
 //     makes an inline `<code>` span unable to open or close a run.
 
+import type { Span } from "@orb/kit/chunk";
+
 /** Opener → its required closer. Straight quotes self-pair; typographic quotes pair by direction. */
 const QUOTE_PAIRS: ReadonlyMap<string, string> = new Map([
   ['"', '"'],
@@ -42,11 +44,6 @@ interface OpenRun {
   readonly closer: string;
 }
 
-interface Range {
-  readonly start: number;
-  readonly end: number;
-}
-
 /** A position inside the part list: the part's index + an offset into its text. */
 interface Cursor {
   readonly part: number;
@@ -54,7 +51,7 @@ interface Cursor {
 }
 
 /** Writes the covered range of every part from the open run's opener through the closer at `end`. */
-function markRun(ranges: Range[][], parts: readonly DialoguePart[], open: OpenRun, end: Cursor): void {
+function markRun(ranges: Span[][], parts: readonly DialoguePart[], open: OpenRun, end: Cursor): void {
   for (let i = open.part; i <= end.part; i += 1) {
     const target = ranges[i];
     const length = parts[i]?.text.length ?? 0;
@@ -70,7 +67,7 @@ function markRun(ranges: Range[][], parts: readonly DialoguePart[], open: OpenRu
 }
 
 /** Scans one part, writing any run that CLOSES inside it; returns the run still open after it (or null). */
-function scanPart(ranges: Range[][], parts: readonly DialoguePart[], index: number, incoming: OpenRun | null): OpenRun | null {
+function scanPart(ranges: Span[][], parts: readonly DialoguePart[], index: number, incoming: OpenRun | null): OpenRun | null {
   const text = parts[index]?.text ?? "";
   let open = incoming;
   for (let j = 0; j < text.length; j += 1) {
@@ -89,7 +86,7 @@ function scanPart(ranges: Range[][], parts: readonly DialoguePart[], index: numb
 }
 
 /** Slices one part's text on its covered ranges (ordered, non-overlapping), dropping empty pieces. */
-function slicePart(text: string, ranges: readonly Range[]): DialoguePiece[] {
+function slicePart(text: string, ranges: readonly Span[]): DialoguePiece[] {
   const pieces: DialoguePiece[] = [];
   let cursor = 0;
   for (const range of ranges) {
@@ -112,7 +109,7 @@ function slicePart(text: string, ranges: readonly Range[]): DialoguePiece[] {
  * the whole contract, and a part with no covered range comes back as a single plain piece.
  */
 export function splitDialogue(parts: readonly DialoguePart[]): readonly (readonly DialoguePiece[])[] {
-  const ranges: Range[][] = parts.map(() => []);
+  const ranges: Span[][] = parts.map(() => []);
   let open: OpenRun | null = null;
   for (const [i] of parts.entries()) {
     open = scanPart(ranges, parts, i, open);

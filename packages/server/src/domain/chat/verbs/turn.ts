@@ -26,11 +26,12 @@ import type {
 } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP, buildIdentityNameContext, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
 import type { ParticipantRoleState, Principal } from "@orb/contracts/identity";
+import type { BindingActor } from "@orb/contracts/inference";
 import type { GenerationType, GuidedImpersonatePerson, UserIntent, UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { PRESET_FORMAT_SLOT_IDS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
 import { batchMany, isConstraintViolation } from "@orb/db/query";
-import type { BindingActor, Resolved, WireTool } from "@orb/inference";
+import type { Resolved, WireTool } from "@orb/inference";
 import { resolveSideGenSampling } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, MacroRegistry, RandomSource, UserMacroDef } from "@orb/kit/macro";

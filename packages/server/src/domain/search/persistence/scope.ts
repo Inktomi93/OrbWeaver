@@ -1,7 +1,8 @@
 // Room-derived pools require a current human host before ranking (D16/D20).
-import type { BlockKey } from "@orb/contracts/search";
+
 import { chatDigestSpeakers, chatDigests, chatParticipants, chatSegments } from "@orb/db";
 import type { CharacterId, ChatId, EmbedGenerationId, UserId } from "@orb/kit/ids";
+import type { BlockKey } from "@orb/kit/recall";
 import type { SQL, SQLWrapper } from "drizzle-orm";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
 

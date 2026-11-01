@@ -12,8 +12,6 @@ import { throwHttpError } from "./http-error.ts";
 
 const IMPORT_FIELD = "file";
 
-export type { CardImportResult } from "@orb/contracts/import";
-
 /** POST picked card `File`s to the import route and return the server's real per-file result. Throws on a
  *  non-OK response (a whole-batch rejection). Per-card failures ride back in the 200 body's `failed[]` — the
  *  caller's dropzone owns the error/loading UI + the `character.list` invalidation on success. */

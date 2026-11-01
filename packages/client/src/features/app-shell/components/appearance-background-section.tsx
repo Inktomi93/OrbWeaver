@@ -16,6 +16,7 @@ import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Icon, Trash2 } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
+import { removeActionName } from "@orb/ui/lib";
 import type { MediaGridItem } from "@orb/ui/media-grid";
 import { MediaGrid } from "@orb/ui/media-grid";
 import { Text } from "@orb/ui/text";
@@ -24,7 +25,6 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { removeActionName } from "#lib";
 import { APPEARANCE_BACKGROUND_KEYS, APPEARANCE_BACKGROUND_SUBCATEGORY } from "../lib/appearance-background-model.ts";
 import { BACKGROUND_BLUR_MAX, BACKGROUND_BLUR_MIN, BACKGROUND_DIM_MAX, BACKGROUND_DIM_MIN, BACKGROUND_DIM_STEP } from "../lib/appearance-bounds.ts";
 import { BACKGROUND_FIT_ITEMS } from "../lib/appearance-select-items.ts";
