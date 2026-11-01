@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "reflect-get-to-read-member"
+version: "0.1.0"
+description: "Rewrite Reflect.get(target, key), typed any, into the unknown-returning readMember helper and import it."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

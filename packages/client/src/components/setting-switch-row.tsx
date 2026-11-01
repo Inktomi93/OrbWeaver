@@ -96,7 +96,7 @@ export function SettingCheckboxRow({
       <Checkbox
         checked={checked}
         tone={tone}
-        onCheckedChange={(next): void => onChange(next === true)}
+        onCheckedChange={(next): void => onChange(next)}
         {...(onBlur === undefined ? {} : { onBlur })}
         {...(disabled === undefined ? {} : { disabled })}
       />

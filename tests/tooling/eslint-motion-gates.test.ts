@@ -4,6 +4,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const FLIP = "orb/no-unruled-flip-inversion";
@@ -21,14 +22,14 @@ beforeAll(async () => {
 }, 120_000);
 
 async function findings(rule: string, source: string, path: string, force = false): Promise<readonly Linter.LintMessage[]> {
-  const config = await eslint.calculateConfigForFile(join(ROOT, path));
+  const config = await resolvedConfig(eslint, join(ROOT, path));
   const found = new Linter({ cwd: ROOT }).verify(
     source,
     {
       files: ["**/*.{ts,tsx}"],
-      plugins: config?.plugins ?? {},
+      plugins: config.plugins,
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true } } },
-      rules: { [rule]: force ? "error" : (config?.rules?.[rule] ?? "off") },
+      rules: { [rule]: force ? "error" : (config.rules[rule] ?? "off") },
     },
     { filename: join(ROOT, path) },
   );

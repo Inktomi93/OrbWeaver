@@ -10,7 +10,6 @@
 // ask the ORIGIN questions (`robots-txt` fetches /robots.txt; a file:// page fails it unconditionally),
 // so a clean run — the negative control this whole file rests on — is unreachable over file://.
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { launchProbeSession, withProbeSession } from "@orb/tooling/floor/browser/browser";
@@ -21,6 +20,7 @@ import { auditSettledPage } from "@orb/tooling/snap";
 import type { CDPSession } from "@playwright/test";
 import { vi } from "vitest";
 import { scaledBudget } from "../../../_load-budget.ts";
+import { listeningAddress } from "../../../_server-address.ts";
 
 const CLI_TIMEOUT_MS = scaledBudget(180_000);
 vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
@@ -66,7 +66,7 @@ function serveFixtures(): Promise<{ readonly base: string; readonly close: () =>
   });
   return new Promise((resolve) => {
     server.listen(0, "127.0.0.1", () => {
-      const address = server.address() as AddressInfo;
+      const address = listeningAddress(server);
       resolve({
         base: `http://127.0.0.1:${address.port}`,
         close: (): void => {

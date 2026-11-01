@@ -18,6 +18,7 @@ import type {
   WorkloadRunContext,
   WorkloadRunnableRow,
 } from "@orb/contracts/workloads";
+import { toError } from "@orb/kit/error-message";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog, withRequestSpan } from "#foundation/observability";
@@ -107,7 +108,7 @@ function createLeaseWriter(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, c
       // work chains behind it so heartbeat/cancel reads cannot reorder or escape the runner lifecycle.
       next = idle ? operation() : tail.then(operation);
     } catch (err) {
-      next = Promise.reject(err);
+      next = Promise.reject(toError(err));
     }
     idle = false;
     tail = next;

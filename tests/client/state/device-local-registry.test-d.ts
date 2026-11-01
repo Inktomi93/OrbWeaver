@@ -33,7 +33,7 @@ test("persisted and draft store names stay a closed production classification", 
     // @ts-expect-error a wrapper cannot admit broader names than the production API
     persisted(name, initial, options);
   }
-  void wrapper;
+  expectTypeOf(wrapper).parameters.toEqualTypeOf<[string]>();
 
   function createPersistedStore(name: string): string {
     return name;

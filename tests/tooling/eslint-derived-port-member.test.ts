@@ -6,6 +6,7 @@ import { ESLint, Linter } from "eslint";
 import ts from "typescript";
 import tseslint from "typescript-eslint";
 import { derivedPortMemberRule } from "../../tooling/src/eslint/derived-port.ts";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const RULE = "orb/derived-port-member";
 const SERVICE = "packages/server/src/domain/sessions/contract/service.ts";
@@ -252,10 +253,11 @@ test.for([
 // rule's name, its severity and its plugin registration are proven where they are wired.
 test("the production config registers derived-port-member as an error on server compose files", async () => {
   const root = join(import.meta.dirname, "../..");
-  const config = await new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: root }).calculateConfigForFile(
+  const config = await resolvedConfig(
+    new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: root }),
     join(root, "packages/server/src/entry/compose/chat.ts"),
   );
-  expect(config?.rules?.[RULE]).toEqual([2]);
+  expect(config.rules[RULE]).toEqual([2]);
   // The config loads its own module instance, so the registered rule is compared by its declared meta.
-  expect(config?.plugins?.["orb"]?.rules?.["derived-port-member"]?.meta).toEqual(derivedPortMemberRule.meta);
+  expect(config.plugins["orb"]?.rules?.["derived-port-member"]?.meta).toEqual(derivedPortMemberRule.meta);
 });

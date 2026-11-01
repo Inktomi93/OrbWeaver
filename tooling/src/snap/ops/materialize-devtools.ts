@@ -22,6 +22,7 @@ import type {
 } from "../../floor/devtools/devtools-assets.ts";
 import { parseDevToolsAssetPin } from "../../floor/devtools/devtools-assets.ts";
 import { budget } from "../../floor/host/load-budget.ts";
+import { readMember } from "../../floor/instrument/member.ts";
 import { DEVTOOLS_LICENSE_SOURCES } from "../lib/devtools-license-sources.ts";
 import { literalModuleAssetPaths, pathForDevToolsRequest } from "../lib/devtools-module-assets.ts";
 import { devToolsDiscoveryProof } from "./page-validate.ts";
@@ -299,8 +300,8 @@ function devToolsTargets(value: unknown): readonly { readonly id: string; readon
     if (typeof entry !== "object" || entry === null) {
       throw new Error(`DevTools /json/list row ${String(index)} is not an object`);
     }
-    const id = Reflect.get(entry, "id");
-    const type = Reflect.get(entry, "type");
+    const id = readMember(entry, "id");
+    const type = readMember(entry, "type");
     if (typeof id !== "string" || typeof type !== "string") {
       throw new Error(`DevTools /json/list row ${String(index)} has no string id/type`);
     }

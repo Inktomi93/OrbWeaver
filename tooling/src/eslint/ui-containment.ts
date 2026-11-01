@@ -3,6 +3,7 @@
 // another module is followed to the symbol's declaration. A render path is not followed.
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import ts from "typescript";
 import { importedSymbol } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
@@ -26,21 +27,21 @@ const CONTAINER_PROP = "container";
 type Attribute = TSESTree.JSXOpeningElement["attributes"][number];
 
 const isContainerProp = (attribute: Attribute): attribute is TSESTree.JSXAttribute =>
-  attribute.type === "JSXAttribute" && attribute.name.type === "JSXIdentifier" && attribute.name.name === CONTAINER_PROP;
+  attribute.type === AST_NODE_TYPES.JSXAttribute && attribute.name.type === AST_NODE_TYPES.JSXIdentifier && attribute.name.name === CONTAINER_PROP;
 
-const isFalseLiteral = (node: TSESTree.Node | null | undefined): boolean => node?.type === "Literal" && node.value === false;
+const isFalseLiteral = (node: TSESTree.Node | null | undefined): boolean => node?.type === AST_NODE_TYPES.Literal && node.value === false;
 
 /** `container={false}` turns containment off, so it neither declares nor provides one. */
 const containerPropOn = (element: TSESTree.JSXOpeningElement): TSESTree.JSXAttribute | undefined =>
   element.attributes.find(
     (attribute): attribute is TSESTree.JSXAttribute =>
-      isContainerProp(attribute) && !isFalseLiteral(attribute.value?.type === "JSXExpressionContainer" ? attribute.value.expression : null),
+      isContainerProp(attribute) && !isFalseLiteral(attribute.value?.type === AST_NODE_TYPES.JSXExpressionContainer ? attribute.value.expression : null),
   );
 
 /** The name a JSX tag's symbol is declared under, when the checker traces it through re-exports to a file matching `home`. */
 function declaredName(context: OrbRuleContext, name: TSESTree.JSXTagNameExpression, home: RegExp): string | undefined {
   const native = nativeOf(context);
-  if (native === undefined || name.type === "JSXNamespacedName") {
+  if (native === undefined || name.type === AST_NODE_TYPES.JSXNamespacedName) {
     return undefined;
   }
   const tag = native.toTs(name);
@@ -75,20 +76,22 @@ function carriesContainerFlag(element: TSESTree.JSXOpeningElement): boolean {
   const value = attribute?.value;
   return (
     attribute !== undefined &&
-    (value === null || value?.type === "Literal" || (value?.type === "JSXExpressionContainer" && value.expression.type === "Literal"))
+    (value === null ||
+      value?.type === AST_NODE_TYPES.Literal ||
+      (value?.type === AST_NODE_TYPES.JSXExpressionContainer && value.expression.type === AST_NODE_TYPES.Literal))
   );
 }
 
 function spreadsContainer(element: TSESTree.JSXOpeningElement): boolean {
   return element.attributes.some(
     (attribute) =>
-      attribute.type === "JSXSpreadAttribute" &&
-      attribute.argument.type === "ObjectExpression" &&
+      attribute.type === AST_NODE_TYPES.JSXSpreadAttribute &&
+      attribute.argument.type === AST_NODE_TYPES.ObjectExpression &&
       attribute.argument.properties.some(
         (property) =>
-          property.type === "Property" &&
-          ((property.key.type === "Identifier" && property.key.name === CONTAINER_PROP) ||
-            (property.key.type === "Literal" && property.key.value === CONTAINER_PROP)) &&
+          property.type === AST_NODE_TYPES.Property &&
+          ((property.key.type === AST_NODE_TYPES.Identifier && property.key.name === CONTAINER_PROP) ||
+            (property.key.type === AST_NODE_TYPES.Literal && property.key.value === CONTAINER_PROP)) &&
           !isFalseLiteral(property.value),
       ),
   );
@@ -110,7 +113,7 @@ function isDialogBox(context: OrbRuleContext, element: TSESTree.JSXOpeningElemen
     return false;
   }
   for (let ancestor: TSESTree.Node | null | undefined = element.parent.parent; ancestor; ancestor = ancestor.parent) {
-    if (ancestor.type === "JSXElement") {
+    if (ancestor.type === AST_NODE_TYPES.JSXElement) {
       return false;
     }
   }

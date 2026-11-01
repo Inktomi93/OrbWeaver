@@ -1,5 +1,6 @@
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import { contextDirectArgument } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext, Source } from "./syntax.ts";
 import { restrictionRule } from "./syntax.ts";
@@ -16,17 +17,17 @@ const REGISTRY_NAME = /Registry$/u;
 const REGISTRY_ALIAS_HOPS = 8;
 
 function writtenTypeNames(type: TSESTree.TypeNode): TSESTree.EntityName[] {
-  if (type.type === "TSUnionType") {
+  if (type.type === AST_NODE_TYPES.TSUnionType) {
     return type.types.flatMap(writtenTypeNames);
   }
-  return type.type === "TSTypeReference" ? [type.typeName] : [];
+  return type.type === AST_NODE_TYPES.TSTypeReference ? [type.typeName] : [];
 }
 
 function namesRegistry(typeName: TSESTree.EntityName, registryNames: ReadonlySet<string>): boolean {
-  if (typeName.type === "Identifier") {
+  if (typeName.type === AST_NODE_TYPES.Identifier) {
     return registryNames.has(typeName.name);
   }
-  return typeName.type === "TSQualifiedName" && REGISTRY_NAME.test(typeName.right.name);
+  return typeName.type === AST_NODE_TYPES.TSQualifiedName && REGISTRY_NAME.test(typeName.right.name);
 }
 
 const PROJECT_MODULE = /^(?:\.|#|@orb\/)/u;
@@ -35,11 +36,11 @@ function recordRegistryImport(node: TSESTree.ImportDeclaration, imports: Registr
   const react = node.source.value === "react" || PROJECT_MODULE.test(node.source.value);
   for (const specifier of node.specifiers) {
     const local = specifier.local.name;
-    if (specifier.type !== "ImportSpecifier") {
+    if (specifier.type !== AST_NODE_TYPES.ImportSpecifier) {
       (react ? imports.namespaces : imports.others).add(local);
       continue;
     }
-    const imported = specifier.imported.type === "Identifier" ? specifier.imported.name : undefined;
+    const imported = specifier.imported.type === AST_NODE_TYPES.Identifier ? specifier.imported.name : undefined;
     (react && imported === "createContext" ? imports.constructors : imports.others).add(local);
     if (imported !== undefined && REGISTRY_NAME.test(imported)) {
       imports.registryNames.add(local);
@@ -48,27 +49,27 @@ function recordRegistryImport(node: TSESTree.ImportDeclaration, imports: Registr
 }
 
 function isCreateContextMember(callee: TSESTree.Node): callee is TSESTree.MemberExpression {
-  if (callee.type !== "MemberExpression") {
+  if (callee.type !== AST_NODE_TYPES.MemberExpression) {
     return false;
   }
   if (!callee.computed) {
     return (callee.property as TSESTree.Identifier | TSESTree.PrivateIdentifier).name === "createContext";
   }
   const { property } = callee;
-  if (property.type === "TemplateLiteral") {
+  if (property.type === AST_NODE_TYPES.TemplateLiteral) {
     return property.expressions.length === 0 && (property.quasis[0] as TSESTree.TemplateElement).value.cooked === "createContext";
   }
-  return property.type === "Literal" && property.value === "createContext";
+  return property.type === AST_NODE_TYPES.Literal && property.value === "createContext";
 }
 
 function createContextVerdict(callee: TSESTree.Node, imports: RegistryImports): "react" | "other" | "unreadable" {
-  if (callee.type === "Identifier") {
+  if (callee.type === AST_NODE_TYPES.Identifier) {
     return imports.constructors.has(callee.name) ? "react" : "other";
   }
   if (!isCreateContextMember(callee)) {
     return "other";
   }
-  const receiver = callee.object.type === "Identifier" ? callee.object.name : undefined;
+  const receiver = callee.object.type === AST_NODE_TYPES.Identifier ? callee.object.name : undefined;
   if (receiver !== undefined && imports.namespaces.has(receiver)) {
     return "react";
   }
@@ -132,8 +133,8 @@ export const stateFilesRule: OrbRule = ((): OrbRule => {
       return {
         ...selectorRule.create(context),
         "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator"(node: TSESTree.VariableDeclarator): void {
-          for (let cursor: TSESTree.Node | null = node.init; cursor?.type === "CallExpression"; cursor = cursor.callee) {
-            if (cursor.callee.type === "Identifier" && STATE_MINT_NAMES.includes(cursor.callee.name)) {
+          for (let cursor: TSESTree.Node | null = node.init; cursor?.type === AST_NODE_TYPES.CallExpression; cursor = cursor.callee) {
+            if (cursor.callee.type === AST_NODE_TYPES.Identifier && STATE_MINT_NAMES.includes(cursor.callee.name)) {
               context.report({
                 node,
                 message:
@@ -161,7 +162,7 @@ const STORE_ARRAY_REBUILDS = new Set(["map", "filter", "flatMap", "slice", "conc
 const STORE_OBJECT_DERIVATIONS = new Set(["keys", "values", "entries"]);
 
 function storeSelector(call: TSESTree.CallExpression, sourceCode: Source): TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | undefined {
-  if (call.callee.type !== "Identifier" || call.range[0] !== call.callee.range[0]) {
+  if (call.callee.type !== AST_NODE_TYPES.Identifier || call.range[0] !== call.callee.range[0]) {
     return;
   }
   const hook = sourceCode.getText(call.callee);
@@ -170,7 +171,7 @@ function storeSelector(call: TSESTree.CallExpression, sourceCode: Source): TSEST
   }
   const selector = call.arguments[hook === "useStore" ? 1 : 0];
   return selector !== undefined &&
-    (selector.type === "ArrowFunctionExpression" || selector.type === "FunctionExpression") &&
+    (selector.type === AST_NODE_TYPES.ArrowFunctionExpression || selector.type === AST_NODE_TYPES.FunctionExpression) &&
     contextDirectArgument(call, selector, sourceCode)
     ? selector
     : undefined;
@@ -178,12 +179,12 @@ function storeSelector(call: TSESTree.CallExpression, sourceCode: Source): TSEST
 
 function storeCallDerivation(call: TSESTree.CallExpression, sourceCode: Source): string | undefined {
   const callee = call.callee;
-  if (callee.type !== "MemberExpression" || callee.computed || call.range[0] !== callee.range[0]) {
+  if (callee.type !== AST_NODE_TYPES.MemberExpression || callee.computed || call.range[0] !== callee.range[0]) {
     return;
   }
-  const name = callee.property.type === "Identifier" ? callee.property.name : undefined;
+  const name = callee.property.type === AST_NODE_TYPES.Identifier ? callee.property.name : undefined;
   if (
-    callee.object.type === "Identifier" &&
+    callee.object.type === AST_NODE_TYPES.Identifier &&
     callee.range[0] === callee.object.range[0] &&
     sourceCode.getText(callee.object) === "Object" &&
     STORE_OBJECT_DERIVATIONS.has(name as string)
@@ -195,33 +196,36 @@ function storeCallDerivation(call: TSESTree.CallExpression, sourceCode: Source):
 
 function storeFreshDerivation(raw: TSESTree.Node, sourceCode: Source): string | undefined {
   let node = raw;
-  while (node.type === "TSAsExpression" || node.type === "TSSatisfiesExpression") {
+  while (node.type === AST_NODE_TYPES.TSAsExpression || node.type === AST_NODE_TYPES.TSSatisfiesExpression) {
     node = node.expression;
   }
-  if (node.type === "ObjectExpression" || node.type === "ArrayExpression") {
-    return node.type === "ObjectExpression" ? "object literal" : "array literal";
+  if (node.type === AST_NODE_TYPES.ObjectExpression || node.type === AST_NODE_TYPES.ArrayExpression) {
+    return node.type === AST_NODE_TYPES.ObjectExpression ? "object literal" : "array literal";
   }
-  if (node.type === "ConditionalExpression") {
+  if (node.type === AST_NODE_TYPES.ConditionalExpression) {
     return storeFreshDerivation(node.consequent, sourceCode) ?? storeFreshDerivation(node.alternate, sourceCode);
   }
-  if (node.type === "LogicalExpression") {
+  if (node.type === AST_NODE_TYPES.LogicalExpression) {
     return storeFreshDerivation(node.left, sourceCode) ?? storeFreshDerivation(node.right, sourceCode);
   }
-  const call = node.type === "ChainExpression" ? node.expression : node;
-  return call.type === "CallExpression" ? storeCallDerivation(call, sourceCode) : undefined;
+  const call = node.type === AST_NODE_TYPES.ChainExpression ? node.expression : node;
+  return call.type === AST_NODE_TYPES.CallExpression ? storeCallDerivation(call, sourceCode) : undefined;
 }
 
 function storeReturnOwner(node: TSESTree.Node, sourceCode: Source): TSESTree.Node | undefined {
   return sourceCode.getAncestors(node).findLast((ancestor) => {
-    if (ancestor.type === "ArrowFunctionExpression" || ancestor.type === "FunctionDeclaration") {
+    if (ancestor.type === AST_NODE_TYPES.ArrowFunctionExpression || ancestor.type === AST_NODE_TYPES.FunctionDeclaration) {
       return true;
     }
     // Accessor and constructor boundaries are excluded from the selector output grammar.
-    if (ancestor.type !== "FunctionExpression") {
+    if (ancestor.type !== AST_NODE_TYPES.FunctionExpression) {
       return false;
     }
     const parent = ancestor.parent;
-    return !((parent.type === "MethodDefinition" || parent.type === "Property") && ["get", "set", "constructor"].includes(parent.kind));
+    return !(
+      (parent.type === AST_NODE_TYPES.MethodDefinition || parent.type === AST_NODE_TYPES.Property) &&
+      ["get", "set", "constructor"].includes(parent.kind)
+    );
   });
 }
 
@@ -244,7 +248,7 @@ export const storeDerivedRule: OrbRule = {
         if (selector === undefined) {
           return;
         }
-        const outputs = selector.body.type === "BlockStatement" ? (returns.get(selector) ?? []) : [selector.body];
+        const outputs = selector.body.type === AST_NODE_TYPES.BlockStatement ? (returns.get(selector) ?? []) : [selector.body];
         const kind = outputs.map((output) => storeFreshDerivation(output, context.sourceCode)).find((value) => value !== undefined);
         if (kind !== undefined) {
           context.report({
@@ -259,13 +263,13 @@ export const storeDerivedRule: OrbRule = {
 
 export function baseUiBindings(program: TSESTree.Program): { local: string; exported: string; typeOnly: boolean }[] {
   return program.body.flatMap((node) =>
-    node.type !== "ImportDeclaration" || !node.source.value.startsWith("@base-ui/react/")
+    node.type !== AST_NODE_TYPES.ImportDeclaration || !node.source.value.startsWith("@base-ui/react/")
       ? []
       : node.specifiers
-          .filter((specifier) => specifier.type === "ImportSpecifier")
+          .filter((specifier) => specifier.type === AST_NODE_TYPES.ImportSpecifier)
           .map((specifier) => ({
             local: specifier.local.name,
-            exported: specifier.imported.type === "Identifier" ? specifier.imported.name : specifier.imported.value,
+            exported: specifier.imported.type === AST_NODE_TYPES.Identifier ? specifier.imported.name : specifier.imported.value,
             typeOnly: node.importKind === "type" || specifier.importKind === "type",
           })),
   );
@@ -279,7 +283,7 @@ export const registerApiRule: OrbRule = {
       ...restrictionRule(entry as (typeof CLIENT_CONTEXT_RESTRICTIONS)[number]).create(context),
       "VariableDeclarator[id.type='Identifier'][id.name='register']:exit"(node: TSESTree.VariableDeclarator): void {
         if (
-          (node.init?.type === "ArrowFunctionExpression" || node.init?.type === "FunctionExpression") &&
+          (node.init?.type === AST_NODE_TYPES.ArrowFunctionExpression || node.init?.type === AST_NODE_TYPES.FunctionExpression) &&
           (context.sourceCode.getTokenBefore(node.init) as TSESTree.Token).value === "="
         ) {
           context.report({ node: node.id, message: "Export definition values for door assembly, not a mutating register API." });
@@ -301,7 +305,11 @@ const FLOORLESS_STACK_CONTROL = /rows\s*=\s*(?:\{\s*)?["']control["']/u;
 
 function floorlessVariableBody(declaration: TSESTree.VariableDeclarator, sourceCode: Source): TSESTree.BlockStatement | TSESTree.Expression | undefined {
   const init = declaration.init;
-  if (init === null || !(init.type === "ArrowFunctionExpression" || init.type === "FunctionExpression") || sourceCode.getTokenBefore(init)?.value !== "=") {
+  if (
+    init === null ||
+    !(init.type === AST_NODE_TYPES.ArrowFunctionExpression || init.type === AST_NODE_TYPES.FunctionExpression) ||
+    sourceCode.getTokenBefore(init)?.value !== "="
+  ) {
     return;
   }
   return init.body;
@@ -310,21 +318,23 @@ function floorlessVariableBody(declaration: TSESTree.VariableDeclarator, sourceC
 function floorlessComponentBodies(program: TSESTree.Program, sourceCode: Source): Map<string, TSESTree.Node | undefined> {
   const declarations = program.body
     .map((node) => {
-      if (node.type === "ExportNamedDeclaration" || node.type === "ExportDefaultDeclaration") {
+      if (node.type === AST_NODE_TYPES.ExportNamedDeclaration || node.type === AST_NODE_TYPES.ExportDefaultDeclaration) {
         return node.declaration;
       }
-      return node.type === "ExportAllDeclaration" ? undefined : node;
+      return node.type === AST_NODE_TYPES.ExportAllDeclaration ? undefined : node;
     })
     .filter((node) => node !== null && node !== undefined);
   const bodies = new Map<string, TSESTree.Node | undefined>();
   for (const node of declarations) {
-    if (node.type === "FunctionDeclaration" && node.id !== null && !bodies.has(node.id.name)) {
+    if (node.type === AST_NODE_TYPES.FunctionDeclaration && node.id !== null && !bodies.has(node.id.name)) {
       bodies.set(node.id.name, node.body);
     }
   }
-  for (const node of declarations.filter((declaration): declaration is TSESTree.VariableDeclaration => declaration.type === "VariableDeclaration")) {
+  for (const node of declarations.filter(
+    (declaration): declaration is TSESTree.VariableDeclaration => declaration.type === AST_NODE_TYPES.VariableDeclaration,
+  )) {
     for (const declaration of node.declarations) {
-      if (declaration.id.type !== "Identifier" || bodies.has(declaration.id.name)) {
+      if (declaration.id.type !== AST_NODE_TYPES.Identifier || bodies.has(declaration.id.name)) {
         continue;
       }
       bodies.set(declaration.id.name, floorlessVariableBody(declaration, sourceCode));
@@ -334,8 +344,8 @@ function floorlessComponentBodies(program: TSESTree.Program, sourceCode: Source)
 }
 
 function floorlessMapCall(node: TSESTree.Node | undefined, sourceCode: Source): TSESTree.CallExpression | undefined {
-  const call = node?.type === "ChainExpression" ? node.expression : node;
-  if (call?.type !== "CallExpression" || call.callee.type !== "MemberExpression" || call.callee.computed) {
+  const call = node?.type === AST_NODE_TYPES.ChainExpression ? node.expression : node;
+  if (call?.type !== AST_NODE_TYPES.CallExpression || call.callee.type !== AST_NODE_TYPES.MemberExpression || call.callee.computed) {
     return;
   }
   return sourceCode.getText(call.callee).endsWith(".map") && (sourceCode.getFirstToken(call) as TSESTree.Token).range[0] === call.callee.range[0]
@@ -351,7 +361,7 @@ function floorlessDirectCallback(callback: TSESTree.Node, call: TSESTree.CallExp
 }
 
 function floorlessMappedRow(child: TSESTree.JSXChild, sourceCode: Source): TSESTree.JSXElement | undefined {
-  if (child.type !== "JSXExpressionContainer") {
+  if (child.type !== AST_NODE_TYPES.JSXExpressionContainer) {
     return;
   }
   const call = floorlessMapCall(child.expression, sourceCode);
@@ -359,7 +369,11 @@ function floorlessMappedRow(child: TSESTree.JSXChild, sourceCode: Source): TSEST
     return;
   }
   const callback = call.arguments[0];
-  if (callback?.type !== "ArrowFunctionExpression" || !floorlessDirectCallback(callback, call, sourceCode) || callback.body.type !== "JSXElement") {
+  if (
+    callback?.type !== AST_NODE_TYPES.ArrowFunctionExpression ||
+    !floorlessDirectCallback(callback, call, sourceCode) ||
+    callback.body.type !== AST_NODE_TYPES.JSXElement
+  ) {
     return;
   }
   // ESTree erases parentheses; the declared map-row grammar unwraps exactly one return wrapper.
@@ -379,18 +393,20 @@ export const floorlessControlRule = (floorlessControls: ReadonlySet<string>): Or
     let bodies: ReturnType<typeof floorlessComponentBodies>;
     const rowIsFloorless = (element: TSESTree.JSXElement): boolean => {
       const opening = element.openingElement;
-      const ownClass = opening.attributes.find((attribute) => attribute.type === "JSXAttribute" && attribute.name.name === "className");
+      const ownClass = opening.attributes.find((attribute) => attribute.type === AST_NODE_TYPES.JSXAttribute && attribute.name.name === "className");
       if (ownClass !== undefined && FLOORLESS_ROW_FLOOR.test(sourceCode.getText(ownClass))) {
         return false;
       }
-      if (opening.attributes.some((attribute) => attribute.type === "JSXAttribute" && FLOORLESS_ROW_TOUCH_FLOOR.test(sourceCode.getText(attribute)))) {
+      if (
+        opening.attributes.some((attribute) => attribute.type === AST_NODE_TYPES.JSXAttribute && FLOORLESS_ROW_TOUCH_FLOOR.test(sourceCode.getText(attribute)))
+      ) {
         return false;
       }
       return (counts.get(element) ?? 0) > 0 || (counts.get(bodies.get(sourceCode.getText(opening.name))) ?? 0) > 0;
     };
     const mappedWithin = (owner: TSESTree.JSXOpeningElement, container: TSESTree.JSXElement): boolean => {
       let current: TSESTree.Node | undefined = owner.parent;
-      while (current.type !== "Program" && current !== container) {
+      while (current.type !== AST_NODE_TYPES.Program && current !== container) {
         if (["ArrowFunctionExpression", "FunctionExpression"].includes(current.type)) {
           const call = floorlessMapCall(current.parent, sourceCode);
           if (call !== undefined && floorlessDirectCallback(current, call, sourceCode)) {
@@ -408,7 +424,7 @@ export const floorlessControlRule = (floorlessControls: ReadonlySet<string>): Or
       }
       return ancestors.findLast(
         (current): current is TSESTree.JSXElement =>
-          current.type === "JSXElement" && !current.openingElement.selfClosing && FLOORLESS_WRAP.test(sourceCode.getText(current.openingElement)),
+          current.type === AST_NODE_TYPES.JSXElement && !current.openingElement.selfClosing && FLOORLESS_WRAP.test(sourceCode.getText(current.openingElement)),
       );
     };
     const report = (start: number, token: string): void =>
@@ -419,7 +435,7 @@ export const floorlessControlRule = (floorlessControls: ReadonlySet<string>): Or
       });
     const rowWeight = (child: TSESTree.JSXChild): number => {
       const mapped = floorlessMappedRow(child, sourceCode);
-      const row = child.type === "JSXElement" ? child : mapped;
+      const row = child.type === AST_NODE_TYPES.JSXElement ? child : mapped;
       if (row === undefined || !rowIsFloorless(row)) {
         return 0;
       }

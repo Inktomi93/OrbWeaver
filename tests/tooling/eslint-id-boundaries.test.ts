@@ -5,7 +5,8 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
-
+import type { ResolvedConfig } from "./_eslint-config.ts";
+import { resolvedConfig } from "./_eslint-config.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 // The first case loads the whole flat config, which dwarfs every later one.
@@ -23,9 +24,9 @@ const SERVER = "packages/server/src/probe.ts";
 const CONTRACTS = "packages/contracts/src/probe.ts";
 
 const eslints = new Map<string, ESLint>();
-const configs = new Map<string, ReturnType<ESLint["calculateConfigForFile"]>>();
+const configs = new Map<string, Promise<ResolvedConfig>>();
 
-async function configFor(root: string, filename: string): ReturnType<ESLint["calculateConfigForFile"]> {
+async function configFor(root: string, filename: string): Promise<ResolvedConfig> {
   const key = `${root}\0${filename}`;
   let config = configs.get(key);
   if (config === undefined) {
@@ -34,7 +35,7 @@ async function configFor(root: string, filename: string): ReturnType<ESLint["cal
       eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: root });
       eslints.set(root, eslint);
     }
-    config = eslint.calculateConfigForFile(filename);
+    config = resolvedConfig(eslint, filename);
     configs.set(key, config);
   }
   return await config;
@@ -51,7 +52,7 @@ async function messages(root: string, rule: string, source: string, path: string
       plugins: config.plugins,
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, ecmaFeatures: { jsx: true } } },
       linterOptions: { reportUnusedDisableDirectives: "error" },
-      rules: { [rule]: config.rules?.[rule] ?? "off" },
+      rules: { [rule]: config.rules[rule] ?? "off" },
     },
     { filename },
   );

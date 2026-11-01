@@ -1018,7 +1018,7 @@ export const automationActionViewSchema = z.union([
 /** A complete authored replacement, excluding authority, lifecycle and birth metadata. */
 export const automationRuleEditableSchema = z.strictObject({
   // SQLite's name CHECK counts code points, not UTF-16 units; existing astral names must remain editable.
-  name: z.string().refine((name) => name.length > 0 && [...name].length <= AUTOMATION_RULE_NAME_MAX_CHARS, {
+  name: z.string().refine((name) => name.length > 0 && Array.from(name).length <= AUTOMATION_RULE_NAME_MAX_CHARS, {
     error: `name must contain 1..${AUTOMATION_RULE_NAME_MAX_CHARS} characters`,
   }),
   description: z.string().nullable().optional(),

@@ -99,7 +99,9 @@ export function rpgNpcSlug(name: string): string {
   if (slug !== "") {
     return slug;
   }
-  const points = [...trimmed].map((ch) => (ch.codePointAt(0) ?? 0).toString(CODE_POINT_RADIX)).join(NPC_SLUG_FALLBACK_MARK);
+  const points = Array.from(trimmed)
+    .map((ch) => (ch.codePointAt(0) ?? 0).toString(CODE_POINT_RADIX))
+    .join(NPC_SLUG_FALLBACK_MARK);
   return points === "" ? NPC_SLUG_FALLBACK : `${NPC_SLUG_FALLBACK}${NPC_SLUG_FALLBACK_MARK}${points}`;
 }
 

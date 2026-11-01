@@ -392,7 +392,8 @@ export async function dispatchBridgeCall(
       );
     case "chat.requestTurn":
       exact(args, THREE_ARGUMENTS, operation);
-      return await bridge.chat.requestTurn(chatAt(args, 0, operation), numberAt(args, 1, operation), recordAt(args, 2, operation));
+      await bridge.chat.requestTurn(chatAt(args, 0, operation), numberAt(args, 1, operation), recordAt(args, 2, operation));
+      return undefined;
     case "worldInfo.listBooks":
       exact(args, 1, operation);
       return await bridge.worldInfo.listBooks(chatAt(args, 0, operation));
@@ -401,7 +402,8 @@ export async function dispatchBridgeCall(
       return await bridge.worldInfo.listEntries(chatAt(args, 0, operation), stringAt(args, 1, operation));
     case "worldInfo.upsertEntry":
       exact(args, 2, operation);
-      return await bridge.worldInfo.upsertEntry(chatAt(args, ARG_FIRST, operation), worldEntryAt(args, ARG_SECOND, operation));
+      await bridge.worldInfo.upsertEntry(chatAt(args, ARG_FIRST, operation), worldEntryAt(args, ARG_SECOND, operation));
+      return undefined;
     case "imagery.generatePicture":
       exact(args, 2, operation);
       return await bridge.imagery.generatePicture(
@@ -413,10 +415,12 @@ export async function dispatchBridgeCall(
       return await bridge.variables.get(stringAt(args, 0, operation));
     case "variables.set":
       exact(args, 2, operation);
-      return await bridge.variables.set(stringAt(args, 0, operation), stringAt(args, 1, operation));
+      await bridge.variables.set(stringAt(args, 0, operation), stringAt(args, 1, operation));
+      return undefined;
     case "variables.delete":
       exact(args, 1, operation);
-      return await bridge.variables.delete(stringAt(args, 0, operation));
+      await bridge.variables.delete(stringAt(args, 0, operation));
+      return undefined;
     case "assets.read":
       exact(args, 1, operation);
       return await bridge.assets.read(stringAt(args, 0, operation));
@@ -434,10 +438,12 @@ export async function dispatchBridgeCall(
       return await bridge.storage.get(stringAt(args, 0, operation));
     case "storage.set":
       exact(args, 2, operation);
-      return await bridge.storage.set(stringAt(args, 0, operation), stringAt(args, 1, operation));
+      await bridge.storage.set(stringAt(args, 0, operation), stringAt(args, 1, operation));
+      return undefined;
     case "storage.delete":
       exact(args, 1, operation);
-      return await bridge.storage.delete(stringAt(args, 0, operation));
+      await bridge.storage.delete(stringAt(args, 0, operation));
+      return undefined;
     case "storage.list":
       exact(args, 1, operation);
       return await bridge.storage.list(optionalStringAt(args, 0, operation));
@@ -446,11 +452,12 @@ export async function dispatchBridgeCall(
       return await bridge.storage.compareAndSet(stringAt(args, 0, operation), nullableStringAt(args, 1, operation), stringAt(args, 2, operation));
     case "notifications.post":
       exact(args, THREE_ARGUMENTS, operation);
-      return await bridge.notifications.post(
+      await bridge.notifications.post(
         chatAt(args, 0, operation),
         PLUGIN_NOTIFICATION_RECIPIENTS.find((candidate) => candidate === stringAt(args, 1, operation)) ?? invalid(operation),
         stringAt(args, 2, operation),
       );
+      return undefined;
     case "llm.quiet":
       exact(args, 2, operation);
       return await bridge.llm.quiet(
@@ -460,22 +467,27 @@ export async function dispatchBridgeCall(
       );
     case "suggest":
       exact(args, 2, operation);
-      return await bridge.suggest(chatAt(args, 0, operation), recordAt(args, 1, operation) as Parameters<PluginBridge["suggest"]>[1]);
+      await bridge.suggest(chatAt(args, 0, operation), recordAt(args, 1, operation) as Parameters<PluginBridge["suggest"]>[1]);
+      return undefined;
     case "surfaceQuickReply":
       exact(args, 2, operation);
-      return await bridge.surfaceQuickReply(chatAt(args, 0, operation), arrayAt(args, 1, operation) as Parameters<PluginBridge["surfaceQuickReply"]>[1]);
+      await bridge.surfaceQuickReply(chatAt(args, 0, operation), arrayAt(args, 1, operation) as Parameters<PluginBridge["surfaceQuickReply"]>[1]);
+      return undefined;
     case "ui.setState":
       exact(args, THREE_ARGUMENTS, operation);
-      return await bridge.ui.setState(stringAt(args, 0, operation), recordAt(args, 1, operation), args[2] === null ? null : chatAt(args, 2, operation));
+      await bridge.ui.setState(stringAt(args, 0, operation), recordAt(args, 1, operation), args[2] === null ? null : chatAt(args, 2, operation));
+      return undefined;
     case "ui.toast":
       exact(args, 2, operation);
-      return await bridge.ui.toast(
+      await bridge.ui.toast(
         PLUGIN_TOAST_LEVELS.find((candidate) => candidate === stringAt(args, 0, operation)) ?? invalid(operation),
         stringAt(args, 1, operation),
       );
+      return undefined;
     case "ui.openDialog":
       exact(args, 1, operation);
-      return await bridge.ui.openDialog(stringAt(args, 0, operation));
+      await bridge.ui.openDialog(stringAt(args, 0, operation));
+      return undefined;
     case "databank.ingest":
       exact(args, 1, operation);
       return await bridge.databank.ingest(recordAt(args, 0, operation) as Parameters<PluginBridge["databank"]["ingest"]>[0]);
@@ -487,7 +499,8 @@ export async function dispatchBridgeCall(
       return await bridge.character.ingestAsset(stringAt(args, 0, operation));
     case "character.setCardData":
       exact(args, 2, operation);
-      return await bridge.character.setCardData(stringAt(args, 0, operation), recordAt(args, 1, operation));
+      await bridge.character.setCardData(stringAt(args, 0, operation), recordAt(args, 1, operation));
+      return undefined;
     case "character.getCardData":
       exact(args, 1, operation);
       return await bridge.character.getCardData(stringAt(args, 0, operation));
@@ -496,7 +509,8 @@ export async function dispatchBridgeCall(
       return await bridge.character.findCardData(arrayAt(args, 0, operation).map((_, index, values) => stringAt(values, index, operation)));
     case "pubsub.emit":
       exact(args, 2, operation);
-      return await bridge.pubsub.emit(stringAt(args, 0, operation), recordAt(args, 1, operation));
+      await bridge.pubsub.emit(stringAt(args, 0, operation), recordAt(args, 1, operation));
+      return undefined;
   }
 }
 

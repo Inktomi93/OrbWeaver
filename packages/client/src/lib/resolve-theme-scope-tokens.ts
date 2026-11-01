@@ -79,7 +79,7 @@ export function resolveThemeScopeTokens(theme: Theme | null, appearanceDensity: 
   if (theme === null) {
     return { tokens: {}, density: appearanceDensity, ambientBackground: BASE_THEME_BACKGROUND, ambientAccent: BASE_THEME_ACCENT };
   }
-  if (theme.isSeed === true) {
+  if (theme.isSeed) {
     const ambient = seedAmbient(theme.name);
     return { tokens: {}, density: appearanceDensity, ambientBackground: ambient.background, ambientAccent: ambient.accent };
   }

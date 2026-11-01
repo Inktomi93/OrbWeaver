@@ -80,7 +80,7 @@ test("the WORST side carries the verdict, and a borderless subject is refused ra
     expect(split.outcome.failed).toBe(true);
     const splitReceipt =
       split.evidence.status !== "ok" ||
-      (split.evidence.passed === false &&
+      (!split.evidence.passed &&
         split.outcome.line.includes("worst side bottom") &&
         split.outcome.line.includes("top:") &&
         split.outcome.line.includes("bottom:"));

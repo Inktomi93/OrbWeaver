@@ -6,9 +6,10 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { earlyHints } from "@hono/node-server/early-hints";
 import { serveStatic } from "@hono/node-server/serve-static";
-import type { Hono } from "hono";
+import type { Context, Hono, Next } from "hono";
 import { COMPRESSIBLE_CONTENT_TYPE_REGEX, compress } from "hono/compress";
 import { etag } from "hono/etag";
+import type { BlankEnv } from "hono/types";
 import { parseAccept } from "hono/utils/accept";
 import { getMimeType } from "hono/utils/mime";
 import type { Logger } from "#foundation/observability";
@@ -166,7 +167,7 @@ export function registerSpa(app: Hono, deps: SpaDeps): void {
   });
   // Register after the API routes so compression cannot buffer their streaming responses.
   app.use("*", compress({ threshold: 0 }));
-  app.use("*", (c, next) => {
+  app.use("*", (c: Context<BlankEnv, string>, next: Next) => {
     if (
       c.req.method !== "GET" ||
       isApiPath(c.req.path) ||
@@ -185,7 +186,7 @@ export function registerSpa(app: Hono, deps: SpaDeps): void {
     return next();
   });
   const revalidate = etag({ weak: true });
-  app.use("*", async (c, next) => {
+  app.use("*", async (c: Context<BlankEnv, string>, next: Next) => {
     await next();
     if (c.req.method === "GET" && c.res.status === OK_STATUS && c.res.headers.get("content-type")?.startsWith(HTML_MEDIA_TYPE) === true) {
       // Hono replaces the response on 304; restore the cache policy and negotiated representation key.

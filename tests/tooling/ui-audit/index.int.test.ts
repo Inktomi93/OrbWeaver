@@ -15,7 +15,6 @@
 // carry a <main> landmark so the only P1-severity finding in play is the planted one.
 import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
 import type { AuditRuleProof } from "@orb/testkit/node";
@@ -25,6 +24,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import type { Finding } from "@orb/tooling/ui-audit";
 import { vi } from "vitest";
 import { scaledBudget } from "../_load-budget.ts";
+import { listeningAddress } from "../_server-address.ts";
 
 const CLI_TIMEOUT_MS = scaledBudget(90_000);
 // Every test here boots a real headless chromium, so the SPAWN cap (above) is the meaningful ceiling —
@@ -565,7 +565,7 @@ function serveOnce(html: string, status = 200): Promise<{ readonly base: string;
   });
   return new Promise((resolve) => {
     server.listen(0, "127.0.0.1", () => {
-      const addr = server.address() as AddressInfo;
+      const addr = listeningAddress(server);
       resolve({
         base: `http://127.0.0.1:${addr.port}`,
         close: (): void => {
@@ -1087,7 +1087,7 @@ fetch('/api/trpc/settings.getUserSettings?batch=1&input=%7B%7D').then((response)
   });
   return new Promise((resolve) => {
     server.listen(0, "127.0.0.1", () => {
-      const address = server.address() as AddressInfo;
+      const address = listeningAddress(server);
       resolve({
         base: `http://127.0.0.1:${address.port}`,
         close: (): void => {
@@ -2155,7 +2155,7 @@ function serveCssOnce(css: string): Promise<{ readonly href: string; readonly cl
   });
   return new Promise((resolve) => {
     server.listen(0, "127.0.0.1", () => {
-      const addr = server.address() as AddressInfo;
+      const addr = listeningAddress(server);
       resolve({
         href: `http://127.0.0.1:${addr.port}/x.css`,
         close: (): void => {

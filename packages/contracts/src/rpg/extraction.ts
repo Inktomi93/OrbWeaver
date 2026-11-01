@@ -159,7 +159,7 @@ function removeField(node: unknown, field: string): void {
   if (props === undefined) {
     return;
   }
-  delete props[field];
+  (node as JsonSchemaNode)["properties"] = Object.fromEntries(Object.entries(props).filter(([key]) => key !== field));
   const req = (node as JsonSchemaNode)["required"];
   if (Array.isArray(req)) {
     (node as JsonSchemaNode)["required"] = (req as string[]).filter((k) => k !== field);

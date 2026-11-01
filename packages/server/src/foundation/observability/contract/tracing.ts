@@ -48,6 +48,6 @@ export interface TraceRing {
 
 /** The two detached-work boundaries one root's logger and trace ring record (`createDetachedSupervision`). */
 export interface DetachedSupervision {
-  readonly superviseDetached: (requestId: string, name: string, attrs: SpanAttrs, operation: () => Promise<unknown> | unknown) => void;
-  readonly superviseSettled: (requestId: string, name: string, attrs: SpanAttrs, operation: () => Promise<unknown> | unknown) => Promise<void>;
+  readonly superviseDetached: (requestId: string, name: string, attrs: SpanAttrs, operation: () => unknown) => void;
+  readonly superviseSettled: (requestId: string, name: string, attrs: SpanAttrs, operation: () => unknown) => Promise<void>;
 }

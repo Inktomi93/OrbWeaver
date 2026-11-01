@@ -236,7 +236,10 @@ test("native connection corpus spends its recipes after legitimate memory and pe
     expect(wire.requests).toHaveLength(0);
     wire.hostedCatalog();
     cold = await caller.connection.catalogModels({ connectionId });
-    expect(cold).toMatchObject({ listed: true, models: expect.arrayContaining([expect.objectContaining({ id: CORPUS_CONNECTION_HOSTED_MODEL })]) });
+    expect(cold).toMatchObject({
+      listed: true,
+      models: expect.arrayContaining([expect.objectContaining({ id: CORPUS_CONNECTION_HOSTED_MODEL })]),
+    });
     expect(wire.requests).toHaveLength(3);
     expect(wire.remaining()).toBe(0);
     expect(await caller.connection.catalogModels({ connectionId })).toEqual(cold);

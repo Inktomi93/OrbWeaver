@@ -11,13 +11,13 @@
 import { spawn } from "node:child_process";
 import type { Server } from "node:http";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/tooling";
 import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import { afterAll, beforeAll, vi } from "vitest";
 import { scaledBudget } from "../../_load-budget.ts";
+import { listeningAddress } from "../../_server-address.ts";
 
 // 4-up: tests/tooling/floor/<role> → repo root (re-derived at the P2 relocation — the depth-derived-root class).
 const ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
@@ -117,7 +117,7 @@ beforeAll(async () => {
   await new Promise<void>((resolve) => {
     server.listen(0, "127.0.0.1", resolve);
   });
-  base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  base = `http://127.0.0.1:${listeningAddress(server).port}`;
 });
 
 afterAll(async () => {

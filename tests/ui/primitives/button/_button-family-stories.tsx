@@ -1,4 +1,5 @@
 import { CtIsolation } from "@orb/testkit/browser";
+import { keysOf } from "@orb/testkit/iso";
 import { Avatar } from "@orb/ui/avatar";
 import { BUTTON_BOX_OVERFLOW } from "@orb/ui/button/box-hit-area";
 import { GlyphButton } from "@orb/ui/glyph-button";
@@ -8,7 +9,6 @@ import { PictureButton } from "@orb/ui/picture-button";
 import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 
-type GlyphStep = keyof typeof BUTTON_BOX_OVERFLOW.glyphButton;
 type InlineStep = keyof typeof BUTTON_BOX_OVERFLOW.inlineAction;
 
 // Each inline step's type pair, read off the tokens so a probe paints exactly what the step should.
@@ -24,7 +24,7 @@ export function ButtonFamilyBoxesStory(): ReactElement {
   return (
     <CtIsolation subject="The button family's boxes" isolates="GlyphButton, InlineAction and PictureButton at each step, each beside its token probe">
       <div style={{ display: "flex", flexDirection: "column", gap: 48, padding: 48, alignItems: "flex-start" }}>
-        {(Object.keys(BUTTON_BOX_OVERFLOW.glyphButton) as GlyphStep[]).map((glyph) => (
+        {keysOf(BUTTON_BOX_OVERFLOW.glyphButton).map((glyph) => (
           <div key={glyph} style={{ display: "flex", gap: 48 }}>
             <GlyphButton aria-label={`Glyph ${glyph}`} glyph={glyph} variant="ghost">
               <Icon icon={Circle} size="xs" />
@@ -35,7 +35,7 @@ export function ButtonFamilyBoxesStory(): ReactElement {
             />
           </div>
         ))}
-        {(Object.keys(BUTTON_BOX_OVERFLOW.inlineAction) as InlineStep[]).map((step) => (
+        {keysOf(BUTTON_BOX_OVERFLOW.inlineAction).map((step) => (
           <div key={step} style={{ display: "flex", gap: 48 }}>
             <InlineAction step={step}>{`Inline ${step}`}</InlineAction>
             <span data-probe={`inline-${step}`} style={{ fontSize: cssVar(INLINE_TYPE[step].size), lineHeight: cssVar(INLINE_TYPE[step].leading) }}>

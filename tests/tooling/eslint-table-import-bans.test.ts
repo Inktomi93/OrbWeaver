@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
+import { resolvedConfig } from "./_eslint-config.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
@@ -21,7 +22,7 @@ type Row = readonly [path: string, source: string, expected: Partial<Record<Rule
 const VECTOR_TABLES = ["characterEmbeddings", "imageEmbeddings", "chatDigests", "chatSegments", "chatDigestSpeakers", "documentChunks"] as const;
 
 async function counts(path: string, source: string): Promise<Record<Rule, number>> {
-  const config = await eslint.calculateConfigForFile(join(ROOT, path));
+  const config = await resolvedConfig(eslint, join(ROOT, path));
   expect(config, path).toBeDefined();
   const rules = Object.fromEntries(RULES.flatMap((rule) => (config.rules[rule] === undefined ? [] : [[rule, config.rules[rule]]])));
   const messages = new Linter().verify(

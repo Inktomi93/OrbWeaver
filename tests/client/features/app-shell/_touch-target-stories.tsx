@@ -1,4 +1,5 @@
 import { CtIsolation } from "@orb/testkit/browser";
+import { keysOf } from "@orb/testkit/iso";
 import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, AccordionTrigger } from "@orb/ui/accordion";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
@@ -22,7 +23,7 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
 
 const steps = <Component extends keyof typeof BUTTON_BOX_OVERFLOW>(component: Component): (keyof (typeof BUTTON_BOX_OVERFLOW)[Component])[] =>
-  Object.keys(BUTTON_BOX_OVERFLOW[component]) as (keyof (typeof BUTTON_BOX_OVERFLOW)[Component])[];
+  keysOf(BUTTON_BOX_OVERFLOW[component]);
 
 /** Every interactive `@orb/ui` primitive, one of each button-family box, spaced so a neighbour never answers another control's hit test. */
 export function InteractivePrimitivesStory(): ReactElement {

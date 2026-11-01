@@ -13,7 +13,7 @@ import {
   embedSpaceState,
   imageEmbeddings,
 } from "@orb/db";
-import type { BatchStmt } from "@orb/db/query";
+import type { RowsAffectedStmt } from "@orb/db/query";
 import { batchMany, batchStmt } from "@orb/db/query";
 import type { UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
@@ -48,7 +48,7 @@ interface RetireScope {
 
 // A generation belongs to one owner and task, so the owner's vectors are the rows of their generations. Scoping
 // through the producers instead would miss a chat with no present host, whose vectors the owner still funded.
-function retiredVectorStatements(db: Db, { ownerId, task, keep, onlyIf }: RetireScope): BatchStmt[] {
+function retiredVectorStatements(db: Db, { ownerId, task, keep, onlyIf }: RetireScope): RowsAffectedStmt[] {
   const retired = db
     .select({ id: embedGenerations.id })
     .from(embedGenerations)
@@ -223,7 +223,7 @@ export async function markGenerationComplete(
     const promotionGuard = sql`${guard(input.ownerId, input.generation)} and ${input.onlyIf}`;
     // A refused empty claim must not leave a candidate for an unrelated later scope to promote.
     const results = await db.batch(batchMany([batchStmt(candidate), ...generationPromotionStatements(db, input, promotionGuard)]));
-    if ((results[0]?.rowsAffected ?? 0) === 0) {
+    if (results[0].rowsAffected === 0) {
       throw new Error("empty owner memory scope or target changed before completion");
     }
     return !alreadyActive && (results.at(-1)?.rowsAffected ?? 0) > 0;
@@ -253,9 +253,9 @@ function generationPromotionStatements(
   db: Db,
   input: Pick<Parameters<typeof markGenerationComplete>[1], "ownerId" | "generation" | "now">,
   promotionGuard: SQL,
-): BatchStmt[] {
+): RowsAffectedStmt[] {
   const required = VECTOR_SCOPES_BY_TASK[input.generation.task];
-  const statements: BatchStmt[] = retiredVectorStatements(db, {
+  const statements: RowsAffectedStmt[] = retiredVectorStatements(db, {
     ownerId: input.ownerId,
     task: input.generation.task,
     keep: input.generation.id,

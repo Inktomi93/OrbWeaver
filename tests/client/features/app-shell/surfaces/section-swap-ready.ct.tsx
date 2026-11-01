@@ -2,6 +2,7 @@
 // read is in flight, so the crossfade lands on a settled pane and never on a blank one. Reduced motion raises no transition.
 
 import { seedShellState } from "@orb/testkit/browser/spec";
+import type { HeldCorpusProcedure } from "@orb/testkit/ct";
 import { createShellAmbientReads, holdCorpusProcedure, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -64,7 +65,7 @@ const FAMILIES = [
   { name: "the Plugin pages empty pane", label: SECTION_LABELS.extensions, held: "plugin.list" },
 ] as const satisfies readonly { readonly name: string; readonly label: string; readonly held: HeldPath }[];
 
-async function routeHeld(page: Page, corpus: Parameters<typeof createShellAmbientReads>[0], path: HeldPath): Promise<ReturnType<typeof holdCorpusProcedure>> {
+async function routeHeld(page: Page, corpus: Parameters<typeof createShellAmbientReads>[0], path: HeldPath): Promise<HeldCorpusProcedure<HeldPath>> {
   const caller = await root.internalCallerFor(root.ownerId);
   const held = holdCorpusProcedure(caller, path);
   await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, SECTION_PROCEDURES), ...held.routes });
@@ -111,10 +112,10 @@ for (const family of FAMILIES) {
       FRAMES_PAST_QUIET,
     );
     // The swap has had far longer than it needs to settle on a pane that ignores its read, and has not: the outgoing frame holds.
-    expect(await page.evaluate((key) => Reflect.get(globalThis, key), SETTLED_KEY)).toBeUndefined();
+    expect(await page.evaluate((key): unknown => Reflect.get(globalThis, key), SETTLED_KEY)).toBeUndefined();
     held.release();
     // It settles on a ready pane, and the pane shows.
-    await expect.poll(() => page.evaluate((key) => Reflect.get(globalThis, key), SETTLED_KEY)).toBe("true");
+    await expect.poll(() => page.evaluate((key): unknown => Reflect.get(globalThis, key), SETTLED_KEY)).toBe("true");
     await expect(page.locator(".shell-content [data-ready]")).toHaveCSS("opacity", "1");
   });
 
@@ -130,6 +131,6 @@ for (const family of FAMILIES) {
     held.release();
     await expect(page.locator(".shell-content [data-ready]")).toHaveAttribute("data-ready", "true");
     await expect(page.locator(".shell-content [data-ready]")).toHaveCSS("opacity", "1");
-    expect(await page.evaluate((key) => Reflect.get(globalThis, key), STARTED_KEY)).toBe(0);
+    expect(await page.evaluate((key): unknown => Reflect.get(globalThis, key), STARTED_KEY)).toBe(0);
   });
 }

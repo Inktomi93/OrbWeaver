@@ -48,6 +48,7 @@ import { applyPromptHistoryRegex } from "./history-regex.ts";
 import { frameInjection, spliceInChatInjections } from "./injections.ts";
 import { renderHistoryMacros } from "./macros.ts";
 import { applyNamesBehavior } from "./names.ts";
+import type { SquashRow } from "./role-squash.ts";
 import { MERGE_SEPARATOR, squashRuns, squashSameRole } from "./role-squash.ts";
 import { hasMultipleCharacters } from "./speaker-stamp.ts";
 
@@ -544,10 +545,7 @@ interface SquashMode {
  *  "which inputs became this row" to report a merged row's provenance. ONE rule, two readers
  *  (`role-squash::squashRuns` is what `squashSameRole` is built on), so the trace cannot drift from the wire.
  *  `merges === false` is the pass-through arm: empties drop, nothing groups. */
-function squashRunsFor<T extends { role: MessageRole; content: string; name?: string; messageId?: MessageId | undefined }>(
-  rows: readonly T[],
-  mode: SquashMode,
-): readonly (readonly number[])[] {
+function squashRunsFor(rows: readonly SquashRow[], mode: SquashMode): readonly (readonly number[])[] {
   return mode.merges
     ? squashRuns(rows, mode)
     : rows.flatMap((row, index) =>

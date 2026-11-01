@@ -56,7 +56,7 @@ async function markContrastCandidates(page: Page, selector: string): Promise<num
     // index travel through the explicit `arg`, never the closure.
     await loc.nth(i).evaluate(
       (element, args) => {
-        const setAttribute = Reflect.get(element, "setAttribute");
+        const setAttribute: unknown = Reflect.get(element, "setAttribute");
         if (typeof setAttribute !== "function") {
           throw new Error("contrast target has no setAttribute method");
         }

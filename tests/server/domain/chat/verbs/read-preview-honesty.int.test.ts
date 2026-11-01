@@ -366,3 +366,28 @@ test("the template readout renders the inspected preset through the room's own i
   expect(impersonate).toContain("{{person}}");
   expect(impersonate).toContain("{{input}}");
 });
+
+test("a history pivot that is switched off sends no history: the preview prices none and the provider request carries no earlier turn", async () => {
+  const earlier = "an earlier line the model reads only while history is on";
+  const withPivot = (enabled: boolean): PromptConfig => ({
+    ...DEFAULT_PROMPT_CONFIG,
+    sections: DEFAULT_PROMPT_CONFIG.sections.map((section) =>
+      section.type === "marker" && section.marker === "chat_history" ? { ...section, enabled } : section,
+    ),
+  });
+  const sentWith = async (enabled: boolean): Promise<{ readonly historyTokens: number; readonly wire: string }> => {
+    await using h = await textRoom(["The keeper answers."], { promptConfig: withPivot(enabled) });
+    await h.root.services.chat.commitMessage({ principal: h.owner, chatId: h.chatId, content: earlier });
+    const { budget } = await preview(h);
+    await send(h);
+    return { historyTokens: budget.sources.find(({ source }) => source === "history")?.tokens ?? 0, wire: await newestWire(h) };
+  };
+
+  const on = await sentWith(true);
+  expect(on.historyTokens).toBeGreaterThan(0);
+  expect(on.wire).toContain(earlier);
+
+  const off = await sentWith(false);
+  expect(off.historyTokens).toBe(0);
+  expect(off.wire).not.toContain(earlier);
+});

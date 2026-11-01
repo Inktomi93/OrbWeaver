@@ -3,6 +3,7 @@ import { performance } from "node:perf_hooks";
 import type { CDPSession, Page } from "@playwright/test";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { budget } from "../../floor/host/load-budget.ts";
+import { readMember } from "../../floor/instrument/member.ts";
 import type { FilmstripCaptureReceipt, FilmstripLimits } from "../contract/filmstrip.ts";
 import { FILMSTRIP_LIMITS } from "../contract/filmstrip.ts";
 import type { SnapAction } from "../contract/types.ts";
@@ -141,8 +142,8 @@ function retainFrame(buffer: FilmstripBuffer, event: ScreencastFrameEvent, now: 
 }
 
 function screencastFrameEvent(value: object): ScreencastFrameEvent | null {
-  const data = Reflect.get(value, "data");
-  const sessionId = Reflect.get(value, "sessionId");
+  const data = readMember(value, "data");
+  const sessionId = readMember(value, "sessionId");
   return typeof data === "string" && Number.isInteger(sessionId) ? { data, sessionId: Number(sessionId) } : null;
 }
 

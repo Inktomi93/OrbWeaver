@@ -2,6 +2,7 @@ import { isPrimitive } from "@orb/kit/guards";
 import { createTimeLib } from "@orb/kit/time";
 import type { ConsoleMessage } from "@playwright/test";
 import { exactScope } from "../artifacts/artifact-scope.ts";
+import { readMember } from "../instrument/member.ts";
 import type { BrowserDiagnostic, BrowserDiagnosticDetails, DiagnosticLevel, DiagnosticWindow } from "./browser-contract.ts";
 import type { BoundedEvidenceRing } from "./browser-evidence-ring.ts";
 
@@ -57,9 +58,9 @@ export function recordAuditIssue(
   identity: DiagnosticIdentity,
   issue: { readonly code: string; readonly details: unknown },
 ): void {
-  const generic = typeof issue.details === "object" && issue.details !== null ? Reflect.get(issue.details, "genericIssueDetails") : null;
+  const generic = typeof issue.details === "object" && issue.details !== null ? readMember(issue.details, "genericIssueDetails") : null;
   const errorType =
-    typeof generic === "object" && generic !== null && typeof Reflect.get(generic, "errorType") === "string" ? String(Reflect.get(generic, "errorType")) : null;
+    typeof generic === "object" && generic !== null && typeof readMember(generic, "errorType") === "string" ? String(readMember(generic, "errorType")) : null;
   ring.push(
     {
       origin: "audits",

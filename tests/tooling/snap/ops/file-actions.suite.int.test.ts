@@ -83,7 +83,12 @@ test("--upload reaches direct/descendant inputs and prints the selected file ide
   expect(corePath).toBeDefined();
   const core = JSON.parse(readFileSync(corePath ?? "", "utf8")) as { readonly captures: readonly { readonly fileActions: readonly unknown[] }[] };
   expect(core.captures[0]?.fileActions).toEqual([
-    expect.objectContaining({ kind: "upload", feeder: "input", files: 1, identities: [expect.objectContaining({ relativePath: "fixture.txt" })] }),
+    expect.objectContaining({
+      kind: "upload",
+      feeder: "input",
+      files: 1,
+      identities: [expect.objectContaining({ relativePath: "fixture.txt" })],
+    }),
   ]);
 });
 

@@ -195,4 +195,4 @@ export const test = base.extend<Fixtures>({
   },
 });
 
-export { expect } from "vitest";
+export { expect } from "./expect.ts";

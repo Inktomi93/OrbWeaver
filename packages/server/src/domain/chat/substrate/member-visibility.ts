@@ -192,8 +192,10 @@ type ListedViewType = (typeof VIEW_EVENT_TYPES)[number];
 // view-carrying bus member (missing from the list) OR a listed non-view type makes it RED until fixed, so the
 // strip can never silently miss a canon-body carrier.
 type AssertExtends<A, B> = [A] extends [B] ? true : never;
-const _VIEW_EVENT_COVERAGE: [AssertExtends<ViewCarryingType, ListedViewType>, AssertExtends<ListedViewType, ViewCarryingType>] = [true, true];
-void _VIEW_EVENT_COVERAGE;
+const [_viewCarryingTypesAreListed, _listedTypesCarryViews]: [
+  AssertExtends<ViewCarryingType, ListedViewType>,
+  AssertExtends<ListedViewType, ViewCarryingType>,
+] = [true, true];
 type ViewCarryingEvent = Extract<ChatBusEvent, { type: (typeof VIEW_EVENT_TYPES)[number] }>;
 
 function isViewCarrying(event: ChatBusEvent): event is ViewCarryingEvent {

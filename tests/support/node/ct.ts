@@ -2,7 +2,7 @@
 
 export { emulateSoftKeyboard } from "@orb/tooling/floor/browser/soft-keyboard";
 export { channelName } from "./appearance-channel-name.ts";
-export type { ServedHold } from "./ct-corpus-procedures.ts";
+export type { HeldCorpusProcedure, ServedHold } from "./ct-corpus-procedures.ts";
 export { holdCorpusProcedure, holdServed, serveCorpusProcedures } from "./ct-corpus-procedures.ts";
 export { ROOM_PROCEDURES, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES } from "./ct-shell-procedures.ts";
 export { createShellAmbientReads } from "./ct-shell-reads.ts";

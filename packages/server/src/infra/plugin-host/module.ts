@@ -14,8 +14,6 @@ import type { QuickJSSyncVariant, QuickJSWASMModule } from "quickjs-emscripten-c
 import { newQuickJSWASMModuleFromVariant, newVariant } from "quickjs-emscripten-core";
 import { PLUGIN_WASM_MEMORY_INITIAL_BYTES, PLUGIN_WASM_MEMORY_MAX_BYTES } from "./budgets.ts";
 
-type WasmMemoryOption = NonNullable<Parameters<typeof newVariant>[1]["wasmMemory"]>;
-
 // The variant package ships ONE `dist/index.d.ts` for BOTH export conditions and declares no
 // `"type": "module"`, so `nodenext` types it as CJS (`typeof import(…)`, i.e. the namespace) while the
 // runtime resolves the `import` condition to a real ESM `index.mjs` whose default IS the variant. Under
@@ -35,7 +33,9 @@ function pages(bytes: number): number {
   return bytes / WASM_PAGE_BYTES;
 }
 
-function createWebAssemblyMemory(): WasmMemoryOption {
+// `object`, because the Node world has no DOM lib: the name `WebAssembly.Memory` does not resolve here, so the
+// library's `wasmMemory` option is an unresolved type that checks nothing either way.
+function createWebAssemblyMemory(): object {
   const namespace: unknown = Reflect.get(globalThis, "WebAssembly");
   if (typeof namespace !== "object" || namespace === null) {
     throw new Error("plugin host: WebAssembly is unavailable");
@@ -49,7 +49,7 @@ function createWebAssemblyMemory(): WasmMemoryOption {
       initial: pages(PLUGIN_WASM_MEMORY_INITIAL_BYTES),
       maximum: pages(PLUGIN_WASM_MEMORY_MAX_BYTES),
     },
-  ]) as WasmMemoryOption;
+  ]) as object;
   // quickjs-emscripten-core holds typed-array views of this memory across FFI calls that can malloc: the
   // context-lifetime `uint32Out` behind getLength/getOwnPropertyNames, and the out-pointer arrays of newPromise
   // and executePendingJobs. A plain `memory.grow` detaches the old buffer under those views, so the next read

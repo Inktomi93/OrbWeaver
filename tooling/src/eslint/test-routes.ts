@@ -1,6 +1,6 @@
 import type { RuleVisitor } from "@eslint/core";
-import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
-import { AST_NODE_TYPES } from "@typescript-eslint/utils";
+import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import ts from "typescript";
 import { constantInitializer, staticKeyName, unwrapTsValue } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
@@ -27,10 +27,10 @@ const VERDICT = { error: "error", answers: "answers", fixed: "fixed" } as const;
 type Verdict = (typeof VERDICT)[keyof typeof VERDICT];
 
 const isResponder = (node: TSESTree.Node): node is Responder =>
-  node.type === "ArrowFunctionExpression" || node.type === "FunctionExpression" || node.type === "FunctionDeclaration";
+  node.type === AST_NODE_TYPES.ArrowFunctionExpression || node.type === AST_NODE_TYPES.FunctionExpression || node.type === AST_NODE_TYPES.FunctionDeclaration;
 
 const isTrpcErrorCall = (node: TSESTree.Node): boolean =>
-  node.type === "CallExpression" && node.callee.type === "Identifier" && node.callee.name === "trpcError";
+  node.type === AST_NODE_TYPES.CallExpression && node.callee.type === AST_NODE_TYPES.Identifier && node.callee.name === "trpcError";
 
 export interface Native {
   readonly checker: ts.TypeChecker;
@@ -120,12 +120,12 @@ function childNodes(context: OrbRuleContext, node: TSESTree.Node): readonly TSES
 // The expressions a responder function returns on any path, not entering nested functions.
 function returnedValues(context: OrbRuleContext, fn: Responder): readonly TSESTree.Node[] {
   const visit = (node: TSESTree.Node): readonly TSESTree.Node[] => {
-    if (node.type === "ReturnStatement") {
+    if (node.type === AST_NODE_TYPES.ReturnStatement) {
       return node.argument === null ? [] : [node.argument];
     }
     return isResponder(node) ? [] : childNodes(context, node).flatMap(visit);
   };
-  return fn.body.type === "BlockStatement" ? visit(fn.body) : [fn.body];
+  return fn.body.type === AST_NODE_TYPES.BlockStatement ? visit(fn.body) : [fn.body];
 }
 
 const VALUE_COMPOSITIONS = new Set<TSESTree.Node["type"]>([
@@ -169,21 +169,21 @@ const EFFECT_EXPRESSIONS = new Set<TSESTree.Node["type"]>([
 ]);
 
 function hasImmediateEffect(context: OrbRuleContext, node: TSESTree.Node): boolean {
-  if (isResponder(node) || node.type === "ClassExpression" || node.type === "ClassDeclaration") {
+  if (isResponder(node) || node.type === AST_NODE_TYPES.ClassExpression || node.type === AST_NODE_TYPES.ClassDeclaration) {
     return false;
   }
-  if (EFFECT_EXPRESSIONS.has(node.type) || (node.type === "UnaryExpression" && node.operator === "delete")) {
+  if (EFFECT_EXPRESSIONS.has(node.type) || (node.type === AST_NODE_TYPES.UnaryExpression && node.operator === "delete")) {
     return true;
   }
   return childNodes(context, node).some((child) => hasImmediateEffect(context, child));
 }
 
 function controlsEffect(context: OrbRuleContext, node: TSESTree.Node, parent: TSESTree.Node): boolean {
-  if (parent.type === "LogicalExpression" && parent.left === node) {
+  if (parent.type === AST_NODE_TYPES.LogicalExpression && parent.left === node) {
     return hasImmediateEffect(context, parent.right);
   }
   return (
-    parent.type === "ConditionalExpression" &&
+    parent.type === AST_NODE_TYPES.ConditionalExpression &&
     parent.test === node &&
     (hasImmediateEffect(context, parent.consequent) || hasImmediateEffect(context, parent.alternate))
   );
@@ -194,21 +194,21 @@ function observedByParent(node: TSESTree.Node, parent: TSESTree.Node): boolean {
     return true;
   }
   switch (parent.type) {
-    case "ReturnStatement":
-    case "ThrowStatement":
+    case AST_NODE_TYPES.ReturnStatement:
+    case AST_NODE_TYPES.ThrowStatement:
       return true;
-    case "ArrowFunctionExpression":
+    case AST_NODE_TYPES.ArrowFunctionExpression:
       return parent.body === node;
-    case "IfStatement":
-    case "WhileStatement":
-    case "DoWhileStatement":
-    case "ForStatement":
-    case "SwitchCase":
+    case AST_NODE_TYPES.IfStatement:
+    case AST_NODE_TYPES.WhileStatement:
+    case AST_NODE_TYPES.DoWhileStatement:
+    case AST_NODE_TYPES.ForStatement:
+    case AST_NODE_TYPES.SwitchCase:
       return parent.test === node;
-    case "SwitchStatement":
+    case AST_NODE_TYPES.SwitchStatement:
       return parent.discriminant === node;
-    case "ForInStatement":
-    case "ForOfStatement":
+    case AST_NODE_TYPES.ForInStatement:
+    case AST_NODE_TYPES.ForOfStatement:
       return parent.right === node;
     default:
       return false;
@@ -222,7 +222,7 @@ function bindingObserved(context: OrbRuleContext, binding: TSESTree.VariableDecl
 }
 
 function functionValueObserved(context: OrbRuleContext, fn: Responder, seen: Set<TSESTree.Node>, root: Responder): boolean {
-  if (fn.type !== "FunctionDeclaration") {
+  if (fn.type !== AST_NODE_TYPES.FunctionDeclaration) {
     return meaningfulRead(context, fn, seen, root);
   }
   if (seen.has(fn)) {
@@ -233,7 +233,7 @@ function functionValueObserved(context: OrbRuleContext, fn: Responder, seen: Set
     .getDeclaredVariables(fn)
     .some(
       (variable) =>
-        variable.defs.some((definition) => definition.type === "FunctionName" && definition.node === fn) &&
+        variable.defs.some((definition) => definition.type === TSESLint.Scope.DefinitionType.FunctionName && definition.node === fn) &&
         variable.references.some((reference) => reference.isRead() && meaningfulRead(context, reference.identifier, seen, root)),
     );
 }
@@ -253,13 +253,13 @@ function meaningfulRead(context: OrbRuleContext, node: TSESTree.Node, seen: Set<
   if (parent === undefined) {
     return false;
   }
-  if (parent.type === "VariableDeclarator") {
+  if (parent.type === AST_NODE_TYPES.VariableDeclarator) {
     return bindingObserved(context, parent, seen, root);
   }
-  if (parent.type === "SequenceExpression") {
+  if (parent.type === AST_NODE_TYPES.SequenceExpression) {
     return parent.expressions.at(-1) === node && meaningfulRead(context, parent, seen, root);
   }
-  if (parent.type === "UnaryExpression") {
+  if (parent.type === AST_NODE_TYPES.UnaryExpression) {
     return parent.operator === "delete"
       ? withinObservedFunction(context, node, seen, root)
       : parent.operator !== "void" && meaningfulRead(context, parent, seen, root);
@@ -277,7 +277,7 @@ function readsParameter(context: OrbRuleContext, fn: Responder): boolean {
     .getDeclaredVariables(fn)
     .some(
       (variable: TSESLint.Scope.Variable) =>
-        variable.defs.some((def) => def.type === "Parameter") &&
+        variable.defs.some((def) => def.type === TSESLint.Scope.DefinitionType.Parameter) &&
         variable.references.some((reference) => reference.isRead() && meaningfulRead(context, reference.identifier, new Set(), fn)),
     );
 }
@@ -305,17 +305,17 @@ function responderVerdict(env: Env, fn: Responder, depth: number): Verdict {
 }
 
 function localCallableVerdict(env: Env, value: TSESTree.Node, depth: number): Verdict | undefined {
-  if (value.type === "Identifier") {
+  if (value.type === AST_NODE_TYPES.Identifier) {
     const declaration = env.native.checker.getSymbolAtLocation(env.native.toTs(value))?.valueDeclaration;
     const fn = declaration === undefined ? undefined : env.native.toEs(declaration);
     if (fn !== undefined && isResponder(fn)) {
       return responderVerdict(env, fn, depth + 1);
     }
   }
-  if (value.type === "CallExpression") {
+  if (value.type === AST_NODE_TYPES.CallExpression) {
     const declaration = env.native.checker.getSymbolAtLocation(env.native.toTs(value.callee))?.valueDeclaration;
     const declared = declaration === undefined ? undefined : env.native.toEs(declaration);
-    const fn = declared?.type === "VariableDeclarator" ? declared.init : declared;
+    const fn = declared?.type === AST_NODE_TYPES.VariableDeclarator ? declared.init : declared;
     if (fn !== undefined && fn !== null && isResponder(fn)) {
       return combine(returnedValues(env.context, fn).map((returned) => verdictOf(env, returned, depth + 1)));
     }
@@ -325,7 +325,7 @@ function localCallableVerdict(env: Env, value: TSESTree.Node, depth: number): Ve
 
 function verdictOf(env: Env, node: TSESTree.Node, depth = 0): Verdict {
   const value = unwrapTsValue(node);
-  if (value.type === "Identifier" && depth < BINDING_HOPS) {
+  if (value.type === AST_NODE_TYPES.Identifier && depth < BINDING_HOPS) {
     const bound = constantInitializer(env.context, value);
     if (bound !== undefined) {
       return verdictOf(env, bound, depth + 1);
@@ -338,7 +338,7 @@ function verdictOf(env: Env, node: TSESTree.Node, depth = 0): Verdict {
   if (isTrpcErrorCall(value)) {
     return VERDICT.error;
   }
-  if (value.type === "ConditionalExpression") {
+  if (value.type === AST_NODE_TYPES.ConditionalExpression) {
     return combine([verdictOf(env, value.consequent, depth + 1), verdictOf(env, value.alternate, depth + 1)]);
   }
   if (isResponder(value)) {
@@ -354,7 +354,7 @@ function isTypedRouteMap(context: OrbRuleContext, native: Native, object: TSESTr
     return false;
   }
   return object.properties.some((property) => {
-    const key = property.type === "Property" ? staticKeyName(context, property) : undefined;
+    const key = property.type === AST_NODE_TYPES.Property ? staticKeyName(context, property) : undefined;
     if (key === undefined || !key.includes(".")) {
       return false;
     }
@@ -394,7 +394,7 @@ export const ctResponderReadsInputRule: OrbRule = {
       for (const symbol of native.checker.getPropertiesOfType(type)) {
         const declaration = symbol.valueDeclaration;
         const property = declaration !== undefined && ts.isPropertyAssignment(declaration) ? native.toEs(declaration) : undefined;
-        if (property?.type === "Property") {
+        if (property?.type === AST_NODE_TYPES.Property) {
           judge(symbol.getName(), property);
         }
       }
@@ -402,7 +402,7 @@ export const ctResponderReadsInputRule: OrbRule = {
 
     return {
       "CallExpression[callee.type='Identifier']"(call: TSESTree.CallExpression): void {
-        const index = ROUTE_MAP_ARGUMENT.get(call.callee.type === "Identifier" ? call.callee.name : "");
+        const index = ROUTE_MAP_ARGUMENT.get(call.callee.type === AST_NODE_TYPES.Identifier ? call.callee.name : "");
         const map = index === undefined ? undefined : call.arguments[index];
         if (map !== undefined) {
           judgeMap(map);

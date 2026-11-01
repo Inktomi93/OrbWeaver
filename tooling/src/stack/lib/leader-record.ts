@@ -4,6 +4,7 @@
 import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
+import { readMember } from "../../floor/instrument/member.ts";
 import type { DevPinKey, LeaderProbes, LeaderRead, LeaderRecord, LeaderState, PinSource } from "../contract/types.ts";
 import { DEV_PIN_KEYS, PIN_SOURCES } from "../contract/types.ts";
 
@@ -35,20 +36,20 @@ function parsePins(value: unknown): LeaderRecord["pins"] | null {
   if (typeof value !== "object" || value === null) {
     return null;
   }
-  const values = Reflect.get(value, "values");
-  const sources = Reflect.get(value, "sources");
+  const values = readMember(value, "values");
+  const sources = readMember(value, "sources");
   if (typeof values !== "object" || values === null || typeof sources !== "object" || sources === null) {
     return null;
   }
   const outSources: Partial<Record<DevPinKey, PinSource>> = {};
   const outValues: Partial<Record<DevPinKey, string>> = {};
   for (const key of DEV_PIN_KEYS) {
-    const source = Reflect.get(sources, key);
+    const source = readMember(sources, key);
     if (!isPinSource(source)) {
       return null;
     }
     outSources[key] = source;
-    const shown = Reflect.get(values, key);
+    const shown = readMember(values, key);
     if (typeof shown === "string") {
       outValues[key] = shown;
     }

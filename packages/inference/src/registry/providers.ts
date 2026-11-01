@@ -9,6 +9,7 @@
 
 import type { ProviderDef } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, isPluginProviderId, pluginNameOfProviderId, providerDefSchema } from "@orb/contracts/inference";
+import { toError } from "@orb/kit/error-message";
 import type { PluginId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
 import { ProviderError } from "../contract/errors.ts";
@@ -60,7 +61,7 @@ export async function createProviderRegistry(store: ProviderStore): Promise<Prov
       read = store.list();
       // a synchronous `store.list()` throw becomes `read`'s rejection; `snapshot` holds it as `ok: false` and the ordered publication below throws `listed.error` to the `refresh` caller. Ends if the `!listed.ok` arm stops throwing `listed.error`.
     } catch (error) {
-      read = Promise.reject(error);
+      read = Promise.reject(toError(error));
     }
     // the rejection is held as the `ok: false` snapshot and `listed.error` is thrown inside `publishInOrder`, whose promise `refresh` returns to its caller; it is never read as an empty provider list. Ends if the `!listed.ok` arm stops throwing.
     const snapshot = read.then(

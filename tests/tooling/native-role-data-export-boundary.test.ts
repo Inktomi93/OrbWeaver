@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
@@ -32,7 +33,7 @@ test.for([
   "domain/chat/verbs/participants.ts",
 ])("native export restrictions seal the role codec owner %s", async (owner) => {
   const path = `packages/server/src/${owner}`;
-  const config = await eslint.calculateConfigForFile(join(ROOT, path));
+  const config = await resolvedConfig(eslint, join(ROOT, path));
   const ids = Object.keys(config.rules).filter((id) => id.startsWith("orb/role-data-export-surface-"));
   const rules = Object.fromEntries(ids.map((id) => [id, config.rules[id]]));
   const judge = (source: string): readonly string[] => {
@@ -79,6 +80,6 @@ test.for([
 });
 
 test("foreign modules keep their own exported role vocabulary", async () => {
-  const config = await eslint.calculateConfigForFile(join(ROOT, "packages/server/src/domain/chat/contract/foreign-role.ts"));
+  const config = await resolvedConfig(eslint, join(ROOT, "packages/server/src/domain/chat/contract/foreign-role.ts"));
   expect(Object.keys(config.rules).filter((id) => id.startsWith("orb/role-data-export-surface-"))).toEqual([]);
 });

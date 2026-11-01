@@ -118,7 +118,7 @@ function parseKeyPattern(raw: string): { pattern: string; flags: string } {
   const delimited = raw.startsWith("/") && lastSlash > 0;
   const pattern = delimited ? raw.slice(1, lastSlash) : raw;
   const authored = delimited ? raw.slice(lastSlash + 1) : "";
-  const flags = new Set([...authored.replace(/[gy]/g, ""), "i"]);
+  const flags = new Set(Array.from(authored.replace(/[gy]/g, "")).concat("i"));
   return { pattern, flags: [...flags].join("") };
 }
 

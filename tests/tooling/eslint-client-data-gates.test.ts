@@ -3,6 +3,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
@@ -20,14 +21,14 @@ beforeAll(async () => {
 }, 120_000);
 
 async function findings(rule: string, source: string, path: string): Promise<readonly Linter.LintMessage[]> {
-  const config = await eslint.calculateConfigForFile(join(ROOT, path));
+  const config = await resolvedConfig(eslint, join(ROOT, path));
   const found = new Linter({ cwd: ROOT }).verify(
     source,
     {
       files: ["**/*.{ts,tsx}"],
-      plugins: config?.plugins ?? {},
+      plugins: config.plugins,
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true } } },
-      rules: { [rule]: config?.rules?.[rule] ?? "off" },
+      rules: { [rule]: config.rules[rule] ?? "off" },
     },
     { filename: join(ROOT, path) },
   );
@@ -206,17 +207,17 @@ async function effectFindings(source: string, path: string, plantedTree: (files:
     [`${CLIENT}state/index.ts`]: STATE_BARREL,
     [path]: `${HEADER}${source}`,
   });
-  const config = await eslint.calculateConfigForFile(join(ROOT, path));
+  const config = await resolvedConfig(eslint, join(ROOT, path));
   const found = new Linter({ cwd: root }).verify(
     `${HEADER}${source}`,
     {
       files: ["**/*.{ts,tsx}"],
-      plugins: config?.plugins ?? {},
+      plugins: config.plugins,
       languageOptions: {
         parser: tseslint.parser,
         parserOptions: { project: ["tsconfig.json"], projectService: false, tsconfigRootDir: root, ecmaFeatures: { jsx: true } },
       },
-      rules: { [EFFECT_RULE]: config?.rules?.[EFFECT_RULE] ?? "off" },
+      rules: { [EFFECT_RULE]: config.rules[EFFECT_RULE] ?? "off" },
     },
     { filename: join(root, path) },
   );

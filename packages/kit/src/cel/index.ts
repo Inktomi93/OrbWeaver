@@ -121,7 +121,7 @@ export function parseCel(source: string): CelProgram | CelParseError {
     return {
       kind: "cel-program",
       source,
-      evaluate: (bindings) => program(bindings),
+      evaluate: (bindings): unknown => program(bindings),
       rootIdentifiers: (): readonly string[] => {
         const out: string[] = [];
         collectRootIdentifiers(ast, out);

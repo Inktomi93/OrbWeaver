@@ -2,10 +2,10 @@
 // --contrast instrument REDs on it (exit 1, FAIL line) — with the readable twin as the negative control
 // proving the instrument is not always-red. `--file` mode: no stack, a real headless chromium.
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { isJudgeableMeasurement, labelRateLoad, scaledBudget } from "../_load-budget.ts";
+import { listeningAddress } from "../_server-address.ts";
 
 const BAD_HTML = `<!doctype html><html><body style="background:#8a8a8a">
 <p style="color:#7a7a7a;font-size:16px">barely there text</p>
@@ -108,7 +108,7 @@ async function relayEchoServer(): Promise<{ readonly base: string; readonly clos
   await new Promise<void>((resolve) => {
     server.listen(0, "127.0.0.1", resolve);
   });
-  const { port } = server.address() as AddressInfo;
+  const { port } = listeningAddress(server);
   return {
     base: `http://127.0.0.1:${String(port)}`,
     close: () =>

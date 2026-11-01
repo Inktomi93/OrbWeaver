@@ -5,7 +5,6 @@
 
 import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
@@ -13,6 +12,7 @@ import { parseSnapArgs, prepareScenario, SNAP_HELP } from "@orb/tooling/snap";
 import { vi } from "vitest";
 import { SNAP_SCENARIO_PRESET_NAMES, scenarioPresetFile } from "../../../../tooling/src/snap/contract/scenario-presets.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { listeningAddress } from "../../_server-address.ts";
 
 const TIMEOUT_MS = scaledBudget(120_000);
 vi.setConfig({ testTimeout: TIMEOUT_MS, hookTimeout: TIMEOUT_MS });
@@ -83,7 +83,7 @@ async function withFixtureServer<T>(mode: FixtureMode, run: (origin: string) => 
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   try {
-    const address = server.address() as AddressInfo;
+    const address = listeningAddress(server);
     return await run(`http://127.0.0.1:${String(address.port)}`);
   } finally {
     await new Promise<void>((resolve, reject) => server.close((error) => (error === undefined ? resolve() : reject(error))));

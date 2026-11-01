@@ -2,10 +2,11 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 test("tooling tests use real temporary files instead of replacing filesystem modules", { timeout: 120_000 }, async ({ repoRoot }) => {
   const filename = join(repoRoot, "tests/tooling/stack/ops/prod-state.test.ts");
-  const config = await new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot }).calculateConfigForFile(filename);
+  const config = await resolvedConfig(new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot }), filename);
   const native = {
     files: ["**/*.ts"],
     languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false } },

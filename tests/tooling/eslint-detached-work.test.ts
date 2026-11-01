@@ -4,9 +4,8 @@
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
-
 import tseslint from "typescript-eslint";
-
+import { resolvedConfig } from "./_eslint-config.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 // The first case loads the whole flat config, which dwarfs every later one.
@@ -26,7 +25,7 @@ async function messages(root: string, source: string, path: string): Promise<rea
     eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: root });
     eslints.set(root, eslint);
   }
-  const config = await eslint.calculateConfigForFile(filename);
+  const config = await resolvedConfig(eslint, filename);
   expect(config).toBeDefined();
   const found = new Linter().verify(
     source,
@@ -35,7 +34,7 @@ async function messages(root: string, source: string, path: string): Promise<rea
       plugins: config.plugins,
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false } },
       linterOptions: { reportUnusedDisableDirectives: "error" },
-      rules: { [RULE]: config.rules?.[RULE] ?? "off" },
+      rules: { [RULE]: config.rules[RULE] ?? "off" },
     },
     { filename },
   );

@@ -75,7 +75,7 @@ async function addGalleryImage(caller: Caller, characterId: CharacterId): Promis
 
 async function nativeReaction(caller: Caller): Promise<{ readonly message: MessageView; readonly record: ToolCallRecord }> {
   for (const room of (await caller.chat.listChats({ limit: 100 })).items) {
-    if ((await caller.chat.getChat({ chatId: room.id })).viewerIsHost !== true) {
+    if (!(await caller.chat.getChat({ chatId: room.id })).viewerIsHost) {
       continue;
     }
     for (const message of (await caller.chat.listMessages({ chatId: room.id })).messages) {

@@ -5,7 +5,7 @@ import { getTableColumns, sql } from "drizzle-orm";
 export const ROW_TUPLE_ALIAS = "retained_tuple";
 
 /** Capture the actual driver representation of every persisted column. */
-export function rowTuple<T extends Table>(table: T): SQL.Aliased<string> {
+export function rowTuple(table: Table): SQL.Aliased<string> {
   return sql<string>`json_array(${sql.join(Object.values(getTableColumns(table)), sql`, `)})`.as(ROW_TUPLE_ALIAS);
 }
 
