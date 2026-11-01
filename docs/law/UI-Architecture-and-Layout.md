@@ -22,7 +22,7 @@ updated: 2026-10-17
 
 | Primitive | Seals | Spec |
 | - | - | - |
-| button · dialog · popover · tooltip · select · switch · slider · menu · field (+ the Wave-3 controls/disclosure/display set) | Base UI | §2 |
+| button · dialog · popover · tooltip · select · switch · slider · menu · field | Base UI | §2 |
 | command · sortable · macro-textarea | cmdk · `@dnd-kit/react` · minisearch | §2 / §11.3 |
 | toast · drawer | Base UI native (D54 — dropped sonner + vaul) | §2 |
 | icons | lucide-react (dep-cruiser `ui-satellite-seals-*`) | §2 |
@@ -69,7 +69,7 @@ kit ─┬─→ contracts ─┬─→ db ─→ server          (backend branc
 
 #### 1.1 The headline win — neo's lint rules become package physics
 
-neo enforced the UI boundaries with lint. orbweaver makes them **resolver physics** (boundaries are packages, not lint) — LIVE, enforced by the package.json dep sets + `.dependency-cruiser.ts` (`ui-cake` · `browser-and-iso-no-node-builtins` · `ui-satellite-seals-*`):
+neo enforced the UI boundaries with lint. orbweaver makes them **resolver physics** (boundaries are packages, not lint) — enforced by the package.json dep sets + `.dependency-cruiser.ts` (`ui-cake` · `browser-and-iso-no-node-builtins` · `ui-satellite-seals-*`):
 
 | neo lint rule | orbweaver |
 | - | - |
@@ -110,21 +110,16 @@ packages/client/
                         #   `authed-providers.tsx` provides them; `client-runtime.ts` mints the QueryClient, the
                         #   tRPC client and `createTrpcProxy`. Only `packages/client/src/main.tsx`, `packages/client/src/routes/router.tsx` and compose/
                         #   itself import it (dep-cruiser client-compose-door-only)
-    dev/                # dev-only: agent-handles/ agent-nav/ agent-seed/ agent-plugin/ agent-rpg/
-                        # dev-only agent-bridge impls that compose feature FRONT DOORS + #state actions.
-                        #   main.tsx imports only dev/agent-handles, behind import.meta.env.DEV; agent-handles
-                        #   composes the others (dep-cruiser client-composition-tier-door-only)
+    dev/                # dev-only agent-bridge impls; main.tsx imports only dev/agent-handles, behind
+                        #   import.meta.env.DEV (dep-cruiser client-composition-tier-door-only)
     routes/             # HAND-WRITTEN routes: / (app-root.tsx) · /$section · /login — no file-based codegen; admin
                         #   is a group in the Settings SECTION at /, NOT a standalone route (§6.1)
     components/         # tier 2 — domain-AWARE cross-feature composites with no single feature owner
-                        #   (ConfirmDialog · LibraryRow · CharacterPicker · QueryBoundary …);
+                        #  ;
                         #   composition-tier DIRECTORY MODULES (lockdown §3)
     data/               # the data-layer primitives (TanStack Query + tRPC) — §13.1
-      trpc.ts · query-client.ts · invalidation.ts · create-entity-mutation.ts ·
-      create-collection-surface.ts · use-gated-query.ts · bus/
     forms/              # Node-safe models, draft/store helpers and save-status seams — #forms
       editor/           # browser editor composition — #forms/editor — §13.1/§13.4
-        use-app-form.ts · create-saved-entity-form.ts · create-autosave-entity-form.tsx · bound-fields/
     state/              # ALL gated Zustand stores, FLAT (lint rule `orb/state-files`: one create/file, ≤10 fields, no exported set/getState)
     features/           # the slices — NO _shared/ drawer. The cross-feature channel is CHANNEL-SPECIFIC:
                         #   the decision table is client-architecture-state-and-gates.md §12
@@ -138,7 +133,7 @@ packages/client/
                         #     hooks/ · lib/ (helpers, view-models, the registered DEFINITIONS) · index.ts }
                         #   Bucket nesting is legal — the same per-file contracts RECURSE (lockdown §3);
                         #     per-slice card: packages/client/src/features/README.md
-    lib/                # cross-cutting display/util seams: message-render · time · cn re-export · download-json · notify
+    lib/                # cross-cutting display/util seams
       time.ts           #   THE date/time seam: server sends epoch-UTC numbers; client formats to browser-local tz
                         #     via memoized Intl.*; `now` is INJECTED (determinism §11.5). Never store/send formatted
                         #     dates or a tz; localization happens ONCE here at the display edge.
@@ -149,7 +144,7 @@ packages/client/
 
 ### 3. Tokens — DTCG single source, derived theme
 
-BUILT. The highest-leverage enforcement move, engine-agnostic:
+The highest-leverage enforcement move, engine-agnostic:
 
 - Design values live ONCE in **W3C DTCG `packages/ui/src/tokens/tokens.json`** (`$value`/`$type`).
 - **Style Dictionary v5** codegen (`packages/ui/tokens.build.ts`) emits BOTH the Tailwind v4 `@theme` block (`packages/ui/src/styles/theme.css`) AND the typed TS map (`packages/ui/src/tokens/index.ts`) — committed, generated, DO-NOT-EDIT artifacts.
@@ -174,7 +169,7 @@ CARD/ROW — sub-container where it must adapt independently inside a grid/list.
 ```
 
 - **Viewport `@media` is allowed ONLY in `app-shell`** (the shell tier). Capability and preference queries (`pointer`, `hover`, `prefers-*`) live in the token and shell layers (§4b axis 3). The `VIEWPORT_CLASSES` pattern in `eslint.config.ts` (`better-tailwindcss/no-restricted-classes`) also refuses viewport breakpoint class spellings outside `app-shell`.
-- **`@orb/ui/layout` owns `container-type`** (BUILT) — feature code never writes raw `container-type`/`-name` or the `@container` utility (`orb/no-raw-container-in-features`); it uses `<Container name size>`, or the `container` prop of `Section` and `Stack` (`container="size"` also contains the block axis). Default `container-type: inline-size`.
+- **`@orb/ui/layout` owns `container-type`** — feature code never writes raw `container-type`/`-name` or the `@container` utility (`orb/no-raw-container-in-features`); it uses `<Container name size>`, or the `container` prop of `Section` and `Stack` (`container="size"` also contains the block axis). Default `container-type: inline-size`.
 - **A surface declares no container; an anchor always provides one.** `orb/surface-consumes-container` refuses `<Container>`, the `container` prop and an outer `Dialog`, `AlertDialog` or `Drawer` root in `surfaces/`. `orb/anchor-provides-container` requires each `anchors/` file to render a container owner, or the dialog box it anchors (a `*Dialog` or `*Drawer` element). Both rules resolve a JSX name through its import: an alias or a re-export counts, a same-named local component does not.
 - **An anchor sits inside its surface when the surface owns an outer box the container must measure inside.** The home grid, the persona popover, the extensions page and the room's thread-and-flank row each have a scroller inset, popup or page element of their own. Their anchor renders inside it, so the query reads the width left after that inset. The `anchors/` file still provides the container; the surface still declares none.
 - **Density is a SEPARATE axis** from container size: `data-density="comfortable|compact"` (a user pref, attribute-driven) vs the container query (layout space). A component reads both; neither is a prop.
@@ -200,7 +195,7 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             is the roster of the LIBRARIES the others are built from; Plugin pages is ONE entry for the
             whole plugin platform, never one per plugin — it ships rail-VISIBLE with a teaching empty
             rather than hidden-until-populated, because a hidden entry makes the platform undiscoverable;
-            per-plugin promotion is a recorded owner knob, not built (the impersonation surface); Databank
+            Databank
             is the other library you author INTO — files/pages/pasted text, indexed for retrieval) → spacer →
             Settings (the Configuration section) · persona Identity. The CEILING is a rule about KIND, not a count (D121): a
             rail section owns a top-level workspace with its own LIST/CONTENT/CONTEXT grid; dialogs,
@@ -237,7 +232,7 @@ MOBILE:  RAIL → BOTTOM tab bar (none in a chat room): Home · Chats · Charact
          list: `mobile:"sheet"` rail entries + the `rail.end` chrome (incl. the persona Identity
          widget's `body("sheet")` view, so mobile persona switching lives here). Containment chain: You ⊃ Identity, whose
          switcher carries the Account head and foot. Everything is reachable via ⌘K.
-         CONTEXT → sheet; single column. (Mobile is a responsive LAYOUT, not a theme.)
+         CONTEXT → sheet; single column.
 ```
 
 **The mobile one-shell rule** (`packages/client/src/state/panel-resolve.ts`). A list-bearing section with nothing selected shows its LIST as the screen: docked in flow, no sheet, no scrim. A selection pushes CONTENT over it, and the topbar Back returns. The user's own close of the LIST (the topbar toggle) wins over this default. A section whose selection seam declares a `"content"` phone landing lands on its CONTENT instead; only Corpus Insights declares one (`packages/client/src/state/corpus-selection-store.ts`). `packages/client/src/state/section-list-projection.ts` is the one home of the "is the LIST the screen" question.
@@ -304,7 +299,7 @@ Per-section grid:
 | Corpus · Labels | the mode switch + the label finder (filter · sort · prune) and the New label primary | label library facts | the autosaving label editor | Usage: labels against generated facets, or the open label's attachments by kind and origin |
 | Refinery | past sessions (default-collapsed) | pick-a-character | workbench: session masthead · three lanes on one canvas (score · rewrite · analyze) · one foot run bar · per-block Keep/Discard compare (`packages/client/src/features/refinery/surfaces/refinery-content-surface.tsx`) | tabs: Runs · Setup · Versions (default-collapsed) |
 
-Preset numeric sampling controls, effective labels and unsupported-value clearing share `packages/client/src/features/preset/lib/capability-panel-model.ts`. Its catalog covers every range-bearing sampling capability and binds each key to its matching form field. Specialized reasoning, output and context controls retain their own behavior. Presets own intent; capability evidence, resolution and provider translation remain separate contracts in `packages/inference/`.
+Preset numeric sampling controls, effective labels and unsupported-value clearing share `packages/client/src/features/preset/lib/capability-panel-model.ts`. Specialized reasoning, output and context controls retain their own behavior. Presets own intent; capability evidence, resolution and provider translation remain separate contracts in `packages/inference/`.
 
 **Interaction physics (all six apply):**
 
@@ -377,7 +372,7 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 
 **Axis 2.** The one genuinely viewport-dependent reflow, in the SHELL: 3-pane ⇄ stack, drawer ⇄ sheet.
 
-**Axis 3 — capability, NOT size.** hover/pointer are media-query-only (container queries can't see them). **Pointer-conditional floor:** interactive primitives meet the ≥44px touch floor at `@media (pointer: coarse)` via token control-heights; fine pointers get the desktop scale — `control-sm` 32px · `control-md` 36px · `control-lg` 40px · icon 36px — emitted as a token-layer `pointer: fine` override (THIS layer, never features). An interactive element with a sub-44px visual box on coarse pointers wraps in a ≥44px hit area. `data-density="compact"` remains the separate spacing axis (ship COMFORTABLE; never build a parallel compact path). Hover is only ever an *enhancement* (`@media (hover:hover)`); **every hover action has a tap-equivalent** (and a `:focus-within` keyboard equivalent, §4.3 rule 4). Base UI suppresses tooltips on touch for free.
+**Axis 3 — capability, NOT size.** hover/pointer are media-query-only (container queries can't see them). **Pointer-conditional floor:** interactive primitives meet the ≥44px touch floor at `@media (pointer: coarse)` via token control-heights; fine pointers get the desktop scale — `control-sm` 32px · `control-md` 36px · `control-lg` 40px · icon 36px — emitted as a token-layer `pointer: fine` override. An interactive element with a sub-44px visual box on coarse pointers wraps in a ≥44px hit area. `data-density="compact"` remains the separate spacing axis (ship COMFORTABLE; never build a parallel compact path). Hover is only ever an *enhancement* (`@media (hover:hover)`); **every hover action has a tap-equivalent** (and a `:focus-within` keyboard equivalent, §4.3 rule 4). Base UI suppresses tooltips on touch for free.
 
 The same rule binds Tailwind capability variants: `pointer-coarse:`/`pointer-fine:`/`hover-capable:`, their `any-pointer-*` twins, and raw `[@media(pointer|hover:…)]:` variants belong at the **token/shell layer**, never in a feature class string. A feature composes a pointer-conditional token or a primitive prop: `hiddenAt` uses `packages/ui/src/lib/pointer-visibility.ts`; `Row reveal` and `inertUntilHover` use `packages/ui/src/lib/hover-reveal.ts`. The `:hover` pseudo-class (`hover:bg-accent`) is an interaction state and stays legal in features. The `POINTER_CLASSES` pattern in `eslint.config.ts` (`better-tailwindcss/no-restricted-classes`) enforces this on class strings in features outside `app-shell`; a reasoned line exception follows D321#3.
 

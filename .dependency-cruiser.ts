@@ -405,6 +405,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/lib/context-toggle-label.ts": "contextToggleLabel: the detail toggle's name in both states",
   "packages/client/src/lib/view-transition-names.ts": "SHELL_SWAP_DEADLINE_PROPERTY: the grid property a swap spec stretches to hold the old frame",
   "packages/client/src/forms/editor/autosave-status-names.ts": "AUTOSAVE_SAVED_TEXT and its siblings: the words the shared autosave readout prints",
+  "packages/client/src/features/character/lib/character-names.ts":
+    "CHARACTER_SEARCH_NAME and its siblings: the accessible names the Characters library, editor and dialogs print",
   "packages/client/src/features/config/lib/config-copy.ts": "CONFIG_SECTION_LABEL: the settings section labels",
   "packages/client/src/features/rpg/lib/unset-datum.ts": "UNSET_DATUM: the unset reading's text",
   "packages/client/src/features/plugin/lib/extensions-copy.ts": "EXTENSIONS_GONE_TITLE: the vanished page's title",
@@ -418,7 +420,8 @@ const TEST_CONSTANT_HOMES = {
     "CHAT_PLUGINS_* and movePluginPanelLabel: production panel navigation, empty-state and placement action names",
   "packages/client/src/features/stats/lib/leaderboard-row-attr.ts":
     "LEADERBOARD_ROW_ATTR: the attribute a leaderboard row wears, which the corpus workbench e2e addresses rows by",
-  "packages/client/src/features/tag/lib/tag-list-name.ts": "TAG_LIST_NAME: the Labels finder's tag list name",
+  "packages/client/src/features/tag/lib/tag-list-name.ts": "TAG_LIST_NAME and TAG_FILTER_NAME: the Labels finder's list and filter names",
+  "packages/client/src/features/stats/lib/analytics-names.ts": "ANALYTICS_SEARCH_NAME: the Insights leaderboard list's search name",
   "packages/client/src/lib/app-ready-attribute.ts": "APP_READY_ATTR: the readiness attribute the boot veil exits on",
   "packages/client/src/state/create-persisted-store.ts": "createPersistedStore: the persisted-store factory a type contract reads",
   "packages/client/src/state/durable-local-keys.ts":
@@ -476,6 +479,17 @@ const SERVER_TEST_REACHES = {
   },
   "tests/server/entry/boot/identity-ownership.int.test.ts": {
     "foundation/data-layout": "SECRET_FILE_NAMES: the suite plants the boot secret files by their production names",
+  },
+  "tests/server/entry/boot/secret-boot-process.int.test.ts": {
+    "foundation/data-layout":
+      "DATA_LAYOUT_DIRS, SECRET_FILE_NAMES and DATABASE_URL_KEY: the suite plants the session keyfile and the database key by their production names",
+    "foundation/env": "APP_SECRET_ENV_KEYS: the boot scrub's own list, which the suite plants and then looks for in a child's env",
+  },
+  "tests/server/foundation/env/record/secret-file.int.test.ts": {
+    "foundation/data-layout": "DATABASE_URL_KEY: the suite plants the database key by its production name",
+  },
+  "tests/server/foundation/observability/bug-report-diagnostics.test.ts": {
+    "foundation/data-layout": "DATABASE_URL_KEY: the suite sets the database key by its production name",
   },
   "tests/server/entry/compose/share-acme.int.test.ts": {
     "foundation/data-layout": "IP_CERTIFICATE_FILE_NAMES: the suite reads and corrupts the stored certificate files by their production names",

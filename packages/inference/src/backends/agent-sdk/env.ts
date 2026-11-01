@@ -15,27 +15,9 @@ import type { ClaudeRuntimeOverrides, ClaudeSdkEnvArgs } from "../../contract/ag
 // The documented headless subscription credential env (`claude setup-token`).
 const CLAUDE_OAUTH_TOKEN_ENV = "CLAUDE_CODE_OAUTH_TOKEN";
 
-// Non-Claude-namespaced app secrets the child has no business seeing — the deploy's `*_FILE` shim exports
-// these into the server's env, so the allowlisted baseline below re-asserts the strip.
-const HOST_SECRET_ENV_KEYS = [
-  "OPENROUTER_API_KEY",
-  "CREDENTIALS_KEY",
-  "SESSION_SECRET",
-  "OIDC_CLIENT_SECRET",
-  "DEBUG_TOKEN",
-  "LOCAL_INITIAL_PASSWORD",
-] as const;
-
-// The whole Claude/Anthropic namespace is excluded from the baseline so an ambient operator shell can't leak
-// identity/tool surface/routing into the spawn; runtime-owned values are added explicitly after it.
-const CLAUDE_ENV_PREFIXES = ["CLAUDE", "ANTHROPIC"] as const;
-const CLAUDE_ENV_EXACT_KEYS = new Set<string>(["MAX_THINKING_TOKENS"]);
-function isAmbientClaudeEnvKey(key: string): boolean {
-  return CLAUDE_ENV_PREFIXES.some((prefix) => key.startsWith(prefix)) || CLAUDE_ENV_EXACT_KEYS.has(key);
-}
-
-// The host conveniences the bundled runtime actually needs; everything else (NODE_OPTIONS, loader preloads,
-// language search paths) stays out unless it is an explicitly supported runner-owned knob.
+// The host conveniences the bundled runtime actually needs. This allowlist is the whole host baseline: an app secret,
+// the Claude/Anthropic namespace, NODE_OPTIONS, loader preloads and language search paths all stay out because they
+// are not listed. Never add a credential here. Runtime-owned values are added explicitly after the baseline.
 const SUPPORTED_HOST_ENV_KEYS = [
   "HOME",
   "PATH",
@@ -67,9 +49,7 @@ const SUPPORTED_HOST_ENV_KEYS = [
 function hostEnvForClaudeChild(source: Readonly<Record<string, string>>): Record<string, string | undefined> {
   const out: Record<string, string | undefined> = {};
   for (const key of SUPPORTED_HOST_ENV_KEYS) {
-    if (!(HOST_SECRET_ENV_KEYS.includes(key) || isAmbientClaudeEnvKey(key))) {
-      out[key] = source[key];
-    }
+    out[key] = source[key];
   }
   return out;
 }

@@ -35,7 +35,7 @@ At `all` the rule judges every string and template site in a test, except an obj
 
 Not done, by the coordinator's ruling: no finding is on. The sweep in 1426 turns the scope to `all` when its sites are fixed. The census is in `docs/work/1426-import-ct-and-e2e-accessible-name-labels-from.md`.
 
-Red first: with `scopeOf` forced to `named`, 11 of the new refusal cases fail; restored, `tests/tooling/eslint-test-authoring.test.ts` passes (88 tests). The cases plant a copy of each kind and accept the import: a label function's two arms, `RPG_OP_CODES` and `CHAT_OP_CODES` values, three route shapes, env keys as a computed key and as a read, plus the index unit test for zero-import copy modules, a copy module with a value import, codes, routes and env keys.
+Red first: with `scopeOf` forced to `named`, 11 of the new refusal cases fail; restored, `tests/tooling/eslint-test-authoring.test.ts` passes. The cases plant a copy of each kind and accept the import: a label function's two branches, `RPG_OP_CODES` and `CHAT_OP_CODES` values, three route shapes, env keys as a computed key and as a read, plus the index unit test for zero-import copy modules, a copy module with a value import, codes, routes and env keys.
 
 Limits: a template with a hole in a label function is not indexed, so `renameChatButtonName` is found through the constant `RENAME_CHAT_NAME` it is built from; a one-word code and a lower-case env value are left out; env keys defined in `tooling/src` are outside the production glob.
 

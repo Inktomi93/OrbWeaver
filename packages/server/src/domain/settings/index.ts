@@ -22,6 +22,7 @@ export { ensureSeedThemes } from "./seed-themes.ts";
 export { createDefaultBackgroundSeeder } from "./seeder/backgrounds.ts";
 export { createUserContentSeeder } from "./seeder/content.ts";
 export { createSettingsService } from "./service.ts";
+export { createAdoptImportedDefaultPersona } from "./verbs/adopt-imported-default-persona.ts";
 export { createApplyImportedAppearance } from "./verbs/apply-imported-appearance.ts";
 export { createBackgroundSeedSettings, createSeedBackgroundRewriter } from "./verbs/background-seed-ops.ts";
 export { createSettingsComposedOps } from "./verbs/composed-ops.ts";

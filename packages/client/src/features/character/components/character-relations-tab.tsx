@@ -17,6 +17,7 @@ import {
   useDetachBookFromCharacter,
   useDisconnectPersonaFromCharacter,
 } from "../hooks/use-character-context-mutations.ts";
+import { CHARACTER_CONNECT_PERSONA_NAME, CHARACTER_LINK_BOOK_NAME } from "../lib/character-names.ts";
 
 export interface CharacterRelationsTabProps {
   readonly characterId: CharacterId;
@@ -68,7 +69,7 @@ function LinkedBooksSection({ characterId }: CharacterRelationsTabProps): ReactE
       addEmptyLabel="Every book is already linked."
       addLabel="Link"
       addTitle="Link a world book"
-      addTriggerLabel="Link a book"
+      addTriggerLabel={CHARACTER_LINK_BOOK_NAME}
       available={available}
       emptyLabel="No world books linked."
       heading="Linked world books"
@@ -115,8 +116,8 @@ function ConnectedPersonasSection({ characterId }: CharacterRelationsTabProps): 
     <RelationManagerSection
       addEmptyLabel="Every persona is already connected."
       addLabel="Connect"
-      addTitle="Connect a persona"
-      addTriggerLabel="Connect a persona"
+      addTitle={CHARACTER_CONNECT_PERSONA_NAME}
+      addTriggerLabel={CHARACTER_CONNECT_PERSONA_NAME}
       available={available}
       emptyLabel="No personas connected."
       heading="Connected personas"

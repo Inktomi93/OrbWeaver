@@ -347,6 +347,10 @@ export function spawnNicedTranscript(cmd: string, args: readonly string[], opts:
       try {
         killGroup();
         sweeping = teardown === undefined ? null : teardown.afterTimeoutKill();
+        // The sweep can reject before the child closes, and `settle` only awaits it then. Unobserved until
+        // that await, the rejection is process-fatal and cuts the child's remaining output; this handler
+        // marks it observed while `settle` still receives the rejection and names it in the transcript.
+        sweeping?.catch(() => undefined);
       } catch (error) {
         chunks.push(`\n[proc] process termination failed: ${String(error)}\n`);
         child.stdout.destroy();

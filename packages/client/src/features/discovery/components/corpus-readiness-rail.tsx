@@ -237,7 +237,13 @@ const READINESS_DOORS: Record<ReadinessAction, (props: ReadinessDoorProps) => Re
   // The gating reads have not answered; a door that might be the wrong one waits for them.
   settling: () => null,
   run: ({ stage, passes }) => (
-    <Button disabled={passes.starting} onClick={(): void => passes.start(stage)} size="sm" variant="outline">
+    <Button
+      disabled={passes.starting || passes.counting !== null}
+      loading={passes.counting === stage}
+      onClick={(): void => passes.start(stage)}
+      size="sm"
+      variant="outline"
+    >
       {READINESS_PASSES[stage].runLabel}
     </Button>
   ),
