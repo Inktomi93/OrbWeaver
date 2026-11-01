@@ -171,6 +171,7 @@ None.
 - [0824](0824-verify-collection-responsiveness-during-local-indexing.md) triage Verify collection responsiveness during local indexing `test-foundation` (owner)
 - [0872](0872-find-what-answered-an-api-batch-with-an.md) P3 Find what answered an API batch with an HTML page in production (owner)
 - [1804](1804-per-recipe-delete-pass-over-the-unwritten-variant.md) P2 Per-recipe delete pass over the unwritten variant values once the owner rules on the triage list: each value deleted, wired or kept with a reason `cross-surface-consistency` (owner)
+- [1814](1814-build-the-read-only-report-that-chooses-what.md) P3 Build the read-only report that chooses what to test, per the restoration-register plan's selection section `restoration-register` (wake gone docs/plans/type-law/design.md)
 
 ## Done
 
