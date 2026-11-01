@@ -1,6 +1,6 @@
 ---
 kind: plan
-status: active
+status: done
 updated: 2026-09-28
 ---
 
