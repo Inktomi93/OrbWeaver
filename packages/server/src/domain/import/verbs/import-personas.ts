@@ -42,7 +42,7 @@ export function createImportPersonas(ctx: ImportContext): ImportService["importP
     }
 
     if (result.defaultPersonaId !== null) {
-      await profile.adoptDefaultPersona?.(ctx.ownerId, result.defaultPersonaId);
+      await profile.adoptDefaultPersona(ctx.ownerId, result.defaultPersonaId);
     }
 
     return {

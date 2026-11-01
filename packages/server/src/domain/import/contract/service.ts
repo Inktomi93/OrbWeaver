@@ -127,8 +127,8 @@ export interface ImportProfileDeps {
    *  settings domain keeps its one serde AND its one (ownerId, name) collision rule and import owns neither.
    *  OPTIONAL on the `importPreset` precedent: absent ⇒ the theme plane simply does not restore. */
   readonly importTheme?: ImportThemeOp;
-  /** Crowns the imported default persona only where the owner has none. When absent the crown flag is not applied. */
-  readonly adoptDefaultPersona?: AdoptDefaultPersona;
+  /** Crowns the imported default persona only where the owner has none. The ST profile import is its only caller. */
+  readonly adoptDefaultPersona: AdoptDefaultPersona;
   /** Regex-owned PRESET lift — a collected preset's own `extensions.regex_scripts` become library rows +
    *  a `preset_regex_scripts` attachment, AFTER `importPreset` returns the row id. OPTIONAL on the
    *  `importCardScripts` precedent: absent ⇒ the scripts are reported skipped-with-reason, never silent. */

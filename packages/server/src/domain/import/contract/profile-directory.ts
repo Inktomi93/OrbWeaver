@@ -59,7 +59,7 @@ export interface ProfileDirImportDeps {
    *  not restore and every converted theme is reported skipped-with-reason, never silently dropped. */
   readonly importTheme?: ImportThemeOp;
   /** The settings-owned null-only default-persona crown (`createAdoptImportedDefaultPersona`). */
-  readonly adoptDefaultPersona?: AdoptDefaultPersona;
+  readonly adoptDefaultPersona: AdoptDefaultPersona;
   /** The CAS store for the ST `backgrounds/` plane. Optional: absent ⇒ no background imports (and every
    *  collected file is reported skipped-with-reason). */
   readonly storeBackground?: ImportBackgroundStore;

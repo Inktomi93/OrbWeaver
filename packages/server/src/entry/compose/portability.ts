@@ -24,7 +24,7 @@ import type { PersonaService } from "#domain/persona";
 import type { PresetAssemblyContext } from "#domain/preset";
 import { createExportPresets, createImportPresets } from "#domain/preset";
 import type { SettingsAssemblyContext } from "#domain/settings";
-import { createExportTheme, createExportUserSettings, createImportTheme, createImportUserSettings } from "#domain/settings";
+import { createAdoptImportedDefaultPersona, createExportTheme, createExportUserSettings, createImportTheme, createImportUserSettings } from "#domain/settings";
 import type { TagAssemblyContext } from "#domain/tag";
 import { createImportedCardTag, createTagLibraryExport, createTagLibraryImport } from "#domain/tag";
 import type { WorldInfoExportAssemblyContext } from "#domain/world-info";
@@ -113,6 +113,7 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
       attachChatTagByName: deps.attachChatTagByName,
       importRpgGame: deps.importRpgGame,
       findOwnedAssetIdsByHash: deps.findOwnedAssetIdsByHash,
+      adoptDefaultPersona: createAdoptImportedDefaultPersona(deps.settingsCtx),
     },
   });
   const importGallery = createImportGallery(deps.assetsCtx);
