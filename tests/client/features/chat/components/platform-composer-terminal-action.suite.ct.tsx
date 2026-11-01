@@ -8,6 +8,7 @@ import { createShellAmbientReads, emulateSoftKeyboard, ROOM_PROCEDURES, routeTrp
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -162,7 +163,7 @@ for (const input of ["keyboard", "touch"] as const) {
       ]),
     });
     await mount<typeof ChatRoomShellStory>(STORY, { chatId });
-    const draft = page.getByRole("textbox", { name: "Message", exact: true });
+    const draft = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
     await draft.fill(DRAFT);
     if (input === "touch") {
       await proveTouchScroll(page);
@@ -191,6 +192,8 @@ for (const input of ["keyboard", "touch"] as const) {
       expect(rpc.lastInput("plugin.invokeUiCommand")).toMatchObject({ pluginId: plugin.id, name: `${prefix}_${TERMINAL_ORDINAL}`, chatId });
       await expect(popup).toHaveCount(0);
       await expect(trigger).toBeFocused();
+      // Focus returned is not enough: closing must not re-floor the room and leave the trigger under the keyboard.
+      await expectActionHit(trigger);
       await expect(draft).toHaveValue(DRAFT);
     }
     expect(rpc.count("chat.generate")).toBe(0);
