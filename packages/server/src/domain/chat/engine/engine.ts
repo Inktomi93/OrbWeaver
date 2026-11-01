@@ -2152,6 +2152,9 @@ export function createTurnEngine<const Context extends EngineContext>(ctx: Engin
       holder: deps.holder,
       now,
       expiresAt: now + deps.lockTtlMs,
+    }).catch(async (err: unknown) => {
+      await closePreStartRefusal(deps, prep);
+      throw err;
     });
     if (!acquired) {
       // The loudest pre-start refusal there is: a swipe/continue/send refused here NEVER reaches `executeTurn`,

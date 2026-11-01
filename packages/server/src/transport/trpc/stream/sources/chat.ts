@@ -267,13 +267,17 @@ async function* attachSynthesesAndReplay(args: {
  *  its accept would hand the device a slot nothing closes. Rows above the bounds read stay: they may be a turn that
  *  opened after it. */
 function withoutDeadTurns(entries: readonly ChatBusReplayEvent[], bounds: ChatEventAttach): readonly ChatBusReplayEvent[] {
-  const closed = new Set(entries.flatMap(({ event }) => (event.type === "turnCompleted" || event.type === "turnAborted" ? [event.turnId] : [])));
+  // The LAST terminal, by seq: a round's speakers share one id, so an earlier speaker's terminal vouches only for
+  // the rows before it.
+  const lastTerminal = new Map(
+    entries.flatMap(({ seq, event }) => (event.type === "turnCompleted" || event.type === "turnAborted" ? [[event.turnId, seq] as const] : [])),
+  );
   const open = new Set(bounds.openTurnIds);
   return entries.filter(({ seq, event }) => {
-    if (!("turnId" in event) || event.type === "messageCommitted" || seq > (bounds.maxSeq ?? 0)) {
+    if (!("turnId" in event) || event.type === "messageCommitted" || seq > (bounds.maxSeq ?? 0) || open.has(event.turnId)) {
       return true;
     }
-    return open.has(event.turnId) || closed.has(event.turnId);
+    return seq <= (lastTerminal.get(event.turnId) ?? 0);
   });
 }
 
