@@ -14,6 +14,12 @@ import {
 } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
+import {
+  CHARACTER_IMPORT_NAME,
+  CHARACTER_LIBRARY_NAME,
+  CHARACTER_NAME_FIELD_NAME,
+  CHARACTER_NEW_NAME,
+} from "#client/features/character/lib/character-names.ts";
 import type { CharacterRemainingActionsStory } from "./_remaining-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/character/components/_remaining-action-groups-stories/CharacterRemainingActionsStory";
@@ -58,20 +64,20 @@ for (const regime of REGIMES) {
       await routeTrpc(page, serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "character.list"]));
       await corpusMedia();
       await mount<typeof CharacterRemainingActionsStory>(STORY, { characterId: card.id, plane: "landing", width: regime.width, appearance: regime.appearance });
-      const create = page.getByRole("button", { name: "New character", exact: true });
+      const create = page.getByRole("button", { name: CHARACTER_NEW_NAME, exact: true });
       const importCard = page.getByRole("button", { name: "Import a card", exact: true });
       await expectContained(create.locator(".."), [create, importCard]);
       await create.focus();
       await page.keyboard.press("Enter");
-      const createDialog = page.getByRole("dialog", { name: "New character", exact: true });
-      await expect(createDialog.getByRole("textbox", { name: "Character name", exact: true })).toBeVisible();
+      const createDialog = page.getByRole("dialog", { name: CHARACTER_NEW_NAME, exact: true });
+      await expect(createDialog.getByRole("textbox", { name: CHARACTER_NAME_FIELD_NAME, exact: true })).toBeVisible();
       await createDialog.getByRole("button", { name: "Cancel", exact: true }).click();
       await expect(createDialog).toBeHidden();
       await expect(create).toBeFocused();
       await page.keyboard.press("Tab");
       await expect(importCard).toBeFocused();
       await page.keyboard.press("Enter");
-      const importDialog = page.getByRole("dialog", { name: "Import a character card", exact: true });
+      const importDialog = page.getByRole("dialog", { name: CHARACTER_IMPORT_NAME, exact: true });
       await expect(importDialog).toBeVisible();
       await importDialog.getByRole("button", { name: "Cancel", exact: true }).click();
       await expect(importDialog).toBeHidden();
@@ -104,7 +110,7 @@ for (const regime of REGIMES) {
       if (first === undefined) {
         throw new Error("The recovery fixture has no character to display");
       }
-      const library = page.getByRole("list", { name: "Character library", exact: true });
+      const library = page.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true });
       await expect(library.getByRole("listitem").first().getByRole("button", { name: first.name, exact: true })).toBeVisible();
     });
 

@@ -5,6 +5,7 @@ import { cardImportResultSchema } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { isPlainObject } from "@orb/kit/guards";
 import type { Page, Response } from "@playwright/test";
+import { CHARACTER_IMPORT_NAME, CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { charactersRailButton, waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
@@ -50,8 +51,8 @@ async function openCharactersList(page: Page): Promise<void> {
 
 async function importCard(page: Page): Promise<CardImportResult> {
   await openCharactersList(page);
-  await page.getByRole("button", { name: "Import a character card", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Import a character card", exact: true });
+  await page.getByRole("button", { name: CHARACTER_IMPORT_NAME, exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: CHARACTER_IMPORT_NAME, exact: true });
   await expect(dialog).toBeVisible();
   const uploaded = page.waitForResponse(
     (candidate) => candidate.request().method() === "POST" && new URL(candidate.url()).pathname === PORTABILITY_ROUTES.importCards,
@@ -118,7 +119,7 @@ test("importing a card preserves its fields and primary book, re-import deduplic
     const filtered = page.waitForResponse(isFilteredLibraryRead);
     await page.getByRole("textbox", { name: "Search characters", exact: true }).fill(NAME);
     expect((await filtered).ok()).toBe(true);
-    await expect(page.getByRole("list", { name: "Character library", exact: true }).locator('[data-slot="list-row-root"]')).toHaveCount(1);
+    await expect(page.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true }).locator('[data-slot="list-row-root"]')).toHaveCount(1);
     const cta = page.getByRole("button", { name: `Chat with ${NAME}`, exact: true });
     const row = page.locator('[data-slot="list-row-root"]').filter({ has: cta });
     await expect(row).toBeVisible();
