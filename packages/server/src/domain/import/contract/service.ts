@@ -85,8 +85,7 @@ type EnqueueImportIndex = (args: { readonly ownerId: UserId }) => Promise<void>;
  *  own dedup key, so this resolves exactly what its import verb would have merged onto. */
 type FindPersonaByNameOp = (args: { readonly ownerId: UserId; readonly name: string }) => Promise<PersonaId | null>;
 
-/** Tag-owned resolve-or-create + D30 per-tagger chat-overlay attach (R6 — the `chat_tags` re-link that ended
- *  the ACCEPTED-LOSSY row). By NAME, because tag ids no more survive a cross-box move than chat ids do. */
+/** Tag-owned resolve-or-create + D30 per-tagger chat-overlay attach (R6 — the `chat_tags` re-link). By NAME, because tag ids no more survive a cross-box move than chat ids do. */
 type AttachChatTagByNameOp = (args: { readonly ownerId: UserId; readonly chatId: ChatId; readonly tagName: string }) => Promise<boolean>;
 
 /** Assets-owned by-content lookup: the owner's asset id for each content hash it holds. A restored room's

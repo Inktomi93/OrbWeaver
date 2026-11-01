@@ -33,4 +33,11 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 7 rows = 6 kept + 1 owner question.
+
+- `SEED_PROFILES.d20`: kept. `tooling/src/snap/ops/scenarios/rpg-game.json:21` calls `orb.seed.game({profile:'d20'})` inside a `page.evaluate` string, and `packages/client/src/dev/agent-seed/index.ts:400` branches on it. The `__orb.seed` handle is the documented agent surface (`packages/client/src/lib/agent-tools.README.md:19`).
+- `APPEARANCE_CARRIER_PLANES.root-html`, `.shell-grid`, `.background-layer`, `.message-props`: kept. The scan misses writers through `as const` objects: `ROOT`, `GRID`, `BACKGROUND` and `MESSAGE` at `packages/client/src/lib/appearance-carrier-manifest.ts:129-136` carry them into the rows, and `PORTAL_BY_CARRIER` (line 57) is a `Record` over the plane type that would lose its entry. 4 rows.
+- `CASCADE_SOURCES.generated-theme`: kept. `SPACING_SOURCES` and `THEME_SOURCES` (`packages/client/src/lib/appearance-invariant-manifest.ts:115,119`) name it, and the producer is `tooling/src/snap/lib/cascade-source.ts:9`, which classifies `theme.css` as `generated-theme`; the observed value is compared against these lists.
+- `CHARACTER_DETAIL_ANCHORS.editor-sections`: owner question, not applied. It is the only member. No contribution is registered (`characterDetailContributors`, `packages/client/src/compose/chat-context.ts:47`, ships empty), but the editor reads the registry (`packages/client/src/features/character/surfaces/character-editor-surface.tsx:247`) and the registry is a testkit door export (`tests/support/browser/index.ts:7`). Deleting the member means deleting the whole character-detail contributor seam: `CharacterDetailContribution`, `CharacterDetailState`, the registry, the `detailContributors` props through `makeCharactersSection`, and the testkit export. Question: delete the seam, or keep it as the extension point? Default: keep.
+- Survey: codegraph_explore `SEED_PROFILES agent-bridge-handles APPEARANCE_CARRIER_PLANES CASCADE_SOURCES CHARACTER_DETAIL_ANCHORS`; ast-grep string-literal scan over `packages tests tooling` (5913 `.ts` files with `-l ts`, 1524 `.tsx` files with `-l tsx`): `"d20"` 24 ts + 8 tsx, `"generated-theme"` 10, `"root-html"` 4, `"message-props"` 3, `"editor-sections"` 2, all read; plus `rg` of each literal over `packages tests tooling scripts`, which found the JSON scenario the AST scan cannot see. Stored data: none; all are in-code vocabularies.
+- No code change.
