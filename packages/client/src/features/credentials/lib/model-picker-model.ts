@@ -12,6 +12,7 @@
 
 import type { ModelCatalogEntry, ModelCheck, ModelListing, ProviderDef } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
+import { isSpaceChar, trimEndWhile } from "@orb/kit/strings";
 
 /** Where the picker's models come from, as the caller last saw it. `unlisted` is a source with no list to
  *  offer (nothing fetched yet, or no catalog door for this draft); `failed` is a list read that errored.
@@ -354,7 +355,7 @@ export function resolveRecentEntries<T extends PickerEntry>(
 /** A reason as the middle of a sentence: a server message may already end in a period, and the copy adds its
  *  own. */
 export function clauseOf(reason: string): string {
-  return reason.trim().replace(/[.\s]+$/u, "");
+  return trimEndWhile(reason.trim(), (char) => char === "." || isSpaceChar(char));
 }
 
 /** Whether this provider's policy permits a model id the list does not carry (§7.4). */

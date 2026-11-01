@@ -898,22 +898,120 @@ function coalesceTextPieces(pieces: readonly Piece[]): Piece[] {
 }
 
 // Body stamps are authored text, not proof that a server roll occurred. Preserve their original bytes.
-const DICE_STAMP_RE = /(`+)[\s\S]*?\1|(?<!\\)\[dice: ((?:[^[\]\r\n]* )?\d*d\d+(?:[+-]\d+)?) → (-?\d+)\]/g;
+const DICE_ONLY_RE = /(?<!\\)\[dice: ((?:[^[\]\r\n]* )?\d*d\d+(?:[+-]\d+)?) → (-?\d+)\]/g;
+
+interface StampMatch {
+  readonly index: number;
+  readonly raw: string;
+  /** Only a dice stamp carries these; a code span is matched to be skipped. */
+  readonly stamp: { readonly label: string; readonly total: string } | undefined;
+}
+
+interface TickRuns {
+  readonly starts: number[];
+  readonly lengths: number[];
+  /** `suffixMax[i]` = the longest run among `i` and every run after it. */
+  readonly suffixMax: number[];
+}
+
+function tickRunsOf(text: string): TickRuns {
+  const starts: number[] = [];
+  const lengths: number[] = [];
+  for (let at = text.indexOf("`"); at !== -1; ) {
+    let end = at;
+    while (text.charAt(end) === "`") {
+      end += 1;
+    }
+    starts.push(at);
+    lengths.push(end - at);
+    at = text.indexOf("`", end);
+  }
+  const suffixMax = lengths.map(() => 0);
+  for (let i = lengths.length - 1; i >= 0; i -= 1) {
+    suffixMax[i] = Math.max(lengths[i] ?? 0, suffixMax[i + 1] ?? 0);
+  }
+  return { starts, lengths, suffixMax };
+}
+
+// The end of the inline code span that opens at the tick `at`, or -1. An opener of n ticks closes on the same
+// number of ticks, and a shorter opener is tried when the full one finds no closer, so the longest working opener
+// has a closed form: k = max(floor(n / 2), min(n, longest later run)). Its closer is the opener's own second half
+// when n >= 2k, else the first later run of at least k ticks. Re-scanning the body once per candidate opener goes
+// quadratic on a long tick run.
+function codeSpanEnd(runs: TickRuns, runIndex: number, at: number): number {
+  const runEnd = (runs.starts[runIndex] ?? 0) + (runs.lengths[runIndex] ?? 0);
+  const n = runEnd - at;
+  const self = Math.floor(n / 2);
+  const later = Math.min(n, runs.suffixMax[runIndex + 1] ?? 0);
+  if (self >= later) {
+    return self === 0 ? -1 : at + 2 * self;
+  }
+  for (let i = runIndex + 1; i < runs.starts.length; i += 1) {
+    if ((runs.lengths[i] ?? 0) >= later) {
+      return (runs.starts[i] ?? 0) + later;
+    }
+  }
+  return -1;
+}
+
+function execDice(text: string, from: number): RegExpExecArray | null {
+  DICE_ONLY_RE.lastIndex = from;
+  return DICE_ONLY_RE.exec(text);
+}
+
+function runIndexAt(runs: TickRuns, from: number, tick: number): number {
+  let index = from;
+  while ((runs.starts[index] ?? 0) + (runs.lengths[index] ?? 0) <= tick) {
+    index += 1;
+  }
+  return index;
+}
+
+// Every code span and dice stamp in the text, left to right: the matches one pattern of "code span or stamp" would yield.
+function* stampMatches(text: string): Generator<StampMatch> {
+  const runs = tickRunsOf(text);
+  let runIndex = 0;
+  let pos = 0;
+  let dice: RegExpExecArray | null | undefined;
+  for (;;) {
+    const tick = text.indexOf("`", pos);
+    if (dice === undefined || (dice !== null && dice.index < pos)) {
+      dice = execDice(text, pos);
+    }
+    if (dice !== null && (tick === -1 || dice.index < tick)) {
+      const [raw, label, total] = dice;
+      yield { index: dice.index, raw, stamp: { label: label ?? "", total: total ?? "" } };
+      pos = dice.index + raw.length;
+      continue;
+    }
+    if (tick === -1) {
+      return;
+    }
+    runIndex = runIndexAt(runs, runIndex, tick);
+    const end = codeSpanEnd(runs, runIndex, tick);
+    if (end === -1) {
+      pos = tick + 1;
+      continue;
+    }
+    yield { index: tick, raw: text.slice(tick, end), stamp: undefined };
+    pos = end;
+  }
+}
 
 function scanDiceStamps(text: string): Expanded[] {
   const out: Expanded[] = [];
   let last = 0;
-  for (const match of text.matchAll(DICE_STAMP_RE)) {
-    const label = match[2];
-    const total = Number(match[3]);
+  for (const match of stampMatches(text)) {
+    const label = match.stamp?.label;
+    const total = Number(match.stamp?.total);
     if (label === undefined || !Number.isSafeInteger(total)) {
       continue;
     }
     if (match.index > last) {
       out.push({ kind: "text", text: text.slice(last, match.index) });
     }
-    out.push({ kind: "span", span: { kind: "dice", label, total, raw: match[0] } });
-    last = match.index + match[0].length;
+    out.push({ kind: "span", span: { kind: "dice", label, total, raw: match.raw } });
+    last = match.index + match.raw.length;
   }
   if (last < text.length) {
     out.push({ kind: "text", text: text.slice(last) });
@@ -1417,7 +1515,31 @@ const PREVIEW_INLINE_MARKERS_RE = /[*_~`]+/g;
 /** A markdown LINK / image ref (`[label](target)`, a leading `!` for an image) — collapsed to its label, so
  *  a preview never spends its budget on a URL. Nested brackets are not matched (a degrade, not a parse:
  *  the leftover literal is still plain text). */
-const PREVIEW_LINK_RE = /!?\[([^\]]*)\]\([^)]*\)/g;
+function collapseMarkdownLinks(text: string): string {
+  let out = "";
+  let copied = 0;
+  let search = 0;
+  for (;;) {
+    const open = text.indexOf("[", search);
+    const close = open === -1 ? -1 : text.indexOf("]", open + 1);
+    if (close === -1) {
+      return out + text.slice(copied);
+    }
+    if (text.charAt(close + 1) !== "(") {
+      // Every `[` before this `]` shares it as its first closer, so none of them opens a link either.
+      search = close + 1;
+      continue;
+    }
+    const end = text.indexOf(")", close + 2);
+    if (end === -1) {
+      return out + text.slice(copied);
+    }
+    const start = open > copied && text.charAt(open - 1) === "!" ? open - 1 : open;
+    out += text.slice(copied, start) + text.slice(open + 1, close);
+    copied = end + 1;
+    search = copied;
+  }
+}
 
 /** A line's leading BLOCK markers — heading, quote, bullet, ordered-list — plus the markdown code-fence
  *  OPEN/CLOSE line itself (triple-backtick + its language tag, which carries no prose; the fenced body is
@@ -1459,8 +1581,7 @@ export function projectBodyForPreview(content: string, maxChars: number = PREVIE
   // raw `<speaker>` would leak into the one-line scent. Flatten through the ONE kit speaker engine
   // (`speakerTagsToPlain` — the prompt-history home) to `NAME: ` plain attribution rather than re-spelling the
   // tag grammar here (the content-class-wire duplication ban). A tagless per-speaker/solo row is a cheap no-op.
-  const flat = speakerTagsToPlain(prose)
-    .replace(PREVIEW_LINK_RE, "$1")
+  const flat = collapseMarkdownLinks(speakerTagsToPlain(prose))
     .replace(PREVIEW_BLOCK_PREFIX_RE, "")
     .replace(PREVIEW_INLINE_MARKERS_RE, "")
     .replace(PREVIEW_WHITESPACE_RE, " ")

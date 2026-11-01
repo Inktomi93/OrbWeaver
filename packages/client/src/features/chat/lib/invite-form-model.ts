@@ -13,6 +13,7 @@ import { SIGNUP_MAX_TTL_DAYS, SIGNUP_MAX_TTL_MS, SIGNUP_MAX_USES } from "@orb/co
 import type { AuthConfigShare } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { trimEndWhile } from "@orb/kit/strings";
 import { MS_PER_HOUR } from "@orb/kit/time";
 import type { SelectItems } from "@orb/ui/select/items";
 
@@ -160,11 +161,9 @@ export function toCreateInviteInput(values: InviteFormValues, now: number): Crea
   };
 }
 
-const TRAILING_SLASHES = /\/+$/u;
-
 /** The link a minted share-link token opens. While a share is up it is the share's public link: a friend cannot open
  *  this page's own origin when it is loopback or reachable only on this network. Otherwise it is this page's origin. */
 export function inviteJoinLink(token: string, share: AuthConfigShare, pageOrigin: string): string {
   const shared = share.state === "up" ? share.url : null;
-  return `${(shared ?? pageOrigin).replace(TRAILING_SLASHES, "")}/join/${encodeURIComponent(token)}`;
+  return `${trimEndWhile(shared ?? pageOrigin, "/")}/join/${encodeURIComponent(token)}`;
 }

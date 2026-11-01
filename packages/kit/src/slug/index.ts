@@ -24,6 +24,8 @@
 // output, a handle can never traverse a path, and `_` being outside the alphabet is what keeps it out of the
 // reserved `__group__*` namespace. Verified per-character against that list, not asserted.
 
+import { trimEndWhile } from "#strings";
+
 /** Code points D257 refuses because they render as nothing: default-ignorables, controls, format characters
  *  and the two blank-rendering symbols. The fold drops them, so a name reads the same with or without one; a
  *  blank (`White_Space`) still separates words. Some are letters or marks (the Hangul fillers, variation
@@ -43,7 +45,12 @@ const LATIN_COMBINING_MARKS = /(?<=[a-z0-9])\p{M}+/gu;
 /** Leading / trailing hyphens left after the collapse — trimmed off the edges, along with a LEADING
  *  combining mark (a mark with no base character in front of it is orphaned punctuation; a trailing one is
  *  a legitimate final vowel sign and stays). */
-const EDGE_HYPHENS = /^[-\p{M}]+|-+$/gu;
+const LEADING_EDGE = /^[-\p{M}]+/u;
+
+/** Both edges trimmed: the leading run by regex (anchored, so linear), the trailing hyphens by scan. */
+function trimHandleEdges(text: string): string {
+  return trimEndWhile(text.replace(LEADING_EDGE, ""), "-");
+}
 /** Answer for a name with nothing to fold — an EMPTY input only (`import-chat` routes on this exact value
  *  meaning "anonymous", so it stays a bare constant). A non-empty name that folds to nothing gets this plus
  *  the disambiguator below. */
@@ -108,13 +115,7 @@ export const SLUG_HANDLE_PATTERN = new RegExp(
  *  be truncated, carries a `-<tag>` disambiguator derived from the original. */
 export function slugifyHandle(name: string): string {
   // Invisibles drop after NFKD, which can decompose one into another (U+3164 to U+1160).
-  const folded = name
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(INVISIBLE, "")
-    .replace(LATIN_COMBINING_MARKS, "")
-    .replace(NON_SLUG_RUN, "-")
-    .replace(EDGE_HYPHENS, "");
+  const folded = trimHandleEdges(name.toLowerCase().normalize("NFKD").replace(INVISIBLE, "").replace(LATIN_COMBINING_MARKS, "").replace(NON_SLUG_RUN, "-"));
   if (folded.length === 0) {
     // An empty name has nothing to disambiguate; anything else (emoji, punctuation, symbols) does.
     return name.length === 0 ? FALLBACK_HANDLE : `${FALLBACK_HANDLE}-${nameTag(name)}`;
@@ -123,7 +124,7 @@ export function slugifyHandle(name: string): string {
   // through a non-BMP letter leaves half a surrogate pair behind (#1525).
   const points = [...folded];
   if (points.length > MAX_FOLDED_POINTS) {
-    return `${points.slice(0, MAX_FOLDED_POINTS).join("").replace(EDGE_HYPHENS, "")}-${nameTag(name)}`;
+    return `${trimHandleEdges(points.slice(0, MAX_FOLDED_POINTS).join(""))}-${nameTag(name)}`;
   }
   return folded;
 }
