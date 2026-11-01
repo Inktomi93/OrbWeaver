@@ -29,13 +29,13 @@
 // `rpgPromotedCardDescription` home) and `mood`/`relationship` are dropped. The panel's promotion affordance
 // names that drop out loud; a host who learns it afterwards learns it as a bug.
 
+import type { PromoteActorResult } from "@orb/contracts/rpg";
 import { actorRefKey, clampActorCardName, rpgPromotedCardDescription } from "@orb/contracts/rpg";
 import { stripHiddenSpans } from "@orb/kit/content";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import type { PromoteActorParams } from "../contract/params.ts";
-import type { PromoteActorResult } from "../contract/results.ts";
 import type { RpgContext, RpgService } from "../contract/service.ts";
 import { assertHostRole, resolveMember } from "../guard.ts";
 import { currentSnapshotState, writeHandState } from "../snapshot-edit.ts";

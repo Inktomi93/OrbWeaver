@@ -5,8 +5,6 @@ import type { CharacterId, ChatDigestId, ChatId, PersonaId, UserId } from "@orb/
 import type { MessageRole } from "@orb/kit/message-role";
 import type { RecorderFilter } from "#foundation/observability";
 
-export type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
-
 // domain/chat/contract/memory — the type HOME for the `memory/` subsystem. The
 // `types-in-contract` gate forbids an exported feature type in a subsystem file (verb/substrate/subsystem),
 // so the subsystem's internal types are declared HERE and RE-EXPORTED from `memory/types.ts` (the connection/
@@ -176,6 +174,14 @@ export interface DigestRow {
 /** The outcome of a build pass (digests or segments) — written = newly stored (or re-stored on a hash diff). */
 export interface MemoryPassCounts {
   readonly written: number;
+}
+
+/** The mutable tier-0 pass tally (the observability counts a build trace reports through `logBuild`). */
+export interface Tier0Counts {
+  written: number;
+  skipped: number;
+  skippedTokenGuard: number;
+  skippedEmpty: number;
 }
 
 /** The SEGMENT pass's fold — {@link MemoryPassCounts} plus the blocks that could not be CHUNKED into the embed

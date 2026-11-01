@@ -11,16 +11,16 @@ plan: cross-surface-consistency
 
 ## What
 
-The change, in a sentence.
+The route switches in `rule-analysis-fields.tsx` use `SettingSwitchRow` and the Tool select in `rule-tool-fields.tsx` uses `Field`, replacing hand-spelled `label`/`htmlFor`/`aria-label` pairs.
 
 ## Why
 
-The symptom or the ruling behind it.
+A one-off labeled control uses the `@orb/ui` Field label grammar, as `rule-editor-settings.tsx` already does; the raw label plus duplicate `aria-label` could drift.
 
 ## Done when
 
-The observable bar a verifier can check.
+No raw `<label>` remains in the two files; accessible names (Guidance, World book, Suggested turns, Rewrite suggestions, Score variable, Tool) are unchanged and no test pins them; client typecheck and scoped eslint pass.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Filled at landing: see the landing commit.

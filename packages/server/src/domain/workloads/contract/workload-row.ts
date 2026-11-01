@@ -49,8 +49,6 @@ export interface WorkloadInFlightRow {
   readonly updatedAt: number;
 }
 
-export type { WorkloadRowAnyKind, WorkloadRunnableRow } from "@orb/contracts/workloads";
-
 type StoredWorkloadRow = typeof workloads.$inferSelect;
 type WorkloadJsonField = keyof Pick<StoredWorkloadRow, "params" | "result" | "progress" | "dependsOn">;
 

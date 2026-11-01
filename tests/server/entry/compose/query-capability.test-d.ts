@@ -5,14 +5,14 @@ import type { GenerationObservationCallback } from "@orb/inference";
 import type { createChatBus, createGenerationObservationSink } from "@orb/server/domain/chat";
 import type { NotificationsService } from "@orb/server/domain/notifications";
 import type { SessionsService } from "@orb/server/domain/sessions";
-import type { createSettingsContext } from "@orb/server/domain/settings";
+import type { createSettingsAssemblyContext } from "@orb/server/domain/settings";
 import type { ServicesDeps } from "@orb/server/entry/compose";
 import { expectTypeOf, test } from "vitest";
 
 test("the real composition input and returned settings binding have no named query capability", () => {
   expectTypeOf<Extract<keyof ServicesDeps["db"], string>>().toEqualTypeOf<never>();
   expectTypeOf<ServicesDeps["db"]>().toEqualTypeOf<DatabaseHandle>();
-  expectTypeOf<Extract<keyof ReturnType<typeof createSettingsContext>["db"], string>>().toEqualTypeOf<never>();
+  expectTypeOf<Extract<keyof ReturnType<typeof createSettingsAssemblyContext>["db"], string>>().toEqualTypeOf<never>();
   expectTypeOf<Db>().not.toExtend<ServicesDeps["db"]>();
 });
 

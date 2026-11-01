@@ -9,12 +9,12 @@
 // card the distill pass had not reached rendered as "Unknown" with no face inside a cluster it was
 // legitimately a member of — the member set comes from the EMBEDDINGS, which cover every indexed card.
 
+import type { Archetype, ArchetypeMember } from "@orb/contracts/discovery";
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { sha256Hex } from "#primitives/content-hash";
 import type { ArchetypesOptions } from "../contract/params.ts";
-import type { Archetype, ArchetypeMember } from "../contract/results.ts";
 import type { DiscoveryContext, DiscoveryService } from "../contract/service.ts";
 import { readOwnedCardDisplay } from "../persistence/card-reads.ts";
 import { readOwnedCharacterVectors } from "../persistence/embed-store-reads.ts";

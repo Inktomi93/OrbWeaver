@@ -30,4 +30,8 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 4 rows = 4 applied. 0 kept, 0 handed off, 0 owner questions.
+
+- `GenerationReceipt`, `PruneMemoryBlocksParams`, `StoreResult` reexport-chain: applied. The `domain/embeddings/contract` re-exports are deleted (`contract/generation.ts` held only that line and is removed); 9 importer files take the types from `@orb/contracts/embeddings` (plan from importers of each re-export module, `move-import-names`; ast-grep ts 5949 / tsx 1525 tracked files). The contracts side is untouched. `codegraph_explore` on the three symbols and `EmbeddingsAssemblyContext` showed their homes in `packages/contracts/src/embeddings/owner-ops.ts` and no consumer outside the domain contract.
+- `EmbeddingsContext` / `EmbeddingsAssemblyContext` renamed-reexport: applied. The door exports the declared name; the one importer is renamed. The inner `EmbeddingsContext` is a different type.
+- Check: `pnpm typecheck packages/server/tsconfig.json` exit 0.

@@ -38,6 +38,7 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 Applied: `runCardLorebookRestore.deps.importCardScripts`. `CardLorebookRestoreDeps` now omits it (`packages/server/src/entry/import/run-profile-import.ts:30`); the one caller, `entry/http/upload.ts:252`, never supplied it, and `ProfileImportDeps` keeps it for `runProfileImport` (`upload.ts:285`). Restore re-asserts a lorebook only, so behavior is unchanged.
 
 Handed off (only a test file supplies them; tests not rewritten):
+
 - `migrateDataLayout.deps.pid`, `.isPidAlive`, `.deviceOf`, `.rename`: supplied by `tests/server/entry/boot/persistence/migrate-data-layout.int.test.ts` (`pid` at 380-432, `isPidAlive` at 382-442, `deviceOf` at 291-359, `rename` at 372). Production passes `{ layout, logger, env }` only.
 - `runBootMigrations.deps.migrationsFolder`: supplied by `tests/db/schema/chat-freeze-provenance.repo.int.test.ts:127`.
 

@@ -2,7 +2,15 @@
 
 import type { IsAdmin, IsOwner, RequireOwner } from "@orb/contracts/admin";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
-import type { ModelCallEstimate, StartWorkloadOp, WorkloadLane, WorkloadRef } from "@orb/contracts/workloads";
+import type {
+  CancelWorkloadResult,
+  ModelCallEstimate,
+  StartWorkloadOp,
+  WorkloadLane,
+  WorkloadRef,
+  WorkloadRowAnyKind,
+  WorkloadRunnableRow,
+} from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
@@ -11,7 +19,6 @@ import type { AuditEntry, Logger, TraceRing } from "#foundation/observability";
 import type { WorkloadContributions } from "./contribution.ts";
 import type {
   CancelWorkloadParams,
-  CancelWorkloadResult,
   EstimateModelCallsParams,
   EstimateRetryModelCallsParams,
   GetWorkloadParams,
@@ -20,7 +27,6 @@ import type {
 } from "./params.ts";
 import type { WorkloadProgressBus } from "./progress-bus.ts";
 import type { WorkloadScheduleService } from "./schedule.ts";
-import type { WorkloadRowAnyKind, WorkloadRunnableRow } from "./workload-row.ts";
 
 /** Mint a fresh `WorkloadId` — the injected determinism seam. */
 type NewWorkloadId = () => WorkloadId;

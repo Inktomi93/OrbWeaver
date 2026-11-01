@@ -51,14 +51,9 @@ import type { MemoryConfig, MemoryRecallInputs } from "./memory.ts";
 import type { ReactAsCharacterParams } from "./params.ts";
 import type { ChatDetailData } from "./views.ts";
 
-export type { RequestTurnOp } from "@orb/contracts/chat";
-
 // Every verb's non-trivial *Result shape + the engine types that live in contract/ (exported feature types
 // live here, never inline on the engine). Most reads return a views.ts read-model; most canon-edits return
 // a MessageView; bulk mutators return void — only the other shapes are declared here.
-
-// The invite results are wire nodes: their strict schemas are the invite procedures' tRPC output parsers.
-export type { CreateInviteResult, TurnIntent } from "@orb/contracts/chat";
 
 /** The output axis: per-speaker (one message per speaker) vs narrator (one call voices all the seated characters). */
 export type GroupOutput = GroupConfig["output"];
@@ -478,8 +473,6 @@ export interface DrainReport {
   readonly ran: number;
   readonly dropped: number;
 }
-
-export type { ImpersonateStreamDelta } from "@orb/contracts/chat";
 
 /** `compact` — the portable compaction marker produced: the summary text + the seq it covers through, and
  *  whether this call actually rewrote the marker (`false` for an idempotent no-op / an all-hidden span / an

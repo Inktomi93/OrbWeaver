@@ -3,12 +3,12 @@
 // economics-composed insights (forgottenGems, modelRouting) live in the sibling economics-insights.ts,
 // composing the injected stats economics op — this file stays the pure-semantics half.
 
+import type { ArchetypeMember, ThemeLevel } from "@orb/contracts/discovery";
 import type { Db } from "@orb/db";
 import { assets, characters, chatParticipants, digestThemeAssignments, themeClusters } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { and, asc, desc, eq, isNotNull, notExists, sql } from "drizzle-orm";
-import type { ThemeLevel } from "../contract/params.ts";
-import type { ArchetypeMember, ThemeDriftBucket, ThemeDriftTheme } from "../contract/results.ts";
+import type { ThemeDriftBucket, ThemeDriftTheme } from "../contract/results.ts";
 import type { DiscoveryContext, DiscoveryService } from "../contract/service.ts";
 import { storyTimeBucketStart } from "../persistence/embed-store-reads.ts";
 

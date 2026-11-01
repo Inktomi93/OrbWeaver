@@ -24,13 +24,14 @@
 // for the crash arm: mints that land without their room swap are not corruption and need no cleanup sweep.
 
 import { deriveCharacterHandle, portableCharacterHandle } from "@orb/contracts/character";
+import type { HandoffCardCopy } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource, themeBackgroundSchema, themeOverrideSchema } from "@orb/contracts/theme";
 import { batchHandle, databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { cardContentHash } from "#primitives/serde/card";
-import type { CharacterHandoffCopyAssemblyContext, CharacterHandoffCopyContext, CopyHandoffCards, HandoffCardCopy } from "../contract/handoff-copy.ts";
+import type { CharacterHandoffCopyAssemblyContext, CharacterHandoffCopyContext, CopyHandoffCards } from "../contract/handoff-copy.ts";
 import { handoffProvenance } from "../contract/handoff-copy.ts";
 import { cardTokenSize } from "../substrate/card-tokens.ts";
 import { insertCharacterClaimingProvenance } from "./card.ts";

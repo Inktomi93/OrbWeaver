@@ -35,4 +35,8 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 9 rows = 1 applied, 1 kept with reason, 7 kept deliberate (law section 4). 0 handed off, 0 owner questions.
+
+- `ExecutePluginSuggestion` reexport-chain: applied. The `export type { … } from "@orb/contracts/plugin"` in `packages/server/src/domain/automation/contract/ops.ts` is gone; `contract/service.ts` imports it from `@orb/contracts/plugin`. Scan: ast-grep ts, 5949 tracked files, 0 other consumers of the automation door's copy (the other users, `domain/plugin/contract/runtime-ports.ts`, already import the contracts door). The contracts side (`contracts/src/plugin/`) is untouched.
+- `RulePresetProvenance` / `RosterPresetRuleView`: kept. Both are `{ rulePresetId, knobs }`, but one names which preset minted an automation rule (written to `automation_rules.rule_preset_id` / `rule_preset_knobs`, verb-only), the other a stored roster rule the wire carries and the picker renders. They change for different reasons; a merge would couple the mint contract to the roster wire view.
+- Seven `ResolveStreamAuthorityParams` rows: kept, per-verb `…Params` (`docs/law/Core-0-Architecture-and-Structure.md` section 4).

@@ -8,7 +8,7 @@ const { sdkSessionId: sessionId, frameId, lines } = await readSdkProcessInput();
 const inputSchema = z.object({
   type: z.string(),
   ["request_id"]: z.string().optional(),
-  request: z.object({ subtype: z.string() }).optional(),
+  request: z.object({ subtype: z.string(), sdkMcpServers: z.array(z.string()).optional() }).optional(),
 });
 
 function write(value: object): void {
@@ -82,7 +82,7 @@ function writeMetadata(model: string, mode: string, common: Readonly<Record<stri
   }
 }
 
-function writeTurn(model: string, mode: string): void {
+function writeTurn(model: string, mode: string, reply = "native wire reply"): void {
   const common = { ["session_id"]: sessionId };
   write({ ...common, uuid: frameId("init"), type: "system", subtype: "init", apiKeySource: "none", model });
   writeMetadata(model, mode, common);
@@ -92,7 +92,7 @@ function writeTurn(model: string, mode: string): void {
     type: "assistant",
     message: {
       role: "assistant",
-      content: [{ type: "text", text: mode === "bad-text" ? { text: "not text" } : "native wire reply" }],
+      content: [{ type: "text", text: mode === "bad-text" ? { text: "not text" } : reply }],
       ["stop_reason"]: "end_turn",
     },
   });
@@ -137,7 +137,7 @@ function writeTurn(model: string, mode: string): void {
     ["duration_api_ms"]: 1,
     ["is_error"]: false,
     ["num_turns"]: 1,
-    result: "native wire reply",
+    result: reply,
     ["stop_reason"]: "end_turn",
     ["total_cost_usd"]: 3,
     usage,
@@ -164,15 +164,62 @@ function controlResponse(subtype: string | undefined, model: string, mode: strin
   throw new Error("unscripted SDK wire control");
 }
 
+const MCP_PROBE_MODE = "mcp-probe";
+const mcpReplySchema = z.object({
+  type: z.literal("control_response"),
+  response: z.object({ ["request_id"]: z.string(), response: z.object({ ["mcp_response"]: z.json() }) }),
+});
+
+function flagValue(flag: string): string | undefined {
+  const at = process.argv.indexOf(flag);
+  return at === -1 ? process.argv.find((argument) => argument.startsWith(`${flag}=`))?.slice(flag.length + 1) : process.argv[at + 1];
+}
+
+/** The runtime's half of the in-process MCP handshake: the SDK-owned server answers these exactly as it answers the runtime. */
+function mcpProbe(servers: readonly string[], finish: (report: string) => void): { readonly begin: () => void; readonly answer: (line: string) => void } {
+  const steps = [
+    { method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "sdk-wire-child", version: "0" } } },
+    { method: "tools/list", params: {} },
+    { method: "tools/call", params: { name: "probe", arguments: { label: "wire" } } },
+  ];
+  const replies: unknown[] = [];
+  const send = (): void => {
+    const step = steps[replies.length];
+    write({
+      type: "control_request",
+      ["request_id"]: `mcp-${String(replies.length)}`,
+      request: { subtype: "mcp_message", ["server_name"]: servers[0], message: { jsonrpc: "2.0", id: replies.length, ...step } },
+    });
+  };
+  return {
+    begin: send,
+    answer: (line): void => {
+      replies.push(mcpReplySchema.parse(JSON.parse(line)).response.response.mcp_response);
+      if (replies.length < steps.length) {
+        send();
+      } else {
+        finish(JSON.stringify({ servers, allowedTools: flagValue("--allowedTools"), replies }));
+      }
+    },
+  };
+}
+
 async function run(): Promise<void> {
   const mode = process.argv[2];
   const model = process.argv[3];
   if (mode === undefined || model === undefined) {
     throw new Error("SDK wire child requires its explicit case and model");
   }
+  const servers: string[] = [];
+  const probe = mode === MCP_PROBE_MODE ? mcpProbe(servers, (report) => writeTurn(model, mode, report)) : null;
   for await (const line of lines) {
     const message = inputSchema.parse(JSON.parse(line));
+    if (message.type === "control_response") {
+      probe?.answer(line);
+      continue;
+    }
     if (message.type === "control_request") {
+      servers.push(...(message.request?.sdkMcpServers ?? []));
       const response = controlResponse(message.request?.subtype, model, mode);
       write({ type: "control_response", response: { subtype: "success", ["request_id"]: message.request_id, response } });
       continue;
@@ -180,7 +227,11 @@ async function run(): Promise<void> {
     if (message.type !== "user") {
       throw new Error("unscripted SDK wire input");
     }
-    writeTurn(model, mode);
+    if (probe === null || servers.length === 0) {
+      writeTurn(model, mode);
+    } else {
+      probe.begin();
+    }
   }
 }
 

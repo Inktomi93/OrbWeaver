@@ -1,9 +1,10 @@
 // Avatar preparation is shared by event delivery and sweeps, before any caption or vector inference.
 import { EMBEDDABLE_ASSET_KINDS } from "@orb/contracts/assets";
+import type { StoreResult } from "@orb/contracts/embeddings";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { isMissingFile } from "#primitives/errno";
 import { AssetFileCorruptError, AssetFileMissingError } from "../contract/errors.ts";
-import type { AvatarAnalysis, StoreResult } from "../contract/results.ts";
+import type { AvatarAnalysis } from "../contract/results.ts";
 import type { EmbeddingsContext, EmbeddingsService, PinnedGeneration, PinnedImageSpace } from "../contract/service.ts";
 import { readImageAnalysis, saveImageAnalysis } from "../persistence/image-analysis.ts";
 import { existingCaptionedRow, existingImageHash, existingImageSkip, insertImageSkip } from "../persistence/queries.ts";

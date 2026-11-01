@@ -28,4 +28,7 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 2 rows = 2 applied. 0 kept, 0 handed off, 0 owner questions.
+
+- `ToolCallInput` reexport-chain: applied. The `contract/params.ts` re-export is deleted; its importer (`verbs/execute-tool-calls.ts`) imports it from `@orb/inference`. `ToolCallRecord` reexport-chain: applied. The `contract/results.ts` re-export is deleted; the two importers import it from `@orb/contracts/chat`. The tool-use door never exported either (rg and ast-grep over ts 5949 / tsx 1525 tracked files); `codegraph_explore` listed the callers under `domain/tool-use`, chat and plugin.
+- Check: `pnpm typecheck packages/server/tsconfig.json` exit 0.

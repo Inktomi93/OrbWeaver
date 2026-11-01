@@ -16,13 +16,14 @@ import type {
   WorkloadParamsByKind,
   WorkloadProgress,
   WorkloadRunContext,
+  WorkloadRunnableRow,
 } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog, withRequestSpan } from "#foundation/observability";
 import type { WorkloadContribution } from "../contract/contribution.ts";
 import type { WorkloadRunnerDeps } from "../contract/service.ts";
-import type { WorkloadClaim, WorkloadRunnableRow } from "../contract/workload-row.ts";
+import type { WorkloadClaim } from "../contract/workload-row.ts";
 import { heartbeat, loadWorkloadStatus, markStarted, markTerminal } from "../persistence/queries.ts";
 
 // Synthetic acting user for a scheduler/system-triggered row (`ownerId === null`); not a real `users` row.

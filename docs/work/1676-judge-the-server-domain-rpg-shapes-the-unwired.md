@@ -34,4 +34,8 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 8 rows = 8 applied. 0 kept, 0 handed off, 0 owner questions.
+
+- `CreateGameResult`, `HandDoorResult`, `PopulateResult`, `PromoteActorResult`, `ResyncResult`, `RollDiceResult` reexport-chain: applied. The `domain/rpg/contract/results.ts` re-export line is deleted; 9 importer files (plan from importers of that module; ast-grep ts 5949 / tsx 1525 tracked files) import them from `@orb/contracts/rpg`.
+- `RpgRoundsDeps` / `RpgRoundsAssemblyDeps` renamed-reexport and `RpgContext` / `RpgAssemblyContext` renamed-reexport: applied. The door exports the declared names; 3 importer files renamed. `contract/rounds.ts` and `contract/service.ts` each declare an inner type of the old name, so the declaration cannot take it.
+- Check: `pnpm typecheck packages/server/tsconfig.json` exit 0.

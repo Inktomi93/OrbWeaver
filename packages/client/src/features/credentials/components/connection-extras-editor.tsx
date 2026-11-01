@@ -23,7 +23,7 @@
 import { errorMessage } from "@orb/kit/error-message";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
-import { Icon, Plus, Trash2 } from "@orb/ui/icons";
+import { Icon, Plus, Trash } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -166,7 +166,7 @@ function ExtraRowView({
             onClick={(): void => onRemove(row.id)}
             size="sm"
           >
-            <Icon icon={Trash2} size="sm" />
+            <Icon icon={Trash} size="sm" />
           </Button>
         </Row>
       </Row>

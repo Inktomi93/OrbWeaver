@@ -1,8 +1,8 @@
 // A server suite reaches production only through its mirror's own module door, the primitives and a type-only
 // import of another door; every other runtime reach is a native dependency-cruiser finding.
-import { dirname, join, relative } from "node:path";
+import { dirname, relative } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { cruiseRules, fires, unresolvable } from "./_native-cruise.ts";
 
 const OWN_MODULE = "tests-server-mirror-own-module";
 const OWN_TIER = "tests-server-mirror-own-tier";
@@ -77,20 +77,13 @@ test.for([
   },
   { name: "a listed suite running its listed constant's module", entry: REACHER, target: MODULES.relayDoor, typeOnly: false, rule: null },
   { name: "a listed suite running a module its line does not name", entry: REACHER, target: MODULES.networkDoor, typeOnly: false, rule: LISTED },
-] as const)("the native server test mirror judges $name", async (row, { plantedTree, repoRoot }) => {
+] as const)("the native server test mirror judges $name", async (row, { plantedTree }) => {
   const modules = Object.fromEntries(Object.values(MODULES).map((path) => [path, "export const probe = 1;\nexport type Probe = number;\n"]));
   const reexport = row.typeOnly ? "export type { Probe as Read }" : "export { probe as read }";
   const root = await plantedTree({ ...modules, [row.entry]: `${reexport} from ${JSON.stringify(relativeSpecifier(row.entry, row.target))};\n` });
-  const result = runNicedSync(
-    join(repoRoot, "node_modules/.bin/depcruise"),
-    [row.entry, "--config", join(repoRoot, ".dependency-cruiser.ts"), "--output-type", "err-long"],
-    {
-      cwd: root,
-    },
-  );
-  const output = result.stdout + result.stderr;
-  expect(output).not.toContain("not-to-unresolvable");
+  const violations = await cruiseRules(root, [row.entry], RULES);
+  expect(unresolvable(violations)).toEqual([]);
   for (const rule of RULES) {
-    expect(output.includes(`${rule}: ${row.entry}`), output).toBe(rule === row.rule);
+    expect(fires(violations, rule, [row.entry]), rule).toBe(rule === row.rule);
   }
 });

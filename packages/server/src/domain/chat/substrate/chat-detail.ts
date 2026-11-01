@@ -5,32 +5,17 @@
 // `viewerActivePersonaId`) derive from the roster ⋈ `viewerUserId`; `viewerOwnedCharacterIds` needs an
 // ownership read, so the verb resolves it (`substrate/viewer-gallery.ts`), and the gallery subject derives here.
 
-import type { AnchorState, ChatIdentity, ChatMetadata, HistoryFloorSeq, ParticipantData } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
-import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AnchorState, ChatIdentity, HistoryFloorSeq, ParticipantData } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES, NO_HISTORY_FLOOR } from "@orb/contracts/chat";
+import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { ChatDetailData } from "../contract/views.ts";
-import { NO_HISTORY_FLOOR } from "./auth/index.ts";
+import type { loadChatRow } from "../persistence/queries.ts";
 import { viewerHoldsHost } from "./member-visibility.ts";
 import { viewerGalleryCharacterIdOf } from "./viewer-gallery.ts";
 
-/** The projected `chats` row (metadata already parsed) — structurally the persistence `ChatRow`, which
- *  both `loadChatRow` and `listMemberChats` return. Only the fields `ChatDetailData` reads. */
-interface ChatDetailRow {
-  readonly id: ChatId;
-  readonly title: string | null;
-  readonly starred: boolean;
-  readonly archived: boolean;
-  readonly temporary: boolean;
-  readonly parentChatId: ChatId | null;
-  readonly forkedAt: number | null;
-  readonly anchorPersonaId: PersonaId | null;
-  readonly pendingHostUserId: UserId | null;
-  readonly compactSummary: string | null;
-  readonly compactedAtSeq: number | null;
-  readonly metadata: ChatMetadata;
-  readonly createdAt: number;
-  readonly updatedAt: number;
-}
+/** The projected `chats` row (metadata already parsed): persistence's `ChatRow`, which both `loadChatRow` and
+ *  `listMemberChats` return, read-only here. */
+type ChatDetailRow = Readonly<NonNullable<Awaited<ReturnType<typeof loadChatRow>>>>;
 
 interface ToChatDetailInput {
   readonly chat: ChatDetailRow;

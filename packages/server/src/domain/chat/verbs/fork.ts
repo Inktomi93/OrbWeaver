@@ -25,6 +25,7 @@
 import type { ChatMetadata, HistoryFloorSeq, StandaloneVariableDelta, VariantMetadata } from "@orb/contracts/chat";
 import {
   memberToolCalls,
+  NO_HISTORY_FLOOR,
   parseVariantMetadata,
   VARIANT_METADATA_REASONING_MS_KEY,
   VARIANT_METADATA_TOKEN_COUNT_KEY,
@@ -62,7 +63,7 @@ import {
   loadVariantsByMessageIds,
 } from "../persistence/queries.ts";
 import { seatableCharacterIds } from "../persistence/seat-characters.ts";
-import { NO_HISTORY_FLOOR, permitsHost } from "../substrate/auth/index.ts";
+import { permitsHost } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { continuationToolsAreUndone } from "../substrate/content-signatures.ts";
 import { viewerReadsHidden } from "../substrate/member-visibility.ts";

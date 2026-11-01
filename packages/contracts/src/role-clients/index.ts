@@ -66,7 +66,8 @@ export interface ImageEmbedPair {
 /** The credential-free call argument for `imageEmbed` — `Omit<ImageEmbedRequest, "credential" | "model" | "signal">`
  *  from the infra request, re-expressed as the cross-boundary input. Discriminate
  *  via `kind`: image-side / text-side (text→image search) / joint multimodal. `instruction` is the
- *  per-task hint for instruction-aware families; others ignore it. */
+ *  per-task hint for instruction-aware families; others ignore it. Only the text side reaches a wire: stored
+ *  images embed under the fixed document instruction, because changing it would move the space. */
 export type ImageEmbedInput =
   | { kind: "image"; input: ImageInput | ImageInput[]; instruction?: string | undefined }
   | { kind: "text"; input: string | string[]; instruction?: string | undefined }

@@ -12,7 +12,7 @@ import type { AssetsAssemblyContext, AssetsService } from "#domain/assets";
 import { createBackgroundStore } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import { createCompareAndSetImportedTokenUsage, createListImportedTokenUsageCandidates } from "#domain/chat";
-import type { DatabankPortabilityContext } from "#domain/databank";
+import type { DatabankPortabilityAssemblyContext } from "#domain/databank";
 import type { ExportService } from "#domain/export";
 import type { ImageryPortabilityService } from "#domain/imagery";
 import type { ImportDriverDeps, ImportWorkloadDeps, SettleImportMemory } from "#domain/import";
@@ -23,21 +23,23 @@ import {
   createRefreshImportPlannerStats,
   createSettleImportMemory,
   DEFAULT_IMPORT_STAGING_DIR,
+  importStagedArchive,
+  runBundleImport,
 } from "#domain/import";
 import type { PersonaService } from "#domain/persona";
 import { createFindOwnedPersonaByName } from "#domain/persona";
-import type { PresetContext } from "#domain/preset";
+import type { PresetAssemblyContext } from "#domain/preset";
 import { createImportPresets } from "#domain/preset";
-import type { SettingsContext } from "#domain/settings";
+import type { SettingsAssemblyContext } from "#domain/settings";
 import { createApplyImportedAppearance, createImportTheme } from "#domain/settings";
 import { createStatsBatchWiring, reconcileStats } from "#domain/stats";
-import type { TagContext, TagService } from "#domain/tag";
+import type { TagAssemblyContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
-import type { WorldInfoExportContext } from "#domain/world-info";
+import type { WorldInfoExportAssemblyContext } from "#domain/world-info";
 import type { Logger } from "#foundation/observability";
-import { extractZip, stageDirectory, writeImportReportFile } from "#infra/storage";
+import { createNodeFsImportPort, extractZip, stageDirectory, writeImportReportFile } from "#infra/storage";
 import type { LiveBuses } from "#transport/trpc";
-import { createNodeFsImportPort, importStagedArchive, runBundleImport, runProfileDirImport } from "../import/index.ts";
+import { runProfileDirImport } from "../import/index.ts";
 import { buildPortabilityRegistry } from "./portability.ts";
 
 const DEFAULT_ST_PROFILE_DIR = ".st-data";
@@ -52,16 +54,16 @@ export interface PortabilityRunnerComposeDeps {
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: Clock;
-  readonly tagCtx: TagContext;
-  readonly settingsCtx: SettingsContext;
-  readonly presetCtx: PresetContext;
-  readonly worldInfoExportCtx: WorldInfoExportContext;
+  readonly tagCtx: TagAssemblyContext;
+  readonly settingsCtx: SettingsAssemblyContext;
+  readonly presetCtx: PresetAssemblyContext;
+  readonly worldInfoExportCtx: WorldInfoExportAssemblyContext;
   readonly importStandaloneLorebook: ImportStandaloneLorebook;
   /** The gallery-extended assets ctx (the two character-handle resolvers the gallery export/import verbs need). */
   readonly galleryCtx: AssetsAssemblyContext;
   readonly imageryPortability: ImageryPortabilityService;
   /** The databank portability bundle (db + clock + id minter + the ingest enqueue a restore re-runs). */
-  readonly databankCtx: DatabankPortabilityContext;
+  readonly databankCtx: DatabankPortabilityAssemblyContext;
   readonly persona: PersonaService;
   readonly exportService: ExportService;
   readonly character: CharacterService;

@@ -4,7 +4,6 @@ export type {
   BlockSpan,
   DigestRow,
   MemoryConfig,
-  MemoryEmbedSpace,
   MemoryPassCounts,
   MemoryRecallRecord,
   MemoryRecallRecorder,
@@ -16,6 +15,7 @@ export type {
   SegmentChunk,
   SegmentPassCounts,
   SummarizerBudget,
+  Tier0Counts,
   TurnRetrievalWarningEpisode,
   WitnessInterval,
 } from "../contract/memory.ts";

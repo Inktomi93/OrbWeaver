@@ -19,8 +19,6 @@ import type {
   CssMergeTraceState,
 } from "./css-merge-contract.ts";
 
-export type { CssMergeTraceSnapshot } from "./css-merge-contract.ts";
-
 const CSS_MERGE_TRACE_INPUT_LIMIT = 128;
 const CSS_MERGE_TRACE_RECEIPT_LIMIT = 128;
 const INSTRUMENT_ERROR = "INSTRUMENT ERROR";
