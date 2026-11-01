@@ -24,8 +24,6 @@ import { LIST_PANE_TITLE_ID } from "#lib";
 import { CountText } from "./count-text.tsx";
 import { BAND_OVERFLOW_LABEL, OverflowActions, OverflowMenuForms } from "./overflow-actions.tsx";
 
-export type { ListPaneHeaderProps } from "#lib";
-
 /** One LIST chrome-band: `[‹] Title · accent  count … action`. */
 export function ListPaneHeader({ title, accent, count, back, actions }: ListPaneHeaderProps): ReactElement {
   return (

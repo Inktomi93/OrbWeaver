@@ -1,5 +1,6 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characterSnapshots, characters } from "@orb/db";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 import { seedCharacterHistoryRows } from "./factories/rows/character.ts";
@@ -21,6 +22,8 @@ test("root-bound producers retain real writes, ownership refusal and observation
   expect(history.ref.id).toBe(history.row.id);
   const before = await root.db.select().from(characterSnapshots);
   const foreign = await root.actor();
-  await expect(seedCharacterHistoryRows(root, { principal: await root.principalFor(foreign.id), characterId: produced.row.id })).rejects.toThrow();
+  await expect(seedCharacterHistoryRows(root, { principal: await root.principalFor(foreign.id), characterId: produced.row.id })).rejects.toThrow(
+    DomainNotFoundError,
+  );
   expect(await root.db.select().from(characterSnapshots)).toEqual(before);
 });

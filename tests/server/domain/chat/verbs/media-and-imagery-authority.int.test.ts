@@ -4,6 +4,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { databaseHandle } from "@orb/db/wiring-driver";
+import { ProviderError } from "@orb/inference";
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -40,7 +41,9 @@ test("composed imagery card reads carry the row-derived host role rather than a 
   } = await seedChat(harness, { principal: host, characterIds: [subject.id] });
   await seatMember(harness, host, room.id, member);
   const getCard = vi.spyOn(services.character, "getCard");
-  await expect(services.imagery.extractPrompt({ caller: member, chatId: room.id, mode: "character", subjectCharacterId: subject.id })).rejects.toThrow();
+  await expect(services.imagery.extractPrompt({ caller: member, chatId: room.id, mode: "character", subjectCharacterId: subject.id })).rejects.toThrow(
+    ProviderError,
+  );
   expect(getCard).toHaveBeenCalledExactlyOnceWith({
     principal: expect.objectContaining({ userId: host.userId, handle: host.handle }),
     characterId: subject.id,

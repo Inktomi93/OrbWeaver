@@ -15,16 +15,13 @@ import { NumberField } from "@orb/ui/number-field";
 import type { ReactElement } from "react";
 
 import { QueryBoundary, SettingRowGroup } from "#components";
+import type { SectionPatchVars } from "#data";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import type { SaveLifecycleState } from "#state";
 import { LIBRARY_SETTINGS_SUBCATEGORY } from "../lib/library-settings-nav.ts";
 
-interface UpdateLibraryVars {
-  readonly section: "library";
-  readonly patch: { readonly pageSize: number };
-}
-const useUpdateLibrary = createEntityMutation<UpdateLibraryVars, unknown>({
+const useUpdateLibrary = createEntityMutation<SectionPatchVars<"library">, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
   errorToast: "Couldn't save your library settings.",

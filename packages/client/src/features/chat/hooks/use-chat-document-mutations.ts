@@ -23,27 +23,22 @@
 //     busDriven one here.
 
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
-import type { ChatId, DocumentId } from "@orb/kit/ids";
-import type { inferOutput } from "@trpc/tanstack-react-query";
+import type { ChatId } from "@orb/kit/ids";
+import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
 /** The rack's own read — the chat's ACTIVE document union (D85), host-flagged. */
 type ActiveChatDocuments = inferOutput<Trpc["databank"]["listActiveForChat"]>;
 
-/** `databank.attachToChat` / `detachFromChat` vars — the document and the room. Host-gated INSIDE the verb. */
-interface ChatDocumentAttachVars {
-  readonly documentId: DocumentId;
-  readonly chatId: ChatId;
-}
-
-export const useAttachDocumentToChat = createEntityMutation<ChatDocumentAttachVars, unknown>({
+/** `databank.attachToChat` / `detachFromChat` — the document and the room. Host-gated INSIDE the verb. */
+export const useAttachDocumentToChat = createEntityMutation<inferInput<Trpc["databank"]["attachToChat"]>, unknown>({
   options: (trpc) => trpc.databank.attachToChat.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't add the document to this chat.",
 });
 
-export const useDetachDocumentFromChat = createEntityMutation<ChatDocumentAttachVars, unknown>({
+export const useDetachDocumentFromChat = createEntityMutation<inferInput<Trpc["databank"]["detachFromChat"]>, unknown>({
   options: (trpc) => trpc.databank.detachFromChat.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't remove the document from this chat.",

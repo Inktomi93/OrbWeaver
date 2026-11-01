@@ -2,9 +2,17 @@
 // options (never `owner` — the setRole verb refuses minting a second owner) and the badge-tone maps. DOM-free; presentation-only labels, the enforceable truth stays server-side.
 
 import type { UserRole } from "@orb/contracts/identity";
-import type { Handle } from "@orb/kit/ids";
+import type { Handle, UserId } from "@orb/kit/ids";
 import type { BadgeProps } from "@orb/ui/badge";
 import type { SelectItems } from "@orb/ui/select/items";
+
+/** The props of an admin dialog that acts on one account (link SSO, reset password, sessions). */
+export interface AdminUserDialogProps {
+  readonly userId: UserId;
+  readonly handle: Handle;
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+}
 
 export interface CreateUserFormValues {
   /** The new user handle DRAFT — `""` until typed; the submit seam brands the trimmed value. */

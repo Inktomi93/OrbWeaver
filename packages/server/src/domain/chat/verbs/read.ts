@@ -167,7 +167,7 @@ import { scrubChatEventReplayForMember, scrubStreamReplayForMember, stripMemberC
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import {
   humanSeatPersonasOf,
-  memberPersonaIdsOf,
+  lorePersonaIdsOf,
   presentAndEnabledHumanUserIdsOf,
   resolveAnchorState,
   seatsMultipleHumans,
@@ -554,8 +554,8 @@ async function resolveRoomInputs(
     chatId,
     hostUserId,
     characterIds,
-    // The same membership rule as the live turn (`memberPersonaIdsOf`), so the preview shows the lore it sends.
-    personaIds: memberPersonaIdsOf(humanSeats),
+    // The same rule as the live turn (`lorePersonaIdsOf`), so the preview shows the lore it sends.
+    personaIds: lorePersonaIdsOf(humanSeats, anchorPersonaId),
     multiHuman: seatsMultipleHumans(previewPresentHumanUserIds),
     group,
     // The SAME row `group` came off — an absent row is a metadata-less room (⇒ every knob inherits).

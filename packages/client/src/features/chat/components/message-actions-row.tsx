@@ -30,13 +30,14 @@
 // the budget exists to red on.
 
 import type { ForkResult, MessageView, ParticipantView } from "@orb/contracts/chat";
-import type { ChatId, MessageId } from "@orb/kit/ids";
 import { Code, Copy, Eye, EyeOff, GitFork, Icon, Pencil, Redo2, SmilePlus, Undo2 } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ComponentProps, ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
 import { DescribedMenuItem } from "#components";
+import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { copyWithNotice, NEEDS_CONTINUATION, notify, testId } from "#lib";
 import { selectChat, startEditingMessage } from "#state";
@@ -57,40 +58,19 @@ import { VariantWireViewer } from "./variant-wire-viewer.tsx";
 // A failed copy's next step; the message is on screen right above the menu.
 const MESSAGE_COPY_FALLBACK = "Select the message text to copy it by hand.";
 
-interface HideVars {
-  readonly chatId: ChatId;
-  readonly messageId: MessageId;
-  readonly hidden: boolean;
-}
-
-interface DeleteVars {
-  readonly chatId: ChatId;
-  readonly messageIds: MessageId[];
-}
-
-interface ForkVars {
-  readonly chatId: ChatId;
-  readonly throughSeq: number;
-}
-
-interface ContinueRestoreVars {
-  readonly chatId: ChatId;
-  readonly messageId: MessageId;
-}
-
-const useHideMutation = createEntityMutation<HideVars, unknown>({
+const useHideMutation = createEntityMutation<inferInput<Trpc["chat"]["setMessageHidden"]>, unknown>({
   options: (trpc) => trpc.chat.setMessageHidden.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't change that message's visibility.",
 });
 
-const useDeleteMutation = createEntityMutation<DeleteVars, unknown>({
+const useDeleteMutation = createEntityMutation<inferInput<Trpc["chat"]["deleteMessages"]>, unknown>({
   options: (trpc) => trpc.chat.deleteMessages.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't delete that message.",
 });
 
-const useForkMutation = createEntityMutation<ForkVars, ForkResult>({
+const useForkMutation = createEntityMutation<inferInput<Trpc["chat"]["forkChat"]>, ForkResult>({
   options: (trpc) => trpc.chat.forkChat.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't fork this chat.",
@@ -98,13 +78,13 @@ const useForkMutation = createEntityMutation<ForkVars, ForkResult>({
 
 // Undo/revert the last continuation on THIS reply's shown swipe (F2). Bus-driven like the other row
 // mutations — the verb emits `messageCommitted`, the surface refetches; no manual cache write here.
-const useUndoContinueMutation = createEntityMutation<ContinueRestoreVars, unknown>({
+const useUndoContinueMutation = createEntityMutation<inferInput<Trpc["chat"]["undoContinue"]>, unknown>({
   options: (trpc) => trpc.chat.undoContinue.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't undo the continuation.",
 });
 
-const useRevertContinueMutation = createEntityMutation<ContinueRestoreVars, unknown>({
+const useRevertContinueMutation = createEntityMutation<inferInput<Trpc["chat"]["revertContinue"]>, unknown>({
   options: (trpc) => trpc.chat.revertContinue.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't re-apply the continuation.",

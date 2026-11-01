@@ -32,8 +32,6 @@ import { createAgentSdkLog } from "./log.ts";
 import { runChatTurn } from "./runner.ts";
 import { SessionCache } from "./session/index.ts";
 
-export type { SessionEntryWriter } from "./session/index.ts";
-
 const DEFAULT_TOOL_SERVER_NAME = "orbweaver";
 const CLAUDE_TOOL = "claude";
 

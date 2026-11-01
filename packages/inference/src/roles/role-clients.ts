@@ -2,7 +2,7 @@
 // The executor owns execution authority and strike-out; resolved(task) keeps the unavailable projection.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { Task, UnavailableCause } from "@orb/contracts/inference";
+import type { BindingActor, Task, UnavailableCause } from "@orb/contracts/inference";
 import { canFund } from "@orb/contracts/inference";
 import { rolePresetParamsOf } from "@orb/contracts/preset";
 import type { EmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
@@ -14,7 +14,6 @@ import type { Resolved } from "../contract/resolved.ts";
 import type { EmbedRequest, RoleClientsWithSignal, StructuredCallOptions, SummarizeCallOptions, TaskSampling } from "../contract/roles.ts";
 import type { RoleClientsFor } from "../contract/runtime.ts";
 import type { ResolverContext } from "../contract/task-resolution.ts";
-import type { BindingActor } from "../deps.ts";
 import { resolveEmbed } from "../funnel/resolve-embed.ts";
 import { NoConnectionError, resolveTask } from "../resolve/resolve-task.ts";
 

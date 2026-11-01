@@ -153,8 +153,6 @@ export interface ParsedNotePlacement {
  *  BUILD-SIDE: not emitted — orb's injections table does not remember which door a row entered by, and the
  *  export's one prose seat is the note (writing these twice would give one fact two spellings). */
 export interface ParsedScriptInject {
-  /** The ST inject id (the `script_injects` object key) — provenance for the report, never an orb id. */
-  readonly key: string;
   readonly value: string;
   readonly position: number | null;
   readonly depth: number | null;
@@ -163,13 +161,11 @@ export interface ParsedScriptInject {
 
 /** One parsed/serializable ST chat. `createDate` is the FILENAME date first (survives ST re-save/migration),
  *  then the header `create_date`, then null. `parentRef` is the normalized `chat_metadata.main_chat` (the
- *  branch edge; falls back to the filename lineage). `bucket` is the memory-backfill gate.
- *  `sourceMetadata` is the full `chat_metadata` (lossless sidecar; null on the build side). */
+ *  branch edge; falls back to the filename lineage). `bucket` is the memory-backfill gate. */
 export interface ParsedChat {
   readonly characterName: string;
   readonly userName: string | null;
   readonly createDate: number | null;
-  readonly isBranch: boolean;
   readonly parentRef: string | null;
   readonly notePrompt: string | null;
   /** Recorded placement for notePrompt in ST vocabulary; null if no knob is recorded, so the mapper uses
@@ -193,7 +189,6 @@ export interface ParsedChat {
    */
   readonly scriptInjects: readonly ParsedScriptInject[];
   readonly bucket: ChatBucket;
-  readonly sourceMetadata: Record<string, unknown> | null;
   readonly messages: readonly ParsedChatMessage[];
 }
 
@@ -488,14 +483,13 @@ function parseScriptInjects(meta: Record<string, unknown> | null): ParsedScriptI
     return [];
   }
   const out: ParsedScriptInject[] = [];
-  for (const [key, entry] of Object.entries(raw)) {
+  for (const entry of Object.values(raw)) {
     const obj = asObj(entry);
     const value = obj === null ? null : nullIfEmpty(str(obj["value"]));
     if (obj === null || value === null) {
       continue;
     }
     out.push({
-      key,
       value,
       position: parseNoteKnob(obj["position"]),
       depth: parseNoteKnob(obj["depth"]),
@@ -885,8 +879,6 @@ export function parseChatJsonl(
     userName: nullIfEmpty(str(header.user_name)),
     // Filename date FIRST (survives re-save/migration), then the header create_date, then null.
     createDate: parseFilenameDate(opts.fileName, zone) ?? parseStDate(header.create_date, zone),
-    // "Branch #" ANYWHERE — catches both "Branch #N - date.jsonl" AND "CharName - date - Branch #N.jsonl".
-    isBranch: opts.fileName.includes("Branch #"),
     parentRef: normalizeParentRef(str(meta?.["main_chat"])) ?? deriveParentFromFilename(opts.fileName),
     notePrompt: nullIfEmpty(str(meta?.["note_prompt"])),
     notePlacement: parseNotePlacement(meta),
@@ -894,7 +886,6 @@ export function parseChatJsonl(
     scriptInjects: parseScriptInjects(meta),
     pinnedPersonaName: nullIfEmpty(str(meta?.[ST_PINNED_PERSONA_KEY])),
     bucket: classifyChat(messages),
-    sourceMetadata: meta,
     messages,
   };
 }

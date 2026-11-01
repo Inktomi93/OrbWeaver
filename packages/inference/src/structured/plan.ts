@@ -5,7 +5,8 @@
 import type { ResolvedWarning, StructuredVehicle, WireSchemaMode, WireSchemaViolation } from "@orb/contracts/inference";
 import { countWireSchemas, describeWireSchemaViolation, scrubViolations, scrubWireSchema, WIRE_SUBSETS } from "@orb/contracts/inference";
 import type { RolePresetParams } from "@orb/contracts/preset";
-import type { ResponseFormat, ToolChoice, WireTool } from "../contract/chat.ts";
+import type { ResponseFormat } from "@orb/contracts/role-clients";
+import type { ToolChoice, WireTool } from "../contract/chat.ts";
 import { assertNever, ProviderError, SCHEMA_REJECTED_DETAIL } from "../contract/errors.ts";
 
 import type { Resolved } from "../contract/resolved.ts";

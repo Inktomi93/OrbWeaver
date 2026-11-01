@@ -4,6 +4,7 @@ import { resolvedLength } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 
 const STORY = "tests/support/browser/ct-settings-composition-stories/SettingsCompositionStory";
@@ -50,8 +51,8 @@ async function expectReadingPair(page: Page, field: Locator): Promise<void> {
   await expect(label).toBeVisible();
   await expect(control).toBeVisible();
   expect(geometry.control.width).toBeGreaterThan(0);
-  const stackStep = await resolvedLength(page, "var(--container-cq-32)", field);
-  const column = await resolvedLength(page, "var(--width-control-col)", field);
+  const stackStep = await resolvedLength(page, `var(${TOKENS["container.cq-32"].cssVar})`, field);
+  const column = await resolvedLength(page, `var(${TOKENS["width.control-col"].cssVar})`, field);
   const valid =
     geometry.containerWidth < stackStep
       ? geometry.control.top >= geometry.label.bottom
@@ -153,7 +154,7 @@ for (const { name, width, viewport, hasTouch, isMobile } of REGIMES) {
       if (descriptionBox === null || fieldBox === null) {
         throw new Error("The automation limit must expose its readable helper within the field");
       }
-      const proseMeasure = await resolvedLength(page, "var(--reading-measure-prose)", description);
+      const proseMeasure = await resolvedLength(page, `var(${TOKENS["reading.measure-prose"].cssVar})`, description);
       expect(descriptionBox.width).toBeCloseTo(Math.min(fieldBox.width, proseMeasure), 0);
       const control = field.locator('[data-slot="number-field-root"]');
       await expect(control).toBeVisible();
@@ -161,7 +162,7 @@ for (const { name, width, viewport, hasTouch, isMobile } of REGIMES) {
       if (box === null) {
         throw new Error("The owner limit must have a real control box");
       }
-      expect(box.width).toBeLessThanOrEqual(await resolvedLength(page, "var(--width-control-col)", field));
+      expect(box.width).toBeLessThanOrEqual(await resolvedLength(page, `var(${TOKENS["width.control-col"].cssVar})`, field));
       await expect(control.getByRole("button")).toHaveCount(2);
     });
   });

@@ -48,7 +48,7 @@ async function lint(
 const findings = (root: string, rule: string, source: string, path: string): Promise<readonly Linter.LintMessage[]> =>
   lint(root, source, path, (configured) => ({ [rule]: configured[rule] ?? "off" }));
 
-/** The rule at scope `all`, which the repository config leaves off until a sweep has fixed its sites. */
+/** The rule at scope `all`, which the repository config also sets for tests. */
 const findingsAll = (root: string, rule: string, source: string, path: string): Promise<readonly Linter.LintMessage[]> =>
   lint(root, source, path, () => ({ [rule]: ["error", { scope: "all" }] }));
 
@@ -151,10 +151,11 @@ test.for([
   expect(found[0]?.message ?? "").toContain(owner);
 });
 
-test("the extended kinds are findings only under scope all", CONFIG_LOAD_TIMEOUT, async ({ repoRoot }) => {
+test("the extended kinds are findings only under scope all, and the repository config sets scope all", CONFIG_LOAD_TIMEOUT, async ({ repoRoot }) => {
   const source = `expect(code).toBe("not_host");\nawait page.getByRole("button", { name: "Show details" }).click();`;
-  expect(await findings(repoRoot, LABEL, source, SPEC)).toHaveLength(0);
+  expect(await lint(repoRoot, source, SPEC, () => ({ [LABEL]: ["error", { scope: "named" }] }))).toHaveLength(0);
   expect(await findingsAll(repoRoot, LABEL, source, SPEC)).toHaveLength(2);
+  expect(await findings(repoRoot, LABEL, source, SPEC)).toHaveLength(2);
 });
 
 const caseOf = (body: string): string => `test("probe", async ({ page }) => {\n${body}\n});`;

@@ -39,7 +39,7 @@ test("the grouped-character headline states visual-family coverage rather than t
     "discovery.home": () => ({ ...home, sceneThemes: [], arcThemes: [] }),
     "discovery.catalog": () => ({ ...catalog, totalDistilled: 0 }),
     "discovery.visualArchetypes": (input) => {
-      expect(input?.k === undefined || input.k === 1).toBe(true);
+      expect([undefined, 1]).toContain(input?.k);
       return families;
     },
   });

@@ -1,5 +1,5 @@
 import { readSurfaceDesignAudit, resolvedLength } from "@orb/testkit/browser/spec";
-import { LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
+import { LENGTH_BASE_PX, MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { channelName } from "../../client/lib/appearance-channel-names.ts";
@@ -86,10 +86,13 @@ test("owner size and border overrides reach icon ink, editor diagnostics and the
   await testInfo.attach("editor-typography", { body: JSON.stringify(typography), contentType: "application/json" });
   expect.soft(typography.contentFont).toBe(typography.rootFont);
   expect.soft(typography.contentLeading).toBe(typography.rootLeading);
-  await page.evaluate(() => {
-    document.documentElement.style.setProperty("--size-icon-md", "29px");
-    document.documentElement.style.setProperty("--border-width-control", "3px");
-  });
+  await page.evaluate(
+    ({ sizeIconMd, borderWidthControl }) => {
+      document.documentElement.style.setProperty(sizeIconMd, "29px");
+      document.documentElement.style.setProperty(borderWidthControl, "3px");
+    },
+    { sizeIconMd: TOKENS["size.icon-md"].cssVar, borderWidthControl: TOKENS["border-width.control"].cssVar },
+  );
   await expect(component.getByLabel("Regular icon", { exact: true })).toHaveCSS("width", "29px");
   const notes = component.getByRole("textbox", { name: "Bounded notes", exact: true });
   const box = await notes.evaluate((element) => {
@@ -107,7 +110,7 @@ test("owner size and border overrides reach icon ink, editor diagnostics and the
   expect(box.height).toBeCloseTo(box.expected, 1);
   await expect(component.locator(".cm-gutters")).toHaveCSS("border-right-width", "3px");
   await expect(component.locator(".cm-lint-marker-error")).toHaveCSS("width", `${LENGTH_BASE_PX["size.icon-xs"]}px`);
-  await page.evaluate(() => document.documentElement.style.setProperty("--font-mono", "Georgia, serif"));
+  await page.evaluate((fontMono) => document.documentElement.style.setProperty(fontMono, "Georgia, serif"), TOKENS["font.mono"].cssVar);
   await expect(editor).toHaveCSS("font-family", "Georgia, serif");
   await expect(editor.locator(".cm-content")).toHaveCSS("font-family", "Georgia, serif");
 });
@@ -131,16 +134,16 @@ test("real charts remeasure label typography and density while retaining the sha
     }
     await component.update({ font, density });
     await expect(component.locator('[data-slot="histogram"] canvas')).toBeVisible();
-    const typography = await reference.evaluate((element) => {
+    const typography = await reference.evaluate((element, spacingRow) => {
       const style = getComputedStyle(element);
       const probe = document.createElement("span");
-      probe.style.width = "var(--spacing-row)";
+      probe.style.width = `var(${spacingRow})`;
       probe.style.position = "fixed";
       element.append(probe);
       const padding = Number.parseFloat(getComputedStyle(probe).width);
       probe.remove();
       return { fontSize: Number.parseFloat(style.fontSize), fontFamily: style.fontFamily, fontWeight: Number(style.fontWeight), padding };
-    });
+    }, TOKENS["spacing.row"].cssVar);
     await expect
       .poll(async () => {
         await read.click();
@@ -154,10 +157,13 @@ test("real charts remeasure label typography and density while retaining the sha
     await expect.poll(async () => Math.abs(((await histogram.boundingBox())?.height ?? 0) - LENGTH_BASE_PX["height.chart"] * scale)).toBeLessThanOrEqual(1);
     expect(await component.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   }
-  await component.locator("[data-live-token-root]").evaluate((element: HTMLElement) => {
-    element.style.setProperty("--text-label", "calc(1rem + 1px)");
-    element.style.setProperty("--spacing-row", "calc(var(--spacing-tight) * 3)");
-  });
+  await component.locator("[data-live-token-root]").evaluate(
+    (element: HTMLElement, { textLabel, spacingRow, spacingTight }) => {
+      element.style.setProperty(textLabel, "calc(1rem + 1px)");
+      element.style.setProperty(spacingRow, `calc(var(${spacingTight}) * 3)`);
+    },
+    { textLabel: TOKENS["text.label"].cssVar, spacingRow: TOKENS["spacing.row"].cssVar, spacingTight: TOKENS["spacing.tight"].cssVar },
+  );
   const ownerFont = await reference.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
   await expect
     .poll(async () => {
@@ -172,7 +178,7 @@ test.describe("coarse font-scale floor", () => {
   test("public hit boxes retain the project touch floor at the minimum font scale", async ({ mount, page }, testInfo) => {
     const component = await mount<typeof RampControlsStory>(CONTROLS);
     await rootScale(page, SHRUNK_SCALE);
-    expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    expect(await page.evaluate((pointerCoarse) => matchMedia(pointerCoarse).matches, MEDIA_QUERIES["pointer-coarse"])).toBe(true);
     const targets = [
       component.getByRole("button", { name: "Toggle sample", exact: true }),
       component.getByRole("switch", { name: "Switch sample", exact: true }),
@@ -201,7 +207,7 @@ test.describe("coarse font-scale floor", () => {
 
 test("fine-pointer controls keep their unfloored dimensions and switch proportions", async ({ mount, page }) => {
   const component = await mount<typeof RampControlsStory>(CONTROLS);
-  expect(await page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);
+  expect(await page.evaluate((pointerFine) => matchMedia(pointerFine).matches, MEDIA_QUERIES["pointer-fine"])).toBe(true);
   for (const scale of [1, SHRUNK_SCALE]) {
     await rootScale(page, scale);
     const button = component.getByRole("button", { name: "Toggle sample", exact: true });
@@ -239,7 +245,7 @@ for (const pointer of ["fine", "coarse"] as const) {
             expect(Number.isInteger(lineBox)).toBe(true);
             await expect(text).toHaveCSS("line-height", `${lineBox}px`);
           }
-          const coarse = await page.evaluate(() => matchMedia("(pointer: coarse)").matches);
+          const coarse = await page.evaluate((pointerCoarse) => matchMedia(pointerCoarse).matches, MEDIA_QUERIES["pointer-coarse"]);
           const formSize = coarse ? Math.max(LENGTH_BASE_PX["text.field"] * scale, LENGTH_BASE_PX["text.field"]) : LENGTH_BASE_PX["text.body"] * scale;
           const denseSize = coarse
             ? Math.max(LENGTH_BASE_PX["text.field-dense"] * scale, LENGTH_BASE_PX["text.field-dense"])

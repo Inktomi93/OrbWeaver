@@ -38,10 +38,10 @@ import { Text } from "@orb/ui/text";
 import type { PointerEvent, ReactElement, ReactNode } from "react";
 import { createContext, use, useEffect, useRef } from "react";
 import { settingGloss } from "#lib";
-import type { ConfigGroupId, ConfigRowAnnotation, ConfigSubcategory, SettingTeach } from "#state";
+import type { ConfigGroupId, ConfigRowAnnotation, ConfigSettingRef, ConfigSubcategory, SettingTeach } from "#state";
 import { ConfigRowAnnotationProvider, isTeachNone, revealContextPanel, setConfigFocus, useConfigSearchMatch } from "#state";
 import { SettingRowActions } from "./setting-row-actions.tsx";
-import type { ConfigLeafAddress, ConfigLeafValue } from "./use-config-leaf.ts";
+import type { ConfigLeafValue } from "./use-config-leaf.ts";
 import { useConfigLeaf } from "./use-config-leaf.ts";
 
 /** How long a fine pointer RESTS on a row before the hover counts as "looking at it" (F-8) — long enough
@@ -98,7 +98,7 @@ function RowActionsCell({
   label,
   binding,
 }: {
-  readonly address: ConfigLeafAddress;
+  readonly address: ConfigSettingRef;
   readonly label: string | undefined;
   readonly binding: ConfigLeafValue | null;
 }): ReactElement {

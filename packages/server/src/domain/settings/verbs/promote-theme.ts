@@ -18,7 +18,7 @@
 // two input modes. The constraint race still classifies to `DomainConflictError`, never a 500.
 // Never writes `ownerId: null`: promote can never mint a seed (isSeed derives from a NULL owner, D71).
 
-import type { ThemeView } from "@orb/contracts/settings";
+import type { Theme } from "@orb/contracts/theme";
 import { cardEmbeddableSubset, themeOverrideSchema } from "@orb/contracts/theme";
 import { DomainConflictError } from "@orb/kit/errors";
 import { nextFreeName } from "@orb/kit/strings";
@@ -31,7 +31,7 @@ const THEME_PROMOTE = "theme.promote";
 const THEME_ENTITY = "theme";
 
 export function createPromoteTheme(ctx: SettingsContext): Pick<SettingsService, "promoteTheme"> {
-  async function promoteTheme(params: PromoteThemeParams): Promise<ThemeView> {
+  async function promoteTheme(params: PromoteThemeParams): Promise<Theme> {
     const ownerId = params.principal.userId;
     const { input } = params;
     // The same boundary clamp `createTheme` runs (the caller could call that verb with these values

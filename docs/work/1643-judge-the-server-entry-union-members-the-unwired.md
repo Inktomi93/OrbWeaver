@@ -27,4 +27,8 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 1 row = 1 deleted.
+
+- `NON_PORTABLE_CLASSES.ACCEPTED-LOSSY`: deleted (`packages/server/src/entry/contract/portability.ts:5`). No `NON_PORTABLE_CANON` row carries it (`packages/server/src/entry/compose/portability.ts:181-298`), it is never stored or sent on the wire, and `docs/adr/0136-portability-r6-an-account-backup-carries-the-room.md` item (G) records that the `chat_tags` row that held it was closed. The doc comment at `packages/server/src/domain/import/contract/service.ts:89` that still named the row was trimmed.
+- Survey: codegraph_explore `NON_PORTABLE_CLASSES portability.ts` (one caller; test `tests/server/entry/compose/lifecycle-portability.int.test.ts`, which iterates the tuple and loses nothing); ast-grep `"ACCEPTED-LOSSY"` over `packages tests tooling scripts` with `-l ts` and `-l tsx`: 0 matches in code (5913 `.ts`, 1524 `.tsx` files under `packages tests tooling`); `rg` found the literal only in the ADR.
+- Checks: `pnpm typecheck packages/server/tsconfig.json` exit 0; `pnpm test tests/server/entry/compose/lifecycle-portability.int.test.ts` 5 passed. No behavior change, so no red test.

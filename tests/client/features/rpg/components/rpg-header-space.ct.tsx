@@ -6,6 +6,7 @@ import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { RpgRoomStory } from "./_own-key-panels-stories.tsx";
 
 test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
@@ -75,7 +76,7 @@ for (const populated of [false, true]) {
     await expect(page.getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true })).toHaveAttribute("aria-selected", "true");
     await expect(freshness).toHaveText(recordedCue);
     await expect(readOnly).toHaveCount(readOnlyCount);
-    const size = await resolvedLength(page, populated ? "var(--size-meter-hero)" : "var(--size-meter-sm)");
+    const size = await resolvedLength(page, populated ? `var(${TOKENS["size.meter-hero"].cssVar})` : `var(${TOKENS["size.meter-sm"].cssVar})`);
     await expect.poll(async () => (await stone.boundingBox())?.height).toBe(size);
     await expect(header).toContainText(populated ? "The observatory" : "No ambient set");
     const tracker = await caller.rpg.getTrackerView({ chatId });

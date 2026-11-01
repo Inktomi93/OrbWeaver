@@ -19,13 +19,13 @@ test("canonical mints preserve the injected business identity sequence", () => {
 test("canonical mints refuse a generator that returns another entity's prefix", () => {
   const ids = createSeededIds();
   const wrong = ids.next(ID_PREFIX.character);
-  expect(() => mintTypeId(ID_PREFIX.chat, () => wrong)).toThrow();
-  expect(() => mintUserId(() => wrong)).toThrow();
+  expect(() => mintTypeId(ID_PREFIX.chat, () => wrong)).toThrow("does not match the requested prefix");
+  expect(() => mintUserId(() => wrong)).toThrow("does not match the requested prefix");
 });
 
 test("canonical mints refuse malformed generated identity bytes", () => {
-  expect(() => mintTypeId(ID_PREFIX.chat, () => "chat_invalid")).toThrow();
-  expect(() => mintUserId(() => "invalid")).toThrow();
+  expect(() => mintTypeId(ID_PREFIX.chat, () => "chat_invalid")).toThrow("Invalid length");
+  expect(() => mintUserId(() => "invalid")).toThrow("Invalid length");
 });
 
 test("bound prefixless families and plain blob identities share the injected byte sequence", () => {

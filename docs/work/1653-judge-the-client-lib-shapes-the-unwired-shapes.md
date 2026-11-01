@@ -32,4 +32,12 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+6 rows: applied 3, kept 3, handed off 0, owner question 0.
+
+- `removeActionName`, `selectActionName` (2 rows): applied. `packages/client/src/lib/index.ts` no longer re-exports them; the 8 client importers and the one CT (`tests/client/features/character/components/platform-tag-pill-height.suite.ct.tsx`, which used `@orb/client/lib`) import from `@orb/ui/lib`, their package door. Done with `move-import-names` (plan file `codemod-import-moves.json`, removed after use). Dry run listed exactly the 9 planned files, matching an independent `rg -U` of the import shape; Biome then fixed import order.
+- `cn` (1 row): kept. `docs/law/UI-Architecture-and-Layout.md` lists the `cn` re-export in the client `lib/` entry and says `cn` is re-exported from `@orb/ui/lib`. 22 client files import it from `#lib`. The law line is the cited reason; the lib comment now says so.
+- `CollectionInsight` / `TagLibraryFact` (1 row): kept. `TagLibraryFact` has the same four fields, but its `open` may act on a set (the prune door acts on every unused tag and opens the prune confirm), while `CollectionInsight.open` opens one member's editor by contract (`lib/collection-contracts.ts`). Same fields, different meaning of the door, so the two stay separate. A merge was tried and restored. `tooling/src/unwired/distinct-lookalikes.ts` records the pair as distinct.
+- `ViewTransitionSettlement` / `NativeTransition` (1 row): merged. `NativeTransition` is the native ViewTransition object passed straight to `observeViewTransition`, which takes `ViewTransitionSettlement`; one concept. `routes/router-view-transition.ts` imports the exported `ViewTransitionSettlement` from `lib/view-transition-settlement.ts`.
+- `NotifyAction` / `MemberDrillBack` (1 row): kept. Both are `{ label, onClick }`, but one is a toast action button and the other the member header's Back exit. They change for different reasons (toast chrome vs drill-in navigation); a shared type would couple them.
+- Scan: ast-grep inline rule (identifier, type_identifier, property_identifier) `-l ts` and `-l tsx`, `packages tests` (5199 ts and 1450 tsx files); each type name had hits only in the files named above.
+- `pnpm typecheck packages/client/tsconfig.json tsconfig.tests-dom.json` exit 0 (re-run after the restore with the full set: client, server, contracts, kit, node and both test worlds, exit 0); `pnpm lint:eslint` on the touched paths exit 0; `CT_PORT=5791 pnpm test:ct tests/client/features/character/components/platform-tag-pill-height.suite.ct.tsx` exit 0 (2 passed).

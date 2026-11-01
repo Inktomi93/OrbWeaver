@@ -141,8 +141,8 @@ test("a non-ENOENT lock read/removal failure surfaces instead of impersonating a
   try {
     const o = opts(dir, always);
     mkdirSync(o.lockPath);
-    expect(() => handleHeldSpawnLock(o)).toThrow();
-    expect(() => releaseSpawnLock(o.lockPath)).toThrow();
+    expect(() => handleHeldSpawnLock(o)).toThrow(expect.objectContaining({ code: "EISDIR" }));
+    expect(() => releaseSpawnLock(o.lockPath)).toThrow(expect.objectContaining({ code: "EISDIR" }));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

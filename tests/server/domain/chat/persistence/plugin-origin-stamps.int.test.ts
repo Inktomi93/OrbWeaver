@@ -110,7 +110,7 @@ test("a plugin request naming a non-roster speaker is refused before it claims t
   const listed = async (): Promise<boolean> => (await h.root.services.chat.listChats({ principal: h.owner })).items.some(({ id }) => id === h.chatId);
   const command = await enableWitness(h, requestingGuest({ speakerCharacterId: h.root.ids.typeId(ID_PREFIX.character) }));
 
-  await expect(h.root.services.plugin.invokeUiCommand({ ...command, chatId: h.chatId })).rejects.toThrow();
+  await expect(h.root.services.plugin.invokeUiCommand({ ...command, chatId: h.chatId })).rejects.toMatchObject({ code: "plugin_action_failed" });
   await h.root.settleBackground();
 
   expect((await h.root.services.plugin.getLog({ caller: h.owner, pluginId: command.pluginId })).filter(({ message }) => message === ENTERED)).toHaveLength(1);

@@ -4,6 +4,7 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characterEmbeddings, embeddingCalls } from "@orb/db";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import { and, eq, inArray } from "drizzle-orm";
 import { seedCorpusConnections } from "../corpus-actors.ts";
 import {
@@ -79,7 +80,7 @@ test("real admitted embedding and distillation produce owned summaries, vectors,
       funderUserId: foreign.id,
       characterId: first.id,
     }),
-  ).rejects.toThrow();
+  ).rejects.toThrow(DomainNotFoundError);
   expect(wire.requests).toEqual(beforeForeign);
 });
 

@@ -65,6 +65,8 @@ export interface SubjectAccountingInput {
 /** Rendered theme facts, gathered only from painted subjects in the same identity snapshot (#976). */
 export interface ThemeRenderInput {
   readonly rootDataTheme: string | null;
+  /** The root-level `[data-slot=theme-scope]` (no scope ancestor) carrying the most rendered subjects,
+   *  `display: contents` included; a nested scope such as a theme preview tile is never the carrier. */
   readonly shellScope: {
     readonly present: boolean;
     readonly inlineBackground: string | null;

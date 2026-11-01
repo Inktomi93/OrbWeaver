@@ -4,7 +4,7 @@
 // `character.snapshot` is the lone exception — it emits no bus event, so it keeps an explicit invalidate.
 
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
-import type { Trpc } from "#data";
+import type { SectionPatchVars, Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
 /** Link a World Book to this character (role primary/auxiliary). `busDriven` (worldInfoChanged). */
@@ -60,7 +60,7 @@ export const useRemoveCharacter = createEntityMutation<inferInput<Trpc["characte
 });
 
 /** Set as welcome greeter (`seeds.welcomeAssistantCharacterId`). `busDriven` (settingsChanged). */
-export const useSetWelcomeGreeter = createEntityMutation<inferInput<Trpc["settings"]["updateUserSettingsSection"]>, unknown>({
+export const useSetWelcomeGreeter = createEntityMutation<SectionPatchVars<"seeds">, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't set the welcome greeter.",

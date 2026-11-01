@@ -5,6 +5,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { PersonaActionGroupsStory } from "./_persona-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/persona/components/_persona-action-groups-stories/PersonaActionGroupsStory";
@@ -65,7 +66,7 @@ for (const regime of REGIMES) {
       expect(Math.abs(counterBox.x + counterBox.width - controlBox.x - controlBox.width)).toBeLessThanOrEqual(1);
       expect(counterBox.y).toBeGreaterThanOrEqual(controlBox.y + controlBox.height);
       const macro = editor.locator('[data-slot="macro-textarea"]').filter({ has: textarea });
-      const measure = await resolvedLength(page, "var(--reading-measure)", macro);
+      const measure = await resolvedLength(page, `var(${TOKENS["reading.measure"].cssVar})`, macro);
       expect(controlBox.width).toBeCloseTo(Math.min(fieldBox.width, measure), 0);
       const fonts = await Promise.all([label, counter, textarea].map((part) => part.evaluate((node) => getComputedStyle(node).fontFamily)));
       expect(fonts[1]).toBe(fonts[0]);

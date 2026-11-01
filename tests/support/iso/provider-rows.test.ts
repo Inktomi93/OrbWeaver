@@ -2,6 +2,7 @@
 
 import { isPluginProviderId, pluginNameOfProviderId } from "@orb/contracts/inference";
 import { expect, test } from "vitest";
+import { ZodError } from "zod";
 import { makePluginProviderRow, makeProviderRow, pluginProviderId } from "./provider-rows.ts";
 
 test("the row's id is the plugin namespace the production parser reads back, and an override replaces a field", () => {
@@ -21,5 +22,5 @@ test("makeProviderRow keeps a bare admin id outside the plugin namespace and let
 });
 
 test("a row the production schema refuses throws instead of building", () => {
-  expect(() => makePluginProviderRow("acme", "text", { auth: "apiKey" })).toThrow();
+  expect(() => makePluginProviderRow("acme", "text", { auth: "apiKey" })).toThrow(ZodError);
 });

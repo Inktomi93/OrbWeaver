@@ -19,7 +19,14 @@ function roleVar(role: ToneRole): string {
  */
 function Family(): ReactElement {
   return (
-    <div style={{ display: "grid", gap: "0.5rem", backgroundColor: "var(--color-background)", color: "var(--color-foreground)" }}>
+    <div
+      style={{
+        display: "grid",
+        gap: "0.5rem",
+        backgroundColor: `var(${TOKENS["color.background"].cssVar})`,
+        color: `var(${TOKENS["color.foreground"].cssVar})`,
+      }}
+    >
       {TONES.map((tone) => (
         <div key={tone} data-family-tone={tone} style={{ display: "flex", flexWrap: "wrap", gap: "1rem", alignItems: "center" }}>
           <p data-case="run-with-token" style={{ inlineSize: RUN_WIDTH, margin: 0 }}>
@@ -35,8 +42,11 @@ function Family(): ReactElement {
           </p>
           <IndicatorDot data-case="dot-solid" tone={tone} aria-hidden={true} />
           <IndicatorDot data-case="dot-outline" tone={tone} variant="outline" aria-hidden={true} />
-          <span data-probe="dot-box" style={{ display: "block", inlineSize: "var(--spacing-field)", blockSize: "var(--spacing-field)" }} />
-          <span data-probe="tight" style={{ display: "block", inlineSize: "var(--spacing-tight)" }} />
+          <span
+            data-probe="dot-box"
+            style={{ display: "block", inlineSize: `var(${TOKENS["spacing.field"].cssVar})`, blockSize: `var(${TOKENS["spacing.field"].cssVar})` }}
+          />
+          <span data-probe="tight" style={{ display: "block", inlineSize: `var(${TOKENS["spacing.tight"].cssVar})` }} />
           <span data-probe="transparent" style={{ backgroundColor: "transparent" }} />
           {TONE_ROLES.map((role) => (
             <span key={role} data-probe={role} data-tone={tone} style={{ color: roleVar(role) }} />
@@ -55,13 +65,15 @@ export function BadgeFamilyStory({ theme, background }: { readonly theme?: keyof
   const ambient = theme === undefined ? undefined : SEED_THEME_VALUE_SETS[theme].vars;
   return (
     <CtIsolation subject="The badge family's marks" isolates="InlineToken and IndicatorDot in every tone, each beside its role probes">
-      <div data-theme={theme} style={{ backgroundColor: "var(--color-background)", padding: "1rem" }}>
+      <div data-theme={theme} style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, padding: "1rem" }}>
         {background === undefined ? (
           <Family />
         ) : (
           <ThemeScope
             tokens={{ background }}
-            {...(ambient === undefined ? {} : { ambientBackground: ambient["--color-background"], ambientAccent: ambient["--color-primary"] })}
+            {...(ambient === undefined
+              ? {}
+              : { ambientBackground: ambient[TOKENS["color.background"].cssVar], ambientAccent: ambient[TOKENS["color.primary"].cssVar] })}
           >
             <Family />
           </ThemeScope>

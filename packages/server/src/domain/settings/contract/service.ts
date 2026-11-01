@@ -10,10 +10,9 @@ import type {
   GetUserSettingsOp,
   GlobalSettingView,
   LoadUserSettings,
-  ThemeView,
   UserSettingsView,
 } from "@orb/contracts/settings";
-import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
+import type { MaterializeBackgroundOp, Theme } from "@orb/contracts/theme";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
@@ -158,24 +157,24 @@ export interface SettingsService {
   readonly reloadEffectiveConfig: () => Promise<EffectiveAppConfig>;
 
   /** The caller's own themes plus every seed palette, as views. */
-  readonly listThemes: (params: ListThemesParams) => Promise<ThemeView[]>;
+  readonly listThemes: (params: ListThemesParams) => Promise<Theme[]>;
   /** One theme readable by this owner (their own OR any seed); throws `ThemeNotFoundError`. */
-  readonly getTheme: (params: GetThemeParams) => Promise<ThemeView>;
+  readonly getTheme: (params: GetThemeParams) => Promise<Theme>;
   /** Write a new OWNED theme from scratch. Runs `themeOverrideSchema.parse` + the css-validator at the
    *  write boundary; a taken `(ownerId, name)` throws `DomainConflictError`. */
-  readonly createTheme: (params: CreateThemeParams) => Promise<ThemeView>;
+  readonly createTheme: (params: CreateThemeParams) => Promise<Theme>;
   /** PROMOTE a character card's authored look into the library (TD door 1): values are COPIED (never
    *  referenced), projected through `cardEmbeddableSubset` so a promoted theme cannot carry a viewer-force
    *  the card could not exert, with the name DE-COLLIDED at the mint (this door derives its default name;
    *  `createTheme`'s typed conflict stays the answer for a name the user typed). */
-  readonly promoteTheme: (params: PromoteThemeParams) => Promise<ThemeView>;
+  readonly promoteTheme: (params: PromoteThemeParams) => Promise<Theme>;
   /** Copy-to-customize: source = any readable row (own or seed) → a NEW owned row (fresh id, deep-copied
    *  `override`/`css`, name de-duped by numeric suffix under the unique index). Throws
    *  `ThemeNotFoundError` when the source isn't readable. */
-  readonly duplicateTheme: (params: DuplicateThemeParams) => Promise<ThemeView>;
+  readonly duplicateTheme: (params: DuplicateThemeParams) => Promise<Theme>;
   /** Patch an OWNED theme (never a seed — `fetchOwned` can't match a NULL owner, so this 404s on a seed
    *  id). Runs the same write-boundary validation as `createTheme`. Throws `ThemeNotFoundError`. */
-  readonly updateTheme: (params: UpdateThemeParams) => Promise<ThemeView>;
+  readonly updateTheme: (params: UpdateThemeParams) => Promise<Theme>;
   /** Delete an OWNED theme (never a seed). Throws `ThemeNotFoundError` when unowned/missing/a seed. */
   readonly removeTheme: (params: RemoveThemeParams) => Promise<void>;
   /** The single-theme import door: an orb export, an orb backup or a raw SillyTavern theme, through the same

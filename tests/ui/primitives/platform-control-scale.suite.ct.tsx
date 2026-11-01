@@ -1,7 +1,7 @@
 // D336 step 3: every control at one step of the scale is one height, the step's token, at both pointer classes.
 import type { ControlSize } from "@orb/ui/lib";
 import { CONTROL_SIZES } from "@orb/ui/lib";
-import { TOKENS } from "@orb/ui/tokens";
+import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { ControlScaleStory, PlantedStepStory } from "./_control-scale-stories.tsx";
@@ -67,7 +67,7 @@ for (const coarse of [false, true]) {
 
     test("each step's row of mixed controls is one height, the step's token", async ({ mount, page }) => {
       const component = await mount<typeof ControlScaleStory>(STORY, {});
-      expect(await page.evaluate((query) => matchMedia(query).matches, coarse ? "(pointer: coarse)" : "(pointer: fine)")).toBe(true);
+      expect(await page.evaluate((query) => matchMedia(query).matches, coarse ? MEDIA_QUERIES["pointer-coarse"] : MEDIA_QUERIES["pointer-fine"])).toBe(true);
       for (const step of CONTROL_SIZES) {
         const row = component.locator(`[data-step="${step}"]`);
         await expect(row).toBeVisible();

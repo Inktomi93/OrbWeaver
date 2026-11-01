@@ -5,6 +5,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import { DROP_REASON_COPY } from "../../../../../packages/client/src/features/refinery/lib/reason-copy.ts";
 import type { RefineryActionGroupsStory } from "./_action-groups-stories.tsx";
 
@@ -70,7 +71,7 @@ for (const regime of REGIMES) {
       expect(
         (await actionGroupGeometry(page.getByRole("group", { name: "Refinery action host", exact: true }), [opener, discard, keep])).inlineOverflow,
       ).toBeLessThanOrEqual(1);
-      const floor = await resolvedLength(page, "var(--size-control-sm)", row);
+      const floor = await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`, row);
       for (const box of geometry.controls) {
         expect(box.height).toBeGreaterThanOrEqual(floor);
       }

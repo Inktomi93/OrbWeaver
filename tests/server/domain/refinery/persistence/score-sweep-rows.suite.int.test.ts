@@ -11,6 +11,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { characters, refineryRuns, refinerySessions, workloads } from "@orb/db";
+import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
@@ -191,10 +192,12 @@ test("real members and non-owner admins cannot start, estimate or clone a bulk r
   const before = await snapshot(root);
   const requests = [...wire.requests];
   for (const principal of [member, admin]) {
-    await expect(root.services.workloads.estimateModelCalls({ caller: principal, mode: "bulk", input: FILL })).rejects.toThrow();
-    await expect(root.services.workloads.start({ caller: principal, ownerId: principal.userId, mode: "bulk", input: FILL })).rejects.toThrow();
-    await expect(root.services.workloads.estimateRetryModelCalls({ caller: principal, id: bulk.id })).rejects.toThrow();
-    await expect(root.services.workloads.retry({ caller: principal, id: bulk.id })).rejects.toThrow();
+    await expect(root.services.workloads.estimateModelCalls({ caller: principal, mode: "bulk", input: FILL })).rejects.toThrow(DomainForbiddenError);
+    await expect(root.services.workloads.start({ caller: principal, ownerId: principal.userId, mode: "bulk", input: FILL })).rejects.toThrow(
+      DomainForbiddenError,
+    );
+    await expect(root.services.workloads.estimateRetryModelCalls({ caller: principal, id: bulk.id })).rejects.toThrow(DomainNotFoundError);
+    await expect(root.services.workloads.retry({ caller: principal, id: bulk.id })).rejects.toThrow(DomainNotFoundError);
   }
   expect(await snapshot(root)).toEqual(before);
   expect(wire.requests).toEqual(requests);

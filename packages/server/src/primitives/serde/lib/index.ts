@@ -44,10 +44,8 @@ const JSON_SERDE_ROW_POLICIES = ["drop", "reject-file"] as const;
  *  F7 named was that the split existed and was never ruled. */
 export type JsonSerdeRowPolicy = (typeof JSON_SERDE_ROW_POLICIES)[number];
 
-/** A family's serde: the envelope constants it stamps, plus the two directions over its canonical value. */
+/** A family's serde: the two directions over its canonical value. */
 export interface JsonSerde<Value> {
-  readonly schemaKind: string;
-  readonly schemaVersion: number;
   /** Serialize the canonical value to the portable file bytes (the inverse of `parse`). Deterministic key
    *  order, so a re-serialize is byte-identical. */
   readonly build: (value: Value) => Uint8Array;
@@ -228,8 +226,6 @@ export const NO_JSON_HEADER: EmptyJsonHeader = {};
 /** Define the serde for a portable file that carries a ROW COLLECTION. */
 export function defineJsonRowsSerde<Value, Row, Header>(spec: JsonRowsSerdeSpec<Value, Row, Header>): JsonSerde<Value> {
   return {
-    schemaKind: spec.schemaKind,
-    schemaVersion: spec.schemaVersion,
     build: (value): Uint8Array => {
       const { header, rows } = spec.toWire(value);
       return emit({ ...envelopeOf(spec), ...header, [spec.plural]: rows });
@@ -260,8 +256,6 @@ export function defineJsonRowsSerde<Value, Row, Header>(spec: JsonRowsSerdeSpec<
 /** Define the serde for a portable file that IS one object. */
 export function defineJsonObjectSerde<Value, Body extends object>(spec: JsonObjectSerdeSpec<Value, Body>): JsonSerde<Value> {
   return {
-    schemaKind: spec.schemaKind,
-    schemaVersion: spec.schemaVersion,
     build: (value): Uint8Array => emit({ ...envelopeOf(spec), ...spec.toWire(value) }),
     parse: (bytes): PortableParse<Value> => {
       const decoded = decodeObject(bytes);

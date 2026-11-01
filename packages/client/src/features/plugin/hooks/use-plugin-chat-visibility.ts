@@ -5,23 +5,19 @@
 import type { PluginId } from "@orb/kit/ids";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { Trpc } from "#data";
+import type { SectionPatchVars, Trpc } from "#data";
 import { createEntityMutation, peekQueryData, useInvalidation, useTRPC } from "#data";
 import { notify, setFlankSheetOpen } from "#lib";
 import { revealContextPanel } from "#state";
 import { CHAT_PANEL_HIDDEN_HINT, CHAT_PANEL_UNDO_LABEL, chatPanelHiddenTitle } from "../lib/plugin-copy.ts";
 
-interface PluginPanelPrefsPatchVars {
-  readonly section: "profile";
-  readonly patch: Partial<UserSettingsRead["config"]["profile"]>;
-}
 /** The settings read the write patches in place — tRPC-inferred, so a reshape of it breaks here. */
 type UserSettingsRead = inferOutput<Trpc["settings"]["getUserSettings"]>;
 
 // OPTIMISTIC, NOT ECHOED: the cache takes the write the moment it is made, so a second hide or an Undo pressed
 // before the first write lands builds its list from the first one's result. An echo would land the FIRST
 // response over the second's optimistic list when responses arrive late.
-const useSetPluginPanelPrefs = createEntityMutation<PluginPanelPrefsPatchVars, unknown, UserSettingsRead>({
+const useSetPluginPanelPrefs = createEntityMutation<SectionPatchVars<"profile">, unknown, UserSettingsRead>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // emits `settingsChanged` → USER_BUS_FILTERS covers getUserSettings.
   optimistic: {

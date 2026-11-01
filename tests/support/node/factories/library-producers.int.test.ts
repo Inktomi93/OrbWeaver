@@ -11,6 +11,7 @@ import { createRosterPresetSchema, rosterPresetViewSchema } from "@orb/contracts
 import { createTagSchema, pruneUnusedResultSchema, tagViewSchema } from "@orb/contracts/tag";
 import { auditLogs, characterTags, personas, presets, tags } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
+import { DomainConflictError } from "@orb/kit/errors";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { ensureSystemDefaultPreset } from "@orb/server/domain/preset";
 import { eq } from "drizzle-orm";
@@ -221,7 +222,7 @@ test("tag creation and isolated owner-wide pruning preserve pending and adopted 
   await seedCharacterTagRows(root, { principal, characterId: library.character.id, tagId: pending.row.id, status: "pending" });
   await seedPersonaTagRows(root, { principal, personaId: library.persona.id, tagId: adopted.row.id });
   const beforeConflict = await root.db.select().from(tags).orderBy(tags.id);
-  await expect(seedCreatedTagRows(root, { principal, input: createTagSchema.parse({ name: "pending witness" }) })).rejects.toThrow();
+  await expect(seedCreatedTagRows(root, { principal, input: createTagSchema.parse({ name: "pending witness" }) })).rejects.toThrow(DomainConflictError);
   expect(await root.db.select().from(tags).orderBy(tags.id)).toEqual(beforeConflict);
   const foreign = await root.actor();
   const foreignTag = await seedTagRows(root, {

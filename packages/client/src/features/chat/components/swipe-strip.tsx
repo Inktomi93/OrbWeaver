@@ -16,13 +16,14 @@
 // duplicate RENDERED affordance behind one of the two call sites, ruled there and not here.
 
 import type { MessageView } from "@orb/contracts/chat";
-import type { ChatId, MessageId } from "@orb/kit/ids";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import { ChevronLeft, ChevronRight, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { useId } from "react";
+import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { turnMutationToast, viewerTimeZone } from "#lib";
 import { useSelectVariantMutation } from "../hooks/use-select-variant.ts";
@@ -31,16 +32,10 @@ import { useVariantHistory } from "../hooks/use-variant-history.ts";
 import { VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME, variantCountName } from "../lib/message-action-names.ts";
 import type { SwipeFoot } from "../lib/pager-chrome.ts";
 
-interface SwipeVars {
-  readonly chatId: ChatId;
-  readonly messageId: MessageId;
-  readonly timeZone: string;
-}
-
 // The ONE turn-error mapper (`lib/turn-abort-notice.ts`), not a bare string: a swipe refused for CONTENTION
 // (`locked` — another turn holds this room) is the one turn failure the reader can act on, and the bare
 // fallback hid it behind "Couldn't generate that swipe" while the old variant sat there with no ghost.
-const useSwipeMutation = createEntityMutation<SwipeVars, unknown>({
+const useSwipeMutation = createEntityMutation<inferInput<Trpc["chat"]["swipe"]>, unknown>({
   options: (trpc) => trpc.chat.swipe.mutationOptions(),
   busDriven: true,
   errorToast: (error) => turnMutationToast(error, "Couldn't generate that swipe."),

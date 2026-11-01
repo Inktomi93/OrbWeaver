@@ -71,7 +71,7 @@ test("expired setup refuses before capsule filesystem or graph work begins", asy
   const signal = privateCorpusExecutionSignal("0", () => 0);
   const directory = join(parent, "never-created");
   await expect(createCorpusCapsule({ ...options, server: { ...options.server, workloadExecutionSignal: signal }, directory })).rejects.toBe(signal.reason);
-  await expect(access(directory)).rejects.toThrow();
+  await expect(access(directory)).rejects.toMatchObject({ code: "ENOENT" });
 });
 
 test("private copy joins its native stage and removes late output instead of promoting a fixture", { timeout: budget(15_000) }, async () => {
@@ -108,12 +108,12 @@ test("private copy joins its native stage and removes late output instead of pro
   } finally {
     watcher.close();
   }
-  await expect(access(directory)).rejects.toThrow();
+  await expect(access(directory)).rejects.toMatchObject({ code: "ENOENT" });
   // Byte identity through Buffer#equals: a deep `toEqual` walks the multi-megabyte database one element at a time.
   expect((await readFile(database)).equals(before)).toBe(true);
   const refused = join(parent, "pre-expired");
   await expect(writePrivateCorpusFixture(source, refused, controller.signal, LOCAL_ENVIRONMENT)).rejects.toBe(reason);
-  await expect(access(refused)).rejects.toThrow();
+  await expect(access(refused)).rejects.toMatchObject({ code: "ENOENT" });
   const completed = await writePrivateCorpusFixture(source, join(parent, "completed"), undefined, LOCAL_ENVIRONMENT);
   expect(completed.wire).toEqual(source.wire);
 });
@@ -176,7 +176,7 @@ test("private hard timeout joins its group and escaped marked descendant before 
     const pid = Number((await readFile(escaped, "utf8")).trim());
     expect(Number.isSafeInteger(pid)).toBe(true);
     const completion = processCompletion(pid);
-    expect(completion.kind === "gone" || completion.kind === "zombie").toBe(true);
+    expect(["gone", "zombie"]).toContain(completion.kind);
     expect(result.transcript).not.toContain("teardown failed");
   } finally {
     await joinRunMarkerSweep(marker);

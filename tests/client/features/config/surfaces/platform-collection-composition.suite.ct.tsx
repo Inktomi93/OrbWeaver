@@ -7,6 +7,7 @@ import { routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testk
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import type { CollectionCompositionStory } from "./_collection-composition-stories.tsx";
 
@@ -84,7 +85,7 @@ async function expectUsefulFilter(page: Page, content: Locator): Promise<Locator
   const row = content.locator('[data-slot="collection-control-row"]');
   const filter = row.getByRole("textbox");
   await expect(filter).toBeVisible();
-  const preferred = await resolvedLength(page, "var(--width-field-floor)", row);
+  const preferred = await resolvedLength(page, `var(${TOKENS["width.field-floor"].cssVar})`, row);
   const [bounds, available] = await Promise.all([filter.boundingBox(), row.boundingBox()]);
   if (bounds === null || available === null) {
     throw new Error("The collection filter and its row have no rendered boxes");
@@ -141,7 +142,7 @@ function expectInline(door: NonNullable<Box>, value: NonNullable<Box>): void {
 function expectSeparateBoxes(door: NonNullable<Box>, value: NonNullable<Box>): void {
   const inlineOverlap = Math.min(door.x + door.width, value.x + value.width) - Math.max(door.x, value.x);
   const blockOverlap = Math.min(door.y + door.height, value.y + value.height) - Math.max(door.y, value.y);
-  expect(inlineOverlap <= 1 || blockOverlap <= 1).toBe(true);
+  expect(Math.min(inlineOverlap, blockOverlap)).toBeLessThanOrEqual(1);
 }
 
 async function expectMemberHeader(content: Locator): Promise<void> {
@@ -164,13 +165,13 @@ async function expectMemberHeader(content: Locator): Promise<void> {
   }
   const geometry = await actionGroupGeometry(content, [title, ...buttons]);
   expect(geometry.inlineOverflow).toBeLessThanOrEqual(1);
-  const preferred = await resolvedLength(content.page(), "var(--width-title-floor)", header);
+  const preferred = await resolvedLength(content.page(), `var(${TOKENS["width.title-floor"].cssVar})`, header);
   const titleBox = geometry.controls[0];
   if (titleBox === undefined) {
     throw new Error("The open member has no measured identity");
   }
   expect(titleBox.width).toBeGreaterThanOrEqual(Math.min(preferred, geometry.host.width));
-  const floor = await resolvedLength(content.page(), "var(--size-control-sm)", header);
+  const floor = await resolvedLength(content.page(), `var(${TOKENS["size.control-sm"].cssVar})`, header);
   for (const box of geometry.controls.slice(1)) {
     expect(box.height).toBeGreaterThanOrEqual(floor);
   }
@@ -184,8 +185,8 @@ async function expectMemberHeader(content: Locator): Promise<void> {
 async function expectInlineCreationGeometry(content: Locator, form: Locator, controls: readonly [Locator, Locator, Locator]): Promise<void> {
   const geometry = await actionGroupGeometry(form, controls);
   const containment = await actionGroupGeometry(content, [form, ...controls]);
-  const fieldFloor = await resolvedLength(form.page(), "var(--width-field-floor)", form);
-  const targetFloor = await resolvedLength(form.page(), "var(--size-control-sm)", form);
+  const fieldFloor = await resolvedLength(form.page(), `var(${TOKENS["width.field-floor"].cssVar})`, form);
+  const targetFloor = await resolvedLength(form.page(), `var(${TOKENS["size.control-sm"].cssVar})`, form);
   await test.info().attach("open-inline-creation-geometry", {
     body: JSON.stringify({ geometry, containment, fieldFloor, targetFloor }),
     contentType: "application/json",

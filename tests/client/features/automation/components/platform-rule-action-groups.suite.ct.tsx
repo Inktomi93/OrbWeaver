@@ -7,6 +7,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { RuleActionGroupsStory } from "./_rule-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/automation/components/_rule-action-groups-stories/RuleActionGroupsStory";
@@ -59,7 +60,7 @@ for (const regime of REGIMES) {
       if (nameBox === null || enableBox === null) {
         throw new Error("The closed rule must retain its visible identity and enable switch");
       }
-      expect(nameBox.x + nameBox.width <= enableBox.x || nameBox.y + nameBox.height <= enableBox.y).toBe(true);
+      expect(Math.min(nameBox.x + nameBox.width - enableBox.x, nameBox.y + nameBox.height - enableBox.y)).toBeLessThanOrEqual(0);
       const disclosure = page.getByRole("button").filter({ has: page.getByText(name, { exact: true }) });
       await disclosure.focus();
       await page.keyboard.press("Enter");
@@ -77,7 +78,7 @@ for (const regime of REGIMES) {
       expect(
         (await actionGroupGeometry(page.getByRole("group", { name: "Rule action host", exact: true }), [edit, dryRun, more])).inlineOverflow,
       ).toBeLessThanOrEqual(1);
-      const floor = await resolvedLength(page, "var(--size-control-sm)", dryRun.locator(".."));
+      const floor = await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`, dryRun.locator(".."));
       for (const box of geometry.controls) {
         expect(box.height).toBeGreaterThanOrEqual(floor);
       }
@@ -192,6 +193,6 @@ test.describe("rule editor field rows", () => {
     if (box === null) {
       throw new Error("The explanatory line must render");
     }
-    expect(box.width).toBeLessThanOrEqual((await resolvedLength(page, "var(--reading-measure-prose)", line)) + 1);
+    expect(box.width).toBeLessThanOrEqual((await resolvedLength(page, `var(${TOKENS["reading.measure-prose"].cssVar})`, line)) + 1);
   });
 });

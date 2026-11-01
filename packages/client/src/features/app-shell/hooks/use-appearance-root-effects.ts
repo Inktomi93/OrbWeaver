@@ -4,8 +4,8 @@
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { useLayoutEffect } from "react";
+import type { SeedThemeName } from "#lib";
 import { APPEARANCE_CHANNEL_ROWS, clearAppearanceChannel, writeAppearanceChannel } from "#lib";
-import type { SeedThemeName } from "#state";
 import { APPEARANCE_BOOT_AXES, DATA_THEME_ATTR } from "#state";
 
 // The boot axes (the OS preferences and the font scale) stay on the root after the shell unmounts. The boot replay

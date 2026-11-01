@@ -8,7 +8,7 @@ import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
 import type { ImportStandaloneLorebook, ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { Clock } from "@orb/kit/time";
 import { hostTimeZone } from "@orb/kit/time";
-import type { AssetsContext } from "#domain/assets";
+import type { AssetsAssemblyContext } from "#domain/assets";
 import { createExportAssets, createExportGallery, createImportAsset, createImportAvatarStore, createImportGallery } from "#domain/assets";
 import type { ImportCharacterPort } from "#domain/character";
 import { createCharacterImportOps } from "#domain/character";
@@ -39,7 +39,7 @@ export interface PortabilityDeps {
   readonly presetCtx: PresetContext;
   readonly worldInfoExportCtx: WorldInfoExportContext;
   readonly importStandaloneLorebook: ImportStandaloneLorebook;
-  readonly assetsCtx: AssetsContext;
+  readonly assetsCtx: AssetsAssemblyContext;
   readonly imagery: ImageryPortabilityService;
   readonly databankCtx: DatabankPortabilityContext;
   readonly persona: Pick<PersonaService, "export" | "import" | "list">;

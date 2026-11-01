@@ -1,7 +1,7 @@
 import { themeOverrideSchema } from "@orb/contracts/theme";
 import { expect, test } from "@orb/testkit/node";
 import { THEME_OVERRIDE_COLOR_VARS } from "@orb/ui/theme-scope/emit-vars";
-import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
+import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 
 // The wire schema asks one more question than the render clamp (renderable, not only safe), so a value the wire
@@ -71,5 +71,5 @@ test.each(PROBES)("every $field value the wire schema keeps survives the render 
 
 test("the render clamp alone still keeps a safe word the wire schema drops", () => {
   expect(themeOverrideSchema.parse({ borderColor: "notacolorxx" }).borderColor).toBeUndefined();
-  expect(clampThemeTokens({ borderColor: "notacolorxx" }).vars["--color-border"]).toBe("notacolorxx");
+  expect(clampThemeTokens({ borderColor: "notacolorxx" }).vars[TOKENS["color.border"].cssVar]).toBe("notacolorxx");
 });

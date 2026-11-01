@@ -49,7 +49,7 @@ test("the cookie-isolation fixture serves distinct sessions and close observes c
   }
   expect(fixtureChildren(scratch)).toEqual([]);
   await fixture.close();
-  await expect(fetch(`${fixture.base}/healthz`)).rejects.toThrow();
+  await expect(fetch(`${fixture.base}/healthz`)).rejects.toMatchObject({ cause: { code: "ECONNREFUSED" } });
 });
 
 test.runIf(process.platform !== "win32")("close reaps a suspended owned child instead of crediting a signal and delay", async ({ scratch }) => {

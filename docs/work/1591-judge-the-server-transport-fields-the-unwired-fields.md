@@ -86,4 +86,32 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 53 rows = applied 8, derived 0, kept 41, handed off 3 (1 to item 1698, 2 test-only writers), owner questions 1.
+
+Method: codegraph on the transport context and routers; compiler probe (removed every candidate key, then `pnpm typecheck packages/client/tsconfig.json tooling/tsconfig.json tsconfig.node.json tsconfig.tests-dom.json`, errors sorted by file kind); after restoring the keys with writers the same five-program run plus `tsconfig.tests-iso.json` exited 0. Suites `tests/server/transport/trpc/stream/recipient-isolation.int.test.ts`, `bounded-list-inputs.int.test.ts`, `live-bus-isolation.int.test.ts`, `routers/chat-reasoning-and-move.int.test.ts` (26 passed). The compiler probe cannot prove an input key has no writer: `z.object` strips an unknown key, and `as const` and spread writers pass. Each deleted key was searched with a literal `rg` across `packages`, `tests`, `tooling` and `scripts`, and every writer of its procedure was read.
+
+| Rows | Class | Reader or writer |
+| - | - | - |
+| `RateLimitDecision.type`, `RoomArgs.multiHumanCapable` (with `RunSocketArgs.multiHumanCapable` and both `stream.ts` passes) | applied | no reader; the `room-source.ts` comment said no source reads it |
+| `commitMessageSchema.blocks`, `markRevokedByUser.reason`, `browseCharacters.q`, `cooccurringKeywords.limit`, `editImage.size`, `preset.update.kind` | applied | no writer: the literal search and the writers at `use-composer-utilities.ts:62`, `credential-key-row.tsx:151`, `corpus-browse-view.tsx:79`, `corpus-home-charts.tsx:146`, `image-edit-body.tsx:71`, `use-preset-autosave.ts:157-174` and `preset-editor-surface.tsx:234` send none of them |
+| `start.targetOwnerId`, `estimateModelCalls.targetOwnerId` | kept | `packages/client/src/features/workloads/components/run-workload-dialog.tsx:111`, through an `as const` scope and a spread; a bulk `import-st` run throws without it |
+| `estimateModelCalls.assumeAdmitted` | kept | `packages/client/src/features/chat/components/memory-on-confirm.tsx:14`, through an `as const` estimate |
+| `Context.logger/liveBuses/services/rateLimit/presence/sockets/multiHumanCapable/serverInstanceId` | kept | read as `ctx.<field>` in `routers/stream.ts:47-89`, `routers/chat.ts:658`, `trpc.ts:156`, `trpc.ts:205` |
+| `characterRouter.snapshot.label` | kept | `tests/e2e/support/surface-character.ts` writes it |
+| `impersonateStreamSchema.lastEventId` | kept | `routers/chat.ts:651` refuses a supplied token |
+| `setRegexAllow.lever.kind/enabled/tier` | kept | `domain/chat/verbs/participants.ts:411-423` |
+| `tokenizeWords.target` | kept | `tests/support/node/corpus-connection.ts` writes it |
+| `embedSpaceChangePreview.change.*` | kept | `domain/connection/verbs/preview-embed-space-change.ts:53-62` |
+| `browseCharacters.cursor` | kept | the client infinite query at `packages/client/src/features/discovery/components/corpus-browse-view.tsx:78` supplies it |
+| `editImage.n`, `extractPrompt.subjectCharacterId` | kept | `tests/support/node/corpus-image-variants.ts` |
+| `preset.update.fork.name` | kept | `domain/preset/verbs/update.ts:136` reads the fork intent; client writes it at `use-preset-autosave.ts:161` |
+| `acceptedFieldSchema.*` | kept | `domain/refinery/substrate/accept-belts.ts:103-124` |
+| `startSession.name` | kept | `tests/e2e/support/surface-sections.ts` writes it |
+| `updateSession.patch.*`, `updateSchema.patch.*` | kept | `domain/refinery/verbs/update-session.ts:68-81`, `update-schema.ts:42-47` |
+| `runStage.rewriteRunId`, `iterate.guidance` | kept | `tests/support/node/corpus-refinery.ts` writes both |
+| `Services.sessions` | handed to 1698 | session row, untouched |
+| `credentialsRouter.add.metadata` | handed off (test-only writers) | only `tests/server/**` int suites send it (for example `tests/server/domain/admin/persistence/card-embed-ledgers.int.test.ts:50`, `strike-policy-audits.suite.int.test.ts:17`) |
+| `workloadsRouter.createSchedule.enabled` | handed off (test-only writers) | `tests/client/features/workloads/components/platform-action-groups.suite.ct.tsx`, `platform-schedule-dialog-dismissal.suite.ct.tsx` |
+| `sendSchema.blocks` | owner question | the send door accepts content blocks and `SendParams.blocks` is never read; wiring block sends is a feature call, deleting drops the door's claim |
+
+Follow-up: `BrowseCharactersParams.q` in `domain/discovery/contract/params.ts:86` has no writer now; item 1575 judges the domain side.

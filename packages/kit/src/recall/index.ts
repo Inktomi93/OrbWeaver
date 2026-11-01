@@ -4,8 +4,12 @@
 
 import type { CharacterId, ChatId } from "#ids";
 
-/** The block-level identity recall passes around. The same fields as the contract's search block key. */
-export interface RecallBlockKey {
+/** The block-level identity of one digest/segment block. `search.corpus` dedupes ranked blocks by this
+ *  key, and `memory`'s tiered bridge passes the surviving keys as `MemoryQueryOptions.candidates`.
+ *  `scopedCharacterId` carries the egocentric POV: two scoped-group characters can produce digests for
+ *  the SAME `(chatId, tier, blockIdx)` from different POVs, so it's part of the key — always a real
+ *  branded `CharacterId`, never `''` or null. */
+export interface BlockKey {
   readonly chatId: ChatId;
   readonly tier: number;
   readonly blockIdx: number;
@@ -20,7 +24,7 @@ export interface BridgeRow {
 }
 
 /** The stable string identity of a block key (the `byKey` map key). */
-export function blockKeyStr(k: RecallBlockKey): string {
+export function blockKeyStr(k: BlockKey): string {
   return `${k.chatId}|${k.tier}|${k.blockIdx}|${k.scopedCharacterId}`;
 }
 
@@ -43,7 +47,7 @@ export function tier0RangeOf(fanOut: number, tier: number, blockIdx: number): { 
  *  The pool is a union of buckets and the grid is per bucket: two independently built histories both start at
  *  tier 0 block 0, so `(tier, blockIdx)` names one block per bucket. The walk runs once per bucket and the results
  *  concatenate in first-seen bucket order, each bucket's keys chronological within itself. */
-export function computeBridge(scope: { readonly chatId: ChatId }, digests: readonly BridgeRow[], fanOut: number): RecallBlockKey[] {
+export function computeBridge(scope: { readonly chatId: ChatId }, digests: readonly BridgeRow[], fanOut: number): BlockKey[] {
   const buckets = new Map<CharacterId, BridgeRow[]>();
   for (const d of digests) {
     const rows = buckets.get(d.scopedCharacterId) ?? [];
@@ -54,7 +58,7 @@ export function computeBridge(scope: { readonly chatId: ChatId }, digests: reado
 }
 
 /** The coverage walk for one bucket: every row here shares a `scopedCharacterId`. */
-function bucketBridge(chatId: ChatId, digests: readonly BridgeRow[], fanOut: number): RecallBlockKey[] {
+function bucketBridge(chatId: ChatId, digests: readonly BridgeRow[], fanOut: number): BlockKey[] {
   const present = new Set<string>();
   const scopeOf = new Map<string, CharacterId>();
   let maxTier = 0;
@@ -75,7 +79,7 @@ function bucketBridge(chatId: ChatId, digests: readonly BridgeRow[], fanOut: num
 
   // The fine zone = the most-recent `fanOut` tier-0 blocks; the coarse zone is everything before it.
   const fineStart = Math.max(0, lastTier0 - fanOut + 1);
-  const keys: RecallBlockKey[] = [];
+  const keys: BlockKey[] = [];
 
   // Coarse past: greedily cover [firstTier0, fineStart) with the highest non-overlapping tier.
   let p = firstTier0 === Number.POSITIVE_INFINITY ? 0 : firstTier0;
@@ -124,7 +128,7 @@ function highestCoveringTier(
 
 /** A key carrying the block's own bucket owner, so a union of buckets keys each block to the digest that produced
  *  it. Only `present` positions reach here, so a missing owner is a defect of the walk. */
-function toKey(chatId: ChatId, scopeOf: ReadonlyMap<string, CharacterId>, tier: number, blockIdx: number): RecallBlockKey {
+function toKey(chatId: ChatId, scopeOf: ReadonlyMap<string, CharacterId>, tier: number, blockIdx: number): BlockKey {
   const scopedCharacterId = scopeOf.get(`${tier}:${blockIdx}`);
   if (scopedCharacterId === undefined) {
     throw new Error(`computeBridge: no scope owner for ${tier}:${blockIdx}`);
@@ -136,7 +140,7 @@ function toKey(chatId: ChatId, scopeOf: ReadonlyMap<string, CharacterId>, tier: 
  *  separated, in the given order. A key with no row in `byKey` is dropped (a search hit outside the loaded scope),
  *  and so is a blank body. `rendered` is the ordered subset that contributed, which is the recall trace's admitted
  *  set. */
-export function formatMemory<K extends RecallBlockKey>(
+export function formatMemory<K extends BlockKey>(
   orderedKeys: readonly K[],
   byKey: ReadonlyMap<string, { readonly text: string }>,
 ): { text: string; rendered: readonly K[] } {

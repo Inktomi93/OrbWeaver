@@ -18,7 +18,14 @@ function roleVar(role: ToneRole): string {
 /** An operable Card in every tone and fill style, each tone beside a probe per style and role it reads when pressed, on that style's host. */
 function Cards(): ReactElement {
   return (
-    <div style={{ display: "grid", gap: "0.5rem", backgroundColor: "var(--color-background)", color: "var(--color-foreground)" }}>
+    <div
+      style={{
+        display: "grid",
+        gap: "0.5rem",
+        backgroundColor: `var(${TOKENS["color.background"].cssVar})`,
+        color: `var(${TOKENS["color.foreground"].cssVar})`,
+      }}
+    >
       {TONES.map((tone) => (
         <div key={tone} data-card-tone={tone} style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
           {VARIANTS.map((variant) => (

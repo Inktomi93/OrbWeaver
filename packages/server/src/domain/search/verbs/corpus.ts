@@ -1,6 +1,7 @@
 // Joint host-scoped digest and transcript retrieval preserves genuine source identity (D16/D20).
 import { NO_HISTORY_FLOOR } from "@orb/contracts/chat";
-import type { BlockKey, CorpusSource } from "@orb/contracts/search";
+import type { CorpusSource } from "@orb/contracts/search";
+import type { BlockKey } from "@orb/kit/recall";
 import { blockKeyStr } from "@orb/kit/recall";
 import { applyRerank } from "@orb/kit/rerank";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";

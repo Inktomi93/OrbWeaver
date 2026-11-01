@@ -8,8 +8,8 @@ import { Button } from "@orb/ui/button";
 import { CrossfadeImage } from "@orb/ui/crossfade-image";
 import { Icon, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
+import { removeActionName } from "@orb/ui/lib";
 import type { ReactElement } from "react";
-import { removeActionName } from "#lib";
 import type { PendingAttachment } from "../hooks/use-composer-attachments.ts";
 import { Track } from "../lib/chat-track.tsx";
 

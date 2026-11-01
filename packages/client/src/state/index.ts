@@ -31,7 +31,6 @@ export {
   DATA_THEME_ATTR,
   rememberAppearanceBootHint,
   rememberDataThemeHint,
-  type SeedThemeName,
   useAppearanceBootHint,
 } from "./appearance-boot-hint.ts";
 export { assembleChrome } from "./assemble-chrome.ts";
@@ -81,7 +80,6 @@ export {
 } from "./chat-list-filter-store.ts";
 export { clearChatMoment, consumeChatMoment, useChatMoment } from "./chat-moment-store.ts";
 export { consumeReturnFocus, useReturnedChat } from "./chat-return-store.ts";
-export type { ChatStreamApi, RecallState, TurnSlot } from "./chat-stream.ts";
 export {
   chatStream,
   isLiveTurnPhase,
@@ -93,7 +91,8 @@ export {
   useTurnSlot,
   useTurnSpeakerCharacterId,
 } from "./chat-stream.ts";
-export type { ActionChromeEntry, ChromeEntry, ChromePresentation, MobileCuration } from "./chrome-registry.ts";
+export type { ChatStreamApi, RecallState, TurnSlot } from "./chat-stream-types.ts";
+export type { ActionChromeEntry, ChromeEntry, ChromePresentation } from "./chrome-registry.ts";
 export { mobileBarCuration, sheetOverflowChrome } from "./chrome-registry.ts";
 export { useChromeRegistry } from "./chrome-registry-context.ts";
 export { ChromeRegistryProvider } from "./chrome-registry-provider.tsx";
@@ -355,6 +354,7 @@ export type { SectionId } from "./section-ids.ts";
 export { resolveSectionPath, SECTION_IDS } from "./section-ids.ts";
 export { LIST_OFF_SCREEN_HINT, useSectionBackTarget, useSectionHasSelection, useSectionListIsScreen, useSectionListMode } from "./section-list-projection.ts";
 export type {
+  MobileCuration,
   SectionDefinition,
   SectionSelection,
 } from "./section-registry.ts";

@@ -130,9 +130,9 @@ interface EmittedScope {
 function emittedScope(background: string, tokens: { readonly accent?: string }, ambientAccent?: string): EmittedScope {
   const { vars } = clampThemeTokens({ background, ...tokens }, undefined, ambientAccent);
   const scheme = schemeOf(background);
-  const fill = vars["--color-primary"];
+  const fill = vars[TOKENS["color.primary"].cssVar];
   const primary: CarriedTone[] =
-    fill === undefined ? [] : [{ tone: "primary", source: { base: parsed(fill), foreground: emittedInk(vars["--color-primary-foreground"]) } }];
+    fill === undefined ? [] : [{ tone: "primary", source: { base: parsed(fill), foreground: emittedInk(vars[TOKENS["color.primary-foreground"].cssVar]) } }];
   return { scheme, vars, tones: [...carriedToneSources(scheme, null), ...primary] };
 }
 
@@ -147,7 +147,7 @@ function nestedAccentScope(background: string, accent: string): EmittedScope {
   const scheme = schemeOf(background);
   const primary: CarriedTone = {
     tone: "primary",
-    source: { base: parsed(vars["--color-primary"] ?? ""), foreground: emittedInk(vars["--color-primary-foreground"]) },
+    source: { base: parsed(vars[TOKENS["color.primary"].cssVar] ?? ""), foreground: emittedInk(vars[TOKENS["color.primary-foreground"].cssVar]) },
   };
   return { scheme, vars, tones: [...carriedToneSources(scheme, null), primary] };
 }
@@ -235,8 +235,8 @@ test("a picked accent whose fill and solid steps share no ink still clears its h
 test("an out-of-gamut accent is judged as the pixel it paints", () => {
   const authored = "oklch(0.78 0.4 140)";
   const { vars } = clampThemeTokens({ background: "oklch(0.158 0.006 60)", accent: authored });
-  expect(vars["--color-primary"]).not.toBe(authored);
-  expect(toOklch(vars["--color-primary"] ?? "")?.inGamut).toBe(true);
+  expect(vars[TOKENS["color.primary"].cssVar]).not.toBe(authored);
+  expect(toOklch(vars[TOKENS["color.primary"].cssVar] ?? "")?.inGamut).toBe(true);
   expect(emittedMisses("oklch(0.158 0.006 60)", { accent: authored })).toEqual([]);
 });
 
