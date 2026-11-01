@@ -9,6 +9,8 @@ export const BASES = [
   { name: "historical pivot 0.6201", background: "oklch(0.6201 0.01 60)" },
   { name: "dark polarity boundary", background: "oklch(0.55 0.01 60)" },
   { name: "light polarity boundary", background: "oklch(0.57 0.01 60)" },
+  { name: "mid grey", background: "oklch(0.5 0 0)" },
+  { name: "pale paper", background: "oklch(0.93 0.02 90)" },
 ] as const;
 
 /** A neutral mid-grey, where a fixed-colour edge has the least room on either side. */

@@ -11,16 +11,19 @@ plan: cross-surface-consistency
 
 ## What
 
-The change, in a sentence.
+A carried palette near the black/white crossover mirrors its ramp arm and flips its input wash to the side with room, emits `--color-field-fill`, and solves the page and absent prose inks over cards and field fills.
 
 ## Why
 
-The symptom or the ruling behind it.
+Both ramp arms step toward the crossover, so a mid-luminance base had no room on its arm's side. Projection flattened muted, accent, secondary and popover into one value, and the input alpha fell to 0.001. The field fill was a static white wash no ink was solved on, and absent prose inks were solved on the page only.
 
 ## Done when
 
-The observable bar a verifier can check.
+- On `oklch(0.5 0 0)` the select value clears 4.5:1 on its field fill, and the reading ink clears 4.5:1 on a card.
+- The input rail keeps `inputAlpha` and paints apart from the card.
+- The accent fill paints apart from muted and popover.
+- Hearth, Mocha, Light and `oklch(0.93 0.02 90)` keep their ramp and ink values.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+`tests/ui/content/theme-scope/emitted-contrast.ct.tsx` runs the mid grey and pale paper cases in the painted pixels. `tests/kit/theme-derivation/neutral-tint-ink.test.ts` sweeps the accepted bases. The design audit on an isolated stage reports zero contrast, hover-contrast and border-contrast findings for both themes.

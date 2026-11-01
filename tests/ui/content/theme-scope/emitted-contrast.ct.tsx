@@ -16,6 +16,7 @@ import type {
   BubbleSeparationStory,
   NestedSeedStory,
   NestedSeedSurfaceStory,
+  NeutralFillStory,
   ReadingBandStory,
   SelectedRowStory,
   SemanticContrastStory,
@@ -39,7 +40,7 @@ for (const { name, ...props } of SEMANTIC_CASES) {
   test(`${name}: semantic and muted/input inks clear their painted backings`, async ({ mount, page }, testInfo) => {
     const component = await mount<typeof SemanticContrastStory>("tests/ui/content/theme-scope/_contrast-stories/SemanticContrastStory", props);
     const subjects = component.locator("p");
-    await expect(subjects).toHaveCount(18);
+    await expect(subjects).toHaveCount(23);
     for (const subject of await subjects.all()) {
       await expect(subject).toBeVisible();
       await subject.scrollIntoViewIfNeeded();
@@ -49,6 +50,25 @@ for (const { name, ...props } of SEMANTIC_CASES) {
     const screenshot = testInfo.outputPath("settled-theme.png");
     await component.screenshot({ path: screenshot, animations: "disabled" });
     await testInfo.attach("settled-theme", { path: screenshot, contentType: "image/png" });
+  });
+}
+
+// The light arm steps accent exactly the tint separation from muted, so 8-bit pixels can spend up to one step of it.
+const NEUTRAL_FILL_SEPARATION = TONE_TINT_SEPARATION - 0.004;
+
+for (const { name, background } of BASES) {
+  test(`${name}: the keyboard highlight and the input rail paint apart from what they sit on`, async ({ mount, page }) => {
+    const component = await mount<typeof NeutralFillStory>("tests/ui/content/theme-scope/_contrast-stories/NeutralFillStory", { background });
+    const painted = async (fill: string): Promise<Oklch> => srgbToOklch((await pixelSurface(page, component.locator(`[data-fill="${fill}"]`))).rgb);
+    const accent = await painted("accent");
+    const distances = {
+      "highlight from muted": oklabDistance(accent, await painted("muted")),
+      "highlight from popover": oklabDistance(accent, await painted("popover")),
+      "rail from card": oklabDistance(await painted("rail"), await painted("card")),
+    };
+    for (const [pair, distance] of Object.entries(distances)) {
+      expect(distance, pair).toBeGreaterThanOrEqual(NEUTRAL_FILL_SEPARATION);
+    }
   });
 }
 

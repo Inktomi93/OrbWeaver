@@ -391,8 +391,8 @@ export function derivedForegroundLightness(surface: Oklch): number {
   return neutralInkLightness(polarity, [surfaceRgb], initial, neutralInkTarget(polarity, surfaceRgb));
 }
 
-/** A shared foreground for a documented family of nearby hosts (background/card/raised). */
-export function derivedForegroundLightnessForSurfaces(surfaces: readonly Oklch[]): number {
+/** A shared foreground for a documented family of nearby hosts (background/card/raised), and any composited fills that ink also sits on. */
+export function derivedForegroundLightnessForSurfaces(surfaces: readonly Oklch[], composited: readonly Rgb[] = []): number {
   const anchor = surfaces[0];
   if (anchor === undefined) {
     throw new Error("foreground requires at least one surface");
@@ -400,12 +400,7 @@ export function derivedForegroundLightnessForSurfaces(surfaces: readonly Oklch[]
   const polarity = surfacePolarity(anchor);
   const initial = polarity === "light" ? THEME_DERIVATION.fgLMin : THEME_DERIVATION.fgLMax;
   const anchorRgb = oklchToSrgb(anchor);
-  return neutralInkLightness(
-    polarity,
-    surfaces.map((surface) => oklchToSrgb(surface)),
-    initial,
-    neutralInkTarget(polarity, anchorRgb),
-  );
+  return neutralInkLightness(polarity, [...surfaces.map((surface) => oklchToSrgb(surface)), ...composited], initial, neutralInkTarget(polarity, anchorRgb));
 }
 
 /** One neutral ramp surface: the base with only L shifted (hue + chroma held), as the clamp emits. */
@@ -415,30 +410,29 @@ export function rampSurface(base: Oklch, deltaL: number): Oklch {
 
 export interface MutedForegroundPair {
   readonly lightness: number;
-  readonly inputAlpha: number;
+  /** The lightness the input fill washes at {@link THEME_DERIVATION}'s `inputAlpha`. */
+  readonly inputWash: number;
 }
 
-/** The shared low-emphasis ink plus the translucent input alpha it must clear. The authored base stays
- * fixed; derived ramp projection happens upstream, and only the fill alpha steps toward transparent when
- * its legacy 0.12 would pull an input below the anchor's attainable render target. */
+/** The shared low-emphasis ink plus the input wash it must clear. The wash lifts toward the ink, the way every
+ * seed spells it; where that lift would pull an input below the anchor's attainable render target it runs the
+ * other way, at the same alpha, so the fill stays visible and only gains contrast against the ink. */
 export function derivedMutedForegroundPair(base: Oklch, opaqueSurfaces: readonly Oklch[], inputBackings: readonly Oklch[]): MutedForegroundPair {
   const polarity = surfacePolarity(base);
   const initial = polarity === "light" ? THEME_DERIVATION.mutedLMin : THEME_DERIVATION.mutedLMax;
   const target = neutralInkTarget(polarity, oklchToSrgb(base));
-  const alphaSteps = Math.round(THEME_DERIVATION.inputAlpha / FOREGROUND_L_STEP);
-  const inputInk = oklchToSrgb({ l: derivedForegroundLightness(base), c: 0, h: base.h });
-  for (let step = alphaSteps; step >= 0; step -= 1) {
-    const inputAlpha = Number((step * FOREGROUND_L_STEP).toFixed(FOREGROUND_L_DECIMALS));
-    const surfaces = [
-      ...opaqueSurfaces.map((surface) => oklchToSrgb(surface)),
-      ...inputBackings.map((backing) => compositeSrgb(inputInk, inputAlpha, oklchToSrgb(backing))),
-    ];
-    const lightness = tryNeutralInkLightness(polarity, surfaces, initial, target);
-    if (lightness !== null) {
-      return { lightness, inputAlpha };
-    }
+  const opaque = opaqueSurfaces.map((surface) => oklchToSrgb(surface));
+  const solve = (inputWash: number): MutedForegroundPair | null => {
+    const wash = oklchToSrgb({ l: inputWash, c: 0, h: base.h });
+    const fills = inputBackings.map((backing) => compositeSrgb(wash, THEME_DERIVATION.inputAlpha, oklchToSrgb(backing)));
+    const lightness = tryNeutralInkLightness(polarity, [...opaque, ...fills], initial, target);
+    return lightness === null ? null : { lightness, inputWash };
+  };
+  const pair = solve(derivedForegroundLightness(base)) ?? solve(polarity === "light" ? 1 : 0);
+  if (pair === null) {
+    throw new Error("unable to derive a contrast-safe muted/input pair");
   }
-  throw new Error("unable to derive a contrast-safe muted/input pair");
+  return pair;
 }
 
 /** The sRGB grey whose WCAG relative luminance is `target` — the inverse of {@link relativeLuminance} for a
@@ -717,11 +711,9 @@ function accentFamilyDelta(base: Oklch, desired: number, muted: number): number 
   return 0;
 }
 
-export function rampDeltas(base: Oklch): RampDeltas {
-  const polarity = surfacePolarity(base);
-  const arm = polarity === "light" ? THEME_DERIVATION.ramp.light : THEME_DERIVATION.ramp.dark;
+function projectedRamp(base: Oklch, arm: RampDeltas, polarity: SurfacePolarity): RampDeltas {
   const muted = contrastSafeRampDelta(base, arm.muted, polarity);
-  const projected: RampDeltas = {
+  return {
     sidebar: contrastSafeRampDelta(base, arm.sidebar, polarity),
     surfaceRaised: contrastSafeRampDelta(base, arm.surfaceRaised, polarity),
     card: contrastSafeRampDelta(base, arm.card, polarity),
@@ -732,7 +724,34 @@ export function rampDeltas(base: Oklch): RampDeltas {
     secondary: contrastSafeRampDelta(base, arm.secondary, polarity),
     muted,
   };
-  return Object.entries(projected).every(([role, delta]) => delta === arm[role as keyof RampDeltas]) ? arm : projected;
+}
+
+/** How much lightness a projection took back from its arm: what a ramp loses of the steps that tell its members apart. */
+function rampRetraction(arm: RampDeltas, projected: RampDeltas): number {
+  return Object.entries(projected).reduce((lost, [role, delta]) => lost + Math.abs(arm[role as keyof RampDeltas] - delta), 0);
+}
+
+function mirroredArm(arm: RampDeltas): RampDeltas {
+  return Object.fromEntries(Object.entries(arm).map(([role, delta]) => [role, -delta])) as unknown as RampDeltas;
+}
+
+/**
+ * Both arms step toward the black/white crossover, so a base near it has no room on its arm's side: projection flattens
+ * the members into one value there, and hover and selection stop reading. The room is on the far side, where the
+ * polarity's ink only gains contrast, so a base whose arm does not fit takes the arm mirrored whenever that keeps more of
+ * the ramp. An arm that fits is returned as authored, which is what keeps the seed recipes byte-identical.
+ */
+export function rampDeltas(base: Oklch): RampDeltas {
+  const polarity = surfacePolarity(base);
+  const arm = polarity === "light" ? THEME_DERIVATION.ramp.light : THEME_DERIVATION.ramp.dark;
+  const projected = projectedRamp(base, arm, polarity);
+  const lost = rampRetraction(arm, projected);
+  if (lost === 0) {
+    return arm;
+  }
+  const mirror = mirroredArm(arm);
+  const mirrored = projectedRamp(base, mirror, polarity);
+  return rampRetraction(mirror, mirrored) < lost ? mirrored : projected;
 }
 
 export type ChartRamp = readonly [Oklch, Oklch, Oklch, Oklch, Oklch];
@@ -1109,31 +1128,35 @@ export function tonePaletteOn(palette: TonePalette<CarriedToneHost>, host: ToneH
     : { ...palette, host: palette.hosts[host], hostInks: { foreground: ink } };
 }
 
-/** A carried palette's low-emphasis ink and the input-fill alpha it clears, judged over the hosts that ink is painted on. */
+/** The panels a form control sits on, each of which the input wash composites over. */
+function fieldPanels(base: Oklch, deltas: RampDeltas): readonly Oklch[] {
+  return [base, rampSurface(base, deltas.surfaceRaised), rampSurface(base, deltas.card), rampSurface(base, deltas.popover)];
+}
+
+/** A carried palette's low-emphasis ink and the input wash it clears, judged over the hosts that ink is painted on. */
 function carriedMutedForegroundPair(base: Oklch): MutedForegroundPair {
   const deltas = rampDeltas(base);
-  const card = rampSurface(base, deltas.card);
-  const popover = rampSurface(base, deltas.popover);
+  const panels = fieldPanels(base, deltas);
   const hosts = [
-    base,
-    card,
-    popover,
+    ...panels,
     rampSurface(base, deltas.sidebar),
     rampSurface(base, deltas.secondary),
     rampSurface(base, deltas.muted),
     rampSurface(base, deltas.accent),
   ];
-  return derivedMutedForegroundPair(base, hosts, [base, card, popover]);
+  return derivedMutedForegroundPair(base, hosts, panels);
 }
 
 function opaquePixel(color: Oklch): Oklch {
   return srgbToOklch(oklchToSrgb(color));
 }
 
-/** The shared ink of the background, raised and card host family. */
-function carriedForegroundLightness(base: Oklch): number {
+/** The shared ink of the background, raised and card host family, and of a field's value on the input wash over each panel. */
+function carriedForegroundLightness(base: Oklch, inputWash: number): number {
   const deltas = rampDeltas(base);
-  return derivedForegroundLightnessForSurfaces([base, rampSurface(base, deltas.surfaceRaised), rampSurface(base, deltas.card)]);
+  const wash = oklchToSrgb({ l: inputWash, c: 0, h: base.h });
+  const fields = fieldPanels(base, deltas).map((panel) => compositeSrgb(wash, THEME_DERIVATION.inputAlpha, oklchToSrgb(panel)));
+  return derivedForegroundLightnessForSurfaces([base, rampSurface(base, deltas.surfaceRaised), rampSurface(base, deltas.card)], fields);
 }
 
 /** The accent ink covers the accent and muted host family: it is the neutral tone's text on both of its tints (D336). */
@@ -1180,7 +1203,8 @@ export interface CarriedInks {
 }
 
 export function carriedInks(base: Oklch): CarriedInks {
-  return { foreground: carriedForegroundLightness(base), accentForeground: carriedAccentInkLightness(base), muted: carriedMutedForegroundPair(base) };
+  const muted = carriedMutedForegroundPair(base);
+  return { foreground: carriedForegroundLightness(base, muted.inputWash), accentForeground: carriedAccentInkLightness(base), muted };
 }
 
 /** The painted pixels of a carried base's ramp hosts, the palette its tone roles resolve against; `inks` are {@link carriedInks} of the base. */

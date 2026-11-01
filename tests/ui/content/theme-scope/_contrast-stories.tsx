@@ -15,6 +15,7 @@ const SEMANTIC_PAIRS = [
   ["surface-raised", "foreground"],
   ["card", "foreground"],
   ["card", "card-foreground"],
+  ["card", "prose-body"],
   ["popover", "popover-foreground"],
   ["sidebar", "sidebar-foreground"],
   ["accent", "accent-foreground"],
@@ -23,6 +24,7 @@ const SEMANTIC_PAIRS = [
 ] as const;
 const MUTED_HOSTS = ["background", "card", "popover", "sidebar", "secondary", "muted"] as const;
 const INPUT_HOSTS = ["background", "card", "popover"] as const;
+const FIELD_HOSTS = ["background", "surface-raised", "card", "popover"] as const;
 // Columns wrap so every sample stays inside a phone viewport as well as a desktop one.
 const GRID_COLUMNS = "repeat(auto-fill, minmax(10rem, 1fr))";
 const SAMPLE_STYLE: CSSProperties = { margin: 0, padding: "1rem", minHeight: "3rem" };
@@ -69,7 +71,36 @@ function SemanticPairs(): ReactElement {
           >{`input on ${surface}`}</p>
         </div>
       ))}
+      {FIELD_HOSTS.map((surface) => (
+        <div key={`field-${surface}`} style={{ backgroundColor: `var(${TOKENS[`color.${surface}`].cssVar})` }}>
+          <p
+            style={{ ...SAMPLE_STYLE, backgroundColor: `var(${TOKENS["color.field-fill"].cssVar})`, color: `var(${TOKENS["color.foreground"].cssVar})` }}
+          >{`field value on ${surface}`}</p>
+        </div>
+      ))}
     </div>
+  );
+}
+
+/** The ramp members a picker row and a rail track are told apart by, each a bare fill over the card or popover it sits on. */
+export function NeutralFillStory({ background }: { readonly background: string }): ReactElement {
+  const fill = (name: string, token: "muted" | "accent" | "popover" | "card" | "input", host: "card" | "popover"): ReactElement => (
+    <div style={{ backgroundColor: `var(${TOKENS[`color.${host}`].cssVar})` }}>
+      <div data-fill={name} style={{ ...SAMPLE_STYLE, backgroundColor: `var(${TOKENS[`color.${token}`].cssVar})` }} />
+    </div>
+  );
+  return (
+    <CtIsolation subject="ThemeScope" isolates="The neutral ramp and the input rail a custom scope paints">
+      <ThemeScope tokens={{ background }}>
+        <div style={{ display: "grid", gridTemplateColumns: GRID_COLUMNS }}>
+          {fill("muted", "muted", "popover")}
+          {fill("accent", "accent", "popover")}
+          {fill("popover", "popover", "popover")}
+          {fill("card", "card", "card")}
+          {fill("rail", "input", "card")}
+        </div>
+      </ThemeScope>
+    </CtIsolation>
   );
 }
 

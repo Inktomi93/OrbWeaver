@@ -349,11 +349,12 @@ function derivedOriginFor(background: string, authored: ParsedOklch | null, reso
   return resolved === null ? background : serializeOpaqueOklch(resolved);
 }
 
-function absentProseInkOn(raw: unknown, field: keyof ThemeScopeTokens, background: string | undefined, base: ParsedOklch | null): string | undefined {
-  if ((typeof raw === "object" && raw !== null && Object.hasOwn(raw, field)) || background === undefined || base === null) {
+// An absent prose ink takes the page ink, solved over the page, raised and card family, because a card is a reading host too.
+function absentProseInkOn(raw: unknown, field: keyof ThemeScopeTokens, background: string | undefined, carried: CarriedPalette | null): string | undefined {
+  if ((typeof raw === "object" && raw !== null && Object.hasOwn(raw, field)) || background === undefined || carried === null) {
     return;
   }
-  return foregroundOn(derivedOriginFor(background, toOklch(background), base), base);
+  return `oklch(from ${derivedOriginFor(background, toOklch(background), carried.pixel)} ${carried.inks.foreground} 0 h / 1)`;
 }
 
 /**
@@ -457,10 +458,10 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
   // fallback from the resolved carried pixel; with no carried background there is deliberately no
   // fallback and the cascade remains intact. Explicit picks still take the pass-through/correction arms
   // above byte-for-byte.
-  put(THEME_OVERRIDE_COLOR_VARS.speaker, proseInkOn(t.speaker, inkBase, absentProseInkOn(raw, "speaker", t.background, carriedBase)));
-  put(THEME_OVERRIDE_COLOR_VARS.dialogueColor, proseInkOn(t.dialogueColor, inkBase, absentProseInkOn(raw, "dialogueColor", t.background, carriedBase)));
-  put(THEME_OVERRIDE_COLOR_VARS.narrationColor, proseInkOn(t.narrationColor, inkBase, absentProseInkOn(raw, "narrationColor", t.background, carriedBase)));
-  put(THEME_OVERRIDE_COLOR_VARS.bodyColor, proseInkOn(t.bodyColor, inkBase, absentProseInkOn(raw, "bodyColor", t.background, carriedBase)));
+  put(THEME_OVERRIDE_COLOR_VARS.speaker, proseInkOn(t.speaker, inkBase, absentProseInkOn(raw, "speaker", t.background, carried)));
+  put(THEME_OVERRIDE_COLOR_VARS.dialogueColor, proseInkOn(t.dialogueColor, inkBase, absentProseInkOn(raw, "dialogueColor", t.background, carried)));
+  put(THEME_OVERRIDE_COLOR_VARS.narrationColor, proseInkOn(t.narrationColor, inkBase, absentProseInkOn(raw, "narrationColor", t.background, carried)));
+  put(THEME_OVERRIDE_COLOR_VARS.bodyColor, proseInkOn(t.bodyColor, inkBase, absentProseInkOn(raw, "bodyColor", t.background, carried)));
   // Bubbles: the picker sets each bubble's bg; the fg is always derived for contrast, never picked.
   const putBubble = (bg: string, bubbleVars: { readonly bg: string; readonly fg: string }): void => {
     const parsedBubble = toOklch(bg);

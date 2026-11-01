@@ -20,10 +20,10 @@ Split off [ADR 0071](0071-theme-palette-pipeline.md), whose accepted-base foregr
   pixels; a shared token is legal only for a documented host family one ink can cover. The proven splits are
   `reading-plate-foreground` (plate over black/white art plus its opaque band) and
   `sidebar-accent-foreground` (rail hover fill). Transparent action controls inherit their host ink rather
-  than substituting `muted-foreground`. If a proposed derived ramp member would make a documented shared
-  family impossible, that delta retracts toward the unchanged authored base on a measured 0.001 grid; if the
-  translucent input fill alone makes the muted/input family impossible, only its derived alpha retracts.
-  Dedicated accent/sidebar-accent surfaces are never projected, except that the accent delta retracts toward the base where one ink cannot cover the accent and muted family, which D336 makes the neutral tone's text-on-tint hosts.
+  than substituting `muted-foreground`. Both ramp arms step toward the black/white crossover, so a base whose arm does not fit takes the mirrored arm when that keeps more of the ramp. If a member still would make a documented shared
+  family impossible, that delta retracts toward the unchanged authored base on a measured 0.001 grid. If the
+  translucent input fill alone makes the muted/input family impossible, its wash keeps its alpha and runs away from the ink. The page ink is solved over that wash on every panel a field sits on, and a dark carried palette paints `--color-field-fill` from it.
+  The dedicated sidebar-accent surface is never retracted. The accent delta retracts toward the base where one ink cannot cover the accent and muted family, which D336 makes the neutral tone's text-on-tint hosts.
   Builder/create/update, ST import, root/nested/carried ThemeScopes and
   portals all accept the same `ThemeOverride` domain; only unreadable/contextual values without an ambient
   fail open. Seed blocks remain generated and gain only the two additive paired variables at their former

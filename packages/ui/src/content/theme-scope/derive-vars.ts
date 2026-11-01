@@ -20,8 +20,10 @@ import {
   shadowIngredients,
   solveFocusRing,
   solveInputBorder,
+  surfacePolarity,
   THEME_DERIVATION,
 } from "@orb/kit/theme-derivation";
+import { TOKENS } from "#tokens";
 import type { ParsedOklch } from "./color-parse.ts";
 import { serializeOpaqueOklch } from "./color-parse.ts";
 import { THEME_OVERRIDE_COLOR_VARS } from "./emit-vars.ts";
@@ -70,9 +72,17 @@ function foregroundAt(base: string, lightness: number): string {
 function borderOn(surface: string, base: Oklch): string {
   return `oklch(from ${surface} ${derivedForegroundLightness(base)} 0 h / ${BORDER_ALPHA})`;
 }
-/** The input-field surface lift derived from `surface`, composited over any surface. */
-function inputSurfaceOn(surface: string, base: Oklch, alpha: number = INPUT_ALPHA): string {
-  return `oklch(from ${surface} ${derivedForegroundLightness(base)} 0 h / ${alpha})`;
+/** The input-field wash derived from `surface`, composited over any surface. */
+function inputSurfaceOn(surface: string, wash: number): string {
+  return `oklch(from ${surface} ${wash} 0 h / ${INPUT_ALPHA})`;
+}
+/**
+ * A text field's fill. A dark carried palette takes the solved input wash, which the page and muted inks are judged on: the
+ * static dark arm is a white lift that a mid-tone page cannot carry. A light one keeps the opaque light arm, restated so a
+ * scope nested in a dark carried one does not inherit that scope's wash.
+ */
+function fieldFillOn(surface: string, wash: number, base: Oklch): string {
+  return surfacePolarity(base) === "dark" ? inputSurfaceOn(surface, wash) : TOKENS["color.field-fill"].value;
 }
 /** A truly unjudgeable provider-less base gets an OPAQUE plate — see {@link readingPlateOn}. */
 const UNJUDGEABLE_PLATE_ALPHA = 1;
@@ -221,8 +231,8 @@ function carriedEdgeOn({ pixel: base, inks }: CarriedPalette): CarriedEdge {
     inkLightness: inks.foreground,
     grounds: {
       panels: [opaqueBase, ...Object.values(surfaces)],
-      fillInk: { l: derivedForegroundLightness(opaqueBase), c: 0, h: base.h },
-      fillAlpha: inks.muted.inputAlpha,
+      fillInk: { l: inks.muted.inputWash, c: 0, h: base.h },
+      fillAlpha: INPUT_ALPHA,
     },
   });
   return { ...solve, card: surfaces.card };
@@ -299,6 +309,7 @@ export function surfaceVarsOn(background: string, carried: CarriedPalette | null
   vars["--color-reading-plate-foreground"] = foregroundAt(origin, readingPlateForeground(opaqueBase).l);
   vars["--color-border"] = borderOn(origin, opaqueBase);
   vars["--color-sidebar-border"] = borderOn(origin, opaqueBase);
-  vars["--color-input"] = inputSurfaceOn(origin, opaqueBase, mutedPair.inputAlpha);
+  vars["--color-input"] = inputSurfaceOn(origin, mutedPair.inputWash);
+  vars["--color-field-fill"] = fieldFillOn(origin, mutedPair.inputWash, opaqueBase);
   return { ...vars, ...shadowVarsOn(origin, pixel), ...chartVarsOn(pixel) };
 }
