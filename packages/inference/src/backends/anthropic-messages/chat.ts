@@ -1,6 +1,6 @@
 // ONE chat turn on the anthropic-messages wire over the SDK's V4 `doStream` (§8.5). The converter is the
 // SDK's: it hoists the leading system block(s), places `cacheControl` per message, forwards a mid-history
-// `system` row + its `clearAt`/`effort` under the betas the curated row enabled, and merges same-role rows
+// `system` row + its `clearAt` under the betas the curated row enabled, and merges same-role rows
 // (a no-op after our floor). Ours: the funnel, the prompt plan, the cache PLACEMENT (the one placer,
 // `backends/wire/cache-control.ts`), the thinking/effort spelling, the shared reducer and result fold,
 // pre-commit retry.
@@ -86,7 +86,7 @@ function sdkEffortOf(effort: string | undefined, warnings: ResolvedWarning[], wh
 
 /** `wireMeta` → the per-row anthropic provider options: a cache breakpoint (under the turn's plan — none when
  *  the connection turned caching off), and on a mid-history system row the `clearAt` (only when the curated row
- *  says the model honours it) + the per-turn effort. */
+ *  says the model honours it). */
 function rowOptionsFor(
   generation: GenerationCapability,
   cachePlan: ExplicitCachePlan | null,
@@ -107,10 +107,6 @@ function rowOptionsFor(
       } else {
         warnings.push({ code: "dynamic_context_demoted", message: "clearAt ignored: the curated row does not advertise the clear-at beta for this model" });
       }
-    }
-    const effort = row.role === "system" ? sdkEffortOf(meta.effort, warnings, "per-row") : undefined;
-    if (effort !== undefined) {
-      options["effort"] = effort;
     }
     return Object.keys(options).length > 0 ? { [ANTHROPIC_KEY]: options } : undefined;
   };
