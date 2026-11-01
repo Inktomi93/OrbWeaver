@@ -6,7 +6,7 @@ import { EmptyState } from "@orb/ui/empty-state";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useSuspenseQuery, useTRPC } from "#data";
-import { selectChat } from "#state";
+import { selectChatFromList } from "#state";
 import { ChatSummaryRow } from "./chat-summary-row.tsx";
 
 export function ChatForksSection({ chatId }: { readonly chatId: ChatId }): ReactElement {
@@ -20,7 +20,7 @@ export function ChatForksSection({ chatId }: { readonly chatId: ChatId }): React
   return (
     <Stack gap="field">
       {forks.map((fork) => (
-        <ChatSummaryRow chat={fork} key={fork.id} onSelect={selectChat} portraits={fork.participantPortraits} />
+        <ChatSummaryRow chat={fork} key={fork.id} onSelect={selectChatFromList} portraits={fork.participantPortraits} />
       ))}
     </Stack>
   );

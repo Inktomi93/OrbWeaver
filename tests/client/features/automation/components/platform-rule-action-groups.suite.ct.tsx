@@ -1,6 +1,7 @@
 import { ROW_DELETE_NAME } from "@orb/client/lib";
 import { AUTOMATION_RULE_NAME_MAX_CHARS, automationRuleEditableSchema } from "@orb/contracts/automation";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
+import type { ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { actionGroupGeometry, resolvedLength } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -8,9 +9,10 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
-import type { RuleActionGroupsStory } from "./_rule-action-groups-stories.tsx";
+import type { ChatRulesStory, RuleActionGroupsStory } from "./_rule-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/automation/components/_rule-action-groups-stories/RuleActionGroupsStory";
+const CHAT_STORY = "tests/client/features/automation/components/_rule-action-groups-stories/ChatRulesStory";
 const READS = [
   "sessions.me",
   "settings.getUserSettings",
@@ -20,6 +22,8 @@ const READS = [
   "automation.testRule",
   "automation.listFires",
   "automation.updateRule",
+  "automation.listRules",
+  "worldInfo.listForChat",
 ] as const;
 const REGIMES = [
   { name: "wide desktop", width: 960, viewport: { width: 1280, height: 900 }, coarse: false, appearance: appearanceSettingsSchema.parse({}) },
@@ -194,5 +198,52 @@ test.describe("rule editor field rows", () => {
       throw new Error("The explanatory line must render");
     }
     expect(box.width).toBeLessThanOrEqual((await resolvedLength(page, `var(${TOKENS["reading.measure-prose"].cssVar})`, line)) + 1);
+  });
+
+  test("two analysis routes asking for confirmation are named inside the Outputs group, in the destructive ink", async ({ mount, page }) => {
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    const appearance = appearanceSettingsSchema.parse({});
+    await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });
+    await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
+    let target: { readonly chatId: ChatId; readonly name: string } | undefined;
+    for (const room of (await caller.chat.listChats({ limit: 100 })).items) {
+      if (!(await caller.chat.getChat({ chatId: room.id })).viewerIsHost) {
+        continue;
+      }
+      const rule = (await caller.automation.listRules({ chatId: room.id })).find((entry) => entry.actions.some((action) => action.type === "run_analysis"));
+      if (rule !== undefined) {
+        target = { chatId: room.id, name: rule.name };
+        break;
+      }
+    }
+    if (target === undefined) {
+      throw new Error("The corpus must contain a room with an analysis rule");
+    }
+    await routeTrpc(page, serveCorpusProcedures(caller, READS));
+    await mount<typeof ChatRulesStory>(CHAT_STORY, { chatId: target.chatId, appearance });
+    await page
+      .getByRole("button")
+      .filter({ has: page.getByText(target.name, { exact: true }) })
+      .click();
+    await page.getByRole("button", { name: `Edit ${target.name}`, exact: true }).click();
+    const outputs = page.getByRole("group", { name: "Outputs", exact: true });
+    await outputs.getByRole("switch", { name: "World book", exact: true }).click();
+    await outputs.getByRole("switch", { name: "Suggested turns", exact: true }).click();
+
+    const warning = outputs.getByRole("alert");
+    await expect(warning).toBeVisible();
+    await expect(warning).toContainText("World book");
+    await expect(warning).toContainText("Suggested turns");
+    const [alertBox, lastSwitchBox] = await Promise.all([
+      warning.boundingBox(),
+      outputs.getByRole("switch", { name: "Score variable", exact: true }).boundingBox(),
+    ]);
+    if (alertBox === null || lastSwitchBox === null) {
+      throw new Error("The warning and the switch list must render");
+    }
+    expect(alertBox.y).toBeGreaterThanOrEqual(lastSwitchBox.y);
+    const ink = (locator: typeof warning): Promise<string> => locator.evaluate((node) => getComputedStyle(node).color);
+    expect(await ink(warning)).not.toBe(await ink(outputs.getByText("Outputs", { exact: true })));
   });
 });

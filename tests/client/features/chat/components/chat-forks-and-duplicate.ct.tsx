@@ -146,3 +146,19 @@ test("the This-chat tab lists the forks of the room under Forks", async ({ mount
   await page.getByRole("button", { name: /^Forks/ }).click();
   await expect(page.getByText(FORK_TITLE, { exact: true })).toBeVisible();
 });
+
+test("opening a fork from the details sheet enters the fork and closes the sheet", async ({ mount, page, corpusMedia }) => {
+  await using root = await createCorpusHarness();
+  const { chatId, host } = await hostRoom(root);
+  const fork = await host.chat.forkChat({ chatId, title: FORK_TITLE });
+  await serveAs(root, page, host, TAB_PROCEDURES);
+  await corpusMedia();
+  await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
+  const probe = page.locator('[data-probe="shell"]');
+  await expect(probe).toHaveText(`active=${chatId} sheet=context`);
+
+  await page.getByRole("button", { name: /^Forks/ }).click();
+  await page.getByText(FORK_TITLE, { exact: true }).click();
+
+  await expect(probe).toHaveText(`active=${fork.chat.id} sheet=none`);
+});
