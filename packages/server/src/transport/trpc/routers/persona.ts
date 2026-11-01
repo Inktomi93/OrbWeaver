@@ -15,6 +15,7 @@ import {
 import { portableTextFileSchema } from "@orb/contracts/portability";
 
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { strictTwin } from "@orb/kit/zod-schema";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
@@ -26,19 +27,19 @@ const DEC = new TextDecoder();
 
 export const personaRouter = t.router({
   create: authedProcedure
-    .output(personaDetailSchema)
+    .output(strictTwin(personaDetailSchema))
     .input(z.strictObject({ input: createPersonaSchema }))
     .mutation(({ ctx, input }) => ctx.services.persona.create({ principal: ctx.auth, input: input.input })),
 
-  list: authedProcedure.output(z.array(personaDetailSchema)).query(({ ctx }) => ctx.services.persona.list({ principal: ctx.auth })),
+  list: authedProcedure.output(strictTwin(z.array(personaDetailSchema))).query(({ ctx }) => ctx.services.persona.list({ principal: ctx.auth })),
 
   get: authedProcedure
-    .output(personaDetailSchema)
+    .output(strictTwin(personaDetailSchema))
     .input(personaIdInputSchema)
     .query(({ ctx, input }) => ctx.services.persona.get({ principal: ctx.auth, personaId: input.personaId })),
 
   update: authedProcedure
-    .output(personaDetailSchema)
+    .output(strictTwin(personaDetailSchema))
     .input(z.strictObject({ personaId: typeIdSchema(ID_PREFIX.persona), input: updatePersonaSchema }))
     .mutation(({ ctx, input }) =>
       ctx.services.persona.update({
@@ -58,6 +59,7 @@ export const personaRouter = t.router({
   // `targetUserId` is OPTIONAL — omitted = self (the verb defaults it to the caller); a host targeting
   // someone else passes it explicitly.
   setActivePersona: authedProcedure
+    .output(z.void())
     .input(
       z.strictObject({
         chatId: typeIdSchema(ID_PREFIX.chat),
@@ -75,7 +77,7 @@ export const personaRouter = t.router({
     ),
 
   createFromCharacter: authedProcedure
-    .output(personaDetailSchema)
+    .output(strictTwin(personaDetailSchema))
     .input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character), swapMacros: z.boolean() }))
     .mutation(({ ctx, input }) =>
       ctx.services.persona.createFromCharacter({
@@ -86,6 +88,7 @@ export const personaRouter = t.router({
     ),
 
   connectToCharacter: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character), personaId: typeIdSchema(ID_PREFIX.persona) }))
     .mutation(({ ctx, input }) =>
       ctx.services.persona.connectToCharacter({
@@ -107,7 +110,7 @@ export const personaRouter = t.router({
     ),
 
   listConnectedToCharacter: authedProcedure
-    .output(z.array(personaDetailSchema))
+    .output(strictTwin(z.array(personaDetailSchema)))
     .input(personaCharacterInputSchema)
     .query(({ ctx, input }) =>
       ctx.services.persona.listConnectedToCharacter({
@@ -129,7 +132,7 @@ export const personaRouter = t.router({
 
   // FINAL-Persona §A.6b gap #2/#3 — duplicate + the export/import backup round-trip.
   duplicate: authedProcedure
-    .output(personaDetailSchema)
+    .output(strictTwin(personaDetailSchema))
     .input(personaIdInputSchema)
     .mutation(({ ctx, input }) => ctx.services.persona.duplicate({ principal: ctx.auth, personaId: input.personaId })),
 
@@ -137,7 +140,7 @@ export const personaRouter = t.router({
   // law): the FILE is the unit on the wire, so a persona shared one-at-a-time is byte-identical to the one
   // inside a backup zip and the merge semantics can never fork.
   export: authedProcedure
-    .output(portableTextFileSchema)
+    .output(strictTwin(portableTextFileSchema))
     .input(personaIdInputSchema)
     .query(async ({ ctx, input }) => {
       const file = await ctx.services.persona.export({ principal: ctx.auth, personaId: input.personaId });
@@ -145,7 +148,7 @@ export const personaRouter = t.router({
     }),
 
   import: authedProcedure
-    .output(personaDetailSchema)
+    .output(strictTwin(personaDetailSchema))
     .input(z.strictObject({ fileText: z.string().max(MAX_PERSONA_FILE_CHARS) }))
     .mutation(async ({ ctx, input }) => {
       const outcome = await ctx.services.persona.import({ principal: ctx.auth, bytes: ENC.encode(input.fileText) });

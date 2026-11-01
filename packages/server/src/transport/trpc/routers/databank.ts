@@ -26,7 +26,7 @@ import {
   uploadResultSchema,
 } from "@orb/contracts/databank";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { strictInput } from "@orb/kit/zod-schema";
+import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
@@ -96,21 +96,24 @@ export const databankRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.databank.rename({ principal: ctx.auth, id: input.id, name: input.name })),
 
   remove: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ id: typeIdSchema(ID_PREFIX.document) }))
     .mutation(({ ctx, input }) => ctx.services.databank.remove({ principal: ctx.auth, id: input.id })),
 
   reindex: authedProcedure
     .output(reindexResultSchema)
-    .input(strictInput(z.strictObject({ scope: reindexScopeSchema, mode: reindexModeSchema.optional() })))
+    .input(strictTwin(z.strictObject({ scope: reindexScopeSchema, mode: reindexModeSchema.optional() })))
     .mutation(({ ctx, input }) =>
       ctx.services.databank.reindex({ principal: ctx.auth, scope: input.scope, ...(input.mode !== undefined ? { mode: input.mode } : {}) }),
     ),
 
   attachGlobal: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ documentId: typeIdSchema(ID_PREFIX.document) }))
     .mutation(({ ctx, input }) => ctx.services.databank.attachGlobal({ principal: ctx.auth, documentId: input.documentId })),
 
   detachGlobal: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ documentId: typeIdSchema(ID_PREFIX.document) }))
     .mutation(({ ctx, input }) => ctx.services.databank.detachGlobal({ principal: ctx.auth, documentId: input.documentId })),
 
@@ -119,20 +122,24 @@ export const databankRouter = t.router({
   listGlobal: authedProcedure.output(z.array(documentIdSchema)).query(({ ctx }) => ctx.services.databank.listGlobal({ principal: ctx.auth })),
 
   attachToChat: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ documentId: typeIdSchema(ID_PREFIX.document), chatId: typeIdSchema(ID_PREFIX.chat) }))
     .mutation(({ ctx, input }) => ctx.services.databank.attachToChat({ principal: ctx.auth, documentId: input.documentId, chatId: input.chatId })),
 
   detachFromChat: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ documentId: typeIdSchema(ID_PREFIX.document), chatId: typeIdSchema(ID_PREFIX.chat) }))
     .mutation(({ ctx, input }) => ctx.services.databank.detachFromChat({ principal: ctx.auth, documentId: input.documentId, chatId: input.chatId })),
 
   attachToCharacter: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ documentId: typeIdSchema(ID_PREFIX.document), characterId: typeIdSchema(ID_PREFIX.character) }))
     .mutation(({ ctx, input }) =>
       ctx.services.databank.attachToCharacter({ principal: ctx.auth, documentId: input.documentId, characterId: input.characterId }),
     ),
 
   detachFromCharacter: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ documentId: typeIdSchema(ID_PREFIX.document), characterId: typeIdSchema(ID_PREFIX.character) }))
     .mutation(({ ctx, input }) =>
       ctx.services.databank.detachFromCharacter({ principal: ctx.auth, documentId: input.documentId, characterId: input.characterId }),

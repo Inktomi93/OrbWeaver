@@ -18,7 +18,7 @@
 // Fault isolation: every field is lenient (`.catch`/`.default`) so a malformed carried blob heals to
 // `kind:"none"` (⇒ the viewer's own appearance wins) rather than throwing — the `themeOverrideSchema` and
 // `parseChatMetadata` posture.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs take the strict twin via `strictInput` (`@orb/kit/zod-schema`).
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import { z } from "zod";
 

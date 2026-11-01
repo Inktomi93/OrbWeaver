@@ -4,6 +4,7 @@
 // domain error map. The acting `Principal` is threaded as `params.principal` (the verb gates on it).
 
 import { userRoleSchema } from "@orb/contracts/identity";
+import { okResultSchema } from "@orb/contracts/rpc";
 import { sessionAdminViewSchema } from "@orb/contracts/session";
 import { withinHandleLength } from "@orb/kit/handle-key";
 
@@ -49,14 +50,17 @@ export const adminRouter = t.router({
       }),
     ),
 
-  resetPassword: adminProcedure.input(z.strictObject({ userId: brandedId("UserId"), password: z.string().min(1) })).mutation(async ({ ctx, input }) => {
-    await ctx.services.admin.resetPassword({
-      principal: ctx.auth,
-      userId: input.userId,
-      password: input.password,
-    });
-    return { ok: true } as const;
-  }),
+  resetPassword: adminProcedure
+    .output(okResultSchema)
+    .input(z.strictObject({ userId: brandedId("UserId"), password: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.services.admin.resetPassword({
+        principal: ctx.auth,
+        userId: input.userId,
+        password: input.password,
+      });
+      return { ok: true } as const;
+    }),
 
   // B5 — link an existing non-owner human row to a stable SSO subject (the db-surgery-free mode-switch
   // migration). `externalId` is the IdP-stable id (never an email); the verb refuses owner/agent targets and
@@ -71,30 +75,40 @@ export const adminRouter = t.router({
     .output(z.array(sessionAdminViewSchema).readonly())
     .query(({ ctx, input }) => ctx.services.admin.listSessions({ principal: ctx.auth, userId: input.userId })),
 
-  revokeSession: adminProcedure.input(z.strictObject({ sessionId: typeIdSchema(ID_PREFIX.session) })).mutation(async ({ ctx, input }) => {
-    await ctx.services.admin.revokeSession({ principal: ctx.auth, sessionId: input.sessionId });
-    return { ok: true } as const;
-  }),
+  revokeSession: adminProcedure
+    .output(okResultSchema)
+    .input(z.strictObject({ sessionId: typeIdSchema(ID_PREFIX.session) }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.services.admin.revokeSession({ principal: ctx.auth, sessionId: input.sessionId });
+      return { ok: true } as const;
+    }),
 
   // Owner-only at the verb; the confirm is the input, so a call without `confirm: true` never reaches it. The
   // restart bucket in `entry/rate-limit-gate.ts` is durable, so it still counts after the process it ended.
-  restart: adminProcedure.input(z.strictObject({ confirm: z.literal(true), expectedServerInstanceId: z.uuid() })).mutation(async ({ ctx, input }) => {
-    await ctx.services.admin.restart({ principal: ctx.auth, expectedServerInstanceId: input.expectedServerInstanceId });
-    return { restarting: true } as const;
-  }),
+  restart: adminProcedure
+    .output(z.strictObject({ restarting: z.literal(true) }))
+    .input(z.strictObject({ confirm: z.literal(true), expectedServerInstanceId: z.uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.services.admin.restart({ principal: ctx.auth, expectedServerInstanceId: input.expectedServerInstanceId });
+      return { restarting: true } as const;
+    }),
 
   revokeUserSessions: adminProcedure
+    .output(z.void())
     .input(z.strictObject({ userId: brandedId("UserId") }))
     .mutation(({ ctx, input }) => ctx.services.admin.revokeUserSessions({ principal: ctx.auth, userId: input.userId })),
 
   // The inline single-card embed (adminProcedure, Tier-4 esoteric #10: only admins drive the GPU
   // embed engine inline; the bulk path is the admin-only index workload). The producer-ownership
   // check + the embeddings write live behind the AdminService verb (the composed EmbedProducerPort).
-  embedCharacterCard: adminProcedure.input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character) })).mutation(async ({ ctx, input }) => {
-    await ctx.services.admin.embedCharacterCard({
-      principal: ctx.auth,
-      characterId: input.characterId,
-    });
-    return { ok: true } as const;
-  }),
+  embedCharacterCard: adminProcedure
+    .output(okResultSchema)
+    .input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character) }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.services.admin.embedCharacterCard({
+        principal: ctx.auth,
+        characterId: input.characterId,
+      });
+      return { ok: true } as const;
+    }),
 });

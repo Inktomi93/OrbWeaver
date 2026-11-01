@@ -2,50 +2,12 @@
 // @subject packages/kit/src/zod-schema/index.ts
 import { streamConnectInputSchema } from "@orb/contracts/stream";
 import { themeOverrideSchema } from "@orb/contracts/theme";
-import { strictInput } from "@orb/kit/zod-schema";
+import { strictTwin } from "@orb/kit/zod-schema";
 import { appRouter } from "@orb/server/transport/trpc";
-import { zodDefinition, zodSchemaChildren } from "@orb/testkit/iso";
+import { stripObjectPaths } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { z } from "zod";
-
-// Object keys and union or tuple positions name a step; a wrapper (optional, nullable, ...) adds none.
-function pathStep(kind: string, key: string | undefined, index: number): string {
-  if (kind === "object") {
-    return `.${key ?? "*"}`;
-  }
-  if (kind === "array") {
-    return "[]";
-  }
-  return kind === "union" || kind === "tuple" ? `[${index}]` : "";
-}
-
-// Every plain (strip-mode) object a parser reaches outside a `catch`, by path. A strict or loose object declares
-// its unknown-key policy; strip drops a key silently. Below a `catch` no refusal can surface, so strip is the
-// smaller loss there and the walk stops.
-function stripObjectPaths(root: z.core.$ZodType): readonly string[] {
-  const found: string[] = [];
-  const seen = new Set<z.core.$ZodType>();
-  const visit = (schema: z.core.$ZodType, path: string): void => {
-    if (seen.has(schema)) {
-      return;
-    }
-    seen.add(schema);
-    const def = zodDefinition(schema);
-    if (def.type === "catch") {
-      return;
-    }
-    if (def.type === "object" && def.catchall === undefined) {
-      found.push(path === "" ? "$" : path);
-    }
-    const keys = def.type === "object" ? Object.keys(def.shape) : [];
-    zodSchemaChildren(schema).forEach((child, index) => {
-      visit(child, `${path}${pathStep(def.type, keys[index], index)}`);
-    });
-  };
-  visit(root, "");
-  return found;
-}
 
 test("every mounted procedure input refuses an undeclared key at every object it reaches", () => {
   const procedures = Object.entries(appRouter._def.procedures);
@@ -87,7 +49,7 @@ test.for([
 test("the strict twin of a stored schema reaches no strip object and parses the same values", () => {
   const stored = z.strictObject({ name: z.string(), theme: themeOverrideSchema.nullable().optional() });
   expect(stripObjectPaths(stored)).toEqual([".theme"]);
-  const twin = strictInput(stored);
+  const twin = strictTwin(stored);
   expect(stripObjectPaths(twin)).toEqual([]);
   const value = { name: "Lantern", theme: { background: "#112233" } };
   expect(twin.parse(value)).toEqual(stored.parse(value));

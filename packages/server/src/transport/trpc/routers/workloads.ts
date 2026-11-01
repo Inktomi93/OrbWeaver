@@ -30,7 +30,7 @@ import {
 } from "@orb/contracts/workloads";
 
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { strictInput } from "@orb/kit/zod-schema";
+import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
 import { requireOwner } from "#domain/admin";
 import { authedProcedure, t } from "../trpc.ts";
@@ -39,7 +39,7 @@ export const workloadsRouter = t.router({
   start: authedProcedure
     .output(workloadRefSchema)
     .input(
-      strictInput(
+      strictTwin(
         z.strictObject({
           input: startWorkloadEnvelope,
           // The run mode (default singular). A bulk CREATE-kind additionally carries the mint target.
@@ -71,7 +71,7 @@ export const workloadsRouter = t.router({
   estimateModelCalls: authedProcedure
     .output(modelCallEstimateSchema)
     .input(
-      strictInput(
+      strictTwin(
         z.strictObject({
           input: startWorkloadEnvelope,
           mode: workloadModeSchema.default("singular"),
@@ -137,7 +137,7 @@ export const workloadsRouter = t.router({
   createSchedule: authedProcedure
     .output(workloadScheduleRefSchema)
     .input(
-      strictInput(
+      strictTwin(
         z.strictObject({
           input: startWorkloadEnvelope,
           cadence: scheduleCadenceSchema,
@@ -163,7 +163,7 @@ export const workloadsRouter = t.router({
   updateSchedule: authedProcedure
     .output(workloadScheduleViewSchema)
     .input(
-      strictInput(
+      strictTwin(
         z.strictObject({
           id: typeIdSchema(ID_PREFIX.workloadSchedule),
           input: startWorkloadEnvelope.optional(),
@@ -186,6 +186,7 @@ export const workloadsRouter = t.router({
     }),
 
   deleteSchedule: authedProcedure
+    .output(z.void())
     .input(z.strictObject({ id: typeIdSchema(ID_PREFIX.workloadSchedule) }))
     .mutation(({ ctx, input }) => ctx.services.workloads.deleteSchedule({ id: input.id, caller: ctx.auth })),
 
