@@ -7,7 +7,7 @@
 // THE PREFLIGHT IS THE POINT. The pane described what it ACCEPTS and never what it DOES: a drop began
 // uploading on the spot, so a reader restoring a backup over a library they had already built learned the
 // collision rule from the report of an import that had already happened. A pick now STAGES
-// (`use-library-import.ts` — zero requests), and this preflight states the consequence in the words the
+// (`use-library-import.ts` — nothing is imported), and this preflight states the consequence in the words the
 // server verbs actually implement, then asks. The consequence copy is DERIVED, not reassuring:
 //   · `import-character.ts` — identity is the parsed content (`cardImportHash`), never the name, so an equal
 //     card is skipped and two "Eleni" cards stay two characters.
@@ -20,7 +20,8 @@
 // Nothing in any wave deletes, and seed rows (`ownerId IS NULL`) are structurally unreachable — so "adds,
 // never deletes; a backup's settings merge into yours" is the whole true statement. A folder pick also shows
 // its PLAN (`planNotes`): what the browser leaves out before uploading (and why), and how many uploads the
-// folder takes.
+// folder takes. A SillyTavern folder also shows its dry run (`import-preview-summary.tsx`): what is in it, by
+// kind, and what a real run would skip.
 
 import type { PersonaCollision, PersonaCollisionChoice, PersonaCollisionChoices } from "@orb/contracts/import";
 import { Button } from "@orb/ui/button";
@@ -35,9 +36,11 @@ import { ImportedChatsMemoryOffer } from "#components";
 import type { TreeImportPlan } from "#data";
 import { useUploadCaps } from "#data";
 import { testId } from "#lib";
+import type { ImportPreviewState } from "../hooks/use-library-import.ts";
 import { useLibraryImport } from "../hooks/use-library-import.ts";
 import { planNotes } from "../lib/portability-model.ts";
 import { BundleWorkloadTracker } from "./bundle-workload-tracker.tsx";
+import { ImportPreviewSummary } from "./import-preview-summary.tsx";
 import { ImportReportSummary } from "./import-report-summary.tsx";
 import { PersonaCollisionReview } from "./persona-collision-review.tsx";
 
@@ -71,6 +74,7 @@ function ImportPreflight({
   plan,
   collisions,
   choices,
+  preview,
   onChoose,
   onChooseAll,
   onConfirm,
@@ -80,6 +84,7 @@ function ImportPreflight({
   readonly plan: TreeImportPlan | null;
   readonly collisions: readonly PersonaCollision[];
   readonly choices: PersonaCollisionChoices;
+  readonly preview: ImportPreviewState;
   readonly onChoose: (key: string, choice: PersonaCollisionChoice) => void;
   readonly onChooseAll: (choice: PersonaCollisionChoice) => void;
   readonly onConfirm: () => void;
@@ -91,6 +96,7 @@ function ImportPreflight({
     <Card aria-label={title} data-slot="import-preflight" padding="none" role="group" shape="row" variant="outline">
       <Stack gap="field" padding="field">
         <Text voice="label">{title}</Text>
+        <ImportPreviewSummary state={preview} />
         <PersonaCollisionReview collisions={collisions} choices={choices} onChoose={onChoose} onChooseAll={onChooseAll} />
         <Stack gap="tight">
           {[...IMPORT_CONSEQUENCE, ...(collisions.length > 0 ? [PERSONA_QUESTION_NOTE] : [])].map((line) => (
@@ -107,7 +113,7 @@ function ImportPreflight({
               ))}
         </Stack>
         <Row justify="start" align="center" gap="field">
-          <Button onClick={onConfirm} disabled={plan !== null && plan.batches.length === 0 && plan.skipped.length > 0}>
+          <Button onClick={onConfirm} disabled={preview.status === "reading" || (plan !== null && plan.batches.length === 0 && plan.skipped.length > 0)}>
             Import
           </Button>
           <Button variant="outline" onClick={onCancel}>
@@ -126,7 +132,7 @@ export function ImportLibrarySection(): ReactElement {
   // tighter in-memory card cap is refused by its route with that cap's message. The folder picker carries NO cap
   // of its own: the plan decides per file against the served folder caps and says why a file stays behind.
   const importMaxBytes = useUploadCaps().importBundle;
-  const { state, stageFiles, stageFolder, chooseCollision, chooseAllCollisions, confirm, cancel, reset, track } = useLibraryImport();
+  const { state, stageFiles, stageFolder, chooseCollision, chooseAllCollisions, confirm, cancel, reset, track, previewTrack } = useLibraryImport();
   const filePickerRef = useRef<HTMLInputElement>(null);
   const folderPickerRef = useRef<HTMLElement | null>(null);
   const stagedPickerRef = useRef<HTMLElement | null>(null);
@@ -185,6 +191,7 @@ export function ImportLibrarySection(): ReactElement {
           plan={staged.plan}
           collisions={staged.collisions}
           choices={staged.choices}
+          preview={staged.preview}
           onChoose={chooseCollision}
           onChooseAll={chooseAllCollisions}
           onCancel={(): void => {
@@ -194,6 +201,15 @@ export function ImportLibrarySection(): ReactElement {
           onConfirm={confirm}
         />
       )}
+      {staged?.preview.status === "reading" && staged.preview.workloadId !== null ? (
+        <BundleWorkloadTracker
+          key={staged.preview.workloadId}
+          workloadId={staged.preview.workloadId}
+          onProgress={previewTrack.onProgress}
+          onSucceeded={previewTrack.onSucceeded}
+          onFailed={previewTrack.onFailed}
+        />
+      ) : null}
       {state.status === "running" ? (
         <>
           <BundleWorkloadTracker workloadId={state.workloadId} onProgress={track.onProgress} onSucceeded={track.onSucceeded} onFailed={track.onFailed} />

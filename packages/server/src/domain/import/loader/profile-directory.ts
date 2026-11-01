@@ -1,6 +1,7 @@
+import { setImmediate as yieldToEventLoop } from "node:timers/promises";
 import type { StoreAvatarAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
-import type { ImportFsPort } from "@orb/contracts/import";
+import type { ImportFsPort, ImportPreview } from "@orb/contracts/import";
 import type { ImportGlobalScripts, RegexScriptCard } from "@orb/contracts/regex";
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { ASSET_UPLOAD_MAX_BYTES, IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
@@ -32,6 +33,7 @@ import type {
 import { createImportService } from "../service.ts";
 import { buildImportContext } from "../substrate/build-context.ts";
 import { findImportedCharacter, importFileHash } from "../substrate/card.ts";
+import { buildImportPreview } from "../substrate/preview.ts";
 import { collectBundlesFromDir } from "./collect.ts";
 
 const AVATAR_MIME = "image/png";
@@ -238,14 +240,14 @@ function tallyScanned(collected: ProfileCollected): number {
   return scanned;
 }
 
-/** dryRun prediction: a card writes iff neither the import-identity lookup (the one order every door uses)
+/** dryRun prediction, returned as the filenames of the cards that will NOT write: a card writes iff neither the import-identity lookup (the one order every door uses)
  *  nor the handle oracle matches (a create). Every lookup is a read — zero writes. A text-only match counts as
  *  found: whether that row may take the PNG's art is decided by the write, not predicted here. Personas/chats
  *  can't be predicted without their write op, so they are examined (counted in scanned) but never in the
  *  dryRun `changed`. */
-async function countWouldCreate(deps: ProfileDirImportDeps, bundles: readonly CollectedCard[]): Promise<number> {
+async function findInLibrary(deps: ProfileDirImportDeps, bundles: readonly CollectedCard[]): Promise<ReadonlySet<string>> {
   const ownerId = deps.principal.userId;
-  let changed = 0;
+  const inLibrary = new Set<string>();
   for (const b of bundles) {
     if (deps.signal.aborted) {
       break;
@@ -258,15 +260,13 @@ async function countWouldCreate(deps: ProfileDirImportDeps, bundles: readonly Co
         fileHash: importFileHash(b.cardBytes),
       },
     );
-    if (found !== null) {
-      continue;
+    if (found !== null || (await deps.contextFor(deps.principal, deps.storeAvatar).characterOps.findByHandle({ ownerId, handle: b.handle })) !== null) {
+      inLibrary.add(b.filename);
     }
-    const byHandle = await deps.contextFor(deps.principal, deps.storeAvatar).characterOps.findByHandle({ ownerId, handle: b.handle });
-    if (byHandle === null) {
-      changed += 1;
-    }
+    // These reads resolve on microtasks, so a large folder would otherwise hold the event loop for the whole pass.
+    await yieldToEventLoop();
   }
-  return changed;
+  return inLibrary;
 }
 
 /** Store one persona's avatar (maxBytes-capped) and pair it into the canonical persona-import input. */
@@ -459,6 +459,8 @@ interface ReportArgs {
   /** Present ONLY on a dryRun — the census that keeps a rehearsal's structural zeroes from reading as "this
    *  profile carries none of these planes" (#1469). */
   readonly dryRunWouldImport?: ImportDryRunCensus;
+  /** Present ONLY on a dryRun — the names behind the census. */
+  readonly preview?: ImportPreview;
 }
 
 /** What each wave WOULD attempt, straight off the collect result: the counts a real run's wave outcomes
@@ -479,12 +481,13 @@ function dryRunCensus(collected: ProfileCollected): ImportDryRunCensus {
   };
 }
 
-function reportFrom({ collected, scanned, changed, skippedCards, waves, dryRunWouldImport }: ReportArgs): ImportReport {
+function reportFrom({ collected, scanned, changed, skippedCards, waves, dryRunWouldImport, preview }: ReportArgs): ImportReport {
   return {
     scanned,
     changed,
     dryRun: dryRunWouldImport !== undefined,
     dryRunWouldImport: dryRunWouldImport ?? null,
+    preview: preview ?? null,
     skippedCards,
     unreadableCards: collected.unreadableCards,
     unreadableWorlds: collected.unreadableWorlds,
@@ -832,15 +835,17 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
   const scanned = tallyScanned(collected);
 
   if (deps.dryRun) {
+    const inLibrary = await findInLibrary(deps, collected.bundles);
     return reportFrom({
       collected,
       scanned,
-      changed: await countWouldCreate(deps, collected.bundles),
+      changed: collected.bundles.length - inLibrary.size,
       skippedCards: [],
       // Every WRITE outcome is zero because nothing was written; the census beside it says what the real run
       // would attempt, per wave, so a rehearsal is never mistaken for an empty profile (#1469).
       waves: NO_WAVES,
       dryRunWouldImport: dryRunCensus(collected),
+      preview: buildImportPreview(collected, inLibrary),
     });
   }
 

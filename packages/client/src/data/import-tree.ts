@@ -14,6 +14,8 @@ import {
   PERSONA_COLLISION_FIELD,
   personaCollisionReviewSchema,
   ST_SETTINGS_FILE,
+  TREE_DRY_RUN_FIELD,
+  TREE_DRY_RUN_VALUE,
   TREE_FILE_FIELD,
   TREE_LAYOUT_FIELD,
 } from "@orb/contracts/import";
@@ -38,11 +40,13 @@ export function relativePathOf(file: File): string {
  *  enqueued workload id. Throws on a non-OK response (400 = unrecognized/invalid layout or a rejected path;
  *  409 = an import is already running; 413 = too large; 401/403 = auth/CSRF) with the server's `{ error }`.
  *  A `secrets.json` is dropped here whatever the caller planned — API keys never leave the browser. `layout`
- *  is the plan's declaration for one upload of a split native folder. */
+ *  is the plan's declaration for one upload of a split native folder. `dryRun` asks the same workload to report
+ *  what the upload holds and write nothing. */
 export async function importTree(
   files: readonly File[],
   personaCollisions: PersonaCollisionChoices = {},
   layout: TreeLayoutDeclaration | null = null,
+  { dryRun = false }: { readonly dryRun?: boolean } = {},
 ): Promise<ImportStarted> {
   const form = new FormData();
   for (const file of files) {
@@ -58,6 +62,9 @@ export async function importTree(
   }
   if (layout !== null) {
     form.append(TREE_LAYOUT_FIELD, layout);
+  }
+  if (dryRun) {
+    form.append(TREE_DRY_RUN_FIELD, TREE_DRY_RUN_VALUE);
   }
   const response = await fetch(PORTABILITY_ROUTES.importTree, {
     method: "POST",

@@ -21,6 +21,8 @@ export {
   personaCollisionChoicesSchema,
   personaCollisionReviewSchema,
 } from "./persona-collision.ts";
+export type { ImportPreview, ImportPreviewItem, ImportPreviewKind, ImportPreviewList, ImportPreviewSkip } from "./preview.ts";
+export { IMPORT_PREVIEW_KINDS, IMPORT_PREVIEW_LIST_MAX, IMPORT_PREVIEW_TEXT_MAX, importPreviewSchema, mergeImportPreviews } from "./preview.ts";
 export type { ImportStarted } from "./started.ts";
 export { importStartedSchema } from "./started.ts";
 
@@ -46,9 +48,9 @@ const ST_PROFILE_HANDLED_ENTRIES = [
 
 export type StProfileHandledEntry = (typeof ST_PROFILE_HANDLED_ENTRIES)[number];
 
-const TEXT_COMPLETION_TEMPLATES = "text-completion templates — text-completion is out of product scope (owner ruling)";
-const TEXT_COMPLETION_PRESETS = "text-completion preset files — orb has no text-completion mode (owner ruling)";
-const TEXT_COMPLETION_LIVE = "live text-completion preset — orb has no text-completion mode (owner ruling)";
+const TEXT_COMPLETION_TEMPLATES = "text-completion templates — text-completion is out of product scope";
+const TEXT_COMPLETION_PRESETS = "text-completion preset files — orb has no text-completion mode";
+const TEXT_COMPLETION_LIVE = "live text-completion preset — orb has no text-completion mode";
 
 /** Why each unhandled top-level profile plane has no importer. A directory name ends in `/`. A plane absent
  *  here renders bare in the report, so a new ST plane shows up instead of vanishing. */
@@ -263,6 +265,10 @@ export const TREE_FILE_FIELD = "file";
 /** The multipart field naming a batch's declared layout. Without it the server sniffs the batch alone. */
 export const TREE_LAYOUT_FIELD = "layout";
 
+/** The tree upload's dry-run field: a SillyTavern upload carrying it reports what it holds and writes nothing. */
+export const TREE_DRY_RUN_FIELD = "dryRun";
+export const TREE_DRY_RUN_VALUE = "true";
+
 // RFC 2046 caps a multipart boundary at 70 characters. A delimiter line is `--`, the boundary and CRLF; the
 // close delimiter adds a trailing `--`.
 const MULTIPART_BOUNDARY_MAX_CHARS = 70;
@@ -306,7 +312,7 @@ export function treeUploadPartFramingBytes(part: TreeUploadPart): number {
 
 /**
  * An upper bound on the bytes every tree upload's multipart body carries whatever files it holds: a layout
- * declaration, any choice for each persona collision, and the close delimiter. A planner reserves this once per upload.
+ * declaration, the dry-run field, any choice for each persona collision, and the close delimiter. A planner reserves this once per upload.
  */
 export function treeUploadFixedFramingBytes(personaCollisionKeys: readonly string[]): number {
   const layout = Math.max(...TREE_LAYOUT_DECLARATIONS.map((value) => partFramingBytes(TREE_LAYOUT_FIELD, null) + encodedBytes(value)));
@@ -315,7 +321,8 @@ export function treeUploadFixedFramingBytes(personaCollisionKeys: readonly strin
     (sum, key) => sum + partFramingBytes(PERSONA_COLLISION_FIELD, null) + encodedBytes(encodePersonaCollisionChoices({ [key]: longestChoice })[0] ?? ""),
     0,
   );
-  return layout + collisions + MULTIPART_CLOSE_BYTES;
+  const dryRun = partFramingBytes(TREE_DRY_RUN_FIELD, null) + encodedBytes(TREE_DRY_RUN_VALUE);
+  return layout + dryRun + collisions + MULTIPART_CLOSE_BYTES;
 }
 
 /**

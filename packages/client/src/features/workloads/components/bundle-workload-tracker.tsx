@@ -14,6 +14,7 @@
 // columns ARE the truth the stream was only reporting (`workload-row.ts`: the last progress snapshot is
 // "the reconnect truth — no subscription needed").
 
+import type { ImportPreview } from "@orb/contracts/import";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useEffect, useRef } from "react";
@@ -21,13 +22,14 @@ import { useTRPCClient } from "#data";
 import type { WorkloadSubscriptionHandlers } from "../hooks/use-workload-subscription.ts";
 import { useWorkloadSubscription } from "../hooks/use-workload-subscription.ts";
 import type { BundleCounts } from "../lib/portability-model.ts";
-import { asBundleCounts } from "../lib/portability-model.ts";
+import { asBundleCounts, asImportPreview } from "../lib/portability-model.ts";
 import { toProgressView } from "../lib/workloads-model.ts";
 
 export interface BundleWorkloadTrackerProps {
   readonly workloadId: WorkloadId;
   readonly onProgress: WorkloadSubscriptionHandlers["onProgress"];
-  readonly onSucceeded: (counts: BundleCounts) => void;
+  /** `preview` is what a dry run reported, null for a real run. */
+  readonly onSucceeded: (counts: BundleCounts, preview: ImportPreview | null) => void;
   readonly onFailed: (message: string) => void;
 }
 
@@ -93,7 +95,7 @@ export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onF
    *  status dispatch are one decision each rather than one nested chain. */
   const report = (row: Awaited<ReturnType<typeof trpcClient.workloads.get.query>>): void => {
     if (row.status === "succeeded") {
-      onSucceeded(asBundleCounts(row.result));
+      onSucceeded(asBundleCounts(row.result), asImportPreview(row.result));
       return;
     }
     if (row.status === "failed" || row.status === "worker_died") {
@@ -144,7 +146,7 @@ export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onF
     onProgress,
     onEvent: (event) => {
       if (event.type === "succeeded") {
-        onSucceeded(asBundleCounts(event.result));
+        onSucceeded(asBundleCounts(event.result), asImportPreview(event.result));
       } else if (event.type === "failed") {
         onFailed(event.error.message);
       } else if (event.type === "cancelled") {

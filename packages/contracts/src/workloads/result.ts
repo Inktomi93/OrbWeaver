@@ -17,6 +17,8 @@ import type { CatalogRefreshResult } from "#inference";
 import type { RefineryScoreSweepResult } from "#refinery";
 import type { ReconcileStatsResult } from "#stats";
 import { storedImportWindowSchema } from "../chat/backfill.ts";
+import type { ImportPreview } from "../import/preview.ts";
+import { importPreviewSchema } from "../import/preview.ts";
 
 /** A maintenance pass's counts + the `dryRun` echo (assets backfill/gc, import-st). */
 export interface MaintenanceResult {
@@ -35,6 +37,8 @@ export interface MaintenanceResult {
    *  choice). They are in `scanned`, not in `changed`, and not a skip. Keys, not a count: a split folder
    *  merges the same persona in every upload, and the client unions the keys. Absent when none. */
   readonly mergedKeys?: readonly string[];
+  /** import-st dry run only: what the upload holds, by kind, and what a real run would skip. */
+  readonly preview?: ImportPreview;
 }
 
 /** A portability bundle import's per-entity tallies. `notes` (#1710) is what a file that DID import still
@@ -106,9 +110,11 @@ export const maintenanceResultSchema = z
     reportPath: z.string().optional(),
     memoryScope: storedImportWindowSchema.nullable().optional(),
     mergedKeys: z.array(z.string()).readonly().optional(),
+    preview: importPreviewSchema.optional(),
   })
-  .transform(({ failed, reportPath, memoryScope, mergedKeys, ...view }) => ({
+  .transform(({ failed, reportPath, memoryScope, mergedKeys, preview, ...view }) => ({
     ...view,
+    ...(preview !== undefined ? { preview } : {}),
     ...(mergedKeys !== undefined ? { mergedKeys } : {}),
     ...(failed !== undefined ? { failed } : {}),
     ...(reportPath !== undefined ? { reportPath } : {}),
