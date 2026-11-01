@@ -5,6 +5,7 @@
 import { BLOB_ROUTE, variantKindSchema } from "@orb/contracts/assets";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { viewImageActionName } from "#client/lib/row-qualifiers.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 import { createReadingRoom, openReadingRoom } from "./chat-style-reading.fixtures.ts";
 
@@ -110,3 +111,33 @@ for (const retry of RETRY_EVENTS) {
     }
   });
 }
+
+test("ripple offers no image to open for a portrait that failed, and offers it again once it loads", async ({ corpus, corpusMedia, mount, page }) => {
+  const room = await createReadingRoom();
+  try {
+    const caller = await room.root.internalCallerFor(room.root.ownerId);
+    const picture = corpus.reads["chat.getChat"].find(({ output }) =>
+      output.participants.some((participant) => participant.kind === "character" && participant.avatarHash !== null),
+    );
+    const speaker = picture?.output.participants.find((participant) => participant.kind === "character" && participant.avatarHash !== null);
+    if (picture === undefined || speaker === undefined) {
+      throw new Error("The corpus needs a room with a pictured character");
+    }
+    const pictured = await caller.chat.getChat({ chatId: picture.output.id });
+    await openReadingRoom(page, corpus, room.root, { chatStyle: "ripple", art: false, appearance: { showInChatAvatars: true } });
+    await seedShellState(page, { activeSection: "chats" });
+    await page.route(PORTRAIT_REQUEST, (route) => route.fulfill({ status: 404, body: "" }));
+    await mount<typeof ChatRoomShellStory>(ROOM_STORY, { chatId: pictured.id });
+    const assistantRows = page.locator(`[data-slot="message-row"][data-role="assistant"]`);
+    const openers = assistantRows.getByRole("button", { name: viewImageActionName(speaker.displayName), exact: true });
+    await expect(assistantRows.locator(LETTER).first()).toBeVisible();
+    await expect(openers).toHaveCount(0);
+
+    await page.unroute(PORTRAIT_REQUEST);
+    await corpusMedia();
+    await page.evaluate(() => globalThis.dispatchEvent(new Event("online")));
+    await expect(openers.first()).toBeVisible();
+  } finally {
+    await room.root[Symbol.asyncDispose]();
+  }
+});

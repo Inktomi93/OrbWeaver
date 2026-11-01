@@ -219,8 +219,36 @@ function useFailedReport(failed: boolean, onFailedChange: ArtFailedReport | unde
 }
 
 /** Ripple's portrait: the Avatar asking for its image at the width its slot renders at (times the pixel ratio),
- *  not a fixed size. With no image the Avatar's own fallback shows. */
-export function PortraitAvatar({ urlAt, ...avatar }: AvatarProps & { readonly urlAt: ((cssWidth: number) => string) | undefined }): ReactElement {
-  const { attach, url } = useSlotImage(urlAt);
-  return <Avatar ref={attach} {...avatar} {...(url === undefined ? {} : { src: url })} />;
+ *  not a fixed size. With no image the Avatar's own fallback shows. The portrait opens full size through `view`;
+ *  one whose image failed to load is plain paint with no tap target, like whisper's band and echo's tile.
+ *  `stickyClassName` pins the portrait to the card's top: on the portrait itself unwrapped, on its button wrapped. */
+export function PortraitAvatar({
+  urlAt,
+  view,
+  stickyClassName,
+  className,
+  ...avatar
+}: AvatarProps & {
+  readonly urlAt: ((cssWidth: number) => string) | undefined;
+  readonly view: ArtView | null;
+  readonly stickyClassName: string;
+}): ReactElement {
+  const { attach, url, failed } = useSlotImage(urlAt);
+  const tappable = view !== null && !failed;
+  const portrait = (
+    <Avatar
+      ref={attach}
+      {...avatar}
+      className={cn(tappable ? undefined : stickyClassName, className) ?? ""}
+      {...(url === undefined || failed ? {} : { src: url })}
+    />
+  );
+  if (!tappable) {
+    return portrait;
+  }
+  return (
+    <ArtButton view={view} cardCorners={avatar.cardCorners} className={cn(stickyClassName, "shrink-0") ?? ""}>
+      {portrait}
+    </ArtButton>
+  );
 }
