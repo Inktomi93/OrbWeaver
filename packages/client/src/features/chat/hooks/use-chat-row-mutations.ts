@@ -18,7 +18,7 @@ import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 
 type UpdateTitleVars = inferInput<Trpc["chat"]["updateTitle"]>;
 
-export const useUpdateChatTitle = createEntityMutation<UpdateTitleVars, unknown>({
+export const useUpdateChatTitle = createEntityMutation<inferInput<Trpc["chat"]["updateTitle"]>, unknown>({
   options: (trpc) => trpc.chat.updateTitle.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't rename the chat.",
@@ -26,7 +26,7 @@ export const useUpdateChatTitle = createEntityMutation<UpdateTitleVars, unknown>
 
 type StarChatVars = inferInput<Trpc["chat"]["star"]>;
 
-const useStarChat = createEntityMutation<StarChatVars, unknown>({
+const useStarChat = createEntityMutation<inferInput<Trpc["chat"]["star"]>, unknown>({
   options: (trpc) => trpc.chat.star.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't update the star.",
@@ -34,7 +34,7 @@ const useStarChat = createEntityMutation<StarChatVars, unknown>({
 
 type ArchiveChatVars = inferInput<Trpc["chat"]["archive"]>;
 
-const useArchiveChat = createEntityMutation<ArchiveChatVars, unknown>({
+const useArchiveChat = createEntityMutation<inferInput<Trpc["chat"]["archive"]>, unknown>({
   options: (trpc) => trpc.chat.archive.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't archive the chat.",
@@ -42,7 +42,7 @@ const useArchiveChat = createEntityMutation<ArchiveChatVars, unknown>({
 
 type DeleteChatVars = inferInput<Trpc["chat"]["delete"]>;
 
-export const useDeleteChat = createEntityMutation<DeleteChatVars, unknown>({
+export const useDeleteChat = createEntityMutation<inferInput<Trpc["chat"]["delete"]>, unknown>({
   options: (trpc) => trpc.chat.delete.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't delete the chat.",

@@ -24,7 +24,7 @@ import { useState } from "react";
 import { FormDialog } from "#components";
 import type { Trpc } from "#data";
 import { fetchLiveShare, useAuthConfig, useInvalidation, useLiveShare, useSettingsViewerView, useTRPC } from "#data";
-import { notify, testId, timeLib } from "#lib";
+import { notify, testId, timeLib, trpcErrorCode } from "#lib";
 import { MULTI_USER_CONFIG_SUB, openConfigTo } from "#state";
 import { useInviteForm } from "../hooks/use-invite-form.ts";
 import { useCreateInvite, useRevokeInvite } from "../hooks/use-invite-mutations.ts";
@@ -69,11 +69,7 @@ export function InviteDialog({ chatId, open, onOpenChange, finalFocus }: InviteD
 
 // The one BAD_REQUEST createInvite's handle path emits is invite_target_unknown.
 function isBadRequest(error: unknown): boolean {
-  if (typeof error !== "object" || error === null || !("data" in error)) {
-    return false;
-  }
-  const data = (error as { data?: { code?: string } }).data;
-  return data?.code === "BAD_REQUEST";
+  return trpcErrorCode(error) === "BAD_REQUEST";
 }
 
 // D259 — the sign-up switch is drawn for a global admin in a mode that mints signup invites. A render gate

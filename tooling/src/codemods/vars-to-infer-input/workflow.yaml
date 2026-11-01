@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/codemod/codemod/refs/heads/main/schemas/workflow.json
+version: "1"
+params:
+  schema:
+    plan:
+      name: "Plan file"
+      description: "Path, relative to the target directory, of the JSON { sites: [{ file, type }], skip: [{ type, reason }] } plan"
+      type: string
+      default: "codemod-vars-to-infer-input.json"
+    mode:
+      name: "Mode"
+      description: "rewrite replaces the type arguments; assert appends a type-level equality check per site so a typecheck proves the plan first"
+      type: string
+      default: "rewrite"
+nodes:
+  - id: vars-to-infer-input
+    name: Rewrite named input type arguments to inferInput
+    type: automatic
+    steps:
+      - name: TypeScript files
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "typescript"
+          include: ["**/*.ts"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]
+      - name: TSX files
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "tsx"
+          include: ["**/*.tsx"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]

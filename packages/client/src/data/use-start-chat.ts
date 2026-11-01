@@ -27,14 +27,12 @@ import type { Trpc } from "./trpc.ts";
 import { useTRPC } from "./trpc.ts";
 import { useInvalidation } from "./use-invalidation.ts";
 
-type StartChatVars = inferInput<Trpc["chat"]["startChat"]>;
-
 // The verb's own output — derived, never re-spelled: `result.chat` must stay byte-compatible with what
 // `chat.getChat` serves, because it is SEEDED into that read's cache key below. A wire reshape breaks here
 // at compile time instead of silently seeding a partial row.
 type StartChatResult = inferOutput<Trpc["chat"]["startChat"]>;
 
-const useStartChatMutation = createEntityMutation<StartChatVars, StartChatResult>({
+const useStartChatMutation = createEntityMutation<inferInput<Trpc["chat"]["startChat"]>, StartChatResult>({
   options: (trpc) => trpc.chat.startChat.mutationOptions(),
   // The verb fans `chatCreated` + `chatChanged`; the list refetch a hidden husk triggers is a row-wise no-op.
   busDriven: true,
