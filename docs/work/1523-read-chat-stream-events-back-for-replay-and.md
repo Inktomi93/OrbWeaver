@@ -29,5 +29,6 @@ A device attaching with no cursor mid-turn shows the turn so far at once and con
 
 - `tests/server/transport/trpc/stream/chat-late-join.int.test.ts` drives real sockets against a held scripted provider: catch-up and live tail, hidden span across the join, outsider, from-join floor on a pre-join reroll, abort, swipe.
 - Red on the old pump: 6 of 6 fail with the catch-up disabled. Removing the floor and member scrub fails the member and floor cases.
-- Loop gaps with a 20,000-token live turn (209 KB) and six replays at once: timer gap p50 18 ms, max 58 ms, against a resting max of 30 ms. One replay takes 131 ms of wall time, and each joiner gets 5 frames. Before paging, one replay ran about 350 ms with no timer firing.
+- Load with a 20,000-token live turn, verifier's figures: one replay 367 ms wall; 6 at once 82 ms gap p50; 30 at once 484 ms p50. Attaches have no bound. This is not user-felt at production size: the longest stored turn is 545 deltas. Noted, not built.
+- A refused send and a `generate` beside a send keep the ghost: every lifecycle event names its turn. `chatOpened` on a cursor-less attach stamps a floor below the turn in flight, so a drop before the replay frames replays the head.
 - Owed: a rendered check of a reload mid-turn showing the ghost at once.

@@ -10,7 +10,11 @@ import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
 
-const TURN_ID = createSeededIds(FIXTURE_ID_CURSOR).typeId(ID_PREFIX.chatTurn);
+const ids = createSeededIds(FIXTURE_ID_CURSOR);
+const TURN_ID = ids.typeId(ID_PREFIX.chatTurn);
+const REFUSED_TURN_ID = ids.typeId(ID_PREFIX.chatTurn);
+/** Plays what a send the lock refused puts on the bus while the story's turn streams. */
+const REFUSE_LABEL = "Refuse another send";
 
 function Transcript({
   chatId,
@@ -45,6 +49,14 @@ function Transcript({
         {streamLabel}
       </Button>
       <Button onClick={(): void => busDeps.stream.appendDelta(TURN_ID, { chatId, kind, text: nextText })}>{nextLabel}</Button>
+      <Button
+        onClick={(): void => {
+          busDeps.stream.beginTurn(chatId, { turnId: REFUSED_TURN_ID, intent: "send", speakerCharacterId: null, targetMessageId: null });
+          busDeps.stream.abortTurn(chatId, REFUSED_TURN_ID, "error");
+        }}
+      >
+        {REFUSE_LABEL}
+      </Button>
       <MessageListSurface chatId={chatId} busDeps={busDeps} surfaceContributors={chatSurfaceContributors} toolRenderers={toolRenderers} />
     </>
   );

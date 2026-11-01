@@ -256,8 +256,6 @@ async function reportTerminalDrop(db: Db, drop: TerminalDrop, logger: Logger): P
   return committedSeq;
 }
 
-const NO_OPEN_TURNS: ReadonlyMap<ChatTurnId, number> = new Map<ChatTurnId, number>();
-
 /** Build the per-process chat bus (ONE instance, wired at the composition root). */
 export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
   const deps: ChatBusDeps = { ...input, db: databaseForOwner(input.db) };
@@ -265,6 +263,7 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
   // token stream regardless of who is (or is not) subscribed at any moment.
   const stamper = createMemberDeltaStamper();
   const open = new Map<ChatId, Map<ChatTurnId, number>>();
+  const noOpenTurns: ReadonlyMap<ChatTurnId, number> = new Map<ChatTurnId, number>();
 
   const trackTurn = (seq: number, event: DurableChatBusEvent): void => {
     if (event.type === "turnAccepted" || event.type === "turnStarted") {
@@ -354,5 +353,5 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
     }
   };
 
-  return { emit, emitAfterClaim, prepareCreation, openTurns: (chatId) => open.get(chatId) ?? NO_OPEN_TURNS };
+  return { emit, emitAfterClaim, prepareCreation, openTurns: (chatId) => open.get(chatId) ?? noOpenTurns };
 }

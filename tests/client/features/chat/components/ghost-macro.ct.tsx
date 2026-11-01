@@ -6,6 +6,7 @@ import type { StreamingReplyStory } from "./_ghost-macro-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_ghost-macro-stories/StreamingReplyStory";
 const STREAM_LABEL = "Stream a reply";
+const REFUSE_LABEL = "Refuse another send";
 const PROCEDURES = [
   "sessions.me",
   "settings.getUserSettings",
@@ -51,6 +52,27 @@ test("a streaming reply resolves {{char}} to the speaker's name, as the settled 
   const ghost = page.locator('[data-slot="ghost-message-row"]');
   await expect(ghost.locator('[data-slot="ghost-stream-body"]')).toContainText(`${name} nods slowly.`);
   await expect(ghost).not.toContainText("{{char}}");
+});
+
+test("a send refused during a turn leaves that turn's ghost on screen", async ({ mount, page, corpusMedia }) => {
+  await using root = await createCorpusHarness();
+  const { chatId, characterId, name } = await soloRoom(root);
+  const owner = await root.internalCallerFor(root.ownerId);
+  await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
+  await routeTrpc(page, serveCorpusProcedures(owner, PROCEDURES));
+  await corpusMedia();
+  await mount<typeof StreamingReplyStory>(STORY, {
+    chatId,
+    speakerCharacterId: characterId,
+    streamedText: "{{char}} holds the floor.",
+    streamLabel: STREAM_LABEL,
+  });
+
+  await page.getByRole("button", { name: STREAM_LABEL, exact: true }).click();
+  const body = page.locator('[data-slot="ghost-message-row"] [data-slot="ghost-stream-body"]');
+  await expect(body).toContainText(`${name} holds the floor.`);
+  await page.getByRole("button", { name: REFUSE_LABEL, exact: true }).click();
+  await expect(body).toContainText(`${name} holds the floor.`);
 });
 
 // Pacing off: every streamed character is on screen the moment it lands, so a held-back tail cannot be

@@ -1734,7 +1734,7 @@ function createReplayLiveTurn(ctx: ChatContext, deps: ReadDeps): ChatService["re
     // One row below the head: a send commits its user row just before it accepts.
     const rows = await readEventPages(ctx.db, chatId, Math.min(...open.values()) - 2, { throughSeq, types: LIVE_TURN_EVENT_TYPES });
     const ofOpenTurns = rows.filter(({ seq, payload }) => {
-      if (!("turnId" in payload) || payload.turnId === undefined) {
+      if (!("turnId" in payload)) {
         return true;
       }
       const entered = open.get(payload.turnId);
