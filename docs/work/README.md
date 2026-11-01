@@ -159,7 +159,6 @@ None.
 
 - [0076](0076-track-unhandled-promise-rejections-in-plugin-guests.md) P3 Track unhandled promise rejections in plugin guests `unwired-code` (owner)
 - [0150](0150-make-prompt-caching-work-on-the-agent-sdk.md) P2 Make prompt caching work on the agent-sdk route `inference-flow` (owner)
-- [0172](0172-easy-sharing-leg-c-an-automatic-ip-certificate.md) P2 Easy-sharing leg C: an automatic IP certificate for port-forwarded hosts `easy-sharing` (owner)
 - [0292](0292-let-local-light-query-embeds-run-ahead-of.md) P3 Let local-light query embeds run ahead of indexer embeds `inference-flow` (owner)
 - [0470](0470-lane-d-follow-ups.md) P3 Lane D follow-ups (owner)
 - [0533](0533-history-fit-counts-real-tokens-on-a-hard.md) P2 History fit counts real tokens on a hard window `inference-flow` (owner)
