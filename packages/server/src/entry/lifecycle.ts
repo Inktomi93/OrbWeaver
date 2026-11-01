@@ -159,6 +159,32 @@ function missingSessionSecretMessage(mode: AuthMode, keyfile: string | null): st
   return `boot: AUTH_MODE=${mode} needs a session secret, and ${keyfile} could not be read or generated (the crypto: line above says why). Set SESSION_SECRET (32+ characters), or fix that file.`;
 }
 
+const FILE_URL_SCHEME = "file:";
+
+function openFailureKind(err: unknown): string {
+  if (!(err instanceof Error)) {
+    return "unknown";
+  }
+  return "code" in err && typeof err.code === "string" ? err.code : err.name;
+}
+
+// SECURITY: a failed open of a remote database leaves here as its error code or name, and neither its message nor its
+// cause survives, because libSQL's errors quote the URL with its credentials and the boot failure line is what people
+// paste into bug reports. Scrubbing the literal cannot work: libSQL rewrites `libsql://` to `https://` before it fails.
+async function openDatabase(url: string): ReturnType<typeof createDb> {
+  try {
+    return await createDb(url, wrapLibSqlClient);
+  } catch (err) {
+    if (url.startsWith(FILE_URL_SCHEME)) {
+      throw err;
+    }
+    // biome-ignore lint/style/useErrorCause: the cause quotes the credentialed URL, and the failure line serializes a cause.
+    throw new Error(
+      `boot: the database at DATABASE_URL could not be opened (${openFailureKind(err)}). Check the value; it is not printed because it can carry a token.`,
+    );
+  }
+}
+
 // OIDC seeds no owner; AUTH_MODE=local carries the first-boot password when one is configured.
 function bootOwnerSeed(sessionSecret: string | null): BootOwnerSeed | null {
   if (env.AUTH_MODE === "oidc") {
@@ -274,7 +300,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     // Inject the OTel libSQL wrap so every db.execute/batch/transaction opens a child span under the active
     // request-root (the composition-root injection the tracing.ts + createDb headers document).
-    db = await createDb(env.DATABASE_URL, wrapLibSqlClient);
+    db = await openDatabase(env.DATABASE_URL);
     const wiringDb = databaseHandle(db);
     // The cross-owner boot steps alone receive this grant; composition and request paths keep the plain handle (D335).
     const bootDb = bootDatabaseHandle(wiringDb);

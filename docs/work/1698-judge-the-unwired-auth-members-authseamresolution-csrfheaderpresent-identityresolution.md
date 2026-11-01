@@ -23,7 +23,22 @@ Each row below has a verdict with evidence, each live control has a door test th
 
 ## Evidence
 
-The one real gap: `DATABASE_URL` stayed in `process.env` after the boot scrub, so every child started without an explicit env inherited it, and a remote URL can carry a token. `APP_SECRET_ENV_KEYS` now holds it. `tests/server/entry/boot/secret-boot-process.int.test.ts` went red first with `expected [ 'DATABASE_URL' ] to deeply equal []`.
+The first real gap: `DATABASE_URL` stayed in `process.env` after the boot scrub, so every child started without an explicit env inherited it, and a remote URL can carry a token. `APP_SECRET_ENV_KEYS` now holds it. `tests/server/entry/boot/secret-boot-process.int.test.ts` went red first with `expected [ 'DATABASE_URL' ] to deeply equal []`.
+
+Decisions:
+
+- `HOST_SECRET_ENV_KEYS` stays deleted. Its check walked an allowlist that holds none of its members, so it could never fire. The allowlist is the firewall, and the `env-seams` test now guards that allowlist against an app secret and an unpinned Claude key.
+- `DATABASE_URL_FILE` stays, as a documented option in `docker/secrets/README.md`. It comes from `DATABASE_URL` joining `APP_SECRET_ENV_KEYS`, and it lets a remote token stay out of `docker inspect`. It is not an overlay entry, because compose refuses a missing secret file. An empty file means unset.
+
+Security review findings, each red first through the named test:
+
+| Finding | Fix | Evidence |
+| - | - | - |
+| A failed remote open printed the database credential on the boot failure line, through the env and through `DATABASE_URL_FILE`, and a non-URL secret file printed its content | `entry/lifecycle.ts` rethrows a non-file failure with only the error's code or name and no cause. A file URL keeps its message | `secret-boot-process`: six credential cases failed `expected true to be false`, and the file URL control passed |
+| `secretLiterals` skipped `DATABASE_URL` | `SECRET_KEY_RE` holds the key | `bug-report-diagnostics.test.ts`: the census kept the record before the fix |
+| A CRLF or trailing-space URL file booted a new empty database | The file reader strips `[\r\n]+` for every key, and the schema refuses a URL with surrounding whitespace | `secret-file.int.test.ts`: `expected 'file:/srv/orb/crlf.db\r' to be 'file:/srv/orb/crlf.db'`, and the whitespace case did not throw |
+| The allowlist test could not see the Claude namespace, because the builder pins the keys it planted | The test plants the unpinned `CLAUDE_CODE_USE_BEDROCK` | Red with that key added to `SUPPORTED_HOST_ENV_KEYS` |
+| The refusal test proved only exit 1 | A control boot over a valid keyfile must reach listening | Red with a mutation that refuses every cookie boot |
 
 | Row | Verdict | Evidence |
 | - | - | - |

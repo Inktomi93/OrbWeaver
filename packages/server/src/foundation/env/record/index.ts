@@ -23,7 +23,7 @@ import type { Handle } from "@orb/kit/ids";
 import { SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
 import { z } from "zod";
 import type { DataLayout } from "#foundation/data-layout";
-import { DEFAULT_DATA_DIR, resolveDataLayout } from "#foundation/data-layout";
+import { DATABASE_URL_KEY, DEFAULT_DATA_DIR, resolveDataLayout } from "#foundation/data-layout";
 import { NODE_ENVIRONMENTS } from "#primitives/node-environment";
 import { allowedHostsEntryRefusal, machineHostnameFor } from "../allowed-hosts.ts";
 import { resolveBindPosture } from "../bind.ts";
@@ -256,8 +256,14 @@ const envObjectSchema = z.object({
   // ever live under it — so "copy DATA_DIR except cache/" is the whole backup rule. cwd-relative by default
   // (a prod launch runs at the repo root — buildProdSpawnPlan sets cwd); the container exports /app/data.
   DATA_DIR: z.string().min(1).default(DEFAULT_DATA_DIR),
-  // The db, under `<DATA_DIR>/db/` unless set. An explicit value is left where it is by the layout migration.
-  DATABASE_URL: z.string().min(1).optional(),
+  // The db, under `<DATA_DIR>/db/` unless set. An explicit value is left where it is by the layout migration. Stray
+  // whitespace is refused because libSQL opens a new empty database under the padded name, and the refusal never
+  // echoes the value, which can carry a token.
+  DATABASE_URL: z
+    .string()
+    .min(1)
+    .refine((url) => url === url.trim(), "DATABASE_URL has leading or trailing whitespace. Remove it.")
+    .optional(),
   // Legacy root entries (`import-reports`, `variants`, ...) the layout migration leaves where they are,
   // comma-separated: the way out when a target cannot take an entry no slot key keeps (a mount point at
   // `reports/`). The refusal that needs it names the entry and this key.
@@ -714,7 +720,7 @@ export function parseEnv({ source, envFileKeys, host, readFile }: EnvParseInput)
     }
     let value: string;
     try {
-      value = readFile(file).replace(/\n+$/u, "");
+      value = readFile(file).replace(/[\r\n]+$/u, "");
     } catch (err) {
       throw new EnvRefusedError(
         new z.ZodError([{ code: "custom", path: [fileKey], message: "The named secret file is unreadable; check its path and permissions." }]),
@@ -749,7 +755,7 @@ export const APP_SECRET_ENV_KEYS = [
   DEBUG_TOKEN_ENV,
   LOCAL_INITIAL_PASSWORD_ENV,
   // A remote database URL can carry a token.
-  "DATABASE_URL",
+  DATABASE_URL_KEY,
 ] as const satisfies readonly EnvKey[];
 
 /** The three stamps the persona auto-create policy reads. */

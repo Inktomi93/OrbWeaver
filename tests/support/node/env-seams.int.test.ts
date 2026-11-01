@@ -125,7 +125,18 @@ test("the developer's shell variables do not reach the agent child: its env is t
 test("every app secret and every ambient runtime or Claude variable planted in the host env stays out of the agent child", async () => {
   const planted = "planted-host-value-0123456789abcdef";
   const controlHome = "/planted-control-home";
-  const refused = [...APP_SECRET_ENV_KEYS, "ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "CLAUDE_CONFIG_DIR", "MAX_THINKING_TOKENS", "NODE_OPTIONS", "LD_PRELOAD"];
+  // The builder pins several Claude keys after the baseline, so only an unpinned one can catch the namespace joining it.
+  const unpinnedClaudeKey = "CLAUDE_CODE_USE_BEDROCK";
+  const refused = [
+    ...APP_SECRET_ENV_KEYS,
+    unpinnedClaudeKey,
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_BASE_URL",
+    "CLAUDE_CONFIG_DIR",
+    "MAX_THINKING_TOKENS",
+    "NODE_OPTIONS",
+    "LD_PRELOAD",
+  ];
   const [env, ...others] = await agentChildEnvs({ ...Object.fromEntries(refused.map((key) => [key, planted])), ["HOME"]: controlHome });
   expect(others).toEqual([]);
   expect(env?.["HOME"]).toBe(controlHome);
