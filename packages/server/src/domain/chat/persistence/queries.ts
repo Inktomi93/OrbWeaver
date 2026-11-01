@@ -638,16 +638,15 @@ export async function loadMaxMessageSeq(db: Db, chatId: ChatId): Promise<number>
   return rows.at(0)?.maxSeq ?? 0;
 }
 
-/** The text of the latest user-role message's selected variant, or `null` (no user line yet). The rpg
- *  `skill_check` re-reads this server-side to feed the player's queued d20 (D58) — the pending
- *  user text the AI GM turn is responding to. `role='user'` scopes it to human sends (never a narrator/assistant
- *  line); newest by `seq`. */
+/** The text of the latest user-role message's selected variant, or `null` (no user line yet). `role='user'`
+ *  scopes it to human sends (never a narrator/assistant line); newest by `seq`. A hidden message is off the wire,
+ *  so it is not "the latest" for a reader asking what the model sees. */
 export async function loadPendingUserText(db: Db, chatId: ChatId): Promise<string | null> {
   const rows = await db
     .select({ text: messageVariants.content })
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
-    .where(and(eq(messages.chatId, chatId), eq(messages.role, "user")))
+    .where(and(eq(messages.chatId, chatId), eq(messages.role, "user"), eq(messages.excludedFromPrompt, false)))
     .orderBy(desc(messages.seq))
     .limit(LIMIT_ONE);
   return rows.at(0)?.text ?? null;
@@ -661,7 +660,7 @@ export async function loadIsReplyToLatestUserMessage(db: Db, chatId: ChatId, tar
   const userRows = await db
     .select({ seq: max(messages.seq) })
     .from(messages)
-    .where(and(eq(messages.chatId, chatId), eq(messages.role, "user")));
+    .where(and(eq(messages.chatId, chatId), eq(messages.role, "user"), eq(messages.excludedFromPrompt, false)));
   const latestUserSeq = userRows.at(0)?.seq ?? null;
   if (latestUserSeq === null) {
     return false;
@@ -669,7 +668,7 @@ export async function loadIsReplyToLatestUserMessage(db: Db, chatId: ChatId, tar
   const firstAfterRows = await db
     .select({ seq: min(messages.seq) })
     .from(messages)
-    .where(and(eq(messages.chatId, chatId), gt(messages.seq, latestUserSeq)));
+    .where(and(eq(messages.chatId, chatId), gt(messages.seq, latestUserSeq), eq(messages.excludedFromPrompt, false)));
   const firstAfterSeq = firstAfterRows.at(0)?.seq ?? null;
   if (firstAfterSeq === null) {
     return false;

@@ -19,7 +19,7 @@ export interface RpgTurnRefProps {
   readonly messageId: MessageId;
   /** The origin message's wall time (epoch ms). When the row carries it the chip shows the transcript's short stamp; a row with
    *  only a message id (the veiled ledger's lie) keeps the id-tail token. */
-  readonly createdAt?: number;
+  readonly createdAt?: number | undefined;
 }
 
 /** The short display form: the trailing id chars as a `t<chars>` token (a stable, compact anchor). */

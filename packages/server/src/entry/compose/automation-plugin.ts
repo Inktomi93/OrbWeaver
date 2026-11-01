@@ -24,7 +24,7 @@ import {
   createSuggestionStore,
 } from "#domain/automation";
 import { findPluginCardData, readPluginCardData, writePluginCardData } from "#domain/character";
-import { createPluginChatAuthority, requireWiredHost } from "#domain/chat";
+import { createPluginChatAuthority, emitPictureWarnings, requireWiredHost } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import type { DatabankService } from "#domain/databank";
 import type { ImageryService } from "#domain/imagery";
@@ -194,6 +194,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     requestTurn: (params) => chatCompose.requestTurn(params),
     postNarratorMessage: (chatId, content, media, options) => chatCompose.rpgChatOps.postNarratorMessage(chatId, content, media, options),
     imagery,
+    emitPictureWarnings: (chatId, warnings) => emitPictureWarnings(chatCompose.emitBusEvent, chatId, warnings),
     settings,
     toolUse: deps.toolUse,
     roleClientsFor,

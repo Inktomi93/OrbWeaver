@@ -37,7 +37,7 @@ export async function runGoogleGenerateImage(req: ImageGenerateRequest, deps: Go
     throw new ProviderError({ kind: "invalid", retryable: false, message: "Google image editing does not support masks" });
   }
   if (req.n !== undefined && req.n !== 1) {
-    warnings.push({ code: "sdk_unsupported_setting", message: "Google generates one image response per request; n was ignored" });
+    warnings.push({ code: "image_count_dropped", message: `${connection.model} generates one image response per request; n was ignored` });
   }
   const imagesIn = imageSources(req, warnings);
   const normalize = deps.imageToPng === undefined ? passthroughImageNormalizer : createImageNormalizer(deps.imageToPng);

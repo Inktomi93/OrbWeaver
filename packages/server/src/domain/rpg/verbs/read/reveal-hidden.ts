@@ -7,8 +7,8 @@
 // SERVER-STRIPPED from a member's message payload (`domain/chat` member-visibility) — a member never receives
 // the truth bytes. The reveal is a SEPARATE host-gated read so the truth is served ONLY to the host, never
 // bundled into the payload every member gets. HOST-gated here via `resolveHost` (the participant host check every
-// shared-plane rpg verb uses): a member gets the SAME leak-free NOT_FOUND a no-game chat gives (the cross-tenant
-// belt — a non-host must not even learn the game has hidden content). The bodies read is chat-scoped by the
+// shared-plane rpg verb uses): a non-member gets the SAME leak-free NOT_FOUND a no-game chat gives (the cross-tenant
+// belt), and a joined member gets FORBIDDEN, which names no hidden content. The bodies read is chat-scoped by the
 // `messages.chatId` join (D108 carve #1 — a foreign message is unreachable).
 //
 // M4 (`config.features.hiddenContentReveal`, default true): when the host turned the reveal OFF, they run PURE
@@ -28,7 +28,7 @@ const EMPTY_REVEAL: RpgRevealView = { messages: [], standingLies: [] };
 
 export function createRevealHidden(ctx: RpgContext): Pick<RpgService, "revealHidden"> {
   async function revealHidden(params: ReadGameParams): Promise<RpgRevealView> {
-    // HOST gate (leak-free): a non-host/non-member gets NOT_FOUND — they never learn the game has hidden content.
+    // HOST gate: a non-member gets the leak-free NOT_FOUND, a joined non-host member gets FORBIDDEN.
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
     // M4: the host may run PURE hidden (no reveal eye even for themselves). Withhold the parsed content — the
     // wire still carries it (the model remembers), the member strip still removes it; only the host's peek is off.

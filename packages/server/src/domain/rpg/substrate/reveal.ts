@@ -91,7 +91,7 @@ export function buildRevealView(bodies: readonly RevealBodyRow[]): RpgRevealView
   for (const body of bodies) {
     const spans = revealBodySpans(body.content);
     if (spans.length > 0) {
-      messages.push({ messageId: body.messageId, spans });
+      messages.push({ messageId: body.messageId, createdAt: body.createdAt, spans });
     }
   }
   return { messages, standingLies: buildStandingLies(messages) };

@@ -91,6 +91,19 @@ const SHELL_FLIP_ANIMATIONS: ReadonlySet<string> = new Set([
   "shell-context-panel-flip",
 ]);
 
+// The topbar trail is pinned to `.shell-main`'s end edge, and its width follows the content column (a container
+// query drops a count chip) while the row re-measures a frame later. Its start edge must stay continuous across
+// that step, so the counter takes the trail's width at the stamp from the row's inline claim (a style read, never
+// a layout read) and motion.css adds the difference to the live width.
+const TRAIL_WAS = "--shell-trail-was";
+
+function holdTrailWidth(grid: HTMLDivElement): void {
+  const claim = grid.querySelector<HTMLElement>(".shell-topbar-trail")?.style.flexBasis;
+  if (claim !== undefined && claim !== "") {
+    grid.style.setProperty(TRAIL_WAS, claim);
+  }
+}
+
 /** Only a DOCKED panel occupies a grid track — `overlay` and `collapsed` both leave it at 0, so flipping
  *  between those two moves no content and must not animate. */
 function occupiesTrack(mode: PanelMode): boolean {
@@ -107,6 +120,7 @@ function occupiesTrack(mode: PanelMode): boolean {
  *  translate before it was ever painted, which is byte-identical to not settling at all. The second hop
  *  lands in the following frame's rendering steps, so exactly one painted frame carries the hold. */
 function settleWithoutMotion(grid: HTMLDivElement, direction: Partial<Record<PanelName, "in" | "out">>): () => void {
+  holdTrailWidth(grid);
   eachTrack((track) => {
     const value = direction[track];
     if (value !== undefined) {
@@ -116,6 +130,7 @@ function settleWithoutMotion(grid: HTMLDivElement, direction: Partial<Record<Pan
   let inner = 0;
   const clear = (): void => {
     eachTrack((track) => grid.removeAttribute(TRACK_ATTRS[track].settle));
+    grid.style.removeProperty(TRAIL_WAS);
   };
   const outer = requestAnimationFrame(() => {
     inner = requestAnimationFrame(clear);
@@ -142,6 +157,7 @@ function settleWithoutMotion(grid: HTMLDivElement, direction: Partial<Record<Pan
  *  observed elsewhere (`use-command-shortcut.ts`'s own pending-frame CT counts every request in the
  *  document), so a frame hop here would be a shell-wide side effect for a phone-only tidy-up. */
 function flipWithMotion(grid: HTMLDivElement, direction: Partial<Record<PanelName, "in" | "out">>): () => void {
+  holdTrailWidth(grid);
   eachTrack((track) => {
     const value = direction[track];
     if (value !== undefined) {
@@ -152,6 +168,7 @@ function flipWithMotion(grid: HTMLDivElement, direction: Partial<Record<PanelNam
   function release(): void {
     hold?.();
     eachTrack((track) => grid.removeAttribute(TRACK_ATTRS[track].flip));
+    grid.style.removeProperty(TRAIL_WAS);
   }
   if (hold === null) {
     release();

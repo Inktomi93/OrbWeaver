@@ -32,6 +32,9 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
         actor: { kind: "automation-rule", ruleId },
         ...(chatId === null ? {} : { chatId }),
       });
+      if (chatId !== null) {
+        await deps.emitPictureWarnings(chatId, picture.warnings);
+      }
       // ONE /imagine path: the DEFAULT (`quiet:false`) surfaces the image IN-CHAT — otherwise a
       // `generate_image` rule's output is only ever reachable via the gallery. Post through chat's EXISTING
       // server-side image-post seam (`postNarratorMessage`), never a second posting path. `quiet:true` stays

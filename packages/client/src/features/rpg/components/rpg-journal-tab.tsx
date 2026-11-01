@@ -10,7 +10,7 @@
 // ARTIFACTS), and immersive cards ARCHIVE INTO THE DAY THEY WERE BORN ("Journal": the shared
 // `collectArchivedCards` projection over the same `chat.listMessages` cache the Scene birth-home reads).
 //
-// MARKS (checkpoints' designed home): a mark row = label · created date · the host-only Restore
+// MARKS (checkpoints' designed home): a mark row = label · created date · trigger · the host-only Restore
 // (clone-forward `restoreCheckpoint`, behind a ConfirmDialog naming the consequence) + the host "New mark"
 // primary. Members see the list (the verb is member-read), no restore — PERMISSION-omit, never a disabled
 // control.
@@ -48,7 +48,7 @@ import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useAddJournalEntry, useCreateCheckpoint, useDeleteJournalEntry, useEditJournalEntry, useRestoreCheckpoint } from "../hooks/use-rpg-mutations.ts";
 import type { ArchivedCard } from "../lib/archived-cards.ts";
 import { collectArchivedCards } from "../lib/archived-cards.ts";
-import { JOURNAL_TYPE_LABELS } from "../lib/journal-labels.ts";
+import { CHECKPOINT_TRIGGER_LABELS, JOURNAL_TYPE_LABELS } from "../lib/journal-labels.ts";
 import type { BeatEdit } from "./rpg-beat-row.tsx";
 import { BeatRow } from "./rpg-beat-row.tsx";
 import { RpgCardRow } from "./rpg-card-row.tsx";
@@ -252,9 +252,16 @@ function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElemen
                   <Text as="span" voice="label" className="truncate">
                     {mark.label}
                   </Text>
-                  <Text as="span" voice="gloss">
-                    {timeLib.formatDate(mark.createdAt)}
-                  </Text>
+                  <Row gap="field" align="baseline">
+                    <Text as="span" voice="gloss">
+                      {timeLib.formatDate(mark.createdAt)}
+                    </Text>
+                    {CHECKPOINT_TRIGGER_LABELS[mark.trigger] === null ? null : (
+                      <Text as="span" voice="gloss" data-slot="rpg-mark-trigger">
+                        {CHECKPOINT_TRIGGER_LABELS[mark.trigger]}
+                      </Text>
+                    )}
+                  </Row>
                 </Stack>
                 {state.isHost ? (
                   <ConfirmDialog

@@ -25,18 +25,29 @@ export interface PortraitFixture {
   readonly root: ServerTestHarness;
   readonly character: Awaited<ReturnType<ServerTestHarness["services"]["character"]["create"]>>;
   readonly physical: ReturnType<typeof createCorpusProviderExecution>;
+  readonly images: Uint8Array[];
+  readonly imageRequests: readonly Request[];
 }
 
 export const portraitTest = test.extend<{ portrait: PortraitFixture }>({
   portrait: async ({}, use) => {
+    const images = [makeAssetBytes(createSeededIds().typeId(ID_PREFIX.asset))];
     const physical = createCorpusProviderExecution({
       modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL, PORTRAIT_MODEL],
       embedding: CORPUS_EMBEDDING_VECTOR,
       chatText: "An illustrated keeper stands beside the orbital loom.",
       structuredReplies: CORPUS_STRUCTURED_REPLIES,
-      images: [makeAssetBytes(createSeededIds().typeId(ID_PREFIX.asset))],
+      images,
     });
-    await using root = await createServerHarness({ providerFetch: physical.execute });
+    const imageRequests: Request[] = [];
+    const providerFetch: typeof fetch = async (input, init) => {
+      const request = new Request(input, init);
+      if (new URL(request.url).pathname.endsWith("/images/generations")) {
+        imageRequests.push(request.clone());
+      }
+      return await physical.execute(request);
+    };
+    await using root = await createServerHarness({ providerFetch });
     const principal = await root.principalFor(root.ownerId);
     await seedCorpusConnections(root, principal);
     const connection = await root.services.connection.create({
@@ -64,7 +75,7 @@ export const portraitTest = test.extend<{ portrait: PortraitFixture }>({
       input: createCharacterSchema.parse({ handle: "living-library", name: "Mira", description: "Keeper of the orbital loom.", avatarAssetId: avatar.assetId }),
     });
     await root.settleBackground();
-    await use({ root, character, physical });
+    await use({ root, character, physical, images, imageRequests });
   },
 });
 
