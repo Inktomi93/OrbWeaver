@@ -1,6 +1,6 @@
 // @subject packages/contracts/src/workloads/result.ts
 // @subject packages/contracts/src/chat/metadata.ts
-import { DEFAULT_GROUP_CONFIG, groupConfigSchema, storedGroupConfigSchema } from "@orb/contracts/chat";
+import { groupConfigSchema, storedGroupConfigSchema } from "@orb/contracts/chat";
 import { workloadResultSchemaOf } from "@orb/contracts/workloads";
 import { expect, test } from "@orb/testkit/node";
 
@@ -29,9 +29,7 @@ test("a bundle import result stored before imports carried a scope reads as havi
 });
 
 test("a stored group config carrying the retired groupCharacterId keeps its mode, while the write door still refuses the key", () => {
-  const narrator = { ...DEFAULT_GROUP_CONFIG, output: "narrator", policy: "natural" } as const;
-  const { cardScope: _cardScope, ...narratorStored } = narrator;
-  const withRetired = { ...narratorStored, groupCharacterId: "character_retired" };
+  const withRetired = { output: "narrator", policy: "natural", groupCharacterId: "character_retired" };
   const read = storedGroupConfigSchema.parse(withRetired);
   expect(read.output).toBe("narrator");
   expect(read).not.toHaveProperty("groupCharacterId");
